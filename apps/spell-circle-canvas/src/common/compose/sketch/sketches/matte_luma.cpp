@@ -32,12 +32,10 @@
 // constant; a gate's `fraction` / `Spans` can be bound, and each mask
 // carries its own animation slot, but a still comparison wants none.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Material.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/Material.h>
+#include <sigilsketch/Sketch.h>
 
 #include <array>
 
@@ -47,12 +45,12 @@ using namespace sigil::compose::util;
 namespace {
 
 constexpr float kPanel = 208.0f;
-constexpr float kSplit = 0.5f; // matte: greys left of here, alpha right
+constexpr float kSplit = 0.5f;  // matte: greys left of here, alpha right
 
 // (colour, its Rec. 601 grey twin). 0.299 R' + 0.587 G' + 0.114 B'.
 struct Band {
   SkColor4f color;
-  const char *label;
+  const char* label;
 };
 const std::array<Band, 8> kBands{{
     {{1, 0, 0, 1}, "R"},
@@ -78,10 +76,10 @@ const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The "is it there?" backdrop. Anything hidden by a gate shows this. */
-const sk_sp<SkImage> &checker() {
+const sk_sp<SkImage>& checker() {
   static const sk_sp<SkImage> img = [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(16, 16));
-    SkCanvas *c = s->getCanvas();
+    SkCanvas* c = s->getCanvas();
     c->clear(SkColorSetARGB(255, 26, 28, 36));
     SkPaint p;
     p.setColor(SkColorSetARGB(255, 40, 44, 56));
@@ -95,16 +93,16 @@ const sk_sp<SkImage> &checker() {
 /** THE MATTE, baked at panel size so its local matrix is the identity.
  *  Left of kSplit: OPAQUE greys (alpha 1, luma ramps). Right: white whose
  *  ALPHA ramps — premultiplied, so its luma ramps identically. */
-const sk_sp<SkImage> &matte() {
+const sk_sp<SkImage>& matte() {
   static const sk_sp<SkImage> img = [] {
     const int n = (int)kPanel;
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(n, n));
-    SkCanvas *c = s->getCanvas();
+    SkCanvas* c = s->getCanvas();
     c->clear(SK_ColorTRANSPARENT);
     const float mid = kPanel * kSplit;
     SkPaint p;
     for (int y = 0; y < n; ++y) {
-      const float f = (float)y / (float)(n - 1); // 0 at top, 1 at bottom
+      const float f = (float)y / (float)(n - 1);  // 0 at top, 1 at bottom
       p.setColor4f({1 - f, 1 - f, 1 - f, 1}, nullptr);
       c->drawRect(SkRect::MakeXYWH(0, (float)y, mid, 1), p);
       p.setColor4f({1, 1, 1, 1 - f}, nullptr);
@@ -116,12 +114,12 @@ const sk_sp<SkImage> &matte() {
 }
 
 /** The band strip, also baked at panel size. */
-const sk_sp<SkImage> &bandStrip() {
+const sk_sp<SkImage>& bandStrip() {
   static const sk_sp<SkImage> img = [] {
     const int w = (int)(kPanel * 4);
     const int h = 64;
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-    SkCanvas *c = s->getCanvas();
+    SkCanvas* c = s->getCanvas();
     c->clear(SK_ColorTRANSPARENT);
     SkPaint p;
     const float bw = (float)w / (float)kBands.size();
@@ -134,7 +132,7 @@ const sk_sp<SkImage> &bandStrip() {
   return img;
 }
 
-Material atPanelSize(const sk_sp<SkImage> &image, float w, float h) {
+Material atPanelSize(const sk_sp<SkImage>& image, float w, float h) {
   return Material::image(
       image, SkTileMode::kClamp, SkTileMode::kClamp,
       SkMatrix::Scale(w / (float)image->width(), h / (float)image->height()));
@@ -161,15 +159,15 @@ Element cell(float w, float h, Element inner) {
       .width(w)
       .height(h)
       .stroke(stroke(1.0f, Fill::color(kFrame)))
-      .child(box().inset(0).fill(Material::image(
-          checker(), SkTileMode::kRepeat, SkTileMode::kRepeat)))
+      .child(box().inset(0).fill(
+          Material::image(checker(), SkTileMode::kRepeat, SkTileMode::kRepeat)))
       .child(std::move(inner));
 }
 
 /** Which band is which, in the same order the strip bakes them. */
 Element bandLabels(float stripW) {
   Element row = box().row().width(stripW);
-  for (const Band &band : kBands)
+  for (const Band& band : kBands)
     row.child(box()
                   .width(stripW / (float)kBands.size())
                   .justify(Justify::Center)
@@ -177,7 +175,7 @@ Element bandLabels(float stripW) {
   return row;
 }
 
-Element captioned(const char *title, const char *note, Element body) {
+Element captioned(const char* title, const char* note, Element body) {
   return box()
       .column()
       .gap(5)
@@ -186,10 +184,10 @@ Element captioned(const char *title, const char *note, Element body) {
       .child(text(toU8(note), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct MatteLuma : sigil::compose::sketch::Sketch {
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1180, 620);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
@@ -223,8 +221,7 @@ struct MatteLuma : sigil::compose::sketch::Sketch {
                        .gap(12)
                        .child(captioned(
                            "the coverage material", "greys | white in alpha",
-                           cell(kPanel, kPanel,
-                                box().inset(0).fill(coverage))))
+                           cell(kPanel, kPanel, box().inset(0).fill(coverage))))
                        .child(captioned("by::alpha", "keeps what it COVERS",
                                         gated(by::alpha(coverage))))
                        .child(captioned("by::alphaOut", "…and the complement",

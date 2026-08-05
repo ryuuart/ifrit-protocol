@@ -1,9 +1,10 @@
 #pragma once
+#include <QObject>
+#include <QtQml/QtQml>
+
 #include "GraphicsConfig.h"
 #include "NetworkManager.h"
 #include "SpellCircleModel.h"
-#include <QObject>
-#include <QtQml/QtQml>
 
 /** QML tooling registration for the application-owned scene model. */
 struct SpellCircleModelQmlType {
@@ -49,24 +50,24 @@ class Models : public QObject {
   QML_NAMED_ELEMENT(Models)
   QML_SINGLETON
 
-  Q_PROPERTY(SpellCircleModel *spellCircleModel READ spellCircleModel CONSTANT)
-  Q_PROPERTY(GraphicsConfig *graphicsConfig READ graphicsConfig CONSTANT)
-  Q_PROPERTY(NetworkManager *networkManager READ networkManager CONSTANT)
-public:
+  Q_PROPERTY(SpellCircleModel* spellCircleModel READ spellCircleModel CONSTANT)
+  Q_PROPERTY(GraphicsConfig* graphicsConfig READ graphicsConfig CONSTANT)
+  Q_PROPERTY(NetworkManager* networkManager READ networkManager CONSTANT)
+ public:
   /** Constructs and wires the model, graphics configuration, and receiver. */
-  explicit Models(QObject *parent = nullptr);
+  explicit Models(QObject* parent = nullptr);
 
   /** Returns the singleton SpellCircleModel instance. */
-  SpellCircleModel *spellCircleModel() const { return m_spellCircleModel; }
+  SpellCircleModel* spellCircleModel() const { return m_spellCircleModel; }
 
   /** Returns the singleton GraphicsConfig instance. */
-  GraphicsConfig *graphicsConfig() const { return m_graphicsConfig; }
+  GraphicsConfig* graphicsConfig() const { return m_graphicsConfig; }
 
   /** Returns the singleton NetworkManager instance. */
-  NetworkManager *networkManager() const { return m_networkManager; }
+  NetworkManager* networkManager() const { return m_networkManager; }
 
-private:
-  SpellCircleModel *m_spellCircleModel;
-  GraphicsConfig *m_graphicsConfig;
-  NetworkManager *m_networkManager;
+ private:
+  SpellCircleModel* m_spellCircleModel;
+  GraphicsConfig* m_graphicsConfig;
+  NetworkManager* m_networkManager;
 };

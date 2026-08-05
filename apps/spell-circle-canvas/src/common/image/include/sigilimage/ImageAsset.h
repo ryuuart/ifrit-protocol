@@ -6,7 +6,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <vector>
 
 class SkData;
 
@@ -17,11 +16,11 @@ struct ImageProbe {
   int width = 0;
   int height = 0;
   int channels = 4;
-  int frames = 1;             // >1 for animations
-  bool floatingPoint = false; // HDR/float source (EXR, float TIFF…)
-  std::string format;         // "png", "openexr", "psd", …
-  std::vector<std::string> layers;       // EXR subimages/layer prefixes
-  std::vector<std::string> channelNames; // EXR channel names
+  int frames = 1;                         // >1 for animations
+  bool floatingPoint = false;             // HDR/float source (EXR, float TIFF…)
+  std::string format;                     // "png", "openexr", "psd", …
+  std::vector<std::string> layers;        // EXR subimages/layer prefixes
+  std::vector<std::string> channelNames;  // EXR channel names
 };
 
 /** One decoded frame: a premultiplied, immutable, raster-backed SkImage
@@ -47,13 +46,13 @@ struct Frame {
  * draw per frame). Not for streaming video-sized content.
  */
 class ImageAsset {
-public:
+ public:
   /** Decodes an encoded image from memory; nullopt when the bytes are not
    *  one of the supported formats or are corrupt. */
   static std::optional<ImageAsset> decode(sk_sp<SkData> encoded);
 
   /** Reads and decodes a file; nullopt on I/O or decode failure. */
-  static std::optional<ImageAsset> load(const std::string &path);
+  static std::optional<ImageAsset> load(const std::string& path);
 
   /** Sniffs encoded bytes: dimensions, frame count, format name;
    *  nullopt when the bytes are not a supported format. */
@@ -69,7 +68,7 @@ public:
   int height() const { return m_height; }
 
   bool animated() const { return m_frames.size() > 1; }
-  const std::vector<Frame> &frames() const { return m_frames; }
+  const std::vector<Frame>& frames() const { return m_frames; }
 
   /** Sum of all frame durations; 0 for still images. */
   float totalDurationMs() const { return m_totalDurationMs; }
@@ -84,9 +83,9 @@ public:
    * according to repetitionCount() — a finished finite animation holds its
    * last frame. Still images always return the one frame.
    */
-  const Frame &frameAt(double milliseconds) const;
+  const Frame& frameAt(double milliseconds) const;
 
-private:
+ private:
   ImageAsset() = default;
 
   std::vector<Frame> m_frames;
@@ -96,4 +95,4 @@ private:
   int m_repetitionCount = kInfinite;
 };
 
-} // namespace sigil::image
+}  // namespace sigil::image

@@ -1,15 +1,8 @@
 #pragma once
 // Internal plumbing shared by WebEngine.cpp / WebView.cpp — not installed.
 
-#include "sigilscry/WebEngine.h"
-#include "sigilscry/WebImage.h"
-#include "sigilscry/WebView.h"
-
 #include <Ultralight/AppCore/Platform.h>
 #include <Ultralight/Ultralight.h>
-
-#include "WebGpuDriver.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 
@@ -21,10 +14,15 @@
 #include <thread>
 #include <vector>
 
+#include "WebGpuDriver.h"
+#include "sigilscry/WebEngine.h"
+#include "sigilscry/WebImage.h"
+#include "sigilscry/WebView.h"
+
 namespace sigil::scry {
 
-inline std::string toUtf8(const ultralight::String &str) {
-  const ultralight::String8 &utf8 = str.utf8();
+inline std::string toUtf8(const ultralight::String& str) {
+  const ultralight::String8& utf8 = str.utf8();
   return std::string(utf8.data(), utf8.length());
 }
 
@@ -40,7 +38,7 @@ std::string executableAdjacentResourceDir();
  * Ultralight writes and what the scene pipeline draws.
  */
 class SkiaSurface final : public ultralight::Surface {
-public:
+ public:
   SkiaSurface(uint32_t width, uint32_t height) { Resize(width, height); }
 
   uint32_t width() const override { return m_bitmap.width(); }
@@ -50,23 +48,23 @@ public:
   }
   size_t size() const override { return m_bitmap.computeByteSize(); }
 
-  void *LockPixels() override { return m_bitmap.getPixels(); }
+  void* LockPixels() override { return m_bitmap.getPixels(); }
   void UnlockPixels() override {}
 
   void Resize(uint32_t width, uint32_t height) override;
 
-  const SkBitmap &bitmap() const { return m_bitmap; }
+  const SkBitmap& bitmap() const { return m_bitmap; }
 
-private:
+ private:
   SkBitmap m_bitmap;
 };
 
 class SkiaSurfaceFactory final : public ultralight::SurfaceFactory {
-public:
-  ultralight::Surface *CreateSurface(uint32_t width, uint32_t height) override {
+ public:
+  ultralight::Surface* CreateSurface(uint32_t width, uint32_t height) override {
     return new SkiaSurface(width, height);
   }
-  void DestroySurface(ultralight::Surface *surface) override { delete surface; }
+  void DestroySurface(ultralight::Surface* surface) override { delete surface; }
 };
 
 /**
@@ -78,43 +76,44 @@ public:
 class CallbackLogger;
 
 class PrefixFileSystem final : public ultralight::FileSystem {
-public:
+ public:
   PrefixFileSystem(std::string resourceDir, std::string baseDir,
-                   CallbackLogger *logger)
-      : m_resourceDir(std::move(resourceDir)), m_baseDir(std::move(baseDir)),
+                   CallbackLogger* logger)
+      : m_resourceDir(std::move(resourceDir)),
+        m_baseDir(std::move(baseDir)),
         m_logger(logger) {}
 
-  bool FileExists(const ultralight::String &path) override;
-  ultralight::String GetFileMimeType(const ultralight::String &path) override;
-  ultralight::String GetFileCharset(const ultralight::String &path) override;
-  ultralight::RefPtr<ultralight::Buffer>
-  OpenFile(const ultralight::String &path) override;
+  bool FileExists(const ultralight::String& path) override;
+  ultralight::String GetFileMimeType(const ultralight::String& path) override;
+  ultralight::String GetFileCharset(const ultralight::String& path) override;
+  ultralight::RefPtr<ultralight::Buffer> OpenFile(
+      const ultralight::String& path) override;
 
-private:
-  std::string resolve(const ultralight::String &path) const;
+ private:
+  std::string resolve(const ultralight::String& path) const;
 
   std::string m_resourceDir;
   std::string m_baseDir;
-  CallbackLogger *m_logger;
+  CallbackLogger* m_logger;
 };
 
 class CallbackLogger final : public ultralight::Logger {
-public:
+ public:
   explicit CallbackLogger(
-      std::function<void(LogLevel, const std::string &)> callback)
+      std::function<void(LogLevel, const std::string&)> callback)
       : m_callback(std::move(callback)) {}
 
   void LogMessage(ultralight::LogLevel level,
-                  const ultralight::String &message) override;
+                  const ultralight::String& message) override;
 
-  void log(LogLevel level, const std::string &message);
+  void log(LogLevel level, const std::string& message);
 
-private:
-  std::function<void(LogLevel, const std::string &)> m_callback;
+ private:
+  std::function<void(LogLevel, const std::string&)> m_callback;
 };
 
 class WebEngine::Impl {
-public:
+ public:
   WebEngineConfig config;
 
   /** Spawns the web thread (threaded) or boots inline (unthreaded);
@@ -132,19 +131,19 @@ public:
   void postAndWait(std::function<void()> task);
 
   /** Web thread only. */
-  ultralight::Renderer &ulRenderer() { return *m_renderer; }
+  ultralight::Renderer& ulRenderer() { return *m_renderer; }
   void registerView(std::weak_ptr<WebView::Impl> view);
   bool renderOnce();
   void pump() { m_renderer->Update(); }
 
-  CallbackLogger *logger() { return m_logger.get(); }
+  CallbackLogger* logger() { return m_logger.get(); }
 
-  WebGpuDriver *gpuDriver() { return m_gpuDriver.get(); }
+  WebGpuDriver* gpuDriver() { return m_gpuDriver.get(); }
   bool gpuEnabled() const { return m_gpuDriver != nullptr; }
 
-private:
+ private:
   bool setupPlatform();
-  void threadMain(std::promise<bool> &ready);
+  void threadMain(std::promise<bool>& ready);
 
   std::thread m_thread;
   std::thread::id m_webThreadId;
@@ -154,8 +153,8 @@ private:
   std::deque<std::function<void()>> m_tasks;
   bool m_running = true;
 
-  ultralight::RefPtr<ultralight::Renderer> m_renderer; // web thread only
-  std::vector<std::weak_ptr<WebView::Impl>> m_views;   // web thread only
+  ultralight::RefPtr<ultralight::Renderer> m_renderer;  // web thread only
+  std::vector<std::weak_ptr<WebView::Impl>> m_views;    // web thread only
 
   std::unique_ptr<PrefixFileSystem> m_fileSystem;
   std::unique_ptr<CallbackLogger> m_logger;
@@ -164,28 +163,28 @@ private:
 };
 
 class WebImage::Impl {
-public:
-  WebEngine::Impl *engine = nullptr;
+ public:
+  WebEngine::Impl* engine = nullptr;
   std::string name;
   int width = 0;
   int height = 0;
 
   // Web-thread-only Ultralight state.
   ultralight::RefPtr<ultralight::ImageSource> source;
-  ultralight::RefPtr<ultralight::Bitmap> bitmap; // CPU engines
+  ultralight::RefPtr<ultralight::Bitmap> bitmap;  // CPU engines
 
   // GPU engines: immutable after creation, readable from any thread.
-  void *gpuTexture = nullptr; // retained id<MTLTexture>
+  void* gpuTexture = nullptr;  // retained id<MTLTexture>
   uint32_t gpuTextureId = 0;
 };
 
 class WebView::Impl final : public ultralight::LoadListener,
                             public ultralight::ViewListener {
-public:
+ public:
   ~Impl() override = default;
 
-  WebEngine::Impl *engine = nullptr;
-  ultralight::RefPtr<ultralight::View> view; // web thread only
+  WebEngine::Impl* engine = nullptr;
+  ultralight::RefPtr<ultralight::View> view;  // web thread only
   std::atomic<int> width{0};
   std::atomic<int> height{0};
 
@@ -194,8 +193,8 @@ public:
   // and expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
-  void *publishedGpuTexture = nullptr;
-  void *spareGpuTexture = nullptr;
+  void* publishedGpuTexture = nullptr;
+  void* spareGpuTexture = nullptr;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
   SkIRect lastDirtyBounds = SkIRect::MakeEmpty();
@@ -207,14 +206,14 @@ public:
   // the wrap itself happens on the recorder owner's thread.
   mutable sk_sp<SkImage> cachedWrap;
   mutable uint64_t cachedWrapVersion = 0;
-  mutable skgpu::graphite::Recorder *cachedWrapRecorder = nullptr;
+  mutable skgpu::graphite::Recorder* cachedWrapRecorder = nullptr;
 
   // CPU publish buffers, recycled once consumers release the SkImages
   // that reference them (web thread only).
   std::vector<sk_sp<SkData>> publishPool;
 
   // Web-thread-only state (set via posted tasks, invoked on the web thread).
-  std::function<void(const WebView::Frame &)> frameCallback;
+  std::function<void(const WebView::Frame&)> frameCallback;
   std::function<void()> loadCallback;
 
   /** Web thread: snapshots the surface into an immutable SkImage if the
@@ -224,19 +223,21 @@ public:
   /** Web thread: blit-copies the view's render target into the spare
    *  publish texture and swaps it in, when this view's render buffer is
    *  in @p dirtyRenderBuffers. Returns true on publish. */
-  bool publishGpuIfDirty(WebGpuDriver &driver,
-                         const std::unordered_set<uint32_t> &dirtyRenderBuffers);
+  bool publishGpuIfDirty(
+      WebGpuDriver& driver,
+      const std::unordered_set<uint32_t>& dirtyRenderBuffers);
 
   /** Web thread: releases the ping-pong publish textures. */
   void releaseGpuTextures();
 
   // ultralight::LoadListener
-  void OnFinishLoading(ultralight::View *caller, uint64_t frameId,
-                       bool isMainFrame, const ultralight::String &url) override;
+  void OnFinishLoading(ultralight::View* caller, uint64_t frameId,
+                       bool isMainFrame,
+                       const ultralight::String& url) override;
 
   // ultralight::ViewListener
-  void OnAddConsoleMessage(ultralight::View *caller,
-                           const ultralight::ConsoleMessage &message) override;
+  void OnAddConsoleMessage(ultralight::View* caller,
+                           const ultralight::ConsoleMessage& message) override;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

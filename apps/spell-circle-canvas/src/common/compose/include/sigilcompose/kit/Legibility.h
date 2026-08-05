@@ -27,10 +27,6 @@
  * use this where the label MUST cross the artwork.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Studio.h"
-#include "sigilcompose/Util.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPaint.h>
@@ -38,6 +34,10 @@
 
 #include <initializer_list>
 #include <string_view>
+
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Studio.h"
+#include "sigilcompose/Util.h"
 
 namespace sigil::compose::kit {
 
@@ -67,7 +67,7 @@ struct Shade {
  *  original is untouched, so one base style can spawn haloed and plain
  *  variants without a mutable helper. */
 inline sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
-                                      const Halo &halo = {}) {
+                                      const Halo& halo = {}) {
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(halo.colour, nullptr);
@@ -80,7 +80,7 @@ inline sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
 
 /** @p style with a displaced solid copy beneath its glyphs. */
 inline sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
-                                      const Shade &shade = {}) {
+                                      const Shade& shade = {}) {
   sigil::weave::PaintLayer layer;
   layer.paint.setAntiAlias(true);
   layer.paint.setColor4f(shade.colour, nullptr);
@@ -130,11 +130,10 @@ struct Scrim {
  *  inside the text system: a band from ascent to descent drawn beneath
  *  every glyph pass, needing no extra node. It takes no padding, so reach
  *  for this one when the plate has to stand off the type. */
-inline Element scrim(Element run, const Scrim &s = {}) {
-  Element plate = box().padding(s.paddingX, s.paddingY).fill(s.fill).child(
-      std::move(run));
-  if (s.radius > 0)
-    plate.corners({s.radius});
+inline Element scrim(Element run, const Scrim& s = {}) {
+  Element plate =
+      box().padding(s.paddingX, s.paddingY).fill(s.fill).child(std::move(run));
+  if (s.radius > 0) plate.corners({s.radius});
   return plate;
 }
 
@@ -149,26 +148,26 @@ inline Element scrim(Element run, const Scrim &s = {}) {
  *  @p ink is used exactly as configured, so pass a paint you have already
  *  coloured and blended and a caption inside a `kPlus` program keeps its
  *  blend. */
-inline void drawHaloed(SkCanvas &canvas, std::string_view s, SkPoint at,
-                       const SkFont &font, const SkPaint &ink,
-                       const Halo &halo = {}) {
+inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
+                       const SkFont& font, const SkPaint& ink,
+                       const Halo& halo = {}) {
   SkPaint h;
   h.setAntiAlias(true);
   h.setColor4f(halo.colour, nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
   h.setStrokeJoin(halo.join);
-  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX,
-                        at.fY, font, h);
-  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX,
-                        at.fY, font, ink);
+  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
+                        font, h);
+  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
+                        font, ink);
 }
 
 /** The colour spelling, for the common case where the ink is a flat
  *  antialiased fill. */
-inline void drawHaloed(SkCanvas &canvas, std::string_view s, SkPoint at,
-                       const SkFont &font, SkColor4f ink,
-                       const Halo &halo = {}) {
+inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
+                       const SkFont& font, SkColor4f ink,
+                       const Halo& halo = {}) {
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(ink, nullptr);
@@ -190,21 +189,21 @@ struct Line {
  *  than the leading minus the descent has this, which for a tightly-led
  *  note is most of them, and the damage looks like a font bug rather than
  *  an ordering one. */
-inline void drawHaloed(SkCanvas &canvas, std::initializer_list<Line> lines,
-                       const SkFont &font, const SkPaint &ink,
-                       const Halo &halo = {}) {
+inline void drawHaloed(SkCanvas& canvas, std::initializer_list<Line> lines,
+                       const SkFont& font, const SkPaint& ink,
+                       const Halo& halo = {}) {
   SkPaint h;
   h.setAntiAlias(true);
   h.setColor4f(halo.colour, nullptr);
   h.setStyle(SkPaint::kStroke_Style);
   h.setStrokeWidth(halo.width);
   h.setStrokeJoin(halo.join);
-  for (const Line &l : lines)
+  for (const Line& l : lines)
     canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
                           l.at.fX, l.at.fY, font, h);
-  for (const Line &l : lines)
+  for (const Line& l : lines)
     canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
                           l.at.fX, l.at.fY, font, ink);
 }
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

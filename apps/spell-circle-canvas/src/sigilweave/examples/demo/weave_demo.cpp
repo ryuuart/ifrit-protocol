@@ -11,10 +11,7 @@
 //
 //   ./build/bin/Release/weave_demo
 
-#include "DemoScenes.h"
-
 #include <sigilweave/FontContext.h>
-
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -22,14 +19,17 @@
 #include <cstdlib>
 #include <filesystem>
 
-int main(int argc, char **argv) {
+#include "DemoScenes.h"
+
+int main(int argc, char** argv) {
   static_cast<void>(argc);
   static_cast<void>(argv);
 
   const std::filesystem::path outputDirectory = "weave_demo_out";
   std::filesystem::create_directories(outputDirectory);
 
-  sigil::weave::FontContext fontContext(sigil::weave::ports::systemFontManager());
+  sigil::weave::FontContext fontContext(
+      sigil::weave::ports::systemFontManager());
 
   sceneExtreme(fontContext, outputDirectory);
   sceneTypography(fontContext, outputDirectory);

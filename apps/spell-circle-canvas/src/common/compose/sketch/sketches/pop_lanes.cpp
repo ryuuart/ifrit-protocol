@@ -28,14 +28,12 @@
 // clouds are cooked ONCE; the four leaves are immediate-mode `custom()`
 // programs only because a projection is cheaper to redo than to cache.
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkCanvas.h>
+#include <include/core/SkSurface.h>
 #include <sigilshape/Points.h>
 #include <sigilshape/Pop.h>
 #include <sigilshape/Space.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 #include <vector>
@@ -46,11 +44,11 @@ namespace shape = sigil::shape;
 
 namespace {
 
-constexpr int kCount = 520;      // panels 1 and 2
-constexpr int kOrderCount = 240; // panels 3 and 4: fewer, bigger, overlapping
-const glm::vec3 kOrderAxis{0, 0, 1}; // the sort key: dot(P, axis)
-constexpr bool kDescending = false;  // false = ascending = farthest first
-constexpr float kRange = 210.0f;     // panel 2's height ramp, +-kRange
+constexpr int kCount = 520;       // panels 1 and 2
+constexpr int kOrderCount = 240;  // panels 3 and 4: fewer, bigger, overlapping
+const glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
+constexpr bool kDescending = false;   // false = ascending = farthest first
+constexpr float kRange = 210.0f;      // panel 2's height ramp, +-kRange
 constexpr float kPanel = 274.0f;
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
@@ -74,8 +72,8 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < knots; ++i) {
     const float a = 2.0f * (float)M_PI * (float)i / (float)knots;
-    loop.push_back(
-        {radius * std::cos(a), rise * std::sin(3.0f * a), radius * std::sin(a)});
+    loop.push_back({radius * std::cos(a), rise * std::sin(3.0f * a),
+                    radius * std::sin(a)});
   }
   return loop;
 }
@@ -92,10 +90,10 @@ shape::space::Camera lookAtCrown() {
  *  semi-transparent, so a mis-ordered sprite reads as haze rather than as
  *  occlusion. The rim is BLACK because the tint is applied by kModulate —
  *  0 * anything is 0, so a black outline survives every tint. */
-const sk_sp<SkImage> &disc() {
+const sk_sp<SkImage>& disc() {
   static const sk_sp<SkImage> img = [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
-    SkCanvas *c = s->getCanvas();
+    SkCanvas* c = s->getCanvas();
     c->clear(SK_ColorTRANSPARENT);
     SkPaint p;
     p.setAntiAlias(true);
@@ -115,14 +113,14 @@ const sk_sp<SkImage> &disc() {
  *  chain order decides who is last. */
 Element splat(shape::Cloud cloud, float spriteSize) {
   return custom([cloud = std::move(cloud), spriteSize](
-                    SkCanvas &canvas, const PaintContext &paint) {
+                    SkCanvas& canvas, const PaintContext& paint) {
            shape::points::BillboardStyle style;
            style.sprite = disc();
            style.size = spriteSize;
            style.sizeLane = "size";
            style.tintLane = "tint";
-           style.additive = false;  // kSrcOver: order decides the picture
-           style.depthSort = false; // the sink's own sort would mask it
+           style.additive = false;   // kSrcOver: order decides the picture
+           style.depthSort = false;  // the sink's own sort would mask it
            shape::points::drawBillboards(canvas, cloud, lookAtCrown(),
                                          paint.size, style);
          })
@@ -130,7 +128,7 @@ Element splat(shape::Cloud cloud, float spriteSize) {
       .cache(Cache::None);
 }
 
-Element panel(const char *title, const char *note, Element inner) {
+Element panel(const char* title, const char* note, Element inner) {
   return box()
       .width(kPanel)
       .column()
@@ -139,18 +137,18 @@ Element panel(const char *title, const char *note, Element inner) {
       .child(box()
                  .width(kPanel)
                  .height(kPanel)
-                 .clip() // the projection is wider than the frame
+                 .clip()  // the projection is wider than the frame
                  .stroke(stroke(1.0f, Fill::color(kFrame)))
                  .child(std::move(inner)))
       .child(text(toU8(note), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct PopLanes : sigil::compose::sketch::Sketch {
   shape::Cloud downT, byHeight, unsorted, sorted;
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1200, 400);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
@@ -185,7 +183,7 @@ struct PopLanes : sigil::compose::sketch::Sketch {
     // 3 and 4 — identical but for `.order()`. Colour is driven from P.z,
     // so colour IS depth and a mis-ordered sprite is visible as a dark dot
     // sitting on top of a bright one.
-    const auto depthChain = [&](const std::vector<glm::vec4> &table) {
+    const auto depthChain = [&](const std::vector<glm::vec4>& table) {
       return shape::pop::on(loop)
           .count(kOrderCount)
           .spread(62)
@@ -215,8 +213,7 @@ struct PopLanes : sigil::compose::sketch::Sketch {
                        .child(panel("rampBy(stops)", "the default: T -> Color",
                                     splat(downT, 16)))
                        .child(panel("rampBy(P, 1, stops, -210, 210)",
-                                    "colour by HEIGHT",
-                                    splat(byHeight, 16)))
+                                    "colour by HEIGHT", splat(byHeight, 16)))
                        .child(panel("no order() \xc2\xb7 WRONG",
                                     "scatter order = painter order",
                                     splat(unsorted, 34)))

@@ -14,7 +14,7 @@ class SpellCircleRenderer;
  * stub build simply yields no backend.
  */
 class CanvasSceneBackend {
-public:
+ public:
   virtual ~CanvasSceneBackend() = default;
 
   /**
@@ -26,8 +26,8 @@ public:
    * recording brackets; a backend that wraps the canvas's GPU texture
    * directly with a different API (e.g. Skia) may ignore it.
    */
-  virtual QCanvasImage drawScene(SpellCircleRenderer &renderer,
-                                 QCanvasPainter *painter,
-                                 QCanvasOffscreenCanvas &canvas,
+  virtual QCanvasImage drawScene(SpellCircleRenderer& renderer,
+                                 QCanvasPainter* painter,
+                                 QCanvasOffscreenCanvas& canvas,
                                  QSize pixelSize) = 0;
 };

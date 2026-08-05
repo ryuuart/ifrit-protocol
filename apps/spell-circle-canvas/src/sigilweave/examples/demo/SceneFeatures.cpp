@@ -2,9 +2,6 @@
 // discretionary ligatures, small caps, lining vs oldstyle figures — each row
 // is the same engine with a different FontFeature list (part of the
 // shape-cache key).
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkSurface.h>
@@ -12,10 +9,13 @@
 #include <cstdio>
 #include <vector>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
-void sceneFeatures(FontContext &fontContext,
-                   const std::filesystem::path &outputDirectory) {
+void sceneFeatures(FontContext& fontContext,
+                   const std::filesystem::path& outputDirectory) {
   sk_sp<SkTypeface> hoeflerTypeface =
       fontContext.fontManager()->matchFamilyStyle("Hoefler Text",
                                                   SkFontStyle());
@@ -26,12 +26,12 @@ void sceneFeatures(FontContext &fontContext,
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 560));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
   struct Row {
-    const char8_t *label;
-    const char8_t *text;
+    const char8_t* label;
+    const char8_t* text;
     std::vector<FontFeature> fontFeatures;
   };
   const Row rows[] = {
@@ -54,9 +54,10 @@ void sceneFeatures(FontContext &fontContext,
   };
 
   float rowTop = 30;
-  for (const Row &row : rows) {
-    sigil::weave::kit::drawLabel(canvas, fontContext, row.label, {40, rowTop},
-                           {.color = kAccent, .width = 900, .height = 18});
+  for (const Row& row : rows) {
+    sigil::weave::kit::drawLabel(
+        canvas, fontContext, row.label, {40, rowTop},
+        {.color = kAccent, .width = 900, .height = 18});
 
     TextStyle body = style(30, kInk);
     body.shaping.typeface = hoeflerTypeface;

@@ -9,37 +9,36 @@
 // null and the canvas renders no scene content — there is no non-Skia
 // drawing path.
 
-#include "SkiaGraphiteContext.h"
-
 #include <QtGui/qtguiglobal.h>
 
-#if QT_CONFIG(vulkan)
+#include "SkiaGraphiteContext.h"
 
-#include <QVersionNumber>
-#include <QVulkanInstance>
-#include <rhi/qrhi.h>
-#include <rhi/qrhi_platform.h>
+#if QT_CONFIG(vulkan)
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
 #include <gpu/graphite/Recorder.h>
 #include <gpu/graphite/vk/VulkanGraphiteContext.h>
 #include <gpu/vk/VulkanBackendContext.h>
+#include <rhi/qrhi.h>
+#include <rhi/qrhi_platform.h>
+
+#include <QVersionNumber>
+#include <QVulkanInstance>
 // Semi-private, but installed by the vcpkg port and its symbol ships in
 // libskia: Skia refuses a null fMemoryAllocator, and this is the only
 // public-ish way to reuse the VMA-backed allocator Skia was built with
 // (skia[vulkan] carries vulkan-memory-allocator).
 #include <src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorPriv.h>
 
-std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
+std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi* rhi) {
   // Single Graphite bring-up point per graphics API (see the Metal TU for
   // the pattern): null for any backend this TU cannot serve.
-  if (!rhi || rhi->backend() != QRhi::Vulkan)
-    return nullptr;
+  if (!rhi || rhi->backend() != QRhi::Vulkan) return nullptr;
 
-  const auto *nativeHandles =
-      static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
-  QVulkanInstance *instance = nativeHandles->inst;
+  const auto* nativeHandles =
+      static_cast<const QRhiVulkanNativeHandles*>(rhi->nativeHandles());
+  QVulkanInstance* instance = nativeHandles->inst;
   if (!instance || nativeHandles->physDev == VK_NULL_HANDLE ||
       nativeHandles->dev == VK_NULL_HANDLE ||
       nativeHandles->gfxQueue == VK_NULL_HANDLE)
@@ -51,8 +50,7 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   // both the QRhi and this context.
   const auto getDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
       instance->getInstanceProcAddr("vkGetDeviceProcAddr"));
-  if (!getDeviceProcAddr)
-    return nullptr;
+  if (!getDeviceProcAddr) return nullptr;
 
   skgpu::VulkanBackendContext backendContext;
   backendContext.fInstance = instance->vkInstance();
@@ -64,10 +62,9 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   backendContext.fMaxAPIVersion = VK_MAKE_API_VERSION(
       0, apiVersion.majorVersion(), apiVersion.minorVersion(), 0);
   backendContext.fGetProc = [instance, getDeviceProcAddr](
-                                const char *name, VkInstance,
+                                const char* name, VkInstance,
                                 VkDevice device) -> PFN_vkVoidFunction {
-    if (device != VK_NULL_HANDLE)
-      return getDeviceProcAddr(device, name);
+    if (device != VK_NULL_HANDLE) return getDeviceProcAddr(device, name);
     return instance->getInstanceProcAddr(name);
   };
   // Qt exposes no list of the device extensions/features it enabled, so
@@ -79,28 +76,26 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   // render thread, matching the Metal setup.
   backendContext.fMemoryAllocator = skgpu::VulkanMemoryAllocators::Make(
       backendContext, skgpu::ThreadSafe::kNo);
-  if (!backendContext.fMemoryAllocator)
-    return nullptr;
+  if (!backendContext.fMemoryAllocator) return nullptr;
 
   std::unique_ptr<skgpu::graphite::Context> context =
-      skgpu::graphite::ContextFactory::MakeVulkan(backendContext, SkiaGraphiteContext::makeContextOptions());
-  if (!context)
-    return nullptr;
+      skgpu::graphite::ContextFactory::MakeVulkan(
+          backendContext, SkiaGraphiteContext::makeContextOptions());
+  if (!context) return nullptr;
 
   std::unique_ptr<skgpu::graphite::Recorder> recorder =
       context->makeRecorder(SkiaGraphiteContext::makeRecorderOptions());
-  if (!recorder)
-    return nullptr;
+  if (!recorder) return nullptr;
 
   return std::unique_ptr<SkiaGraphiteContext>(
       new SkiaGraphiteContext(std::move(context), std::move(recorder)));
 }
 
-#else // !QT_CONFIG(vulkan)
+#else  // !QT_CONFIG(vulkan)
 
 // Qt built without Vulkan: no Graphite backend on this platform, so
 // create() returns null and the canvas renders no scene content.
-std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *) {
+std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi*) {
   return nullptr;
 }
 

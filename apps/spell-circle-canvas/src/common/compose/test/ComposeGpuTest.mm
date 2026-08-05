@@ -31,8 +31,7 @@ using namespace sigil::compose;
 namespace {
 
 sigil::weave::FontContext &fonts() {
-  static auto *context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
+  static auto *context = new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
@@ -40,8 +39,7 @@ SkiaGraphiteContext *graphite() {
   static std::unique_ptr<SkiaGraphiteContext> ctx = [] {
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
     id<MTLCommandQueue> queue = [device newCommandQueue];
-    return SkiaGraphiteContext::createMetal((__bridge void *)device,
-                                            (__bridge void *)queue);
+    return SkiaGraphiteContext::createMetal((__bridge void *)device, (__bridge void *)queue);
   }();
   return ctx.get();
 }
@@ -50,13 +48,10 @@ SkiaGraphiteContext *graphite() {
 SkBitmap drawOnGpu(Composer &composer, int w, int h) {
   SkBitmap bm;
   SkiaGraphiteContext *ctx = graphite();
-  if (!ctx)
-    return bm;
+  if (!ctx) return bm;
   const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
-  sk_sp<SkSurface> surface =
-      SkSurfaces::RenderTarget(ctx->recorder(), info);
-  if (!surface)
-    return bm;
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  if (!surface) return bm;
   surface->getCanvas()->clear(SK_ColorBLACK);
   composer.draw(*surface->getCanvas());
   if (auto recording = ctx->recorder()->snap()) {
@@ -69,10 +64,9 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
     bool called = false;
   } read;
   ctx->context()->asyncRescaleAndReadPixels(
-      surface.get(), info, SkIRect::MakeWH(w, h),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c,
-         std::unique_ptr<const SkImage::AsyncReadResult> r) {
+      surface.get(), info, SkIRect::MakeWH(w, h), SkImage::RescaleGamma::kSrc,
+      SkImage::RescaleMode::kNearest,
+      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
         auto *read = static_cast<Read *>(c);
         read->result = std::move(r);
         read->called = true;
@@ -83,8 +77,7 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
   ctx->context()->submit(submitInfo);
   for (int spin = 0; spin < 5000 && !read.called; ++spin)
     ctx->context()->checkAsyncWorkCompletion();
-  if (!read.result)
-    return bm;
+  if (!read.result) return bm;
   bm.allocPixels(info);
   const auto *src = static_cast<const uint8_t *>(read.result->data(0));
   const size_t srcRB = read.result->rowBytes(0);
@@ -95,18 +88,17 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
 }
 
 std::shared_ptr<const sigil::image::ImageAsset> whiteTile(int size) {
-  sk_sp<SkSurface> s =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
   s->getCanvas()->clear(SK_ColorWHITE);
   return std::make_shared<sigil::image::ImageAsset>(
       sigil::image::ImageAsset::wrap(s->makeImageSnapshot()));
 }
 
-} // namespace
+}  // namespace
 
-#define REQUIRE_GPU()                                                        \
-  if (!graphite()) {                                                         \
-    GTEST_SKIP() << "no Metal device";                                       \
+#define REQUIRE_GPU()                  \
+  if (!graphite()) {                   \
+    GTEST_SKIP() << "no Metal device"; \
   }
 
 TEST(ComposeGpu, ImageRectDrawsOnGraphite) {
@@ -114,8 +106,7 @@ TEST(ComposeGpu, ImageRectDrawsOnGraphite) {
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({200, 200});
-  composer.render(box().child(
-      image(whiteTile(32)).absolute().inset(50, 50, 50, 50)));
+  composer.render(box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)));
   SkBitmap bm = drawOnGpu(composer, 200, 200);
   ASSERT_FALSE(bm.empty());
   EXPECT_EQ(bm.getColor(100, 100), SK_ColorWHITE);
@@ -127,12 +118,11 @@ TEST(ComposeGpu, NineSliceLatticeDrawsOnGraphite) {
   Composer composer(ticker, fonts());
   composer.setSize({200, 200});
   Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
-  composer.render(box().child(
-      box().absolute().inset(50, 50, 50, 50).background(std::move(slice))));
+  composer.render(box().child(box().absolute().inset(50, 50, 50, 50).background(std::move(slice))));
   SkBitmap bm = drawOnGpu(composer, 200, 200);
   ASSERT_FALSE(bm.empty());
-  EXPECT_EQ(bm.getColor(100, 100), SK_ColorWHITE); // center cell stretched
-  EXPECT_EQ(bm.getColor(55, 55), SK_ColorWHITE);   // corner cell
+  EXPECT_EQ(bm.getColor(100, 100), SK_ColorWHITE);  // center cell stretched
+  EXPECT_EQ(bm.getColor(55, 55), SK_ColorWHITE);    // corner cell
 }
 
 TEST(ComposeGpu, InstanceStampsDrawOnGraphite) {
@@ -165,12 +155,10 @@ TEST(ComposeGpu, DirectPrimitiveMatrix) {
   SkCanvas &c = *surface->getCanvas();
   c.clear(SK_ColorBLACK);
 
-  sk_sp<SkSurface> rasterSrc =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(48, 48));
+  sk_sp<SkSurface> rasterSrc = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(48, 48));
   rasterSrc->getCanvas()->clear(SK_ColorWHITE);
   sk_sp<SkImage> raster = rasterSrc->makeImageSnapshot();
-  sk_sp<SkImage> texture =
-      SkImages::TextureFromImage(ctx->recorder(), raster.get(), {});
+  sk_sp<SkImage> texture = SkImages::TextureFromImage(ctx->recorder(), raster.get(), {});
   ASSERT_TRUE(texture);
 
   SkCanvas::Lattice lattice{};
@@ -184,20 +172,18 @@ TEST(ComposeGpu, DirectPrimitiveMatrix) {
   // 200..300: drawAtlas with texture.
   c.save();
   c.clipRect(SkRect::MakeXYWH(0, 0, 100, 100));
-  c.drawImageLattice(raster.get(), lattice, SkRect::MakeXYWH(10, 10, 80, 80),
-                     SkFilterMode::kLinear, nullptr);
+  c.drawImageLattice(raster.get(), lattice, SkRect::MakeXYWH(10, 10, 80, 80), SkFilterMode::kLinear,
+                     nullptr);
   c.restore();
   c.save();
   c.clipRect(SkRect::MakeXYWH(100, 0, 100, 100));
-  c.drawImageLattice(texture.get(), lattice,
-                     SkRect::MakeXYWH(110, 10, 80, 80),
+  c.drawImageLattice(texture.get(), lattice, SkRect::MakeXYWH(110, 10, 80, 80),
                      SkFilterMode::kLinear, nullptr);
   c.restore();
   const SkRSXform xf = SkRSXform::Make(1, 0, 250, 50);
   const SkRect tex = SkRect::MakeWH(48, 48);
-  c.drawAtlas(texture.get(), SkSpan(&xf, 1), SkSpan(&tex, 1), {},
-              SkBlendMode::kSrcOver, SkSamplingOptions(SkFilterMode::kLinear),
-              nullptr, nullptr);
+  c.drawAtlas(texture.get(), SkSpan(&xf, 1), SkSpan(&tex, 1), {}, SkBlendMode::kSrcOver,
+              SkSamplingOptions(SkFilterMode::kLinear), nullptr, nullptr);
 
   // Read back through the same async path as drawOnGpu.
   if (auto recording = ctx->recorder()->snap()) {
@@ -210,10 +196,9 @@ TEST(ComposeGpu, DirectPrimitiveMatrix) {
     bool called = false;
   } read;
   ctx->context()->asyncRescaleAndReadPixels(
-      surface.get(), info, SkIRect::MakeWH(300, 100),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext p,
-         std::unique_ptr<const SkImage::AsyncReadResult> r) {
+      surface.get(), info, SkIRect::MakeWH(300, 100), SkImage::RescaleGamma::kSrc,
+      SkImage::RescaleMode::kNearest,
+      [](SkImage::ReadPixelsContext p, std::unique_ptr<const SkImage::AsyncReadResult> r) {
         auto *read = static_cast<Read *>(p);
         read->result = std::move(r);
         read->called = true;
@@ -229,8 +214,7 @@ TEST(ComposeGpu, DirectPrimitiveMatrix) {
   bm.allocPixels(info);
   const auto *src = static_cast<const uint8_t *>(read.result->data(0));
   for (int y = 0; y < 100; ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y),
-                src + (size_t)y * read.result->rowBytes(0),
+    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * read.result->rowBytes(0),
                 std::min(read.result->rowBytes(0), bm.rowBytes()));
   std::printf("lattice+raster  (50,50):  %08x\n", bm.getColor(50, 50));
   std::printf("lattice+texture (150,50): %08x\n", bm.getColor(150, 50));

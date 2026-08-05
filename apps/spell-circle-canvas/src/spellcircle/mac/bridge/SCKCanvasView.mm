@@ -18,7 +18,7 @@ constexpr double kMinScale = 0.002;
 constexpr double kMaxScale = 64.0;
 // Breathing room around the fitted canvas inside the uncovered region.
 constexpr double kFitMarginPoints = 20.0;
-} // namespace
+}  // namespace
 
 @implementation SCKCanvasView {
   // The viewport transform is stored frame-independently — zoom in view
@@ -28,19 +28,19 @@ constexpr double kFitMarginPoints = 20.0;
   // or backing scale changes underneath it: the pane reveal animations
   // slide this view's origin (canvas drifts, then snaps), and dragging
   // the window across displays flips the backing scale (canvas offsets).
-  double _pointScale;    // view points per canvas px; <= 0 means "needs fit"
-  NSPoint _anchorWindow; // canvas center, window coords (bottom-up points)
-  BOOL _userAdjusted; // stop auto-refit once the user zoomed or panned
-  BOOL _leftDragPans; // NO when the drag began in the titlebar/toolbar strip
+  double _pointScale;     // view points per canvas px; <= 0 means "needs fit"
+  NSPoint _anchorWindow;  // canvas center, window coords (bottom-up points)
+  BOOL _userAdjusted;     // stop auto-refit once the user zoomed or panned
+  BOOL _leftDragPans;     // NO when the drag began in the titlebar/toolbar strip
   CADisplayLink *_displayLink;
   BOOL _redrawNeeded;
-  NSSize _lastWindowSize; // distinguishes window resizes from column moves
+  NSSize _lastWindowSize;  // distinguishes window resizes from column moves
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
   if ((self = [super initWithFrame:frameRect])) {
     _pointScale = 0.0;
-    _leftDragPans = YES; // a drag stream missing its mouseDown still pans
+    _leftDragPans = YES;  // a drag stream missing its mouseDown still pans
     self.wantsLayer = YES;
     // Redraws are explicit ([self redraw]) — never through display callbacks.
     self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawNever;
@@ -77,12 +77,9 @@ constexpr double kFitMarginPoints = 20.0;
 /** Mirrors the view's effective light/dark appearance into the engine's
  *  blit palette (backdrop, checkerboard, border). */
 - (void)syncAppearance {
-  if (!_engine)
-    return;
+  if (!_engine) return;
   NSAppearanceName match = [self.effectiveAppearance
-      bestMatchFromAppearancesWithNames:@[
-        NSAppearanceNameAqua, NSAppearanceNameDarkAqua
-      ]];
+      bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
   const BOOL dark = [match isEqualToString:NSAppearanceNameDarkAqua];
   if (_engine.darkAppearance != dark) {
     _engine.darkAppearance = dark;
@@ -105,8 +102,7 @@ constexpr double kFitMarginPoints = 20.0;
 
 /** This view's top-left corner in window coordinates. */
 - (NSPoint)viewTopLeftInWindow {
-  return [self convertPoint:NSMakePoint(0, self.bounds.size.height)
-                     toView:nil];
+  return [self convertPoint:NSMakePoint(0, self.bounds.size.height) toView:nil];
 }
 
 /** Current zoom as drawable pixels per canvas pixel. */
@@ -127,8 +123,7 @@ constexpr double kFitMarginPoints = 20.0;
 - (void)setDrawableCenter:(CGPoint)center {
   const NSPoint topLeft = [self viewTopLeftInWindow];
   const double backing = [self backingScale];
-  _anchorWindow = NSMakePoint(topLeft.x + center.x / backing,
-                              topLeft.y - center.y / backing);
+  _anchorWindow = NSMakePoint(topLeft.x + center.x / backing, topLeft.y - center.y / backing);
 }
 
 - (void)updateDrawableSize {
@@ -137,14 +132,12 @@ constexpr double kFitMarginPoints = 20.0;
   layer.contentsScale = scale;
   const CGSize pixelSize =
       CGSizeMake(self.bounds.size.width * scale, self.bounds.size.height * scale);
-  if (pixelSize.width < 1 || pixelSize.height < 1)
-    return;
+  if (pixelSize.width < 1 || pixelSize.height < 1) return;
   const NSSize windowSize = self.window ? self.window.frame.size : NSZeroSize;
   const BOOL windowResized = !NSEqualSizes(windowSize, _lastWindowSize);
   _lastWindowSize = windowSize;
 
-  if (CGSizeEqualToSize(layer.drawableSize, pixelSize))
-    return;
+  if (CGSizeEqualToSize(layer.drawableSize, pixelSize)) return;
 
   // The resized drawable must be presented in the same CoreAnimation
   // transaction as the layout change, or the layer stretches the previous
@@ -159,11 +152,10 @@ constexpr double kFitMarginPoints = 20.0;
   // window stays put — keeping the transform means the canvas holds its
   // on-screen position and the pane simply covers/uncovers it, instead of
   // the fit shoving the canvas sideways on every toggle.
-  if (_pointScale <= 0 || (!_userAdjusted && windowResized))
-    [self fitTransform];
+  if (_pointScale <= 0 || (!_userAdjusted && windowResized)) [self fitTransform];
   layer.presentsWithTransaction = YES;
   [_engine renderPendingScene];
-  _redrawNeeded = NO; // this render supersedes any queued display-link tick
+  _redrawNeeded = NO;  // this render supersedes any queued display-link tick
   [self renderNow];
   layer.presentsWithTransaction = NO;
 }
@@ -193,13 +185,11 @@ constexpr double kFitMarginPoints = 20.0;
       // Frame pacing: redraw requests only set a dirty flag; the display
       // link renders at most once per refresh and pauses itself when idle.
       // Common modes so it keeps firing during drag/scroll event tracking.
-      _displayLink = [self displayLinkWithTarget:self
-                                        selector:@selector(displayLinkFired:)];
-      [_displayLink addToRunLoop:NSRunLoop.mainRunLoop
-                         forMode:NSRunLoopCommonModes];
+      _displayLink = [self displayLinkWithTarget:self selector:@selector(displayLinkFired:)];
+      [_displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
       _displayLink.paused = YES;
     }
-    [self syncAppearance]; // the window's appearance is authoritative
+    [self syncAppearance];  // the window's appearance is authoritative
     [self updateDrawableSize];
   } else {
     [_displayLink invalidate];
@@ -233,9 +223,8 @@ constexpr double kFitMarginPoints = 20.0;
   const double backing = [self backingScale];
   const double leftPx = _leftContentInset * backing;
   const double rightPx = _rightContentInset * backing;
-  return CGPointMake(
-      leftPx + (layer.drawableSize.width - leftPx - rightPx) / 2.0,
-      layer.drawableSize.height / 2.0);
+  return CGPointMake(leftPx + (layer.drawableSize.width - leftPx - rightPx) / 2.0,
+                     layer.drawableSize.height / 2.0);
 }
 
 /** Fits the whole canvas into the uncovered region (does not redraw). */
@@ -247,16 +236,12 @@ constexpr double kFitMarginPoints = 20.0;
 
   const double backing = [self backingScale];
   const double margin = kFitMarginPoints * backing;
-  const double insetPx =
-      (_leftContentInset + _rightContentInset) * backing;
-  const double availableWidth =
-      std::max(layer.drawableSize.width - insetPx - 2.0 * margin, 32.0);
-  const double availableHeight =
-      std::max(layer.drawableSize.height - 2.0 * margin, 32.0);
+  const double insetPx = (_leftContentInset + _rightContentInset) * backing;
+  const double availableWidth = std::max(layer.drawableSize.width - insetPx - 2.0 * margin, 32.0);
+  const double availableHeight = std::max(layer.drawableSize.height - 2.0 * margin, 32.0);
 
   const double drawableScale =
-      std::min(availableWidth / _engine.canvasWidth,
-               availableHeight / _engine.canvasHeight);
+      std::min(availableWidth / _engine.canvasWidth, availableHeight / _engine.canvasHeight);
   _pointScale = drawableScale / backing;
   [self setDrawableCenter:[self uncoveredRegionCenter]];
   _userAdjusted = NO;
@@ -267,8 +252,7 @@ constexpr double kFitMarginPoints = 20.0;
   if (_displayLink) {
     // Called per received scene (60+ Hz): only touch the link when it is
     // actually paused — repeated pause toggling round-trips to the server.
-    if (_displayLink.paused)
-      _displayLink.paused = NO;
+    if (_displayLink.paused) _displayLink.paused = NO;
   } else {
     // No window yet — render directly so early state still lands.
     _redrawNeeded = NO;
@@ -278,12 +262,9 @@ constexpr double kFitMarginPoints = 20.0;
 
 - (void)renderNow {
   CAMetalLayer *layer = self.metalLayer;
-  if (!_engine || !layer || layer.drawableSize.width < 1)
-    return;
-  if (_pointScale <= 0)
-    [self fitTransform];
-  if (_pointScale <= 0)
-    return;
+  if (!_engine || !layer || layer.drawableSize.width < 1) return;
+  if (_pointScale <= 0) [self fitTransform];
+  if (_pointScale <= 0) return;
   // Derived per render: the same window-space anchor keeps the canvas
   // stationary on screen no matter how the view's frame, origin, or
   // backing scale changed since the last frame.
@@ -293,10 +274,8 @@ constexpr double kFitMarginPoints = 20.0;
                  scale:drawableScale
                centerX:center.x
                centerY:center.y
-              topInset:self.drawsTopEdgeBlur ? [self topChromeInsetPixels]
-                                             : 0.0];
-  if (self.onViewChanged)
-    self.onViewChanged(drawableScale * 100.0);
+              topInset:self.drawsTopEdgeBlur ? [self topChromeInsetPixels] : 0.0];
+  if (self.onViewChanged) self.onViewChanged(drawableScale * 100.0);
 }
 
 /** Titlebar + toolbar height over this view in drawable pixels, from the
@@ -304,10 +283,8 @@ constexpr double kFitMarginPoints = 20.0;
 - (double)topChromeInsetPixels {
   NSWindow *window = self.window;
   NSView *contentView = window.contentView;
-  if (!window || !contentView)
-    return 0.0;
-  const double insetPoints =
-      NSMaxY(contentView.frame) - NSMaxY(window.contentLayoutRect);
+  if (!window || !contentView) return 0.0;
+  const double insetPoints = NSMaxY(contentView.frame) - NSMaxY(window.contentLayoutRect);
   return std::max(0.0, insetPoints) * [self backingScale];
 }
 
@@ -328,21 +305,17 @@ constexpr double kFitMarginPoints = 20.0;
 
 /** Cursor position in drawable pixels (top-left origin). */
 - (CGPoint)drawablePointForEvent:(NSEvent *)event {
-  const NSPoint viewPoint = [self convertPoint:event.locationInWindow
-                                      fromView:nil];
+  const NSPoint viewPoint = [self convertPoint:event.locationInWindow fromView:nil];
   const double backing = [self backingScale];
-  return CGPointMake(viewPoint.x * backing,
-                     (self.bounds.size.height - viewPoint.y) * backing);
+  return CGPointMake(viewPoint.x * backing, (self.bounds.size.height - viewPoint.y) * backing);
 }
 
 /** Zooms by `factor` keeping the content under `cursor` stationary. */
 - (void)zoomBy:(double)factor atDrawablePoint:(CGPoint)cursor {
   const double currentScale = [self drawableScale];
-  const double newScale =
-      std::clamp(currentScale * factor, kMinScale, kMaxScale);
+  const double newScale = std::clamp(currentScale * factor, kMinScale, kMaxScale);
   const double appliedFactor = currentScale > 0 ? newScale / currentScale : 1.0;
-  if (appliedFactor == 1.0)
-    return;
+  if (appliedFactor == 1.0) return;
 
   // The canvas point under the cursor keeps its screen position: the
   // cursor-to-center distance scales by the zoom factor.
@@ -358,15 +331,13 @@ constexpr double kFitMarginPoints = 20.0;
 - (void)scrollWheel:(NSEvent *)event {
   // Trackpads deliver fine-grained pixel deltas; wheel mice deliver coarse
   // line deltas that need a larger step per notch.
-  const double delta = event.scrollingDeltaY *
-                       (event.hasPreciseScrollingDeltas ? 1.0 : 12.0);
+  const double delta = event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 1.0 : 12.0);
   const double factor = std::exp(delta * 0.0015);
   [self zoomBy:factor atDrawablePoint:[self drawablePointForEvent:event]];
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
-  [self zoomBy:(1.0 + event.magnification)
-      atDrawablePoint:[self drawablePointForEvent:event]];
+  [self zoomBy:(1.0 + event.magnification) atDrawablePoint:[self drawablePointForEvent:event]];
 }
 
 - (void)smartMagnifyWithEvent:(NSEvent *)event {
@@ -389,13 +360,11 @@ constexpr double kFitMarginPoints = 20.0;
 // moves). Record the down location's region and let those drags through.
 - (void)mouseDown:(NSEvent *)event {
   NSWindow *window = self.window;
-  _leftDragPans =
-      !window || event.locationInWindow.y <= NSMaxY(window.contentLayoutRect);
+  _leftDragPans = !window || event.locationInWindow.y <= NSMaxY(window.contentLayoutRect);
 }
 
 - (void)mouseDragged:(NSEvent *)event {
-  if (!_leftDragPans)
-    return;
+  if (!_leftDragPans) return;
   [self panByEventDelta:event];
 }
 
@@ -476,14 +445,11 @@ constexpr double kFitMarginPoints = 20.0;
  *  insets. Passive on the canvas side — nothing moves until the next fit. */
 - (void)pushContentInsets {
   SCKCanvasView *canvas = [self canvas];
-  if (!canvas || !self.window || !canvas.window)
-    return;
+  if (!canvas || !self.window || !canvas.window) return;
   const NSRect proxyInWindow = [self convertRect:self.bounds toView:nil];
   const NSRect canvasInWindow = [canvas convertRect:canvas.bounds toView:nil];
-  canvas.leftContentInset =
-      std::max(0.0, NSMinX(proxyInWindow) - NSMinX(canvasInWindow));
-  canvas.rightContentInset =
-      std::max(0.0, NSMaxX(canvasInWindow) - NSMaxX(proxyInWindow));
+  canvas.leftContentInset = std::max(0.0, NSMinX(proxyInWindow) - NSMinX(canvasInWindow));
+  canvas.rightContentInset = std::max(0.0, NSMaxX(canvasInWindow) - NSMaxX(proxyInWindow));
 }
 
 @end

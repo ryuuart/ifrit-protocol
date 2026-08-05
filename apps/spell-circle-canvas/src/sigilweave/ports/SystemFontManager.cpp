@@ -1,6 +1,5 @@
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkFontMgr.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #if defined(__APPLE__)
 #include <include/ports/SkFontMgr_mac_ct.h>
@@ -27,4 +26,4 @@ sk_sp<SkFontMgr> systemFontManager() {
   return manager;
 }
 
-} // namespace sigil::weave::ports
+}  // namespace sigil::weave::ports

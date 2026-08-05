@@ -26,4 +26,4 @@ namespace sigil::weave::ports {
  */
 sk_sp<SkFontMgr> systemFontManager();
 
-} // namespace sigil::weave::ports
+}  // namespace sigil::weave::ports

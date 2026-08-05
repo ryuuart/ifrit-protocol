@@ -11,11 +11,11 @@
 // about what it puts under load. Nothing here can drift out of step with
 // the file people hot-reload, because it IS that file.
 
-#include "GalleryCore.h"
-
 #include <sigilsketch/Sketch.h>
 
 #include <memory>
+
+#include "GalleryCore.h"
 
 #ifndef SIGIL_SKETCH_ASSET_DIR
 #define SIGIL_SKETCH_ASSET_DIR ""
@@ -30,10 +30,10 @@ namespace sketch = sigil::compose::sketch;
  *  capture is written under (see registryName()). `name` is the display
  *  spelling the sidebar shows. `--scene` matches either one. */
 struct StudyInfo {
-  const char *key;
-  const char *name;
-  const char *category;
-  const char *tag;
+  const char* key;
+  const char* name;
+  const char* category;
+  const char* tag;
 };
 
 inline constexpr StudyInfo kStudies[] = {
@@ -148,7 +148,8 @@ inline constexpr StudyInfo kStudies[] = {
      "A Thunder-Rite talisman, WRITTEN \xe2\x80\x94 real stroke medians, "
      "and the foot at 7.1\xc3\x97 the body's tempo"},
     {"dunhuang_star_chart", "dunhuang star chart", "Study \xc2\xb7 Esoteric",
-     "The Dunhuang star chart (c. 649\xe2\x80\x93" "684) reprojected from "
+     "The Dunhuang star chart (c. 649\xe2\x80\x93"
+     "684) reprojected from "
      "1,460 real stars \xe2\x80\x94 and it refuses to answer"},
 
     // ---- The kit itself ----
@@ -195,16 +196,16 @@ inline constexpr StudyInfo kStudies[] = {
      "one bound fill() held still over hundreds of cells \xe2\x80\x94 "
      "the case the settle/release memo exists for"},
 };
-inline constexpr int kStudyCount = (int)(sizeof(kStudies) /
-                                         sizeof(kStudies[0]));
+inline constexpr int kStudyCount =
+    (int)(sizeof(kStudies) / sizeof(kStudies[0]));
 
 /** The assets root a study reaches for when it wants something it did not
  *  generate. Leaked like fonts(): Assets owns Skia-backed images, and a
  *  static destructor racing Skia teardown is a class of crash worth not
  *  having. The directory need not exist — a missing file yields the
  *  magenta placeholder and heals when one appears. */
-inline sketch::Assets &studyAssets() {
-  static auto *assets = new sketch::Assets(SIGIL_SKETCH_ASSET_DIR);
+inline sketch::Assets& studyAssets() {
+  static auto* assets = new sketch::Assets(SIGIL_SKETCH_ASSET_DIR);
   return *assets;
 }
 
@@ -214,55 +215,53 @@ inline sketch::Assets &studyAssets() {
  *  setup(), so canvasSize() only answers truthfully afterwards, which is
  *  why GalleryStage reads it back at the end of activate(). */
 class StudyScene final : public Scene {
-public:
-  StudyScene(const StudyInfo &info, sketch::SketchFactory factory)
+ public:
+  StudyScene(const StudyInfo& info, sketch::SketchFactory factory)
       : m_info(&info), m_sketch(factory ? factory() : nullptr) {}
 
-  const char *name() const override { return m_info->name; }
+  const char* name() const override { return m_info->name; }
   SkSize canvasSize() const override { return m_spec.size; }
   SkColor4f background() const override { return m_spec.background; }
   double captureSeconds() const override { return m_spec.captureSeconds; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     m_composer = &composer;
     m_ticker = &ticker;
-    if (!m_sketch)
-      return;
+    if (!m_sketch) return;
     sketch::SketchContext ctx = context();
     m_sketch->setup(ctx);
   }
 
-  void update(double elapsed, Composer &) override {
-    if (!m_sketch)
-      return;
+  void update(double elapsed, Composer&) override {
+    if (!m_sketch) return;
     sketch::SketchContext ctx = context();
     m_sketch->update(elapsed, ctx);
   }
 
-private:
+ private:
   // Rebuilt per call rather than stored: SketchContext holds references, and
   // the host's contract is that ctx.canvas()/ctx.background() write through
   // to the spec the host then reads. Keeping one around would only invite it
   // to outlive a composer.
   sketch::SketchContext context() {
-    return sketch::SketchContext{*m_composer, *m_ticker,  studyAssets(),
-                                 m_spec.size, &m_spec,    &fonts()};
+    return sketch::SketchContext{*m_composer, *m_ticker, studyAssets(),
+                                 m_spec.size, &m_spec,   &fonts()};
   }
 
-  const StudyInfo *m_info;
+  const StudyInfo* m_info;
   std::unique_ptr<sketch::Sketch> m_sketch;
   sketch::CanvasSpec m_spec;
-  Composer *m_composer = nullptr;
-  sigil::motion::Ticker *m_ticker = nullptr;
+  Composer* m_composer = nullptr;
+  sigil::motion::Ticker* m_ticker = nullptr;
 };
 
 /** The scene for `info`, or nullptr when this binary was built without that
  *  study linked in (which the gallery test treats as a failure — the table
  *  and the link line must agree). */
-inline std::unique_ptr<Scene> makeStudy(const StudyInfo &info) {
+inline std::unique_ptr<Scene> makeStudy(const StudyInfo& info) {
   if (sketch::SketchFactory factory = sketch::findStaticSketch(info.key))
     return std::make_unique<StudyScene>(info, factory);
   return nullptr;
 }
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

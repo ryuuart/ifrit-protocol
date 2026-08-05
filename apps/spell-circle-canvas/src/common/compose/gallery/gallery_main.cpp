@@ -11,21 +11,20 @@
 // the APP window rather than a scene, so the sidebar, folders and metrics
 // panel can be looked at.
 
-#include "GalleryScenes.h"
-
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
-
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
 
-int main(int argc, char *argv[]) {
+#include "GalleryScenes.h"
+
+int main(int argc, char* argv[]) {
   if (argc >= 2 && std::string(argv[1]) == "--headless") {
     std::string outDir = "compose_gallery_out";
     std::string only;
@@ -53,11 +52,11 @@ int main(int argc, char *argv[]) {
       const std::string arg = argv[i];
       if (arg == "--gpu")
         gpu = true;
-      else if (arg == "--no-promotion") // force auto promotion off (the A/B)
+      else if (arg == "--no-promotion")  // force auto promotion off (the A/B)
         noPromotion = true;
       else if (arg == "--ledger")
         ledger = true;
-      else if (arg == "--list-scenes") { // machine-readable registry list, one
+      else if (arg == "--list-scenes") {  // machine-readable registry list, one
         // per line, spelled the way a capture names it (registryName)
         for (int s = 0; s < compose_gallery::kGallerySceneCount; ++s)
           std::printf("%s\n", compose_gallery::registryName(s));
@@ -116,18 +115,17 @@ int main(int argc, char *argv[]) {
   engine.loadFromModule("Compose.Gallery", "Main");
 
   if (!shotPath.empty()) {
-    const QObjectList &roots = engine.rootObjects();
-    auto *window = roots.isEmpty()
-                       ? nullptr
-                       : qobject_cast<QQuickWindow *>(roots.first());
+    const QObjectList& roots = engine.rootObjects();
+    auto* window =
+        roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow*>(roots.first());
     if (!window) {
       std::fprintf(stderr, "--shot: no window to grab\n");
       return 1;
     }
     // Find the compose view by the properties it has, not by position:
     // findChild() returns the first child of any type, which is a layout.
-    QObject *view = nullptr;
-    for (QObject *child : window->findChildren<QObject *>()) {
+    QObject* view = nullptr;
+    for (QObject* child : window->findChildren<QObject*>()) {
       if (child->property("sceneIndex").isValid() &&
           child->property("scenes").isValid()) {
         view = child;
@@ -153,30 +151,29 @@ int main(int argc, char *argv[]) {
     // miss: without it the grab re-renders the EXISTING scene-graph node and
     // never calls synchronize(), so the metrics panel keeps showing the
     // values it had before any scene was activated.
-    auto *warm = new QTimer(&application);
+    auto* warm = new QTimer(&application);
     auto framesLeft = std::make_shared<int>(90);
     warm->setInterval(16);
-    QObject::connect(warm, &QTimer::timeout, &application,
-                     [window, view, shotPath, warm, framesLeft] {
-                       if (auto *item = qobject_cast<QQuickItem *>(view))
-                         item->update();
-                       if (--*framesLeft > 0) {
-                         window->grabWindow();
-                         return;
-                       }
-                       warm->stop();
-                       const QImage image = window->grabWindow();
-                       if (image.isNull() ||
-                           !image.save(QString::fromStdString(shotPath),
-                                       "PNG")) {
-                         std::fprintf(stderr, "--shot: grab failed\n");
-                         QCoreApplication::exit(1);
-                         return;
-                       }
-                       std::printf("wrote %s (%dx%d)\n", shotPath.c_str(),
-                                   image.width(), image.height());
-                       QCoreApplication::quit();
-                     });
+    QObject::connect(
+        warm, &QTimer::timeout, &application,
+        [window, view, shotPath, warm, framesLeft] {
+          if (auto* item = qobject_cast<QQuickItem*>(view)) item->update();
+          if (--*framesLeft > 0) {
+            window->grabWindow();
+            return;
+          }
+          warm->stop();
+          const QImage image = window->grabWindow();
+          if (image.isNull() ||
+              !image.save(QString::fromStdString(shotPath), "PNG")) {
+            std::fprintf(stderr, "--shot: grab failed\n");
+            QCoreApplication::exit(1);
+            return;
+          }
+          std::printf("wrote %s (%dx%d)\n", shotPath.c_str(), image.width(),
+                      image.height());
+          QCoreApplication::quit();
+        });
     warm->start();
   }
   return application.exec();

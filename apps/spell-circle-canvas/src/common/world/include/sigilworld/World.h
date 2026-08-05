@@ -24,18 +24,16 @@
  * before authoring a background.
  */
 
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Pop.h>
-#include <sigilshape/Points.h>
-#include <sigilshape/Space.h>
-
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
-
-#include <entt/entity/fwd.hpp>
+#include <sigilshape/Mesh.h>
+#include <sigilshape/Points.h>
+#include <sigilshape/Pop.h>
+#include <sigilshape/Space.h>
 
 #include <cstdint>
+#include <entt/entity/fwd.hpp>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -44,7 +42,7 @@
 
 namespace sigil::world {
 
-struct LightComponent; // Components.h
+struct LightComponent;  // Components.h
 
 struct WorldConfig {
   int width = 1280;
@@ -106,7 +104,7 @@ struct Material {
   /** Textures compare by POINTER, so two identical images decoded
    *  separately are different materials. The scene reconciler tests reuse
    *  with this operator; share one sk_sp to keep a surface. */
-  bool operator==(const Material &) const = default;
+  bool operator==(const Material&) const = default;
 };
 
 /** Per-instance lanes an instanced surface reads from its Cloud. The
@@ -129,7 +127,7 @@ struct InstanceLanes {
 /** The scene-wide light: one sun plus a hemisphere ambient. Colours are
  *  LINEAR. Per-entity LightComponents add to this. */
 struct Lighting {
-  glm::vec3 sunDirection = {-0.45f, -0.75f, -0.5f}; ///< toward the scene
+  glm::vec3 sunDirection = {-0.45f, -0.75f, -0.5f};  ///< toward the scene
   glm::vec4 sunColor = {1.0f, 0.96f, 0.9f, 1};
   float sunIntensity = 2.6f;
   glm::vec4 skyColor = {0.35f, 0.45f, 0.65f, 1};
@@ -138,29 +136,29 @@ struct Lighting {
 };
 
 class World {
-public:
+ public:
   /** Bring up the device and offscreen targets. Returns null (and
    *  fills @p error) when no backend can initialize — no Vulkan
    *  runtime, for instance. */
-  static std::unique_ptr<World> create(const WorldConfig &config,
-                                       std::string *error = nullptr);
+  static std::unique_ptr<World> create(const WorldConfig& config,
+                                       std::string* error = nullptr);
   ~World();
 
-  World(const World &) = delete;
-  World &operator=(const World &) = delete;
+  World(const World&) = delete;
+  World& operator=(const World&) = delete;
 
   /** Add a surface: mesh + placement + material. The returned id IS an
    *  entt entity in registry() (see Components.h); 0 means failure. */
-  uint32_t addSurface(const shape::Mesh &mesh, const glm::mat4 &model,
-                      const Material &material);
-  void setTransform(uint32_t id, const glm::mat4 &model);
+  uint32_t addSurface(const shape::Mesh& mesh, const glm::mat4& model,
+                      const Material& material);
+  void setTransform(uint32_t id, const glm::mat4& model);
   /** Replace a surface's geometry in place. Matching vertex and index
    *  counts update the GPU buffers directly, so geometry that keeps its
    *  topology and only moves its vertices costs no reallocation; a
    *  different shape recreates the buffers. The material, texture and
    *  entity survive either path. No-op on unknown ids; on an instanced
    *  surface this swaps the stamp. */
-  void setSurfaceMesh(uint32_t id, const shape::Mesh &mesh);
+  void setSurfaceMesh(uint32_t id, const shape::Mesh& mesh);
 
   /** A GPU-computed ribbon sweep: the loop's control points live in a
    *  device buffer and a compute pass rewrites the surface's vertices IN
@@ -173,15 +171,15 @@ public:
    *  Topology is fixed at creation; the animation is the two-float
    *  window. */
   struct SweepDesc {
-    std::vector<glm::vec3> loop; ///< closed Catmull-Rom control points
+    std::vector<glm::vec3> loop;  ///< closed Catmull-Rom control points
     float width = 100;
-    int sections = 200; ///< ribbon cross-sections (fixed topology)
-    float head = 1;     ///< window end, in loop parameter
-    float span = 1;     ///< window length back from head
+    int sections = 200;  ///< ribbon cross-sections (fixed topology)
+    float head = 1;      ///< window end, in loop parameter
+    float span = 1;      ///< window length back from head
   };
   /** Add a compute-swept ribbon surface (an ordinary surface entity;
    *  transform/material behave as usual). 0 on failure. */
-  uint32_t addSweep(const SweepDesc &desc, const Material &material);
+  uint32_t addSweep(const SweepDesc& desc, const Material& material);
   /** Slide a sweep's window: two floats into a constant buffer, with the
    *  re-sweep dispatched at the next render(). No-op on other ids. */
   void setSweepWindow(uint32_t id, float head, float span);
@@ -193,22 +191,22 @@ public:
    *  window flows like the sweep's: slide the head and the whole flock
    *  streams along the loop. */
   struct FlockDesc {
-    std::vector<glm::vec3> loop; ///< closed Catmull-Rom control points
-    int count = 10000;      ///< instances (fixed at creation)
-    float head = 1;         ///< window end, in loop parameter
-    float span = 1;         ///< window length back from head
-    float radius = 30;      ///< scatter radius around the spline
-    float scale = 1;        ///< base stamp scale (0.5-1.5x per point)
+    std::vector<glm::vec3> loop;  ///< closed Catmull-Rom control points
+    int count = 10000;            ///< instances (fixed at creation)
+    float head = 1;               ///< window end, in loop parameter
+    float span = 1;               ///< window length back from head
+    float radius = 30;            ///< scatter radius around the spline
+    float scale = 1;              ///< base stamp scale (0.5-1.5x per point)
     float noiseAmplitude = 0;
     float noiseFrequency = 0.01f;
     float seed = 7;
-    glm::vec4 tintTail = {1, 1, 1, 1}; ///< at the window's start
-    glm::vec4 tintHead = {1, 1, 1, 1}; ///< at the window's end
+    glm::vec4 tintTail = {1, 1, 1, 1};  ///< at the window's start
+    glm::vec4 tintHead = {1, 1, 1, 1};  ///< at the window's end
   };
   /** Add a compute-generated flock drawing @p stamp at every point.
    *  An ordinary instanced surface entity otherwise. 0 on failure. */
-  uint32_t addFlock(const shape::Mesh &stamp, const FlockDesc &desc,
-                    const Material &material);
+  uint32_t addFlock(const shape::Mesh& stamp, const FlockDesc& desc,
+                    const Material& material);
   /** Slide a flock's window; the GPU regenerates at next render(). */
   void setFlockWindow(uint32_t id, float head, float span);
 
@@ -228,14 +226,14 @@ public:
   /** Cook @p chain (its first op must be a generator) and draw @p stamp
    *  at every cooked point. An ordinary instanced surface otherwise.
    *  0 on failure, including a chain the GPU executor declines. */
-  uint32_t addPoints(const shape::Mesh &stamp, const pop::Chain &chain,
-                     const Material &material);
+  uint32_t addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
+                     const Material& material);
   /** Replace the chain and re-cook at the next render(). A changed point
    *  count, operator list, custom attribute set or lookup table rebuilds
    *  the lanes and bindings; anything else is a parameter edit. No-op on
    *  other ids, and on a chain the GPU executor declines — the surface
    *  keeps cooking the chain it already had. */
-  void setPoints(uint32_t id, const pop::Chain &chain);
+  void setPoints(uint32_t id, const pop::Chain& chain);
   /** Slide the leading scatter's window without re-describing the chain
    *  — the point-chain sibling of setSweepWindow and setFlockWindow, so
    *  animating costs two floats per frame and the call site need not
@@ -252,9 +250,8 @@ public:
    *  dependency order. Semantically identical to composing the two
    *  chains on the CPU. 0 on failure — it needs a valid upstream point
    *  surface with at least 3 points. */
-  uint32_t addPointsOn(uint32_t upstream, const shape::Mesh &stamp,
-                       const pop::Chain &chain,
-                       const Material &material);
+  uint32_t addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
+                       const pop::Chain& chain, const Material& material);
 
   /** THE QUERY DOOR: read a point surface's cooked attribute lanes back
    *  from the GPU as a Cloud — positions plus the same conventional
@@ -277,20 +274,20 @@ public:
    *  all of it opaque or blended. Instances are therefore not depth
    *  sorted against each other. 0 on failure; an empty cloud is a valid
    *  but invisible flock awaiting setInstances(). */
-  uint32_t addInstanced(const shape::Mesh &stamp, const shape::Cloud &cloud,
-                        const Material &material,
-                        const InstanceLanes &lanes = {});
+  uint32_t addInstanced(const shape::Mesh& stamp, const shape::Cloud& cloud,
+                        const Material& material,
+                        const InstanceLanes& lanes = {});
   /** Re-upload an instanced surface's points (UpdateBuffer when the
    *  count is unchanged, recreate otherwise). No-op on plain
    *  surfaces. */
-  void setInstances(uint32_t id, const shape::Cloud &cloud,
-                    const InstanceLanes &lanes = {});
+  void setInstances(uint32_t id, const shape::Cloud& cloud,
+                    const InstanceLanes& lanes = {});
 
   /** The world's entity registry — surfaces live here as entities with
    *  TransformComponent + MaterialComponent (Components.h). Attach your
    *  own components and run your own systems over the same entities. */
-  entt::registry &registry();
-  const entt::registry &registry() const;
+  entt::registry& registry();
+  const entt::registry& registry() const;
 
   /** Convenience: a fresh entity carrying @p light. The registry is the
    *  real API — mutate the LightComponent live, attach one to any entity
@@ -298,14 +295,14 @@ public:
    *
    *  render() takes at most kLightBudget lights per frame, in registry
    *  iteration order, and silently ignores the rest. */
-  uint32_t addLight(const LightComponent &light);
+  uint32_t addLight(const LightComponent& light);
 
   /** The FALLBACK camera. An entity carrying an active CameraComponent
    *  (Components.h) outranks this one while it exists — including one
    *  activated before a later call to this setter. With several active,
    *  the first the registry iterates wins. */
-  void setCamera(const shape::space::Camera &camera);
-  void setLighting(const Lighting &lighting);
+  void setCamera(const shape::space::Camera& camera);
+  void setLighting(const Lighting& lighting);
 
   /** Render the scene into the offscreen target.
    *
@@ -318,14 +315,14 @@ public:
   /** The last rendered frame as a raster SkImage (RGBA, opaque). */
   sk_sp<SkImage> readback();
   /** render() must have run; encodes the readback as PNG. */
-  bool savePng(const std::filesystem::path &path);
+  bool savePng(const std::filesystem::path& path);
 
-  const char *backendName() const;
+  const char* backendName() const;
 
-private:
+ private:
   World();
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace sigil::world
+}  // namespace sigil::world

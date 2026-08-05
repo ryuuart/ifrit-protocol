@@ -12,8 +12,6 @@
  * any PathFormat or ContourWalk foreground dresses it.
  */
 
-#include "sigilcompose/Compose.h"
-
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkStrokeRec.h>
@@ -22,6 +20,8 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::routers {
 
@@ -47,18 +47,17 @@ enum class Bend { MidX, HFirst, VFirst };
  *  chamfer over `arc()`, `octilinear()`'s rounded output, or anything
  *  already run through a corner effect is a silent no-op on that
  *  contour. */
-inline SkPath chamfer(const SkPath &path, float cut) {
-  if (cut <= 0 || path.isEmpty())
-    return path;
+inline SkPath chamfer(const SkPath& path, float cut) {
+  if (cut <= 0 || path.isEmpty()) return path;
   SkPathBuilder out;
-  std::vector<SkPoint> run; // current contour's polyline vertices
-  SkPathBuilder verbatim;   // the same contour, copied exactly
+  std::vector<SkPoint> run;  // current contour's polyline vertices
+  SkPathBuilder verbatim;    // the same contour, copied exactly
   bool closed = false, anyCurve = false;
 
   // A vertex's cut points: entry on the incoming leg, exit on the
   // outgoing leg, each clamped to half its leg. False at a
   // straight-through or degenerate vertex (no corner to cut).
-  const auto cutAt = [&](size_t i, SkPoint &entry, SkPoint &exit) {
+  const auto cutAt = [&](size_t i, SkPoint& entry, SkPoint& exit) {
     const size_t n = run.size();
     const SkPoint prev = run[(i + n - 1) % n], v = run[i],
                   next = run[(i + 1) % n];
@@ -66,33 +65,28 @@ inline SkPath chamfer(const SkPath &path, float cut) {
     const SkVector outV{next.x() - v.x(), next.y() - v.y()};
     const float lenIn = std::hypot(in.x(), in.y());
     const float lenOut = std::hypot(outV.x(), outV.y());
-    if (lenIn < 1e-4f || lenOut < 1e-4f)
-      return false;
+    if (lenIn < 1e-4f || lenOut < 1e-4f) return false;
     const float cross = in.x() * outV.y() - in.y() * outV.x();
     const float dot = in.x() * outV.x() + in.y() * outV.y();
     if (std::abs(cross) <= 1e-4f * lenIn * lenOut && dot > 0)
-      return false; // straight through — no corner
+      return false;  // straight through — no corner
     const float cIn = std::min(cut, lenIn * 0.5f);
     const float cOut = std::min(cut, lenOut * 0.5f);
     entry = {v.x() - in.x() / lenIn * cIn, v.y() - in.y() / lenIn * cIn};
-    exit = {v.x() + outV.x() / lenOut * cOut,
-            v.y() + outV.y() / lenOut * cOut};
+    exit = {v.x() + outV.x() / lenOut * cOut, v.y() + outV.y() / lenOut * cOut};
     return true;
   };
 
   const auto emitChamfered = [&] {
-    if (run.empty())
-      return;
+    if (run.empty()) return;
     if (closed && run.size() > 1 && run.front() == run.back())
-      run.pop_back(); // the closing joint belongs to close()
+      run.pop_back();  // the closing joint belongs to close()
     const size_t n = run.size();
     SkPoint entry, exit;
-    if (n < 3) { // nothing to cut — as collected
+    if (n < 3) {  // nothing to cut — as collected
       out.moveTo(run.front());
-      for (size_t i = 1; i < n; ++i)
-        out.lineTo(run[i]);
-      if (closed)
-        out.close();
+      for (size_t i = 1; i < n; ++i) out.lineTo(run[i]);
+      if (closed) out.close();
       return;
     }
     if (!closed) {
@@ -106,7 +100,7 @@ inline SkPath chamfer(const SkPath &path, float cut) {
         }
       }
       out.lineTo(run.back());
-    } else { // every vertex is interior, the moveTo joint included
+    } else {  // every vertex is interior, the moveTo joint included
       bool started = false;
       // NOT named `emit`: this header reaches Qt TUs, where that is a macro.
       const auto put = [&](SkPoint p) {
@@ -131,7 +125,7 @@ inline SkPath chamfer(const SkPath &path, float cut) {
   };
 
   const auto flushContour = [&] {
-    if (anyCurve) // chamfer is a polyline treatment: curves pass through
+    if (anyCurve)  // chamfer is a polyline treatment: curves pass through
       out.addPath(verbatim.detach());
     else
       emitChamfered();
@@ -146,33 +140,33 @@ inline SkPath chamfer(const SkPath &path, float cut) {
   SkPath::Verb verb;
   while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
     switch (verb) {
-    case SkPath::kMove_Verb:
-      flushContour();
-      run.push_back(pts[0]);
-      verbatim.moveTo(pts[0]);
-      break;
-    case SkPath::kLine_Verb:
-      run.push_back(pts[1]);
-      verbatim.lineTo(pts[1]);
-      break;
-    case SkPath::kQuad_Verb:
-      anyCurve = true;
-      verbatim.quadTo(pts[1], pts[2]);
-      break;
-    case SkPath::kConic_Verb:
-      anyCurve = true;
-      verbatim.conicTo(pts[1], pts[2], iter.conicWeight());
-      break;
-    case SkPath::kCubic_Verb:
-      anyCurve = true;
-      verbatim.cubicTo(pts[1], pts[2], pts[3]);
-      break;
-    case SkPath::kClose_Verb:
-      closed = true;
-      verbatim.close();
-      break;
-    default:
-      break;
+      case SkPath::kMove_Verb:
+        flushContour();
+        run.push_back(pts[0]);
+        verbatim.moveTo(pts[0]);
+        break;
+      case SkPath::kLine_Verb:
+        run.push_back(pts[1]);
+        verbatim.lineTo(pts[1]);
+        break;
+      case SkPath::kQuad_Verb:
+        anyCurve = true;
+        verbatim.quadTo(pts[1], pts[2]);
+        break;
+      case SkPath::kConic_Verb:
+        anyCurve = true;
+        verbatim.conicTo(pts[1], pts[2], iter.conicWeight());
+        break;
+      case SkPath::kCubic_Verb:
+        anyCurve = true;
+        verbatim.cubicTo(pts[1], pts[2], pts[3]);
+        break;
+      case SkPath::kClose_Verb:
+        closed = true;
+        verbatim.close();
+        break;
+      default:
+        break;
     }
   }
   flushContour();
@@ -185,11 +179,10 @@ namespace detail {
  *  run — why the manhattan family emits no zero-length or split segments
  *  on axis-aligned pairs. Reversals (spikes) are kept: a doubled-back leg
  *  is real geometry, not a redundant vertex. */
-inline void collapseCollinear(std::vector<SkPoint> &pts) {
+inline void collapseCollinear(std::vector<SkPoint>& pts) {
   size_t w = 0;
   for (size_t i = 0; i < pts.size(); ++i) {
-    if (w > 0 && pts[i] == pts[w - 1])
-      continue; // zero-length
+    if (w > 0 && pts[i] == pts[w - 1]) continue;  // zero-length
     if (w >= 2) {
       const SkVector a{pts[w - 1].x() - pts[w - 2].x(),
                        pts[w - 1].y() - pts[w - 2].y()};
@@ -198,7 +191,7 @@ inline void collapseCollinear(std::vector<SkPoint> &pts) {
       const float cross = a.x() * b.y() - a.y() * b.x();
       const float dot = a.x() * b.x() + a.y() * b.y();
       if (cross == 0.0f && dot > 0.0f) {
-        pts[w - 1] = pts[i]; // extend the straight run
+        pts[w - 1] = pts[i];  // extend the straight run
         continue;
       }
     }
@@ -213,38 +206,34 @@ inline void collapseCollinear(std::vector<SkPoint> &pts) {
 inline SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
                             float cornerRadius, float chamferCut) {
   SkPathBuilder b;
-  if (anchors.empty())
-    return b.detach();
+  if (anchors.empty()) return b.detach();
   std::vector<SkPoint> way;
   way.reserve(anchors.size() * 3);
   way.push_back(anchors.front());
   for (size_t i = 1; i < anchors.size(); ++i) {
     const SkPoint a = anchors[i - 1], c = anchors[i];
     switch (bend) {
-    case Bend::MidX: {
-      const float midX = (a.x() + c.x()) / 2;
-      way.push_back({midX, a.y()});
-      way.push_back({midX, c.y()});
-      break;
-    }
-    case Bend::HFirst:
-      way.push_back({c.x(), a.y()});
-      break;
-    case Bend::VFirst:
-      way.push_back({a.x(), c.y()});
-      break;
+      case Bend::MidX: {
+        const float midX = (a.x() + c.x()) / 2;
+        way.push_back({midX, a.y()});
+        way.push_back({midX, c.y()});
+        break;
+      }
+      case Bend::HFirst:
+        way.push_back({c.x(), a.y()});
+        break;
+      case Bend::VFirst:
+        way.push_back({a.x(), c.y()});
+        break;
     }
     way.push_back(c);
   }
   collapseCollinear(way);
   b.moveTo(way.front());
-  for (size_t i = 1; i < way.size(); ++i)
-    b.lineTo(way[i]);
+  for (size_t i = 1; i < way.size(); ++i) b.lineTo(way[i]);
   SkPath path = b.detach();
-  if (chamferCut > 0)
-    return chamfer(path, chamferCut);
-  if (cornerRadius <= 0)
-    return path;
+  if (chamferCut > 0) return chamfer(path, chamferCut);
+  if (cornerRadius <= 0) return path;
   SkPathBuilder rounded;
   SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
   if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
@@ -253,12 +242,12 @@ inline SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
   return path;
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** Straight center-to-center line — the connector default, as a named
  *  value for symmetry. */
 inline Router straight() {
-  return [](const SkRect &from, const SkRect &to) {
+  return [](const SkRect& from, const SkRect& to) {
     SkPathBuilder b;
     b.moveTo(from.centerX(), from.centerY());
     b.lineTo(to.centerX(), to.centerY());
@@ -270,7 +259,7 @@ inline Router straight() {
  *  vertical run at the midpoint, horizontal into the target. A
  *  positive @p cornerRadius rounds the two turns. */
 inline Router orthogonal(float cornerRadius = 0.0f) {
-  return [cornerRadius](const SkRect &from, const SkRect &to) {
+  return [cornerRadius](const SkRect& from, const SkRect& to) {
     const float fx = from.centerX(), fy = from.centerY();
     const float tx = to.centerX(), ty = to.centerY();
     const float midX = (fx + tx) / 2;
@@ -280,8 +269,7 @@ inline Router orthogonal(float cornerRadius = 0.0f) {
     b.lineTo(midX, ty);
     b.lineTo(tx, ty);
     SkPath path = b.detach();
-    if (cornerRadius <= 0)
-      return path;
+    if (cornerRadius <= 0) return path;
     SkPathBuilder roundedPath;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx2 = SkCornerPathEffect::Make(cornerRadius);
@@ -305,12 +293,12 @@ inline Router orthogonal(float cornerRadius = 0.0f) {
  *  reach for in new code. */
 inline Router orthogonal(Bend bend, float cornerRadius = 0.0f,
                          float chamferCut = 0.0f) {
-  return [bend, cornerRadius, chamferCut](const SkRect &from,
-                                          const SkRect &to) {
-    const SkPoint ends[2] = {{from.centerX(), from.centerY()},
-                             {to.centerX(), to.centerY()}};
-    return detail::manhattanPath(ends, bend, cornerRadius, chamferCut);
-  };
+  return
+      [bend, cornerRadius, chamferCut](const SkRect& from, const SkRect& to) {
+        const SkPoint ends[2] = {{from.centerX(), from.centerY()},
+                                 {to.centerX(), to.centerY()}};
+        return detail::manhattanPath(ends, bend, cornerRadius, chamferCut);
+      };
 }
 
 // ---------------------------------------------------------------------------
@@ -343,10 +331,8 @@ inline RailRouter fromPairwise(Router router) {
   return [router = std::move(router)](std::span<const SkPoint> pts) {
     SkPathBuilder b;
     if (pts.size() < 2 || !router) {
-      if (!pts.empty())
-        b.moveTo(pts.front());
-      for (size_t i = 1; i < pts.size(); ++i)
-        b.lineTo(pts[i]);
+      if (!pts.empty()) b.moveTo(pts.front());
+      for (size_t i = 1; i < pts.size(); ++i) b.lineTo(pts[i]);
       return b.detach();
     }
     // Collect into an op list so a collinear lineTo can extend the
@@ -354,18 +340,17 @@ inline RailRouter fromPairwise(Router router) {
     struct Op {
       SkPath::Verb verb;
       SkPoint p[3];
-      float w = 0; // conic weight
+      float w = 0;  // conic weight
     };
     std::vector<Op> ops;
     SkPoint cur = pts.front();
     ops.push_back({SkPath::kMove_Verb, {cur}});
     const auto pushLine = [&](SkPoint p) {
-      if (p == cur)
-        return; // zero-length — collapse
+      if (p == cur) return;  // zero-length — collapse
       if (ops.back().verb == SkPath::kLine_Verb) {
         // Merge an exactly-forward-collinear run: the last segment's own
         // start is the endpoint of the op before it, whatever its verb.
-        const Op &before = ops[ops.size() - 2];
+        const Op& before = ops[ops.size() - 2];
         SkPoint segStart = before.p[0];
         if (before.verb == SkPath::kQuad_Verb ||
             before.verb == SkPath::kConic_Verb)
@@ -394,46 +379,57 @@ inline RailRouter fromPairwise(Router router) {
       SkPath::Verb verb;
       while ((verb = iter.next(lp)) != SkPath::kDone_Verb) {
         switch (verb) {
-        case SkPath::kMove_Verb:
-          // The stitch: a leg starts where the last one ended; a router
-          // that starts elsewhere gets a bridging line instead of a gap.
-          pushLine(lp[0]);
-          break;
-        case SkPath::kLine_Verb:
-          pushLine(lp[1]);
-          break;
-        case SkPath::kQuad_Verb:
-          if (!(lp[1] == cur && lp[2] == cur)) {
-            ops.push_back({SkPath::kQuad_Verb, {lp[1], lp[2]}});
-            cur = lp[2];
-          }
-          break;
-        case SkPath::kConic_Verb:
-          if (!(lp[1] == cur && lp[2] == cur)) {
-            ops.push_back(
-                {SkPath::kConic_Verb, {lp[1], lp[2]}, iter.conicWeight()});
-            cur = lp[2];
-          }
-          break;
-        case SkPath::kCubic_Verb:
-          if (!(lp[1] == cur && lp[2] == cur && lp[3] == cur)) {
-            ops.push_back({SkPath::kCubic_Verb, {lp[1], lp[2], lp[3]}});
-            cur = lp[3];
-          }
-          break;
-        default: // routes are open; close verbs do not stitch
-          break;
+          case SkPath::kMove_Verb:
+            // The stitch: a leg starts where the last one ended; a router
+            // that starts elsewhere gets a bridging line instead of a gap.
+            pushLine(lp[0]);
+            break;
+          case SkPath::kLine_Verb:
+            pushLine(lp[1]);
+            break;
+          case SkPath::kQuad_Verb:
+            if (!(lp[1] == cur && lp[2] == cur)) {
+              ops.push_back({SkPath::kQuad_Verb, {lp[1], lp[2]}});
+              cur = lp[2];
+            }
+            break;
+          case SkPath::kConic_Verb:
+            if (!(lp[1] == cur && lp[2] == cur)) {
+              ops.push_back(
+                  {SkPath::kConic_Verb, {lp[1], lp[2]}, iter.conicWeight()});
+              cur = lp[2];
+            }
+            break;
+          case SkPath::kCubic_Verb:
+            if (!(lp[1] == cur && lp[2] == cur && lp[3] == cur)) {
+              ops.push_back({SkPath::kCubic_Verb, {lp[1], lp[2], lp[3]}});
+              cur = lp[3];
+            }
+            break;
+          default:  // routes are open; close verbs do not stitch
+            break;
         }
       }
     }
-    for (const Op &op : ops) {
+    for (const Op& op : ops) {
       switch (op.verb) {
-      case SkPath::kMove_Verb: b.moveTo(op.p[0]); break;
-      case SkPath::kLine_Verb: b.lineTo(op.p[0]); break;
-      case SkPath::kQuad_Verb: b.quadTo(op.p[0], op.p[1]); break;
-      case SkPath::kConic_Verb: b.conicTo(op.p[0], op.p[1], op.w); break;
-      case SkPath::kCubic_Verb: b.cubicTo(op.p[0], op.p[1], op.p[2]); break;
-      default: break;
+        case SkPath::kMove_Verb:
+          b.moveTo(op.p[0]);
+          break;
+        case SkPath::kLine_Verb:
+          b.lineTo(op.p[0]);
+          break;
+        case SkPath::kQuad_Verb:
+          b.quadTo(op.p[0], op.p[1]);
+          break;
+        case SkPath::kConic_Verb:
+          b.conicTo(op.p[0], op.p[1], op.w);
+          break;
+        case SkPath::kCubic_Verb:
+          b.cubicTo(op.p[0], op.p[1], op.p[2]);
+          break;
+        default:
+          break;
       }
     }
     return b.detach();
@@ -445,14 +441,11 @@ inline RailRouter fromPairwise(Router router) {
 inline RailRouter polyline(float cornerRadius = 0.0f) {
   return [cornerRadius](std::span<const SkPoint> pts) {
     SkPathBuilder b;
-    if (pts.empty())
-      return b.detach();
+    if (pts.empty()) return b.detach();
     b.moveTo(pts.front());
-    for (size_t i = 1; i < pts.size(); ++i)
-      b.lineTo(pts[i]);
+    for (size_t i = 1; i < pts.size(); ++i) b.lineTo(pts[i]);
     SkPath path = b.detach();
-    if (cornerRadius <= 0)
-      return path;
+    if (cornerRadius <= 0) return path;
     SkPathBuilder roundedPath;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
@@ -469,8 +462,7 @@ inline RailRouter polyline(float cornerRadius = 0.0f) {
 inline RailRouter octilinear(float cornerRadius = 8.0f) {
   return [cornerRadius](std::span<const SkPoint> pts) {
     SkPathBuilder b;
-    if (pts.empty())
-      return b.detach();
+    if (pts.empty()) return b.detach();
     b.moveTo(pts.front());
     for (size_t i = 1; i < pts.size(); ++i) {
       const SkPoint from = pts[i - 1], to = pts[i];
@@ -485,8 +477,7 @@ inline RailRouter octilinear(float cornerRadius = 8.0f) {
       b.lineTo(to);
     }
     SkPath path = b.detach();
-    if (cornerRadius <= 0)
-      return path;
+    if (cornerRadius <= 0) return path;
     SkPathBuilder roundedPath;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
@@ -506,8 +497,7 @@ inline RailRouter octilinear(float cornerRadius = 8.0f) {
 inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
   return [center, tolerance](std::span<const SkPoint> pts) {
     SkPathBuilder b;
-    if (pts.empty())
-      return b.detach();
+    if (pts.empty()) return b.detach();
     b.moveTo(pts.front());
     for (size_t i = 1; i < pts.size(); ++i) {
       const SkPoint from = pts[i - 1], to = pts[i];
@@ -515,18 +505,16 @@ inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
       const float r2 = SkPoint::Distance(to, center);
       const float r = (r1 + r2) * 0.5f;
       if (r > 1.0f && std::abs(r1 - r2) <= tolerance * r) {
-        const float a1 = std::atan2(from.y() - center.y(),
-                                    from.x() - center.x()) *
-                         57.29578f;
+        const float a1 =
+            std::atan2(from.y() - center.y(), from.x() - center.x()) *
+            57.29578f;
         const float a2 =
             std::atan2(to.y() - center.y(), to.x() - center.x()) * 57.29578f;
         float sweep = a2 - a1;
-        while (sweep > 180.0f)
-          sweep -= 360.0f;
-        while (sweep <= -180.0f)
-          sweep += 360.0f;
-        b.arcTo(SkRect::MakeLTRB(center.x() - r, center.y() - r,
-                                 center.x() + r, center.y() + r),
+        while (sweep > 180.0f) sweep -= 360.0f;
+        while (sweep <= -180.0f) sweep += 360.0f;
+        b.arcTo(SkRect::MakeLTRB(center.x() - r, center.y() - r, center.x() + r,
+                                 center.y() + r),
                 a1, sweep, false);
       } else {
         b.lineTo(to);
@@ -539,7 +527,7 @@ inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
 /** Circular-ish bow between the centers: the route's midpoint bulges
  *  off the chord by @p bulge × chord-length (sign picks the side). */
 inline Router arc(float bulge = 0.25f) {
-  return [bulge](const SkRect &from, const SkRect &to) {
+  return [bulge](const SkRect& from, const SkRect& to) {
     const SkPoint a{from.centerX(), from.centerY()};
     const SkPoint c{to.centerX(), to.centerY()};
     const SkVector chord{c.x() - a.x(), c.y() - a.y()};
@@ -560,4 +548,4 @@ inline Router arc(float bulge = 0.25f) {
   };
 }
 
-} // namespace sigil::compose::routers
+}  // namespace sigil::compose::routers

@@ -37,15 +37,15 @@ namespace sigil::weave::kit {
  * a reference count. The callable runs before the key is stored, so a throw
  * leaves the guard invalid and the rebuild retries on the next call.
  */
-template <typename... Keys> class RebuildGuard {
-public:
+template <typename... Keys>
+class RebuildGuard {
+ public:
   /** Runs `buildFn` when the keys differ from the last successful build (or
    *  nothing was built yet). Returns true when rebuilding occurred. */
   template <typename BuildFn>
-    requires std::invocable<BuildFn &>
-  bool ensure(std::tuple<Keys...> keys, BuildFn &&buildFn) {
-    if (m_built && keys == m_keys)
-      return false;
+    requires std::invocable<BuildFn&>
+  bool ensure(std::tuple<Keys...> keys, BuildFn&& buildFn) {
+    if (m_built && keys == m_keys) return false;
     buildFn();
     m_keys = std::move(keys);
     m_built = true;
@@ -58,7 +58,7 @@ public:
   /** Returns whether a build has completed since construction/invalidate. */
   [[nodiscard]] bool built() const { return m_built; }
 
-private:
+ private:
   std::tuple<Keys...> m_keys;
   bool m_built = false;
 };
@@ -75,35 +75,36 @@ private:
  * const SkPath &ring = m_ring.ensure({size}, [&] { return makeRing(size); });
  * ```
  */
-template <typename Value, typename... Keys> class CachedValue {
-public:
+template <typename Value, typename... Keys>
+class CachedValue {
+ public:
   /** Returns the cached value, rebuilding it via `buildFn` when the keys
    *  differ from the last build. */
   template <typename BuildFn>
-    requires std::invocable<BuildFn &> &&
-             std::convertible_to<std::invoke_result_t<BuildFn &>, Value>
-  Value &ensure(std::tuple<Keys...> keys, BuildFn &&buildFn) {
+    requires std::invocable<BuildFn&> &&
+             std::convertible_to<std::invoke_result_t<BuildFn&>, Value>
+  Value& ensure(std::tuple<Keys...> keys, BuildFn&& buildFn) {
     m_guard.ensure(std::move(keys), [&] { m_value = buildFn(); });
     return m_value;
   }
 
   /** Keyless build-once convenience for lazily constructed values. */
   template <typename BuildFn>
-    requires(sizeof...(Keys) == 0) && std::invocable<BuildFn &> &&
-            std::convertible_to<std::invoke_result_t<BuildFn &>, Value>
-  Value &ensure(BuildFn &&buildFn) {
+    requires(sizeof...(Keys) == 0) && std::invocable<BuildFn&> &&
+            std::convertible_to<std::invoke_result_t<BuildFn&>, Value>
+  Value& ensure(BuildFn&& buildFn) {
     return ensure(std::tuple<>{}, std::forward<BuildFn>(buildFn));
   }
 
   /** Forces the next ensure() to rebuild regardless of its keys. */
   void invalidate() { m_guard.invalidate(); }
 
-  [[nodiscard]] Value &value() { return m_value; }
-  [[nodiscard]] const Value &value() const { return m_value; }
+  [[nodiscard]] Value& value() { return m_value; }
+  [[nodiscard]] const Value& value() const { return m_value; }
 
-private:
+ private:
   Value m_value{};
   RebuildGuard<Keys...> m_guard;
 };
 
-} // namespace sigil::weave::kit
+}  // namespace sigil::weave::kit

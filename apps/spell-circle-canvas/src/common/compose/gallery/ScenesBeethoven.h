@@ -23,14 +23,14 @@
 //    paths and only the mask parameters animate. The reveal is a single
 //    discrete re-describe gated in update(), not a per-frame one.
 
-#include "GalleryCore.h"
-
 #include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -41,15 +41,15 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 // The plate: poster-space is 720 x (720·1.4144); reproduce at canvas
 // height minus a mat margin, centered horizontally.
 constexpr float kPosterW = 720.0f;
-constexpr float kPosterH = kPosterW * 1.4144f; // the Weltformat √2 rectangle
+constexpr float kPosterH = kPosterW * 1.4144f;  // the Weltformat √2 rectangle
 constexpr float kPlateH = 600.0f;
-constexpr float kPlateW = kPlateH * (kPosterW / kPosterH); // ≈ 424.4
-constexpr float kScale = kPlateW / kPosterW; // poster units → plate px
+constexpr float kPlateW = kPlateH * (kPosterW / kPosterH);  // ≈ 424.4
+constexpr float kScale = kPlateW / kPosterW;  // poster units → plate px
 constexpr float kPlateX = (kW - kPlateW) * 0.5f;
 constexpr float kPlateY = (kH - kPlateH) * 0.5f;
 
-constexpr SkColor4f kWall{0.235f, 0.230f, 0.222f, 1};  // the museum wall
-constexpr SkColor4f kPaper{0.961f, 0.953f, 0.933f, 1}; // #F5F3EE
+constexpr SkColor4f kWall{0.235f, 0.230f, 0.222f, 1};   // the museum wall
+constexpr SkColor4f kPaper{0.961f, 0.953f, 0.933f, 1};  // #F5F3EE
 constexpr SkColor4f kInk{0.066f, 0.062f, 0.058f, 1};
 constexpr SkColor4f kLabel{0.760f, 0.745f, 0.715f, 1};
 
@@ -57,10 +57,10 @@ constexpr SkColor4f kLabel{0.760f, 0.745f, 0.715f, 1};
 // (0° = +x, counter-clockwise positive, y up); the canvas is y-down and
 // clockwise-positive, so canvas angle = −math angle.
 struct Run {
-  float rInner, rOuter;   // × poster W
-  float startDeg, endDeg; // math convention
+  float rInner, rOuter;    // × poster W
+  float startDeg, endDeg;  // math convention
 };
-inline const std::vector<Run> &runs() {
+inline const std::vector<Run>& runs() {
   static const std::vector<Run> table = {
       {0.3480f, 0.3607f, -33.75f, 22.50f},
       {0.3480f, 0.3607f, -146.25f, -135.00f},
@@ -75,7 +75,7 @@ inline const std::vector<Run> &runs() {
   return table;
 }
 // Ring index per run (for the doubling reveal durations).
-inline const std::vector<int> &rings() {
+inline const std::vector<int>& rings() {
   static const std::vector<int> table = {0, 0, 1, 1, 2, 2, 3, 4, 5};
   return table;
 }
@@ -90,16 +90,16 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color = kInk,
   return s;
 }
 
-} // namespace beethoven_plate
+}  // namespace beethoven_plate
 
 struct BeethovenScene final : Scene {
   bool revealed = false;
 
-  const char *name() const override { return "beethoven"; }
+  const char* name() const override { return "beethoven"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &) override {
+  void setup(Composer& composer, sigil::motion::Ticker&) override {
     revealed = false;
-    composer.render(describe(0)); // every arc masked to nothing
+    composer.render(describe(0));  // every arc masked to nothing
   }
 
   /** One arc run: a box centred on the poster's arc centre, sized to the
@@ -111,12 +111,12 @@ struct BeethovenScene final : Scene {
    *  All fractions here are of the PLATE box, which is the parent of these
    *  absolute children, so the whole measured geometry rescales as one
    *  unit. */
-  Element arcRun(const beethoven_plate::Run &run, int ring, int phase) {
+  Element arcRun(const beethoven_plate::Run& run, int ring, int phase) {
     namespace bp = beethoven_plate;
     const SkPoint C{0.2693f * bp::kPlateW, 0.7156f * bp::kPlateH};
     const float rMid = (run.rInner + run.rOuter) * 0.5f * bp::kPlateW;
     const float width = (run.rOuter - run.rInner) * bp::kPlateW;
-    const float canvasStart = -run.endDeg; // y-down mapping
+    const float canvasStart = -run.endDeg;  // y-down mapping
     const float sweep = run.endDeg - run.startDeg;
     const float span = std::min(sweep / 360.0f, 0.9995f);
 
@@ -125,9 +125,11 @@ struct BeethovenScene final : Scene {
     inkStroke.strokeFill = Fill::color(bp::kInk);
 
     Element e =
-        box().width(2 * rMid).height(2 * rMid)
-            .inset(C.x() - rMid, C.y() - rMid,
-                   bp::kPlateW - C.x() - rMid, bp::kPlateH - C.y() - rMid)
+        box()
+            .width(2 * rMid)
+            .height(2 * rMid)
+            .inset(C.x() - rMid, C.y() - rMid, bp::kPlateW - C.x() - rMid,
+                   bp::kPlateH - C.y() - rMid)
             .shape([canvasStart](SkSize s) {
               SkPathBuilder b;
               b.addArc(SkRect::MakeWH(s.width(), s.height()), canvasStart,
@@ -140,8 +142,7 @@ struct BeethovenScene final : Scene {
     } else {
       // The poster's own progression: reveal duration doubles per ring
       // outward, and each sweep runs linearly.
-      const auto duration =
-          std::chrono::milliseconds(120 << std::min(ring, 5));
+      const auto duration = std::chrono::milliseconds(120 << std::min(ring, 5));
       e.mask(by::spans(
           spans::upTo(animate(to(span), {duration, &choreograph::easeNone}))));
     }
@@ -151,16 +152,16 @@ struct BeethovenScene final : Scene {
   /** The poster itself, in plate coordinates. */
   Element plate(int phase) {
     namespace bp = beethoven_plate;
-    auto poster = stack()
-                      .fill(Fill::color(bp::kPaper))
-                      .background(styles::dropShadow({0, 0, 0, 0.45f},
-                                                     {0, 8}, 22))
-                      .clip();
-    const auto &table = bp::runs();
-    const auto &ringOf = bp::rings();
+    auto poster =
+        stack()
+            .fill(Fill::color(bp::kPaper))
+            .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
+            .clip();
+    const auto& table = bp::runs();
+    const auto& ringOf = bp::rings();
     for (size_t i = 0; i < table.size(); ++i)
-      poster.child(arcRun(table[i], ringOf[i], phase)
-                       .key("arc" + std::to_string(i)));
+      poster.child(
+          arcRun(table[i], ringOf[i], phase).key("arc" + std::to_string(i)));
 
     // The type block: flush-left grotesque, lowercase-forward, seated LOW in
     // the paper bowl to the left of the arc centre. Not at the original's
@@ -169,7 +170,8 @@ struct BeethovenScene final : Scene {
     // the plate's one clear field. Sizes and margins ride the plate scale so
     // the whole block rescales with the reproduction.
     poster.child(
-        box().column()
+        box()
+            .column()
             .inset(0.07f * bp::kPlateW, 0.54f * bp::kPlateH,
                    0.45f * bp::kPlateW, 0.16f * bp::kPlateH)
             .zIndex(2)
@@ -200,9 +202,10 @@ struct BeethovenScene final : Scene {
                           bp::kH - bp::kPlateY - bp::kPlateH)
                    .key("plate"))
         // The museum label, right panel, at hanging height.
-        .child(box().column().gap(4)
-                   .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24,
-                          64)
+        .child(box()
+                   .column()
+                   .gap(4)
+                   .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24, 64)
                    .child(text(toU8("josef m\xc3\xbcller-brockmann"),
                                bp::type(14, bp::kLabel, 0.6f)))
                    .child(text(toU8("beethoven \xe2\x80\x94 tonhalle "
@@ -214,12 +217,12 @@ struct BeethovenScene final : Scene {
                    .key("label"));
   }
 
-  void update(double elapsed, Composer &composer) override {
+  void update(double elapsed, Composer& composer) override {
     if (!revealed && elapsed > 0.15) {
       revealed = true;
-      composer.render(describe(1)); // the doubling-duration reveal
+      composer.render(describe(1));  // the doubling-duration reveal
     }
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

@@ -5,8 +5,8 @@
 // NERV's bridge shows while five external MAGI installations are driven against
 // Tokyo-3's MAGI 01.
 //
-//   Shigeru:   "Data entry from all external nodes... They're hacking the MAGI!"
-//   Fuyutsuki: "Hacking verified from Germany, China, the U.S. ..."
+//   Shigeru:   "Data entry from all external nodes... They're hacking the
+//   MAGI!" Fuyutsuki: "Hacking verified from Germany, China, the U.S. ..."
 //   Maya:      "A Danang Type-B defense screen has been deployed."
 //                                        — script, evaotaku.com/html/air.html
 //
@@ -143,16 +143,6 @@
 //   3.0 -> 17 s   the front advances: the whole hue field climbs the plate
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Util.h>
-#include <sigilcompose/kit/Strokes.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkMaskFilter.h>
@@ -161,6 +151,13 @@
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Brushes.h>
+#include <sigilcompose/Console.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cmath>
@@ -181,21 +178,21 @@ namespace eva {
 // THE FRAME. 1920x1080, the reference's own size, so the capture diffs.
 
 constexpr float kW = 1920.0f, kH = 1080.0f;
-constexpr SkPoint kHub{964.4f, 935.6f}; // MAGI 01's bbox centre, un-rolled
-constexpr float kAxis = 971.3f;         // the axis of bilateral symmetry:
-                                        // the barrier band's un-rolled span
-                                        // 686.4..1256.4 and the two trunks
-                                        // 708.7/1233.8 both give 971.3
-constexpr float kDiag = 0.7386f;        // dx:dy the funnel wall MEASURES in
-                                        // the frame — least-squares over six
-                                        // rows; asserted in runAudit()
+constexpr SkPoint kHub{964.4f, 935.6f};  // MAGI 01's bbox centre, un-rolled
+constexpr float kAxis = 971.3f;          // the axis of bilateral symmetry:
+                                         // the barrier band's un-rolled span
+                                         // 686.4..1256.4 and the two trunks
+                                         // 708.7/1233.8 both give 971.3
+constexpr float kDiag = 0.7386f;         // dx:dy the funnel wall MEASURES in
+                                         // the frame — least-squares over six
+                                         // rows; asserted in runAudit()
 // The outer wall's two centreline vertices, authored PRE-roll and shared by
 // the path builder and the audit so the published angle cannot drift from the
 // geometry that draws it.
 constexpr SkPoint kWallTop{708.7f, 606.0f};
 constexpr SkPoint kWallBend{511.9f, 867.5f};
-constexpr float kBand = 45.0f;          // ribbon width, measured 44-46
-constexpr float kRoll = -0.45f;         // the photographed CRT is not square
+constexpr float kBand = 45.0f;   // ribbon width, measured 44-46
+constexpr float kRoll = -0.45f;  // the photographed CRT is not square
 
 inline SkColor4f hex(uint32_t v, float a = 1.0f) {
   return {(float)((v >> 16) & 255) / 255.0f, (float)((v >> 8) & 255) / 255.0f,
@@ -213,7 +210,7 @@ inline SkPoint mirrorP(SkPoint p) { return {mirrorX(p.fX), p.fY}; }
  *  the whole reason the camera transform is worth having — a vertical trunk
  *  stays one number and comes out with the frame's own 3.5 px drift. */
 inline SkPoint unroll(SkPoint m) {
-  constexpr float k = 0.007854f; // tan(0.45 deg)
+  constexpr float k = 0.007854f;  // tan(0.45 deg)
   const float dx = m.fX - kW * 0.5f, dy = m.fY - kH * 0.5f;
   return {m.fX - dy * k, m.fY + dx * k};
 }
@@ -221,15 +218,15 @@ inline SkPoint unroll(SkPoint m) {
 // ---------------------------------------------------------------------------
 // PALETTE. Percentiles over the actual frame, classified by HSV.
 
-const SkColor4f kGround = hex(0x050A01);    // 51% of the frame; green-cast black
-const SkColor4f kHostile = hex(0xEE2C26);   // a captured MAGI (measured core)
+const SkColor4f kGround = hex(0x050A01);   // 51% of the frame; green-cast black
+const SkColor4f kHostile = hex(0xEE2C26);  // a captured MAGI (measured core)
 const SkColor4f kFriendly = hex(0x8BF0FE);  // MAGI 01, and every site pre-fall
 const SkColor4f kRim = hex(0xFF9456);       // 2 px core, blooms
 const SkColor4f kRimFriendly = hex(0xD6FBEA);
-const SkColor4f kNumeral = hex(0xFDA114);   // yellower and hotter than the rims
-const SkColor4f kInkHostile = hex(0x990000);// knocked DARK into the plate
+const SkColor4f kNumeral = hex(0xFDA114);  // yellower and hotter than the rims
+const SkColor4f kInkHostile = hex(0x990000);  // knocked DARK into the plate
 const SkColor4f kInkFriendly = hex(0x29985E);
-const SkColor4f kAlarm = hex(0xFF4740);     // COLLAPSING — pure red, never orange
+const SkColor4f kAlarm = hex(0xFF4740);  // COLLAPSING — pure red, never orange
 const SkColor4f kCell = hex(0x060200);   // the cells are not quite black
 
 /** THE FIELD, sampled down the reference plate.
@@ -259,19 +256,18 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // ---------------------------------------------------------------------------
 // TYPE. Helvetica Bold, condensed per label to the measured width.
 
-inline sk_sp<SkTypeface> face(const char *family, int weight, int width,
-                              const char *fallback) {
+inline sk_sp<SkTypeface> face(const char* family, int weight, int width,
+                              const char* fallback) {
   auto mgr = weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
       family, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
   if (!f && fallback)
     f = mgr->matchFamilyStyle(
         fallback, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f)
-    f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
+  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
   return f;
 }
-inline const sk_sp<SkTypeface> &boldFace() {
+inline const sk_sp<SkTypeface>& boldFace() {
   static sk_sp<SkTypeface> f = face("Helvetica", SkFontStyle::kBold_Weight,
                                     SkFontStyle::kNormal_Width, "Arial");
   return f;
@@ -355,10 +351,8 @@ inline Element glowText(std::u8string s, float size, SkColor4f c,
   // FIRST they paint UNDER an opaque core: the glyph body stays the sampled
   // colour to the byte and the halo only exists where the glyph is not.
   return box()
-      .child(text(s, glowType(size, c, condense, 6.5f, 0.34f))
-                 .inset(0))
-      .child(text(s, glowType(size, c, condense, 2.2f, 0.62f))
-                 .inset(0))
+      .child(text(s, glowType(size, c, condense, 6.5f, 0.34f)).inset(0))
+      .child(text(s, glowType(size, c, condense, 2.2f, 0.62f)).inset(0))
       .child(text(std::move(s), type(size, c, condense)));
 }
 
@@ -367,13 +361,11 @@ inline Element glowText(std::u8string s, float size, SkColor4f c,
 // a measured coordinate, because a router that searches its own corners
 // notches a 45 px band at a 55 deg bend.
 
-inline SkPath ribbon(const std::vector<SkPoint> &pts, float width) {
-  if (pts.size() < 2)
-    return SkPath();
+inline SkPath ribbon(const std::vector<SkPoint>& pts, float width) {
+  if (pts.size() < 2) return SkPath();
   SkPathBuilder b;
   b.moveTo(pts.front());
-  for (size_t i = 1; i < pts.size(); ++i)
-    b.lineTo(pts[i]);
+  for (size_t i = 1; i < pts.size(); ++i) b.lineTo(pts[i]);
   SkPaint p;
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
@@ -395,8 +387,7 @@ inline SkPath funnelPath() {
     add(pts, w);
     std::vector<SkPoint> m;
     m.reserve(pts.size());
-    for (SkPoint p : pts)
-      m.push_back(mirrorP(p));
+    for (SkPoint p : pts) m.push_back(mirrorP(p));
     add(std::move(m), w);
   };
 
@@ -426,7 +417,9 @@ inline SkPath funnelPath() {
 
   // 5. the inner chevron — the flat-bottomed trapezoid hanging under it.
   //    Shoulder 1.1875 : 1 from the trunk junction to the roof corner.
-  add({{721.5f, 605}, {839.7f, 705}, {mirrorX(839.7f), 705},
+  add({{721.5f, 605},
+       {839.7f, 705},
+       {mirrorX(839.7f), 705},
        {mirrorX(721.5f), 605}},
       kBand);
 
@@ -438,9 +431,8 @@ inline SkPath funnelPath() {
   //  pill. It is built with the labels, which is the doubled rule.)
 
   SkPathBuilder joined;
-  joined.setFillType(SkPathFillType::kWinding); // overlapping bands union
-  for (const SkPath &p : parts)
-    joined.addPath(p);
+  joined.setFillType(SkPathFillType::kWinding);  // overlapping bands union
+  for (const SkPath& p : parts) joined.addPath(p);
   out = joined.detach();
   return out;
 }
@@ -451,7 +443,7 @@ inline SkPath funnelPath() {
 namespace tre {
 constexpr float kBarW = 343.0f, kBarH = 176.0f;
 constexpr float kStemW = 128.0f, kStemH = 104.0f;
-constexpr float kTotalH = kBarH + kStemH; // 280
+constexpr float kTotalH = kBarH + kStemH;  // 280
 // The corner radius solves to 16: the black interior of MAGI 02's cell 1 is
 // 72 px wide and its arc gives r = 12.9 from two depths (6 px inset at d=2,
 // 2 px at d=6), plus the ~3 px rim.
@@ -473,27 +465,28 @@ inline SkPath silhouette(SkSize) {
   return b.detach();
 }
 
-/** Cell rects in component-local coordinates: 1 left, 3 right, 2 in the stem. */
+/** Cell rects in component-local coordinates: 1 left, 3 right, 2 in the stem.
+ */
 inline SkRect cell(int n) {
   switch (n) {
-  case 1:
-    return SkRect::MakeXYWH(kMargin, kMargin - 1, kCellW, kCellH);
-  case 3:
-    return SkRect::MakeXYWH(kBarW - kMargin - kCellW, kMargin - 1, kCellW,
-                            kCellH);
-  default:
-    return SkRect::MakeXYWH((kBarW - kCellW) * 0.5f,
-                            kTotalH - kMargin - kCellH, kCellW, kCellH);
+    case 1:
+      return SkRect::MakeXYWH(kMargin, kMargin - 1, kCellW, kCellH);
+    case 3:
+      return SkRect::MakeXYWH(kBarW - kMargin - kCellW, kMargin - 1, kCellW,
+                              kCellH);
+    default:
+      return SkRect::MakeXYWH((kBarW - kCellW) * 0.5f,
+                              kTotalH - kMargin - kCellH, kCellW, kCellH);
   }
 }
 constexpr SkPoint kLabelAt{kBarW * 0.5f + 2.0f, 66.0f};
-} // namespace tre
+}  // namespace tre
 
 struct Site {
-  const char *name;   // "01" .. "06"
-  SkPoint centre;     // measured bbox centre
-  float rotation;     // declared, snapped to 45
-  double fallAt;      // seconds; < 0 = never (MAGI 01)
+  const char* name;  // "01" .. "06"
+  SkPoint centre;    // measured bbox centre
+  float rotation;    // declared, snapped to 45
+  double fallAt;     // seconds; < 0 = never (MAGI 01)
 };
 
 // Centres from a colour-masked flood fill of the reference; rotations
@@ -558,7 +551,7 @@ inline std::function<SkPath(SkSize)> pillOutline(float r, uint8_t cuts,
 /** Every label on the plate. `w`/`h` are the pill's measured outer size;
  *  `lines` are set solid inside it and the point size is SOLVED from `w`. */
 struct Label {
-  const char *lines[3];
+  const char* lines[3];
   SkPoint centre;
   float w, h;
   float rotate;
@@ -627,7 +620,7 @@ inline Material rampMaterial(float front) {
   for (int i = 0; i < kRampN; ++i) {
     float pos = kRamp[i].t - front * 0.42f;
     pos = pos < 0.0f ? 0.0f : (pos > 1.0f ? 1.0f : pos);
-    pos = pos <= last ? last + 1e-4f : pos; // gradients want monotone stops
+    pos = pos <= last ? last + 1e-4f : pos;  // gradients want monotone stops
     last = pos;
     stops.push_back({pos, hex(kRamp[i].rgb)});
   }
@@ -650,8 +643,7 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
         "  float vig = smoothstep(1.45, 2.15, r) * 0.34;\n"
         "  float a = clamp(line + vig, 0.0, 1.0);\n"
         "  return half4(0.0, 0.0, 0.0, half(a));\n}\n"));
-    if (!effect)
-      SkDebugf("eva crt shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("eva crt shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
@@ -666,24 +658,22 @@ inline bool bakeable(float rotationDeg) {
 }
 
 inline float wrap180(float d) {
-  while (d > 180.0f)
-    d -= 360.0f;
-  while (d <= -180.0f)
-    d += 360.0f;
+  while (d > 180.0f) d -= 360.0f;
+  while (d <= -180.0f) d += 360.0f;
   return d;
 }
 inline float snap45(float deg) { return std::round(deg / 45.0f) * 45.0f; }
 inline float deg(float rad) { return rad * 57.29577951f; }
 inline float rad(float d) { return d * 0.01745329252f; }
 
-} // namespace eva
+}  // namespace eva
 
 // =============================================================================
 
 struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   using Sketch::Sketch;
 
-  ch::Output<float> weaveX{0.0f};   // gate weave, whole px
+  ch::Output<float> weaveX{0.0f};  // gate weave, whole px
   ch::Output<float> weaveY{0.0f};
   ch::Output<float> creep{0.0f};    // scanline creep
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
@@ -691,8 +681,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
 
   bool fallen[eva::kSiteN] = {false, false, false, false, false, false};
   int fallCount = 0;
-  int frontStep = 0;                // the advancing front, 84 steps at 6 Hz
-  std::vector<float> labelSize;   // solved from the measured widths
+  int frontStep = 0;             // the advancing front, 84 steps at 6 Hz
+  std::vector<float> labelSize;  // solved from the measured widths
   std::vector<float> siteNameSize;
   float numeralSize = 96.0f;
   sigil::compose::console::LineRing audit{48};
@@ -706,50 +696,51 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // MAGI 01's target is the CENTROID of the five attackers; everyone else's
     // is the hub. Same rule, one substitution.
     SkPoint centroid{0, 0};
-    for (const Site &s : kSites)
+    for (const Site& s : kSites)
       if (s.fallAt >= 0) {
         centroid.fX += unroll(s.centre).fX / 5.0f;
         centroid.fY += unroll(s.centre).fY / 5.0f;
       }
-    audit.append(u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)", 1);
+    audit.append(u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)",
+                 1);
     char line[160];
     std::printf("\n  MAGI defense plate — rotation audit\n");
-    std::printf("  site   centre        target        bearing   want    "
-                "declared  stem_dir  err\n");
-    for (const Site &s : kSites) {
+    std::printf(
+        "  site   centre        target        bearing   want    "
+        "declared  stem_dir  err\n");
+    for (const Site& s : kSites) {
       const bool hub = s.fallAt >= 0;
       const SkPoint tgt = hub ? kHub : centroid;
       const SkPoint at = unroll(s.centre);
-      const float bearing =
-          deg(std::atan2(tgt.fY - at.fY, tgt.fX - at.fX));
+      const float bearing = deg(std::atan2(tgt.fY - at.fY, tgt.fX - at.fX));
       const float want = snap45(bearing - 90.0f);
       // the component's stem runs local +y; rotate it by the declared theta
       const float th = rad(s.rotation);
       const SkVector stem{-std::sin(th), std::cos(th)};
       const float stemDeg = deg(std::atan2(stem.fY, stem.fX));
       const float err = std::fabs(wrap180(stemDeg - bearing));
-      const bool ok = std::fabs(wrap180(want - s.rotation)) < 0.5f && err < 22.5f;
+      const bool ok =
+          std::fabs(wrap180(want - s.rotation)) < 0.5f && err < 22.5f;
       std::snprintf(line, sizeof(line),
                     "  MAGI %s (%4.0f,%4.0f)  (%4.0f,%4.0f)  %7.2f  %+5.0f  "
                     "%+7.0f  %+7.1f  %5.2f  %s",
-                    s.name, (double)at.fX, (double)at.fY,
-                    (double)tgt.fX, (double)tgt.fY, (double)bearing,
-                    (double)want, (double)s.rotation, (double)stemDeg,
-                    (double)err, ok ? "PASS" : "*** FAIL ***");
+                    s.name, (double)at.fX, (double)at.fY, (double)tgt.fX,
+                    (double)tgt.fY, (double)bearing, (double)want,
+                    (double)s.rotation, (double)stemDeg, (double)err,
+                    ok ? "PASS" : "*** FAIL ***");
       std::printf("%s\n", line);
       audit.append(toU8(line + 2), ok ? 2 : 3);
-      if (!ok)
-        failures.push_back(toU8(line + 2));
+      if (!ok) failures.push_back(toU8(line + 2));
     }
     // ...and the plate's other published number: the wall angle. The
     // polyline is authored pre-roll, so the check is "does the CAMERA put it
     // back on the 0.7386 the frame measures", which is what makes the roll
     // an honest transform rather than a decoration.
     {
-      const float ax = kWallTop.fX - kWallBend.fX;   // authored run (leftward)
-      const float ay = kWallBend.fY - kWallTop.fY;   // authored rise
+      const float ax = kWallTop.fX - kWallBend.fX;  // authored run (leftward)
+      const float ay = kWallBend.fY - kWallTop.fY;  // authored rise
       const float c = std::cos(rad(kRoll)), sn = std::sin(rad(kRoll));
-      const float rx = -ax * c - ay * sn;            // rotated by the camera
+      const float rx = -ax * c - ay * sn;  // rotated by the camera
       const float ry = -ax * sn + ay * c;
       const float rendered = std::fabs(rx / ry);
       const bool ok = std::fabs(rendered - kDiag) < 0.01f;
@@ -760,17 +751,17 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                     (double)kDiag, ok ? "PASS" : "*** FAIL ***");
       std::printf("%s\n", line);
       audit.append(toU8(line + 2), ok ? 2 : 3);
-      if (!ok)
-        failures.push_back(toU8(line + 2));
+      if (!ok) failures.push_back(toU8(line + 2));
     }
-    std::printf("  %d/%d sites obey the rule; stem half-window is 22.5 deg.\n\n",
-                kSiteN - (int)failures.size(), kSiteN);
+    std::printf(
+        "  %d/%d sites obey the rule; stem half-window is 22.5 deg.\n\n",
+        kSiteN - (int)failures.size(), kSiteN);
   }
 
   // --- one installation ------------------------------------------------------
   Element installation(int index) const {
     using namespace eva;
-    const Site &s = kSites[index];
+    const Site& s = kSites[index];
     const bool friendly = s.fallAt < 0 || !fallen[index];
     const SkColor4f plateFill = friendly ? kFriendly : kHostile;
     const SkColor4f rim = friendly ? kRimFriendly : kRim;
@@ -837,8 +828,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   }
 
   // --- a pill ----------------------------------------------------------------
-  Element pillOf(const eva::Label &L, float size, int keyIndex,
-                 const char *keyTag) const {
+  Element pillOf(const eva::Label& L, float size, int keyIndex,
+                 const char* keyTag) const {
     using namespace eva;
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
     const SkPoint at = unroll(L.centre);
@@ -858,9 +849,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       node.fill(Fill::color(kCell));
       node.foreground(rimGlow(3.0f, ink));
     }
-    for (const char *line : L.lines)
-      if (line)
-        node.child(glowText(toU8(line), size, ink, 0.94f));
+    for (const char* line : L.lines)
+      if (line) node.child(glowText(toU8(line), size, ink, 0.94f));
     return node;
   }
 
@@ -893,9 +883,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // rotate -90) the type is destroyed. 0, 45 and 180 are all clean, so the
     // guard is exactly the quarter-turn.
     for (int i = 0; i < kSiteN; ++i)
-      g.child(installation(i).cache(bakeable(kSites[i].rotation)
-                                        ? Cache::Texture
-                                        : Cache::Auto));
+      g.child(installation(i).cache(
+          bakeable(kSites[i].rotation) ? Cache::Texture : Cache::Auto));
     for (int i = 0; i < kLabelN; ++i)
       g.child(pillOf(kLabels[i], labelSize[(size_t)i], i, "lab")
                   .cache(bakeable(kLabels[i].rotate) ? Cache::Texture
@@ -932,12 +921,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   Element describe() {
     using namespace eva;
     auto camera = [this](Element e) {
-      return box()
-          .inset(0)
-          .translateX(&weaveX)
-          .translateY(&weaveY)
-          .child(std::move(
-              e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f})));
+      return box().inset(0).translateX(&weaveX).translateY(&weaveY).child(
+          std::move(e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f})));
     };
 
     auto root = stack().inset(0);
@@ -974,8 +959,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                    .opacity(&flicker)
                    .key("flicker"));
 
-    if (!failures.empty())
-      root.child(failureBanner());
+    if (!failures.empty()) root.child(failureBanner());
     return root;
   }
 
@@ -1001,13 +985,14 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
         .column()
         .padding(26)
         .gap(10)
-        .child(text(u8"ROTATION RULE VIOLATED — this plate is not one component",
-                    eva::type(40, {0, 0, 0, 1}, 0.95f)))
+        .child(
+            text(u8"ROTATION RULE VIOLATED — this plate is not one component",
+                 eva::type(40, {0, 0, 0, 1}, 0.95f)))
         .child(sigil::compose::console::console(audit, st));
   }
 
   // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     using namespace eva;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
@@ -1022,13 +1007,13 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // Solve every label's point size from the width measured off the frame:
     // measure once at 100 pt and scale. The type then lands where the cel's
     // does instead of where a guess would.
-    auto solve = [&](const Label &L) {
-      const char *longest = L.lines[0];
-      for (const char *l : L.lines)
+    auto solve = [&](const Label& L) {
+      const char* longest = L.lines[0];
+      for (const char* l : L.lines)
         if (l && std::string(l).size() > std::string(longest).size())
           longest = l;
-      const float pad = L.pill ? 14.0f : 0.0f; // measured: MATSUSHIRO's
-                                               // type is 235 of 242 px
+      const float pad = L.pill ? 14.0f : 0.0f;  // measured: MATSUSHIRO's
+                                                // type is 235 of 242 px
       const SkSize m =
           ctx.measure(text(toU8(longest), type(100.0f, kRim, 0.94f)));
       const float target = L.w - pad;
@@ -1040,17 +1025,17 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       return size;
     };
     labelSize.clear();
-    for (int i = 0; i < kLabelN; ++i)
-      labelSize.push_back(solve(kLabels[i]));
+    for (int i = 0; i < kLabelN; ++i) labelSize.push_back(solve(kLabels[i]));
     siteNameSize.clear();
-    for (int i = 0; i < 2; ++i)
-      siteNameSize.push_back(solve(kCollapsing[i]));
+    for (int i = 0; i < 2; ++i) siteNameSize.push_back(solve(kCollapsing[i]));
     // The numerals: cap height 61 px, measured off the "3" in MAGI 02's
     // cell 3 (x 1049..1097, y 185..246). measure() returns the LINE box, so
     // solve against a probed cap ratio rather than assuming Helvetica's.
     {
-      const SkSize line = ctx.measure(text(u8"3", type(100.0f, kNumeral, 0.88f)));
-      const float capAt100 = line.height() > 1.0f ? line.height() * 0.63f : 71.7f;
+      const SkSize line =
+          ctx.measure(text(u8"3", type(100.0f, kNumeral, 0.88f)));
+      const float capAt100 =
+          line.height() > 1.0f ? line.height() * 0.63f : 71.7f;
       numeralSize = 100.0f * 61.0f / capAt100;
     }
 
@@ -1078,21 +1063,19 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("funnel", funnelLayer());
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // DATA path only, and it is the ONLY re-describe in the sketch: a site
     // falls (5 times), or the front takes a 6 Hz step (84 times). Everything
     // else is a bound Output and never re-describes at all.
     int now = 0;
     for (int i = 0; i < eva::kSiteN; ++i)
-      if (eva::kSites[i].fallAt >= 0 && elapsed >= eva::kSites[i].fallAt)
-        ++now;
+      if (eva::kSites[i].fallAt >= 0 && elapsed >= eva::kSites[i].fallAt) ++now;
     const double sweep = (elapsed - 3.0) / 14.0;
     const double k = sweep <= 0 ? 0.0 : (sweep >= 1 ? 1.0 : sweep);
     const double eased =
-        k < 0.5 ? 2 * k * k : 1 - std::pow(-2 * k + 2, 2) / 2; // easeInOutQuad
+        k < 0.5 ? 2 * k * k : 1 - std::pow(-2 * k + 2, 2) / 2;  // easeInOutQuad
     const int step = (int)std::lround(eased * 84.0);
-    if (now == fallCount && step == frontStep)
-      return;
+    if (now == fallCount && step == frontStep) return;
     const bool fell = now != fallCount;
     fallCount = now;
     frontStep = step;

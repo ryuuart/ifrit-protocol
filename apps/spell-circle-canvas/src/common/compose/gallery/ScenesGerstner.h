@@ -28,19 +28,18 @@
 // Palette from the period's process: paper, one black, one warm red, and
 // the non-printing blue a grid was drawn in.
 
-#include "GalleryCore.h"
-
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 
-#include <include/core/SkPathBuilder.h>
-
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -50,8 +49,7 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f,
-          a};
+          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
 }
 
 constexpr SkColor4f kPaper = C(0xEDEAE3);
@@ -59,13 +57,13 @@ constexpr SkColor4f kPaperLo = C(0xDCD7CB);
 constexpr SkColor4f kInk = C(0x16151A);
 constexpr SkColor4f kInkSoft = C(0x55525A);
 constexpr SkColor4f kRed = C(0xD8442F);
-constexpr SkColor4f kBlue = C(0x2C4CA8); // the non-printing grid blue
+constexpr SkColor4f kBlue = C(0x2C4CA8);  // the non-printing grid blue
 
 // The measure is 58 units. The unit here is a screen unit, not 10pt —
 // but every ratio below is Gerstner's.
 constexpr int kUnits = 58;
-constexpr int kRows = 34;      // the vertical field, same unit
-constexpr float kUnit = 12.6f; // 58 * 12.6 = 730.8
+constexpr int kRows = 34;       // the vertical field, same unit
+constexpr float kUnit = 12.6f;  // 58 * 12.6 = 730.8
 constexpr float kFieldW = kUnits * kUnit;
 constexpr float kFieldH = kRows * kUnit;
 constexpr float kFieldX = 84;
@@ -75,7 +73,7 @@ constexpr float kFieldY = 92;
  *  two units of gutter between them, summing to 58. */
 struct Config {
   int columns, width, gutter;
-  const char *arithmetic;
+  const char* arithmetic;
 };
 inline constexpr Config kConfigs[] = {
     {1, 58, 2, "58"},
@@ -89,7 +87,7 @@ inline constexpr int kConfigCount =
     (int)(sizeof(kConfigs) / sizeof(kConfigs[0]));
 
 /** Left edge of column `i`, in units. */
-inline float columnUnit(const Config &c, int i) {
+inline float columnUnit(const Config& c, int i) {
   return (float)(i * (c.width + c.gutter));
 }
 
@@ -107,7 +105,7 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 
 /** The copy the programme reflows. Gerstner's own argument, in our words:
  *  a grid is a rule, and a rule that cannot be run is a drawing. */
-inline const char *kBody[] = {
+inline const char* kBody[] = {
     "A grid is not a drawing. It is a rule, and a rule you cannot run is "
     "only a picture of a rule. Gerstner set the measure at fifty-eight "
     "units because fifty-eight is the number that divides cleanly into "
@@ -127,15 +125,15 @@ inline const char *kBody[] = {
 };
 inline constexpr int kBodyCount = (int)(sizeof(kBody) / sizeof(kBody[0]));
 
-} // namespace gerstner
+}  // namespace gerstner
 
 struct GerstnerGridScene final : Scene {
   choreograph::Output<float> sweep{0};
-  int config = 3; // the four-column setting, Capital's default
+  int config = 3;  // the four-column setting, Capital's default
   int shownConfig = -1;
   double nextStep = 0.0;
 
-  const char *name() const override { return "gerstner grid"; }
+  const char* name() const override { return "gerstner grid"; }
 
   // The scene steps configurations every 2.6 s, so the captured still has to
   // name a moment or it lands wherever the harness happens to stop. This
@@ -143,7 +141,7 @@ struct GerstnerGridScene final : Scene {
   // entrance, well clear of the first step.
   double captureSeconds() const override { return 1.5; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     sweep = 0;
     config = 3;
     shownConfig = -1;
@@ -163,9 +161,8 @@ struct GerstnerGridScene final : Scene {
   /** Stepping the programme is a DATA change, so it re-describes and the
    *  reconciler diffs — which is also the honest way to show that the six
    *  configurations are six layouts, not six frames of one. */
-  void update(double elapsed, Composer &composer) override {
-    if (elapsed < nextStep && shownConfig == config)
-      return;
+  void update(double elapsed, Composer& composer) override {
+    if (elapsed < nextStep && shownConfig == config) return;
     if (elapsed >= nextStep) {
       nextStep = elapsed + 2.6;
       config = (config + 1) % gerstner::kConfigCount;
@@ -181,20 +178,28 @@ struct GerstnerGridScene final : Scene {
   Element gridPlate() {
     namespace g = gerstner;
     Element plate = stack()
-                        .left(g::kFieldX).top(g::kFieldY)
-                        .width(Dim(g::kFieldW)).height(Dim(g::kFieldH));
+                        .left(g::kFieldX)
+                        .top(g::kFieldY)
+                        .width(Dim(g::kFieldW))
+                        .height(Dim(g::kFieldH));
     for (int u = 0; u <= g::kUnits; ++u)
-      plate.child(box().left((float)u * g::kUnit).top(0)
-                      .width(Dim(0.5f)).height(Dim(g::kFieldH))
-                      .fill(Material::solid({g::kBlue.fR, g::kBlue.fG,
-                                             g::kBlue.fB,
-                                             u % 2 == 0 ? 0.16f : 0.07f})));
+      plate.child(
+          box()
+              .left((float)u * g::kUnit)
+              .top(0)
+              .width(Dim(0.5f))
+              .height(Dim(g::kFieldH))
+              .fill(Material::solid({g::kBlue.fR, g::kBlue.fG, g::kBlue.fB,
+                                     u % 2 == 0 ? 0.16f : 0.07f})));
     for (int r = 0; r <= g::kRows; ++r)
-      plate.child(box().left(0).top((float)r * g::kUnit)
-                      .width(Dim(g::kFieldW)).height(Dim(0.5f))
-                      .fill(Material::solid({g::kBlue.fR, g::kBlue.fG,
-                                             g::kBlue.fB,
-                                             r % 5 == 0 ? 0.20f : 0.07f})));
+      plate.child(
+          box()
+              .left(0)
+              .top((float)r * g::kUnit)
+              .width(Dim(g::kFieldW))
+              .height(Dim(0.5f))
+              .fill(Material::solid({g::kBlue.fR, g::kBlue.fG, g::kBlue.fB,
+                                     r % 5 == 0 ? 0.20f : 0.07f})));
     return plate;
   }
 
@@ -203,50 +208,63 @@ struct GerstnerGridScene final : Scene {
     namespace g = gerstner;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    const g::Config &c = g::kConfigs[config];
+    const g::Config& c = g::kConfigs[config];
     const float colW = c.width * g::kUnit;
 
-    Element bands = stack().key("bands")
-                        .left(g::kFieldX).top(g::kFieldY)
-                        .width(Dim(g::kFieldW)).height(Dim(g::kFieldH))
+    Element bands = stack()
+                        .key("bands")
+                        .left(g::kFieldX)
+                        .top(g::kFieldY)
+                        .width(Dim(g::kFieldW))
+                        .height(Dim(g::kFieldH))
                         .staggerChildren(52ms);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
       // the column's own tint, so the configuration reads at a glance
       Element band =
-          box().key("col" + std::to_string(i))
-              .left(x).top(0)
-              .width(Dim(colW)).height(Dim(g::kFieldH))
+          box()
+              .key("col" + std::to_string(i))
+              .left(x)
+              .top(0)
+              .width(Dim(colW))
+              .height(Dim(g::kFieldH))
               .opacity(animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad}))
-              .translateY(animate(from(9.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
-              .fill(Material::solid({g::kRed.fR, g::kRed.fG, g::kRed.fB,
-                                     0.045f}));
+              .translateY(
+                  animate(from(9.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
+              .fill(Material::solid(
+                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}));
       // the copy, flowed to this measure
-      const char *copy = g::kBody[i % g::kBodyCount];
-      const float size = c.columns >= 5 ? 9.0f
+      const char* copy = g::kBody[i % g::kBodyCount];
+      const float size = c.columns >= 5   ? 9.0f
                          : c.columns == 4 ? 10.5f
                          : c.columns == 3 ? 12.0f
                          : c.columns == 2 ? 13.5f
                                           : 15.0f;
       // two paragraphs per column, so a narrow measure actually fills its
       // depth and the reflow is visible rather than implied
-      const char *copy2 = g::kBody[(i + 1) % g::kBodyCount];
-      band.child(box().left(0).top(g::kUnit * 5).right(0)
-                     .column().gap(g::kUnit)
-                     .child(text(toU8(copy),
-                                 g::type(size, g::kInk, 0, 0))
+      const char* copy2 = g::kBody[(i + 1) % g::kBodyCount];
+      band.child(box()
+                     .left(0)
+                     .top(g::kUnit * 5)
+                     .right(0)
+                     .column()
+                     .gap(g::kUnit)
+                     .child(text(toU8(copy), g::type(size, g::kInk, 0, 0))
                                 .width(Dim(colW)))
-                     .child(text(toU8(copy2),
-                                 g::type(size, g::kInkSoft, 0, 0))
+                     .child(text(toU8(copy2), g::type(size, g::kInkSoft, 0, 0))
                                 .width(Dim(colW))));
       // a column rule at the head, the way Capital marked its columns
-      band.child(box().left(0).top(g::kUnit * 3.4f)
-                     .width(Dim(colW)).height(Dim(1.4f))
+      band.child(box()
+                     .left(0)
+                     .top(g::kUnit * 3.4f)
+                     .width(Dim(colW))
+                     .height(Dim(1.4f))
                      .fill(Material::solid(g::kInk)));
       char label[24];
       std::snprintf(label, sizeof(label), "%02d", i + 1);
       band.child(text(toU8(label), g::type(10, g::kRed, 1.6f, 620))
-                     .left(0).top(g::kUnit * 1.7f));
+                     .left(0)
+                     .top(g::kUnit * 1.7f));
       bands.child(std::move(band));
     }
     return bands;
@@ -257,20 +275,24 @@ struct GerstnerGridScene final : Scene {
   Element headline() {
     namespace g = gerstner;
     using namespace std::chrono_literals;
-    const g::Config &c = g::kConfigs[config];
+    const g::Config& c = g::kConfigs[config];
     char count[40];
     std::snprintf(count, sizeof(count), "%d COLUMN%s", c.columns,
                   c.columns == 1 ? "" : "S");
-    return box().key("head").column()
-        .left(g::kFieldX).top(38)
-        .child(box().row().alignItems(Align::End)
-                   .child(text(toU8("PROGRAMME"),
-                               g::type(30, g::kInk, 3.2f, 680)))
-                   .child(text(toU8("58"), g::type(30, g::kRed, 1.0f, 680))
-                              .margin(14, 0, 0, 0))
-                   .child(text(toU8(count),
-                               g::type(11, g::kInkSoft, 3.0f, 600))
-                              .margin(18, 0, 0, 6)));
+    return box()
+        .key("head")
+        .column()
+        .left(g::kFieldX)
+        .top(38)
+        .child(
+            box()
+                .row()
+                .alignItems(Align::End)
+                .child(text(toU8("PROGRAMME"), g::type(30, g::kInk, 3.2f, 680)))
+                .child(text(toU8("58"), g::type(30, g::kRed, 1.0f, 680))
+                           .margin(14, 0, 0, 0))
+                .child(text(toU8(count), g::type(11, g::kInkSoft, 3.0f, 600))
+                           .margin(18, 0, 0, 6)));
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -278,36 +300,42 @@ struct GerstnerGridScene final : Scene {
     namespace g = gerstner;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    const g::Config &c = g::kConfigs[config];
-    Element row = box().key("sum").row().alignItems(Align::Center).gap(10)
-                      .left(g::kFieldX)
-                      .top(g::kFieldY + g::kFieldH + 16)
-                      .opacity(animate(from(0.0f).to(1.0f), {300ms}))
-                      .child(text(toU8("58 ="),
-                                  g::type(13, g::kInkSoft, 1.2f, 600)))
-                      .child(text(toU8(c.arithmetic),
-                                  g::type(15, g::kInk, 0.8f, 640)));
+    const g::Config& c = g::kConfigs[config];
+    Element row =
+        box()
+            .key("sum")
+            .row()
+            .alignItems(Align::Center)
+            .gap(10)
+            .left(g::kFieldX)
+            .top(g::kFieldY + g::kFieldH + 16)
+            .opacity(animate(from(0.0f).to(1.0f), {300ms}))
+            .child(text(toU8("58 ="), g::type(13, g::kInkSoft, 1.2f, 600)))
+            .child(text(toU8(c.arithmetic), g::type(15, g::kInk, 0.8f, 640)));
     // the ladder of all six, with the live one marked
-    Element ladder = box().row().gap(9).alignItems(Align::Center)
+    Element ladder = box()
+                         .row()
+                         .gap(9)
+                         .alignItems(Align::Center)
                          .right(84)
                          .top(g::kFieldY + g::kFieldH + 16);
     for (int i = 0; i < g::kConfigCount; ++i) {
       const bool live = i == config;
       char n[4];
       std::snprintf(n, sizeof(n), "%d", g::kConfigs[i].columns);
-      ladder.child(box().width(Dim(22.0f)).height(Dim(22.0f))
-                       .alignItems(Align::Center).justify(Justify::Center)
-                       .fill(Material::solid(live ? g::kRed
-                                                  : SkColor4f{0, 0, 0, 0}))
-                       .foreground(util::stroke(
-                           1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
-                       .child(text(toU8(n),
-                                   g::type(12, live ? g::kPaper : g::kInkSoft,
+      ladder.child(
+          box()
+              .width(Dim(22.0f))
+              .height(Dim(22.0f))
+              .alignItems(Align::Center)
+              .justify(Justify::Center)
+              .fill(Material::solid(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
+              .foreground(
+                  util::stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
+              .child(text(toU8(n), g::type(12, live ? g::kPaper : g::kInkSoft,
                                            0.6f, 620))));
     }
-    return stack().inset(0)
-        .child(std::move(row))
-        .child(std::move(ladder));
+    return stack().inset(0).child(std::move(row)).child(std::move(ladder));
   }
 
   Element describe() {
@@ -316,7 +344,8 @@ struct GerstnerGridScene final : Scene {
         {0, 0}, {0, g::kH}, {{0.0f, g::kPaper}, {1.0f, g::kPaperLo}}));
 
     // paper tooth
-    root.child(box().inset(0)
+    root.child(box()
+                   .inset(0)
                    .fill(patterns::noise(0.9f, 3, 5.0f))
                    .opacity(0.05f)
                    .blend(SkBlendMode::kMultiply));
@@ -328,9 +357,12 @@ struct GerstnerGridScene final : Scene {
 
     // the reading index: one hairline sweeping the baseline grid, the
     // only continuous motion on a page of discrete states
-    root.child(box().left(g::kFieldX - 22)
-                   .width(Dim(g::kFieldW + 44)).height(Dim(1.0f))
-                   .top(0).translateY(&sweep)
+    root.child(box()
+                   .left(g::kFieldX - 22)
+                   .width(Dim(g::kFieldW + 44))
+                   .height(Dim(1.0f))
+                   .top(0)
+                   .translateY(&sweep)
                    .fill(Material::linear(
                        {0, 0}, {g::kFieldW + 44, 0},
                        {{0.0f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
@@ -339,7 +371,10 @@ struct GerstnerGridScene final : Scene {
                         {1.0f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}}}))
                    .zIndex(6));
 
-    root.child(box().column().left(g::kFieldX).bottom(26)
+    root.child(box()
+                   .column()
+                   .left(g::kFieldX)
+                   .bottom(26)
                    .child(text(toU8("KARL GERSTNER \xc2\xb7 CAPITAL "
                                     "\xc2\xb7 1962"),
                                g::type(10, g::kInkSoft, 2.6f, 600)))
@@ -350,4 +385,4 @@ struct GerstnerGridScene final : Scene {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

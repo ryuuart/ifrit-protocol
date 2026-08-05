@@ -27,8 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /** Called after every redraw with the effective on-screen scale of the
  *  canvas in percent (100 = one canvas pixel per drawable pixel). */
-@property(nonatomic, copy, nullable) void (^onViewChanged)
-    (double effectiveZoomPercent);
+@property(nonatomic, copy, nullable) void (^onViewChanged)(double effectiveZoomPercent);
 
 /** Draws the engine's Skia progressive top-edge blur in the blit — the
  *  self-rendered alternative to the SwiftUI Liquid Glass toolbar strip
@@ -62,8 +61,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /** Resolves the backdrop canvas on demand (it may not exist yet when the
  *  chrome builds). */
-@property(nonatomic, copy, nullable) SCKCanvasView *_Nullable (^canvasProvider)
-    (void);
+@property(nonatomic, copy, nullable) SCKCanvasView *_Nullable (^canvasProvider)(void);
 
 @end
 

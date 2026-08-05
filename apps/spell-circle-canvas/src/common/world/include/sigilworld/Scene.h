@@ -24,8 +24,6 @@
  * assert that a re-describe cost what it expected to cost.
  */
 
-#include "sigilworld/World.h"
-
 #include <include/core/SkSize.h>
 
 #include <map>
@@ -36,41 +34,43 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilworld/World.h"
+
 namespace sigil::world::scene {
 
 class Node {
-public:
+ public:
   enum class Kind : uint8_t { Group, Surface, Panel };
 
-  Node &key(std::string value) {
+  Node& key(std::string value) {
     m_key = std::move(value);
     return *this;
   }
-  Node &at(glm::vec3 position) {
+  Node& at(glm::vec3 position) {
     m_position = position;
     return *this;
   }
-  Node &rotated(float yawDeg, float pitchDeg = 0, float rollDeg = 0) {
+  Node& rotated(float yawDeg, float pitchDeg = 0, float rollDeg = 0) {
     m_yawDeg = yawDeg;
     m_pitchDeg = pitchDeg;
     m_rollDeg = rollDeg;
     return *this;
   }
-  Node &scaled(float scale) {
+  Node& scaled(float scale) {
     m_scale = scale;
     return *this;
   }
   /** Extra local matrix, applied after at/rotated/scaled. */
-  Node &transform(const glm::mat4 &m) {
+  Node& transform(const glm::mat4& m) {
     m_extra = m;
     m_hasExtra = true;
     return *this;
   }
-  Node &material(const Material &value) {
+  Node& material(const Material& value) {
     m_material = value;
     return *this;
   }
-  Node &child(Node node) {
+  Node& child(Node node) {
     m_children.push_back(std::move(node));
     return *this;
   }
@@ -79,7 +79,7 @@ public:
    *  * extra). */
   glm::mat4 localMatrix() const;
 
-private:
+ private:
   friend Node group();
   friend Node surface(std::shared_ptr<const shape::Mesh>, Material);
   friend Node panel(sk_sp<SkImage>, float, float);
@@ -92,9 +92,9 @@ private:
   float m_scale = 1;
   glm::mat4 m_extra{1.0f};
   bool m_hasExtra = false;
-  std::shared_ptr<const shape::Mesh> m_mesh; // Surface
-  Material m_material;                       // Surface + Panel
-  float m_panelWidth = 0, m_panelHeight = 0; // Panel
+  std::shared_ptr<const shape::Mesh> m_mesh;  // Surface
+  Material m_material;                        // Surface + Panel
+  float m_panelWidth = 0, m_panelHeight = 0;  // Panel
   std::vector<Node> m_children;
 };
 
@@ -128,7 +128,7 @@ struct Stack {
   float pxPerWu = 1;
 
   /** World size of @p image at this density. */
-  SkSize size(const SkImage &image) const {
+  SkSize size(const SkImage& image) const {
     return SkSize::Make((float)image.width() / pxPerWu,
                         (float)image.height() / pxPerWu);
   }
@@ -140,8 +140,8 @@ struct Stack {
 };
 
 class Scene {
-public:
-  explicit Scene(World &world) : m_world(world) {}
+ public:
+  explicit Scene(World& world) : m_world(world) {}
 
   struct Stats {
     int added = 0;
@@ -151,7 +151,7 @@ public:
   };
 
   /** Reconcile the declared tree against the last render. */
-  Stats render(const Node &root);
+  Stats render(const Node& root);
 
   /** PUBLISH IDENTITY: resolve a key path to the live registry entity
    *  behind that node, so an `Animated*` lane can be attached to a
@@ -187,10 +187,10 @@ public:
   /** Forget everything (removes all scene-owned surfaces). */
   void clear();
 
-private:
+ private:
   struct Entry {
     uint32_t id = 0;
-    const shape::Mesh *mesh = nullptr;
+    const shape::Mesh* mesh = nullptr;
     Material material;
     glm::mat4 world{1.0f};
     bool visited = false;
@@ -202,14 +202,12 @@ private:
    *  failure this makes visible. The set below remembers who has been
    *  warned; its entries clear when the node is removed or recreated,
    *  so a fresh entity warns afresh. */
-  void warnIfOutranked(const std::string &path, uint32_t id);
+  void warnIfOutranked(const std::string& path, uint32_t id);
 
-  World &m_world;
+  World& m_world;
   std::map<std::string, Entry> m_entries;
-  std::map<std::pair<float, float>,
-           std::shared_ptr<const shape::Mesh>>
-      m_quads;
+  std::map<std::pair<float, float>, std::shared_ptr<const shape::Mesh>> m_quads;
   std::set<std::string> m_warnedOutranked;
 };
 
-} // namespace sigil::world::scene
+}  // namespace sigil::world::scene

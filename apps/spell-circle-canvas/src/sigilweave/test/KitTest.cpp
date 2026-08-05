@@ -4,14 +4,13 @@
  * explicit — which key changes fire a rebuild, and which must not.
  */
 
-#include "TestSupport.h"
-
-#include <sigilweavekit/SigilWeaveKit.h>
-
 #include <gtest/gtest.h>
+#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <string>
 #include <tuple>
+
+#include "TestSupport.h"
 
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -80,8 +79,10 @@ TEST(LayoutGuard, RelayoutsOnEditAndDeclaredKeysOnly) {
   const SkISize size{400, 300};
   EXPECT_TRUE(guard.ensure(paragraph, {size, TextAlignment::kStart}, relayout));
   // Steady frames: same content, same keys — the layout must be reused.
-  EXPECT_FALSE(guard.ensure(paragraph, {size, TextAlignment::kStart}, relayout));
-  EXPECT_FALSE(guard.ensure(paragraph, {size, TextAlignment::kStart}, relayout));
+  EXPECT_FALSE(
+      guard.ensure(paragraph, {size, TextAlignment::kStart}, relayout));
+  EXPECT_FALSE(
+      guard.ensure(paragraph, {size, TextAlignment::kStart}, relayout));
   EXPECT_EQ(relayouts, 1);
 
   // A declared key change fires exactly one relayout.
@@ -134,7 +135,7 @@ TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
   struct Shade {
     int level = 0;
     int fade = 0;
-    bool operator==(const Shade &) const = default;
+    bool operator==(const Shade&) const = default;
   };
   sigil::weave::kit::GlyphBuckets<Shade> buckets;
   buckets.add({1, 0}, 10, {0, 0});
@@ -145,14 +146,14 @@ TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
   EXPECT_EQ(buckets.buckets[0].placements.size(), 2u);
 
   int visited = 0;
-  EXPECT_EQ(buckets.drawEach([&](const auto &) { ++visited; }), 3);
+  EXPECT_EQ(buckets.drawEach([&](const auto&) { ++visited; }), 3);
   EXPECT_EQ(visited, 2);
 
   // clear() keeps the buckets (and their allocations) but empties them, so
   // the next frame's drawEach visits nothing.
   buckets.clear();
   ASSERT_EQ(buckets.buckets.size(), 2u);
-  EXPECT_EQ(buckets.drawEach([&](const auto &) { ADD_FAILURE(); }), 0);
+  EXPECT_EQ(buckets.drawEach([&](const auto&) { ADD_FAILURE(); }), 0);
 }
 
 TEST(SampleText, FillerIsDeterministicAndMultiSpan) {
@@ -162,4 +163,4 @@ TEST(SampleText, FillerIsDeterministicAndMultiSpan) {
   EXPECT_GT(first.spans().size(), 1u);
 }
 
-} // namespace
+}  // namespace

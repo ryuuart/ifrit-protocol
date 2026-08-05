@@ -10,8 +10,7 @@ float ringFractionFromTwelve(float fraction) {
   // wind clockwise in screen space), which sits three quarters of a turn
   // clockwise from 12 o'clock — hence the +0.75.
   float percent = std::fmod(fraction + 0.75f, 1.0f);
-  if (percent < 0.0f)
-    percent += 1.0f;
+  if (percent < 0.0f) percent += 1.0f;
   return percent;
 }
 
@@ -41,11 +40,11 @@ Vec2 pointAtPosition(Vec2 center, float radius, float position) {
 // walking a degenerate perimeter, since `position` has no meaningful angle
 // around a zero-radius circle. This is what lets a scene place a point or box
 // at an arbitrary (x, y) rather than only along a visible circle's edge.
-bool isAnchorOnlyCircle(const CircleComponent &circle) {
+bool isAnchorOnlyCircle(const CircleComponent& circle) {
   return circle.radius == 0;
 }
 
-} // namespace
+}  // namespace
 
 void ResolvedScene::clear() {
   circles.clear();
@@ -54,36 +53,34 @@ void ResolvedScene::clear() {
   pointLabels.clear();
 }
 
-ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
+ResolvedScene resolveScene(const SceneDocument& document, float canvasWidth,
                            float canvasHeight) {
   ResolvedScene resolved;
-  const entt::registry &registry = document.registry();
+  const entt::registry& registry = document.registry();
 
   // Centers scale per axis, but a circle has only one radius, so radii — and
   // therefore every point resolved on a perimeter — use the horizontal factor
   // alone. Circles stay round on a canvas whose aspect ratio differs from the
   // author's; only their centers stretch. A scene dimension of 0 means the
   // sender gave no author-space size, so that axis is left at 1:1.
-  const float horizontalScale = document.sceneWidth() > 0.0f
-                                    ? canvasWidth / document.sceneWidth()
-                                    : 1.0f;
+  const float horizontalScale =
+      document.sceneWidth() > 0.0f ? canvasWidth / document.sceneWidth() : 1.0f;
   const float verticalScale = document.sceneHeight() > 0.0f
                                   ? canvasHeight / document.sceneHeight()
                                   : 1.0f;
   const float radiusScale = horizontalScale;
 
-  auto anchorPosition = [&](const PointComponent &point) -> Vec2 {
+  auto anchorPosition = [&](const PointComponent& point) -> Vec2 {
     const Vec2 center{point.circle.centerX * horizontalScale,
                       point.circle.centerY * verticalScale};
-    if (isAnchorOnlyCircle(point.circle))
-      return center;
+    if (isAnchorOnlyCircle(point.circle)) return center;
     return pointAtPosition(
         center, static_cast<float>(point.circle.radius) * radiusScale,
         point.position);
   };
 
   auto pointPosition = [&](entt::entity pointEntity) -> Vec2 {
-    const auto *point = registry.valid(pointEntity)
+    const auto* point = registry.valid(pointEntity)
                             ? registry.try_get<PointComponent>(pointEntity)
                             : nullptr;
     return point ? anchorPosition(*point) : Vec2{};
@@ -91,7 +88,7 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
 
   const auto circles = registry.view<CircleComponent>();
   for (const entt::entity circleEntity : circles) {
-    const CircleComponent &circle = circles.get<CircleComponent>(circleEntity);
+    const CircleComponent& circle = circles.get<CircleComponent>(circleEntity);
     resolved.circles.push_back(ResolvedCircle{
         .name = circle.name,
         .center = Vec2{circle.centerX * horizontalScale,
@@ -108,7 +105,7 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
 
   const auto edges = registry.view<EdgeComponent>();
   for (const entt::entity edgeEntity : edges) {
-    const EdgeComponent &edge = edges.get<EdgeComponent>(edgeEntity);
+    const EdgeComponent& edge = edges.get<EdgeComponent>(edgeEntity);
     resolved.edges.push_back(ResolvedEdge{
         .first = pointPosition(edge.first),
         .second = pointPosition(edge.second),
@@ -131,7 +128,7 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
 
   const auto boxes = registry.view<BoxComponent>();
   for (const entt::entity boxEntity : boxes) {
-    const BoxComponent &box = boxes.get<BoxComponent>(boxEntity);
+    const BoxComponent& box = boxes.get<BoxComponent>(boxEntity);
     const Vec2 anchor = pointPosition(box.point);
 
     resolved.boxes.push_back(ResolvedBox{
@@ -150,9 +147,8 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
   // from the wire.
   const auto points = registry.view<PointComponent>();
   for (const entt::entity pointEntity : points) {
-    const PointComponent &point = points.get<PointComponent>(pointEntity);
-    if (point.value.empty())
-      continue;
+    const PointComponent& point = points.get<PointComponent>(pointEntity);
+    if (point.value.empty()) continue;
     const Vec2 anchor = anchorPosition(point);
 
     resolved.pointLabels.push_back(ResolvedBox{
@@ -166,4 +162,4 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
   return resolved;
 }
 
-} // namespace spellcircle
+}  // namespace spellcircle

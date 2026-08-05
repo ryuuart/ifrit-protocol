@@ -16,17 +16,15 @@ namespace {
 // Ultralight permits one Renderer per process for the program's lifetime.
 std::atomic<bool> s_engineCreated{false};
 
-} // namespace
+}  // namespace
 
 bool WebEngine::Impl::setupPlatform() {
   // Resolution order: explicit config, the resources/ folder staged next
   // to the executable by ultralight_copy_resources(), then the SDK
   // install location found at configure time.
   std::string resourceDir = config.resourceDir;
-  if (resourceDir.empty())
-    resourceDir = executableAdjacentResourceDir();
-  if (resourceDir.empty())
-    resourceDir = IFRIT_WEB_DEFAULT_RESOURCE_DIR;
+  if (resourceDir.empty()) resourceDir = executableAdjacentResourceDir();
+  if (resourceDir.empty()) resourceDir = IFRIT_WEB_DEFAULT_RESOURCE_DIR;
 
   m_logger = std::make_unique<CallbackLogger>(config.logCallback);
   m_fileSystem = std::make_unique<PrefixFileSystem>(
@@ -36,7 +34,7 @@ bool WebEngine::Impl::setupPlatform() {
   ultralight::Config ulConfig;
   ulConfig.cache_path = config.cachePath.c_str();
 
-  ultralight::Platform &platform = ultralight::Platform::instance();
+  ultralight::Platform& platform = ultralight::Platform::instance();
   platform.set_config(ulConfig);
   platform.set_logger(m_logger.get());
   platform.set_file_system(m_fileSystem.get());
@@ -73,17 +71,15 @@ bool WebEngine::Impl::setupPlatform() {
   return true;
 }
 
-void WebEngine::Impl::threadMain(std::promise<bool> &ready) {
+void WebEngine::Impl::threadMain(std::promise<bool>& ready) {
   m_webThreadId = std::this_thread::get_id();
   bool ok = setupPlatform();
   ready.set_value(ok);
-  if (!ok)
-    return;
+  if (!ok) return;
 
   using Clock = std::chrono::steady_clock;
   const auto frameInterval = std::chrono::duration_cast<Clock::duration>(
-      std::chrono::duration<double>(1.0 /
-                                    std::max(1, config.framesPerSecond)));
+      std::chrono::duration<double>(1.0 / std::max(1, config.framesPerSecond)));
   auto nextFrame = Clock::now();
 
   std::unique_lock<std::mutex> lock(m_taskMutex);
@@ -95,8 +91,7 @@ void WebEngine::Impl::threadMain(std::promise<bool> &ready) {
       task();
       lock.lock();
     }
-    if (!m_running)
-      break;
+    if (!m_running) break;
     lock.unlock();
 
     m_renderer->Update();
@@ -130,8 +125,7 @@ void WebEngine::Impl::threadMain(std::promise<bool> &ready) {
   m_renderer->Update();
   m_renderer->Render();
   m_renderer->PurgeMemory();
-  if (m_gpuDriver)
-    m_gpuDriver->flush();
+  if (m_gpuDriver) m_gpuDriver->flush();
   m_renderer = nullptr;
 }
 
@@ -154,8 +148,7 @@ bool WebEngine::Impl::start() {
 
 void WebEngine::Impl::shutdown() {
   if (config.threaded) {
-    if (!m_thread.joinable())
-      return;
+    if (!m_thread.joinable()) return;
     {
       std::lock_guard<std::mutex> lock(m_taskMutex);
       m_running = false;
@@ -235,15 +228,15 @@ WebEngine::~WebEngine() { m_impl->shutdown(); }
 
 std::shared_ptr<WebEngine> WebEngine::create(WebEngineConfig config) {
   if (s_engineCreated.exchange(true)) {
-    std::fprintf(stderr, "[SigilScry:error] only one WebEngine may be created "
-                         "per process\n");
+    std::fprintf(stderr,
+                 "[SigilScry:error] only one WebEngine may be created "
+                 "per process\n");
     return nullptr;
   }
 
   auto impl = std::make_shared<Impl>();
   impl->config = std::move(config);
-  if (!impl->start())
-    return nullptr;
+  if (!impl->start()) return nullptr;
   return std::shared_ptr<WebEngine>(new WebEngine(std::move(impl)));
 }
 
@@ -262,15 +255,14 @@ std::shared_ptr<WebView> WebEngine::createView(int width, int height,
                                           ? options.deviceScale
                                           : m_impl->config.deviceScale;
     viewImpl->view = m_impl->ulRenderer().CreateView(
-        static_cast<uint32_t>(width), static_cast<uint32_t>(height),
-        viewConfig, nullptr);
+        static_cast<uint32_t>(width), static_cast<uint32_t>(height), viewConfig,
+        nullptr);
     viewImpl->view->set_load_listener(viewImpl.get());
     viewImpl->view->set_view_listener(viewImpl.get());
     m_impl->registerView(viewImpl);
   });
 
-  if (!viewImpl->view)
-    return nullptr;
+  if (!viewImpl->view) return nullptr;
   return std::shared_ptr<WebView>(new WebView(shared_from_this(), viewImpl));
 }
 
@@ -283,14 +275,13 @@ std::shared_ptr<WebImage> WebEngine::createImage(std::string name, int width,
   imageImpl->height = height;
 
   m_impl->postAndWait([this, imageImpl, width, height] {
-    if (WebGpuDriver *driver = m_impl->gpuDriver()) {
+    if (WebGpuDriver* driver = m_impl->gpuDriver()) {
       imageImpl->gpuTexture = driver->createImageTexture(width, height);
       imageImpl->gpuTextureId =
           driver->registerExternalTexture(imageImpl->gpuTexture);
       imageImpl->source = ultralight::ImageSource::CreateFromTexture(
           static_cast<uint32_t>(width), static_cast<uint32_t>(height),
-          imageImpl->gpuTextureId,
-          ultralight::Rect{0.0f, 0.0f, 1.0f, 1.0f});
+          imageImpl->gpuTextureId, ultralight::Rect{0.0f, 0.0f, 1.0f, 1.0f});
     }
     if (!imageImpl->source) {
       imageImpl->bitmap = ultralight::Bitmap::Create(
@@ -304,20 +295,17 @@ std::shared_ptr<WebImage> WebEngine::createImage(std::string name, int width,
         imageImpl->name.c_str(), imageImpl->source);
   });
 
-  return std::shared_ptr<WebImage>(
-      new WebImage(shared_from_this(), imageImpl));
+  return std::shared_ptr<WebImage>(new WebImage(shared_from_this(), imageImpl));
 }
 
 void WebEngine::update() {
-  if (m_impl->config.threaded)
-    return;
+  if (m_impl->config.threaded) return;
   m_impl->pump();
 }
 
 bool WebEngine::renderFrame() {
-  if (m_impl->config.threaded)
-    return false;
+  if (m_impl->config.threaded) return false;
   return m_impl->renderOnce();
 }
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

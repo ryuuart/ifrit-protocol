@@ -36,16 +36,14 @@ float normalizedDuration(int rawMs) {
   return rawMs <= 10 ? 100.0f : static_cast<float>(rawMs);
 }
 
-} // namespace
+}  // namespace
 
 std::optional<ImageAsset> ImageAsset::decode(sk_sp<SkData> encoded) {
-  if (!encoded)
-    return std::nullopt;
+  if (!encoded) return std::nullopt;
 
   std::unique_ptr<SkCodec> codec =
       SkCodec::MakeFromData(std::move(encoded), supportedDecoders());
-  if (!codec)
-    return std::nullopt;
+  if (!codec) return std::nullopt;
 
   // Every frame decodes into the same premultiplied N32 layout the scene
   // canvases draw with, regardless of the source's bit depth or subsampling.
@@ -68,12 +66,10 @@ std::optional<ImageAsset> ImageAsset::decode(sk_sp<SkData> encoded) {
   std::vector<SkBitmap> decoded(static_cast<size_t>(frameCount));
   for (int index = 0; index < frameCount; ++index) {
     SkCodec::FrameInfo info{};
-    if (frameCount > 1)
-      codec->getFrameInfo(index, &info);
+    if (frameCount > 1) codec->getFrameInfo(index, &info);
 
-    SkBitmap &bitmap = decoded[static_cast<size_t>(index)];
-    if (!bitmap.tryAllocPixels(frameInfo))
-      return std::nullopt;
+    SkBitmap& bitmap = decoded[static_cast<size_t>(index)];
+    if (!bitmap.tryAllocPixels(frameInfo)) return std::nullopt;
 
     SkCodec::Options options;
     options.fFrameIndex = index;
@@ -95,8 +91,7 @@ std::optional<ImageAsset> ImageAsset::decode(sk_sp<SkData> encoded) {
     Frame frame;
     frame.image = bitmap.asImage();
     frame.durationMs = frameCount > 1 ? normalizedDuration(info.fDuration) : 0;
-    if (!frame.image)
-      return std::nullopt;
+    if (!frame.image) return std::nullopt;
     asset.m_totalDurationMs += frame.durationMs;
     asset.m_frames.push_back(std::move(frame));
   }
@@ -110,42 +105,51 @@ std::optional<ImageAsset> ImageAsset::decode(sk_sp<SkData> encoded) {
 }
 
 std::optional<ImageProbe> ImageAsset::probe(sk_sp<SkData> encoded) {
-  if (!encoded)
-    return std::nullopt;
+  if (!encoded) return std::nullopt;
   std::unique_ptr<SkCodec> codec =
       SkCodec::MakeFromData(std::move(encoded), supportedDecoders());
-  if (!codec)
-    return std::nullopt;
+  if (!codec) return std::nullopt;
   ImageProbe info;
   info.width = codec->dimensions().width();
   info.height = codec->dimensions().height();
   info.frames = std::max(1, codec->getFrameCount());
   switch (codec->getEncodedFormat()) {
-  case SkEncodedImageFormat::kPNG: info.format = "png"; break;
-  case SkEncodedImageFormat::kJPEG: info.format = "jpeg"; break;
-  case SkEncodedImageFormat::kWEBP: info.format = "webp"; break;
-  case SkEncodedImageFormat::kGIF: info.format = "gif"; break;
-  case SkEncodedImageFormat::kAVIF: info.format = "avif"; break;
-  default: info.format = "image"; break;
+    case SkEncodedImageFormat::kPNG:
+      info.format = "png";
+      break;
+    case SkEncodedImageFormat::kJPEG:
+      info.format = "jpeg";
+      break;
+    case SkEncodedImageFormat::kWEBP:
+      info.format = "webp";
+      break;
+    case SkEncodedImageFormat::kGIF:
+      info.format = "gif";
+      break;
+    case SkEncodedImageFormat::kAVIF:
+      info.format = "avif";
+      break;
+    default:
+      info.format = "image";
+      break;
   }
   return info;
 }
 
-std::optional<ImageAsset> ImageAsset::load(const std::string &path) {
+std::optional<ImageAsset> ImageAsset::load(const std::string& path) {
   return decode(SkData::MakeFromFileName(path.c_str()));
 }
 
 ImageAsset ImageAsset::wrap(sk_sp<SkImage> image) {
   ImageAsset asset;
-  if (!image)
-    return asset;
+  if (!image) return asset;
   asset.m_width = image->width();
   asset.m_height = image->height();
   asset.m_frames.push_back({std::move(image), 0.0f});
   return asset;
 }
 
-const Frame &ImageAsset::frameAt(double milliseconds) const {
+const Frame& ImageAsset::frameAt(double milliseconds) const {
   if (m_frames.size() == 1 || m_totalDurationMs <= 0.0f)
     return m_frames.front();
 
@@ -154,17 +158,16 @@ const Frame &ImageAsset::frameAt(double milliseconds) const {
   if (m_repetitionCount == kInfinite) {
     t = std::fmod(t, total);
   } else if (t >= total * m_repetitionCount) {
-    return m_frames.back(); // finished finite animation holds the end
+    return m_frames.back();  // finished finite animation holds the end
   } else {
     t = std::fmod(t, total);
   }
 
-  for (const Frame &frame : m_frames) {
+  for (const Frame& frame : m_frames) {
     t -= frame.durationMs;
-    if (t < 0.0)
-      return frame;
+    if (t < 0.0) return frame;
   }
   return m_frames.back();
 }
 
-} // namespace sigil::image
+}  // namespace sigil::image

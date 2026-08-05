@@ -16,9 +16,9 @@
  * batched RSXform draws — flashy text is never per-glyph draw calls.
  */
 
-#include "sigilcompose/Compose.h"
-
 #include <cmath>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::glyphfx {
 
@@ -36,14 +36,14 @@ inline float easeOutBack(float t, float s = 1.70158f) {
   const float u = t - 1;
   return 1 + (s + 1) * u * u * u + s * u * u;
 }
-} // namespace detail
+}  // namespace detail
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
  *  rest while fading in. Ease-out-expo motion; alpha completes over the
  *  first 35% of local progress, so a glyph is fully opaque while it is
  *  still moving rather than fading and settling together. */
 inline GlyphEffectFn rise(float distancePx = 26) {
-  return [distancePx](const GlyphInfo &, float t) {
+  return [distancePx](const GlyphInfo&, float t) {
     GlyphMod m;
     m.dy = (1 - detail::easeOutExpo(t)) * distancePx;
     m.alpha = std::min(1.0f, t / 0.35f);
@@ -53,7 +53,7 @@ inline GlyphEffectFn rise(float distancePx = 26) {
 
 /** Slide-in from the side (negative = from the left). */
 inline GlyphEffectFn slide(float distancePx = -32) {
-  return [distancePx](const GlyphInfo &, float t) {
+  return [distancePx](const GlyphInfo&, float t) {
     GlyphMod m;
     m.dx = (1 - detail::easeOutCubic(t)) * distancePx;
     m.alpha = std::min(1.0f, t * 1.7f);
@@ -63,7 +63,7 @@ inline GlyphEffectFn slide(float distancePx = -32) {
 
 /** Scale-overshoot entrance (back.out(1.7) — the elastic pop). */
 inline GlyphEffectFn pop(float fromScale = 0.35f, float overshoot = 1.70158f) {
-  return [fromScale, overshoot](const GlyphInfo &, float t) {
+  return [fromScale, overshoot](const GlyphInfo&, float t) {
     GlyphMod m;
     m.scale = fromScale + (1 - fromScale) * detail::easeOutBack(t, overshoot);
     m.alpha = std::min(1.0f, t * 2.2f);
@@ -73,7 +73,7 @@ inline GlyphEffectFn pop(float fromScale = 0.35f, float overshoot = 1.70158f) {
 
 /** Tumble-in: glyphs spin from `degrees` while rising and fading. */
 inline GlyphEffectFn spinIn(float degrees = 70, float risePx = 14) {
-  return [degrees, risePx](const GlyphInfo &, float t) {
+  return [degrees, risePx](const GlyphInfo&, float t) {
     const float e = detail::easeOutCubic(t);
     GlyphMod m;
     m.rotateDeg = (1 - e) * degrees;
@@ -86,7 +86,7 @@ inline GlyphEffectFn spinIn(float degrees = 70, float risePx = 14) {
 /** Hard typewriter: a glyph is absent, then simply THERE (pair with a
  *  short durationMs and Start stagger). */
 inline GlyphEffectFn typeOn() {
-  return [](const GlyphInfo &, float t) {
+  return [](const GlyphInfo&, float t) {
     GlyphMod m;
     m.alpha = t >= 0.5f ? 1.0f : 0.0f;
     return m;
@@ -101,7 +101,7 @@ inline GlyphEffectFn typeOn() {
  *  where roughly 0.4–0.6 gives one readable travelling wave. */
 inline GlyphEffectFn waveLoop(float amplitudeEm = 0.10f,
                               float phaseRadPerGlyph = 0.5f) {
-  return [amplitudeEm, phaseRadPerGlyph](const GlyphInfo &g, float t) {
+  return [amplitudeEm, phaseRadPerGlyph](const GlyphInfo& g, float t) {
     GlyphMod m;
     m.dy = std::sin(t * 6.2831853f - (float)g.index * phaseRadPerGlyph) *
            amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
@@ -109,4 +109,4 @@ inline GlyphEffectFn waveLoop(float amplitudeEm = 0.10f,
   };
 }
 
-} // namespace sigil::compose::glyphfx
+}  // namespace sigil::compose::glyphfx

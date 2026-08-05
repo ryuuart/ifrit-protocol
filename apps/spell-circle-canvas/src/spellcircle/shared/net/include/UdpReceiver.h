@@ -24,15 +24,15 @@ namespace spellcircle {
  * one owning thread (both apps drive them from their main threads).
  */
 class UdpReceiver {
-public:
+ public:
   using DatagramHandler = std::function<void(std::vector<std::uint8_t> payload,
                                              std::string source)>;
 
   UdpReceiver();
   ~UdpReceiver();
 
-  UdpReceiver(const UdpReceiver &) = delete;
-  UdpReceiver &operator=(const UdpReceiver &) = delete;
+  UdpReceiver(const UdpReceiver&) = delete;
+  UdpReceiver& operator=(const UdpReceiver&) = delete;
 
   /**
    * Binds :port (IPv6 any, dual-stack — IPv4 senders arrive v4-mapped) and
@@ -49,9 +49,9 @@ public:
 
   bool listening() const;
 
-private:
+ private:
   struct Session;
   std::unique_ptr<Session> m_session;
 };
 
-} // namespace spellcircle
+}  // namespace spellcircle

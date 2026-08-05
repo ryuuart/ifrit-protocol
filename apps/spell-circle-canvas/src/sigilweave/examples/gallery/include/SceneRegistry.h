@@ -9,17 +9,16 @@
 // the scene's own QML when it names one), and the render thread constructs
 // instances through the descriptor's factory.
 
-#include "GalleryScenes.h"
-
 #include <QList>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
 #include <QVariant>
-
 #include <functional>
 #include <memory>
 #include <vector>
+
+#include "GalleryScenes.h"
 
 namespace gallery {
 
@@ -27,14 +26,14 @@ namespace gallery {
 struct SceneParameter {
   enum class Type { kBool, kFloat, kInt, kChoice };
 
-  QString id;    ///< stable key into SceneParams::values
-  QString label; ///< sidebar text
+  QString id;     ///< stable key into SceneParams::values
+  QString label;  ///< sidebar text
   Type type = Type::kFloat;
   QVariant defaultValue;
-  double minimum = 0; ///< numeric types only
-  double maximum = 1; ///< numeric types only
-  QString suffix;     ///< value readout suffix, e.g. "px", "×"
-  QStringList choices; ///< kChoice: display strings; value = index
+  double minimum = 0;   ///< numeric types only
+  double maximum = 1;   ///< numeric types only
+  QString suffix;       ///< value readout suffix, e.g. "px", "×"
+  QStringList choices;  ///< kChoice: display strings; value = index
 };
 
 /** Everything the GUI needs to present a scene without instantiating it. */
@@ -56,7 +55,7 @@ struct SceneDescriptor {
 };
 
 /** Returns every registered scene, sorted by displayOrder. */
-const std::vector<SceneDescriptor> &sceneRegistry();
+const std::vector<SceneDescriptor>& sceneRegistry();
 
 namespace detail {
 /// Static-init hook behind REGISTER_GALLERY_SCENE. Safe because every
@@ -65,13 +64,13 @@ namespace detail {
 struct SceneRegistrar {
   explicit SceneRegistrar(SceneDescriptor descriptor);
 };
-} // namespace detail
+}  // namespace detail
 
 #define GALLERY_SCENE_CONCAT_INNER(a, b) a##b
 #define GALLERY_SCENE_CONCAT(a, b) GALLERY_SCENE_CONCAT_INNER(a, b)
 /** Registers a SceneDescriptor at static-initialization time. */
-#define REGISTER_GALLERY_SCENE(...)                                            \
-  static const ::gallery::detail::SceneRegistrar GALLERY_SCENE_CONCAT(         \
+#define REGISTER_GALLERY_SCENE(...)                                    \
+  static const ::gallery::detail::SceneRegistrar GALLERY_SCENE_CONCAT( \
       gallerySceneRegistrar_, __COUNTER__){__VA_ARGS__};
 
-} // namespace gallery
+}  // namespace gallery

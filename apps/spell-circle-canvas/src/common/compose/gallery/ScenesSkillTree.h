@@ -46,9 +46,7 @@
 //   detail card ......... the tooltip typography: name, kind rule, stat
 //                         lines, italic flavour, on a framed scrim
 
-#include "GalleryCore.h"
-#include "SkillTreeData.h"
-
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
@@ -56,8 +54,6 @@
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Strokes.h>
-
-#include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <array>
@@ -67,6 +63,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "GalleryCore.h"
+#include "SkillTreeData.h"
 
 namespace compose_gallery {
 
@@ -85,7 +84,7 @@ constexpr SkColor4f kGold{0.788f, 0.663f, 0.416f, 1};    // #C9A96A
 constexpr SkColor4f kHalo{1.0f, 0.788f, 0.439f, 1};      // #FFC970
 constexpr SkColor4f kBone{0.835f, 0.769f, 0.616f, 1};
 constexpr SkColor4f kAsh{0.447f, 0.404f, 0.337f, 1};
-constexpr SkColor4f kSearch{0.541f, 0.902f, 0.510f, 1}; // the search green
+constexpr SkColor4f kSearch{0.541f, 0.902f, 0.510f, 1};  // the search green
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
@@ -94,11 +93,16 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
  *  cluster's tightest pair sits 43 px apart, which is what caps these. */
 inline float diameterOf(data::Kind k) {
   switch (k) {
-  case data::Kind::Keystone: return 46;
-  case data::Kind::Notable:  return 30;
-  case data::Kind::Mastery:  return 22;
-  case data::Kind::Jewel:    return 24;
-  case data::Kind::Minor:    break;
+    case data::Kind::Keystone:
+      return 46;
+    case data::Kind::Notable:
+      return 30;
+    case data::Kind::Mastery:
+      return 22;
+    case data::Kind::Jewel:
+      return 24;
+    case data::Kind::Minor:
+      break;
   }
   return 17;
 }
@@ -110,8 +114,8 @@ constexpr float kRopeScale = 0.62f;
  *  allocated, Intermediate when exactly one is (the link you could travel),
  *  Normal otherwise — two allocatable neighbours are still just Normal. */
 inline int edgeState(data::State a, data::State b) {
-  const int allocated = (a == data::State::Allocated) +
-                        (b == data::State::Allocated);
+  const int allocated =
+      (a == data::State::Allocated) + (b == data::State::Allocated);
   return allocated == 2 ? 2 : allocated == 1 ? 1 : 0;
 }
 
@@ -126,8 +130,7 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.shaping.letterSpacing = tracking;
-  if (italic)
-    s.shaping.variations = {sigil::weave::FontVariation("slnt", -10)};
+  if (italic) s.shaping.variations = {sigil::weave::FontVariation("slnt", -10)};
   s.paint.foreground.setColor(color.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   return s;
@@ -173,25 +176,24 @@ inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
 /** A socket well: SDF chrome sized by the VISIBLE diameter --
  *  sdf::minBoxFor grows the box by the style's reserved pad so glow never
  *  clips, and centerAt() pins the measured box on the tree position. */
-inline Element socket(const char *key, SkPoint at, float dia,
-                      const sdf::Style &st,
-                      const choreograph::Output<float> *breathingGlow =
-                          nullptr,
+inline Element socket(const char* key, SkPoint at, float dia,
+                      const sdf::Style& st,
+                      const choreograph::Output<float>* breathingGlow = nullptr,
                       int z = 3) {
   const float boxSize = sdf::minBoxFor(st, dia);
   Material m = sdf::material(sdf::circle(), st);
-  if (breathingGlow)
-    m.uniform("uGlowR", breathingGlow);
-  Element e = box().width(Dim(boxSize)).height(Dim(boxSize))
+  if (breathingGlow) m.uniform("uGlowR", breathingGlow);
+  Element e = box()
+                  .width(Dim(boxSize))
+                  .height(Dim(boxSize))
                   .centerAt(at)
                   .fill(std::move(m))
                   .zIndex(z);
-  if (key)
-    e.key(key);
+  if (key) e.key(key);
   return e;
 }
 
-} // namespace skill_tree
+}  // namespace skill_tree
 
 namespace treedata = skill_tree_data;
 
@@ -202,9 +204,9 @@ struct SkillTreeScene final : Scene {
   choreograph::Output<float> searchPulse{0};
   choreograph::Output<float> selectSpin{0};
 
-  const char *name() const override { return "passive tree"; }
+  const char* name() const override { return "passive tree"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     pulseS = 0;
     pulseE = 0;
     ringPhase = 0;
@@ -256,23 +258,22 @@ struct SkillTreeScene final : Scene {
   // ------------------------------------------------------------------
   // the four node chromes
 
-  void minorNode(Element &parent, int i) {
+  void minorNode(Element& parent, int i) {
     namespace pt = skill_tree;
-    const treedata::Node &n = treedata::kNodes[i];
+    const treedata::Node& n = treedata::kNodes[i];
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const sdf::Style st{
-        .fill = pt::kSocket,
-        .borderWidth = alloc ? 2.6f : 1.9f,
-        .borderColor = pt::ringColor(n.state),
-        .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
-        .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
-                      alloc ? 0.45f : 0.40f}};
+    const sdf::Style st{.fill = pt::kSocket,
+                        .borderWidth = alloc ? 2.6f : 1.9f,
+                        .borderColor = pt::ringColor(n.state),
+                        .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
+                        .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                                      alloc ? 0.45f : 0.40f}};
     // The declared glowRadius reserves the box pad (exp falloff reaches ~0
     // before the edge); the ACTUAL halo runs shorter, via a uniform.
-    Element e = pt::socket(nullptr, {n.x, n.y}, dia, st,
-                           can ? &breath : nullptr);
+    Element e =
+        pt::socket(nullptr, {n.x, n.y}, dia, st, can ? &breath : nullptr);
     if (alloc) {
       Material m = sdf::material(sdf::circle(), st);
       m.uniform("uGlowR", 5.5f);
@@ -281,9 +282,9 @@ struct SkillTreeScene final : Scene {
     parent.child(e.key(nodeKey(i)));
   }
 
-  void notableNode(Element &parent, int i) {
+  void notableNode(Element& parent, int i) {
     namespace pt = skill_tree;
-    const treedata::Node &n = treedata::kNodes[i];
+    const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
@@ -295,7 +296,9 @@ struct SkillTreeScene final : Scene {
         .borderColor = ring,
         .glowRadius = 14,
         .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
-                      alloc ? 0.5f : can ? 0.4f : 0.0f}};
+                      alloc ? 0.5f
+                      : can ? 0.4f
+                            : 0.0f}};
     const std::string key = nodeKey(i);
     Element frame =
         pt::socket(key.c_str(), at, dia, outer, can ? &breath : nullptr);
@@ -306,107 +309,124 @@ struct SkillTreeScene final : Scene {
     }
     parent.child(std::move(frame));
     // the inner ring and the notch rosette that make it read "notable"
-    parent.child(pt::socket(nullptr, at, dia - 11,
-                            {.fill = {0, 0, 0, 0},
-                             .borderWidth = 1.6f,
-                             .borderColor = ring},
-                            nullptr, 4));
-    parent.child(box().width(Dim(dia + 10)).height(Dim(dia + 10))
-                     .centerAt(at)
-                     .shape(pt::notchRing(8, 0.72f, 1.0f))
-                     .stroke(util::stroke(
-                         1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
-                                            alloc ? 0.9f : 0.5f})))
-                     .zIndex(4));
+    parent.child(pt::socket(
+        nullptr, at, dia - 11,
+        {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = ring},
+        nullptr, 4));
+    parent.child(
+        box()
+            .width(Dim(dia + 10))
+            .height(Dim(dia + 10))
+            .centerAt(at)
+            .shape(pt::notchRing(8, 0.72f, 1.0f))
+            .stroke(util::stroke(1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
+                                                    alloc ? 0.9f : 0.5f})))
+            .zIndex(4));
     // The well is never empty in the real thing — a cast sigil sits in it.
-    parent.child(box().width(Dim(dia * 0.50f)).height(Dim(dia * 0.50f))
+    parent.child(box()
+                     .width(Dim(dia * 0.50f))
+                     .height(Dim(dia * 0.50f))
                      .centerAt(at)
                      .shape(shapes::star(4, 0.34f))
-                     .fill(Material::solid({ring.fR, ring.fG, ring.fB,
-                                            alloc ? 0.95f : 0.6f}))
+                     .fill(Material::solid(
+                         {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
                      .zIndex(4));
   }
 
-  void masteryNode(Element &parent, int i) {
+  void masteryNode(Element& parent, int i) {
     namespace pt = skill_tree;
-    const treedata::Node &n = treedata::kNodes[i];
+    const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
     // A diamond, so a group's centre node never reads as one more socket.
-    parent.child(box().width(Dim(dia)).height(Dim(dia))
+    parent.child(box()
+                     .width(Dim(dia))
+                     .height(Dim(dia))
                      .centerAt(at)
                      .key(nodeKey(i))
                      .shape(shapes::polygon(4))
                      .fill(Material::solid(pt::kSocket))
                      .stroke(util::stroke(1.8f, Fill::color(ring)))
                      .zIndex(3));
-    parent.child(box().width(Dim(dia * 0.42f)).height(Dim(dia * 0.42f))
+    parent.child(box()
+                     .width(Dim(dia * 0.42f))
+                     .height(Dim(dia * 0.42f))
                      .centerAt(at)
                      .shape(shapes::polygon(4))
-                     .fill(Material::solid(
-                         {ring.fR, ring.fG, ring.fB, 0.75f}))
+                     .fill(Material::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
                      .zIndex(4));
   }
 
-  void keystoneNode(Element &parent, int i) {
+  void keystoneNode(Element& parent, int i) {
     namespace pt = skill_tree;
-    const treedata::Node &n = treedata::kNodes[i];
+    const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
     const bool alloc = n.state == treedata::State::Allocated;
     // Halo well first, so the octagon frame sits inside its own light.
-    parent.child(pt::socket(nullptr, at, dia - 6,
-                            {.fill = pt::kSocket,
-                             .borderWidth = 0,
-                             .glowRadius = 22,
-                             .glowColor = {pt::kHalo.fR, pt::kHalo.fG,
-                                           pt::kHalo.fB,
-                                           alloc ? 0.42f : 0.12f}},
-                            nullptr, 2));
-    parent.child(box().width(Dim(dia)).height(Dim(dia))
-                     .centerAt(at)
-                     .key(nodeKey(i))
-                     .shape(shapes::polygon(8, 22.5f))
-                     .fill(Material::radial({dia * 0.5f, dia * 0.5f},
-                                            dia * 0.62f,
-                                            {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
-                                             {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
-                     .stroke(util::stroke(2.8f, Fill::color(ring)))
-                     .zIndex(3));
-    parent.child(box().width(Dim(dia - 11)).height(Dim(dia - 11))
+    parent.child(
+        pt::socket(nullptr, at, dia - 6,
+                   {.fill = pt::kSocket,
+                    .borderWidth = 0,
+                    .glowRadius = 22,
+                    .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                                  alloc ? 0.42f : 0.12f}},
+                   nullptr, 2));
+    parent.child(
+        box()
+            .width(Dim(dia))
+            .height(Dim(dia))
+            .centerAt(at)
+            .key(nodeKey(i))
+            .shape(shapes::polygon(8, 22.5f))
+            .fill(Material::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
+                                   {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
+                                    {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
+            .stroke(util::stroke(2.8f, Fill::color(ring)))
+            .zIndex(3));
+    parent.child(box()
+                     .width(Dim(dia - 11))
+                     .height(Dim(dia - 11))
                      .centerAt(at)
                      .shape(shapes::polygon(8, 22.5f))
                      .stroke(util::stroke(
                          1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
                      .zIndex(4));
-    parent.child(box().width(Dim(dia + 16)).height(Dim(dia + 16))
+    parent.child(box()
+                     .width(Dim(dia + 16))
+                     .height(Dim(dia + 16))
                      .centerAt(at)
                      .shape(pt::notchRing(16, 0.86f, 1.0f))
                      .stroke(util::stroke(
                          1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
                      .zIndex(4));
     // A keystone's plate carries the heaviest sigil in the tree.
-    parent.child(box().width(Dim(dia * 0.60f)).height(Dim(dia * 0.60f))
-                     .centerAt(at)
-                     .shape(shapes::star(6, 0.40f))
-                     .fill(Material::radial(
-                         {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
-                         {{0.0f, {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
-                                  alloc ? 1.0f : 0.55f}},
-                          {1.0f, {ring.fR, ring.fG, ring.fB,
-                                  alloc ? 0.85f : 0.40f}}}))
-                     .zIndex(4));
+    parent.child(
+        box()
+            .width(Dim(dia * 0.60f))
+            .height(Dim(dia * 0.60f))
+            .centerAt(at)
+            .shape(shapes::star(6, 0.40f))
+            .fill(Material::radial(
+                {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
+                {{0.0f,
+                  {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
+                   alloc ? 1.0f : 0.55f}},
+                 {1.0f, {ring.fR, ring.fG, ring.fB, alloc ? 0.85f : 0.40f}}}))
+            .zIndex(4));
   }
 
-  void jewelNode(Element &parent, int i) {
+  void jewelNode(Element& parent, int i) {
     namespace pt = skill_tree;
-    const treedata::Node &n = treedata::kNodes[i];
+    const treedata::Node& n = treedata::kNodes[i];
     const SkPoint at{n.x, n.y};
     const float dia = pt::diameterOf(n.kind);
     const SkColor4f ring = pt::ringColor(n.state);
-    parent.child(box().width(Dim(dia)).height(Dim(dia))
+    parent.child(box()
+                     .width(Dim(dia))
+                     .height(Dim(dia))
                      .centerAt(at)
                      .key(nodeKey(i))
                      .shape(shapes::polygon(4))
@@ -418,27 +438,28 @@ struct SkillTreeScene final : Scene {
 
   /** Group discs + one faint guide ring per occupied orbit — the thing
    *  that makes the field read as orbits instead of as a node soup. */
-  void groundwork(Element &root) {
+  void groundwork(Element& root) {
     namespace pt = skill_tree;
-    for (const treedata::Group &g : treedata::kGroups) {
+    for (const treedata::Group& g : treedata::kGroups) {
       float widest = 0;
-      for (float r : g.radius)
-        widest = std::max(widest, r);
-      if (widest <= 0)
-        continue;
+      for (float r : g.radius) widest = std::max(widest, r);
+      if (widest <= 0) continue;
       const float discR = widest + 26;
-      root.child(box().width(Dim(discR * 2)).height(Dim(discR * 2))
-                     .centerAt({g.x, g.y})
-                     .fill(Material::radial(
-                         {discR, discR}, discR,
-                         {{0.00f, {0.20f, 0.16f, 0.13f, 0.55f}},
-                          {0.62f, {0.16f, 0.13f, 0.11f, 0.30f}},
-                          {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
-                     .zIndex(0));
+      root.child(
+          box()
+              .width(Dim(discR * 2))
+              .height(Dim(discR * 2))
+              .centerAt({g.x, g.y})
+              .fill(Material::radial({discR, discR}, discR,
+                                     {{0.00f, {0.20f, 0.16f, 0.13f, 0.55f}},
+                                      {0.62f, {0.16f, 0.13f, 0.11f, 0.30f}},
+                                      {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
+              .zIndex(0));
       for (float r : g.radius) {
-        if (r <= 0)
-          continue;
-        root.child(box().width(Dim(r * 2)).height(Dim(r * 2))
+        if (r <= 0) continue;
+        root.child(box()
+                       .width(Dim(r * 2))
+                       .height(Dim(r * 2))
                        .centerAt({g.x, g.y})
                        .shape(pt::circleOutline())
                        .stroke(util::stroke(
@@ -453,20 +474,20 @@ struct SkillTreeScene final : Scene {
    *  [0.92, 1.06] wrap window whose offset is a bound wrapping phase.
    *  `spans::wrap` keeps BOTH pieces across the seam, so the highlight
    *  marches around the circle forever without a blink. */
-  void cometRing(Element &root) {
+  void cometRing(Element& root) {
     namespace pt = skill_tree;
     int best = -1;
     float bestR = 0;
-    for (int i = 0; i < (int)(sizeof(treedata::kGroups) / sizeof(treedata::kGroups[0]));
+    for (int i = 0;
+         i < (int)(sizeof(treedata::kGroups) / sizeof(treedata::kGroups[0]));
          ++i)
       for (float r : treedata::kGroups[i].radius)
         if (r > bestR) {
           bestR = r;
           best = i;
         }
-    if (best < 0)
-      return;
-    const treedata::Group &g = treedata::kGroups[best];
+    if (best < 0) return;
+    const treedata::Group& g = treedata::kGroups[best];
     root.child(
         box()
             .width(Dim(bestR * 2))
@@ -483,15 +504,15 @@ struct SkillTreeScene final : Scene {
   /** Every link is a rail. Same-group/same-orbit pairs get that group's
    *  centre as the orbit router's focus and come out as arcs; everything
    *  else stays a straight spoke. The rope state is the WEAKER endpoint. */
-  void edges(Element &root) {
+  void edges(Element& root) {
     namespace pt = skill_tree;
     for (int i = 0; i < treedata::kEdgeCount; ++i) {
-      const treedata::Edge &e = treedata::kEdges[i];
+      const treedata::Edge& e = treedata::kEdges[i];
       const int state = pt::edgeState(treedata::kNodes[e.a].state,
                                       treedata::kNodes[e.b].state);
       RailRouter router;
       if (e.arc) {
-        const treedata::Group &g = treedata::kGroups[e.group];
+        const treedata::Group& g = treedata::kGroups[e.group];
         router = routers::orbit({g.x, g.y});
       }
       root.child(rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
@@ -504,15 +525,14 @@ struct SkillTreeScene final : Scene {
   /** The allocated spine, drawn as ONE rail so it can draw itself on at
    *  mount, plus the packet that travels it. The spine's own links are
    *  already painted by edges(); this rides on top in Active rope. */
-  void spine(Element &root) {
+  void spine(Element& root) {
     namespace pt = skill_tree;
     using namespace std::chrono_literals;
     std::vector<Anchor> run;
     for (int i = 0; i < treedata::kNodeCount; ++i)
       if (treedata::kNodes[i].state == treedata::State::Allocated)
         run.push_back(Anchor{nodeKey(i)});
-    if (run.size() < 2)
-      return;
+    if (run.size() < 2) return;
     // Ordered along the path: the table is sorted by position, so walk the
     // edge list to put the allocated run in graph order.
     std::vector<int> path;
@@ -524,11 +544,12 @@ struct SkillTreeScene final : Scene {
       auto degree = [&](int n) {
         int d = 0;
         for (int i = 0; i < treedata::kEdgeCount; ++i) {
-          const treedata::Edge &e = treedata::kEdges[i];
-          const bool aIn = treedata::kNodes[e.a].state == treedata::State::Allocated;
-          const bool bIn = treedata::kNodes[e.b].state == treedata::State::Allocated;
-          if (aIn && bIn && (e.a == n || e.b == n))
-            ++d;
+          const treedata::Edge& e = treedata::kEdges[i];
+          const bool aIn =
+              treedata::kNodes[e.a].state == treedata::State::Allocated;
+          const bool bIn =
+              treedata::kNodes[e.b].state == treedata::State::Allocated;
+          if (aIn && bIn && (e.a == n || e.b == n)) ++d;
         }
         return d;
       };
@@ -543,9 +564,8 @@ struct SkillTreeScene final : Scene {
       for (;;) {
         bool advanced = false;
         for (int i = 0; i < treedata::kEdgeCount && !advanced; ++i) {
-          if (used[i])
-            continue;
-          const treedata::Edge &e = treedata::kEdges[i];
+          if (used[i]) continue;
+          const treedata::Edge& e = treedata::kEdges[i];
           const int cur = path.back();
           const int other = e.a == cur ? e.b : e.b == cur ? e.a : -1;
           if (other < 0 ||
@@ -555,15 +575,12 @@ struct SkillTreeScene final : Scene {
           path.push_back(other);
           advanced = true;
         }
-        if (!advanced)
-          break;
+        if (!advanced) break;
       }
     }
-    if (path.size() < 2)
-      return;
+    if (path.size() < 2) return;
     std::vector<Anchor> anchors;
-    for (int n : path)
-      anchors.push_back(Anchor{nodeKey(n)});
+    for (int n : path) anchors.push_back(Anchor{nodeKey(n)});
     // Straight router: the spine crosses groups, and routers::orbit only
     // curves same-radius pairs anyway — a single focus would be a lie.
     root.child(rail(anchors)
@@ -583,14 +600,15 @@ struct SkillTreeScene final : Scene {
 
   /** Matched nodes get a breathing green ring; the selected node gets a
    *  slowly rotating ornament, the way Daripher's tree marks a favourite. */
-  void highlights(Element &root) {
+  void highlights(Element& root) {
     namespace pt = skill_tree;
     for (int i = 0; i < treedata::kNodeCount; ++i) {
-      if (!searched(i))
-        continue;
-      const treedata::Node &n = treedata::kNodes[i];
+      if (!searched(i)) continue;
+      const treedata::Node& n = treedata::kNodes[i];
       const float d = pt::diameterOf(n.kind) + 13;
-      root.child(box().width(Dim(d)).height(Dim(d))
+      root.child(box()
+                     .width(Dim(d))
+                     .height(Dim(d))
                      .centerAt({n.x, n.y})
                      .shape(pt::circleOutline())
                      .opacity(&searchPulse)
@@ -599,87 +617,102 @@ struct SkillTreeScene final : Scene {
                                             pt::kSearch.fB, 0.85f})))
                      .zIndex(5));
     }
-    const treedata::Node &sel = treedata::kNodes[selectedIndex()];
+    const treedata::Node& sel = treedata::kNodes[selectedIndex()];
     const float d = pt::diameterOf(sel.kind) + 30;
-    root.child(box().width(Dim(d)).height(Dim(d))
-                   .centerAt({sel.x, sel.y})
-                   .rotate(&selectSpin)
-                   .shape(shapes::star(12, 0.82f))
-                   .stroke(util::stroke(
-                       1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
-                                          pt::kHalo.fB, 0.55f})))
-                   .zIndex(5));
+    root.child(
+        box()
+            .width(Dim(d))
+            .height(Dim(d))
+            .centerAt({sel.x, sel.y})
+            .rotate(&selectSpin)
+            .shape(shapes::star(12, 0.82f))
+            .stroke(util::stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
+                                                    pt::kHalo.fB, 0.55f})))
+            .zIndex(5));
   }
 
   /** The tooltip: name, kind rule, stat lines, italic flavour. Anchored in
    *  the empty bottom-left with a leader back to the selected node. */
-  void detailCard(Element &root) {
+  void detailCard(Element& root) {
     namespace pt = skill_tree;
     const int sel = selectedIndex();
-    const treedata::Node &node = treedata::kNodes[sel];
-    const treedata::Detail *detail = nullptr;
+    const treedata::Node& node = treedata::kNodes[sel];
+    const treedata::Detail* detail = nullptr;
     for (int i = 0; i < treedata::kDetailCount; ++i)
       if (std::string_view(treedata::kDetails[i].name) == node.name) {
         detail = &treedata::kDetails[i];
         break;
       }
-    if (!detail)
-      return;
+    if (!detail) return;
 
     using namespace std::chrono_literals;
     constexpr float kCardW = 268, kCardX = 34, kCardY = 428;
     Element card =
-        box().width(Dim(kCardW)).left(kCardX).top(kCardY)
-            .column().padding(16, 13).gap(0).corners({3})
+        box()
+            .width(Dim(kCardW))
+            .left(kCardX)
+            .top(kCardY)
+            .column()
+            .padding(16, 13)
+            .gap(0)
+            .corners({3})
             .fill(Material::linear({0, 0}, {0, 170},
                                    {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                                     {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
             .foreground(util::stroke(
-                1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
-                                   0.45f})))
+                1.2f,
+                Fill::color({pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.45f})))
             .zIndex(7)
             .opacity(animate(from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(from(10.0f).to(0.0f), {520ms}))
             .child(text(toU8(detail->name), pt::type(17, pt::kHalo, 2.4f)))
             .child(text(toU8(detail->kind), pt::type(9.5f, pt::kAsh, 3.2f))
                        .margin(0, 3, 0, 0))
-            .child(box().width(Dim(kCardW - 32)).height(Dim(1.0f))
-                       .margin(0, 9, 0, 9)
-                       .fill(Material::linear(
-                           {0, 0}, {kCardW - 32, 0},
-                           {{0.0f, {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
-                                    0.55f}},
-                            {1.0f, {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
-                                    0.0f}}})));
-    for (const char *line : detail->stats) {
-      if (!line)
-        continue;
-      card.child(box().row().gap(7).margin(0, 0, 0, 5)
-                     .child(box().width(Dim(3.0f)).height(Dim(3.0f))
-                                .margin(0, 6, 0, 0).corners({1.5f})
-                                .fill(Material::solid(
-                                    {pt::kRimLit.fR, pt::kRimLit.fG,
-                                     pt::kRimLit.fB, 0.9f})))
-                     .child(text(toU8(line), pt::type(12, {0.62f, 0.68f, 0.90f,
-                                                           1}, 0.2f))
-                                .grow(1)));
+            .child(
+                box()
+                    .width(Dim(kCardW - 32))
+                    .height(Dim(1.0f))
+                    .margin(0, 9, 0, 9)
+                    .fill(Material::linear(
+                        {0, 0}, {kCardW - 32, 0},
+                        {{0.0f,
+                          {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.55f}},
+                         {1.0f,
+                          {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.0f}}})));
+    for (const char* line : detail->stats) {
+      if (!line) continue;
+      card.child(
+          box()
+              .row()
+              .gap(7)
+              .margin(0, 0, 0, 5)
+              .child(box()
+                         .width(Dim(3.0f))
+                         .height(Dim(3.0f))
+                         .margin(0, 6, 0, 0)
+                         .corners({1.5f})
+                         .fill(Material::solid({pt::kRimLit.fR, pt::kRimLit.fG,
+                                                pt::kRimLit.fB, 0.9f})))
+              .child(
+                  text(toU8(line), pt::type(12, {0.62f, 0.68f, 0.90f, 1}, 0.2f))
+                      .grow(1)));
     }
     if (detail->flavour)
       card.child(text(toU8(detail->flavour),
                       pt::type(11.5f, {0.42f, 0.38f, 0.32f, 1}, 0.3f, true))
                      .margin(0, 9, 0, 0));
     // the leader from the card back to the node it describes
-    root.child(rail({{"detail"}, {nodeKey(sel)}})
-                   .inset(0)
-                   .stroke(util::stroke(
-                       1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
-                                          pt::kGold.fB, 0.35f})))
-                   .zIndex(6));
+    root.child(
+        rail({{"detail"}, {nodeKey(sel)}})
+            .inset(0)
+            .stroke(util::stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
+                                                    pt::kGold.fB, 0.35f})))
+            .zIndex(6));
     root.child(card.key("detail"));
   }
 
-  void hud(Element &root) {
+  void hud(Element& root) {
     namespace pt = skill_tree;
     int allocated = 0, matched = 0;
     for (int i = 0; i < treedata::kNodeCount; ++i) {
@@ -691,41 +724,64 @@ struct SkillTreeScene final : Scene {
     char found[48];
     std::snprintf(found, sizeof(found), "%d matched", matched);
 
-    root.child(box().column().top(30).left(38).zIndex(8)
-                   .child(text(toU8("EMBERWOOD REACH"),
-                               pt::type(24, pt::kBone, 3)))
-                   .child(text(toU8("passive cluster \xe2\x80\x94 real orbit "
-                                    "geometry, four frame states"),
-                               pt::type(12, pt::kAsh, 1.0f))
-                              .margin(0, 6, 0, 0)));
-    root.child(box().column().alignItems(Align::End).top(30).right(36)
-                   .zIndex(8)
-                   .child(text(toU8(points), pt::type(21, pt::kGold, 2)))
-                   .child(text(toU8("passive points"),
-                               pt::type(10.5f, pt::kAsh, 1.5f))
-                              .margin(0, 4, 0, 0)));
+    root.child(
+        box()
+            .column()
+            .top(30)
+            .left(38)
+            .zIndex(8)
+            .child(text(toU8("EMBERWOOD REACH"), pt::type(24, pt::kBone, 3)))
+            .child(text(toU8("passive cluster \xe2\x80\x94 real orbit "
+                             "geometry, four frame states"),
+                        pt::type(12, pt::kAsh, 1.0f))
+                       .margin(0, 6, 0, 0)));
+    root.child(
+        box()
+            .column()
+            .alignItems(Align::End)
+            .top(30)
+            .right(36)
+            .zIndex(8)
+            .child(text(toU8(points), pt::type(21, pt::kGold, 2)))
+            .child(text(toU8("passive points"), pt::type(10.5f, pt::kAsh, 1.5f))
+                       .margin(0, 4, 0, 0)));
     // the search chip, Daripher's box with our palette
-    root.child(box().row().alignItems(Align::Center).gap(8)
-                   .bottom(28).left(38).zIndex(8)
-                   .padding(10, 5).corners({3})
+    root.child(box()
+                   .row()
+                   .alignItems(Align::Center)
+                   .gap(8)
+                   .bottom(28)
+                   .left(38)
+                   .zIndex(8)
+                   .padding(10, 5)
+                   .corners({3})
                    .fill(Material::solid({0.075f, 0.063f, 0.051f, 0.9f}))
                    .foreground(util::stroke(
                        1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
                                           pt::kSearch.fB, 0.4f})))
                    .child(text(toU8("search"), pt::type(10, pt::kAsh, 1.8f)))
-                   .child(text(toU8("fire"),
-                               pt::type(12, pt::kSearch, 0.6f)))
+                   .child(text(toU8("fire"), pt::type(12, pt::kSearch, 0.6f)))
                    .child(text(toU8(found), pt::type(10, pt::kAsh, 1.2f))));
 
-    auto swatch = [&](int state, const char *label) {
-      return box().row().alignItems(Align::Center).gap(8)
-          .child(box().width(Dim(44.0f)).height(Dim(14.0f))
+    auto swatch = [&](int state, const char* label) {
+      return box()
+          .row()
+          .alignItems(Align::Center)
+          .gap(8)
+          .child(box()
+                     .width(Dim(44.0f))
+                     .height(Dim(14.0f))
                      .shape(pt::hline())
                      .stroke(kit::brush::presets::rope(state, 0.8f)))
           .child(text(toU8(label), pt::type(11, pt::kAsh, 0.8f)));
     };
-    root.child(box().row().gap(20).alignItems(Align::Center)
-                   .bottom(28).right(36).zIndex(8)
+    root.child(box()
+                   .row()
+                   .gap(20)
+                   .alignItems(Align::Center)
+                   .bottom(28)
+                   .right(36)
+                   .zIndex(8)
                    .child(swatch(0, "normal"))
                    .child(swatch(1, "intermediate"))
                    .child(swatch(2, "active")));
@@ -745,11 +801,21 @@ struct SkillTreeScene final : Scene {
 
     for (int i = 0; i < treedata::kNodeCount; ++i) {
       switch (treedata::kNodes[i].kind) {
-      case treedata::Kind::Minor:    minorNode(root, i);    break;
-      case treedata::Kind::Notable:  notableNode(root, i);  break;
-      case treedata::Kind::Mastery:  masteryNode(root, i);  break;
-      case treedata::Kind::Keystone: keystoneNode(root, i); break;
-      case treedata::Kind::Jewel:    jewelNode(root, i);    break;
+        case treedata::Kind::Minor:
+          minorNode(root, i);
+          break;
+        case treedata::Kind::Notable:
+          notableNode(root, i);
+          break;
+        case treedata::Kind::Mastery:
+          masteryNode(root, i);
+          break;
+        case treedata::Kind::Keystone:
+          keystoneNode(root, i);
+          break;
+        case treedata::Kind::Jewel:
+          jewelNode(root, i);
+          break;
       }
     }
 
@@ -760,4 +826,4 @@ struct SkillTreeScene final : Scene {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

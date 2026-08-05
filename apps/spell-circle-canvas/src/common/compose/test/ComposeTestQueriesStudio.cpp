@@ -8,9 +8,9 @@ struct FlowLaw {
   float start = 166.0f, end = 12.0f;
   float across(float along) const { return start + (end - start) * along; }
   float max() const { return std::max(start, end); }
-  bool operator==(const FlowLaw &) const = default;
+  bool operator==(const FlowLaw&) const = default;
 };
-} // namespace
+}  // namespace
 
 TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {
   // bleed() grows the recording cull, so it has to know how far the widest
@@ -52,23 +52,16 @@ TEST(ComposeFx, EdgeGateOnAZeroMeasuredBoxRevealsRatherThanHides) {
   // half-plane built from an empty box is empty — so a FULL reveal hid the
   // whole subtree. A reveal at 1 must never hide anything.
   auto tree = [](bool withWipe) {
-    Element outer = box().absolute().left(0).top(0); // no dims: measures 0
-    outer.child(box()
-                    .absolute()
-                    .left(40)
-                    .top(40)
-                    .width(80)
-                    .height(80)
-                    .fill(Fill::color({1, 0, 0, 1})));
-    if (withWipe)
-      outer.mask(by::edge(90.0f, 1.0f));
+    Element outer = box().absolute().left(0).top(0);  // no dims: measures 0
+    outer.child(box().absolute().left(40).top(40).width(80).height(80).fill(
+        Fill::color({1, 0, 0, 1})));
+    if (withWipe) outer.mask(by::edge(90.0f, 1.0f));
     return box().child(std::move(outer));
   };
-  auto ink = [](Host &host) {
+  auto ink = [](Host& host) {
     int n = 0;
     for (int y = 0; y < 200; ++y)
-      for (int x = 0; x < 200; ++x)
-        n += SkColorGetR(host.pixel(x, y)) > 180;
+      for (int x = 0; x < 200; ++x) n += SkColorGetR(host.pixel(x, y)) > 180;
     return n;
   };
 
@@ -78,7 +71,7 @@ TEST(ComposeFx, EdgeGateOnAZeroMeasuredBoxRevealsRatherThanHides) {
   wiped.composer.render(tree(true));
   wiped.frame();
   EXPECT_GT(ink(plain), 5000);
-  EXPECT_EQ(ink(wiped), ink(plain)); // a full reveal changes nothing
+  EXPECT_EQ(ink(wiped), ink(plain));  // a full reveal changes nothing
 }
 
 TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
@@ -97,26 +90,30 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   // this library.
   auto render = [](std::function<SkPath(SkSize)> path) {
     auto host = std::make_unique<Host>(300, 300);
-    host->composer.render(box().child(
-        text(u8"RING INSCRIPTION", whiteStyle(30))
-            .width(240).height(240).absolute().left(30).top(30)
-            .onPath({.path = std::move(path), .at = 0.25f,
-                     .align = TextPath::Align::Center, .offset = 0.0f})));
+    host->composer.render(
+        box().child(text(u8"RING INSCRIPTION", whiteStyle(30))
+                        .width(240)
+                        .height(240)
+                        .absolute()
+                        .left(30)
+                        .top(30)
+                        .onPath({.path = std::move(path),
+                                 .at = 0.25f,
+                                 .align = TextPath::Align::Center,
+                                 .offset = 0.0f})));
     host->frame();
     return host;
   };
-  auto differing = [](Host &a, Host &b) {
+  auto differing = [](Host& a, Host& b) {
     int n = 0;
     for (int y = 0; y < 300; ++y)
-      for (int x = 0; x < 300; ++x)
-        n += a.pixel(x, y) != b.pixel(x, y);
+      for (int x = 0; x < 300; ++x) n += a.pixel(x, y) != b.pixel(x, y);
     return n;
   };
-  auto inked = [](Host &h) {
+  auto inked = [](Host& h) {
     int n = 0;
     for (int y = 0; y < 300; ++y)
-      for (int x = 0; x < 300; ++x)
-        n += h.pixel(x, y) != SK_ColorBLACK;
+      for (int x = 0; x < 300; ++x) n += h.pixel(x, y) != SK_ColorBLACK;
     return n;
   };
 
@@ -141,18 +138,22 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   auto atlas = std::make_shared<instancing::Atlas>(1.0f);
   atlas->filter(SkFilterMode::kNearest);
   // One cell, four vertical quarters: red, green, blue, white.
-  atlas->cell(box().width(16).height(64).column()
-                  .child(box().width(16).height(16).fill(Fill::color({1,0,0,1})))
-                  .child(box().width(16).height(16).fill(Fill::color({0,1,0,1})))
-                  .child(box().width(16).height(16).fill(Fill::color({0,0,1,1})))
-                  .child(box().width(16).height(16).fill(Fill::color({1,1,1,1}))),
-              {16, 64});
+  atlas->cell(
+      box()
+          .width(16)
+          .height(64)
+          .column()
+          .child(box().width(16).height(16).fill(Fill::color({1, 0, 0, 1})))
+          .child(box().width(16).height(16).fill(Fill::color({0, 1, 0, 1})))
+          .child(box().width(16).height(16).fill(Fill::color({0, 0, 1, 1})))
+          .child(box().width(16).height(16).fill(Fill::color({1, 1, 1, 1}))),
+      {16, 64});
 
   auto quarterAt = [&](float top) {
     auto pool = std::make_shared<instancing::Pool>();
     pool->add({100, 100});
     pool->texWindows()[0] = SkRect::MakeXYWH(0.0f, top, 1.0f, 0.25f);
-    pool->sizes()[0] = {1.0f, 0.25f}; // draw the window at its own aspect
+    pool->sizes()[0] = {1.0f, 0.25f};  // draw the window at its own aspect
     pool->commit();
     Host host(200, 200);
     host.composer.render(box().absolute().inset(0).child(
@@ -165,10 +166,14 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   // pool, one cell, four different sprites.
   const SkColor a = quarterAt(0.00f), b = quarterAt(0.25f);
   const SkColor c = quarterAt(0.50f), d = quarterAt(0.75f);
-  EXPECT_GT(SkColorGetR(a), 180); EXPECT_LT(SkColorGetG(a), 80);
-  EXPECT_GT(SkColorGetG(b), 180); EXPECT_LT(SkColorGetR(b), 80);
-  EXPECT_GT(SkColorGetB(c), 180); EXPECT_LT(SkColorGetR(c), 80);
-  EXPECT_GT(SkColorGetR(d), 180); EXPECT_GT(SkColorGetB(d), 180);
+  EXPECT_GT(SkColorGetR(a), 180);
+  EXPECT_LT(SkColorGetG(a), 80);
+  EXPECT_GT(SkColorGetG(b), 180);
+  EXPECT_LT(SkColorGetR(b), 80);
+  EXPECT_GT(SkColorGetB(c), 180);
+  EXPECT_LT(SkColorGetR(c), 80);
+  EXPECT_GT(SkColorGetR(d), 180);
+  EXPECT_GT(SkColorGetB(d), 180);
 
   // The lane is opt-in: a pool that never asks keeps the whole cell.
   auto plain = std::make_shared<instancing::Pool>();
@@ -195,14 +200,14 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
       for (int x = 0; x < 240; ++x) {
         const int r = SkColorGetR(host.pixel(x, y));
         full += r > 250;
-        partial += r > 15 && r < 240; // an antialiased edge pixel
+        partial += r > 15 && r < 240;  // an antialiased edge pixel
       }
     return std::pair<int, int>{full, partial};
   };
 
   const auto soft = greys(false);
   const auto hard = greys(true);
-  ASSERT_GT(soft.first, 200); // both actually drew
+  ASSERT_GT(soft.first, 200);  // both actually drew
   ASSERT_GT(hard.first, 200);
   // Antialiased type is fringed with partial coverage; aliased type is
   // not — every pixel is on or off.
@@ -220,14 +225,9 @@ TEST(ComposeQuery, AKeyedShellCanOptOutOfHitTesting) {
   auto tree = [](bool shellTestable) {
     Element shell = box().key("shell").absolute().inset(0);
     shell.hitTestable(shellTestable);
-    shell.child(box()
-                    .key("bar")
-                    .absolute()
-                    .left(20)
-                    .top(20)
-                    .width(40)
-                    .height(40)
-                    .fill(red()));
+    shell.child(
+        box().key("bar").absolute().left(20).top(20).width(40).height(40).fill(
+            red()));
     return box().child(std::move(shell));
   };
 
@@ -257,7 +257,7 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
   // No frame() yet: nothing has been laid out.
   const auto before = host.composer.bounds("cell");
   if (before)
-    EXPECT_TRUE(before->isFinite()); // if it answers, the answer is real
+    EXPECT_TRUE(before->isFinite());  // if it answers, the answer is real
 
   host.frame();
   const auto after = host.composer.bounds("cell");
@@ -351,9 +351,9 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
   // sits at a small fraction of its peak, an 8-bit read-back quantises that
   // tail to a couple of levels — which yields a confident wrong exponent
   // rather than an obviously broken one.
-  const auto r = debug::rasterize(box().absolute().inset(0).fill(
-                                      Fill::color({1.0f, 0.25f, 0.0f, 1})),
-                                  fonts(), {32, 32});
+  const auto r = debug::rasterize(
+      box().absolute().inset(0).fill(Fill::color({1.0f, 0.25f, 0.0f, 1})),
+      fonts(), {32, 32});
   ASSERT_TRUE(r.valid());
   EXPECT_EQ(r.width(), 32);
   const SkColor4f c = r.at(16, 16);
@@ -413,9 +413,9 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   const auto boundsLonghand = host.composer.bounds("plate");
   ASSERT_TRUE(boundsLonghand.has_value());
   EXPECT_EQ(*boundsLonghand, r);
-  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);   // inside
-  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK); // above the top edge
-  EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK); // right of the right edge
+  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);    // inside
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);  // above the top edge
+  EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK);  // right of the right edge
 
   // Re-describe with rect(). Equal props => the reconciler prunes it.
   host.composer.render(terse());
@@ -435,9 +435,8 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   // NEGATIVE CONTROL — without this the two assertions above pass on a
   // composer that never patches anything, which is exactly the vacuous
   // shape this program keeps finding. A different rect MUST patch.
-  host.composer.render(
-      box().child(box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30))
-                      .fill(red())));
+  host.composer.render(box().child(
+      box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30)).fill(red())));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "the patch counter is not live, so the zeroes above prove nothing";
@@ -450,9 +449,11 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   // on a node that measures itself from its content.
   Host host(300, 200);
   auto longhand = [] {
-    return box().child(
-        text(u8"Wm", styleAt(20)).key("cap").absolute().left(Dim(30)).top(
-            Dim(40)));
+    return box().child(text(u8"Wm", styleAt(20))
+                           .key("cap")
+                           .absolute()
+                           .left(Dim(30))
+                           .top(Dim(40)));
   };
   auto terse = [] {
     return box().child(text(u8"Wm", styleAt(20)).key("cap").at({30, 40}));
@@ -492,9 +493,14 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
   Host host(200, 200);
 
   auto withRedundant = [] {
-    return box().child(
-        box().key("p").absolute().left(Dim(30)).top(Dim(30)).width(20).height(
-            20).fill(red()));
+    return box().child(box()
+                           .key("p")
+                           .absolute()
+                           .left(Dim(30))
+                           .top(Dim(30))
+                           .width(20)
+                           .height(20)
+                           .fill(red()));
   };
   auto without = [] {
     return box().child(
@@ -518,18 +524,20 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
   // pinned edge. Here .absolute() is the only thing taking it out of flow,
   // so removing it moves the node behind its sibling.
   Host flow(200, 200);
-  flow.composer.render(box().row()
-                           .child(box().width(60).height(20).fill(green()))
-                           .child(box().key("q").absolute().width(20).height(20)
-                                      .fill(red())));
+  flow.composer.render(
+      box()
+          .row()
+          .child(box().width(60).height(20).fill(green()))
+          .child(box().key("q").absolute().width(20).height(20).fill(red())));
   flow.frame();
   ASSERT_TRUE(flow.composer.bounds("q").has_value());
   EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 0.0f);
 
-  flow.composer.render(box().row()
-                           .child(box().width(60).height(20).fill(green()))
-                           .child(box().key("q").width(20).height(20)
-                                      .fill(red())));
+  flow.composer.render(
+      box()
+          .row()
+          .child(box().width(60).height(20).fill(green()))
+          .child(box().key("q").width(20).height(20).fill(red())));
   flow.frame();
   EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 60.0f)
       << "if this is still 0 then .absolute() alone is ALSO redundant and "
@@ -541,8 +549,9 @@ TEST(ComposeStudio, TheColourOpsAreTheBodiesTheCorpusWroteTwentyFourTimes) {
   // hex() is defined 24 times across 64 files under three names with
   // byte-identical bodies and no shared brief between the groups.
   constexpr SkColor4f rubric = studio::hex(0x8C2F22);
-  static_assert(studio::hex(0xFFFFFF).fR == 1.0f, "must stay constexpr — the "
-                                                  "palettes are constexpr");
+  static_assert(studio::hex(0xFFFFFF).fR == 1.0f,
+                "must stay constexpr — the "
+                "palettes are constexpr");
   EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
@@ -588,13 +597,14 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   // test asserts exactly the fields a positional two-argument helper could
   // not reach; if it ever shrinks to size+colour, the extraction has failed
   // the same way its predecessor did.
-  const sigil::weave::TextStyle s = studio::type({.size = 18.0f,
-                                                  .color = {0.2f, 0.4f, 0.6f, 1},
-                                                  .track = 1.25f,
-                                                  .condense = 0.94f,
-                                                  .weight = 650.0f,
-                                                  .slant = -10.0f,
-                                                  .aliased = true});
+  const sigil::weave::TextStyle s =
+      studio::type({.size = 18.0f,
+                    .color = {0.2f, 0.4f, 0.6f, 1},
+                    .track = 1.25f,
+                    .condense = 0.94f,
+                    .weight = 650.0f,
+                    .slant = -10.0f,
+                    .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);
@@ -625,8 +635,8 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
 
   // And it actually lays out — a TextStyle that measures to nothing would
   // satisfy every field assertion above.
-  const SkSize measured = measure(text(u8"Wm", studio::type({.size = 40})),
-                                  fonts());
+  const SkSize measured =
+      measure(text(u8"Wm", studio::type({.size = 40})), fonts());
   EXPECT_GT(measured.width(), 10.0f);
   EXPECT_GT(measured.height(), 10.0f);
 }
@@ -685,20 +695,21 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
   // A column panel puts the divider on the other axis, and the same call
   // site says so with one field.
   Host col(240, 120);
-  col.composer.render(box().child(
-      console::panel({.rings = {&a, &b},
-                      .style = style,
-                      .column = true,
-                      .paddingX = 10,
-                      .paddingY = 6,
-                      .gap = 8,
-                      .fill = Fill::color({0, 0, 0.5f, 1}),
-                      .divider = red()})
-          .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
+  col.composer.render(
+      box().child(console::panel({.rings = {&a, &b},
+                                  .style = style,
+                                  .column = true,
+                                  .paddingX = 10,
+                                  .paddingY = 6,
+                                  .gap = 8,
+                                  .fill = Fill::color({0, 0, 0.5f, 1}),
+                                  .divider = red()})
+                      .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
   col.frame();
   int redRows = 0;
   for (int y = 21; y < 99; ++y)
-    if (SkColorGetR(col.pixel(120, y)) > 180 && SkColorGetG(col.pixel(120, y)) < 80)
+    if (SkColorGetR(col.pixel(120, y)) > 180 &&
+        SkColorGetG(col.pixel(120, y)) < 80)
       ++redRows;
   EXPECT_EQ(redRows, 1);
 
@@ -739,8 +750,7 @@ TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
   // panel that sets neither width nor height, so the shell box the
   // implementation wraps it in cannot change the answer.
   console::LineRing full;
-  for (int i = 0; i < 20; ++i)
-    full.append(u8"the ring outruns its window");
+  for (int i = 0; i < 20; ++i) full.append(u8"the ring outruns its window");
   EXPECT_FLOAT_EQ(measure(console::console(full, st), fonts()).height(), rows)
       << "the un-shelled spelling disagrees — console() grew its own dims";
 
@@ -759,23 +769,23 @@ TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
 
   Host host(320, (int)std::ceil(panelH) + 40);
   auto divider = [&] { return box().height(div).fill(green()); };
-  host.composer.render(box().child(
-      box()
-          .key("panel")
-          .padding(12.0f, padY)
-          .column()
-          .gap(gap)
-          .child(console::console(a, st).key("ringA"))
-          .child(divider())
-          .child(console::console(b, st).key("ringB"))
-          .child(divider())
-          .child(console::console(c, st).key("ringC"))
-          .rect(SkRect::MakeXYWH(10, 10, 300, panelH))));
+  host.composer.render(
+      box().child(box()
+                      .key("panel")
+                      .padding(12.0f, padY)
+                      .column()
+                      .gap(gap)
+                      .child(console::console(a, st).key("ringA"))
+                      .child(divider())
+                      .child(console::console(b, st).key("ringB"))
+                      .child(divider())
+                      .child(console::console(c, st).key("ringC"))
+                      .rect(SkRect::MakeXYWH(10, 10, 300, panelH))));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());
   EXPECT_FLOAT_EQ(host.composer.bounds("panel")->height(), panelH);
-  for (const char *k : {"ringA", "ringB", "ringC"}) {
+  for (const char* k : {"ringA", "ringB", "ringC"}) {
     ASSERT_TRUE(host.composer.bounds(k).has_value()) << k;
     EXPECT_FLOAT_EQ(host.composer.bounds(k)->height(), rows)
         << k << " shrank: console::height() is not the laid-out height";
@@ -810,13 +820,12 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
   host.frame();
   auto byHand = [&](bool staggered) {
     auto p = box().column().gap(st.gap).clip();
-    if (staggered)
-      p.staggerChildren(400ms);
-    for (const console::Line &l : ring.lines()) {
+    if (staggered) p.staggerChildren(400ms);
+    for (const console::Line& l : ring.lines()) {
       Element row = console::line(l, st);
       if (staggered)
-        row.opacity(animate(from(0.0f).to(1.0f),
-                            {200ms, &choreograph::easeNone}));
+        row.opacity(
+            animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
       p.child(std::move(row));
     }
     return box().child(std::move(p));
@@ -842,7 +851,7 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
   // (c) And now the console types out: each row's OWN mount animation is
   //     what staggerChildren has to delay, so row 2 is still dark while
   //     row 1 has finished.
-  auto brightest = [](Host &h, SkRect r) {
+  auto brightest = [](Host& h, SkRect r) {
     int best = 0;
     for (int y = (int)r.top(); y < (int)r.bottom(); ++y)
       for (int x = (int)r.left(); x < (int)r.right(); ++x)
@@ -851,12 +860,12 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
   };
   Host typed(220, 90);
   typed.composer.render(byHand(true));
-  typed.frame(0.25); // row 1's 200 ms is done; row 2 waits out its 400 ms
+  typed.frame(0.25);  // row 1's 200 ms is done; row 2 waits out its 400 ms
   const SkRect r1 = *typed.composer.bounds("con#1");
   const SkRect r2 = *typed.composer.bounds("con#2");
   EXPECT_GT(brightest(typed, r1), 150);
   EXPECT_LT(brightest(typed, r2), 40) << "the stagger did not delay row 2";
-  typed.frame(0.5); // t = 0.75 — row 2 is 350 ms into its own 200 ms
+  typed.frame(0.5);  // t = 0.75 — row 2 is 350 ms into its own 200 ms
   EXPECT_GT(brightest(typed, r2), 150);
 }
 
@@ -866,8 +875,8 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // are then unconnected, and the plate cannot be falsified by its own
   // output. debug::check() derives the verdict FROM the two values it
   // prints, so a wrong number changes the word beside it.
-  const debug::Check ok = debug::check("northern column", 422000 - 22000,
-                                       400000);
+  const debug::Check ok =
+      debug::check("northern column", 422000 - 22000, 400000);
   EXPECT_TRUE(ok.pass);
   EXPECT_NE(ok.line().find("400000"), std::string::npos);
   EXPECT_NE(ok.line().find("PASS"), std::string::npos);
@@ -877,12 +886,12 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_FALSE(bad.pass);
   EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
       << "a failing check must print what it wanted, or the plate says "
-         "nothing an author can act on: " << bad.line();
+         "nothing an author can act on: "
+      << bad.line();
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
   // checks silently losing their units to a console column that clipped.
-  const std::string wide =
-      debug::check(std::string(80, 'L'), 1, 1).line(44);
+  const std::string wide = debug::check(std::string(80, 'L'), 1, 1).line(44);
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
   // Floats need a tolerance the STUDY chooses; there is no default.
@@ -891,8 +900,9 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_NE(debug::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
             std::string::npos);
 
-  EXPECT_TRUE(debug::check("winding", std::string_view("kCW"),
-                           std::string_view("kCW")).pass);
+  EXPECT_TRUE(
+      debug::check("winding", std::string_view("kCW"), std::string_view("kCW"))
+          .pass);
   EXPECT_FALSE(debug::check("closed", false).pass);
   EXPECT_TRUE(debug::check("closed", true).pass);
 
@@ -917,14 +927,14 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   style.text = studio::type({.size = 9, .color = {1, 1, 1, 1}});
   style.palette = {studio::type({.size = 9, .color = {0, 1, 0, 1}}),
                    studio::type({.size = 9, .color = {1, 0, 0, 1}})};
-  host.composer.render(box().fill(Fill::color({0, 0, 0, 1}))
+  host.composer.render(box()
+                           .fill(Fill::color({0, 0, 0, 1}))
                            .child(console::console(ring, style).at({4, 4})));
   host.frame();
   int inked = 0;
   for (int y = 0; y < 40; ++y)
     for (int x = 0; x < 200; ++x)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        ++inked;
+      if (host.pixel(x, y) != SK_ColorBLACK) ++inked;
   EXPECT_GT(inked, 50) << "the reported checks drew nothing";
 }
 
@@ -945,4 +955,3 @@ TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
 
 // ---------------------------------------------------------------------------
 // The stroke grammar: shape(), spans, band().
-

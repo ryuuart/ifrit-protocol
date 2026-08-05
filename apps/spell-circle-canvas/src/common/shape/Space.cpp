@@ -1,16 +1,15 @@
 #include "sigilshape/Space.h"
 
-#include "sigilshape/detail/VecMath.h"
-
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkVertices.h>
 
-#include <glm/gtc/type_ptr.hpp>
-
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/type_ptr.hpp>
 #include <numeric>
+
+#include "sigilshape/detail/VecMath.h"
 
 namespace sigil::shape::space {
 
@@ -22,7 +21,7 @@ constexpr float kDegToRad = (float)M_PI / 180.0f;
 
 /** The other direction of the seam: Skia's camera factories build the
  *  matrix, glm carries it. Both column-major — a straight pour. */
-glm::mat4 toGlm(const SkM44 &m) {
+glm::mat4 toGlm(const SkM44& m) {
   float c[16];
   m.getColMajor(c);
   return glm::make_mat4(c);
@@ -39,7 +38,7 @@ struct Mat3 {
   }
 };
 
-Mat3 normalMatrix(const SkM44 &src) {
+Mat3 normalMatrix(const SkM44& src) {
   const float a00 = src.rc(0, 0), a01 = src.rc(0, 1), a02 = src.rc(0, 2);
   const float a10 = src.rc(1, 0), a11 = src.rc(1, 1), a12 = src.rc(1, 2);
   const float a20 = src.rc(2, 0), a21 = src.rc(2, 1), a22 = src.rc(2, 2);
@@ -47,8 +46,7 @@ Mat3 normalMatrix(const SkM44 &src) {
                     a01 * (a10 * a22 - a12 * a20) +
                     a02 * (a10 * a21 - a11 * a20);
   Mat3 out{{1, 0, 0, 0, 1, 0, 0, 0, 1}};
-  if (std::abs(det) < 1e-12f)
-    return out;
+  if (std::abs(det) < 1e-12f) return out;
   const float inv = 1.0f / det;
   // rows of the inverse transpose = columns of the inverse
   out.m[0] = (a11 * a22 - a12 * a21) * inv;
@@ -71,21 +69,18 @@ SkColor modulate(SkColor c, glm::vec4 m) {
   const auto scale = [](U8CPU channel, float k) -> U8CPU {
     return (U8CPU)std::clamp((float)channel * k + 0.5f, 0.0f, 255.0f);
   };
-  return SkColorSetARGB(scale(SkColorGetA(c), m.a),
-                        scale(SkColorGetR(c), m.r),
-                        scale(SkColorGetG(c), m.g),
-                        scale(SkColorGetB(c), m.b));
+  return SkColorSetARGB(scale(SkColorGetA(c), m.a), scale(SkColorGetR(c), m.r),
+                        scale(SkColorGetG(c), m.g), scale(SkColorGetB(c), m.b));
 }
 
 SkColor toColor(glm::vec3 rgb, float a) {
-  const SkColor4f c = {std::clamp(rgb.x, 0.0f, 1.0f),
-                       std::clamp(rgb.y, 0.0f, 1.0f),
-                       std::clamp(rgb.z, 0.0f, 1.0f),
-                       std::clamp(a, 0.0f, 1.0f)};
+  const SkColor4f c = {
+      std::clamp(rgb.x, 0.0f, 1.0f), std::clamp(rgb.y, 0.0f, 1.0f),
+      std::clamp(rgb.z, 0.0f, 1.0f), std::clamp(a, 0.0f, 1.0f)};
   return c.toSkColor();
 }
 
-} // namespace
+}  // namespace
 
 glm::mat4 Camera::view() const {
   return toGlm(SkM44::LookAt({eye.x, eye.y, eye.z},
@@ -95,8 +90,7 @@ glm::mat4 Camera::view() const {
 
 glm::mat4 Camera::projection(float aspect) const {
   SkM44 m = SkM44::Perspective(zNear, zFar, fovYDeg * kDegToRad);
-  if (aspect > 0)
-    m.setRC(0, 0, m.rc(0, 0) / aspect);
+  if (aspect > 0) m.setRC(0, 0, m.rc(0, 0) / aspect);
   return toGlm(m);
 }
 
@@ -112,12 +106,10 @@ glm::mat4 Camera::viewProjection(SkSize viewport) const {
   return toGlm(out);
 }
 
-void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
-              const Camera &camera, SkSize viewport,
-              const MeshStyle &style) {
+void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
+              const Camera& camera, SkSize viewport, const MeshStyle& style) {
   const size_t n = mesh.vertexCount();
-  if (n == 0 || mesh.indices.size() < 3)
-    return;
+  if (n == 0 || mesh.indices.size() < 3) return;
 
   SkM44 viewModel = toSkM44(camera.view());
   viewModel.preConcat(toSkM44(model));
@@ -135,7 +127,7 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
   const bool hasUvs = mesh.uvs.size() == n;
 
   for (size_t i = 0; i < n; ++i) {
-    const glm::vec3 &p = mesh.positions[i];
+    const glm::vec3& p = mesh.positions[i];
     const SkV4 clip = full * SkV4{p.x, p.y, p.z, 1};
     if (clip.w <= 1e-4f) {
       valid[i] = false;
@@ -148,73 +140,70 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
     }
 
     switch (style.mode) {
-    case MeshStyle::Mode::Normals: {
-      const glm::vec3 nrm = hasNormals
+      case MeshStyle::Mode::Normals: {
+        const glm::vec3 nrm = hasNormals
+                                  ? normalized(normalM.apply(mesh.normals[i]))
+                                  : glm::vec3{0, 0, 1};
+        // Materials.h G-buffer convention: DEVICE-space normals, +y down.
+        shaded[i] = toColor(
+            {nrm.x * 0.5f + 0.5f, -nrm.y * 0.5f + 0.5f, nrm.z * 0.5f + 0.5f},
+            1);
+        break;
+      }
+      case MeshStyle::Mode::Uv: {
+        const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
+        shaded[i] = toColor({uv.x, uv.y, 0.5f}, 1);
+        break;
+      }
+      case MeshStyle::Mode::Lit:
+      default: {
+        const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
+        const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
+        const glm::vec3 N = hasNormals
                                 ? normalized(normalM.apply(mesh.normals[i]))
                                 : glm::vec3{0, 0, 1};
-      // Materials.h G-buffer convention: DEVICE-space normals, +y down.
-      shaded[i] = toColor(
-          {nrm.x * 0.5f + 0.5f, -nrm.y * 0.5f + 0.5f, nrm.z * 0.5f + 0.5f},
-          1);
-      break;
-    }
-    case MeshStyle::Mode::Uv: {
-      const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
-      shaded[i] = toColor({uv.x, uv.y, 0.5f}, 1);
-      break;
-    }
-    case MeshStyle::Mode::Lit:
-    default: {
-      const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
-      const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
-      const glm::vec3 N = hasNormals
-                              ? normalized(normalM.apply(mesh.normals[i]))
-                              : glm::vec3{0, 0, 1};
-      const glm::vec3 V = normalized(posView * -1.0f);
-      glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
-                        style.baseColor.fB};
-      float alpha = style.baseColor.fA;
-      if (i < mesh.colors.size()) { // per-vertex tint lane (instancing)
-        base = {base.x * mesh.colors[i].r, base.y * mesh.colors[i].g,
-                base.z * mesh.colors[i].b};
-        alpha *= mesh.colors[i].a;
-      }
-      glm::vec3 accum = {style.ambient.fR * base.x,
-                         style.ambient.fG * base.y,
-                         style.ambient.fB * base.z};
-      for (const Light &light : style.lights) {
-        const glm::vec3 L =
-            normalized(lightM.apply(light.direction * -1.0f));
-        const float diff = std::max(glm::dot(N, L), 0.0f);
-        const glm::vec3 lc = {light.color.fR * light.intensity,
-                              light.color.fG * light.intensity,
-                              light.color.fB * light.intensity};
-        accum += glm::vec3{base.x * lc.x * diff, base.y * lc.y * diff,
-                           base.z * lc.z * diff};
-        if (style.specular > 0 && diff > 0) {
-          const glm::vec3 H = normalized(L + V);
-          const float spec =
-              std::pow(std::max(glm::dot(N, H), 0.0f), style.shininess) *
-              style.specular;
-          accum += lc * spec;
+        const glm::vec3 V = normalized(posView * -1.0f);
+        glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
+                          style.baseColor.fB};
+        float alpha = style.baseColor.fA;
+        if (i < mesh.colors.size()) {  // per-vertex tint lane (instancing)
+          base = {base.x * mesh.colors[i].r, base.y * mesh.colors[i].g,
+                  base.z * mesh.colors[i].b};
+          alpha *= mesh.colors[i].a;
         }
+        glm::vec3 accum = {style.ambient.fR * base.x, style.ambient.fG * base.y,
+                           style.ambient.fB * base.z};
+        for (const Light& light : style.lights) {
+          const glm::vec3 L = normalized(lightM.apply(light.direction * -1.0f));
+          const float diff = std::max(glm::dot(N, L), 0.0f);
+          const glm::vec3 lc = {light.color.fR * light.intensity,
+                                light.color.fG * light.intensity,
+                                light.color.fB * light.intensity};
+          accum += glm::vec3{base.x * lc.x * diff, base.y * lc.y * diff,
+                             base.z * lc.z * diff};
+          if (style.specular > 0 && diff > 0) {
+            const glm::vec3 H = normalized(L + V);
+            const float spec =
+                std::pow(std::max(glm::dot(N, H), 0.0f), style.shininess) *
+                style.specular;
+            accum += lc * spec;
+          }
+        }
+        if (style.rim > 0) {
+          const float rim =
+              std::pow(1.0f - std::max(glm::dot(N, V), 0.0f), 3.0f) * style.rim;
+          accum += glm::vec3{rim, rim, rim};
+        }
+        shaded[i] = toColor(accum, alpha);
+        break;
       }
-      if (style.rim > 0) {
-        const float rim =
-            std::pow(1.0f - std::max(glm::dot(N, V), 0.0f), 3.0f) *
-            style.rim;
-        accum += glm::vec3{rim, rim, rim};
-      }
-      shaded[i] = toColor(accum, alpha);
-      break;
-    }
     }
   }
 
   // The PRIMITIVE lane: one float4 per triangle, multiplied into that
   // triangle's emitted vertex colours. Lit mode only — the Normals and
   // Uv buffers must stay unmodulated.
-  const std::vector<glm::vec4> *primColor =
+  const std::vector<glm::vec4>* primColor =
       style.primColorLane.empty() || style.mode != MeshStyle::Mode::Lit
           ? nullptr
           : mesh.primIf(style.primColorLane);
@@ -225,31 +214,28 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
   struct Tri {
     uint32_t i0, i1, i2;
     float depth;
-    uint32_t index; ///< primitive index, for the prim lanes
+    uint32_t index;  ///< primitive index, for the prim lanes
   };
   std::vector<Tri> tris;
   tris.reserve(mesh.indices.size() / 3);
   for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3) {
     const uint32_t i0 = mesh.indices[t], i1 = mesh.indices[t + 1],
                    i2 = mesh.indices[t + 2];
-    if (!valid[i0] || !valid[i1] || !valid[i2])
-      continue;
+    if (!valid[i0] || !valid[i1] || !valid[i2]) continue;
     if (style.backfaceCull) {
       const SkPoint a = screen[i0], b = screen[i1], c = screen[i2];
-      const float area2 = (b.fX - a.fX) * (c.fY - a.fY) -
-                          (b.fY - a.fY) * (c.fX - a.fX);
+      const float area2 =
+          (b.fX - a.fX) * (c.fY - a.fY) - (b.fY - a.fY) * (c.fX - a.fX);
       // Front faces wind CCW in y-up space, so they arrive CW (negative
       // area) after the viewport's y flip.
-      if (area2 >= 0)
-        continue;
+      if (area2 >= 0) continue;
     }
-    tris.push_back({i0, i1, i2,
-                    (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f,
+    tris.push_back({i0, i1, i2, (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f,
                     (uint32_t)(t / 3)});
   }
   if (style.depthSort)
     std::sort(tris.begin(), tris.end(),
-              [](const Tri &a, const Tri &b) { return a.depth < b.depth; });
+              [](const Tri& a, const Tri& b) { return a.depth < b.depth; });
 
   // Emit in chunks under the 16-bit SkVertices limit: three unshared
   // vertices per triangle keeps the chunking trivial.
@@ -274,19 +260,17 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
     std::vector<SkColor> col;
     pos.reserve(count * 3);
     col.reserve(count * 3);
-    if (textured)
-      tex.reserve(count * 3);
+    if (textured) tex.reserve(count * 3);
     for (size_t k = 0; k < count; ++k) {
-      const Tri &tri = tris[start + k];
+      const Tri& tri = tris[start + k];
       const glm::vec4 flat =
           primColor ? (*primColor)[tri.index] : glm::vec4{1, 1, 1, 1};
       for (uint32_t idx : {tri.i0, tri.i1, tri.i2}) {
         pos.push_back(screen[idx]);
-        col.push_back(primColor ? modulate(shaded[idx], flat)
-                                : shaded[idx]);
+        col.push_back(primColor ? modulate(shaded[idx], flat) : shaded[idx]);
         if (textured) {
-          const SkPoint uv = style.uvTransform.mapPoint(
-              {mesh.uvs[idx].x, mesh.uvs[idx].y});
+          const SkPoint uv =
+              style.uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});
           tex.push_back({uv.fX * texW, uv.fY * texH});
         }
       }
@@ -294,16 +278,13 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
     sk_sp<SkVertices> vertices = SkVertices::MakeCopy(
         SkVertices::kTriangles_VertexMode, (int)pos.size(), pos.data(),
         textured ? tex.data() : nullptr, col.data(), 0, nullptr);
-    canvas.drawVertices(vertices,
-                        textured ? SkBlendMode::kModulate
-                                 : SkBlendMode::kDst,
-                        paint);
+    canvas.drawVertices(
+        vertices, textured ? SkBlendMode::kModulate : SkBlendMode::kDst, paint);
   }
 }
 
-void drawPanel(SkCanvas &canvas, const glm::mat4 &model,
-               const Camera &camera, SkSize viewport,
-               const std::function<void(SkCanvas &)> &draw) {
+void drawPanel(SkCanvas& canvas, const glm::mat4& model, const Camera& camera,
+               SkSize viewport, const std::function<void(SkCanvas&)>& draw) {
   canvas.save();
   SkM44 full = toSkM44(camera.viewProjection(viewport));
   full.preConcat(toSkM44(model));
@@ -315,12 +296,11 @@ void drawPanel(SkCanvas &canvas, const glm::mat4 &model,
   canvas.restore();
 }
 
-void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
-                    float height, const glm::mat4 &model,
-                    const Camera &camera, SkSize viewport, float opacity) {
-  if (!image)
-    return;
-  drawPanel(canvas, model, camera, viewport, [&](SkCanvas &local) {
+void drawImagePanel(SkCanvas& canvas, sk_sp<SkImage> image, float width,
+                    float height, const glm::mat4& model, const Camera& camera,
+                    SkSize viewport, float opacity) {
+  if (!image) return;
+  drawPanel(canvas, model, camera, viewport, [&](SkCanvas& local) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setAlphaf(opacity);
@@ -331,17 +311,14 @@ void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
   });
 }
 
-glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg,
-                float rollDeg, float scale) {
+glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg, float rollDeg,
+                float scale) {
   SkM44 m = SkM44::Translate(position.x, position.y, position.z);
-  if (yawDeg != 0)
-    m.preConcat(SkM44::Rotate({0, 1, 0}, yawDeg * kDegToRad));
+  if (yawDeg != 0) m.preConcat(SkM44::Rotate({0, 1, 0}, yawDeg * kDegToRad));
   if (pitchDeg != 0)
     m.preConcat(SkM44::Rotate({1, 0, 0}, pitchDeg * kDegToRad));
-  if (rollDeg != 0)
-    m.preConcat(SkM44::Rotate({0, 0, 1}, rollDeg * kDegToRad));
-  if (scale != 1)
-    m.preScale(scale, scale, scale);
+  if (rollDeg != 0) m.preConcat(SkM44::Rotate({0, 0, 1}, rollDeg * kDegToRad));
+  if (scale != 1) m.preScale(scale, scale, scale);
   return toGlm(m);
 }
 
@@ -356,4 +333,4 @@ glm::mat4 faceCamera(glm::vec3 eye, glm::vec3 at, glm::vec3 up) {
   return m;
 }
 
-} // namespace sigil::shape::space
+}  // namespace sigil::shape::space

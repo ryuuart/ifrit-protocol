@@ -17,9 +17,6 @@
  * on the geometry (ExclusionFlow::setMinIntervalWidth, for instance).
  */
 
-#include "Flow.h"
-#include "Paragraph.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkTextBlob.h>
@@ -27,6 +24,9 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
+
+#include "Flow.h"
+#include "Paragraph.h"
 
 namespace sigil::weave {
 
@@ -40,14 +40,14 @@ enum class LineBreakStrategy : uint8_t { kGreedy, kKnuthPlass };
 
 /** Overrides the paragraph's font-derived line metrics when non-zero. */
 struct LineMetricsOptions {
-  float height = 0; ///< line height, px; 0 keeps the font-derived value
-  float ascent = 0; ///< baseline offset below the line top, px; 0 keeps
-                    ///< the font-derived value
+  float height = 0;  ///< line height, px; 0 keeps the font-derived value
+  float ascent = 0;  ///< baseline offset below the line top, px; 0 keeps
+                     ///< the font-derived value
 };
 
 /** Controls soft-hyphen handling independently from the break strategy. */
 struct HyphenationOptions {
-  bool enabled = true; ///< false ignores soft-hyphen break opportunities
+  bool enabled = true;  ///< false ignores soft-hyphen break opportunities
   /// Added as squared demerits by Knuth-Plass to discourage repeated
   /// discretionary hyphen breaks.
   float penalty = 50.0f;
@@ -58,16 +58,16 @@ struct JustificationOptions {
   /// Paragraph-final and hard-break-final lines use this alignment unless
   /// `justifyLastLine` requests full justification.
   TextAlignment lastLineAlignment = TextAlignment::kStart;
-  bool justifyLastLine = false; ///< stretch final lines to full measure too
+  bool justifyLastLine = false;  ///< stretch final lines to full measure too
 
   /// CJK text has no spaces, so eligible zero-width ideographic gaps may be
   /// expanded up to `maxIdeographicExpansion * fontSize` per gap.
   bool expandIdeographicGaps = true;
-  float maxIdeographicExpansion = 0.5f; ///< per-gap cap, fraction of fontSize
+  float maxIdeographicExpansion = 0.5f;  ///< per-gap cap, fraction of fontSize
 
   /// Space elasticity, expressed as fractions of the natural space width.
   float spaceStretch = 0.5f;
-  float spaceShrink = 0.333f; ///< maximum shrink per space, as a fraction
+  float spaceShrink = 0.333f;  ///< maximum shrink per space, as a fraction
 };
 
 /** Advanced tuning used only by LineBreakStrategy::kKnuthPlass. */
@@ -111,10 +111,10 @@ struct OverflowOptions {
  * Scope: straight horizontal intervals, LTR lines.
  */
 struct TabStopOptions {
-  std::vector<float> positions; ///< explicit stops, ascending px from the
-                                ///< interval start
-  float interval = 0;           ///< repeat spacing past the last explicit
-                                ///< stop; 0 disables repetition
+  std::vector<float> positions;  ///< explicit stops, ascending px from the
+                                 ///< interval start
+  float interval = 0;            ///< repeat spacing past the last explicit
+                                 ///< stop; 0 disables repetition
 };
 
 /** Rendering-only controls that do not affect line breaking. */
@@ -134,16 +134,16 @@ struct PathTextOptions {
  * carries a tab, `pathText` only when runs are transformed.
  */
 struct ParagraphLayoutOptions {
-  TextAlignment alignment = TextAlignment::kStart; ///< per-interval placement
+  TextAlignment alignment = TextAlignment::kStart;  ///< per-interval placement
   /// Greedy is the fast default; Knuth-Plass trades speed for even spacing.
   LineBreakStrategy lineBreakStrategy = LineBreakStrategy::kGreedy;
-  LineMetricsOptions lineMetrics; ///< non-zero fields override font metrics
-  HyphenationOptions hyphenation; ///< soft-hyphen breaks and their penalty
-  JustificationOptions justification; ///< only used under kJustify
-  KnuthPlassOptions knuthPlass;       ///< only used under kKnuthPlass
-  OverflowOptions overflow;           ///< ellipsis marker and line clamping
-  TabStopOptions tabStops; ///< empty/zero → tabs measure as shaped spaces
-  PathTextOptions pathText; ///< draw-time only, never affects breaking
+  LineMetricsOptions lineMetrics;  ///< non-zero fields override font metrics
+  HyphenationOptions hyphenation;  ///< soft-hyphen breaks and their penalty
+  JustificationOptions justification;  ///< only used under kJustify
+  KnuthPlassOptions knuthPlass;        ///< only used under kKnuthPlass
+  OverflowOptions overflow;            ///< ellipsis marker and line clamping
+  TabStopOptions tabStops;   ///< empty/zero → tabs measure as shaped spaces
+  PathTextOptions pathText;  ///< draw-time only, never affects breaking
 };
 
 /// One draw call: a shared word blob translated to `origin`, or a fully
@@ -152,15 +152,15 @@ struct ParagraphLayoutOptions {
 /// caller should draw its inline object (see
 /// ParagraphLayout::placeholderRects).
 struct PositionedRun {
-  sk_sp<SkTextBlob> blob; ///< null for placeholder runs
-  ShapedWordRef shaped; ///< glyph source (batched drawing, choreography)
-  SkPoint origin = {0, 0}; ///< draw position; already baked into
-                           ///< transformed blobs
-  uint32_t styleIndex = 0; ///< paint lookup into Paragraph::spans()
-  uint32_t wordIndex = 0;  ///< which Word produced this run
-  int lineIndex = 0;       ///< 0-based flow line the run landed on
-  bool transformed = false;  ///< RSXform blob (positions baked into the blob)
-  int placeholderIndex = -1; ///< \>= 0: index into Paragraph::placeholders()
+  sk_sp<SkTextBlob> blob;     ///< null for placeholder runs
+  ShapedWordRef shaped;       ///< glyph source (batched drawing, choreography)
+  SkPoint origin = {0, 0};    ///< draw position; already baked into
+                              ///< transformed blobs
+  uint32_t styleIndex = 0;    ///< paint lookup into Paragraph::spans()
+  uint32_t wordIndex = 0;     ///< which Word produced this run
+  int lineIndex = 0;          ///< 0-based flow line the run landed on
+  bool transformed = false;   ///< RSXform blob (positions baked into the blob)
+  int placeholderIndex = -1;  ///< \>= 0: index into Paragraph::placeholders()
 };
 
 /// Geometry of one laid-out line, derived on demand from its placed runs
@@ -169,14 +169,14 @@ struct PositionedRun {
 /// live here — not the flow interval's full measure (query the FlowGeometry
 /// itself for raw interval geometry).
 struct LineMetrics {
-  int lineIndex = 0;  ///< matches PositionedRun::lineIndex
-  float baseline = 0; ///< baseline y shared by the line's runs
-  float ascent = 0;   ///< tallest ascent above the baseline (positive)
-  float descent = 0;  ///< deepest descent below the baseline (positive)
-  float left = 0;     ///< leftmost run origin
-  float right = 0;    ///< rightmost run end (advance extent)
-  uint32_t textBegin = 0; ///< first UTF-16 unit placed on the line
-  uint32_t textEnd = 0;   ///< one past the last unit, trailing glue included
+  int lineIndex = 0;       ///< matches PositionedRun::lineIndex
+  float baseline = 0;      ///< baseline y shared by the line's runs
+  float ascent = 0;        ///< tallest ascent above the baseline (positive)
+  float descent = 0;       ///< deepest descent below the baseline (positive)
+  float left = 0;          ///< leftmost run origin
+  float right = 0;         ///< rightmost run end (advance extent)
+  uint32_t textBegin = 0;  ///< first UTF-16 unit placed on the line
+  uint32_t textEnd = 0;    ///< one past the last unit, trailing glue included
 
   /** Returns the line's bounding band (ascent above to descent below). */
   [[nodiscard]] SkRect rect() const {
@@ -186,8 +186,8 @@ struct LineMetrics {
 
 /** Positioned output of one paragraph layout pass. */
 struct ParagraphLayout {
-  std::vector<PositionedRun> runs; ///< in logical word order, ready to draw
-  int lineCount = 0;               ///< lines actually produced
+  std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
+  int lineCount = 0;                ///< lines actually produced
   /// First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended
@@ -204,8 +204,8 @@ struct ParagraphLayout {
    * `overridePaint` replaces every span's paint (labels drawn in a
    * caller-chosen color without touching the paragraph).
    */
-  void draw(SkCanvas *canvas, const Paragraph &paragraph,
-            const PaintStyle *overridePaint = nullptr) const;
+  void draw(SkCanvas* canvas, const Paragraph& paragraph,
+            const PaintStyle* overridePaint = nullptr) const;
 
   /** Draw-time font-variation override, valid only for ADVANCE-INVARIANT
    *  axes. Every shaped bucket's typeface is swapped for its varied clone
@@ -219,7 +219,7 @@ struct ParagraphLayout {
    *  re-shapes. Transformed and path runs draw from their baked blobs and
    *  ignore this override entirely. */
   struct LiveVariations {
-    FontContext *fonts = nullptr;
+    FontContext* fonts = nullptr;
     std::span<const FontVariation> variations;
   };
 
@@ -229,19 +229,19 @@ struct ParagraphLayout {
    * A default style is one call per bucket; each underlay/overlay adds one.
    * Transformed runs fall back to their baked blobs.
    */
-  void drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
-                   const PaintStyle *overridePaint = nullptr,
-                   const LiveVariations *liveVariations = nullptr) const;
+  void drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
+                   const PaintStyle* overridePaint = nullptr,
+                   const LiveVariations* liveVariations = nullptr) const;
 
   /// Where every inline placeholder landed, ready to draw pills/images into.
   struct PlacedPlaceholder {
-    int index = 0; ///< into Paragraph::placeholders()
-    SkRect rect = SkRect::MakeEmpty(); ///< where to draw the inline object
-    int lineIndex = 0;                 ///< 0-based line it landed on
+    int index = 0;                      ///< into Paragraph::placeholders()
+    SkRect rect = SkRect::MakeEmpty();  ///< where to draw the inline object
+    int lineIndex = 0;                  ///< 0-based line it landed on
   };
   /** Returns rectangles for inline objects in the paragraph. */
-  [[nodiscard]] std::vector<PlacedPlaceholder>
-  placeholderRects(const Paragraph &paragraph) const;
+  [[nodiscard]] std::vector<PlacedPlaceholder> placeholderRects(
+      const Paragraph& paragraph) const;
 
   /** Returns per-line geometry derived from the placed runs, ascending by
    * line index — the building block for selection bands, line backgrounds,
@@ -254,8 +254,8 @@ struct ParagraphLayout {
    * rotated) and vertical runs are skipped, and lines whose geometry placed
    * nothing do not appear.
    */
-  [[nodiscard]] std::vector<LineMetrics>
-  lineMetrics(const Paragraph &paragraph) const;
+  [[nodiscard]] std::vector<LineMetrics> lineMetrics(
+      const Paragraph& paragraph) const;
 };
 
 namespace detail {
@@ -263,9 +263,9 @@ namespace detail {
 /// A Decoration resolved against one run's font metrics: concrete band
 /// geometry (top edge relative to the baseline, px, y-down) and color.
 struct ResolvedDecorationBand {
-  float position = 0; ///< band top, relative to the baseline
-  float thickness = 1;           ///< band height, px; floored at 1
-  SkColor color = SK_ColorBLACK; ///< resolved draw color, never transparent
+  float position = 0;             ///< band top, relative to the baseline
+  float thickness = 1;            ///< band height, px; floored at 1
+  SkColor color = SK_ColorBLACK;  ///< resolved draw color, never transparent
 };
 
 /** Resolves a decoration's thickness, position, and color against font
@@ -273,34 +273,34 @@ struct ResolvedDecorationBand {
  * zeros fall back to the face's underline/strikeout metrics, a mid-x-height
  * strikethrough, or the ascent line for overlines, with a 1px thickness
  * floor throughout. */
-[[nodiscard]] ResolvedDecorationBand
-resolveDecorationBand(const Decoration &decoration,
-                      const SkFontMetrics &metrics, SkColor foregroundColor);
+[[nodiscard]] ResolvedDecorationBand resolveDecorationBand(
+    const Decoration& decoration, const SkFontMetrics& metrics,
+    SkColor foregroundColor);
 
 /** Resolves the paint a decoration band draws with — the fill concern,
  * separate from the band geometry above: the decoration's `paint` override
  * verbatim when present, otherwise an anti-aliased fill of the band's
  * resolved color. */
-[[nodiscard]] SkPaint decorationBandPaint(const Decoration &decoration,
-                                          const ResolvedDecorationBand &band);
+[[nodiscard]] SkPaint decorationBandPaint(const Decoration& decoration,
+                                          const ResolvedDecorationBand& band);
 
 /** Returns the absolute x spans the decoration actually draws for `run` —
  * one span covering the run's advance, minus glyph-ink intercepts (grown by
  * one thickness of standoff) when the decoration skips ink. Empty for
  * transformed, vertical, and placeholder runs. */
-[[nodiscard]] std::vector<std::pair<float, float>>
-decorationSegments(const PositionedRun &run, const Decoration &decoration,
-                   const ResolvedDecorationBand &band);
+[[nodiscard]] std::vector<std::pair<float, float>> decorationSegments(
+    const PositionedRun& run, const Decoration& decoration,
+    const ResolvedDecorationBand& band);
 
-} // namespace detail
+}  // namespace detail
 
 /** Lays `paragraph` out into `geometry`. Ensures the paragraph is shaped
  * (cache-hot when little changed), breaks it into lines with the configured
  * breaker, and returns positioned runs backed by shared word blobs.
  */
-ParagraphLayout layoutParagraph(FontContext &fontContext, Paragraph &paragraph,
-                                FlowGeometry &geometry,
-                                const ParagraphLayoutOptions &options = {});
+ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
+                                FlowGeometry& geometry,
+                                const ParagraphLayoutOptions& options = {});
 
 /**
  * Lays a paragraph out as one unconstrained horizontal line whose baseline
@@ -309,8 +309,8 @@ ParagraphLayout layoutParagraph(FontContext &fontContext, Paragraph &paragraph,
  * This is the ergonomic path for labels and captions: callers do not need to
  * construct a one-entry LineSetFlow or precompute the paragraph width.
  */
-ParagraphLayout layoutSingleLine(FontContext &fontContext, Paragraph &paragraph,
+ParagraphLayout layoutSingleLine(FontContext& fontContext, Paragraph& paragraph,
                                  SkPoint baselineOrigin,
-                                 const PathTextOptions &pathText = {});
+                                 const PathTextOptions& pathText = {});
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

@@ -8,7 +8,7 @@ class Context;
 class Recorder;
 struct RecorderOptions;
 struct ContextOptions;
-} // namespace skgpu::graphite
+}  // namespace skgpu::graphite
 
 /**
  * Owns the Skia Graphite Context + Recorder used to draw into offscreen
@@ -26,26 +26,26 @@ struct ContextOptions;
  *    native macOS app. Lives in SpellCircleSkia, which never links Qt.
  */
 class SkiaGraphiteContext {
-public:
+ public:
   /** Returns null if @p rhi isn't backed by this build's graphics API or
    *  Context creation fails. Qt adapter — see the class comment. */
-  static std::unique_ptr<SkiaGraphiteContext> create(QRhi *rhi);
+  static std::unique_ptr<SkiaGraphiteContext> create(QRhi* rhi);
 
 #ifdef __APPLE__
   /** Qt-free Metal bring-up: @p mtlDevice / @p mtlCommandQueue are
    *  id<MTLDevice> / id<MTLCommandQueue> bridged to void*. Both are
    *  retained for the context's lifetime; the caller keeps its own
    *  references. Returns null if Context creation fails. */
-  static std::unique_ptr<SkiaGraphiteContext> createMetal(void *mtlDevice,
-                                                          void *mtlCommandQueue);
+  static std::unique_ptr<SkiaGraphiteContext> createMetal(
+      void* mtlDevice, void* mtlCommandQueue);
 #endif
 
   ~SkiaGraphiteContext();
 
   /** Returns the owned Graphite context. */
-  skgpu::graphite::Context *context() const { return m_context.get(); }
+  skgpu::graphite::Context* context() const { return m_context.get(); }
   /** Returns the recorder associated with `context()`. */
-  skgpu::graphite::Recorder *recorder() const { return m_recorder.get(); }
+  skgpu::graphite::Recorder* recorder() const { return m_recorder.get(); }
 
   /** REQUIRED for every recorder: pass these to makeRecorder().
    *
@@ -69,7 +69,7 @@ public:
    *  texture budget; unset leaves Skia's own default in place. */
   static skgpu::graphite::ContextOptions makeContextOptions();
 
-private:
+ private:
   SkiaGraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,
                       std::unique_ptr<skgpu::graphite::Recorder> recorder);
 

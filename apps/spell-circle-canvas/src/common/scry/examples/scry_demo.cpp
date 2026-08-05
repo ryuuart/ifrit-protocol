@@ -8,9 +8,6 @@
 //   composite.png  the same view drawn over a Skia-painted backdrop with
 //                  extra SkCanvas decorations on top
 
-#include <sigilscry/WebEngine.h>
-#include <sigilscry/WebView.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -21,6 +18,8 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebView.h>
 
 #include <chrono>
 #include <cstdio>
@@ -35,7 +34,7 @@ namespace {
 constexpr int kWidth = 900;
 constexpr int kHeight = 620;
 
-constexpr const char *kDemoHtml = R"html(
+constexpr const char* kDemoHtml = R"html(
 <html>
 <head><style>
   html, body { background: transparent; margin: 0; font-family: -apple-system, 'Helvetica Neue', sans-serif; }
@@ -96,18 +95,16 @@ constexpr const char *kDemoHtml = R"html(
 </div></body></html>
 )html";
 
-bool writePng(const SkPixmap &pixmap, const std::filesystem::path &path) {
+bool writePng(const SkPixmap& pixmap, const std::filesystem::path& path) {
   SkFILEWStream stream(path.string().c_str());
-  if (!stream.isValid())
-    return false;
+  if (!stream.isValid()) return false;
   return SkPngEncoder::Encode(&stream, pixmap, {});
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv) {
-  std::filesystem::path outDir =
-      argc > 1 ? argv[1] : "scry_demo_out";
+int main(int argc, char** argv) {
+  std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
 
   WebEngineConfig config;
@@ -132,8 +129,7 @@ int main(int argc, char **argv) {
     bool painted = engine->renderFrame();
     if (loaded && view->frameVersion() > 0)
       settledFrames = painted ? 0 : settledFrames + 1;
-    if (settledFrames >= 5)
-      break;
+    if (settledFrames >= 5) break;
     std::this_thread::sleep_for(std::chrono::milliseconds(16));
   }
   if (settledFrames < 5) {
@@ -153,17 +149,16 @@ int main(int argc, char **argv) {
   // Composite: Skia backdrop, then the web frame, then Skia decorations.
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWidth, kHeight));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
 
-  SkPoint gradientSpan[2] = {{0, 0},
-                             {static_cast<float>(kWidth),
-                              static_cast<float>(kHeight)}};
-  SkColor4f gradientColors[2] = {SkColor4f::FromColor(SkColorSetRGB(0x14, 0x0e, 0x26)),
-                                 SkColor4f::FromColor(SkColorSetRGB(0x5b, 0x21, 0x38))};
+  SkPoint gradientSpan[2] = {
+      {0, 0}, {static_cast<float>(kWidth), static_cast<float>(kHeight)}};
+  SkColor4f gradientColors[2] = {
+      SkColor4f::FromColor(SkColorSetRGB(0x14, 0x0e, 0x26)),
+      SkColor4f::FromColor(SkColorSetRGB(0x5b, 0x21, 0x38))};
   SkPaint backdrop;
   backdrop.setShader(SkShaders::LinearGradient(
-      gradientSpan,
-      SkGradient({gradientColors, SkTileMode::kClamp}, {})));
+      gradientSpan, SkGradient({gradientColors, SkTileMode::kClamp}, {})));
   canvas->drawPaint(backdrop);
 
   view->draw(*canvas, SkRect::MakeWH(kWidth, kHeight));
@@ -183,8 +178,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::printf("wrote %s and %s\n",
-              (outDir / "web_frame.png").string().c_str(),
+  std::printf("wrote %s and %s\n", (outDir / "web_frame.png").string().c_str(),
               (outDir / "composite.png").string().c_str());
   return 0;
 }

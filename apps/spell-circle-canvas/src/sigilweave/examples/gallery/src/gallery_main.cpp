@@ -4,7 +4,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");
   QGuiApplication::setApplicationName("WeaveGallery");

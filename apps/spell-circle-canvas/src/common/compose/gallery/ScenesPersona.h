@@ -36,25 +36,23 @@
 // every y position are left alone. Keep that split if you move anything:
 // scaling the type or the wedges with the width is what breaks the look.
 
-#include "GalleryCore.h"
-
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/LayerStyles.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <functional>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -64,21 +62,21 @@ constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 
 // The menu's palette, taken verbatim from the recreation.
-constexpr SkColor4f kGround{0.0039f, 0.3725f, 0.8000f, 1};   // #015FCC
-constexpr SkColor4f kGroundDark{0.0118f, 0.1216f, 0.3922f, 1}; // #031F64
-constexpr SkColor4f kCyanA{0.0863f, 0.8118f, 0.9843f, 1};    // #16CFFB
-constexpr SkColor4f kCyanB{0.4902f, 0.9020f, 0.9922f, 1};    // #7DE6FD
-constexpr SkColor4f kCyanC{0.4667f, 0.9961f, 0.9882f, 1};    // #77FEFC
-constexpr SkColor4f kPink{0.9922f, 0.4667f, 0.8510f, 1};     // #FD77D9
-constexpr SkColor4f kRedC{1, 0, 0, 1};                       // #F00
-constexpr SkColor4f kLut0{0.0235f, 0.0392f, 0.1686f, 1};     // #060A2B
-constexpr SkColor4f kLut1{0.0471f, 0.0706f, 0.2980f, 1};     // #0C124C
-constexpr SkColor4f kLut2{0.1059f, 0.2196f, 0.9412f, 1};     // #1B38F0
-constexpr SkColor4f kLut3{0.2000f, 0.3176f, 1.0000f, 1};     // #3351FF
-constexpr SkColor4f kLut4{0.9882f, 0.9961f, 0.9961f, 1};     // #FCFEFE
-constexpr SkColor4f kCausLight{0.5882f, 0.8902f, 0.9412f, 0.47f}; // #96E3F0
-constexpr SkColor4f kCausBub{0.3294f, 0.9294f, 0.9176f, 0.255f};  // #54EDEA
-constexpr SkColor4f kBotDark{0, 0.0627f, 0.4275f, 1};        // #00106D
+constexpr SkColor4f kGround{0.0039f, 0.3725f, 0.8000f, 1};         // #015FCC
+constexpr SkColor4f kGroundDark{0.0118f, 0.1216f, 0.3922f, 1};     // #031F64
+constexpr SkColor4f kCyanA{0.0863f, 0.8118f, 0.9843f, 1};          // #16CFFB
+constexpr SkColor4f kCyanB{0.4902f, 0.9020f, 0.9922f, 1};          // #7DE6FD
+constexpr SkColor4f kCyanC{0.4667f, 0.9961f, 0.9882f, 1};          // #77FEFC
+constexpr SkColor4f kPink{0.9922f, 0.4667f, 0.8510f, 1};           // #FD77D9
+constexpr SkColor4f kRedC{1, 0, 0, 1};                             // #F00
+constexpr SkColor4f kLut0{0.0235f, 0.0392f, 0.1686f, 1};           // #060A2B
+constexpr SkColor4f kLut1{0.0471f, 0.0706f, 0.2980f, 1};           // #0C124C
+constexpr SkColor4f kLut2{0.1059f, 0.2196f, 0.9412f, 1};           // #1B38F0
+constexpr SkColor4f kLut3{0.2000f, 0.3176f, 1.0000f, 1};           // #3351FF
+constexpr SkColor4f kLut4{0.9882f, 0.9961f, 0.9961f, 1};           // #FCFEFE
+constexpr SkColor4f kCausLight{0.5882f, 0.8902f, 0.9412f, 0.47f};  // #96E3F0
+constexpr SkColor4f kCausBub{0.3294f, 0.9294f, 0.9176f, 0.255f};   // #54EDEA
+constexpr SkColor4f kBotDark{0, 0.0627f, 0.4275f, 1};              // #00106D
 constexpr SkColor4f kTopCyan{0, 0.9882f, 0.9490f, 0.39f};    // #00FCF2 a.39
 constexpr SkColor4f kTintVeil{0, 0.4980f, 0.8235f, 0.36f};   // #007FD2
 constexpr SkColor4f kNumeral{0.4706f, 0.4706f, 0.4706f, 1};  // #787878
@@ -107,7 +105,7 @@ constexpr SkColor4f kCyans[3] = {kCyanA, kCyanB, kCyanC};
 // less box, so nine rows at the literal pitch buried each other. z_index
 // -1 on ITEM and STATS is the recreation's too.
 struct Row {
-  const char *label;
+  const char* label;
   float dx, y, rot;
   int z;
   SkColor4f color;
@@ -124,9 +122,9 @@ constexpr Row kRows[] = {
     {"SYSTEM", 15.9f, 439.6f, 12.48f, 3, {0.0431f, 0.7961f, 0.9843f, 1}},
 };
 constexpr int kRowCount = (int)(sizeof(kRows) / sizeof(kRows[0]));
-constexpr int kSelected = 3; // PERSONA -- black on the white wedge
-constexpr float kBaseX = 90; // menu-container-local scatter origin
-constexpr float kMenuX = 60, kMenuY = 70; // menu container origin
+constexpr int kSelected = 3;  // PERSONA -- black on the white wedge
+constexpr float kBaseX = 90;  // menu-container-local scatter origin
+constexpr float kMenuX = 60, kMenuY = 70;  // menu container origin
 
 /** The selection wedge: a sliver that tapers to a near-point at the right
  *  (long banner, blunt tip) -- the white slab the selected label sits on. */
@@ -150,24 +148,21 @@ inline sk_sp<SkTypeface> menuFace(bool italic = true) {
   const auto slant =
       italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant;
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      "Avenir Next Condensed",
-      SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kNormal_Width,
-                  slant));
+      "Avenir Next Condensed", SkFontStyle(SkFontStyle::kBlack_Weight,
+                                           SkFontStyle::kNormal_Width, slant));
   if (!f)
     f = mgr->matchFamilyStyle(
-        "Helvetica Neue",
-        SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kCondensed_Width,
-                    slant));
-  if (!f)
-    f = mgr->matchFamilyStyle(nullptr, SkFontStyle::BoldItalic());
+        "Helvetica Neue", SkFontStyle(SkFontStyle::kBlack_Weight,
+                                      SkFontStyle::kCondensed_Width, slant));
+  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::BoldItalic());
   return f;
 }
 
 /** Menu voice: heavy condensed italic, negative tracking, with an optional
  *  2px #5D6A88 ring underlay — the outline ring the original's text
  *  shadows produce. */
-inline sigil::weave::TextStyle menuType(float size, SkColor4f fill,
-                                        float ringW, bool italic = true) {
+inline sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
+                                        bool italic = true) {
   static sk_sp<SkTypeface> faceI = menuFace(true);
   static sk_sp<SkTypeface> faceU = menuFace(false);
   sigil::weave::TextStyle s;
@@ -232,14 +227,13 @@ inline sk_sp<SkRuntimeEffect> causticFx() {
         return half4(half3(uColor.rgb) * a, a);
       }
     )"));
-    if (!effect)
-      SkDebugf("persona_menu caustics shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("persona_menu caustics shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
 }
 
-} // namespace persona_menu
+}  // namespace persona_menu
 
 struct PersonaMenuScene final : Scene {
   // Live idle motion: 6Hz-quantized water clock, the wedge heartbeat, the
@@ -248,9 +242,9 @@ struct PersonaMenuScene final : Scene {
   choreograph::Output<float> wedgePulse{1};
   choreograph::Output<float> curDx{40}, curDy{-40};
 
-  const char *name() const override { return "persona menu"; }
+  const char* name() const override { return "persona menu"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     qTime = 0;
     wedgePulse = 1;
     curDx = 40;
@@ -350,8 +344,7 @@ struct PersonaMenuScene final : Scene {
           return acc * 0.25;
         }
       )"));
-      if (!effect)
-        SkDebugf("persona dualCaustic: %s\n", err.c_str());
+      if (!effect) SkDebugf("persona dualCaustic: %s\n", err.c_str());
       return effect;
     }();
     Material m = Material::sksl(fx);
@@ -364,11 +357,9 @@ struct PersonaMenuScene final : Scene {
   Material caustic(float cut, float scale, SkColor4f color,
                    std::array<float, 2> vel) {
     namespace nn = persona_menu;
-    Material m = Material::sksl(nn::causticFx(), {{"uCut", cut},
-                                                  {"uScale", scale}});
-    m.uniform("uColor", color)
-        .uniform("uVel", vel)
-        .uniform("uTime", &qTime);
+    Material m =
+        Material::sksl(nn::causticFx(), {{"uCut", cut}, {"uScale", scale}});
+    m.uniform("uColor", color).uniform("uVel", vel).uniform("uTime", &qTime);
     return m;
   }
 
@@ -377,58 +368,67 @@ struct PersonaMenuScene final : Scene {
   Element backdrop() {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
-    Material bands = Material::linear(
-        {0, 0}, {0, nn::kH},
-        {{0.000f, nn::kLut0}, {0.309f, nn::kLut0},
-         {0.309f, nn::kLut1}, {0.480f, nn::kLut1},
-         {0.480f, nn::kLut2}, {0.768f, nn::kLut2},
-         {0.768f, nn::kLut3}, {0.813f, nn::kLut3},
-         {0.813f, nn::kLut4}, {1.000f, nn::kLut4}});
+    Material bands = Material::linear({0, 0}, {0, nn::kH},
+                                      {{0.000f, nn::kLut0},
+                                       {0.309f, nn::kLut0},
+                                       {0.309f, nn::kLut1},
+                                       {0.480f, nn::kLut1},
+                                       {0.480f, nn::kLut2},
+                                       {0.768f, nn::kLut2},
+                                       {0.768f, nn::kLut3},
+                                       {0.813f, nn::kLut3},
+                                       {0.813f, nn::kLut4},
+                                       {1.000f, nn::kLut4}});
 
     // Three Z-planes so steady-state recomposition is BLITS, not
     // re-raster: everything below the sea is one static texture, the sea
     // re-bakes at its own 6 Hz, the framing gradients above are another
     // static texture. A live ancestor recomposites per frame on raster —
     // each plane must therefore be one cheap draw.
-    return box().inset(0)
-        .child(box().inset(0)
-                   .cache(Cache::Texture) // static under-plane: ground +
-                                          // bands + noise + veil, one blit
+    return box()
+        .inset(0)
+        .child(box()
+                   .inset(0)
+                   .cache(Cache::Texture)  // static under-plane: ground +
+                                           // bands + noise + veil, one blit
                    .fill(Material::linear(
                        {0, 0}, {0, nn::kH},
                        {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
                    .child(box().inset(0).fill(bands).opacity(0.9f))
-                   .child(box().inset(0)
+                   .child(box()
+                              .inset(0)
                               .fill(patterns::noise(0.006f, 4))
                               .opacity(0.32f)
                               .blend(SkBlendMode::kSoftLight))
-                   .child(box().inset(0).fill(
-                       Material::solid(nn::kTintVeil))))
+                   .child(box().inset(0).fill(Material::solid(nn::kTintVeil))))
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
         // The bands are watercolor-soft already, so the reduced bake
         // reads identically while each 6 Hz re-bake evaluates a quarter
         // of the pixels.
-        .child(box().inset(0)
-                   .cache(Cache::Texture).bakeScale(0.5f)
+        .child(box()
+                   .inset(0)
+                   .cache(Cache::Texture)
+                   .bakeScale(0.5f)
                    .fill(dualCaustic()))
         // static over-plane: the framing gradients, one blit
-        .child(box().inset(0)
-                   .cache(Cache::Texture)
-                   .child(box().inset(0).fill(Material::linear(
-                       {0, nn::kH * 0.60f}, {0, nn::kH},
-                       {{0.0f,
-                         {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
-                          0}},
-                        {1.0f,
-                         {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
-                          0.88f}}})))
-                   .child(box().inset(0).fill(Material::linear(
-                       {0, 0}, {0, nn::kH * 0.42f},
-                       {{0.0f, nn::kTopCyan},
-                        {1.0f,
-                         {nn::kTopCyan.fR, nn::kTopCyan.fG, nn::kTopCyan.fB,
-                          0}}}))));
+        .child(
+            box()
+                .inset(0)
+                .cache(Cache::Texture)
+                .child(box().inset(0).fill(Material::linear(
+                    {0, nn::kH * 0.60f}, {0, nn::kH},
+                    {{0.0f,
+                      {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB, 0}},
+                     {1.0f,
+                      {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
+                       0.88f}}})))
+                .child(box().inset(0).fill(
+                    Material::linear({0, 0}, {0, nn::kH * 0.42f},
+                                     {{0.0f, nn::kTopCyan},
+                                      {1.0f,
+                                       {nn::kTopCyan.fR, nn::kTopCyan.fG,
+                                        nn::kTopCyan.fB, 0}}}))));
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -439,16 +439,19 @@ struct PersonaMenuScene final : Scene {
     namespace nn = persona_menu;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    const nn::Row &r = nn::kRows[i];
+    const nn::Row& r = nn::kRows[i];
     // The sigma-3.5 glow re-blurs on every picture replay, and the wedge
     // heartbeat keeps this whole menu live -- so bake each sticker to a
     // texture once it settles. 14px of padding keeps raster room for the
     // glow tail; the pin shifts up-left to compensate. Entrance transforms
     // and the row rotation apply outside the bake.
-    return box().key(r.label)
-        .left(nn::kBaseX + r.dx - 14).top(r.y - 14)
+    return box()
+        .key(r.label)
+        .left(nn::kBaseX + r.dx - 14)
+        .top(r.y - 14)
         .padding(14)
-        .rotate(r.rot).zIndex(r.z)
+        .rotate(r.rot)
+        .zIndex(r.z)
         .translateY(animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
         .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
@@ -465,10 +468,10 @@ struct PersonaMenuScene final : Scene {
     namespace nn = persona_menu;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    const nn::Row &r = nn::kRows[nn::kSelected];
+    const nn::Row& r = nn::kRows[nn::kSelected];
     // The wedge is cut to the SELECTED label, not to the widest one:
     // at nine rows a 330px slab buried its neighbours.
-    const float lx = 20, ly = -2; // label, row-local
+    const float lx = 20, ly = -2;  // label, row-local
     const float wW = 250, wH = 68;
 
     Element row =
@@ -484,24 +487,36 @@ struct PersonaMenuScene final : Scene {
                 animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
             .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
-    row.child(box().left(10).top(3).width(wW).height(wH)
-                  .shape(nn::sliverWedge()).rotate(8)
+    row.child(box()
+                  .left(10)
+                  .top(3)
+                  .width(wW)
+                  .height(wH)
+                  .shape(nn::sliverWedge())
+                  .rotate(8)
                   .fill(Material::solid(nn::kPink)));
     // white wedge -- clips the red echo; idle heartbeat on scale.
     // The echo's top carries an extra +5px. The wedge rotates +8 deg about
     // its OWN centre, which walks the echo up by about that much, so the
     // offset has to be pre-compensated for the misprint to land at its
     // intended (3,-6).
-    row.child(box().left(0).top(-6).width(wW).height(wH)
-                  .shape(nn::sliverWedge()).rotate(8).clip(true)
+    row.child(box()
+                  .left(0)
+                  .top(-6)
+                  .width(wW)
+                  .height(wH)
+                  .shape(nn::sliverWedge())
+                  .rotate(8)
+                  .clip(true)
                   .fill(Material::solid(nn::kPaper))
                   .scale(&wedgePulse)
                   .child(text(toU8(r.label), nn::menuType(50, nn::kRedC, 0))
-                             .left(lx + 3).top(3)
+                             .left(lx + 3)
+                             .top(3)
                              .rotate(-8)));
     // the black label (1.5x the unselected size), no glow -- ink on paper
-    row.child(text(toU8(r.label), nn::menuType(50, nn::kInk, 0))
-                  .left(lx).top(ly));
+    row.child(
+        text(toU8(r.label), nn::menuType(50, nn::kInk, 0)).left(lx).top(ly));
     return row;
   }
 
@@ -512,34 +527,45 @@ struct PersonaMenuScene final : Scene {
     namespace nn = persona_menu;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    const nn::Row &r = nn::kRows[nn::kSelected];
+    const nn::Row& r = nn::kRows[nn::kSelected];
     // canvas coords: the menu container origin folded into the pins
-    return box().key("cursor")
+    return box()
+        .key("cursor")
         .left(nn::kMenuX + nn::kBaseX + r.dx - 46)
-        .top(nn::kMenuY + r.y + 12).width(36).height(36)
-        .zIndex(7).rotate(-16)
-        .translateX(&curDx).translateY(&curDy)
+        .top(nn::kMenuY + r.y + 12)
+        .width(36)
+        .height(36)
+        .zIndex(7)
+        .rotate(-16)
+        .translateX(&curDx)
+        .translateY(&curDy)
         .opacity(animate(from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
         // The original draws this additively. At this size over the navy
         // sea, kPlus washes the red rim out completely, so it stays a plain
         // red fill.
-        .child(box().inset(0)
+        .child(box()
+                   .inset(0)
                    .shape(shapes::polygon(3, 92))
                    .fill(Material::solid(nn::kRedC))
-                   .translateX(1).translateY(5))
-        .child(box().inset(0)
+                   .translateX(1)
+                   .translateY(5))
+        .child(box()
+                   .inset(0)
                    .shape(shapes::polygon(3, 90))
                    .fill(Material::solid(nn::kPaper)));
   }
 
-  Element promptCircle(const char *glyph) {
+  Element promptCircle(const char* glyph) {
     namespace nn = persona_menu;
-    return box().width(32).height(32)
+    return box()
+        .width(32)
+        .height(32)
         .shape(shapes::squircle(2.0f))
         .fill(SkColor4f{nn::kGroundDark.fR, nn::kGroundDark.fG,
                         nn::kGroundDark.fB, 0.8f})
         .stroke(stroke(3, Fill::color(nn::kPaper)))
-        .alignItems(Align::Center).justify(Justify::Center)
+        .alignItems(Align::Center)
+        .justify(Justify::Center)
         .child(text(toU8(glyph), nn::smallType(14, nn::kPaper, 0)));
   }
 
@@ -550,25 +576,37 @@ struct PersonaMenuScene final : Scene {
     namespace nn = persona_menu;
     namespace ch = choreograph;
     using namespace std::chrono_literals;
-    return box().key("date").left(44).top(34).column().zIndex(8)
+    return box()
+        .key("date")
+        .left(44)
+        .top(34)
+        .column()
+        .zIndex(8)
         .translateX(animate(from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
         .opacity(animate(from(0.0f).to(1.0f), {340ms}))
-        .child(box().row().alignItems(Align::End)
-                   .child(text(toU8("07/22"),
-                               nn::menuType(38, nn::kPaper, 2.0f))
-                              .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)))
-                   .child(box().column().margin(11, 0, 0, 5)
-                              .child(text(toU8("SUNDAY"),
-                                          nn::smallType(11, nn::kCyanC, 2.6f)))
-                              .child(text(toU8("EVENING"),
-                                          nn::smallType(11, nn::kCyanB, 2.6f))
-                                         .margin(0, 3, 0, 0))))
-        .child(box().width(168).height(2).margin(0, 7, 0, 5)
-                   .fill(Material::linear({0, 0}, {168, 0},
-                                          {{0.0f, {1, 1, 1, 0.85f}},
-                                           {1.0f, {1, 1, 1, 0.0f}}})))
-        .child(text(toU8("IWATODAI DORM"),
-                    nn::smallType(11, nn::kPaper, 2.2f)));
+        .child(
+            box()
+                .row()
+                .alignItems(Align::End)
+                .child(text(toU8("07/22"), nn::menuType(38, nn::kPaper, 2.0f))
+                           .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)))
+                .child(box()
+                           .column()
+                           .margin(11, 0, 0, 5)
+                           .child(text(toU8("SUNDAY"),
+                                       nn::smallType(11, nn::kCyanC, 2.6f)))
+                           .child(text(toU8("EVENING"),
+                                       nn::smallType(11, nn::kCyanB, 2.6f))
+                                      .margin(0, 3, 0, 0))))
+        .child(box()
+                   .width(168)
+                   .height(2)
+                   .margin(0, 7, 0, 5)
+                   .fill(Material::linear(
+                       {0, 0}, {168, 0},
+                       {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})))
+        .child(
+            text(toU8("IWATODAI DORM"), nn::smallType(11, nn::kPaper, 2.2f)));
   }
 
   /** The party rail: four slanted cards with HP and SP. P3R skews every
@@ -579,7 +617,7 @@ struct PersonaMenuScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     struct Member {
-      const char *name;
+      const char* name;
       int level, hp, hpMax, sp, spMax;
     };
     static const Member kParty[] = {
@@ -591,43 +629,65 @@ struct PersonaMenuScene final : Scene {
     constexpr SkColor4f kHp{0.549f, 0.910f, 0.627f, 1};  // #8CE8A0
     constexpr SkColor4f kSp{0.416f, 0.722f, 1.000f, 1};  // #6ABBFF
 
-    auto bar = [&](const char *label, int value, int max, SkColor4f color) {
+    auto bar = [&](const char* label, int value, int max, SkColor4f color) {
       const float frac = max > 0 ? (float)value / (float)max : 0.0f;
       char numbers[24];
       std::snprintf(numbers, sizeof(numbers), "%d/%d", value, max);
-      return box().row().alignItems(Align::Center).gap(6)
-          .child(text(toU8(label), nn::smallType(9, color, 1.4f))
-                     .width(16))
-          .child(box().width(84).height(6).grow(0)
+      return box()
+          .row()
+          .alignItems(Align::Center)
+          .gap(6)
+          .child(text(toU8(label), nn::smallType(9, color, 1.4f)).width(16))
+          .child(box()
+                     .width(84)
+                     .height(6)
+                     .grow(0)
                      .fill(Material::solid({0, 0.05f, 0.18f, 0.55f}))
-                     .child(box().left(0).top(0)
-                                .width(Dim(84 * frac)).height(Dim(6.0f))
+                     .child(box()
+                                .left(0)
+                                .top(0)
+                                .width(Dim(84 * frac))
+                                .height(Dim(6.0f))
                                 .fill(Material::linear(
                                     {0, 0}, {0, 6},
-                                    {{0.0f, {std::min(1.0f, color.fR * 1.4f),
-                                             std::min(1.0f, color.fG * 1.4f),
-                                             std::min(1.0f, color.fB * 1.4f),
-                                             1}},
+                                    {{0.0f,
+                                      {std::min(1.0f, color.fR * 1.4f),
+                                       std::min(1.0f, color.fG * 1.4f),
+                                       std::min(1.0f, color.fB * 1.4f), 1}},
                                      {1.0f, color}}))))
           .child(text(toU8(numbers), nn::smallType(9, nn::kPaper, 0.6f)));
     };
 
-    Element rail = box().key("party").right(41).bottom(74).column().gap(7)
-                       .zIndex(8).staggerChildren(60ms);
-    for (const Member &m : kParty) {
+    Element rail = box()
+                       .key("party")
+                       .right(41)
+                       .bottom(74)
+                       .column()
+                       .gap(7)
+                       .zIndex(8)
+                       .staggerChildren(60ms);
+    for (const Member& m : kParty) {
       char level[16];
       std::snprintf(level, sizeof(level), "LV %d", m.level);
       rail.child(
-          box().width(246).height(52).rotate(-4)
-              .translateX(animate(from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+          box()
+              .width(246)
+              .height(52)
+              .rotate(-4)
+              .translateX(
+                  animate(from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
               .opacity(animate(from(0.0f).to(1.0f), {360ms}))
               .shape(shapes::parallelogram(9))
               .fill(Material::linear({0, 0}, {246, 0},
                                      {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
                                       {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
               .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
-              .column().padding(17, 7).gap(2)
-              .child(box().row().alignItems(Align::End)
+              .column()
+              .padding(17, 7)
+              .gap(2)
+              .child(box()
+                         .row()
+                         .alignItems(Align::End)
                          .child(text(toU8(m.name),
                                      nn::menuType(17, nn::kPaper, 1.0f))
                                     .grow(1))
@@ -679,15 +739,15 @@ struct PersonaMenuScene final : Scene {
                    // declared BOTTOM-UP: the stagger runs in declaration
                    // order and zIndex owns paint order, so the list
                    // enters from SYSTEM upward the way the game does
-                   .child(plainRow(8))   // SYSTEM (bottom -- enters first)
-                   .child(plainRow(7))   // CALENDAR
-                   .child(plainRow(6))   // SOCIAL LINK
-                   .child(plainRow(5))   // QUEST
-                   .child(plainRow(4))   // STATS
-                   .child(selectedRow()) // PERSONA
-                   .child(plainRow(2))   // EQUIP
-                   .child(plainRow(1))   // ITEM
-                   .child(plainRow(0)))  // SKILL
+                   .child(plainRow(8))    // SYSTEM (bottom -- enters first)
+                   .child(plainRow(7))    // CALENDAR
+                   .child(plainRow(6))    // SOCIAL LINK
+                   .child(plainRow(5))    // QUEST
+                   .child(plainRow(4))    // STATS
+                   .child(selectedRow())  // PERSONA
+                   .child(plainRow(2))    // EQUIP
+                   .child(plainRow(1))    // ITEM
+                   .child(plainRow(0)))   // SKILL
         .child(cursor())
         .child(dateBlock())
         .child(partyPanel())
@@ -740,4 +800,4 @@ struct PersonaMenuScene final : Scene {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

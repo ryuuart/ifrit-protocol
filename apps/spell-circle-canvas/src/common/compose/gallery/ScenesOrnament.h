@@ -5,10 +5,10 @@
 // textures generated on intermediate canvases, stretched over panels
 // of every size — one panel breathing live).
 
+#include <include/core/SkMaskFilter.h>
+
 #include "GalleryCore.h"
 #include "OrnamentKit.h"
-
-#include <include/core/SkMaskFilter.h>
 
 namespace compose_gallery {
 
@@ -18,7 +18,7 @@ struct ManuscriptScene final : Scene {
   int verse = 0;
   double nextTurn = 0.0;
 
-  const char *name() const override { return "manuscript"; }
+  const char* name() const override { return "manuscript"; }
 
   // The page turns between two verses on a cycle, so the still names its
   // moment. This sits mid-hold on verse 0, which is the incipit the fixed
@@ -26,7 +26,7 @@ struct ManuscriptScene final : Scene {
   // agrees with.
   double captureSeconds() const override { return 3.5; }
 
-  static constexpr const char8_t *kVerses[2] = {
+  static constexpr const char8_t* kVerses[2] = {
       u8"Here begins the book of the ember gate, set down in the year "
       u8"of the long tide by the wardens of the flooded causeway. Let "
       u8"every reader carry the coal with a steady hand, for the water "
@@ -72,20 +72,25 @@ struct ManuscriptScene final : Scene {
     // The scrollwork border: eight half-edge bands (each corner sends
     // a flourish along both adjacent edges), facing spiral eyes near
     // every edge midpoint.
-    auto band = [&](int quadrant, bool vertical, float l, float t,
-                    float w, float h) {
-      return box().width(w).height(h)
-          .inset(l, t, kSceneSize.width() - l - w,
-                 kSceneSize.height() - t - h)
+    auto band = [&](int quadrant, bool vertical, float l, float t, float w,
+                    float h) {
+      return box()
+          .width(w)
+          .height(h)
+          .inset(l, t, kSceneSize.width() - l - w, kSceneSize.height() - t - h)
           .zIndex(2)
           .child(custom(edgeFlourish(pal, quadrant, vertical)).inset(0));
     };
     // A keyed sprig the body text flows around.
-    auto weaveSprig = [&](const char *key, float l, float t, float rot) {
-      return box().key(key).width(54).height(64)
+    auto weaveSprig = [&](const char* key, float l, float t, float rot) {
+      return box()
+          .key(key)
+          .width(54)
+          .height(64)
           .inset(l, t, kSceneSize.width() - l - 54,
                  kSceneSize.height() - t - 64)
-          .zIndex(2).rotate(rot)
+          .zIndex(2)
+          .rotate(rot)
           .child(custom(sprig(pal)).inset(0));
     };
 
@@ -94,130 +99,141 @@ struct ManuscriptScene final : Scene {
     // so replaying it as a picture would re-rasterize all of that every
     // frame; baked, the per-frame cost is one image blit. The bake is dropped
     // and retaken only on a verse turn.
-    auto pageStack = stack().inset(0).cache(Cache::Texture)
-        // The page: parchment ground, stem-colored rule, vine border.
-        .child(box().inset(26, 22, 26, 22).corners({6})
-                   .background(sigil::compose::util::shadow(
-                       {0, 0, 0, 0.55f}, {5, 7}, 16))
-                   .fill(parchmentFill(pal.parchment))
-                   .foreground(sigil::compose::util::stroke(
-                       2.2f, Fill::color(pal.stem)))
-                   // Inner gilded dashed rule (the broken hairline the
-                   // corner flourishes dance around).
-                   .child(box().inset(14)
-                              .foreground(goldDash)))
-        // Title rubric line.
-        .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
-                    styleAt(24, toColor(rubric.stem)))
-                   .inset(200, 88, 200, kSceneSize.height() - 126)
-                   .zIndex(1))
-        // The illuminated initial: first grapheme on a cobalt block
-        // with gilded trim (the watercolor-manuscript treatment).
-        .child(box().key("dropcap")
-                   .width(92).height(98)
-                   .inset(84, 146, kSceneSize.width() - 84 - 92,
-                          kSceneSize.height() - 146 - 98)
-                   .zIndex(3).corners({8})
-                   .background(sigil::compose::util::shadow(
-                       {0, 0, 0, 0.35f}, {2, 3}, 7))
-                   .fill(Fill::color(pal.stem))
-                   .foreground(sigil::compose::util::stroke(
-                       1.6f, Fill::color(pal.gold)))
-                   .alignItems(Align::Center).justify(Justify::Center)
-                   .child(box().inset(5).foreground(goldDash))
-                   .child(text(letter, styleAt(62, toColor(pal.gold)))))
-        // Rubric side panel: the same component, crimson palette.
-        .child(illuminatedPanel(rubric).key("rubric")
-                   .width(200).height(148)
-                   .inset(600, 270, kSceneSize.width() - 600 - 200,
-                          kSceneSize.height() - 270 - 148)
-                   .zIndex(3).padding(18).gap(8)
-                   .child(text(u8"nota bene",
-                               styleAt(15, toColor(rubric.stem))))
-                   .child(text(u8"the gate takes no coin but memory",
-                               styleAt(16, toColor(rubric.ink)))))
-        // Body text weaving between drop cap, rubric, and all four
-        // corner flourishes.
-        .child(box().inset(100, 132, 100, 82)
-                   .child(text(body, styleAt(19.5f, toColor(pal.ink)))
-                              .key("body")
-                              .flowAround("dropcap", 14)
-                              .flowAround("rubric", 14)
-                              .flowAround("sprigL", 10)
-                              .flowAround("sprigR", 10)
-                              .flowAround("sprigB", 10))
-                   .zIndex(1))
-        .child(band(0, false, 40, 34, 400, 52))
-        .child(band(1, false, 460, 34, 400, 52))
-        .child(band(3, false, 40, 554, 400, 52))
-        .child(band(2, false, 460, 554, 400, 52))
-        .child(band(0, true, 34, 40, 52, 260))
-        .child(band(3, true, 34, 340, 52, 260))
-        .child(band(1, true, 814, 40, 52, 260))
-        .child(band(2, true, 814, 340, 52, 260))
-        // Keyed sprigs the body text weaves around (with the drop cap
-        // and rubric, the multi-exclusion flow demo).
-        .child(weaveSprig("sprigL", 96, 300, 90.0f))
-        .child(weaveSprig("sprigR", 748, 210, -90.0f))
-        .child(weaveSprig("sprigB", 424, 486, 0.0f));
+    auto pageStack =
+        stack()
+            .inset(0)
+            .cache(Cache::Texture)
+            // The page: parchment ground, stem-colored rule, vine border.
+            .child(box()
+                       .inset(26, 22, 26, 22)
+                       .corners({6})
+                       .background(sigil::compose::util::shadow(
+                           {0, 0, 0, 0.55f}, {5, 7}, 16))
+                       .fill(parchmentFill(pal.parchment))
+                       .foreground(sigil::compose::util::stroke(
+                           2.2f, Fill::color(pal.stem)))
+                       // Inner gilded dashed rule (the broken hairline the
+                       // corner flourishes dance around).
+                       .child(box().inset(14).foreground(goldDash)))
+            // Title rubric line.
+            .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
+                        styleAt(24, toColor(rubric.stem)))
+                       .inset(200, 88, 200, kSceneSize.height() - 126)
+                       .zIndex(1))
+            // The illuminated initial: first grapheme on a cobalt block
+            // with gilded trim (the watercolor-manuscript treatment).
+            .child(box()
+                       .key("dropcap")
+                       .width(92)
+                       .height(98)
+                       .inset(84, 146, kSceneSize.width() - 84 - 92,
+                              kSceneSize.height() - 146 - 98)
+                       .zIndex(3)
+                       .corners({8})
+                       .background(sigil::compose::util::shadow(
+                           {0, 0, 0, 0.35f}, {2, 3}, 7))
+                       .fill(Fill::color(pal.stem))
+                       .foreground(sigil::compose::util::stroke(
+                           1.6f, Fill::color(pal.gold)))
+                       .alignItems(Align::Center)
+                       .justify(Justify::Center)
+                       .child(box().inset(5).foreground(goldDash))
+                       .child(text(letter, styleAt(62, toColor(pal.gold)))))
+            // Rubric side panel: the same component, crimson palette.
+            .child(illuminatedPanel(rubric)
+                       .key("rubric")
+                       .width(200)
+                       .height(148)
+                       .inset(600, 270, kSceneSize.width() - 600 - 200,
+                              kSceneSize.height() - 270 - 148)
+                       .zIndex(3)
+                       .padding(18)
+                       .gap(8)
+                       .child(text(u8"nota bene",
+                                   styleAt(15, toColor(rubric.stem))))
+                       .child(text(u8"the gate takes no coin but memory",
+                                   styleAt(16, toColor(rubric.ink)))))
+            // Body text weaving between drop cap, rubric, and all four
+            // corner flourishes.
+            .child(box()
+                       .inset(100, 132, 100, 82)
+                       .child(text(body, styleAt(19.5f, toColor(pal.ink)))
+                                  .key("body")
+                                  .flowAround("dropcap", 14)
+                                  .flowAround("rubric", 14)
+                                  .flowAround("sprigL", 10)
+                                  .flowAround("sprigR", 10)
+                                  .flowAround("sprigB", 10))
+                       .zIndex(1))
+            .child(band(0, false, 40, 34, 400, 52))
+            .child(band(1, false, 460, 34, 400, 52))
+            .child(band(3, false, 40, 554, 400, 52))
+            .child(band(2, false, 460, 554, 400, 52))
+            .child(band(0, true, 34, 40, 52, 260))
+            .child(band(3, true, 34, 340, 52, 260))
+            .child(band(1, true, 814, 40, 52, 260))
+            .child(band(2, true, 814, 340, 52, 260))
+            // Keyed sprigs the body text weaves around (with the drop cap
+            // and rubric, the multi-exclusion flow demo).
+            .child(weaveSprig("sprigL", 96, 300, 90.0f))
+            .child(weaveSprig("sprigR", 748, 210, -90.0f))
+            .child(weaveSprig("sprigB", 424, 486, 0.0f));
 
     return stack()
-        .fill(Fill::color({0.11f, 0.09f, 0.075f, 1})) // scriptorium desk
+        .fill(Fill::color({0.11f, 0.09f, 0.075f, 1}))  // scriptorium desk
         .child(std::move(pageStack))
         // Drifting gold dust: the only per-frame repaint.
-        .child(custom([](SkCanvas &c, const PaintContext &ctx) {
-                 SkPaint p;
-                 p.setAntiAlias(true);
-                 const double t = ctx.elapsedSeconds;
-                 for (int i = 0; i < 26; ++i) {
-                   const float fx = (float)i * 137.5f;
-                   const float x = std::fmod(
-                       fx + (float)t * (6.0f + (float)(i % 5)),
-                       ctx.size.width());
-                   const float y =
-                       60.0f + std::fmod(fx * 0.61f, 500.0f) +
-                       12.0f * std::sin((float)t * 0.8f + (float)i);
-                   const float a =
-                       0.10f + 0.16f * (0.5f + 0.5f * std::sin(
-                                                    (float)t * 1.7f +
-                                                    (float)i * 2.1f));
-                   p.setColor4f({0.9f, 0.75f, 0.3f, a}, nullptr);
-                   c.drawCircle(x, y, 1.6f + (float)(i % 3) * 0.7f, p);
-                 }
-               })
-                   .inset(0).zIndex(4).cache(Cache::None));
+        .child(
+            custom([](SkCanvas& c, const PaintContext& ctx) {
+              SkPaint p;
+              p.setAntiAlias(true);
+              const double t = ctx.elapsedSeconds;
+              for (int i = 0; i < 26; ++i) {
+                const float fx = (float)i * 137.5f;
+                const float x = std::fmod(
+                    fx + (float)t * (6.0f + (float)(i % 5)), ctx.size.width());
+                const float y = 60.0f + std::fmod(fx * 0.61f, 500.0f) +
+                                12.0f * std::sin((float)t * 0.8f + (float)i);
+                const float a =
+                    0.10f + 0.16f * (0.5f + 0.5f * std::sin((float)t * 1.7f +
+                                                            (float)i * 2.1f));
+                p.setColor4f({0.9f, 0.75f, 0.3f, a}, nullptr);
+                c.drawCircle(x, y, 1.6f + (float)(i % 3) * 0.7f, p);
+              }
+            })
+                .inset(0)
+                .zIndex(4)
+                .cache(Cache::None));
   }
 
   static SkColor toColor(SkColor4f c) {
     return SkColor4f{c.fR, c.fG, c.fB, c.fA}.toSkColor();
   }
 
-  void setup(Composer &composer, sigil::motion::Ticker &) override {
+  void setup(Composer& composer, sigil::motion::Ticker&) override {
     verse = 0;
     nextTurn = 7.0;
     composer.render(describe());
   }
 
-  void update(double elapsed, Composer &composer) override {
-    if (elapsed < nextTurn)
-      return;
+  void update(double elapsed, Composer& composer) override {
+    if (elapsed < nextTurn) return;
     nextTurn = elapsed + 7.0;
     verse = (verse + 1) % 2;
-    composer.render(describe()); // reflow weaves through the exclusions
+    composer.render(describe());  // reflow weaves through the exclusions
   }
 };
 
 // ---- Nine-slice hall ------------------------------------------------------
 
 struct NineSliceScene final : Scene {
-  std::shared_ptr<sigil::image::ImageAsset> oakFrame, azureFrame,
-      crimsonFrame;
+  std::shared_ptr<sigil::image::ImageAsset> oakFrame, azureFrame, crimsonFrame;
   float stretch = 0.0f;
 
-  const char *name() const override { return "nineslice"; }
+  const char* name() const override { return "nineslice"; }
 
-  static std::shared_ptr<sigil::image::ImageAsset>
-  generate(const Palette &pal) {
+  static std::shared_ptr<sigil::image::ImageAsset> generate(
+      const Palette& pal) {
     // The intermediate canvas: draw the carved frame once, wrap the
     // snapshot, stretch it everywhere below. Generated at 2x the
     // on-page band width so the slice bands never magnify (raster
@@ -230,11 +246,12 @@ struct NineSliceScene final : Scene {
     const Palette oak = oakPalette(), azure = azurePalette(),
                   crimson = crimsonPalette();
 
-    auto panel = [&](const std::shared_ptr<sigil::image::ImageAsset> &f,
+    auto panel = [&](const std::shared_ptr<sigil::image::ImageAsset>& f,
                      float l, float t, float w, float h) {
-      return box().width(w).height(h)
-          .inset(l, t, kSceneSize.width() - l - w,
-                 kSceneSize.height() - t - h)
+      return box()
+          .width(w)
+          .height(h)
+          .inset(l, t, kSceneSize.width() - l - w, kSceneSize.height() - t - h)
           .background(carvedFrameSlice(f))
           .padding(24);
     };
@@ -247,9 +264,11 @@ struct NineSliceScene final : Scene {
             {0, 0}, {0, 640},
             {{0.09f, 0.07f, 0.10f, 1}, {0.05f, 0.06f, 0.09f, 1}}))
         // The source texture at natural size, labeled.
-        .child(box().inset(24, 24, kSceneSize.width() - 24 - 200,
-                           kSceneSize.height() - 24 - 150)
-                   .column().gap(8)
+        .child(box()
+                   .inset(24, 24, kSceneSize.width() - 24 - 200,
+                          kSceneSize.height() - 24 - 150)
+                   .column()
+                   .gap(8)
                    .child(image(oakFrame).width(96).height(96))
                    .child(text(u8"the source texture — drawn 2x on an "
                                u8"offscreen canvas, wrapped, nine-sliced",
@@ -257,9 +276,9 @@ struct NineSliceScene final : Scene {
                               .width(190)))
         // Button: oak, small.
         .child(panel(oakFrame, 24, 210, 220, 84)
-                   .alignItems(Align::Center).justify(Justify::Center)
-                   .child(text(u8"BEGIN QUEST",
-                               styleAt(19, 0xff2b1c0b))))
+                   .alignItems(Align::Center)
+                   .justify(Justify::Center)
+                   .child(text(u8"BEGIN QUEST", styleAt(19, 0xff2b1c0b))))
         // Banner: azure, wide.
         .child(panel(azureFrame, 268, 24, 600, 108)
                    .justify(Justify::Center)
@@ -269,44 +288,45 @@ struct NineSliceScene final : Scene {
                                u8"without distortion, corners stay carved",
                                styleAt(13.5f, 0xff3a4a63))))
         // Tall dialog: crimson, itemized.
-        .child(panel(crimsonFrame, 560, 168, 300, 330)
-                   .column().gap(12)
-                   .child(text(u8"CELLAR MANIFEST",
-                               styleAt(19, 0xff3a1410)))
-                   .child(text(u8"◈  six barrels of pitch",
-                               styleAt(15, 0xff4a2018)))
-                   .child(text(u8"◈  the copper bowls",
-                               styleAt(15, 0xff4a2018)))
-                   .child(text(u8"◈  rope, forty fathoms",
-                               styleAt(15, 0xff4a2018)))
-                   .child(text(u8"◈  one coal, still warm",
-                               styleAt(15, 0xff4a2018)))
-                   .child(box().grow(1))
-                   .child(text(u8"signed, the quartermaster",
-                               styleAt(13, 0xff6a3a30))))
+        .child(
+            panel(crimsonFrame, 560, 168, 300, 330)
+                .column()
+                .gap(12)
+                .child(text(u8"CELLAR MANIFEST", styleAt(19, 0xff3a1410)))
+                .child(
+                    text(u8"◈  six barrels of pitch", styleAt(15, 0xff4a2018)))
+                .child(text(u8"◈  the copper bowls", styleAt(15, 0xff4a2018)))
+                .child(
+                    text(u8"◈  rope, forty fathoms", styleAt(15, 0xff4a2018)))
+                .child(
+                    text(u8"◈  one coal, still warm", styleAt(15, 0xff4a2018)))
+                .child(box().grow(1))
+                .child(text(u8"signed, the quartermaster",
+                            styleAt(13, 0xff6a3a30))))
         // The breathing panel: relaid out every frame — the lattice
         // stretches live while the carved corners hold their shape.
-        .child(panel(oakFrame, 60, 380 - (breathHalf(breathH)),
-                     breathW, breathH)
-                   .alignItems(Align::Center).justify(Justify::Center)
-                   .child(text(u8"stretch me", styleAt(17, 0xff2b1c0b))));
+        .child(
+            panel(oakFrame, 60, 380 - (breathHalf(breathH)), breathW, breathH)
+                .alignItems(Align::Center)
+                .justify(Justify::Center)
+                .child(text(u8"stretch me", styleAt(17, 0xff2b1c0b))));
   }
 
   static float breathHalf(float h) { return (h - 130.0f) * 0.5f; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     oakFrame = generate(oakPalette());
     azureFrame = generate(azurePalette());
     crimsonFrame = generate(crimsonPalette());
     stretch = 0.0f;
-    ticker.add([this](double) { return true; }); // keep clock alive
+    ticker.add([this](double) { return true; });  // keep clock alive
     composer.render(describe());
   }
 
-  void update(double elapsed, Composer &composer) override {
+  void update(double elapsed, Composer& composer) override {
     stretch = 0.5f + 0.5f * (float)std::sin(elapsed * 1.4);
     composer.render(describe());
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

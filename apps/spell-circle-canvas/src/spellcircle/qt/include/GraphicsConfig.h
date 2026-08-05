@@ -20,8 +20,8 @@ class BoxStyleConfig : public QObject {
   Q_PROPERTY(qreal padding READ padding WRITE setPadding NOTIFY changed)
   Q_PROPERTY(qreal distance READ distance WRITE setDistance NOTIFY changed)
 
-public:
-  explicit BoxStyleConfig(QObject *parent = nullptr) : QObject(parent) {}
+ public:
+  explicit BoxStyleConfig(QObject* parent = nullptr) : QObject(parent) {}
 
   /** Minimum outer width of a box. A box whose label plus padding needs more
    *  than this grows to fit rather than clipping the text, so this sets the
@@ -46,10 +46,10 @@ public:
   qreal distance() const { return m_distance; }
   void setDistance(qreal distance);
 
-signals:
+ signals:
   void changed();
 
-private:
+ private:
   qreal m_width = 360.0;
   qreal m_height = 140.0;
   qreal m_padding = 16.0;
@@ -68,8 +68,8 @@ class CanvasSizeConfig : public QObject {
   Q_PROPERTY(int width READ width WRITE setWidth NOTIFY changed)
   Q_PROPERTY(int height READ height WRITE setHeight NOTIFY changed)
 
-public:
-  explicit CanvasSizeConfig(QObject *parent = nullptr) : QObject(parent) {}
+ public:
+  explicit CanvasSizeConfig(QObject* parent = nullptr) : QObject(parent) {}
 
   /** Render-target width in pixels. */
   int width() const { return m_width; }
@@ -79,10 +79,10 @@ public:
   int height() const { return m_height; }
   void setHeight(int height);
 
-signals:
+ signals:
   void changed();
 
-private:
+ private:
   int m_width = 4000;
   int m_height = 4000;
 };
@@ -122,29 +122,29 @@ class GraphicsConfig : public QObject {
   Q_PROPERTY(qreal pointDistance READ pointDistance WRITE setPointDistance
                  NOTIFY pointDistanceChanged)
   Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
-  Q_PROPERTY(BoxStyleConfig *box READ box CONSTANT)
-  Q_PROPERTY(CanvasSizeConfig *canvas READ canvas CONSTANT)
+  Q_PROPERTY(BoxStyleConfig* box READ box CONSTANT)
+  Q_PROPERTY(CanvasSizeConfig* canvas READ canvas CONSTANT)
   Q_PROPERTY(int generation READ generation NOTIFY generationChanged)
 
-public:
-  explicit GraphicsConfig(QObject *parent = nullptr);
+ public:
+  explicit GraphicsConfig(QObject* parent = nullptr);
 
   /** The single color a scene is drawn in: circles, edges, box borders, and
    *  label text, with fills using the same color at a per-item alpha. A scene
    *  cannot override it — the sender chooses shapes, the receiver chooses how
    *  they look. */
   QColor color() const { return m_color; }
-  void setColor(const QColor &color);
+  void setColor(const QColor& color);
 
   /** Stroke width for circles, edges, and box borders. */
   qreal strokeWidth() const { return m_strokeWidth; }
   void setStrokeWidth(qreal strokeWidth);
 
   /** Multiplier applied to every length here and to the font point size on the
-   *  way to the renderer, so one knob retunes stroke weight, text, and box sizes
-   *  together after changing the render-target size. It does not scale the scene
-   *  itself — geometry is fitted to the canvas from the author-space dimensions
-   *  the sender supplies. */
+   *  way to the renderer, so one knob retunes stroke weight, text, and box
+   * sizes together after changing the render-target size. It does not scale the
+   * scene itself — geometry is fitted to the canvas from the author-space
+   * dimensions the sender supplies. */
   qreal scale() const { return m_scale; }
   void setScale(qreal scale);
 
@@ -165,15 +165,15 @@ public:
   /** The one font every label in the scene is drawn with; its point size is
    *  multiplied by scale() before use. */
   QFont font() const { return m_font; }
-  void setFont(const QFont &font);
+  void setFont(const QFont& font);
 
   /** Box geometry group. Owned by this object and alive as long as it is,
    *  so QML may hold the pointer. */
-  BoxStyleConfig *box() const { return m_box; }
+  BoxStyleConfig* box() const { return m_box; }
 
   /** Render-target size group. Owned by this object and alive as long as it is,
    *  so QML may hold the pointer. */
-  CanvasSizeConfig *canvas() const { return m_canvas; }
+  CanvasSizeConfig* canvas() const { return m_canvas; }
 
   /** Counter incremented on every change to any value here, including those in
    *  the two groups above. A renderer compares it against the value it last
@@ -197,7 +197,7 @@ public:
    *  shutdown. */
   Q_INVOKABLE bool save() const;
 
-signals:
+ signals:
   void colorChanged();
   void strokeWidthChanged();
   void scaleChanged();
@@ -206,7 +206,7 @@ signals:
   void fontChanged();
   void generationChanged();
 
-private:
+ private:
   /** The path save() writes and load() prefers: graphics_config.json under
    *  the per-user application config directory
    *  (QStandardPaths::AppConfigLocation) — writable, outside the application
@@ -229,7 +229,7 @@ private:
   qreal m_labelOffset = 0.0;
   qreal m_pointDistance = 40.0;
   QFont m_font;
-  BoxStyleConfig *m_box;
-  CanvasSizeConfig *m_canvas;
+  BoxStyleConfig* m_box;
+  CanvasSizeConfig* m_canvas;
   int m_generation = 0;
 };

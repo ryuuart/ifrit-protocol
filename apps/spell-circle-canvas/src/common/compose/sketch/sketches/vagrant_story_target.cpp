@@ -44,13 +44,12 @@
 //
 //      src = AGI + accessory.AGI + SUM(limbs[0..5].armor.AGI)
 //      tgt = same, for the target
-//      if (weapon drawn) src += weapon.AGI + shield.AGI      // and likewise tgt
-//      src = src * (100 - risk_src) / 100                     // integer divide
-//      tgt = (tgt + limbs[part].agilityDefenseBonus) * (100 - risk_tgt) / 100
-//      agiDiff = src - tgt + 100
-//      if (variance) agiDiff += getRandSmoothed(11) - 5
-//      agiDiff += attackGem - defenseGem
-//      clamp: < 0 -> 0 ; == 255 -> 254
+//      if (weapon drawn) src += weapon.AGI + shield.AGI      // and likewise
+//      tgt src = src * (100 - risk_src) / 100                     // integer
+//      divide tgt = (tgt + limbs[part].agilityDefenseBonus) * (100 - risk_tgt)
+//      / 100 agiDiff = src - tgt + 100 if (variance) agiDiff +=
+//      getRandSmoothed(11) - 5 agiDiff += attackGem - defenseGem clamp: < 0 ->
+//      0 ; == 255 -> 254
 //
 //    THEN _doesAttackHit (146C.c:7294) clamps to 100 — and at :7334, AFTER the
 //    clamp:
@@ -170,8 +169,14 @@
 // geometry that actually turns.
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkPoint3.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Lines.h>
@@ -181,17 +186,8 @@
 #include <sigilcompose/Studio.h>
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPoint3.h>
-#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <array>
@@ -215,8 +211,8 @@ namespace vs {
 // lives on 512x240 (x2.5 horizontally, x4 vertically). Both are honoured.
 
 constexpr float kW = 1280.0f, kH = 960.0f;
-inline float snapG(float v) { return std::round(v / 4.0f) * 4.0f; }   // 320-grid
-inline float snapX(float v) { return std::round(v / 2.5f) * 2.5f; }   // 512-grid
+inline float snapG(float v) { return std::round(v / 4.0f) * 4.0f; }  // 320-grid
+inline float snapX(float v) { return std::round(v / 2.5f) * 2.5f; }  // 512-grid
 inline float snapY(float v) { return std::round(v / 4.0f) * 4.0f; }
 
 using studio::hex;
@@ -243,10 +239,10 @@ inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 // the exception; see groundPlate.)
 
 struct Cam {
-  float f = 1700.0f;              // focal length, canvas px
-  SkPoint3 C{0, 0, 1400};         // sphere centre, camera space
-  float R = 400.0f;               // sphere radius, world units
-  float pitchDeg = 22.0f;         // camera looks DOWN by this
+  float f = 1700.0f;       // focal length, canvas px
+  SkPoint3 C{0, 0, 1400};  // sphere centre, camera space
+  float R = 400.0f;        // sphere radius, world units
+  float pitchDeg = 22.0f;  // camera looks DOWN by this
 
   SkPoint project(SkPoint3 p) const {
     const float z = std::max(p.fZ, 1.0f);
@@ -301,14 +297,14 @@ struct Cam {
 
 struct Wire {
   shapes::OutlineFn outline;
-  float split = 1.0f;   ///< arc-length fraction where near becomes far
+  float split = 1.0f;  ///< arc-length fraction where near becomes far
   float nearWeight = 2.0f;
   bool allNear = false, allFar = false;
 };
 
 /** @p at maps a curve parameter in [0, 2pi) to a unit normal. */
-inline Wire buildWire(const Cam &cam, float halfExtent,
-                      const std::function<SkPoint3(float)> &at,
+inline Wire buildWire(const Cam& cam, float halfExtent,
+                      const std::function<SkPoint3(float)>& at,
                       int samples = 128) {
   constexpr float kTau = 6.28318530718f;
   // 1. find the entry tangency: facing() crossing from >= 0 to < 0.
@@ -365,8 +361,8 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
         const float a = face[(size_t)(i - 1)], b = face[(size_t)i];
         const float denom = a - b;
         const float k = std::abs(denom) > 1e-6f ? a / denom : 0.5f;
-        const float d = cum[(size_t)(i - 1)] +
-                        (cum[(size_t)i] - cum[(size_t)(i - 1)]) * k;
+        const float d =
+            cum[(size_t)(i - 1)] + (cum[(size_t)i] - cum[(size_t)(i - 1)]) * k;
         w.split = std::clamp(d / total, 0.0f, 1.0f);
         break;
       }
@@ -377,8 +373,7 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
   // 3. weight from how front-facing the circle gets: a wire that swings right
   //    up to the viewer reads heaviest. Depth is WEIGHT here, never alpha.
   float best = 0;
-  for (int i = 0; i <= samples; ++i)
-    best = std::min(best, face[(size_t)i]);
+  for (int i = 0; i <= samples; ++i) best = std::min(best, face[(size_t)i]);
   const float depth = std::clamp(-best / (cam.R * 1.7f), 0.0f, 1.0f);
   w.nearWeight = 1.3f + 1.9f * depth;
 
@@ -387,8 +382,9 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
   // is INVISIBLE as an error — the sphere just reads as a flat mandala, which
   // looks like a styling choice rather than a fault.
 #ifdef VS_WIRE_DEBUG
-  SkDebugf("[wire] t0=%.3f split=%.3f allNear=%d allFar=%d weight=%.2f total=%.3f\n",
-           t0, w.split, (int)w.allNear, (int)w.allFar, w.nearWeight, total);
+  SkDebugf(
+      "[wire] t0=%.3f split=%.3f allNear=%d allFar=%d weight=%.2f total=%.3f\n",
+      t0, w.split, (int)w.allNear, (int)w.allFar, w.nearWeight, total);
 #endif
   w.outline = shapes::parametric(
       [at, cam, sphereCentre, halfExtent](float t) {
@@ -416,31 +412,29 @@ struct Cell {
 };
 
 struct PixFont {
-  std::array<Cell, 96> cells;   // ascii 32..127
+  std::array<Cell, 96> cells;  // ascii 32..127
   int lineHeight = 0;
-  int digitAdv = 0;             // tabular: every digit shares one advance
+  int digitAdv = 0;  // tabular: every digit shares one advance
 };
 
-inline Cell bakeCell(char32_t ch, weave::FontContext &fonts,
-                     const weave::TextStyle &st) {
+inline Cell bakeCell(char32_t ch, weave::FontContext& fonts,
+                     const weave::TextStyle& st) {
   std::string s;
   s.push_back((char)ch);
-  const std::u8string u8(reinterpret_cast<const char8_t *>(s.c_str()));
+  const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
   Element tree = box().child(text(u8, st));
   const SkSize sz = measure(box().child(text(u8, st)), fonts);
   const int w = std::max(1, (int)std::ceil(sz.width()) + 3);
   const int h = std::max(1, (int)std::ceil(sz.height()) + 3);
   sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  if (!surf)
-    return {};
+  if (!surf) return {};
   surf->getCanvas()->clear(SK_ColorTRANSPARENT);
   if (sk_sp<SkPicture> pic = snapshot(std::move(tree), fonts))
     surf->getCanvas()->drawPicture(pic);
   SkBitmap read;
   read.allocPixels(
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
-  if (!surf->readPixels(read.pixmap(), 0, 0))
-    return {};
+  if (!surf->readPixels(read.pixmap(), 0, 0)) return {};
   SkBitmap a8;
   a8.allocPixels(SkImageInfo::MakeA8(w, h));
   a8.eraseColor(SK_ColorTRANSPARENT);
@@ -456,8 +450,9 @@ inline Cell bakeCell(char32_t ch, weave::FontContext &fonts,
   return c;
 }
 
-inline PixFont bakeFont(weave::FontContext &fonts, const sk_sp<SkTypeface> &face,
-                        float sizePx, float condense) {
+inline PixFont bakeFont(weave::FontContext& fonts,
+                        const sk_sp<SkTypeface>& face, float sizePx,
+                        float condense) {
   weave::TextStyle st;
   st.shaping.typeface = face;
   st.shaping.fontSize = sizePx;
@@ -482,8 +477,8 @@ inline PixFont bakeFont(weave::FontContext &fonts, const sk_sp<SkTypeface> &face
 /** Blit a string at (x, y) top-left. Digits use one tabular advance so a
  *  rolling readout does not shiver; everything else uses its own. Positions
  *  land on the 512-grid — snapX horizontally, snapY vertically. */
-inline float blit(SkCanvas &c, const PixFont &f, float x, float y,
-                  const std::string &s, SkColor4f col, float track = 1.0f) {
+inline float blit(SkCanvas& c, const PixFont& f, float x, float y,
+                  const std::string& s, SkColor4f col, float track = 1.0f) {
   SkPaint p;
   p.setAntiAlias(false);
   p.setColor4f(col, nullptr);
@@ -492,9 +487,8 @@ inline float blit(SkCanvas &c, const PixFont &f, float x, float y,
   const float cy = snapY(y);
   for (char raw : s) {
     const int idx = (int)(unsigned char)raw - 32;
-    if (idx < 0 || idx >= 96)
-      continue;
-    const Cell &cell = f.cells[(size_t)idx];
+    if (idx < 0 || idx >= 96) continue;
+    const Cell& cell = f.cells[(size_t)idx];
     const bool digit = raw >= '0' && raw <= '9';
     if (cell.mask)
       c.drawImageRect(cell.mask,
@@ -505,13 +499,12 @@ inline float blit(SkCanvas &c, const PixFont &f, float x, float y,
   return cx - snapX(x);
 }
 
-inline float widthOf(const PixFont &f, const std::string &s,
+inline float widthOf(const PixFont& f, const std::string& s,
                      float track = 1.0f) {
   float w = 0;
   for (char raw : s) {
     const int idx = (int)(unsigned char)raw - 32;
-    if (idx < 0 || idx >= 96)
-      continue;
+    if (idx < 0 || idx >= 96) continue;
     const bool digit = raw >= '0' && raw <= '9';
     w += (float)(digit ? f.digitAdv : f.cells[(size_t)idx].adv) + track;
   }
@@ -534,13 +527,13 @@ inline float widthOf(const PixFont &f, const std::string &s,
 // division and clamp order included.
 
 struct Limb {
-  const char *name;
+  const char* name;
   short hp, maxHp;
   signed char agilityDefenseBonus;
   unsigned char chainEvasion;
-  const char *armour;
-  short types[4];      // blunt / edged / piercing / +1
-  short affinities[8]; // air fire earth water light dark +2
+  const char* armour;
+  short types[4];       // blunt / edged / piercing / +1
+  short affinities[8];  // air fire earth water light dark +2
   /** status.yaml's first defence row. It is NOT in the limb struct — physical
    *  defence lives on the ARMOUR (vs_battle_uiArmor), which the limb owns at
    *  offset 0x18 — so it is carried alongside rather than faked into types[3],
@@ -553,52 +546,99 @@ struct Limb {
  *  (air fire earth water light dark), rows 7-9 are types[0..2] (blunt edged
  *  piercing). affinities[6..7] and types[3] are the decomp's unnamed "+2" and
  *  "+1" slots and are deliberately not shown. */
-inline short defenceValue(const struct Limb &l, int row);
+inline short defenceValue(const struct Limb& l, int row);
 
 // RECONSTRUCTED values in a DOCUMENTED struct. Part naming is the conventional
 // humanoid reconstruction of limbs[0..5]; the struct itself carries only a
 // nameIndex.
 constexpr Limb kLimbs[6] = {
-    // name      hp maxHp agiDef eva  armour        types[4]              affinities[8]                   physical
-    {"HEAD",   88, 120,  6,  40, "hounskull",   { 12,  -8,  20,  0}, {  4, -6,  0, 2,  8, -10, 0, 0}, 18},
-    {"BODY",  210, 260,  2,  18, "cuirass",     { 24,  10,  -6,  0}, {  0,  6,  8, 0,  2,  -4, 0, 0}, 31},
-    {"R.ARM",  96, 140, -3,  92, "vambrace",    {  6,   4,   2,  0}, { -2,  0,  4, 6,  0,   0, 0, 0}, 14},
-    {"L.ARM", 132, 140,  1,  55, "gauntlet",    {  8,  12,  -4,  0}, {  2,  4,  0, 0, -6,   2, 0, 0}, 16},
-    {"R.LEG", 148, 180,  0,  30, "greave",      { 14,   6,   8,  0}, {  0,  2, 10, 4,  0,   0, 0, 0}, 21},
-    {"L.LEG", 180, 180,  4,  12, "sabaton",     { 16,   2,  12,  0}, {  6,  0,  6, 0,  0,  -2, 0, 0}, 23},
+    // name      hp maxHp agiDef eva  armour        types[4] affinities[8]
+    // physical
+    {"HEAD",
+     88,
+     120,
+     6,
+     40,
+     "hounskull",
+     {12, -8, 20, 0},
+     {4, -6, 0, 2, 8, -10, 0, 0},
+     18},
+    {"BODY",
+     210,
+     260,
+     2,
+     18,
+     "cuirass",
+     {24, 10, -6, 0},
+     {0, 6, 8, 0, 2, -4, 0, 0},
+     31},
+    {"R.ARM",
+     96,
+     140,
+     -3,
+     92,
+     "vambrace",
+     {6, 4, 2, 0},
+     {-2, 0, 4, 6, 0, 0, 0, 0},
+     14},
+    {"L.ARM",
+     132,
+     140,
+     1,
+     55,
+     "gauntlet",
+     {8, 12, -4, 0},
+     {2, 4, 0, 0, -6, 2, 0, 0},
+     16},
+    {"R.LEG",
+     148,
+     180,
+     0,
+     30,
+     "greave",
+     {14, 6, 8, 0},
+     {0, 2, 10, 4, 0, 0, 0, 0},
+     21},
+    {"L.LEG",
+     180,
+     180,
+     4,
+     12,
+     "sabaton",
+     {16, 2, 12, 0},
+     {6, 0, 6, 0, 0, -2, 0, 0},
+     23},
 };
 
 // status.yaml's ten defence rows, in file order.
-inline short defenceValue(const Limb &l, int row) {
-  if (row == 0)
-    return l.physical;
+inline short defenceValue(const Limb& l, int row) {
+  if (row == 0) return l.physical;
   if (row <= 6)
-    return l.affinities[row - 1];       // air fire earth water light dark
-  return l.types[row - 7];              // blunt edged piercing
+    return l.affinities[row - 1];  // air fire earth water light dark
+  return l.types[row - 7];         // blunt edged piercing
 }
 
-constexpr const char *kDefenceRows[10] = {
-    "PHYSICAL", "AIR", "FIRE", "EARTH", "WATER",
+constexpr const char* kDefenceRows[10] = {
+    "PHYSICAL", "AIR",  "FIRE",  "EARTH", "WATER",
     "LIGHT",    "DARK", "BLUNT", "EDGED", "PIERCING"};
 // status.yaml's condition tiers.
-constexpr const char *kCondition[5] = {"CRITICAL", "DAMAGED", "WOUNDED", "GOOD",
+constexpr const char* kCondition[5] = {"CRITICAL", "DAMAGED", "WOUNDED", "GOOD",
                                        "EXCELLENT"};
 
 /** Ashley and the Dullahan, in the fields the formula actually reads. */
 struct Actor {
   int agility;
   int accessoryAgi;
-  int armourAgiSum;   // SUM(limbs[0..5].armor.currentAgility)
+  int armourAgiSum;  // SUM(limbs[0..5].armor.currentAgility)
   int weaponAgi, shieldAgi;
-  bool drawn;         // vs_battle_actors[..]->unk20 & 1
+  bool drawn;  // vs_battle_actors[..]->unk20 & 1
 };
 constexpr Actor kAshley{42, 3, -7, 2, -4, true};
 constexpr Actor kEnemy{30, 0, 5, 0, 0, false};
 
-inline int actorAgi(const Actor &a) {
+inline int actorAgi(const Actor& a) {
   int v = a.agility + a.accessoryAgi + a.armourAgiSum;
-  if (a.drawn)
-    v += a.weaponAgi + a.shieldAgi;
+  if (a.drawn) v += a.weaponAgi + a.shieldAgi;
   return v;
 }
 
@@ -632,7 +672,7 @@ inline int chainEvasionRate(int part) {
   const int r = (255 - kLimbs[part].chainEvasion) * 100 / 255;
   return r == 255 ? 254 : r;
 }
-inline const char *conditionOf(int hp, int maxHp) {
+inline const char* conditionOf(int hp, int maxHp) {
   const float f = maxHp > 0 ? (float)hp / (float)maxHp : 0.0f;
   if (f >= 0.999f) return kCondition[4];
   if (f >= 0.70f) return kCondition[3];
@@ -642,17 +682,17 @@ inline const char *conditionOf(int hp, int maxHp) {
 }
 
 // The five-bit fields, as data.
-constexpr int kReach = 9;                    // u_int reach : 5
-constexpr int kAttackShapeAngle = 12;        // u_int currentAttackShapeAngle : 5
-constexpr float kAngleStep = 360.0f / 32.0f; // 11.25 deg per step
-constexpr int kEnemyClass = 2;               // u_int enemyClass : 3 -> undead
-constexpr const char *kClassNames[6] = {"HUMAN",  "BEAST",  "UNDEAD",
+constexpr int kReach = 9;              // u_int reach : 5
+constexpr int kAttackShapeAngle = 12;  // u_int currentAttackShapeAngle : 5
+constexpr float kAngleStep = 360.0f / 32.0f;  // 11.25 deg per step
+constexpr int kEnemyClass = 2;                // u_int enemyClass : 3 -> undead
+constexpr const char* kClassNames[6] = {"HUMAN",   "BEAST",  "UNDEAD",
                                         "PHANTOM", "DRAGON", "EVIL"};
 // ITEMNAME.BIN.yaml, in file order; index 20 is the drawn weapon.
-constexpr const char *kWeaponName = "KATANA";
-constexpr int kSelected = 2;                 // R.ARM
+constexpr const char* kWeaponName = "KATANA";
+constexpr int kSelected = 2;  // R.ARM
 
-} // namespace vs
+}  // namespace vs
 
 // =============================================================================
 
@@ -660,14 +700,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   using Cam = vs::Cam;
 
   // ---- bound values --------------------------------------------------------
-  ch::Output<float> risk{58.0f};      // decays; drives FOUR consumers
-  ch::Output<float> riskPitch{8.0f};  // ...one of which is the hatch's pitch
-  ch::Output<float> chainSweep{0.0f}; // the timing ring, 0 -> 1
-  ch::Output<float> select{1.0f};     // selection pulse
-  ch::Output<float> damagePop{0.0f};  // the damage-number pop
+  ch::Output<float> risk{58.0f};       // decays; drives FOUR consumers
+  ch::Output<float> riskPitch{8.0f};   // ...one of which is the hatch's pitch
+  ch::Output<float> chainSweep{0.0f};  // the timing ring, 0 -> 1
+  ch::Output<float> select{1.0f};      // selection pulse
+  ch::Output<float> damagePop{0.0f};   // the damage-number pop
 
   double clock = 0;
-  float psi = 0;                      // sphere spin, radians
+  float psi = 0;  // sphere spin, radians
 
   vs::PixFont fontS, fontM, fontL;
   sk_sp<SkTypeface> face;
@@ -675,9 +715,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   Cam cam;
   float halfExtent = 560.0f;
   SkPoint sphereCentre{0, 0};
-  std::array<SkPoint, 6> cardAt{};    // fixed card centres, canvas px
-  std::array<int, 6> slotOf{};        // limb -> card slot, frozen at psi = 0
-  std::array<SkRect, 6> cardBounds{}; // read back from Composer::bounds()
+  std::array<SkPoint, 6> cardAt{};     // fixed card centres, canvas px
+  std::array<int, 6> slotOf{};         // limb -> card slot, frozen at psi = 0
+  std::array<SkRect, 6> cardBounds{};  // read back from Composer::bounds()
 
   // -------------------------------------------------------------------------
   // The enemy's six limb anchors, in the sphere's own rotating frame. Units of
@@ -686,12 +726,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
   static SkPoint3 limbOffset(int i) {
     static constexpr float kOff[6][3] = {
-        { 0.00f,  0.34f,  0.00f},  // HEAD
-        { 0.00f,  0.10f,  0.02f},  // BODY
-        {-0.17f,  0.13f,  0.07f},  // R.ARM
-        { 0.17f,  0.12f, -0.05f},  // L.ARM
-        {-0.09f, -0.17f,  0.03f},  // R.LEG
-        { 0.09f, -0.17f, -0.03f},  // L.LEG
+        {0.00f, 0.34f, 0.00f},    // HEAD
+        {0.00f, 0.10f, 0.02f},    // BODY
+        {-0.17f, 0.13f, 0.07f},   // R.ARM
+        {0.17f, 0.12f, -0.05f},   // L.ARM
+        {-0.09f, -0.17f, 0.03f},  // R.LEG
+        {0.09f, -0.17f, -0.03f},  // L.LEG
     };
     return {kOff[i][0], kOff[i][1], kOff[i][2]};
   }
@@ -705,10 +745,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const float cs = std::cos(spin), sn = std::sin(spin);
     const float rx = x * cs + z * sn, rz = -x * sn + z * cs;
     const SkPoint3 X = cam.axisX(), Y = cam.axisY(), Z = cam.axisZ();
-    const SkPoint3 world{
-        cam.C.fX + cam.R * (rx * X.fX + y * Y.fX + rz * Z.fX),
-        cam.C.fY + cam.R * (rx * X.fY + y * Y.fY + rz * Z.fY),
-        cam.C.fZ + cam.R * (rx * X.fZ + y * Y.fZ + rz * Z.fZ)};
+    const SkPoint3 world{cam.C.fX + cam.R * (rx * X.fX + y * Y.fX + rz * Z.fX),
+                         cam.C.fY + cam.R * (rx * X.fY + y * Y.fY + rz * Z.fY),
+                         cam.C.fZ + cam.R * (rx * X.fZ + y * Y.fZ + rz * Z.fZ)};
     return cam.project(world);
   }
 
@@ -721,7 +760,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     constexpr float kDeg = 0.017453293f;
     Element g = box().inset(0).key("sphere");
 
-    auto wireEl = [&](const vs::Wire &w, const char *key, bool ring) {
+    auto wireEl = [&](const vs::Wire& w, const char* key, bool ring) {
       vs::Wire wire = w;
       Element e = box()
                       .width(halfExtent * 2)
@@ -764,18 +803,17 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     };
 
     // 6 great circles through the poles == 12 meridians.
-    static const char *kMerKeys[6] = {"m0", "m1", "m2", "m3", "m4", "m5"};
+    static const char* kMerKeys[6] = {"m0", "m1", "m2", "m3", "m4", "m5"};
     for (int k = 0; k < 6; ++k) {
       const float lon = spin + (float)k * 30.0f * kDeg;
       const Cam c = cam;
-      g.child(wireEl(vs::buildWire(cam, halfExtent,
-                                   [c, lon](float t) {
-                                     return c.normal(t, lon);
-                                   }),
-                     kMerKeys[k], false));
+      g.child(
+          wireEl(vs::buildWire(cam, halfExtent,
+                               [c, lon](float t) { return c.normal(t, lon); }),
+                 kMerKeys[k], false));
     }
     // 5 latitude rings.
-    static const char *kLatKeys[5] = {"l0", "l1", "l2", "l3", "l4"};
+    static const char* kLatKeys[5] = {"l0", "l1", "l2", "l3", "l4"};
     for (int k = 0; k < 5; ++k) {
       const float lat = (-60.0f + 30.0f * (float)k) * kDeg;
       const Cam c = cam;
@@ -793,23 +831,26 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
    *  doubles it into the heavy edge that makes the wire ball read as solid. */
   Element silhouette() const {
     const float r = cam.apparentRadius();
-    Element e = box()
-                    .width(halfExtent * 2)
-                    .height(halfExtent * 2)
-                    .centerAt(sphereCentre)
-                    .key("silhouette")
-                    .shape(shapes::parametric(
-                        [r, h = halfExtent](float t) {
-                          return SkPoint{r / h * std::cos(t),
-                                         r / h * std::sin(t)};
-                        },
-                        0, 6.28318530718f, 192, true));
-    e.stroke(lines::Rails{.rails = {
-                              {.across = 2.5f, .width = 2.6f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.92f))},
-                              {.across = -2.5f, .width = 1.0f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.40f))},
-                          }});
+    Element e =
+        box()
+            .width(halfExtent * 2)
+            .height(halfExtent * 2)
+            .centerAt(sphereCentre)
+            .key("silhouette")
+            .shape(shapes::parametric(
+                [r, h = halfExtent](float t) {
+                  return SkPoint{r / h * std::cos(t), r / h * std::sin(t)};
+                },
+                0, 6.28318530718f, 192, true));
+    e.stroke(
+        lines::Rails{.rails = {
+                         {.across = 2.5f,
+                          .width = 2.6f,
+                          .fill = Fill::color(vs::mul(vs::kBone, 1, 0.92f))},
+                         {.across = -2.5f,
+                          .width = 1.0f,
+                          .fill = Fill::color(vs::mul(vs::kBone, 1, 0.40f))},
+                     }});
     return e;
   }
 
@@ -845,7 +886,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // The attack wedge: shapes::sector at currentAttackShapeAngle * 11.25 deg,
     // inscribed in a foreshortened box, so the wedge IS an ellipse sector.
     const float sweep = (float)vs::kAttackShapeAngle * vs::kAngleStep;
-    const float start = -12.5f - sweep * 0.5f;   // aimed at the Dullahan
+    const float start = -12.5f - sweep * 0.5f;  // aimed at the Dullahan
     Element wedge = box()
                         .width(rx * 2)
                         .height(ry * 2)
@@ -853,14 +894,16 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         .key("wedge")
                         .shape(shapes::sector(start, sweep))
                         .fill(Fill::color(vs::hex(0x7FD8E8, 0.035f)));
-    wedge.overlay(lines::Hatch{.strokeFill = Fill::color(vs::hex(0x7FD8E8, 0.11f)),
-                               .spacing = 15.0f,
-                               .width = 1.0f,
-                               .angleDeg = 118.0f});
-    wedge.stroke(PathFormat{.width = 1.4f,
-                            .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.55f)),
-                            .dashIntervals = {9.0f, 6.0f},
-                            .cap = SkPaint::kButt_Cap});
+    wedge.overlay(
+        lines::Hatch{.strokeFill = Fill::color(vs::hex(0x7FD8E8, 0.11f)),
+                     .spacing = 15.0f,
+                     .width = 1.0f,
+                     .angleDeg = 118.0f});
+    wedge.stroke(
+        PathFormat{.width = 1.4f,
+                   .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.55f)),
+                   .dashIntervals = {9.0f, 6.0f},
+                   .cap = SkPaint::kButt_Cap});
     g.child(std::move(wedge));
 
     // The tick ladder: 32 divisions from the 5-bit field, two radialHatch
@@ -883,18 +926,21 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .foreground(lines::radialHatch(
                     Fill::color(vs::mul(vs::kBone, 1, 0.80f)), 4, 2.0f)));
     // The rim itself: a solid outer rule with a counter-dashed inner strand.
-    g.child(box()
-                .width(outerRx * 2)
-                .height(outerRy * 2)
-                .centerAt(at)
-                .key("rim")
-                .shape(shapes::circle())
-                .stroke(lines::Rails{
-                    .rails = {{.across = 0, .width = 1.4f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.62f))},
-                              {.across = -7.0f, .width = 1.0f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.30f)),
-                               .dash = {3.0f, 7.0f}}}}));
+    g.child(
+        box()
+            .width(outerRx * 2)
+            .height(outerRy * 2)
+            .centerAt(at)
+            .key("rim")
+            .shape(shapes::circle())
+            .stroke(lines::Rails{
+                .rails = {{.across = 0,
+                           .width = 1.4f,
+                           .fill = Fill::color(vs::mul(vs::kBone, 1, 0.62f))},
+                          {.across = -7.0f,
+                           .width = 1.0f,
+                           .fill = Fill::color(vs::mul(vs::kBone, 1, 0.30f)),
+                           .dash = {3.0f, 7.0f}}}}));
     return g;
   }
 
@@ -938,11 +984,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .key("ashley")
                     .shape([w, h](SkSize) { return figurePath(w, h, false); })
                     .fill(Fill::color(vs::hex(0x05070C, 1.0f)));
-    e.stroke(PathFormat{.width = 1.8f,
-                        .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.72f))});
-    e.foreground(lines::Hatch{
-        .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.13f)),
-        .spacing = 7.0f, .width = 1.0f, .angleDeg = 62.0f});
+    e.stroke(
+        PathFormat{.width = 1.8f,
+                   .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.72f))});
+    e.foreground(
+        lines::Hatch{.strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.13f)),
+                     .spacing = 7.0f,
+                     .width = 1.0f,
+                     .angleDeg = 62.0f});
     return e;
   }
 
@@ -956,7 +1005,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // One projected unit of sphere radius, in canvas px — every part scales
     // with the projection instead of carrying a hardcoded size.
     const float s = cam.f / cam.C.fZ * cam.R;
-    struct Part { float w, h; };
+    struct Part {
+      float w, h;
+    };
     static constexpr Part kPart[6] = {
         {0.115f, 0.140f},  // HEAD
         {0.200f, 0.300f},  // BODY
@@ -971,41 +1022,49 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const SkPoint torso = limbPoint(1, spin);
     SkPathBuilder bones;
     for (int i = 0; i < 6; ++i) {
-      if (i == 1)
-        continue;
+      if (i == 1) continue;
       const SkPoint p = limbPoint(i, spin);
       bones.moveTo(torso);
       bones.lineTo(p);
     }
     const SkPath bonePath = bones.detach();
     const SkRect bb = bonePath.getBounds().makeOutset(12, 12);
-    g.child(box()
-                .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
-                .key("bones")
-                .shape([bonePath, bb](SkSize) {
-                  return bonePath.makeTransform(
-                      SkMatrix::Translate(-bb.left(), -bb.top()));
-                })
-                .stroke(lines::Rails{
-                    .rails = {{.across = 0, .width = 9.0f,
-                               .fill = Fill::color(vs::hex(0x0A0F18, 1.0f))},
-                              {.across = 0, .width = 1.6f,
-                               .fill = Fill::color(
-                                   vs::mul(vs::kCyan, 1, 0.70f)),
-                               .dash = {7.0f, 4.0f}}}}));
+    g.child(
+        box()
+            .rect(
+                SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
+            .key("bones")
+            .shape([bonePath, bb](SkSize) {
+              return bonePath.makeTransform(
+                  SkMatrix::Translate(-bb.left(), -bb.top()));
+            })
+            .stroke(lines::Rails{
+                .rails = {{.across = 0,
+                           .width = 9.0f,
+                           .fill = Fill::color(vs::hex(0x0A0F18, 1.0f))},
+                          {.across = 0,
+                           .width = 1.6f,
+                           .fill = Fill::color(vs::mul(vs::kCyan, 1, 0.70f)),
+                           .dash = {7.0f, 4.0f}}}}));
 
     for (int i = 0; i < 6; ++i) {
       const SkPoint at = limbPoint(i, spin);
       const float w = s * kPart[i].w, h = s * kPart[i].h;
       shapes::OutlineFn shape;
       switch (i) {
-      case 0: shape = shapes::circle(); break;
-      case 1: shape = shapes::notched(w * 0.30f, h * 0.10f,
-                                      shapes::Corner::All); break;
-      case 2:
-      case 3: shape = shapes::chamfered(w * 0.44f, shapes::Corner::All); break;
-      default: shape = shapes::chamfered(w * 0.40f,
-                                         shapes::Corner::Diagonal); break;
+        case 0:
+          shape = shapes::circle();
+          break;
+        case 1:
+          shape = shapes::notched(w * 0.30f, h * 0.10f, shapes::Corner::All);
+          break;
+        case 2:
+        case 3:
+          shape = shapes::chamfered(w * 0.44f, shapes::Corner::All);
+          break;
+        default:
+          shape = shapes::chamfered(w * 0.40f, shapes::Corner::Diagonal);
+          break;
       }
       Element part = box()
                          .width(w)
@@ -1014,14 +1073,15 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                          .key(std::string("part") + std::to_string(i))
                          .shape(shape)
                          .fill(Fill::color(vs::hex(0x0A0F18, 0.94f)));
-      part.foreground(lines::Hatch{
-          .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.20f)),
-          .spacing = 5.0f, .width = 1.0f,
-          .angleDeg = (i == 2 || i == 4) ? 118.0f : 62.0f});
-      part.stroke(PathFormat{
-          .width = i == vs::kSelected ? 2.0f : 1.3f,
-          .strokeFill = Fill::color(vs::mul(
-              vs::kCyan, 1, i == vs::kSelected ? 0.95f : 0.62f))});
+      part.foreground(
+          lines::Hatch{.strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.20f)),
+                       .spacing = 5.0f,
+                       .width = 1.0f,
+                       .angleDeg = (i == 2 || i == 4) ? 118.0f : 62.0f});
+      part.stroke(
+          PathFormat{.width = i == vs::kSelected ? 2.0f : 1.3f,
+                     .strokeFill = Fill::color(vs::mul(
+                         vs::kCyan, 1, i == vs::kSelected ? 0.95f : 0.62f))});
       g.child(std::move(part));
     }
     return g;
@@ -1038,8 +1098,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         .width(13)
         .height(13)
         .shape(shapes::circle())
-        .stroke(PathFormat{.width = 1.6f,
-                           .strokeFill = Fill::color(vs::kCyan)});
+        .stroke(
+            PathFormat{.width = 1.6f, .strokeFill = Fill::color(vs::kCyan)});
   }
   Element dashTile() const {
     return box()
@@ -1051,9 +1111,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
           p.lineTo(s.width() * 0.62f, s.height() * 0.5f);
           return p.detach();
         })
-        .stroke(PathFormat{.width = 1.2f,
-                           .strokeFill =
-                               Fill::color(vs::mul(vs::kBone, 1, 0.78f))});
+        .stroke(PathFormat{
+            .width = 1.2f,
+            .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.78f))});
   }
   Element tickTile() const {
     return box()
@@ -1091,15 +1151,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       // the composer with bounds() — the cards are described once and laid
       // out by the tree, so this frame's geometry feeds the next frame's
       // route rather than a number copied from the card builder.
-      const SkRect &cb = cardBounds[(size_t)i];
+      const SkRect& cb = cardBounds[(size_t)i];
       // Land on whichever edge FACES the part — a panel to the left of its
       // limb takes the leader on its right side, and the shoulder runs the
       // other way. Nothing about a drafting leader is left-handed.
       const bool fromRight = (cb.isEmpty() ? card.fX : cb.centerX()) < from.fX;
-      const float landX = cb.isEmpty()
-                              ? card.fX + (fromRight ? 122.0f : -122.0f)
-                              : (fromRight ? cb.right() + 10.0f
-                                           : cb.left() - 10.0f);
+      const float landX =
+          cb.isEmpty() ? card.fX + (fromRight ? 122.0f : -122.0f)
+                       : (fromRight ? cb.right() + 10.0f : cb.left() - 10.0f);
       const float landY = cb.isEmpty() ? card.fY : cb.centerY();
       // The drafting leader proper: a short RADIAL stub off the part, a
       // straight run to the shoulder, then a level shoulder into the label.
@@ -1120,14 +1179,15 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       const SkPath path = pb.detach();
       const SkRect b = path.getBounds().makeOutset(30, 30);
 
-      Element e = box()
-                      .rect(SkRect::MakeXYWH(b.left(), b.top(), b.width(), b.height()))
-                      .key(std::string("leader") + std::to_string(i))
-                      .shape([path, b](SkSize) {
-                        return path.makeTransform(
-                            SkMatrix::Translate(-b.left(), -b.top()));
-                      })
-                      .stroke(leaderBrush);
+      Element e =
+          box()
+              .rect(SkRect::MakeXYWH(b.left(), b.top(), b.width(), b.height()))
+              .key(std::string("leader") + std::to_string(i))
+              .shape([path, b](SkSize) {
+                return path.makeTransform(
+                    SkMatrix::Translate(-b.left(), -b.top()));
+              })
+              .stroke(leaderBrush);
       g.child(std::move(e));
 
       // The part marker itself: an open ring, heavier and cyan on the
@@ -1145,10 +1205,10 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         // answer to "make this one louder without making it fatter".
         mark.stroke(lines::cased(2.0f, Fill::color(vs::kCyan), 6.0f));
       else
-        mark.stroke(PathFormat{
-            .width = 1.3f,
-            .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.70f)),
-            .dashIntervals = {5.0f, 4.0f}});
+        mark.stroke(
+            PathFormat{.width = 1.3f,
+                       .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.70f)),
+                       .dashIntervals = {5.0f, 4.0f}});
       if (sel)
         mark.opacity(bind(&select).map(&ch::easeInOutQuad).target(0.45f, 1.0f));
       g.child(std::move(mark));
@@ -1183,16 +1243,15 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     return st;
   }
 
-  Element label(const std::string &s, float px, SkColor4f col,
+  Element label(const std::string& s, float px, SkColor4f col,
                 float track = 0.0f) const {
-    const std::u8string u8(reinterpret_cast<const char8_t *>(s.c_str()));
+    const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
     return text(u8, style(px, col, 0.86f, track));
   }
 
-  Element labelAt(const std::string &s, float x, float y, float px,
+  Element labelAt(const std::string& s, float x, float y, float px,
                   SkColor4f col, float track = 0.0f) const {
-    return label(s, px, col, track)
-        .at({vs::snapX(x), vs::snapY(y)});
+    return label(s, px, col, track).at({vs::snapX(x), vs::snapY(y)});
   }
 
   // -------------------------------------------------------------------------
@@ -1201,7 +1260,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // selected card overlaps two neighbours and carries a doubled frame.
 
   Element card(int limb, int slot) const {
-    const vs::Limb &L = vs::kLimbs[limb];
+    const vs::Limb& L = vs::kLimbs[limb];
     const bool sel = limb == vs::kSelected;
     const float w = sel ? 268.0f : 236.0f;
     const float h = sel ? 128.0f : 104.0f;
@@ -1221,12 +1280,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // A Border, not a stroke pass: an INSET rule (6 px inside the silhouette)
     // has no spelling in the stroke vocabulary, which only draws on the
     // outline itself.
-    c.foreground(Border{
-        .width = 1.0f,
-        .fill = Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)),
-        .inset = 6.0f,
-        .mode = Border::Mode::Gapped,
-        .corner = 22.0f});
+    c.foreground(
+        Border{.width = 1.0f,
+               .fill = Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)),
+               .inset = 6.0f,
+               .mode = Border::Mode::Gapped,
+               .corner = 22.0f});
     c.stroke(spans::corners(sel ? 30.0f : 20.0f),
              brush::solid(sel ? 2.6f : 1.8f,
                           Fill::color(sel ? vs::kCyan : vs::kBone)));
@@ -1260,34 +1319,33 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .angleDeg = 45.0f})
                 .foreground(decorations::border(
                     1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.34f)))));
-    c.child(box()
-                .rect(SkRect::MakeXYWH(16, sel ? 48 : 40, vs::snapG(bw * frac), bh))
-                .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
-                .foreground(lines::Hatch{
-                    .strokeFill = Fill::color(sel ? vs::kCyan : vs::kBone),
-                    .spacing = 3.0f,
-                    .width = 1.2f,
-                    .angleDeg = 45.0f}));
+    c.child(
+        box()
+            .rect(SkRect::MakeXYWH(16, sel ? 48 : 40, vs::snapG(bw * frac), bh))
+            .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
+            .foreground(lines::Hatch{
+                .strokeFill = Fill::color(sel ? vs::kCyan : vs::kBone),
+                .spacing = 3.0f,
+                .width = 1.2f,
+                .angleDeg = 45.0f}));
     // Row 3: hp / maxHp and the armour piece, both struct fields.
     const std::string hpText = std::to_string(L.hp) + "/" +
-                               std::to_string(L.maxHp) + "  " +
-                               upper(L.armour);
+                               std::to_string(L.maxHp) + "  " + upper(L.armour);
     c.child(labelAt(hpText, 16, sel ? 70 : 60, 15.0f,
                     vs::mul(vs::kBone, 1, 0.78f), 0.6f));
     // Row 4: the condition tier (status.yaml's own five) and the chain-evasion
     // byte with the rate _getChainEvasionModifier derives from it.
-    c.child(labelAt(conditionOfStr(limb) + " \xC2\xB7 EVA " +
-                        std::to_string(vs::chainEvasionRate(limb)) +
-                        "% \xC2\xB7 BYTE " + std::to_string((int)L.chainEvasion),
-                    16, sel ? 96 : 80, 13.0f, vs::mul(vs::kBone, 1, 0.50f),
-                    0.6f));
+    c.child(
+        labelAt(conditionOfStr(limb) + " \xC2\xB7 EVA " +
+                    std::to_string(vs::chainEvasionRate(limb)) +
+                    "% \xC2\xB7 BYTE " + std::to_string((int)L.chainEvasion),
+                16, sel ? 96 : 80, 13.0f, vs::mul(vs::kBone, 1, 0.50f), 0.6f));
     return c;
   }
 
-  static std::string upper(const char *s) {
+  static std::string upper(const char* s) {
     std::string r(s);
-    for (char &ch : r)
-      ch = (char)std::toupper((unsigned char)ch);
+    for (char& ch : r) ch = (char)std::toupper((unsigned char)ch);
     return r;
   }
   static std::string conditionOfStr(int limb) {
@@ -1302,9 +1360,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const float w = sel ? 268.0f : 236.0f;
     const float h = sel ? 128.0f : 104.0f;
     const SkPoint at = cardAt[(size_t)slot];
-    const vs::PixFont *big = sel ? &fontL : &fontM;
-    const vs::PixFont *small = &fontS;
-    const ch::Output<float> *r = &risk;
+    const vs::PixFont* big = sel ? &fontL : &fontM;
+    const vs::PixFont* small = &fontS;
+    const ch::Output<float>* r = &risk;
     return box()
         .width(w)
         .height(h)
@@ -1312,20 +1370,20 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         .key(std::string("hit") + std::to_string(limb))
         .zIndex(sel ? 7 : 5)
         .cache(Cache::None)
-        .background(vs::prog([limb, sel, w, big, small, r](SkCanvas &c,
-                                                       const PaintContext &) {
-          const float rv = r->value();
-          const int p = vs::printedHit(limb, rv);
-          const int t = vs::trueHit(limb, rv);
-          const std::string ps = std::to_string(p) + "%";
-          const float pw = vs::widthOf(*big, ps, 1.0f);
-          vs::blit(c, *big, w - 16 - pw, sel ? 12.0f : 8.0f, ps,
-                   sel ? vs::kCyan : vs::kBone);
-          const std::string ts = "TRUE " + std::to_string(t) + "%";
-          const float tw = vs::widthOf(*small, ts, 1.0f);
-          vs::blit(c, *small, w - 16 - tw, sel ? 56.0f : 42.0f, ts,
-                   vs::mul(vs::kAmber, 1, 0.92f));
-        }));
+        .background(vs::prog(
+            [limb, sel, w, big, small, r](SkCanvas& c, const PaintContext&) {
+              const float rv = r->value();
+              const int p = vs::printedHit(limb, rv);
+              const int t = vs::trueHit(limb, rv);
+              const std::string ps = std::to_string(p) + "%";
+              const float pw = vs::widthOf(*big, ps, 1.0f);
+              vs::blit(c, *big, w - 16 - pw, sel ? 12.0f : 8.0f, ps,
+                       sel ? vs::kCyan : vs::kBone);
+              const std::string ts = "TRUE " + std::to_string(t) + "%";
+              const float tw = vs::widthOf(*small, ts, 1.0f);
+              vs::blit(c, *small, w - 16 - tw, sel ? 56.0f : 42.0f, ts,
+                       vs::mul(vs::kAmber, 1, 0.92f));
+            }));
   }
 
   // -------------------------------------------------------------------------
@@ -1349,27 +1407,30 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     g.child(panel(-70, 620, 512, 248, "gaugepanel", 22.0f,
                   vs::hex(0x0B0E15, 0.42f)));
 
-    auto bar = [&](float y, const char *name, float frac, SkColor4f col,
+    auto bar = [&](float y, const char* name, float frac, SkColor4f col,
                    float dens) {
       Element row = box().rect(SkRect::MakeXYWH(x0, vs::snapG(y), w, 34));
-      row.child(box()
-                    .rect(SkRect::MakeXYWH(66, 6, w - 84, 20))
-                    .shape(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
-                    .foreground(lines::Hatch{
-                        .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.13f)),
-                        .spacing = 6.0f,
-                        .width = 1.0f,
-                        .angleDeg = 45.0f})
-                    .foreground(decorations::border(
-                        1.2f, Fill::color(vs::mul(vs::kBone, 1, 0.40f)))));
-      row.child(box()
-                    .rect(SkRect::MakeXYWH(66, 6, vs::snapG((w - 84) * frac), 20))
-                    .shape(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
-                    .foreground(lines::Hatch{.strokeFill = Fill::color(col),
-                                             .spacing = dens,
-                                             .width = 1.3f,
-                                             .angleDeg = 45.0f}));
-      row.child(labelAt(name, 74, -14, 15.0f, vs::mul(vs::kBone, 1, 0.66f), 2.0f));
+      row.child(
+          box()
+              .rect(SkRect::MakeXYWH(66, 6, w - 84, 20))
+              .shape(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
+              .foreground(lines::Hatch{
+                  .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.13f)),
+                  .spacing = 6.0f,
+                  .width = 1.0f,
+                  .angleDeg = 45.0f})
+              .foreground(decorations::border(
+                  1.2f, Fill::color(vs::mul(vs::kBone, 1, 0.40f)))));
+      row.child(
+          box()
+              .rect(SkRect::MakeXYWH(66, 6, vs::snapG((w - 84) * frac), 20))
+              .shape(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
+              .foreground(lines::Hatch{.strokeFill = Fill::color(col),
+                                       .spacing = dens,
+                                       .width = 1.3f,
+                                       .angleDeg = 45.0f}));
+      row.child(
+          labelAt(name, 74, -14, 15.0f, vs::mul(vs::kBone, 1, 0.66f), 2.0f));
       return row;
     };
 
@@ -1398,9 +1459,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                                   .width = 1.3f,
                                   .angleDeg = 45.0f,
                                   .spacingBinding = &riskPitch});
-    track.stroke(lines::dottedCore(1.6f, 1.0f,
-                                   Fill::color(vs::mul(vs::kBone, 1, 0.55f)),
-                                   4.0f, 6.0f));
+    track.stroke(lines::dottedCore(
+        1.6f, 1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.55f)), 4.0f, 6.0f));
     g.child(std::move(track));
     g.child(labelAt("RISK", x0 + 74, ry - 26, 15.0f,
                     vs::mul(vs::kAmber, 1, 0.85f), 2.0f));
@@ -1416,33 +1476,34 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // The penalty legend: a SECOND shaping off the SAME Output — eased, then
     // remapped into opacity. Raising your own RISK costs you exactly risk% of
     // your accuracy, so this darkens as the number climbs.
-    g.child(labelAt("RISK COSTS RISK% ACCURACY \xE2\x80\x94 BOTH SIDES", x0 + 74,
-                    ry + 64, 13.0f,
-                    vs::kBlood, 1.0f)
+    g.child(labelAt("RISK COSTS RISK% ACCURACY \xE2\x80\x94 BOTH SIDES",
+                    x0 + 74, ry + 64, 13.0f, vs::kBlood, 1.0f)
                 .key("riskpenalty")
-                .opacity(bind(&risk).source(0, 100).map(&ch::easeInOutQuad)
+                .opacity(bind(&risk)
+                             .source(0, 100)
+                             .map(&ch::easeInOutQuad)
                              .target(0.20f, 1.0f)));
 
     // The live RISK / rate numbers.
-    const vs::PixFont *fm = &fontM;
-    const vs::PixFont *fs = &fontS;
-    const ch::Output<float> *r = &risk;
+    const vs::PixFont* fm = &fontM;
+    const vs::PixFont* fs = &fontS;
+    const ch::Output<float>* r = &risk;
     g.child(box()
                 .rect(SkRect::MakeXYWH(x0 + 66, ry - 34, w - 84, 32))
                 .key("risknum")
                 .cache(Cache::None)
-                .background(vs::prog([fm, fs, r, w](SkCanvas &c,
-                                                const PaintContext &) {
-                  const int rv = (int)std::lround(r->value());
-                  const std::string s = std::to_string(rv);
-                  const float sw = vs::widthOf(*fm, s, 1.0f);
-                  vs::blit(c, *fm, w - 84 - sw, 0, s, vs::kAmber);
-                  const std::string rate =
-                      "RATE " + std::to_string(vs::riskRate((float)rv));
-                  const float rw = vs::widthOf(*fs, rate, 1.0f);
-                  vs::blit(c, *fs, w - 84 - sw - rw - 14, 8, rate,
-                           vs::mul(vs::kBone, 1, 0.55f));
-                })));
+                .background(
+                    vs::prog([fm, fs, r, w](SkCanvas& c, const PaintContext&) {
+                      const int rv = (int)std::lround(r->value());
+                      const std::string s = std::to_string(rv);
+                      const float sw = vs::widthOf(*fm, s, 1.0f);
+                      vs::blit(c, *fm, w - 84 - sw, 0, s, vs::kAmber);
+                      const std::string rate =
+                          "RATE " + std::to_string(vs::riskRate((float)rv));
+                      const float rw = vs::widthOf(*fs, rate, 1.0f);
+                      vs::blit(c, *fs, w - 84 - sw - rw - 14, 8, rate,
+                               vs::mul(vs::kBone, 1, 0.55f));
+                    })));
     return g;
   }
 
@@ -1474,7 +1535,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .fill(Fill::color(vs::hex(0x7FD8E8, 0.05f)))
                 .overlay(lines::Hatch{
                     .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.30f)),
-                    .spacing = 5.0f, .width = 1.0f, .angleDeg = 45.0f})
+                    .spacing = 5.0f,
+                    .width = 1.0f,
+                    .angleDeg = 45.0f})
                 .stroke(PathFormat{
                     .width = 1.2f,
                     .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.75f))}));
@@ -1502,9 +1565,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .centerAt(at)
                 .key("dialrim")
                 .shape(shapes::circle())
-                .stroke(lines::cased(1.4f, Fill::color(vs::mul(vs::kBone, 1,
-                                                               0.55f)),
-                                     5.0f)));
+                .stroke(lines::cased(
+                    1.4f, Fill::color(vs::mul(vs::kBone, 1, 0.55f)), 5.0f)));
     // The four numbered divisions, radiating.
     static constexpr int kMark[4] = {0, 8, 16, 24};
     for (int i = 0; i < 4; ++i) {
@@ -1538,19 +1600,19 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const float x = 1024, y0 = 92;
     g.child(labelAt("DEFENCE / R.ARM", x, y0 - 34, 15.0f,
                     vs::mul(vs::kBone, 1, 0.70f), 1.6f));
-    g.child(box()
-                .rect(SkRect::MakeXYWH(x, vs::snapG(y0 - 12), 192, 2))
-                .key("defrule")
-                .shape([](SkSize s) {
-                  SkPathBuilder p;
-                  p.moveTo(0, 1);
-                  p.lineTo(s.width(), 1);
-                  return p.detach();
-                })
-                .stroke(lines::heavyHairHeavy(
-                    1.6f, 0.6f, Fill::color(vs::mul(vs::kBone, 1, 0.55f)),
-                    3.0f)));
-    const vs::Limb &L = vs::kLimbs[vs::kSelected];
+    g.child(
+        box()
+            .rect(SkRect::MakeXYWH(x, vs::snapG(y0 - 12), 192, 2))
+            .key("defrule")
+            .shape([](SkSize s) {
+              SkPathBuilder p;
+              p.moveTo(0, 1);
+              p.lineTo(s.width(), 1);
+              return p.detach();
+            })
+            .stroke(lines::heavyHairHeavy(
+                1.6f, 0.6f, Fill::color(vs::mul(vs::kBone, 1, 0.55f)), 3.0f)));
+    const vs::Limb& L = vs::kLimbs[vs::kSelected];
     for (int i = 0; i < 10; ++i) {
       const int v = vs::defenceValue(L, i);
       const float y = vs::snapG(y0 + (float)i * 23.0f);
@@ -1558,7 +1620,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       vs::mul(vs::kBone, 1, 0.62f), 0.8f));
       const float mag = std::clamp(std::abs((float)v) / 26.0f, 0.06f, 1.0f);
       g.child(box()
-                  .rect(SkRect::MakeXYWH(vs::snapG(x + 104), y + 2, vs::snapG(20 + 72 * mag), 12))
+                  .rect(SkRect::MakeXYWH(vs::snapG(x + 104), y + 2,
+                                         vs::snapG(20 + 72 * mag), 12))
                   .key(std::string("def") + std::to_string(i))
                   .shape(shapes::chamfered(4.0f, shapes::Corner::AntiDiagonal))
                   .foreground(lines::Hatch{
@@ -1579,11 +1642,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
    *  here is a chamfered plate, a rule that stops short of every corner, and
    *  four brackets — never a rounded rect, and never an opaque box: the sphere
    *  reads THROUGH it, which is the whole reason the game's HUD works. */
-  Element panel(float x, float y, float w, float h, const char *key,
-                float cut = 18.0f, SkColor4f tint = vs::hex(0x0B0E15, 0.62f))
-      const {
+  Element panel(float x, float y, float w, float h, const char* key,
+                float cut = 18.0f,
+                SkColor4f tint = vs::hex(0x0B0E15, 0.62f)) const {
     return box()
-        .rect(SkRect::MakeXYWH(vs::snapG(x), vs::snapG(y), vs::snapG(w), vs::snapG(h)))
+        .rect(SkRect::MakeXYWH(vs::snapG(x), vs::snapG(y), vs::snapG(w),
+                               vs::snapG(h)))
         .key(key)
         .shape(shapes::chamfered(cut, shapes::Corner::All))
         .fill(Fill::color(tint))
@@ -1603,61 +1667,65 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     g.child(panel(24, 20, 600, 200, "titlepanel", 26.0f));
     g.child(labelAt("BATTLE MODE \xE2\x80\x94 TARGET SELECT", 40, 30, 24.0f,
                     vs::kBone, 2.6f));
-    g.child(box()
-                .rect(SkRect::MakeXYWH(40, 66, 556, 3))
-                .key("titlerule")
-                .shape([](SkSize s) {
-                  SkPathBuilder p;
-                  p.moveTo(0, 1.5f);
-                  p.lineTo(s.width(), 1.5f);
-                  return p.detach();
-                })
-                .stroke(lines::Rails{
-                    .rails = {{.across = 0, .width = 2.0f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.85f))},
-                              {.across = -5.0f, .width = 0.8f,
-                               .fill = Fill::color(vs::mul(vs::kBone, 1, 0.35f)),
-                               .dash = {14.0f, 5.0f, 3.0f, 5.0f}}}}));
+    g.child(
+        box()
+            .rect(SkRect::MakeXYWH(40, 66, 556, 3))
+            .key("titlerule")
+            .shape([](SkSize s) {
+              SkPathBuilder p;
+              p.moveTo(0, 1.5f);
+              p.lineTo(s.width(), 1.5f);
+              return p.detach();
+            })
+            .stroke(lines::Rails{
+                .rails = {{.across = 0,
+                           .width = 2.0f,
+                           .fill = Fill::color(vs::mul(vs::kBone, 1, 0.85f))},
+                          {.across = -5.0f,
+                           .width = 0.8f,
+                           .fill = Fill::color(vs::mul(vs::kBone, 1, 0.35f)),
+                           .dash = {14.0f, 5.0f, 3.0f, 5.0f}}}}));
     const std::string cls = vs::kClassNames[vs::kEnemyClass];
     g.child(labelAt("DULLAHAN / CLASS " + cls + "  \xC2\xB7  ENEMYCLASS:3", 40,
                     78, 15.0f, vs::mul(vs::kBone, 1, 0.62f), 1.0f));
-    g.child(labelAt("REACH:5 = " + std::to_string(vs::kReach) +
-                        "   SHAPEANGLE:5 = " +
-                        std::to_string(vs::kAttackShapeAngle) + " x 11.25\xC2\xB0 = " +
-                        std::to_string((int)(vs::kAttackShapeAngle * 11.25f)) +
-                        "\xC2\xB0",
-                    40, 98, 15.0f, vs::mul(vs::kCyan, 1, 0.72f), 1.0f));
-    g.child(labelAt("WEAPON " + std::string(vs::kWeaponName) + " DRAWN", 40, 118,
-                    15.0f, vs::mul(vs::kBone, 1, 0.52f), 1.0f));
+    g.child(labelAt(
+        "REACH:5 = " + std::to_string(vs::kReach) + "   SHAPEANGLE:5 = " +
+            std::to_string(vs::kAttackShapeAngle) + " x 11.25\xC2\xB0 = " +
+            std::to_string((int)(vs::kAttackShapeAngle * 11.25f)) + "\xC2\xB0",
+        40, 98, 15.0f, vs::mul(vs::kCyan, 1, 0.72f), 1.0f));
+    g.child(labelAt("WEAPON " + std::string(vs::kWeaponName) + " DRAWN", 40,
+                    118, 15.0f, vs::mul(vs::kBone, 1, 0.52f), 1.0f));
 
     // The divergence, live: both numbers and the sentence that explains them.
-    const vs::PixFont *fs = &fontS;
-    const vs::PixFont *fm = &fontM;
-    const ch::Output<float> *r = &risk;
-    g.child(box()
-                .rect(SkRect::MakeXYWH(40, 142, 590, 74))
-                .key("divergence")
-                .cache(Cache::None)
-                .background(vs::prog([fs, fm, r](SkCanvas &c, const PaintContext &) {
-                  const float rv = r->value();
-                  const int p = vs::printedHit(vs::kSelected, rv);
-                  const int t = vs::trueHit(vs::kSelected, rv);
-                  float x = 0;
-                  x += vs::blit(c, *fs, x, 4, "R.ARM PRINTED ",
-                                vs::mul(vs::kBone, 1, 0.60f));
-                  x += vs::blit(c, *fm, x, 0, std::to_string(p) + "%",
-                                vs::kBone);
-                  x += 14;
-                  x += vs::blit(c, *fs, x, 4, "ROLLED AGAINST ",
-                                vs::mul(vs::kBone, 1, 0.60f));
-                  vs::blit(c, *fm, x, 0, std::to_string(t) + "%", vs::kAmber);
-                  vs::blit(c, *fs, 0, 26,
-                           "146C.c:7334  if (source->actorId == 0) threshold += 10;",
-                           vs::mul(vs::kAmber, 1, 0.72f));
-                  vs::blit(c, *fs, 0, 44,
-                           "THE +10 LANDS AFTER THE CLAMP TO 100. A PRINTED 100 IS A TRUE 110.",
-                           vs::mul(vs::kBone, 1, 0.45f));
-                })));
+    const vs::PixFont* fs = &fontS;
+    const vs::PixFont* fm = &fontM;
+    const ch::Output<float>* r = &risk;
+    g.child(
+        box()
+            .rect(SkRect::MakeXYWH(40, 142, 590, 74))
+            .key("divergence")
+            .cache(Cache::None)
+            .background(vs::prog([fs, fm, r](SkCanvas& c, const PaintContext&) {
+              const float rv = r->value();
+              const int p = vs::printedHit(vs::kSelected, rv);
+              const int t = vs::trueHit(vs::kSelected, rv);
+              float x = 0;
+              x += vs::blit(c, *fs, x, 4, "R.ARM PRINTED ",
+                            vs::mul(vs::kBone, 1, 0.60f));
+              x += vs::blit(c, *fm, x, 0, std::to_string(p) + "%", vs::kBone);
+              x += 14;
+              x += vs::blit(c, *fs, x, 4, "ROLLED AGAINST ",
+                            vs::mul(vs::kBone, 1, 0.60f));
+              vs::blit(c, *fm, x, 0, std::to_string(t) + "%", vs::kAmber);
+              vs::blit(
+                  c, *fs, 0, 26,
+                  "146C.c:7334  if (source->actorId == 0) threshold += 10;",
+                  vs::mul(vs::kAmber, 1, 0.72f));
+              vs::blit(c, *fs, 0, 44,
+                       "THE +10 LANDS AFTER THE CLAMP TO 100. A PRINTED 100 IS "
+                       "A TRUE 110.",
+                       vs::mul(vs::kBone, 1, 0.45f));
+            })));
     return g;
   }
 
@@ -1676,10 +1744,11 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         brush::solid(1.6f,
                                      Fill::color(vs::mul(vs::kBone, 1, 0.50f))))
                 .stroke(spans::edges(120.0f),
-                        brush::solid(1.0f,
-                                     Fill::color(vs::mul(vs::kBone, 1, 0.14f)))));
-    g.child(labelAt("PLATE II \xC2\xB7 320x240 POLY GRID / 512x240 TEXT GRID", 880,
-                    vs::kH - 60, 13.0f, vs::mul(vs::kBone, 1, 0.42f), 1.2f));
+                        brush::solid(
+                            1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.14f)))));
+    g.child(labelAt("PLATE II \xC2\xB7 320x240 POLY GRID / 512x240 TEXT GRID",
+                    880, vs::kH - 60, 13.0f, vs::mul(vs::kBone, 1, 0.42f),
+                    1.2f));
     g.child(labelAt("SER-POUNCE / ROOD-REVERSE \xC2\xB7 BATTLE.PRG 146C", 880,
                     vs::kH - 36, 13.0f, vs::mul(vs::kBone, 1, 0.30f), 1.2f));
 
@@ -1692,11 +1761,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       vs::mul(vs::kBone, 1, 0.55f), 1.0f));
       for (int i = 0; i < 14; ++i) {
         const bool lit = k == 0 ? (i < 5) : (i < 3);
-        g.child(box()
-                    .rect(SkRect::MakeXYWH(vs::snapG(ax + 116 + (float)i * 15.0f), vs::snapG(ay + (float)k * 30.0f - 20.0f), 9, lit ? 20.0f : 11.0f))
-                    .key(std::string("ab") + std::to_string(k * 14 + i))
-                    .fill(Fill::color(lit ? vs::mul(vs::kAmber, 1, 0.9f)
-                                          : vs::mul(vs::kBone, 1, 0.22f))));
+        g.child(
+            box()
+                .rect(SkRect::MakeXYWH(vs::snapG(ax + 116 + (float)i * 15.0f),
+                                       vs::snapG(ay + (float)k * 30.0f - 20.0f),
+                                       9, lit ? 20.0f : 11.0f))
+                .key(std::string("ab") + std::to_string(k * 14 + i))
+                .fill(Fill::color(lit ? vs::mul(vs::kAmber, 1, 0.9f)
+                                      : vs::mul(vs::kBone, 1, 0.22f))));
       }
     }
     return g;
@@ -1705,31 +1777,33 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // -------------------------------------------------------------------------
   // THE CHAIN PROMPT. A timing ring centred on the impact point, sweeping
   // 0 -> 360 deg over 400 ms: shapes::arc trimmed by a bound Output, over
-  // everything. The damage number pops beside it on shapers::Wave — the one place
-  // a displaced rule is allowed on this canvas.
+  // everything. The damage number pops beside it on shapers::Wave — the one
+  // place a displaced rule is allowed on this canvas.
 
   Element chainPrompt(float spin) const {
     const SkPoint impact = limbPoint(vs::kSelected, spin);
     const float r = 56;
     Element g = box().inset(0).key("chain").zIndex(11);
-    g.child(box()
-                .width(r * 2)
-                .height(r * 2)
-                .centerAt(impact)
-                .key("chainring")
-                .shape(shapes::arc(-90.0f, 359.9f))
-                .mask(by::spans(spans::upTo(bind(&chainSweep).clamp(0.0f, 1.0f))))
-                // A Brush with a per-LAYER shapers::Offset: the bright body on the
-                // route, a counter-dashed strand 6 px outside it. Two layers,
-                // one route, one value.
-                .stroke(Brush{}
-                            .layer(lines::Line{.width = 3.2f,
-                                             .fill = Fill::color(vs::kCyan)})
-                            .layer(lines::Line{.width = 1.0f,
-                                             .fill = Fill::color(vs::mul(
-                                                 vs::kCyan, 1, 0.45f)),
-                                             .dashIntervals = {2.0f, 6.0f}},
-                                 {kit::brush::shapers::Offset{.px = -6.0f, .step = 2.0f}})));
+    g.child(
+        box()
+            .width(r * 2)
+            .height(r * 2)
+            .centerAt(impact)
+            .key("chainring")
+            .shape(shapes::arc(-90.0f, 359.9f))
+            .mask(by::spans(spans::upTo(bind(&chainSweep).clamp(0.0f, 1.0f))))
+            // A Brush with a per-LAYER shapers::Offset: the bright body on the
+            // route, a counter-dashed strand 6 px outside it. Two layers,
+            // one route, one value.
+            .stroke(Brush{}
+                        .layer(lines::Line{.width = 3.2f,
+                                           .fill = Fill::color(vs::kCyan)})
+                        .layer(lines::Line{.width = 1.0f,
+                                           .fill = Fill::color(
+                                               vs::mul(vs::kCyan, 1, 0.45f)),
+                                           .dashIntervals = {2.0f, 6.0f}},
+                               {kit::brush::shapers::Offset{.px = -6.0f,
+                                                            .step = 2.0f}})));
     g.child(box()
                 .width(r * 2.5f)
                 .height(r * 2.5f)
@@ -1741,11 +1815,13 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     Fill::color(vs::mul(vs::kCyan, 1, 0.6f)), 16, 1.2f)));
     // The damage pop: the only shapers::Wave on this canvas.
     Brush wavy;
-    wavy.shaped(kit::brush::shapers::Wave{.amplitude = 2.6f, .wavelength = 26.0f});
+    wavy.shaped(
+        kit::brush::shapers::Wave{.amplitude = 2.6f, .wavelength = 26.0f});
     wavy.layer(lines::Line{.width = 1.6f,
-                         .fill = Fill::color(vs::mul(vs::kAmber, 1, 0.85f))});
+                           .fill = Fill::color(vs::mul(vs::kAmber, 1, 0.85f))});
     g.child(box()
-                .rect(SkRect::MakeXYWH(vs::snapG(impact.fX + 62), vs::snapG(impact.fY - 96), 150, 3))
+                .rect(SkRect::MakeXYWH(vs::snapG(impact.fX + 62),
+                                       vs::snapG(impact.fY - 96), 150, 3))
                 .key("popRule")
                 .shape([](SkSize s) {
                   SkPathBuilder p;
@@ -1756,11 +1832,11 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .stroke(std::move(wavy))
                 .translateY(bind(&damagePop).target(0.0f, -26.0f))
                 .opacity(bind(&damagePop).invert().clamp(0.0f, 1.0f)));
-    g.child(labelAt("74", impact.fX + 74, impact.fY - 132, 34.0f, vs::kAmber,
-                    2.0f)
-                .key("popNum")
-                .translateY(bind(&damagePop).target(0.0f, -26.0f))
-                .opacity(bind(&damagePop).invert().clamp(0.0f, 1.0f)));
+    g.child(
+        labelAt("74", impact.fX + 74, impact.fY - 132, 34.0f, vs::kAmber, 2.0f)
+            .key("popNum")
+            .translateY(bind(&damagePop).target(0.0f, -26.0f))
+            .opacity(bind(&damagePop).invert().clamp(0.0f, 1.0f)));
     return g;
   }
 
@@ -1768,9 +1844,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
   static sk_sp<SkTypeface> pickFace() {
     sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    if (!mgr)
-      return nullptr;
-    for (const char *n : {"Charter", "Palatino", "Times New Roman", "Georgia",
+    if (!mgr) return nullptr;
+    for (const char* n : {"Charter", "Palatino", "Times New Roman", "Georgia",
                           "Baskerville", "Helvetica"})
       if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
         return f;
@@ -1795,8 +1870,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 6; ++i) {
       const SkPoint p = limbPoint(i, 0);
       float dx = p.fX - torso.fX, dy = p.fY - torso.fY;
-      if (i == 1) {           // the torso's bearing about itself is undefined;
-        dx = 1.0f;            // it takes the beam, straight out to the right
+      if (i == 1) {  // the torso's bearing about itself is undefined;
+        dx = 1.0f;   // it takes the beam, straight out to the right
         dy = 0.0f;
       }
       bear[(size_t)i] = std::atan2(dy, dx);
@@ -1820,10 +1895,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     for (int k = 0; k < 6; ++k) {
       const float a = kFrom + (kTo - kFrom) * ((float)k / 5.0f);
       const int limb = order[(size_t)k];
-      cardAt[(size_t)limb] = {
-          vs::snapG(torso.fX + kRadius[k] * std::cos(a)),
-          vs::snapG(torso.fY + kRadius[k] * std::sin(a))};
-      slotOf[(size_t)limb] = limb;   // the panel IS the limb's; no slot table
+      cardAt[(size_t)limb] = {vs::snapG(torso.fX + kRadius[k] * std::cos(a)),
+                              vs::snapG(torso.fY + kRadius[k] * std::sin(a))};
+      slotOf[(size_t)limb] = limb;  // the panel IS the limb's; no slot table
     }
   }
 
@@ -1836,7 +1910,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(vs::kW, vs::kH);
     ctx.background(vs::kVoid);
     // The still is captured at beat phase 1.0 of the 6 s cycle below: ring
@@ -1878,16 +1952,17 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // ---- motion ----------------------------------------------------------
     ctx.ticker.add([this](double dt) {
       clock += dt;
-      psi = (float)(clock * 6.0 * 0.017453293);   // 6 deg/s
+      psi = (float)(clock * 6.0 * 0.017453293);  // 6 deg/s
       // RISK: spikes on every swing, then decays — slower with the weapon
       // drawn. One Output, three consumers (hatch density, needle, legend).
       const double beat = std::fmod(clock, 6.0);
-      risk = (float)std::clamp(24.0 + 62.0 * std::exp(-beat * 0.55), 0.0, 100.0);
+      risk =
+          (float)std::clamp(24.0 + 62.0 * std::exp(-beat * 0.55), 0.0, 100.0);
       // the gauge hatch's PITCH, not its value: 8.0 px at RISK 0 closing to
       // 2.4 at RISK 100. Hatch::spacingBinding reads a pitch straight, so the
       // mapping lives here rather than inside a bespoke decoration.
-      riskPitch = 8.0f + (2.4f - 8.0f) *
-                             std::clamp(risk.value() / 100.0f, 0.0f, 1.0f);
+      riskPitch =
+          8.0f + (2.4f - 8.0f) * std::clamp(risk.value() / 100.0f, 0.0f, 1.0f);
       // The chain prompt's 400 ms sweep, once per beat.
       chainSweep = (float)std::clamp(beat / 0.4, 0.0, 1.0);
       select = (float)(0.5 + 0.5 * std::sin(clock * 3.4));
@@ -1926,10 +2001,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     root.child(silhouette().zIndex(4));
 
     // 3. the cards, then their live readouts over them.
-    for (int i = 0; i < 6; ++i)
-      root.child(card(i, slotOf[(size_t)i]));
-    for (int i = 0; i < 6; ++i)
-      root.child(hitReadout(i, slotOf[(size_t)i]));
+    for (int i = 0; i < 6; ++i) root.child(card(i, slotOf[(size_t)i]));
+    for (int i = 0; i < 6; ++i) root.child(hitReadout(i, slotOf[(size_t)i]));
 
     // 4. chrome.
     root.child(gauges());
@@ -1942,7 +2015,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("world", worldGroup(psi));
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     (void)elapsed;
     // Read the cards' resolved rects off the composer and let THEM decide
     // where the leaders land. Within one frame information only flows forward

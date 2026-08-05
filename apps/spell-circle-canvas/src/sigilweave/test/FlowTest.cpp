@@ -4,15 +4,14 @@
  * rules and holes), and the runs-never-enter-shapes invariant.
  */
 
-#include "TestSupport.h"
-
 #include <gtest/gtest.h>
-
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
 #include <numbers>
 #include <vector>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -24,9 +23,9 @@ TEST(Flow, BlockFlowFillsRect) {
   ASSERT_TRUE(flow.lineIntervals(0, 20, 15, out));
   ASSERT_EQ(out.size(), 1u);
   EXPECT_FLOAT_EQ(out[0].origin.x(), 10);
-  EXPECT_FLOAT_EQ(out[0].origin.y(), 35); // top + ascent
+  EXPECT_FLOAT_EQ(out[0].origin.y(), 35);  // top + ascent
   EXPECT_FLOAT_EQ(out[0].length, 300);
-  ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out)); // last fitting line
+  ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out));  // last fitting line
   EXPECT_FALSE(flow.lineIntervals(5, 20, 15, out));
 }
 
@@ -37,7 +36,7 @@ TEST(Flow, ExclusionSplitsLineAroundCircle) {
 
   std::vector<LineInterval> out;
   // A band through the circle's center: two intervals around x∈[100, 300].
-  ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out)); // band y=[80,100]
+  ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out));  // band y=[80,100]
   ASSERT_EQ(out.size(), 2u);
   EXPECT_FLOAT_EQ(out[0].origin.x(), 0);
   EXPECT_LE(out[0].length, 150.0f);
@@ -54,7 +53,7 @@ TEST(Flow, ExclusionRectBlocksWholeBand) {
   flow.shapes().push_back(
       {ExclusionFlow::Shape::kRect, SkRect::MakeXYWH(0, 30, 300, 20), 0});
   std::vector<LineInterval> out;
-  ASSERT_TRUE(flow.lineIntervals(1, 25, 18, out)); // band [25,50] overlaps
+  ASSERT_TRUE(flow.lineIntervals(1, 25, 18, out));  // band [25,50] overlaps
   EXPECT_TRUE(out.empty());
 }
 namespace {
@@ -78,7 +77,7 @@ SkPath pentagramPath(SkPoint center, float radius, SkPathFillType fillType) {
   return builder.detach();
 }
 
-} // namespace
+}  // namespace
 
 TEST(Flow, PathExclusionRespectsFillRule) {
   // A pentagram's centre is winding-filled but even-odd-hollow; the band
@@ -119,7 +118,7 @@ TEST(Flow, CompoundPathKeepsHoleAvailable) {
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
   flow.shapes().push_back(ExclusionFlow::Shape::fromPath(builder.detach()));
   std::vector<LineInterval> out;
-  ASSERT_TRUE(flow.lineIntervals(14, 10, 8, out)); // band [140, 150]
+  ASSERT_TRUE(flow.lineIntervals(14, 10, 8, out));  // band [140, 150]
   ASSERT_EQ(out.size(), 3u);
   // Middle interval sits inside the hole (|x - 200| < 50 at this height).
   EXPECT_GT(out[1].origin.x(), 145.0f);
@@ -132,15 +131,15 @@ TEST(Flow, PathExclusionTipsBetweenScanlinesStillBlock) {
   // sample scanlines: the conservative edge-extent union must still block
   // the tip's x-range.
   SkPathBuilder builder;
-  builder.moveTo(100, 103); // tip at y=103, inside band [100, 110] but off
-  builder.lineTo(300, 96);  // the top/mid/bottom sample lines
+  builder.moveTo(100, 103);  // tip at y=103, inside band [100, 110] but off
+  builder.lineTo(300, 96);   // the top/mid/bottom sample lines
   builder.lineTo(300, 111);
   builder.close();
 
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
   flow.shapes().push_back(ExclusionFlow::Shape::fromPath(builder.detach()));
   std::vector<LineInterval> out;
-  ASSERT_TRUE(flow.lineIntervals(10, 10, 8, out)); // band [100, 110]
+  ASSERT_TRUE(flow.lineIntervals(10, 10, 8, out));  // band [100, 110]
   ASSERT_FALSE(out.empty());
   // Nothing may be placed across the tip: the first interval ends at or
   // before x=100.
@@ -177,7 +176,7 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
   // around a drifting donut and circle. Every placed run must stay inside
   // one of its line's intervals — text ending up *inside* a shape means
   // the breaker placed an overfull line into the gap beside it.
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"Typography is the craft of arranging type, and glyphs flow around "
       "obstacles the way water flows around stones. 日本語のテキストも同じ"
@@ -216,15 +215,14 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
       EXPECT_FALSE(layout.overflowed());
 
       std::vector<LineInterval> intervals;
-      for (const PositionedRun &run : layout.runs) {
-        if (!run.shaped)
-          continue;
+      for (const PositionedRun& run : layout.runs) {
+        if (!run.shaped) continue;
         ASSERT_TRUE(flow.lineIntervals(run.lineIndex, lineHeight, lineAscent,
                                        intervals));
         const float runStartX = run.origin.x();
         const float runEndX = runStartX + run.shaped->advance;
         bool inside = false;
-        for (const LineInterval &interval : intervals)
+        for (const LineInterval& interval : intervals)
           inside = inside ||
                    (runStartX >= interval.origin.x() - 0.75f &&
                     runEndX <= interval.origin.x() + interval.length + 0.75f);

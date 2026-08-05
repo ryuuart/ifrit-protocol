@@ -1,10 +1,10 @@
 #pragma once
 
-#include "SketchHost.h"
-
 #include <QtCore/QMutex>
 #include <QtCore/QTimer>
 #include <QtQuick/QQuickRhiItem>
+
+#include "SketchHost.h"
 
 /** The live canvas: a QQuickRhiItem in the same mold as ComposeGallery —
  *  frames render on the render thread, through the shared Skia Graphite
@@ -21,11 +21,11 @@ class ComposeSketchView : public QQuickRhiItem {
   Q_PROPERTY(QString state READ state NOTIFY stateChanged)
   Q_PROPERTY(QString metrics READ metrics NOTIFY metricsChanged)
 
-public:
-  explicit ComposeSketchView(QQuickItem *parent = nullptr);
+ public:
+  explicit ComposeSketchView(QQuickItem* parent = nullptr);
   ~ComposeSketchView() override;
 
-  QQuickRhiItemRenderer *createRenderer() override;
+  QQuickRhiItemRenderer* createRenderer() override;
 
   /** Requests a capture of the current frame; render-thread work, so the
    *  saved path (or "" on failure) arrives via captureReady(). Writes to
@@ -39,17 +39,17 @@ public:
   QString metrics() const { return m_metrics; }
 
   /** Wired up by main() before the QML scene loads. */
-  static sigil::compose::sketch::SketchHost *host;
+  static sigil::compose::sketch::SketchHost* host;
   /** The GUI thread polls/reloads while the render thread frames —
    *  every host access on either side takes this. */
   static QMutex hostMutex;
 
-signals:
+ signals:
   void stateChanged();
   void metricsChanged();
-  void captureReady(const QString &path);
+  void captureReady(const QString& path);
 
-private:
+ private:
   friend class ComposeSketchRenderer;
   QTimer m_timer;
   QString m_status;
@@ -57,5 +57,5 @@ private:
   QString m_state = "waiting";
   QString m_metrics;
   bool m_compiling = false;
-  int m_captureRequests = 0; // consumed by the renderer in synchronize()
+  int m_captureRequests = 0;  // consumed by the renderer in synchronize()
 };

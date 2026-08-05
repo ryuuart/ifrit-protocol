@@ -85,15 +85,13 @@
 //       --frame /tmp/kumiko_asanoha.png --at 4.2
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/LayerStyles.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilsketch/Sketch.h>
 
 #include <algorithm>
 #include <cmath>
@@ -120,10 +118,10 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
 // couple of stops under it and only the arris reaches the daylight value —
 // otherwise cream wood and cream light have no separation and the fretwork
 // stops silhouetting, which is the whole point of a ranma.
-const SkColor4f kHinoki = rgb(0xD6BC89);     // planed cypress, room-side
-const SkColor4f kHinokiLit = rgb(0xF5E6C4);  // #E9D3A0's daylight arris
-const SkColor4f kHinokiDark = rgb(0x8E6C3B); // notch shadow
-const SkColor4f kKeyaki = rgb(0x76472A);     // zelkova frame
+const SkColor4f kHinoki = rgb(0xD6BC89);      // planed cypress, room-side
+const SkColor4f kHinokiLit = rgb(0xF5E6C4);   // #E9D3A0's daylight arris
+const SkColor4f kHinokiDark = rgb(0x8E6C3B);  // notch shadow
+const SkColor4f kKeyaki = rgb(0x76472A);      // zelkova frame
 const SkColor4f kKeyakiLit = rgb(0x9C6B3E);
 const SkColor4f kKeyakiDark = rgb(0x4B2A12);
 const SkColor4f kGlow = rgb(0xF4E3B8);  // the far room's lamp
@@ -137,20 +135,21 @@ const SkColor4f kCaption = rgb(0xD8C9A8, 0.60f);
 
 constexpr float kW = 1400, kH = 1000;
 
-constexpr float kCell = 90.0f; // <<< THE PITCH. 60 → a 15×9 field, still legal.
+constexpr float kCell =
+    90.0f;  // <<< THE PITCH. 60 → a 15×9 field, still legal.
 constexpr float kFieldW = 900, kFieldH = 540;
 const int kCols = std::max(2, (int)std::lround(kFieldW / kCell));
 const int kRows = std::max(2, (int)std::lround(kFieldH / kCell));
 const float kCellW = kFieldW / (float)kCols;
 const float kCellH = kFieldH / (float)kRows;
 
-const SkRect kField = SkRect::MakeXYWH(700 - kFieldW / 2, 500 - kFieldH / 2,
-                                       kFieldW, kFieldH);
+const SkRect kField =
+    SkRect::MakeXYWH(700 - kFieldW / 2, 500 - kFieldH / 2, kFieldW, kFieldH);
 // The register band is exactly HALF the field pitch, so its plain cells come
 // out square (masu = "measuring box") and its members interleave with the
 // field's own jigumi at a clean 2:1.
-const float kBand = kCell * 0.5f; // plain masu register band
-constexpr float kBorder = 45;     // kumiko-buchi frame
+const float kBand = kCell * 0.5f;  // plain masu register band
+constexpr float kBorder = 45;      // kumiko-buchi frame
 const SkRect kRegOuter = kField.makeOutset(kBand, kBand);
 const SkRect kFrameOuter = kRegOuter.makeOutset(kBorder, kBorder);
 
@@ -228,8 +227,7 @@ sk_sp<SkRuntimeEffect> timberEffect() {
         return half4(half3(c.rgb), 1.0);
       }
     )"));
-    if (!effect)
-      SkDebugf("kumiko timber shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("kumiko timber shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
@@ -271,8 +269,7 @@ half4 main(float2 pos) {
   return half4(half3(v), 1.0);
 }
 )"));
-    if (!effect)
-      SkDebugf("kumiko tooth shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("kumiko tooth shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
@@ -280,12 +277,10 @@ half4 main(float2 pos) {
 
 Material toothMaterial(float freq, float seed, float amp, float stretch) {
   sk_sp<SkRuntimeEffect> fx = toothEffect();
-  if (!fx)
-    return Material::solid({0.5f, 0.5f, 0.5f, 1});
-  return Material::sksl(std::move(fx), {{"uFreq", freq},
-                                        {"uSeed", seed},
-                                        {"uAmp", amp},
-                                        {"uStretch", stretch}});
+  if (!fx) return Material::solid({0.5f, 0.5f, 0.5f, 1});
+  return Material::sksl(
+      std::move(fx),
+      {{"uFreq", freq}, {"uSeed", seed}, {"uAmp", amp}, {"uStretch", stretch}});
 }
 
 struct Timber {
@@ -306,19 +301,17 @@ const Timber kKeyakiShade{rgb(0x33200F), rgb(0x54341B), rgb(0x140C05), 0.045f,
 // values, so a panel of hundreds of boards compiles a bounded number of
 // shaders rather than one per board.
 class TimberBank {
-public:
-  Material get(const Timber &t, float span, bool flip, uint32_t seed,
+ public:
+  Material get(const Timber& t, float span, bool flip, uint32_t seed,
                bool swap = false) {
     const uint64_t key = (uint64_t)(t.grain * 10000) << 40 |
                          (uint64_t)std::lround(span * 4) << 13 |
                          (uint64_t)(flip ? 1 : 0) << 12 |
                          (uint64_t)(swap ? 1 : 0) << 11 | (seed % 24);
     auto it = m_bank.find(key);
-    if (it != m_bank.end())
-      return it->second;
+    if (it != m_bank.end()) return it->second;
     sk_sp<SkRuntimeEffect> fx = timberEffect();
-    if (!fx)
-      return Material::solid(t.base);
+    if (!fx) return Material::solid(t.base);
     Material m = Material::sksl(fx, {{"uSpan", span},
                                      {"uFlip", flip ? 1.0f : 0.0f},
                                      {"uSwap", swap ? 1.0f : 0.0f},
@@ -337,7 +330,7 @@ public:
     return blended;
   }
 
-private:
+ private:
   // Built ONCE — every call compiles its own runtime effect.
   Material m_tooth = toothMaterial(0.42f, 4.0f, 0.30f, 3.2f);
   std::map<uint64_t, Material> m_bank;
@@ -364,14 +357,14 @@ enum Role : uint8_t {
 
 struct Strip {
   SkPoint a{}, b{};
-  SkVector cutA{}, cutB{}; // cut-face directions (canvas space)
+  SkVector cutA{}, cutB{};  // cut-face directions (canvas space)
   float w = 10;
   Role role = kRoleJigumiV;
-  const Timber *timber = &kHinokiTimber;
+  const Timber* timber = &kHinokiTimber;
   uint32_t seed = 0;
   double delay = 0;
   double dur = 0.3;
-  bool litToCenter = false; // frame members catch light from the opening
+  bool litToCenter = false;  // frame members catch light from the opening
 };
 
 SkVector perp(SkVector v) { return {-v.y(), v.x()}; }
@@ -394,11 +387,11 @@ struct Panel {
     float w;
   };
   std::vector<Seam> seams;
-  std::vector<Strip> nubs; // terminations seating into the register groove
+  std::vector<Strip> nubs;  // terminations seating into the register groove
 
   uint32_t seedCounter = 1;
 
-  void push(SkPoint a, SkPoint b, float w, Role role, const Timber *t,
+  void push(SkPoint a, SkPoint b, float w, Role role, const Timber* t,
             double delay, double dur, SkVector cutA = {0, 0},
             SkVector cutB = {0, 0}, bool litToCenter = false) {
     Strip s;
@@ -427,7 +420,7 @@ struct Panel {
 
   // --- the mitred kumiko-buchi: four members, 45° corner cuts --------------
   void buildFrame() {
-    const SkRect &f = kFrameOuter;
+    const SkRect& f = kFrameOuter;
     const float h = kBorder * 0.5f;
     const SkVector dTL{0.7071f, 0.7071f}, dTR{-0.7071f, 0.7071f};
     // top, bottom, left, right — each mitred into the corner diagonals.
@@ -447,7 +440,7 @@ struct Panel {
   // member serves both), so this emits only the outer ring that seats into the
   // frame groove plus the half-pitch ties that square the band's cells up.
   void buildRegister() {
-    const SkRect &o = kRegOuter;
+    const SkRect& o = kRegOuter;
     const float h = kRegW * 0.5f;
     int n = 0;
     auto stagger = [&] { return kTReg + 0.008 * (double)(n++); };
@@ -483,7 +476,7 @@ struct Panel {
   // In real work a jigumi member is never a strip sliced mid-length: every
   // one runs groove to groove and carries a tenon head where it seats.
   void buildJigumi() {
-    const SkRect &o = kRegOuter;
+    const SkRect& o = kRegOuter;
     for (int i = 0; i <= kCols; ++i) {
       const float x = kField.left() + kCellW * (float)i;
       push({x, o.top()}, {x, o.bottom()}, kJigumiW, kRoleJigumiV,
@@ -519,16 +512,15 @@ struct Panel {
 
   // --- the ha: seven pieces per cell, incenter construction ---------------
   void buildLeaves() {
-    const float rIn = 0.2928932f;  // incircle radius / leg
-    const float rOut = 0.7071068f; // 1 − rIn
+    const float rIn = 0.2928932f;   // incircle radius / leg
+    const float rOut = 0.7071068f;  // 1 − rIn
     const float sin225 = 0.3826834f;
-    const float d = kJigumiW * 0.5f + 1.0f; // seat depth against a jigumi face
-    const float tShallow = d / sin225;      // 22.5°/67.5° arms
-    const float tBisect = d * 1.4142136f;   // 45° arms and the diagonal
-    const float over = kHaW * 0.55f;        // overlap at the incenter Y-joint
+    const float d = kJigumiW * 0.5f + 1.0f;  // seat depth against a jigumi face
+    const float tShallow = d / sin225;       // 22.5°/67.5° arms
+    const float tBisect = d * 1.4142136f;    // 45° arms and the diagonal
+    const float over = kHaW * 0.55f;         // overlap at the incenter Y-joint
 
-    const double span =
-        (double)std::max(1, kCols + kRows - 2);
+    const double span = (double)std::max(1, kCols + kRows - 2);
 
     for (int j = 0; j < kRows; ++j) {
       for (int i = 0; i < kCols; ++i) {
@@ -550,7 +542,8 @@ struct Panel {
         auto arm = [&](SkPoint from, SkPoint to, float tStart, SkVector cut,
                        Role role, double off) {
           const SkVector u = norm({to.x() - from.x(), to.y() - from.y()});
-          const SkPoint s0{from.x() + u.x() * tStart, from.y() + u.y() * tStart};
+          const SkPoint s0{from.x() + u.x() * tStart,
+                           from.y() + u.y() * tStart};
           const SkPoint s1{to.x() + u.x() * over, to.y() + u.y() * over};
           push(s0, s1, kHaW, role, &kHinokiTimber, base + off, kDLeaf, cut,
                {0, 0});
@@ -581,32 +574,37 @@ struct Panel {
   // as the pair of hairlines where the upper piece's edges cross the lower.
   static int rank(Role r) {
     switch (r) {
-    case kRoleDiagonal: return 1;
-    case kRoleFiller: return 2;
-    case kRoleLock: return 3;
-    case kRoleJigumiH: return 4;
-    case kRoleJigumiV: return 5;
-    case kRoleRegister: return 6;
-    default: return 0;
+      case kRoleDiagonal:
+        return 1;
+      case kRoleFiller:
+        return 2;
+      case kRoleLock:
+        return 3;
+      case kRoleJigumiH:
+        return 4;
+      case kRoleJigumiV:
+        return 5;
+      case kRoleRegister:
+        return 6;
+      default:
+        return 0;
     }
   }
 
   void buildSeams() {
     std::vector<size_t> lat;
     for (size_t i = 0; i < strips.size(); ++i)
-      if (rank(strips[i].role) >= 4)
-        lat.push_back(i);
+      if (rank(strips[i].role) >= 4) lat.push_back(i);
 
     for (size_t a = 0; a < lat.size(); ++a) {
       for (size_t b = a + 1; b < lat.size(); ++b) {
         const Strip &s1 = strips[lat[a]], &s2 = strips[lat[b]];
         if (rank(s1.role) == rank(s2.role))
-          continue; // same notch layer: they butt, they don't lap
+          continue;  // same notch layer: they butt, they don't lap
         const SkVector d1{s1.b.x() - s1.a.x(), s1.b.y() - s1.a.y()};
         const SkVector d2{s2.b.x() - s2.a.x(), s2.b.y() - s2.a.y()};
         const float det = d1.x() * d2.y() - d1.y() * d2.x();
-        if (std::abs(det) < 1e-3f)
-          continue;
+        if (std::abs(det) < 1e-3f) continue;
         const float rx = s2.a.x() - s1.a.x(), ry = s2.a.y() - s1.a.y();
         const float t = (rx * d2.y() - ry * d2.x()) / det;
         const float u = (rx * d1.y() - ry * d1.x()) / det;
@@ -614,10 +612,10 @@ struct Panel {
         const float m1 = 2.5f / std::max(l1, 1.0f);
         const float m2 = 2.5f / std::max(l2, 1.0f);
         if (t < m1 || t > 1 - m1 || u < m2 || u > 1 - m2)
-          continue; // an endpoint meeting is a butt joint, not a half-lap
+          continue;  // an endpoint meeting is a butt joint, not a half-lap
         const bool oneOnTop = rank(s1.role) > rank(s2.role);
-        const Strip &up = oneOnTop ? s1 : s2;
-        const Strip &lo = oneOnTop ? s2 : s1;
+        const Strip& up = oneOnTop ? s1 : s2;
+        const Strip& lo = oneOnTop ? s2 : s1;
         const SkVector uu = norm(oneOnTop ? d1 : d2);
         const SkVector ul = norm(oneOnTop ? d2 : d1);
         const float sinT = std::abs(uu.x() * ul.y() - uu.y() * ul.x());
@@ -637,9 +635,9 @@ struct Panel {
 // fill; the arris becomes a counter-rotated BevelEmboss so the light stays
 // world-fixed across ~700 differently-angled boards.
 
-Element stripElement(const Strip &s, TimberBank &bank,
-                     const choreograph::Output<float> *fade,
-                     const choreograph::Output<float> *pop) {
+Element stripElement(const Strip& s, TimberBank& bank,
+                     const choreograph::Output<float>* fade,
+                     const choreograph::Output<float>* pop) {
   const SkVector d{s.b.x() - s.a.x(), s.b.y() - s.a.y()};
   const float len = d.length();
   const float ang = std::atan2(d.y(), d.x());
@@ -647,8 +645,7 @@ Element stripElement(const Strip &s, TimberBank &bank,
   auto shear = [&](SkVector c) {
     const float cx = c.x() * cs - c.y() * sn;
     const float cy = c.x() * sn + c.y() * cs;
-    if (std::abs(cy) < 0.02f)
-      return 0.0f;
+    if (std::abs(cy) < 0.02f) return 0.0f;
     return (s.w * 0.5f) * (cx / cy);
   };
   const float kA = shear(s.cutA);
@@ -668,11 +665,11 @@ Element stripElement(const Strip &s, TimberBank &bank,
   // Which long edge catches the light? Lattice pieces take one raking source
   // from the upper left; frame members take the light of the opening.
   const SkVector u = norm(d);
-  const SkVector outward{u.y(), -u.x()}; // outward normal of the y=0 edge
+  const SkVector outward{u.y(), -u.x()};  // outward normal of the y=0 edge
   bool lit;
   if (s.litToCenter) {
-    const SkVector toCenter =
-        norm({700 - (s.a.x() + s.b.x()) * 0.5f, 500 - (s.a.y() + s.b.y()) * 0.5f});
+    const SkVector toCenter = norm(
+        {700 - (s.a.x() + s.b.x()) * 0.5f, 500 - (s.a.y() + s.b.y()) * 0.5f});
     lit = outward.x() * toCenter.x() + outward.y() * toCenter.y() > 0;
   } else {
     lit = outward.x() * -0.45f + outward.y() * -0.89f > 0;
@@ -688,27 +685,27 @@ Element stripElement(const Strip &s, TimberBank &bank,
   const float bevelSize = heavy ? s.w * 0.14f : 1.0f;
   const float bevelAlpha = heavy ? 0.42f : 0.26f;
 
-  Element e = box()
-                  .left((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f)
-                  .top((s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f)
-                  .width(boxW)
-                  .height(s.w)
-                  .rotate(angDeg)
-                  .shape([shape](SkSize) { return shape; })
-                  .fill(bank.get(*s.timber, s.w, !lit, s.seed))
-                  // The arris: light angle counter-rotated into the piece's
-                  // own frame so one raking source lights every board.
-                  .foreground(styles::BevelEmboss{
-                      bevelDepth, bevelSize, 120.0f + angDeg,
-                      {1, 0.96f, 0.86f, bevelAlpha},
-                      {0.14f, 0.09f, 0.03f, bevelAlpha}})
-                  // The seam every abutting piece shows against its neighbour.
-                  .stroke(util::stroke(0.6f, Fill::color(kSeam),
-                                       PathFormat::Align::Inner));
-  if (fade)
-    e.opacity(fade);
-  if (pop)
-    e.scale(pop);
+  Element e =
+      box()
+          .left((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f)
+          .top((s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f)
+          .width(boxW)
+          .height(s.w)
+          .rotate(angDeg)
+          .shape([shape](SkSize) { return shape; })
+          .fill(bank.get(*s.timber, s.w, !lit, s.seed))
+          // The arris: light angle counter-rotated into the piece's
+          // own frame so one raking source lights every board.
+          .foreground(styles::BevelEmboss{bevelDepth,
+                                          bevelSize,
+                                          120.0f + angDeg,
+                                          {1, 0.96f, 0.86f, bevelAlpha},
+                                          {0.14f, 0.09f, 0.03f, bevelAlpha}})
+          // The seam every abutting piece shows against its neighbour.
+          .stroke(
+              util::stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner));
+  if (fade) e.opacity(fade);
+  if (pop) e.scale(pop);
   return e;
 }
 
@@ -723,7 +720,7 @@ sigil::weave::TextStyle type(float size, SkColor4f color, float tracking) {
   return s;
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -737,7 +734,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   // --- the lattice, in paint order: ha under jigumi (a butt joint reads as
   // the ha stopping at the jigumi's face), jigumi under the register.
   Element lattice() {
-    auto add = [&](Element &into, Role role) {
+    auto add = [&](Element& into, Role role) {
       for (size_t i = 0; i < panel.strips.size(); ++i)
         if (panel.strips[i].role == role)
           into.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
@@ -796,11 +793,11 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   Element joinery() {
     auto seams = panel.seams;
     auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
-    group.child(custom([seams](SkCanvas &c, const PaintContext &) {
+    group.child(custom([seams](SkCanvas& c, const PaintContext&) {
                   SkPaint p;
                   p.setAntiAlias(true);
                   p.setStyle(SkPaint::kStroke_Style);
-                  for (const Panel::Seam &s : seams) {
+                  for (const Panel::Seam& s : seams) {
                     const SkVector n = perp(s.along);
                     for (int side = -1; side <= 1; side += 2) {
                       const float o = (float)side * s.w * 0.5f;
@@ -821,15 +818,14 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
                                  p);
                     }
                   }
-                })
-                    .inset(0, 0, 0, 0));
-    for (const Strip &n : panel.nubs)
+                }).inset(0, 0, 0, 0));
+    for (const Strip& n : panel.nubs)
       group.child(stripElement(n, bank, nullptr, nullptr));
     return group;
   }
 
   Element backlight() {
-    const SkRect &open = kRegOuter; // the frame's opening
+    const SkRect& open = kRegOuter;  // the frame's opening
     return box()
         .left(open.left())
         .top(open.top())
@@ -842,14 +838,16 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // sized to the opening's diagonal, not to its half-width: a 520 px
         // stop leaves the field's corner cells black at this canvas size,
         // and 585 keeps the outermost cells legible.
-        .child(box().inset(0, 0, 0, 0).fill(Material::radial(
-            {open.width() * 0.5f, open.height() * 0.5f}, 585,
-            {{0.00f, rgb(0xFDEDC4, 0.95f)},
-             {0.24f, rgb(0xF0DCA6, 0.91f)},
-             {0.48f, rgb(0xCE9E5C, 0.68f)},
-             {0.70f, rgb(0x88532A, 0.34f)},
-             {0.87f, rgb(0x2E1C0C, 0.11f)},
-             {1.00f, rgb(0x0D0906, 0.00f)}})));
+        .child(box()
+                   .inset(0, 0, 0, 0)
+                   .fill(Material::radial(
+                       {open.width() * 0.5f, open.height() * 0.5f}, 585,
+                       {{0.00f, rgb(0xFDEDC4, 0.95f)},
+                        {0.24f, rgb(0xF0DCA6, 0.91f)},
+                        {0.48f, rgb(0xCE9E5C, 0.68f)},
+                        {0.70f, rgb(0x88532A, 0.34f)},
+                        {0.87f, rgb(0x2E1C0C, 0.11f)},
+                        {1.00f, rgb(0x0D0906, 0.00f)}})));
   }
 
   Element beam(float y, float h, bool top) {
@@ -859,9 +857,11 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .width(kW)
         .height(h)
         .fill(bank.get(kKeyakiShade, h, !top, 7))
-        .foreground(styles::InnerShadow{{0, 0, 0, 0.65f}, {0, top ? 8.f : -8.f},
-                                        18})
-        .foreground(styles::BevelEmboss{2.5f, 4, top ? 300.0f : 120.0f,
+        .foreground(
+            styles::InnerShadow{{0, 0, 0, 0.65f}, {0, top ? 8.f : -8.f}, 18})
+        .foreground(styles::BevelEmboss{2.5f,
+                                        4,
+                                        top ? 300.0f : 120.0f,
                                         {1, 0.88f, 0.68f, 0.16f},
                                         {0, 0, 0, 0.60f}});
   }
@@ -873,12 +873,11 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .width(w)
         .height(kH - 236)
         .fill(bank.get(kKeyakiShade, w, x > 700, 3, /*swap=*/true))
-        .foreground(
-            styles::InnerShadow{{0, 0, 0, 0.60f}, {x > 700 ? -7.f : 7.f, 0},
-                                16});
+        .foreground(styles::InnerShadow{
+            {0, 0, 0, 0.60f}, {x > 700 ? -7.f : 7.f, 0}, 16});
   }
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
     const SkRect mid = kRegOuter.makeOutset(1.5f, 1.5f);
     return stack()
@@ -889,20 +888,20 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // Backlight bleed: the lamp's halo added OVER the
         // fretwork, so the light visibly wraps the pieces it is behind
         // instead of stopping dead at their silhouettes.
-        .child(box()
-                   .left(kRegOuter.left())
-                   .top(kRegOuter.top())
-                   .width(kRegOuter.width())
-                   .height(kRegOuter.height())
-                   .clip(true)
-                   .opacity(&glow)
-                   .blend(SkBlendMode::kPlus)
-                   .fill(Material::radial(
-                       {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f},
-                       360,
-                       {{0.00f, rgb(0xFFF2D2, 0.13f)},
-                        {0.45f, rgb(0xE6BC7C, 0.07f)},
-                        {1.00f, rgb(0x000000, 0.00f)}})))
+        .child(
+            box()
+                .left(kRegOuter.left())
+                .top(kRegOuter.top())
+                .width(kRegOuter.width())
+                .height(kRegOuter.height())
+                .clip(true)
+                .opacity(&glow)
+                .blend(SkBlendMode::kPlus)
+                .fill(Material::radial(
+                    {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
+                    {{0.00f, rgb(0xFFF2D2, 0.13f)},
+                     {0.45f, rgb(0xE6BC7C, 0.07f)},
+                     {1.00f, rgb(0x000000, 0.00f)}})))
         .child(frame())
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal, the first beat of the assembly.
@@ -911,28 +910,33 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
                    .top(mid.top())
                    .width(mid.width())
                    .height(mid.height())
-                   .stroke(spans::upTo(&frameTrim), PathFormat{.width = 2.2f,
-                                      .strokeFill =
-                                          Fill::color(rgb(0xC79A57, 0.60f)),
-                                      .align = PathFormat::Align::Center}))
+                   .stroke(spans::upTo(&frameTrim),
+                           PathFormat{
+                               .width = 2.2f,
+                               .strokeFill = Fill::color(rgb(0xC79A57, 0.60f)),
+                               .align = PathFormat::Align::Center}))
         .child(post(0, 146))
         .child(post(kW - 146, 146))
         .child(beam(0, 122, true))
         .child(beam(kH - 122, 122, false))
         .child(text(toU8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
-                         "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97""400mm TYPE"),
+                         "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
+                         "400mm TYPE"),
                     type(12, kCaption, 1.1f))
                    .left(950)
                    .top(916)
                    .width(300)
                    .textAlign(sigil::weave::TextAlignment::kEnd))
         // A faint vertical vignette — the near-side room, in shadow.
-        .child(box().inset(0, 0, 0, 0).fill(util::radialGradient(
-            {700, 500}, 920, {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
-            {0.30f, 0.72f, 1.0f})));
+        .child(box()
+                   .inset(0, 0, 0, 0)
+                   .fill(util::radialGradient(
+                       {700, 500}, 920,
+                       {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
+                       {0.30f, 0.72f, 1.0f})));
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
     // This sketch brings its own canvas size and unlit background rather
@@ -957,7 +961,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
       t += dt;
       const double now = std::fmod(t, kPeriod);
       for (size_t i = 0; i < panel.strips.size(); ++i) {
-        const Strip &s = panel.strips[i];
+        const Strip& s = panel.strips[i];
         const float raw = clamp01((now - s.delay) / s.dur);
         fade[i] = std::min(1.0f, easeOutCubic(raw) * 1.35f);
         pop[i] = 0.55f + 0.45f * easeOutBack(raw);
@@ -971,7 +975,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(KumikoAsanoha)

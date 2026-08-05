@@ -3,12 +3,12 @@
  * versus greedy, and CJK justification.
  */
 
-#include "TestSupport.h"
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <vector>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -19,12 +19,11 @@ namespace {
 
 // Sum of squared leftover space across all full lines — the raggedness
 // measure Knuth-Plass style breaking should not lose to greedy on.
-float raggedness(const Paragraph &paragraph, const ParagraphLayout &layout,
+float raggedness(const Paragraph& paragraph, const ParagraphLayout& layout,
                  float measure) {
-  if (layout.lineCount <= 1)
-    return 0;
+  if (layout.lineCount <= 1) return 0;
   std::vector<float> lineEnds(static_cast<size_t>(layout.lineCount), 0.0f);
-  for (const PositionedRun &run : layout.runs)
+  for (const PositionedRun& run : layout.runs)
     lineEnds[static_cast<size_t>(run.lineIndex)] = std::max(
         lineEnds[static_cast<size_t>(run.lineIndex)], runEnd(paragraph, run));
   float total = 0;
@@ -35,10 +34,10 @@ float raggedness(const Paragraph &paragraph, const ParagraphLayout &layout,
   return total;
 }
 
-} // namespace
+}  // namespace
 
 TEST(KnuthPlass, ProducesValidLines) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"In olden times when wishing still helped one, there lived a king "
       "whose daughters were all beautiful; and the youngest was so beautiful "
@@ -57,14 +56,13 @@ TEST(KnuthPlass, ProducesValidLines) {
   // for both breakers; this test owns the ordering/validity assertions.
   // Words appear in order (logical == visual for pure-LTR text).
   std::vector<uint32_t> seen;
-  for (const PositionedRun &run : layout.runs)
-    seen.push_back(run.wordIndex);
+  for (const PositionedRun& run : layout.runs) seen.push_back(run.wordIndex);
   EXPECT_TRUE(std::is_sorted(seen.begin(), seen.end()));
 }
 
 TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
-  FontContext &fontContext = sharedContext();
-  const char8_t *tale =
+  FontContext& fontContext = sharedContext();
+  const char8_t* tale =
       u8"It was the best of times, it was the worst of times, it was the age "
       "of wisdom, it was the age of foolishness, it was the epoch of belief, "
       "it was the epoch of incredulity, it was the season of Light, it was "
@@ -75,7 +73,7 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
   Paragraph paragraph = makeParagraph(tale);
   BlockFlow greedyFlow(SkRect::MakeWH(measure, 2000));
   ParagraphLayout greedyLayout =
-      layoutParagraph(fontContext, paragraph, greedyFlow); // ragged-right
+      layoutParagraph(fontContext, paragraph, greedyFlow);  // ragged-right
 
   BlockFlow knuthPlassFlow(SkRect::MakeWH(measure, 2000));
   ParagraphLayoutOptions knuthPlassOptions;
@@ -89,7 +87,7 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
 }
 
 TEST(KnuthPlass, JustifiedCjkParagraph) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
       "何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している"
@@ -103,6 +101,6 @@ TEST(KnuthPlass, JustifiedCjkParagraph) {
 
   EXPECT_FALSE(layout.overflowed());
   EXPECT_GT(layout.lineCount, 2);
-  for (const PositionedRun &run : layout.runs)
+  for (const PositionedRun& run : layout.runs)
     EXPECT_LE(runEnd(paragraph, run), 280.0f + 3.0f);
 }

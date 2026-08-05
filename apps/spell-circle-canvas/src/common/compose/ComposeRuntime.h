@@ -6,13 +6,13 @@
 // slice of the Impl/Instance method set. Element DESCRIPTIONS live in
 // ComposeInternal.h; this is the resolved, mutable, per-frame side.
 
-#include "ComposeInternal.h"
-
 #include <yoga/Yoga.h>
+
+#include "ComposeInternal.h"
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
 // types must be complete here (not merely forward-declared).
-#include <include/core/SkCanvas.h> // NodeTransform::concatTo's elementary ops
+#include <include/core/SkCanvas.h>  // NodeTransform::concatTo's elementary ops
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
@@ -22,8 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
-
-#include <iterator> // std::size, for the kSlotSpecs asserts
+#include <iterator>  // std::size, for the kSlotSpecs asserts
 #include <memory>
 #include <optional>
 #include <string>
@@ -43,13 +42,13 @@ struct AnimatedFloat {
 };
 
 struct Instance {
-  Composer::Impl *owner = nullptr;
-  Instance *parent = nullptr;
+  Composer::Impl* owner = nullptr;
+  Instance* parent = nullptr;
   std::shared_ptr<ElementNode> desc;       // resolved (post-memo) description
   std::shared_ptr<ElementNode> memoShell;  // the memo element, if any
   YGNodeRef yoga = nullptr;
   std::vector<std::unique_ptr<Instance>> children;
-  std::vector<size_t> paintOrder; // child indices sorted by zIndex
+  std::vector<size_t> paintOrder;  // child indices sorted by zIndex
 
   // Text state
   std::optional<sigil::weave::Paragraph> paragraph;
@@ -57,8 +56,8 @@ struct Instance {
   std::vector<sigil::weave::LineMetrics> lines;
   float measuredForWidth = -1.0f;
   YGSize measuredSize{0, 0};
-  uint32_t contentRev = 0;    // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u; // rev the cached measurement belongs to
+  uint32_t contentRev = 0;     // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
   // VariationDrive probe result for the CURRENT text content:
   // -1 unprobed, 0 refused (axis absent or advance-variant), 1 live.
   int8_t driveProbe = -1;
@@ -72,21 +71,30 @@ struct Instance {
   // ADDING A SLOT HERE IS A BUILD FAILURE until it also gets a row in
   // kSlotSpecs below, the one table every consumer of this enum walks.
   enum Slot : int {
-    kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kGlyphProgress, kSkewX, kSkewY, kScaleX, kScaleY, kMotionT,
+    kOpacity,
+    kTx,
+    kTy,
+    kRotate,
+    kScale,
+    kFillLerp,
+    kGlyphProgress,
+    kSkewX,
+    kSkewY,
+    kScaleX,
+    kScaleY,
+    kMotionT,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo; // endpoints for kFillLerp
+  Fill fillFrom, fillTo;  // endpoints for kFillLerp
 
   // Derive-phase state
-  std::vector<SkRect> exclusionsLocal; // flowAround rects, text-local
-  SkPath connectorPath;                // routed path (connector OR rail), local
-  SkRect connectorFrom = SkRect::MakeEmpty(),
-         connectorTo = SkRect::MakeEmpty();
-  std::vector<SkPoint> railPoints;     // last resolved rail waypoints
-  SkPath routedHitPath;                // stroke-expanded route (hit testing)
-  SkPath bandSpine;                    // band(around(key)): borrowed spine
+  std::vector<SkRect> exclusionsLocal;  // flowAround rects, text-local
+  SkPath connectorPath;  // routed path (connector OR rail), local
+  SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
+  std::vector<SkPoint> railPoints;  // last resolved rail waypoints
+  SkPath routedHitPath;             // stroke-expanded route (hit testing)
+  SkPath bandSpine;                 // band(around(key)): borrowed spine
   // spans::fit(key): the keyed boxes, in this node's local space, in the
   // order the element declared them.
   std::vector<std::pair<std::string, SkRect>> spanFitRects;
@@ -113,7 +121,7 @@ struct Instance {
   sk_sp<SkPicture> picture;
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
-  SkRect textureBakeRect = SkRect::MakeEmpty(); // bake covers paint bounds
+  SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds
   // Which SPACE the held bake lives in, and therefore how it must be
   // blitted: a device-space bake is snapped to whole device pixels and
   // drawn with the matrix reset (a literal copy, at any angle); a local
@@ -155,7 +163,7 @@ struct Instance {
   // pay.
   SkIRect lastDeviceRect = SkIRect::MakeEmpty();
   bool deviceRectSeen = false;
-  float bakedLeafOpacity = 1.0f;               // frozen into the recording
+  float bakedLeafOpacity = 1.0f;  // frozen into the recording
   SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
   bool subtreeVolatile = false;
@@ -223,7 +231,7 @@ struct Instance {
      *  Instance::resolvePatternOffset(), so the guard cannot drift between
      *  the volatility walk, the released scan and the paint probe. */
     std::array<float, 2> pattern{};
-    bool operator==(const ContentScalars &) const = default;
+    bool operator==(const ContentScalars&) const = default;
   };
   ContentScalars bakedScalars;
   // The observed-stability RELEASE, and what scalarMemo alone cannot do.
@@ -261,7 +269,7 @@ struct Instance {
   // by paint()'s saveLayer OUTSIDE the bake, exactly as they would be
   // applied outside the live paint.
   bool groupRootOK = false;
-  bool groupWarned = false; // the refusal is printed once per instance
+  bool groupWarned = false;  // the refusal is printed once per instance
   // The subtree's animated scalars as of the PREVIOUS frame, in tree order.
   // Compared by value rather than hashed. A hash collision here would not
   // show up as a glitch — it would silently replay a stale picture for as
@@ -316,15 +324,15 @@ struct Instance {
   // opposite), but sharing the slot would make each path's staleness rules
   // answer for the other's, and they are different rules.
   sk_sp<SkImage> ownImage;
-  SkRect ownBakeRect = SkRect::MakeEmpty(); // device rect the bake covers
-  float ownPaintMs = 0;                     // EMA of the own-paint cost
+  SkRect ownBakeRect = SkRect::MakeEmpty();  // device rect the bake covers
+  float ownPaintMs = 0;                      // EMA of the own-paint cost
   uint8_t ownHotFrames = 0;
   // Consecutive frames on which the own bake had to be REMADE. A bake per
   // frame costs more than the live draw it replaced, so a node whose own
   // paint really is invalidated every frame must not hold its promotion on
   // the strength of a measurement taken while it was still cheap.
   uint8_t ownRebakes = 0;
-  bool splitBake = false; // sticky, like autoTexture
+  bool splitBake = false;  // sticky, like autoTexture
   // Staleness for `ownImage`, and the reason it cannot be `paintDirty`:
   // markPaintDirtyUp() propagates a descendant's patch to every ancestor,
   // which is correct for a RECORDING (it baked the child's draw calls) and
@@ -361,7 +369,7 @@ struct Instance {
   // identity keys invalidation: every patch swaps the description.
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
-  const ElementNode *outlineCacheDesc = nullptr;
+  const ElementNode* outlineCacheDesc = nullptr;
 
   // Stamped-brush bakes live with the NODE (handed to decorations via
   // PaintContext::stamps), so a brush value rebuilt every describe reuses
@@ -377,25 +385,25 @@ struct Instance {
    *  box, so a relayout re-measures. Comparing against what the table was
    *  built FROM cannot go stale the way a "have I run yet" flag can. */
   struct MotionCache {
-    Shape shape;                  // the value this table was built from
-    SkSize size{-1.0f, -1.0f};    // …at this parent size
+    Shape shape;                // the value this table was built from
+    SkSize size{-1.0f, -1.0f};  // …at this parent size
     std::vector<sk_sp<SkContourMeasure>> contours;
-    std::vector<float> starts;    // cumulative length before each contour
+    std::vector<float> starts;  // cumulative length before each contour
     float total = 0;
-    bool closed = false;          // every contour closed → t WRAPS
+    bool closed = false;  // every contour closed → t WRAPS
   };
   std::unique_ptr<MotionCache> motion;
 
   ~Instance();
-  float resolveFloat(Instance::Slot slot, const Animatable<float> &v) const;
+  float resolveFloat(Instance::Slot slot, const Animatable<float>& v) const;
   /** The same resolution over an explicitly-held motion — the span
    *  endpoints, whose count the description decides. One body: a bound
    *  Output wins, then a running ramp, then the plain value. */
-  float resolveFloatAt(const AnimatedFloat *anim,
-                       const Animatable<float> &v) const;
+  float resolveFloatAt(const AnimatedFloat* anim,
+                       const Animatable<float>& v) const;
   /** Resolve every stroke pass's claimed runs for this frame, with
    *  rest() complements applied. Empty when the node has no passes. */
-  std::vector<std::vector<Span>> resolveSpans(const SkPath &outline) const;
+  std::vector<std::vector<Span>> resolveSpans(const SkPath& outline) const;
   /** Resolve every mask gate's animatable floats for this frame, in the
    *  order maskAnims indexes them (and ContentScalars::gates stores
    *  them) — every value, live or settled, because the memo compares what
@@ -433,9 +441,8 @@ struct Instance {
       ownPaintDirty = true;
       ownImage.reset();
     }
-    for (Instance *i = this; i; i = i->parent) {
-      if (i->paintDirty && i != this)
-        break; // ancestors already invalidated
+    for (Instance* i = this; i; i = i->parent) {
+      if (i->paintDirty && i != this) break;  // ancestors already invalidated
       i->paintDirty = true;
       i->picture.reset();
       i->textureImage.reset();
@@ -517,7 +524,7 @@ struct SlotSpec {
    *  when the node does not carry the block that holds it (a node with no
    *  `travel()` has no `t`). Null for a Bespoke row — call it through
    *  slotValueOf(), which answers nullptr for those. */
-  const Animatable<float> *(*of)(const ElementNode &);
+  const Animatable<float>* (*of)(const ElementNode&);
   /** The standing endpoint a PATCH ramps from or to when `of` answers
    *  nullptr on one side of the diff — a node that GAINS or LOSES the block
    *  has no previous/next value, so the field's OWN DEFAULT is the
@@ -527,20 +534,20 @@ struct SlotSpec {
   float standing;
   /** Why this slot is out of the table's reach. Non-null IFF the role is
    *  Bespoke — asserted below, so the escape hatch cannot be taken blank. */
-  const char *bespoke;
+  const char* bespoke;
 };
 
 inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kOpacity, SlotRole::Opacity,
-     [](const ElementNode &n) { return &n.paint.opacity; }, 1.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.opacity; }, 1.0f, nullptr},
     {Instance::kTx, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.translateX; }, 0.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.translateX; }, 0.0f, nullptr},
     {Instance::kTy, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.translateY; }, 0.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.translateY; }, 0.0f, nullptr},
     {Instance::kRotate, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.rotate; }, 0.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.rotate; }, 0.0f, nullptr},
     {Instance::kScale, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.scale; }, 1.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.scale; }, 1.0f, nullptr},
     // kFillLerp is a 0→1 PROGRESS the composer synthesizes for a
     // colour→colour `animate()`; the description holds an
     // `Animatable<Fill>` and no float anywhere, so there is nothing for
@@ -550,23 +557,23 @@ inline constexpr SlotSpec kSlotSpecs[] = {
      "a progress scalar over paint.fill's Transitioned<Fill> — there is no "
      "Animatable<float> in the description to point at"},
     {Instance::kGlyphProgress, SlotRole::Content,
-     [](const ElementNode &n) -> const Animatable<float> * {
+     [](const ElementNode& n) -> const Animatable<float>* {
        return n.textData && n.textData->glyphFx ? &n.textData->glyphFx->progress
                                                 : nullptr;
      },
      1.0f, nullptr},
     {Instance::kSkewX, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.skewX; }, 0.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.skewX; }, 0.0f, nullptr},
     {Instance::kSkewY, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.skewY; }, 0.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.skewY; }, 0.0f, nullptr},
     {Instance::kScaleX, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.scaleX; }, 1.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.scaleX; }, 1.0f, nullptr},
     {Instance::kScaleY, SlotRole::Geometric,
-     [](const ElementNode &n) { return &n.paint.scaleY; }, 1.0f, nullptr},
+     [](const ElementNode& n) { return &n.paint.scaleY; }, 1.0f, nullptr},
     // travel(): the `t` lane moves the node exactly as tx/ty do, so it is
     // the GEOMETRIC half and a device-space bake is refused while it runs.
     {Instance::kMotionT, SlotRole::Geometric,
-     [](const ElementNode &n) -> const Animatable<float> * {
+     [](const ElementNode& n) -> const Animatable<float>* {
        return n.motionData ? &n.motionData->t : nullptr;
      },
      0.0f, nullptr},
@@ -586,12 +593,12 @@ static_assert(std::size(kSlotSpecs) == (size_t)Instance::kSlots,
 constexpr bool slotTableWellFormed() {
   for (size_t i = 0; i < std::size(kSlotSpecs); ++i) {
     if (kSlotSpecs[i].slot != (Instance::Slot)i)
-      return false; // rows must be index-aligned with the enum
+      return false;  // rows must be index-aligned with the enum
     const bool bespoke = kSlotSpecs[i].role == SlotRole::Bespoke;
     if (bespoke != (kSlotSpecs[i].of == nullptr))
-      return false; // no accessor ⇔ declared out of the table's reach
+      return false;  // no accessor ⇔ declared out of the table's reach
     if (bespoke != (kSlotSpecs[i].bespoke != nullptr))
-      return false; // …and the declaration carries a written reason
+      return false;  // …and the declaration carries a written reason
   }
   return true;
 }
@@ -603,8 +610,8 @@ static_assert(slotTableWellFormed(),
 /** The row's animatable on this node, or nullptr. A Bespoke row always
  *  answers nullptr, so a consumer that walks the table without special-casing
  *  one is INERT for it rather than dereferencing a null function pointer. */
-inline const Animatable<float> *slotValueOf(const SlotSpec &spec,
-                                            const ElementNode &node) {
+inline const Animatable<float>* slotValueOf(const SlotSpec& spec,
+                                            const ElementNode& node) {
   return spec.of ? spec.of(node) : nullptr;
 }
 
@@ -638,16 +645,15 @@ inline const Animatable<float> *slotValueOf(const SlotSpec &spec,
  *  horizon (w ≤ 0) have no finite local scale and are skipped; if every
  *  sample is degenerate the diagonal stands, bounded by the callers'
  *  clamps. */
-inline float maxScaleOf(const SkMatrix &m, const SkRect &local) {
+inline float maxScaleOf(const SkMatrix& m, const SkRect& local) {
   SkScalar s[2];
-  if (m.getMinMaxScales(s) && s[1] > 0)
-    return s[1];
+  if (m.getMinMaxScales(s) && s[1] > 0) return s[1];
   if (m.hasPerspective()) {
     const auto sigmaMaxAt = [&m](SkPoint pt) -> float {
       const float w = m.getPerspX() * pt.x() + m.getPerspY() * pt.y() +
                       m.get(SkMatrix::kMPersp2);
       if (!std::isfinite(w) || w <= 1e-8f)
-        return -1.0f; // at/behind the horizon: no finite local scale
+        return -1.0f;  // at/behind the horizon: no finite local scale
       const SkPoint q = m.mapPoint(pt);
       const float inv = 1.0f / w;
       const float j00 = (m.getScaleX() - m.getPerspX() * q.x()) * inv;
@@ -667,10 +673,8 @@ inline float maxScaleOf(const SkMatrix &m, const SkRect &local) {
                                 {local.right(), local.bottom()},
                                 {local.left(), local.bottom()}};
     float best = -1.0f;
-    for (const SkPoint &pt : samples)
-      best = std::max(best, sigmaMaxAt(pt));
-    if (best > 0)
-      return best;
+    for (const SkPoint& pt : samples) best = std::max(best, sigmaMaxAt(pt));
+    if (best > 0) return best;
   }
   // Degenerate (a zero matrix; a horizon through every sample): the
   // diagonal is all there is, and the callers' clamps bound it.
@@ -680,12 +684,12 @@ inline float maxScaleOf(const SkMatrix &m, const SkRect &local) {
 /** The paint-transform pivot: fractional by default, node-local px under
  *  transformOriginPx(). One definition for paint(), recordBounds(), and
  *  the hit-test inverse. */
-inline SkPoint resolveOrigin(const PaintProps &p, float w, float h) {
+inline SkPoint resolveOrigin(const PaintProps& p, float w, float h) {
   return p.originPx ? SkPoint{p.originX, p.originY}
                     : SkPoint{w * p.originX, h * p.originY};
 }
 
-inline SkRRect cornersRRect(const SkRect &bounds, const Corners &c) {
+inline SkRRect cornersRRect(const SkRect& bounds, const Corners& c) {
   const SkVector radii[4] = {{c.topLeft, c.topLeft},
                              {c.topRight, c.topRight},
                              {c.bottomRight, c.bottomRight},
@@ -702,38 +706,38 @@ YGSize measureTextNode(YGNodeConstRef node, float width,
                        YGMeasureMode heightMode);
 float baselineOfTextNode(YGNodeConstRef node, float width, float height);
 
-} // namespace sigil::compose::detail
+}  // namespace sigil::compose::detail
 
 namespace sigil::compose {
 
 struct Composer::Impl {
-  motion::Ticker &ticker;
-  sigil::weave::FontContext &fonts;
-  const motion::FrameClock *clock = nullptr;
+  motion::Ticker& ticker;
+  sigil::weave::FontContext& fonts;
+  const motion::FrameClock* clock = nullptr;
 
   SkSize size = SkSize::MakeEmpty();
   std::unique_ptr<detail::Instance> root;
   YGConfigRef yogaConfig = nullptr;
   bool needsLayout = true;
   bool contentDirty = true;
-  std::unordered_map<std::string, detail::Instance *> byKey;
+  std::unordered_map<std::string, detail::Instance*> byKey;
   // Slots get their OWN index. They live in byKey too (so bounds() and
   // hitTest() still answer for a slot's name), but a slot's CONTENT may
   // legitimately carry a root .key() with the same name — and a child is
   // indexed after its parent, so in a single shared map the content would
   // overwrite the slot's entry and every later renderSlot() would silently
   // find the wrong instance. Two namespaces, no collision.
-  std::unordered_map<std::string, detail::Instance *> bySlot;
+  std::unordered_map<std::string, detail::Instance*> bySlot;
   // The EDGE STORE, rebuilt with the key index each render: routed nodes
   // (connector()/rail()) as a flat list in tree order, plus the back-index
   // anchor-key → routes-anchored-there. The derive pass iterates these flat
   // lists instead of recursing the whole tree, and routesAt() answers graph
   // queries ("which edges touch this node") in O(routes-at-node).
-  std::vector<detail::Instance *> routedInstances;
-  std::vector<detail::Instance *> flowInstances; // flowAround() text nodes
-  std::unordered_map<std::string, std::vector<detail::Instance *>>
+  std::vector<detail::Instance*> routedInstances;
+  std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  std::unordered_map<std::string, std::vector<detail::Instance*>>
       routesByAnchor;
-  bool volatileDirty = true; // recompute needed (render or animation)
+  bool volatileDirty = true;  // recompute needed (render or animation)
   bool tickerWasActive = false;
   // Instances whose scalar volatility is RELEASED (settled bound gates,
   // glyph progress and the other memoized scalar lanes). Rebuilt by every
@@ -744,15 +748,15 @@ struct Composer::Impl {
   // library would never notice it had resumed. Guarded by !volatileDirty —
   // a pending recompute means the tree changed and these pointers may be
   // stale.
-  std::vector<detail::Instance *> releasedScalars;
-  void scanReleasedScalars(); // defined in Paint.cpp beside the memos
+  std::vector<detail::Instance*> releasedScalars;
+  void scanReleasedScalars();  // defined in Paint.cpp beside the memos
   // Recomputed with the key index, so unmounting the last derived or pinned
   // node clears them rather than latching them on forever.
-  bool hasDerived = false; // any flowAround/connector/rail in the tree
+  bool hasDerived = false;  // any flowAround/connector/rail in the tree
   bool hasCustomLayout = false;
-  bool hasCenterPins = false; // any centerAt() in the tree
-  bool liveOnly = false; // snapshot(): skip per-node caches
-  Effect view;           // output view transform (null filter = pass-through)
+  bool hasCenterPins = false;  // any centerAt() in the tree
+  bool liveOnly = false;       // snapshot(): skip per-node caches
+  Effect view;  // output view transform (null filter = pass-through)
   // What the AUTHOR declared their colour values to be. Read by
   // declaredInputSpace() and by nothing else: compositing happens in
   // encoded sRGB regardless, with no linear stage and no conversion, so
@@ -771,8 +775,8 @@ struct Composer::Impl {
   // own total upward. That gives selfMs = totalMs - children without a
   // second traversal.
   bool profileEnabled = false;
-  bool autoPromote = true; // Composer::setAutoTexturePromotion (the INTENT)
-  bool promotionExplicit = false; // did the host call the setter?
+  bool autoPromote = true;  // Composer::setAutoTexturePromotion (the INTENT)
+  bool promotionExplicit = false;  // did the host call the setter?
   // The value paint() actually reads, recomputed each draw(). Differs from
   // `autoPromote` only under the backend-aware default: automatic promotion
   // is OFF on a Graphite/GPU surface unless the host asked for it
@@ -790,8 +794,8 @@ struct Composer::Impl {
   // previous frame (paint order is stable, so the previous frame's total is
   // the right question to ask before adding one more), keeps an automatic
   // win from becoming an automatic out-of-memory.
-  size_t promotedBytes = 0;     // accumulated during the current paint
-  size_t promotedBytesLast = 0; // what the previous frame ended up holding
+  size_t promotedBytes = 0;      // accumulated during the current paint
+  size_t promotedBytesLast = 0;  // what the previous frame ended up holding
   // >0 while painting INTO an SkPicture. Device-space bakes are pinned to
   // a device rect and must not be recorded into a picture that can replay
   // under a different matrix.
@@ -816,7 +820,7 @@ struct Composer::Impl {
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;
 
-  Impl(motion::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
+  Impl(motion::Ticker& t, sigil::weave::FontContext& f) : ticker(t), fonts(f) {
     yogaConfig = YGConfigNew();
   }
   ~Impl() {
@@ -827,23 +831,22 @@ struct Composer::Impl {
   double elapsed() const { return clock ? clock->elapsed() : 0.0; }
 
   // ---- reconcile (Reconcile.cpp) ----
-  std::unique_ptr<detail::Instance>
-  mount(const std::shared_ptr<detail::ElementNode> &node,
-        detail::Instance *parent);
-  void patch(detail::Instance &inst,
-             std::shared_ptr<detail::ElementNode> node);
-  void patchChildren(detail::Instance &inst,
-                     const std::vector<Element> &newChildren);
-  void applyLayoutProps(detail::Instance &inst);
-  void applyTransitions(detail::Instance &inst, const detail::ElementNode &prev,
-                        const detail::ElementNode &next);
-  void applyMountTransitions(detail::Instance &inst,
-                             const detail::ElementNode &node);
-  std::shared_ptr<detail::ElementNode>
-  resolveMemo(detail::Instance *existing,
-              const std::shared_ptr<detail::ElementNode> &node, bool &described);
+  std::unique_ptr<detail::Instance> mount(
+      const std::shared_ptr<detail::ElementNode>& node,
+      detail::Instance* parent);
+  void patch(detail::Instance& inst, std::shared_ptr<detail::ElementNode> node);
+  void patchChildren(detail::Instance& inst,
+                     const std::vector<Element>& newChildren);
+  void applyLayoutProps(detail::Instance& inst);
+  void applyTransitions(detail::Instance& inst, const detail::ElementNode& prev,
+                        const detail::ElementNode& next);
+  void applyMountTransitions(detail::Instance& inst,
+                             const detail::ElementNode& node);
+  std::shared_ptr<detail::ElementNode> resolveMemo(
+      detail::Instance* existing,
+      const std::shared_ptr<detail::ElementNode>& node, bool& described);
   void rebuildKeyIndex();
-  void indexKeys(detail::Instance &inst);
+  void indexKeys(detail::Instance& inst);
 
   // ---- volatility & caching (Paint.cpp) ----
   /** @p movingAbove: a bound or transitioning transform is connected on
@@ -853,43 +856,43 @@ struct Composer::Impl {
    *  because that matrix is six floats, so the recording survives between
    *  ticks and the flag releases when the motion settles. Threaded down the
    *  existing recursion; everything else ignores it. */
-  bool computeVolatile(detail::Instance &inst, bool movingAbove = false);
+  bool computeVolatile(detail::Instance& inst, bool movingAbove = false);
   /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
    *  chain root-down through the same ops paint() accumulates —
    *  translate(rect), then NodeTransform::matrix. The result must be
    *  BIT-IDENTICAL to the paint-side accumulation: the settle compare reads
    *  an ulp of drift as motion and never releases. */
-  SkMatrix worldMatrixOf(detail::Instance &inst);
+  SkMatrix worldMatrixOf(detail::Instance& inst);
   /** That matrix's affine six for the ContentScalars lane — all-zero unless
    *  the instance carries a world-space material (both sites that fill the
    *  member apply the same guard). */
-  std::array<float, 6> worldScalarsOf(detail::Instance &inst);
+  std::array<float, 6> worldScalarsOf(detail::Instance& inst);
   // Scratch for the subtree value memo, swapped with the group root's
   // `groupPrev` each frame so a settled group allocates nothing at all.
   std::vector<float> groupScratch;
 
   // ---- layout (Layout.cpp) ----
-  bool applyCustomLayouts(detail::Instance &inst);
-  bool applyCenterPins(detail::Instance &inst);
+  bool applyCustomLayouts(detail::Instance& inst);
+  bool applyCenterPins(detail::Instance& inst);
   void ensureLayout();
   /** @p movedAbove: some ancestor's layout rect changed this pass. A node
    *  carrying a world-space material below any moved rect marks its OWN
    *  paint dirty — its recording baked the node→root matrix, and that
    *  matrix moved with the ancestor even though this node's
    *  parent-relative rect did not. */
-  void syncLayoutRects(detail::Instance &inst, bool movedAbove = false);
-  void layoutText(detail::Instance &inst, float constraint);
-  SkRect instanceRect(const detail::Instance &inst) const;
-  SkRect positionedRect(const detail::Instance &inst) const;
-  SkRect absoluteRect(const detail::Instance &inst) const;
+  void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
+  void layoutText(detail::Instance& inst, float constraint);
+  SkRect instanceRect(const detail::Instance& inst) const;
+  SkRect positionedRect(const detail::Instance& inst) const;
+  SkRect absoluteRect(const detail::Instance& inst) const;
 
   // ---- derive (Derive.cpp) ----
   /** One pass over the flat flow/route lists (the edge store) — no tree
    *  recursion. Returns true when a text exclusion changed (second layout
    *  pass needed). */
   bool resolveDerived();
-  bool deriveFlow(detail::Instance &inst);
-  void deriveRoute(detail::Instance &inst);
+  bool deriveFlow(detail::Instance& inst);
+  void deriveRoute(detail::Instance& inst);
 
   // ---- the node's paint transform, resolved once (Paint.cpp) ----
   /** Every animated number in paint()'s matrix stack, for ONE frame.
@@ -911,8 +914,7 @@ struct Composer::Impl {
      *  truncates the overflow with no diagnostic. A lane added to this
      *  struct belongs in here. */
     bool pivoted() const {
-      return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
-             sky != 0;
+      return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 || sky != 0;
     }
     /** The matrix these lanes describe, prepended with `anchor` (the
      *  layout offset — pass {0, 0} for node-local): the translate lanes,
@@ -922,19 +924,16 @@ struct Composer::Impl {
      *  FIRST translate rather than being post-concatenated, because the two
      *  associate their float multiplies differently and recordBounds()'s
      *  results must stay bitwise stable. */
-    SkMatrix matrix(SkPoint anchor, const detail::PaintProps &p, float w,
+    SkMatrix matrix(SkPoint anchor, const detail::PaintProps& p, float w,
                     float h) const {
       SkMatrix m = SkMatrix::Translate(anchor.x() + tx, anchor.y() + ty);
       if (pivoted()) {
         const SkPoint origin = detail::resolveOrigin(p, w, h);
         m.preTranslate(origin.x(), origin.y());
-        if (rot != 0)
-          m.preRotate(rot);
-        if (scl != 1 || sx != 1 || sy != 1)
-          m.preScale(scl * sx, scl * sy);
+        if (rot != 0) m.preRotate(rot);
+        if (scl != 1 || sx != 1 || sy != 1) m.preScale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
-          m.preSkew(std::tan(skx * 0.017453293f),
-                    std::tan(sky * 0.017453293f));
+          m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
         m.preTranslate(-origin.x(), -origin.y());
       }
       return m;
@@ -950,17 +949,14 @@ struct Composer::Impl {
      *  therefore moves pixels across the whole scene. The op list below and
      *  matrix()'s are THE SAME LIST in the same order; a lane added to the
      *  struct goes in both (the fieldPin below counts it). */
-    void concatTo(SkCanvas &canvas, const detail::PaintProps &p, float w,
+    void concatTo(SkCanvas& canvas, const detail::PaintProps& p, float w,
                   float h) const {
-      if (tx != 0 || ty != 0)
-        canvas.translate(tx, ty);
+      if (tx != 0 || ty != 0) canvas.translate(tx, ty);
       if (pivoted()) {
         const SkPoint origin = detail::resolveOrigin(p, w, h);
         canvas.translate(origin.x(), origin.y());
-        if (rot != 0)
-          canvas.rotate(rot);
-        if (scl != 1 || sx != 1 || sy != 1)
-          canvas.scale(scl * sx, scl * sy);
+        if (rot != 0) canvas.rotate(rot);
+        if (scl != 1 || sx != 1 || sy != 1) canvas.scale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
           canvas.skew(std::tan(skx * 0.017453293f),
                       std::tan(sky * 0.017453293f));
@@ -970,8 +966,8 @@ struct Composer::Impl {
     /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). `pivoted()`
      *  is a hand-written exhaustive list over these members, exactly like
      *  a comparator, and fails the same way: silently, by not noticing. */
-    static void fieldPin(NodeTransform &v) {
-      auto &[tx, ty, rot, scl, sx, sy, skx, sky] = v;
+    static void fieldPin(NodeTransform& v) {
+      auto& [tx, ty, rot, scl, sx, sy, skx, sky] = v;
       static_assert(std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx,
                                                         sy, skx, sky))> == 8,
                     "NodeTransform gained or lost a lane — put it in "
@@ -980,22 +976,22 @@ struct Composer::Impl {
                     "then bump this count.");
     }
   };
-  NodeTransform transformOf(detail::Instance &inst);
+  NodeTransform transformOf(detail::Instance& inst);
   /** Where on its motion path this node sits, in its PARENT's space, and
    *  the auto-orient angle in degrees. Nullopt when no path is engaged
    *  (absent, empty, or resolving to no measurable length) — the
    *  translate lanes then stand. Rebuilds the instance's arc-length table
    *  when the Shape value or the parent size no longer matches. */
-  std::optional<std::pair<SkPoint, float>>
-  motionPathSample(detail::Instance &inst, const SkSize &frame);
+  std::optional<std::pair<SkPoint, float>> motionPathSample(
+      detail::Instance& inst, const SkSize& frame);
 
   // ---- paint (Paint.cpp) ----
-  float hostScale = 1.0f; // device px per layout px at draw() entry
-  void paint(detail::Instance &inst, SkCanvas &canvas);
-  void paintTextOnPath(detail::Instance &inst, SkCanvas &canvas,
-                       const TextPath &spec, SkSize size);
-  void paintKineticText(detail::Instance &inst, SkCanvas &canvas,
-                        const GlyphFx &fx);
+  float hostScale = 1.0f;  // device px per layout px at draw() entry
+  void paint(detail::Instance& inst, SkCanvas& canvas);
+  void paintTextOnPath(detail::Instance& inst, SkCanvas& canvas,
+                       const TextPath& spec, SkSize size);
+  void paintKineticText(detail::Instance& inst, SkCanvas& canvas,
+                        const GlyphFx& fx);
   /** Which half of a node's paint to emit.
    *
    *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —
@@ -1006,14 +1002,15 @@ struct Composer::Impl {
    *  be in an own-paint bake. That is why this is a phase flag and two
    *  skips rather than a split function. */
   enum class Phase : uint8_t {
-    All,          ///< the whole node, unchanged
-    OwnOnly,      ///< the prefix: no children, no foregrounds
-    ChildrenOnly, ///< the children and the foregrounds over them
+    All,           ///< the whole node, unchanged
+    OwnOnly,       ///< the prefix: no children, no foregrounds
+    ChildrenOnly,  ///< the children and the foregrounds over them
   };
-  void paintContent(detail::Instance &inst, SkCanvas &canvas, float contentScale,
+  void paintContent(detail::Instance& inst, SkCanvas& canvas,
+                    float contentScale,
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
                     float leafOpacity = 1.0f, Phase phase = Phase::All);
-  const SkPath &resolveOutline(detail::Instance &inst, SkSize size) const;
+  const SkPath& resolveOutline(detail::Instance& inst, SkSize size) const;
   /** What the node paints BY ITSELF, in its own local space: its box grown
    *  by every decoration's declared bleed and any routed path, and NOTHING
    *  from its children. The split bake sizes its layer with this — and the
@@ -1021,14 +1018,14 @@ struct Composer::Impl {
    *  optimisation: `recordBounds` unions the children in, so it changes
    *  every frame a child moves, and a bake rect that changes every frame is
    *  a bake remade every frame. */
-  SkRect ownPaintBounds(detail::Instance &inst);
-  SkRect recordBounds(detail::Instance &inst);
+  SkRect ownPaintBounds(detail::Instance& inst);
+  SkRect recordBounds(detail::Instance& inst);
 
   // ---- hit testing / queries (Query.cpp) ----
-  bool shapeContains(detail::Instance &inst, SkPoint local, SkSize size) const;
-  std::optional<std::string> hitInstance(detail::Instance &inst,
+  bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;
+  std::optional<std::string> hitInstance(detail::Instance& inst,
                                          SkPoint parentPt,
-                                         const std::string *inheritedKey);
+                                         const std::string* inheritedKey);
 };
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

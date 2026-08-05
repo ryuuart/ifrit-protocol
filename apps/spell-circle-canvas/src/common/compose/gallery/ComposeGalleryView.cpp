@@ -1,4 +1,5 @@
 #include "ComposeGalleryView.h"
+
 #include "GalleryScenes.h"
 
 #ifdef SIGILCOMPOSE_GALLERY_GPU
@@ -8,31 +9,30 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <rhi/qrhi.h>
 
 #include <QByteArray>
 #include <QMetaObject>
 #include <QSize>
 #include <QVariantMap>
-#include <rhi/qrhi.h>
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <vector>
 
 using namespace compose_gallery;
 
 class ComposeGalleryRenderer final : public QQuickRhiItemRenderer {
-public:
-  void initialize(QRhiCommandBuffer *commandBuffer) override;
-  void synchronize(QQuickRhiItem *item) override;
-  void render(QRhiCommandBuffer *commandBuffer) override;
+ public:
+  void initialize(QRhiCommandBuffer* commandBuffer) override;
+  void synchronize(QQuickRhiItem* item) override;
+  void render(QRhiCommandBuffer* commandBuffer) override;
 
-private:
-  void renderScene(SkCanvas &canvas, QSize pixelSize);
+ private:
+  void renderScene(SkCanvas& canvas, QSize pixelSize);
 
 #ifdef SIGILCOMPOSE_GALLERY_GPU
   // Declared before the stage so reverse destruction releases every
@@ -40,7 +40,7 @@ private:
   std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
 #endif
   std::unique_ptr<GalleryStage> m_stage;
-  QRhi *m_rhi = nullptr;
+  QRhi* m_rhi = nullptr;
   std::vector<uint32_t> m_rasterPixels;
   QSize m_logicalSize;
   int m_requestedSceneIndex = 0;
@@ -51,10 +51,9 @@ private:
   double m_submitMsAverage = 0.0;
 };
 
-void ComposeGalleryRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
-  QRhi *currentRhi = rhi();
-  if (m_rhi == currentRhi && m_stage)
-    return;
+void ComposeGalleryRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
+  QRhi* currentRhi = rhi();
+  if (m_rhi == currentRhi && m_stage) return;
 
   // initialize() can be called again with a replacement QRhi. Destroy the
   // stage first because texture-cached elements can retain Graphite images
@@ -88,8 +87,8 @@ void ComposeGalleryRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
   );
 }
 
-void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
-  auto *view = static_cast<ComposeGalleryView *>(item);
+void ComposeGalleryRenderer::synchronize(QQuickRhiItem* item) {
+  auto* view = static_cast<ComposeGalleryView*>(item);
   const bool pauseStarted = !m_paused && view->m_paused;
   m_paused = view->m_paused;
 
@@ -115,15 +114,14 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
 
   // Publish the last completed frame immediately when the animation stops,
   // even when the 15-frame periodic metrics boundary has not been reached.
-  if (pauseStarted)
-    m_metricsDirty = true;
+  if (pauseStarted) m_metricsDirty = true;
 
   // synchronize() runs on the render thread while Qt blocks the GUI thread,
   // making this the safe hand-off point for last frame's metrics.
   if (m_metricsDirty && m_stage && m_stage->composer) {
     m_metricsDirty = false;
-    const Composer::Stats &cs = m_stage->composer->stats();
-    const char *backend =
+    const Composer::Stats& cs = m_stage->composer->stats();
+    const char* backend =
 #ifdef SIGILCOMPOSE_GALLERY_GPU
         m_graphiteContext ? "Graphite GPU" : "CPU raster";
 #else
@@ -131,10 +129,9 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
 #endif
     QVariantMap metrics;
     metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
-    metrics.insert(QStringLiteral("scene"),
-                   m_stage->scene
-                       ? QString::fromUtf8(m_stage->scene->name())
-                       : QString());
+    metrics.insert(
+        QStringLiteral("scene"),
+        m_stage->scene ? QString::fromUtf8(m_stage->scene->name()) : QString());
     // Scene canvases vary widely across the registry, and "why is this one
     // slower" usually starts with how many pixels it is drawing.
     metrics.insert(QStringLiteral("canvas"),
@@ -162,9 +159,8 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
   }
 }
 
-void ComposeGalleryRenderer::renderScene(SkCanvas &canvas, QSize pixelSize) {
-  if (!m_stage)
-    return;
+void ComposeGalleryRenderer::renderScene(SkCanvas& canvas, QSize pixelSize) {
+  if (!m_stage) return;
   // Letterbox to the SCENE's own canvas rather than to a fixed size. Scenes
   // declare their own dimensions and do not share an aspect ratio, so
   // stretching one to fill the item would distort what it is trying to show.
@@ -187,13 +183,12 @@ void ComposeGalleryRenderer::renderScene(SkCanvas &canvas, QSize pixelSize) {
   m_stage->frame(canvas);
   canvas.restore();
   m_stage->markPresented();
-  if (++m_statisticsFrameCount % 15 == 0)
-    m_metricsDirty = true;
+  if (++m_statisticsFrameCount % 15 == 0) m_metricsDirty = true;
 }
 
-void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
+void ComposeGalleryRenderer::render(QRhiCommandBuffer* commandBuffer) {
   using Clock = std::chrono::steady_clock;
-  QRhiTexture *texture = colorTexture();
+  QRhiTexture* texture = colorTexture();
   if (!texture || !m_stage || m_logicalSize.width() < 1 ||
       m_logicalSize.height() < 1)
     return;
@@ -201,20 +196,19 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
   if (m_sceneIndex != m_requestedSceneIndex) {
     m_sceneIndex = m_requestedSceneIndex;
     m_stage->activate(makeScene(m_sceneIndex));
-    m_stage->showStats = false; // the QML sidebar owns the stats display
+    m_stage->showStats = false;  // the QML sidebar owns the stats display
     m_submitMsAverage = 0.0;
     m_statisticsFrameCount = 0;
     m_metricsDirty = true;
   }
-  if (!m_stage->scene)
-    return;
+  if (!m_stage->scene) return;
   const QSize pixelSize = texture->pixelSize();
 
 #ifdef SIGILCOMPOSE_GALLERY_GPU
   if (m_graphiteContext) {
     {
       SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
-      if (SkCanvas *canvas = surface.canvas()) {
+      if (SkCanvas* canvas = surface.canvas()) {
         renderScene(*canvas, pixelSize);
         const auto submitStart = Clock::now();
         surface.submit();
@@ -224,8 +218,7 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
-        if (!m_paused)
-          update();
+        if (!m_paused) update();
         return;
       }
     }
@@ -264,17 +257,16 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
                         kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       m_rasterPixels.data(),
       static_cast<size_t>(pixelSize.width()) * sizeof(uint32_t));
-  if (!surface)
-    return;
+  if (!surface) return;
   renderScene(*surface->getCanvas(), pixelSize);
 
   const auto submitStart = Clock::now();
-  QRhiResourceUpdateBatch *batch = rhi()->nextResourceUpdateBatch();
+  QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();
   // fromRawData keeps this upload view non-owning. The render-thread buffer
   // remains stable through QRhi's endFrame, avoiding an otherwise full-frame
   // QByteArray copy before the backend's unavoidable staging upload.
   const QByteArray uploadBytes = QByteArray::fromRawData(
-      reinterpret_cast<const char *>(m_rasterPixels.data()),
+      reinterpret_cast<const char*>(m_rasterPixels.data()),
       static_cast<qsizetype>(m_rasterPixels.size() * sizeof(uint32_t)));
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
@@ -285,11 +277,10 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
   m_submitMsAverage = m_submitMsAverage == 0.0
                           ? submitMs
                           : m_submitMsAverage * 0.95 + submitMs * 0.05;
-  if (!m_paused)
-    update();
+  if (!m_paused) update();
 }
 
-ComposeGalleryView::ComposeGalleryView(QQuickItem *parent)
+ComposeGalleryView::ComposeGalleryView(QQuickItem* parent)
     : QQuickRhiItem(parent) {
   // We draw into colorTexture() directly; no QRhi render target or depth
   // buffer is needed for this item.
@@ -299,7 +290,7 @@ ComposeGalleryView::ComposeGalleryView(QQuickItem *parent)
 
 ComposeGalleryView::~ComposeGalleryView() = default;
 
-QQuickRhiItemRenderer *ComposeGalleryView::createRenderer() {
+QQuickRhiItemRenderer* ComposeGalleryView::createRenderer() {
   return new ComposeGalleryRenderer;
 }
 
@@ -328,27 +319,23 @@ QVariantList ComposeGalleryView::scenes() const {
 }
 
 void ComposeGalleryView::setSceneIndex(int index) {
-  if (index == m_sceneIndex || index < 0 || index >= kGallerySceneCount)
-    return;
+  if (index == m_sceneIndex || index < 0 || index >= kGallerySceneCount) return;
   m_sceneIndex = index;
   emit sceneIndexChanged();
   update();
 }
 
 void ComposeGalleryView::setPaused(bool paused) {
-  if (paused == m_paused)
-    return;
+  if (paused == m_paused) return;
   m_paused = paused;
   emit pausedChanged();
   update();
 }
 
 void ComposeGalleryView::setTimeScale(double scale) {
-  if (!std::isfinite(scale))
-    return;
+  if (!std::isfinite(scale)) return;
   scale = std::clamp(scale, 0.0, 16.0);
-  if (scale == m_timeScale)
-    return;
+  if (scale == m_timeScale) return;
   m_timeScale = scale;
   emit timeScaleChanged();
   update();

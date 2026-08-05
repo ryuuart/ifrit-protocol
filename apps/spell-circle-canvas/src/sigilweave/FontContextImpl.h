@@ -3,12 +3,8 @@
 // Private guts of FontContext, shared by FontContext.cpp, Shaper.cpp and
 // Paragraph.cpp. Keeps HarfBuzz/ICU/absl types out of the public headers.
 
-#include "sigilweave/FontContext.h"
-#include "sigilweave/Shaper.h"
-
 #include <absl/container/flat_hash_map.h>
 #include <absl/hash/hash.h>
-
 #include <hb.h>
 #include <unicode/ubidi.h>
 #include <unicode/ubrk.h>
@@ -20,6 +16,9 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
+
+#include "sigilweave/FontContext.h"
+#include "sigilweave/Shaper.h"
 
 namespace sigil::weave {
 
@@ -59,16 +58,24 @@ struct ShapeKeyView {
   bool vertical = false;
   bool aliased = false;
   std::string_view languageTag;
-  const FontFeature *fontFeatures = nullptr;
+  const FontFeature* fontFeatures = nullptr;
   size_t featureCount = 0;
   std::u16string_view text;
 };
 
-inline ShapeKeyView makeShapeKeyView(const ShapeKey &key) {
-  return {key.typefaceId,  key.fontSizeBits, key.letterSpacingBits,
-          key.scaleXBits,  key.script,       key.rightToLeft,
-          key.vertical,    key.aliased,      key.languageTag,
-          key.fontFeatures.data(), key.fontFeatures.size(), key.text};
+inline ShapeKeyView makeShapeKeyView(const ShapeKey& key) {
+  return {key.typefaceId,
+          key.fontSizeBits,
+          key.letterSpacingBits,
+          key.scaleXBits,
+          key.script,
+          key.rightToLeft,
+          key.vertical,
+          key.aliased,
+          key.languageTag,
+          key.fontFeatures.data(),
+          key.fontFeatures.size(),
+          key.text};
 }
 
 inline ShapeKeyView makeShapeKeyView(ShapeKeyView key) { return key; }
@@ -86,10 +93,9 @@ concept StableObjectRepresentation =
 
 /** Views a non-empty sequence as bytes without constructing from nullptr. */
 template <StableObjectRepresentation Value>
-std::string_view objectBytes(const Value *values, size_t count) {
-  if (count == 0)
-    return {};
-  return {reinterpret_cast<const char *>(values), count * sizeof(Value)};
+std::string_view objectBytes(const Value* values, size_t count) {
+  if (count == 0) return {};
+  return {reinterpret_cast<const char*>(values), count * sizeof(Value)};
 }
 
 // FontFeature is 8 padding-free bytes ({char[4], uint32_t}), so its object
@@ -99,12 +105,12 @@ static_assert(StableObjectRepresentation<FontFeature>);
 
 struct ShapeKeyHash {
   using is_transparent = void;
-  template <ShapeCacheKey Key> size_t operator()(const Key &source) const {
+  template <ShapeCacheKey Key>
+  size_t operator()(const Key& source) const {
     const ShapeKeyView key = makeShapeKeyView(source);
     return absl::HashOf(key.typefaceId, key.fontSizeBits, key.letterSpacingBits,
-                        key.scaleXBits,
-                        key.script, key.rightToLeft, key.vertical,
-                        key.aliased, key.languageTag,
+                        key.scaleXBits, key.script, key.rightToLeft,
+                        key.vertical, key.aliased, key.languageTag,
                         objectBytes(key.fontFeatures, key.featureCount),
                         objectBytes(key.text.data(), key.text.size()));
   }
@@ -113,17 +119,15 @@ struct ShapeKeyHash {
 struct ShapeKeyEq {
   using is_transparent = void;
   template <ShapeCacheKey Left, ShapeCacheKey Right>
-  bool operator()(const Left &leftSource, const Right &rightSource) const {
+  bool operator()(const Left& leftSource, const Right& rightSource) const {
     const ShapeKeyView left = makeShapeKeyView(leftSource);
     const ShapeKeyView right = makeShapeKeyView(rightSource);
     return left.typefaceId == right.typefaceId &&
            left.fontSizeBits == right.fontSizeBits &&
            left.letterSpacingBits == right.letterSpacingBits &&
-           left.scaleXBits == right.scaleXBits &&
-           left.script == right.script &&
+           left.scaleXBits == right.scaleXBits && left.script == right.script &&
            left.rightToLeft == right.rightToLeft &&
-           left.vertical == right.vertical &&
-           left.aliased == right.aliased &&
+           left.vertical == right.vertical && left.aliased == right.aliased &&
            left.languageTag == right.languageTag &&
            left.featureCount == right.featureCount &&
            (left.featureCount == 0 ||
@@ -140,10 +144,11 @@ struct FallbackKey {
   uint32_t typefaceId = 0;
   int32_t codePoint = 0;
   uint32_t languageId = 0;
-  bool operator==(const FallbackKey &) const = default;
+  bool operator==(const FallbackKey&) const = default;
 };
 
-template <typename H> H AbslHashValue(H hashState, const FallbackKey &key) {
+template <typename H>
+H AbslHashValue(H hashState, const FallbackKey& key) {
   return H::combine(std::move(hashState), key.typefaceId, key.codePoint,
                     key.languageId);
 }
@@ -159,11 +164,11 @@ static_assert(std::is_trivially_copyable_v<FontVariation>);
 struct VariedTypefaceKey {
   uint32_t baseTypefaceId = 0;
   std::string variationBytes;
-  bool operator==(const VariedTypefaceKey &) const = default;
+  bool operator==(const VariedTypefaceKey&) const = default;
 };
 
 template <typename H>
-H AbslHashValue(H hashState, const VariedTypefaceKey &key) {
+H AbslHashValue(H hashState, const VariedTypefaceKey& key) {
   return H::combine(std::move(hashState), key.baseTypefaceId,
                     key.variationBytes);
 }
@@ -173,10 +178,10 @@ struct FontContext::Impl {
   // shaped positions convert to pixels with a single multiply
   // (size/unitsPerEm).
   struct TypefaceRecord {
-    hb_face_t *harfBuzzFace = nullptr;
-    hb_font_t *harfBuzzFont = nullptr;
+    hb_face_t* harfBuzzFace = nullptr;
+    hb_font_t* harfBuzzFont = nullptr;
     int unitsPerEm = 1000;
-    sk_sp<SkTypeface> typeface; // pins the table-data callback's context
+    sk_sp<SkTypeface> typeface;  // pins the table-data callback's context
   };
 
   sk_sp<SkFontMgr> fontManager;
@@ -193,17 +198,17 @@ struct FontContext::Impl {
   // ASCII fast path: per primary typeface, a direct-mapped table for the
   // codepoints that dominate Latin text, plus a one-entry memo of the last
   // primary used (itemization rarely alternates primaries mid-paragraph).
-  using AsciiTable = std::array<SkTypeface *, 128>;
+  using AsciiTable = std::array<SkTypeface*, 128>;
   absl::flat_hash_map<uint32_t, AsciiTable> asciiFallbackTypefaces;
   uint32_t lastAsciiTypefaceId = 0;
-  AsciiTable *lastAsciiFallbackTable = nullptr;
+  AsciiTable* lastAsciiFallbackTable = nullptr;
   absl::flat_hash_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
       shapeCache;
 
   // Reused scratch objects (the context is single-threaded by contract).
-  hb_buffer_t *shapingBuffer = nullptr;
-  UBreakIterator *lineBreakIterator = nullptr; // lazily created, root locale
-  UBiDi *bidirectionalAnalyzer = nullptr;      // setPara() reuses it
+  hb_buffer_t* shapingBuffer = nullptr;
+  UBreakIterator* lineBreakIterator = nullptr;  // lazily created, root locale
+  UBiDi* bidirectionalAnalyzer = nullptr;       // setPara() reuses it
 
   FontContext::Stats stats;
 
@@ -213,23 +218,20 @@ struct FontContext::Impl {
   static constexpr size_t kMaxShapeEntries = 1 << 17;
 
   uint32_t fallbackLanguageId(std::string_view languageTag) {
-    if (languageTag.empty())
-      return 0;
-    if (languageTag == lastFallbackLanguageTag)
-      return lastFallbackLanguageId;
+    if (languageTag.empty()) return 0;
+    if (languageTag == lastFallbackLanguageTag) return lastFallbackLanguageId;
     auto [entry, inserted] = fallbackLanguageIds.try_emplace(
         std::string(languageTag), nextFallbackLanguageId);
-    if (inserted)
-      ++nextFallbackLanguageId;
+    if (inserted) ++nextFallbackLanguageId;
     lastFallbackLanguageTag = entry->first;
     lastFallbackLanguageId = entry->second;
     return lastFallbackLanguageId;
   }
 
-  TypefaceRecord &recordForTypeface(const sk_sp<SkTypeface> &typeface);
+  TypefaceRecord& recordForTypeface(const sk_sp<SkTypeface>& typeface);
   /** Destroys every HarfBuzz face/font and clears the record map. */
   void destroyTypefaceRecords();
   ~Impl();
 };
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

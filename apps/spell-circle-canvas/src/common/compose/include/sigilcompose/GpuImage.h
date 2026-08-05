@@ -30,8 +30,8 @@
 #include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/Recorder.h>
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -41,24 +41,21 @@ namespace sigil::compose::gpuimg {
  *  owning value (a Slice, an Atlas) so re-draws reuse the upload. */
 struct Promoted {
   sk_sp<SkImage> image;
-  const SkImage *source = nullptr;
-  const void *recorder = nullptr;
+  const SkImage* source = nullptr;
+  const void* recorder = nullptr;
 };
 
 /** @p img ready for Graphite: the cached or freshly promoted texture
  *  (unchanged on raster canvases / already-texture images; falls back to
  *  @p img when promotion fails). */
-inline sk_sp<SkImage> ready(Promoted &cache, sk_sp<SkImage> img,
-                            SkCanvas &canvas) {
-  skgpu::graphite::Recorder *recorder = canvas.recorder();
-  if (!recorder || !img || img->isTextureBacked())
-    return img;
-  if (cache.image && cache.source == img.get() &&
-      cache.recorder == recorder)
+inline sk_sp<SkImage> ready(Promoted& cache, sk_sp<SkImage> img,
+                            SkCanvas& canvas) {
+  skgpu::graphite::Recorder* recorder = canvas.recorder();
+  if (!recorder || !img || img->isTextureBacked()) return img;
+  if (cache.image && cache.source == img.get() && cache.recorder == recorder)
     return cache.image;
   sk_sp<SkImage> texture = SkImages::TextureFromImage(recorder, img.get(), {});
-  if (!texture)
-    return img;
+  if (!texture) return img;
   cache.image = texture;
   cache.source = img.get();
   cache.recorder = recorder;
@@ -71,14 +68,13 @@ namespace detail {
  *  fixed/stretchable intervals starting FIXED. Stretch bands share the
  *  leftover destination space; when the destination is smaller than the
  *  fixed sum, fixed bands scale down proportionally (Skia's rule). */
-inline void latticeEdges(const std::vector<int> &divs, float srcLen,
-                         float dstLen, std::vector<float> &srcEdges,
-                         std::vector<float> &dstEdges) {
+inline void latticeEdges(const std::vector<int>& divs, float srcLen,
+                         float dstLen, std::vector<float>& srcEdges,
+                         std::vector<float>& dstEdges) {
   srcEdges.clear();
   dstEdges.clear();
   srcEdges.push_back(0);
-  for (int d : divs)
-    srcEdges.push_back((float)std::clamp(d, 0, (int)srcLen));
+  for (int d : divs) srcEdges.push_back((float)std::clamp(d, 0, (int)srcLen));
   srcEdges.push_back(srcLen);
   float fixedSum = 0, stretchSum = 0;
   for (size_t i = 0; i + 1 < srcEdges.size(); ++i) {
@@ -100,16 +96,15 @@ inline void latticeEdges(const std::vector<int> &divs, float srcLen,
   }
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** drawImageLattice on every backend (see the file comment). Empty divs
  *  stretch the whole image (plain drawImageRect). */
-inline void drawLattice(SkCanvas &canvas, Promoted &cache, sk_sp<SkImage> img,
-                        const std::vector<int> &xDivs,
-                        const std::vector<int> &yDivs, const SkRect &dst,
+inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
+                        const std::vector<int>& xDivs,
+                        const std::vector<int>& yDivs, const SkRect& dst,
                         SkFilterMode filter) {
-  if (!img)
-    return;
+  if (!img) return;
   const SkSamplingOptions sampling(filter);
   if (xDivs.empty() && yDivs.empty()) {
     canvas.drawImageRect(img, dst, sampling);
@@ -130,8 +125,7 @@ inline void drawLattice(SkCanvas &canvas, Promoted &cache, sk_sp<SkImage> img,
       const SkRect cell =
           SkRect::MakeLTRB(dst.left() + dx[ix], dst.top() + dy[iy],
                            dst.left() + dx[ix + 1], dst.top() + dy[iy + 1]);
-      if (src.isEmpty() || cell.isEmpty())
-        continue;
+      if (src.isEmpty() || cell.isEmpty()) continue;
       canvas.drawImageRect(img, src, cell, sampling, nullptr,
                            SkCanvas::kFast_SrcRectConstraint);
     }
@@ -149,14 +143,13 @@ inline void drawLattice(SkCanvas &canvas, Promoted &cache, sk_sp<SkImage> img,
  *  `size` wide whose aspect swings ~2.4:1 to under 1:1 across its life,
  *  and every study that needed it hand-built the vertex buffer this
  *  function already builds internally. */
-inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
-                            sk_sp<SkImage> sheet, const SkRSXform *xforms,
-                            const SkRect *tex, const SkColor *colors,
-                            size_t count, const SkSamplingOptions &sampling,
+inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
+                            sk_sp<SkImage> sheet, const SkRSXform* xforms,
+                            const SkRect* tex, const SkColor* colors,
+                            size_t count, const SkSamplingOptions& sampling,
                             SkBlendMode blend = SkBlendMode::kSrcOver,
-                            const SkSize *sizes = nullptr) {
-  if (!sheet || count == 0)
-    return;
+                            const SkSize* sizes = nullptr) {
+  if (!sheet || count == 0) return;
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
   // to the same vertices internally, and a recorded drawVertices replays
   // on Graphite where a recorded native atlas op would vanish.
@@ -171,10 +164,8 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
   const size_t offset = count - tail;
   xforms += offset;
   tex += offset;
-  if (colors)
-    colors += offset;
-  if (sizes)
-    sizes += offset;
+  if (colors) colors += offset;
+  if (sizes) sizes += offset;
   count = tail;
   // Two triangles per sprite, indexed; positions from RSXform::toQuad.
   static thread_local std::vector<SkPoint> positions;
@@ -188,8 +179,7 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
   positions.reserve(count * 4);
   texs.reserve(count * 4);
   indices.reserve(count * 6);
-  if (colors)
-    vertexColors.reserve(count * 4);
+  if (colors) vertexColors.reserve(count * 4);
   for (size_t i = 0; i < count; ++i) {
     SkPoint quad[4];
     if (sizes) {
@@ -209,8 +199,7 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
       const float ax = tex[i].width() * 0.5f, ay = tex[i].height() * 0.5f;
       const float cx = xforms[i].fTx + cos0 * ax - sin0 * ay;
       const float cy = xforms[i].fTy + sin0 * ax + cos0 * ay;
-      const SkPoint local[4] = {
-          {-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}};
+      const SkPoint local[4] = {{-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}};
       for (int k = 0; k < 4; ++k)
         quad[k] = {cx + local[k].fX * c - local[k].fY * s0,
                    cy + local[k].fX * s0 + local[k].fY * c};
@@ -218,18 +207,16 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
       xforms[i].toQuad(tex[i].width(), tex[i].height(), quad);
     }
     const uint16_t base = (uint16_t)positions.size();
-    for (int k = 0; k < 4; ++k)
-      positions.push_back(quad[k]);
+    for (int k = 0; k < 4; ++k) positions.push_back(quad[k]);
     texs.push_back({tex[i].left(), tex[i].top()});
     texs.push_back({tex[i].right(), tex[i].top()});
     texs.push_back({tex[i].right(), tex[i].bottom()});
     texs.push_back({tex[i].left(), tex[i].bottom()});
     if (colors)
-      for (int k = 0; k < 4; ++k)
-        vertexColors.push_back(colors[i]);
-    const uint16_t quadIndices[6] = {base,          (uint16_t)(base + 1),
-                                     (uint16_t)(base + 2), base,
-                                     (uint16_t)(base + 2), (uint16_t)(base + 3)};
+      for (int k = 0; k < 4; ++k) vertexColors.push_back(colors[i]);
+    const uint16_t quadIndices[6] = {
+        base, (uint16_t)(base + 1), (uint16_t)(base + 2),
+        base, (uint16_t)(base + 2), (uint16_t)(base + 3)};
     indices.insert(indices.end(), quadIndices, quadIndices + 6);
   }
   sk_sp<SkVertices> vertices = SkVertices::MakeCopy(
@@ -253,4 +240,4 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
   canvas.drawVertices(vertices, SkBlendMode::kModulate, p);
 }
 
-} // namespace sigil::compose::gpuimg
+}  // namespace sigil::compose::gpuimg

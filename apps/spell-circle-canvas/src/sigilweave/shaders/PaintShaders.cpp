@@ -13,13 +13,13 @@ namespace sigil::weave::PaintShaders {
 
 namespace {
 
-sk_sp<SkRuntimeEffect> compileEffect(const char *source) {
+sk_sp<SkRuntimeEffect> compileEffect(const char* source) {
   SkRuntimeEffect::Result result =
       SkRuntimeEffect::MakeForShader(SkString(source));
   return std::move(result.effect);
 }
 
-void setCommonUniforms(SkRuntimeShaderBuilder &builder, const SkRect &bounds,
+void setCommonUniforms(SkRuntimeShaderBuilder& builder, const SkRect& bounds,
                        float timeSeconds) {
   builder.uniform("origin") = SkV2{bounds.left(), bounds.top()};
   builder.uniform("extent") =
@@ -29,7 +29,7 @@ void setCommonUniforms(SkRuntimeShaderBuilder &builder, const SkRect &bounds,
       SkV2{std::sin(timeSeconds * 0.83f), std::cos(timeSeconds * 0.61f)};
 }
 
-const sk_sp<SkRuntimeEffect> &waterEffect() {
+const sk_sp<SkRuntimeEffect>& waterEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -59,7 +59,7 @@ const sk_sp<SkRuntimeEffect> &waterEffect() {
   return effect;
 }
 
-const sk_sp<SkRuntimeEffect> &meshEffect() {
+const sk_sp<SkRuntimeEffect>& meshEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -95,7 +95,7 @@ const sk_sp<SkRuntimeEffect> &meshEffect() {
 // Each point's size, brightness, phase, and twinkle rate come from a hash of
 // its grid cell, so unlike a single global pulse, points fade in and out out
 // of sync with their neighbors — closer to a real sky than a uniform strobe.
-const sk_sp<SkRuntimeEffect> &sparkleEffect() {
+const sk_sp<SkRuntimeEffect>& sparkleEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -143,7 +143,7 @@ const sk_sp<SkRuntimeEffect> &sparkleEffect() {
 // Pablo Roman Andrioli's "Star Nest" (MIT licensed), adapted to this file's
 // origin/extent/time/motion uniforms in place of iResolution/iTime/iMouse —
 // a volumetric raymarch through drifting fractal dust.
-const sk_sp<SkRuntimeEffect> &starNestEffect() {
+const sk_sp<SkRuntimeEffect>& starNestEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -213,7 +213,7 @@ const sk_sp<SkRuntimeEffect> &starNestEffect() {
 }
 
 // Layered ridged/fbm value noise clouds, adapted to this file's uniforms.
-const sk_sp<SkRuntimeEffect> &cloudsEffect() {
+const sk_sp<SkRuntimeEffect>& cloudsEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -333,7 +333,7 @@ const sk_sp<SkRuntimeEffect> &cloudsEffect() {
 
 // Endless raymarched kaleidoscope tunnel (after a shader by @notargs),
 // adapted to this file's uniforms.
-const sk_sp<SkRuntimeEffect> &tunnelEffect() {
+const sk_sp<SkRuntimeEffect>& tunnelEffect() {
   static const sk_sp<SkRuntimeEffect> effect = compileEffect(R"(
     uniform float2 origin;
     uniform float2 extent;
@@ -362,39 +362,38 @@ const sk_sp<SkRuntimeEffect> &tunnelEffect() {
   return effect;
 }
 
-sk_sp<SkShader> makeShader(const sk_sp<SkRuntimeEffect> &effect,
-                           const SkRect &bounds, float timeSeconds) {
-  if (!effect)
-    return nullptr;
+sk_sp<SkShader> makeShader(const sk_sp<SkRuntimeEffect>& effect,
+                           const SkRect& bounds, float timeSeconds) {
+  if (!effect) return nullptr;
   SkRuntimeShaderBuilder builder(effect);
   setCommonUniforms(builder, bounds, timeSeconds);
   return builder.makeShader();
 }
 
-} // namespace
+}  // namespace
 
-sk_sp<SkShader> water(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> water(const SkRect& bounds, float timeSeconds) {
   return makeShader(waterEffect(), bounds, timeSeconds);
 }
 
-sk_sp<SkShader> meshGradient(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> meshGradient(const SkRect& bounds, float timeSeconds) {
   return makeShader(meshEffect(), bounds, timeSeconds);
 }
 
-sk_sp<SkShader> sparkle(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> sparkle(const SkRect& bounds, float timeSeconds) {
   return makeShader(sparkleEffect(), bounds, timeSeconds);
 }
 
-sk_sp<SkShader> starNest(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> starNest(const SkRect& bounds, float timeSeconds) {
   return makeShader(starNestEffect(), bounds, timeSeconds);
 }
 
-sk_sp<SkShader> clouds(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> clouds(const SkRect& bounds, float timeSeconds) {
   return makeShader(cloudsEffect(), bounds, timeSeconds);
 }
 
-sk_sp<SkShader> tunnel(const SkRect &bounds, float timeSeconds) {
+sk_sp<SkShader> tunnel(const SkRect& bounds, float timeSeconds) {
   return makeShader(tunnelEffect(), bounds, timeSeconds);
 }
 
-} // namespace sigil::weave::PaintShaders
+}  // namespace sigil::weave::PaintShaders

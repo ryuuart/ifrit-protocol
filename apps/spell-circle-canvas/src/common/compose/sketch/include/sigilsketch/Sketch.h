@@ -47,28 +47,32 @@ struct CanvasSpec {
 };
 
 struct SketchContext {
-  Composer &composer;        // render()/renderSlot()/query surface
-  sigil::motion::Ticker &ticker; // steppables + choreograph timeline
-  Assets &assets;            // hot-reloading image loader
-  SkSize size;               // the current logical canvas size
-  CanvasSpec *spec = nullptr; // host-owned; written via the calls below
-  sigil::weave::FontContext *fonts = nullptr; // the composer's fonts —
-                                              // measure()/snapshot() fuel
+  Composer& composer;             // render()/renderSlot()/query surface
+  sigil::motion::Ticker& ticker;  // steppables + choreograph timeline
+  Assets& assets;                 // hot-reloading image loader
+  SkSize size;                    // the current logical canvas size
+  CanvasSpec* spec = nullptr;     // host-owned; written via the calls below
+  sigil::weave::FontContext* fonts = nullptr;  // the composer's fonts —
+                                               // measure()/snapshot() fuel
 
-  SketchContext(Composer &composerIn, sigil::motion::Ticker &tickerIn,
-                Assets &assetsIn, SkSize sizeIn, CanvasSpec *specIn = nullptr,
-                sigil::weave::FontContext *fontsIn = nullptr,
+  SketchContext(Composer& composerIn, sigil::motion::Ticker& tickerIn,
+                Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
+                sigil::weave::FontContext* fontsIn = nullptr,
                 bool deterministicIn = false)
-      : composer(composerIn), ticker(tickerIn), assets(assetsIn),
-        size(sizeIn), spec(specIn), fonts(fontsIn),
+      : composer(composerIn),
+        ticker(tickerIn),
+        assets(assetsIn),
+        size(sizeIn),
+        spec(specIn),
+        fonts(fontsIn),
         deterministic(deterministicIn) {}
   /** NON-COPYABLE, deliberately: this is a PER-FRAME value the host
    *  rebuilds — capturing it in a steppable by reference dangles next
    *  frame, and capturing a COPY would hold a stale spec/size just as
    *  silently. Neither compiles; capture `ctx.composer` (stable for the
    *  sketch's life) or plain data instead. */
-  SketchContext(const SketchContext &) = delete;
-  SketchContext &operator=(const SketchContext &) = delete;
+  SketchContext(const SketchContext&) = delete;
+  SketchContext& operator=(const SketchContext&) = delete;
   /** `--deterministic`: the host is taking a capture that will be DIFFED,
    *  so anything the sketch measured about its own execution must be
    *  pinned. See `measured()` below — read the flag directly only when
@@ -107,14 +111,12 @@ struct SketchContext {
   /** p5's createCanvas: declare the logical canvas size. Usually in
    *  setup(); calling later resizes live (applied next frame). */
   void canvas(float width, float height) {
-    if (spec)
-      spec->size = {width, height};
-    size = {width, height}; // visible immediately, p5-style
+    if (spec) spec->size = {width, height};
+    size = {width, height};  // visible immediately, p5-style
   }
   /** The clear color behind the scene (p5's background). */
   void background(SkColor4f color) {
-    if (spec)
-      spec->background = color;
+    if (spec) spec->background = color;
   }
 
   /** Declare the scene time a STILL of this sketch should be taken at —
@@ -131,8 +133,7 @@ struct SketchContext {
    *
    *      ctx.captureAt(7.2); // the hold at the end of the cycle */
   void captureAt(double seconds) {
-    if (spec)
-      spec->captureSeconds = seconds;
+    if (spec) spec->captureSeconds = seconds;
   }
 };
 
@@ -149,11 +150,11 @@ struct Sketch {
   virtual ~Sketch() = default;
   /** Called once per (re)load and again when an asset file changes.
    *  Declare the scene here, animation wiring included. */
-  virtual void setup(SketchContext &ctx) = 0;
+  virtual void setup(SketchContext& ctx) = 0;
   /** Called every frame with the clock's elapsed seconds — react to
    *  DATA changes here by re-rendering a fresh description; leave
    *  per-frame motion to bindings and Cache::None paint programs. */
-  virtual void update(double elapsed, SketchContext &ctx) {
+  virtual void update(double elapsed, SketchContext& ctx) {
     (void)elapsed;
     (void)ctx;
   }
@@ -173,52 +174,52 @@ struct Sketch {
 /// Builds one instance of a sketch. Registration keeps the factory, not the
 /// sketch: a host constructs a fresh one every time it activates the scene,
 /// exactly as a reload does.
-using SketchFactory = Sketch *(*)();
+using SketchFactory = Sketch* (*)();
 
 struct StaticSketch {
-  const char *key = nullptr; ///< SIGIL_SKETCH_STATIC, i.e. the file stem
+  const char* key = nullptr;  ///< SIGIL_SKETCH_STATIC, i.e. the file stem
   SketchFactory factory = nullptr;
 };
 
 /** Every sketch linked into this binary, in static-initialization order
  *  (which is link order, and therefore not worth depending on — hosts
  *  should look up by key). */
-[[nodiscard]] std::vector<StaticSketch> &staticSketches();
+[[nodiscard]] std::vector<StaticSketch>& staticSketches();
 
 /** Registers `factory` under `key`. Returns true so it can initialize a
  *  namespace-scope bool; SIGIL_SKETCH is the only intended caller. */
-bool registerStaticSketch(const char *key, SketchFactory factory);
+bool registerStaticSketch(const char* key, SketchFactory factory);
 
 /** The factory registered under `key`, or nullptr when this binary was not
  *  built with that sketch. */
 [[nodiscard]] SketchFactory findStaticSketch(std::string_view key);
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch
 
 #ifdef SIGIL_SKETCH_STATIC
 
 /** Register the sketch with the host it is compiled into. */
-#define SIGIL_SKETCH(SketchType)                                         \
-  namespace {                                                            \
-  [[maybe_unused]] const bool sigilSketchRegistered =                    \
-      ::sigil::compose::sketch::registerStaticSketch(                    \
-          SIGIL_SKETCH_STATIC,                                           \
-          []() -> ::sigil::compose::sketch::Sketch * {                   \
-            return new SketchType();                                     \
-          });                                                            \
+#define SIGIL_SKETCH(SketchType)                                           \
+  namespace {                                                              \
+  [[maybe_unused]] const bool sigilSketchRegistered =                      \
+      ::sigil::compose::sketch::registerStaticSketch(                      \
+          SIGIL_SKETCH_STATIC, []() -> ::sigil::compose::sketch::Sketch* { \
+            return new SketchType();                                       \
+          });                                                              \
   }
 
 #else
 
 /** Export the sketch entry points. Exactly one per sketch file. */
-#define SIGIL_SKETCH(SketchType)                                         \
-  extern "C" __attribute__((visibility("default")))                      \
-  sigil::compose::sketch::Sketch *sigilSketchCreate() {                  \
-    return new SketchType();                                             \
-  }                                                                      \
-  extern "C" __attribute__((visibility("default"))) unsigned             \
-  sigilSketchAbi() {                                                     \
-    return sigil::compose::sketch::kAbiVersion;                          \
+#define SIGIL_SKETCH(SketchType)                                             \
+  extern "C"                                                                 \
+      __attribute__((visibility("default"))) sigil::compose::sketch::Sketch* \
+      sigilSketchCreate() {                                                  \
+    return new SketchType();                                                 \
+  }                                                                          \
+  extern "C" __attribute__((visibility("default"))) unsigned                 \
+  sigilSketchAbi() {                                                         \
+    return sigil::compose::sketch::kAbiVersion;                              \
   }
 
 #endif

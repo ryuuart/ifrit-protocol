@@ -35,4 +35,4 @@ inline uint32_t pcgMix(uint32_t x) {
 /** Stateless hash of @p x — advance then mix. */
 inline uint32_t pcgHash(uint32_t x) { return pcgMix(pcgAdvance(x)); }
 
-} // namespace sigil::shape::detail
+}  // namespace sigil::shape::detail

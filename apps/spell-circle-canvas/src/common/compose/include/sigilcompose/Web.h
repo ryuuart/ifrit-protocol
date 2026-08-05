@@ -19,32 +19,29 @@
  * adapter at all: draw into a WebImage::paint() callback's canvas.
  */
 
-#include "sigilcompose/Compose.h"
-
+#include <include/core/SkCanvas.h>
 #include <sigilscry/WebView.h>
 
-#include <include/core/SkCanvas.h>
-
 #include <memory>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose {
 
 /** A live web page as a leaf. Size it like any box; the frame scales
  *  into the laid-out bounds (letterboxing is the page's business —
  *  match the view size to the layout for 1:1 pixels). */
-inline Element web(std::shared_ptr<sigil::scry::WebView> view,
-                   SkSamplingOptions sampling =
-                       SkSamplingOptions(SkFilterMode::kLinear)) {
-  Element leaf = custom(
-      [view = std::move(view), sampling](SkCanvas &canvas,
-                                         const PaintContext &ctx) {
-        if (view)
-          view->draw(canvas,
-                     SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
-                     sampling);
-      });
-  leaf.cache(Cache::None); // live frames — declared volatility
+inline Element web(
+    std::shared_ptr<sigil::scry::WebView> view,
+    SkSamplingOptions sampling = SkSamplingOptions(SkFilterMode::kLinear)) {
+  Element leaf = custom([view = std::move(view), sampling](
+                            SkCanvas& canvas, const PaintContext& ctx) {
+    if (view)
+      view->draw(canvas, SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                 sampling);
+  });
+  leaf.cache(Cache::None);  // live frames — declared volatility
   return leaf;
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

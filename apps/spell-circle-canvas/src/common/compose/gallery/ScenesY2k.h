@@ -21,38 +21,36 @@
 //   status bar ...... util::marquee, driven live: the content width is
 //                     measured and the wrapping phase comes from the ticker
 
-#include "GalleryCore.h"
-
+#include <include/core/SkMaskFilter.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 
-#include <include/core/SkMaskFilter.h>
-
 #include <cmath>
 #include <string>
 #include <string_view>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
 namespace y2k_chrome {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
-constexpr float kWindowX = 20, kWindowY = 16; // window inset in the scene
+constexpr float kWindowX = 20, kWindowY = 16;  // window inset in the scene
 constexpr float kTitleBarH = 34;
-constexpr float kPlateH = 96;   // the wordmark chrome plate
+constexpr float kPlateH = 96;  // the wordmark chrome plate
 constexpr float kPillW = 158, kPillH = 42;
 constexpr float kOrbD = 84;
 constexpr float kStatusH = 22;
-constexpr float kTickerSpeed = 70; // px/s, the lazy 56k crawl
-constexpr float kTickerGap = 40;   // between the two marquee copies
+constexpr float kTickerSpeed = 70;  // px/s, the lazy 56k crawl
+constexpr float kTickerGap = 40;    // between the two marquee copies
 
 /** 0xRRGGBB -> SkColor4f. */
 constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f,
-          a};
+          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
 }
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
@@ -82,17 +80,26 @@ inline sigil::weave::TextStyle gelLabel(SkColor4f tint, float size = 16) {
 // ---------------------------------------------------------------------------
 // PRESET pill / orb - the whole recipe is one style() call.
 
-inline Element gelPill(std::string_view label, SkColor4f tint,
-                       float w = kPillW, float h = kPillH) {
-  return box().width(w).height(h).corners({h / 2})
-      .style(styles::aquaGel(tint)) // body + gloss + hairline, no .fill()
-      .row().justify(Justify::Center).alignItems(Align::Center)
+inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
+                       float h = kPillH) {
+  return box()
+      .width(w)
+      .height(h)
+      .corners({h / 2})
+      .style(styles::aquaGel(tint))  // body + gloss + hairline, no .fill()
+      .row()
+      .justify(Justify::Center)
+      .alignItems(Align::Center)
       .child(text(toU8(std::string(label)), gelLabel(tint)));
 }
 
 inline Element gelOrb(float d = kOrbD) {
-  return box().width(d).height(d).corners({d / 2})
-      .style(styles::aquaGel(C(0x1E8FFF))).clip()
+  return box()
+      .width(d)
+      .height(d)
+      .corners({d / 2})
+      .style(styles::aquaGel(C(0x1E8FFF)))
+      .clip()
       // The PS Gloss Contour proper (styles::gloss — blurred coverage
       // through a ring table): a shape-following light band the preset's
       // axis-aligned lens can't produce on a sphere.
@@ -118,20 +125,24 @@ struct PillTint {
   SkColor4f deep, mid, light, glow, halo;
 };
 
-inline constexpr PillTint kBluePill{{28 / 255.f, 91 / 255.f, 155 / 255.f, 0.82f},
-                                    {108 / 255.f, 191 / 255.f, 255 / 255.f, 0.90f},
-                                    C(0x7ECBFF),
-                                    C(0xB0E5FF),
-                                    {66 / 255.f, 140 / 255.f, 240 / 255.f, 0.5f}};
+inline constexpr PillTint kBluePill{
+    {28 / 255.f, 91 / 255.f, 155 / 255.f, 0.82f},
+    {108 / 255.f, 191 / 255.f, 255 / 255.f, 0.90f},
+    C(0x7ECBFF),
+    C(0xB0E5FF),
+    {66 / 255.f, 140 / 255.f, 240 / 255.f, 0.5f}};
 
-inline Element aquaPill(std::string_view label, const PillTint &t,
+inline Element aquaPill(std::string_view label, const PillTint& t,
                         float w = kPillW, float h = kPillH) {
-  const float r = h / 2; // true pill
+  const float r = h / 2;  // true pill
   // rim 1.5px per-side #8BA2C1 / #5890BF / #4F93CA / #768FA5.
   auto rim = [](shapes::Edge e, SkColor4f c) {
     return shapes::onEdges(e, util::stroke(1.5f, Fill::color(c)));
   };
-  return box().width(w).height(h).corners({r})
+  return box()
+      .width(w)
+      .height(h)
+      .corners({r})
       // halo: rgba(66,140,240,.5) offset (0,10) blur 16 - under the fill
       .background(styles::dropShadow(t.halo, {0, 10}, 16))
       // body ramp: deep .82 -> mid .9 @0.9 -> light
@@ -142,7 +153,9 @@ inline Element aquaPill(std::string_view label, const PillTint &t,
       .foreground(rim(shapes::Edge::Bottom, C(0x4F93CA)))
       .foreground(rim(shapes::Edge::Left, C(0x768FA5)))
       // bottom glow: inset 2, fades out by 45% up from the bottom, screen
-      .child(box().inset(2, h * 0.55f, 2, 2).corners({r - 2})
+      .child(box()
+                 .inset(2, h * 0.55f, 2, 2)
+                 .corners({r - 2})
                  .fill(Material::linear(
                      {0, h * 0.45f - 4}, {0, 0},
                      {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
@@ -152,12 +165,16 @@ inline Element aquaPill(std::string_view label, const PillTint &t,
       .child(box()
                  .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
                  .corners({h * 0.24f})
-                 .fill(Material::linear({0, 0}, {0, h * 0.48f},
-                                        {{0.0f, {1, 1, 1, 0.72f}},
-                                         {1.0f, {1, 1, 1, 0.0f}}})))
+                 .fill(Material::linear(
+                     {0, 0}, {0, h * 0.48f},
+                     {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})))
       // label, centered, riding above the lens
-      .child(box().inset(0).row().justify(Justify::Center)
-                 .alignItems(Align::Center).zIndex(1)
+      .child(box()
+                 .inset(0)
+                 .row()
+                 .justify(Justify::Center)
+                 .alignItems(Align::Center)
+                 .zIndex(1)
                  .child(text(toU8(std::string(label)),
                              gelLabel({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
                                        t.deep.fB * 1.3f, 1}))));
@@ -170,14 +187,18 @@ inline Element aquaPill(std::string_view label, const PillTint &t,
 inline Element plasticButton(std::string_view label) {
   styles::BevelEmboss bevel;
   bevel.depth = 3;
-  bevel.size = 0; // HARD edges: the era's 2px outset is unblurred
+  bevel.size = 0;  // HARD edges: the era's 2px outset is unblurred
   bevel.highlight = {1, 1, 1, 0.88f};
   bevel.shadow = {0, 0, 0, 0.55f};
-  return box().width(150).height(34)
-      .fill(Fill::color(C(0x336699))) // flat web-safe fill
+  return box()
+      .width(150)
+      .height(34)
+      .fill(Fill::color(C(0x336699)))  // flat web-safe fill
       .foreground(bevel)
-      .stroke(util::stroke(1, Fill::color(C(0x000000)))) // keyline
-      .row().justify(Justify::Center).alignItems(Align::Center)
+      .stroke(util::stroke(1, Fill::color(C(0x000000))))  // keyline
+      .row()
+      .justify(Justify::Center)
+      .alignItems(Align::Center)
       .child(text(toU8(std::string(label)), type(13, C(0xFFFFFF), 0.5f, 600)));
 }
 
@@ -186,14 +207,19 @@ inline Element chromeSquare(SkColor4f fill) {
   styles::BevelEmboss bevel;
   bevel.depth = 1.5f;
   bevel.size = 0;
-  return box().width(14).height(13).fill(Fill::color(fill))
+  return box()
+      .width(14)
+      .height(13)
+      .fill(Fill::color(fill))
       .foreground(bevel)
       .stroke(util::stroke(1, Fill::color({0.25f, 0.27f, 0.30f, 0.8f})));
 }
 
 /** White starburst glint (shapes::star, thin 4-point). */
 inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
-  return box().width(size).height(size)
+  return box()
+      .width(size)
+      .height(size)
       .shape(shapes::star(4, 0.10f))
       .fill(Fill::color({1, 1, 1, alpha}))
       .rotate(rotationDeg)
@@ -205,16 +231,16 @@ inline Element caption(std::string_view s) {
   return text(toU8(std::string(s)), type(10, C(0x59626C), 0.8f, 600));
 }
 
-} // namespace y2k_chrome
+}  // namespace y2k_chrome
 
 struct Y2kChromeScene final : Scene {
   choreograph::Output<float> tickX{0};
-  float unitW = 0;   // strip content's intrinsic width (compose::measure)
-  float wrapLen = 1; // marquee wrap length = unitW + gap
+  float unitW = 0;    // strip content's intrinsic width (compose::measure)
+  float wrapLen = 1;  // marquee wrap length = unitW + gap
 
-  const char *name() const override { return "y2k chrome"; }
+  const char* name() const override { return "y2k chrome"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace yc = y2k_chrome;
     tickX = 0;
 
@@ -234,15 +260,18 @@ struct Y2kChromeScene final : Scene {
 
   Element stripContent() {
     namespace yc = y2k_chrome;
-    const char *unit = "\xc2\xb7 WELCOME TO SIGILNET 2000 \xc2\xb7 "
-                       "Y2K COMPLIANT \xc2\xb7 BEST VIEWED AT 800\xc3\x97"
-                       "600 \xc2\xb7 SIGN THE GUESTBOOK \xc2\xb7 NO FRAMES ";
+    const char* unit =
+        "\xc2\xb7 WELCOME TO SIGILNET 2000 \xc2\xb7 "
+        "Y2K COMPLIANT \xc2\xb7 BEST VIEWED AT 800\xc3\x97"
+        "600 \xc2\xb7 SIGN THE GUESTBOOK \xc2\xb7 NO FRAMES ";
     Element content =
-        box().row().alignItems(Align::Center).height(Dim(yc::kStatusH))
+        box()
+            .row()
+            .alignItems(Align::Center)
+            .height(Dim(yc::kStatusH))
             .child(text(toU8(unit), yc::type(11, yc::C(0x39424C), 1.0f, 550))
                        .shrink(0));
-    if (unitW > 0)
-      content.width(Dim(unitW)).shrink(0);
+    if (unitW > 0) content.width(Dim(unitW)).shrink(0);
     return content;
   }
 
@@ -257,12 +286,16 @@ struct Y2kChromeScene final : Scene {
 
     // ---- title bar: the y2kChrome() PRESET on the bar box -----------------
     Element titleBar =
-        box().height(yc::kTitleBarH)
+        box()
+            .height(yc::kTitleBarH)
             // No horizon sliver on a caption bar: at 12px type the
             // full-width sheen line reads as strikethrough (real Y2K bars
             // carry the top-edge highlight only).
             .style(styles::y2kChrome({.horizonSliver = false}))
-            .row().alignItems(Align::Center).padding(12, 0).gap(5)
+            .row()
+            .alignItems(Align::Center)
+            .padding(12, 0)
+            .gap(5)
             .child(text(toU8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"),
                         [] {
                           auto s = yc::type(12, yc::C(0xF2F6FA), 0.4f, 600);
@@ -285,9 +318,13 @@ struct Y2kChromeScene final : Scene {
     const float plateH = yc::kPlateH;
     const float horizonY = plateH * 0.50f;
     Element plate =
-        box().height(plateH).corners({10})
+        box()
+            .height(plateH)
+            .corners({10})
             .style(styles::y2kChrome())
-            .row().justify(Justify::Center).alignItems(Align::Center)
+            .row()
+            .justify(Justify::Center)
+            .alignItems(Align::Center)
             .padding(34, 0)
             .child(text(toU8("MILLENNIUM"),
                         [] {
@@ -299,9 +336,8 @@ struct Y2kChromeScene final : Scene {
                           ground.paint.setColor4f({0.02f, 0.05f, 0.09f, 0.55f},
                                                   nullptr);
                           ground.paint.setAntiAlias(true);
-                          ground.paint.setMaskFilter(
-                              SkMaskFilter::MakeBlur(kNormal_SkBlurStyle,
-                                                     1.6f));
+                          ground.paint.setMaskFilter(SkMaskFilter::MakeBlur(
+                              kNormal_SkBlurStyle, 1.6f));
                           ground.offset = {0, 2.4f};
                           sigil::weave::PaintLayer contour;
                           contour.paint.setAntiAlias(true);
@@ -324,21 +360,26 @@ struct Y2kChromeScene final : Scene {
                        .textFill(styles::sunsetChromeText()));
 
     Element wordmark =
-        box().key("wordmark")
-            .translateY(animate(from(14.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
+        box()
+            .key("wordmark")
+            .translateY(
+                animate(from(14.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
             .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(plate)
             // The preset's specular sliver rides the plate BEHIND the type.
             // Do not add a second sliver over the type: two bright lines at
             // the same height read as a strikethrough.
             // Starburst glints riding the horizon, plus one on a cap top.
-            .child(box().inset(22, horizonY - 12, 0, 0)
-                       .child(yc::glint(24, 0)))
-            .child(box().inset(0, horizonY - 9, 26, 0)
-                       .row().justify(Justify::End)
+            .child(box().inset(22, horizonY - 12, 0, 0).child(yc::glint(24, 0)))
+            .child(box()
+                       .inset(0, horizonY - 9, 26, 0)
+                       .row()
+                       .justify(Justify::End)
                        .child(yc::glint(18, 18, 0.9f)))
-            .child(box().inset(0, 4, 110, 0)
-                       .row().justify(Justify::End)
+            .child(box()
+                       .inset(0, 4, 110, 0)
+                       .row()
+                       .justify(Justify::End)
                        .child(yc::glint(13, 12, 0.85f)));
 
     // ---- tagline: styles::textGlow, chained for the hotter double glow ----
@@ -347,7 +388,10 @@ struct Y2kChromeScene final : Scene {
     Element tagline =
         // Compensated padding preserves the original y/height while giving
         // the cached raster 24px of transparent room for its 7px glow.
-        box().row().justify(Justify::Center).padding(0, 24)
+        box()
+            .row()
+            .justify(Justify::Center)
+            .padding(0, 24)
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
             .opacity(animate(from(0.0f).to(1.0f), {400ms}))
@@ -359,43 +403,67 @@ struct Y2kChromeScene final : Scene {
                                        {0.36f, 0.80f, 1.0f, 0.9f}, 7))));
 
     // ---- pill rack: three aquaGel() recolors ------------------------------
-    Element pills =
-        box().row().justify(Justify::Center).gap(22).margin(0, 18, 0, 0)
-            .key("pills")
-            .translateY(animate(from(12.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
-            .opacity(animate(from(0.0f).to(1.0f), {400ms}))
-            .child(yc::gelPill("ENTER  PORTAL", yc::C(0x1E8FFF)))
-            .child(yc::gelPill("HOT  LINKS", yc::C(0xE03A3A)))
-            .child(yc::gelPill("GUESTBOOK", yc::C(0x2AA84F)));
+    Element pills = box()
+                        .row()
+                        .justify(Justify::Center)
+                        .gap(22)
+                        .margin(0, 18, 0, 0)
+                        .key("pills")
+                        .translateY(animate(from(12.0f).to(0.0f),
+                                            {550ms, &ch::easeOutQuint}))
+                        .opacity(animate(from(0.0f).to(1.0f), {400ms}))
+                        .child(yc::gelPill("ENTER  PORTAL", yc::C(0x1E8FFF)))
+                        .child(yc::gelPill("HOT  LINKS", yc::C(0xE03A3A)))
+                        .child(yc::gelPill("GUESTBOOK", yc::C(0x2AA84F)));
 
     // ---- the A/B card: hand-built recipe vs the preset --------------------
     Element abCard =
-        box().row().justify(Justify::Center).margin(0, 16, 0, 0)
+        box()
+            .row()
+            .justify(Justify::Center)
+            .margin(0, 16, 0, 0)
             .opacity(animate(from(0.0f).to(1.0f), {500ms}))
             .child(
-                box().row().gap(28).padding(16, 10).corners({8})
+                box()
+                    .row()
+                    .gap(28)
+                    .padding(16, 10)
+                    .corners({8})
                     .fill(Fill::color({1, 1, 1, 0.30f}))
                     .stroke(util::stroke(1, Fill::color(yc::C(0x9AA1A9))))
-                    .child(box().column().alignItems(Align::Center).gap(6)
+                    .child(box()
+                               .column()
+                               .alignItems(Align::Center)
+                               .gap(6)
                                .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
                                .child(yc::caption("HAND-BUILT \xc2\xb7 \xc2\xa7"
                                                   "2 VERBATIM")))
-                    .child(box().column().alignItems(Align::Center).gap(6)
-                               .child(yc::gelPill("AQUA  2000",
-                                                  yc::C(0x1E8FFF)))
-                               .child(yc::caption(
-                                   "PRESET \xc2\xb7 styles::aquaGel()"))));
+                    .child(
+                        box()
+                            .column()
+                            .alignItems(Align::Center)
+                            .gap(6)
+                            .child(yc::gelPill("AQUA  2000", yc::C(0x1E8FFF)))
+                            .child(yc::caption(
+                                "PRESET \xc2\xb7 styles::aquaGel()"))));
 
     // ---- status bar: util::marquee, ticker-driven phase -------------------
     Element strip = util::marquee(stripContent(), &tickX, yc::kTickerGap);
     strip.grow(1);
     Element statusBar =
-        box().height(yc::kStatusH).fill(Fill::color(yc::C(0xD9DDE1)))
-            .foreground(shapes::onEdges(
-                shapes::Edge::Top, util::stroke(1, Fill::color(yc::C(0xFFFFFF)))))
-            .background(shapes::onEdges(
-                shapes::Edge::Top, util::stroke(1, Fill::color(yc::C(0x8F969D)))))
-            .row().alignItems(Align::Center).padding(10, 0).gap(8)
+        box()
+            .height(yc::kStatusH)
+            .fill(Fill::color(yc::C(0xD9DDE1)))
+            .foreground(
+                shapes::onEdges(shapes::Edge::Top,
+                                util::stroke(1, Fill::color(yc::C(0xFFFFFF)))))
+            .background(
+                shapes::onEdges(shapes::Edge::Top,
+                                util::stroke(1, Fill::color(yc::C(0x8F969D)))))
+            .row()
+            .alignItems(Align::Center)
+            .padding(10, 0)
+            .gap(8)
             .child(strip)
             .child(box().width(1).height(11).fill(Fill::color(yc::C(0xA6ADB4))))
             .child(text(toU8("56K"), yc::type(10, yc::C(0x6A737D), 1.0f, 700)));
@@ -414,9 +482,9 @@ struct Y2kChromeScene final : Scene {
 
     // ---- assembly ---------------------------------------------------------
     return stack()
-        .fill(Material::linear({0, 0}, {0, yc::kH},
-                               {{0.0f, yc::C(0xB9BFC7)},
-                                {1.0f, yc::C(0xA2A8B1)}}))
+        .fill(Material::linear(
+            {0, 0}, {0, yc::kH},
+            {{0.0f, yc::C(0xB9BFC7)}, {1.0f, yc::C(0xA2A8B1)}}))
         .child(box().inset(0).fill(weave))
         .child(windowBackplate)
         // the window
@@ -424,58 +492,74 @@ struct Y2kChromeScene final : Scene {
             box()
                 .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                 .column()
-                .corners({6}).clip()
+                .corners({6})
+                .clip()
                 .stroke(util::stroke(1, Fill::color(yc::C(0x70777E))))
                 .child(titleBar)
                 .child(
-                    box().column().grow(1).padding(28, 12)
+                    box()
+                        .column()
+                        .grow(1)
+                        .padding(28, 12)
                         .child(box().grow(0.55f))
-                        .child(box().row().justify(Justify::Center)
+                        .child(box()
+                                   .row()
+                                   .justify(Justify::Center)
                                    .child(wordmark))
                         .child(tagline)
                         .child(pills)
                         .child(abCard)
                         .child(box().grow(1))
                         // 3D groove rule - the <hr> of the period
-                        .child(box().height(2).margin(4, 0, 4, 10)
-                                   .opacity(animate(from(0.0f).to(1.0f), {500ms}))
-                                   .fill(Material::linear(
-                                       {0, 0}, {0, 2},
-                                       {{0.0f, yc::C(0x8F969D)},
-                                        {0.5f, yc::C(0x8F969D)},
-                                        {0.501f, yc::C(0xFFFFFF)},
-                                        {1.0f, yc::C(0xFFFFFF)}})))
+                        .child(
+                            box()
+                                .height(2)
+                                .margin(4, 0, 4, 10)
+                                .opacity(animate(from(0.0f).to(1.0f), {500ms}))
+                                .fill(Material::linear(
+                                    {0, 0}, {0, 2},
+                                    {{0.0f, yc::C(0x8F969D)},
+                                     {0.5f, yc::C(0x8F969D)},
+                                     {0.501f, yc::C(0xFFFFFF)},
+                                     {1.0f, yc::C(0xFFFFFF)}})))
                         // footer: preset orb, caption, 1998 plastic button
                         .child(
-                            box().row().alignItems(Align::End).key("footer")
+                            box()
+                                .row()
+                                .alignItems(Align::End)
+                                .key("footer")
                                 .opacity(animate(from(0.0f).to(1.0f), {500ms}))
                                 .child(yc::gelOrb())
-                                .child(
-                                    box().column().margin(14, 0, 0, 4).gap(3)
-                                        .child(text(
-                                            toU8("now streaming @ 56k"),
-                                            yc::type(12, yc::C(0x4E5760),
-                                                     0.6f, 600)))
-                                        .child(text(
-                                            toU8("\xc2\xa9 2000 sigilnet "
-                                                 "industries \xe2\x80\x94 "
-                                                 "best viewed at 800\xc3\x97"
-                                                 "600"),
-                                            yc::type(10, yc::C(0x7A828B),
-                                                     0.4f))))
+                                .child(box()
+                                           .column()
+                                           .margin(14, 0, 0, 4)
+                                           .gap(3)
+                                           .child(text(
+                                               toU8("now streaming @ 56k"),
+                                               yc::type(12, yc::C(0x4E5760),
+                                                        0.6f, 600)))
+                                           .child(text(
+                                               toU8("\xc2\xa9 2000 sigilnet "
+                                                    "industries \xe2\x80\x94 "
+                                                    "best viewed at 800\xc3\x97"
+                                                    "600"),
+                                               yc::type(10, yc::C(0x7A828B),
+                                                        0.4f))))
                                 .child(box().grow(1))
-                                .child(
-                                    box().column().alignItems(Align::End)
-                                        .gap(5).margin(0, 0, 0, 2)
-                                        .child(yc::plasticButton(
-                                            "ENTER SITE >>"))
-                                        .child(text(
-                                            toU8("[ no frames \xc2\xb7 "
-                                                 "spacer.gif free ]"),
-                                            yc::type(10, yc::C(0x8A929B),
-                                                     0.4f))))))
+                                .child(box()
+                                           .column()
+                                           .alignItems(Align::End)
+                                           .gap(5)
+                                           .margin(0, 0, 0, 2)
+                                           .child(yc::plasticButton(
+                                               "ENTER SITE >>"))
+                                           .child(text(
+                                               toU8("[ no frames \xc2\xb7 "
+                                                    "spacer.gif free ]"),
+                                               yc::type(10, yc::C(0x8A929B),
+                                                        0.4f))))))
                 .child(statusBar));
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

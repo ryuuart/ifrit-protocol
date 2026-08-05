@@ -4,15 +4,13 @@
 // composer and drives one scene. The scene registry itself is in
 // GalleryScenes.h.
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Util.h>
-
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <chrono>
@@ -29,8 +27,8 @@ using namespace sigil::compose;
 using sigil::compose::util::toU8;
 using namespace std::chrono_literals;
 
-inline sigil::weave::FontContext &fonts() {
-  static auto *context =
+inline sigil::weave::FontContext& fonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
@@ -49,37 +47,32 @@ constexpr SkSize kSceneSize = {900, 640};
 // Frame statistics (the FPS measurement)
 
 struct FrameStats {
-  std::deque<double> frameMs;   // rolling window of FULL frame work
-  std::deque<double> presentMs; // wall deltas between presented frames
+  std::deque<double> frameMs;    // rolling window of FULL frame work
+  std::deque<double> presentMs;  // wall deltas between presented frames
   static constexpr size_t kWindow = 120;
 
   void add(double ms) {
     frameMs.push_back(ms);
-    if (frameMs.size() > kWindow)
-      frameMs.pop_front();
+    if (frameMs.size() > kWindow) frameMs.pop_front();
   }
   void addPresent(double ms) {
     presentMs.push_back(ms);
-    if (presentMs.size() > kWindow)
-      presentMs.pop_front();
+    if (presentMs.size() > kWindow) presentMs.pop_front();
   }
   double presentedFps() const {
-    if (presentMs.empty())
-      return 0;
+    if (presentMs.empty()) return 0;
     const double avg =
         std::accumulate(presentMs.begin(), presentMs.end(), 0.0) /
         (double)presentMs.size();
     return avg > 0 ? 1000.0 / avg : 0;
   }
   double average() const {
-    if (frameMs.empty())
-      return 0;
+    if (frameMs.empty()) return 0;
     return std::accumulate(frameMs.begin(), frameMs.end(), 0.0) /
            (double)frameMs.size();
   }
   double percentile(double p) const {
-    if (frameMs.empty())
-      return 0;
+    if (frameMs.empty()) return 0;
     std::vector<double> sorted(frameMs.begin(), frameMs.end());
     std::sort(sorted.begin(), sorted.end());
     return sorted[std::min(sorted.size() - 1,
@@ -95,9 +88,9 @@ struct FrameStats {
 
 struct Scene {
   virtual ~Scene() = default;
-  virtual const char *name() const = 0;
-  virtual void setup(Composer &composer, sigil::motion::Ticker &ticker) = 0;
-  virtual void update(double, Composer &) {}
+  virtual const char* name() const = 0;
+  virtual void setup(Composer& composer, sigil::motion::Ticker& ticker) = 0;
+  virtual void update(double, Composer&) {}
 
   /** The scene's own logical canvas; hosts letterbox to it. The catalog
    *  scenes were all authored against kSceneSize, but the studies were
@@ -197,7 +190,7 @@ struct GalleryStage {
     }
   }
 
-  double pendingOverlayMs = 0.0; // charged to the next frame's sample
+  double pendingOverlayMs = 0.0;  // charged to the next frame's sample
   // Invoked INSIDE the timed frame window, after the scene draw. The GPU
   // headless sweep sets this to snap+submit(SyncToCpu) so "work ms" is the
   // honest serialized CPU+GPU cost of a frame, not just command recording.
@@ -209,14 +202,13 @@ struct GalleryStage {
   /** One full frame of work: tick (step + scene update + reconcile) and
    *  the scene draw are measured together — reconcile and relayout are
    *  real per-frame costs, not free. Returns nothing; stats accumulate. */
-  void frame(SkCanvas &canvas, double fixedDt = -1.0) {
-    if (!scene || !composer || !ticker)
-      return;
+  void frame(SkCanvas& canvas, double fixedDt = -1.0) {
+    if (!scene || !composer || !ticker) return;
     const auto start = std::chrono::steady_clock::now();
     double dt = 0.0;
     if (fixedDt >= 0.0) {
       if (!fixedClockInitialized) {
-        clock.tick(0.0); // seed so the first synthetic step advances elapsed
+        clock.tick(0.0);  // seed so the first synthetic step advances elapsed
         fixedClockInitialized = true;
       }
       fixedNowSeconds += fixedDt;
@@ -243,8 +235,7 @@ struct GalleryStage {
       overlay.setSize(sceneSize);
     }
     composer->draw(canvas);
-    if (flushHook)
-      flushHook();
+    if (flushHook) flushHook();
     const double ms = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - start)
                           .count();
@@ -266,11 +257,10 @@ struct GalleryStage {
     stats.presentMs.clear();
   }
 
-  void drawOverlay(SkCanvas &canvas) {
-    if (!showStats)
-      return;
+  void drawOverlay(SkCanvas& canvas) {
+    if (!showStats) return;
     const auto overlayStart = std::chrono::steady_clock::now();
-    const Composer::Stats &cs = composer->stats();
+    const Composer::Stats& cs = composer->stats();
     char line[160];
     const double presented = stats.presentedFps();
     if (presented > 0)
@@ -313,4 +303,4 @@ struct GalleryStage {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

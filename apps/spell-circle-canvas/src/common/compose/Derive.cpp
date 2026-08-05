@@ -13,14 +13,14 @@
 // silent by design (draw nothing rather than diverge), which is the same
 // answer an unknown key gets.
 
-#include "ComposeRuntime.h"
-
-#include <include/core/SkContourMeasure.h> // the connector's terminal gap
+#include <include/core/SkContourMeasure.h>  // the connector's terminal gap
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 
 #include <algorithm>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -31,7 +31,7 @@ namespace {
 /** Routed elements hit near their PATH, not their layout box (an inset(0)
  *  rail must not eclipse the scene): expand the route by a ±6px tolerance
  *  once at derive time; Query.cpp tests containment against it. */
-SkPath expandForHit(const SkPath &route) {
+SkPath expandForHit(const SkPath& route) {
   SkPaint p;
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(12.0f);
@@ -39,7 +39,7 @@ SkPath expandForHit(const SkPath &route) {
   return skpathutils::FillPathWithPaint(route, p);
 }
 
-} // namespace
+}  // namespace
 
 /** The derive pass over the flat instance lists the key index rebuilds each
  *  render: flowAround text nodes first, then routed nodes, both in tree
@@ -48,30 +48,29 @@ SkPath expandForHit(const SkPath &route) {
  *  layout must run again. */
 bool Composer::Impl::resolveDerived() {
   bool relayout = false;
-  for (Instance *inst : flowInstances)
-    relayout |= deriveFlow(*inst);
-  for (Instance *inst : routedInstances)
-    deriveRoute(*inst);
+  for (Instance* inst : flowInstances) relayout |= deriveFlow(*inst);
+  for (Instance* inst : routedInstances) deriveRoute(*inst);
   return relayout;
 }
 
-bool Composer::Impl::deriveFlow(Instance &inst) {
+bool Composer::Impl::deriveFlow(Instance& inst) {
   bool relayout = false;
-  const DeriveData *derive = &*inst.desc->deriveData;
+  const DeriveData* derive = &*inst.desc->deriveData;
 
   if (inst.paragraph) {
     std::vector<SkRect> exclusions;
     const SkRect own = absoluteRect(inst);
-    for (const std::string &key : derive->flowAroundKeys) {
+    for (const std::string& key : derive->flowAroundKeys) {
       auto it = byKey.find(key);
-      if (it == byKey.end())
-        continue;
+      if (it == byKey.end()) continue;
       // Cycle guard: the target must not be this node or a descendant.
       bool cyclic = false;
-      for (Instance *p = it->second; p; p = p->parent)
-        if (p == &inst) { cyclic = true; break; }
-      if (cyclic)
-        continue;
+      for (Instance* p = it->second; p; p = p->parent)
+        if (p == &inst) {
+          cyclic = true;
+          break;
+        }
+      if (cyclic) continue;
       SkRect target = absoluteRect(*it->second);
       target.offset(-own.left(), -own.top());
       exclusions.push_back(target);
@@ -79,7 +78,7 @@ bool Composer::Impl::deriveFlow(Instance &inst) {
     if (exclusions != inst.exclusionsLocal) {
       inst.exclusionsLocal = std::move(exclusions);
       inst.contentRev++;
-      if (inst.yoga) // positioned text re-measures via positionedRect
+      if (inst.yoga)  // positioned text re-measures via positionedRect
         YGNodeMarkDirty(inst.yoga);
       inst.markPaintDirtyUp();
       relayout = true;
@@ -94,14 +93,13 @@ namespace {
 /** The shape a laid-out instance actually occupies, in its OWN space —
  *  the same answer the painter builds, so a borrowed spine and the
  *  element it was borrowed from can never disagree. */
-SkPath resolvedShapeOf(Instance &inst) {
-  const ElementNode &node = *inst.desc;
+SkPath resolvedShapeOf(Instance& inst) {
+  const ElementNode& node = *inst.desc;
   const SkRect rect = inst.owner->instanceRect(inst);
   const SkSize size{rect.width(), rect.height()};
   if (node.deriveData && !inst.connectorPath.isEmpty())
     return inst.connectorPath;
-  if (node.shapeFn)
-    return node.shapeFn(size);
+  if (node.shapeFn) return node.shapeFn(size);
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(size.width(), size.height()));
   return b.detach();
@@ -114,17 +112,16 @@ SkPath resolvedShapeOf(Instance &inst) {
  *  rail branch below open-code the same walk; if you add a fourth borrow,
  *  it needs this check too, or an author can hang the layout pass with a
  *  key. */
-bool borrowIsCyclic(const Instance &inst, Instance *target) {
-  for (Instance *p = target; p; p = p->parent)
-    if (p == &inst)
-      return true;
+bool borrowIsCyclic(const Instance& inst, Instance* target) {
+  for (Instance* p = target; p; p = p->parent)
+    if (p == &inst) return true;
   return false;
 }
 
-} // namespace
+}  // namespace
 
-void Composer::Impl::deriveRoute(Instance &inst) {
-  const DeriveData *derive = &*inst.desc->deriveData;
+void Composer::Impl::deriveRoute(Instance& inst) {
+  const DeriveData* derive = &*inst.desc->deriveData;
 
   // band(around(key)): the spine is another element's resolved shape,
   // moved into this node's local space.
@@ -135,8 +132,8 @@ void Composer::Impl::deriveRoute(Instance &inst) {
       const SkRect own = absoluteRect(inst);
       const SkRect target = absoluteRect(*it->second);
       spine = resolvedShapeOf(*it->second)
-                  .makeTransform(SkMatrix::Translate(
-                      target.left() - own.left(), target.top() - own.top()));
+                  .makeTransform(SkMatrix::Translate(target.left() - own.left(),
+                                                     target.top() - own.top()));
     }
     if (spine != inst.bandSpine) {
       inst.bandSpine = std::move(spine);
@@ -150,10 +147,9 @@ void Composer::Impl::deriveRoute(Instance &inst) {
     std::vector<std::pair<std::string, SkPath>> paths;
     paths.reserve(derive->borrowedPathKeys.size());
     const SkRect own = absoluteRect(inst);
-    for (const std::string &key : derive->borrowedPathKeys) {
+    for (const std::string& key : derive->borrowedPathKeys) {
       auto it = byKey.find(key);
-      if (it == byKey.end() || borrowIsCyclic(inst, it->second))
-        continue;
+      if (it == byKey.end() || borrowIsCyclic(inst, it->second)) continue;
       const SkRect target = absoluteRect(*it->second);
       paths.emplace_back(
           key, resolvedShapeOf(*it->second)
@@ -171,10 +167,9 @@ void Composer::Impl::deriveRoute(Instance &inst) {
     std::vector<std::pair<std::string, SkRect>> rects;
     rects.reserve(derive->spanFitKeys.size());
     const SkRect own = absoluteRect(inst);
-    for (const std::string &key : derive->spanFitKeys) {
+    for (const std::string& key : derive->spanFitKeys) {
       auto it = byKey.find(key);
-      if (it == byKey.end() || borrowIsCyclic(inst, it->second))
-        continue;
+      if (it == byKey.end() || borrowIsCyclic(inst, it->second)) continue;
       SkRect target = absoluteRect(*it->second);
       target.offset(-own.left(), -own.top());
       rects.emplace_back(key, target);
@@ -216,9 +211,8 @@ void Composer::Impl::deriveRoute(Instance &inst) {
           bool touched = false;
           while (sk_sp<SkContourMeasure> contour = iter.next()) {
             const float len = contour->length();
-            if (len <= 0)
-              continue;
-            if (contour->isClosed()) { // no terminals to pull back
+            if (len <= 0) continue;
+            if (contour->isClosed()) {  // no terminals to pull back
               (void)contour->getSegment(0, len, &trimmed, true);
               continue;
             }
@@ -226,8 +220,7 @@ void Composer::Impl::deriveRoute(Instance &inst) {
             (void)contour->getSegment(pull, len - pull, &trimmed, true);
             touched = true;
           }
-          if (touched)
-            inst.connectorPath = trimmed.detach();
+          if (touched) inst.connectorPath = trimmed.detach();
         }
         inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();
@@ -240,24 +233,26 @@ void Composer::Impl::deriveRoute(Instance &inst) {
     pts.reserve(derive->railAnchors.size());
     const SkRect own = absoluteRect(inst);
     bool resolvedAll = true;
-    for (const Anchor &anchor : derive->railAnchors) {
+    for (const Anchor& anchor : derive->railAnchors) {
       auto it = byKey.find(anchor.nodeKey);
       if (it == byKey.end()) {
         resolvedAll = false;
         break;
       }
-      bool cyclic = false; // the rail must not thread itself
-      for (Instance *p = it->second; p; p = p->parent)
-        if (p == &inst) { cyclic = true; break; }
+      bool cyclic = false;  // the rail must not thread itself
+      for (Instance* p = it->second; p; p = p->parent)
+        if (p == &inst) {
+          cyclic = true;
+          break;
+        }
       if (cyclic) {
         resolvedAll = false;
         break;
       }
       const SkRect target = absoluteRect(*it->second);
-      pts.push_back({target.left() + target.width() * anchor.norm.x() -
-                         own.left(),
-                     target.top() + target.height() * anchor.norm.y() -
-                         own.top()});
+      pts.push_back(
+          {target.left() + target.width() * anchor.norm.x() - own.left(),
+           target.top() + target.height() * anchor.norm.y() - own.top()});
     }
     if (!resolvedAll) {
       // An anchor vanished (station unmounted) or went cyclic: the rail
@@ -272,13 +267,11 @@ void Composer::Impl::deriveRoute(Instance &inst) {
       // Terminal gaps: pull the rail's ends back along their segments,
       // clamped so short segments keep a visible run (and a two-point rail
       // pulled from both ends can't invert).
-      auto pullIn = [](SkPoint &end, const SkPoint &next, float gap) {
-        if (gap <= 0)
-          return;
+      auto pullIn = [](SkPoint& end, const SkPoint& next, float gap) {
+        if (gap <= 0) return;
         SkVector d = next - end;
         const float len = d.length();
-        if (len < 1e-3f)
-          return;
+        if (len < 1e-3f) return;
         const float pull = std::min(gap, len * 0.45f);
         d.scale(pull / len);
         end += d;
@@ -291,7 +284,7 @@ void Composer::Impl::deriveRoute(Instance &inst) {
         if (derive->railRouter) {
           inst.connectorPath = derive->railRouter(inst.railPoints);
         } else {
-          SkPathBuilder b; // default: the straight polyline
+          SkPathBuilder b;  // default: the straight polyline
           b.moveTo(inst.railPoints.front());
           for (size_t i = 1; i < inst.railPoints.size(); ++i)
             b.lineTo(inst.railPoints[i]);
@@ -302,7 +295,6 @@ void Composer::Impl::deriveRoute(Instance &inst) {
       }
     }
   }
-
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

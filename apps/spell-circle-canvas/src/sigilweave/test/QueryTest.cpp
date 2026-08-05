@@ -3,12 +3,12 @@
  * ranges, edit-following MarkerSets, and batch paint application.
  */
 
-#include "TestSupport.h"
-
 #include <gtest/gtest.h>
 
 #include <array>
 #include <vector>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -25,14 +25,14 @@ TEST(Query, FindAllAndRegex) {
   const auto matches = findRegexMatches(paragraph, u8"[cms]at");
   ASSERT_TRUE(matches.has_value());
   ASSERT_EQ(matches->size(), 3u);
-  EXPECT_EQ((*matches)[0], (CharRange{4, 7}));   // cat
-  EXPECT_EQ((*matches)[2], (CharRange{19, 22})); // mat
+  EXPECT_EQ((*matches)[0], (CharRange{4, 7}));    // cat
+  EXPECT_EQ((*matches)[2], (CharRange{19, 22}));  // mat
 
   EXPECT_FALSE(findRegexMatches(paragraph, u8"[unclosed").has_value());
 }
 
 TEST(Query, WordRangesMatchSegmentation) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"one two three");
   const std::vector<CharRange> words = wordRanges(paragraph, fontContext);
   ASSERT_EQ(words.size(), 3u);
@@ -45,7 +45,7 @@ TEST(Query, MarkerSetFollowsEdits) {
   Paragraph paragraph = makeParagraph(u8"alpha beta gamma delta");
   MarkerSet marks(paragraph);
   marks.setRanges("greek",
-                  findAllOccurrences(paragraph, u8"gamma")); // [11, 16)
+                  findAllOccurrences(paragraph, u8"gamma"));  // [11, 16)
 
   // Insert before the marker: it shifts.
   paragraph.replaceText(0, 0, u8">>> ");
@@ -55,7 +55,7 @@ TEST(Query, MarkerSetFollowsEdits) {
 
   // Replace text overlapping the marker: it absorbs the replacement.
   paragraph.replaceText(17, 22,
-                        u8"MMA plus"); // ">>> alpha beta gaMMA plus delta"
+                        u8"MMA plus");  // ">>> alpha beta gaMMA plus delta"
   ASSERT_TRUE(marks.synchronize(paragraph));
   EXPECT_EQ(marks.rangesFor("greek")->front(), (CharRange{15, 25}));
 
@@ -66,22 +66,22 @@ TEST(Query, MarkerSetFollowsEdits) {
 }
 
 TEST(Query, MarkerSetStylesAcrossEdits) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"keep the flame lit forever");
   MarkerSet marks(paragraph);
   marks.setRanges("flame", findAllOccurrences(paragraph, u8"flame"));
 
-  paragraph.replaceText(0, 4, u8"guard"); // shifts the marker by +1
+  paragraph.replaceText(0, 4, u8"guard");  // shifts the marker by +1
   PaintStyle red(0xFFFF0000);
   marks.applyPaint(paragraph, "flame", red);
   paragraph.ensureShaped(fontContext);
 
   // The span carrying red must cover exactly "flame" in the new text.
-  const std::u16string &text = paragraph.text();
+  const std::u16string& text = paragraph.text();
   const size_t flameOffset = text.find(u"flame");
   ASSERT_NE(flameOffset, std::u16string::npos);
   bool found = false;
-  for (const StyleSpan &span : paragraph.spans())
+  for (const StyleSpan& span : paragraph.spans())
     if (span.style.paint.foreground.getColor() == 0xFFFF0000) {
       EXPECT_EQ(span.start, static_cast<uint32_t>(flameOffset));
       EXPECT_EQ(span.end, static_cast<uint32_t>(flameOffset + 5));
@@ -98,7 +98,7 @@ TEST(Query, MarkerSetReportsHistoryLoss) {
   for (int editIndex = 0; editIndex < 400; ++editIndex)
     paragraph.replaceText(0, 0, u8"x");
   EXPECT_FALSE(marks.synchronize(paragraph));
-  EXPECT_TRUE(marks.rangesFor("w")->empty()); // cleared, caller must re-query
+  EXPECT_TRUE(marks.rangesFor("w")->empty());  // cleared, caller must re-query
 }
 
 TEST(Query, ScopedSearchesStayInsideTheWindow) {
@@ -122,7 +122,7 @@ TEST(Query, ScopedSearchesStayInsideTheWindow) {
   // Regex: same substring semantics, offsets absolute.
   const auto matches = findRegexMatches(paragraph, u8"[cms]at", {8, 22});
   ASSERT_TRUE(matches.has_value());
-  ASSERT_EQ(matches->size(), 2u); // sat, mat — cat starts at 4, outside
+  ASSERT_EQ(matches->size(), 2u);  // sat, mat — cat starts at 4, outside
   EXPECT_EQ((*matches)[0], (CharRange{8, 11}));
   EXPECT_EQ((*matches)[1], (CharRange{19, 22}));
 
@@ -141,15 +141,15 @@ TEST(Query, ScopedSearchesStayInsideTheWindow) {
 }
 
 TEST(Query, BatchPaintMatchesSequentialPaint) {
-  const char8_t *text = u8"one two three four five six seven eight nine ten";
+  const char8_t* text = u8"one two three four five six seven eight nine ten";
   Paragraph sequential = makeParagraph(text);
   Paragraph batched = makeParagraph(text);
 
   const std::vector<CharRange> words =
-      findAllOccurrences(sequential, u8"e"); // scattered
+      findAllOccurrences(sequential, u8"e");  // scattered
   ASSERT_GT(words.size(), 3u);
   PaintStyle green(0xFF00AA00);
-  for (const CharRange &wordRange : words)
+  for (const CharRange& wordRange : words)
     sequential.setPaint(wordRange.start, wordRange.end, green);
   batched.setPaint(words, green);
 
@@ -169,14 +169,14 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
                                            CharRange{10, 17}, CharRange{3, 3}};
   messy.setPaint(ranges, green);
   uint32_t painted = 0;
-  for (const StyleSpan &span : messy.spans())
+  for (const StyleSpan& span : messy.spans())
     if (span.style.paint.foreground.getColor() == green.foreground.getColor())
       painted += span.end - span.start;
-  EXPECT_EQ(painted, 3u + 9u); // [0,3) + merged [8,17)
+  EXPECT_EQ(painted, 3u + 9u);  // [0,3) + merged [8,17)
 }
 
 TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"the quick brown fox jumps over the lazy dog again and again");
   BlockFlow flow(SkRect::MakeWH(300, 200));
@@ -203,7 +203,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   }
   // And the marked words resolve to the new paint through their runs.
   int redRuns = 0;
-  for (const PositionedRun &run : after.runs)
+  for (const PositionedRun& run : after.runs)
     if (paragraph.spans()[run.styleIndex].style.paint.foreground.getColor() ==
         red.foreground.getColor())
       redRuns++;
@@ -216,7 +216,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   paragraph.setPaint(marks, blue);
   EXPECT_FALSE(paragraph.needsShaping());
   int blueRuns = 0;
-  for (const PositionedRun &run : after.runs)
+  for (const PositionedRun& run : after.runs)
     if (paragraph.spans()[run.styleIndex].style.paint.foreground.getColor() ==
         blue.foreground.getColor())
       blueRuns++;
@@ -224,7 +224,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
 }
 
 TEST(Query, PaintBoundaryMidWordSplitsSegments) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"highlight");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
@@ -232,10 +232,10 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   const float whole = paragraph.words()[0].width;
 
   PaintStyle blue(0xFF0000CC);
-  paragraph.setPaint(0, 4, blue); // "high" | "light"
+  paragraph.setPaint(0, 4, blue);  // "high" | "light"
   paragraph.ensureShaped(fontContext);
 
-  const Word &word = paragraph.words()[0];
+  const Word& word = paragraph.words()[0];
   ASSERT_EQ(word.segments.size(), 2u);
   EXPECT_EQ(paragraph.spans()[word.segments[0].styleIndex]
                 .style.paint.foreground.getColor(),

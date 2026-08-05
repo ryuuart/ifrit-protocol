@@ -21,9 +21,8 @@
 // that renders two trees and counts patched nodes can report exactly what a
 // correct comparator would while the comparator is in fact broken.
 
-#include "ComposeTestSupport.h"
-
 #include "../ComposeInternal.h"
+#include "ComposeTestSupport.h"
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
 // It is the reason this target links yoga::yogacore (see CMakeLists.txt).
 #include "../ComposeRuntime.h"
@@ -37,46 +36,51 @@ namespace {
 // that is the point: introducing a new field type forces someone to answer
 // "what does a change to this even look like?" instead of skipping it.
 
-template <class> inline constexpr bool kNoPerturbation = false;
+template <class>
+inline constexpr bool kNoPerturbation = false;
 
-template <class T> void perturb(T &) {
+template <class T>
+void perturb(T&) {
   static_assert(kNoPerturbation<T>,
                 "no perturbation is known for this field's type — add one "
                 "below (a change the comparator must be able to see), or "
                 "move the field to the walk's EXCLUDED table with a reason");
 }
 
-void perturb(bool &v) { v = !v; }
-void perturb(int &v) { v += 1; }
-void perturb(uint32_t &v) { v += 1u; }
-void perturb(float &v) { v += 1.0f; }
-void perturb(std::string &v) { v += "moved"; }
-void perturb(cd::Kind &v) { v = cd::Kind::Stack; }
-void perturb(Cache &v) { v = Cache::None; }
-void perturb(SkBlendMode &v) { v = SkBlendMode::kMultiply; }
-void perturb(Corners &v) { v.topLeft += 1.0f; }
-void perturb(cd::LayoutProps &v) { v.gap += 1.0f; }
-void perturb(Shape &v) {
-  v = Shape([](SkSize) { return SkPath(); }); // the raw-callable escape hatch
+void perturb(bool& v) { v = !v; }
+void perturb(int& v) { v += 1; }
+void perturb(uint32_t& v) { v += 1u; }
+void perturb(float& v) { v += 1.0f; }
+void perturb(std::string& v) { v += "moved"; }
+void perturb(cd::Kind& v) { v = cd::Kind::Stack; }
+void perturb(Cache& v) { v = Cache::None; }
+void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
+void perturb(Corners& v) { v.topLeft += 1.0f; }
+void perturb(cd::LayoutProps& v) { v.gap += 1.0f; }
+void perturb(Shape& v) {
+  v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
 }
-void perturb(std::optional<Transition> &v) { v = Transition{}; }
-void perturb(choreograph::EaseFn &v) { v = &choreograph::easeInQuad; }
-void perturb(const choreograph::Output<float> *&v) {
+void perturb(std::optional<Transition>& v) { v = Transition{}; }
+void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(const choreograph::Output<float>*& v) {
   static choreograph::Output<float> other;
   v = &other;
 }
-void perturb(Animatable<float> &v) {
+void perturb(Animatable<float>& v) {
   v = (v.plain() ? *v.plain() : 0.0f) + 1.0f;
 }
-void perturb(std::optional<Animatable<Fill>> &v) {
+void perturb(std::optional<Animatable<Fill>>& v) {
   v = Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
 }
-void perturb(std::vector<Decoration> &v) {
-  v.push_back(Decoration(PaintProgram{[](SkCanvas &, const PaintContext &) {}}));
+void perturb(std::vector<Decoration>& v) {
+  v.push_back(Decoration(PaintProgram{[](SkCanvas&, const PaintContext&) {}}));
 }
-void perturb(std::vector<Element> &v) { v.push_back(box()); }
-void perturb(cd::PaintProps &v) { perturb(v.opacity); }
-template <class T> void perturb(cd::Box<T> &v) { v.ensure(); }
+void perturb(std::vector<Element>& v) { v.push_back(box()); }
+void perturb(cd::PaintProps& v) { perturb(v.opacity); }
+template <class T>
+void perturb(cd::Box<T>& v) {
+  v.ensure();
+}
 
 // ---- the walk --------------------------------------------------------------
 
@@ -84,7 +88,7 @@ template <class T> void perturb(cd::Box<T> &v) { v.ensure(); }
  *  @p equal. `expected` is what the comparator is ALLOWED to say: false for
  *  a field that must participate, true for one legitimately excluded. */
 template <std::size_t I, class S, class Eq>
-void checkField(Eq equal, const char *name, bool participates) {
+void checkField(Eq equal, const char* name, bool participates) {
   S base{};
   S moved{};
   perturb(std::get<I>(cd::fields(moved)));
@@ -103,13 +107,13 @@ void checkField(Eq equal, const char *name, bool participates) {
 }
 
 template <class S, class Eq, std::size_t... I>
-void walkFields(Eq equal, const char *const *names, const bool *participates,
+void walkFields(Eq equal, const char* const* names, const bool* participates,
                 std::index_sequence<I...>) {
   (checkField<I, S>(equal, names[I], participates[I]), ...);
 }
 
 template <class S, class Eq, std::size_t N>
-void walkFields(Eq equal, const char *const (&names)[N],
+void walkFields(Eq equal, const char* const (&names)[N],
                 const bool (&participates)[N]) {
   static_assert(N == cd::kFieldCount<S>,
                 "the walk's name/participation table has drifted from the "
@@ -117,14 +121,14 @@ void walkFields(Eq equal, const char *const (&names)[N],
   walkFields<S>(equal, names, participates, std::make_index_sequence<N>{});
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
   // No legitimate exclusion exists in this block: every field of PaintProps
   // is a lane the painter reads live, so every one must reach the comparator.
   // The per-axis scales are the easiest ones to leave out, because the
   // uniform `scale` beside them makes a comparator look complete.
-  static const char *const kNames[] = {
+  static const char* const kNames[] = {
       "fill",   "opacity", "blendMode", "translateX", "translateY",
       "rotate", "scale",   "scaleX",    "scaleY",     "skewX",
       "skewY",  "originX", "originY",   "originPx",   "zIndex"};
@@ -132,7 +136,7 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
                                        true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<cd::PaintProps>(
-      [](const cd::PaintProps &a, const cd::PaintProps &b) {
+      [](const cd::PaintProps& a, const cd::PaintProps& b) {
         cd::ElementNode na, nb;
         na.paint = a;
         nb.paint = b;
@@ -146,12 +150,23 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // map is read live at paint, so every one of them participates — including
   // the wiggle parameters and `wrapPeriod`, which are easy to add to the
   // struct and forget in the comparator.
-  static const char *const kNames[] = {
-      "source",       "inScale",         "inOffset",     "curve",
-      "clampInput",   "steps",           "scale",        "offset",
-      "clamped",      "lo",              "hi",           "wiggleAmount",
-      "wiggleFrequency", "wiggleSeed",   "wiggleOctaves", "wiggleFalloff",
-      "wrapPeriod"};
+  static const char* const kNames[] = {"source",
+                                       "inScale",
+                                       "inOffset",
+                                       "curve",
+                                       "clampInput",
+                                       "steps",
+                                       "scale",
+                                       "offset",
+                                       "clamped",
+                                       "lo",
+                                       "hi",
+                                       "wiggleAmount",
+                                       "wiggleFrequency",
+                                       "wiggleSeed",
+                                       "wiggleOctaves",
+                                       "wiggleFalloff",
+                                       "wrapPeriod"};
   static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true, true,
                                        true, true, true, true, true};
@@ -171,18 +186,17 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
   // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
   // scaled-out half of the bar instead of merely mis-sizing something.
   Host host(200, 200);
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .rect(SkRect::MakeXYWH(20, 20, 40, 40))
-                      .effect(
-                          Effect::filter(SkImageFilters::Offset(0, 0, nullptr)))
-                      .child(box()
-                                 .absolute()
-                                 .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                                 .transformOrigin(0, 0)
-                                 .fill(red())
-                                 .scaleX(3.0f))));
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .rect(SkRect::MakeXYWH(20, 20, 40, 40))
+          .effect(Effect::filter(SkImageFilters::Offset(0, 0, nullptr)))
+          .child(box()
+                     .absolute()
+                     .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                     .transformOrigin(0, 0)
+                     .fill(red())
+                     .scaleX(3.0f))));
   host.frame();
   EXPECT_EQ(host.pixel(30, 40), SK_ColorRED) << "the unscaled part is missing";
   EXPECT_EQ(host.pixel(120, 40), SK_ColorRED)
@@ -202,20 +216,19 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //    payload, which carries no memo block.
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
-  static const char *const kNames[] = {
-      "kind",        "key",        "layout",     "paint",
-      "corners",     "shapeFn",    "clipContent", "hitTestable",
+  static const char* const kNames[] = {
+      "kind",        "key",        "layout",         "paint",
+      "corners",     "shapeFn",    "clipContent",    "hitTestable",
       "cacheMode",   "bakeScale",  "nodeTransition", "backgrounds",
-      "foregrounds", "textData",   "imageData",  "customData",
-      "deriveData",  "fxData",     "materialData", "strokeData",
+      "foregrounds", "textData",   "imageData",      "customData",
+      "deriveData",  "fxData",     "materialData",   "strokeData",
       "memoData",    "motionData", "children"};
   static const bool kParticipates[] = {
-      true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, true,
-      true, true, true, true,
-      false, // memoData — resolveMemo owns it, and it never lands in desc
+      true,  true, true, true, true, true, true, true, true, true,
+      true,  true, true, true, true, true, true, true, true, true,
+      false,  // memoData — resolveMemo owns it, and it never lands in desc
       true,
-      false, // children — reconciled by key, never compared
+      false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propsEqual, kNames, kParticipates);
 }
@@ -239,9 +252,9 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   node.motionData.ensure();                  // travel(): carries kMotionT
   node.textData.ensure().glyphFx.emplace();  // kinetic text: kGlyphProgress
 
-  std::vector<const Animatable<float> *> seen;
+  std::vector<const Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;
-  for (const cd::SlotSpec &spec : cd::kSlotSpecs) {
+  for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
     const int index = (int)spec.slot;
     if (spec.role == cd::SlotRole::Bespoke) {
       ++bespoke;
@@ -249,21 +262,22 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       // Bespoke, with a reason"; this is the runtime half of that claim.
       EXPECT_EQ(spec.of, nullptr) << "slot " << index;
       EXPECT_EQ(cd::slotValueOf(spec, node), nullptr)
-          << "slot " << index << ": a Bespoke row must be INERT through "
+          << "slot " << index
+          << ": a Bespoke row must be INERT through "
              "slotValueOf, so a consumer that walks the table without "
              "special-casing it does nothing rather than crashing";
       continue;
     }
-    if (spec.role == cd::SlotRole::Opacity)
-      ++opacityRows;
-    const Animatable<float> *v = cd::slotValueOf(spec, node);
-    ASSERT_NE(v, nullptr) << "slot " << index << "'s accessor reaches nothing "
+    if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
+    const Animatable<float>* v = cd::slotValueOf(spec, node);
+    ASSERT_NE(v, nullptr) << "slot " << index
+                          << "'s accessor reaches nothing "
                              "on a node carrying every block";
     // THE MISAIM. Two rows answering with the same address means one of them
     // is pointed at the other's field, and every consumer inherits the error.
     for (size_t i = 0; i < seen.size(); ++i)
-      EXPECT_NE(v, seen[i]) << "slot " << index << " and slot " << i
-                            << " aim at the SAME field";
+      EXPECT_NE(v, seen[i])
+          << "slot " << index << " and slot " << i << " aim at the SAME field";
     seen.push_back(v);
     // …and the STANDING endpoint applyTransitions substitutes when a node
     // gains or loses the block really is this field's own default. A wrong
@@ -320,11 +334,11 @@ TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
     return 0.5f * (std::sqrt(e * e + h * h) + std::sqrt(f * f + g * g));
   };
   float truth = 0;
-  for (SkPoint p : {SkPoint{rect.centerX(), rect.centerY()},
-                    SkPoint{rect.left(), rect.top()},
-                    SkPoint{rect.right(), rect.top()},
-                    SkPoint{rect.right(), rect.bottom()},
-                    SkPoint{rect.left(), rect.bottom()}})
+  for (SkPoint p :
+       {SkPoint{rect.centerX(), rect.centerY()},
+        SkPoint{rect.left(), rect.top()}, SkPoint{rect.right(), rect.top()},
+        SkPoint{rect.right(), rect.bottom()},
+        SkPoint{rect.left(), rect.bottom()}})
     truth = std::max(truth, fdSigmaMax(p));
 
   const float got = cd::maxScaleOf(m, rect);

@@ -124,22 +124,19 @@
 //   Motion check (the pen edge advancing along arc length across card B's
 //   1400 ms draw window):  --at 4.30 --frames 8 --fps 5
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Style.h>
-
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Strokes.h>
-
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkTypeface.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/Style.h>
 
 #include <algorithm>
 #include <array>
@@ -166,13 +163,13 @@ constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
 // chrome palette — this study's own (film-base warm black, deliberately
 // warmer than a neutral UI near-black)
 
-constexpr SkColor4f kInk = hex(0x0A0806);      // canvas
-constexpr SkColor4f kPlate = hex(0x110D0A);    // sidebar plates
-constexpr SkColor4f kBone = hex(0xEDE6D8);     // primary type
-constexpr SkColor4f kSteel = hex(0x8A7D68);    // secondary type
+constexpr SkColor4f kInk = hex(0x0A0806);    // canvas
+constexpr SkColor4f kPlate = hex(0x110D0A);  // sidebar plates
+constexpr SkColor4f kBone = hex(0xEDE6D8);   // primary type
+constexpr SkColor4f kSteel = hex(0x8A7D68);  // secondary type
 constexpr SkColor4f kSteelDim = hex(0x8A7D68, 0.62f);
-constexpr SkColor4f kKeyline = hex(0x3A342C);  // panel keylines
-constexpr SkColor4f kSolidInk = hex(0x050403); // "solid black capitals"
+constexpr SkColor4f kKeyline = hex(0x3A342C);   // panel keylines
+constexpr SkColor4f kSolidInk = hex(0x050403);  // "solid black capitals"
 
 // ---------------------------------------------------------------------------
 // canvas / panel geometry — 1480x800 is the film's own 1.85:1
@@ -182,7 +179,7 @@ constexpr float kH = 800.0f;
 constexpr float kPad = 36.0f;
 constexpr float kPanelW = 900.0f;
 constexpr float kPanelH = 596.0f;
-constexpr SkPoint kEye{kPanelW * 0.5f, kPanelH * 0.5f}; // 450, 298
+constexpr SkPoint kEye{kPanelW * 0.5f, kPanelH * 0.5f};  // 450, 298
 constexpr float kSideW = 476.0f;
 
 // ---------------------------------------------------------------------------
@@ -190,18 +187,18 @@ constexpr float kSideW = 476.0f;
 // the header); damp is too. `T = 12π` for all four.
 
 struct Card {
-  const char *tag;
+  const char* tag;
   float a, b;         // Lissajous frequency ratio
   float deltaDeg;     // pendulum phase offset
   float k;            // precession (table turns per radian of swing)
   float amp;          // R, px, before the 0.88 fit scale
   float damp;         // exp(-damp·t) envelope — this study's addition
   SkColor4f core;     // ink colour
-  const char *line1;  // sidebar index caption
-  const char *line2;
+  const char* line1;  // sidebar index caption
+  const char* line2;
 };
 
-constexpr float kFit = 0.88f; // R·√2 + glow must clear kPanelH/2
+constexpr float kFit = 0.88f;  // R·√2 + glow must clear kPanelH/2
 // Six pendulum periods. At three the figure reads as a clean wireframe
 // rosette — a plotted function. Whitney's cards are dense nested ink, and
 // six periods under the damping envelope is where it turns over.
@@ -219,8 +216,7 @@ const std::array<Card, 4> kCards = {{
      "C — COOL / BLUE · a:b = 2:1 · δ 45°",
      "k 0.22 · R 180 px · figure-eight base, fast precession"},
     {"D", 5, 3, 60.0f, 0.12f, 190.0f, 0.030f, hex(0x5A2E82),
-     "D — PURPLE · a:b = 5:3 · δ 60°",
-     "k 0.12 · R 167 px · 5-lobe flower"},
+     "D — PURPLE · a:b = 5:3 · δ 60°", "k 0.12 · R 167 px · 5-lobe flower"},
 }};
 
 /** The pendulum-over-turntable curve, sampled into an OPEN contour.
@@ -246,7 +242,7 @@ std::function<SkPath(SkSize)> lissajous(Card c, float amplitude,
       else
         p.lineTo(cx + x, cy + y);
     }
-    return p.detach(); // deliberately NOT closed
+    return p.detach();  // deliberately NOT closed
   };
 }
 
@@ -329,17 +325,17 @@ Element plate(float height) {
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
 struct VertigoTitles : sigil::compose::sketch::Sketch {
   // --- the perpetual loop's live cells (17 scalars, all hand-stepped) ---
   ch::Output<float> spin{0};
-  std::array<ch::Output<float>, 4> growth{};   // trim end   — the pen
-  std::array<ch::Output<float>, 4> penTip{};   // trim start — growth − ε
-  std::array<ch::Output<float>, 4> cardA{};    // card opacity
-  std::array<ch::Output<float>, 4> penA{};     // nib opacity (fades at arrival)
+  std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
+  std::array<ch::Output<float>, 4> penTip{};  // trim start — growth − ε
+  std::array<ch::Output<float>, 4> cardA{};   // card opacity
+  std::array<ch::Output<float>, 4> penA{};    // nib opacity (fades at arrival)
 
   sk_sp<SkTypeface> faceDisplay, faceGothic, faceGothicBold;
   Material irisMat, filmGrain, paperGrain;
@@ -351,8 +347,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
   // pen-tip highlight riding just behind the drawing edge cannot be a
   // second stroke on the same node — it is a sibling with an identical
   // outline and its own [penTip, growth] window.
-  void spiralCard(Element &into, int i) {
-    const Card &c = kCards[i];
+  void spiralCard(Element& into, int i) {
+    const Card& c = kCards[i];
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
@@ -417,8 +413,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                 from(Fill::color(hex(0x3A2A1C))).to(Fill::color(hex(0xC81E2C))),
                 ramp(700, 500, ch::easeInQuad))));
 
-    for (int i = 0; i < 4; ++i)
-      spiralCard(panel, i);
+    for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
     // VERTIGO — hollow Clarendon expanding out of the pupil.
     //
@@ -428,8 +423,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // solid fill — the hollow register and per-glyph motion are mutually
     // exclusive. pop() is therefore rebuilt one tier
     // up: seven letter nodes in a row, staggerChildren() cascading their
-    // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the same
-    // curve glyphfx::pop() applies internally.
+    // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the
+    // same curve glyphfx::pop() applies internally.
     auto word = box()
                     .row()
                     .gap(3)
@@ -453,7 +448,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         face.paint.underlays.push_back(
             sigil::weave::PaintLayer::blurred(halo, 3.5f));
       }
-      const char *letters[] = {"V", "E", "R", "T", "I", "G", "O"};
+      const char* letters[] = {"V", "E", "R", "T", "I", "G", "O"};
       for (int i = 0; i < 7; ++i)
         word.child(text(toU8(letters[i]), face)
                        .key(std::string("v") + letters[i])
@@ -468,12 +463,13 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // unadorned next to VERTIGO's hollow display caps, and deliberately
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
-    panel.child(text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
-                     type(faceDisplay, 15, kSolidInk, 2.6f))
-                    .key("credit")
-                    .centerAt({kEye.x(), kEye.y() + 152.0f})
-                    .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
-                    .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300))));
+    panel.child(
+        text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
+             type(faceDisplay, 15, kSolidInk, 2.6f))
+            .key("credit")
+            .centerAt({kEye.x(), kEye.y() + 152.0f})
+            .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
+            .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300))));
 
     // the instrument-dial legend, set on the limbus itself with
     // Element::onPath() — one text leaf where hand-placing curved
@@ -508,7 +504,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
     // curve it describes, on the same 240 ms optical-printer window.
-    static constexpr const char *kSlug[] = {
+    static constexpr const char* kSlug[] = {
         "CARD A · a:b 3:2 · δ 90° · k 0.15 · R 176 px",
         "CARD B · a:b 5:4 · δ 0° · k 0.10 · R 172 px",
         "CARD C · a:b 2:1 · δ 45° · k 0.22 · R 180 px",
@@ -582,9 +578,13 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
   Element spiralIndex() {
     auto p = plate(240).gap(8);
     for (int i = 0; i < 4; ++i) {
-      const Card &c = kCards[i];
-      auto row = box().row().height(46).gap(12).alignItems(Align::Center).key(
-          std::string("idx") + c.tag);
+      const Card& c = kCards[i];
+      auto row = box()
+                     .row()
+                     .height(46)
+                     .gap(12)
+                     .alignItems(Align::Center)
+                     .key(std::string("idx") + c.tag);
       // the chip draws the card's OWN curve at 15px — same generator,
       // same six constants, 1/12 the amplitude
       row.child(box()
@@ -600,20 +600,20 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                                .shape(lissajous(c, 13.0f, 420))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(&spin)));
-      row.child(box()
-                    .column()
-                    .grow(1)
-                    .gap(2)
-                    .child(text(toU8(c.line1),
-                                type(faceGothicBold, 11, kBone, 0.7f)))
-                    .child(text(toU8(c.line2), type(faceGothic, 9, kSteel))));
+      row.child(
+          box()
+              .column()
+              .grow(1)
+              .gap(2)
+              .child(text(toU8(c.line1), type(faceGothicBold, 11, kBone, 0.7f)))
+              .child(text(toU8(c.line2), type(faceGothic, 9, kSteel))));
       p.child(std::move(row));
     }
     return p;
   }
 
   Element rigPlate() {
-    static constexpr const char *kFacts[] = {
+    static constexpr const char* kFacts[] = {
         "850 LB · 11,000 PARTS — WWII ANTI-AIRCRAFT COMPUTER, "
         "CREWED BY FIVE",
         "REPURPOSED BY JOHN WHITNEY, 1957–58",
@@ -648,7 +648,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     GlyphFx rise;
     rise.effect = glyphfx::rise(18.0f);
     rise.stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420};
-    rise.progress = animate(from(0.0f).to(1.0f), ramp(140, 900, ch::easeOutExpo));
+    rise.progress =
+        animate(from(0.0f).to(1.0f), ramp(140, 900, ch::easeOutExpo));
 
     head.child(
         box()
@@ -661,10 +662,10 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                        .key("eyebrow")
                        .opacity(animate(from(0.0f).to(1.0f), ramp(0, 260)))
                        .translateY(animate(from(8.0f).to(0.0f), ramp(0, 260))))
-            .child(text(toU8("VERTIGO, 1958"),
-                        type(faceDisplay, 42, kBone, 1.0f))
-                       .key("heading")
-                       .glyphFx(std::move(rise)))
+            .child(
+                text(toU8("VERTIGO, 1958"), type(faceDisplay, 42, kBone, 1.0f))
+                    .key("heading")
+                    .glyphFx(std::move(rise)))
             .child(text(toU8("Saul Bass, title design — John Whitney, "
                              "spirals — Paramount, dir. Alfred Hitchcock"),
                         type(faceGothic, 12, kSteel, 0.4f))
@@ -672,7 +673,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                        .opacity(animate(from(0.0f).to(1.0f), ramp(420, 240)))));
 
     auto sources = box().column().gap(4).alignItems(Align::End);
-    static constexpr const char *kSrc[] = {
+    static constexpr const char* kSrc[] = {
         "artofthetitle.com/title/vertigo",
         "typotheque.com — Emily King, “Taking Credit” (5)",
         "patrycerichter.wordpress.com — shot breakdown, 2016",
@@ -726,23 +727,20 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kInk);
 
-    auto family = [&](const char *name, SkFontStyle s) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager())
-        return nullptr;
+    auto family = [&](const char* name, SkFontStyle s) -> sk_sp<SkTypeface> {
+      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
       return ctx.fonts->fontManager()->matchFamilyStyle(name, s);
     };
     // Clarendon is REAL here: macOS ships Apple's SuperClarendon.
     faceDisplay = family("SuperClarendon", SkFontStyle::Bold());
     if (!faceDisplay)
       faceDisplay = family("Super Clarendon", SkFontStyle::Bold());
-    if (!faceDisplay)
-      faceDisplay = family("Rockwell", SkFontStyle::Bold());
-    if (!faceDisplay)
-      faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
+    if (!faceDisplay) faceDisplay = family("Rockwell", SkFontStyle::Bold());
+    if (!faceDisplay) faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
     // News Gothic is NOT installed — Helvetica Neue stands in, condensed.
     faceGothic = family("Helvetica Neue", SkFontStyle::Normal());
     faceGothicBold = family("Helvetica Neue", SkFontStyle::Bold());
@@ -784,7 +782,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         const double L = std::fmod(cycle - (double)i * 4.0 + 16.0, 16.0);
         float op = 0.0f, g = 0.0f;
         if (L < 4.0) {
-          op = L < 0.24 ? (float)(L / 0.24)
+          op = L < 0.24   ? (float)(L / 0.24)
                : L < 3.76 ? 1.0f
                           : (float)((4.0 - L) / 0.24);
           // easeNone by construction: a motor draws at a constant rate
@@ -806,7 +804,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe());
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(VertigoTitles)

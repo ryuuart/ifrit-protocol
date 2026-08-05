@@ -66,17 +66,16 @@
  * composes freely, because a camera is not a scene node.
  */
 
-#include "sigilworld/Components.h"
-
 #include <sigilmotion/Animation.h>
 #include <sigilshape/Curves.h>
 
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <optional>
 #include <vector>
+
+#include "sigilworld/Components.h"
 
 namespace sigil::world {
 
@@ -84,14 +83,14 @@ namespace sigil::world {
  *  spell it without a prefix. `sigil::motion` remains where these are
  *  defined. */
 using motion::Animatable;
-using motion::Bound;
-using motion::Transition;
-using motion::Transitioned;
 using motion::animate;
 using motion::bind;
+using motion::Bound;
 using motion::from;
 using motion::through;
 using motion::to;
+using motion::Transition;
+using motion::Transitioned;
 using motion::wiggle;
 namespace ease = motion::ease;
 
@@ -322,14 +321,13 @@ struct AnimationStats {
 /** One lane's current number, reading the forms in the order the slot
  *  discriminates them. A transitioned value yields its settled target,
  *  with no ramp — see the third point at the top of this file. */
-inline float resolveValue(const Animatable<float> &v) {
-  if (const choreograph::Output<float> *bound = v.binding()) {
-    if (const motion::BoundFloat *shape = v.boundMap())
+inline float resolveValue(const Animatable<float>& v) {
+  if (const choreograph::Output<float>* bound = v.binding()) {
+    if (const motion::BoundFloat* shape = v.boundMap())
       return shape->apply(bound->value());
     return bound->value();
   }
-  if (const float *plain = v.plain())
-    return *plain;
+  if (const float* plain = v.plain()) return *plain;
   return v.transitioned()->value;
 }
 
@@ -337,8 +335,7 @@ namespace detail {
 
 /** The wrap rule: a closed curve comes round, an open one parks. */
 inline float wrapPathParameter(float t, bool closed) {
-  if (!closed)
-    return std::clamp(t, 0.0f, 1.0f);
+  if (!closed) return std::clamp(t, 0.0f, 1.0f);
   const float wrapped = std::fmod(t, 1.0f);
   return wrapped < 0.0f ? wrapped + 1.0f : wrapped;
 }
@@ -348,7 +345,7 @@ inline float wrapPathParameter(float t, bool closed) {
  *  guarded by a dirty flag: an equal spline has an equal table, so a
  *  caller editing `path.points` in place cannot end up flying a stale
  *  curve, and there is no flag anyone can forget to set. */
-inline void refreshArcTable(CameraPath &p) {
+inline void refreshArcTable(CameraPath& p) {
   const int samples = std::max(p.samples, 2);
   if (p.tableSamples == samples && p.tableClosed == p.path.closed &&
       p.tableType == p.path.type && p.tablePoints == p.path.points)
@@ -357,8 +354,7 @@ inline void refreshArcTable(CameraPath &p) {
   glm::vec3 prev = p.path.position(0.0f);
   for (int i = 1; i <= samples; ++i) {
     const glm::vec3 q = p.path.position((float)i / (float)samples);
-    p.arcTable[(size_t)i] =
-        p.arcTable[(size_t)i - 1] + glm::length(q - prev);
+    p.arcTable[(size_t)i] = p.arcTable[(size_t)i - 1] + glm::length(q - prev);
     prev = q;
   }
   p.tablePoints = p.path.points;
@@ -370,12 +366,10 @@ inline void refreshArcTable(CameraPath &p) {
 /** The curve PARAMETER at arc-length fraction @p s, by inverting the
  *  table. A curve with no extent answers `s` — there is nothing to
  *  re-space, and it keeps the degenerate case off the NaN path. */
-inline float parameterAtArcFraction(const CameraPath &p, float s) {
-  if (p.arcTable.size() < 2 || p.tableSamples < 1)
-    return s;
+inline float parameterAtArcFraction(const CameraPath& p, float s) {
+  if (p.arcTable.size() < 2 || p.tableSamples < 1) return s;
   const float total = p.arcTable.back();
-  if (!(total > 0.0f))
-    return s;
+  if (!(total > 0.0f)) return s;
   const float target = s * total;
   size_t hi = (size_t)std::distance(
       p.arcTable.begin(),
@@ -383,8 +377,7 @@ inline float parameterAtArcFraction(const CameraPath &p, float s) {
   hi = std::clamp<size_t>(hi, 1, p.arcTable.size() - 1);
   const size_t lo = hi - 1;
   const float span = p.arcTable[hi] - p.arcTable[lo];
-  const float local =
-      span < 1e-9f ? 0.0f : (target - p.arcTable[lo]) / span;
+  const float local = span < 1e-9f ? 0.0f : (target - p.arcTable[lo]) / span;
   return ((float)lo + local) / (float)p.tableSamples;
 }
 
@@ -396,9 +389,8 @@ struct CameraPathSample {
   glm::vec3 aim{0, 0, 0};
 };
 
-inline CameraPathSample samplePath(CameraPath &p) {
-  if (p.arcLength)
-    refreshArcTable(p);
+inline CameraPathSample samplePath(CameraPath& p) {
+  if (p.arcLength) refreshArcTable(p);
   const auto at = [&](float u) {
     const float w = wrapPathParameter(u, p.path.closed);
     return p.path.position(p.arcLength ? parameterAtArcFraction(p, w) : w);
@@ -416,7 +408,7 @@ inline CameraPathSample samplePath(CameraPath &p) {
   return out;
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** THE SYSTEM, in its device-free half: resolve every animated
  *  component that writes nothing but registry state.
@@ -425,16 +417,16 @@ inline CameraPathSample samplePath(CameraPath &p) {
  *  the animation semantics can be exercised on a machine with no Vulkan
  *  runtime at all. `World::render()` calls the overload below, so
  *  nothing has to remember to call either by hand. */
-inline AnimationStats resolveAnimation(entt::registry &registry) {
+inline AnimationStats resolveAnimation(entt::registry& registry) {
   constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
   AnimationStats stats;
 
   for (auto [e, animated, transform] :
        registry.view<AnimatedTransform, TransformComponent>().each()) {
-    glm::mat4 m = glm::translate(
-        animated.base,
-        glm::vec3{resolveValue(animated.x), resolveValue(animated.y),
-                  resolveValue(animated.z)});
+    glm::mat4 m =
+        glm::translate(animated.base, glm::vec3{resolveValue(animated.x),
+                                                resolveValue(animated.y),
+                                                resolveValue(animated.z)});
     // Zero-angle and unit-scale steps are skipped rather than multiplied
     // through, so that an unengaged lane composes bit-identically to the
     // same placement built by scene::Node::localMatrix().
@@ -447,19 +439,16 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
     const glm::vec3 scale{resolveValue(animated.scaleX),
                           resolveValue(animated.scaleY),
                           resolveValue(animated.scaleZ)};
-    if (scale != glm::vec3{1, 1, 1})
-      m = glm::scale(m, scale);
+    if (scale != glm::vec3{1, 1, 1}) m = glm::scale(m, scale);
     if (!(transform.model == m)) {
       transform.model = m;
       ++stats.transforms;
     }
   }
 
-  const auto put = [](float &dst,
-                      const std::optional<Animatable<float>> &lane,
-                      bool &changed) {
-    if (!lane)
-      return;
+  const auto put = [](float& dst, const std::optional<Animatable<float>>& lane,
+                      bool& changed) {
+    if (!lane) return;
     const float v = resolveValue(*lane);
     if (dst != v) {
       dst = v;
@@ -470,15 +459,14 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
   for (auto [e, animated, material] :
        registry.view<AnimatedMaterial, MaterialComponent>().each()) {
     bool changed = false;
-    Material &m = material.material;
+    Material& m = material.material;
     put(m.baseColor.w, animated.opacity, changed);
     put(m.emissiveStrength, animated.emissiveStrength, changed);
     put(m.uvOffset.x, animated.uvOffsetX, changed);
     put(m.uvOffset.y, animated.uvOffsetY, changed);
     put(m.uvScale.x, animated.uvScaleX, changed);
     put(m.uvScale.y, animated.uvScaleY, changed);
-    if (changed)
-      ++stats.materials;
+    if (changed) ++stats.materials;
   }
 
   for (auto [e, animated, light] :
@@ -488,14 +476,13 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
     put(light.position.x, animated.x, changed);
     put(light.position.y, animated.y, changed);
     put(light.position.z, animated.z, changed);
-    if (changed)
-      ++stats.lights;
+    if (changed) ++stats.lights;
   }
 
   for (auto [e, animated, cameraComponent] :
        registry.view<AnimatedCamera, CameraComponent>().each()) {
     bool changed = false;
-    shape::space::Camera &c = cameraComponent.camera;
+    shape::space::Camera& c = cameraComponent.camera;
     // PRECEDENCE: an engaged path drives the eye outright, and the
     // target too if and only if it was asked to aim (lookAhead != 0).
     // Whatever the path drives, the corresponding lanes do not.
@@ -536,17 +523,16 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
       const glm::vec3 forward = c.target - c.eye;
       if (const float length = glm::length(forward); length > 0) {
         const float roll = resolveValue(*animated.rollDeg) * kDegToRad;
-        const glm::vec3 up = glm::vec3(
-            glm::rotate(glm::mat4(1.0f), roll, forward / length) *
-            glm::vec4(animated.rollReference, 0.0f));
+        const glm::vec3 up =
+            glm::vec3(glm::rotate(glm::mat4(1.0f), roll, forward / length) *
+                      glm::vec4(animated.rollReference, 0.0f));
         if (c.up != up) {
           c.up = up;
           changed = true;
         }
       }
     }
-    if (changed)
-      ++stats.cameras;
+    if (changed) ++stats.cameras;
   }
 
   return stats;
@@ -561,8 +547,8 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
  *  you want the resolved state WITHOUT a frame — before a `readPoints()`
  *  query, say — or when you want the Stats. Idempotent: a second call
  *  with unmoved Outputs writes nothing and reports zeros. */
-inline AnimationStats resolveAnimation(World &world) {
-  entt::registry &registry = world.registry();
+inline AnimationStats resolveAnimation(World& world) {
+  entt::registry& registry = world.registry();
   AnimationStats stats = resolveAnimation(registry);
   for (auto [e, window] : registry.view<AnimatedWindow>().each()) {
     const float head = resolveValue(window.head);
@@ -584,4 +570,4 @@ inline AnimationStats resolveAnimation(World &world) {
   return stats;
 }
 
-} // namespace sigil::world
+}  // namespace sigil::world

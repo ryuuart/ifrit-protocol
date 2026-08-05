@@ -5,28 +5,26 @@
 // sibling TUs: Reconcile / Layout / Derive / Paint / Transitions / Query.cpp,
 // all sharing ComposeRuntime.h.
 
-#include "ComposeRuntime.h"
-
-#include <sigilweave/Choreograph.h> // forEachPlacedGlyph — measureRun()
+#include <include/core/SkBBHFactory.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkFont.h>
+#include <include/core/SkFontMetrics.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
+#include <include/core/SkTypes.h>    // SkDebugf — the renderSlot diagnostic
+#include <sigilweave/Choreograph.h>  // forEachPlacedGlyph — measureRun()
 #include <sigilweave/Flow.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ParagraphLayout.h>
 
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMetrics.h>
-
-#include <include/core/SkBBHFactory.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkTypes.h> // SkDebugf — the renderSlot diagnostic
-
 #include <algorithm>
-#include <set>
 #include <chrono>
 #include <cmath>
 #include <functional>
+#include <set>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -47,10 +45,9 @@ static_assert(sizeof(ElementNode) <= 768,
 
 detail::Instance::~Instance() {
   if (yoga)
-    YGNodeRemoveAllChildren(yoga); // detach before children free theirs
+    YGNodeRemoveAllChildren(yoga);  // detach before children free theirs
   children.clear();
-  if (yoga)
-    YGNodeFree(yoga);
+  if (yoga) YGNodeFree(yoga);
   // AnimatedFloat outputs die here; Choreograph disconnects their motions
   // automatically — unmount cancels transitions by construction.
 }
@@ -58,19 +55,18 @@ detail::Instance::~Instance() {
 // ---------------------------------------------------------------------------
 // Composer public surface
 
-Composer::Composer(motion::Ticker &ticker, sigil::weave::FontContext &fonts)
+Composer::Composer(motion::Ticker& ticker, sigil::weave::FontContext& fonts)
     : m_impl(std::make_unique<Impl>(ticker, fonts)) {}
 Composer::~Composer() = default;
 
-sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
+sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext& fonts,
                           SkSize maxSize) {
-  motion::Ticker ticker; // inert: nothing steps it, transitions can't run
+  motion::Ticker ticker;  // inert: nothing steps it, transitions can't run
   Composer composer(ticker, fonts);
-  Composer::Impl &impl = *composer.m_impl;
-  impl.liveOnly = true; // one-shot: per-node caches would be pure waste
+  Composer::Impl& impl = *composer.m_impl;
+  impl.liveOnly = true;  // one-shot: per-node caches would be pure waste
   composer.render(std::move(root));
-  if (!impl.root)
-    return nullptr;
+  if (!impl.root) return nullptr;
   if (!maxSize.isEmpty()) {
     if (maxSize.width() > 0)
       YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
@@ -79,10 +75,9 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
   }
   impl.ensureLayout();
   const SkRect rect = impl.instanceRect(*impl.root);
-  if (rect.isEmpty())
-    return nullptr;
+  if (rect.isEmpty()) return nullptr;
   SkPictureRecorder recorder;
-  SkCanvas *canvas =
+  SkCanvas* canvas =
       recorder.beginRecording(SkRect::MakeWH(rect.width(), rect.height()));
   impl.paint(*impl.root, *canvas);
   return recorder.finishRecordingAsPicture();
@@ -107,9 +102,8 @@ SkMatrix window(SkISize tile, int index, Flow flow, Facing facing) {
              : SkMatrix::MakeAll(1, 0, step, 0, 1, 0, 0, 0, 1);
 }
 
-sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art) {
-  if (!art)
-    return nullptr;
+sk_sp<SkPicture> sliceable(const sk_sp<SkPicture>& art) {
+  if (!art) return nullptr;
   SkRTreeFactory rtree;
   SkPictureRecorder recorder;
   // playback(), NOT drawPicture(): drawPicture on a recording canvas stores
@@ -119,13 +113,13 @@ sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art) {
   return recorder.finishRecordingAsPicture();
 }
 
-} // namespace tiles
+}  // namespace tiles
 
-TextMetrics metrics(const sigil::weave::TextStyle &style,
-                    sigil::weave::FontContext &fonts) {
-  SkFont font(style.shaping.typeface ? style.shaping.typeface
-                                     : fonts.defaultTypeface(),
-              style.shaping.fontSize);
+TextMetrics metrics(const sigil::weave::TextStyle& style,
+                    sigil::weave::FontContext& fonts) {
+  SkFont font(
+      style.shaping.typeface ? style.shaping.typeface : fonts.defaultTypeface(),
+      style.shaping.fontSize);
   SkFontMetrics fm;
   font.getMetrics(&fm);
   TextMetrics out;
@@ -142,11 +136,10 @@ TextMetrics metrics(const sigil::weave::TextStyle &style,
 }
 
 std::vector<float> measureRun(std::u8string_view utf8,
-                              const sigil::weave::TextStyle &style,
-                              sigil::weave::FontContext &fonts) {
+                              const sigil::weave::TextStyle& style,
+                              sigil::weave::FontContext& fonts) {
   std::vector<float> advances;
-  if (utf8.empty())
-    return advances;
+  if (utf8.empty()) return advances;
   // The exact machinery a text() leaf runs (layoutText, Layout.cpp): one
   // Paragraph, one unconstrained single-line layout, the placed glyphs in
   // order. Only the Element is skipped — which is the point. A caller
@@ -160,20 +153,18 @@ std::vector<float> measureRun(std::u8string_view utf8,
       sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
   sigil::weave::forEachPlacedGlyph(
       layout, paragraph,
-      [&](const sigil::weave::ShapedWord *, SkGlyphID, float advance, SkColor,
+      [&](const sigil::weave::ShapedWord*, SkGlyphID, float advance, SkColor,
           SkPoint) { advances.push_back(advance); });
   return advances;
 }
 
-SkSize measure(Element root, sigil::weave::FontContext &fonts,
-               SkSize maxSize) {
-  motion::Ticker ticker; // inert — same sampling rules as snapshot()
+SkSize measure(Element root, sigil::weave::FontContext& fonts, SkSize maxSize) {
+  motion::Ticker ticker;  // inert — same sampling rules as snapshot()
   Composer composer(ticker, fonts);
-  Composer::Impl &impl = *composer.m_impl;
+  Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;
   composer.render(std::move(root));
-  if (!impl.root)
-    return SkSize::MakeEmpty();
+  if (!impl.root) return SkSize::MakeEmpty();
   if (!maxSize.isEmpty()) {
     if (maxSize.width() > 0)
       YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
@@ -186,26 +177,25 @@ SkSize measure(Element root, sigil::weave::FontContext &fonts,
 }
 
 void Composer::setSize(SkSize size) {
-  if (m_impl->size == size)
-    return;
+  if (m_impl->size == size) return;
   m_impl->size = size;
   m_impl->needsLayout = true;
   m_impl->contentDirty = true;
 }
 
-void Composer::setClock(const motion::FrameClock *clock) {
+void Composer::setClock(const motion::FrameClock* clock) {
   m_impl->clock = clock;
 }
 
 void Composer::setView(Effect view) {
   m_impl->view = std::move(view);
-  m_impl->contentDirty = true; // the composite changes even if no node did
+  m_impl->contentDirty = true;  // the composite changes even if no node did
 }
 
 void Composer::declareInputSpace(InputSpace space) {
   m_impl->inputSpace = space;
   if (space == InputSpace::EncodedSRGB)
-    return; // the declaration matches reality — nothing to say
+    return;  // the declaration matches reality — nothing to say
   // Compositing happens in encoded sRGB and NO conversion follows this call.
   // The declaration exists so a mismatch between what the caller believes
   // its colours are and what the pipeline actually does with them is stated
@@ -216,10 +206,9 @@ void Composer::declareInputSpace(InputSpace space) {
   // about the program's colour handling, and a line per composer would bury
   // the one sentence that matters.
   static bool warned = false;
-  if (warned)
-    return;
+  if (warned) return;
   warned = true;
-  const char *name =
+  const char* name =
       space == InputSpace::LinearSRGB ? "LinearSRGB" : "DisplayP3";
   SkDebugf(
       "[compose] declareInputSpace(%s): compose composites in ENCODED sRGB "
@@ -237,7 +226,7 @@ Composer::InputSpace Composer::declaredInputSpace() const {
 }
 
 void Composer::render(Element root) {
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const auto start = std::chrono::steady_clock::now();
   impl.stats.describedNodes = 0;
   impl.stats.memoHits = 0;
@@ -248,7 +237,7 @@ void Composer::render(Element root) {
   else
     impl.patch(*impl.root, root.node());
 
-  impl.volatileDirty = true; // transitions may have started
+  impl.volatileDirty = true;  // transitions may have started
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
                                std::chrono::steady_clock::now() - start)
@@ -256,7 +245,7 @@ void Composer::render(Element root) {
 }
 
 void Composer::renderSlot(std::string_view name, Element content) {
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const auto start = std::chrono::steady_clock::now();
   auto it = impl.bySlot.find(std::string(name));
   if (it == impl.bySlot.end()) {
@@ -268,23 +257,23 @@ void Composer::renderSlot(std::string_view name, Element content) {
     // name in `key`, so any later `.key(...)` on that element renames the
     // slot with no type error and no second field to disagree with itself.
     // Listing the names that DO exist turns the diagnosis into one read.
-    static std::set<std::string> warned; // once per name, not per frame
+    static std::set<std::string> warned;  // once per name, not per frame
     if (warned.insert(std::string(name)).second) {
       std::string have;
-      for (const auto &[key, inst] : impl.bySlot)
+      for (const auto& [key, inst] : impl.bySlot)
         have += (have.empty() ? "" : ", ") + key;
-      SkDebugf("[compose] renderSlot(\"%.*s\") — no slot by that name, so "
-               "nothing was rendered into it and it will lay out at zero "
-               "on its content axis. Slots that DO exist: [%s]. NOTE: "
-               "slot(name) stores the name in key(), so slot(\"%.*s\")"
-               ".key(\"something\") RENAMES the slot to \"something\".\n",
-               (int)name.size(), name.data(),
-               have.empty() ? "none" : have.c_str(), (int)name.size(),
-               name.data());
+      SkDebugf(
+          "[compose] renderSlot(\"%.*s\") — no slot by that name, so "
+          "nothing was rendered into it and it will lay out at zero "
+          "on its content axis. Slots that DO exist: [%s]. NOTE: "
+          "slot(name) stores the name in key(), so slot(\"%.*s\")"
+          ".key(\"something\") RENAMES the slot to \"something\".\n",
+          (int)name.size(), name.data(), have.empty() ? "none" : have.c_str(),
+          (int)name.size(), name.data());
     }
     return;
   }
-  Instance &slotInst = *it->second;
+  Instance& slotInst = *it->second;
 
   // Patch or mount the slot's single content child.
   if (slotInst.children.size() == 1) {
@@ -310,10 +299,9 @@ bool Composer::dirty() const {
   return m_impl->contentDirty || m_impl->needsLayout;
 }
 
-void Composer::draw(SkCanvas &canvas) {
-  Impl &impl = *m_impl;
-  if (!impl.root)
-    return;
+void Composer::draw(SkCanvas& canvas) {
+  Impl& impl = *m_impl;
+  if (!impl.root) return;
 
   impl.stats.picturesRecorded = 0;
   impl.stats.texturesBaked = 0;
@@ -331,12 +319,13 @@ void Composer::draw(SkCanvas &canvas) {
   // not blit a stale texture.
   const bool gpuBacked =
       canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
-  const bool effective =
-      impl.promotionExplicit ? impl.autoPromote : impl.autoPromote && !gpuBacked;
+  const bool effective = impl.promotionExplicit
+                             ? impl.autoPromote
+                             : impl.autoPromote && !gpuBacked;
   if (effective != impl.autoPromoteEffective) {
     impl.autoPromoteEffective = effective;
     if (!effective && impl.root) {
-      const auto clear = [](auto &&self, detail::Instance &inst) -> void {
+      const auto clear = [](auto&& self, detail::Instance& inst) -> void {
         inst.autoTexture = false;
         inst.hotFrames = 0;
         // Cache::Group is the author's bake too, and it is not promotion:
@@ -345,8 +334,7 @@ void Composer::draw(SkCanvas &canvas) {
         if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
             inst.desc->cacheMode != Cache::Group)
           inst.textureImage.reset();
-        for (auto &child : inst.children)
-          self(self, *child);
+        for (auto& child : inst.children) self(self, *child);
       };
       clear(clear, *impl.root);
     }
@@ -361,8 +349,8 @@ void Composer::draw(SkCanvas &canvas) {
     // then be handed uContentScale = 1 no matter what the real zoom was.
     // The canvas rect is passed so the scale estimate samples the Jacobian
     // in the right place when the host matrix has perspective.
-    const float s =
-        detail::maxScaleOf(canvas.getTotalMatrix(), SkRect::MakeSize(impl.size));
+    const float s = detail::maxScaleOf(canvas.getTotalMatrix(),
+                                       SkRect::MakeSize(impl.size));
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 
@@ -394,7 +382,7 @@ void Composer::draw(SkCanvas &canvas) {
   impl.scanReleasedScalars();
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
-    impl.releasedScalars.clear(); // the walk re-registers what stays released
+    impl.releasedScalars.clear();  // the walk re-registers what stays released
     impl.computeVolatile(*impl.root);
     impl.volatileDirty = false;
   }
@@ -411,34 +399,32 @@ void Composer::draw(SkCanvas &canvas) {
     canvas.saveLayer(nullptr, &viewPaint);
   }
   impl.paint(*impl.root, canvas);
-  if (hasView)
-    canvas.restore();
+  if (hasView) canvas.restore();
   impl.stats.paintMs = lap();
   impl.contentDirty = false;
   if (impl.profileEnabled)
     std::sort(impl.profileRows.begin(), impl.profileRows.end(),
-              [](const NodeCost &a, const NodeCost &b) {
+              [](const NodeCost& a, const NodeCost& b) {
                 return a.selfMs > b.selfMs;
               });
 }
 
 void Composer::setProfiling(bool on) {
   m_impl->profileEnabled = on;
-  if (!on)
-    m_impl->profileRows.clear();
+  if (!on) m_impl->profileRows.clear();
 }
 
 bool Composer::profiling() const { return m_impl->profileEnabled; }
 
 void Composer::setAutoTexturePromotion(bool on) {
   m_impl->autoPromote = on;
-  m_impl->promotionExplicit = true; // the host has an opinion; honour it on
-                                    // every backend, overriding the default.
+  m_impl->promotionExplicit = true;  // the host has an opinion; honour it on
+                                     // every backend, overriding the default.
   if (!on && m_impl->root) {
     // Drop every promoted bake, and the counters that would re-promote from
     // where they left off, so turning promotion off actually exercises the
     // unpromoted path instead of blitting textures baked before the switch.
-    const auto clear = [](auto &&self, detail::Instance &inst) -> void {
+    const auto clear = [](auto&& self, detail::Instance& inst) -> void {
       inst.autoTexture = false;
       inst.hotFrames = 0;
       inst.replayMs = 0;
@@ -446,8 +432,7 @@ void Composer::setAutoTexturePromotion(bool on) {
       if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
           inst.desc->cacheMode != Cache::Group)
         inst.textureImage.reset();
-      for (auto &child : inst.children)
-        self(self, *child);
+      for (auto& child : inst.children) self(self, *child);
     };
     clear(clear, *m_impl->root);
   }
@@ -455,58 +440,65 @@ void Composer::setAutoTexturePromotion(bool on) {
 
 bool Composer::autoTexturePromotion() const { return m_impl->autoPromote; }
 
-const char *Composer::promotionReason(Promotion p) {
+const char* Composer::promotionReason(Promotion p) {
   switch (p) {
-  case Promotion::Cheap:      return "cheap enough to leave alone";
-  case Promotion::Warming:    return "expensive — counting frames before a bake";
-  case Promotion::Promoted:   return "baked by the library";
-  case Promotion::AskedFor:   return "Cache::Texture — you asked for it";
-  case Promotion::OptedOut:   return "promotion opted out";
-  case Promotion::Volatile:   return "its content changes every frame";
-  case Promotion::Composited: return "opacity/blend — a bake would round twice; "
-                                     "ask for Cache::Texture yourself";
-  // The refusal is real: baking a rotated, mirrored or skewed node and
-  // blitting the result differs from painting it live by about one least
-  // significant bit on the antialiased edges of a shader fill, and the
-  // library will not spend a caller's exactness without being asked. But a
-  // constant small tilt is common — a band angled a fraction of a degree
-  // never lies square — and such a node can be the most expensive thing in
-  // the frame while looking ordinary. So the reason names the opt-in
-  // instead of only describing the geometry, which would leave the author
-  // with nothing to act on.
-  case Promotion::Transformed:
-    return "rotated, mirrored or skewed: a bake would differ by ~1 LSB on "
-           "the antialiased edges, so the library will not take it for you "
-           "— add .cache(Cache::Texture) if you accept that";
-  case Promotion::Filtered:   return "layer/backdrop effect or clip";
-  case Promotion::ReadsBackdrop:
-    return "something in this subtree blends with the canvas (a non-srcOver "
-           "blend or backdrop filter, here or in a descendant)";
-  case Promotion::TooBig:     return "too large to bake, or over the bake budget";
-  case Promotion::SplitBaked:
-    return "own paint baked, volatile children painted live over the blit";
+    case Promotion::Cheap:
+      return "cheap enough to leave alone";
+    case Promotion::Warming:
+      return "expensive — counting frames before a bake";
+    case Promotion::Promoted:
+      return "baked by the library";
+    case Promotion::AskedFor:
+      return "Cache::Texture — you asked for it";
+    case Promotion::OptedOut:
+      return "promotion opted out";
+    case Promotion::Volatile:
+      return "its content changes every frame";
+    case Promotion::Composited:
+      return "opacity/blend — a bake would round twice; "
+             "ask for Cache::Texture yourself";
+    // The refusal is real: baking a rotated, mirrored or skewed node and
+    // blitting the result differs from painting it live by about one least
+    // significant bit on the antialiased edges of a shader fill, and the
+    // library will not spend a caller's exactness without being asked. But a
+    // constant small tilt is common — a band angled a fraction of a degree
+    // never lies square — and such a node can be the most expensive thing in
+    // the frame while looking ordinary. So the reason names the opt-in
+    // instead of only describing the geometry, which would leave the author
+    // with nothing to act on.
+    case Promotion::Transformed:
+      return "rotated, mirrored or skewed: a bake would differ by ~1 LSB on "
+             "the antialiased edges, so the library will not take it for you "
+             "— add .cache(Cache::Texture) if you accept that";
+    case Promotion::Filtered:
+      return "layer/backdrop effect or clip";
+    case Promotion::ReadsBackdrop:
+      return "something in this subtree blends with the canvas (a non-srcOver "
+             "blend or backdrop filter, here or in a descendant)";
+    case Promotion::TooBig:
+      return "too large to bake, or over the bake budget";
+    case Promotion::SplitBaked:
+      return "own paint baked, volatile children painted live over the blit";
   }
   return "";
 }
 
-const std::vector<Composer::NodeCost> &Composer::profile() const {
+const std::vector<Composer::NodeCost>& Composer::profile() const {
   return m_impl->profileRows;
 }
 
 void Composer::purgeCaches() {
-  Impl &impl = *m_impl;
-  if (!impl.root)
-    return;
-  std::function<void(Instance &)> walk = [&walk](Instance &inst) {
+  Impl& impl = *m_impl;
+  if (!impl.root) return;
+  std::function<void(Instance&)> walk = [&walk](Instance& inst) {
     inst.picture.reset();
     inst.textureImage.reset();
-    inst.ownImage.reset(); // the split bake's own-paint half is a cache too
+    inst.ownImage.reset();  // the split bake's own-paint half is a cache too
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;
     inst.paintDirty = true;
     inst.ownPaintDirty = true;
-    for (auto &child : inst.children)
-      walk(*child);
+    for (auto& child : inst.children) walk(*child);
   };
   walk(*impl.root);
   impl.contentDirty = true;
@@ -515,8 +507,7 @@ void Composer::purgeCaches() {
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {
   auto it = m_impl->byKey.find(std::string(key));
-  if (it == m_impl->byKey.end())
-    return std::nullopt;
+  if (it == m_impl->byKey.end()) return std::nullopt;
   // Accumulate offsets up the yoga tree.
   SkRect rect = m_impl->instanceRect(*it->second);
   // Layout runs inside draw(), so a query issued between a render() and the
@@ -524,48 +515,40 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
   // non-finite. Reporting absent is the honest answer; handing back a rect
   // with a NaN extent would be a number the caller cannot tell from a real
   // one.
-  if (!rect.isFinite())
-    return std::nullopt;
-  for (Instance *p = it->second->parent; p; p = p->parent) {
+  if (!rect.isFinite()) return std::nullopt;
+  for (Instance* p = it->second->parent; p; p = p->parent) {
     const SkRect parentRect = m_impl->instanceRect(*p);
     rect.offset(parentRect.left(), parentRect.top());
   }
   return rect;
 }
 
-const sigil::weave::ParagraphLayout *
-Composer::paragraphLayout(std::string_view key) const {
+const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
+    std::string_view key) const {
   auto it = m_impl->byKey.find(std::string(key));
-  if (it == m_impl->byKey.end() || !it->second->paragraph)
-    return nullptr;
+  if (it == m_impl->byKey.end() || !it->second->paragraph) return nullptr;
   return &it->second->textLayout;
 }
 
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).
-  Impl &impl = const_cast<Impl &>(*m_impl);
-  if (!impl.root)
-    return std::nullopt;
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  if (!impl.root) return std::nullopt;
   return impl.hitInstance(*impl.root, canvasPoint, nullptr);
 }
 
-const Composer::Stats &Composer::stats() const {
+const Composer::Stats& Composer::stats() const {
   // Tree tallies are computed on demand, never in the frame loop.
   size_t instances = 0, pictures = 0, textures = 0, yogaNodes = 0;
-  std::function<void(const Instance &)> tally = [&](const Instance &i) {
+  std::function<void(const Instance&)> tally = [&](const Instance& i) {
     ++instances;
-    if (i.yoga)
-      ++yogaNodes;
-    if (i.picture)
-      ++pictures;
-    if (i.textureImage)
-      ++textures;
-    for (const auto &child : i.children)
-      tally(*child);
+    if (i.yoga) ++yogaNodes;
+    if (i.picture) ++pictures;
+    if (i.textureImage) ++textures;
+    for (const auto& child : i.children) tally(*child);
   };
-  if (m_impl->root)
-    tally(*m_impl->root);
+  if (m_impl->root) tally(*m_impl->root);
   m_impl->stats.instances = instances;
   m_impl->stats.yogaNodes = yogaNodes;
   m_impl->stats.picturesLive = pictures;
@@ -573,4 +556,4 @@ const Composer::Stats &Composer::stats() const {
   return m_impl->stats;
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

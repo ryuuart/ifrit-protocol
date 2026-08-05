@@ -51,7 +51,7 @@ struct Transition {
    *  It compiles, and calling it throws `bad_function_call` on the first
    *  frame. This accessor substitutes the default curve for an empty
    *  function, so `{}` means what the author meant. */
-  const choreograph::EaseFn &easing() const {
+  const choreograph::EaseFn& easing() const {
     static const choreograph::EaseFn kDefault = &choreograph::easeOutQuad;
     return ease ? ease : kDefault;
   }
@@ -91,7 +91,7 @@ inline choreograph::EaseFn inElastic(float a = 1.0f, float p = 0.3f) {
 inline choreograph::EaseFn outBounce(float a = 1.70158f) {
   return [a](float t) { return choreograph::easeOutBounce(t, a); };
 }
-} // namespace ease
+}  // namespace ease
 
 /** Posterize TIME at a declared rate: `floor(t·hz)/hz`, held still
  *  between steps.
@@ -108,11 +108,13 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
  *
  *  `hz <= 0` answers the input unchanged — the spelling of
  *  "continuous". */
-template <typename T> inline T quantizeTime(T t, T hz) {
+template <typename T>
+inline T quantizeTime(T t, T hz) {
   return hz > T(0) ? std::floor(t * hz) / hz : t;
 }
 
-template <typename T> struct Transitioned {
+template <typename T>
+struct Transitioned {
   /** Value-initialized, not default-initialized. `animate(through({}))`
    *  builds one of these and then fills nothing; for a scalar T,
    *  default-initialization would leave the property reading whatever
@@ -150,22 +152,32 @@ template <typename T> struct Transitioned {
  *  So an author who wants "this number should never jump" writes the
  *  first, and an author who wants "this should fly in" writes the
  *  second — one verb, and the argument says which. */
-template <typename T> struct FromTo {
+template <typename T>
+struct FromTo {
   T from;
   T to;
 };
 /** The ramp-on-change argument: `animate(to(v), spec)`. */
-template <typename T> struct To {
+template <typename T>
+struct To {
   T value;
 };
-template <typename T> struct From {
+template <typename T>
+struct From {
   T value;
   FromTo<T> to(T target) { return {std::move(value), std::move(target)}; }
 };
-template <typename T> From<T> from(T v) { return {std::move(v)}; }
-template <typename T> To<T> to(T v) { return {std::move(v)}; }
+template <typename T>
+From<T> from(T v) {
+  return {std::move(v)};
+}
+template <typename T>
+To<T> to(T v) {
+  return {std::move(v)};
+}
 
-template <typename T> struct Waypoints {
+template <typename T>
+struct Waypoints {
   std::vector<std::pair<std::chrono::milliseconds, T>> frames;
 };
 
@@ -173,15 +185,14 @@ template <typename T> struct Waypoints {
  *  template argument. A nested braced list is a non-deduced context, so
  *  the generic overload below cannot deduce its element type and has to
  *  be told it explicitly. */
-inline Waypoints<float>
-through(std::initializer_list<std::pair<std::chrono::milliseconds, float>>
-            frames) {
+inline Waypoints<float> through(
+    std::initializer_list<std::pair<std::chrono::milliseconds, float>> frames) {
   return {{frames.begin(), frames.end()}};
 }
 /** Any other value type — `through<SkColor4f>({...})`. */
 template <typename T>
-Waypoints<T>
-through(std::vector<std::pair<std::chrono::milliseconds, T>> frames) {
+Waypoints<T> through(
+    std::vector<std::pair<std::chrono::milliseconds, T>> frames) {
   return {std::move(frames)};
 }
 
@@ -217,7 +228,8 @@ Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
  *  of snapping, retargeting from wherever the property currently is.
  *  There is one motion per property, so a change mid-ramp bends the ramp
  *  rather than queueing a second one behind it. */
-template <typename T> Transitioned<T> animate(To<T> t, Transition spec = {}) {
+template <typename T>
+Transitioned<T> animate(To<T> t, Transition spec = {}) {
   return {std::move(t.value), std::move(spec)};
 }
 
@@ -269,8 +281,8 @@ inline uint32_t wiggleHash(uint32_t x) {
  *  The seed is hashed BEFORE it is mixed with the cell, so seeds 0 and 1
  *  are as independent as seeds 0 and 5731. */
 inline float wiggleLattice(int32_t cell, uint32_t seed) {
-  const uint32_t h = wiggleHash((uint32_t)cell * 0x9e3779b9u ^
-                                wiggleHash(seed + 0x85ebca6bu));
+  const uint32_t h =
+      wiggleHash((uint32_t)cell * 0x9e3779b9u ^ wiggleHash(seed + 0x85ebca6bu));
   return (float)(h >> 8) * (1.0f / 8388608.0f) - 1.0f;
 }
 
@@ -290,8 +302,7 @@ inline float wiggleLattice(int32_t cell, uint32_t seed) {
  *  frozen wiggle is a debuggable symptom where UB is not. */
 inline float wiggleOctave(float x, uint32_t seed) {
   const float base = std::floor(x);
-  if (!(base > -2.0e9f && base < 2.0e9f))
-    return 0.0f;
+  if (!(base > -2.0e9f && base < 2.0e9f)) return 0.0f;
   const float t = x - base;
   const int32_t cell = (int32_t)base;
   const float u = t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
@@ -322,7 +333,7 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
   return weight > 0.0f ? sum / weight : 0.0f;
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** A live binding, SHAPED on its way to the property.
  *
@@ -357,18 +368,18 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
  *  transitioned form, so sizeof(Animatable) is unchanged and a property
  *  that never shapes anything pays nothing. */
 struct BoundFloat {
-  const choreograph::Output<float> *source = nullptr;
-  float inScale = 1.0f, inOffset = 0.0f; // source(): pre-curve normalise
-  choreograph::EaseFn curve;             // map()
-  bool clampInput = false;               // window(): clamp before the curve
-  int steps = 0;                         // quantize(): 0 = continuous
-  float scale = 1.0f, offset = 0.0f;     // the affine chain
+  const choreograph::Output<float>* source = nullptr;
+  float inScale = 1.0f, inOffset = 0.0f;  // source(): pre-curve normalise
+  choreograph::EaseFn curve;              // map()
+  bool clampInput = false;                // window(): clamp before the curve
+  int steps = 0;                          // quantize(): 0 = continuous
+  float scale = 1.0f, offset = 0.0f;      // the affine chain
   bool clamped = false;
   float lo = 0.0f, hi = 1.0f;
   // wiggle(): the procedural noise stage. amount == 0 disengages it
   // entirely, at the cost of one float compare.
-  float wiggleAmount = 0.0f;    // peak displacement, in OUTPUT units
-  float wiggleFrequency = 2.0f; // cycles per unit of NORMALISED input
+  float wiggleAmount = 0.0f;     // peak displacement, in OUTPUT units
+  float wiggleFrequency = 2.0f;  // cycles per unit of NORMALISED input
   uint32_t wiggleSeed = 0;
   int wiggleOctaves = 1;
   float wiggleFalloff = 0.5f;
@@ -377,32 +388,27 @@ struct BoundFloat {
 
   float apply(float v) const {
     v = v * inScale + inOffset;
-    if (clampInput)
-      v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+    if (clampInput) v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
     // The noise PHASE is read here — off the normalised input, before the
     // curve shapes it and before the affine chain puts it in output
     // units. Phase from the schedule, amplitude in output units; see
     // Bound::wiggle for why that pairing is the useful one.
     const float phase = v;
-    if (curve)
-      v = curve(v);
-    if (steps > 1)
-      v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
+    if (curve) v = curve(v);
+    if (steps > 1) v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
     v = v * scale + offset;
     // AFTER the affine chain, BEFORE wiggle: the noise phase above reads
     // the unwrapped schedule, so a wrapped phase wiggles continuously
     // across the seam instead of repeating its shake every lap.
     if (wrapPeriod > 0.0f) {
       v = std::fmod(v, wrapPeriod);
-      if (v < 0.0f)
-        v += wrapPeriod;
+      if (v < 0.0f) v += wrapPeriod;
     }
     if (wiggleAmount != 0.0f)
       v += wiggleAmount * detail::wiggleNoise(phase * wiggleFrequency,
                                               wiggleSeed, wiggleOctaves,
                                               wiggleFalloff);
-    if (clamped)
-      v = v < lo ? lo : (v > hi ? hi : v);
+    if (clamped) v = v < lo ? lo : (v > hi ? hi : v);
     return v;
   }
 };
@@ -410,11 +416,11 @@ struct BoundFloat {
 /** Builder for BoundFloat — see the doc above. Converts implicitly into
  *  any `Animatable<float>` property. */
 class Bound {
-public:
+ public:
   // The parameter is `out` rather than `source` because source() is a
   // stage name on this class, and a parameter of that name would shadow
   // it inside the constructor.
-  explicit Bound(const choreograph::Output<float> *out) { m_b.source = out; }
+  explicit Bound(const choreograph::Output<float>* out) { m_b.source = out; }
 
   /** Normalise the SOURCE's own range onto [0,1] before everything else.
    *  `bind(&hp).source(0, maxHp)` is the health-bar spelling.
@@ -425,7 +431,7 @@ public:
    *  `animate(from(a).to(b))` words, which mean the endpoints of a single
    *  ramp instead. `source` and `target` name the two ranges; `from` and
    *  `to` stay the ramp's. */
-  Bound &source(float lo, float hi) {
+  Bound& source(float lo, float hi) {
     const float span = hi - lo;
     m_b.inScale = span != 0.0f ? 1.0f / span : 0.0f;
     m_b.inOffset = span != 0.0f ? -lo / span : 0.0f;
@@ -439,32 +445,32 @@ public:
    *  value outside [0,1] — and none of the `ease::` curves is defined
    *  there. `window()` says "this beat and nothing else", which is what
    *  a range on a multi-beat timeline nearly always means. */
-  Bound &window(float lo, float hi) {
+  Bound& window(float lo, float hi) {
     source(lo, hi);
     m_b.clampInput = true;
     return *this;
   }
   /** Shape the (normalised) value — any choreograph easing, including the
    *  parameterised `ease::` family. */
-  Bound &map(choreograph::EaseFn curve) {
+  Bound& map(choreograph::EaseFn curve) {
     m_b.curve = std::move(curve);
     return *this;
   }
-  Bound &scale(float s) {
+  Bound& scale(float s) {
     m_b.scale *= s;
     m_b.offset *= s;
     return *this;
   }
-  Bound &offset(float o) {
+  Bound& offset(float o) {
     m_b.offset += o;
     return *this;
   }
   /** Map [0,1] onto the TARGET range [lo,hi] — exactly
    *  `scale(hi-lo).offset(lo)`, spelled the way you think about it. */
-  Bound &target(float lo, float hi) { return scale(hi - lo).offset(lo); }
+  Bound& target(float lo, float hi) { return scale(hi - lo).offset(lo); }
   /** 1 − v, composed correctly with whatever affine stages came before
    *  rather than applied to the raw input. */
-  Bound &invert() {
+  Bound& invert() {
     m_b.scale = -m_b.scale;
     m_b.offset = 1.0f - m_b.offset;
     return *this;
@@ -473,7 +479,7 @@ public:
    *  chain — so the levels are evenly spaced in the normalised value and
    *  land wherever the affine stages then put them. A count of levels,
    *  not a rate; `quantizeTime` is the rate-on-seconds operation. */
-  Bound &quantize(int steps) {
+  Bound& quantize(int steps) {
     m_b.steps = steps > 1 ? steps : 0;
     return *this;
   }
@@ -489,7 +495,7 @@ public:
    *  phase reads the unwrapped input) and a clamp still bounds the
    *  folded value. `period <= 0` is a no-op rather than a division, so
    *  "no wrap" is representable, and it is the default. */
-  Bound &wrap(float period) {
+  Bound& wrap(float period) {
     m_b.wrapPeriod = period > 0.0f ? period : 0.0f;
     return *this;
   }
@@ -553,8 +559,8 @@ public:
    *      .translateX(bind(&seconds).scale(0).wiggle(12.f, 7.f, 1))
    *      .translateY(bind(&seconds).scale(0).wiggle(12.f, 7.f, 2))
    */
-  Bound &wiggle(float amount = 1.0f, float frequency = 2.0f,
-                uint32_t seed = 0, int octaves = 1, float falloff = 0.5f) {
+  Bound& wiggle(float amount = 1.0f, float frequency = 2.0f, uint32_t seed = 0,
+                int octaves = 1, float falloff = 0.5f) {
     m_b.wiggleAmount = amount;
     m_b.wiggleFrequency = frequency;
     m_b.wiggleSeed = seed;
@@ -564,22 +570,22 @@ public:
     return *this;
   }
   /** Bound the OUTPUT; always applied last, whenever it is written. */
-  Bound &clamp(float lo, float hi) {
+  Bound& clamp(float lo, float hi) {
     m_b.clamped = true;
     m_b.lo = lo;
     m_b.hi = hi;
     return *this;
   }
 
-  const BoundFloat &value() const { return m_b; }
+  const BoundFloat& value() const { return m_b; }
 
-private:
+ private:
   BoundFloat m_b;
 };
 
 /** `bind(&output)` — a binding you can shape. `&output` on its own still
  *  works and stays the zero-overhead form. */
-inline Bound bind(const choreograph::Output<float> *source) {
+inline Bound bind(const choreograph::Output<float>* source) {
   return Bound{source};
 }
 
@@ -599,10 +605,9 @@ inline Bound bind(const choreograph::Output<float> *source) {
  *  layer along a diagonal. It returns an ordinary `Bound`, so
  *  `.offset(restValue)` parks the shake somewhere other than zero and
  *  `.clamp()` still bounds it. */
-inline Bound wiggle(const choreograph::Output<float> *source,
+inline Bound wiggle(const choreograph::Output<float>* source,
                     float amount = 1.0f, float frequency = 2.0f,
-                    uint32_t seed = 0, int octaves = 1,
-                    float falloff = 0.5f) {
+                    uint32_t seed = 0, int octaves = 1, float falloff = 0.5f) {
   Bound b{source};
   b.scale(0.0f).wiggle(amount, frequency, seed, octaves, falloff);
   return b;
@@ -623,33 +628,34 @@ inline Bound wiggle(const choreograph::Output<float> *source,
  * out-of-line block and the slot itself stays small. Consumers that carry
  * many of these per object depend on that; do not inline the payload.
  */
-template <typename T> class Animatable {
-public:
+template <typename T>
+class Animatable {
+ public:
   Animatable() = default;
   Animatable(T v) : m_plain(std::move(v)) {}
   Animatable(Transitioned<T> t) : m_kind(Kind::kAnim) {
     extra().anim = std::move(t);
   }
-  Animatable(const choreograph::Output<T> *bound)
+  Animatable(const choreograph::Output<T>* bound)
       : m_kind(Kind::kBound), m_bound(bound) {}
   /** bind(&out).…  — a shaped binding. Float properties only; the extra
    *  block is the same one the transitioned form allocates, so this adds
    *  nothing to sizeof(Animatable) and nothing to a slot that never uses
    *  it. */
-  Animatable(const Bound &b) : m_kind(Kind::kBoundMapped) {
+  Animatable(const Bound& b) : m_kind(Kind::kBoundMapped) {
     m_bound = b.value().source;
     extra().bound = b.value();
   }
-  Animatable(const Animatable &other) { *this = other; }
-  Animatable(Animatable &&) noexcept = default;
-  Animatable &operator=(const Animatable &other) {
+  Animatable(const Animatable& other) { *this = other; }
+  Animatable(Animatable&&) noexcept = default;
+  Animatable& operator=(const Animatable& other) {
     m_kind = other.m_kind;
     m_plain = other.m_plain;
     m_bound = other.m_bound;
     m_extra = other.m_extra ? std::make_unique<Extra>(*other.m_extra) : nullptr;
     return *this;
   }
-  Animatable &operator=(Animatable &&) noexcept = default;
+  Animatable& operator=(Animatable&&) noexcept = default;
 
   /** Which form holds: 0 plain, 1 transitioned, 2 bound, 3 shaped
    *  binding.
@@ -660,25 +666,23 @@ public:
    *  taking its place — so append new forms at the end and never
    *  renumber. */
   int index() const { return (int)m_kind; }
-  const T *plain() const {
-    return m_kind == Kind::kPlain ? &m_plain : nullptr;
-  }
-  const Transitioned<T> *transitioned() const {
+  const T* plain() const { return m_kind == Kind::kPlain ? &m_plain : nullptr; }
+  const Transitioned<T>* transitioned() const {
     return m_kind == Kind::kAnim ? &m_extra->anim : nullptr;
   }
   /** The bound Output, shaped or not, so a consumer asking only "is this
    *  driven live?" reads one accessor and does not have to know which of
    *  the two bound forms it holds. */
-  const choreograph::Output<T> *binding() const {
+  const choreograph::Output<T>* binding() const {
     return m_kind == Kind::kBound || m_kind == Kind::kBoundMapped ? m_bound
                                                                   : nullptr;
   }
   /** The shaping, if this binding has any. */
-  const BoundFloat *boundMap() const {
+  const BoundFloat* boundMap() const {
     return m_kind == Kind::kBoundMapped ? &m_extra->bound : nullptr;
   }
 
-private:
+ private:
   enum class Kind : uint8_t { kPlain, kAnim, kBound, kBoundMapped };
   /** The out-of-line block for the two FAT forms. They are mutually
    *  exclusive, so one pointer carries both and a slot holding neither
@@ -687,16 +691,15 @@ private:
     Transitioned<T> anim{};
     BoundFloat bound{};
   };
-  Extra &extra() {
-    if (!m_extra)
-      m_extra = std::make_unique<Extra>();
+  Extra& extra() {
+    if (!m_extra) m_extra = std::make_unique<Extra>();
     return *m_extra;
   }
 
   Kind m_kind = Kind::kPlain;
   T m_plain{};
-  const choreograph::Output<T> *m_bound = nullptr;
+  const choreograph::Output<T>* m_bound = nullptr;
   std::unique_ptr<Extra> m_extra;
 };
 
-} // namespace sigil::motion
+}  // namespace sigil::motion

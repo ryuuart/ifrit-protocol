@@ -52,15 +52,15 @@
 //                        as Brush pipelines, through .shaped()
 //   Brush                .shaped() pipeline + multi-layer; the per-layer
 //                        suffix takes shapers too
-//   kit::brush::presets::filament/circuit/rope/pulse            LayeredBrush stacks
-//   brush::Ribbon      taper and calligraphic nib
+//   kit::brush::presets::filament/circuit/rope/pulse            LayeredBrush
+//   stacks brush::Ribbon      taper and calligraphic nib
 //   brush::Scatter/Pattern/Art/restyle
 //   PathFormat           align Inner/Outer, cap/join, stampPath, trim
 //   shapes::onEdges/inset/parametric/spiral/star/polygon
 //   decorations::wash
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Lines.h>
@@ -68,11 +68,8 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Strokes.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
-
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkPathBuilder.h>
 
 #include <cmath>
 #include <optional>
@@ -101,10 +98,9 @@ Fill soft() { return Fill::color(kInkSoft); }
 // ---------------------------------------------------------------------------
 // type
 
-sk_sp<SkTypeface> face(sketch::SketchContext &ctx, const char *family,
+sk_sp<SkTypeface> face(sketch::SketchContext& ctx, const char* family,
                        SkFontStyle style = SkFontStyle::Normal()) {
-  if (!ctx.fonts || !ctx.fonts->fontManager())
-    return nullptr;
+  if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
   return ctx.fonts->fontManager()->matchFamilyStyle(family, style);
 }
 
@@ -126,15 +122,16 @@ sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
 
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
-Element call(const char *text, float size = 9.5f, SkColor4f c = kInk) {
-  return sigil::compose::text(util::toU8(text), style(gType.mono, size, c, 0.1f));
+Element call(const char* text, float size = 9.5f, SkColor4f c = kInk) {
+  return sigil::compose::text(util::toU8(text),
+                              style(gType.mono, size, c, 0.1f));
 }
-Element roman(const char *text, float size, SkColor4f c = kInk,
+Element roman(const char* text, float size, SkColor4f c = kInk,
               float tracking = 0) {
   return sigil::compose::text(util::toU8(text),
                               style(gType.roman, size, c, tracking));
 }
-Element romanBold(const char *text, float size, SkColor4f c = kInk,
+Element romanBold(const char* text, float size, SkColor4f c = kInk,
                   float tracking = 0) {
   return sigil::compose::text(util::toU8(text),
                               style(gType.romanBold, size, c, tracking));
@@ -220,7 +217,7 @@ shapes::OutlineFn frameRect(float pad) {
  *  shape being shown, and a flex row would put every rule on the same
  *  baseline, which is exactly the reading this sheet exists to refute. */
 Element specimen(float x, float y, float w, float h, shapes::OutlineFn shape,
-                 Decoration dec, const char *label, float labelDy = 6) {
+                 Decoration dec, const char* label, float labelDy = 6) {
   return box()
       .absolute()
       .left(x)
@@ -263,7 +260,7 @@ Element rule(float x, float y, float w, Decoration dec) {
  *  "VII" by more than a word space in this face — and gets it wrong for
  *  every other one. A baseline-aligned row cannot collide for any numeral,
  *  in any face. */
-Element sectionTitle(float x, float y, const char *n, const char *name) {
+Element sectionTitle(float x, float y, const char* n, const char* name) {
   return box()
       .absolute()
       .left(x)
@@ -283,7 +280,7 @@ Element sectionTitle(float x, float y, const char *n, const char *name) {
 // adjacent so they cannot drift apart.
 
 struct Style {
-  const char *label;
+  const char* label;
   Decoration dec;
 };
 
@@ -344,8 +341,7 @@ std::vector<Style> railStyles() {
        lines::heavyHairHeavy(3.0f, 0.6f, ink(), 6.0f)},
       {"lines::dottedCore(2, 1.4, ink, 7, 6)",
        lines::dottedCore(2.0f, 1.4f, ink(), 7.0f, 6.0f)},
-      {"Rails{{-5,2.4,ink},{0,0.7,RED},{5,2.4,ink}}  per-rail fill",
-       inkRedInk},
+      {"Rails{{-5,2.4,ink},{0,0.7,RED},{5,2.4,ink}}  per-rail fill", inkRedInk},
       {"Rails{...dashPhase=8}  counter-dashed strands", counterDashed},
       {"Rails{-9,-3,+4,+8}  unequal gaps and widths", unequal},
   };
@@ -361,13 +357,17 @@ std::vector<Style> displacedStyles() {
       .layer(lines::Line{.width = 1.6f, .fill = ink()});
 
   Brush sketch2;
-  sketch2.layer(lines::Line{.width = 1.3f, .fill = soft()},
-              {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 2.0f, .seed = 7}})
+  sketch2
       .layer(lines::Line{.width = 1.3f, .fill = soft()},
-           {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 1.0f, .seed = 41}});
+             {kit::brush::shapers::Jitter{
+                 .segLength = 9, .deviation = 2.0f, .seed = 7}})
+      .layer(lines::Line{.width = 1.3f, .fill = soft()},
+             {kit::brush::shapers::Jitter{
+                 .segLength = 9, .deviation = 1.0f, .seed = 41}});
 
   Brush waveOnCased;
-  waveOnCased.shaped(kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
+  waveOnCased
+      .shaped(kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
       .layer(lines::cased(1.6f, red(), 5.0f));
 
   return {
@@ -397,8 +397,8 @@ std::vector<Style> furnishedStyles() {
 
   lines::Line gradient;
   gradient.width = 3.0f;
-  gradient.alongStops = {{0.0f, kRed}, {0.5f, {0.85f, 0.66f, 0.16f, 1}},
-                         {1.0f, kBlue}};
+  gradient.alongStops = {
+      {0.0f, kRed}, {0.5f, {0.85f, 0.66f, 0.16f, 1}}, {1.0f, kBlue}};
 
   PathFormat dotted = util::stroke(2.6f, ink());
   dotted.cap = SkPaint::kRound_Cap;
@@ -502,14 +502,14 @@ std::vector<Style> stampedStyles() {
   };
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
 struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
   choreograph::Output<float> march{0};
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     Element plate = stack().fill(Material::solid(kPaper));
 
     // ---- masthead --------------------------------------------------------
@@ -531,8 +531,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                     .left(58)
                     .top(88));
     plate.child(call("PLATE I", 9.0f, kInkSoft).absolute().left(1470).top(88));
-    plate.child(rule(56, 112, 1488, lines::heavyHairHeavy(1.2f, 0.5f, ink(),
-                                                          3.0f)));
+    plate.child(
+        rule(56, 112, 1488, lines::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f)));
 
     // ---- I. THE FAN ------------------------------------------------------
     // Straight is the easy case and a specimen book still starts there: the
@@ -547,8 +547,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                     .top(160));
     {
       std::vector<Style> fan = railStyles();
-      for (Style &s : furnishedStyles())
-        fan.push_back(std::move(s));
+      for (Style& s : furnishedStyles()) fan.push_back(std::move(s));
       const float originX = 66, originY = 510;
       const float length = 232;
       const int n = (int)fan.size();
@@ -588,14 +587,25 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                       .height(16)
                       .shape(shapes::circle())
                       .foreground(util::stroke(1.0f, red())));
-      plate.child(box().absolute().left(originX - 13).top(originY - 0.5f)
-                      .width(26).height(1).fill(kRed));
-      plate.child(box().absolute().left(originX - 0.5f).top(originY - 13)
-                      .width(1).height(26).fill(kRed));
+      plate.child(box()
+                      .absolute()
+                      .left(originX - 13)
+                      .top(originY - 0.5f)
+                      .width(26)
+                      .height(1)
+                      .fill(kRed));
+      plate.child(box()
+                      .absolute()
+                      .left(originX - 0.5f)
+                      .top(originY - 13)
+                      .width(1)
+                      .height(26)
+                      .fill(kRed));
 
       // The key.
       const float keyX = 330, keyTop = 236;
-      plate.child(call("KEY", 8.5f, kInk).absolute().left(keyX).top(keyTop - 16));
+      plate.child(
+          call("KEY", 8.5f, kInk).absolute().left(keyX).top(keyTop - 16));
       for (int i = 0; i < n; ++i) {
         char numeral[8];
         std::snprintf(numeral, sizeof numeral, "%2d", i + 1);
@@ -621,20 +631,18 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                     .top(160));
     {
       std::vector<Style> column = displacedStyles();
-      for (Style &s : bandStyles())
-        column.push_back(std::move(s));
-      for (Style &s : stampedStyles())
-        column.push_back(std::move(s));
+      for (Style& s : bandStyles()) column.push_back(std::move(s));
+      for (Style& s : stampedStyles()) column.push_back(std::move(s));
 
       float y = 184;
       int i = 0;
-      for (Style &s : column) {
+      for (Style& s : column) {
         // A slight alternating stagger: the sheet must not read as a column
         // of cells, and the offset also shows the styles are size-relative
         // rather than pinned to an x.
         const float x = 636 + (i % 2 ? 22.0f : 0.0f);
-        plate.child(specimen(x, y, 356, 46, serpent(), std::move(s.dec),
-                             s.label, 0));
+        plate.child(
+            specimen(x, y, 356, 46, serpent(), std::move(s.dec), s.label, 0));
         y += 58;
         ++i;
       }
@@ -654,8 +662,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       const float cx = 1178, cy = 430;
       struct Ring {
         float r;
-        float angle; // rad; fanned so the captions stack instead of collide
-        const char *label;
+        float angle;  // rad; fanned so the captions stack instead of collide
+        const char* label;
         Decoration dec;
       };
       lines::Line chev;
@@ -665,7 +673,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       chev.midSpacing = 30.0f;
       chev.capSize = 8.0f;
       Brush wavyRing;
-      wavyRing.shaped(kit::brush::shapers::Wave{.amplitude = 4, .wavelength = 26})
+      wavyRing
+          .shaped(kit::brush::shapers::Wave{.amplitude = 4, .wavelength = 26})
           .layer(lines::Line{.width = 1.4f, .fill = red()});
       lines::Rails registered = lines::rails({
           {.across = 5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
@@ -682,7 +691,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
            lines::triple(1.4f, ink(), 4.5f, 2.0f)},
       };
       const float span = 380;
-      for (const Ring &r : rings) {
+      for (const Ring& r : rings) {
         plate.child(bare(cx - span * 0.5f, cy - span * 0.5f, span, span,
                          ringOf(r.r), r.dec));
         const float lx = cx + std::cos(r.angle) * r.r;
@@ -699,36 +708,36 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .width(capX - 6 - lx)
                         .height(1)
                         .fill(kInkSoft));
-        plate.child(call(r.label, 8.0f, kInkSoft)
-                        .absolute()
-                        .left(capX)
-                        .top(ly - 5));
+        plate.child(
+            call(r.label, 8.0f, kInkSoft).absolute().left(capX).top(ly - 5));
       }
-      plate.child(box().absolute().left(cx - 3).top(cy - 3).width(6).height(6)
-                      .shape(shapes::circle()).fill(kRed));
+      plate.child(box()
+                      .absolute()
+                      .left(cx - 3)
+                      .top(cy - 3)
+                      .width(6)
+                      .height(6)
+                      .shape(shapes::circle())
+                      .fill(kRed));
     }
 
     // ---- IV. THE REVERSE -------------------------------------------------
     // Additive glow brushes are built for dark UI and wash out on paper.
     // Printing a black patch to show a rule reversed is what a real specimen
     // sheet does, so the plate does it too.
-    plate.child(sectionTitle(1064, 690, "IV",
-                             "THE REVERSE \xc2\xb7 LAYERED STACKS"));
+    plate.child(
+        sectionTitle(1064, 690, "IV", "THE REVERSE \xc2\xb7 LAYERED STACKS"));
     plate.child(call("additive stacks, shown on the black patch they are for",
                      9.0f, kInkSoft)
                     .absolute()
                     .left(1064)
                     .top(710));
     {
-      plate.child(box()
-                      .absolute()
-                      .left(1058)
-                      .top(732)
-                      .width(486)
-                      .height(300)
-                      .fill(SkColor4f{0.055f, 0.055f, 0.068f, 1}));
+      plate.child(
+          box().absolute().left(1058).top(732).width(486).height(300).fill(
+              SkColor4f{0.055f, 0.055f, 0.068f, 1}));
       float y = 748;
-      for (Style &s : stackStyles()) {
+      for (Style& s : stackStyles()) {
         plate.child(box()
                         .absolute()
                         .left(1078)
@@ -737,8 +746,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .height(44)
                         .shape(serpent())
                         .stroke(std::move(s.dec))
-                        .child(call(s.label, 8.0f,
-                                    {0.72f, 0.74f, 0.78f, 1})
+                        .child(call(s.label, 8.0f, {0.72f, 0.74f, 0.78f, 1})
                                    .absolute()
                                    .left(0)
                                    .top(46)));
@@ -747,8 +755,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
     }
 
     // ---- V. THE TORTURE --------------------------------------------------
-    plate.child(sectionTitle(56, 880, "V",
-                             "THE TORTURE \xc2\xb7 SPIRAL & HAIRPIN"));
+    plate.child(
+        sectionTitle(56, 880, "V", "THE TORTURE \xc2\xb7 SPIRAL & HAIRPIN"));
     plate.child(call("where offset contours self-intersect", 9.0f, kInkSoft)
                     .absolute()
                     .left(56)
@@ -767,21 +775,21 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                            "heavyHairHeavy round a hairpin"));
       Brush hairSketch;
       hairSketch.layer(lines::Line{.width = 1.3f, .fill = soft()},
-                     {kit::brush::shapers::Jitter{.segLength = 7, .deviation = 2.0f,
-                                   .seed = 3}});
+                       {kit::brush::shapers::Jitter{
+                           .segLength = 7, .deviation = 2.0f, .seed = 3}});
       plate.child(specimen(460, 1032, 150, 74, hairpin(), hairSketch,
                            "shapers::Jitter on a hairpin"));
     }
 
     // ---- VI. THE FIELDS --------------------------------------------------
     plate.child(sectionTitle(640, 1062, "VI", "THE FIELDS \xc2\xb7 HATCHING"));
-    plate.child(call("a rule repeated and clipped to a silhouette", 9.0f,
-                     kInkSoft)
-                    .absolute()
-                    .left(640)
-                    .top(1082));
+    plate.child(
+        call("a rule repeated and clipped to a silhouette", 9.0f, kInkSoft)
+            .absolute()
+            .left(640)
+            .top(1082));
     {
-      auto field = [&](float x, float dy, const char *label,
+      auto field = [&](float x, float dy, const char* label,
                        shapes::OutlineFn shape, Decoration dec) {
         return box()
             .absolute()
@@ -807,11 +815,10 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       plate.child(field(1078, 22, "lines::concentric(red, 14, 0.8)",
                         shapes::squircle(4.0f),
                         lines::concentric(red(), 14, 0.8f)));
-      plate.child(field(1224, 2, "decorations::wash(halftoneRamp)",
-                        shapes::circle(),
-                        decorations::wash(
-                            patterns::halftoneRamp(8, 1.0f, 3.2f, kInk),
-                            SkBlendMode::kSrcOver, 0.95f)));
+      plate.child(
+          field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
+                decorations::wash(patterns::halftoneRamp(8, 1.0f, 3.2f, kInk),
+                                  SkBlendMode::kSrcOver, 0.95f)));
       plate.child(field(1370, 26, "hatch on shapes::chamfered(22)",
                         shapes::chamfered(22.0f),
                         lines::hatch(soft(), 6.0f, 0.8f, -45.0f)));
@@ -819,33 +826,34 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
 
     // ---- VII. THE FRAMES -------------------------------------------------
     // The headline. A frame is not a 1 px rounded rect.
-    plate.child(sectionTitle(56, 1300, "VII",
-                             "THE FRAMES \xc2\xb7 BORDERS & CORNERS"));
-    plate.child(call("decorations::Border \xc2\xb7 shapes::chamfered/notched "
-                     "\xc2\xb7 brush::Pattern corner tiles \xe2\x80\x94 a frame "
-                     "is not a 1 px rounded rect",
-                     9.0f, kInkSoft)
-                    .absolute()
-                    .left(56)
-                    .top(1320));
+    plate.child(
+        sectionTitle(56, 1300, "VII", "THE FRAMES \xc2\xb7 BORDERS & CORNERS"));
+    plate.child(
+        call("decorations::Border \xc2\xb7 shapes::chamfered/notched "
+             "\xc2\xb7 brush::Pattern corner tiles \xe2\x80\x94 a frame "
+             "is not a 1 px rounded rect",
+             9.0f, kInkSoft)
+            .absolute()
+            .left(56)
+            .top(1320));
     {
       struct Frame {
-        const char *label;
+        const char* label;
         shapes::OutlineFn shape;
         Decoration dec;
         float rot = 0;
-        std::optional<LayerStyle> style; // set instead of dec for stacks
-        std::optional<Spans> where;      // set to stroke only part of the
-                                         // outline instead of all of it
+        std::optional<LayerStyle> style;  // set instead of dec for stacks
+        std::optional<Spans> where;       // set to stroke only part of the
+                                          // outline instead of all of it
       };
       // Laid out in two staggered rows of seven and eight.
       std::vector<Frame> frames;
-      auto add = [&](const char *label, shapes::OutlineFn shape, Decoration dec,
+      auto add = [&](const char* label, shapes::OutlineFn shape, Decoration dec,
                      float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::nullopt});
       };
-      auto addStyle = [&](const char *label, shapes::OutlineFn shape,
+      auto addStyle = [&](const char* label, shapes::OutlineFn shape,
                           LayerStyle style, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
                                rot, std::move(style), std::nullopt});
@@ -855,7 +863,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // as a dedicated decoration that draws its own rectangle. The ink then
       // follows whatever shape the node actually has, so the same call gives
       // four brackets on a rect and eight on a chamfer.
-      auto addSpans = [&](const char *label, shapes::OutlineFn shape,
+      auto addSpans = [&](const char* label, shapes::OutlineFn shape,
                           Spans where, Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::move(where)});
@@ -889,22 +897,26 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         // aligned, so under Outgoing the same polygon(4, 45) comes back
         // as four upright SQUARES and the label stops being true of the
         // picture beside it.
-        tiled.corner = brush::CornerArt{box()
-                                              .width(15)
-                                              .height(15)
-                                              .shape(shapes::polygon(4, 45.0f))
-                                              .foreground(util::stroke(1.3f,
-                                                                       red())),
-                                          brush::CornerAlign::Bisector};
+        tiled.corner =
+            brush::CornerArt{box()
+                                 .width(15)
+                                 .height(15)
+                                 .shape(shapes::polygon(4, 45.0f))
+                                 .foreground(util::stroke(1.3f, red())),
+                             brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
-        add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
+        add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled,
+            0.9f);
       }
       {
         ContourWalk walk;
         walk.spacing = 15.0f;
-        walk.stamp = box().width(7).height(7)
-                         .shape(shapes::polygon(3, -90.0f)).fill(kInk);
+        walk.stamp = box()
+                         .width(7)
+                         .height(7)
+                         .shape(shapes::polygon(3, -90.0f))
+                         .fill(kInk);
         add("ContourWalk{spacing=15, stamp=triangle}", frameRect(8), walk);
       }
       {
@@ -920,15 +932,18 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
             .shaped(
                 kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 22})
             .layer(lines::Line{.width = 1.4f, .fill = ink()});
-        add("shaped(shapers::Wave{3.5,22}) on a closed rect",
-            frameRect(8), scalloped, 1.4f);
+        add("shaped(shapers::Wave{3.5,22}) on a closed rect", frameRect(8),
+            scalloped, 1.4f);
       }
       {
         Brush drawn;
-        drawn.layer(lines::Line{.width = 1.3f, .fill = ink()},
-                  {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 2.2f, .seed = 5}})
+        drawn
+            .layer(lines::Line{.width = 1.3f, .fill = ink()},
+                   {kit::brush::shapers::Jitter{
+                       .segLength = 9, .deviation = 2.2f, .seed = 5}})
             .layer(lines::Line{.width = 1.1f, .fill = soft()},
-                 {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 1.1f, .seed = 23}});
+                   {kit::brush::shapers::Jitter{
+                       .segLength = 9, .deviation = 1.1f, .seed = 23}});
         add("two shapers::Jitter layers on a rect", frameRect(8), drawn, -1.8f);
       }
       add("shapes::onEdges(Top|Bottom, stroke(2))", frameRect(8),
@@ -941,13 +956,12 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         {.across = -3, .width = 1.6f, .fill = ink()}}),
           0.5f);
       addStyle("doubleBorder(solid, dotted @7)", frameRect(8),
-               decorations::doubleBorder(
-                   decorations::border(1.6f, ink()),
-                   Border{.width = 1.2f,
-                          .fill = ink(),
-                          .inset = 7.0f,
-                          .dash = {0.01f, 5.0f},
-                          .cap = SkPaint::kRound_Cap}),
+               decorations::doubleBorder(decorations::border(1.6f, ink()),
+                                         Border{.width = 1.2f,
+                                                .fill = ink(),
+                                                .inset = 7.0f,
+                                                .dash = {0.01f, 5.0f},
+                                                .cap = SkPaint::kRound_Cap}),
                -0.9f);
 
       const float pitch = 212.0f;
@@ -956,8 +970,9 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         const bool second = i >= perRow;
         const size_t col = second ? i - perRow : i;
         const float x = (second ? 162.0f : 56.0f) + pitch * (float)col;
-        const float y = (second ? 1546.0f : 1356.0f) +
-                        ((i % 3 == 1) ? 12.0f : (i % 3 == 2) ? -8.0f : 0.0f);
+        const float y = (second ? 1546.0f : 1356.0f) + ((i % 3 == 1)   ? 12.0f
+                                                        : (i % 3 == 2) ? -8.0f
+                                                                       : 0.0f);
         Element frame = box()
                             .absolute()
                             .left(x)
@@ -973,10 +988,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
           frame.stroke(*frames[i].where, frames[i].dec);
         else
           frame.stroke(frames[i].dec);
-        plate.child(frame.child(call(frames[i].label, 7.5f, kInkSoft)
-                                    .absolute()
-                                    .left(0)
-                                    .top(106)));
+        plate.child(frame.child(
+            call(frames[i].label, 7.5f, kInkSoft).absolute().left(0).top(106)));
       }
     }
 
@@ -1019,7 +1032,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
             lines::Line{.width = 1.1f, .fill = ink()});
       };
       struct Corner {
-        const char *label;
+        const char* label;
         brush::CornerAlign align;
       };
       const Corner variants[] = {
@@ -1063,12 +1076,11 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // is a confound: you cannot tell a misplaced tile from a merely
       // differently-rotated one.
       octo.corner = brush::CornerArt{box()
-                                           .width(13)
-                                           .height(13)
-                                           .shape(shapes::polygon(4, 45.0f))
-                                           .foreground(util::stroke(1.3f,
-                                                                    red())),
-                                       brush::CornerAlign::Bisector};
+                                         .width(13)
+                                         .height(13)
+                                         .shape(shapes::polygon(4, 45.0f))
+                                         .foreground(util::stroke(1.3f, red())),
+                                     brush::CornerAlign::Bisector};
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;
       octo.reach = 18.0f;
@@ -1090,25 +1102,24 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
 
     // ---- colophon --------------------------------------------------------
     plate.child(rule(56, 1940, 1488, lines::cased(0.8f, soft(), 3.0f)));
-    plate.child(call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
-                     "yourself: ComposeSketch stroke_atlas.cpp --frame out.png",
-                     8.5f, kInkSoft)
-                    .absolute()
-                    .left(56)
-                    .top(1950));
+    plate.child(
+        call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
+             "yourself: ComposeSketch stroke_atlas.cpp --frame out.png",
+             8.5f, kInkSoft)
+            .absolute()
+            .left(56)
+            .top(1950));
     return plate;
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1600, 1990);
     ctx.background(kPaper);
 
     gType.mono = face(ctx, "Menlo");
-    if (!gType.mono)
-      gType.mono = face(ctx, "Courier New");
+    if (!gType.mono) gType.mono = face(ctx, "Courier New");
     gType.roman = face(ctx, "Palatino");
-    if (!gType.roman)
-      gType.roman = face(ctx, "Georgia");
+    if (!gType.roman) gType.roman = face(ctx, "Georgia");
     gType.romanBold =
         face(ctx, gType.roman ? "Palatino" : "Georgia",
              SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,

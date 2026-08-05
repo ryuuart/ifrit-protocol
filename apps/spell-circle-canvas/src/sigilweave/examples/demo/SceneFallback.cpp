@@ -4,9 +4,6 @@
 // through FontContext's fallback path. The scene deliberately makes no claim
 // about which fallback family is correct; that policy belongs to the supplied
 // SkFontMgr or FontContext::FallbackResolver.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
@@ -17,13 +14,16 @@
 #include <set>
 #include <string>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
 namespace {
 
 struct Row {
-  const char *languageTag;
-  const char8_t *text; // Latin lead-in + a CJK clause requiring fallback
+  const char* languageTag;
+  const char8_t* text;  // Latin lead-in + a CJK clause requiring fallback
 };
 
 const Row kRows[] = {
@@ -39,12 +39,12 @@ struct CoverageCheck {
   std::set<std::string> fallbackFamilies;
 };
 
-CoverageCheck checkFallbackCoverage(const Paragraph &paragraph,
-                                    const SkTypeface &primaryTypeface) {
+CoverageCheck checkFallbackCoverage(const Paragraph& paragraph,
+                                    const SkTypeface& primaryTypeface) {
   CoverageCheck result;
-  for (const Word &word : paragraph.words()) {
-    for (const WordSegment &segment : word.segments) {
-      const SkTypeface *resolved = segment.shaped->typeface.get();
+  for (const Word& word : paragraph.words()) {
+    for (const WordSegment& segment : word.segments) {
+      const SkTypeface* resolved = segment.shaped->typeface.get();
       if (resolved && resolved != &primaryTypeface) {
         result.sawFallback = true;
         SkString family;
@@ -58,23 +58,22 @@ CoverageCheck checkFallbackCoverage(const Paragraph &paragraph,
   return result;
 }
 
-std::string joinedFamilies(const std::set<std::string> &families) {
+std::string joinedFamilies(const std::set<std::string>& families) {
   std::string joined;
-  for (const std::string &family : families) {
-    if (!joined.empty())
-      joined += ", ";
+  for (const std::string& family : families) {
+    if (!joined.empty()) joined += ", ";
     joined += family;
   }
   return joined.empty() ? "(none)" : joined;
 }
 
-} // namespace
+}  // namespace
 
-void sceneFallback(FontContext &fontContext,
-                   const std::filesystem::path &outputDirectory) {
+void sceneFallback(FontContext& fontContext,
+                   const std::filesystem::path& outputDirectory) {
   std::printf("Scene J — CJK fallback coverage (policy-neutral)\n");
 
-  SkFontMgr *fontManager = fontContext.fontManager();
+  SkFontMgr* fontManager = fontContext.fontManager();
   sk_sp<SkTypeface> sansTypeface =
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
   sk_sp<SkTypeface> serifTypeface =
@@ -89,20 +88,22 @@ void sceneFallback(FontContext &fontContext,
   constexpr float kRowHeight = 130;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
       80 + 2 * kColumnWidth, 60 + kRowCount * kRowHeight));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
-  auto drawCaption = [&](const char8_t *text, float left, float top) {
+  auto drawCaption = [&](const char8_t* text, float left, float top) {
     sigil::weave::kit::drawLabel(canvas, fontContext, text, {left, top},
-                           {.fontSize = 13, .color = kAccent,
-                            .width = kColumnWidth, .height = 18});
+                                 {.fontSize = 13,
+                                  .color = kAccent,
+                                  .width = kColumnWidth,
+                                  .height = 18});
   };
   drawCaption(u8"Noto Sans primary", 40, 16);
   drawCaption(u8"Noto Serif primary", 40 + kColumnWidth, 16);
 
   bool allRowsResolved = true;
   for (int rowIndex = 0; rowIndex < kRowCount; ++rowIndex) {
-    const Row &row = kRows[rowIndex];
+    const Row& row = kRows[rowIndex];
     const float top = 40 + static_cast<float>(rowIndex) * kRowHeight;
 
     TextStyle sansStyle = style(17, kInk, row.languageTag);

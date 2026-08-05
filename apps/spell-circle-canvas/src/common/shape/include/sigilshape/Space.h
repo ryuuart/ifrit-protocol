@@ -22,8 +22,6 @@
  * BRIDGE where it meets Skia's canvas — toSkM44() is the seam.
  */
 
-#include "sigilshape/Mesh.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
@@ -31,16 +29,15 @@
 #include <include/core/SkRefCnt.h>
 
 #include <glm/glm.hpp>
-
 #include <vector>
+
+#include "sigilshape/Mesh.h"
 
 namespace sigil::shape::space {
 
 /** The glm -> Skia seam: both are column-major, so the conversion is a
  *  straight pour. */
-inline SkM44 toSkM44(const glm::mat4 &m) {
-  return SkM44::ColMajor(&m[0][0]);
-}
+inline SkM44 toSkM44(const glm::mat4& m) { return SkM44::ColMajor(&m[0][0]); }
 
 /** Right-handed, y-up camera. Field of view is vertical. */
 struct Camera {
@@ -58,25 +55,25 @@ struct Camera {
 };
 
 struct Light {
-  glm::vec3 direction = {-0.5f, -0.8f, -0.4f}; ///< world-space, toward scene
+  glm::vec3 direction = {-0.5f, -0.8f, -0.4f};  ///< world-space, toward scene
   SkColor4f color = SkColors::kWhite;
   float intensity = 1;
 };
 
 struct MeshStyle {
   enum class Mode : uint8_t {
-    Lit,     ///< per-vertex Lambert + Blinn specular + rim
-    Normals, ///< device-space normal G-buffer, +y down — the Materials.h
-             ///< convention (rgb = (n.x, -n.y, n.z)*0.5+0.5), unlit
-    Uv,      ///< uv debug ramp
+    Lit,      ///< per-vertex Lambert + Blinn specular + rim
+    Normals,  ///< device-space normal G-buffer, +y down — the Materials.h
+              ///< convention (rgb = (n.x, -n.y, n.z)*0.5+0.5), unlit
+    Uv,       ///< uv debug ramp
   };
   Mode mode = Mode::Lit;
   SkColor4f baseColor = {0.8f, 0.8f, 0.85f, 1};
   std::vector<Light> lights = {{}};
   SkColor4f ambient = {0.12f, 0.12f, 0.15f, 1};
-  float specular = 0.5f;      ///< Blinn specular strength
-  float shininess = 48;       ///< Blinn exponent
-  float rim = 0.25f;          ///< rim light strength
+  float specular = 0.5f;  ///< Blinn specular strength
+  float shininess = 48;   ///< Blinn exponent
+  float rim = 0.25f;      ///< rim light strength
   /** Optional texture: uvs sample this image, modulated by lighting. */
   sk_sp<SkImage> texture;
   /** Texture PLACEMENT in uv space, applied before the lookup —
@@ -98,30 +95,27 @@ struct MeshStyle {
 /** Draw a mesh through the painter pipeline. @p model is the mesh's
  *  world transform; the camera provides view/projection at the
  *  canvas's @p viewport size. */
-void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
-              const Camera &camera, SkSize viewport,
-              const MeshStyle &style = {});
+void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
+              const Camera& camera, SkSize viewport,
+              const MeshStyle& style = {});
 
 /** Place 2D content on a plane in space: concats the full perspective
  *  transform then runs @p draw with the canvas in the panel's local
  *  coordinates (origin at panel center, x right, y DOWN like any Skia
  *  canvas, one unit = one world unit). */
-void drawPanel(SkCanvas &canvas, const glm::mat4 &model,
-               const Camera &camera,
-               SkSize viewport,
-               const std::function<void(SkCanvas &)> &draw);
+void drawPanel(SkCanvas& canvas, const glm::mat4& model, const Camera& camera,
+               SkSize viewport, const std::function<void(SkCanvas&)>& draw);
 
 /** Convenience: an image mapped onto a width x height panel at
  *  @p model (image stretched to the panel rect, centered). */
-void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
-                    float height, const glm::mat4 &model,
-                    const Camera &camera, SkSize viewport,
-                    float opacity = 1);
+void drawImagePanel(SkCanvas& canvas, sk_sp<SkImage> image, float width,
+                    float height, const glm::mat4& model, const Camera& camera,
+                    SkSize viewport, float opacity = 1);
 
 /** Model-matrix helpers (row-major reading order: applied right to
  *  left, translate * rotate * scale). */
-glm::mat4 place(glm::vec3 position, float yawDeg = 0,
-                float pitchDeg = 0, float rollDeg = 0, float scale = 1);
+glm::mat4 place(glm::vec3 position, float yawDeg = 0, float pitchDeg = 0,
+                float rollDeg = 0, float scale = 1);
 
 /** The BILLBOARD transform: content placed at @p at with its +z face —
  *  mesh::quad()'s facing convention — pointed at @p eye. Camera math
@@ -132,7 +126,6 @@ glm::mat4 place(glm::vec3 position, float yawDeg = 0,
  *  world's instanced path stamp with, so a faceCamera'd quad and a
  *  facing-lane instance orient identically; Dir≈±up falls back the same
  *  way, and eye==at degenerates to facing +z. */
-glm::mat4 faceCamera(glm::vec3 eye, glm::vec3 at,
-                     glm::vec3 up = {0, 1, 0});
+glm::mat4 faceCamera(glm::vec3 eye, glm::vec3 at, glm::vec3 up = {0, 1, 0});
 
-} // namespace sigil::shape::space
+}  // namespace sigil::shape::space

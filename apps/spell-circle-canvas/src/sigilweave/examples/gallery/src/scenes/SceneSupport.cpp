@@ -1,9 +1,8 @@
 #include "SceneSupport.h"
 
-#include <sigilweaveqt/SigilWeaveQt.h>
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilweaveqt/SigilWeaveQt.h>
 
 #include <numbers>
 
@@ -11,32 +10,32 @@ using namespace sigil::weave;
 
 namespace gallery {
 
-bool BodyCache::ensure(const SceneParams &params, const QString &fallbackText,
-                       const sk_sp<SkTypeface> &fallbackTypeface) {
-  const QString &text = params.text.isEmpty() ? fallbackText : params.text;
-  const sk_sp<SkTypeface> &typeface =
+bool BodyCache::ensure(const SceneParams& params, const QString& fallbackText,
+                       const sk_sp<SkTypeface>& fallbackTypeface) {
+  const QString& text = params.text.isEmpty() ? fallbackText : params.text;
+  const sk_sp<SkTypeface>& typeface =
       params.typeface ? params.typeface : fallbackTypeface;
   return m_guard.ensure({text, typeface.get(), params.fontSize}, [&] {
     paragraph.clear();
     // Zero-copy: QString and Paragraph both store UTF-16.
-    sigil::weave::qt::appendText(paragraph, text,
-                           makeStyle(params.fontSize, kInk, "", typeface));
+    sigil::weave::qt::appendText(
+        paragraph, text, makeStyle(params.fontSize, kInk, "", typeface));
   });
 }
 
-sk_sp<SkTypeface> defaultSerif(FontContext &fontContext) {
+sk_sp<SkTypeface> defaultSerif(FontContext& fontContext) {
   sk_sp<SkTypeface> typeface =
       fontContext.fontManager()->matchFamilyStyle("Noto Serif", SkFontStyle());
   return typeface ? typeface : fontContext.defaultTypeface();
 }
 
-void drawCaption(SkCanvas *canvas, FontContext &fontContext,
+void drawCaption(SkCanvas* canvas, FontContext& fontContext,
                  std::u8string_view text, SkPoint baselineOrigin, float width) {
   kit::drawLabel(canvas, fontContext, text, baselineOrigin,
                  {.color = kBlue, .width = width});
 }
 
-void drawCaption(SkCanvas *canvas, FontContext &fontContext,
+void drawCaption(SkCanvas* canvas, FontContext& fontContext,
                  std::u16string_view text, SkPoint baselineOrigin,
                  float width) {
   kit::drawLabel(canvas, fontContext, text, baselineOrigin,
@@ -70,4 +69,4 @@ SkPath spikyRingPath(float elapsedSeconds, float radius) {
   return pathBuilder.detach();
 }
 
-} // namespace gallery
+}  // namespace gallery

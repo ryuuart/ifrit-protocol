@@ -19,11 +19,11 @@
 // lambdas, routers, custom layouts) compares UNEQUAL and never prunes.
 // Memoization is the tool for those.
 
-#include "ComposeRuntime.h"
-
 #include <algorithm>
 #include <cstring>
 #include <numeric>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -33,40 +33,56 @@ namespace {
 
 YGAlign toYogaAlign(Align a) {
   switch (a) {
-  case Align::Auto: return YGAlignAuto;
-  case Align::Start: return YGAlignFlexStart;
-  case Align::Center: return YGAlignCenter;
-  case Align::End: return YGAlignFlexEnd;
-  case Align::Stretch: return YGAlignStretch;
-  case Align::Baseline: return YGAlignBaseline;
+    case Align::Auto:
+      return YGAlignAuto;
+    case Align::Start:
+      return YGAlignFlexStart;
+    case Align::Center:
+      return YGAlignCenter;
+    case Align::End:
+      return YGAlignFlexEnd;
+    case Align::Stretch:
+      return YGAlignStretch;
+    case Align::Baseline:
+      return YGAlignBaseline;
   }
   return YGAlignAuto;
 }
 
 YGJustify toYogaJustify(Justify j) {
   switch (j) {
-  case Justify::Start: return YGJustifyFlexStart;
-  case Justify::Center: return YGJustifyCenter;
-  case Justify::End: return YGJustifyFlexEnd;
-  case Justify::SpaceBetween: return YGJustifySpaceBetween;
-  case Justify::SpaceAround: return YGJustifySpaceAround;
-  case Justify::SpaceEvenly: return YGJustifySpaceEvenly;
+    case Justify::Start:
+      return YGJustifyFlexStart;
+    case Justify::Center:
+      return YGJustifyCenter;
+    case Justify::End:
+      return YGJustifyFlexEnd;
+    case Justify::SpaceBetween:
+      return YGJustifySpaceBetween;
+    case Justify::SpaceAround:
+      return YGJustifySpaceAround;
+    case Justify::SpaceEvenly:
+      return YGJustifySpaceEvenly;
   }
   return YGJustifyFlexStart;
 }
 
-void applyDim(YGNodeRef node, const Dim &d, void (*setPx)(YGNodeRef, float),
+void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
               void (*setPct)(YGNodeRef, float)) {
   switch (d.unit) {
-  case Dim::Unit::Px: setPx(node, d.value); break;
-  case Dim::Unit::Pct: setPct(node, d.value); break;
-  case Dim::Unit::Auto:
-    // Patch reuses the yoga node, so a dim REMOVED from the description
-    // must be written back as YGUndefined rather than skipped. Skipping
-    // leaves the previous describe's value in the style set, where it
-    // sticks for the life of the instance.
-    setPx(node, YGUndefined);
-    break;
+    case Dim::Unit::Px:
+      setPx(node, d.value);
+      break;
+    case Dim::Unit::Pct:
+      setPct(node, d.value);
+      break;
+    case Dim::Unit::Auto:
+      // Patch reuses the yoga node, so a dim REMOVED from the description
+      // must be written back as YGUndefined rather than skipped. Skipping
+      // leaves the previous describe's value in the style set, where it
+      // sticks for the life of the instance.
+      setPx(node, YGUndefined);
+      break;
   }
 }
 
@@ -76,27 +92,25 @@ void applyDim(YGNodeRef node, const Dim &d, void (*setPx)(YGNodeRef, float),
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
-bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
+bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
   const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet)
-    return false;
-  if (!aSet)
-    return true;
+  if (aSet != bSet) return false;
+  if (!aSet) return true;
   using Ptr = float (*)(float);
-  const Ptr *pa = a.target<Ptr>();
-  const Ptr *pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb; // lambdas: unequal (conservative)
+  const Ptr* pa = a.target<Ptr>();
+  const Ptr* pb = b.target<Ptr>();
+  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
 }
 
 static_assert(kFieldCount<Transition> == 3,
               "Transition gained or lost a field — rule on it in "
               "transitionEqual() below, then bump this count.");
-bool transitionEqual(const Transition &a, const Transition &b) {
+bool transitionEqual(const Transition& a, const Transition& b) {
   return a.duration == b.duration && a.delay == b.delay &&
-         easeEqual(a.easing(), b.easing()); // `ease` is read through easing()
+         easeEqual(a.easing(), b.easing());  // `ease` is read through easing()
 }
 
-} // namespace
+}  // namespace
 
 namespace detail {
 
@@ -127,19 +141,19 @@ static_assert(kFieldCount<BoundFloat> == 17,
               "a stated reason not to), then bump this count. A miss is "
               "silent — the node prunes and keeps shaping through the old "
               "map forever.");
-bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
+bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
   return a.source == b.source && a.inScale == b.inScale &&
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
-         a.steps == b.steps && a.scale == b.scale &&
-         a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
-         a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
+         a.steps == b.steps && a.scale == b.scale && a.offset == b.offset &&
+         a.clamped == b.clamped && a.lo == b.lo && a.hi == b.hi &&
+         a.wiggleAmount == b.wiggleAmount &&
          a.wiggleFrequency == b.wiggleFrequency &&
          a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
-         a.wiggleFalloff == b.wiggleFalloff &&
-         a.wrapPeriod == b.wrapPeriod && easeEqual(a.curve, b.curve);
+         a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&
+         easeEqual(a.curve, b.curve);
 }
 
-} // namespace detail
+}  // namespace detail
 
 namespace {
 
@@ -147,28 +161,24 @@ static_assert(kFieldCount<Transitioned<float>> == 4,
               "Transitioned gained or lost a field — rule on it in "
               "propEqual() below, then bump this count.");
 template <typename T>
-bool propEqual(const Animatable<T> &a, const Animatable<T> &b) {
-  if (a.index() != b.index())
-    return false;
-  if (const T *plainA = a.plain())
-    return *plainA == *b.plain();
-  if (const Transitioned<T> *trA = a.transitioned()) {
-    const Transitioned<T> *trB = b.transitioned();
+bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
+  if (a.index() != b.index()) return false;
+  if (const T* plainA = a.plain()) return *plainA == *b.plain();
+  if (const Transitioned<T>* trA = a.transitioned()) {
+    const Transitioned<T>* trB = b.transitioned();
     return trA->value == trB->value && trA->from == trB->from &&
            trA->waypoints == trB->waypoints &&
            transitionEqual(trA->spec, trB->spec);
   }
-  if (const BoundFloat *mapA = a.boundMap())
+  if (const BoundFloat* mapA = a.boundMap())
     return boundMapEqual(*mapA, *b.boundMap());
   return a.binding() == b.binding();
 }
 
-bool effectEqual(const std::optional<Effect> &a,
-                 const std::optional<Effect> &b) {
-  if (a.has_value() != b.has_value())
-    return false;
-  if (!a)
-    return true;
+bool effectEqual(const std::optional<Effect>& a,
+                 const std::optional<Effect>& b) {
+  if (a.has_value() != b.has_value()) return false;
+  if (!a) return true;
   // Structural (Effect::operator==): static shader recipes compare by
   // (runtime effect, constant uniforms) so a re-described effect prunes
   // when the caller holds one SkRuntimeEffect; live effects and filter()
@@ -185,23 +195,19 @@ static_assert(kFieldCount<TextData> == 12,
               "field compared in PART, and only because the full-control "
               "overload that can set the rest also sets paragraphOverride, "
               "which is unconditionally conservative.)");
-bool textEqual(const ElementNode &a, const ElementNode &b) {
-  if ((bool)a.textData != (bool)b.textData)
-    return false;
-  if (!a.textData)
-    return true;
+bool textEqual(const ElementNode& a, const ElementNode& b) {
+  if ((bool)a.textData != (bool)b.textData) return false;
+  if (!a.textData) return true;
   const TextData &ta = *a.textData, &tb = *b.textData;
-  if (ta.glyphFx.has_value() != tb.glyphFx.has_value())
-    return false;
+  if (ta.glyphFx.has_value() != tb.glyphFx.has_value()) return false;
   if (ta.glyphFx)
-    return false; // effect is a callable — memo covers settled kinetic text
+    return false;  // effect is a callable — memo covers settled kinetic text
   // VariationDrive: BINDING identity, like Animatable bindings — same tag
   // and same Output pointer prune (the value lives outside the tree).
   if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
       ta.driveValue != tb.driveValue)
     return false;
-  if (ta.utf8 != tb.utf8 || !(ta.style == tb.style))
-    return false;
+  if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
   if (ta.hasTextStroke != tb.hasTextStroke ||
       (ta.hasTextStroke && (ta.textStrokeWidth != tb.textStrokeWidth ||
                             !(ta.textStrokeFill == tb.textStrokeFill))))
@@ -212,27 +218,22 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind == Kind::Text &&
       ta.layoutOptions.alignment != tb.layoutOptions.alignment)
     return false;
-  if (ta.paragraphOverride != tb.paragraphOverride)
-    return false;
+  if (ta.paragraphOverride != tb.paragraphOverride) return false;
   if (ta.paragraphOverride)
-    return false; // layoutOptions aren't comparable — memo these
+    return false;  // layoutOptions aren't comparable — memo these
   // onPath(): the baseline is a Shape, so a run laid on a comparable
   // generator prunes like any other static description — which matters
   // because a ring of labels is one text node per label, all re-recording
   // together. A raw-callable baseline makes the Shape compare false and
   // falls back to never pruning.
-  if (ta.onPath.has_value() != tb.onPath.has_value())
-    return false;
-  if (ta.onPath && !(*ta.onPath == *tb.onPath))
-    return false;
+  if (ta.onPath.has_value() != tb.onPath.has_value()) return false;
+  if (ta.onPath && !(*ta.onPath == *tb.onPath)) return false;
   // textFill(): live never prunes, static compares by recipe.
-  if (ta.metricFill.has_value() != tb.metricFill.has_value())
-    return false;
+  if (ta.metricFill.has_value() != tb.metricFill.has_value()) return false;
   if (ta.metricFill) {
     if (ta.metricFill->isAnimated() || tb.metricFill->isAnimated())
       return false;
-    if (!(*ta.metricFill == *tb.metricFill))
-      return false;
+    if (!(*ta.metricFill == *tb.metricFill)) return false;
   }
   return true;
 }
@@ -240,11 +241,9 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
 static_assert(kFieldCount<DeriveData> == 15,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
-bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
-  if ((bool)a != (bool)b)
-    return false;
-  if (!a)
-    return true;
+bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
   // Incomparable callables → conservative inequality. A band's authored
   // SPINE rides the Shape seam instead (same rule as shapeFn): comparable
   // generators prune, raw callables stay conservative. A band borrowed by
@@ -252,18 +251,14 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
   if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
       b->railRouter)
     return false;
-  if (!(a->bandSpine == b->bandSpine))
-    return false;
-  if (a->bandWidth.has_value() != b->bandWidth.has_value())
-    return false;
-  if (a->bandWidth && !(*a->bandWidth == *b->bandWidth))
-    return false;
+  if (!(a->bandSpine == b->bandSpine)) return false;
+  if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
+  if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
          a->connectFrom == b->connectFrom && a->connectTo == b->connectTo &&
-         a->connectorGap == b->connectorGap &&
-         a->bandAround == b->bandAround &&
+         a->connectorGap == b->connectorGap && a->bandAround == b->bandAround &&
          a->bandFormation == b->bandFormation &&
          a->spanFitKeys == b->spanFitKeys &&
          a->borrowedPathKeys == b->borrowedPathKeys;
@@ -272,13 +267,10 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
 static_assert(kFieldCount<StrokeData> == 1 && kFieldCount<StrokePass> == 4,
               "StrokeData/StrokePass gained or lost a field — rule on it in "
               "strokeEqual() below, then bump this count.");
-bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
-  if ((bool)a != (bool)b)
-    return false;
-  if (!a)
-    return true;
-  if (a->passes.size() != b->passes.size())
-    return false;
+bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
+  if (a->passes.size() != b->passes.size()) return false;
   for (size_t i = 0; i < a->passes.size(); ++i) {
     const StrokePass &x = a->passes[i], &y = b->passes[i];
     if (x.name != y.name || x.half != y.half || !(x.where == y.where) ||
@@ -292,13 +284,10 @@ static_assert(kFieldCount<FxData> == 8 && kFieldCount<Mask> == 2,
               "FxData/Mask gained or lost a field — rule on it in fxEqual() "
               "below (Mask::operator== is in Compose.h), then bump this "
               "count.");
-bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
-  if ((bool)a != (bool)b)
-    return false;
-  if (!a)
-    return true;
-  if (a->echoes != b->echoes)
-    return false;
+bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
+  if (a->echoes != b->echoes) return false;
   if (a->staggerChildrenMs != b->staggerChildrenMs ||
       a->staggerFrom != b->staggerFrom)
     return false;
@@ -308,18 +297,13 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
   // shape gate takes a Region VALUE rather than an outline generator —
   // a generator could not be compared, and an uncomparable mask would make
   // every masked node re-patch forever.
-  if (a->masks.size() != b->masks.size())
-    return false;
+  if (a->masks.size() != b->masks.size()) return false;
   for (size_t i = 0; i < a->masks.size(); ++i)
-    if (!(a->masks[i] == b->masks[i]))
-      return false;
-  if (a->markNames != b->markNames)
-    return false;
-  if (a->overlays.size() != b->overlays.size())
-    return false;
+    if (!(a->masks[i] == b->masks[i])) return false;
+  if (a->markNames != b->markNames) return false;
+  if (a->overlays.size() != b->overlays.size()) return false;
   for (size_t i = 0; i < a->overlays.size(); ++i)
-    if (!(a->overlays[i] == b->overlays[i]))
-      return false;
+    if (!(a->overlays[i] == b->overlays[i])) return false;
   return effectEqual(a->layerEffect, b->layerEffect) &&
          effectEqual(a->backdropEffect, b->backdropEffect);
 }
@@ -328,17 +312,14 @@ static_assert(kFieldCount<MaterialData> == 2,
               "MaterialData gained or lost a field — rule on it in "
               "materialEqual() below (or in propsEqual, which owns the "
               "->recipe half), then bump this count.");
-bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
-  if ((bool)a != (bool)b)
-    return false;
-  if (!a)
-    return true;
+bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
   // Material-slot fills: truly live ones (bound/uTime) never prune —
   // conservative, like an incomparable callable. Geometry-dependent-but-
   // static ones (SDF chrome and friends) compare by recipe, so identical
   // re-describes prune like any other static material.
-  if (a->live.has_value() != b->live.has_value())
-    return false;
+  if (a->live.has_value() != b->live.has_value()) return false;
   if (a->live) {
     // A PAN-ONLY material (a bound offset, nothing else animated) is
     // exactly comparable: image identity, matrix, sampling, and the pan
@@ -347,21 +328,19 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
     // which it must, because a pruned swap would leave the old Output
     // driving the pixels for the life of the instance. Everything else
     // that reports isAnimated() stays never-prune, below.
-    const bool panOnlyA = a->live->hasBoundOffset() &&
-                          !a->live->animatedBeyondBoundOffset();
-    const bool panOnlyB = b->live->hasBoundOffset() &&
-                          !b->live->animatedBeyondBoundOffset();
-    if (panOnlyA != panOnlyB)
-      return false;
+    const bool panOnlyA =
+        a->live->hasBoundOffset() && !a->live->animatedBeyondBoundOffset();
+    const bool panOnlyB =
+        b->live->hasBoundOffset() && !b->live->animatedBeyondBoundOffset();
+    if (panOnlyA != panOnlyB) return false;
     if (!panOnlyA && (a->live->isAnimated() || b->live->isAnimated()))
       return false;
-    if (!(*a->live == *b->live))
-      return false;
+    if (!(*a->live == *b->live)) return false;
   }
-  return true; // ->recipe is handled with the fill compare in propsEqual
+  return true;  // ->recipe is handled with the fill compare in propsEqual
 }
 
-} // namespace
+}  // namespace
 
 /** A Spans value compares like any other description — and its animated
  *  endpoints compare through the SAME comparator every animated property
@@ -377,10 +356,9 @@ static_assert(kFieldCount<Spans::Term> == 11,
               "Spans::Term gained or lost a field — rule on it below, then "
               "bump this count. A term field left out makes every claim of "
               "that shape compare equal to every other one.");
-bool Spans::operator==(const Spans &other) const {
-  if (terms.size() != other.terms.size())
-    return false;
-  const auto termEqual = [](const Term &a, const Term &b) {
+bool Spans::operator==(const Spans& other) const {
+  if (terms.size() != other.terms.size()) return false;
+  const auto termEqual = [](const Term& a, const Term& b) {
     if (a.rule != b.rule || a.arm != b.arm || a.angleDeg != b.angleDeg ||
         a.duty != b.duty || a.margin != b.margin || a.count != b.count ||
         a.index != b.index || a.key != b.key)
@@ -409,20 +387,17 @@ bool Spans::operator==(const Spans &other) const {
   while (inOrder < terms.size() &&
          termEqual(terms[inOrder], other.terms[inOrder]))
     ++inOrder;
-  if (inOrder == terms.size())
-    return true;
+  if (inOrder == terms.size()) return true;
   std::vector<bool> used(terms.size(), false);
   for (size_t i = inOrder; i < terms.size(); ++i) {
     bool matched = false;
     for (size_t j = inOrder; j < other.terms.size(); ++j) {
-      if (used[j] || !termEqual(terms[i], other.terms[j]))
-        continue;
+      if (used[j] || !termEqual(terms[i], other.terms[j])) continue;
       used[j] = true;
       matched = true;
       break;
     }
-    if (!matched)
-      return false;
+    if (!matched) return false;
   }
   return true;
 }
@@ -444,26 +419,21 @@ bool Spans::operator==(const Spans &other) const {
 static_assert(kFieldCount<Gate> == 8,
               "Gate gained or lost a field — rule on it below (in the arm "
               "of the Kind that reads it), then bump this count.");
-bool Gate::operator==(const Gate &other) const {
-  if (kind != other.kind)
-    return false;
+bool Gate::operator==(const Gate& other) const {
+  if (kind != other.kind) return false;
   switch (kind) {
-  case Kind::Spans:
-    return where == other.where;
-  case Kind::Edge:
-    return angleDeg == other.angleDeg && propEqual(fraction, other.fraction);
-  case Kind::Shape:
-    return outside == other.outside && region == other.region;
-  case Kind::Coverage:
-    if (outside != other.outside || channel != other.channel)
-      return false;
-    if ((bool)coverage != (bool)other.coverage)
-      return false;
-    if (!coverage)
-      return true;
-    if (coverage->isAnimated() || other.coverage->isAnimated())
-      return false;
-    return *coverage == *other.coverage;
+    case Kind::Spans:
+      return where == other.where;
+    case Kind::Edge:
+      return angleDeg == other.angleDeg && propEqual(fraction, other.fraction);
+    case Kind::Shape:
+      return outside == other.outside && region == other.region;
+    case Kind::Coverage:
+      if (outside != other.outside || channel != other.channel) return false;
+      if ((bool)coverage != (bool)other.coverage) return false;
+      if (!coverage) return true;
+      if (coverage->isAnimated() || other.coverage->isAnimated()) return false;
+      return *coverage == *other.coverage;
   }
   return false;
 }
@@ -482,8 +452,7 @@ namespace detail {
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
-                  kFieldCount<ImageData> == 3 &&
-                  kFieldCount<CustomData> == 2 &&
+                  kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
               "A struct propsEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
@@ -491,14 +460,11 @@ static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
               "prunes, markPaintDirtyUp() never runs, a stale picture "
               "replays, and applyTransitions() never ramps an animate() on "
               "it. Nothing else fails, so no test will catch it for you.");
-bool propsEqual(const ElementNode &a, const ElementNode &b) {
-  if (a.kind != b.kind || a.key != b.key)
-    return false;
+bool propsEqual(const ElementNode& a, const ElementNode& b) {
+  if (a.kind != b.kind || a.key != b.key) return false;
   // Incomparable callables → conservative inequality.
-  if (a.hitTestable != b.hitTestable)
-    return false;
-  if ((bool)a.customData != (bool)b.customData)
-    return false;
+  if (a.hitTestable != b.hitTestable) return false;
+  if ((bool)a.customData != (bool)b.customData) return false;
   if (a.customData) {
     // custom(key): equal non-empty keys assert equal programs (the
     // author's contract, like a keyed parametric); unkeyed stays
@@ -511,10 +477,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   // Worth keeping comparable — a node whose outline cannot compare never
   // prunes, so it re-records on every describe no matter how static it
   // looks, and an outline can be the most expensive thing on the node.
-  if (!(a.shapeFn == b.shapeFn))
-    return false;
-  if (!deriveEqual(a.deriveData, b.deriveData))
-    return false;
+  if (!(a.shapeFn == b.shapeFn)) return false;
+  if (!deriveEqual(a.deriveData, b.deriveData)) return false;
   // Decorations compare when they wrap value-comparable schemes (PathFormat,
   // Slice, Shadow…); an incomparable one (bare program, ContourWalk with a
   // draw lambda) makes Decoration::operator== false, so the node stays
@@ -523,47 +487,40 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       a.foregrounds.size() != b.foregrounds.size())
     return false;
   for (size_t i = 0; i < a.backgrounds.size(); ++i)
-    if (!(a.backgrounds[i] == b.backgrounds[i]))
-      return false;
+    if (!(a.backgrounds[i] == b.backgrounds[i])) return false;
   for (size_t i = 0; i < a.foregrounds.size(); ++i)
-    if (!(a.foregrounds[i] == b.foregrounds[i]))
-      return false;
+    if (!(a.foregrounds[i] == b.foregrounds[i])) return false;
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent || a.cacheMode != b.cacheMode ||
       a.bakeScale != b.bakeScale)
     return false;
-  if (!fxEqual(a.fxData, b.fxData))
-    return false;
-  if (!strokeEqual(a.strokeData, b.strokeData))
-    return false;
+  if (!fxEqual(a.fxData, b.fxData)) return false;
+  if (!strokeEqual(a.strokeData, b.strokeData)) return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
-  if (a.nodeTransition && !transitionEqual(*a.nodeTransition, *b.nodeTransition))
+  if (a.nodeTransition &&
+      !transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
   // Paint.
   const PaintProps &pa = a.paint, &pb = b.paint;
-  if (pa.fill.has_value() != pb.fill.has_value())
-    return false;
-  if (!materialEqual(a.materialData, b.materialData))
-    return false;
+  if (pa.fill.has_value() != pb.fill.has_value()) return false;
+  if (!materialEqual(a.materialData, b.materialData)) return false;
   // Material-set fills compare by RECIPE — the structural signature of how
   // the material was built. Equal recipes mean interchangeable shaders even
   // though each describe minted a fresh SkShader, so a re-described gradient
   // prunes instead of being defeated by pointer inequality. Everything else
   // falls through to the plain fill compare (colour values, shader pointers).
-  const Material *recipeA = a.materialData ? (a.materialData->recipe
-                                                  ? &*a.materialData->recipe
-                                                  : nullptr)
-                                           : nullptr;
-  const Material *recipeB = b.materialData ? (b.materialData->recipe
-                                                  ? &*b.materialData->recipe
-                                                  : nullptr)
-                                           : nullptr;
-  if ((recipeA != nullptr) != (recipeB != nullptr))
-    return false;
+  const Material* recipeA =
+      a.materialData
+          ? (a.materialData->recipe ? &*a.materialData->recipe : nullptr)
+          : nullptr;
+  const Material* recipeB =
+      b.materialData
+          ? (b.materialData->recipe ? &*b.materialData->recipe : nullptr)
+          : nullptr;
+  if ((recipeA != nullptr) != (recipeB != nullptr)) return false;
   if (recipeA) {
-    if (!(*recipeA == *recipeB))
-      return false;
+    if (!(*recipeA == *recipeB)) return false;
   } else if (pa.fill && !propEqual(*pa.fill, *pb.fill)) {
     return false;
   }
@@ -589,18 +546,14 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   // `t` compares as any Animatable lane does, and `lookAhead` is a plain
   // float — easy to overlook precisely because it looks inert, and it
   // changes the node's ORIENTATION.
-  if ((bool)a.motionData != (bool)b.motionData)
-    return false;
-  if (a.motionData &&
-      (!(a.motionData->path == b.motionData->path) ||
-       !propEqual(a.motionData->t, b.motionData->t) ||
-       a.motionData->lookAhead != b.motionData->lookAhead))
+  if ((bool)a.motionData != (bool)b.motionData) return false;
+  if (a.motionData && (!(a.motionData->path == b.motionData->path) ||
+                       !propEqual(a.motionData->t, b.motionData->t) ||
+                       a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
   // Content.
-  if (!textEqual(a, b))
-    return false;
-  if ((bool)a.imageData != (bool)b.imageData)
-    return false;
+  if (!textEqual(a, b)) return false;
+  if ((bool)a.imageData != (bool)b.imageData) return false;
   if (a.imageData && (a.imageData->asset != b.imageData->asset ||
                       a.imageData->region != b.imageData->region ||
                       a.imageData->sampling != b.imageData->sampling))
@@ -608,14 +561,13 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   return true;
 }
 
-} // namespace detail
+}  // namespace detail
 
 // ---------------------------------------------------------------------------
 
-std::shared_ptr<ElementNode>
-Composer::Impl::resolveMemo(Instance *existing,
-                            const std::shared_ptr<ElementNode> &node,
-                            bool &described) {
+std::shared_ptr<ElementNode> Composer::Impl::resolveMemo(
+    Instance* existing, const std::shared_ptr<ElementNode>& node,
+    bool& described) {
   if (!node->isMemo()) {
     described = true;
     return node;
@@ -632,7 +584,7 @@ Composer::Impl::resolveMemo(Instance *existing,
                                            node->memoData->props)) {
     stats.memoHits++;
     described = false;
-    return existing->desc; // reuse the previously described payload
+    return existing->desc;  // reuse the previously described payload
   }
   described = true;
   // …and the deferred call runs under the bindings its AUTHOR had, not
@@ -642,9 +594,8 @@ Composer::Impl::resolveMemo(Instance *existing,
   return produced.node();
 }
 
-std::unique_ptr<Instance>
-Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
-                      Instance *parent) {
+std::unique_ptr<Instance> Composer::Impl::mount(
+    const std::shared_ptr<ElementNode>& node, Instance* parent) {
   auto inst = std::make_unique<Instance>();
   inst->owner = this;
   inst->parent = parent;
@@ -654,8 +605,8 @@ Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
   // it. The container itself keeps its node (it lives in its parent's
   // flow); its descendants never get one.
   const bool positionedChild =
-      parent && (!parent->yoga ||
-                 (parent->desc && parent->desc->layout.positioned));
+      parent &&
+      (!parent->yoga || (parent->desc && parent->desc->layout.positioned));
   if (!positionedChild) {
     inst->yoga = YGNodeNewWithConfig(yogaConfig);
     YGNodeSetContext(inst->yoga, inst.get());
@@ -676,7 +627,7 @@ namespace {
  *  The answer is cached on the INSTANCE as a single bool so that the
  *  per-relayout rect walk and the per-frame volatility walk never have to
  *  descend a material tree again. */
-bool nodeUsesWorldSpace(const ElementNode &n) {
+bool nodeUsesWorldSpace(const ElementNode& n) {
   if (n.materialData) {
     if (n.materialData->live && n.materialData->live->usesWorldSpace())
       return true;
@@ -691,9 +642,8 @@ bool nodeUsesWorldSpace(const ElementNode &n) {
       return true;
     if (n.fxData->backdropEffect && n.fxData->backdropEffect->usesWorldSpace())
       return true;
-    for (const Mask &m : n.fxData->masks)
-      if (m.with.coverage && m.with.coverage->usesWorldSpace())
-        return true;
+    for (const Mask& m : n.fxData->masks)
+      if (m.with.coverage && m.with.coverage->usesWorldSpace()) return true;
   }
   return false;
 }
@@ -710,7 +660,7 @@ bool nodeUsesWorldSpace(const ElementNode &n) {
  *  The lanes must mirror propsEqual's transform block plus travel(), which
  *  replaces the translate lanes and adds to rotate. A lane present there and
  *  missing here is a world-space material left on a stale W. */
-bool describedTransformEqual(const ElementNode &a, const ElementNode &b) {
+bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (!propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||
@@ -720,29 +670,26 @@ bool describedTransformEqual(const ElementNode &a, const ElementNode &b) {
       pa.originX != pb.originX || pa.originY != pb.originY ||
       pa.originPx != pb.originPx)
     return false;
-  if ((bool)a.motionData != (bool)b.motionData)
-    return false;
-  if (a.motionData &&
-      (!(a.motionData->path == b.motionData->path) ||
-       !propEqual(a.motionData->t, b.motionData->t) ||
-       a.motionData->lookAhead != b.motionData->lookAhead))
+  if ((bool)a.motionData != (bool)b.motionData) return false;
+  if (a.motionData && (!(a.motionData->path == b.motionData->path) ||
+                       !propEqual(a.motionData->t, b.motionData->t) ||
+                       a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
   return true;
 }
 
 /** Mark every world-space-carrying descendant's OWN paint dirty — their
  *  recordings baked a node-to-root matrix the caller just changed. */
-void staleWorldSpaceBelow(Instance &inst) {
-  for (auto &child : inst.children) {
-    if (child->hasWorldSpaceMaterial)
-      child->markPaintDirtyUp();
+void staleWorldSpaceBelow(Instance& inst) {
+  for (auto& child : inst.children) {
+    if (child->hasWorldSpaceMaterial) child->markPaintDirtyUp();
     staleWorldSpaceBelow(*child);
   }
 }
 
-} // namespace
+}  // namespace
 
-void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
+void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
   stats.describedNodes++;
   bool described = true;
   std::shared_ptr<ElementNode> resolved =
@@ -753,7 +700,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     inst.memoShell = nullptr;
 
   if (resolved == inst.desc)
-    return; // payload identity: untouched subtree (memo hit)
+    return;  // payload identity: untouched subtree (memo hit)
 
   std::shared_ptr<ElementNode> prev = std::move(inst.desc);
   inst.desc = resolved;
@@ -783,8 +730,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     if (kindChanged) {
       inst.paragraph.reset();
       inst.lines.clear();
-      if (inst.yoga)
-        YGNodeSetMeasureFunc(inst.yoga, nullptr);
+      if (inst.yoga) YGNodeSetMeasureFunc(inst.yoga, nullptr);
     }
 
     applyLayoutProps(inst);
@@ -800,8 +746,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
       needsLayout = true;
 
     if (resolved->kind == Kind::Text && resolved->textData) {
-      const TextData &text = *resolved->textData;
-      const TextData *prevText =
+      const TextData& text = *resolved->textData;
+      const TextData* prevText =
           prev && prev->textData ? &*prev->textData : nullptr;
       const bool textChanged =
           !prevText || kindChanged || prevText->utf8 != text.utf8 ||
@@ -810,7 +756,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
           prevText->layoutOptions.alignment != text.layoutOptions.alignment;
       if (textChanged) {
         inst.contentRev++;
-        inst.driveProbe = -1; // new content → re-probe the drive gate
+        inst.driveProbe = -1;  // new content → re-probe the drive gate
         if (text.paragraphOverride)
           inst.paragraph.emplace(*text.paragraphOverride);
         else {
@@ -830,23 +776,23 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     if (prev)
       applyTransitions(inst, *prev, *resolved);
     else
-      applyMountTransitions(inst, *resolved); // animate(from().to()) entrances
+      applyMountTransitions(inst, *resolved);  // animate(from().to()) entrances
 
     // flowAround changes (margin or key set) re-derive too: exclusions are
     // cached per instance and the derive guards compare geometry, not the
     // description.
-    const auto flowKeys = [](const std::shared_ptr<ElementNode> &n)
-        -> const std::vector<std::string> * {
+    const auto flowKeys = [](const std::shared_ptr<ElementNode>& n)
+        -> const std::vector<std::string>* {
       static const std::vector<std::string> kNone;
       return n->deriveData ? &n->deriveData->flowAroundKeys : &kNone;
     };
-    const auto flowMargin = [](const std::shared_ptr<ElementNode> &n) {
+    const auto flowMargin = [](const std::shared_ptr<ElementNode>& n) {
       return n->deriveData ? n->deriveData->flowAroundMargin : 0.0f;
     };
     if (prev && (*flowKeys(prev) != *flowKeys(resolved) ||
                  flowMargin(prev) != flowMargin(resolved))) {
       inst.exclusionsLocal.clear();
-      inst.contentRev++; // relayout the text without exclusions, then derive
+      inst.contentRev++;  // relayout the text without exclusions, then derive
       needsLayout = true;
     }
 
@@ -868,9 +814,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // survive the structural prune otherwise — frozen children).
     if (prev && prev->deriveData && prev->deriveData->placeFn &&
         !(resolved->deriveData && resolved->deriveData->placeFn)) {
-      for (auto &child : inst.children)
-        if (child)
-          applyLayoutProps(*child);
+      for (auto& child : inst.children)
+        if (child) applyLayoutProps(*child);
       needsLayout = true;
     }
 
@@ -879,10 +824,9 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // description — a router swap or an anchor-norm change would otherwise
     // keep replaying the stale path. Clearing the cached inputs defeats the
     // guards, and needsLayout makes ensureLayout run the derive pass.
-    if (resolved->deriveData &&
-        (!resolved->deriveData->railAnchors.empty() ||
-         (!resolved->deriveData->connectFrom.empty() &&
-          !resolved->deriveData->connectTo.empty()))) {
+    if (resolved->deriveData && (!resolved->deriveData->railAnchors.empty() ||
+                                 (!resolved->deriveData->connectFrom.empty() &&
+                                  !resolved->deriveData->connectTo.empty()))) {
       inst.railPoints.clear();
       inst.connectorFrom = SkRect::MakeLTRB(-1, -1, -1, -1);
       inst.connectorTo = SkRect::MakeLTRB(-1, -1, -1, -1);
@@ -894,8 +838,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
   // index after the patch walk — see rebuildKeyIndex.)
 
   // Slot content is owned by renderSlot(), not the description.
-  if (resolved->kind != Kind::Slot)
-    patchChildren(inst, resolved->children);
+  if (resolved->kind != Kind::Slot) patchChildren(inst, resolved->children);
 
   // Paint order: stable sort by zIndex.
   inst.paintOrder.resize(inst.children.size());
@@ -907,10 +850,10 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
                    });
 }
 
-void Composer::Impl::patchChildren(Instance &inst,
-                                   const std::vector<Element> &newChildren) {
+void Composer::Impl::patchChildren(Instance& inst,
+                                   const std::vector<Element>& newChildren) {
   // Match by key when present, else by position among unkeyed children.
-  std::vector<const Instance *> oldOrder;
+  std::vector<const Instance*> oldOrder;
   oldOrder.reserve(inst.children.size());
   std::unordered_map<std::string, std::unique_ptr<Instance>> keyed;
   std::vector<std::unique_ptr<Instance>> unkeyed;
@@ -919,12 +862,11 @@ void Composer::Impl::patchChildren(Instance &inst,
   // mount below, because a Yoga node's existence is fixed at mount.
   const bool childrenWantYoga =
       inst.yoga != nullptr && !inst.desc->layout.positioned;
-  for (auto &child : inst.children) {
+  for (auto& child : inst.children) {
     if (child) {
       oldOrder.push_back(child.get());
-      if (inst.yoga && child->yoga)
-        YGNodeRemoveChild(inst.yoga, child->yoga);
-      const std::shared_ptr<ElementNode> &shell =
+      if (inst.yoga && child->yoga) YGNodeRemoveChild(inst.yoga, child->yoga);
+      const std::shared_ptr<ElementNode>& shell =
           child->memoShell ? child->memoShell : child->desc;
       if (!shell->key.empty())
         keyed.emplace(shell->key, std::move(child));
@@ -936,9 +878,9 @@ void Composer::Impl::patchChildren(Instance &inst,
 
   size_t unkeyedCursor = 0;
   size_t childOrdinal = 0;
-  size_t mountOrdinal = 0; // order among children mounted THIS patch
-  for (const Element &childElement : newChildren) {
-    const std::shared_ptr<ElementNode> &node = childElement.node();
+  size_t mountOrdinal = 0;  // order among children mounted THIS patch
+  for (const Element& childElement : newChildren) {
+    const std::shared_ptr<ElementNode>& node = childElement.node();
     std::unique_ptr<Instance> match;
     if (!node->key.empty()) {
       if (auto it = keyed.find(node->key); it != keyed.end()) {
@@ -949,7 +891,7 @@ void Composer::Impl::patchChildren(Instance &inst,
       match = std::move(unkeyed[unkeyedCursor++]);
     }
     if (match && (match->yoga != nullptr) != childrenWantYoga)
-      match.reset(); // unmounts; the fresh mount below picks the right mode
+      match.reset();  // unmounts; the fresh mount below picks the right mode
 
     if (match) {
       match->parent = &inst;
@@ -972,14 +914,14 @@ void Composer::Impl::patchChildren(Instance &inst,
         const float n = (float)newChildren.size();
         float order = (float)mountOrdinal;
         switch (inst.desc->fxData->staggerFrom) {
-        case Stagger::From::End:
-          order = n - 1.0f - order;
-          break;
-        case Stagger::From::Center:
-          order = std::abs(order - (n - 1.0f) * 0.5f) * 2.0f;
-          break;
-        case Stagger::From::Start:
-          break;
+          case Stagger::From::End:
+            order = n - 1.0f - order;
+            break;
+          case Stagger::From::Center:
+            order = std::abs(order - (n - 1.0f) * 0.5f) * 2.0f;
+            break;
+          case Stagger::From::Start:
+            break;
         }
         mountDelayCarryMs += staggerMs * order;
       }
@@ -989,7 +931,7 @@ void Composer::Impl::patchChildren(Instance &inst,
       needsLayout = true;
     }
     ++childOrdinal;
-    Instance &placed = *inst.children.back();
+    Instance& placed = *inst.children.back();
     // Stack children overlap: EVERY child is absolute, unconditionally.
     // This runs after mount()/patch() applied the child's own layout props,
     // so it is the last write and a child cannot opt out — which is the
@@ -1000,8 +942,7 @@ void Composer::Impl::patchChildren(Instance &inst,
     if (placed.yoga) {
       if (inst.desc->kind == Kind::Stack)
         YGNodeStyleSetPositionType(placed.yoga, YGPositionTypeAbsolute);
-      YGNodeInsertChild(inst.yoga, placed.yoga,
-                        YGNodeGetChildCount(inst.yoga));
+      YGNodeInsertChild(inst.yoga, placed.yoga, YGNodeGetChildCount(inst.yoga));
     }
   }
 
@@ -1023,14 +964,14 @@ void Composer::Impl::patchChildren(Instance &inst,
   // Unmatched old children unmount here (destructors cancel motions).
 }
 
-void Composer::Impl::applyLayoutProps(Instance &inst) {
+void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (!inst.yoga)
-    return; // positioned subtree: instanceRect() reads the props directly
-  const LayoutProps &l = inst.desc->layout;
+    return;  // positioned subtree: instanceRect() reads the props directly
+  const LayoutProps& l = inst.desc->layout;
   YGNodeRef n = inst.yoga;
 
-  YGNodeStyleSetFlexDirection(n, l.row ? YGFlexDirectionRow
-                                       : YGFlexDirectionColumn);
+  YGNodeStyleSetFlexDirection(
+      n, l.row ? YGFlexDirectionRow : YGFlexDirectionColumn);
   YGNodeStyleSetFlexWrap(n, l.wrap ? YGWrapWrap : YGWrapNoWrap);
   YGNodeStyleSetGap(n, YGGutterAll, l.gap);
   YGNodeStyleSetPadding(n, YGEdgeLeft, l.padding.left);
@@ -1063,7 +1004,8 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   YGNodeStyleSetAspectRatio(n, l.aspect > 0 ? l.aspect : YGUndefined);
   YGNodeStyleSetFlexGrow(n, l.grow);
   YGNodeStyleSetFlexShrink(n, l.shrink);
-  applyDim(n, l.basis, &YGNodeStyleSetFlexBasis, &YGNodeStyleSetFlexBasisPercent);
+  applyDim(n, l.basis, &YGNodeStyleSetFlexBasis,
+           &YGNodeStyleSetFlexBasisPercent);
   YGNodeStyleSetAlignItems(n, toYogaAlign(l.alignItems));
   // Measured text must not stretch on the cross axis: a stretched text leaf
   // is re-measured against a width it did not ask for, and the box stops
@@ -1072,36 +1014,36 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   // the parent — through untouched.
   Align self = l.alignSelf;
   if (inst.desc->kind == Kind::Text) {
-    const Align resolved =
-        self != Align::Auto
-            ? self
-            : (inst.parent && inst.parent->desc
-                   ? inst.parent->desc->layout.alignItems
-                   : Align::Stretch);
-    if (resolved == Align::Stretch)
-      self = Align::Start;
+    const Align resolved = self != Align::Auto
+                               ? self
+                               : (inst.parent && inst.parent->desc
+                                      ? inst.parent->desc->layout.alignItems
+                                      : Align::Stretch);
+    if (resolved == Align::Stretch) self = Align::Start;
   }
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
   YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
 
   // The node's OWN position type. A stack child's is overwritten right
   // after this, in patchChildren() — see the note there.
-  YGNodeStyleSetPositionType(n, l.absolute ? YGPositionTypeAbsolute
-                                           : YGPositionTypeRelative);
+  YGNodeStyleSetPositionType(
+      n, l.absolute ? YGPositionTypeAbsolute : YGPositionTypeRelative);
   if (l.hasInsets) {
     // Per-side Dims: Auto leaves the side UNPINNED (YGUndefined), so
     // `.top(12).right(12)` pins a corner badge without stretching it.
     // Always write all four — patch() reuses the yoga node, and a side
     // that was pinned last describe must actually release.
-    auto applyInset = [n](YGEdge edge, const Dim &d) {
+    auto applyInset = [n](YGEdge edge, const Dim& d) {
       switch (d.unit) {
-      case Dim::Unit::Px: YGNodeStyleSetPosition(n, edge, d.value); break;
-      case Dim::Unit::Pct:
-        YGNodeStyleSetPositionPercent(n, edge, d.value);
-        break;
-      case Dim::Unit::Auto:
-        YGNodeStyleSetPosition(n, edge, YGUndefined);
-        break;
+        case Dim::Unit::Px:
+          YGNodeStyleSetPosition(n, edge, d.value);
+          break;
+        case Dim::Unit::Pct:
+          YGNodeStyleSetPositionPercent(n, edge, d.value);
+          break;
+        case Dim::Unit::Auto:
+          YGNodeStyleSetPosition(n, edge, YGUndefined);
+          break;
       }
     };
     applyInset(YGEdgeLeft, l.insets.left);
@@ -1126,13 +1068,12 @@ void Composer::Impl::rebuildKeyIndex() {
   hasDerived = false;
   hasCustomLayout = false;
   hasCenterPins = false;
-  if (root)
-    indexKeys(*root);
+  if (root) indexKeys(*root);
   hasDerived = !routedInstances.empty() || !flowInstances.empty();
 }
 
-void Composer::Impl::indexKeys(Instance &inst) {
-  const std::shared_ptr<ElementNode> &shell =
+void Composer::Impl::indexKeys(Instance& inst) {
+  const std::shared_ptr<ElementNode>& shell =
       inst.memoShell ? inst.memoShell : inst.desc;
   if (!shell->key.empty())
     byKey[shell->key] = &inst;
@@ -1142,11 +1083,10 @@ void Composer::Impl::indexKeys(Instance &inst) {
     bySlot[inst.desc->key] = &inst;
   // The edge store (flat derive lists + anchor back-index) and the pass
   // gates ride the same walk. Tree order here IS the derive order.
-  const ElementNode &node = *inst.desc;
+  const ElementNode& node = *inst.desc;
   if (node.deriveData) {
-    const DeriveData &derive = *node.deriveData;
-    if (!derive.flowAroundKeys.empty())
-      flowInstances.push_back(&inst);
+    const DeriveData& derive = *node.deriveData;
+    if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
     const bool isConnector =
         !derive.connectFrom.empty() && !derive.connectTo.empty();
     const bool isRail = derive.railAnchors.size() >= 2;
@@ -1156,8 +1096,7 @@ void Composer::Impl::indexKeys(Instance &inst) {
     const bool isBorrowed = !derive.bandAround.empty() ||
                             !derive.spanFitKeys.empty() ||
                             !derive.borrowedPathKeys.empty();
-    if (isBorrowed && !isConnector && !isRail)
-      routedInstances.push_back(&inst);
+    if (isBorrowed && !isConnector && !isRail) routedInstances.push_back(&inst);
     if (isConnector || isRail) {
       routedInstances.push_back(&inst);
       if (isConnector) {
@@ -1165,19 +1104,16 @@ void Composer::Impl::indexKeys(Instance &inst) {
         if (derive.connectTo != derive.connectFrom)
           routesByAnchor[derive.connectTo].push_back(&inst);
       }
-      for (const Anchor &anchor : derive.railAnchors) {
-        auto &at = routesByAnchor[anchor.nodeKey];
-        if (at.empty() || at.back() != &inst) // rails revisit anchors
+      for (const Anchor& anchor : derive.railAnchors) {
+        auto& at = routesByAnchor[anchor.nodeKey];
+        if (at.empty() || at.back() != &inst)  // rails revisit anchors
           at.push_back(&inst);
       }
     }
-    if (derive.placeFn)
-      hasCustomLayout = true;
+    if (derive.placeFn) hasCustomLayout = true;
   }
-  if (node.layout.centerAt)
-    hasCenterPins = true;
-  for (auto &child : inst.children)
-    indexKeys(*child);
+  if (node.layout.centerAt) hasCenterPins = true;
+  for (auto& child : inst.children) indexKeys(*child);
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

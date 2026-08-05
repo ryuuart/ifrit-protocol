@@ -11,42 +11,43 @@
 // downstream of makeScene() reads both off the stage rather than assuming a
 // constant.
 
-#include "GalleryCore.h"
-#include "GalleryStudies.h"
-#include "ScenesChrome.h"
-#include "ScenesData.h"
-#include "ScenesFlourish.h"
-#include "ScenesGerstner.h"
-#include "ScenesInventory.h"
-#include "ScenesGame.h"
-#include "ScenesVeloren.h"
-#include "ScenesOrganic.h"
-#include "ScenesOrnament.h"
-#include "ScenesAero.h"
-#include "ScenesConsole.h"
-#include "ScenesCosmati.h"
-#include "ScenesKinetic.h"
-#include "ScenesNetwork.h"
-#include "ScenesPersona.h"
-#include "ScenesSkillTree.h"
-#include "ScenesY2k.h"
-#include "ScenesScale.h"
-#include "ScenesPoster.h"
-#include "ScenesZellige.h"
-#include "ScenesBeethoven.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
 
+#include "GalleryCore.h"
+#include "GalleryStudies.h"
+#include "ScenesAero.h"
+#include "ScenesBeethoven.h"
+#include "ScenesChrome.h"
+#include "ScenesConsole.h"
+#include "ScenesCosmati.h"
+#include "ScenesData.h"
+#include "ScenesFlourish.h"
+#include "ScenesGame.h"
+#include "ScenesGerstner.h"
+#include "ScenesInventory.h"
+#include "ScenesKinetic.h"
+#include "ScenesNetwork.h"
+#include "ScenesOrganic.h"
+#include "ScenesOrnament.h"
+#include "ScenesPersona.h"
+#include "ScenesPoster.h"
+#include "ScenesScale.h"
+#include "ScenesSkillTree.h"
+#include "ScenesVeloren.h"
+#include "ScenesY2k.h"
+#include "ScenesZellige.h"
+
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
-#include "GalleryGpu.h"
-#include "SkiaGraphiteContext.h"
-#include <include/gpu/GpuTypes.h> // skgpu::GpuStatsFlags
+#include <include/gpu/GpuTypes.h>  // skgpu::GpuStatsFlags
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+
+#include "GalleryGpu.h"
+#include "SkiaGraphiteContext.h"
 #endif
 
 #include <cctype>
@@ -57,9 +58,10 @@
 namespace compose_gallery {
 
 struct SceneInfo {
-  const char *name;
-  const char *category;
-  const char *catalog; // one line on what this scene exercises, shown in the UI
+  const char* name;
+  const char* category;
+  const char*
+      catalog;  // one line on what this scene exercises, shown in the UI
 };
 
 // `category` is a folder path, not a flat label: the sidebar groups on it, so
@@ -72,22 +74,19 @@ inline constexpr SceneInfo kScenes[] = {
     {"manuscript", "Catalog \xc2\xb7 Type & grid", "ornament"},
     {"nine slice", "Catalog \xc2\xb7 Scale", "#9 texture-gen"},
     {"botanical", "Catalog \xc2\xb7 Generative", "generative"},
-    {"ui particles", "Catalog \xc2\xb7 Scale", "SoA scale \xc2\xb7 instances()"},
+    {"ui particles", "Catalog \xc2\xb7 Scale",
+     "SoA scale \xc2\xb7 instances()"},
     {"load", "Catalog \xc2\xb7 Scale", "#21 sustained load"},
     {"tile map", "Catalog \xc2\xb7 Tiling", "#15"},
     {"organic", "Catalog \xc2\xb7 Generative", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Catalog \xc2\xb7 Generative", "the whole surface, at once"},
-    {"kinetic card", "Catalog \xc2\xb7 Type & grid",
-     "kinetic type grammar"},
+    {"kinetic card", "Catalog \xc2\xb7 Type & grid", "kinetic type grammar"},
     {"night network", "Catalog \xc2\xb7 Generative",
      "the brush engine, twelve constructions"},
-    {"persona menu", "Catalog \xc2\xb7 Game UI",
-     "P3R menu grammar"},
-    {"aero desktop", "Catalog \xc2\xb7 Chrome",
-     "glass + window colorization"},
+    {"persona menu", "Catalog \xc2\xb7 Game UI", "P3R menu grammar"},
+    {"aero desktop", "Catalog \xc2\xb7 Chrome", "glass + window colorization"},
     {"y2k chrome", "Catalog \xc2\xb7 Chrome", "chrome presets A/B"},
-    {"passive tree", "Catalog \xc2\xb7 Game UI",
-     "linework + orbit router"},
+    {"passive tree", "Catalog \xc2\xb7 Game UI", "linework + orbit router"},
     {"daemon console", "Catalog \xc2\xb7 Game UI", "console() LineRing feed"},
     {"motion poster", "Catalog \xc2\xb7 Type & grid",
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
@@ -110,11 +109,9 @@ inline constexpr int kGallerySceneCount = kCatalogSceneCount + kStudyCount;
  *  value because a study's row is assembled from StudyInfo, but every
  *  member still points at a string literal. */
 inline SceneInfo sceneInfo(int index) {
-  if (index < 0 || index >= kGallerySceneCount)
-    return {"", "", ""};
-  if (index < kCatalogSceneCount)
-    return kScenes[index];
-  const StudyInfo &study = kStudies[index - kCatalogSceneCount];
+  if (index < 0 || index >= kGallerySceneCount) return {"", "", ""};
+  if (index < kCatalogSceneCount) return kScenes[index];
+  const StudyInfo& study = kStudies[index - kCatalogSceneCount];
   return {study.name, study.category, study.tag};
 }
 
@@ -124,16 +121,14 @@ inline SceneInfo sceneInfo(int index) {
  *  answers to its file stem, because `slitscan_2001` is what you have in
  *  front of you when you want to look at it. */
 inline int findScene(std::string_view query) {
-  if (query.empty())
-    return -1;
+  if (query.empty()) return -1;
   if (query.find_first_not_of("0123456789") == std::string_view::npos) {
     const int index = std::stoi(std::string(query));
     return index >= 0 && index < kGallerySceneCount ? index : -1;
   }
   auto lower = [](std::string_view s) {
     std::string out(s);
-    for (char &c : out)
-      c = (char)std::tolower((unsigned char)c);
+    for (char& c : out) c = (char)std::tolower((unsigned char)c);
     return out;
   };
   const std::string needle = lower(query);
@@ -141,15 +136,13 @@ inline int findScene(std::string_view query) {
   // rather than one so `--scene hello` cannot be captured by a study whose
   // tag happens to start the same way.
   for (int i = 0; i < kGallerySceneCount; ++i) {
-    if (lower(sceneInfo(i).name) == needle)
-      return i;
+    if (lower(sceneInfo(i).name) == needle) return i;
     if (i >= kCatalogSceneCount &&
         lower(kStudies[i - kCatalogSceneCount].key) == needle)
       return i;
   }
   for (int i = 0; i < kGallerySceneCount; ++i) {
-    if (lower(sceneInfo(i).name).find(needle) != std::string::npos)
-      return i;
+    if (lower(sceneInfo(i).name).find(needle) != std::string::npos) return i;
     if (i >= kCatalogSceneCount &&
         lower(kStudies[i - kCatalogSceneCount].key).find(needle) !=
             std::string::npos)
@@ -167,7 +160,7 @@ inline int findScene(std::string_view query) {
  *  `gallery_$s.png` without keeping a second copy of the mapping. Keep the
  *  two uses in step: anything that names a scene on the command line and
  *  anything that names a scene on disk must agree here. */
-inline const char *registryName(int index) {
+inline const char* registryName(int index) {
   if (index >= kCatalogSceneCount && index < kGallerySceneCount)
     return kStudies[index - kCatalogSceneCount].key;
   return sceneInfo(index).name;
@@ -175,37 +168,58 @@ inline const char *registryName(int index) {
 
 inline std::unique_ptr<Scene> makeCatalogScene(int index) {
   switch (index) {
-  case 0: return std::make_unique<WorldHudScene>();
-  case 1: return std::make_unique<ManuscriptScene>();
-  case 2: return std::make_unique<NineSliceScene>();
-  case 3: return std::make_unique<BotanicalScene>();
-  case 4: return std::make_unique<UiParticleScene>();
-  case 5: return std::make_unique<LoadScene>();
-  case 6: return std::make_unique<TileScene>();
-  case 7: return std::make_unique<OrganicScene>();
-  case 8: return std::make_unique<FlourishScene>();
-  case 9: return std::make_unique<KineticCardScene>();
-  case 10: return std::make_unique<NightNetworkScene>();
-  case 11: return std::make_unique<PersonaMenuScene>();
-  case 12: return std::make_unique<AeroDesktopScene>();
-  case 13: return std::make_unique<Y2kChromeScene>();
-  case 14: return std::make_unique<SkillTreeScene>();
-  case 15: return std::make_unique<DaemonConsoleScene>();
-  case 16: return std::make_unique<MotionPosterScene>();
-  case 17: return std::make_unique<ZelligeScene>();
-  case 18: return std::make_unique<BeethovenScene>();
-  case 19: return std::make_unique<LootGridScene>();
-  case 20: return std::make_unique<GerstnerGridScene>();
-  case 21: return std::make_unique<CosmatiScene>();
-  default: return nullptr;
+    case 0:
+      return std::make_unique<WorldHudScene>();
+    case 1:
+      return std::make_unique<ManuscriptScene>();
+    case 2:
+      return std::make_unique<NineSliceScene>();
+    case 3:
+      return std::make_unique<BotanicalScene>();
+    case 4:
+      return std::make_unique<UiParticleScene>();
+    case 5:
+      return std::make_unique<LoadScene>();
+    case 6:
+      return std::make_unique<TileScene>();
+    case 7:
+      return std::make_unique<OrganicScene>();
+    case 8:
+      return std::make_unique<FlourishScene>();
+    case 9:
+      return std::make_unique<KineticCardScene>();
+    case 10:
+      return std::make_unique<NightNetworkScene>();
+    case 11:
+      return std::make_unique<PersonaMenuScene>();
+    case 12:
+      return std::make_unique<AeroDesktopScene>();
+    case 13:
+      return std::make_unique<Y2kChromeScene>();
+    case 14:
+      return std::make_unique<SkillTreeScene>();
+    case 15:
+      return std::make_unique<DaemonConsoleScene>();
+    case 16:
+      return std::make_unique<MotionPosterScene>();
+    case 17:
+      return std::make_unique<ZelligeScene>();
+    case 18:
+      return std::make_unique<BeethovenScene>();
+    case 19:
+      return std::make_unique<LootGridScene>();
+    case 20:
+      return std::make_unique<GerstnerGridScene>();
+    case 21:
+      return std::make_unique<CosmatiScene>();
+    default:
+      return nullptr;
   }
 }
 
 inline std::unique_ptr<Scene> makeScene(int index) {
-  if (index < 0 || index >= kGallerySceneCount)
-    return nullptr;
-  if (index < kCatalogSceneCount)
-    return makeCatalogScene(index);
+  if (index < 0 || index >= kGallerySceneCount) return nullptr;
+  if (index < kCatalogSceneCount) return makeCatalogScene(index);
   return makeStudy(kStudies[index - kCatalogSceneCount]);
 }
 
@@ -224,17 +238,18 @@ inline std::unique_ptr<Scene> makeScene(int index) {
  *  pass's, not the sample's. The gate must report the steady frame, so it
  *  reads the snapshot. Refused under --ledger: the ledger runs no
  *  benchmark phases, and a timing file of zeros would be a lie. */
-inline int runHeadless(const std::string &outDir, bool gpu = false,
+inline int runHeadless(const std::string& outDir, bool gpu = false,
                        int only = -1, bool noPromotion = false,
                        double captureAtOverride = -1.0, bool ledger = false,
-                       const std::string &timingJsonPath = std::string()) {
+                       const std::string& timingJsonPath = std::string()) {
   if (!timingJsonPath.empty() && ledger) {
-    std::fprintf(stderr, "--timing-json is refused under --ledger: ledger "
-                         "mode skips the benchmark phases, so there is no "
-                         "timing to report\n");
+    std::fprintf(stderr,
+                 "--timing-json is refused under --ledger: ledger "
+                 "mode skips the benchmark phases, so there is no "
+                 "timing to report\n");
     return 1;
   }
-  FILE *timingJson = nullptr;
+  FILE* timingJson = nullptr;
   if (!timingJsonPath.empty()) {
     timingJson = std::fopen(timingJsonPath.c_str(), "w");
     if (!timingJson) {
@@ -261,8 +276,9 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // therefore describes the raster machine rather than this one. Read the
     // work-ms column for real cost, and treat per-node selfMs on GPU as
     // recording weight only.
-    std::printf("NOTE: per-node profile times are RECORDING time on GPU, "
-                "not GPU execution — trust the work-ms column.\n");
+    std::printf(
+        "NOTE: per-node profile times are RECORDING time on GPU, "
+        "not GPU execution — trust the work-ms column.\n");
     // Graphite does have a per-RECORDING GPU-time API: request
     // GpuStatsFlags::kElapsedTime through InsertRecordingInfo's
     // fFinishedWithStatsProc and the finished callback reports
@@ -276,14 +292,14 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // that a Skia update enabling it on this backend is visible immediately.
     const skgpu::GpuStatsFlags gpuStatCaps =
         graphite->context()->supportedGpuStats();
-    const bool hasElapsed =
-        gpuStatCaps & skgpu::GpuStatsFlags::kElapsedTime;
-    std::printf("GPU per-recording elapsed-time stats: %s "
-                "(supportedGpuStats mask 0x%x)\n",
-                hasElapsed ? "SUPPORTED — a GPU-time lane is now wireable"
-                           : "unsupported on this backend (Vulkan/Dawn "
-                             "only at m151)",
-                (unsigned)gpuStatCaps);
+    const bool hasElapsed = gpuStatCaps & skgpu::GpuStatsFlags::kElapsedTime;
+    std::printf(
+        "GPU per-recording elapsed-time stats: %s "
+        "(supportedGpuStats mask 0x%x)\n",
+        hasElapsed ? "SUPPORTED — a GPU-time lane is now wireable"
+                   : "unsupported on this backend (Vulkan/Dawn "
+                     "only at m151)",
+        (unsigned)gpuStatCaps);
   }
 #else
   if (gpu) {
@@ -310,8 +326,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // binary. On GPU the backend-aware default already turns it off; this is
     // for a reproducible, attributable comparison rather than a behaviour it
     // adds. Set AFTER activate() (which rebuilds the composer).
-    if (noPromotion)
-      stage.composer->setAutoTexturePromotion(false);
+    if (noPromotion) stage.composer->setAutoTexturePromotion(false);
     SkDebugf("=== scene %s\n", stage.scene->name());
     // Every size below comes off the stage, not off kSceneSize: a study
     // declares its own canvas from inside setup(), which activate() has
@@ -337,8 +352,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       };
     }
 #endif
-    if (!surface)
-      surface = SkSurfaces::Raster(info);
+    if (!surface) surface = SkSurfaces::Raster(info);
     // Warm past the entrance choreography so the table reports STEADY STATE,
     // which is the number a running gallery feels. Entrance transitions are
     // one-shots: their cost is real, but it belongs to a different budget
@@ -382,8 +396,8 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
         stage.frame(*surface->getCanvas(), 1.0 / 60.0);
       }
       const double probeMs = std::max(0.01, stage.stats.average());
-      warmFrames = std::max(
-          0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
+      warmFrames =
+          std::max(0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
       sampleFrames =
           std::max(kMinSampleFrames,
                    std::min(kMaxSampleFrames, (int)(sampleBudgetMs / probeMs)));
@@ -397,7 +411,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       for (int f = 0; f < sampleFrames; ++f) {
         surface->getCanvas()->clear(clearColor);
         stage.frame(*surface->getCanvas(), 1.0 / 60.0);
-        const Composer::Stats &cs = stage.composer->stats();
+        const Composer::Stats& cs = stage.composer->stats();
         reconcileMs += cs.reconcileMs;
         layoutMs += cs.layoutMs;
         volatileMs += cs.volatileMs;
@@ -442,12 +456,10 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // Ledger mode always takes the exact-stepped path; a scene with no
     // declared moment gets the derived default, which is the identical
     // frame the classic sweep captures (kCaptureFrame at 1/60).
-    if (ledger && declared <= 0)
-      declared = kCaptureFrame / 60.0;
+    if (ledger && declared <= 0) declared = kCaptureFrame / 60.0;
     if (declared > 0) {
       stage.activate(makeScene(i));
-      if (noPromotion)
-        stage.composer->setAutoTexturePromotion(false);
+      if (noPromotion) stage.composer->setAutoTexturePromotion(false);
       if (stage.sceneSize != sceneSize) {
         std::fprintf(stderr,
                      "scene %s declared a different canvas on rebuild\n",
@@ -486,14 +498,14 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
           stage.composer->stats().picturesRecorded,
           stage.composer->stats().nodesPainted);
       if (timingJson) {
-        std::fprintf(
-            timingJson,
-            "{\"scene\":\"%s\",\"canvas\":\"%dx%d\",\"work_ms\":%.3f,"
-            "\"p99_ms\":%.3f,\"fps\":%.1f,\"shortened\":%s,"
-            "\"backend\":\"%s\"}\n",
-            registryName(i), (int)sceneSize.width(), (int)sceneSize.height(),
-            sampleWorkMs, sampleP99Ms, sampleFps,
-            shortened ? "true" : "false", gpu ? "gpu" : "raster");
+        std::fprintf(timingJson,
+                     "{\"scene\":\"%s\",\"canvas\":\"%dx%d\",\"work_ms\":%.3f,"
+                     "\"p99_ms\":%.3f,\"fps\":%.1f,\"shortened\":%s,"
+                     "\"backend\":\"%s\"}\n",
+                     registryName(i), (int)sceneSize.width(),
+                     (int)sceneSize.height(), sampleWorkMs, sampleP99Ms,
+                     sampleFps, shortened ? "true" : "false",
+                     gpu ? "gpu" : "raster");
         // Flush per line: a scene that crashes later must not take the lines
         // already written down with it.
         std::fflush(timingJson);
@@ -520,9 +532,9 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       // cannot readPixels synchronously) — these are what the interactive
       // QQuickRhiItem gallery actually shows, so visual QA runs HERE, not
       // on the raster sweep.
-      const SkImageInfo shotInfo = SkImageInfo::MakeN32Premul(
-          (int)(sceneSize.width() * captureScale),
-          (int)(sceneSize.height() * captureScale));
+      const SkImageInfo shotInfo =
+          SkImageInfo::MakeN32Premul((int)(sceneSize.width() * captureScale),
+                                     (int)(sceneSize.height() * captureScale));
       sk_sp<SkSurface> shot =
           SkSurfaces::RenderTarget(graphite->recorder(), shotInfo);
       if (shot) {
@@ -539,12 +551,12 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
           bool called = false;
         } read;
         graphite->context()->asyncRescaleAndReadPixels(
-            shot.get(), shotInfo, SkIRect::MakeWH(shotInfo.width(),
-                                                  shotInfo.height()),
+            shot.get(), shotInfo,
+            SkIRect::MakeWH(shotInfo.width(), shotInfo.height()),
             SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
             [](SkImage::ReadPixelsContext context,
                std::unique_ptr<const SkImage::AsyncReadResult> result) {
-              auto *r = static_cast<ReadContext *>(context);
+              auto* r = static_cast<ReadContext*>(context);
               r->result = std::move(result);
               r->called = true;
             },
@@ -557,7 +569,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
         if (read.result) {
           SkBitmap bm;
           bm.allocPixels(shotInfo);
-          const auto *src = static_cast<const uint8_t *>(read.result->data(0));
+          const auto* src = static_cast<const uint8_t*>(read.result->data(0));
           const size_t srcRB = read.result->rowBytes(0);
           for (int y = 0; y < shotInfo.height(); ++y)
             std::memcpy(bm.pixmap().writable_addr(0, y),
@@ -566,8 +578,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
           const std::string path =
               outDir + "/gallery_" + registryName(i) + ".png";
           SkFILEWStream stream(path.c_str());
-          if (stream.isValid())
-            SkPngEncoder::Encode(&stream, bm.pixmap(), {});
+          if (stream.isValid()) SkPngEncoder::Encode(&stream, bm.pixmap(), {});
         }
       }
       continue;
@@ -579,31 +590,30 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // sources), so captures diff meaningfully across builds. The GPU branch
     // above must set this for itself — it returns before reaching here.
     stage.showStats = false;
-    sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(sceneSize.width() * captureScale),
-        (int)(sceneSize.height() * captureScale)));
+    sk_sp<SkSurface> shot = SkSurfaces::Raster(
+        SkImageInfo::MakeN32Premul((int)(sceneSize.width() * captureScale),
+                                   (int)(sceneSize.height() * captureScale)));
     shot->getCanvas()->clear(clearColor);
     shot->getCanvas()->scale(captureScale, captureScale);
     stage.frame(*shot->getCanvas(), 1.0 / 60.0);
     SkBitmap bm;
     bm.allocPixels(shot->imageInfo());
     shot->readPixels(bm.pixmap(), 0, 0);
-    const std::string path =
-        outDir + "/gallery_" + registryName(i) + ".png";
+    const std::string path = outDir + "/gallery_" + registryName(i) + ".png";
     SkFILEWStream stream(path.c_str());
     if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
       return 1;
   }
   if (anyShortened)
-    std::printf("\n* short run: too expensive for the full 240-frame warmup, "
-                "so the average still\n  carries some of the entrance. Run it "
-                "alone with --scene for the settled number.\n");
+    std::printf(
+        "\n* short run: too expensive for the full 240-frame warmup, "
+        "so the average still\n  carries some of the entrance. Run it "
+        "alone with --scene for the settled number.\n");
   if (!gpu)
     std::printf("wrote %d gallery scene%s to %s\n", last - first,
                 last - first == 1 ? "" : "s", outDir.c_str());
-  if (timingJson)
-    std::fclose(timingJson);
+  if (timingJson) std::fclose(timingJson);
   return 0;
 }
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

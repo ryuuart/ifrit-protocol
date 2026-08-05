@@ -4,15 +4,15 @@
 // against the geometry Yoga produced, and resolved-rect reads. The derive
 // pass the loop drives lives in Derive.cpp.
 
-#include "ComposeRuntime.h"
-
 #include <sigilweave/Flow.h>
 #include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <cmath>
-#include <optional>
 #include <limits>
+#include <optional>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -23,23 +23,22 @@ using namespace detail;
 
 YGSize detail::measureTextNode(YGNodeConstRef node, float width,
                                YGMeasureMode widthMode, float, YGMeasureMode) {
-  auto *inst =
-      static_cast<Instance *>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
+  auto* inst =
+      static_cast<Instance*>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
   const float constraint = widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
   inst->owner->layoutText(*inst, constraint);
   return inst->measuredSize;
 }
 
 float detail::baselineOfTextNode(YGNodeConstRef node, float, float) {
-  auto *inst =
-      static_cast<Instance *>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
-  if (inst->lines.empty())
-    return 0.0f;
-  const sigil::weave::LineMetrics &first = inst->lines.front();
+  auto* inst =
+      static_cast<Instance*>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
+  if (inst->lines.empty()) return 0.0f;
+  const sigil::weave::LineMetrics& first = inst->lines.front();
   return first.baseline - first.rect().top();
 }
 
-void Composer::Impl::layoutText(Instance &inst, float constraint) {
+void Composer::Impl::layoutText(Instance& inst, float constraint) {
   // onPath: the PATH is the measure, not the box. Laying the run out to
   // the node's width would wrap it, and every line after the first would
   // then be placed along the path from the start again — the glyphs pile
@@ -49,16 +48,16 @@ void Composer::Impl::layoutText(Instance &inst, float constraint) {
     constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
       inst.measuredRev == inst.contentRev)
-    return; // layout is already valid for this content and width
+    return;  // layout is already valid for this content and width
   static const sigil::weave::ParagraphLayoutOptions kDefaultOptions;
-  const sigil::weave::ParagraphLayoutOptions &options =
+  const sigil::weave::ParagraphLayoutOptions& options =
       inst.desc->textData ? inst.desc->textData->layoutOptions
                           : kDefaultOptions;
   if (!inst.exclusionsLocal.empty()) {
     sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
     const float flowMargin =
         inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
-    for (const SkRect &exclusion : inst.exclusionsLocal)
+    for (const SkRect& exclusion : inst.exclusionsLocal)
       flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromRectangle(
           exclusion, flowMargin));
     inst.textLayout =
@@ -71,7 +70,7 @@ void Composer::Impl::layoutText(Instance &inst, float constraint) {
   inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
   inst.measuredForWidth = constraint;
   SkRect bounds = SkRect::MakeEmpty();
-  for (const sigil::weave::LineMetrics &line : inst.lines)
+  for (const sigil::weave::LineMetrics& line : inst.lines)
     bounds.join(line.rect());
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
   inst.measuredRev = inst.contentRev;
@@ -81,8 +80,7 @@ void Composer::Impl::layoutText(Instance &inst, float constraint) {
 // Layout passes
 
 void Composer::Impl::ensureLayout() {
-  if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga)))
-    return;
+  if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga))) return;
   // The root fills the viewport (the CSS-root rule) — except under an empty
   // setSize(), which means "intrinsic": the root sizes to its content (the
   // snapshot()/stamp path).
@@ -103,18 +101,13 @@ void Composer::Impl::ensureLayout() {
   // result is a slightly-off frame instead of a hang.
   for (int round = 0; round < 3; ++round) {
     bool changed = false;
-    if (hasCustomLayout)
-      changed |= applyCustomLayouts(*root);
-    if (hasCenterPins)
-      changed |= applyCenterPins(*root);
+    if (hasCustomLayout) changed |= applyCustomLayouts(*root);
+    if (hasCenterPins) changed |= applyCenterPins(*root);
+    if (hasDerived) changed |= resolveDerived();
+    if (!changed) break;
+    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
     if (hasDerived)
-      changed |= resolveDerived();
-    if (!changed)
-      break;
-    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined,
-                          YGDirectionLTR);
-    if (hasDerived)
-      resolveDerived(); // refresh routes against the moved geometry
+      resolveDerived();  // refresh routes against the moved geometry
   }
   // Post-layout invalidation: recordings bake geometry (child offsets, text
   // lines, geometry-material uResolution), so any rect that moved or resized
@@ -125,7 +118,7 @@ void Composer::Impl::ensureLayout() {
   needsLayout = false;
 }
 
-void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
+void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
   const SkRect r = instanceRect(inst);
   const bool rectChanged = r != inst.lastLayoutRect;
   if (rectChanged) {
@@ -133,7 +126,7 @@ void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
                              r.height() != inst.lastLayoutRect.height();
     inst.lastLayoutRect = r;
     if (sizeChanged)
-      inst.markPaintDirtyUp(); // own content baked the old bounds
+      inst.markPaintDirtyUp();  // own content baked the old bounds
     else if (inst.parent)
       // The parent's RECORDING baked this child's old offset; the parent's
       // OWN paint did not — it never contained the child at all. The split
@@ -159,7 +152,7 @@ void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
-  for (auto &child : inst.children)
+  for (auto& child : inst.children)
     syncLayoutRects(*child, movedAbove || rectChanged);
 }
 
@@ -168,7 +161,7 @@ void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
  *  Must stay idempotent — it reports a change only when the target position
  *  actually moved — or the bounded loop in ensureLayout would never see a
  *  quiet round and would burn its full round count every frame. */
-bool Composer::Impl::applyCenterPins(Instance &inst) {
+bool Composer::Impl::applyCenterPins(Instance& inst) {
   bool applied = false;
   if (inst.desc->layout.centerAt && inst.yoga) {
     const SkPoint p = *inst.desc->layout.centerAt;
@@ -185,36 +178,33 @@ bool Composer::Impl::applyCenterPins(Instance &inst) {
         return v.unit == YGUnitPoint ? v.value : 0.0f;
       };
       YGNodeStyleSetPositionType(inst.yoga, YGPositionTypeAbsolute);
-      YGNodeStyleSetPosition(inst.yoga, YGEdgeLeft,
-                             styleBase(YGEdgeLeft) + dl);
+      YGNodeStyleSetPosition(inst.yoga, YGEdgeLeft, styleBase(YGEdgeLeft) + dl);
       YGNodeStyleSetPosition(inst.yoga, YGEdgeTop, styleBase(YGEdgeTop) + dt);
       applied = true;
     }
   }
-  for (const auto &child : inst.children)
-    applied |= applyCenterPins(*child);
+  for (const auto& child : inst.children) applied |= applyCenterPins(*child);
   return applied;
 }
 
-bool Composer::Impl::applyCustomLayouts(Instance &inst) {
+bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
   // layout() schemes are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — the placeFn is documented-unsupported.
-  if (inst.yoga && !inst.desc->layout.positioned &&
-      inst.desc->deriveData && inst.desc->deriveData->placeFn &&
-      !inst.children.empty()) {
+  if (inst.yoga && !inst.desc->layout.positioned && inst.desc->deriveData &&
+      inst.desc->deriveData->placeFn && !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
-    for (const auto &child : inst.children) {
-      input.childSizes.push_back(
-          {YGNodeLayoutGetWidth(child->yoga), YGNodeLayoutGetHeight(child->yoga)});
+    for (const auto& child : inst.children) {
+      input.childSizes.push_back({YGNodeLayoutGetWidth(child->yoga),
+                                  YGNodeLayoutGetHeight(child->yoga)});
       // First-baseline offset from the child's top — measured text only
       // (pass one measured it); everything else has no baseline.
       float baseline = std::numeric_limits<float>::quiet_NaN();
       if (!child->lines.empty()) {
-        const sigil::weave::LineMetrics &first = child->lines.front();
+        const sigil::weave::LineMetrics& first = child->lines.front();
         baseline = first.baseline - first.rect().top();
       }
       input.childBaselines.push_back(baseline);
@@ -225,8 +215,7 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
       // A centerAt() child opts OUT of the scheme's placement — the pin
       // wins (otherwise place() and the pin fight in a period-2
       // oscillation that never settles).
-      if (inst.children[i]->desc->layout.centerAt)
-        continue;
+      if (inst.children[i]->desc->layout.centerAt) continue;
       YGNodeRef child = inst.children[i]->yoga;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
@@ -248,11 +237,10 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
     // parent to size it, so without this it would collapse and the scheme
     // would place its children outside a zero box. Flex-embedded layout()
     // containers are left alone: their flex/stretch sizing already holds.
-    const LayoutProps &l = inst.desc->layout;
+    const LayoutProps& l = inst.desc->layout;
     if (l.absolute) {
       SkRect extent = SkRect::MakeEmpty();
-      for (size_t i = 0; i < count; ++i)
-        extent.join(rects[i]);
+      for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
       const bool widthPinned = l.hasInsets &&
                                l.insets.left.unit != Dim::Unit::Auto &&
                                l.insets.right.unit != Dim::Unit::Auto;
@@ -274,20 +262,18 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
       }
     }
   }
-  for (const auto &child : inst.children)
-    applied |= applyCustomLayouts(*child);
+  for (const auto& child : inst.children) applied |= applyCustomLayouts(*child);
   return applied;
 }
 
 // ---------------------------------------------------------------------------
 // Resolved-rect reads
 
-SkRect Composer::Impl::instanceRect(const Instance &inst) const {
+SkRect Composer::Impl::instanceRect(const Instance& inst) const {
   if (inst.yoga)
-    return SkRect::MakeXYWH(YGNodeLayoutGetLeft(inst.yoga),
-                            YGNodeLayoutGetTop(inst.yoga),
-                            YGNodeLayoutGetWidth(inst.yoga),
-                            YGNodeLayoutGetHeight(inst.yoga));
+    return SkRect::MakeXYWH(
+        YGNodeLayoutGetLeft(inst.yoga), YGNodeLayoutGetTop(inst.yoga),
+        YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga));
   return positionedRect(inst);
 }
 
@@ -296,24 +282,23 @@ SkRect Composer::Impl::instanceRect(const Instance &inst) const {
  *  right/bottom inset pinning the far edge, and text measuring against
  *  its resolved (or the parent's) width. O(depth) for pct/derived
  *  terms — arithmetic, no engine. */
-SkRect Composer::Impl::positionedRect(const Instance &inst) const {
-  const LayoutProps &l = inst.desc->layout;
+SkRect Composer::Impl::positionedRect(const Instance& inst) const {
+  const LayoutProps& l = inst.desc->layout;
   float parentW = 0, parentH = 0;
   if (inst.parent) {
     const SkRect parentRect = instanceRect(*inst.parent);
     parentW = parentRect.width();
     parentH = parentRect.height();
   }
-  auto resolve = [](const Dim &d,
-                    float parentExtent) -> std::optional<float> {
+  auto resolve = [](const Dim& d, float parentExtent) -> std::optional<float> {
     switch (d.unit) {
-    case Dim::Unit::Px:
-      return d.value;
-    case Dim::Unit::Pct:
-      return parentExtent * d.value / 100.0f;
-    case Dim::Unit::Auto:
-    default:
-      return std::nullopt;
+      case Dim::Unit::Px:
+        return d.value;
+      case Dim::Unit::Pct:
+        return parentExtent * d.value / 100.0f;
+      case Dim::Unit::Auto:
+      default:
+        return std::nullopt;
     }
   };
   const float left =
@@ -331,26 +316,23 @@ SkRect Composer::Impl::positionedRect(const Instance &inst) const {
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
   // hence the casts.
-  if (inst.desc->kind == Kind::Text && inst.paragraph &&
-      (!width || !height)) {
-    const_cast<Composer::Impl *>(this)->layoutText(
-        const_cast<Instance &>(inst), width ? *width : parentW);
-    if (!width)
-      width = inst.measuredSize.width;
-    if (!height)
-      height = inst.measuredSize.height;
+  if (inst.desc->kind == Kind::Text && inst.paragraph && (!width || !height)) {
+    const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
+                                                  width ? *width : parentW);
+    if (!width) width = inst.measuredSize.width;
+    if (!height) height = inst.measuredSize.height;
   }
   return SkRect::MakeXYWH(left, top, width.value_or(0.0f),
                           height.value_or(0.0f));
 }
 
-SkRect Composer::Impl::absoluteRect(const Instance &inst) const {
+SkRect Composer::Impl::absoluteRect(const Instance& inst) const {
   SkRect rect = instanceRect(inst);
-  for (Instance *p = inst.parent; p; p = p->parent) {
+  for (Instance* p = inst.parent; p; p = p->parent) {
     const SkRect parentRect = instanceRect(*p);
     rect.offset(parentRect.left(), parentRect.top());
   }
   return rect;
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

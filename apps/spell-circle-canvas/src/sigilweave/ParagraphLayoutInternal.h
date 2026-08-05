@@ -3,14 +3,14 @@
 // Shared internals of the greedy (ParagraphLayout.cpp) and Knuth-Plass
 // (KnuthPlass.cpp) breakers.
 
-#include "sigilweave/Flow.h"
-#include "sigilweave/Paragraph.h"
-#include "sigilweave/ParagraphLayout.h"
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <vector>
+
+#include "sigilweave/Flow.h"
+#include "sigilweave/Paragraph.h"
+#include "sigilweave/ParagraphLayout.h"
 
 namespace sigil::weave {
 namespace detail {
@@ -24,14 +24,16 @@ struct FlatInterval {
 // fetched lazily. Both breakers consume geometry exclusively through this,
 // so break decisions and placement always agree on interval numbering.
 class IntervalSequence {
-public:
-  IntervalSequence(FlowGeometry &geometry, float lineHeight, float ascent,
+ public:
+  IntervalSequence(FlowGeometry& geometry, float lineHeight, float ascent,
                    float minimumWidth = 0)
-      : m_geometry(geometry), m_lineHeight(lineHeight), m_ascent(ascent),
+      : m_geometry(geometry),
+        m_lineHeight(lineHeight),
+        m_ascent(ascent),
         m_minimumWidth(minimumWidth) {}
 
   /** Returns a flattened interval, fetching source lines on demand. */
-  const FlatInterval *intervalAt(size_t intervalIndex) {
+  const FlatInterval* intervalAt(size_t intervalIndex) {
     while (intervalIndex >= m_flatIntervals.size() && !m_geometryExhausted)
       fetchLine();
     return intervalIndex < m_flatIntervals.size()
@@ -42,7 +44,7 @@ public:
   /** Returns whether every source line has the same single measure. */
   bool uniform() const { return m_geometry.uniformIntervals(); }
 
-private:
+ private:
   /** Fetches and flattens the next source line into the interval cache. */
   void fetchLine() {
     m_sourceLineIntervals.clear();
@@ -51,13 +53,13 @@ private:
       m_geometryExhausted = true;
       return;
     }
-    for (const LineInterval &interval : m_sourceLineIntervals)
+    for (const LineInterval& interval : m_sourceLineIntervals)
       if (interval.length >= m_minimumWidth)
         m_flatIntervals.push_back({interval, m_nextLineIndex});
     m_nextLineIndex++;
   }
 
-  FlowGeometry &m_geometry;
+  FlowGeometry& m_geometry;
   float m_lineHeight;
   float m_ascent;
   float m_minimumWidth;
@@ -69,14 +71,14 @@ private:
 
 // Natural (unjustified) width of a half-open word range on one line: content
 // widths plus inter-word glue, the last word's trailing space excluded.
-float naturalWidth(const std::vector<Word> &words, uint32_t firstWordIndex,
+float naturalWidth(const std::vector<Word>& words, uint32_t firstWordIndex,
                    uint32_t endWordIndex);
 
 // Whether tab stops are configured at all (ParagraphLayoutOptions::tabStops).
 // Defined in the header (as is glueAfter below) rather than in one of the
 // breaker translation units: both are called from the innermost loops of
 // both breakers, and both must stay inlinable there.
-inline bool tabStopsActive(const ParagraphLayoutOptions &options) {
+inline bool tabStopsActive(const ParagraphLayoutOptions& options) {
   return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
 }
 
@@ -84,15 +86,13 @@ inline bool tabStopsActive(const ParagraphLayoutOptions &options) {
 // the line interval's start): the distance to the next tab stop for tab
 // gaps, the measured whitespace otherwise. Both breakers and placement
 // resolve stops through this one function so they always agree on widths.
-inline float glueAfter(const Word &word, float penPosition,
-                       const ParagraphLayoutOptions &options) {
-  if (!word.tabAfter || !tabStopsActive(options))
-    return word.spaceWidth;
-  constexpr float kMinTabAdvance = 0.5f; // a stop the pen already reached
-                                         // is not "the next" stop
+inline float glueAfter(const Word& word, float penPosition,
+                       const ParagraphLayoutOptions& options) {
+  if (!word.tabAfter || !tabStopsActive(options)) return word.spaceWidth;
+  constexpr float kMinTabAdvance = 0.5f;  // a stop the pen already reached
+                                          // is not "the next" stop
   for (const float stop : options.tabStops.positions)
-    if (stop >= penPosition + kMinTabAdvance)
-      return stop - penPosition;
+    if (stop >= penPosition + kMinTabAdvance) return stop - penPosition;
   if (options.tabStops.interval > 0) {
     const float base = options.tabStops.positions.empty()
                            ? 0.0f
@@ -101,11 +101,10 @@ inline float glueAfter(const Word &word, float penPosition,
     const float repeats =
         std::floor(distance / options.tabStops.interval) + 1.0f;
     const float stop = base + repeats * options.tabStops.interval;
-    if (stop >= penPosition + kMinTabAdvance)
-      return stop - penPosition;
+    if (stop >= penPosition + kMinTabAdvance) return stop - penPosition;
     return stop + options.tabStops.interval - penPosition;
   }
-  return word.spaceWidth; // stops exhausted: tab degrades to a space
+  return word.spaceWidth;  // stops exhausted: tab degrades to a space
 }
 
 // Places a half-open word range into `interval` with the given alignment,
@@ -113,15 +112,15 @@ inline float glueAfter(const Word &word, float penPosition,
 // straight horizontal intervals reuse each word's shared blob; rotated and
 // contour intervals bake per-glyph RSXforms. When `hyphenBreakTaken`, the
 // line ends at a soft hyphen and the word's hyphen glyph is rendered.
-void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
-                uint32_t endWordIndex, const FlatInterval &interval,
+void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
+                uint32_t endWordIndex, const FlatInterval& interval,
                 TextAlignment alignment, bool lastLine, bool hyphenBreakTaken,
-                const ParagraphLayoutOptions &options, ParagraphLayout &out);
+                const ParagraphLayoutOptions& options, ParagraphLayout& out);
 
 // Whether a non-final break before `endWordIndex` lands on a soft hyphen.
-inline bool hyphenTakenAt(const std::vector<Word> &words, uint32_t endWordIndex,
+inline bool hyphenTakenAt(const std::vector<Word>& words, uint32_t endWordIndex,
                           bool lineIsFinal,
-                          const ParagraphLayoutOptions &options) {
+                          const ParagraphLayoutOptions& options) {
   return options.hyphenation.enabled && !lineIsFinal && endWordIndex > 0 &&
          endWordIndex <= words.size() && words[endWordIndex - 1].hyphenBreak &&
          words[endWordIndex - 1].hyphenGlyph &&
@@ -131,9 +130,9 @@ inline bool hyphenTakenAt(const std::vector<Word> &words, uint32_t endWordIndex,
 // Knuth-Plass entry: breaks + places every word that fits. Takes the
 // paragraph (not just its words) so it can pull lazy shaping along its own
 // frontier. Defined in KnuthPlass.cpp.
-ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
-                                 IntervalSequence &intervalSequence,
-                                 const ParagraphLayoutOptions &options);
+ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
+                                 IntervalSequence& intervalSequence,
+                                 const ParagraphLayoutOptions& options);
 
-} // namespace detail
-} // namespace sigil::weave
+}  // namespace detail
+}  // namespace sigil::weave

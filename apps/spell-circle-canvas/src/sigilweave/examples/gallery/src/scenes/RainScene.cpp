@@ -1,12 +1,12 @@
 // Scene: letter rain on an umbrella (full-paragraph relayout).
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
 #include <random>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -15,10 +15,10 @@ namespace gallery {
 namespace {
 
 class RainScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double /*elapsedSeconds*/,
-                    int frameNumber, const SceneParams & /*params*/,
-                    FontContext &fontContext) override {
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double /*elapsedSeconds*/,
+                    int frameNumber, const SceneParams& /*params*/,
+                    FontContext& fontContext) override {
     if (m_paragraph.text().empty())
       m_paragraph = kit::mixedScriptFiller(700, 13.0f);
 
@@ -47,15 +47,14 @@ public:
     // The breathing measure can overflow a varying tail of words, so the
     // placed-glyph count drifts a little frame to frame — resize keeps the
     // surviving particles' state instead of resetting the whole sky.
-    if (m_particles.size() != glyphCount)
-      m_particles.resize(glyphCount);
+    if (m_particles.size() != glyphCount) m_particles.resize(glyphCount);
     if (m_particles.empty())
       return {toMicroseconds(layoutEndTime - layoutStartTime),
               static_cast<int>(layout.runs.size()), 0};
 
     if (frameNumber > 30)
       for (int detachAttempt = 0; detachAttempt < 18; ++detachAttempt) {
-        Particle &particle = m_particles[m_randomEngine() % m_particles.size()];
+        Particle& particle = m_particles[m_randomEngine() % m_particles.size()];
         if (particle.mode == Particle::kAttached)
           particle.mode = Particle::kFalling;
       }
@@ -64,9 +63,9 @@ public:
     size_t particleIndex = 0;
     forEachPlacedGlyph(
         layout, m_paragraph,
-        [&](const ShapedWord *shapedWord, SkGlyphID glyph, float glyphAdvance,
+        [&](const ShapedWord* shapedWord, SkGlyphID glyph, float glyphAdvance,
             SkColor color, SkPoint restingOrigin) {
-          Particle &particle = m_particles[particleIndex % m_particles.size()];
+          Particle& particle = m_particles[particleIndex % m_particles.size()];
           particleIndex++;
           const float halfAdvance = glyphAdvance * 0.5f;
           const SkPoint restingCenter =
@@ -75,47 +74,47 @@ public:
           float sine = 0;
           SkPoint drawingCenter = restingCenter;
           switch (particle.mode) {
-          case Particle::kAttached:
-            break;
-          case Particle::kFalling: {
-            if (particle.verticalVelocity == 0 && particle.position.fY == 0) {
-              particle.position = restingCenter;
-              particle.verticalVelocity =
-                  2.5f + static_cast<float>(m_randomEngine() % 100) * 0.025f;
-              particle.horizontalVelocity = 0;
-              particle.angularVelocity =
-                  (static_cast<float>(m_randomEngine() % 100) - 50.0f) *
-                  0.0015f;
-              particle.angle = 0;
+            case Particle::kAttached:
+              break;
+            case Particle::kFalling: {
+              if (particle.verticalVelocity == 0 && particle.position.fY == 0) {
+                particle.position = restingCenter;
+                particle.verticalVelocity =
+                    2.5f + static_cast<float>(m_randomEngine() % 100) * 0.025f;
+                particle.horizontalVelocity = 0;
+                particle.angularVelocity =
+                    (static_cast<float>(m_randomEngine() % 100) - 50.0f) *
+                    0.0015f;
+                particle.angle = 0;
+              }
+              particle.position.fY += particle.verticalVelocity;
+              particle.position.fX += particle.horizontalVelocity;
+              particle.angle += particle.angularVelocity;
+              const SkVector direction = particle.position - domeCenter;
+              if (direction.length() < standoffDistance &&
+                  particle.position.fY < domeCenter.fY)
+                particle.mode = Particle::kSliding;
+              if (particle.position.fY > size.height() + 30)
+                particle = Particle{};  // Drained: rejoin the paragraph.
+              break;
             }
-            particle.position.fY += particle.verticalVelocity;
-            particle.position.fX += particle.horizontalVelocity;
-            particle.angle += particle.angularVelocity;
-            const SkVector direction = particle.position - domeCenter;
-            if (direction.length() < standoffDistance &&
-                particle.position.fY < domeCenter.fY)
-              particle.mode = Particle::kSliding;
-            if (particle.position.fY > size.height() + 30)
-              particle = Particle{}; // Drained: rejoin the paragraph.
-            break;
-          }
-          case Particle::kSliding: {
-            SkVector direction = particle.position - domeCenter;
-            direction.normalize();
-            particle.position = domeCenter + direction * standoffDistance;
-            SkVector tangent = {-direction.fY, direction.fX};
-            if (tangent.fX * direction.fX < 0)
-              tangent = -tangent;
-            const float slideDistance = particle.verticalVelocity *
-                                        (0.55f + 0.9f * std::abs(direction.fX));
-            particle.position += tangent * slideDistance;
-            particle.angle = std::atan2(tangent.fY, tangent.fX);
-            if (direction.fY > -0.18f) {
-              particle.mode = Particle::kFalling;
-              particle.horizontalVelocity = tangent.fX * slideDistance;
+            case Particle::kSliding: {
+              SkVector direction = particle.position - domeCenter;
+              direction.normalize();
+              particle.position = domeCenter + direction * standoffDistance;
+              SkVector tangent = {-direction.fY, direction.fX};
+              if (tangent.fX * direction.fX < 0) tangent = -tangent;
+              const float slideDistance =
+                  particle.verticalVelocity *
+                  (0.55f + 0.9f * std::abs(direction.fX));
+              particle.position += tangent * slideDistance;
+              particle.angle = std::atan2(tangent.fY, tangent.fX);
+              if (direction.fY > -0.18f) {
+                particle.mode = Particle::kFalling;
+                particle.horizontalVelocity = tangent.fX * slideDistance;
+              }
+              break;
             }
-            break;
-          }
           }
           if (particle.mode != Particle::kAttached) {
             drawingCenter = particle.position;
@@ -148,7 +147,7 @@ public:
             static_cast<int>(layout.runs.size()), drawnGlyphCount};
   }
 
-private:
+ private:
   struct Particle {
     enum Mode : uint8_t { kAttached, kFalling, kSliding } mode = kAttached;
     SkPoint position = {0, 0};
@@ -172,8 +171,8 @@ SceneDescriptor makeRainDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeRainDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

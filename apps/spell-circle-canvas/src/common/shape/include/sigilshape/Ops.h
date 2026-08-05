@@ -29,22 +29,22 @@ namespace sigil::shape::ops {
 
 /** The Pathfinder four (binary, `a` is the back object, `b` the front —
  *  subtract() is Minus Front). Empty result on pathops failure. */
-SkPath unite(const SkPath &a, const SkPath &b);
-SkPath subtract(const SkPath &a, const SkPath &b);
-SkPath intersect(const SkPath &a, const SkPath &b);
-SkPath exclude(const SkPath &a, const SkPath &b);
+SkPath unite(const SkPath& a, const SkPath& b);
+SkPath subtract(const SkPath& a, const SkPath& b);
+SkPath intersect(const SkPath& a, const SkPath& b);
+SkPath exclude(const SkPath& a, const SkPath& b);
 /** N-ary union — merge a whole stack at once. */
-SkPath unite(const std::vector<SkPath> &paths);
+SkPath unite(const std::vector<SkPath>& paths);
 
 /** Resolve self-intersections and redundant winding into a clean
  *  even-odd-equivalent outline (Pathfinder's Merge, roughly). */
-SkPath simplify(const SkPath &path);
+SkPath simplify(const SkPath& path);
 
 /** Offset Path: grow (delta > 0) or shrink (delta < 0) a CLOSED shape
  *  by delta px, round joins. Implemented as stroke-expansion + boolean,
  *  which is robust for UI-scale geometry; a polygon-clipper backend can
  *  slot in later for cartography-grade needs. */
-SkPath offset(const SkPath &path, float delta);
+SkPath offset(const SkPath& path, float delta);
 
 // ---------------------------------------------------------------------------
 // Distorts. All resample-based: segmentPx bounds fidelity (smaller =
@@ -58,8 +58,8 @@ struct Roughen {
   uint32_t seed = 1;
   bool smooth = true;
 
-  SkPath apply(const SkPath &path) const;
-  SkPath operator()(const SkPath &path) const { return apply(path); }
+  SkPath apply(const SkPath& path) const;
+  SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
 /** Zig Zag — a regular wave along the contour; `smooth` = sine ridges,
@@ -69,8 +69,8 @@ struct Zigzag {
   float wavelengthPx = 24;
   bool smooth = false;
 
-  SkPath apply(const SkPath &path) const;
-  SkPath operator()(const SkPath &path) const { return apply(path); }
+  SkPath apply(const SkPath& path) const;
+  SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
 /** Pucker (amount < 0) & Bloat (amount > 0) — the radial power warp
@@ -79,8 +79,8 @@ struct PuckerBloat {
   float amount = 0.5f;
   float segmentPx = 6;
 
-  SkPath apply(const SkPath &path) const;
-  SkPath operator()(const SkPath &path) const { return apply(path); }
+  SkPath apply(const SkPath& path) const;
+  SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
 /** Twirl — rotation about the centroid, strongest at the middle and
@@ -89,19 +89,19 @@ struct Twirl {
   float angleDeg = 60;
   float segmentPx = 6;
 
-  SkPath apply(const SkPath &path) const;
-  SkPath operator()(const SkPath &path) const { return apply(path); }
+  SkPath apply(const SkPath& path) const;
+  SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
 /** A step in a non-destructive recipe; every distort above converts. */
-using PathOp = std::function<SkPath(const SkPath &)>;
+using PathOp = std::function<SkPath(const SkPath&)>;
 
 /** Left-to-right composition: chain({offsetBy(4), Roughen{...}}). */
 PathOp chain(std::vector<PathOp> steps);
 
 /** offset() as a recipe step. */
 inline PathOp offsetBy(float delta) {
-  return [delta](const SkPath &p) { return offset(p, delta); };
+  return [delta](const SkPath& p) { return offset(p, delta); };
 }
 
-} // namespace sigil::shape::ops
+}  // namespace sigil::shape::ops

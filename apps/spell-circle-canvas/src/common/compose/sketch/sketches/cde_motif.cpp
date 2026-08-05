@@ -157,23 +157,20 @@
 //    fill, under content and children", which is exactly a Motif
 //    shadow's layer. Every bevel in this file uses it.
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkBitmap.h>
+#include <include/core/SkColorFilter.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <array>
@@ -196,14 +193,14 @@ namespace cde {
 // ===========================================================================
 
 constexpr int XmMAX_SHORT = 65535;
-constexpr int XmCOLOR_PERCENTILE = XmMAX_SHORT / 100; // = 655, INTEGER div
+constexpr int XmCOLOR_PERCENTILE = XmMAX_SHORT / 100;  // = 655, INTEGER div
 
 constexpr double XmRED_LUMINOSITY = 0.30;
 constexpr double XmGREEN_LUMINOSITY = 0.59;
 constexpr double XmBLUE_LUMINOSITY = 0.11;
 
 constexpr int XmINTENSITY_FACTOR = 75;
-constexpr int XmLIGHT_FACTOR = 0; // yes, zero: `light` is dead code
+constexpr int XmLIGHT_FACTOR = 0;  // yes, zero: `light` is dead code
 constexpr int XmLUMINOSITY_FACTOR = 25;
 
 constexpr int XmCOLOR_LITE_SEL_FACTOR = 15;
@@ -219,9 +216,9 @@ constexpr int XmCOLOR_HI_SEL_FACTOR = 15;
 constexpr int XmCOLOR_HI_BS_FACTOR = 40;
 constexpr int XmCOLOR_HI_TS_FACTOR = 60;
 
-constexpr int XmCOLOR_LITE_THRESHOLD = 93 * XmCOLOR_PERCENTILE; // 60915
-constexpr int XmCOLOR_DARK_THRESHOLD = 20 * XmCOLOR_PERCENTILE; // 13100
-constexpr int XmFOREGROUND_THRESHOLD = 70 * XmCOLOR_PERCENTILE; // 45850
+constexpr int XmCOLOR_LITE_THRESHOLD = 93 * XmCOLOR_PERCENTILE;  // 60915
+constexpr int XmCOLOR_DARK_THRESHOLD = 20 * XmCOLOR_PERCENTILE;  // 13100
+constexpr int XmFOREGROUND_THRESHOLD = 70 * XmCOLOR_PERCENTILE;  // 45850
 
 /** C's integer division: truncate toward ZERO.
  *
@@ -242,8 +239,8 @@ static_assert(cdiv(46442 * (XmCOLOR_HI_BS_FACTOR - XmCOLOR_LO_BS_FACTOR),
               "Crimson set 2: f_bs must land on 46, not 45");
 
 struct Rgb {
-  int r = 0, g = 0, b = 0; // 16-bit, 0..65535
-  bool operator==(const Rgb &) const = default;
+  int r = 0, g = 0, b = 0;  // 16-bit, 0..65535
+  bool operator==(const Rgb&) const = default;
 };
 
 enum class Branch { Dark, Medium, Lite };
@@ -265,14 +262,16 @@ inline int brightness(Rgb c) {
                                (XmBLUE_LUMINOSITY * (double)c.b));
   const int maxp = std::max({c.r, c.g, c.b});
   const int minp = std::min({c.r, c.g, c.b});
-  const int light = cdiv(minp + maxp, 2); // weighted 0 — computed, discarded
+  const int light = cdiv(minp + maxp, 2);  // weighted 0 — computed, discarded
   return cdiv(intensity * XmINTENSITY_FACTOR + light * XmLIGHT_FACTOR +
                   luminosity * XmLUMINOSITY_FACTOR,
               100);
 }
 
 inline int darken(int v, int f) { return v - cdiv(v * f, 100); }
-inline int lighten(int v, int f) { return v + cdiv(f * (XmMAX_SHORT - v), 100); }
+inline int lighten(int v, int f) {
+  return v + cdiv(f * (XmMAX_SHORT - v), 100);
+}
 inline Rgb darken(Rgb c, int f) {
   return {darken(c.r, f), darken(c.g, f), darken(c.b, f)};
 }
@@ -286,9 +285,9 @@ inline Derived calculate(Rgb bg) {
   d.bg = bg;
   const int B = brightness(bg);
   d.brightness = B;
-  d.fg = (B > XmFOREGROUND_THRESHOLD) ? Rgb{0, 0, 0}
-                                      : Rgb{XmMAX_SHORT, XmMAX_SHORT,
-                                            XmMAX_SHORT};
+  d.fg = (B > XmFOREGROUND_THRESHOLD)
+             ? Rgb{0, 0, 0}
+             : Rgb{XmMAX_SHORT, XmMAX_SHORT, XmMAX_SHORT};
   if (B < XmCOLOR_DARK_THRESHOLD) {
     // DARK: everything gets LIGHTER, the "bottom" shadow included.
     d.branch = Branch::Dark;
@@ -312,15 +311,15 @@ inline Derived calculate(Rgb bg) {
     // MEDIUM: each factor interpolates across the brightness range FIRST,
     // then applies. cdiv() on the bs term is the whole finding.
     d.branch = Branch::Medium;
-    d.fSel = XmCOLOR_LO_SEL_FACTOR +
-             cdiv(B * (XmCOLOR_HI_SEL_FACTOR - XmCOLOR_LO_SEL_FACTOR),
-                  XmMAX_SHORT);
-    d.fBs = XmCOLOR_LO_BS_FACTOR +
-            cdiv(B * (XmCOLOR_HI_BS_FACTOR - XmCOLOR_LO_BS_FACTOR),
-                 XmMAX_SHORT);
-    d.fTs = XmCOLOR_LO_TS_FACTOR +
-            cdiv(B * (XmCOLOR_HI_TS_FACTOR - XmCOLOR_LO_TS_FACTOR),
-                 XmMAX_SHORT);
+    d.fSel =
+        XmCOLOR_LO_SEL_FACTOR +
+        cdiv(B * (XmCOLOR_HI_SEL_FACTOR - XmCOLOR_LO_SEL_FACTOR), XmMAX_SHORT);
+    d.fBs =
+        XmCOLOR_LO_BS_FACTOR +
+        cdiv(B * (XmCOLOR_HI_BS_FACTOR - XmCOLOR_LO_BS_FACTOR), XmMAX_SHORT);
+    d.fTs =
+        XmCOLOR_LO_TS_FACTOR +
+        cdiv(B * (XmCOLOR_HI_TS_FACTOR - XmCOLOR_LO_TS_FACTOR), XmMAX_SHORT);
     d.sel = darken(bg, d.fSel);
     d.bs = darken(bg, d.fBs);
     d.ts = lighten(bg, d.fTs);
@@ -353,7 +352,7 @@ constexpr SkColor4f C(uint32_t rgb) { return toSk(from8(rgb)); }
 // ===========================================================================
 
 struct Palette {
-  const char *name;
+  const char* name;
   std::array<Rgb, 8> set;
 };
 
@@ -394,8 +393,8 @@ const Palette kSummer = {
      dp(0x8600, 0xeac4, 0xe700), dp(0xb800, 0xc891, 0xff00),
      dp(0x6400, 0xc100, 0xff00), dp(0xbcf0, 0xc575, 0xdb00)}};
 
-const std::array<const Palette *, 4> kPalettes = {&kDefault, &kCrimson,
-                                                  &kBlack, &kSummer};
+const std::array<const Palette*, 4> kPalettes = {&kDefault, &kCrimson, &kBlack,
+                                                 &kSummer};
 
 /** CDE's FIXED grey ramp for icon artwork [SRC, XPM colour tables]. These
  *  are NOT algorithm output — running calculate() on #949494 gives
@@ -419,9 +418,9 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 
 struct ColorSet {
   ch::Output<Fill> bg, fg, ts, bs, sel;
-  SkColor4f bgV{}, fgV{}, tsV{}, bsV{}, selV{}; // the same, as values, for
-                                                // the places a Animatable
-                                                // cannot reach (text)
+  SkColor4f bgV{}, fgV{}, tsV{}, bsV{}, selV{};  // the same, as values, for
+                                                 // the places a Animatable
+                                                 // cannot reach (text)
   void write(Rgb background) {
     const Derived d = calculate(background);
     bgV = toSk(d.bg);
@@ -461,16 +460,20 @@ struct ColorSet {
 inline bool g_liveColors = true;
 
 inline Animatable<Fill> ColorSet::pBg() const {
-  return g_liveColors ? Animatable<Fill>{&bg} : Animatable<Fill>{Fill::color(bgV)};
+  return g_liveColors ? Animatable<Fill>{&bg}
+                      : Animatable<Fill>{Fill::color(bgV)};
 }
 inline Animatable<Fill> ColorSet::pFg() const {
-  return g_liveColors ? Animatable<Fill>{&fg} : Animatable<Fill>{Fill::color(fgV)};
+  return g_liveColors ? Animatable<Fill>{&fg}
+                      : Animatable<Fill>{Fill::color(fgV)};
 }
 inline Animatable<Fill> ColorSet::pTs() const {
-  return g_liveColors ? Animatable<Fill>{&ts} : Animatable<Fill>{Fill::color(tsV)};
+  return g_liveColors ? Animatable<Fill>{&ts}
+                      : Animatable<Fill>{Fill::color(tsV)};
 }
 inline Animatable<Fill> ColorSet::pBs() const {
-  return g_liveColors ? Animatable<Fill>{&bs} : Animatable<Fill>{Fill::color(bsV)};
+  return g_liveColors ? Animatable<Fill>{&bs}
+                      : Animatable<Fill>{Fill::color(bsV)};
 }
 inline Animatable<Fill> ColorSet::pSel() const {
   return g_liveColors ? Animatable<Fill>{&sel}
@@ -479,12 +482,11 @@ inline Animatable<Fill> ColorSet::pSel() const {
 
 struct Theme {
   std::array<ColorSet, 8> s;
-  void load(const Palette &p) {
-    for (int i = 0; i < 8; ++i)
-      s[(size_t)i].write(p.set[(size_t)i]);
+  void load(const Palette& p) {
+    for (int i = 0; i < 8; ++i) s[(size_t)i].write(p.set[(size_t)i]);
   }
-  const ColorSet &operator[](int i) const { return s[(size_t)(i - 1)]; }
-  ColorSet &operator[](int i) { return s[(size_t)(i - 1)]; }
+  const ColorSet& operator[](int i) const { return s[(size_t)(i - 1)]; }
+  ColorSet& operator[](int i) { return s[(size_t)(i - 1)]; }
 };
 
 // ===========================================================================
@@ -493,7 +495,7 @@ struct Theme {
 
 /** X11's XDrawSegments includes BOTH endpoints and draws one pixel wide,
  *  so a segment is the half-open rect [min, max+1). */
-inline void seg(SkPathBuilder &p, int x0, int y0, int x1, int y1) {
+inline void seg(SkPathBuilder& p, int x0, int y0, int x1, int y1) {
   const float l = (float)std::min(x0, x1), t = (float)std::min(y0, y1);
   const float r = (float)(std::max(x0, x1) + 1),
               b = (float)(std::max(y0, y1) + 1);
@@ -508,17 +510,17 @@ inline void seg(SkPathBuilder &p, int x0, int y0, int x1, int y1) {
  *  at `y + T`, not `y + i`, so the top-LEFT corner is entirely top-shadow
  *  and square — only the two off-corners step. A reconstruction that
  *  strokes a rectangle misses both. */
-inline void motifShadowPaths(SkPathBuilder &topP, SkPathBuilder &botP, int x,
+inline void motifShadowPaths(SkPathBuilder& topP, SkPathBuilder& botP, int x,
                              int y, int w, int h, int T, int cor) {
   T = std::min({T, w >> 1, h >> 1});
-  if (T <= 0)
-    return;
+  if (T <= 0) return;
   for (int i = 0; i < T; ++i) {
-    seg(topP, x, y + i, x + w - i - 1, y + i);                     // TOP
-    seg(topP, x + i, y + T, x + i, y + h - i - 1);                 // LEFT
-    seg(botP, x + i + (cor ? 0 : 1), y + h - i - 1, x + w - 1,     // BOTTOM
+    seg(topP, x, y + i, x + w - i - 1, y + i);                  // TOP
+    seg(topP, x + i, y + T, x + i, y + h - i - 1);              // LEFT
+    seg(botP, x + i + (cor ? 0 : 1), y + h - i - 1, x + w - 1,  // BOTTOM
         y + h - i - 1);
-    seg(botP, x + w - i - 1, y + i + 1 - cor, x + w - i - 1, y + h - 1); // RIGHT
+    seg(botP, x + w - i - 1, y + i + 1 - cor, x + w - i - 1,
+        y + h - 1);  // RIGHT
   }
 }
 
@@ -537,24 +539,22 @@ struct MotifShadow {
   float thickness = 2;
   bool sunken = false;
   bool etched = false;
-  const ch::Output<Fill> *top = nullptr;
-  const ch::Output<Fill> *bottom = nullptr;
+  const ch::Output<Fill>* top = nullptr;
+  const ch::Output<Fill>* bottom = nullptr;
   // The static alternative: the same two colours as VALUES. Filled only
   // when the bindings are not (see bevel()), because a decoration that
   // carries values compares unequal after a palette change and therefore
   // repatches and re-records instead of staying volatile.
   SkColor4f topValue{1, 1, 1, 1}, bottomValue{0, 0, 0, 1};
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const SkRect b = ctx.outline.getBounds();
     const int x = (int)std::lround(b.left()), y = (int)std::lround(b.top());
     const int w = (int)std::lround(b.width()), h = (int)std::lround(b.height());
-    if (w <= 0 || h <= 0)
-      return;
+    if (w <= 0 || h <= 0) return;
     SkColor4f ct = top ? top->value().colorValue : topValue;
     SkColor4f cb = bottom ? bottom->value().colorValue : bottomValue;
-    if (sunken)
-      std::swap(ct, cb);
+    if (sunken) std::swap(ct, cb);
     const int T = (int)thickness;
     SkPathBuilder pt, pb;
     if (etched && T != 1) {
@@ -575,23 +575,20 @@ struct MotifShadow {
    *  as "this bevel repaints at 60 Hz". See the header for what that
    *  costs across a desktop's worth of bevels. */
   bool isAnimated() const { return top != nullptr || bottom != nullptr; }
-  bool operator==(const MotifShadow &) const = default;
+  bool operator==(const MotifShadow&) const = default;
 };
 
 /** The bevel of a colour set — top shadow over bottom shadow. Under
  *  `g_liveColors` it holds the two Outputs and declares `isAnimated()`;
  *  otherwise it holds the two colours as values, prunes, and caches. */
-inline MotifShadow bevel(float T, bool sunken, bool etched,
-                         const ColorSet &s) {
-  if (g_liveColors)
-    return MotifShadow{T, sunken, etched, &s.ts, &s.bs, {}, {}};
+inline MotifShadow bevel(float T, bool sunken, bool etched, const ColorSet& s) {
+  if (g_liveColors) return MotifShadow{T, sunken, etched, &s.ts, &s.bs, {}, {}};
   return MotifShadow{T, sunken, etched, nullptr, nullptr, s.tsV, s.bsV};
 }
 /** A bevel drawn in the FOREGROUND on both faces — the flat outline Motif
  *  puts inside a maximise box, which is a shadow with one colour. */
-inline MotifShadow bevelFg(float T, const ColorSet &s) {
-  if (g_liveColors)
-    return MotifShadow{T, false, false, &s.fg, &s.fg, {}, {}};
+inline MotifShadow bevelFg(float T, const ColorSet& s) {
+  if (g_liveColors) return MotifShadow{T, false, false, &s.fg, &s.fg, {}, {}};
   return MotifShadow{T, false, false, nullptr, nullptr, s.fgV, s.fgV};
 }
 
@@ -599,8 +596,8 @@ inline MotifShadow bevelFg(float T, const ColorSet &s) {
  *  `highlightThickness`. No mitre, no shading — it is not a shadow. */
 struct MotifHighlight {
   float thickness = 2;
-  const ch::Output<Fill> *color = nullptr;
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  const ch::Output<Fill>* color = nullptr;
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const SkRect b = ctx.outline.getBounds();
     const float t = thickness;
     SkPaint p;
@@ -613,18 +610,18 @@ struct MotifHighlight {
     canvas.drawRect(
         SkRect::MakeLTRB(b.left(), b.top() + t, b.left() + t, b.bottom() - t),
         p);
-    canvas.drawRect(SkRect::MakeLTRB(b.right() - t, b.top() + t, b.right(),
-                                     b.bottom() - t),
-                    p);
+    canvas.drawRect(
+        SkRect::MakeLTRB(b.right() - t, b.top() + t, b.right(), b.bottom() - t),
+        p);
   }
   SkColor4f value{0, 0, 0, 1};
   bool isAnimated() const { return color != nullptr; }
-  bool operator==(const MotifHighlight &) const = default;
+  bool operator==(const MotifHighlight&) const = default;
 };
 
 /** highlightThickness 2 [MEAS], in the widget's foreground — Motif's
  *  default highlightColor. Only the focused widget shows one. */
-inline MotifHighlight highlight(float T, const ColorSet &s) {
+inline MotifHighlight highlight(float T, const ColorSet& s) {
   return g_liveColors ? MotifHighlight{T, &s.fg, {}}
                       : MotifHighlight{T, nullptr, s.fgV};
 }
@@ -652,24 +649,24 @@ inline sk_sp<SkImage> checkerMask() {
 }
 
 struct MotifStipple {
-  const ch::Output<Fill> *color = nullptr;
+  const ch::Output<Fill>* color = nullptr;
   SkColor4f value{1, 1, 1, 1};
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(false);
-    p.setShader(checkerMask()->makeShader(
-        SkTileMode::kRepeat, SkTileMode::kRepeat,
-        SkSamplingOptions(SkFilterMode::kNearest)));
+    p.setShader(
+        checkerMask()->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                  SkSamplingOptions(SkFilterMode::kNearest)));
     p.setColorFilter(SkColorFilters::Blend(
         (color ? color->value().colorValue : value).toSkColor(),
         SkBlendMode::kSrcIn));
     canvas.drawRect(ctx.outline.getBounds(), p);
   }
   bool isAnimated() const { return color != nullptr; }
-  bool operator==(const MotifStipple &) const = default;
+  bool operator==(const MotifStipple&) const = default;
 };
 
-inline MotifStipple stipple(const ColorSet &s) {
+inline MotifStipple stipple(const ColorSet& s) {
   return g_liveColors ? MotifStipple{&s.bg, {}} : MotifStipple{nullptr, s.bgV};
 }
 
@@ -686,7 +683,7 @@ inline MotifStipple stipple(const ColorSet &s) {
  *  texture was a pixmap and a gradient was a dither, and this is why the
  *  CDE root window is a faintly-structured mid-tone rather than flat. */
 inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
-  return [light, dark](SkCanvas &c, SkSize, uint32_t) {
+  return [light, dark](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
     p.setAntiAlias(false);
     p.setColor(light, nullptr);
@@ -697,12 +694,11 @@ inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
       for (int x = 0; x < 28; ++x) {
         bool isDark;
         if (pin)
-          isDark = (y == 0 || y == 26) ? (x == 13 || x == 27)
-                                       : (x == 6 || x == 20);
+          isDark =
+              (y == 0 || y == 26) ? (x == 13 || x == 27) : (x == 6 || x == 20);
         else
           isDark = ((x + y) & 1) == 1;
-        if (isDark)
-          c.drawRect(SkRect::MakeXYWH((float)x, (float)y, 1, 1), p);
+        if (isDark) c.drawRect(SkRect::MakeXYWH((float)x, (float)y, 1, 1), p);
       }
     }
   };
@@ -718,20 +714,20 @@ inline sk_sp<SkTypeface> uiFace() {
   static sk_sp<SkTypeface> f = [] {
     auto mgr = sigil::weave::ports::systemFontManager();
     sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-        "Helvetica", SkFontStyle(SkFontStyle::kNormal_Weight,
-                                 SkFontStyle::kNormal_Width,
-                                 SkFontStyle::kUpright_Slant));
+        "Helvetica",
+        SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
+                    SkFontStyle::kUpright_Slant));
     if (!t)
       t = mgr->matchFamilyStyle(
-          "Arial", SkFontStyle(SkFontStyle::kNormal_Weight,
-                               SkFontStyle::kNormal_Width,
-                               SkFontStyle::kUpright_Slant));
+          "Arial",
+          SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
+                      SkFontStyle::kUpright_Slant));
     return t;
   }();
   return f;
 }
 
-constexpr float kType = 13.0f; // [MEAS] ink boxes: cap height 9-10 px
+constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
 
 /** The compose spelling, kept because it is the one that SHOULD be used —
  *  and because the mnemonic underline was checked through it before being
@@ -751,7 +747,7 @@ inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
   s.shaping.typeface = uiFace();
   s.shaping.fontSize = size;
   s.paint.foreground.setColor(c, nullptr);
-  s.paint.foreground.setAntiAlias(false); // no effect — see above
+  s.paint.foreground.setAntiAlias(false);  // no effect — see above
   return s;
 }
 
@@ -760,9 +756,9 @@ inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
  *  from the measured advance. Everything CDE sets is set here. */
 inline SkFont uiFont(float size) {
   SkFont f(uiFace(), size);
-  f.setEdging(SkFont::Edging::kAlias); // 1-bit, the X core-font contract
-  f.setSubpixel(false);                // whole-pixel origins
-  f.setHinting(SkFontHinting::kFull);  // a 13 px outline face needs them
+  f.setEdging(SkFont::Edging::kAlias);  // 1-bit, the X core-font contract
+  f.setSubpixel(false);                 // whole-pixel origins
+  f.setHinting(SkFontHinting::kFull);   // a 13 px outline face needs them
   f.setLinearMetrics(false);
   return f;
 }
@@ -776,7 +772,7 @@ struct MotifLabel {
   float baseline = 0;
   int mnemonic = -1;
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const SkRect b = ctx.outline.getBounds();
     const SkFont f = uiFont(size);
     SkPaint p;
@@ -796,7 +792,7 @@ struct MotifLabel {
                       p);
     }
   }
-  bool operator==(const MotifLabel &) const = default;
+  bool operator==(const MotifLabel&) const = default;
 };
 
 inline Element label(std::string_view t, SkColor4f c, float size = kType,
@@ -825,17 +821,16 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
  *  with children inset by the shadow thickness the way Motif insets a
  *  manager's children. This is the single primitive the whole desktop is
  *  made of. */
-inline Element surface(const ColorSet &s, float T = 2, bool sunken = false) {
+inline Element surface(const ColorSet& s, float T = 2, bool sunken = false) {
   Element e = box().fill(s.pBg());
-  if (T > 0)
-    e.overlay(bevel(T, sunken, false, s)).padding(T);
+  if (T > 0) e.overlay(bevel(T, sunken, false, s)).padding(T);
   return e;
 }
 
 /** XmPushButton. Armed is XmSHADOW_IN *and* the background swapped to the
  *  derived select colour — which is the only place `select` shows up in
  *  ordinary use besides a list selection. */
-inline Element pushButton(std::string_view t, const ColorSet &s,
+inline Element pushButton(std::string_view t, const ColorSet& s,
                           bool armed = false, bool defaulted = false,
                           bool insensitive = false) {
   Element lab = label(t, s.fgV);
@@ -851,20 +846,18 @@ inline Element pushButton(std::string_view t, const ColorSet &s,
                                  .alignItems(Align::Center)
                                  .justify(Justify::Center)
                                  .child(std::move(lab)));
-  if (insensitive)
-    inner.foreground(stipple(s));
+  if (insensitive) inner.foreground(stipple(s));
   Element ring = box().padding(2).child(std::move(inner));
-  if (defaulted)
-    ring.overlay(bevel(1, true, false, s));
+  if (defaulted) ring.overlay(bevel(1, true, false, s));
   return ring;
 }
 
 /** XmTextField: XmSHADOW_IN at T = 2 over colour set 4 — the only set
  *  that is ever near-white, and therefore the only one that ever takes
  *  the LITE branch. */
-inline Element textField(std::string_view t, const ColorSet &s, float w,
+inline Element textField(std::string_view t, const ColorSet& s, float w,
                          bool caret = false,
-                         const ch::Output<float> *caretOut = nullptr) {
+                         const ch::Output<float>* caretOut = nullptr) {
   Element inner = box()
                       .row()
                       .alignItems(Align::Center)
@@ -882,8 +875,7 @@ inline Element textField(std::string_view t, const ColorSet &s, float w,
                       .row()
                       .alignItems(Align::Center)
                       .child(std::move(inner));
-  if (!caret)
-    return field.width(Dim(w));
+  if (!caret) return field.width(Dim(w));
   // The focused widget carries XmeDrawHighlight's ring OUTSIDE its
   // shadow: four plain rectangles of highlightThickness, no mitre.
   return box()
@@ -943,44 +935,58 @@ struct MnemonicCache {
 // ---------------------------------------------------------------------------
 
 inline std::optional<SkColor4f> fixedColor(char ch) {
-  if (ch >= '1' && ch <= '8')
-    return C(kIconGray[(size_t)(ch - '1')]);
+  if (ch >= '1' && ch <= '8') return C(kIconGray[(size_t)(ch - '1')]);
   switch (ch) {
-  case 'k': return C(kIconColor[0]);
-  case 'w': return C(kIconColor[1]);
-  case 'r': return C(kIconColor[2]);
-  case 'g': return C(kIconColor[3]);
-  case 'u': return C(kIconColor[4]);
-  case 'y': return C(kIconColor[5]);
-  case 'c': return C(kIconColor[6]);
-  case 'm': return C(kIconColor[7]);
-  default: return std::nullopt;
+    case 'k':
+      return C(kIconColor[0]);
+    case 'w':
+      return C(kIconColor[1]);
+    case 'r':
+      return C(kIconColor[2]);
+    case 'g':
+      return C(kIconColor[3]);
+    case 'u':
+      return C(kIconColor[4]);
+    case 'y':
+      return C(kIconColor[5]);
+    case 'c':
+      return C(kIconColor[6]);
+    case 'm':
+      return C(kIconColor[7]);
+    default:
+      return std::nullopt;
   }
 }
 
-inline std::optional<Animatable<Fill>> symbolic(char c, const ColorSet &s) {
+inline std::optional<Animatable<Fill>> symbolic(char c, const ColorSet& s) {
   switch (c) {
-  case 'B': return s.pBg();
-  case 'T': return s.pTs();
-  case 'S': return s.pBs();
-  case 'L': return s.pSel();
-  case 'F': return s.pFg();
-  default: return std::nullopt;
+    case 'B':
+      return s.pBg();
+    case 'T':
+      return s.pTs();
+    case 'S':
+      return s.pBs();
+    case 'L':
+      return s.pSel();
+    case 'F':
+      return s.pFg();
+    default:
+      return std::nullopt;
   }
 }
 
 /** Greedy rectangle merge over an ASCII colour grid. */
-inline Element art(const std::vector<std::string> &rows, float cell,
-                   const ColorSet &s) {
+inline Element art(const std::vector<std::string>& rows, float cell,
+                   const ColorSet& s) {
   const int h = (int)rows.size();
   const int w = h ? (int)rows[0].size() : 0;
-  Element root = stack().width(Dim((float)w * cell)).height(Dim((float)h * cell));
+  Element root =
+      stack().width(Dim((float)w * cell)).height(Dim((float)h * cell));
   std::vector<char> done((size_t)(w * h), 0);
   for (int y = 0; y < h; ++y) {
     for (int x = 0; x < w; ++x) {
       const size_t idx = (size_t)(y * w + x);
-      if (done[idx])
-        continue;
+      if (done[idx]) continue;
       const char ch = rows[(size_t)y][(size_t)x];
       if (ch == ' ' || ch == '.') {
         done[idx] = 1;
@@ -999,13 +1005,11 @@ inline Element art(const std::vector<std::string> &rows, float cell,
             ok = false;
             break;
           }
-        if (!ok)
-          break;
+        if (!ok) break;
         ++rh;
       }
       for (int j = 0; j < rh; ++j)
-        for (int k = 0; k < rw; ++k)
-          done[(size_t)((y + j) * w + x + k)] = 1;
+        for (int k = 0; k < rw; ++k) done[(size_t)((y + j) * w + x + k)] = 1;
       Element cellBox = box()
                             .left(Dim((float)x * cell))
                             .top(Dim((float)y * cell))
@@ -1025,131 +1029,123 @@ inline Element art(const std::vector<std::string> &rows, float cell,
 // own header ("48 48 6 1") establishes as the Front Panel icon size.
 
 inline std::vector<std::string> icoHome() {
-  return {
-      "                        ", "                        ",
-      "           88           ", "          8118          ",
-      "         811118         ", "        81111118        ",
-      "       8111111118       ", "      811111111118      ",
-      "     81111111111118     ", "    8111111111111118    ",
-      "   811111111111111118   ", "  88888888888888888888  ",
-      "   822222222222222228   ", "   82wwww22222wwww28    ",
-      "   82wkkw22222wkkw28    ", "   82wwww22222wwww28    ",
-      "   822222222222222228   ", "   822228LLLL8222228    ",
-      "   822228LLLL8222228    ", "   822228LLLL8222228    ",
-      "   822228LLLL8222228    ", "   88888888888888888    ",
-      "                        ", "                        "};
+  return {"                        ", "                        ",
+          "           88           ", "          8118          ",
+          "         811118         ", "        81111118        ",
+          "       8111111118       ", "      811111111118      ",
+          "     81111111111118     ", "    8111111111111118    ",
+          "   811111111111111118   ", "  88888888888888888888  ",
+          "   822222222222222228   ", "   82wwww22222wwww28    ",
+          "   82wkkw22222wkkw28    ", "   82wwww22222wwww28    ",
+          "   822222222222222228   ", "   822228LLLL8222228    ",
+          "   822228LLLL8222228    ", "   822228LLLL8222228    ",
+          "   822228LLLL8222228    ", "   88888888888888888    ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoEditor() {
-  return {
-      "                        ", "                     22 ",
-      "  1111111111111     288 ", "  1wwwwwwwwwww1    2882 ",
-      "  1wkkkkkkkkw1    2882  ", "  1wwwwwwwwwww1  28822  ",
-      "  1wkkkkkkkkw1  28822   ", "  1wwwwwwwwwww1 8822    ",
-      "  1wkkkkkkkw1  8822     ", "  1wwwwwwwwww1 822      ",
-      "  1wkkkkkkkw1 822       ", "  1wwwwwwwwww1822       ",
-      "  1wkkkkkkkw18822       ", "  1wwwwwwwww18822       ",
-      "  1wkkkkkkkw1822        ", "  1wwwwwwwwww122        ",
-      "  1wkkkkkkkw112         ", "  1wwwwwwwwww11         ",
-      "  1wkkkkkkkkw1          ", "  1wwwwwwwwwww1         ",
-      "  1111111111111         ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "                     22 ",
+          "  1111111111111     288 ", "  1wwwwwwwwwww1    2882 ",
+          "  1wkkkkkkkkw1    2882  ", "  1wwwwwwwwwww1  28822  ",
+          "  1wkkkkkkkkw1  28822   ", "  1wwwwwwwwwww1 8822    ",
+          "  1wkkkkkkkw1  8822     ", "  1wwwwwwwwww1 822      ",
+          "  1wkkkkkkkw1 822       ", "  1wwwwwwwwww1822       ",
+          "  1wkkkkkkkw18822       ", "  1wwwwwwwww18822       ",
+          "  1wkkkkkkkw1822        ", "  1wwwwwwwwww122        ",
+          "  1wkkkkkkkw112         ", "  1wwwwwwwwww11         ",
+          "  1wkkkkkkkkw1          ", "  1wwwwwwwwwww1         ",
+          "  1111111111111         ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoMail() {
-  return {
-      "                        ", "                        ",
-      "                        ", "  TTTTTTTTTTTTTTTTTTTT  ",
-      "  T1111111111111111118  ", "  T8111111111111111818  ",
-      "  T18111111111111181 8  ", "  T118111111111118111 8 ",
-      "  T11181111111181111118 ", "  T111181111118111111 8 ",
-      "  T11111811118111111118 ", "  T111111811811111111 8 ",
-      "  T11111118811111111118 ", "  T1111111111111111118  ",
-      "  T1111111111111111118  ", "  T1111111111111111118  ",
-      "  T1111111111111111118  ", "  T1111111111111111118  ",
-      "  T1111111111111111118  ", "  88888888888888888888  ",
-      "                        ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "                        ",
+          "                        ", "  TTTTTTTTTTTTTTTTTTTT  ",
+          "  T1111111111111111118  ", "  T8111111111111111818  ",
+          "  T18111111111111181 8  ", "  T118111111111118111 8 ",
+          "  T11181111111181111118 ", "  T111181111118111111 8 ",
+          "  T11111811118111111118 ", "  T111111811811111111 8 ",
+          "  T11111118811111111118 ", "  T1111111111111111118  ",
+          "  T1111111111111111118  ", "  T1111111111111111118  ",
+          "  T1111111111111111118  ", "  T1111111111111111118  ",
+          "  T1111111111111111118  ", "  88888888888888888888  ",
+          "                        ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoPrinter() {
-  return {
-      "                        ", "                        ",
-      "      TTTTTTTTTTTT      ", "      TwwwwwwwwwwS      ",
-      "      TwkkkkkkkkwS      ", "      TwwwwwwwwwwS      ",
-      "      TwkkkkkkkkwS      ", "      TwwwwwwwwwwS      ",
-      "   TTTTTTTTTTTTTTTTTT   ", "   T2222222222222222S   ",
-      "   T2222222222222222S   ", "   T22g222222222222 S   ",
-      "   T2222222222222222S   ", "   T2222222222222222S   ",
-      "   88888888888888888S   ", "     TTTTTTTTTTTTTT     ",
-      "     TwwwwwwwwwwwwS     ", "     TwkkkkkkkkkkwS     ",
-      "     TwwwwwwwwwwwwS     ", "     88888888888888     ",
-      "                        ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "                        ",
+          "      TTTTTTTTTTTT      ", "      TwwwwwwwwwwS      ",
+          "      TwkkkkkkkkwS      ", "      TwwwwwwwwwwS      ",
+          "      TwkkkkkkkkwS      ", "      TwwwwwwwwwwS      ",
+          "   TTTTTTTTTTTTTTTTTT   ", "   T2222222222222222S   ",
+          "   T2222222222222222S   ", "   T22g222222222222 S   ",
+          "   T2222222222222222S   ", "   T2222222222222222S   ",
+          "   88888888888888888S   ", "     TTTTTTTTTTTTTT     ",
+          "     TwwwwwwwwwwwwS     ", "     TwkkkkkkkkkkwS     ",
+          "     TwwwwwwwwwwwwS     ", "     88888888888888     ",
+          "                        ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoStyle() {
-  return {
-      "                        ", "        TTTTTTTT        ",
-      "      TT22222222TT      ", "     T2222222222 2S     ",
-      "    T222rr2222gg222S    ", "   T2222rr2222gg2222S   ",
-      "   T22222222222222 2S   ", "  T2222222222222222 S   ",
-      "  T22yy2222222222uu2S   ", "  T22yy2222222222uu2S   ",
-      "  T2222222222222222 S   ", "  T2222222222222222 S   ",
-      "  T22222mm2222cc2222S   ", "   S2222mm2222cc222S    ",
-      "   S222222222222222S    ", "    SS22222222222SS     ",
-      "      SSSS2222SSS       ", "         SSSS           ",
-      "            kkk         ", "             kkk        ",
-      "              kk        ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "        TTTTTTTT        ",
+          "      TT22222222TT      ", "     T2222222222 2S     ",
+          "    T222rr2222gg222S    ", "   T2222rr2222gg2222S   ",
+          "   T22222222222222 2S   ", "  T2222222222222222 S   ",
+          "  T22yy2222222222uu2S   ", "  T22yy2222222222uu2S   ",
+          "  T2222222222222222 S   ", "  T2222222222222222 S   ",
+          "  T22222mm2222cc2222S   ", "   S2222mm2222cc222S    ",
+          "   S222222222222222S    ", "    SS22222222222SS     ",
+          "      SSSS2222SSS       ", "         SSSS           ",
+          "            kkk         ", "             kkk        ",
+          "              kk        ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoApps() {
-  return {
-      "                        ", "  TTTTTTTTTTTTTTTTTTTT  ",
-      "  T222222222222222222S  ", "  T2TTTTTT22TTTTTT222S  ",
-      "  T2Twwww822Twwww8222S  ", "  T2Twwww822Twwww8222S  ",
-      "  T2T8888822T88888222S  ", "  T222222222222222222S  ",
-      "  T2TTTTTT22TTTTTT222S  ", "  T2Tuuuu822Trrrr8222S  ",
-      "  T2Tuuuu822Trrrr8222S  ", "  T2T8888822T88888222S  ",
-      "  T222222222222222222S  ", "  T2TTTTTT22TTTTTT222S  ",
-      "  T2Tgggg822Tyyyy8222S  ", "  T2Tgggg822Tyyyy8222S  ",
-      "  T2T8888822T88888222S  ", "  T222222222222222222S  ",
-      "  8888888888888888888S  ", "                        ",
-      "                        ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "  TTTTTTTTTTTTTTTTTTTT  ",
+          "  T222222222222222222S  ", "  T2TTTTTT22TTTTTT222S  ",
+          "  T2Twwww822Twwww8222S  ", "  T2Twwww822Twwww8222S  ",
+          "  T2T8888822T88888222S  ", "  T222222222222222222S  ",
+          "  T2TTTTTT22TTTTTT222S  ", "  T2Tuuuu822Trrrr8222S  ",
+          "  T2Tuuuu822Trrrr8222S  ", "  T2T8888822T88888222S  ",
+          "  T222222222222222222S  ", "  T2TTTTTT22TTTTTT222S  ",
+          "  T2Tgggg822Tyyyy8222S  ", "  T2Tgggg822Tyyyy8222S  ",
+          "  T2T8888822T88888222S  ", "  T222222222222222222S  ",
+          "  8888888888888888888S  ", "                        ",
+          "                        ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoHelp() {
-  return {
-      "                        ", "                        ",
-      "    TTTTTTTTTTTTTTTT    ", "    TwwwwwwSwwwwwwwS    ",
-      "    TwwwwwwSwwwwwwwS    ", "    Twkkk22Sw22kkk2S    ",
-      "    Tw22222Sw222222S    ", "    Twkkkk2Sw2kkkk2S    ",
-      "    Tw22222Sw222222S    ", "    Twkkk22Sw22kkk2S    ",
-      "    Tw22222Sw222222S    ", "    Twkkkk2Sw2kkkk2S    ",
-      "    Tw22222Sw222222S    ", "    TwwwwwwSwwwwwwwS    ",
-      "    88888888888888888   ", "        TTTTTTTT        ",
-      "       T22kkkk22S       ", "       T22k22k22S       ",
-      "       T2222k222S       ", "       T222k2222S       ",
-      "       T2222222 S       ", "       T222k2222S       ",
-      "       88888888888      ", "                        "};
+  return {"                        ", "                        ",
+          "    TTTTTTTTTTTTTTTT    ", "    TwwwwwwSwwwwwwwS    ",
+          "    TwwwwwwSwwwwwwwS    ", "    Twkkk22Sw22kkk2S    ",
+          "    Tw22222Sw222222S    ", "    Twkkkk2Sw2kkkk2S    ",
+          "    Tw22222Sw222222S    ", "    Twkkk22Sw22kkk2S    ",
+          "    Tw22222Sw222222S    ", "    Twkkkk2Sw2kkkk2S    ",
+          "    Tw22222Sw222222S    ", "    TwwwwwwSwwwwwwwS    ",
+          "    88888888888888888   ", "        TTTTTTTT        ",
+          "       T22kkkk22S       ", "       T22k22k22S       ",
+          "       T2222k222S       ", "       T222k2222S       ",
+          "       T2222222 S       ", "       T222k2222S       ",
+          "       88888888888      ", "                        "};
 }
 
 inline std::vector<std::string> icoTrash() {
-  return {
-      "                        ", "         888888         ",
-      "        81111118        ", "   TTTTTTTTTTTTTTTTTT   ",
-      "   T1111111111111111S   ", "   88888888888888888S   ",
-      "                        ", "     TTTTTTTTTTTTTT     ",
-      "     T12111211121 1S    ", "     T12111211121 1S    ",
-      "     T12111211121 1S    ", "     T12111211121 1S    ",
-      "     T12111211121 1S    ", "     T12111211121 1S    ",
-      "     T12111211121 1S    ", "     T12111211121 1S    ",
-      "     T12111211121 1S    ", "     T111111111111S     ",
-      "      T1111111111S      ", "      888888888888      ",
-      "                        ", "                        ",
-      "                        ", "                        "};
+  return {"                        ", "         888888         ",
+          "        81111118        ", "   TTTTTTTTTTTTTTTTTT   ",
+          "   T1111111111111111S   ", "   88888888888888888S   ",
+          "                        ", "     TTTTTTTTTTTTTT     ",
+          "     T12111211121 1S    ", "     T12111211121 1S    ",
+          "     T12111211121 1S    ", "     T12111211121 1S    ",
+          "     T12111211121 1S    ", "     T12111211121 1S    ",
+          "     T12111211121 1S    ", "     T12111211121 1S    ",
+          "     T12111211121 1S    ", "     T111111111111S     ",
+          "      T1111111111S      ", "      888888888888      ",
+          "                        ", "                        ",
+          "                        ", "                        "};
 }
 
 inline std::vector<std::string> icoLock() {
@@ -1175,7 +1171,7 @@ inline std::vector<std::string> icoFolder() {
           "                "};
 }
 
-} // namespace cde
+}  // namespace cde
 
 // ===========================================================================
 
@@ -1189,11 +1185,11 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
   // The one thing on this canvas allowed to move smoothly, because it is
   // showing a FUNCTION rather than a desktop.
-  ch::Output<float> sweep{0.0f};   // 0..1, the grey ramp under the strip
-  ch::Output<float> clockT{0.42f}; // fraction of an hour; the minute hand
-  ch::Output<float> busy{0.0f};    // the TYPE busy blinker, ~2 Hz
-  ch::Output<float> caret{0.0f};   // the text field's I-beam, ~1 Hz
-  ch::Output<float> subpanel{0.0f};// the Text Editor subpanel's wipe
+  ch::Output<float> sweep{0.0f};     // 0..1, the grey ramp under the strip
+  ch::Output<float> clockT{0.42f};   // fraction of an hour; the minute hand
+  ch::Output<float> busy{0.0f};      // the TYPE busy blinker, ~2 Hz
+  ch::Output<float> caret{0.0f};     // the text field's I-beam, ~1 Hz
+  ch::Output<float> subpanel{0.0f};  // the Text Editor subpanel's wipe
 
   std::array<Pattern, 4> backdrops;
   bool backdropsBuilt = false;
@@ -1207,25 +1203,25 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     struct Case {
       uint32_t bg, ts, bs;
     };
-    const Case cases[] = {{0xAEB2C3, 0xDCDEE5, 0x5D6069},  // Front Panel
-                          {0x63639C, 0xB7B7D1, 0x2F2F4A}}; // switch button
-    for (const Case &c : cases) {
+    const Case cases[] = {{0xAEB2C3, 0xDCDEE5, 0x5D6069},   // Front Panel
+                          {0x63639C, 0xB7B7D1, 0x2F2F4A}};  // switch button
+    for (const Case& c : cases) {
       const cde::Derived d = cde::calculate(cde::from8(c.bg));
-      std::printf("[cde] bg #%06X -> ts #%06X (want #%06X) %s   "
-                  "bs #%06X (want #%06X) %s\n",
-                  c.bg, cde::toHex(d.ts), c.ts,
-                  cde::toHex(d.ts) == c.ts ? "OK" : "MISMATCH",
-                  cde::toHex(d.bs), c.bs,
-                  cde::toHex(d.bs) == c.bs ? "OK" : "MISMATCH");
+      std::printf(
+          "[cde] bg #%06X -> ts #%06X (want #%06X) %s   "
+          "bs #%06X (want #%06X) %s\n",
+          c.bg, cde::toHex(d.ts), c.ts,
+          cde::toHex(d.ts) == c.ts ? "OK" : "MISMATCH", cde::toHex(d.bs), c.bs,
+          cde::toHex(d.bs) == c.bs ? "OK" : "MISMATCH");
     }
     // The five LITE colours CDE ships are all colour-set 4, and the top
     // shadow comes out DARKER than the background on every one.
     const cde::Derived lite = cde::calculate(cde::from8(0xFFF7E9));
-    std::printf("[cde] Crimson set 4 #FFF7E9 branch=%s ts #%06X bs #%06X "
-                "(ts darker than bg: %s)\n",
-                lite.branch == cde::Branch::Lite ? "LITE" : "??",
-                cde::toHex(lite.ts), cde::toHex(lite.bs),
-                (lite.ts.r < lite.bg.r) ? "yes" : "NO");
+    std::printf(
+        "[cde] Crimson set 4 #FFF7E9 branch=%s ts #%06X bs #%06X "
+        "(ts darker than bg: %s)\n",
+        lite.branch == cde::Branch::Lite ? "LITE" : "??", cde::toHex(lite.ts),
+        cde::toHex(lite.bs), (lite.ts.r < lite.bg.r) ? "yes" : "NO");
   }
 
   // -------------------------------------------------------------------------
@@ -1236,12 +1232,11 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  the inside face of a ridge. The inner one goes through
    *  shapes::inset(5, …), which is that helper's exact use case ("the
    *  same bevel again, five pixels in"). */
-  Element windowFrame(const Set &s, Element content) {
+  Element windowFrame(const Set& s, Element content) {
     return box()
         .fill(s.pBg())
         .overlay(cde::bevel(2, false, false, s))
-        .overlay(shapes::inset(
-            5, cde::bevel(1, true, false, s)))
+        .overlay(shapes::inset(5, cde::bevel(1, true, false, s)))
         .padding(6)
         .column()
         .child(std::move(content));
@@ -1251,7 +1246,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  at the left and minimise/maximise at the right [MEAS]. The label is
    *  centred in the derived foreground — white on both #B24D7A and
    *  #EDA870, because both sets fall under the 70% threshold. */
-  Element titleBar(std::string_view t, const Set &s, bool active) {
+  Element titleBar(std::string_view t, const Set& s, bool active) {
     auto furniture = [&](Element glyph) {
       return box()
           .width(Dim(20))
@@ -1264,10 +1259,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     };
     Element menuGlyph = box().width(Dim(12)).height(Dim(4)).fill(s.pFg());
     Element minGlyph = box().width(Dim(5)).height(Dim(5)).fill(s.pFg());
-    Element maxGlyph = box()
-                           .width(Dim(11))
-                           .height(Dim(11))
-                           .overlay(cde::bevelFg(1, s));
+    Element maxGlyph =
+        box().width(Dim(11)).height(Dim(11)).overlay(cde::bevelFg(1, s));
     return box()
         .height(Dim(23))
         .fill(s.pBg())
@@ -1276,7 +1269,10 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
         .alignItems(Align::Center)
         .padding(2, 1)
         .child(furniture(std::move(menuGlyph)))
-        .child(box().grow(1).alignItems(Align::Center).justify(Justify::Center)
+        .child(box()
+                   .grow(1)
+                   .alignItems(Align::Center)
+                   .justify(Justify::Center)
                    .child(cde::label(t, active ? s.fgV : s.fgV)))
         .child(furniture(std::move(minGlyph)))
         .child(box().width(Dim(2)))
@@ -1285,7 +1281,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
   /** The 31 px menu bar [MEAS], in colour set 6, with Motif's mnemonic
    *  underline on exactly one character of every label. */
-  Element menuBar(const std::vector<std::string> &items, const Set &s,
+  Element menuBar(const std::vector<std::string>& items, const Set& s,
                   int rightFrom) {
     Element bar = box()
                       .height(Dim(31))
@@ -1295,10 +1291,9 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                       .alignItems(Align::Center)
                       .padding(10, 1);
     for (int i = 0; i < (int)items.size(); ++i) {
-      if (i == rightFrom)
-        bar.child(box().grow(1));
-      bar.child(
-          box().padding(8, 4).child(cde::label(items[(size_t)i], s.fgV, cde::kType, 0)));
+      if (i == rightFrom) bar.child(box().grow(1));
+      bar.child(box().padding(8, 4).child(
+          cde::label(items[(size_t)i], s.fgV, cde::kType, 0)));
     }
     return bar;
   }
@@ -1309,16 +1304,16 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   // hand.
 
   Element fileManager() {
-    const Set &c1 = theme[1]; // frame + title bar
-    const Set &c4 = theme[4]; // the path text field
-    const Set &c5 = theme[5]; // the client area
-    const Set &c6 = theme[6]; // the menu bar
+    const Set& c1 = theme[1];  // frame + title bar
+    const Set& c4 = theme[4];  // the path text field
+    const Set& c5 = theme[5];  // the client area
+    const Set& c6 = theme[6];  // the menu bar
 
-    static const char *kNames[24] = {
-        "bin",  "boot", "cdrom",  "dev",      "devices", "etc",
-        "export", "home", "kernel", "lib",    "mnt",     "net",
-        "opt",  "platform", "proc", "sbin",   "system",  "tmp",
-        "usr",  "var",  "vol",    "xfn",      "lost+found", "core"};
+    static const char* kNames[24] = {
+        "bin",    "boot",     "cdrom",  "dev",  "devices",    "etc",
+        "export", "home",     "kernel", "lib",  "mnt",        "net",
+        "opt",    "platform", "proc",   "sbin", "system",     "tmp",
+        "usr",    "var",      "vol",    "xfn",  "lost+found", "core"};
 
     Element grid = box().column().gap(4).padding(8, 8);
     for (int row = 0; row < 4; ++row) {
@@ -1338,20 +1333,17 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
     // The scrollbar: a sunken trough in set 3 with a raised slider [MEAS
     // 15 px trough + 2 px shadow either side].
-    Element scrollbar =
+    Element scrollbar = box().width(Dim(19)).column().child(
         box()
-            .width(Dim(19))
+            .grow(1)
+            .fill(theme[3].pBg())
+            .overlay(cde::bevel(2, true, false, theme[3]))
+            .padding(2)
             .column()
             .child(box()
-                       .grow(1)
+                       .height(Dim(150))
                        .fill(theme[3].pBg())
-                       .overlay(cde::bevel(2, true, false, theme[3]))
-                       .padding(2)
-                       .column()
-                       .child(box()
-                                  .height(Dim(150))
-                                  .fill(theme[3].pBg())
-                                  .overlay(cde::bevel(2, false, false, theme[3]))));
+                       .overlay(cde::bevel(2, false, false, theme[3]))));
 
     Element client =
         box()
@@ -1377,10 +1369,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                        .padding(2)
                        .child(box().grow(1).child(std::move(grid)))
                        .child(std::move(scrollbar)))
-            .child(box()
-                       .height(Dim(2))
-                       .margin(2, 3)
-                       .overlay(cde::bevel(2, true, true, c5)))
+            .child(box().height(Dim(2)).margin(2, 3).overlay(
+                cde::bevel(2, true, true, c5)))
             .child(box()
                        .height(Dim(22))
                        .row()
@@ -1402,9 +1392,9 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   // eight numbers of the theme, on screen, in the theme.
 
   Element colorDialog() {
-    const Set &c1 = theme[1];
-    const Set &c2 = theme[2]; // dtsession's primary set — unstyled widgets
-    const Set &c6 = theme[6]; // list panes
+    const Set& c1 = theme[1];
+    const Set& c2 = theme[2];  // dtsession's primary set — unstyled widgets
+    const Set& c6 = theme[6];  // list panes
 
     Element list = box()
                        .fill(c6.pBg())
@@ -1414,18 +1404,17 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                        .column();
     for (int i = 0; i < (int)cde::kPalettes.size(); ++i) {
       const bool current = i == paletteIndex;
-      Element rowBox = box()
-                           .row()
-                           .alignItems(Align::Center)
-                           .height(Dim(20))
-                           .padding(6, 0)
-                           .child(cde::label(cde::kPalettes[(size_t)i]->name,
-                                             c6.fgV));
-      if (current)
-        rowBox.fill(c6.pSel());
+      Element rowBox =
+          box()
+              .row()
+              .alignItems(Align::Center)
+              .height(Dim(20))
+              .padding(6, 0)
+              .child(cde::label(cde::kPalettes[(size_t)i]->name, c6.fgV));
+      if (current) rowBox.fill(c6.pSel());
       list.child(std::move(rowBox));
     }
-    for (const char *n : {"Cabernet", "Charcoal", "Delphinium", "Desert",
+    for (const char* n : {"Cabernet", "Charcoal", "Delphinium", "Desert",
                           "GrayScale", "Lilac", "Neptune", "Olive"})
       list.child(box()
                      .row()
@@ -1436,7 +1425,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
-    auto scrollBar = [&](const Set &t, float sliderFrac, float sliderTop) {
+    auto scrollBar = [&](const Set& t, float sliderFrac, float sliderTop) {
       return box()
           .width(Dim(19))
           .fill(t.pBg())
@@ -1471,15 +1460,15 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
       swatches.child(std::move(rr));
     }
 
-    Element buttons = box()
-                          .row()
-                          .gap(10)
-                          .justify(Justify::SpaceBetween)
-                          .child(cde::pushButton("OK", c2, false, true))
-                          .child(cde::pushButton("Add...", c2))
-                          .child(cde::pushButton("Delete", c2, false, false,
-                                                 true))
-                          .child(cde::pushButton("Help", c2));
+    Element buttons =
+        box()
+            .row()
+            .gap(10)
+            .justify(Justify::SpaceBetween)
+            .child(cde::pushButton("OK", c2, false, true))
+            .child(cde::pushButton("Add...", c2))
+            .child(cde::pushButton("Delete", c2, false, false, true))
+            .child(cde::pushButton("Help", c2));
 
     Element body =
         box()
@@ -1488,41 +1477,41 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
             .column()
             .padding(10)
             .gap(10)
-            .child(box()
-                       .row()
-                       .gap(12)
-                       .grow(1)
-                       .child(box()
-                                  .column()
-                                  .gap(4)
-                                  .child(cde::label("Palettes", c2.fgV))
-                                  .child(std::move(listPane)))
-                       .child(box()
-                                  .column()
-                                  .gap(4)
-                                  .child(cde::label("Color Sets", c2.fgV))
-                                  .child(std::move(swatches))
-                                  .child(box().height(Dim(6)))
-                                  .child(cde::label("Number of Colors:",
-                                                    c2.fgV))
-                                  .child(cde::label("  High Color  (8 sets)",
-                                                    c2.fgV))))
+            .child(
+                box()
+                    .row()
+                    .gap(12)
+                    .grow(1)
+                    .child(box()
+                               .column()
+                               .gap(4)
+                               .child(cde::label("Palettes", c2.fgV))
+                               .child(std::move(listPane)))
+                    .child(box()
+                               .column()
+                               .gap(4)
+                               .child(cde::label("Color Sets", c2.fgV))
+                               .child(std::move(swatches))
+                               .child(box().height(Dim(6)))
+                               .child(cde::label("Number of Colors:", c2.fgV))
+                               .child(cde::label("  High Color  (8 sets)",
+                                                 c2.fgV))))
             .child(box().height(Dim(2)).overlay(cde::bevel(2, false, true, c2)))
             .child(std::move(buttons));
 
-    return windowFrame(c1, box()
-                               .grow(1)
-                               .column()
-                               .child(titleBar("Style Manager - Color", c1,
-                                               false))
-                               .child(std::move(body)));
+    return windowFrame(c1,
+                       box()
+                           .grow(1)
+                           .column()
+                           .child(titleBar("Style Manager - Color", c1, false))
+                           .child(std::move(body)));
   }
 
   // -------------------------------------------------------------------------
   // A torn-off menu, posted over the desktop. Set 6, shadowThickness 2.
 
   Element postedMenu() {
-    const Set &s = theme[6];
+    const Set& s = theme[6];
     auto item = [&](std::string_view t, bool cascade, bool insensitive) {
       Element row = box()
                         .row()
@@ -1532,26 +1521,20 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                         .child(cde::label(t, s.fgV))
                         .child(box().grow(1));
       if (cascade)
-        row.child(box()
-                      .width(Dim(9))
-                      .height(Dim(9))
-                      .fill(s.pBg())
-                      .overlay(cde::bevel(2, false, false, s)));
-      if (insensitive)
-        row.foreground(cde::stipple(s));
+        row.child(box().width(Dim(9)).height(Dim(9)).fill(s.pBg()).overlay(
+            cde::bevel(2, false, false, s)));
+      if (insensitive) row.foreground(cde::stipple(s));
       return row;
     };
     // XmSHADOW_ETCHED_IN at T = 2 — a two-pass etched shadow, and the only
     // place in a CDE session where that branch of XmeDrawShadows shows.
     auto separator = [&] {
-      return box()
-          .height(Dim(2))
-          .margin(3)
-          .overlay(cde::bevel(2, true, true, s));
+      return box().height(Dim(2)).margin(3).overlay(
+          cde::bevel(2, true, true, s));
     };
     // The tear-off "perforation" Motif puts at the top of a posted menu.
-    Element tearOff = box().height(Dim(9)).margin(3).overlay(
-        cde::bevel(2, true, true, s));
+    Element tearOff =
+        box().height(Dim(9)).margin(3).overlay(cde::bevel(2, true, true, s));
 
     return box()
         .fill(s.pBg())
@@ -1576,12 +1559,12 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
   Element derivationStrip() {
     mnemonics.held.clear();
-    const Set &s = theme[2];
+    const Set& s = theme[2];
     const int v = std::clamp((int)std::lround(sweep.value() * 255.0f), 0, 255);
     const cde::Rgb bgv = cde::from8((uint32_t)(v << 16 | v << 8 | v));
     const cde::Derived d = cde::calculate(bgv);
 
-    auto swatch = [&](const char *name, cde::Rgb c) {
+    auto swatch = [&](const char* name, cde::Rgb c) {
       char hex[16];
       std::snprintf(hex, sizeof(hex), "#%06X", cde::toHex(c));
       return box()
@@ -1597,11 +1580,12 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
           .child(cde::label(hex, s.fgV));
     };
 
-    const char *branch = d.branch == cde::Branch::Dark     ? "DARK"
-                         : d.branch == cde::Branch::Lite   ? "LITE"
-                                                           : "MEDIUM";
+    const char* branch = d.branch == cde::Branch::Dark   ? "DARK"
+                         : d.branch == cde::Branch::Lite ? "LITE"
+                                                         : "MEDIUM";
     char line[128];
-    std::snprintf(line, sizeof(line), "B = %5d      branch %-6s      f = (%d, %d, %d)",
+    std::snprintf(line, sizeof(line),
+                  "B = %5d      branch %-6s      f = (%d, %d, %d)",
                   d.brightness, branch, d.fSel, d.fBs, d.fTs);
 
     return box()
@@ -1616,8 +1600,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
         // the Motif mnemonic underline through the Paragraph-span path,
         // which is the check that kept that off the gap list.
         .child(box().padding(8, 6).child(
-            mnemonics.make("XmGetColors( bg ) - live, via SigilWeave",
-                           s.fgV)))
+            mnemonics.make("XmGetColors( bg ) - live, via SigilWeave", s.fgV)))
         .child(box()
                    .row()
                    .gap(6)
@@ -1637,7 +1620,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   /** The end handles: a 1-px alternating bottomShadow/topShadow texture,
    *  period 2 in y [MEAS at x = 60, y = 700..761, perfect alternation].
    *  The only texture on the panel. */
-  Element handle(const Set &s) {
+  Element handle(const Set& s) {
     Element h = box().width(Dim(18)).column();
     for (int i = 0; i < 31; ++i)
       h.child(box().height(Dim(1)).fill((i & 1) ? s.pTs() : s.pBs()));
@@ -1648,7 +1631,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
         .child(std::move(h));
   }
 
-  Element panelSeparator(const Set &s) {
+  Element panelSeparator(const Set& s) {
     return box().width(Dim(2)).column().child(
         box().grow(1).overlay(cde::bevel(2, true, true, s)));
   }
@@ -1656,13 +1639,16 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   /** A Front Panel control: a 48 x 48 icon, 4 px either side, with the
    *  small chevron above it that marks a subpanel [SRC: Text Editor,
    *  Printer, Applications and Help have subpanels]. */
-  Element control(Element icon, const Set &s, float w, bool subpanelArrow) {
-    Element chev = box().height(Dim(10)).alignItems(Align::Center).justify(
-        Justify::Center);
+  Element control(Element icon, const Set& s, float w, bool subpanelArrow) {
+    Element chev = box()
+                       .height(Dim(10))
+                       .alignItems(Align::Center)
+                       .justify(Justify::Center);
     if (subpanelArrow) {
       Element up = box().column().alignItems(Align::Center);
       for (int i = 0; i < 4; ++i)
-        up.child(box().width(Dim((float)(1 + i * 2))).height(Dim(1)).fill(s.pFg()));
+        up.child(
+            box().width(Dim((float)(1 + i * 2))).height(Dim(1)).fill(s.pFg()));
       chev.child(std::move(up));
     }
     return box()
@@ -1678,20 +1664,13 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  ONCE A MINUTE — there is no smooth motion anywhere in CDE, so the
    *  step is declared with bind().quantize(61) rather than left to
    *  emerge from the frame rate. */
-  Element clockIcon(const Set &s) {
+  Element clockIcon(const Set& s) {
     Element face = stack().width(Dim(48)).height(Dim(48));
-    face.child(box()
-                   .inset(0)
-                   .corners({24})
-                   .fill(s.pBg())
-                   .foreground(PathFormat{.width = 2,
-                                          .strokeFill = Fill::color(cde::C(
-                                              cde::kIconGray[6])),
-                                          .align = PathFormat::Align::Inner}));
-    face.child(box()
-                   .inset(4)
-                   .corners({20})
-                   .fill(cde::C(cde::kIconGray[0])));
+    face.child(box().inset(0).corners({24}).fill(s.pBg()).foreground(
+        PathFormat{.width = 2,
+                   .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
+                   .align = PathFormat::Align::Inner}));
+    face.child(box().inset(4).corners({20}).fill(cde::C(cde::kIconGray[0])));
     // Twelve ticks, placed by arithmetic.
     for (int i = 0; i < 12; ++i) {
       const float a = (float)i * 30.0f * (float)M_PI / 180.0f;
@@ -1735,7 +1714,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   }
 
   /** FpCM, the date control — a calendar page. */
-  Element dateIcon(const Set &s) {
+  Element dateIcon(const Set& s) {
     return stack()
         .width(Dim(48))
         .height(Dim(48))
@@ -1766,15 +1745,15 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  `TYPE busy` blinker, a blank and Exit. Workspace n's button is filled
    *  with colour set 3, 8, 6 and 7 respectively [MEAS] — the single most
    *  visible use of the palette on the screen. */
-  Element workspaceSwitch(const Set &s) {
-    static const char *kNames[4] = {"One", "Two", "Three", "Four"};
+  Element workspaceSwitch(const Set& s) {
+    static const char* kNames[4] = {"One", "Two", "Three", "Four"};
     static const int kSets[4] = {3, 8, 6, 7};
     Element gridEl = box().column().gap(3);
     for (int r = 0; r < 2; ++r) {
       Element rr = box().row().gap(3);
       for (int c = 0; c < 2; ++c) {
         const int i = r * 2 + c;
-        const Set &ws = theme[kSets[i]];
+        const Set& ws = theme[kSets[i]];
         rr.child(box()
                      .width(Dim(129))
                      .height(Dim(22))
@@ -1817,7 +1796,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   }
 
   Element frontPanel() {
-    const Set &s = theme[2]; // dtsession: the primary colour set
+    const Set& s = theme[2];  // dtsession: the primary colour set
 
     Element rowEl = box().row().alignItems(Align::Center).height(Dim(74));
     rowEl.child(handle(s));
@@ -1867,7 +1846,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  node's decorations, which is exactly what a bevelled panel needs
    *  and what trim()/scaleY could not have given. */
   Element helpSubpanel() {
-    const Set &s = theme[2];
+    const Set& s = theme[2];
     Element col = box()
                       .fill(s.pBg())
                       .overlay(cde::bevel(2, false, false, s))
@@ -1881,11 +1860,9 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                                  .gap(6)
                                  .child(cde::art(cde::icoHelp(), 1.4f, s))
                                  .child(cde::art(cde::icoApps(), 1.4f, s)))
-                      .child(box()
-                                 .height(Dim(6))
-                                 .width(Dim(60))
-                                 .overlay(cde::bevel(2, true, true, s)));
-    return col.mask(by::edge(270.0f, &subpanel)); // 270 = from the BOTTOM
+                      .child(box().height(Dim(6)).width(Dim(60)).overlay(
+                          cde::bevel(2, true, true, s)));
+    return col.mask(by::edge(270.0f, &subpanel));  // 270 = from the BOTTOM
   }
 
   // -------------------------------------------------------------------------
@@ -1895,8 +1872,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
    *  primary colour set, which is why iconified windows change colour
    *  with the theme along with everything else. */
   Element iconifiedWindow(std::string_view title,
-                          const std::vector<std::string> &pixmap) {
-    const Set &s = theme[2];
+                          const std::vector<std::string>& pixmap) {
+    const Set& s = theme[2];
     return box()
         .column()
         .alignItems(Align::Center)
@@ -1916,7 +1893,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .child(cde::label(title, s.fgV)));
   }
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     Element root = stack().width(Dim(1152)).height(Dim(900));
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
@@ -1928,12 +1905,12 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .cache(Cache::Texture));
 
     // 2. The File Manager.
-    root.child(fileManager().left(Dim(40)).top(Dim(48)).width(
-        Dim(600)).height(Dim(452)));
+    root.child(fileManager().left(Dim(40)).top(Dim(48)).width(Dim(600)).height(
+        Dim(452)));
 
     // 3. The Style Manager's Color dialog.
-    root.child(colorDialog().left(Dim(664)).top(Dim(96)).width(
-        Dim(452)).height(Dim(356)));
+    root.child(colorDialog().left(Dim(664)).top(Dim(96)).width(Dim(452)).height(
+        Dim(356)));
 
     // 4. A posted (torn-off) menu.
     root.child(postedMenu().left(Dim(700)).top(Dim(506)));
@@ -1944,11 +1921,9 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     // 6. The Help subpanel, wiping up out of the panel. The Help control
     //    sits at x = 912..968, so the subpanel is centred on it and its
     //    bottom edge meets the panel's top.
-    root.child(helpSubpanel()
-                   .left(Dim(865))
-                   .top(Dim(700))
-                   .width(Dim(150))
-                   .height(Dim(106)));
+    root.child(
+        helpSubpanel().left(Dim(865)).top(Dim(700)).width(Dim(150)).height(
+            Dim(106)));
 
     // 6b. Iconified windows on the root, where dtwm parks them.
     root.child(box()
@@ -1962,8 +1937,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
     // 7. The Front Panel, bottom-centred. 960 wide => 948 of content,
     //    which is exactly the measured control list.
-    root.child(frontPanel().left(Dim(96)).top(Dim(806)).width(
-        Dim(960)).height(Dim(86)));
+    root.child(frontPanel().left(Dim(96)).top(Dim(806)).width(Dim(960)).height(
+        Dim(86)));
 
     (void)ctx;
     return root;
@@ -1971,7 +1946,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1152, 900);
     ctx.background(cde::C(0x000000));
     // The still has to name its moment: palettes snap every 3 s over
@@ -2014,7 +1989,9 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
       // The subpanel posts and unposts on a 12 s cycle, in step with the
       // palette loop.
       const double c = std::fmod(t, 12.0);
-      const double up = c < 1.0 ? c : (c < 10.5 ? 1.0 : std::max(0.0, 1.0 - (c - 10.5) / 0.7));
+      const double up =
+          c < 1.0 ? c
+                  : (c < 10.5 ? 1.0 : std::max(0.0, 1.0 - (c - 10.5) / 0.7));
       subpanel = (float)std::clamp(up, 0.0, 1.0);
       // The sweep: 0 -> 255 over 8 s, held 1 s at each end.
       const double u = std::fmod(t, 10.0);
@@ -2028,14 +2005,15 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
   int lastSweepByte = -1;
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // Beat one: the palette cycles every 3 s. SNAP, do not crossfade —
     // CDE's colour server re-allocates the cells and every window
     // repaints on the next expose; a 300 ms lerp across a desktop would
     // be the single most anachronistic thing you could add.
     if (elapsed >= nextSwitch) {
       nextSwitch = std::floor(elapsed / 3.0) * 3.0 + 3.0;
-      paletteIndex = ((int)std::floor(elapsed / 3.0)) % (int)cde::kPalettes.size();
+      paletteIndex =
+          ((int)std::floor(elapsed / 3.0)) % (int)cde::kPalettes.size();
       theme.load(*cde::kPalettes[(size_t)paletteIndex]);
       // The forty Fills are written above; this re-describe exists ONLY
       // because two things cannot be bound — a Pattern bakes its colours
@@ -2057,14 +2035,15 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     const bool nearSwitch = sinceSwitch >= 0.0 && sinceSwitch < 0.09;
     if (nearSwitch || elapsed - lastReport >= 0.5) {
       lastReport = elapsed;
-      const auto &st = ctx.composer.stats();
-      std::printf("[cde]%s t=%6.3f pal=%-8s instances=%zu pictures=%zu "
-                  "painted=%zu recorded=%zu | reconcile %.3f layout %.3f "
-                  "volatile %.3f paint %.3f ms\n",
-                  nearSwitch ? "*" : " ", elapsed,
-                  cde::kPalettes[(size_t)paletteIndex]->name, st.instances,
-                  st.picturesLive, st.nodesPainted, st.picturesRecorded,
-                  st.reconcileMs, st.layoutMs, st.volatileMs, st.paintMs);
+      const auto& st = ctx.composer.stats();
+      std::printf(
+          "[cde]%s t=%6.3f pal=%-8s instances=%zu pictures=%zu "
+          "painted=%zu recorded=%zu | reconcile %.3f layout %.3f "
+          "volatile %.3f paint %.3f ms\n",
+          nearSwitch ? "*" : " ", elapsed,
+          cde::kPalettes[(size_t)paletteIndex]->name, st.instances,
+          st.picturesLive, st.nodesPainted, st.picturesRecorded, st.reconcileMs,
+          st.layoutMs, st.volatileMs, st.paintMs);
     }
   }
 };

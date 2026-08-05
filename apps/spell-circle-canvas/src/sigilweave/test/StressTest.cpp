@@ -4,24 +4,22 @@
  * multi-script confetti scene.
  */
 
-#include "TestSupport.h"
-
 #include <gtest/gtest.h>
-
-#include <sigilweave/PaintShaders.h>
-
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
+#include <sigilweave/PaintShaders.h>
 
 #include <chrono>
 #include <random>
 #include <string>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
   constexpr int kWordCount = 2000;
-  const char8_t *words[] = {u8"letters", u8"water", u8"stars", u8"flow",
+  const char8_t* words[] = {u8"letters", u8"water", u8"stars", u8"flow",
                             u8"cached",  u8"paint", u8"文字",  u8"波紋",
                             u8"글자",    u8"星光"};
   std::u8string text;
@@ -40,8 +38,7 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
 
   TextStyle textStyle = basicStyle(8.0f);
   textStyle.paint = PaintStyle(SK_ColorWHITE);
-  textStyle.paint
-      .addUnderlay(PaintLayer::glow(0x772A77FF, 1.8f))
+  textStyle.paint.addUnderlay(PaintLayer::glow(0x772A77FF, 1.8f))
       .addUnderlay(PaintLayer::outline(0xFF061229, 0.7f));
   textStyle.paint.foreground.setShader(std::move(mesh));
   SkPaint starOverlay;
@@ -50,7 +47,7 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
   starOverlay.setBlendMode(SkBlendMode::kScreen);
   textStyle.paint.addOverlay(PaintLayer(std::move(starOverlay)));
 
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   paragraph.appendText(text, textStyle);
   BlockFlow flow(bounds);
@@ -62,9 +59,8 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
   ASSERT_FALSE(layout.overflowed()) << "the stress paragraph must be whole";
 
   size_t glyphCount = 0;
-  for (const PositionedRun &run : layout.runs)
-    if (run.shaped)
-      glyphCount += run.shaped->glyphs.size();
+  for (const PositionedRun& run : layout.runs)
+    if (run.shaped) glyphCount += run.shaped->glyphs.size();
   EXPECT_GT(glyphCount, 7000u);
 
   constexpr SkColor kBackground = 0xFF050A18;
@@ -89,19 +85,19 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
   // numbers (TeX's one-measure model), which is what keeps the active list
   // bounded by the line width instead of growing with the paragraph. The
   // time bound below fails if that merge stops happening.
-  FontContext &fontContext = sharedContext();
-  static constexpr const char8_t *kWordPool[] = {
+  FontContext& fontContext = sharedContext();
+  static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
       u8"beacon",  u8"steady",  u8"rhythm", u8"turing",  u8"flow",
       u8"lattice", u8"shapes",  u8"glyphs", u8"marker",  u8"cache"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 10000, 11), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 40000)); // tall: everything fits
+  BlockFlow flow(SkRect::MakeWH(420, 40000));  // tall: everything fits
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
   ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options); // warm shapes
+      layoutParagraph(fontContext, paragraph, flow, options);  // warm shapes
   ASSERT_FALSE(layout.overflowed());
 
   const auto startTime = std::chrono::steady_clock::now();
@@ -119,8 +115,7 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
 #ifdef NDEBUG
   const double maximumMicroseconds = 8000.0;
 #else
-  const double maximumMicroseconds =
-      80000.0;
+  const double maximumMicroseconds = 80000.0;
 #endif
   EXPECT_LT(averageMicroseconds, maximumMicroseconds)
       << "KP active list grows with the paragraph";
@@ -133,16 +128,16 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   // cost stays bounded by what the geometry can hold rather than by the
   // paragraph — the same property Overflow.HugeRelayoutIsBoundedByGeometry
   // checks for relayout. Almost all of this text never gets placed.
-  FontContext &fontContext = sharedContext();
-  static constexpr const char8_t *kWordPool[] = {
+  FontContext& fontContext = sharedContext();
+  static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
       u8"Beacon",  u8"steady",  u8"rhythm", u8"Turing",  u8"flow",
       u8"Lattice", u8"shapes",  u8"glyphs", u8"Марка",   u8"cache"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 30000, 7), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320)); // room for ~1% of the text
+  BlockFlow flow(SkRect::MakeWH(420, 320));  // room for ~1% of the text
   ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow); // warm analysis + shapes
+      layoutParagraph(fontContext, paragraph, flow);  // warm analysis + shapes
   ASSERT_TRUE(layout.overflowed());
 
   // Scoped query over the placed window only.
@@ -171,8 +166,7 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
 #ifdef NDEBUG
   const double maximumMicroseconds = 3000.0;
 #else
-  const double maximumMicroseconds =
-      30000.0;
+  const double maximumMicroseconds = 30000.0;
 #endif
   EXPECT_LT(averageMicroseconds, maximumMicroseconds)
       << "paint restyle scales with unplaced text";
@@ -180,8 +174,8 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
 // ── 2000-token multi-script confetti stress ───────────────────────────────
 
 TEST(Stress, BabelConfetti2000) {
-  FontContext &fontContext = sharedContext();
-  const char8_t *tokens[] = {
+  FontContext& fontContext = sharedContext();
+  const char8_t* tokens[] = {
       u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
       u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
       u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
@@ -211,7 +205,7 @@ TEST(Stress, BabelConfetti2000) {
   // Nothing may leak a .notdef for scripts macOS covers (all of these).
   size_t unresolvedGlyphCount = 0;
   size_t totalGlyphCount = 0;
-  for (const PositionedRun &run : layout.runs)
+  for (const PositionedRun& run : layout.runs)
     for (uint16_t glyph : run.shaped->glyphs) {
       totalGlyphCount++;
       unresolvedGlyphCount += glyph == 0;

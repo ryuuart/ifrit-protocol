@@ -1,4 +1,5 @@
 #include "SpellCircleModel.h"
+
 #include <spdlog/spdlog.h>
 
 namespace {
@@ -11,29 +12,27 @@ constexpr int kMaxFeedItems = 500;
 // instead of wiping it, so the sidebar list doesn't flash empty and refill.
 constexpr int kClearKeepItems = kMaxFeedItems - 450;
 
-} // namespace
+}  // namespace
 
-SpellCircleModel::SpellCircleModel(QObject *parent)
+SpellCircleModel::SpellCircleModel(QObject* parent)
     : QAbstractListModel(parent) {}
 
-int SpellCircleModel::rowCount(const QModelIndex &parent) const {
-  if (parent.isValid())
-    return 0;
+int SpellCircleModel::rowCount(const QModelIndex& parent) const {
+  if (parent.isValid()) return 0;
   return m_items.size();
 }
 
-QVariant SpellCircleModel::data(const QModelIndex &index, int role) const {
-  if (!index.isValid() || index.row() >= m_items.size())
-    return {};
+QVariant SpellCircleModel::data(const QModelIndex& index, int role) const {
+  if (!index.isValid() || index.row() >= m_items.size()) return {};
 
-  const auto &item = m_items.at(index.row());
+  const auto& item = m_items.at(index.row());
   switch (static_cast<Roles>(role)) {
-  case TimestampRole:
-    return item.timestamp.toString(Qt::ISODateWithMs);
-  case SourceRole:
-    return item.source;
-  case MessageRole:
-    return item.message;
+    case TimestampRole:
+      return item.timestamp.toString(Qt::ISODateWithMs);
+    case SourceRole:
+      return item.source;
+    case MessageRole:
+      return item.message;
   }
   return {};
 }
@@ -48,8 +47,7 @@ QHash<int, QByteArray> SpellCircleModel::roleNames() const {
 
 void SpellCircleModel::clear() {
   const bool willTrimFeed = m_items.size() > kClearKeepItems;
-  if (!willTrimFeed && !m_hasGeometry)
-    return;
+  if (!willTrimFeed && !m_hasGeometry) return;
 
   // The document isn't row data — rowCount()/data() only ever look at
   // m_items — so clearing it needs no model reset/row signals of its own.
@@ -73,8 +71,8 @@ void SpellCircleModel::clear() {
   emit geometryChanged();
 }
 
-void SpellCircleModel::onSpellCircleReceived(const QString &source,
-                                             const QByteArray &payload) {
+void SpellCircleModel::onSpellCircleReceived(const QString& source,
+                                             const QByteArray& payload) {
   if (m_arrivalTimer.isValid()) {
     const double interval = m_arrivalTimer.restart() / 1000.0;
     const double rate = interval > 0.0 ? 1.0 / interval : 0.0;
@@ -94,8 +92,9 @@ void SpellCircleModel::onSpellCircleReceived(const QString &source,
   m_hasGeometry = stats.hasGeometry();
 
   // One concise feed entry per received scene, rather than one per circle.
-  const QString message = QStringLiteral("SpellCircle received — "
-                                         "%1 circles, %2 edges, %3 boxes")
+  const QString message = QStringLiteral(
+                              "SpellCircle received — "
+                              "%1 circles, %2 edges, %3 boxes")
                               .arg(stats.circles)
                               .arg(stats.edges)
                               .arg(stats.boxes);

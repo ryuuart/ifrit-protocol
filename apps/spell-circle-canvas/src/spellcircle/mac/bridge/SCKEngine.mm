@@ -10,12 +10,12 @@
 #include "SkiaOffscreenSurface.h"
 #include "UdpReceiver.h"
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
-#include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
@@ -40,7 +40,7 @@
 
 namespace {
 
-constexpr int kDefaultPort = 27015; // matches the Qt app / python sender
+constexpr int kDefaultPort = 27015;  // matches the Qt app / python sender
 
 constexpr double kDefaultTargetFps = 60.0;
 constexpr double kMinTargetFps = 1.0;
@@ -53,8 +53,8 @@ constexpr double kMaxTargetFps = 240.0;
 // of the offscreen/Syphon texture — drawn only in the window blit.
 struct BlitPalette {
   SkColor backdrop;
-  SkColor checkerBase; // the checkerboard's ground cell
-  SkColor checkerAlt;  // the alternating cell
+  SkColor checkerBase;  // the checkerboard's ground cell
+  SkColor checkerAlt;   // the alternating cell
   SkColor canvasBorder;
 };
 
@@ -78,16 +78,14 @@ constexpr int kCheckerCellPixels = 16;
 
 SkColor toSkColor(NSColor *color) {
   NSColor *srgb = [color colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
-  if (!srgb)
-    return SK_ColorRED;
-  return SkColorSetARGB(
-      static_cast<U8CPU>(std::clamp(srgb.alphaComponent, 0.0, 1.0) * 255.0),
-      static_cast<U8CPU>(std::clamp(srgb.redComponent, 0.0, 1.0) * 255.0),
-      static_cast<U8CPU>(std::clamp(srgb.greenComponent, 0.0, 1.0) * 255.0),
-      static_cast<U8CPU>(std::clamp(srgb.blueComponent, 0.0, 1.0) * 255.0));
+  if (!srgb) return SK_ColorRED;
+  return SkColorSetARGB(static_cast<U8CPU>(std::clamp(srgb.alphaComponent, 0.0, 1.0) * 255.0),
+                        static_cast<U8CPU>(std::clamp(srgb.redComponent, 0.0, 1.0) * 255.0),
+                        static_cast<U8CPU>(std::clamp(srgb.greenComponent, 0.0, 1.0) * 255.0),
+                        static_cast<U8CPU>(std::clamp(srgb.blueComponent, 0.0, 1.0) * 255.0));
 }
 
-} // namespace
+}  // namespace
 
 @interface SCKFeedEntry ()
 - (instancetype)initWithTimestamp:(NSString *)timestamp
@@ -148,14 +146,12 @@ SkColor toSkColor(NSColor *color) {
 }
 
 - (instancetype)init {
-  if (!(self = [super init]))
-    return nil;
+  if (!(self = [super init])) return nil;
 
   _device = MTLCreateSystemDefaultDevice();
   _queue = [_device newCommandQueue];
   if (_device && _queue)
-    _graphite = SkiaGraphiteContext::createMetal((__bridge void *)_device,
-                                                 (__bridge void *)_queue);
+    _graphite = SkiaGraphiteContext::createMetal((__bridge void *)_device, (__bridge void *)_queue);
   _sceneRenderer = std::make_unique<spellcircle::SceneRenderer>();
 
   // Same Syphon server name as the Qt app, so downstream clients
@@ -163,9 +159,7 @@ SkColor toSkColor(NSColor *color) {
   // SyphonMetalServer announces itself immediately and keeps the last
   // published frame for late-joining clients.
   if (_device)
-    _syphon = [[SyphonMetalServer alloc] initWithName:@"SpellCircle"
-                                               device:_device
-                                              options:nil];
+    _syphon = [[SyphonMetalServer alloc] initWithName:@"SpellCircle" device:_device options:nil];
 
   _receiver = std::make_unique<spellcircle::UdpReceiver>();
   _port = kDefaultPort;
@@ -186,10 +180,10 @@ SkColor toSkColor(NSColor *color) {
   _boxDistance = 40.0;
   _fontSize = 36.0;
   _fontFamily = @"";
-  _fontWeight = 700; // bold, matching the Qt app's default QFont
+  _fontWeight = 700;  // bold, matching the Qt app's default QFont
   _fontItalic = NO;
   _accentColor = [NSColor colorWithSRGBRed:1.0 green:0.0 blue:0.0 alpha:1.0];
-  _darkAppearance = YES; // the canvas view syncs the real appearance
+  _darkAppearance = YES;  // the canvas view syncs the real appearance
 
   _timestampFormatter = [[NSDateFormatter alloc] init];
   _timestampFormatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss.SSS";
@@ -200,7 +194,7 @@ SkColor toSkColor(NSColor *color) {
 }
 
 - (void)dealloc {
-  _receiver->stop(); // joins the I/O thread; no callbacks after this
+  _receiver->stop();  // joins the I/O thread; no callbacks after this
   [_syphon stop];
 }
 
@@ -208,11 +202,9 @@ SkColor toSkColor(NSColor *color) {
 
 - (void)setPort:(int)port {
   const int boundedPort = std::clamp(port, 1, 65535);
-  if (_port == boundedPort)
-    return;
+  if (_port == boundedPort) return;
   _port = boundedPort;
-  if (_listening)
-    [self start];
+  if (_listening) [self start];
 }
 
 - (BOOL)start {
@@ -220,11 +212,9 @@ SkColor toSkColor(NSColor *color) {
   // tears the previous socket down first), matching NetworkManager.
   __weak SCKEngine *weakSelf = self;
   const std::string error = _receiver->start(
-      static_cast<uint16_t>(_port),
-      [weakSelf](std::vector<uint8_t> payload, std::string source) {
+      static_cast<uint16_t>(_port), [weakSelf](std::vector<uint8_t> payload, std::string source) {
         // I/O thread → main queue; the engine is main-thread only.
-        NSData *data = [NSData dataWithBytes:payload.data()
-                                      length:payload.size()];
+        NSData *data = [NSData dataWithBytes:payload.data() length:payload.size()];
         NSString *sourceText = @(source.c_str());
         dispatch_async(dispatch_get_main_queue(), ^{
           [weakSelf receiveDatagram:data source:sourceText];
@@ -237,8 +227,7 @@ SkColor toSkColor(NSColor *color) {
   }
 
   [self setListeningState:YES
-               statusText:[NSString
-                              stringWithFormat:@"Listening on UDP :%d", _port]];
+               statusText:[NSString stringWithFormat:@"Listening on UDP :%d", _port]];
   return YES;
 }
 
@@ -271,16 +260,14 @@ SkColor toSkColor(NSColor *color) {
 }
 
 /** Returns YES when the payload decoded into a changed scene. */
-- (BOOL)ingestPayload:(const void *)payload
-                 size:(size_t)size
-               source:(NSString *)source {
+- (BOOL)ingestPayload:(const void *)payload size:(size_t)size source:(NSString *)source {
   // Arrival rate over a one-second window — never per-packet intervals:
   // queued datagrams are drained back-to-back microseconds apart, so an
   // interval-based rate explodes into the thousands whenever the main
   // thread was briefly busy (e.g. during a drag).
   const CFTimeInterval now = CACurrentMediaTime();
   if (_lastPacketTime > 0 && now - _lastPacketTime > 2.0)
-    _rateWindowStart = 0; // stream gap: restart the window
+    _rateWindowStart = 0;  // stream gap: restart the window
   if (_rateWindowStart <= 0) {
     _rateWindowStart = now;
     _rateWindowPackets = 0;
@@ -299,8 +286,7 @@ SkColor toSkColor(NSColor *color) {
   // scene — a static sender pushing at a fixed rate costs nothing beyond
   // the receive itself.
   const auto *bytes = static_cast<const uint8_t *>(payload);
-  if (size == _lastPayload.size() && size > 0 &&
-      std::memcmp(bytes, _lastPayload.data(), size) == 0)
+  if (size == _lastPayload.size() && size > 0 && std::memcmp(bytes, _lastPayload.data(), size) == 0)
     return NO;
   _lastPayload.assign(bytes, bytes + size);
 
@@ -311,10 +297,9 @@ SkColor toSkColor(NSColor *color) {
   SCKFeedEntry *entry = [[SCKFeedEntry alloc]
       initWithTimestamp:[_timestampFormatter stringFromDate:[NSDate date]]
                  source:source
-                message:[NSString stringWithFormat:
-                                      @"SpellCircle received — %d circles, "
-                                      @"%d edges, %d boxes",
-                                      stats.circles, stats.edges, stats.boxes]];
+                message:[NSString stringWithFormat:@"SpellCircle received — %d circles, "
+                                                   @"%d edges, %d boxes",
+                                                   stats.circles, stats.edges, stats.boxes]];
   [self.delegate engine:self didAppendFeedEntry:entry];
   return YES;
 }
@@ -322,8 +307,7 @@ SkColor toSkColor(NSColor *color) {
 // Reads as zero once the stream has been silent for a couple of seconds,
 // so a stopped sender doesn't leave a stale rate on screen.
 - (double)scenesPerSecond {
-  if (_lastPacketTime <= 0 || CACurrentMediaTime() - _lastPacketTime > 2.0)
-    return 0.0;
+  if (_lastPacketTime <= 0 || CACurrentMediaTime() - _lastPacketTime > 2.0) return 0.0;
   return _scenesPerSecond;
 }
 
@@ -343,15 +327,13 @@ SkColor toSkColor(NSColor *color) {
 // setters trivially uniform, and a config change is user-interaction rate.
 - (void)configDidChange {
   _sceneDirty = YES;
-  [self.delegate engineDidRenderScene:self]; // wake the view's display link
+  [self.delegate engineDidRenderScene:self];  // wake the view's display link
   [self renderTickIfDue];
 }
 
 - (void)setTargetFramesPerSecond:(double)targetFramesPerSecond {
-  const double bounded =
-      std::clamp(targetFramesPerSecond, kMinTargetFps, kMaxTargetFps);
-  if (_targetFramesPerSecond == bounded)
-    return;
+  const double bounded = std::clamp(targetFramesPerSecond, kMinTargetFps, kMaxTargetFps);
+  if (_targetFramesPerSecond == bounded) return;
   _targetFramesPerSecond = bounded;
   [self renderTickIfDue];
 }
@@ -363,11 +345,9 @@ SkColor toSkColor(NSColor *color) {
 /** Display-link entry point: renders the pending scene unless the render
  *  clock already produced this frame (then there is nothing left to do). */
 - (void)renderPendingScene {
-  if (!_sceneDirty)
-    return;
+  if (!_sceneDirty) return;
   const CFTimeInterval now = CACurrentMediaTime();
-  if (now - _lastRenderTime < [self renderInterval])
-    return;
+  if (now - _lastRenderTime < [self renderInterval]) return;
   _sceneDirty = NO;
   _lastRenderTime = now;
   [self resolveAndRender];
@@ -378,8 +358,7 @@ SkColor toSkColor(NSColor *color) {
  *  trailing edge so the newest scene always lands. Costs nothing while no
  *  scenes arrive (the loop parks as soon as nothing is dirty). */
 - (void)renderTickIfDue {
-  if (!_sceneDirty || _renderTickScheduled)
-    return;
+  if (!_sceneDirty || _renderTickScheduled) return;
   const CFTimeInterval now = CACurrentMediaTime();
   const CFTimeInterval due = _lastRenderTime + [self renderInterval];
   if (now >= due) {
@@ -390,16 +369,13 @@ SkColor toSkColor(NSColor *color) {
   }
   _renderTickScheduled = YES;
   __weak SCKEngine *weakSelf = self;
-  dispatch_after(
-      dispatch_time(DISPATCH_TIME_NOW,
-                    static_cast<int64_t>((due - now) * NSEC_PER_SEC)),
-      dispatch_get_main_queue(), ^{
-        SCKEngine *strongSelf = weakSelf;
-        if (!strongSelf)
-          return;
-        strongSelf->_renderTickScheduled = NO;
-        [strongSelf renderTickIfDue];
-      });
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, static_cast<int64_t>((due - now) * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+                   SCKEngine *strongSelf = weakSelf;
+                   if (!strongSelf) return;
+                   strongSelf->_renderTickScheduled = NO;
+                   [strongSelf renderTickIfDue];
+                 });
 }
 
 - (const BlitPalette &)blitPalette {
@@ -407,10 +383,9 @@ SkColor toSkColor(NSColor *color) {
 }
 
 - (void)setDarkAppearance:(BOOL)darkAppearance {
-  if (_darkAppearance == darkAppearance)
-    return;
+  if (_darkAppearance == darkAppearance) return;
   _darkAppearance = darkAppearance;
-  _checkerShader = nullptr; // rebuilt from the new palette on the next blit
+  _checkerShader = nullptr;  // rebuilt from the new palette on the next blit
 }
 
 - (sk_sp<SkShader>)checkerShader {
@@ -423,39 +398,33 @@ SkColor toSkColor(NSColor *color) {
     cells.clear(palette.checkerBase);
     SkPaint light;
     light.setColor(palette.checkerAlt);
-    cells.drawRect(SkRect::MakeXYWH(0, 0, kCheckerCellPixels,
+    cells.drawRect(SkRect::MakeXYWH(0, 0, kCheckerCellPixels, kCheckerCellPixels), light);
+    cells.drawRect(SkRect::MakeXYWH(kCheckerCellPixels, kCheckerCellPixels, kCheckerCellPixels,
                                     kCheckerCellPixels),
-                   light);
-    cells.drawRect(SkRect::MakeXYWH(kCheckerCellPixels, kCheckerCellPixels,
-                                    kCheckerCellPixels, kCheckerCellPixels),
                    light);
     bitmap.setImmutable();
     // Graphite does not auto-upload raster-backed shader images the way
     // Ganesh did — a raster tile silently draws nothing. Upload explicitly.
     sk_sp<SkImage> tile = bitmap.asImage();
-    if (sk_sp<SkImage> uploaded = SkImages::TextureFromImage(
-            _graphite->recorder(), tile.get(), {}))
+    if (sk_sp<SkImage> uploaded = SkImages::TextureFromImage(_graphite->recorder(), tile.get(), {}))
       tile = std::move(uploaded);
-    _checkerShader =
-        tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                         SkSamplingOptions(SkFilterMode::kNearest));
+    _checkerShader = tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                      SkSamplingOptions(SkFilterMode::kNearest));
   }
   return _checkerShader;
 }
 
 - (void)resolveAndRender {
-  _resolved = spellcircle::resolveScene(_document,
-                                        static_cast<float>(_canvasWidth),
+  _resolved = spellcircle::resolveScene(_document, static_cast<float>(_canvasWidth),
                                         static_cast<float>(_canvasHeight));
   [self renderScene];
 }
 
-#define SCK_CONFIG_SETTER(Type, Name, Setter)                                  \
-  -(void)Setter : (Type)value {                                                \
-    if (_##Name == value)                                                      \
-      return;                                                                  \
-    _##Name = value;                                                           \
-    [self configDidChange];                                                    \
+#define SCK_CONFIG_SETTER(Type, Name, Setter) \
+  -(void)Setter : (Type)value {               \
+    if (_##Name == value) return;             \
+    _##Name = value;                          \
+    [self configDidChange];                   \
   }
 
 SCK_CONFIG_SETTER(double, scale, setScale)
@@ -477,30 +446,26 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
 // no matter what a settings field feeds in.
 - (void)setCanvasWidth:(int)canvasWidth {
   const int bounded = std::clamp(canvasWidth, 16, 8192);
-  if (_canvasWidth == bounded)
-    return;
+  if (_canvasWidth == bounded) return;
   _canvasWidth = bounded;
   [self configDidChange];
 }
 
 - (void)setCanvasHeight:(int)canvasHeight {
   const int bounded = std::clamp(canvasHeight, 16, 8192);
-  if (_canvasHeight == bounded)
-    return;
+  if (_canvasHeight == bounded) return;
   _canvasHeight = bounded;
   [self configDidChange];
 }
 
 - (void)setFontFamily:(NSString *)fontFamily {
-  if ([_fontFamily isEqualToString:fontFamily])
-    return;
+  if ([_fontFamily isEqualToString:fontFamily]) return;
   _fontFamily = [fontFamily copy];
   [self configDidChange];
 }
 
 - (void)setAccentColor:(NSColor *)accentColor {
-  if ([_accentColor isEqual:accentColor])
-    return;
+  if ([_accentColor isEqual:accentColor]) return;
   _accentColor = [accentColor copy];
   [self configDidChange];
 }
@@ -519,10 +484,9 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   style.boxDistance = static_cast<float>(_boxDistance * _scale);
   style.fontSize = static_cast<float>(_fontSize * _scale);
 
-  const SkFontStyle fontStyle(std::clamp(_fontWeight, 100, 1000),
-                              SkFontStyle::kNormal_Width,
-                              _fontItalic ? SkFontStyle::kItalic_Slant
-                                          : SkFontStyle::kUpright_Slant);
+  const SkFontStyle fontStyle(
+      std::clamp(_fontWeight, 100, 1000), SkFontStyle::kNormal_Width,
+      _fontItalic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
   SkFontMgr *fontManager = _sceneRenderer->fontContext().fontManager();
   if (fontManager)
     style.typeface = fontManager->matchFamilyStyle(
@@ -546,17 +510,14 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
 }
 
 - (void)renderScene {
-  if (!_graphite)
-    return;
+  if (!_graphite) return;
   [self ensureSceneTexture];
-  if (!_sceneTexture)
-    return;
+  if (!_sceneTexture) return;
 
-  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)_sceneTexture,
-                               _canvasWidth, _canvasHeight);
+  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)_sceneTexture, _canvasWidth,
+                               _canvasHeight);
   SkCanvas *canvas = surface.canvas();
-  if (!canvas)
-    return;
+  if (!canvas) return;
 
   const CFTimeInterval renderStart = CACurrentMediaTime();
 
@@ -567,8 +528,7 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   surface.submit();
 
   const double renderMillis = (CACurrentMediaTime() - renderStart) * 1000.0;
-  _renderMillis = _renderMillis == 0 ? renderMillis
-                                     : _renderMillis * 0.9 + renderMillis * 0.1;
+  _renderMillis = _renderMillis == 0 ? renderMillis : _renderMillis * 0.9 + renderMillis * 0.1;
 
   // Graphite's submission is already queued; a command buffer created on
   // the same queue afterwards is ordered behind it, so Syphon's blit sees
@@ -590,22 +550,18 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
             centerX:(double)centerX
             centerY:(double)centerY
            topInset:(double)topInsetPixels {
-  if (!_graphite || !layer || scale <= 0)
-    return;
+  if (!_graphite || !layer || scale <= 0) return;
 
   id<CAMetalDrawable> drawable = [layer nextDrawable];
-  if (!drawable)
-    return;
+  if (!drawable) return;
 
   id<MTLTexture> target = drawable.texture;
   const int width = static_cast<int>(target.width);
   const int height = static_cast<int>(target.height);
 
-  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)target, width,
-                               height);
+  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)target, width, height);
   SkCanvas *canvas = surface.canvas();
-  if (!canvas)
-    return;
+  if (!canvas) return;
 
   canvas->clear([self blitPalette].backdrop);
 
@@ -614,8 +570,7 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   const double drawWidth = _canvasWidth * scale;
   const double drawHeight = _canvasHeight * scale;
   const SkRect destination = SkRect::MakeXYWH(
-      static_cast<float>(centerX - drawWidth / 2.0),
-      static_cast<float>(centerY - drawHeight / 2.0),
+      static_cast<float>(centerX - drawWidth / 2.0), static_cast<float>(centerY - drawHeight / 2.0),
       static_cast<float>(drawWidth), static_cast<float>(drawHeight));
 
   // Transparency checkerboard as the canvas plate: shows the publishable
@@ -632,16 +587,15 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
             SkISize::Make(static_cast<int>(_sceneTexture.width),
                           static_cast<int>(_sceneTexture.height)),
             (__bridge CFTypeRef)_sceneTexture);
-    sk_sp<SkImage> sceneImage = SkImages::WrapTexture(
-        _graphite->recorder(), backendTexture, kBGRA_8888_SkColorType,
-        kPremul_SkAlphaType, /*colorSpace=*/nullptr);
+    sk_sp<SkImage> sceneImage =
+        SkImages::WrapTexture(_graphite->recorder(), backendTexture, kBGRA_8888_SkColorType,
+                              kPremul_SkAlphaType, /*colorSpace=*/nullptr);
     if (sceneImage) {
       SkPaint imagePaint;
       imagePaint.setAntiAlias(true);
-      canvas->drawImageRect(
-          sceneImage, destination,
-          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
-          &imagePaint);
+      canvas->drawImageRect(sceneImage, destination,
+                            SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
+                            &imagePaint);
     }
   }
 
@@ -667,31 +621,25 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
       const float y1 = blurBottom * (band + 1) / kBandCount;
       const float remaining = 1.0f - static_cast<float>(band) / kBandCount;
       const float sigma = kMaxSigma * remaining * remaining;
-      if (sigma < 0.4f)
-        continue;
+      if (sigma < 0.4f) continue;
       sk_sp<SkImageFilter> bandBlur = SkImageFilters::Blur(sigma, sigma, nullptr);
       canvas->save();
-      canvas->clipRect(SkRect::MakeXYWH(0, y0, static_cast<float>(width),
-                                        y1 - y0));
+      canvas->clipRect(SkRect::MakeXYWH(0, y0, static_cast<float>(width), y1 - y0));
       SkCanvas::SaveLayerRec blurLayer(nullptr, nullptr, bandBlur.get(), 0);
       canvas->saveLayer(blurLayer);
-      canvas->restore(); // composite the backdrop-blurred layer
-      canvas->restore(); // drop the band clip
+      canvas->restore();  // composite the backdrop-blurred layer
+      canvas->restore();  // drop the band clip
     }
 
     const SkColor backdropColor = [self blitPalette].backdrop;
     const SkPoint tintSpan[2] = {{0.0f, 0.0f}, {0.0f, blurBottom}};
-    const SkColor4f tintColors[2] = {
-        SkColor4f::FromColor(SkColorSetA(backdropColor, 0x55)),
-        SkColor4f::FromColor(SkColorSetA(backdropColor, 0x00))};
+    const SkColor4f tintColors[2] = {SkColor4f::FromColor(SkColorSetA(backdropColor, 0x55)),
+                                     SkColor4f::FromColor(SkColorSetA(backdropColor, 0x00))};
     SkPaint tint;
     tint.setShader(SkShaders::LinearGradient(
-        tintSpan,
-        SkGradient(SkGradient::Colors(SkSpan(tintColors, 2),
-                                      SkTileMode::kClamp),
-                   SkGradient::Interpolation())));
-    canvas->drawRect(
-        SkRect::MakeXYWH(0, 0, static_cast<float>(width), blurBottom), tint);
+        tintSpan, SkGradient(SkGradient::Colors(SkSpan(tintColors, 2), SkTileMode::kClamp),
+                             SkGradient::Interpolation())));
+    canvas->drawRect(SkRect::MakeXYWH(0, 0, static_cast<float>(width), blurBottom), tint);
   }
 
   surface.submit();

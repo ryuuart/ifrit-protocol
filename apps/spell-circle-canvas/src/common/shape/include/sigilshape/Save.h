@@ -26,11 +26,11 @@
  * opened in Houdini or Blender.
  */
 
-#include "sigilshape/Mesh.h"
-#include "sigilshape/Points.h"
-
 #include <filesystem>
 #include <string>
+
+#include "sigilshape/Mesh.h"
+#include "sigilshape/Points.h"
 
 namespace sigil::shape::save {
 
@@ -44,16 +44,16 @@ struct PlyOptions {
 /** The Cloud as a PLY (faceless — an honest point cloud). Empty
  *  geometry declines with an empty string — a zero-vertex PLY is one
  *  our own importer refuses. */
-std::string ply(const Cloud &cloud, const PlyOptions &options = {});
+std::string ply(const Cloud& cloud, const PlyOptions& options = {});
 
 /** The Mesh as a PLY with faces. Empty geometry declines likewise. */
-std::string ply(const Mesh &mesh, const PlyOptions &options = {});
+std::string ply(const Mesh& mesh, const PlyOptions& options = {});
 
 /** File conveniences; false when the geometry is empty or the file
  *  cannot be written. */
-bool ply(const std::filesystem::path &file, const Cloud &cloud,
-         const PlyOptions &options = {});
-bool ply(const std::filesystem::path &file, const Mesh &mesh,
-         const PlyOptions &options = {});
+bool ply(const std::filesystem::path& file, const Cloud& cloud,
+         const PlyOptions& options = {});
+bool ply(const std::filesystem::path& file, const Mesh& mesh,
+         const PlyOptions& options = {});
 
-} // namespace sigil::shape::save
+}  // namespace sigil::shape::save

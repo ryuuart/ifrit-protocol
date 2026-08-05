@@ -5,14 +5,12 @@
 // Windows/Linux bring-up draft: never compiled on Apple builds (see
 // CMakeLists.txt), untested until the Windows port lands.
 
+#include <QtGui/qtguiglobal.h>
+
 #include "SkiaGraphiteContext.h"
 #include "SkiaOffscreenSurface.h"
 
-#include <QtGui/qtguiglobal.h>
-
 #if QT_CONFIG(vulkan)
-
-#include <rhi/qrhi.h>
 
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkSurface.h>
@@ -21,19 +19,18 @@
 #include <include/gpu/graphite/Surface.h>
 #include <include/gpu/graphite/vk/VulkanGraphiteTypes.h>
 #include <include/gpu/vk/VulkanTypes.h>
+#include <rhi/qrhi.h>
 
-SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context,
-                                           QRhiTexture *texture,
+SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext& context,
+                                           QRhiTexture* texture,
                                            QSize pixelSize)
     : m_context(context) {
-  if (!texture)
-    return;
+  if (!texture) return;
 
   // QRhi packs the VkImage into nativeTexture().object and the image's
   // current layout into .layout.
   const QRhiTexture::NativeTexture native = texture->nativeTexture();
-  if (!native.object)
-    return;
+  if (!native.object) return;
 
   skgpu::graphite::VulkanTextureInfo info;
   // The offscreen canvas is QRhiTexture::RGBA8; QRhi maps it to
@@ -66,13 +63,13 @@ SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context,
                                              /*props=*/nullptr);
 }
 
-#else // !QT_CONFIG(vulkan)
+#else  // !QT_CONFIG(vulkan)
 
 // Qt built without Vulkan: create() already returned null, so no
 // SkiaGraphiteContext exists to construct a surface from; this definition
 // only satisfies the linker.
-SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context,
-                                           QRhiTexture *, QSize)
+SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext& context,
+                                           QRhiTexture*, QSize)
     : m_context(context) {}
 
 #endif

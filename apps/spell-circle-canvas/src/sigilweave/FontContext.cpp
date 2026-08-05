@@ -1,9 +1,9 @@
-#include "FontContextImpl.h"
-
 #include <include/core/SkData.h>
 #include <include/core/SkFontStyle.h>
 
 #include <string_view>
+
+#include "FontContextImpl.h"
 
 namespace sigil::weave {
 
@@ -11,20 +11,19 @@ namespace {
 
 // hb_face table provider backed by SkTypeface::copyTableData. hb_tag_t and
 // SkFontTableTag share the same big-endian four-cc encoding.
-hb_blob_t *getTable(hb_face_t *, hb_tag_t tag, void *context) {
-  auto *typeface = static_cast<SkTypeface *>(context);
+hb_blob_t* getTable(hb_face_t*, hb_tag_t tag, void* context) {
+  auto* typeface = static_cast<SkTypeface*>(context);
   sk_sp<SkData> data = typeface->copyTableData(tag);
-  if (!data)
-    return nullptr;
-  SkData *rawData = data.release();
+  if (!data) return nullptr;
+  SkData* rawData = data.release();
   return hb_blob_create(
-      static_cast<const char *>(rawData->data()), rawData->size(),
+      static_cast<const char*>(rawData->data()), rawData->size(),
       HB_MEMORY_MODE_READONLY, rawData,
-      [](void *releasedData) { static_cast<SkData *>(releasedData)->unref(); });
+      [](void* releasedData) { static_cast<SkData*>(releasedData)->unref(); });
 }
 
-sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr &fontManager,
-                                        const SkTypeface &primaryTypeface,
+sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr& fontManager,
+                                        const SkTypeface& primaryTypeface,
                                         int32_t codePoint,
                                         std::string_view languageTag) {
   // matchFamilyStyleCharacter wants C strings but the resolver contract
@@ -33,29 +32,27 @@ sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr &fontManager,
   // reading past languageTag.data()'s end. This runs only on a
   // fallback-cache miss, so the allocation is off the hot path.
   const std::string terminatedLanguageTag(languageTag);
-  const char *languageTags[] = {terminatedLanguageTag.c_str()};
+  const char* languageTags[] = {terminatedLanguageTag.c_str()};
   return fontManager.matchFamilyStyleCharacter(
       nullptr, primaryTypeface.fontStyle(),
-      languageTag.empty() ? nullptr : languageTags,
-      languageTag.empty() ? 0 : 1, codePoint);
+      languageTag.empty() ? nullptr : languageTags, languageTag.empty() ? 0 : 1,
+      codePoint);
 }
 
-} // namespace
+}  // namespace
 
-FontContext::Impl::TypefaceRecord &
-FontContext::Impl::recordForTypeface(const sk_sp<SkTypeface> &typeface) {
+FontContext::Impl::TypefaceRecord& FontContext::Impl::recordForTypeface(
+    const sk_sp<SkTypeface>& typeface) {
   auto [recordEntry, inserted] =
       typefaceRecords.try_emplace(typeface->uniqueID());
-  TypefaceRecord &record = recordEntry->second;
-  if (!inserted)
-    return record;
+  TypefaceRecord& record = recordEntry->second;
+  if (!inserted) return record;
 
   record.typeface = typeface;
   record.harfBuzzFace =
       hb_face_create_for_tables(getTable, typeface.get(), nullptr);
   record.unitsPerEm = typeface->getUnitsPerEm();
-  if (record.unitsPerEm <= 0)
-    record.unitsPerEm = 1000;
+  if (record.unitsPerEm <= 0) record.unitsPerEm = 1000;
   hb_face_set_upem(record.harfBuzzFace, record.unitsPerEm);
   record.harfBuzzFont = hb_font_create(record.harfBuzzFace);
   hb_font_set_scale(record.harfBuzzFont, record.unitsPerEm, record.unitsPerEm);
@@ -83,24 +80,19 @@ FontContext::Impl::recordForTypeface(const sk_sp<SkTypeface> &typeface) {
 }
 
 void FontContext::Impl::destroyTypefaceRecords() {
-  for (auto &typefaceEntry : typefaceRecords) {
-    TypefaceRecord &record = typefaceEntry.second;
-    if (record.harfBuzzFont)
-      hb_font_destroy(record.harfBuzzFont);
-    if (record.harfBuzzFace)
-      hb_face_destroy(record.harfBuzzFace);
+  for (auto& typefaceEntry : typefaceRecords) {
+    TypefaceRecord& record = typefaceEntry.second;
+    if (record.harfBuzzFont) hb_font_destroy(record.harfBuzzFont);
+    if (record.harfBuzzFace) hb_face_destroy(record.harfBuzzFace);
   }
   typefaceRecords.clear();
 }
 
 FontContext::Impl::~Impl() {
   destroyTypefaceRecords();
-  if (shapingBuffer)
-    hb_buffer_destroy(shapingBuffer);
-  if (lineBreakIterator)
-    ubrk_close(lineBreakIterator);
-  if (bidirectionalAnalyzer)
-    ubidi_close(bidirectionalAnalyzer);
+  if (shapingBuffer) hb_buffer_destroy(shapingBuffer);
+  if (lineBreakIterator) ubrk_close(lineBreakIterator);
+  if (bidirectionalAnalyzer) ubidi_close(bidirectionalAnalyzer);
 }
 
 FontContext::FontContext(sk_sp<SkFontMgr> fontManager,
@@ -109,18 +101,18 @@ FontContext::FontContext(sk_sp<SkFontMgr> fontManager,
     : m_impl(std::make_unique<Impl>()) {
   m_impl->fontManager = std::move(fontManager);
   m_impl->defaultTypeface = std::move(defaultTypeface);
-  m_impl->fallbackResolver = fallbackResolver ? std::move(fallbackResolver)
-                                              : resolveSystemFallback;
+  m_impl->fallbackResolver =
+      fallbackResolver ? std::move(fallbackResolver) : resolveSystemFallback;
   m_impl->shapingBuffer = hb_buffer_create();
 }
 
 FontContext::~FontContext() = default;
 
-SkFontMgr *FontContext::fontManager() const {
+SkFontMgr* FontContext::fontManager() const {
   return m_impl->fontManager.get();
 }
 
-const sk_sp<SkTypeface> &FontContext::defaultTypeface() const {
+const sk_sp<SkTypeface>& FontContext::defaultTypeface() const {
   if (!m_impl->defaultTypeface && m_impl->fontManager) {
     m_impl->defaultTypeface =
         m_impl->fontManager->matchFamilyStyle(nullptr, SkFontStyle());
@@ -131,13 +123,12 @@ const sk_sp<SkTypeface> &FontContext::defaultTypeface() const {
   return m_impl->defaultTypeface;
 }
 
-sk_sp<SkTypeface>
-FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
-                             int32_t codePoint, const char *languageTag) {
-  const sk_sp<SkTypeface> &resolvedPrimaryTypeface =
+sk_sp<SkTypeface> FontContext::resolveTypeface(
+    const sk_sp<SkTypeface>& primaryTypeface, int32_t codePoint,
+    const char* languageTag) {
+  const sk_sp<SkTypeface>& resolvedPrimaryTypeface =
       primaryTypeface ? primaryTypeface : defaultTypeface();
-  if (!resolvedPrimaryTypeface)
-    return nullptr;
+  if (!resolvedPrimaryTypeface) return nullptr;
 
   // ASCII fast path: direct-mapped table per primary, memoizing the last
   // primary used. Entries borrow the sk_sp held by `fallbackTypefaces`
@@ -150,7 +141,7 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
       m_impl->lastAsciiFallbackTable =
           &m_impl->asciiFallbackTypefaces[resolvedPrimaryTypeface->uniqueID()];
     }
-    if (SkTypeface *cachedTypeface =
+    if (SkTypeface* cachedTypeface =
             (*m_impl->lastAsciiFallbackTable)[codePoint])
       return sk_ref_sp(cachedTypeface);
   }
@@ -184,77 +175,67 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
   return resolvedTypeface;
 }
 
-sk_sp<SkTypeface>
-FontContext::variedTypeface(const sk_sp<SkTypeface> &base,
-                            std::span<const FontVariation> variations) {
-  const sk_sp<SkTypeface> &resolvedBase = base ? base : defaultTypeface();
-  if (variations.empty() || !resolvedBase)
-    return resolvedBase;
+sk_sp<SkTypeface> FontContext::variedTypeface(
+    const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations) {
+  const sk_sp<SkTypeface>& resolvedBase = base ? base : defaultTypeface();
+  if (variations.empty() || !resolvedBase) return resolvedBase;
 
   VariedTypefaceKey key;
   key.baseTypefaceId = resolvedBase->uniqueID();
-  key.variationBytes.assign(reinterpret_cast<const char *>(variations.data()),
+  key.variationBytes.assign(reinterpret_cast<const char*>(variations.data()),
                             variations.size() * sizeof(FontVariation));
   auto cachedClone = m_impl->variedTypefaces.find(key);
-  if (cachedClone != m_impl->variedTypefaces.end())
-    return cachedClone->second;
+  if (cachedClone != m_impl->variedTypefaces.end()) return cachedClone->second;
 
   std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
   coordinates.reserve(variations.size());
-  for (const FontVariation &variation : variations)
-    coordinates.push_back(
-        {SkSetFourByteTag(variation.tag[0], variation.tag[1], variation.tag[2],
-                          variation.tag[3]),
-         variation.value});
+  for (const FontVariation& variation : variations)
+    coordinates.push_back({SkSetFourByteTag(variation.tag[0], variation.tag[1],
+                                            variation.tag[2], variation.tag[3]),
+                           variation.value});
   SkFontArguments fontArguments;
   fontArguments.setVariationDesignPosition(
       {coordinates.data(), static_cast<int>(coordinates.size())});
   sk_sp<SkTypeface> clone = resolvedBase->makeClone(fontArguments);
   // Non-variable faces (or failed clones) resolve to the base: the axes are
   // simply inert, matching CSS font-variation-settings behavior.
-  if (!clone)
-    clone = resolvedBase;
+  if (!clone) clone = resolvedBase;
   m_impl->variedTypefaces.emplace(std::move(key), clone);
   return clone;
 }
 
-bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface> &base,
+bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
                                          const char (&axisTag)[5]) {
-  const sk_sp<SkTypeface> &face = base ? base : defaultTypeface();
-  if (!face)
-    return false;
+  const sk_sp<SkTypeface>& face = base ? base : defaultTypeface();
+  if (!face) return false;
   const SkFourByteTag wanted =
       SkSetFourByteTag(axisTag[0], axisTag[1], axisTag[2], axisTag[3]);
   const int axisCount = face->getVariationDesignParameters({});
-  if (axisCount <= 0)
-    return false;
+  if (axisCount <= 0) return false;
   std::vector<SkFontParameters::Variation::Axis> axes((size_t)axisCount);
   face->getVariationDesignParameters({axes.data(), axes.size()});
-  const SkFontParameters::Variation::Axis *axis = nullptr;
-  for (const auto &candidate : axes)
+  const SkFontParameters::Variation::Axis* axis = nullptr;
+  for (const auto& candidate : axes)
     if (candidate.tag == wanted) {
       axis = &candidate;
       break;
     }
-  if (!axis)
-    return false;
+  if (!axis) return false;
 
   // Sample every glyph's advance at both extremes (capped — a CJK face's
   // first thousand glyphs are plenty to catch a moving advance).
   const FontVariation lo(axisTag, axis->min), hi(axisTag, axis->max);
   sk_sp<SkTypeface> faceLo = variedTypeface(face, {&lo, 1});
   sk_sp<SkTypeface> faceHi = variedTypeface(face, {&hi, 1});
-  if (!faceLo || !faceHi)
-    return false;
+  if (!faceLo || !faceHi) return false;
   const int glyphCount = std::min(face->countGlyphs(), 1024);
-  if (glyphCount <= 0)
-    return false;
+  if (glyphCount <= 0) return false;
   std::vector<SkGlyphID> glyphs((size_t)glyphCount);
-  for (int i = 0; i < glyphCount; ++i)
-    glyphs[(size_t)i] = (SkGlyphID)i;
+  for (int i = 0; i < glyphCount; ++i) glyphs[(size_t)i] = (SkGlyphID)i;
   constexpr float kProbeSize = 64.0f;
   SkFont fontLo(faceLo, kProbeSize), fontHi(faceHi, kProbeSize);
-  std::vector<SkScalar> widthsLo((size_t)glyphCount), widthsHi((size_t)glyphCount);
+  std::vector<SkScalar> widthsLo((size_t)glyphCount),
+      widthsHi((size_t)glyphCount);
   fontLo.getWidths(SkSpan(glyphs.data(), glyphs.size()),
                    SkSpan(widthsLo.data(), widthsLo.size()));
   fontHi.getWidths(SkSpan(glyphs.data(), glyphs.size()),
@@ -284,8 +265,8 @@ void FontContext::purgeAllCaches() {
   m_impl->nextFallbackLanguageId = 1;
 }
 
-const FontContext::Stats &FontContext::stats() const { return m_impl->stats; }
+const FontContext::Stats& FontContext::stats() const { return m_impl->stats; }
 
 void FontContext::resetStats() { m_impl->stats = {}; }
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

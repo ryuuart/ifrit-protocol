@@ -3,20 +3,16 @@
 // canvas. Runs only when the Ultralight SDK is present (this target is
 // gated on TARGET SigilScry).
 
-#include <sigilcompose/Compose.h>
-#include <sigilcompose/Web.h>
-
-#include <sigilscry/WebEngine.h>
-#include <sigilscry/WebView.h>
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
+#include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-
-#include <gtest/gtest.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/Web.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebView.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
 #include <thread>
@@ -25,31 +21,30 @@ using namespace sigil::compose;
 
 namespace {
 
-sigil::weave::FontContext &fonts() {
-  static auto *context =
+sigil::weave::FontContext& fonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
-sigil::scry::WebEngine &sharedEngine() {
+sigil::scry::WebEngine& sharedEngine() {
   static std::shared_ptr<sigil::scry::WebEngine> engine =
       sigil::scry::WebEngine::create({});
   EXPECT_NE(engine, nullptr);
   return *engine;
 }
 
-bool waitForFrame(sigil::scry::WebView &view, uint64_t sinceVersion) {
+bool waitForFrame(sigil::scry::WebView& view, uint64_t sinceVersion) {
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(10);
   while (std::chrono::steady_clock::now() < deadline) {
-    if (view.frameVersion() > sinceVersion)
-      return true;
+    if (view.frameVersion() > sinceVersion) return true;
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   return false;
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
   auto view = sharedEngine().createView(100, 100, {.transparent = false});
@@ -61,7 +56,9 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({200, 200});
-  composer.render(box().padding(50).fill(Fill::color({1, 0, 0, 1}))
+  composer.render(box()
+                      .padding(50)
+                      .fill(Fill::color({1, 0, 0, 1}))
                       .child(web(view).grow(1)));
 
   sk_sp<SkSurface> surface =
@@ -78,13 +75,12 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
     composer.draw(*surface->getCanvas());
     surface->readPixels(bm.pixmap(), 100, 100);
     center = bm.getColor(0, 0);
-    if (center == SK_ColorGREEN)
-      break;
+    if (center == SK_ColorGREEN) break;
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
-  EXPECT_EQ(center, SK_ColorGREEN); // web frame inside the box
+  EXPECT_EQ(center, SK_ColorGREEN);  // web frame inside the box
   surface->readPixels(bm.pixmap(), 10, 10);
-  EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED); // compose chrome around it
+  EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);  // compose chrome around it
 }
 
 TEST(ComposeWeb, ComposerDrawsIntoPageFacingCanvas) {
@@ -93,9 +89,10 @@ TEST(ComposeWeb, ComposerDrawsIntoPageFacingCanvas) {
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({64, 64});
-  composer.render(box().fill(Fill::color({0, 0, 1, 1}))
-                      .child(box().width(20).height(20)
-                                 .fill(Fill::color({1, 1, 0, 1}))));
+  composer.render(
+      box()
+          .fill(Fill::color({0, 0, 1, 1}))
+          .child(box().width(20).height(20).fill(Fill::color({1, 1, 0, 1}))));
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
   composer.draw(*surface->getCanvas());

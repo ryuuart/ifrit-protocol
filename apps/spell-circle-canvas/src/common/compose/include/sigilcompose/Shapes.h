@@ -31,22 +31,21 @@
  * primitive type.
  */
 
-#include "sigilcompose/Compose.h"
-
-#include <algorithm>
-
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
+#include <include/core/SkPathUtils.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
-#include <include/core/SkPathUtils.h>
 #include <include/pathops/SkPathOps.h>
 #include <include/utils/SkParsePath.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::shapes {
 
@@ -65,11 +64,10 @@ using OutlineFn = std::function<SkPath(SkSize)>;
 struct Svg {
   SkPath parsed;
   bool preserveAspect = false;
-  bool operator==(const Svg &) const = default;
+  bool operator==(const Svg&) const = default;
   SkPath path(SkSize size) const {
     const SkRect b = parsed.getBounds();
-    if (b.isEmpty() || size.isEmpty())
-      return parsed;
+    if (b.isEmpty() || size.isEmpty()) return parsed;
     SkMatrix m;
     if (preserveAspect) {
       m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()),
@@ -82,10 +80,9 @@ struct Svg {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline Svg svg(const char *d, bool preserveAspect = false) {
+inline Svg svg(const char* d, bool preserveAspect = false) {
   SkPath parsed;
-  if (auto result = SkParsePath::FromSVGString(d))
-    parsed = std::move(*result);
+  if (auto result = SkParsePath::FromSVGString(d)) parsed = std::move(*result);
   return Svg{std::move(parsed), preserveAspect};
 }
 
@@ -97,7 +94,7 @@ inline Svg svg(const char *d, bool preserveAspect = false) {
 struct Polygon {
   int sides = 3;
   float rotationDeg = 0.0f;
-  bool operator==(const Polygon &) const = default;
+  bool operator==(const Polygon&) const = default;
   SkPath path(SkSize s) const {
     const int n = std::max(sides, 3);
     const float cx = s.width() / 2, cy = s.height() / 2;
@@ -133,7 +130,7 @@ struct Star {
   int points = 5;
   float innerRatio = 0.5f;
   float waist = 0.0f;
-  bool operator==(const Star &) const = default;
+  bool operator==(const Star&) const = default;
   SkPath path(SkSize s) const {
     const int n = std::max(points, 2) * 2;
     const float cx = s.width() / 2, cy = s.height() / 2;
@@ -187,7 +184,7 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
 struct Circle {
   SkPathDirection direction = SkPathDirection::kCW;
   unsigned startIndex = 1;
-  bool operator==(const Circle &) const = default;
+  bool operator==(const Circle&) const = default;
   SkPath path(SkSize s) const {
     SkPathBuilder b;
     b.addOval(SkRect::MakeWH(s.width(), s.height()), direction, startIndex);
@@ -208,12 +205,13 @@ inline Circle circle(SkPathDirection direction, unsigned startIndex = 1) {
  *  of the radius. Even-odd, so it fills as an annulus. */
 struct Annulus {
   float innerRatio = 0.6f;
-  bool operator==(const Annulus &) const = default;
+  bool operator==(const Annulus&) const = default;
   SkPath path(SkSize s) const {
     const float r = std::clamp(innerRatio, 0.0f, 0.999f);
     const SkRect outer = SkRect::MakeWH(s.width(), s.height());
     SkRect inner = outer;
-    inner.inset(outer.width() * 0.5f * (1 - r), outer.height() * 0.5f * (1 - r));
+    inner.inset(outer.width() * 0.5f * (1 - r),
+                outer.height() * 0.5f * (1 - r));
     SkPathBuilder b;
     b.setFillType(SkPathFillType::kEvenOdd);
     b.addOval(outer);
@@ -230,7 +228,7 @@ inline Annulus annulus(float innerRatio = 0.6f) { return Annulus{innerRatio}; }
  *  approach the rect. */
 struct Squircle {
   float exponent = 4.0f;
-  bool operator==(const Squircle &) const = default;
+  bool operator==(const Squircle&) const = default;
   SkPath path(SkSize s) const {
     const float e = std::max(exponent, 0.5f);
     const float cx = s.width() / 2, cy = s.height() / 2;
@@ -258,7 +256,8 @@ inline Squircle squircle(float exponent = 4.0f) { return Squircle{exponent}; }
 namespace detail {
 /** Deterministic per-index noise in [-1, 1] (splitmix-style). */
 inline float hashNoise(uint32_t seed, uint32_t i) {
-  uint64_t z = (uint64_t(seed) << 32 | (i * 0x9e3779b9u)) + 0x9e3779b97f4a7c15ull;
+  uint64_t z =
+      (uint64_t(seed) << 32 | (i * 0x9e3779b9u)) + 0x9e3779b97f4a7c15ull;
   z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
   z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
   z ^= z >> 31;
@@ -297,7 +296,7 @@ inline float bisectTransition(float lo, float hi, Pred stillNear,
  *  @p f over t ∈ [t0, t1] in the UNIT frame (±1 spans the box) and
  *  scales onto the node's half-extents. */
 template <typename F>
-inline SkPath samplePolyline(const F &f, float t0, float t1, int samples,
+inline SkPath samplePolyline(const F& f, float t0, float t1, int samples,
                              bool close, SkSize s) {
   const int n = std::max(samples, 2);
   const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
@@ -311,12 +310,11 @@ inline SkPath samplePolyline(const F &f, float t0, float t1, int samples,
     else
       b.lineTo(p);
   }
-  if (close)
-    b.close();
+  if (close) b.close();
   return b.detach();
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** Organic closed blob: @p lobes control points on the inscribed
  *  ellipse, each pushed in/out by up to @p amplitude (fraction of the
@@ -327,25 +325,25 @@ struct Blob {
   uint32_t seed = 0;
   float amplitude = 0.18f;
   int lobes = 8;
-  bool operator==(const Blob &) const = default;
+  bool operator==(const Blob&) const = default;
   SkPath path(SkSize s) const {
     const int n = std::max(lobes, 3);
     const float cx = s.width() / 2, cy = s.height() / 2;
     std::vector<SkPoint> pts((size_t)n);
     for (int i = 0; i < n; ++i) {
       const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
-      const float r =
-          1.0f - amplitude * (0.5f + 0.5f * detail::hashNoise(seed, (uint32_t)i));
+      const float r = 1.0f - amplitude * (0.5f + 0.5f * detail::hashNoise(
+                                                            seed, (uint32_t)i));
       pts[(size_t)i] = {cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
     }
     // Catmull-Rom → cubic Béziers around the loop.
     SkPathBuilder b;
     b.moveTo(pts[0]);
     for (int i = 0; i < n; ++i) {
-      const SkPoint &p0 = pts[(size_t)((i - 1 + n) % n)];
-      const SkPoint &p1 = pts[(size_t)(i % n)];
-      const SkPoint &p2 = pts[(size_t)((i + 1) % n)];
-      const SkPoint &p3 = pts[(size_t)((i + 2) % n)];
+      const SkPoint& p0 = pts[(size_t)((i - 1 + n) % n)];
+      const SkPoint& p1 = pts[(size_t)(i % n)];
+      const SkPoint& p2 = pts[(size_t)((i + 1) % n)];
+      const SkPoint& p3 = pts[(size_t)((i + 2) % n)];
       const SkPoint c1{p1.x() + (p2.x() - p0.x()) / 6.0f,
                        p1.y() + (p2.y() - p0.y()) / 6.0f};
       const SkPoint c2{p2.x() - (p3.x() - p1.x()) / 6.0f,
@@ -370,7 +368,7 @@ inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
 struct Arc {
   float startDeg = 0.0f;
   float sweepDeg = 359.9f;
-  bool operator==(const Arc &) const = default;
+  bool operator==(const Arc&) const = default;
   SkPath path(SkSize s) const {
     SkPathBuilder b;
     b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
@@ -396,7 +394,7 @@ struct Sector {
   float startDeg = 0.0f;
   float sweepDeg = 90.0f;
   float innerRatio = 0.0f;
-  bool operator==(const Sector &) const = default;
+  bool operator==(const Sector&) const = default;
   SkPath path(SkSize s) const {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     // arcTo swallows a full turn, so an unclamped sector(start, 360,
@@ -413,8 +411,8 @@ struct Sector {
       return b.detach();
     }
     const SkRect innerBox =
-        SkRect::MakeXYWH(cx - cx * inner, cy - cy * inner,
-                         s.width() * inner, s.height() * inner);
+        SkRect::MakeXYWH(cx - cx * inner, cy - cy * inner, s.width() * inner,
+                         s.height() * inner);
     b.arcTo(outerBox, startDeg, sweep, true);
     b.arcTo(innerBox, startDeg + sweep, -sweep, false);
     b.close();
@@ -431,13 +429,13 @@ inline Sector sector(float startDeg, float sweepDeg, float innerRatio = 0.0f) {
  *  h·tan(skew) relative to the bottom, staying inside the box. */
 struct Parallelogram {
   float skewDeg = 0.0f;
-  bool operator==(const Parallelogram &) const = default;
+  bool operator==(const Parallelogram&) const = default;
   SkPath path(SkSize s) const {
     const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
     const float l = std::max(0.0f, -lean), r = std::max(0.0f, lean);
     SkPathBuilder b;
     b.moveTo(l, 0);
-    b.lineTo(s.width() - r + l, 0); // top edge (shifted)
+    b.lineTo(s.width() - r + l, 0);  // top edge (shifted)
     b.lineTo(s.width() - l, s.height());
     b.lineTo(r - l >= 0 ? r : 0, s.height());
     b.close();
@@ -509,9 +507,9 @@ struct KeyedParametric {
   float t1 = 1.0f;
   int samples = 512;
   bool close = false;
-  bool operator==(const KeyedParametric &o) const {
-    return key == o.key && t0 == o.t0 && t1 == o.t1 &&
-           samples == o.samples && close == o.close;
+  bool operator==(const KeyedParametric& o) const {
+    return key == o.key && t0 == o.t0 && t1 == o.t1 && samples == o.samples &&
+           close == o.close;
   }
   SkPath path(SkSize s) const {
     return detail::samplePolyline(f, t0, t1, samples, close, s);
@@ -523,8 +521,8 @@ inline KeyedParametric parametric(std::string_view key,
                                   std::function<SkPoint(float)> f, float t0,
                                   float t1, int samples = 512,
                                   bool close = false) {
-  return KeyedParametric{std::string(key), std::move(f), t0, t1, samples,
-                         close};
+  return KeyedParametric{std::string(key), std::move(f), t0, t1,
+                         samples,          close};
 }
 
 /** Lissajous figure: x = sin(a·t + δ), y = sin(b·t). The ratio a:b picks
@@ -538,7 +536,7 @@ struct Lissajous {
   float deltaDeg = 0.0f;
   float turns = 1.0f;
   int samples = 720;
-  bool operator==(const Lissajous &) const = default;
+  bool operator==(const Lissajous&) const = default;
   SkPath path(SkSize s) const {
     const float delta = deltaDeg * SK_FloatPI / 180.0f;
     return detail::samplePolyline(
@@ -568,7 +566,7 @@ struct Harmonograph {
   float precession = 0.0f;
   float turns = 6.0f;
   int samples = 2000;
-  bool operator==(const Harmonograph &) const = default;
+  bool operator==(const Harmonograph&) const = default;
   SkPath path(SkSize s) const {
     const float delta = deltaDeg * SK_FloatPI / 180.0f;
     return detail::samplePolyline(
@@ -577,8 +575,7 @@ struct Harmonograph {
           const float env = std::exp(-fdamping * t);
           const float x = env * std::sin(fa * t + delta);
           const float y = env * std::sin(fb * t);
-          if (fprecession == 0.0f)
-            return SkPoint{x, y};
+          if (fprecession == 0.0f) return SkPoint{x, y};
           const float th = fprecession * t;
           const float c = std::cos(th), sn = std::sin(th);
           return SkPoint{x * c - y * sn, x * sn + y * c};
@@ -600,7 +597,7 @@ struct Rose {
   float k = 3.0f;
   float turns = 1.0f;
   int samples = 720;
-  bool operator==(const Rose &) const = default;
+  bool operator==(const Rose&) const = default;
   SkPath path(SkSize s) const {
     return detail::samplePolyline(
         [fk = k](float th) {
@@ -624,14 +621,14 @@ struct Spiral {
   bool logarithmic = false;
   float growth = 0.25f;
   int samples = 720;
-  bool operator==(const Spiral &) const = default;
+  bool operator==(const Spiral&) const = default;
   SkPath path(SkSize s) const {
     const float total = turns * 2.0f * SK_FloatPI;
     return detail::samplePolyline(
         [flog = logarithmic, fgrowth = growth, total](float th) {
-          const float r = flog
-                              ? std::exp(fgrowth * th) / std::exp(fgrowth * total)
-                              : th / total;
+          const float r =
+              flog ? std::exp(fgrowth * th) / std::exp(fgrowth * total)
+                   : th / total;
           return SkPoint{r * std::cos(th), r * std::sin(th)};
         },
         0.0f, total, samples, false, s);
@@ -655,7 +652,7 @@ struct Trochoid {
   bool inside = false;
   float turns = 1.0f;
   int samples = 1440;
-  bool operator==(const Trochoid &) const = default;
+  bool operator==(const Trochoid&) const = default;
   SkPath path(SkSize s) const {
     const float sign = inside ? -1.0f : 1.0f;
     const float sum = R + sign * r;
@@ -663,8 +660,9 @@ struct Trochoid {
     return detail::samplePolyline(
         [fR = R, fr = r, fd = d, sign, sum, extent](float t) {
           const float k = sum / std::max(fr, 1e-3f);
-          return SkPoint{(sum * std::cos(t) - sign * fd * std::cos(k * t)) / extent,
-                         (sum * std::sin(t) - fd * std::sin(k * t)) / extent};
+          return SkPoint{
+              (sum * std::cos(t) - sign * fd * std::cos(k * t)) / extent,
+              (sum * std::sin(t) - fd * std::sin(k * t)) / extent};
         },
         0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
   }
@@ -686,11 +684,10 @@ inline Trochoid trochoid(float R, float r, float d, bool inside = false,
 struct Rounded {
   Shape inner;
   float radius = 0.0f;
-  bool operator==(const Rounded &) const = default;
+  bool operator==(const Rounded&) const = default;
   SkPath path(SkSize s) const {
     SkPath src = inner(s);
-    if (radius <= 0)
-      return src;
+    if (radius <= 0) return src;
     SkPathBuilder dst;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
@@ -723,8 +720,8 @@ enum class Corner : uint8_t {
   BottomLeft = 8,
   All = 15,
   /** The two on one diagonal — the asymmetric cut that reads as a tab. */
-  Diagonal = 5,      // TopLeft | BottomRight
-  AntiDiagonal = 10, // TopRight | BottomLeft
+  Diagonal = 5,       // TopLeft | BottomRight
+  AntiDiagonal = 10,  // TopRight | BottomLeft
 };
 constexpr Corner operator|(Corner a, Corner b) {
   return Corner(uint8_t(a) | uint8_t(b));
@@ -739,7 +736,7 @@ constexpr bool has(Corner mask, Corner c) {
 struct Chamfered {
   float cut = 0.0f;
   Corner mask = Corner::All;
-  bool operator==(const Chamfered &) const = default;
+  bool operator==(const Chamfered&) const = default;
   SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float c = std::clamp(cut, 0.0f, std::min(w, h) * 0.5f);
@@ -766,8 +763,7 @@ struct Chamfered {
     } else {
       b.lineTo(0, h);
     }
-    if (has(mask, Corner::TopLeft))
-      b.lineTo(0, c);
+    if (has(mask, Corner::TopLeft)) b.lineTo(0, c);
     b.close();
     return b.detach();
   }
@@ -785,7 +781,7 @@ struct Notched {
   float notchWidth = 0.0f;
   float depth = 0.0f;
   Corner mask = Corner::All;
-  bool operator==(const Notched &) const = default;
+  bool operator==(const Notched&) const = default;
   SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
@@ -854,15 +850,14 @@ constexpr bool has(Edge mask, Edge e) {
  *  between their two edges). Exact geometry via SkContourMeasure
  *  segment extraction; @p step is the classification sampling length
  *  in px. */
-inline SkPath edges(const SkPath &outline, Edge mask, float step = 3.0f) {
+inline SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f) {
   const SkRect bounds = outline.getBounds();
   const float cx = bounds.centerX(), cy = bounds.centerY();
   const float hw = std::max(bounds.width() / 2, 1.0f);
   const float hh = std::max(bounds.height() / 2, 1.0f);
   auto classify = [&](SkPoint p) {
     const float nx = (p.x() - cx) / hw, ny = (p.y() - cy) / hh;
-    if (std::abs(nx) > std::abs(ny))
-      return nx > 0 ? Edge::Right : Edge::Left;
+    if (std::abs(nx) > std::abs(ny)) return nx > 0 ? Edge::Right : Edge::Left;
     return ny > 0 ? Edge::Bottom : Edge::Top;
   };
 
@@ -870,13 +865,11 @@ inline SkPath edges(const SkPath &outline, Edge mask, float step = 3.0f) {
   SkContourMeasureIter iter(outline, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float length = contour->length();
-    if (length <= 0)
-      continue;
+    if (length <= 0) continue;
     const int samples = std::max(8, (int)std::ceil(length / step));
     float runStart = 0.0f;
     SkPoint pos;
-    if (!contour->getPosTan(0, &pos, nullptr))
-      continue;
+    if (!contour->getPosTan(0, &pos, nullptr)) continue;
     Edge runEdge = classify(pos);
     auto flushRun = [&](float endD) {
       if (has(mask, runEdge) && endD > runStart) {
@@ -887,8 +880,7 @@ inline SkPath edges(const SkPath &outline, Edge mask, float step = 3.0f) {
     };
     for (int i = 1; i <= samples; ++i) {
       const float d = length * (float)i / (float)samples;
-      if (!contour->getPosTan(std::min(d, length), &pos, nullptr))
-        continue;
+      if (!contour->getPosTan(std::min(d, length), &pos, nullptr)) continue;
       const Edge e = classify(pos);
       if (e != runEdge) {
         // The boundary lies between the previous sample and this one;
@@ -923,7 +915,7 @@ struct EdgeSlice {
   std::vector<std::string> borrows() const { return inner.borrows(); }
   float reach() const { return inner.reach(); }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     PaintContext local = ctx;
     local.outline = edges(ctx.outline, mask, step);
     inner.paint(canvas, local);
@@ -935,7 +927,7 @@ struct EdgeSlice {
    *  extraction — a contour walk with a binary search at each run boundary
    *  — for chrome that never changed. Any adaptor added beside this one
    *  needs the same operator for the same reason. */
-  bool operator==(const EdgeSlice &o) const {
+  bool operator==(const EdgeSlice& o) const {
     return mask == o.mask && step == o.step && inner == o.inner;
   }
 };
@@ -964,11 +956,11 @@ struct Inset {
   std::vector<std::string> borrows() const { return inner.borrows(); }
   float reach() const { return inner.reach(); }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     PaintContext local = ctx;
     if (px != 0) {
       SkPaint offset;
-      offset.setStyle(SkPaint::kStroke_Style); // the RING, not the grown shape
+      offset.setStyle(SkPaint::kStroke_Style);  // the RING, not the grown shape
       offset.setStrokeWidth(std::abs(px) * 2.0f);
       offset.setStrokeJoin(SkPaint::kMiter_Join);
       // The stroke-and-fill of the outline is the RING of width 2|px|
@@ -985,7 +977,7 @@ struct Inset {
     inner.paint(canvas, local);
   }
   bool isAnimated() const { return inner.isAnimated(); }
-  bool operator==(const Inset &o) const {
+  bool operator==(const Inset& o) const {
     return px == o.px && inner == o.inner;
   }
 };
@@ -999,7 +991,7 @@ inline Inset inset(float px, Decoration inner) {
 struct Arrow {
   float shaftFrac = 0.34f;
   float headFrac = 0.42f;
-  bool operator==(const Arrow &) const = default;
+  bool operator==(const Arrow&) const = default;
   SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
@@ -1023,4 +1015,4 @@ inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
   return Arrow{shaftFrac, headFrac};
 }
 
-} // namespace sigil::compose::shapes
+}  // namespace sigil::compose::shapes

@@ -1,8 +1,10 @@
 #include "SpellCircleRenderer.h"
+
+#include <spdlog/spdlog.h>
+
 #include "SkiaSceneBackend.h"
 #include "SpellCircle.h"
 #include "TexturePublisher.h"
-#include <spdlog/spdlog.h>
 
 SpellCircleRenderer::SpellCircleRenderer() {
   m_font.setBold(true);
@@ -11,8 +13,8 @@ SpellCircleRenderer::SpellCircleRenderer() {
 
 SpellCircleRenderer::~SpellCircleRenderer() = default;
 
-void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
-  auto *spellCircleItem = static_cast<SpellCircle *>(item);
+void SpellCircleRenderer::synchronize(QCanvasPainterItem* item) {
+  auto* spellCircleItem = static_cast<SpellCircle*>(item);
 
   bool needsResolve = false;
 
@@ -31,7 +33,7 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
     m_geometryDirty = true;
     needsResolve = true;
     if (spellCircleItem->config()) {
-      GraphicsConfig *config = spellCircleItem->config();
+      GraphicsConfig* config = spellCircleItem->config();
       m_accentColor = config->color();
       m_strokeWidth = config->strokeWidth();
       m_scale = config->scale();
@@ -49,22 +51,20 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
 
   // Resolved positions depend on both the scene (model) and the native
   // canvas size (config), so either changing requires re-resolving.
-  if (needsResolve)
-    resolveGeometry(spellCircleItem->model());
+  if (needsResolve) resolveGeometry(spellCircleItem->model());
 }
 
-void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
+void SpellCircleRenderer::resolveGeometry(SpellCircleModel* model) {
   if (!model) {
     m_resolved.clear();
     return;
   }
-  m_resolved =
-      spellcircle::resolveScene(model->document(),
-                                static_cast<float>(m_canvasWidth),
-                                static_cast<float>(m_canvasHeight));
+  m_resolved = spellcircle::resolveScene(model->document(),
+                                         static_cast<float>(m_canvasWidth),
+                                         static_cast<float>(m_canvasHeight));
 }
 
-void SpellCircleRenderer::initializeResources(QCanvasPainter *painter) {
+void SpellCircleRenderer::initializeResources(QCanvasPainter* painter) {
   static_cast<void>(painter);
   // Both factories inspect the active QRhi backend themselves and return
   // null when they have no implementation for it: publishing is optional,
@@ -73,13 +73,13 @@ void SpellCircleRenderer::initializeResources(QCanvasPainter *painter) {
   m_publisher = createTexturePublisher(rhi(), "SpellCircle");
   m_sceneBackend = createSkiaSceneBackend(rhi());
   if (!m_sceneBackend)
-    spdlog::warn("No Skia scene backend for the active graphics API; the "
-                 "canvas will not render scene content");
+    spdlog::warn(
+        "No Skia scene backend for the active graphics API; the "
+        "canvas will not render scene content");
 }
 
-void SpellCircleRenderer::prePaint(QCanvasPainter *painter) {
-  if (!m_sceneBackend || !m_geometryDirty)
-    return;
+void SpellCircleRenderer::prePaint(QCanvasPainter* painter) {
+  if (!m_sceneBackend || !m_geometryDirty) return;
   m_geometryDirty = false;
 
   // ── Syphon canvas ─────────────────────────────────────────────────────────
@@ -99,12 +99,12 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *painter) {
       QSize(m_allocatedCanvasWidth, m_allocatedCanvasHeight));
 }
 
-void SpellCircleRenderer::paint(QCanvasPainter *painter) {
+void SpellCircleRenderer::paint(QCanvasPainter* painter) {
   if (!m_displayImage.isNull())
     painter->drawImage(m_displayImage, 0, 0, width(), height());
 }
 
-void SpellCircleRenderer::render(QRhiCommandBuffer *commandBuffer) {
+void SpellCircleRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QCanvasPainterItemRenderer::render(commandBuffer);
   if (m_publisher && !m_canvas.isNull() && m_canvas.texture())
     m_publisher->publishFrame(m_canvas.texture(), commandBuffer,

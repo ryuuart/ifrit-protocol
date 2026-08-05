@@ -2,24 +2,23 @@
 // Nothing here talks to Yoga, Skia surfaces, or Choreograph; that is the
 // Composer's job.
 
-#include "ComposeInternal.h"
-
-#include "sigilcompose/Lines.h" // the ONE corner scanner (spans::corners)
-
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkImageFilter.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPathUtils.h>
-#include <include/pathops/SkPathOps.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathUtils.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <include/core/SkTypes.h> // SkDebugf — the slot-rename diagnostic
+#include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
-#include <cmath> // std::isfinite — the profileOffset non-finite guard
+#include <cmath>  // std::isfinite — the profileOffset non-finite guard
 #include <set>
+
+#include "ComposeInternal.h"
+#include "sigilcompose/Lines.h"  // the ONE corner scanner (spans::corners)
 
 namespace sigil::compose {
 
@@ -35,7 +34,7 @@ Fill Fill::shader(sk_sp<SkShader> s) {
 
 Element::Element() : m_node(std::make_shared<ElementNode>()) {}
 
-ElementNode *Element::NodeHandle::operator->() {
+ElementNode* Element::NodeHandle::operator->() {
   if (!value)
     value = std::make_shared<ElementNode>();
   else if (value.use_count() != 1)
@@ -43,98 +42,143 @@ ElementNode *Element::NodeHandle::operator->() {
   return value.get();
 }
 
-const ElementNode *Element::NodeHandle::operator->() const {
+const ElementNode* Element::NodeHandle::operator->() const {
   return value.get();
 }
 
 // ---- layout ---------------------------------------------------------------
 
-Element &Element::row() { m_node->layout.row = true; return *this; }
-Element &Element::column() { m_node->layout.row = false; return *this; }
-Element &Element::wrapLines(bool on) {
+Element& Element::row() {
+  m_node->layout.row = true;
+  return *this;
+}
+Element& Element::column() {
+  m_node->layout.row = false;
+  return *this;
+}
+Element& Element::wrapLines(bool on) {
   m_node->layout.wrap = on;
   return *this;
 }
-Element &Element::gap(float px) { m_node->layout.gap = px; return *this; }
-Element &Element::padding(float all) {
+Element& Element::gap(float px) {
+  m_node->layout.gap = px;
+  return *this;
+}
+Element& Element::padding(float all) {
   m_node->layout.padding = {all, all, all, all};
   return *this;
 }
-Element &Element::padding(float h, float v) {
+Element& Element::padding(float h, float v) {
   m_node->layout.padding = {h, v, h, v};
   return *this;
 }
-Element &Element::padding(float l, float t, float r, float b) {
+Element& Element::padding(float l, float t, float r, float b) {
   m_node->layout.padding = {l, t, r, b};
   return *this;
 }
-Element &Element::margin(float all) {
+Element& Element::margin(float all) {
   m_node->layout.margin = {all, all, all, all};
   return *this;
 }
-Element &Element::margin(float h, float v) {
+Element& Element::margin(float h, float v) {
   m_node->layout.margin = {h, v, h, v};
   return *this;
 }
-Element &Element::margin(float l, float t, float r, float b) {
+Element& Element::margin(float l, float t, float r, float b) {
   m_node->layout.margin = {l, t, r, b};
   return *this;
 }
-Element &Element::width(Dim d) { m_node->layout.width = d; return *this; }
-Element &Element::height(Dim d) { m_node->layout.height = d; return *this; }
-Element &Element::minWidth(Dim d) { m_node->layout.minWidth = d; return *this; }
-Element &Element::maxWidth(Dim d) { m_node->layout.maxWidth = d; return *this; }
-Element &Element::minHeight(Dim d) { m_node->layout.minHeight = d; return *this; }
-Element &Element::maxHeight(Dim d) { m_node->layout.maxHeight = d; return *this; }
-Element &Element::aspect(float r) { m_node->layout.aspect = r; return *this; }
-Element &Element::grow(float f) { m_node->layout.grow = f; return *this; }
-Element &Element::shrink(float f) { m_node->layout.shrink = f; return *this; }
-Element &Element::basis(Dim d) { m_node->layout.basis = d; return *this; }
-Element &Element::alignItems(Align a) {
+Element& Element::width(Dim d) {
+  m_node->layout.width = d;
+  return *this;
+}
+Element& Element::height(Dim d) {
+  m_node->layout.height = d;
+  return *this;
+}
+Element& Element::minWidth(Dim d) {
+  m_node->layout.minWidth = d;
+  return *this;
+}
+Element& Element::maxWidth(Dim d) {
+  m_node->layout.maxWidth = d;
+  return *this;
+}
+Element& Element::minHeight(Dim d) {
+  m_node->layout.minHeight = d;
+  return *this;
+}
+Element& Element::maxHeight(Dim d) {
+  m_node->layout.maxHeight = d;
+  return *this;
+}
+Element& Element::aspect(float r) {
+  m_node->layout.aspect = r;
+  return *this;
+}
+Element& Element::grow(float f) {
+  m_node->layout.grow = f;
+  return *this;
+}
+Element& Element::shrink(float f) {
+  m_node->layout.shrink = f;
+  return *this;
+}
+Element& Element::basis(Dim d) {
+  m_node->layout.basis = d;
+  return *this;
+}
+Element& Element::alignItems(Align a) {
   m_node->layout.alignItems = a;
   return *this;
 }
-Element &Element::alignSelf(Align a) {
+Element& Element::alignSelf(Align a) {
   m_node->layout.alignSelf = a;
   return *this;
 }
-Element &Element::justify(Justify j) { m_node->layout.justify = j; return *this; }
-Element &Element::absolute() { m_node->layout.absolute = true; return *this; }
-Element &Element::inset(float all) { return inset(all, all, all, all); }
-Element &Element::inset(float l, float t, float r, float b) {
+Element& Element::justify(Justify j) {
+  m_node->layout.justify = j;
+  return *this;
+}
+Element& Element::absolute() {
+  m_node->layout.absolute = true;
+  return *this;
+}
+Element& Element::inset(float all) { return inset(all, all, all, all); }
+Element& Element::inset(float l, float t, float r, float b) {
   return inset(Dim(l), Dim(t), Dim(r), Dim(b));
 }
-Element &Element::inset(Dim l, Dim t, Dim r, Dim b) {
+Element& Element::inset(Dim l, Dim t, Dim r, Dim b) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets = {l, t, r, b};
   return *this;
 }
-Element &Element::left(Dim d) {
+Element& Element::left(Dim d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.left = d;
   return *this;
 }
-Element &Element::top(Dim d) {
+Element& Element::top(Dim d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.top = d;
   return *this;
 }
-Element &Element::right(Dim d) {
+Element& Element::right(Dim d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.right = d;
   return *this;
 }
-Element &Element::bottom(Dim d) {
+Element& Element::bottom(Dim d) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets.bottom = d;
   return *this;
 }
-Element &Element::centerAt(SkPoint p) {
+Element& Element::centerAt(SkPoint p) {
   m_node->layout.absolute = true;
   m_node->layout.centerAt = p;
   return *this;
@@ -146,14 +190,14 @@ Element &Element::centerAt(SkPoint p) {
 // setters do more than assign (left/top also raise `absolute` and
 // `hasInsets`), so a shortcut that wrote the fields directly would produce a
 // node the longhand can never produce.
-Element &Element::rect(const SkRect &r) {
+Element& Element::rect(const SkRect& r) {
   left(Dim(r.fLeft));
   top(Dim(r.fTop));
   width(Dim(r.width()));
   height(Dim(r.height()));
   return *this;
 }
-Element &Element::at(SkPoint topLeft) {
+Element& Element::at(SkPoint topLeft) {
   left(Dim(topLeft.fX));
   top(Dim(topLeft.fY));
   return *this;
@@ -161,35 +205,41 @@ Element &Element::at(SkPoint topLeft) {
 
 // ---- shape ----------------------------------------------------------------
 
-Element &Element::corners(Corners c) { m_node->corners = c; return *this; }
-Element &Element::shape(Shape path) {
+Element& Element::corners(Corners c) {
+  m_node->corners = c;
+  return *this;
+}
+Element& Element::shape(Shape path) {
   m_node->shapeFn = std::move(path);
   return *this;
 }
-Element &Element::centered() {
+Element& Element::centered() {
   m_node->deriveData.ensure().bandFormation = Formation::Centered;
   return *this;
 }
-Element &Element::outward() {
+Element& Element::outward() {
   m_node->deriveData.ensure().bandFormation = Formation::Outward;
   return *this;
 }
-Element &Element::inward() {
+Element& Element::inward() {
   m_node->deriveData.ensure().bandFormation = Formation::Inward;
   return *this;
 }
-Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
+Element& Element::clip(bool on) {
+  m_node->clipContent = on;
+  return *this;
+}
 
 // ---- the masking family ---------------------------------------------------
 
 Region Region::own() { return Region{}; }
-Region Region::rect(const SkRect &r) {
+Region Region::rect(const SkRect& r) {
   Region out;
   out.m_kind = Kind::Rect;
   out.m_rect = r;
   return out;
 }
-Region Region::oval(const SkRect &bounds) {
+Region Region::oval(const SkRect& bounds) {
   Region out;
   out.m_kind = Kind::Oval;
   out.m_rect = bounds;
@@ -201,36 +251,35 @@ Region Region::path(SkPath p) {
   out.m_path = std::move(p);
   return out;
 }
-bool Region::operator==(const Region &other) const {
-  if (m_kind != other.m_kind)
-    return false;
+bool Region::operator==(const Region& other) const {
+  if (m_kind != other.m_kind) return false;
   switch (m_kind) {
-  case Kind::Own:
-    return true;
-  case Kind::Rect:
-  case Kind::Oval:
-    return m_rect == other.m_rect;
-  case Kind::Path:
-    return m_path == other.m_path;
+    case Kind::Own:
+      return true;
+    case Kind::Rect:
+    case Kind::Oval:
+      return m_rect == other.m_rect;
+    case Kind::Path:
+      return m_path == other.m_path;
   }
   return false;
 }
-SkPath Region::resolve(const SkPath &ownShape) const {
+SkPath Region::resolve(const SkPath& ownShape) const {
   switch (m_kind) {
-  case Kind::Own:
-    return ownShape;
-  case Kind::Rect: {
-    SkPathBuilder b;
-    b.addRect(m_rect);
-    return b.detach();
-  }
-  case Kind::Oval: {
-    SkPathBuilder b;
-    b.addOval(m_rect);
-    return b.detach();
-  }
-  case Kind::Path:
-    return m_path;
+    case Kind::Own:
+      return ownShape;
+    case Kind::Rect: {
+      SkPathBuilder b;
+      b.addRect(m_rect);
+      return b.detach();
+    }
+    case Kind::Oval: {
+      SkPathBuilder b;
+      b.addOval(m_rect);
+      return b.detach();
+    }
+    case Kind::Path:
+      return m_path;
   }
   return ownShape;
 }
@@ -246,7 +295,7 @@ Parts named(std::string_view name) {
   p.names.emplace_back(name);
   return p;
 }
-} // namespace parts
+}  // namespace parts
 
 namespace by {
 Gate spans(Spans where) {
@@ -294,30 +343,30 @@ Gate lumaOut(Material coverage) {
   g.outside = true;
   return g;
 }
-} // namespace by
+}  // namespace by
 
 size_t Gate::valueCount() const {
   switch (kind) {
-  case Kind::Spans:
-    return where.valueCount();
-  case Kind::Edge:
-    return 1;
-  case Kind::Shape:
-  case Kind::Coverage:
-    return 0;
+    case Kind::Spans:
+      return where.valueCount();
+    case Kind::Edge:
+      return 1;
+    case Kind::Shape:
+    case Kind::Coverage:
+      return 0;
   }
   return 0;
 }
 
-Element &Element::mask(Gate with) {
+Element& Element::mask(Gate with) {
   return mask(parts::all(), std::move(with));
 }
-Element &Element::mask(Parts what, Gate with) {
+Element& Element::mask(Parts what, Gate with) {
   // A fit() term inside a span GATE borrows another element's resolved box
   // exactly as one inside a span PASS does, so the keys ride into
   // DeriveData where the ONE derive-registration walk finds them.
   if (with.kind == Gate::Kind::Spans)
-    for (const Spans::Term &t : with.where.terms)
+    for (const Spans::Term& t : with.where.terms)
       if (t.rule == Spans::Rule::Fit && !t.key.empty())
         m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
   m_node->fxData.ensure().masks.push_back(
@@ -327,7 +376,7 @@ Element &Element::mask(Parts what, Gate with) {
 
 // ---- paint ----------------------------------------------------------------
 
-Element &Element::fill(Animatable<Fill> f) {
+Element& Element::fill(Animatable<Fill> f) {
   m_node->paint.fill = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
@@ -347,10 +396,9 @@ Effect Effect::filter(sk_sp<SkImageFilter> f) {
 Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
                       std::vector<std::pair<std::string, float>> uniforms) {
   Effect e;
-  if (!effect)
-    return e;
+  if (!effect) return e;
   SkRuntimeShaderBuilder builder(effect);
-  for (const auto &[name, value] : uniforms)
+  for (const auto& [name, value] : uniforms)
     builder.uniform(name.c_str()) = value;
   e.m_filter = SkImageFilters::RuntimeShader(builder, "content", nullptr);
   e.m_effect = std::move(effect);
@@ -369,13 +417,10 @@ namespace {
  *  nodes, with bounds handled by the filter graph rather than by us. */
 sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
                                          float across) {
-  float axis = std::fmod(angleDeg, 180.0f); // a blur axis has no sign
-  if (axis < 0)
-    axis += 180.0f;
-  if (axis == 0.0f)
-    return SkImageFilters::Blur(sigma, across, nullptr);
-  if (axis == 90.0f)
-    return SkImageFilters::Blur(across, sigma, nullptr);
+  float axis = std::fmod(angleDeg, 180.0f);  // a blur axis has no sign
+  if (axis < 0) axis += 180.0f;
+  if (axis == 0.0f) return SkImageFilters::Blur(sigma, across, nullptr);
+  if (axis == 90.0f) return SkImageFilters::Blur(across, sigma, nullptr);
   const SkSamplingOptions sampling(SkFilterMode::kLinear);
   sk_sp<SkImageFilter> aligned = SkImageFilters::MatrixTransform(
       SkMatrix::RotateDeg(-angleDeg), sampling, nullptr);
@@ -384,7 +429,7 @@ sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
   return SkImageFilters::MatrixTransform(SkMatrix::RotateDeg(angleDeg),
                                          sampling, std::move(blurred));
 }
-} // namespace
+}  // namespace
 
 Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
   Effect e;
@@ -444,12 +489,12 @@ sk_sp<SkImageFilter> makeParamBlur(float maxSigma, sk_sp<SkShader> sigmaMap) {
   b.child("param") = std::move(sigmaMap);
   std::string_view names[3] = {"level0", "level1", "level2"};
   const sk_sp<SkImageFilter> inputs[3] = {
-      nullptr, // level 0 IS the layer, unblurred
+      nullptr,  // level 0 IS the layer, unblurred
       SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr),
       SkImageFilters::Blur(maxSigma, maxSigma, nullptr)};
   return SkImageFilters::RuntimeShader(b, names, inputs, 3);
 }
-} // namespace
+}  // namespace
 
 Effect Effect::blur(Material sigmaMap, float maxSigma) {
   Effect e;
@@ -463,32 +508,36 @@ Effect Effect::blur(Material sigmaMap, float maxSigma) {
   return e;
 }
 
-Effect &Effect::child(std::string name, Material source) {
+Effect& Effect::child(std::string name, Material source) {
   // Which names this effect kind can fill — Material::child's structure,
   // one branch per kind, warn-and-ignore everywhere else.
   if (m_paramBlur) {
     if (name != "sigma") {
-      SkDebugf("[compose] Effect::child(\"%s\") on a blur() — its one child "
-               "is \"sigma\", the map; ignored\n",
-               name.c_str());
+      SkDebugf(
+          "[compose] Effect::child(\"%s\") on a blur() — its one child "
+          "is \"sigma\", the map; ignored\n",
+          name.c_str());
       return *this;
     }
   } else if (m_effect) {
     if (name == "content") {
-      SkDebugf("[compose] Effect::child(\"content\"): ignored — \"content\" "
-               "is the node's own rendered layer, filled by the library\n");
+      SkDebugf(
+          "[compose] Effect::child(\"content\"): ignored — \"content\" "
+          "is the node's own rendered layer, filled by the library\n");
       return *this;
     }
     if (!detail::declaresShaderChild(m_effect, name)) {
-      SkDebugf("[compose] Effect::child: \"%s\" is not declared by the effect "
-               "as `uniform shader` — ignored\n",
-               name.c_str());
+      SkDebugf(
+          "[compose] Effect::child: \"%s\" is not declared by the effect "
+          "as `uniform shader` — ignored\n",
+          name.c_str());
       return *this;
     }
   } else {
-    SkDebugf("[compose] Effect::child(\"%s\"): ignored — this effect has no "
-             "shader children to fill (only shader() and blur() do)\n",
-             name.c_str());
+    SkDebugf(
+        "[compose] Effect::child(\"%s\"): ignored — this effect has no "
+        "shader children to fill (only shader() and blur() do)\n",
+        name.c_str());
     return *this;
   }
   auto held = std::make_shared<const Material>(std::move(source));
@@ -496,14 +545,13 @@ Effect &Effect::child(std::string name, Material source) {
   // replaces rather than stacking two entries the builder would both
   // assign.
   bool replaced = false;
-  for (auto &slot : m_children)
+  for (auto& slot : m_children)
     if (slot.first == name) {
       slot.second = std::move(held);
       replaced = true;
       break;
     }
-  if (!replaced)
-    m_children.emplace_back(std::move(name), std::move(held));
+  if (!replaced) m_children.emplace_back(std::move(name), std::move(held));
   // Refresh the static snapshot (Material::child does the same). Note this
   // must be an UNCONDITIONAL rebuild: resolvedImageFilter(nullptr) would
   // hand back the snapshot it is meant to replace, and a STATIC child on a
@@ -514,37 +562,38 @@ Effect &Effect::child(std::string name, Material source) {
 }
 
 bool Effect::anyChildNeedsContext() const {
-  for (const auto &[name, child] : m_children)
+  for (const auto& [name, child] : m_children)
     if (child && (child->isAnimated() || child->geometryDependent()))
       return true;
   return false;
 }
 
 sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
-                                      const PaintContext *ctx) const {
-  for (const auto &[slot, child] : m_children)
-    if (slot == name)
-      return child ? detail::childShader(*child, ctx) : nullptr;
+                                       const PaintContext* ctx) const {
+  for (const auto& [slot, child] : m_children)
+    if (slot == name) return child ? detail::childShader(*child, ctx) : nullptr;
   return nullptr;
 }
 
-Effect &Effect::uniform(std::string name,
-                        const choreograph::Output<float> *value) {
+Effect& Effect::uniform(std::string name,
+                        const choreograph::Output<float>* value) {
   // Every dropped binding says so — Material's guardrail: warn and ignore,
   // never a debug abort (one sketch typo must not kill the hot-reload
   // host). A silent drop here loses an animation with no diagnostic.
   if (!value) {
-    SkDebugf("[compose] Effect::uniform(\"%s\"): null Output — there is "
-             "nothing to read at paint time; ignored\n",
-             name.c_str());
+    SkDebugf(
+        "[compose] Effect::uniform(\"%s\"): null Output — there is "
+        "nothing to read at paint time; ignored\n",
+        name.c_str());
     return *this;
   }
   if (m_dirBlur) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
-      SkDebugf("[compose] Effect::uniform(\"%s\") on a directionalBlur() — "
-               "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
-               name.c_str());
+      SkDebugf(
+          "[compose] Effect::uniform(\"%s\") on a directionalBlur() — "
+          "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
+          name.c_str());
       return *this;
     }
     m_bound.emplace_back(std::move(name), value);
@@ -552,10 +601,11 @@ Effect &Effect::uniform(std::string name,
   }
   if (m_paramBlur) {
     if (name != "maxSigma") {
-      SkDebugf("[compose] Effect::uniform(\"%s\") on a blur() — its one "
-               "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
-               "Material)); ignored\n",
-               name.c_str());
+      SkDebugf(
+          "[compose] Effect::uniform(\"%s\") on a blur() — its one "
+          "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
+          "Material)); ignored\n",
+          name.c_str());
       return *this;
     }
     m_bound.emplace_back(std::move(name), value);
@@ -565,21 +615,20 @@ Effect &Effect::uniform(std::string name,
     m_bound.emplace_back(std::move(name), value);
     return *this;
   }
-  SkDebugf("[compose] Effect::uniform(\"%s\"): ignored — this effect has no "
-           "uniform to receive it (only shader(), directionalBlur() and "
-           "blur() do; a filter() wraps an already-built SkImageFilter)\n",
-           name.c_str());
+  SkDebugf(
+      "[compose] Effect::uniform(\"%s\"): ignored — this effect has no "
+      "uniform to receive it (only shader(), directionalBlur() and "
+      "blur() do; a filter() wraps an already-built SkImageFilter)\n",
+      name.c_str());
   return *this;
 }
 
-Effect Effect::then(const Effect &next) const {
+Effect Effect::then(const Effect& next) const {
   Effect e;
   const bool thisReal = m_filter || isAnimated();
   const bool nextReal = next.m_filter || next.isAnimated();
-  if (!thisReal)
-    return next;
-  if (!nextReal)
-    return *this;
+  if (!thisReal) return next;
+  if (!nextReal) return *this;
   if (isAnimated() || next.isAnimated()) {
     // A live side cannot precompose: hold both and re-compose per paint.
     e.m_chainA = std::make_shared<const Effect>(*this);
@@ -590,15 +639,15 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
-sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintContext *ctx) const {
+sk_sp<SkImageFilter> Effect::resolvedImageFilter(
+    const PaintContext* ctx) const {
   if (m_chainA)
     return SkImageFilters::Compose(m_chainB->resolvedImageFilter(ctx),
                                    m_chainA->resolvedImageFilter(ctx));
   // A context-needing child (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its children, same answer.
-  if (m_bound.empty() && !(ctx && anyChildNeedsContext()))
-    return m_filter;
+  if (m_bound.empty() && !(ctx && anyChildNeedsContext())) return m_filter;
   return buildFilter(ctx);
 }
 
@@ -606,17 +655,16 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintContext *ctx) const 
  *  separates it from resolvedImageFilter(): the store-time snapshot and the
  *  per-paint resolve are the SAME construction differing only in whether
  *  there is a context, exactly as Material::build(live, ctx) is. */
-sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext *ctx) const {
-  if (m_paramBlur) { // rebuild the pyramid from the parameter and the map
+sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
+  if (m_paramBlur) {  // rebuild the pyramid from the parameter and the map
     float maxSigma = m_paramBlur->maxSigma;
-    for (const auto &[name, out] : m_bound)
-      if (name == "maxSigma")
-        maxSigma = out->value();
+    for (const auto& [name, out] : m_bound)
+      if (name == "maxSigma") maxSigma = out->value();
     return makeParamBlur(maxSigma, childShaderFor("sigma", ctx));
   }
-  if (m_dirBlur) { // rebuild the sandwich from the bound parameters
+  if (m_dirBlur) {  // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_dirBlur;
-    for (const auto &[name, out] : m_bound) {
+    for (const auto& [name, out] : m_bound) {
       if (name == "sigma")
         d.sigma = out->value();
       else if (name == "angle")
@@ -626,43 +674,37 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext *ctx) const {
     }
     return makeDirectionalBlur(d.sigma, d.angleDeg, d.across);
   }
-  if (!m_effect)
-    return m_filter;
+  if (!m_effect) return m_filter;
   SkRuntimeShaderBuilder builder(m_effect);
-  for (const auto &[name, value] : m_uniforms)
+  for (const auto& [name, value] : m_uniforms)
     builder.uniform(name.c_str()) = value;
-  for (const auto &[name, out] : m_bound)
+  for (const auto& [name, out] : m_bound)
     builder.uniform(name.c_str()) = out->value();
   // The child slots, against the painting node's box (Material::child's
   // contract: a child sees the SAME PaintContext, because there is one
   // node). "content" is the library's and is filled by the factory below.
-  for (const auto &[name, child] : m_children)
-    if (child)
-      builder.child(name.c_str()) = detail::childShader(*child, ctx);
+  for (const auto& [name, child] : m_children)
+    if (child) builder.child(name.c_str()) = detail::childShader(*child, ctx);
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
 bool Effect::isAnimated() const {
-  if (!m_bound.empty())
-    return true;
+  if (!m_bound.empty()) return true;
   // Tier inheritance: a live child makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the
   // recursion stops at the child.
-  for (const auto &[name, child] : m_children)
-    if (child && child->isAnimated())
-      return true;
+  for (const auto& [name, child] : m_children)
+    if (child && child->isAnimated()) return true;
   return m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated());
 }
 
 bool Effect::usesWorldSpace() const {
   // Same tier-inheritance shape as isAnimated(): Material's own recursion
   // answers for blend layers and nested children.
-  for (const auto &[name, child] : m_children)
-    if (child && child->usesWorldSpace())
-      return true;
-  return m_chainA &&
-         (m_chainA->usesWorldSpace() || m_chainB->usesWorldSpace());
+  for (const auto& [name, child] : m_children)
+    if (child && child->usesWorldSpace()) return true;
+  return m_chainA && (m_chainA->usesWorldSpace() || m_chainB->usesWorldSpace());
 }
 
 /** Children compare by VALUE (Material::operator==, recursive), by the same
@@ -670,41 +712,37 @@ bool Effect::usesWorldSpace() const {
  *  participate in reconciler equality would leave a pruned node sampling
  *  the parameter its recording was made with. */
 static bool childrenEqual(
-    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
-        &a,
-    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
-        &b) {
-  if (a.size() != b.size())
-    return false;
+    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>&
+        a,
+    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>&
+        b) {
+  if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
-    if (a[i].first != b[i].first)
-      return false;
+    if (a[i].first != b[i].first) return false;
     if (!a[i].second || !b[i].second) {
-      if (a[i].second != b[i].second)
-        return false;
+      if (a[i].second != b[i].second) return false;
       continue;
     }
-    if (!(*a[i].second == *b[i].second))
-      return false;
+    if (!(*a[i].second == *b[i].second)) return false;
   }
   return true;
 }
 
-bool Effect::operator==(const Effect &o) const {
+bool Effect::operator==(const Effect& o) const {
   if (isAnimated() || o.isAnimated())
-    return false; // live never prunes — the material rule
-  if (m_paramBlur || o.m_paramBlur) // blur(): by RECIPE + the sigma MAP
+    return false;                    // live never prunes — the material rule
+  if (m_paramBlur || o.m_paramBlur)  // blur(): by RECIPE + the sigma MAP
     return m_paramBlur == o.m_paramBlur &&
            childrenEqual(m_children, o.m_children);
-  if (m_dirBlur || o.m_dirBlur) // directionalBlur(): by RECIPE, so a
-    return m_dirBlur == o.m_dirBlur; // re-described equal one prunes
+  if (m_dirBlur || o.m_dirBlur)       // directionalBlur(): by RECIPE, so a
+    return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_uniforms == o.m_uniforms &&
            childrenEqual(m_children, o.m_children);
-  return m_filter == o.m_filter; // filter(): pointer identity, as ever
+  return m_filter == o.m_filter;  // filter(): pointer identity, as ever
 }
 
-Element &Element::hitTestable(bool enabled) {
+Element& Element::hitTestable(bool enabled) {
   m_node->hitTestable = enabled;
   return *this;
 }
@@ -715,11 +753,10 @@ Element &Element::hitTestable(bool enabled) {
  *  silently — the decoration draws with nothing borrowed and says why on no
  *  channel — and the difference between the slots is invisible to the
  *  author. */
-void Element::claimBorrows(const Decoration &d) {
-  if (d.borrows().empty())
-    return;
-  detail::DeriveData &derive = m_node->deriveData.ensure();
-  for (const std::string &key : d.borrows())
+void Element::claimBorrows(const Decoration& d) {
+  if (d.borrows().empty()) return;
+  detail::DeriveData& derive = m_node->deriveData.ensure();
+  for (const std::string& key : d.borrows())
     derive.borrowedPathKeys.push_back(key);
 }
 
@@ -730,42 +767,40 @@ void Element::claimBorrows(const Decoration &d) {
  *  nodes, which is why the labels are a side list and not a field beside
  *  every Decoration. */
 void Element::labelMark(int slot, size_t index, std::string name) {
-  if (name.empty())
-    return;
-  m_node->fxData.ensure().markNames.push_back(
-      detail::MarkLabel{(detail::MarkSlot)slot, (uint32_t)index,
-                        std::move(name)});
+  if (name.empty()) return;
+  m_node->fxData.ensure().markNames.push_back(detail::MarkLabel{
+      (detail::MarkSlot)slot, (uint32_t)index, std::move(name)});
 }
 
-Element &Element::overlay(Decoration d, std::string name) {
+Element& Element::overlay(Decoration d, std::string name) {
   claimBorrows(d);
   const size_t index = m_node->fxData.ensure().overlays.size();
   m_node->fxData->overlays.push_back(std::move(d));
   labelMark((int)detail::MarkSlot::Overlay, index, std::move(name));
   return *this;
 }
-Element &Element::background(Decoration d, std::string name) {
+Element& Element::background(Decoration d, std::string name) {
   claimBorrows(d);
   const size_t index = m_node->backgrounds.size();
   m_node->backgrounds.push_back(std::move(d));
   labelMark((int)detail::MarkSlot::Background, index, std::move(name));
   return *this;
 }
-Element &Element::foreground(Decoration d, std::string name) {
+Element& Element::foreground(Decoration d, std::string name) {
   claimBorrows(d);
   const size_t index = m_node->foregrounds.size();
   m_node->foregrounds.push_back(std::move(d));
   labelMark((int)detail::MarkSlot::Foreground, index, std::move(name));
   return *this;
 }
-Element &Element::stroke(Decoration brush, std::string name) {
+Element& Element::stroke(Decoration brush, std::string name) {
   return foreground(std::move(brush), std::move(name));
 }
-Element &Element::stroke(Spans where, Decoration what, std::string name) {
+Element& Element::stroke(Spans where, Decoration what, std::string name) {
   return addSpanPass(std::move(where), std::move(what), std::move(name),
                      (int)detail::StrokePass::Half::Foreground);
 }
-Element &Element::background(Spans where, Decoration what, std::string name) {
+Element& Element::background(Spans where, Decoration what, std::string name) {
   return addSpanPass(std::move(where), std::move(what), std::move(name),
                      (int)detail::StrokePass::Half::Background);
 }
@@ -773,116 +808,119 @@ Element &Element::background(Spans where, Decoration what, std::string name) {
  *  halves differ only in where the mark lands, so everything upstream of
  *  the paint (the fit() borrows, the claim ledger, the pass list) is one
  *  thing and must stay one thing. */
-Element &Element::addSpanPass(Spans where, Decoration what, std::string name,
+Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
                               int half) {
   // A fit() term borrows another element's resolved box, so the keys ride
   // into DeriveData where the ONE derive-registration walk finds them —
   // the flowAround pattern, not a second phase.
-  for (const Spans::Term &t : where.terms)
+  for (const Spans::Term& t : where.terms)
     if (t.rule == Spans::Rule::Fit && !t.key.empty())
       m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
   claimBorrows(what);
-  m_node->strokeData.ensure().passes.push_back(detail::StrokePass{
-      std::move(where), std::move(what), std::move(name),
-      (detail::StrokePass::Half)half});
+  m_node->strokeData.ensure().passes.push_back(
+      detail::StrokePass{std::move(where), std::move(what), std::move(name),
+                         (detail::StrokePass::Half)half});
   return *this;
 }
-Element &Element::echo(SkVector offset, SkColor4f color) {
+Element& Element::echo(SkVector offset, SkColor4f color) {
   m_node->fxData.ensure().echoes.push_back(Echo{offset, color});
   return *this;
 }
-Element &Element::style(LayerStyle s) {
-  for (Decoration &d : s.under) {
+Element& Element::style(LayerStyle s) {
+  for (Decoration& d : s.under) {
     claimBorrows(d);
     m_node->backgrounds.push_back(std::move(d));
   }
-  for (Decoration &d : s.over) {
+  for (Decoration& d : s.over) {
     claimBorrows(d);
     m_node->foregrounds.push_back(std::move(d));
   }
   return *this;
 }
-Element &Element::effect(Effect e) {
+Element& Element::effect(Effect e) {
   m_node->fxData.ensure().layerEffect = std::move(e);
   return *this;
 }
-Element &Element::backdrop(Effect e) {
+Element& Element::backdrop(Effect e) {
   m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }
-Element &Element::opacity(Animatable<float> o) {
+Element& Element::opacity(Animatable<float> o) {
   m_node->paint.opacity = std::move(o);
   return *this;
 }
-Element &Element::blend(SkBlendMode mode) {
+Element& Element::blend(SkBlendMode mode) {
   m_node->paint.blendMode = mode;
   return *this;
 }
-Element &Element::translateX(Animatable<float> v) {
+Element& Element::translateX(Animatable<float> v) {
   m_node->paint.translateX = std::move(v);
   return *this;
 }
-Element &Element::translateY(Animatable<float> v) {
+Element& Element::translateY(Animatable<float> v) {
   m_node->paint.translateY = std::move(v);
   return *this;
 }
-Element &Element::travel(MotionPath along) {
+Element& Element::travel(MotionPath along) {
   m_node->motionData.ensure() = std::move(along);
   return *this;
 }
-Element &Element::rotate(Animatable<float> v) {
+Element& Element::rotate(Animatable<float> v) {
   m_node->paint.rotate = std::move(v);
   return *this;
 }
-Element &Element::scale(Animatable<float> v) {
+Element& Element::scale(Animatable<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
-Element &Element::textStroke(float width, Fill fill) {
-  auto &t = m_node->textData.ensure();
+Element& Element::textStroke(float width, Fill fill) {
+  auto& t = m_node->textData.ensure();
   t.hasTextStroke = width > 0.0f;
   t.textStrokeWidth = width;
   t.textStrokeFill = std::move(fill);
   return *this;
 }
 
-Element &Element::onPath(TextPath spec) {
+Element& Element::onPath(TextPath spec) {
   m_node->textData.ensure().onPath = std::move(spec);
   return *this;
 }
-Element &Element::scaleX(Animatable<float> v) {
+Element& Element::scaleX(Animatable<float> v) {
   m_node->paint.scaleX = std::move(v);
   return *this;
 }
-Element &Element::scaleY(Animatable<float> v) {
+Element& Element::scaleY(Animatable<float> v) {
   m_node->paint.scaleY = std::move(v);
   return *this;
 }
-Element &Element::skewX(Animatable<float> v) {
+Element& Element::skewX(Animatable<float> v) {
   m_node->paint.skewX = std::move(v);
   return *this;
 }
-Element &Element::skewY(Animatable<float> v) {
+Element& Element::skewY(Animatable<float> v) {
   m_node->paint.skewY = std::move(v);
   return *this;
 }
-Element &Element::transformOrigin(float fx, float fy) {
+Element& Element::transformOrigin(float fx, float fy) {
   m_node->paint.originX = fx;
   m_node->paint.originY = fy;
   m_node->paint.originPx = false;
   return *this;
 }
-Element &Element::transformOriginPx(SkPoint p) {
+Element& Element::transformOriginPx(SkPoint p) {
   m_node->paint.originX = p.x();
   m_node->paint.originY = p.y();
   m_node->paint.originPx = true;
   return *this;
 }
-Element &Element::zIndex(int z) { m_node->paint.zIndex = z; return *this; }
+Element& Element::zIndex(int z) {
+  m_node->paint.zIndex = z;
+  return *this;
+}
 
 // ---- identity, caching, transitions --------------------------------------
 
-Element &Element::key(std::string_view k) {
+Element& Element::key(std::string_view k) {
   // A slot's NAME is its key — one field, two spellings — so this call
   // RENAMES the mount, and renderSlot() on the original name then finds
   // nothing and leaves the slot laying out at zero on its content axis.
@@ -890,36 +928,39 @@ Element &Element::key(std::string_view k) {
   // fires where the caller still has BOTH names in hand, which is what
   // makes it actionable.
   if (m_node->kind == Kind::Slot && !m_node->key.empty() && m_node->key != k) {
-    static std::set<std::string> warned; // once per rename, not per frame
+    static std::set<std::string> warned;  // once per rename, not per frame
     if (warned.insert(m_node->key + "->" + std::string(k)).second)
-      SkDebugf("[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
-               "renderSlot(\"%s\") will no longer find it and the mount will "
-               "lay out at zero on its content axis. A slot is named once, "
-               "by slot().\n",
-               (int)k.size(), k.data(), m_node->key.c_str(),
-               m_node->key.c_str());
+      SkDebugf(
+          "[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
+          "renderSlot(\"%s\") will no longer find it and the mount will "
+          "lay out at zero on its content axis. A slot is named once, "
+          "by slot().\n",
+          (int)k.size(), k.data(), m_node->key.c_str(), m_node->key.c_str());
   }
   m_node->key = std::string(k);
   return *this;
 }
-Element &Element::cache(Cache c) { m_node->cacheMode = c; return *this; }
-Element &Element::bakeScale(float factor) {
+Element& Element::cache(Cache c) {
+  m_node->cacheMode = c;
+  return *this;
+}
+Element& Element::bakeScale(float factor) {
   m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
   return *this;
 }
-Element &Element::transition(Transition t) {
+Element& Element::transition(Transition t) {
   m_node->nodeTransition = std::move(t);
   return *this;
 }
-Element &Element::staggerChildren(std::chrono::milliseconds each,
+Element& Element::staggerChildren(std::chrono::milliseconds each,
                                   Stagger::From from) {
-  detail::FxData &fx = m_node->fxData.ensure();
+  detail::FxData& fx = m_node->fxData.ensure();
   fx.staggerChildrenMs = (float)each.count();
   fx.staggerFrom = from;
   return *this;
 }
 
-Element &Element::child(Element e) {
+Element& Element::child(Element e) {
   m_node->children.push_back(std::move(e));
   return *this;
 }
@@ -943,7 +984,7 @@ Element positioned() {
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
-  detail::TextData &text = e.node()->textData.ensure();
+  detail::TextData& text = e.node()->textData.ensure();
   text.utf8 = std::move(utf8);
   text.style = std::move(style);
   // The box fits the type: measured text must not stretch on the cross
@@ -958,7 +999,7 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
   e.node()->kind = Kind::Text;
-  detail::TextData &text = e.node()->textData.ensure();
+  detail::TextData& text = e.node()->textData.ensure();
   text.paragraphOverride = std::move(paragraph);
   text.layoutOptions = std::move(options);
   return e;
@@ -971,12 +1012,12 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   return e;
 }
 
-Element &Element::sampling(SkSamplingOptions options) {
+Element& Element::sampling(SkSamplingOptions options) {
   m_node->imageData.ensure().sampling = options;
   return *this;
 }
 
-Element &Element::region(SkRect sourceRect) {
+Element& Element::region(SkRect sourceRect) {
   m_node->imageData.ensure().region = sourceRect;
   return *this;
 }
@@ -994,14 +1035,14 @@ Element custom(std::string_view key, PaintProgram program) {
   return e;
 }
 
-Element &Element::glyphFx(GlyphFx fx) {
+Element& Element::glyphFx(GlyphFx fx) {
   m_node->textData.ensure().glyphFx = std::move(fx);
   return *this;
 }
 
-Element &Element::variationDrive(const char (&tag)[5],
-                                 const choreograph::Output<float> *value) {
-  detail::TextData &text = m_node->textData.ensure();
+Element& Element::variationDrive(const char (&tag)[5],
+                                 const choreograph::Output<float>* value) {
+  detail::TextData& text = m_node->textData.ensure();
   text.driveTag[0] = tag[0];
   text.driveTag[1] = tag[1];
   text.driveTag[2] = tag[2];
@@ -1010,13 +1051,13 @@ Element &Element::variationDrive(const char (&tag)[5],
   return *this;
 }
 
-Element &Element::textAlign(sigil::weave::TextAlignment a) {
+Element& Element::textAlign(sigil::weave::TextAlignment a) {
   m_node->textData.ensure().layoutOptions.alignment = a;
   return *this;
 }
 
-Element &Element::flowAround(std::string_view key, float margin) {
-  detail::DeriveData &derive = m_node->deriveData.ensure();
+Element& Element::flowAround(std::string_view key, float margin) {
+  detail::DeriveData& derive = m_node->deriveData.ensure();
   derive.flowAroundKeys.push_back(std::string(key));
   derive.flowAroundMargin = margin;
   return *this;
@@ -1025,8 +1066,8 @@ Element &Element::flowAround(std::string_view key, float margin) {
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router, float gap) {
   Element e;
-  e.node()->kind = Kind::Custom; // painted via derive-resolved outline
-  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  e.node()->kind = Kind::Custom;  // painted via derive-resolved outline
+  detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.connectFrom = std::string(fromKey);
   derive.connectTo = std::string(toKey);
   derive.router = std::move(router);
@@ -1036,8 +1077,8 @@ Element connector(std::string_view fromKey, std::string_view toKey,
 
 Element rail(std::vector<Anchor> anchors, RailRouter router) {
   Element e;
-  e.node()->kind = Kind::Custom; // painted via the derive-routed outline
-  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  e.node()->kind = Kind::Custom;  // painted via the derive-routed outline
+  detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.railAnchors = std::move(anchors);
   derive.railRouter = std::move(router);
   return e;
@@ -1052,17 +1093,17 @@ Element slot(std::string_view name) {
 
 namespace detail {
 Element makeLayout(
-    std::function<std::vector<SkRect>(const LayoutInput &)> place) {
+    std::function<std::vector<SkRect>(const LayoutInput&)> place) {
   Element e;
   e.node()->deriveData.ensure().placeFn = std::move(place);
   return e;
 }
 
 Element makeMemo(std::any props,
-                 std::function<bool(const std::any &, const std::any &)> equal,
-                 std::function<Element(const std::any &)> invoke) {
+                 std::function<bool(const std::any&, const std::any&)> equal,
+                 std::function<Element(const std::any&)> invoke) {
   Element e;
-  detail::MemoData &memo = e.node()->memoData.ensure();
+  detail::MemoData& memo = e.node()->memoData.ensure();
   memo.props = std::move(props);
   memo.equal = std::move(equal);
   memo.invoke = std::move(invoke);
@@ -1074,36 +1115,32 @@ Element makeMemo(std::any props,
 
 // ---- env: the describe-time ambient stack (see Compose.h "env") ----------
 
-EnvSnapshot &envStack() {
+EnvSnapshot& envStack() {
   static thread_local EnvSnapshot stack;
   return stack;
 }
 
-bool envEqual(const EnvSnapshot &a, const EnvSnapshot &b) {
-  if (a.size() != b.size())
-    return false;
+bool envEqual(const EnvSnapshot& a, const EnvSnapshot& b) {
+  if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
-    if (a[i].type != b[i].type)
-      return false;
+    if (a[i].type != b[i].type) return false;
     if (a[i].value == b[i].value)
-      continue; // the same binding object: equal without asking
-    if (!a[i].equal || !a[i].value || !b[i].value)
-      return false;
-    if (!a[i].equal(a[i].value.get(), b[i].value.get()))
-      return false;
+      continue;  // the same binding object: equal without asking
+    if (!a[i].equal || !a[i].value || !b[i].value) return false;
+    if (!a[i].equal(a[i].value.get(), b[i].value.get())) return false;
   }
   return true;
 }
 
-EnvRestore::EnvRestore(const EnvSnapshot &snapshot) {
-  EnvSnapshot next = snapshot; // copied first: `snapshot` may alias the stack
+EnvRestore::EnvRestore(const EnvSnapshot& snapshot) {
+  EnvSnapshot next = snapshot;  // copied first: `snapshot` may alias the stack
   m_saved = std::move(envStack());
   envStack() = std::move(next);
 }
 
 EnvRestore::~EnvRestore() { envStack() = std::move(m_saved); }
 
-} // namespace detail
+}  // namespace detail
 
 // ---------------------------------------------------------------------------
 // Spans: the boundary's arc length, in claimed runs
@@ -1125,7 +1162,7 @@ struct ContourRun {
   bool closed = false;
 };
 
-std::vector<ContourRun> measureContours(const SkPath &path, float *total) {
+std::vector<ContourRun> measureContours(const SkPath& path, float* total) {
   std::vector<ContourRun> runs;
   float at = 0;
   SkContourMeasureIter iter(path, false);
@@ -1134,20 +1171,18 @@ std::vector<ContourRun> measureContours(const SkPath &path, float *total) {
     runs.push_back({at, len, contour->isClosed()});
     at += len;
   }
-  if (total)
-    *total = at;
+  if (total) *total = at;
   return runs;
 }
 
-void pushWindow(std::vector<Span> &out, float lo, float hi, float total) {
-  if (total <= 0 || hi <= lo)
-    return;
+void pushWindow(std::vector<Span>& out, float lo, float hi, float total) {
+  if (total <= 0 || hi <= lo) return;
   out.push_back({lo / total, hi / total});
 }
 
 /** A window around `d` on one contour, wrapping on a closed contour and
  *  clamping on an open one — an open contour has no seam to wrap over. */
-void pushCornerWindow(std::vector<Span> &out, const ContourRun &run, float d,
+void pushCornerWindow(std::vector<Span>& out, const ContourRun& run, float d,
                       float arm, float total) {
   const float lo = d - arm, hi = d + arm;
   if (!run.closed) {
@@ -1166,19 +1201,17 @@ void pushCornerWindow(std::vector<Span> &out, const ContourRun &run, float d,
   }
 }
 
-std::vector<Span> cornerSpans(const SkPath &outline, float arm,
+std::vector<Span> cornerSpans(const SkPath& outline, float arm,
                               float angleDeg) {
   std::vector<Span> out;
   float total = 0;
   const std::vector<ContourRun> runs = measureContours(outline, &total);
-  if (total <= 0)
-    return out;
+  if (total <= 0) return out;
   size_t i = 0;
   SkContourMeasureIter iter(outline, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    if (i >= runs.size())
-      break;
-    for (const lines::detail::CornerHit &hit :
+    if (i >= runs.size()) break;
+    for (const lines::detail::CornerHit& hit :
          lines::detail::findCorners(*contour, angleDeg))
       pushCornerWindow(out, runs[i], hit.d, arm, total);
     ++i;
@@ -1189,29 +1222,26 @@ std::vector<Span> cornerSpans(const SkPath &outline, float arm,
 /** The runs of the outline that lie inside a rect — spans::fit(). Walked
  *  rather than solved: the boundary is any shape, including one the rect
  *  enters and leaves several times. */
-std::vector<Span> fitSpans(const SkPath &outline, const SkRect &box,
+std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
                            float margin) {
   std::vector<Span> out;
   SkRect grown = box;
   grown.outset(margin, margin);
   float total = 0;
   const std::vector<ContourRun> runs = measureContours(outline, &total);
-  if (total <= 0)
-    return out;
+  if (total <= 0) return out;
   size_t i = 0;
   SkContourMeasureIter iter(outline, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    if (i >= runs.size())
-      break;
-    const ContourRun &run = runs[i++];
+    if (i >= runs.size()) break;
+    const ContourRun& run = runs[i++];
     const float step = std::max(1.0f, run.length / 512.0f);
     bool inside = false;
     float enter = 0;
     for (float d = 0; d <= run.length + step * 0.5f; d += step) {
       SkPoint pos;
       const float at = std::min(d, run.length);
-      if (!contour->getPosTan(at, &pos, nullptr))
-        continue;
+      if (!contour->getPosTan(at, &pos, nullptr)) continue;
       const bool now = grown.contains(pos.fX, pos.fY);
       if (now && !inside) {
         enter = at;
@@ -1227,7 +1257,7 @@ std::vector<Span> fitSpans(const SkPath &outline, const SkRect &box,
   return detail::normalizeSpans(std::move(out));
 }
 
-} // namespace
+}  // namespace
 
 namespace detail {
 
@@ -1235,17 +1265,15 @@ std::vector<Span> normalizeSpans(std::vector<Span> spans) {
   std::vector<Span> out;
   out.reserve(spans.size());
   for (Span s : spans) {
-    if (s.end < s.begin)
-      std::swap(s.begin, s.end);
+    if (s.end < s.begin) std::swap(s.begin, s.end);
     s.begin = std::clamp(s.begin, 0.0f, 1.0f);
     s.end = std::clamp(s.end, 0.0f, 1.0f);
-    if (s.end - s.begin > 1e-6f)
-      out.push_back(s);
+    if (s.end - s.begin > 1e-6f) out.push_back(s);
   }
   std::sort(out.begin(), out.end(),
-            [](const Span &a, const Span &b) { return a.begin < b.begin; });
+            [](const Span& a, const Span& b) { return a.begin < b.begin; });
   std::vector<Span> merged;
-  for (const Span &s : out) {
+  for (const Span& s : out) {
     if (!merged.empty() && s.begin <= merged.back().end + 1e-6f)
       merged.back().end = std::max(merged.back().end, s.end);
     else
@@ -1254,21 +1282,19 @@ std::vector<Span> normalizeSpans(std::vector<Span> spans) {
   return merged;
 }
 
-std::vector<Span> complementSpans(const std::vector<Span> &spans) {
+std::vector<Span> complementSpans(const std::vector<Span>& spans) {
   std::vector<Span> out;
   float at = 0;
-  for (const Span &s : spans) {
-    if (s.begin - at > 1e-6f)
-      out.push_back({at, s.begin});
+  for (const Span& s : spans) {
+    if (s.begin - at > 1e-6f) out.push_back({at, s.begin});
     at = std::max(at, s.end);
   }
-  if (1.0f - at > 1e-6f)
-    out.push_back({at, 1.0f});
+  if (1.0f - at > 1e-6f) out.push_back({at, 1.0f});
   return out;
 }
 
-std::vector<Span> intersectSpans(const std::vector<Span> &a,
-                                 const std::vector<Span> &b) {
+std::vector<Span> intersectSpans(const std::vector<Span>& a,
+                                 const std::vector<Span>& b) {
   // Both inputs are normalized (sorted, disjoint, non-degenerate), so one
   // sweep suffices. Touching endpoints are not an intersection, by the
   // same 1e-6 rule normalizeSpans drops empties with — two runs meeting
@@ -1278,8 +1304,7 @@ std::vector<Span> intersectSpans(const std::vector<Span> &a,
   while (i < a.size() && j < b.size()) {
     const float lo = std::max(a[i].begin, b[j].begin);
     const float hi = std::min(a[i].end, b[j].end);
-    if (hi - lo > 1e-6f)
-      out.push_back({lo, hi});
+    if (hi - lo > 1e-6f) out.push_back({lo, hi});
     if (a[i].end < b[j].end)
       ++i;
     else
@@ -1288,41 +1313,37 @@ std::vector<Span> intersectSpans(const std::vector<Span> &a,
   return out;
 }
 
-std::optional<Span> spansOverlap(const std::vector<Span> &a,
-                                 const std::vector<Span> &b) {
-  for (const Span &x : a)
-    for (const Span &y : b) {
+std::optional<Span> spansOverlap(const std::vector<Span>& a,
+                                 const std::vector<Span>& b) {
+  for (const Span& x : a)
+    for (const Span& y : b) {
       const float lo = std::max(x.begin, y.begin);
       const float hi = std::min(x.end, y.end);
       // A shared END POINT is two runs meeting, not two runs overlapping —
       // exactly what corners() next to edges() produces, and it must not
       // be an error.
-      if (hi - lo > 1e-4f)
-        return Span{lo, hi};
+      if (hi - lo > 1e-4f) return Span{lo, hi};
     }
   return std::nullopt;
 }
 
-SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
+SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
   SkPathBuilder out;
   float total = 0;
   const std::vector<ContourRun> runs = measureContours(src, &total);
-  if (total <= 0 || spans.empty())
-    return out.detach();
+  if (total <= 0 || spans.empty()) return out.detach();
   size_t i = 0;
   SkContourMeasureIter iter(src, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    if (i >= runs.size())
-      break;
-    const ContourRun &run = runs[i++];
+    if (i >= runs.size()) break;
+    const ContourRun& run = runs[i++];
     // Emit one span against this contour. `stitch` appends WITHOUT a
     // moveTo, continuing the run already in flight.
-    const auto emit = [&](const Span &s, bool stitch) {
+    const auto emit = [&](const Span& s, bool stitch) {
       const float lo = std::max(s.begin * total, run.start) - run.start;
-      const float hi = std::min(s.end * total, run.start + run.length) -
-                       run.start;
-      if (hi - lo <= 1e-4f)
-        return false;
+      const float hi =
+          std::min(s.end * total, run.start + run.length) - run.start;
+      if (hi - lo <= 1e-4f) return false;
       // A whole contour claimed whole stays whole — closed stays closed,
       // so joins and additive brushes behave as they do untrimmed.
       //
@@ -1333,8 +1354,7 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
       // brush.
       if (lo <= 1e-4f && hi >= run.length - 1e-4f) {
         (void)contour->getSegment(0, run.length, &out, !stitch);
-        if (run.closed && !stitch)
-          out.close();
+        if (run.closed && !stitch) out.close();
       } else
         (void)contour->getSegment(lo, hi, &out, !stitch);
       return true;
@@ -1355,12 +1375,10 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
     if (seamStraddled) {
       const bool inFlight = emit(spans.back(), false);
       (void)emit(spans.front(), inFlight);
-      for (size_t k = 1; k + 1 < spans.size(); ++k)
-        (void)emit(spans[k], false);
+      for (size_t k = 1; k + 1 < spans.size(); ++k) (void)emit(spans[k], false);
       continue;
     }
-    for (const Span &s : spans)
-      (void)emit(s, false);
+    for (const Span& s : spans) (void)emit(s, false);
   }
   return out.detach();
 }
@@ -1385,14 +1403,17 @@ struct BandRail {
   bool outer = true;
   float sliceStart = 0.0f, sliceSpan = 1.0f;
   float spineLen = 0.0f;
-  bool operator==(const BandRail &) const = default;
+  bool operator==(const BandRail&) const = default;
   float max() const { return base.max(); }
   float across(float along) const {
     const float w = base.acrossAt(sliceStart + along * sliceSpan, spineLen);
     switch (formation) {
-    case Formation::Centered: return outer ? w * 0.5f : -w * 0.5f;
-    case Formation::Outward:  return outer ? w : 0.0f;
-    case Formation::Inward:   return outer ? 0.0f : -w;
+      case Formation::Centered:
+        return outer ? w * 0.5f : -w * 0.5f;
+      case Formation::Outward:
+        return outer ? w : 0.0f;
+      case Formation::Inward:
+        return outer ? 0.0f : -w;
     }
     return 0.0f;
   }
@@ -1406,7 +1427,7 @@ struct BandRail {
  *  length, so the cost grows fastest on exactly the large rings this is
  *  wanted for. Here the contours are measured once and the cursor only ever
  *  moves forward. */
-std::vector<SkPoint> sampleRail(const SkPath &rail, int steps) {
+std::vector<SkPoint> sampleRail(const SkPath& rail, int steps) {
   std::vector<SkPoint> out;
   std::vector<sk_sp<SkContourMeasure>> contours;
   float total = 0;
@@ -1415,8 +1436,7 @@ std::vector<SkPoint> sampleRail(const SkPath &rail, int steps) {
     total += m->length();
     contours.push_back(std::move(m));
   }
-  if (total <= 0 || contours.empty())
-    return out;
+  if (total <= 0 || contours.empty()) return out;
   out.reserve((size_t)steps + 1);
   size_t at = 0;
   float consumed = 0;
@@ -1428,41 +1448,35 @@ std::vector<SkPoint> sampleRail(const SkPath &rail, int steps) {
       ++at;
     }
     SkPoint pos;
-    const float d =
-        std::clamp(want - consumed, 0.0f, contours[at]->length());
-    if (contours[at]->getPosTan(d, &pos, nullptr))
-      out.push_back(pos);
+    const float d = std::clamp(want - consumed, 0.0f, contours[at]->length());
+    if (contours[at]->getPosTan(d, &pos, nullptr)) out.push_back(pos);
   }
   return out;
 }
 
 /** The contours of a path, each as its own path — so a rail pair can be
  *  zipped and CLOSED per contour instead of chained into one run. */
-std::vector<std::pair<SkPath, float>> splitContours(const SkPath &path) {
+std::vector<std::pair<SkPath, float>> splitContours(const SkPath& path) {
   std::vector<std::pair<SkPath, float>> out;
   SkContourMeasureIter iter(path, false);
   while (sk_sp<SkContourMeasure> m = iter.next()) {
     const float len = m->length();
-    if (len <= 0)
-      continue;
+    if (len <= 0) continue;
     SkPathBuilder b;
     (void)m->getSegment(0, len, &b, true);
-    if (m->isClosed())
-      b.close();
+    if (m->isClosed()) b.close();
     out.emplace_back(b.detach(), len);
   }
   return out;
 }
 
-SkPath bandRegion(const SkPath &spine, const Across &width,
+SkPath bandRegion(const SkPath& spine, const Across& width,
                   Formation formation) {
   const float reach = width.profile.max();
-  if (spine.isEmpty() || reach <= 0)
-    return SkPath();
+  if (spine.isEmpty() || reach <= 0) return SkPath();
   float total = 0;
   measureContours(spine, &total);
-  if (total <= 0)
-    return SkPath();
+  if (total <= 0) return SkPath();
 
   // PER CONTOUR, and that is load-bearing: a single moveTo/lineTo chain
   // across all contours closed ONCE bridges between them with a filled
@@ -1482,55 +1496,50 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
   // turn every band inside out on one code path only.
   SkPathBuilder out;
   float consumed = 0;
-  for (const auto &[contour, len] : splitContours(spine)) {
+  for (const auto& [contour, len] : splitContours(spine)) {
     const float sliceStart = total > 0 ? consumed / total : 0.0f;
     const float sliceSpan = total > 0 ? len / total : 1.0f;
     consumed += len;
 
-    const SkPath outerRail = profileOffset(
-        contour, Profile(BandRail{width.profile, formation, true, sliceStart,
-                                 sliceSpan, total}));
-    const SkPath innerRail = profileOffset(
-        contour, Profile(BandRail{width.profile, formation, false, sliceStart,
-                                  sliceSpan, total}));
-    if (outerRail.isEmpty() || innerRail.isEmpty())
-      continue;
+    const SkPath outerRail =
+        profileOffset(contour, Profile(BandRail{width.profile, formation, true,
+                                                sliceStart, sliceSpan, total}));
+    const SkPath innerRail =
+        profileOffset(contour, Profile(BandRail{width.profile, formation, false,
+                                                sliceStart, sliceSpan, total}));
+    if (outerRail.isEmpty() || innerRail.isEmpty()) continue;
 
     // Zip by arc length rather than by index: offsetAcross inserts join
     // geometry, so the two rails do not share a point count.
     const int steps = std::max(16, (int)std::ceil(len / 2.0f));
     const std::vector<SkPoint> outerPts = sampleRail(outerRail, steps);
     const std::vector<SkPoint> innerPts = sampleRail(innerRail, steps);
-    if (outerPts.size() < 2 || innerPts.size() < 2)
-      continue;
+    if (outerPts.size() < 2 || innerPts.size() < 2) continue;
 
     out.moveTo(outerPts.front());
-    for (size_t k = 1; k < outerPts.size(); ++k)
-      out.lineTo(outerPts[k]);
-    for (size_t k = innerPts.size(); k-- > 0;)
-      out.lineTo(innerPts[k]);
+    for (size_t k = 1; k < outerPts.size(); ++k) out.lineTo(outerPts[k]);
+    for (size_t k = innerPts.size(); k-- > 0;) out.lineTo(innerPts[k]);
     out.close();
   }
   return out.detach();
 }
 
-} // namespace detail
+}  // namespace detail
 
-SkPath bandRegion(const SkPath &spine, const Across &width,
+SkPath bandRegion(const SkPath& spine, const Across& width,
                   Formation formation) {
   return detail::bandRegion(spine, width, formation);
 }
 
-Spans &Spans::offset(Animatable<float> by) {
+Spans& Spans::offset(Animatable<float> by) {
   for (size_t i = 0; i < terms.size(); ++i)
     terms[i].offset = i + 1 < terms.size() ? by : std::move(by);
   return *this;
 }
 
-std::vector<Span> Spans::resolve(const SpanInput &in) const {
+std::vector<Span> Spans::resolve(const SpanInput& in) const {
   std::vector<Span> out;
-  if (!in.outline)
-    return out;
+  if (!in.outline) return out;
   // begin, end, offset per term — the order Instance::spanAnims and
   // spanEndpoints() both walk. The offset is ADDED to both ends before the
   // interval is read, which is exactly what trim() does with its third
@@ -1539,81 +1548,78 @@ std::vector<Span> Spans::resolve(const SpanInput &in) const {
     return in.values && in.values->size() > i ? (*in.values)[i] : fallback;
   };
   for (size_t t = 0; t < terms.size(); ++t) {
-    const Term &term = terms[t];
+    const Term& term = terms[t];
     switch (term.rule) {
-    case Rule::Range: {
-      const float off = at(t * 3 + 2, 0.0f);
-      const float a = at(t * 3, 0.0f) + off;
-      const float b = at(t * 3 + 1, 1.0f) + off;
-      out.push_back({a, b});
-      break;
-    }
-    case Rule::Wrap: {
-      const float off = at(t * 3 + 2, 0.0f);
-      const float a = at(t * 3, 0.0f) + off;
-      const float b = at(t * 3 + 1, 1.0f) + off;
-      // The same three cases TrimMode::Wrap resolves, and deliberately in
-      // the same order: the RAW difference decides emptiness and fullness
-      // (a window driven to [1.1, 1.35] is still a quarter of the cycle),
-      // and only then do the endpoints wrap into [0,1).
-      const float length = b - a;
-      if (length <= 0.0f)
-        break; // claims nothing
-      if (length >= 1.0f) {
-        out.push_back({0.0f, 1.0f}); // the whole cycle
+      case Rule::Range: {
+        const float off = at(t * 3 + 2, 0.0f);
+        const float a = at(t * 3, 0.0f) + off;
+        const float b = at(t * 3 + 1, 1.0f) + off;
+        out.push_back({a, b});
         break;
       }
-      const float s = a - std::floor(a);
-      const float e = b - std::floor(b);
-      if (s < e) {
-        out.push_back({s, e});
-      } else {
-        // Straddles the seam: two runs, which normalizeSpans sorts to the
-        // ends of the list and spanPath stitches back into one contour.
-        out.push_back({s, 1.0f});
-        out.push_back({0.0f, e});
-      }
-      break;
-    }
-    case Rule::Corners: {
-      const std::vector<Span> hits =
-          cornerSpans(*in.outline, term.arm, term.angleDeg);
-      out.insert(out.end(), hits.begin(), hits.end());
-      break;
-    }
-    case Rule::Edges: {
-      const std::vector<Span> gaps =
-          detail::complementSpans(cornerSpans(*in.outline, term.arm,
-                                              term.angleDeg));
-      out.insert(out.end(), gaps.begin(), gaps.end());
-      break;
-    }
-    case Rule::Every: {
-      const int n = std::max(1, term.count);
-      const float duty = std::clamp(term.duty, 0.0f, 1.0f);
-      for (int k = 0; k < n; ++k)
-        out.push_back({(float)k / (float)n, ((float)k + duty) / (float)n});
-      break;
-    }
-    case Rule::At: {
-      const int n = std::max(1, term.count);
-      const int k = std::clamp(term.index, 0, n - 1);
-      out.push_back({(float)k / (float)n, (float)(k + 1) / (float)n});
-      break;
-    }
-    case Rule::Fit: {
-      if (!in.fitRects)
-        break;
-      for (const auto &[key, box] : *in.fitRects)
-        if (key == term.key) {
-          const std::vector<Span> hits =
-              fitSpans(*in.outline, box, term.margin);
-          out.insert(out.end(), hits.begin(), hits.end());
+      case Rule::Wrap: {
+        const float off = at(t * 3 + 2, 0.0f);
+        const float a = at(t * 3, 0.0f) + off;
+        const float b = at(t * 3 + 1, 1.0f) + off;
+        // The same three cases TrimMode::Wrap resolves, and deliberately in
+        // the same order: the RAW difference decides emptiness and fullness
+        // (a window driven to [1.1, 1.35] is still a quarter of the cycle),
+        // and only then do the endpoints wrap into [0,1).
+        const float length = b - a;
+        if (length <= 0.0f) break;  // claims nothing
+        if (length >= 1.0f) {
+          out.push_back({0.0f, 1.0f});  // the whole cycle
+          break;
         }
-      break;
-    }
-    case Rule::Rest:
-      break; // the complement needs the element's other passes
+        const float s = a - std::floor(a);
+        const float e = b - std::floor(b);
+        if (s < e) {
+          out.push_back({s, e});
+        } else {
+          // Straddles the seam: two runs, which normalizeSpans sorts to the
+          // ends of the list and spanPath stitches back into one contour.
+          out.push_back({s, 1.0f});
+          out.push_back({0.0f, e});
+        }
+        break;
+      }
+      case Rule::Corners: {
+        const std::vector<Span> hits =
+            cornerSpans(*in.outline, term.arm, term.angleDeg);
+        out.insert(out.end(), hits.begin(), hits.end());
+        break;
+      }
+      case Rule::Edges: {
+        const std::vector<Span> gaps = detail::complementSpans(
+            cornerSpans(*in.outline, term.arm, term.angleDeg));
+        out.insert(out.end(), gaps.begin(), gaps.end());
+        break;
+      }
+      case Rule::Every: {
+        const int n = std::max(1, term.count);
+        const float duty = std::clamp(term.duty, 0.0f, 1.0f);
+        for (int k = 0; k < n; ++k)
+          out.push_back({(float)k / (float)n, ((float)k + duty) / (float)n});
+        break;
+      }
+      case Rule::At: {
+        const int n = std::max(1, term.count);
+        const int k = std::clamp(term.index, 0, n - 1);
+        out.push_back({(float)k / (float)n, (float)(k + 1) / (float)n});
+        break;
+      }
+      case Rule::Fit: {
+        if (!in.fitRects) break;
+        for (const auto& [key, box] : *in.fitRects)
+          if (key == term.key) {
+            const std::vector<Span> hits =
+                fitSpans(*in.outline, box, term.margin);
+            out.insert(out.end(), hits.begin(), hits.end());
+          }
+        break;
+      }
+      case Rule::Rest:
+        break;  // the complement needs the element's other passes
     }
   }
   return detail::normalizeSpans(std::move(out));
@@ -1701,16 +1707,15 @@ Spans rest(std::string_view passName) {
   return s;
 }
 
-} // namespace spans
+}  // namespace spans
 
 // ---------------------------------------------------------------------------
 // band()
 
-SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx) {
+SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx) {
   float total = 0;
   measureContours(spine, &total);
-  if (total <= 0)
-    return {0, 0};
+  if (total <= 0) return {0, 0};
   const float want = std::clamp(along, 0.0f, 1.0f) * total;
   float consumed = 0;
   SkContourMeasureIter iter(spine, false);
@@ -1729,13 +1734,11 @@ SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx) {
   return {0, 0};
 }
 
-SkPath profileOffset(const SkPath &spine, const Profile &profile) {
-  if (spine.isEmpty())
-    return SkPath();
+SkPath profileOffset(const SkPath& spine, const Profile& profile) {
+  if (spine.isEmpty()) return SkPath();
   float total = 0;
   measureContours(spine, &total);
-  if (total <= 0)
-    return SkPath();
+  if (total <= 0) return SkPath();
   // A CONSTANT profile is a parallel, and lines::offsetAcross already does
   // parallels exactly — it finds the real vertices and joins them (arc
   // outside a turn, miter inside) instead of chording across. The naive
@@ -1770,29 +1773,25 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
     const float len = contour->length();
     const float base = consumed;
     consumed += len;
-    if (len <= 0)
-      continue;
+    if (len <= 0) continue;
     const int steps = std::max(8, (int)std::ceil(len / 2.0f));
     bool started = false;
     for (int k = 0; k <= steps; ++k) {
       const float d = len * (float)k / (float)steps;
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan))
-        continue;
+      if (!contour->getPosTan(d, &pos, &tan)) continue;
       // The band's frame: positive across is LEFT of travel, which with y
       // down is outside a clockwise path. One body for the band's rails
       // and a relative strand, so the two cannot drift apart.
-      float w =
-          profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
+      float w = profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
       // ONE non-finite sample would delete the WHOLE band: Skia draws none
       // of a path that contains a non-finite vertex, and says nothing. An
       // author profile only has to misbehave at a single parameter value to
       // hit this — sqrt(sin(pi*along)) rounds to a tiny negative at
       // along == 1 — so a non-finite width is clamped to a LOCAL pinch down
       // to the spine rather than allowed to erase everything.
-      if (!std::isfinite(w))
-        w = 0.0f;
+      if (!std::isfinite(w)) w = 0.0f;
       const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
       if (!started) {
         out.moveTo(at);
@@ -1801,8 +1800,7 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
         out.lineTo(at);
       }
     }
-    if (started && contour->isClosed())
-      out.close();
+    if (started && contour->isClosed()) out.close();
   }
   return out.detach();
 }
@@ -1820,24 +1818,22 @@ namespace {
 
 struct Flat {
   std::vector<SkPoint> points;
-  std::vector<float> at; // cumulative arc length at each point
+  std::vector<float> at;  // cumulative arc length at each point
   float length = 0;
-  SkRect bounds = SkRect::MakeEmpty(); // of `points` — the pair rejection
+  SkRect bounds = SkRect::MakeEmpty();  // of `points` — the pair rejection
 };
 
-Flat flatten(const SkPath &path) {
+Flat flatten(const SkPath& path) {
   Flat f;
   SkContourMeasureIter iter(path, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
-    if (len <= 0)
-      continue;
+    if (len <= 0) continue;
     const int steps = std::max(2, (int)std::ceil(len / 2.0f));
     for (int k = 0; k <= steps; ++k) {
       const float d = len * (float)k / (float)steps;
       SkPoint pos;
-      if (!contour->getPosTan(d, &pos, nullptr))
-        continue;
+      if (!contour->getPosTan(d, &pos, nullptr)) continue;
       f.points.push_back(pos);
       f.at.push_back(f.length + d);
     }
@@ -1851,19 +1847,16 @@ Flat flatten(const SkPath &path) {
       f.at.push_back(f.length);
     }
   }
-  if (!f.points.empty())
-    f.bounds.setBounds({f.points.data(), f.points.size()});
+  if (!f.points.empty()) f.bounds.setBounds({f.points.data(), f.points.size()});
   return f;
 }
 
 /** The point on a flattened strand at arc length `s`. */
-SkPoint pointAtArc(const Flat &f, float s) {
-  if (f.points.empty())
-    return {0, 0};
+SkPoint pointAtArc(const Flat& f, float s) {
+  if (f.points.empty()) return {0, 0};
   s = std::clamp(s, 0.0f, f.length);
   for (size_t k = 0; k + 1 < f.at.size(); ++k) {
-    if (s > f.at[k + 1])
-      continue;
+    if (s > f.at[k + 1]) continue;
     const float span = f.at[k + 1] - f.at[k];
     const float w = span > 1e-6f ? (s - f.at[k]) / span : 0.0f;
     return {f.points[k].fX + (f.points[k + 1].fX - f.points[k].fX) * w,
@@ -1873,7 +1866,7 @@ SkPoint pointAtArc(const Flat &f, float s) {
 }
 
 /** Does one strand change sides of the other's local direction at `hit`? */
-bool changesSides(const Flat &other, float sOther, SkPoint hit, SkVector dir) {
+bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
   const float delta = 3.0f;
   const SkPoint before = pointAtArc(other, sOther - delta);
   const SkPoint after = pointAtArc(other, sOther + delta);
@@ -1894,30 +1887,27 @@ bool changesSides(const Flat &other, float sOther, SkPoint hit, SkVector dir) {
  *  This is also what keeps a rectangle's corners from each becoming a knot:
  *  at a shared vertex the neighbours sit on one side (or collinear), so at
  *  least one of the two tests fails. */
-bool crossesTransversally(const Flat &fa, float sA, const Flat &fb, float sB,
+bool crossesTransversally(const Flat& fa, float sA, const Flat& fb, float sB,
                           SkPoint hit, SkVector aDir, SkVector bDir) {
   return changesSides(fb, sB, hit, aDir) && changesSides(fa, sA, hit, bDir);
 }
 
-} // namespace
+}  // namespace
 
-std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
+std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands) {
   std::vector<Crossing> found;
-  if (strands.size() < 2)
-    return found;
+  if (strands.size() < 2) return found;
   std::vector<Flat> flats;
   flats.reserve(strands.size());
-  for (const SkPath &p : strands)
-    flats.push_back(flatten(p));
+  for (const SkPath& p : strands) flats.push_back(flatten(p));
 
   for (size_t a = 0; a < strands.size(); ++a)
     for (size_t b = a + 1; b < strands.size(); ++b) {
       // COINCIDENT strands never cross. This is the layers() case, and
       // testing it by path identity is exact where it matters most.
-      if (strands[a] == strands[b])
-        continue;
-      const Flat &fa = flats[a];
-      const Flat &fb = flats[b];
+      if (strands[a] == strands[b]) continue;
+      const Flat& fa = flats[a];
+      const Flat& fb = flats[b];
       // Bounds rejection before the segment-by-segment loop, which is
       // quadratic in the flattened point counts. A reported crossing's hit
       // point lies on a segment of EACH strand, up to the parametric eps
@@ -1929,23 +1919,19 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
       SkRect nearA = fa.bounds, nearB = fb.bounds;
       nearA.outset(0.5f, 0.5f);
       nearB.outset(0.5f, 0.5f);
-      if (!SkRect::Intersects(nearA, nearB))
-        continue;
+      if (!SkRect::Intersects(nearA, nearB)) continue;
       for (size_t i = 0; i + 1 < fa.points.size(); ++i) {
         const SkPoint p0 = fa.points[i], p1 = fa.points[i + 1];
         const SkVector r{p1.fX - p0.fX, p1.fY - p0.fY};
-        if (r.length() <= 1e-6f)
-          continue; // the contour join
+        if (r.length() <= 1e-6f) continue;  // the contour join
         for (size_t j = 0; j + 1 < fb.points.size(); ++j) {
           const SkPoint q0 = fb.points[j], q1 = fb.points[j + 1];
           const SkVector sv{q1.fX - q0.fX, q1.fY - q0.fY};
-          if (sv.length() <= 1e-6f)
-            continue;
+          if (sv.length() <= 1e-6f) continue;
           const float denom = r.x() * sv.y() - r.y() * sv.x();
           // Parallel or collinear: no transversal crossing. Two copies of
           // one path land here for every corresponding segment.
-          if (std::abs(denom) < 1e-9f)
-            continue;
+          if (std::abs(denom) < 1e-9f) continue;
           const SkVector d{q0.fX - p0.fX, q0.fY - p0.fY};
           const float t = (d.x() * sv.y() - d.y() * sv.x()) / denom;
           const float u = (d.x() * r.y() - d.y() * r.x()) / denom;
@@ -1964,8 +1950,7 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
           const SkPoint hit{p0.fX + r.x() * t, p0.fY + r.y() * t};
           const float sA = fa.at[i] + (fa.at[i + 1] - fa.at[i]) * t;
           const float sB = fb.at[j] + (fb.at[j + 1] - fb.at[j]) * u;
-          if (!crossesTransversally(fa, sA, fb, sB, hit, r, sv))
-            continue;
+          if (!crossesTransversally(fa, sA, fb, sB, hit, r, sv)) continue;
           Crossing x;
           x.a = a;
           x.b = b;
@@ -1975,15 +1960,14 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
           // Sampling can report one meeting from two adjacent segment
           // pairs; keep the first and drop its neighbours.
           bool duplicate = false;
-          for (const Crossing &seen : found)
+          for (const Crossing& seen : found)
             if (seen.a == x.a && seen.b == x.b &&
                 std::abs(seen.at.fX - x.at.fX) < 1.5f &&
                 std::abs(seen.at.fY - x.at.fY) < 1.5f) {
               duplicate = true;
               break;
             }
-          if (!duplicate)
-            found.push_back(x);
+          if (!duplicate) found.push_back(x);
         }
       }
     }
@@ -1991,21 +1975,19 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
   // Numbered ALONG THE BOUNDARY: ascending by position on the lower-indexed
   // strand, then by strand pair, so the order is deterministic and a
   // positional pin means the same knot on every frame the geometry holds.
-  std::sort(found.begin(), found.end(), [](const Crossing &l, const Crossing &r) {
-    if (l.alongA != r.alongA)
-      return l.alongA < r.alongA;
-    if (l.a != r.a)
-      return l.a < r.a;
-    return l.b < r.b;
-  });
-  for (size_t i = 0; i < found.size(); ++i)
-    found[i].index = i;
+  std::sort(found.begin(), found.end(),
+            [](const Crossing& l, const Crossing& r) {
+              if (l.alongA != r.alongA) return l.alongA < r.alongA;
+              if (l.a != r.a) return l.a < r.a;
+              return l.b < r.b;
+            });
+  for (size_t i = 0; i < found.size(); ++i) found[i].index = i;
   return found;
 }
 
-SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
+SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
                      float reachB, SkPoint at, float maxRadius) {
-  const auto tube = [](const SkPath &path, float reach) {
+  const auto tube = [](const SkPath& path, float reach) {
     SkPaint p;
     p.setStyle(SkPaint::kStroke_Style);
     // `reach` is the mark's FULL width, and the tube is twice it. That is
@@ -2023,8 +2005,7 @@ SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
   // ordinary braid touch, pathops merges them into one contour, and the
   // first crossing's patch claims the entire run.
   SkPathBuilder territoryBuilder;
-  territoryBuilder.addCircle(at.fX, at.fY,
-                             std::max(maxRadius, 1.0f));
+  territoryBuilder.addCircle(at.fX, at.fY, std::max(maxRadius, 1.0f));
   const SkPath territory = territoryBuilder.detach();
 
   SkPath overlap, lens;
@@ -2041,8 +2022,7 @@ SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
     SkPathBuilder run;
     bool runOpen = false;
     const auto flushRun = [&] {
-      if (!runOpen)
-        return;
+      if (!runOpen) return;
       SkPath contour = run.detach();
       SkRect bounds = contour.getBounds();
       bounds.outset(0.5f, 0.5f);
@@ -2056,25 +2036,33 @@ SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
     for (SkPath::Verb verb = iter.next(pts); verb != SkPath::kDone_Verb;
          verb = iter.next(pts)) {
       switch (verb) {
-      case SkPath::kMove_Verb:
-        flushRun();
-        run.moveTo(pts[0]);
-        runOpen = true;
-        break;
-      case SkPath::kLine_Verb: run.lineTo(pts[1]); break;
-      case SkPath::kQuad_Verb: run.quadTo(pts[1], pts[2]); break;
-      case SkPath::kConic_Verb:
-        run.conicTo(pts[1], pts[2], iter.conicWeight());
-        break;
-      case SkPath::kCubic_Verb: run.cubicTo(pts[1], pts[2], pts[3]); break;
-      case SkPath::kClose_Verb: run.close(); break;
-      default: break;
+        case SkPath::kMove_Verb:
+          flushRun();
+          run.moveTo(pts[0]);
+          runOpen = true;
+          break;
+        case SkPath::kLine_Verb:
+          run.lineTo(pts[1]);
+          break;
+        case SkPath::kQuad_Verb:
+          run.quadTo(pts[1], pts[2]);
+          break;
+        case SkPath::kConic_Verb:
+          run.conicTo(pts[1], pts[2], iter.conicWeight());
+          break;
+        case SkPath::kCubic_Verb:
+          run.cubicTo(pts[1], pts[2], pts[3]);
+          break;
+        case SkPath::kClose_Verb:
+          run.close();
+          break;
+        default:
+          break;
       }
     }
     flushRun();
-    if (found)
-      return mine.detach();
-    return lens; // the point missed every component's box — repair it all
+    if (found) return mine.detach();
+    return lens;  // the point missed every component's box — repair it all
   }
   // Degenerate or non-overlapping: a disc sized for the perpendicular case
   // is the best available answer and is what the exact form replaced. Still
@@ -2088,7 +2076,7 @@ SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
 
 Element band(Shape spine, Across width) {
   Element e;
-  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandSpine = std::move(spine);
   derive.bandWidth = std::move(width);
   return e;
@@ -2096,10 +2084,10 @@ Element band(Shape spine, Across width) {
 
 Element band(Around spine, Across width) {
   Element e;
-  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandAround = std::move(spine.key);
   derive.bandWidth = std::move(width);
   return e;
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

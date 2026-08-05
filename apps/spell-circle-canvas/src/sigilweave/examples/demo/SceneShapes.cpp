@@ -1,9 +1,6 @@
 // Scene I — arbitrary SkPath exclusions (star / heart / donut hole). Any
 // SkPath — concave stars, compound paths, cubic hearts — carves its exact
 // silhouette out of the line bands, and even-odd holes stay open to text.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
@@ -14,11 +11,14 @@
 #include <cstdio>
 #include <numbers>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
-void sceneShapes(FontContext &fontContext,
-                 const std::filesystem::path &outputDirectory) {
-  SkFontMgr *fontManager = fontContext.fontManager();
+void sceneShapes(FontContext& fontContext,
+                 const std::filesystem::path& outputDirectory) {
+  SkFontMgr* fontManager = fontContext.fontManager();
   TextStyle body = style(16.5f, kInk);
   body.shaping.typeface =
       fontManager->matchFamilyStyle("Noto Serif", SkFontStyle());
@@ -77,18 +77,18 @@ void sceneShapes(FontContext &fontContext,
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1000, 880));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
   SkPaint shapePaint;
   shapePaint.setAntiAlias(true);
   shapePaint.setColor(kShape);
-  for (const auto &shape : flow.shapes())
+  for (const auto& shape : flow.shapes())
     canvas->drawPath(shape.path, shapePaint);
   layout.draw(canvas, paragraph);
 
   writePng(surface.get(), outputDirectory / "shapes.png");
-  std::printf("Scene I — SkPath exclusions written (layout %.1f us, %d "
-              "lines)\n\n",
-              toMicroseconds(layoutEndTime - layoutStartTime),
-              layout.lineCount);
+  std::printf(
+      "Scene I — SkPath exclusions written (layout %.1f us, %d "
+      "lines)\n\n",
+      toMicroseconds(layoutEndTime - layoutStartTime), layout.lineCount);
 }

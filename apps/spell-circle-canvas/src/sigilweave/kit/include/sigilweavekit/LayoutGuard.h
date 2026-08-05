@@ -44,14 +44,15 @@ namespace sigil::weave::kit {
  * the callable never actually lays this paragraph out, needsShaping() stays
  * set and the guard fires every call — a fail-toward-correct default.
  */
-template <typename... Keys> class LayoutGuard {
-public:
+template <typename... Keys>
+class LayoutGuard {
+ public:
   /** Runs `relayoutFn` when the paragraph edited/needs shaping, the keys
    *  changed, or nothing was laid out yet. Returns true when it ran. */
   template <typename RelayoutFn>
-    requires std::invocable<RelayoutFn &>
-  bool ensure(const sigil::weave::Paragraph &paragraph, std::tuple<Keys...> keys,
-              RelayoutFn &&relayoutFn) {
+    requires std::invocable<RelayoutFn&>
+  bool ensure(const sigil::weave::Paragraph& paragraph,
+              std::tuple<Keys...> keys, RelayoutFn&& relayoutFn) {
     if (m_valid && !paragraph.needsShaping() &&
         paragraph.revision() == m_revision && keys == m_keys)
       return false;
@@ -65,7 +66,7 @@ public:
   /** Forces the next ensure() to relayout regardless of its inputs. */
   void invalidate() { m_valid = false; }
 
-private:
+ private:
   std::tuple<Keys...> m_keys;
   uint64_t m_revision = 0;
   bool m_valid = false;
@@ -83,4 +84,4 @@ private:
   return std::round(value / step) * step;
 }
 
-} // namespace sigil::weave::kit
+}  // namespace sigil::weave::kit

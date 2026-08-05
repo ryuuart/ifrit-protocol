@@ -30,25 +30,20 @@
  * has to cover. Under-reporting either truncates or thins silently.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Decorations.h" // PathSample
-#include "sigilcompose/Lines.h"       // lines::displace (the wave op)
-#include "sigilcompose/Shapes.h"      // detail::hashNoise (seeded jitter)
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkStrokeRec.h> // filterPath recs
-#include <include/core/SkImage.h>
+#include <include/core/SkStrokeRec.h>  // filterPath recs
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <include/effects/SkCornerPathEffect.h>
-#include <include/effects/SkDiscretePathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
+#include <include/effects/SkDiscretePathEffect.h>
 
 #include <cmath>
 #include <functional>
@@ -57,26 +52,31 @@
 #include <optional>
 #include <vector>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Decorations.h"  // PathSample
+#include "sigilcompose/Lines.h"        // lines::displace (the wave op)
+#include "sigilcompose/Shapes.h"       // detail::hashNoise (seeded jitter)
+
 namespace sigil::compose {
 
 /** One stroke pass of a layered brush. */
 struct StrokeLayer {
   float width = 2.0f;
   SkColor4f color = {1, 1, 1, 1};
-  float blurSigma = 0;                // soft halo layers
-  std::vector<SkScalar> dash;         // empty → solid
+  float blurSigma = 0;         // soft halo layers
+  std::vector<SkScalar> dash;  // empty → solid
   float dashPhase = 0;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   bool roundCap = true;
 
-  bool operator==(const StrokeLayer &) const = default;
+  bool operator==(const StrokeLayer&) const = default;
 };
 
 /** The layered stroke stack — painted bottom-up along the outline. */
 struct LayeredBrush {
   std::vector<StrokeLayer> layers;
 
-  bool operator==(const LayeredBrush &) const = default;
+  bool operator==(const LayeredBrush&) const = default;
 
   /** Extra paint reach past the outline, so a cached recording's cull does
    *  not truncate the halo — the point of an additive stack is that it
@@ -89,26 +89,25 @@ struct LayeredBrush {
    *  Gaussian. */
   float bleed() const {
     float reach = 0;
-    for (const StrokeLayer &layer : layers)
+    for (const StrokeLayer& layer : layers)
       reach = std::max(reach, layer.width * 0.5f + layer.blurSigma * 3.0f);
     return reach;
   }
   /** The widest layer's full mark (see PathFormat::reach). */
   float reach() const {
     float widest = 0;
-    for (const StrokeLayer &layer : layers)
+    for (const StrokeLayer& layer : layers)
       widest = std::max(widest, layer.width + layer.blurSigma * 3.0f);
     return widest;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    for (const StrokeLayer &layer : layers) {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    for (const StrokeLayer& layer : layers) {
       SkPaint p;
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);
       p.setStrokeWidth(layer.width);
-      p.setStrokeCap(layer.roundCap ? SkPaint::kRound_Cap
-                                    : SkPaint::kButt_Cap);
+      p.setStrokeCap(layer.roundCap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
       p.setColor4f(layer.color, nullptr);
       p.setBlendMode(layer.blend);
       if (layer.blurSigma > 0)
@@ -164,16 +163,16 @@ namespace ops {
  *  struct with `SkPath shape(const SkPath &) const` and writing one is
  *  four lines. Chain lambdas with chain(); apply to any decoration with
  *  `brush::restyle()`, which is the only thing that takes one. */
-using PathOp = std::function<SkPath(const SkPath &)>;
+using PathOp = std::function<SkPath(const SkPath&)>;
 
 /** Print the path's contour census — count, lengths, closedness, bounds —
  *  and pass the path through unchanged. Drop it in at any position in a
  *  pipeline to see what that stage was handed. Being a pass-through, it
  *  changes no pixels; being a raw op, it does cost the node its pruning
  *  while it is there. */
-inline PathOp debug(const char *tag = "brush") {
+inline PathOp debug(const char* tag = "brush") {
   std::string t = tag;
-  return [t](const SkPath &p) {
+  return [t](const SkPath& p) {
     const SkRect b = p.getBounds();
     SkDebugf("[ops::debug %s] bounds (%.1f,%.1f %.1fx%.1f)\n", t.c_str(),
              b.left(), b.top(), b.width(), b.height());
@@ -191,16 +190,15 @@ inline PathOp debug(const char *tag = "brush") {
  *  appends to the shared pipeline, and each `.layer()` carries its own
  *  suffix list. */
 inline PathOp chain(std::vector<PathOp> steps) {
-  return [steps = std::move(steps)](const SkPath &p) {
+  return [steps = std::move(steps)](const SkPath& p) {
     SkPath r = p;
-    for (const PathOp &op : steps)
-      if (op)
-        r = op(r);
+    for (const PathOp& op : steps)
+      if (op) r = op(r);
     return r;
   };
 }
 
-} // namespace ops
+}  // namespace ops
 
 /** What `brush::restyle()` carries: EITHER a comparable `Shaper`, so a
  *  restyle of a stock shaper still prunes, OR a raw `ops::PathOp`, which is
@@ -211,42 +209,38 @@ inline PathOp chain(std::vector<PathOp> steps) {
  *  Nothing else takes one: `Brush`'s pipeline and its per-layer suffixes
  *  are plain `Shaper` lists. */
 class GeometryOp {
-public:
-  GeometryOp(ops::PathOp fn) // NOLINT: escape hatch, never prunes
+ public:
+  GeometryOp(ops::PathOp fn)  // NOLINT: escape hatch, never prunes
       : m_apply(std::move(fn)) {}
   /** Any shaper VALUE, directly — `restyle(shapers::Wave{...}, dec)`. The
    *  hop through Shaper cannot be implicit (two user-defined conversions
    *  do not chain), so it is spelled here once. */
   template <ShaperScheme S>
-  GeometryOp(S scheme) // NOLINT: implicit by design
+  GeometryOp(S scheme)  // NOLINT: implicit by design
       : GeometryOp(Shaper(std::move(scheme))) {}
   /** A Shaper IS a geometry op — the seam value under its taught name. */
-  GeometryOp(Shaper s) // NOLINT: implicit by design
+  GeometryOp(Shaper s)  // NOLINT: implicit by design
       : m_bleed(s.bleed()) {
     m_held = s;
-    m_equals = [](const std::any &a, const std::any &b) {
-      return std::any_cast<const Shaper &>(a) ==
-             std::any_cast<const Shaper &>(b);
+    m_equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const Shaper&>(a) == std::any_cast<const Shaper&>(b);
     };
-    m_apply = [held = std::move(s)](const SkPath &p) {
-      return held.shape(p);
-    };
+    m_apply = [held = std::move(s)](const SkPath& p) { return held.shape(p); };
   }
 
-  SkPath apply(const SkPath &p) const { return m_apply ? m_apply(p) : p; }
+  SkPath apply(const SkPath& p) const { return m_apply ? m_apply(p) : p; }
   float bleed() const { return m_bleed; }
-  bool operator==(const GeometryOp &o) const {
+  bool operator==(const GeometryOp& o) const {
     return m_equals && o.m_equals && m_held.type() == o.m_held.type() &&
            m_equals(m_held, o.m_held);
   }
 
-private:
+ private:
   float m_bleed = 0.0f;
-  std::function<SkPath(const SkPath &)> m_apply;
+  std::function<SkPath(const SkPath&)> m_apply;
   std::any m_held;
-  std::function<bool(const std::any &, const std::any &)> m_equals;
+  std::function<bool(const std::any&, const std::any&)> m_equals;
 };
-
 
 // ---------------------------------------------------------------------------
 // THE BRUSH KINDS AND COMPOSITES
@@ -284,7 +278,7 @@ inline Solid solid(float width, Fill fill,
 struct Strand {
   StrandPath path;
   Decoration brush;
-  bool operator==(const Strand &o) const {
+  bool operator==(const Strand& o) const {
     return path == o.path && brush == o.brush;
   }
 };
@@ -357,35 +351,33 @@ struct Weave {
    *  through the same cache thrash it back to per-paint discovery, which
    *  costs time and never correctness. */
   struct CrossingCache {
-    std::vector<SkPath> key; ///< the resolved paths the answer belongs to
+    std::vector<SkPath> key;  ///< the resolved paths the answer belongs to
     std::vector<Crossing> found;
     bool valid = false;
-    int computes = 0; ///< how many discoveries actually ran; for tests to
-                      ///< observe, never read by the paint itself
+    int computes = 0;  ///< how many discoveries actually ran; for tests to
+                       ///< observe, never read by the paint itself
   };
   std::shared_ptr<CrossingCache> crossingCache =
       std::make_shared<CrossingCache>();
 
-  bool operator==(const Weave &o) const {
-    return strands == o.strands && crossing == o.crossing &&
-           patch == o.patch;
+  bool operator==(const Weave& o) const {
+    return strands == o.strands && crossing == o.crossing && patch == o.patch;
   }
   bool isAnimated() const {
-    for (const Strand &s : strands)
-      if (s.brush.isAnimated())
-        return true;
+    for (const Strand& s : strands)
+      if (s.brush.isAnimated()) return true;
     return false;
   }
   float bleed() const {
     float worst = 0;
-    for (const Strand &s : strands)
+    for (const Strand& s : strands)
       worst = std::max(worst, s.path.reach() + s.brush.bleed());
     return worst;
   }
   /** The widest mark any strand paints, off its own path. */
   float reach() const {
     float worst = 0;
-    for (const Strand &s : strands)
+    for (const Strand& s : strands)
       worst = std::max(worst, s.path.reach() + s.brush.reach());
     return worst;
   }
@@ -393,52 +385,49 @@ struct Weave {
    *  looking inside a type-erased brush (BorrowingDecoration). */
   std::vector<std::string> borrows() const {
     std::vector<std::string> keys;
-    for (const Strand &s : strands) {
+    for (const Strand& s : strands) {
       if (s.path.source() == StrandPath::Source::Borrowed)
         keys.push_back(s.path.key());
-      for (const std::string &nested : s.brush.borrows())
+      for (const std::string& nested : s.brush.borrows())
         keys.push_back(nested);
     }
     return keys;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (strands.empty())
-      return;
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    if (strands.empty()) return;
     // 1. Resolve every strand's geometry. A relative strand is a
     //    displacement of the boundary in the (along, across) frame the
     //    band owns; an absolute one brings its own path — and if NO
     //    strand is relative, the boundary is simply an unpainted host.
     std::vector<SkPath> paths;
     paths.reserve(strands.size());
-    for (const Strand &s : strands) {
+    for (const Strand& s : strands) {
       switch (s.path.source()) {
-      case StrandPath::Source::Relative:
-        paths.push_back(s.path.profile().max() == 0.0f
-                            ? ctx.outline
-                            : profileOffset(ctx.outline, s.path.profile()));
-        break;
-      case StrandPath::Source::Borrowed:
-        paths.push_back(ctx.borrowedPath(s.path.key()));
-        break;
-      case StrandPath::Source::Authored:
-        paths.push_back(s.path.path());
-        break;
+        case StrandPath::Source::Relative:
+          paths.push_back(s.path.profile().max() == 0.0f
+                              ? ctx.outline
+                              : profileOffset(ctx.outline, s.path.profile()));
+          break;
+        case StrandPath::Source::Borrowed:
+          paths.push_back(ctx.borrowedPath(s.path.key()));
+          break;
+        case StrandPath::Source::Authored:
+          paths.push_back(s.path.path());
+          break;
       }
     }
 
     const auto paintStrand = [&](size_t i) {
-      const PaintContext sub{ctx.size,        paths[i],
-                             ctx.elapsedSeconds, ctx.contentScale,
-                             ctx.animating,   ctx.fonts,
-                             ctx.borrowed};
+      const PaintContext sub{
+          ctx.size,      paths[i],  ctx.elapsedSeconds, ctx.contentScale,
+          ctx.animating, ctx.fonts, ctx.borrowed};
       strands[i].brush.paint(c, sub);
     };
 
     // 2. List order first — the whole picture, correct wherever nothing
     //    crosses, which is every layers() and most of any weave.
-    for (size_t i = 0; i < paths.size(); ++i)
-      paintStrand(i);
+    for (size_t i = 0; i < paths.size(); ++i) paintStrand(i);
 
     // 3. Repair the crossings the rule disagrees with. Crossings are
     //    DISCOVERED, never authored, and memoized on the resolved paths:
@@ -451,9 +440,8 @@ struct Weave {
       crossingCache->valid = true;
       ++crossingCache->computes;
     }
-    const std::vector<Crossing> &crossings = crossingCache->found;
-    if (crossings.empty())
-      return;
+    const std::vector<Crossing>& crossings = crossingCache->found;
+    if (crossings.empty()) return;
     const auto reachOf = [&](size_t i) {
       // The MARK's full width, not the cull's bleed(): an Align::Inner
       // stroke bleeds zero while painting a mark `width` wide, so a region
@@ -486,16 +474,15 @@ struct Weave {
     // lenses of an ordinary braid touch, pathops merges them into ONE
     // contour, and crossing 0's patch owns the whole run — the weave then
     // reads as a single strand laid on top of the others.
-    const auto positionOn = [](const Crossing &x, size_t strandIndex) {
+    const auto positionOn = [](const Crossing& x, size_t strandIndex) {
       return x.a == strandIndex ? x.alongA : x.alongB;
     };
-    const auto territoryOf = [&](const Crossing &x) {
+    const auto territoryOf = [&](const Crossing& x) {
       float limit = std::numeric_limits<float>::max();
       for (const size_t s : {x.a, x.b}) {
         const float mine = positionOn(x, s);
-        for (const Crossing &other : crossings) {
-          if (&other == &x || (other.a != s && other.b != s))
-            continue;
+        for (const Crossing& other : crossings) {
+          if (&other == &x || (other.a != s && other.b != s)) continue;
           float delta = std::abs(positionOn(other, s) - mine);
           // On a CYCLE the seam is not a boundary: two knots at 0.02 and
           // 0.98 sit 4% apart, not 96%. Without the wrap, crossings
@@ -506,26 +493,22 @@ struct Weave {
           // Conditional on closedness, because wrapping an OPEN strand
           // whose crossings sit near its two ends would over-clip: those
           // ends really are far apart.
-          if (cyclic[s])
-            delta = std::min(delta, 1.0f - delta);
+          if (cyclic[s]) delta = std::min(delta, 1.0f - delta);
           const float gap = delta * lengths[s];
-          if (gap > 0.01f)
-            limit = std::min(limit, gap * 0.5f);
+          if (gap > 0.01f) limit = std::min(limit, gap * 0.5f);
         }
       }
       // No neighbour on either strand: the lens needs no bound, and a
       // number large enough to contain it is the honest spelling of that.
-      if (limit == std::numeric_limits<float>::max())
-        limit = 1e6f;
+      if (limit == std::numeric_limits<float>::max()) limit = 1e6f;
       return limit;
     };
 
-    for (const Crossing &x : crossings) {
+    for (const Crossing& x : crossings) {
       const Order order = crossing.decide(x);
       const size_t top = order == Order::Over ? x.a : x.b;
       // `b` painted later, so it is already on top. Nothing to do.
-      if (top == x.b)
-        continue;
+      if (top == x.b) continue;
       c.save();
       c.clipPath(crossingPatch(paths[x.a], reachOf(x.a), paths[x.b],
                                reachOf(x.b), x.at, territoryOf(x)),
@@ -543,7 +526,7 @@ struct Weave {
 inline Weave layers(std::vector<Decoration> stack) {
   Weave w;
   w.strands.reserve(stack.size());
-  for (Decoration &d : stack)
+  for (Decoration& d : stack)
     w.strands.push_back(Strand{strand::self(), std::move(d)});
   return w;
 }
@@ -557,7 +540,7 @@ inline Weave weave(std::vector<Strand> strands,
   return w;
 }
 
-} // namespace brush
+}  // namespace brush
 
 /** THE BRUSH: one composable value — a geometry PIPELINE over the outline,
  *  shapers applied in order, feeding ordered paint LAYERS, each of which
@@ -583,7 +566,7 @@ struct Brush {
   struct Layer {
     Decoration dec;
     std::vector<Shaper> shapers;
-    bool operator==(const Layer &o) const {
+    bool operator==(const Layer& o) const {
       return dec == o.dec && shapers == o.shapers;
     }
   };
@@ -595,7 +578,7 @@ struct Brush {
    *  value with `SkPath shape(const SkPath &) const`; the stock ones
    *  (`kit::brush::shapers::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
-  Brush &shaped(Shaper s) {
+  Brush& shaped(Shaper s) {
     pipeline.push_back(std::move(s));
     return *this;
   }
@@ -606,30 +589,27 @@ struct Brush {
    *  For a raw incomparable lambda, wrap this layer's decoration in
    *  `brush::restyle(op, dec)` instead — the one mechanism door, at the
    *  cost of pruning. */
-  Brush &layer(Decoration d, std::vector<Shaper> suffix = {}) {
+  Brush& layer(Decoration d, std::vector<Shaper> suffix = {}) {
     layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
   }
 
-  bool operator==(const Brush &o) const {
+  bool operator==(const Brush& o) const {
     return pipeline == o.pipeline && layers == o.layers;
   }
   bool isAnimated() const {
-    for (const Layer &l : layers)
-      if (l.dec.isAnimated())
-        return true;
+    for (const Layer& l : layers)
+      if (l.dec.isAnimated()) return true;
     return false;
   }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
-    for (const Shaper &g : pipeline)
-      shared += g.bleed();
+    for (const Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
-    for (const Layer &l : layers) {
+    for (const Layer& l : layers) {
       float layerReach = l.dec.reach();
-      for (const Shaper &g : l.shapers)
-        layerReach += g.bleed();
+      for (const Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
@@ -638,36 +618,32 @@ struct Brush {
    *  the element registers the derive borrow (BorrowingDecoration). */
   std::vector<std::string> borrows() const {
     std::vector<std::string> keys;
-    for (const Layer &l : layers)
-      for (const std::string &k : l.dec.borrows())
-        keys.push_back(k);
+    for (const Layer& l : layers)
+      for (const std::string& k : l.dec.borrows()) keys.push_back(k);
     return keys;
   }
   float bleed() const {
     float shared = 0;
-    for (const Shaper &g : pipeline)
-      shared += g.bleed(); // pipeline reaches compound (offset THEN wave)
+    for (const Shaper& g : pipeline)
+      shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
     float worst = 0;
-    for (const Layer &l : layers) {
+    for (const Layer& l : layers) {
       float layerReach = l.dec.bleed();
-      for (const Shaper &g : l.shapers)
-        layerReach += g.bleed();
+      for (const Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPath styled = ctx.outline;
-    for (const Shaper &g : pipeline)
-      styled = g.shape(styled);
-    for (const Layer &l : layers) {
+    for (const Shaper& g : pipeline) styled = g.shape(styled);
+    for (const Layer& l : layers) {
       SkPath layerPath = styled;
-      for (const Shaper &g : l.shapers)
-        layerPath = g.shape(layerPath);
-      const PaintContext restyled{ctx.size,        std::move(layerPath),
+      for (const Shaper& g : l.shapers) layerPath = g.shape(layerPath);
+      const PaintContext restyled{ctx.size,           std::move(layerPath),
                                   ctx.elapsedSeconds, ctx.contentScale,
-                                  ctx.animating,   ctx.fonts,
+                                  ctx.animating,      ctx.fonts,
                                   ctx.borrowed};
       l.dec.paint(c, restyled);
     }
@@ -691,7 +667,7 @@ namespace brush {
 struct Restyled {
   GeometryOp op;
   Decoration inner;
-  float extraBleed = 8.0f; // the op's own overhang (wave amplitude…)
+  float extraBleed = 8.0f;  // the op's own overhang (wave amplitude…)
 
   bool isAnimated() const { return inner.isAnimated(); }
   float bleed() const { return inner.bleed() + extraBleed; }
@@ -700,12 +676,12 @@ struct Restyled {
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     // No null check: GeometryOp::apply passes the path through unchanged
     // when it holds nothing.
-    PaintContext restyled{ctx.size,        op.apply(ctx.outline),
+    PaintContext restyled{ctx.size,           op.apply(ctx.outline),
                           ctx.elapsedSeconds, ctx.contentScale,
-                          ctx.animating,   ctx.fonts,
+                          ctx.animating,      ctx.fonts,
                           ctx.borrowed};
     inner.paint(c, restyled);
   }
@@ -722,13 +698,13 @@ inline Restyled restyle(GeometryOp op, Decoration inner,
  *  is px; at or below 1 it is a FRACTION of each contour's length. */
 struct Placement {
   enum class Mode : uint8_t {
-    Interval,      ///< every `interval` px (or fraction), phase `offset`
-    Vertex,        ///< every path vertex (bends + endpoints)
-    FirstVertex,   ///< each contour's first point
-    LastVertex,    ///< each contour's last point
-    InnerVertices, ///< bends only — no endpoints
-    CentralPoint,  ///< the arc-length midpoint of each contour
-    SegmentCenter, ///< the midpoint of every straight segment
+    Interval,       ///< every `interval` px (or fraction), phase `offset`
+    Vertex,         ///< every path vertex (bends + endpoints)
+    FirstVertex,    ///< each contour's first point
+    LastVertex,     ///< each contour's last point
+    InnerVertices,  ///< bends only — no endpoints
+    CentralPoint,   ///< the arc-length midpoint of each contour
+    SegmentCenter,  ///< the midpoint of every straight segment
   };
   Mode mode = Mode::Interval;
   /** px, or a contour fraction when ≤ 1. UNSET means "take the host
@@ -738,8 +714,8 @@ struct Placement {
    *  value would be a number an author could also type deliberately, and
    *  typing it would silently select the host's spacing instead. */
   std::optional<float> interval;
-  float offset = 0.0f; ///< leading phase for Interval (same units)
-  bool operator==(const Placement &) const = default;
+  float offset = 0.0f;  ///< leading phase for Interval (same units)
+  bool operator==(const Placement&) const = default;
 };
 
 namespace detail {
@@ -747,8 +723,8 @@ namespace detail {
  *  @param spacing the host brush's spacing — what an UNSET `interval`
  *         resolves to (the sugar; see Placement::interval). Passed in
  *         rather than defaulted here because only the brush owns it. */
-inline std::vector<PathSample> placementSamples(const SkPath &path,
-                                                const Placement &p,
+inline std::vector<PathSample> placementSamples(const SkPath& path,
+                                                const Placement& p,
                                                 float spacing) {
   std::vector<PathSample> out;
   using Mode = Placement::Mode;
@@ -759,11 +735,10 @@ inline std::vector<PathSample> placementSamples(const SkPath &path,
       const float len = contour->length();
       const float step =
           interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
-      const float phase =
-          p.offset <= 1.0f && p.offset >= -1.0f && p.mode == Mode::Interval &&
-                  interval <= 1.0f
-              ? len * p.offset
-              : p.offset;
+      const float phase = p.offset <= 1.0f && p.offset >= -1.0f &&
+                                  p.mode == Mode::Interval && interval <= 1.0f
+                              ? len * p.offset
+                              : p.offset;
       auto sampleAt = [&](float d) {
         SkPoint pos;
         SkVector tan;
@@ -773,8 +748,7 @@ inline std::vector<PathSample> placementSamples(const SkPath &path,
       if (p.mode == Mode::CentralPoint) {
         sampleAt(len * 0.5f);
       } else {
-        for (float d = phase + step * 0.5f; d < len; d += step)
-          sampleAt(d);
+        for (float d = phase + step * 0.5f; d < len; d += step) sampleAt(d);
       }
     }
     return out;
@@ -786,28 +760,27 @@ inline std::vector<PathSample> placementSamples(const SkPath &path,
   for (SkPath::Verb v = it.next(pts); v != SkPath::kDone_Verb;
        v = it.next(pts)) {
     switch (v) {
-    case SkPath::kMove_Verb:
-      contours.push_back({pts[0]});
-      break;
-    case SkPath::kLine_Verb:
-      contours.back().push_back(pts[1]);
-      break;
-    case SkPath::kQuad_Verb:
-      contours.back().push_back(pts[2]);
-      break;
-    case SkPath::kConic_Verb:
-      contours.back().push_back(pts[2]);
-      break;
-    case SkPath::kCubic_Verb:
-      contours.back().push_back(pts[3]);
-      break;
-    default:
-      break;
+      case SkPath::kMove_Verb:
+        contours.push_back({pts[0]});
+        break;
+      case SkPath::kLine_Verb:
+        contours.back().push_back(pts[1]);
+        break;
+      case SkPath::kQuad_Verb:
+        contours.back().push_back(pts[2]);
+        break;
+      case SkPath::kConic_Verb:
+        contours.back().push_back(pts[2]);
+        break;
+      case SkPath::kCubic_Verb:
+        contours.back().push_back(pts[3]);
+        break;
+      default:
+        break;
     }
   }
-  for (const auto &c : contours) {
-    if (c.empty())
-      continue;
+  for (const auto& c : contours) {
+    if (c.empty()) continue;
     auto tangentAt = [&](size_t i) {
       const SkPoint prev = c[i > 0 ? i - 1 : i];
       const SkPoint next = c[i + 1 < c.size() ? i + 1 : i];
@@ -817,68 +790,70 @@ inline std::vector<PathSample> placementSamples(const SkPath &path,
     };
     const float n = (float)c.size();
     switch (p.mode) {
-    case Mode::Vertex:
-      for (size_t i = 0; i < c.size(); ++i)
-        out.push_back({c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
-      break;
-    case Mode::FirstVertex:
-      out.push_back({c.front(), tangentAt(0), 0, 0});
-      break;
-    case Mode::LastVertex:
-      out.push_back({c.back(), tangentAt(c.size() - 1), 0, 1});
-      break;
-    case Mode::InnerVertices:
-      for (size_t i = 1; i + 1 < c.size(); ++i)
-        out.push_back({c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
-      break;
-    case Mode::SegmentCenter:
-      for (size_t i = 0; i + 1 < c.size(); ++i) {
-        const SkPoint mid{(c[i].x() + c[i + 1].x()) / 2,
-                          (c[i].y() + c[i + 1].y()) / 2};
-        SkVector t{c[i + 1].x() - c[i].x(), c[i + 1].y() - c[i].y()};
-        const float m = std::hypot(t.x(), t.y());
-        if (m > 1e-4f)
-          out.push_back({mid, {t.x() / m, t.y() / m}, 0,
-                         n > 1 ? ((float)i + 0.5f) / (n - 1) : 0});
-      }
-      break;
-    default:
-      break;
+      case Mode::Vertex:
+        for (size_t i = 0; i < c.size(); ++i)
+          out.push_back(
+              {c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+        break;
+      case Mode::FirstVertex:
+        out.push_back({c.front(), tangentAt(0), 0, 0});
+        break;
+      case Mode::LastVertex:
+        out.push_back({c.back(), tangentAt(c.size() - 1), 0, 1});
+        break;
+      case Mode::InnerVertices:
+        for (size_t i = 1; i + 1 < c.size(); ++i)
+          out.push_back(
+              {c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+        break;
+      case Mode::SegmentCenter:
+        for (size_t i = 0; i + 1 < c.size(); ++i) {
+          const SkPoint mid{(c[i].x() + c[i + 1].x()) / 2,
+                            (c[i].y() + c[i + 1].y()) / 2};
+          SkVector t{c[i + 1].x() - c[i].x(), c[i + 1].y() - c[i].y()};
+          const float m = std::hypot(t.x(), t.y());
+          if (m > 1e-4f)
+            out.push_back({mid,
+                           {t.x() / m, t.y() / m},
+                           0,
+                           n > 1 ? ((float)i + 0.5f) / (n - 1) : 0});
+        }
+        break;
+      default:
+        break;
     }
   }
   return out;
 }
-} // namespace detail
+}  // namespace detail
 
 /** One placed instance's deviation from its slot — the programmatic twist
  *  (mirrors GlyphMod; return {.skip = true} to drop a slot). */
 struct StampMod {
-  float dAlong = 0, dNormal = 0; ///< px, in the sample's tangent frame
+  float dAlong = 0, dNormal = 0;  ///< px, in the sample's tangent frame
   float scale = 1;
   float rotateDeg = 0;
   float alpha = 1;
   bool skip = false;
 };
 using StampModFn =
-    std::function<StampMod(const PathSample &, size_t index, size_t count)>;
+    std::function<StampMod(const PathSample&, size_t index, size_t count)>;
 
 namespace detail {
 /** The corner hit type, shared with the one corner scanner in Lines.h so
  *  every decoration that asks about corners gets the same answer. */
 using CornerHit = sigil::compose::lines::detail::CornerHit;
 
-inline void drawStamp(SkCanvas &c, const SkPicture &pic,
-                      const PathSample &sample, bool align, float rotateDeg,
-                      float scaleX, float scaleY, const StampMod &m) {
-  if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f)
-    return;
+inline void drawStamp(SkCanvas& c, const SkPicture& pic,
+                      const PathSample& sample, bool align, float rotateDeg,
+                      float scaleX, float scaleY, const StampMod& m) {
+  if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f) return;
   const SkRect cull = pic.cullRect();
   c.save();
   c.translate(sample.position.x(), sample.position.y());
   if (align)
-    c.rotate(std::atan2(sample.tangent.y(), sample.tangent.x()) *
-             57.29578f);
-  c.translate(m.dAlong, m.dNormal); // tangent frame (post-align)
+    c.rotate(std::atan2(sample.tangent.y(), sample.tangent.x()) * 57.29578f);
+  c.translate(m.dAlong, m.dNormal);  // tangent frame (post-align)
   c.rotate(rotateDeg + m.rotateDeg);
   c.scale(scaleX * m.scale, scaleY * m.scale);
   c.translate(-cull.width() / 2, -cull.height() / 2);
@@ -891,7 +866,7 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
   }
   c.restore();
 }
-} // namespace detail
+}  // namespace detail
 
 /** The SCATTER brush: an Element instanced along the path at `spacing`,
  *  with seeded jitter and the StampMod hook. The art bakes ONCE via
@@ -909,48 +884,46 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  standalone paints, where there is no composer and no stamp cache. */
 struct Scatter {
   Element art;
-  float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
+  float spacing = 24.0f;  ///< Interval-mode sugar (px, or fraction ≤ 1)
   /** Full placement grammar — set `place.mode` for the Vertex,
    *  SegmentCenter and CentralPoint families. In Interval mode an unset
    *  `place.interval` falls back to `spacing`. */
   Placement place{};
-  uint32_t seed = 0; ///< 0 = a regular run, no jitter roll
-  float jitterAlong = 0, jitterNormal = 0; ///< ±px
-  float jitterScale = 0;                   ///< ±fraction of 1
-  float jitterRotateDeg = 0;               ///< ±deg
+  uint32_t seed = 0;  ///< 0 = a regular run, no jitter roll
+  float jitterAlong = 0, jitterNormal = 0;  ///< ±px
+  float jitterScale = 0;                    ///< ±fraction of 1
+  float jitterRotateDeg = 0;                ///< ±deg
   bool alignToPath = true;
-  float reach = 32.0f; ///< cull reserve: half the art's extent + jitter
+  float reach = 32.0f;  ///< cull reserve: half the art's extent + jitter
   StampModFn mod;
-  bool animatedMod = false; ///< mod reads time → repaint per frame
+  bool animatedMod = false;  ///< mod reads time → repaint per frame
 
   bool isAnimated() const { return animatedMod; }
   float bleed() const { return reach; }
-  bool operator==(const Scatter &o) const {
+  bool operator==(const Scatter& o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
-           place == o.place && seed == o.seed &&
-           jitterAlong == o.jitterAlong &&
+           place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
            jitterRotateDeg == o.jitterRotateDeg &&
-           alignToPath == o.alignToPath && reach == o.reach && !mod &&
-           !o.mod && animatedMod == o.animatedMod;
+           alignToPath == o.alignToPath && reach == o.reach && !mod && !o.mod &&
+           animatedMod == o.animatedMod;
   }
 
   struct Cache {
     sk_sp<SkPicture> pic;
-    const void *bakedFor = nullptr; // the art node the bake belongs to —
-                                    // copies that swap art re-bake
+    const void* bakedFor = nullptr;  // the art node the bake belongs to —
+                                     // copies that swap art re-bake
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (spacing <= 0 || !ctx.fonts)
-      return;
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    if (spacing <= 0 || !ctx.fonts) return;
     // Prefer the instance-side store, so a brush value rebuilt every
     // describe still finds its art's bake; the member cache is the
     // standalone-paint fallback.
     sk_sp<SkPicture> pic;
     if (ctx.stamps) {
-      if (const StampCache::Entry *e = ctx.stamps->get(art.node()))
+      if (const StampCache::Entry* e = ctx.stamps->get(art.node()))
         pic = e->pic;
       if (!pic) {
         // Shell box: snapshot() sizes by the root's CHILDREN and ignores
@@ -965,8 +938,7 @@ struct Scatter {
       }
       pic = cache->pic;
     }
-    if (!pic)
-      return;
+    if (!pic) return;
 
     // An unset place.interval takes `spacing`, resolved here where the
     // spacing lives rather than by comparing against a sentinel value an
@@ -975,14 +947,13 @@ struct Scatter {
         detail::placementSamples(ctx.outline, place, spacing);
     for (size_t i = 0; i < samples.size(); ++i) {
       StampMod m;
-      if (mod)
-        m = mod(samples[i], i, samples.size());
+      if (mod) m = mod(samples[i], i, samples.size());
       if (seed != 0) {
         const uint32_t k = (uint32_t)i;
         m.dAlong += shapes::detail::hashNoise(seed, 4 * k) * jitterAlong;
         m.dNormal += shapes::detail::hashNoise(seed, 4 * k + 1) * jitterNormal;
-        m.scale *= 1.0f +
-                   shapes::detail::hashNoise(seed, 4 * k + 2) * jitterScale;
+        m.scale *=
+            1.0f + shapes::detail::hashNoise(seed, 4 * k + 2) * jitterScale;
         m.rotateDeg +=
             shapes::detail::hashNoise(seed, 4 * k + 3) * jitterRotateDeg;
       }
@@ -1040,7 +1011,7 @@ struct CornerArt {
   CornerAlign align;
   CornerArt(Element artIn, CornerAlign alignIn)
       : art(std::move(artIn)), align(alignIn) {}
-  bool operator==(const CornerArt &o) const {
+  bool operator==(const CornerArt& o) const {
     return art.node() == o.art.node() && align == o.align;
   }
 };
@@ -1057,7 +1028,7 @@ struct Pattern {
   /** Corner tiles, and their alignment — see CornerArt. Absent means the
    *  runs simply meet at the break. */
   std::optional<CornerArt> corner;
-  float advance = 0;           ///< tile length along the path (0 → intrinsic)
+  float advance = 0;  ///< tile length along the path (0 → intrinsic)
   /** The tangent break that counts as a corner. A gently ROUNDED corner
    *  has no hard break, so it takes no corner tile — and a regular n-gon
    *  turns 360/n per vertex, so at this default nothing above 10 sides is
@@ -1079,23 +1050,22 @@ struct Pattern {
    *  elbow. Setting it also shifts side-tile phase slightly, since the
    *  runs are shorter. */
   float cornerLength = 0.0f;
-  bool stretchToFit = true;    ///< false: natural size, slack spread evenly
-  float reach = 32.0f;         ///< cull reserve
-  StampModFn mod;              ///< side tiles only
+  bool stretchToFit = true;  ///< false: natural size, slack spread evenly
+  float reach = 32.0f;       ///< cull reserve
+  StampModFn mod;            ///< side tiles only
   bool animatedMod = false;
 
   bool isAnimated() const { return animatedMod; }
   float bleed() const { return reach; }
-  bool operator==(const Pattern &o) const {
-    auto node = [](const std::optional<Element> &e) {
+  bool operator==(const Pattern& o) const {
+    auto node = [](const std::optional<Element>& e) {
       return e ? e->node().get() : nullptr;
     };
     return side.node() == o.side.node() && node(start) == node(o.start) &&
            node(end) == node(o.end) && corner == o.corner &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
-           cornerLength == o.cornerLength &&
-           stretchToFit == o.stretchToFit && reach == o.reach && !mod &&
-           !o.mod && animatedMod == o.animatedMod;
+           cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
+           reach == o.reach && !mod && !o.mod && animatedMod == o.animatedMod;
   }
 
   /** The baked tile art, keyed on each art Element's node POINTER — which
@@ -1112,23 +1082,22 @@ struct Pattern {
    *  value starts empty. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
-    const void *bakedSide = nullptr;
-    const void *bakedStart = nullptr;
-    const void *bakedEnd = nullptr;
-    const void *bakedCorner = nullptr;
+    const void* bakedSide = nullptr;
+    const void* bakedStart = nullptr;
+    const void* bakedEnd = nullptr;
+    const void* bakedCorner = nullptr;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (!ctx.fonts)
-      return;
-    auto node = [](const std::optional<Element> &e) -> const void * {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    if (!ctx.fonts) return;
+    auto node = [](const std::optional<Element>& e) -> const void* {
       return e ? e->node().get() : nullptr;
     };
-    const void *sideNode = side.node().get();
-    const void *startNode = node(start);
-    const void *endNode = node(end);
-    const void *cornerNode = corner ? corner->art.node().get() : nullptr;
+    const void* sideNode = side.node().get();
+    const void* startNode = node(start);
+    const void* endNode = node(end);
+    const void* cornerNode = corner ? corner->art.node().get() : nullptr;
     if (cache->bakedSide != sideNode || cache->bakedStart != startNode ||
         cache->bakedEnd != endNode || cache->bakedCorner != cornerNode) {
       *cache = Cache{};
@@ -1140,34 +1109,29 @@ struct Pattern {
     // Each slot warms from the instance-side store first, so a Pattern
     // value rebuilt every describe — whose member cache is empty — still
     // reuses its arts' bakes; a miss bakes once and publishes back.
-    auto bake = [&](const Element &e, sk_sp<SkPicture> &slot) {
-      if (slot)
-        return;
+    auto bake = [&](const Element& e, sk_sp<SkPicture>& slot) {
+      if (slot) return;
       if (ctx.stamps)
-        if (const StampCache::Entry *hit = ctx.stamps->get(e.node()))
+        if (const StampCache::Entry* hit = ctx.stamps->get(e.node()))
           slot = hit->pic;
-      if (!slot) { // shell box: snapshot() sizes by the root's CHILDREN
+      if (!slot) {  // shell box: snapshot() sizes by the root's CHILDREN
         slot = snapshot(box().child(e), *ctx.fonts);
         if (ctx.stamps && slot)
           ctx.stamps->put(e.node(), {slot, nullptr, {0, 0}});
       }
     };
     bake(side, cache->side);
-    if (start)
-      bake(*start, cache->start);
-    if (end)
-      bake(*end, cache->end);
-    if (corner)
-      bake(corner->art, cache->corner);
-    if (!cache->side)
-      return;
+    if (start) bake(*start, cache->start);
+    if (end) bake(*end, cache->end);
+    if (corner) bake(corner->art, cache->corner);
+    if (!cache->side) return;
     const float tileLen =
         advance > 0 ? advance : std::max(cache->side->cullRect().width(), 1.0f);
 
     size_t placed = 0;
     // Two passes: count side tiles first so mod sees the true total.
-    std::vector<std::pair<PathSample, float>> sideSlots; // sample + scaleX
-    std::vector<std::pair<PathSample, const SkPicture *>> caps;
+    std::vector<std::pair<PathSample, float>> sideSlots;  // sample + scaleX
+    std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
     SkContourMeasureIter iter(ctx.outline, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
@@ -1202,27 +1166,24 @@ struct Pattern {
       // its own length at each end of its two adjacent runs, so the side
       // tiles butt against the corner art instead of running under it.
       const float cornerRoom =
-          cache->corner
-              ? (cornerLength > 0 ? cornerLength
-                                  : cache->corner->cullRect().width())
-              : 0.0f;
+          cache->corner ? (cornerLength > 0 ? cornerLength
+                                            : cache->corner->cullRect().width())
+                        : 0.0f;
       const float halfCorner = cornerRoom * 0.5f;
       std::vector<float> bounds{head};
-      for (const detail::CornerHit &hit : corners)
+      for (const detail::CornerHit& hit : corners)
         if (hit.d > head && hit.d < len - tail) {
-          bounds.push_back(hit.d - halfCorner); // run ends before the corner
-          bounds.push_back(hit.d + halfCorner); // next run starts after it
+          bounds.push_back(hit.d - halfCorner);  // run ends before the corner
+          bounds.push_back(hit.d + halfCorner);  // next run starts after it
         }
       bounds.push_back(len - tail);
 
       for (size_t r = 0; r + 1 < bounds.size(); ++r) {
         // Odd spans are the reserved corner gaps themselves — skip them.
-        if (halfCorner > 0 && r % 2 == 1)
-          continue;
+        if (halfCorner > 0 && r % 2 == 1) continue;
         const float a = bounds[r], b = bounds[r + 1];
         const float L = b - a;
-        if (L < tileLen * 0.25f)
-          continue;
+        if (L < tileLen * 0.25f) continue;
         const int n = std::max(1, (int)std::lround(L / tileLen));
         const float slot = L / (float)n;
         const float sx = stretchToFit ? slot / tileLen : 1.0f;
@@ -1231,8 +1192,7 @@ struct Pattern {
           SkPoint pos;
           SkVector tan;
           if (contour->getPosTan(d, &pos, &tan))
-            sideSlots.push_back(
-                {{pos, tan, d, len > 0 ? d / len : 0}, sx});
+            sideSlots.push_back({{pos, tan, d, len > 0 ? d / len : 0}, sx});
         }
       }
 
@@ -1242,10 +1202,9 @@ struct Pattern {
       // required constructor argument of CornerArt, so corner art with no
       // stated alignment cannot be described in the first place.
       if (cache->corner)
-        for (const detail::CornerHit &hit : corners) {
+        for (const detail::CornerHit& hit : corners) {
           SkPoint pos;
-          if (!contour->getPosTan(hit.d, &pos, nullptr))
-            continue;
+          if (!contour->getPosTan(hit.d, &pos, nullptr)) continue;
           SkVector dir{hit.in.x() + hit.out.x(), hit.in.y() + hit.out.y()};
           // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
           // silent zero rotation. Fall back to the outgoing leg.
@@ -1268,14 +1227,13 @@ struct Pattern {
       }
     }
 
-    for (const auto &[sample, sx] : sideSlots) {
+    for (const auto& [sample, sx] : sideSlots) {
       StampMod m;
-      if (mod)
-        m = mod(sample, placed, sideSlots.size());
+      if (mod) m = mod(sample, placed, sideSlots.size());
       detail::drawStamp(c, *cache->side, sample, true, 0, sx, 1, m);
       ++placed;
     }
-    for (const auto &[sample, pic] : caps)
+    for (const auto& [sample, pic] : caps)
       detail::drawStamp(c, *pic, sample, true, 0, 1, 1, {});
   }
 };
@@ -1289,7 +1247,7 @@ struct Ribbon {
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
-  float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
+  float step = 3.0f;  // clamped ≥ 0.5px at paint (0 would never advance)
 
   /** THE WIDTH LAW, on the shared PROFILE seam.
    *
@@ -1332,17 +1290,16 @@ struct Ribbon {
   bool hasProfile() const { return !(width == Profile{}); }
 
   float bleed() const {
-    if (hasProfile())
-      return width.max();
+    if (hasProfile()) return width.max();
     return std::max(widthStart, widthEnd);
   }
-  bool operator==(const Ribbon &o) const {
+  bool operator==(const Ribbon& o) const {
     return fill == o.fill && widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
            nibContrast == o.nibContrast && step == o.step && width == o.width;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     if (fill.kind == Fill::Kind::Color)
@@ -1355,8 +1312,7 @@ struct Ribbon {
       // rails, per contour, with proper joins.
       const SkPath region =
           bandRegion(ctx.outline, Across{width}, Formation::Centered);
-      if (!region.isEmpty())
-        c.drawPath(region, p);
+      if (!region.isEmpty()) c.drawPath(region, p);
       return;
     }
 
@@ -1369,13 +1325,12 @@ struct Ribbon {
         const float at = std::min(d, len);
         SkPoint pos;
         SkVector tan;
-        if (!contour->getPosTan(at, &pos, &tan))
-          break;
+        if (!contour->getPosTan(at, &pos, &tan)) break;
         const PathSample s{pos, tan, at, len > 0 ? at / len : 0};
         float w;
         if (nibAngleDeg >= 0) {
-          const float a = std::atan2(tan.y(), tan.x()) -
-                          nibAngleDeg * 0.017453293f;
+          const float a =
+              std::atan2(tan.y(), tan.x()) - nibAngleDeg * 0.017453293f;
           w = widthStart *
               (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));
         } else {
@@ -1384,17 +1339,13 @@ struct Ribbon {
         const SkVector n{-tan.y(), tan.x()};
         left.push_back({pos.x() + n.x() * w / 2, pos.y() + n.y() * w / 2});
         right.push_back({pos.x() - n.x() * w / 2, pos.y() - n.y() * w / 2});
-        if (at >= len)
-          break;
+        if (at >= len) break;
       }
-      if (left.size() < 2)
-        continue;
+      if (left.size() < 2) continue;
       SkPathBuilder band;
       band.moveTo(left.front());
-      for (size_t i = 1; i < left.size(); ++i)
-        band.lineTo(left[i]);
-      for (size_t i = right.size(); i-- > 0;)
-        band.lineTo(right[i]);
+      for (size_t i = 1; i < left.size(); ++i) band.lineTo(left[i]);
+      for (size_t i = right.size(); i-- > 0;) band.lineTo(right[i]);
       band.close();
       c.drawPath(band.detach(), p);
     }
@@ -1450,27 +1401,26 @@ struct Art {
 
   bool isAnimated() const { return false; }
   float bleed() const { return reach; }
-  bool operator==(const Art &o) const {
+  bool operator==(const Art& o) const {
     return art.node() == o.art.node() && height == o.height &&
            stationPx == o.stationPx && reach == o.reach;
   }
 
   struct Cache {
-    sk_sp<SkImage> image; // the 2x bake
-    SkSize artSize{0, 0}; // logical art size
-    const void *bakedFor = nullptr;
+    sk_sp<SkImage> image;  // the 2x bake
+    SkSize artSize{0, 0};  // logical art size
+    const void* bakedFor = nullptr;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (!ctx.fonts)
-      return;
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    if (!ctx.fonts) return;
     if (!cache->image || cache->bakedFor != art.node().get()) {
       cache->bakedFor = art.node().get();
       cache->image = nullptr;
       // Consult the instance-side store before doing any raster work.
       if (ctx.stamps) {
-        if (const StampCache::Entry *hit = ctx.stamps->get(art.node());
+        if (const StampCache::Entry* hit = ctx.stamps->get(art.node());
             hit && hit->image) {
           cache->image = hit->image;
           cache->artSize = hit->artSize;
@@ -1481,14 +1431,12 @@ struct Art {
       // Shell box: snapshot() and measure() size by the root's CHILDREN
       // and ignore the root's own dimensions.
       const SkSize sz = measure(box().child(art), *ctx.fonts);
-      if (sz.isEmpty())
-        return;
+      if (sz.isEmpty()) return;
       sk_sp<SkPicture> pic = snapshot(box().child(art), *ctx.fonts);
       sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
           std::max(1, (int)std::ceil(sz.width() * 2.0f)),
           std::max(1, (int)std::ceil(sz.height() * 2.0f))));
-      if (!pic || !surface)
-        return;
+      if (!pic || !surface) return;
       surface->getCanvas()->clear(SK_ColorTRANSPARENT);
       surface->getCanvas()->scale(2.0f, 2.0f);
       surface->getCanvas()->drawPicture(pic);
@@ -1497,25 +1445,22 @@ struct Art {
       if (ctx.stamps && cache->image)
         ctx.stamps->put(art.node(), {nullptr, cache->image, cache->artSize});
     }
-    if (!cache->image)
-      return;
+    if (!cache->image) return;
 
     const float texW = (float)cache->image->width();
     const float texH = (float)cache->image->height();
-    const float half =
-        0.5f * (height > 0 ? height : cache->artSize.height());
+    const float half = 0.5f * (height > 0 ? height : cache->artSize.height());
     SkPaint p;
     p.setAntiAlias(true);
-    p.setShader(cache->image->makeShader(
-        SkTileMode::kClamp, SkTileMode::kClamp,
-        SkSamplingOptions(SkFilterMode::kLinear)));
+    p.setShader(
+        cache->image->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
+                                 SkSamplingOptions(SkFilterMode::kLinear)));
 
     SkContourMeasureIter iter(ctx.outline, false);
     std::vector<SkPoint> positions, texs;
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float length = contour->length();
-      if (length < 1.0f)
-        continue;
+      if (length < 1.0f) continue;
       const int stations =
           std::max(2, (int)std::ceil(length / std::max(1.0f, stationPx)));
       positions.clear();
@@ -1526,29 +1471,26 @@ struct Art {
         const float f = (float)i / (float)stations;
         SkPoint pos;
         SkVector tan;
-        if (!contour->getPosTan(length * f, &pos, &tan))
-          continue;
+        if (!contour->getPosTan(length * f, &pos, &tan)) continue;
         const SkVector normal{-tan.fY, tan.fX};
         positions.push_back(pos + normal * half);
         positions.push_back(pos - normal * half);
         texs.push_back({texW * f, 0.0f});
         texs.push_back({texW * f, texH});
       }
-      if (positions.size() < 4)
-        continue;
-      c.drawVertices(SkVertices::MakeCopy(
-                         SkVertices::kTriangleStrip_VertexMode,
-                         (int)positions.size(), positions.data(), texs.data(),
-                         nullptr),
-                     SkBlendMode::kModulate, p);
+      if (positions.size() < 4) continue;
+      c.drawVertices(
+          SkVertices::MakeCopy(SkVertices::kTriangleStrip_VertexMode,
+                               (int)positions.size(), positions.data(),
+                               texs.data(), nullptr),
+          SkBlendMode::kModulate, p);
     }
   }
 };
 
 /** Art warped along the path: the drawVertices ribbon. `height` 0 keeps
  *  the art's intrinsic height. */
-inline Art artAlong(Element art, float height = 0,
-                         float stationPx = 6.0f) {
+inline Art artAlong(Element art, float height = 0, float stationPx = 6.0f) {
   Art b;
   b.art = std::move(art);
   b.height = height;
@@ -1557,7 +1499,7 @@ inline Art artAlong(Element art, float height = 0,
   return b;
 }
 
-} // namespace brush
+}  // namespace brush
 
 namespace brush {
 /** A Ribbon built on the PROFILE seam — the constructor to prefer, since
@@ -1569,6 +1511,6 @@ inline Ribbon ribbon(Profile width, Fill fill) {
   r.fill = std::move(fill);
   return r;
 }
-} // namespace brush
+}  // namespace brush
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

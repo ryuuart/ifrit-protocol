@@ -10,8 +10,6 @@
  * it to every Paragraph / layoutParagraph call.
  */
 
-#include "Style.h"
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
@@ -21,6 +19,8 @@
 #include <memory>
 #include <span>
 #include <string_view>
+
+#include "Style.h"
 
 namespace sigil::weave {
 
@@ -33,7 +33,7 @@ namespace sigil::weave {
 /// caches key off SkTypeface::uniqueID(), so typefaces must outlive the
 /// context or be consistently owned by it (they are ref'd where retained).
 class FontContext {
-public:
+ public:
   /** Chooses a fallback for a code point missing from `primaryTypeface`.
    * Returning null leaves the primary in place (and therefore permits a
    * missing glyph). The default resolver uses
@@ -47,7 +47,7 @@ public:
    * through directly).
    */
   using FallbackResolver = std::function<sk_sp<SkTypeface>(
-      SkFontMgr &fontManager, const SkTypeface &primaryTypeface,
+      SkFontMgr& fontManager, const SkTypeface& primaryTypeface,
       int32_t codePoint, std::string_view languageTag)>;
 
   /** Constructs a context using `fontManager` for fallback resolution.
@@ -60,22 +60,22 @@ public:
                        FallbackResolver fallbackResolver = {});
   ~FontContext();
 
-  FontContext(const FontContext &) = delete;
-  FontContext &operator=(const FontContext &) = delete;
+  FontContext(const FontContext&) = delete;
+  FontContext& operator=(const FontContext&) = delete;
 
   /** Returns the font manager used for fallback resolution. */
-  [[nodiscard]] SkFontMgr *fontManager() const;
+  [[nodiscard]] SkFontMgr* fontManager() const;
   /** Returns the typeface used when a shaping style has none. */
-  [[nodiscard]] const sk_sp<SkTypeface> &defaultTypeface() const;
+  [[nodiscard]] const sk_sp<SkTypeface>& defaultTypeface() const;
 
   /** Returns the typeface to shape `codePoint` with: `primaryTypeface` (or
    * the default) when it covers the code point, otherwise the configured
    * fallback resolver's match. Memoized per (primary, codepoint, language),
    * so warm itemization passes never invoke the resolver.
    */
-  [[nodiscard]] sk_sp<SkTypeface>
-  resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface, int32_t codePoint,
-                  const char *languageTag);
+  [[nodiscard]] sk_sp<SkTypeface> resolveTypeface(
+      const sk_sp<SkTypeface>& primaryTypeface, int32_t codePoint,
+      const char* languageTag);
 
   /** Returns the memoized varied clone of `base` for `variations` — `base`
    * itself (or the context default when `base` is null) when `variations`
@@ -88,9 +88,8 @@ public:
    * for every ShapingStyle with a non-empty `variations`; applications only
    * need it to inspect the resolved face themselves.
    */
-  [[nodiscard]] sk_sp<SkTypeface>
-  variedTypeface(const sk_sp<SkTypeface> &base,
-                 std::span<const FontVariation> variations);
+  [[nodiscard]] sk_sp<SkTypeface> variedTypeface(
+      const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations);
 
   /** TRUE iff driving @p axisTag anywhere in its design range leaves every
    *  glyph advance of @p base unchanged (advances sampled at both axis
@@ -98,7 +97,7 @@ public:
    *  most fonts' slnt) may be animated at DRAW time without reshaping,
    *  while wght moves advances on most fonts and must re-shape instead.
    *  FALSE when the face lacks the axis entirely. */
-  [[nodiscard]] bool axisIsAdvanceInvariant(const sk_sp<SkTypeface> &base,
+  [[nodiscard]] bool axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
                                             const char (&axisTag)[5]);
 
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
@@ -117,23 +116,23 @@ public:
 
   /// Cache observability for tests and benchmarks.
   struct Stats {
-    uint64_t shapeCalls = 0;      ///< actual hb_shape invocations
-    uint64_t shapeCacheHits = 0;  ///< words served from the cache
-    uint64_t fallbackQueries = 0; ///< fallback-resolver invocations
-    uint64_t coverageQueries = 0; ///< uncached glyph-coverage probes
+    uint64_t shapeCalls = 0;       ///< actual hb_shape invocations
+    uint64_t shapeCacheHits = 0;   ///< words served from the cache
+    uint64_t fallbackQueries = 0;  ///< fallback-resolver invocations
+    uint64_t coverageQueries = 0;  ///< uncached glyph-coverage probes
   };
   /** Returns cumulative cache and shaping counters. */
-  [[nodiscard]] const Stats &stats() const;
+  [[nodiscard]] const Stats& stats() const;
   /** Resets observable counters without clearing any caches. */
   void resetStats();
 
   /// Implementation access for Shaper.cpp / Paragraph.cpp only.
   struct Impl;
   /** Returns internal per-thread services used by pipeline implementation. */
-  [[nodiscard]] Impl &impl() { return *m_impl; }
+  [[nodiscard]] Impl& impl() { return *m_impl; }
 
-private:
+ private:
   std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

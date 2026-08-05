@@ -1,7 +1,8 @@
 #pragma once
+#include <QtQml/qqmlregistration.h>
+
 #include <QObject>
 #include <QQuickWindow>
-#include <QtQml/qqmlregistration.h>
 
 /**
  * QML singleton for native window dressing. On macOS applyVibrancy() slips
@@ -15,16 +16,16 @@ class WindowChrome : public QObject {
   QML_ELEMENT
   QML_SINGLETON
 
-public:
-  explicit WindowChrome(QObject *parent = nullptr) : QObject(parent) {}
+ public:
+  explicit WindowChrome(QObject* parent = nullptr) : QObject(parent) {}
 
   /** Installs the native glass background behind @p window. Returns true
    *  when the window is now vibrant and should be made transparent. Safe to
    *  call more than once per window. */
-  Q_INVOKABLE bool applyVibrancy(QQuickWindow *window);
+  Q_INVOKABLE bool applyVibrancy(QQuickWindow* window);
 
   /** Sets the native title-bar subtitle (macOS 11+). Returns false where
    *  subtitles are unavailable so callers can fall back to a composite
    *  window title. */
-  Q_INVOKABLE bool setSubtitle(QQuickWindow *window, const QString &subtitle);
+  Q_INVOKABLE bool setSubtitle(QQuickWindow* window, const QString& subtitle);
 };

@@ -180,23 +180,22 @@ half4 main(float2 xy) {
 }
 )";
 
-sk_sp<SkRuntimeEffect> makeEffect(const char *body) {
+sk_sp<SkRuntimeEffect> makeEffect(const char* body) {
   const std::string src = std::string(kPrelude) + body;
   auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-  if (!fx)
-    SkDebugf("sigilshape material shader: %s\n", err.c_str());
+  if (!fx) SkDebugf("sigilshape material shader: %s\n", err.c_str());
   return fx;
 }
 
-const sk_sp<SkRuntimeEffect> &goldEffect() {
+const sk_sp<SkRuntimeEffect>& goldEffect() {
   static const sk_sp<SkRuntimeEffect> fx = makeEffect(kGold);
   return fx;
 }
-const sk_sp<SkRuntimeEffect> &chromeEffect() {
+const sk_sp<SkRuntimeEffect>& chromeEffect() {
   static const sk_sp<SkRuntimeEffect> fx = makeEffect(kChrome);
   return fx;
 }
-const sk_sp<SkRuntimeEffect> &glassEffect() {
+const sk_sp<SkRuntimeEffect>& glassEffect() {
   static const sk_sp<SkRuntimeEffect> fx = makeEffect(kGlass);
   return fx;
 }
@@ -205,7 +204,7 @@ const sk_sp<SkRuntimeEffect> &glassEffect() {
 // Environment bakes
 
 sk_sp<SkImage> bakeEquirect(int width,
-                            const std::function<SkV3(float u, float v)> &fn) {
+                            const std::function<SkV3(float u, float v)>& fn) {
   const int height = std::max(width / 2, 8);
   std::vector<float> pixels((size_t)width * height * 4);
   for (int y = 0; y < height; ++y) {
@@ -213,7 +212,7 @@ sk_sp<SkImage> bakeEquirect(int width,
     for (int x = 0; x < width; ++x) {
       const float u = ((float)x + 0.5f) / (float)width;
       const SkV3 c = fn(u, v);
-      float *px = &pixels[((size_t)y * width + x) * 4];
+      float* px = &pixels[((size_t)y * width + x) * 4];
       px[0] = c.x;
       px[1] = c.y;
       px[2] = c.z;
@@ -236,15 +235,14 @@ float du(float a, float b) {
   return std::min(d, 1.0f - d);
 }
 
-} // namespace
+}  // namespace
 
 Environment Environment::studio(int width) {
   Environment env;
   env.m_base = bakeEquirect(width, [](float u, float v) -> SkV3 {
     // Graded neutral shell: bright zenith, dim floor.
     const float sky = std::pow(std::clamp(1.0f - v, 0.0f, 1.0f), 1.4f);
-    SkV3 c = {0.10f + 0.55f * sky, 0.11f + 0.56f * sky,
-              0.13f + 0.60f * sky};
+    SkV3 c = {0.10f + 0.55f * sky, 0.11f + 0.56f * sky, 0.13f + 0.60f * sky};
     // Floor bounce card below the horizon.
     if (v > 0.62f) {
       const float f = gauss(v - 0.78f, 0.10f) * 0.5f;
@@ -270,7 +268,7 @@ Environment Environment::sunset(int width) {
     const float horizon = 0.52f;
     if (v < horizon) {
       // Banded sky falling toward a hot horizon stripe.
-      const float t = v / horizon; // 0 zenith -> 1 horizon
+      const float t = v / horizon;  // 0 zenith -> 1 horizon
       SkV3 top = {0.05f, 0.10f, 0.30f};
       SkV3 low = {1.05f, 0.45f, 0.15f};
       SkV3 c = top + (low - top) * std::pow(t, 1.6f);
@@ -309,25 +307,22 @@ namespace {
 /** Three-pass box blur ~= gaussian, run on F32 pixels with horizontal
  *  WRAP (an equirect's u axis is periodic — Skia's blur filter can't
  *  know that) and vertical clamp. */
-void boxBlurF32(std::vector<float> &pixels, int w, int h, int radius) {
-  if (radius < 1)
-    return;
+void boxBlurF32(std::vector<float>& pixels, int w, int h, int radius) {
+  if (radius < 1) return;
   std::vector<float> tmp(pixels.size());
   const int window = radius * 2 + 1;
   for (int pass = 0; pass < 3; ++pass) {
     // Horizontal, wrapped.
     for (int y = 0; y < h; ++y) {
-      float *row = &pixels[(size_t)y * w * 4];
+      float* row = &pixels[(size_t)y * w * 4];
       float acc[4] = {0, 0, 0, 0};
       for (int k = -radius; k <= radius; ++k) {
         const int x = ((k % w) + w) % w;
-        for (int c = 0; c < 4; ++c)
-          acc[c] += row[x * 4 + c];
+        for (int c = 0; c < 4; ++c) acc[c] += row[x * 4 + c];
       }
-      float *out = &tmp[(size_t)y * w * 4];
+      float* out = &tmp[(size_t)y * w * 4];
       for (int x = 0; x < w; ++x) {
-        for (int c = 0; c < 4; ++c)
-          out[x * 4 + c] = acc[c] / (float)window;
+        for (int c = 0; c < 4; ++c) out[x * 4 + c] = acc[c] / (float)window;
         const int drop = (((x - radius) % w) + w) % w;
         const int add = (x + radius + 1) % w;
         for (int c = 0; c < 4; ++c)
@@ -339,8 +334,7 @@ void boxBlurF32(std::vector<float> &pixels, int w, int h, int radius) {
       float acc[4] = {0, 0, 0, 0};
       for (int k = -radius; k <= radius; ++k) {
         const int y = std::clamp(k, 0, h - 1);
-        for (int c = 0; c < 4; ++c)
-          acc[c] += tmp[((size_t)y * w + x) * 4 + c];
+        for (int c = 0; c < 4; ++c) acc[c] += tmp[((size_t)y * w + x) * 4 + c];
       }
       for (int y = 0; y < h; ++y) {
         for (int c = 0; c < 4; ++c)
@@ -355,52 +349,45 @@ void boxBlurF32(std::vector<float> &pixels, int w, int h, int radius) {
   }
 }
 
-} // namespace
+}  // namespace
 
 sk_sp<SkImage> Environment::image(float roughness) const {
-  if (!m_base)
-    return nullptr;
+  if (!m_base) return nullptr;
   roughness = std::clamp(roughness, 0.0f, 1.0f);
   const int bucket = (int)std::lround(roughness * 8.0f);
-  if (bucket == 0)
-    return m_base;
+  if (bucket == 0) return m_base;
   if (m_blurs) {
     if (auto it = m_blurs->find(bucket); it != m_blurs->end())
       return it->second;
   }
   const int w = m_base->width(), h = m_base->height();
-  const SkImageInfo info = SkImageInfo::Make(
-      w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
   std::vector<float> pixels((size_t)w * h * 4);
-  const SkPixmap pixmap(info, pixels.data(),
-                        (size_t)w * 4 * sizeof(float));
-  if (!m_base->readPixels(nullptr, pixmap, 0, 0))
-    return m_base;
+  const SkPixmap pixmap(info, pixels.data(), (size_t)w * 4 * sizeof(float));
+  if (!m_base->readPixels(nullptr, pixmap, 0, 0)) return m_base;
   // Box radius from the bucket: three passes triple the effective
   // spread, so keep the per-pass radius modest.
-  const int radius = std::max(
-      1, (int)std::lround(std::pow((float)bucket / 8.0f, 1.5f) *
-                          (float)w * 0.045f));
+  const int radius =
+      std::max(1, (int)std::lround(std::pow((float)bucket / 8.0f, 1.5f) *
+                                   (float)w * 0.045f));
   boxBlurF32(pixels, w, h, radius);
   sk_sp<SkImage> blurred = SkImages::RasterFromPixmapCopy(pixmap);
-  if (!blurred)
-    return m_base;
-  if (m_blurs)
-    (*m_blurs)[bucket] = blurred;
+  if (!blurred) return m_base;
+  if (m_blurs) (*m_blurs)[bucket] = blurred;
   return blurred;
 }
 
-sk_sp<SkImage> bevelNormals(const SkPath &path, SkIRect bounds,
-                            float bevelPx, float heightScale) {
+sk_sp<SkImage> bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
+                            float heightScale) {
   const int w = std::max(bounds.width(), 1);
   const int h = std::max(bounds.height(), 1);
 
   // Coverage, blurred into a bevel ramp.
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  if (!surface)
-    return nullptr;
-  SkCanvas *canvas = surface->getCanvas();
+  if (!surface) return nullptr;
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(SK_ColorBLACK);
   SkPaint white;
   white.setAntiAlias(true);
@@ -415,13 +402,12 @@ sk_sp<SkImage> bevelNormals(const SkPath &path, SkIRect bounds,
 
   SkBitmap ramp;
   ramp.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  if (!surface->readPixels(ramp.pixmap(), 0, 0))
-    return nullptr;
+  if (!surface->readPixels(ramp.pixmap(), 0, 0)) return nullptr;
 
   // Height with a smoothstep shoulder, then Sobel -> normals.
   std::vector<float> height((size_t)w * h);
   for (int y = 0; y < h; ++y) {
-    const uint32_t *row = ramp.getAddr32(0, y);
+    const uint32_t* row = ramp.getAddr32(0, y);
     for (int x = 0; x < w; ++x) {
       const float c = (float)((row[x] >> SK_R32_SHIFT) & 0xff) / 255.0f;
       height[(size_t)y * w + x] = c * c * (3.0f - 2.0f * c);
@@ -438,7 +424,7 @@ sk_sp<SkImage> bevelNormals(const SkPath &path, SkIRect bounds,
     return height[(size_t)y * w + x];
   };
   for (int y = 0; y < h; ++y) {
-    uint32_t *row = (uint32_t *)out.getAddr32(0, y);
+    uint32_t* row = (uint32_t*)out.getAddr32(0, y);
     for (int x = 0; x < w; ++x) {
       const float dx = (at(x + 1, y) - at(x - 1, y)) * 0.5f * steep;
       const float dy = (at(x, y + 1) - at(x, y - 1)) * 0.5f * steep;
@@ -448,8 +434,8 @@ sk_sp<SkImage> bevelNormals(const SkPath &path, SkIRect bounds,
       ny /= len;
       nz /= len;
       const auto enc = [](float f) {
-        return (uint32_t)std::clamp((int)std::lround((f * 0.5f + 0.5f) * 255.0f),
-                                    0, 255);
+        return (uint32_t)std::clamp(
+            (int)std::lround((f * 0.5f + 0.5f) * 255.0f), 0, 255);
       };
       row[x] = (0xffu << SK_A32_SHIFT) | (enc(nx) << SK_R32_SHIFT) |
                (enc(ny) << SK_G32_SHIFT) | (enc(nz) << SK_B32_SHIFT);
@@ -463,58 +449,53 @@ namespace {
 
 const SkSamplingOptions kLinear{SkFilterMode::kLinear};
 
-sk_sp<SkShader> normalsChild(const sk_sp<SkImage> &normals, SkPoint origin) {
-  if (!normals)
-    return nullptr;
+sk_sp<SkShader> normalsChild(const sk_sp<SkImage>& normals, SkPoint origin) {
+  if (!normals) return nullptr;
   const SkMatrix local = SkMatrix::Translate(origin.fX, origin.fY);
-  return normals->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
-                             kLinear, local);
+  return normals->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, kLinear,
+                             local);
 }
 
-sk_sp<SkShader> envChild(const Environment &env, float roughness,
-                         SkV2 *sizeOut) {
+sk_sp<SkShader> envChild(const Environment& env, float roughness,
+                         SkV2* sizeOut) {
   sk_sp<SkImage> img = env.image(roughness);
-  if (!img)
-    return nullptr;
+  if (!img) return nullptr;
   *sizeOut = {(float)img->width(), (float)img->height()};
   // Repeat in u so azimuth wraps seamlessly.
   return img->makeShader(SkTileMode::kRepeat, SkTileMode::kClamp, kLinear);
 }
 
-} // namespace
+}  // namespace
 
-sk_sp<SkShader> gold(sk_sp<SkImage> normals, const Environment &env,
-                     SkPoint origin, const GoldParams &params) {
-  const sk_sp<SkRuntimeEffect> &fx = goldEffect();
-  if (!fx || !env.valid())
-    return nullptr;
+sk_sp<SkShader> gold(sk_sp<SkImage> normals, const Environment& env,
+                     SkPoint origin, const GoldParams& params) {
+  const sk_sp<SkRuntimeEffect>& fx = goldEffect();
+  if (!fx || !env.valid()) return nullptr;
   SkV2 envSize{1, 1};
   SkRuntimeShaderBuilder b(fx);
   b.child("uNormals") = normalsChild(normals, origin);
   b.child("uEnv") = envChild(env, params.roughness, &envSize);
   b.uniform("uEnvSize") = envSize;
-  b.uniform("uTint") = SkV4{params.tint.fR, params.tint.fG, params.tint.fB,
-                            params.tint.fA};
+  b.uniform("uTint") =
+      SkV4{params.tint.fR, params.tint.fG, params.tint.fB, params.tint.fA};
   b.uniform("uCrinkle") = params.crinkle;
-  b.uniform("uCrinkleScale") =
-      std::max(params.crinkleScale, 1e-4f) * 40.0f;
+  b.uniform("uCrinkleScale") = std::max(params.crinkleScale, 1e-4f) * 40.0f;
   b.uniform("uSparkle") = params.sparkle;
   b.uniform("uAmbient") = params.ambient;
   return b.makeShader();
 }
 
-sk_sp<SkShader> chrome(sk_sp<SkImage> normals, const Environment &env,
-                       SkPoint origin, const ChromeParams &params) {
-  const sk_sp<SkRuntimeEffect> &fx = chromeEffect();
-  if (!fx || !env.valid())
-    return nullptr;
+sk_sp<SkShader> chrome(sk_sp<SkImage> normals, const Environment& env,
+                       SkPoint origin, const ChromeParams& params) {
+  const sk_sp<SkRuntimeEffect>& fx = chromeEffect();
+  if (!fx || !env.valid()) return nullptr;
   SkV2 envSize{1, 1};
   SkRuntimeShaderBuilder b(fx);
   b.child("uNormals") = normalsChild(normals, origin);
   b.child("uEnv") = envChild(env, params.roughness, &envSize);
   b.uniform("uEnvSize") = envSize;
-  b.uniform("uTint") = SkV4{params.tint.fR, params.tint.fG, params.tint.fB,
-                            params.tint.fA};
+  b.uniform("uTint") =
+      SkV4{params.tint.fR, params.tint.fG, params.tint.fB, params.tint.fA};
   b.uniform("uContrast") = params.contrast;
   b.uniform("uBrushed") = params.brushed;
   b.uniform("uFresnel") = params.fresnel;
@@ -522,12 +503,11 @@ sk_sp<SkShader> chrome(sk_sp<SkImage> normals, const Environment &env,
   return b.makeShader();
 }
 
-sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment &env,
+sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment& env,
                       sk_sp<SkImage> backdrop, SkPoint origin,
-                      const GlassParams &params) {
-  const sk_sp<SkRuntimeEffect> &fx = glassEffect();
-  if (!fx || !env.valid() || !backdrop)
-    return nullptr;
+                      const GlassParams& params) {
+  const sk_sp<SkRuntimeEffect>& fx = glassEffect();
+  if (!fx || !env.valid() || !backdrop) return nullptr;
   SkV2 envSize{1, 1};
   SkRuntimeShaderBuilder b(fx);
   b.child("uNormals") = normalsChild(normals, origin);
@@ -535,8 +515,8 @@ sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment &env,
   b.child("uBackdrop") =
       backdrop->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, kLinear);
   b.uniform("uEnvSize") = envSize;
-  b.uniform("uTint") = SkV4{params.tint.fR, params.tint.fG, params.tint.fB,
-                            params.tint.fA};
+  b.uniform("uTint") =
+      SkV4{params.tint.fR, params.tint.fG, params.tint.fB, params.tint.fA};
   b.uniform("uRefract") = params.refractPx;
   b.uniform("uReflect") = params.reflect;
   b.uniform("uEdgeGlow") = params.edgeGlow;
@@ -546,10 +526,9 @@ sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment &env,
 
 namespace {
 
-void drawMaterial(SkCanvas &canvas, const SkPath &path,
-                  const sk_sp<SkShader> &shader) {
-  if (!shader)
-    return;
+void drawMaterial(SkCanvas& canvas, const SkPath& path,
+                  const sk_sp<SkShader>& shader) {
+  if (!shader) return;
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setShader(shader);
@@ -559,16 +538,16 @@ void drawMaterial(SkCanvas &canvas, const SkPath &path,
   canvas.restore();
 }
 
-SkIRect materialBounds(const SkPath &path, float bevelPx) {
+SkIRect materialBounds(const SkPath& path, float bevelPx) {
   SkRect b = path.computeTightBounds();
   b.outset(bevelPx + 2, bevelPx + 2);
   return b.roundOut();
 }
 
-} // namespace
+}  // namespace
 
-void drawGold(SkCanvas &canvas, const SkPath &path, const Environment &env,
-              float bevelPx, const GoldParams &params) {
+void drawGold(SkCanvas& canvas, const SkPath& path, const Environment& env,
+              float bevelPx, const GoldParams& params) {
   const SkIRect bounds = materialBounds(path, bevelPx);
   sk_sp<SkImage> normals = bevelNormals(path, bounds, bevelPx);
   drawMaterial(canvas, path,
@@ -576,9 +555,8 @@ void drawGold(SkCanvas &canvas, const SkPath &path, const Environment &env,
                     {(float)bounds.left(), (float)bounds.top()}, params));
 }
 
-void drawChrome(SkCanvas &canvas, const SkPath &path,
-                const Environment &env, float bevelPx,
-                const ChromeParams &params) {
+void drawChrome(SkCanvas& canvas, const SkPath& path, const Environment& env,
+                float bevelPx, const ChromeParams& params) {
   const SkIRect bounds = materialBounds(path, bevelPx);
   sk_sp<SkImage> normals = bevelNormals(path, bounds, bevelPx);
   drawMaterial(canvas, path,
@@ -586,9 +564,9 @@ void drawChrome(SkCanvas &canvas, const SkPath &path,
                       {(float)bounds.left(), (float)bounds.top()}, params));
 }
 
-void drawGlass(SkCanvas &canvas, const SkPath &path, const Environment &env,
+void drawGlass(SkCanvas& canvas, const SkPath& path, const Environment& env,
                sk_sp<SkImage> backdrop, float bevelPx,
-               const GlassParams &params) {
+               const GlassParams& params) {
   const SkIRect bounds = materialBounds(path, bevelPx);
   sk_sp<SkImage> normals = bevelNormals(path, bounds, bevelPx);
   drawMaterial(canvas, path,
@@ -596,4 +574,4 @@ void drawGlass(SkCanvas &canvas, const SkPath &path, const Environment &env,
                      {(float)bounds.left(), (float)bounds.top()}, params));
 }
 
-} // namespace sigil::shape::materials
+}  // namespace sigil::shape::materials

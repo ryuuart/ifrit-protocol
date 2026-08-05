@@ -61,4 +61,4 @@ inline constexpr FontFeature swashes{"swsh", 1};
   return feature;
 }
 
-} // namespace sigil::weave::Features
+}  // namespace sigil::weave::Features

@@ -42,10 +42,10 @@ class WebEngine;
  * unregisters the name.
  */
 class WebImage {
-public:
+ public:
   ~WebImage();
 
-  const std::string &name() const;
+  const std::string& name() const;
   int width() const;
   int height() const;
 
@@ -58,12 +58,12 @@ public:
    * The canvas is not cleared first; returns false if the backend wrap
    * failed.
    */
-  bool paint(const std::function<void(SkCanvas &)> &painter);
+  bool paint(const std::function<void(SkCanvas&)>& painter);
 
   /** Copies @p pixels (converted to premultiplied BGRA) into the image
    *  and invalidates it. Safe from any thread. False if the pixels could
    *  not be converted. */
-  bool update(const SkPixmap &pixels);
+  bool update(const SkPixmap& pixels);
 
   /**
    * Updates from an SkImage. Raster-backed images are copied in on any
@@ -72,7 +72,7 @@ public:
    * updateTexture(), or draw via paint(); this overload logs a warning
    * and returns false for them.
    */
-  bool update(const sk_sp<SkImage> &image);
+  bool update(const sk_sp<SkImage>& image);
 
   /**
    * GPU engines: blit-copies @p texture (a native texture handle on the
@@ -81,13 +81,13 @@ public:
    * the smaller of the two sizes. Safe from any thread; the texture must
    * stay alive until this returns. False on CPU engines.
    */
-  bool updateTexture(void *texture);
+  bool updateTexture(void* texture);
 
   /** GPU engines: the retained native texture backing this image
    *  (id<MTLTexture> bridged to void* on Metal), valid for the
    *  WebImage's lifetime. Null on CPU engines. After rendering into it,
    *  call invalidate(). */
-  void *nativeTexture() const;
+  void* nativeTexture() const;
 
   /** Notifies pages displaying this image that it changed and should be
    *  redrawn (update() does this automatically). */
@@ -95,7 +95,7 @@ public:
 
   class Impl;
 
-private:
+ private:
   WebImage(std::shared_ptr<WebEngine> engine, std::shared_ptr<Impl> impl);
 
   std::shared_ptr<WebEngine> m_engine;
@@ -104,4 +104,4 @@ private:
   friend class WebEngine;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

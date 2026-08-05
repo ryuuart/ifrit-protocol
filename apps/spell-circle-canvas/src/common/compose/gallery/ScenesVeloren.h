@@ -29,8 +29,7 @@
 // image: the frames are ramps under noise inside a bevel, the terrain is
 // patterns::noise thresholded into bands, the item glyphs are paths.
 
-#include "GalleryCore.h"
-
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
@@ -38,13 +37,13 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 
-#include <include/core/SkPathBuilder.h>
-
 #include <cmath>
 #include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -54,8 +53,7 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f,
-          a};
+          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
 }
 
 // voxygen/src/hud/mod.rs, verbatim.
@@ -94,7 +92,7 @@ constexpr float kHealthInnerW = 480, kHealthInnerH = 18;
 constexpr float kEnergyW = 323, kEnergyH = 16;
 constexpr float kEnergyInnerW = 319, kEnergyInnerH = 10;
 constexpr float kSlot = 40, kSlotFrame = 42, kSlotGap = 2;
-constexpr int kSlotCount = 12; // M1 + ten numbered + M2
+constexpr int kSlotCount = 12;  // M1 + ten numbered + M2
 constexpr float kBarX = (kW - kHealthW) * 0.5f;
 constexpr float kBarY = 486;
 constexpr float kEnergyY = 514;
@@ -125,19 +123,23 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 
 /** A sunk track: the black slot a bar's content sits in. */
 inline Element track(float w, float h) {
-  return box().width(Dim(w)).height(Dim(h))
+  return box()
+      .width(Dim(w))
+      .height(Dim(h))
       .fill(Material::solid(kTrack))
       .foreground(styles::InnerShadow{{0, 0, 0, 0.85f}, {0, 2}, 3});
 }
 
 /** The carved bone frame Veloren hangs on everything. */
 inline Element boneFrame(float w, float h, float radius = 3) {
-  return box().width(Dim(w)).height(Dim(h)).corners({radius})
-      .fill(Material::linear({0, 0}, {0, h},
-                             {{0.0f, kBoneHi}, {0.45f, kBone},
-                              {1.0f, kBoneLo}}))
-      .foreground(styles::BevelEmboss{1.6f, 2.4f, 120,
-                                      {1, 1, 1, 0.35f}, {0, 0, 0, 0.65f}})
+  return box()
+      .width(Dim(w))
+      .height(Dim(h))
+      .corners({radius})
+      .fill(Material::linear(
+          {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
+      .foreground(styles::BevelEmboss{
+          1.6f, 2.4f, 120, {1, 1, 1, 0.35f}, {0, 0, 0, 0.65f}})
       .foreground(util::stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
                                PathFormat::Align::Outer));
 }
@@ -149,24 +151,30 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
   const float padX = (frameW - innerW) * 0.5f;
   const float padY = (frameH - innerH) * 0.5f;
   Element e = boneFrame(frameW, frameH, 2)
-                  .child(track(innerW, innerH)
-                             .left(padX).top(padY));
+                  .child(track(innerW, innerH).left(padX).top(padY));
   if (decay > 0.0f)
     e.child(box()
-                .left(padX + innerW * (1.0f - decay)).top(padY)
-                .width(Dim(innerW * decay)).height(Dim(innerH))
+                .left(padX + innerW * (1.0f - decay))
+                .top(padY)
+                .width(Dim(innerW * decay))
+                .height(Dim(innerH))
                 .fill(Material::solid({kQualityEpic.fR, kQualityEpic.fG,
                                        kQualityEpic.fB, 0.55f})));
-  e.child(box().left(padX).top(padY)
-              .width(Dim(innerW * fraction)).height(Dim(innerH))
-              .fill(Material::linear(
-                  {0, 0}, {0, innerH},
-                  {{0.0f, {std::min(1.0f, color.fR * 1.45f + 0.06f),
-                           std::min(1.0f, color.fG * 1.45f + 0.06f),
-                           std::min(1.0f, color.fB * 1.45f + 0.06f), 1}},
-                   {0.5f, color},
-                   {1.0f, {color.fR * 0.62f, color.fG * 0.62f,
-                           color.fB * 0.62f, 1}}})));
+  e.child(
+      box()
+          .left(padX)
+          .top(padY)
+          .width(Dim(innerW * fraction))
+          .height(Dim(innerH))
+          .fill(Material::linear(
+              {0, 0}, {0, innerH},
+              {{0.0f,
+                {std::min(1.0f, color.fR * 1.45f + 0.06f),
+                 std::min(1.0f, color.fG * 1.45f + 0.06f),
+                 std::min(1.0f, color.fB * 1.45f + 0.06f), 1}},
+               {0.5f, color},
+               {1.0f,
+                {color.fR * 0.62f, color.fG * 0.62f, color.fB * 0.62f, 1}}})));
   return e;
 }
 
@@ -178,73 +186,74 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
     const float w = s.width(), h = s.height(), cx = w * 0.5f;
     SkPathBuilder b;
     switch (g) {
-    case Glyph::Sword:
-      b.moveTo(cx, h * 0.08f);
-      b.lineTo(cx + w * 0.11f, h * 0.22f);
-      b.lineTo(cx + w * 0.08f, h * 0.66f);
-      b.lineTo(cx - w * 0.08f, h * 0.66f);
-      b.lineTo(cx - w * 0.11f, h * 0.22f);
-      b.close();
-      b.addRect(SkRect::MakeXYWH(w * 0.20f, h * 0.66f, w * 0.60f, h * 0.06f));
-      b.addRect(SkRect::MakeXYWH(cx - w * 0.05f, h * 0.72f, w * 0.10f,
-                                 h * 0.20f));
-      break;
-    case Glyph::Bow:
-      b.addArc(SkRect::MakeXYWH(w * 0.20f, h * 0.10f, w * 0.62f, h * 0.80f),
-               120, 130);
-      b.moveTo(w * 0.32f, h * 0.14f);
-      b.lineTo(w * 0.32f, h * 0.86f);
-      b.moveTo(w * 0.32f, h * 0.50f);
-      b.lineTo(w * 0.82f, h * 0.50f);
-      break;
-    case Glyph::Fire:
-      b.moveTo(cx, h * 0.08f);
-      b.quadTo(w * 0.86f, h * 0.44f, w * 0.72f, h * 0.72f);
-      b.quadTo(w * 0.60f, h * 0.94f, cx, h * 0.92f);
-      b.quadTo(w * 0.40f, h * 0.94f, w * 0.28f, h * 0.72f);
-      b.quadTo(w * 0.14f, h * 0.44f, cx, h * 0.08f);
-      b.close();
-      break;
-    case Glyph::Frost:
-      for (int i = 0; i < 3; ++i) {
-        const float a = (float)i * 1.0471976f;
-        const float dx = std::cos(a) * w * 0.36f, dy = std::sin(a) * h * 0.36f;
-        b.moveTo(cx - dx, h * 0.5f - dy);
-        b.lineTo(cx + dx, h * 0.5f + dy);
-      }
-      break;
-    case Glyph::Heal:
-      b.addRect(SkRect::MakeXYWH(cx - w * 0.09f, h * 0.16f, w * 0.18f,
-                                 h * 0.68f));
-      b.addRect(SkRect::MakeXYWH(w * 0.16f, h * 0.41f, w * 0.68f, h * 0.18f));
-      break;
-    case Glyph::Shield:
-      b.moveTo(w * 0.18f, h * 0.16f);
-      b.lineTo(w * 0.82f, h * 0.16f);
-      b.lineTo(w * 0.82f, h * 0.54f);
-      b.quadTo(w * 0.82f, h * 0.82f, cx, h * 0.90f);
-      b.quadTo(w * 0.18f, h * 0.82f, w * 0.18f, h * 0.54f);
-      b.close();
-      break;
-    case Glyph::Dash:
-      for (int i = 0; i < 3; ++i) {
-        const float x = w * (0.22f + 0.22f * (float)i);
-        b.moveTo(x, h * 0.24f);
-        b.lineTo(x + w * 0.16f, h * 0.50f);
-        b.lineTo(x, h * 0.76f);
-      }
-      break;
-    case Glyph::Bomb:
-      b.addCircle(cx, h * 0.60f, w * 0.28f);
-      b.moveTo(cx + w * 0.10f, h * 0.34f);
-      b.quadTo(cx + w * 0.34f, h * 0.16f, cx + w * 0.22f, h * 0.06f);
-      break;
+      case Glyph::Sword:
+        b.moveTo(cx, h * 0.08f);
+        b.lineTo(cx + w * 0.11f, h * 0.22f);
+        b.lineTo(cx + w * 0.08f, h * 0.66f);
+        b.lineTo(cx - w * 0.08f, h * 0.66f);
+        b.lineTo(cx - w * 0.11f, h * 0.22f);
+        b.close();
+        b.addRect(SkRect::MakeXYWH(w * 0.20f, h * 0.66f, w * 0.60f, h * 0.06f));
+        b.addRect(
+            SkRect::MakeXYWH(cx - w * 0.05f, h * 0.72f, w * 0.10f, h * 0.20f));
+        break;
+      case Glyph::Bow:
+        b.addArc(SkRect::MakeXYWH(w * 0.20f, h * 0.10f, w * 0.62f, h * 0.80f),
+                 120, 130);
+        b.moveTo(w * 0.32f, h * 0.14f);
+        b.lineTo(w * 0.32f, h * 0.86f);
+        b.moveTo(w * 0.32f, h * 0.50f);
+        b.lineTo(w * 0.82f, h * 0.50f);
+        break;
+      case Glyph::Fire:
+        b.moveTo(cx, h * 0.08f);
+        b.quadTo(w * 0.86f, h * 0.44f, w * 0.72f, h * 0.72f);
+        b.quadTo(w * 0.60f, h * 0.94f, cx, h * 0.92f);
+        b.quadTo(w * 0.40f, h * 0.94f, w * 0.28f, h * 0.72f);
+        b.quadTo(w * 0.14f, h * 0.44f, cx, h * 0.08f);
+        b.close();
+        break;
+      case Glyph::Frost:
+        for (int i = 0; i < 3; ++i) {
+          const float a = (float)i * 1.0471976f;
+          const float dx = std::cos(a) * w * 0.36f,
+                      dy = std::sin(a) * h * 0.36f;
+          b.moveTo(cx - dx, h * 0.5f - dy);
+          b.lineTo(cx + dx, h * 0.5f + dy);
+        }
+        break;
+      case Glyph::Heal:
+        b.addRect(
+            SkRect::MakeXYWH(cx - w * 0.09f, h * 0.16f, w * 0.18f, h * 0.68f));
+        b.addRect(SkRect::MakeXYWH(w * 0.16f, h * 0.41f, w * 0.68f, h * 0.18f));
+        break;
+      case Glyph::Shield:
+        b.moveTo(w * 0.18f, h * 0.16f);
+        b.lineTo(w * 0.82f, h * 0.16f);
+        b.lineTo(w * 0.82f, h * 0.54f);
+        b.quadTo(w * 0.82f, h * 0.82f, cx, h * 0.90f);
+        b.quadTo(w * 0.18f, h * 0.82f, w * 0.18f, h * 0.54f);
+        b.close();
+        break;
+      case Glyph::Dash:
+        for (int i = 0; i < 3; ++i) {
+          const float x = w * (0.22f + 0.22f * (float)i);
+          b.moveTo(x, h * 0.24f);
+          b.lineTo(x + w * 0.16f, h * 0.50f);
+          b.lineTo(x, h * 0.76f);
+        }
+        break;
+      case Glyph::Bomb:
+        b.addCircle(cx, h * 0.60f, w * 0.28f);
+        b.moveTo(cx + w * 0.10f, h * 0.34f);
+        b.quadTo(cx + w * 0.34f, h * 0.16f, cx + w * 0.22f, h * 0.06f);
+        break;
     }
     return b.detach();
   };
 }
 
-} // namespace worldhud
+}  // namespace worldhud
 
 struct WorldHudScene final : Scene {
   // Plain fractions in [0,1], not pixel widths. Every bar here is a
@@ -259,9 +268,9 @@ struct WorldHudScene final : Scene {
   std::shared_ptr<instancing::Atlas> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
 
-  const char *name() const override { return "world hud"; }
+  const char* name() const override { return "world hud"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace wh = worldhud;
     hp = 0.62f;
     energy = 0.78f;
@@ -270,20 +279,19 @@ struct WorldHudScene final : Scene {
     enemyHp = 0.4f;
     lowPulse = 0;
     compass = 0;
-    for (auto &c : cooldown)
-      c = 0.0f;
+    for (auto& c : cooldown) c = 0.0f;
 
     // The empty slot frame is one atlas cell stamped twelve times.
     slotAtlas = std::make_shared<instancing::Atlas>(2.0f);
-    slotAtlas->cell(wh::boneFrame(wh::kSlotFrame, wh::kSlotFrame, 3)
-                        .child(wh::track(wh::kSlot - 4, wh::kSlot - 4)
-                                   .left(5).top(5)),
-                    {wh::kSlotFrame, wh::kSlotFrame});
+    slotAtlas->cell(
+        wh::boneFrame(wh::kSlotFrame, wh::kSlotFrame, 3)
+            .child(wh::track(wh::kSlot - 4, wh::kSlot - 4).left(5).top(5)),
+        {wh::kSlotFrame, wh::kSlotFrame});
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
-      slotPool->add({i * (wh::kSlotFrame + wh::kSlotGap) +
-                         wh::kSlotFrame * 0.5f,
-                     wh::kSlotFrame * 0.5f});
+      slotPool->add(
+          {i * (wh::kSlotFrame + wh::kSlotGap) + wh::kSlotFrame * 0.5f,
+           wh::kSlotFrame * 0.5f});
 
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
@@ -299,9 +307,7 @@ struct WorldHudScene final : Scene {
         h = 0.75f - 0.13f * (float)((cycle - 3.5) / 5.5);
       hp = h;
       // Veloren's hp_ani: below 20% the bar breathes.
-      lowPulse = h < 0.25f
-                     ? 0.5f + 0.5f * (float)std::sin(t * 9.0)
-                     : 0.0f;
+      lowPulse = h < 0.25f ? 0.5f + 0.5f * (float)std::sin(t * 9.0) : 0.0f;
       energy = 0.35f + 0.45f * (float)(0.5 + 0.5 * std::sin(t * 0.9));
       poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
       compass = (float)std::fmod(t * 8.0, 360.0);
@@ -332,25 +338,26 @@ struct WorldHudScene final : Scene {
     Element stackEl = stack().inset(0);
 
     // health, with the decay ghost and the low-HP wash
-    stackEl.child(box().left(wh::kBarX).top(wh::kBarY)
-                      .child(wh::bar(wh::kHealthW, wh::kHealthH,
-                                     wh::kHealthInnerW, wh::kHealthInnerH,
-                                     0.62f, wh::kHp, 0.14f)));
+    stackEl.child(box().left(wh::kBarX).top(wh::kBarY).child(
+        wh::bar(wh::kHealthW, wh::kHealthH, wh::kHealthInnerW,
+                wh::kHealthInnerH, 0.62f, wh::kHp, 0.14f)));
     // the live fill rides on top of the static frame so only IT repaints
     stackEl.child(box()
-                      .left(wh::kBarX + 2).top(wh::kBarY + 3)
+                      .left(wh::kBarX + 2)
+                      .top(wh::kBarY + 3)
                       .width(Dim(wh::kHealthInnerW))
                       .height(Dim(wh::kHealthInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
-                      .fill(Material::linear(
-                          {0, 0}, {0, wh::kHealthInnerH},
-                          {{0.0f, worldhud::C(0x7FE000)},
-                           {0.5f, wh::kHp},
-                           {1.0f, worldhud::C(0x2F5C00)}})));
+                      .fill(Material::linear({0, 0}, {0, wh::kHealthInnerH},
+                                             {{0.0f, worldhud::C(0x7FE000)},
+                                              {0.5f, wh::kHp},
+                                              {1.0f, worldhud::C(0x2F5C00)}})));
     stackEl.child(box()
-                      .left(wh::kBarX).top(wh::kBarY)
-                      .width(Dim(wh::kHealthW)).height(Dim(wh::kHealthH))
+                      .left(wh::kBarX)
+                      .top(wh::kBarY)
+                      .width(Dim(wh::kHealthW))
+                      .height(Dim(wh::kHealthH))
                       .corners({2})
                       .fill(Material::solid({wh::kCritHp.fR, wh::kCritHp.fG,
                                              wh::kCritHp.fB, 0.55f}))
@@ -362,11 +369,15 @@ struct WorldHudScene final : Scene {
 
     // energy
     const float ex = (wh::kW - wh::kEnergyW) * 0.5f;
-    stackEl.child(box().left(ex).top(wh::kEnergyY)
-                      .child(wh::bar(wh::kEnergyW, wh::kEnergyH,
-                                     wh::kEnergyInnerW, wh::kEnergyInnerH,
-                                     1.0f, wh::kStamina)));
-    stackEl.child(box().left(ex + 2).top(wh::kEnergyY + 3)
+    stackEl.child(
+        box()
+            .left(ex)
+            .top(wh::kEnergyY)
+            .child(wh::bar(wh::kEnergyW, wh::kEnergyH, wh::kEnergyInnerW,
+                           wh::kEnergyInnerH, 1.0f, wh::kStamina)));
+    stackEl.child(box()
+                      .left(ex + 2)
+                      .top(wh::kEnergyY + 3)
                       .width(Dim(wh::kEnergyInnerW))
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
@@ -374,11 +385,15 @@ struct WorldHudScene final : Scene {
                       .fill(Material::solid(wh::kStamina)));
 
     // poise, with skillbar.rs's 3x10 ticks along it
-    stackEl.child(box().left(ex).top(wh::kPoiseY)
-                      .child(wh::bar(wh::kEnergyW, wh::kEnergyH,
-                                     wh::kEnergyInnerW, wh::kEnergyInnerH,
-                                     1.0f, wh::kPoise)));
-    stackEl.child(box().left(ex + 2).top(wh::kPoiseY + 3)
+    stackEl.child(
+        box()
+            .left(ex)
+            .top(wh::kPoiseY)
+            .child(wh::bar(wh::kEnergyW, wh::kEnergyH, wh::kEnergyInnerW,
+                           wh::kEnergyInnerH, 1.0f, wh::kPoise)));
+    stackEl.child(box()
+                      .left(ex + 2)
+                      .top(wh::kPoiseY + 3)
                       .width(Dim(wh::kEnergyInnerW))
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
@@ -388,7 +403,8 @@ struct WorldHudScene final : Scene {
       stackEl.child(box()
                         .left(ex + 2 + wh::kEnergyInnerW * (float)i / 6.0f)
                         .top(wh::kPoiseY + 3)
-                        .width(Dim(3.0f)).height(Dim(10.0f))
+                        .width(Dim(3.0f))
+                        .height(Dim(10.0f))
                         .fill(Material::solid(wh::kPoiseTick)));
     return stackEl;
   }
@@ -396,39 +412,50 @@ struct WorldHudScene final : Scene {
   Element hotbar() {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
-    static const struct { const char *key; wh::Glyph glyph; bool filled; }
-    kSlots[] = {
-        {"M1", wh::Glyph::Sword, true},   {"1", wh::Glyph::Fire, true},
-        {"2", wh::Glyph::Frost, true},    {"3", wh::Glyph::Heal, true},
-        {"4", wh::Glyph::Dash, true},     {"5", wh::Glyph::Shield, true},
-        {"6", wh::Glyph::Bomb, true},     {"7", wh::Glyph::Bow, false},
-        {"8", wh::Glyph::Sword, false},   {"9", wh::Glyph::Fire, false},
-        {"0", wh::Glyph::Frost, false},   {"M2", wh::Glyph::Bow, true},
+    static const struct {
+      const char* key;
+      wh::Glyph glyph;
+      bool filled;
+    } kSlots[] = {
+        {"M1", wh::Glyph::Sword, true}, {"1", wh::Glyph::Fire, true},
+        {"2", wh::Glyph::Frost, true},  {"3", wh::Glyph::Heal, true},
+        {"4", wh::Glyph::Dash, true},   {"5", wh::Glyph::Shield, true},
+        {"6", wh::Glyph::Bomb, true},   {"7", wh::Glyph::Bow, false},
+        {"8", wh::Glyph::Sword, false}, {"9", wh::Glyph::Fire, false},
+        {"0", wh::Glyph::Frost, false}, {"M2", wh::Glyph::Bow, true},
     };
-    Element rail = stack().left(wh::kSlotsX).top(wh::kSlotsY)
-                       .width(Dim(wh::kSlotsW)).height(Dim(wh::kSlotFrame));
+    Element rail = stack()
+                       .left(wh::kSlotsX)
+                       .top(wh::kSlotsY)
+                       .width(Dim(wh::kSlotsW))
+                       .height(Dim(wh::kSlotFrame));
     rail.child(instances(slotAtlas, slotPool));
     for (int i = 0; i < wh::kSlotCount; ++i) {
       const float x = i * (wh::kSlotFrame + wh::kSlotGap);
       if (kSlots[i].filled)
-        rail.child(box().left(x + 9).top(wh::kSlotsY * 0 + 9)
-                       .width(Dim(24.0f)).height(Dim(24.0f))
-                       .shape(wh::glyphPath(kSlots[i].glyph))
-                       .fill(Material::linear(
-                           {0, 0}, {0, 24},
-                           {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
-                       // several glyphs are line-only (frost, dash, bow):
-                       // a fill alone leaves them invisible
-                       .stroke(util::stroke(2.2f,
-                                            Fill::color(wh::kBoneHi)))
-                       .stroke(util::stroke(
-                           3.4f, Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
-                           PathFormat::Align::Outer)));
+        rail.child(
+            box()
+                .left(x + 9)
+                .top(wh::kSlotsY * 0 + 9)
+                .width(Dim(24.0f))
+                .height(Dim(24.0f))
+                .shape(wh::glyphPath(kSlots[i].glyph))
+                .fill(Material::linear(
+                    {0, 0}, {0, 24}, {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
+                // several glyphs are line-only (frost, dash, bow):
+                // a fill alone leaves them invisible
+                .stroke(util::stroke(2.2f, Fill::color(wh::kBoneHi)))
+                .stroke(util::stroke(3.4f,
+                                     Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
+                                     PathFormat::Align::Outer)));
       // four of them are cooling down: the sweep Veloren draws as a dark
       // wipe over the icon
       if (i >= 1 && i <= 4)
-        rail.child(box().left(x + 3).top(3)
-                       .width(Dim(wh::kSlot - 4)).height(Dim(wh::kSlot - 4))
+        rail.child(box()
+                       .left(x + 3)
+                       .top(3)
+                       .width(Dim(wh::kSlot - 4))
+                       .height(Dim(wh::kSlot - 4))
                        .transformOrigin(0.5f, 0.0f)
                        .scaleY(&cooldown[(size_t)i - 1])
                        .fill(Material::linear(
@@ -436,23 +463,33 @@ struct WorldHudScene final : Scene {
                            {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
                             {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
       rail.child(text(toU8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
-                     .left(x + 4).top(wh::kSlotFrame - 13));
+                     .left(x + 4)
+                     .top(wh::kSlotFrame - 13));
     }
     // the selected-exp chip skillbar.rs hangs off slot10
-    rail.child(box().left(wh::kSlotsW + 3).top(2)
-                   .width(Dim(34.0f)).height(Dim(38.0f))
+    rail.child(box()
+                   .left(wh::kSlotsW + 3)
+                   .top(2)
+                   .width(Dim(34.0f))
+                   .height(Dim(38.0f))
                    .child(worldhud::boneFrame(34, 38, 3).inset(0))
-                   .child(box().left(3).top(20)
-                              .width(Dim(28.0f)).height(Dim(6.0f))
+                   .child(box()
+                              .left(3)
+                              .top(20)
+                              .width(Dim(28.0f))
+                              .height(Dim(6.0f))
                               .fill(Material::solid(worldhud::kTrack))
-                              .child(box().left(0).top(0)
-                                         .width(Dim(28.0f)).height(Dim(6.0f))
+                              .child(box()
+                                         .left(0)
+                                         .top(0)
+                                         .width(Dim(28.0f))
+                                         .height(Dim(6.0f))
                                          .transformOrigin(0.0f, 0.5f)
                                          .scaleX(&xp)
-                                         .fill(Material::solid(
-                                             worldhud::kXp))))
+                                         .fill(Material::solid(worldhud::kXp))))
                    .child(text(toU8("34"), wh::type(13, wh::kInk, 0.4f, 640))
-                              .left(9).top(3)));
+                              .left(9)
+                              .top(3)));
     return rail;
   }
 
@@ -462,59 +499,84 @@ struct WorldHudScene final : Scene {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
     constexpr float d = 168;
-    return stack().key("minimap").right(28).top(28)
-        .width(Dim(d)).height(Dim(d))
+    return stack()
+        .key("minimap")
+        .right(28)
+        .top(28)
+        .width(Dim(d))
+        .height(Dim(d))
         .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-        .child(box().inset(0).corners({d * 0.5f}).clip()
+        .child(box()
+                   .inset(0)
+                   .corners({d * 0.5f})
+                   .clip()
                    .fill(Material::solid(worldhud::C(0x2E4A2A)))
-                   .child(box().inset(0)
+                   .child(box()
+                              .inset(0)
                               .fill(patterns::noise(0.014f, 5, 3.0f))
                               .opacity(0.85f)
                               .blend(SkBlendMode::kMultiply))
-                   .child(box().inset(0)
-                              .fill(Material::radial(
-                                  {d * 0.5f, d * 0.5f}, d * 0.55f,
-                                  {{0.0f, {0, 0, 0, 0}},
-                                   {0.72f, {0, 0, 0, 0.25f}},
-                                   {1.0f, {0, 0, 0, 0.75f}}})))
+                   .child(box().inset(0).fill(
+                       Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
+                                        {{0.0f, {0, 0, 0, 0}},
+                                         {0.72f, {0, 0, 0, 0.25f}},
+                                         {1.0f, {0, 0, 0, 0.75f}}})))
                    // the rivers Veloren's world always has
-                   .child(box().inset(0)
-                              .fill(patterns::stripes(2, 47,
-                                                      worldhud::C(0x2F6FA8,
-                                                                  0.30f))
+                   .child(box()
+                              .inset(0)
+                              .fill(patterns::stripes(
+                                        2, 47, worldhud::C(0x2F6FA8, 0.30f))
                                         .material())
                               .rotate(24.0f)
                               .opacity(0.7f)))
         // compass rose, counter-rotating under the frame
-        .child(box().inset(0).rotate(&compass)
-                   .child(box().inset(0)
-                              .shape(shapes::star(4, 0.12f))
-                              .fill(Material::solid(
-                                  {wh::kBoneHi.fR, wh::kBoneHi.fG,
-                                   wh::kBoneHi.fB, 0.22f}))))
-        .child(box().left(d * 0.5f - 4).top(d * 0.5f - 4)
-                   .width(Dim(8.0f)).height(Dim(8.0f))
+        .child(box().inset(0).rotate(&compass).child(
+            box()
+                .inset(0)
+                .shape(shapes::star(4, 0.12f))
+                .fill(Material::solid(
+                    {wh::kBoneHi.fR, wh::kBoneHi.fG, wh::kBoneHi.fB, 0.22f}))))
+        .child(box()
+                   .left(d * 0.5f - 4)
+                   .top(d * 0.5f - 4)
+                   .width(Dim(8.0f))
+                   .height(Dim(8.0f))
                    .shape(shapes::polygon(3))
                    .fill(Material::solid(worldhud::C(0xFFE9A8))))
-        .child(box().left(d * 0.30f).top(d * 0.36f)
-                   .width(Dim(6.0f)).height(Dim(6.0f)).corners({3})
+        .child(box()
+                   .left(d * 0.30f)
+                   .top(d * 0.36f)
+                   .width(Dim(6.0f))
+                   .height(Dim(6.0f))
+                   .corners({3})
                    .fill(Material::solid(wh::kQualityLegendary)))
-        .child(box().left(d * 0.68f).top(d * 0.62f)
-                   .width(Dim(6.0f)).height(Dim(6.0f)).corners({3})
+        .child(box()
+                   .left(d * 0.68f)
+                   .top(d * 0.62f)
+                   .width(Dim(6.0f))
+                   .height(Dim(6.0f))
+                   .corners({3})
                    .fill(Material::solid(wh::kEnemyHp)))
         // the ring
-        .child(box().inset(0).corners({d * 0.5f})
-                   .foreground(util::stroke(
-                       5.0f,
-                       util::linearGradient({0, 0}, {0, d},
-                                            {wh::kBoneHi, wh::kBone,
-                                             wh::kBoneLo}),
-                       PathFormat::Align::Inner))
-                   .foreground(util::stroke(
-                       1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
+        .child(
+            box()
+                .inset(0)
+                .corners({d * 0.5f})
+                .foreground(util::stroke(
+                    5.0f,
+                    util::linearGradient({0, 0}, {0, d},
+                                         {wh::kBoneHi, wh::kBone, wh::kBoneLo}),
+                    PathFormat::Align::Inner))
+                .foreground(util::stroke(
+                    1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
         .child(text(toU8("N"), wh::type(11, wh::kInk, 1.0f, 640))
-                   .left(d * 0.5f - 4).top(7))
-        .child(box().row().left(0).right(0).bottom(-19)
+                   .left(d * 0.5f - 4)
+                   .top(7))
+        .child(box()
+                   .row()
+                   .left(0)
+                   .right(0)
+                   .bottom(-19)
                    .justify(Justify::Center)
                    .child(text(toU8("WELDRIN VALE  \xc2\xb7  1204, -388"),
                                wh::type(10, wh::kInkDim, 1.2f))));
@@ -524,34 +586,48 @@ struct WorldHudScene final : Scene {
   Element buffRow() {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
-    struct Pip { const char *label; SkColor4f color; float left; };
+    struct Pip {
+      const char* label;
+      SkColor4f color;
+      float left;
+    };
     static const Pip kPips[] = {
         {"REG", wh::kBuff, 0.72f},   {"HST", wh::kBuff, 0.35f},
         {"PRT", wh::kBuff, 0.88f},   {"BRN", wh::kDebuff, 0.51f},
         {"BLD", wh::kDebuff, 0.19f},
     };
-    Element row = box().key("buffs").row().gap(6)
-                      .left(28).top(28).zIndex(6)
+    Element row = box()
+                      .key("buffs")
+                      .row()
+                      .gap(6)
+                      .left(28)
+                      .top(28)
+                      .zIndex(6)
                       .staggerChildren(70ms);
-    for (const Pip &p : kPips)
-      row.child(box().width(Dim(30.0f)).height(Dim(30.0f)).corners({4})
+    for (const Pip& p : kPips)
+      row.child(box()
+                    .width(Dim(30.0f))
+                    .height(Dim(30.0f))
+                    .corners({4})
                     .opacity(animate(from(0.0f).to(1.0f), {320ms}))
                     .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
                     .fill(Material::linear({0, 0}, {0, 30},
                                            {{0.0f, worldhud::C(0x2A2118)},
                                             {1.0f, worldhud::C(0x120C08)}}))
-                    .foreground(util::stroke(
-                        1.4f, Fill::color({p.color.fR, p.color.fG, p.color.fB,
-                                           0.9f})))
-                    .alignItems(Align::Center).justify(Justify::Center)
+                    .foreground(
+                        util::stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
+                                                        p.color.fB, 0.9f})))
+                    .alignItems(Align::Center)
+                    .justify(Justify::Center)
                     // the drain: a dark wipe from the bottom, under the label
-                    .child(box().left(0).bottom(0)
+                    .child(box()
+                               .left(0)
+                               .bottom(0)
                                .width(Dim(30.0f))
                                .height(Dim(30.0f * (1.0f - p.left)))
                                .fill(Material::solid({0, 0, 0, 0.62f}))
                                .zIndex(1))
-                    .child(text(toU8(p.label),
-                                wh::type(9, p.color, 0.6f, 640))
+                    .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
                                .zIndex(2)));
     return row;
   }
@@ -560,7 +636,10 @@ struct WorldHudScene final : Scene {
   Element lootFeed() {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
-    struct Line { const char *text; SkColor4f color; };
+    struct Line {
+      const char* text;
+      SkColor4f color;
+    };
     static const Line kLines[] = {
         {"Sunsteel Greatsword", wh::kQualityLegendary},
         {"Cave Spider Silk x4", wh::kQualityLow},
@@ -568,21 +647,31 @@ struct WorldHudScene final : Scene {
         {"Rugged Hide", wh::kQualityModerate},
         {"Glowing Remains", wh::kQualityEpic},
     };
-    Element feed = box().key("loot").column().gap(3)
-                       .left(28).bottom(70).zIndex(6)
+    Element feed = box()
+                       .key("loot")
+                       .column()
+                       .gap(3)
+                       .left(28)
+                       .bottom(70)
+                       .zIndex(6)
                        .staggerChildren(90ms);
-    for (const Line &l : kLines)
-      feed.child(box().row().alignItems(Align::Center).gap(7)
-                     .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-                     .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
-                     .child(box().width(Dim(16.0f)).height(Dim(16.0f))
-                                .corners({2})
-                                .fill(Material::solid({l.color.fR * 0.28f,
-                                                       l.color.fG * 0.28f,
-                                                       l.color.fB * 0.28f, 1}))
-                                .foreground(util::stroke(
-                                    1.0f, Fill::color(l.color))))
-                     .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
+    for (const Line& l : kLines)
+      feed.child(
+          box()
+              .row()
+              .alignItems(Align::Center)
+              .gap(7)
+              .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+              .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
+              .child(box()
+                         .width(Dim(16.0f))
+                         .height(Dim(16.0f))
+                         .corners({2})
+                         .fill(Material::solid({l.color.fR * 0.28f,
+                                                l.color.fG * 0.28f,
+                                                l.color.fB * 0.28f, 1}))
+                         .foreground(util::stroke(1.0f, Fill::color(l.color))))
+              .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
     return feed;
   }
 
@@ -623,15 +712,15 @@ struct WorldHudScene final : Scene {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
 
-    auto root = stack().fill(Material::linear(
-        {0, 0}, {0, wh::kH},
-        {{0.0f, worldhud::C(0x1B2B36)},
-         {0.55f, worldhud::C(0x24331F)},
-         {1.0f, worldhud::C(0x11170E)}}));
+    auto root = stack().fill(Material::linear({0, 0}, {0, wh::kH},
+                                              {{0.0f, worldhud::C(0x1B2B36)},
+                                               {0.55f, worldhud::C(0x24331F)},
+                                               {1.0f, worldhud::C(0x11170E)}}));
 
     // a coarse world under the HUD so the bars have something to be legible
     // against — the HUD is the subject, but a HUD over nothing is a lie
-    root.child(box().inset(0)
+    root.child(box()
+                   .inset(0)
                    .fill(patterns::noise(0.006f, 6, 12.0f))
                    .opacity(0.55f)
                    .blend(SkBlendMode::kOverlay));
@@ -639,7 +728,8 @@ struct WorldHudScene final : Scene {
     // world rather than as a diagram floating in a void
     auto ridge = [&](float baseY, float amp, float freq, float phase,
                      SkColor4f color) {
-      return box().inset(0)
+      return box()
+          .inset(0)
           .shape([baseY, amp, freq, phase](SkSize s) {
             SkPathBuilder b;
             b.moveTo(0, s.height());
@@ -656,13 +746,15 @@ struct WorldHudScene final : Scene {
     root.child(ridge(268, 26, 0.0085f, 0.4f, worldhud::C(0x15201A)));
     root.child(ridge(322, 18, 0.0135f, 2.1f, worldhud::C(0x0E1712)));
     root.child(ridge(392, 12, 0.0210f, 4.4f, worldhud::C(0x080D09)));
-    root.child(box().inset(0)
-                   .fill(Material::radial({wh::kW * 0.5f, wh::kH * 0.42f},
-                                          wh::kW * 0.72f,
-                                          {{0.0f, {0, 0, 0, 0}},
-                                           {1.0f, {0, 0, 0, 0.65f}}})));
+    root.child(box().inset(0).fill(
+        Material::radial({wh::kW * 0.5f, wh::kH * 0.42f}, wh::kW * 0.72f,
+                         {{0.0f, {0, 0, 0, 0}}, {1.0f, {0, 0, 0, 0.65f}}})));
 
-    root.child(box().column().left(28).top(70).zIndex(6)
+    root.child(box()
+                   .column()
+                   .left(28)
+                   .top(70)
+                   .zIndex(6)
                    .child(text(toU8("WELDRIN VALE"),
                                wh::type(20, wh::kInk, 2.6f, 640)))
                    .child(text(toU8("action-RPG HUD \xe2\x80\x94 every "
@@ -680,4 +772,4 @@ struct WorldHudScene final : Scene {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

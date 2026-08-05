@@ -1,18 +1,17 @@
 #pragma once
 // Split from GalleryScenes.h — see that header for the registry.
 
-#include "GalleryCore.h"
-
-#include <sigilimage/ImageAsset.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilimage/ImageAsset.h>
 
 #include <cmath>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -22,12 +21,12 @@ struct TileScene final : Scene {
   struct Chunk {
     int index;
     int revision;
-    bool operator==(const Chunk &) const = default;
+    bool operator==(const Chunk&) const = default;
   };
   std::vector<int> revisions = std::vector<int>(4, 0);
   double nextMutation = 0.0;
 
-  const char *name() const override { return "tilemap"; }
+  const char* name() const override { return "tilemap"; }
 
   /** The maze tileset: a procedural 4-cell atlas (16px tiles: floor,
    *  brick wall, moss floor, ember) built once — the stress-item-15
@@ -36,7 +35,7 @@ struct TileScene final : Scene {
     static std::shared_ptr<sigil::image::ImageAsset> asset = [] {
       sk_sp<SkSurface> s =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
-      SkCanvas &c = *s->getCanvas();
+      SkCanvas& c = *s->getCanvas();
       SkPaint p;
       // 0: floor
       p.setColor(SkColorSetRGB(0x18, 0x16, 0x24));
@@ -76,27 +75,28 @@ struct TileScene final : Scene {
     return asset;
   }
 
-  static Element chunkElement(const Chunk &chunk) {
+  static Element chunkElement(const Chunk& chunk) {
     // 8x5 tiles per chunk; a seeded rule picks the atlas region — a
     // maze-ish wall pattern with moss and embers scattered in.
     constexpr float kTile = 27.0f;
     auto tiles = box().width(8 * kTile).height(5 * kTile);
     for (int y = 0; y < 5; ++y)
       for (int x = 0; x < 8; ++x) {
-        const uint32_t h = (uint32_t)(x * 73856093 ^ y * 19349663 ^
-                                      chunk.index * 83492791 ^
-                                      chunk.revision * 2654435761u);
-        int id = 0; // floor
+        const uint32_t h =
+            (uint32_t)(x * 73856093 ^ y * 19349663 ^ chunk.index * 83492791 ^
+                       chunk.revision * 2654435761u);
+        int id = 0;  // floor
         if (x % 3 == 1 && (h & 5) != 0)
-          id = 1; // maze walls in broken columns
+          id = 1;  // maze walls in broken columns
         else if ((h % 11) == 3)
-          id = 2; // moss
+          id = 2;  // moss
         else if ((h % 23) == 7)
-          id = 3; // ember
+          id = 3;  // ember
         tiles.child(image(atlas())
                         .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
                         .inset((float)x * kTile, (float)y * kTile, 0, 0)
-                        .width(kTile).height(kTile));
+                        .width(kTile)
+                        .height(kTile));
       }
     return tiles;
   }
@@ -106,7 +106,9 @@ struct TileScene final : Scene {
     for (int i = 0; i < 4; ++i)
       grid.child(memo(Chunk{i, revisions[(size_t)i]}, chunkElement)
                      .key("chunk" + std::to_string(i)));
-    return box().padding(40).fill(Fill::color({0.03f, 0.03f, 0.07f, 1}))
+    return box()
+        .padding(40)
+        .fill(Fill::color({0.03f, 0.03f, 0.07f, 1}))
         .child(text(u8"tile maze — atlas regions; one chunk re-records "
                     u8"per mutation",
                     styleAt(18, 0xff9aa4bb)))
@@ -114,20 +116,18 @@ struct TileScene final : Scene {
         .child(std::move(grid));
   }
 
-  void setup(Composer &composer, sigil::motion::Ticker &) override {
+  void setup(Composer& composer, sigil::motion::Ticker&) override {
     revisions.assign(4, 0);
     nextMutation = 0.0;
     composer.render(describe());
   }
 
-  void update(double elapsed, Composer &composer) override {
-    if (elapsed < nextMutation)
-      return;
+  void update(double elapsed, Composer& composer) override {
+    if (elapsed < nextMutation) return;
     nextMutation = elapsed + 0.7;
     revisions[(size_t)(elapsed * 13.0) % 4]++;
     composer.render(describe());
   }
 };
 
-
-} // namespace compose_gallery
+}  // namespace compose_gallery

@@ -21,11 +21,11 @@
 // one at a single mount. The retained instance tree is what makes that work;
 // there is no separate virtualizer.
 
-#include "GalleryCore.h"
-
 #include <sigilcompose/Console.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Sdf.h>
+
+#include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
 #include <sigilcompose/Ocio.h>
 #endif
@@ -59,7 +59,7 @@ inline sigil::weave::TextStyle mono(float size, SkColor4f color) {
 }
 
 inline sk_sp<SkRuntimeEffect> scanEffect() {
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform float uTime;
     half4 main(float2 p) {
       float band = 0.5 + 0.5 * sin(p.y * 1.9 - uTime * 14.0);
@@ -69,8 +69,7 @@ inline sk_sp<SkRuntimeEffect> scanEffect() {
   )";
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx)
-      SkDebugf("scanline shader: %s\n", err.c_str());
+    if (!fx) SkDebugf("scanline shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
@@ -80,7 +79,7 @@ inline sk_sp<SkRuntimeEffect> scanEffect() {
 struct LogGen {
   std::mt19937 rng{2077};
   int packet = 41210;
-  uint64_t emitLine(sigil::compose::console::LineRing &ring) {
+  uint64_t emitLine(sigil::compose::console::LineRing& ring) {
     char buf[96];
     const int roll = (int)(rng() % 100);
     packet += (int)(rng() % 97);
@@ -89,19 +88,19 @@ struct LogGen {
                     "!! WARD BREACH sector %02u \xe2\x80\x94 rerouting "
                     "through gate %u",
                     (unsigned)(rng() % 13), (unsigned)(rng() % 7));
-      return ring.append(toU8(buf), 2); // alert
+      return ring.append(toU8(buf), 2);  // alert
     }
     if (roll < 22) {
       std::snprintf(buf, sizeof(buf),
                     " ~ sigil flux unstable: %0.2f mS, damping applied",
                     0.4 + (double)(rng() % 90) / 100.0);
-      return ring.append(toU8(buf), 1); // warn
+      return ring.append(toU8(buf), 1);  // warn
     }
     if (roll < 55) {
       std::snprintf(buf, sizeof(buf),
                     "   trace %06x :: lattice ok \xc2\xb7 %u pts", packet,
                     (unsigned)(64 + rng() % 900));
-      return ring.append(toU8(buf), 0); // dim
+      return ring.append(toU8(buf), 0);  // dim
     }
     std::snprintf(buf, sizeof(buf),
                   " > daemon[%u] bound port %u \xe2\x80\x94 handshake "
@@ -112,7 +111,7 @@ struct LogGen {
   }
 };
 
-} // namespace daemon_console
+}  // namespace daemon_console
 
 struct DaemonConsoleScene final : Scene {
   sigil::compose::console::LineRing ring{256};
@@ -120,7 +119,7 @@ struct DaemonConsoleScene final : Scene {
   choreograph::Output<float> blink{1.0f};
   double nextAppend = 0.0;
 
-  const char *name() const override { return "daemon console"; }
+  const char* name() const override { return "daemon console"; }
 
   sigil::compose::console::Style style() {
     namespace dc = daemon_console;
@@ -141,19 +140,18 @@ struct DaemonConsoleScene final : Scene {
     return s;
   }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace dc = daemon_console;
     blink = 1.0f;
     nextAppend = 0.0;
-    ring.clear(); // scenes re-activate; seq ids stay monotonic
+    ring.clear();  // scenes re-activate; seq ids stay monotonic
     gen = dc::LogGen{};
 
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
     composer.setView(ocio::exponent(1.08f));
 #endif
 
-    for (int i = 0; i < 8; ++i)
-      gen.emitLine(ring); // a little history at boot
+    for (int i = 0; i < 8; ++i) gen.emitLine(ring);  // a little history at boot
 
     // The data-side feed: blink is the only bound Output; appends re-render
     // and reconciliation prices each one at a single mount (O(1)).
@@ -192,9 +190,9 @@ struct DaemonConsoleScene final : Scene {
          {1.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 0.0f}}});
 
     return stack()
-        .fill(Material::linear({0, 0}, {0, dc::kH},
-                               {{0.0f, {0.03f, 0.065f, 0.042f, 1}},
-                                {1.0f, dc::kInk}}))
+        .fill(Material::linear(
+            {0, 0}, {0, dc::kH},
+            {{0.0f, {0.03f, 0.065f, 0.042f, 1}}, {1.0f, dc::kInk}}))
         .child(
             // The SDF material reserves space inside the box for its glow, so
             // the DRAWN border sits well inside the node's own edge. The
@@ -202,25 +200,39 @@ struct DaemonConsoleScene final : Scene {
             // the box edge; too little and the border rule cuts through the
             // header's cap-height and the right-hand text is clipped by the
             // corner arc.
-            box().column().inset(44, 40, 44, 40).fill(chrome)
-                .clip().padding(46, 44)
-                .child(box().row().gap(10).margin(0, 0, 0, 10)
+            box()
+                .column()
+                .inset(44, 40, 44, 40)
+                .fill(chrome)
+                .clip()
+                .padding(46, 44)
+                .child(box()
+                           .row()
+                           .gap(10)
+                           .margin(0, 0, 0, 10)
                            .child(text(toU8("DAEMON WATCH"),
                                        dc::mono(16, dc::kGreen)))
                            .child(box().grow(1))
                            .child(text(toU8("uplink: flooded-causeway"
-                                            "\xc2\xb7" "7"),
+                                            "\xc2\xb7"
+                                            "7"),
                                        dc::mono(13, dc::kGreenDim))))
-                .child(box().column().grow(1).clip()
-                           .child(sigil::compose::console::console(ring, style()))
-                           .zIndex(1))
-                .child(box().height(90).inset(30, 58, 30, 0)
-                           .fill(fade).zIndex(2)))
+                .child(
+                    box()
+                        .column()
+                        .grow(1)
+                        .clip()
+                        .child(sigil::compose::console::console(ring, style()))
+                        .zIndex(1))
+                .child(
+                    box().height(90).inset(30, 58, 30, 0).fill(fade).zIndex(2)))
         // living scanlines across everything
-        .child(box().inset(0).zIndex(3)
+        .child(box()
+                   .inset(0)
+                   .zIndex(3)
                    .fill(Material::sksl(dc::scanEffect()))
                    .blend(SkBlendMode::kScreen));
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

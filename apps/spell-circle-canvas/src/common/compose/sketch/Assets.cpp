@@ -13,13 +13,13 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
   constexpr int kSize = 64, kCell = 16;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSize, kSize));
-  SkCanvas &canvas = *surface->getCanvas();
+  SkCanvas& canvas = *surface->getCanvas();
   SkPaint paint;
   for (int y = 0; y < kSize / kCell; ++y)
     for (int x = 0; x < kSize / kCell; ++x) {
       paint.setColor(((x + y) & 1) ? SK_ColorMAGENTA : SK_ColorBLACK);
-      canvas.drawRect(SkRect::MakeXYWH((float)(x * kCell),
-                                       (float)(y * kCell), kCell, kCell),
+      canvas.drawRect(SkRect::MakeXYWH((float)(x * kCell), (float)(y * kCell),
+                                       kCell, kCell),
                       paint);
     }
   return std::make_shared<sigil::image::ImageAsset>(
@@ -30,15 +30,15 @@ std::string uriFor(std::string_view name) {
   return "res://" + std::string(name);
 }
 
-} // namespace
+}  // namespace
 
 Assets::Assets(std::filesystem::path root) : m_root(std::move(root)) {
   m_hub.mount("res://", m_root);
   m_placeholder = makePlaceholder();
 }
 
-std::shared_ptr<const sigil::image::ImageAsset>
-Assets::image(std::string_view name) {
+std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
+    std::string_view name) {
   if (auto asset = m_hub.image(uriFor(name))) {
     m_placeholders.erase(std::string(name));
     return asset;
@@ -61,4 +61,4 @@ bool Assets::poll() {
   return changed;
 }
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch

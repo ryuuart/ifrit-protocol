@@ -248,18 +248,6 @@
 //          focus breathes +-0.4 px at 0.15 Hz and the phosphor dips every 4 s
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
-#include <sigilcompose/Util.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkMaskFilter.h>
@@ -267,6 +255,15 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Brushes.h>
+#include <sigilcompose/Lines.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
+#include <sigilcompose/Util.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cmath>
@@ -287,7 +284,7 @@ namespace lain {
 
 constexpr float kW = 1016.0f, kH = 720.0f;
 
-using studio::hex;   // the same four lines as twenty-three other files
+using studio::hex;  // the same four lines as twenty-three other files
 using studio::mix;
 // dim(c, k) was mul(c, k) with the alpha kept, which is studio::mul's default.
 inline SkColor4f dim(SkColor4f c, float k) { return studio::mul(c, k); }
@@ -298,29 +295,30 @@ inline SkColor4f dim(SkColor4f c, float k) { return studio::mul(c, k); }
 // that way on purpose: a colour with an alpha would have to darken something
 // to read, and nothing in this interface darkens anything.
 
-const SkColor4f kGround = hex(0x060719);      // the plate's own p10; #0F1023,
-                                              // its p50, is what the CONTRIB-
-                                              // UTIONS above are taken against
-const SkColor4f kProse = hex(0x1B2138);       // Japanese glyph peaks, +46+54+77
-const SkColor4f kPanel = hex(0x101F27);       // the lightened panel, +16+31+39
-const SkColor4f kBodyMid = hex(0x475F86);     // pedestal centre  (#334D83)
-const SkColor4f kBodyEdge = hex(0x040A24);    // pedestal edge    (#151E52)
-const SkColor4f kBarTopHi = hex(0x587962);    // top bar bright edge   (#67899E)
-const SkColor4f kBarTopLo = hex(0x234A3C);    // top bar dark middle   (#325A74)
-const SkColor4f kBarBotHi = hex(0x6FA586);    // bottom bar peak       (#7EB5CA)
-const SkColor4f kBarBotLo = hex(0x578C70);    // bottom bar middle     (#669CB1)
-const SkColor4f kRail = hex(0x1D3242);        // side hairlines, dimmer than bars
-const SkColor4f kConsoleInk = hex(0x46C89A);  // ~ #84FFFF - #425689, the add the
-                                              // reference's own body demands; the
-                                              // green is trimmed against the
-                                              // measured core #72F9F5, not guessed
-const SkColor4f kWire = hex(0x3A6257);        // hairline peak #5683AD on a
-                                              // #1C2156 ground, dLuma +55
-const SkColor4f kMinds = hex(0xA6B7BE);       // `no double minds`, +166+183+190
-const SkColor4f kAlright = hex(0xB3B6BF);     // `make me feel alright?` core
-const SkColor4f kCover = hex(0x7A3416);       // `COVer me`, dr-db = +40
-const SkColor4f kMagenta = hex(0x3A1B3C);     // the streaks, p90 #603871
-const SkColor4f kWordmark = hex(0x2B3A54);    // the rotated Copland lockup
+const SkColor4f kGround = hex(0x060719);    // the plate's own p10; #0F1023,
+                                            // its p50, is what the CONTRIB-
+                                            // UTIONS above are taken against
+const SkColor4f kProse = hex(0x1B2138);     // Japanese glyph peaks, +46+54+77
+const SkColor4f kPanel = hex(0x101F27);     // the lightened panel, +16+31+39
+const SkColor4f kBodyMid = hex(0x475F86);   // pedestal centre  (#334D83)
+const SkColor4f kBodyEdge = hex(0x040A24);  // pedestal edge    (#151E52)
+const SkColor4f kBarTopHi = hex(0x587962);  // top bar bright edge   (#67899E)
+const SkColor4f kBarTopLo = hex(0x234A3C);  // top bar dark middle   (#325A74)
+const SkColor4f kBarBotHi = hex(0x6FA586);  // bottom bar peak       (#7EB5CA)
+const SkColor4f kBarBotLo = hex(0x578C70);  // bottom bar middle     (#669CB1)
+const SkColor4f kRail = hex(0x1D3242);      // side hairlines, dimmer than bars
+const SkColor4f kConsoleInk =
+    hex(0x46C89A);                         // ~ #84FFFF - #425689, the add the
+                                           // reference's own body demands; the
+                                           // green is trimmed against the
+                                           // measured core #72F9F5, not guessed
+const SkColor4f kWire = hex(0x3A6257);     // hairline peak #5683AD on a
+                                           // #1C2156 ground, dLuma +55
+const SkColor4f kMinds = hex(0xA6B7BE);    // `no double minds`, +166+183+190
+const SkColor4f kAlright = hex(0xB3B6BF);  // `make me feel alright?` core
+const SkColor4f kCover = hex(0x7A3416);    // `COVer me`, dr-db = +40
+const SkColor4f kMagenta = hex(0x3A1B3C);  // the streaks, p90 #603871
+const SkColor4f kWordmark = hex(0x2B3A54);  // the rotated Copland lockup
 
 // ---------------------------------------------------------------------------
 // THE WINDOW. Measured off Layer 04 and shifted +58 in x, so the reconstruction
@@ -331,13 +329,13 @@ const SkColor4f kWordmark = hex(0x2B3A54);    // the rotated Copland lockup
 
 constexpr float kBodyL = 160.0f, kBodyR = 984.0f;
 constexpr float kBodyT = 56.0f, kBodyB = 668.0f;
-constexpr float kBarTopT = 62.0f, kBarTopB = 92.0f;   // 30 rows, measured
-constexpr float kBarBotT = 646.0f, kBarBotB = 672.0f; // 26 rows, measured
+constexpr float kBarTopT = 62.0f, kBarTopB = 92.0f;    // 30 rows, measured
+constexpr float kBarBotT = 646.0f, kBarBotB = 672.0f;  // 26 rows, measured
 // The shear. dx/dy from the per-row edge table: the top bar leans right, the
 // bottom bar leans left, and they are NOT the same magnitude.
 constexpr float kShearTop = 0.54f, kShearBot = -0.46f;
-constexpr float kBarTopL = 137.0f, kBarTopR = 977.0f; // at the bar's TOP row
-constexpr float kBarBotL = 152.0f, kBarBotR = 995.0f; // at the bar's TOP row
+constexpr float kBarTopL = 137.0f, kBarTopR = 977.0f;  // at the bar's TOP row
+constexpr float kBarBotL = 152.0f, kBarBotR = 995.0f;  // at the bar's TOP row
 
 /** A chrome bar is a PARALLELOGRAM, not a rect — the one measurement in the
  *  window that a rounded-rect frame cannot express. Authored in the node's own
@@ -381,12 +379,12 @@ inline Material barBevel(SkColor4f hi, SkColor4f lo, float bias) {
 // blurred into the phosphor until they read as a pedestal. So the pedestal and
 // the watermark are the same object and one gradient draws both.
 
-constexpr float kEyeAt[19] = {0, 12, 24, 36, 48, 60,  72,  84,  96, 108,
+constexpr float kEyeAt[19] = {0,   12,  24,  36,  48,  60,  72,  84,  96, 108,
                               120, 132, 144, 156, 168, 192, 228, 276, 336};
-constexpr float kEyeK[19] = {1.000f, 0.961f, 0.889f, 0.728f, 0.759f, 0.800f,
-                             0.741f, 0.745f, 0.732f, 0.717f, 0.621f, 0.500f,
-                             0.466f, 0.441f, 0.418f, 0.332f, 0.252f, 0.177f,
-                             0.077f};
+constexpr float kEyeK[19] = {1.000f, 0.961f, 0.889f, 0.728f, 0.759f,
+                             0.800f, 0.741f, 0.745f, 0.732f, 0.717f,
+                             0.621f, 0.500f, 0.466f, 0.441f, 0.418f,
+                             0.332f, 0.252f, 0.177f, 0.077f};
 
 inline Material pedestal() {
   std::vector<Stop> stops;
@@ -442,11 +440,11 @@ inline SkPath eyeFurniture(SkPoint c, float r) {
 // already defocused. Everything else here is where it measures.
 constexpr SkPoint kWireShift{-26.0f, 34.0f};
 constexpr SkPoint kAxis{498.0f + kWireShift.fX,
-                        342.0f + kWireShift.fY}; // waist centre, measured
-constexpr float kRim = 376.0f;             // solved from two anchor points
-constexpr float kEcc = 0.163f;             // 28/172, measured on the waist
-constexpr float kHalfH = 166.0f;           // solved with R
-constexpr float kPhi0 = 62.8f;             // acos(172/376): the measured twist
+                        342.0f + kWireShift.fY};  // waist centre, measured
+constexpr float kRim = 376.0f;    // solved from two anchor points
+constexpr float kEcc = 0.163f;    // 28/172, measured on the waist
+constexpr float kHalfH = 166.0f;  // solved with R
+constexpr float kPhi0 = 62.8f;    // acos(172/376): the measured twist
 
 /** A rim/waist circle of radius @p rad at axial height @p z, projected. */
 inline SkPoint onRim(float rad, float z, float ang) {
@@ -494,31 +492,30 @@ inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
     else
       p.lineTo(q);
   }
-  if (t1 - t0 > 6.28f)
-    p.close();
+  if (t1 - t0 > 6.28f) p.close();
   return p.detach();
 }
 
 // ---------------------------------------------------------------------------
 // TYPE.
 
-inline sk_sp<SkTypeface> face(std::initializer_list<const char *> families,
+inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
                               int weight, SkFontStyle::Slant slant) {
   auto mgr = weave::ports::systemFontManager();
-  for (const char *f : families)
+  for (const char* f : families)
     if (sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
             f, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant)))
       return t;
   return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
 }
 
-inline const sk_sp<SkTypeface> &monoFace() {
+inline const sk_sp<SkTypeface>& monoFace() {
   // A light-weight Latin mono stands in for the frame's face; the console
   // block is pure ASCII, so nothing wider is needed. ExtraLight (200) is the
   // closest match to the frame's hairline stems.
   static sk_sp<SkTypeface> f =
-      face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono",
-            "Menlo", "Courier New"},
+      face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
+            "Courier New"},
            // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
            // ExtraLight stem never reaches the clip, so the in-focus core came
            // back #70BDE8 (blue) where the plate reads #72F9F5 (cyan) — the
@@ -526,26 +523,24 @@ inline const sk_sp<SkTypeface> &monoFace() {
            300, SkFontStyle::kUpright_Slant);
   return f;
 }
-inline const sk_sp<SkTypeface> &minchoFace() {
+inline const sk_sp<SkTypeface>& minchoFace() {
   static sk_sp<SkTypeface> f =
       face({"Hiragino Mincho ProN", "YuMincho", "Shippori Mincho",
             "Noto Serif JP", "Hiragino Sans"},
            400, SkFontStyle::kUpright_Slant);
   return f;
 }
-inline const sk_sp<SkTypeface> &serifFace() {
-  static sk_sp<SkTypeface> f =
-      face({"Times New Roman", "Times", "Georgia"}, 400,
-           SkFontStyle::kUpright_Slant);
+inline const sk_sp<SkTypeface>& serifFace() {
+  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
+                                    400, SkFontStyle::kUpright_Slant);
   return f;
 }
-inline const sk_sp<SkTypeface> &serifItalicFace() {
-  static sk_sp<SkTypeface> f =
-      face({"Times New Roman", "Times", "Georgia"}, 700,
-           SkFontStyle::kItalic_Slant);
+inline const sk_sp<SkTypeface>& serifItalicFace() {
+  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
+                                    700, SkFontStyle::kItalic_Slant);
   return f;
 }
-inline const sk_sp<SkTypeface> &markerFace() {
+inline const sk_sp<SkTypeface>& markerFace() {
   static sk_sp<SkTypeface> f =
       face({"Marker Felt", "Noteworthy", "Bradley Hand", "Chalkboard"}, 400,
            SkFontStyle::kUpright_Slant);
@@ -560,9 +555,9 @@ inline const sk_sp<SkTypeface> &markerFace() {
  *  glyph masks per (font, sigma), so fifteen sigmas over fifteen lines cost
  *  fifteen cached mask draws and zero layers. That is the whole answer to the
  *  varying-blur problem described in the header. */
-inline weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
-                            SkColor4f c, float sigma = 0.0f,
-                            float track = 0.0f) {
+inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
+                             SkColor4f c, float sigma = 0.0f,
+                             float track = 0.0f) {
   weave::TextStyle s;
   s.shaping.typeface = tf;
   s.shaping.fontSize = size;
@@ -592,7 +587,7 @@ inline weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
 // `.frame $fp,40,$31 ...`, the line every published sharpness number is
 // anchored on — sits in the focal band at t = 2.5 s.
 
-const char *const kListing[] = {
+const char* const kListing[] = {
     "lw    $31,20($sp)",
     "lw    $fp,16($sp)",
     "addu  $sp,$sp,24",
@@ -635,12 +630,12 @@ const char *const kListing[] = {
 constexpr int kListingN = (int)(sizeof(kListing) / sizeof(kListing[0]));
 
 constexpr int kLines = 15;
-constexpr float kPitch = 37.5f;      // measured: autocorrelation peaks 37, 75
-constexpr float kAdvance = 13.15f;   // measured: 776 px / 59 gaps
-constexpr float kTextX = 188.0f;     // 130 measured + the window's 58 px shift
+constexpr float kPitch = 37.5f;     // measured: autocorrelation peaks 37, 75
+constexpr float kAdvance = 13.15f;  // measured: 776 px / 59 gaps
+constexpr float kTextX = 188.0f;    // 130 measured + the window's 58 px shift
 constexpr float kFirstBase = 112.0f;
-constexpr float kFocus = 402.0f;     // the stationary focal plane
-constexpr int kScrollPhase = 27;     // see the note above kListing
+constexpr float kFocus = 402.0f;  // the stationary focal plane
+constexpr int kScrollPhase = 27;  // see the note above kListing
 
 /** CONSTANT INK, LINEAR SIGMA. See correction 2: the amplitude does not fall,
  *  and every version of this sketch that made it fall was reading a coverage
@@ -649,7 +644,7 @@ constexpr int kScrollPhase = 27;     // see the note above kListing
  *  5.54x in mean|dI/dx| and 1.98x in per-line PEAK jointly solve to. */
 inline float focusSigma(float baselineY) {
   const float d = std::fabs(baselineY - kFocus);
-  return 0.30f + d * 0.00390f; // 0.30 at the band, 1.43 at the block's ends
+  return 0.30f + d * 0.00390f;  // 0.30 at the band, 1.43 at the block's ends
 }
 
 // ---------------------------------------------------------------------------
@@ -659,7 +654,7 @@ inline float focusSigma(float baselineY) {
 // are FILLED IN THE SAME REGISTER and are not a transcription; the plate is a
 // blurred second-generation capture and I am not going to pretend otherwise.
 
-const char8_t *const kProseLines[] = {
+const char8_t* const kProseLines[] = {
     u8"おおよそ人の能力というものは、その",
     u8"されがちである。しかしながら、これを",
     u8"肉体の物理的発生源との関係を考察するに",
@@ -682,7 +677,7 @@ constexpr int kProseN = (int)(sizeof(kProseLines) / sizeof(kProseLines[0]));
 // THE DOCUMENTED PHRASE SEQUENCE (lain.wiki, Layer 07).
 
 struct Phrase {
-  const char8_t *text;
+  const char8_t* text;
   double at, hold;
   SkPoint centre;
   float size;
@@ -720,12 +715,11 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
         "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
         "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
         "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
-            "            * 43758.5453) - 0.5;\n"
-            "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
-            "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
+        "            * 43758.5453) - 0.5;\n"
+        "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
+        "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
         "}\n"));
-    if (!effect)
-      SkDebugf("lain crt shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
@@ -756,10 +750,9 @@ inline sk_sp<SkRuntimeEffect> plateEffect() {
         "  b *= 0.13 + 1.55 * smoothstep(0.80, 1.14, u.x);\n"
         "  b *= 0.34 + 0.80 * smoothstep(1.02, 0.10, u.y);\n"
         "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
-            "                  half(0.098 + b*0.72));\n"
+        "                  half(0.098 + b*0.72));\n"
         "  return half4(c, 1.0);\n}\n"));
-    if (!effect)
-      SkDebugf("lain plate shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
     return effect;
   }();
   return fx;
@@ -789,7 +782,7 @@ inline LayeredBrush add(float width, SkColor4f c, float sigma = 0.0f,
  *  large and too small, and neither error is visible until a blurred stroke
  *  reaches past its box and is clipped. */
 
-} // namespace lain
+}  // namespace lain
 
 // =============================================================================
 
@@ -800,9 +793,9 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   ch::Output<float> flicker{0};  // phosphor dip
   ch::Output<float> breathe{0};  // the camera hunting focus, 0.15 Hz
 
-  int scrollLine = 0;   // console scroll, one line / 220 ms
-  int orbitStep = 0;    // hyperboloid twist, 6 Hz over 24 s
-  int phraseStep = 0;   // the Layer 07 sequence, 12 Hz
+  int scrollLine = 0;  // console scroll, one line / 220 ms
+  int orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
+  int phraseStep = 0;  // the Layer 07 sequence, 12 Hz
   float monoSize = 22.0f;
   float proseSize = 30.0f;
 
@@ -861,7 +854,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // round cap is the frame's own broken hairline)
     const std::vector<SkScalar> dot{1.6f, 4.4f};
     auto ellArc = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
-                      float w, float t0, float t1, const char *key) {
+                      float w, float t0, float t1, const char* key) {
       g.child(box()
                   .inset(0)
                   .shape([c, a, b, tilt, t0, t1](SkSize) {
@@ -871,7 +864,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                   .key(key));
     };
     auto ell = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
-                   float w, const char *key) {
+                   float w, const char* key) {
       ellArc(c, a, b, tilt, col, w, 0.0f, 6.2831853f, key);
     };
     // The rims are PARTIAL. A full rim ellipse plus a full waist plus a full
@@ -935,10 +928,9 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     const double t = std::fmod((double)phraseStep / 12.0, 13.6);
     auto g = box().inset(0).key("phrases");
     for (int i = 0; i < kPhraseN; ++i) {
-      const Phrase &p = kPhrases[i];
+      const Phrase& p = kPhrases[i];
       const double u = t - p.at;
-      if (u < -0.1 || u > p.hold + 0.9)
-        continue;
+      if (u < -0.1 || u > p.hold + 0.9) continue;
       // additive bloom in and out — 0.8 s overlap, so two phrases coexist and
       // ADD where they cross, which is the whole point of the law
       float k = 1.0f;
@@ -946,8 +938,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
         k = (float)std::max(0.0, u / 0.8);
       else if (u > p.hold)
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
-      if (k <= 0.01f)
-        continue;
+      if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
       const SkColor4f c = dim(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
@@ -972,7 +963,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   }
 
   // --- the whole stack -------------------------------------------------------
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     using namespace lain;
     auto root = stack().inset(0);
 
@@ -1009,11 +1000,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
     root.child(box()
                    .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                   .fill(Material::radialUnit(
-                       {0.48f, 0.46f}, 0.95f,
-                       {{0.0f, kPanel}, {0.55f, dim(kPanel, 0.86f)},
-                        {0.86f, dim(kPanel, 0.30f)},
-                        {1.0f, dim(kPanel, 0.0f)}}))
+                   .fill(Material::radialUnit({0.48f, 0.46f}, 0.95f,
+                                              {{0.0f, kPanel},
+                                               {0.55f, dim(kPanel, 0.86f)},
+                                               {0.86f, dim(kPanel, 0.30f)},
+                                               {1.0f, dim(kPanel, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("panel"));
@@ -1022,7 +1013,8 @@ struct LainNavi : sigil::compose::sketch::Sketch {
 
     // the body: one radial pedestal that is also the eye's rings
     root.child(box()
-                   .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL, kBodyB - kBodyT))
+                   .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL,
+                                          kBodyB - kBodyT))
                    .fill(pedestal())
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
@@ -1041,20 +1033,19 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // is also why Texture is excluded from the direct-blend path.
     // Bounded to the eye's own box, so the bake covers the eye and not the
     // whole canvas.
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-                   .shape([](SkSize s) {
-                     return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
-                                         92.0f);
-                   })
-                   .foreground(
-                       LayeredBrush{{{24.0f, hex(0x070C17), 13.0f, {}, 0,
-                                      SkBlendMode::kPlus, true},
-                                     {9.0f, hex(0x0A1120), 5.0f, {}, 0,
-                                      SkBlendMode::kPlus, true}}})
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("eye"));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(370, 150, 376, 400))
+            .shape([](SkSize s) {
+              return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
+                                  92.0f);
+            })
+            .foreground(LayeredBrush{
+                {{24.0f, hex(0x070C17), 13.0f, {}, 0, SkBlendMode::kPlus, true},
+                 {9.0f, hex(0x0A1120), 5.0f, {}, 0, SkBlendMode::kPlus, true}}})
+            .blend(SkBlendMode::kPlus)
+            .cache(Cache::Texture)
+            .key("eye"));
 
     // the side rails: single hairlines at the body's own edges, dimmer than
     // the bars. No corner anywhere — the bars simply overhang them.
@@ -1079,51 +1070,55 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // bevel each, the bottom one brighter. This is the only heavy element in
     // the interface and its 30 px against 2 px hairlines IS the contrast
     // structure.
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL, kBarTopB - kBarTopT))
-                   .shape(barOutline(kShearTop))
-                   .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("barTop"));
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL, kBarBotB - kBarBotT))
-                   .shape(barOutline(kShearBot))
-                   .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("barBot"));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL,
+                                   kBarTopB - kBarTopT))
+            .shape(barOutline(kShearTop))
+            .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
+            .blend(SkBlendMode::kPlus)
+            .cache(Cache::Texture)
+            .key("barTop"));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL,
+                                   kBarBotB - kBarBotT))
+            .shape(barOutline(kShearBot))
+            .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
+            .blend(SkBlendMode::kPlus)
+            .cache(Cache::Texture)
+            .key("barBot"));
 
     // the rotated Copland lockup, up the left margin at -55 deg. Documented
     // wordmark, verbatim off the boot plate and the ASCII transcription both.
-    root.child(box()
-                   .centerAt({88, 300})
-                   .rotate(-55.0f)
-                   .column()
-                   .alignItems(Align::Center)
-                   .gap(1)
-                   .key("wordmark")
-                   .child(text(u8"Copland OS Enterprise",
-                               type(serifItalicFace(), 34, kWordmark, 1.9f,
-                                    1.0f)))
-                   .child(text(u8"Produced By Tachibana Lab",
-                               type(serifItalicFace(), 16,
-                                    dim(kWordmark, 0.7f), 1.6f, 0.8f))));
+    root.child(
+        box()
+            .centerAt({88, 300})
+            .rotate(-55.0f)
+            .column()
+            .alignItems(Align::Center)
+            .gap(1)
+            .key("wordmark")
+            .child(text(u8"Copland OS Enterprise",
+                        type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
+            .child(text(u8"Produced By Tachibana Lab",
+                        type(serifItalicFace(), 16, dim(kWordmark, 0.7f), 1.6f,
+                             0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
     root.child(slot("wire"));
 
     // `COVer me` — soft brush, orange, the only warm thing in the frame.
     // x 576..884, y 136..229 measured; it runs UPHILL to the right.
-    root.child(box()
-                   .centerAt({730, 182})
-                   .rotate(-9.0f)
-                   .key("cover")
-                   .child(text(u8"COVer me",
-                               type(markerFace(), 62, dim(kCover, 0.5f), 6.5f))
-                              .centerAt({0, 0}))
-                   .child(text(u8"COVer me", type(markerFace(), 62, kCover,
-                                                  1.4f))));
+    root.child(
+        box()
+            .centerAt({730, 182})
+            .rotate(-9.0f)
+            .key("cover")
+            .child(text(u8"COVer me",
+                        type(markerFace(), 62, dim(kCover, 0.5f), 6.5f))
+                       .centerAt({0, 0}))
+            .child(text(u8"COVer me", type(markerFace(), 62, kCover, 1.4f))));
 
     // the magenta streaks, x 466..869, y 483..639: horizontal smears, not
     // shapes — three bands of different length at different heights, blurred
@@ -1141,17 +1136,17 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                                  {498, 552, 74, 0.55f},
                                  {640, 574, 190, 0.85f},
                                  {742, 604, 118, 0.48f}};
-      for (const auto &b : bands)
-        g.child(box()
-                    .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                    .fill(Material::linearUnit(
-                        {0, 0}, {1, 0},
-                        {{0.0f, dim(kMagenta, 0.0f)},
-                         {0.30f, dim(kMagenta, b[3])},
-                         {0.68f, dim(kMagenta, b[3] * 0.8f)},
-                         {1.0f, dim(kMagenta, 0.0f)}}))
-                    .blend(SkBlendMode::kPlus)
-                    .cache(Cache::Texture));
+      for (const auto& b : bands)
+        g.child(
+            box()
+                .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
+                .fill(Material::linearUnit({0, 0}, {1, 0},
+                                           {{0.0f, dim(kMagenta, 0.0f)},
+                                            {0.30f, dim(kMagenta, b[3])},
+                                            {0.68f, dim(kMagenta, b[3] * 0.8f)},
+                                            {1.0f, dim(kMagenta, 0.0f)}}))
+                .blend(SkBlendMode::kPlus)
+                .cache(Cache::Texture));
       root.child(std::move(g));
     }
 
@@ -1165,14 +1160,12 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // node's transform belongs on a parent that owns no paint, so that a
     // moving transform can never become an input to the bake. The next study
     // reading this should not assume there is a bug behind it.
-    root.child(box()
-                   .inset(0)
-                   .translateY(&creep)
-                   .child(box()
-                              .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-                              .fill(Material::sksl(crtEffect()))
-                              .cache(Cache::Texture)
-                              .key("crt")));
+    root.child(box().inset(0).translateY(&creep).child(
+        box()
+            .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
+            .fill(Material::sksl(crtEffect()))
+            .cache(Cache::Texture)
+            .key("crt")));
     root.child(box()
                    .inset(0)
                    .fill(Fill::color({0, 0, 0, 1}))
@@ -1182,7 +1175,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   }
 
   // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     using namespace lain;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
@@ -1202,9 +1195,10 @@ struct LainNavi : sigil::compose::sketch::Sketch {
           ctx.measure(text(toU8(probe), type(monoFace(), 100.0f, kConsoleInk)));
       const float advAt100 = m.width() / 40.0f;
       monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
-      std::printf("  lain: mono advance %.3f px at 100pt -> size %.2f "
-                  "(target advance %.2f)\n",
-                  (double)advAt100, (double)monoSize, (double)kAdvance);
+      std::printf(
+          "  lain: mono advance %.3f px at 100pt -> size %.2f "
+          "(target advance %.2f)\n",
+          (double)advAt100, (double)monoSize, (double)kAdvance);
     }
     // and the prose size from the measured 48.5 px leading (CJK sets solid at
     // roughly 1.0 em, so the body size is the leading less the gap)
@@ -1228,7 +1222,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("phrases", phrases());
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // Three independent rates, three slots. Nothing else re-describes at all.
     const int line = (int)std::floor(elapsed / 0.220);
     const int orbit = (int)std::floor(elapsed * 6.0);

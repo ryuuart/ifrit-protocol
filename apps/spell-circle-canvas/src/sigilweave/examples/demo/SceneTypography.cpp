@@ -1,8 +1,5 @@
 // Scene E — typographic options: last-line justification modes, hyphenated
 // narrow columns, paint effects (shadow/gradient/blur), and mixed fonts.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkBlurTypes.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
@@ -13,35 +10,39 @@
 
 #include <cstdio>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
-void sceneTypography(FontContext &fontContext,
-                     const std::filesystem::path &outputDirectory) {
-  std::printf("Scene E — typographic options (last-line modes, hyphenation, "
-              "effects, mixed fonts)\n");
+void sceneTypography(FontContext& fontContext,
+                     const std::filesystem::path& outputDirectory) {
+  std::printf(
+      "Scene E — typographic options (last-line modes, hyphenation, "
+      "effects, mixed fonts)\n");
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1060, 820));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
-  const char8_t *sample =
+  const char8_t* sample =
       u8"The last line of a justified paragraph reveals the typographer's "
       "intent more than any other line in the whole measure.";
 
   // Justify with last line start / center / end / full (InDesign-style).
   const TextAlignment lastModes[] = {
       TextAlignment::kStart, TextAlignment::kCenter, TextAlignment::kEnd};
-  const char8_t *labels[] = {u8"last: left", u8"last: center", u8"last: right",
+  const char8_t* labels[] = {u8"last: left", u8"last: center", u8"last: right",
                              u8"last: full"};
   for (int exampleIndex = 0; exampleIndex < 4; ++exampleIndex) {
     const float exampleX =
         30.0f + static_cast<float>(exampleIndex % 2) * 260.0f;
     const float exampleY =
         40.0f + static_cast<float>(exampleIndex / 2) * 190.0f;
-    sigil::weave::kit::drawLabel(canvas, fontContext, labels[exampleIndex],
-                           {exampleX, exampleY - 24},
-                           {.color = kAccent, .width = 220, .height = 20});
+    sigil::weave::kit::drawLabel(
+        canvas, fontContext, labels[exampleIndex], {exampleX, exampleY - 24},
+        {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(sample, style(14.5f));
@@ -59,17 +60,18 @@ void sceneTypography(FontContext &fontContext,
 
   // Narrow hyphenated Knuth-Plass column (soft hyphens marked with ­).
   {
-    sigil::weave::kit::drawLabel(canvas, fontContext, u8"KP + soft hyphens, 130px",
-                           {570, 16},
-                           {.color = kAccent, .width = 220, .height = 20});
+    sigil::weave::kit::drawLabel(
+        canvas, fontContext, u8"KP + soft hyphens, 130px", {570, 16},
+        {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
-    paragraph.appendText(u8"In these as­ton­ish­ing­ly nar­row "
-                         "col­umns, dis­cre­tion­ary breaks keep "
-                         "jus­ti­fi­ca­tion from tear­ing the "
-                         "spac­ing apart, ex­act­ly as a book "
-                         "com­pos­i­tor would want.",
-                         style(14.5f));
+    paragraph.appendText(
+        u8"In these as­ton­ish­ing­ly nar­row "
+        "col­umns, dis­cre­tion­ary breaks keep "
+        "jus­ti­fi­ca­tion from tear­ing the "
+        "spac­ing apart, ex­act­ly as a book "
+        "com­pos­i­tor would want.",
+        style(14.5f));
     BlockFlow flow(SkRect::MakeXYWH(570, 40, 130, 400));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
@@ -115,7 +117,7 @@ void sceneTypography(FontContext &fontContext,
   {
     // Noto Sans/Serif (user-installed variable fonts): richer OpenType
     // shaping coverage than the system defaults.
-    SkFontMgr *fontManager = fontContext.fontManager();
+    SkFontMgr* fontManager = fontContext.fontManager();
     TextStyle serif = style(20, kInk);
     serif.shaping.typeface =
         fontManager->matchFamilyStyle("Noto Serif", SkFontStyle());

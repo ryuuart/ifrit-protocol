@@ -1,23 +1,22 @@
 #include "sigilweave/Shaper.h"
-#include "FontContextImpl.h"
 
 #include <include/core/SkFont.h>
 #include <include/core/SkTextBlob.h>
 
 #include <cstring>
 
+#include "FontContextImpl.h"
+
 namespace sigil::weave {
 
-SkFont makeFont(const sk_sp<SkTypeface> &typeface, float fontSize,
-                float scaleX, bool aliased) {
+SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize, float scaleX,
+                bool aliased) {
   SkFont font(typeface, fontSize);
-  if (scaleX != 1.0f)
-    font.setScaleX(scaleX);
+  if (scaleX != 1.0f) font.setScaleX(scaleX);
   // Skia takes glyph edging from the FONT, never the paint, so this is
   // the only place a caller can ask for hard edges — an X11 core font, a
   // console face, any 1-bit era reconstruction.
-  font.setEdging(aliased ? SkFont::Edging::kAlias
-                         : SkFont::Edging::kAntiAlias);
+  font.setEdging(aliased ? SkFont::Edging::kAlias : SkFont::Edging::kAntiAlias);
   // Subpixel positioning only where it's visible (small text). At large
   // sizes it multiplies every glyph into per-phase atlas entries, and
   // animated layouts then re-rasterize thousands of big masks every frame
@@ -28,11 +27,11 @@ SkFont makeFont(const sk_sp<SkTypeface> &typeface, float fontSize,
   return font;
 }
 
-ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
-                        const sk_sp<SkTypeface> &typeface,
+ShapedWordRef shapeWord(FontContext& fontContext, const ShapingStyle& style,
+                        const sk_sp<SkTypeface>& typeface,
                         std::u16string_view text, ScriptTag script,
                         bool rightToLeft, bool vertical) {
-  FontContext::Impl &implementation = fontContext.impl();
+  FontContext::Impl& implementation = fontContext.impl();
 
   // Probe with a borrowed view — the warm path allocates nothing.
   ShapeKeyView view;
@@ -81,13 +80,13 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
     return shapedWord;
   }
 
-  FontContext::Impl::TypefaceRecord &typefaceRecord =
+  FontContext::Impl::TypefaceRecord& typefaceRecord =
       implementation.recordForTypeface(typeface);
 
-  hb_buffer_t *shapingBuffer = implementation.shapingBuffer;
+  hb_buffer_t* shapingBuffer = implementation.shapingBuffer;
   hb_buffer_clear_contents(shapingBuffer);
   hb_buffer_add_utf16(
-      shapingBuffer, reinterpret_cast<const uint16_t *>(text.data()),
+      shapingBuffer, reinterpret_cast<const uint16_t*>(text.data()),
       static_cast<int>(text.size()), 0, static_cast<int>(text.size()));
   // Vertical shaping (TTB) makes HarfBuzz apply the font's 'vert' glyph
   // substitutions and vertical advances/origins automatically.
@@ -105,7 +104,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
 
   std::vector<hb_feature_t> harfBuzzFeatures;
   harfBuzzFeatures.reserve(style.fontFeatures.size());
-  for (const FontFeature &feature : style.fontFeatures) {
+  for (const FontFeature& feature : style.fontFeatures) {
     hb_feature_t harfBuzzFeature;
     harfBuzzFeature.tag =
         HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]);
@@ -120,9 +119,9 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
            static_cast<unsigned>(harfBuzzFeatures.size()));
 
   const unsigned glyphCount = hb_buffer_get_length(shapingBuffer);
-  const hb_glyph_info_t *glyphInformation =
+  const hb_glyph_info_t* glyphInformation =
       hb_buffer_get_glyph_infos(shapingBuffer, nullptr);
-  const hb_glyph_position_t *glyphPositions =
+  const hb_glyph_position_t* glyphPositions =
       hb_buffer_get_glyph_positions(shapingBuffer, nullptr);
 
   const float scale =
@@ -153,8 +152,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
     const bool clusterEnd = glyphIndex + 1 == glyphCount ||
                             glyphInformation[glyphIndex + 1].cluster !=
                                 glyphInformation[glyphIndex].cluster;
-    if (clusterEnd)
-      glyphAdvance += style.letterSpacing;
+    if (clusterEnd) glyphAdvance += style.letterSpacing;
 
     shapedWord->glyphs.push_back(
         static_cast<uint16_t>(glyphInformation[glyphIndex].codepoint));
@@ -178,12 +176,12 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   return shapedWord;
 }
 
-const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word) {
+const sk_sp<SkTextBlob>& wordBlob(const ShapedWord& word) {
   if (!word.blobCache && !word.glyphs.empty()) {
     SkTextBlobBuilder builder;
     const SkFont font =
         makeFont(word.typeface, word.fontSize, word.scaleX, word.aliased);
-    const auto &blobRun =
+    const auto& blobRun =
         builder.allocRunPos(font, static_cast<int>(word.glyphs.size()));
     std::memcpy(blobRun.glyphs, word.glyphs.data(),
                 word.glyphs.size() * sizeof(uint16_t));
@@ -194,4 +192,4 @@ const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word) {
   return word.blobCache;
 }
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

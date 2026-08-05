@@ -1,8 +1,5 @@
 // Scene D — extreme geometries: zigzag lines, a wandering scribble path,
 // high-frequency bumpy baselines, and rotated single-letter confetti.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
@@ -13,29 +10,33 @@
 #include <random>
 #include <string>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
-void sceneExtreme(FontContext &fontContext,
-                  const std::filesystem::path &outputDirectory) {
-  std::printf("Scene D — extreme geometries (zigzag, scribble, bumps, "
-              "confetti)\n");
+void sceneExtreme(FontContext& fontContext,
+                  const std::filesystem::path& outputDirectory) {
+  std::printf(
+      "Scene D — extreme geometries (zigzag, scribble, bumps, "
+      "confetti)\n");
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1000, 860));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
-  auto measureColdAndWarm =
-      [&]<std::invocable Operation>(const char *label, Operation &&operation) {
-        const auto coldStartTime = Clock::now();
-        operation();
-        const auto coldEndTime = Clock::now();
-        operation(); // Warm pass.
-        const auto warmEndTime = Clock::now();
-        std::printf("  %-10s cold %8.1f us, warm %7.1f us\n", label,
-                    toMicroseconds(coldEndTime - coldStartTime),
-                    toMicroseconds(warmEndTime - coldEndTime));
-      };
+  auto measureColdAndWarm = [&]<std::invocable Operation>(
+                                const char* label, Operation&& operation) {
+    const auto coldStartTime = Clock::now();
+    operation();
+    const auto coldEndTime = Clock::now();
+    operation();  // Warm pass.
+    const auto warmEndTime = Clock::now();
+    std::printf("  %-10s cold %8.1f us, warm %7.1f us\n", label,
+                toMicroseconds(coldEndTime - coldStartTime),
+                toMicroseconds(warmEndTime - coldEndTime));
+  };
 
   // Zigzag: each *line* is a chain of alternating up/down segments; words
   // march through the chain segment by segment.
@@ -105,10 +106,10 @@ void sceneExtreme(FontContext &fontContext,
       const float amplitude = 14.0f + 10.0f * static_cast<float>(line);
       pathBuilder.moveTo(30, baseY);
       for (int sampleX = 30; sampleX <= 960; sampleX += 6)
-        pathBuilder.lineTo(static_cast<float>(sampleX),
-                           baseY + amplitude *
-                                       std::sin(static_cast<float>(sampleX) *
-                                                (0.055f - 0.015f * line)));
+        pathBuilder.lineTo(
+            static_cast<float>(sampleX),
+            baseY + amplitude * std::sin(static_cast<float>(sampleX) *
+                                         (0.055f - 0.015f * line)));
       Paragraph paragraph;
       paragraph.appendText(
           line == 0
@@ -137,7 +138,7 @@ void sceneExtreme(FontContext &fontContext,
     confetti->getCanvas()->clear(kPaper);
 
     std::u8string letters;
-    const char8_t *cjk[] = {u8"文", u8"字", u8"術", u8"式", u8"光", u8"影",
+    const char8_t* cjk[] = {u8"文", u8"字", u8"術", u8"式", u8"光", u8"影",
                             u8"한", u8"글", u8"빛", u8"円", u8"陣", u8"魔"};
     std::mt19937 randomEngine(5);
     for (int letterIndex = 0; letterIndex < 120; ++letterIndex) {
@@ -162,7 +163,7 @@ void sceneExtreme(FontContext &fontContext,
       const float positionX = 20.0f + static_cast<float>(randomEngine() % 940);
       const float positionY = 30.0f + static_cast<float>(randomEngine() % 560);
       const float angle =
-          static_cast<float>(randomEngine() % 628) * 0.01f; // 0..2π
+          static_cast<float>(randomEngine() % 628) * 0.01f;  // 0..2π
       flow.lines().push_back({LineInterval{
           {positionX, positionY}, {std::cos(angle), std::sin(angle)}, 34}});
     }

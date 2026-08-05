@@ -1,7 +1,8 @@
 #include "GalleryView.h"
-#include "SceneRegistry.h"
 
 #include <sigilweaveqt/SigilWeaveQt.h>
+
+#include "SceneRegistry.h"
 
 #ifdef TEXTFLOW_GALLERY_GPU
 #include "SkiaGraphiteContext.h"
@@ -14,14 +15,13 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
+#include <rhi/qrhi.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <QFont>
 #include <QMouseEvent>
 #include <QQuickWindow>
 #include <QVariantMap>
-#include <rhi/qrhi.h>
-
 #include <algorithm>
 #include <chrono>
 #include <limits>
@@ -42,16 +42,15 @@ QString axisTagName(uint32_t tag) {
   return name;
 }
 
-sk_sp<SkTypeface> resolveGalleryTypeface(SkFontMgr *fontManager,
-                                         const QString &family) {
-  if (!fontManager || family.isEmpty())
-    return nullptr;
+sk_sp<SkTypeface> resolveGalleryTypeface(SkFontMgr* fontManager,
+                                         const QString& family) {
+  if (!fontManager || family.isEmpty()) return nullptr;
   return sigil::weave::qt::toSkTypeface(fontManager, QFont(family));
 }
 
 constexpr std::string_view kNotoSerifPrefix = "Noto Serif";
 constexpr std::string_view kNotoCuneiformFamily = "Noto Sans Cuneiform";
-constexpr const char *kSystemNotoCuneiformPath =
+constexpr const char* kSystemNotoCuneiformPath =
     "/System/Library/Fonts/Supplemental/NotoSansCuneiform-Regular.ttf";
 
 bool isCuneiform(int32_t codePoint) {
@@ -63,40 +62,36 @@ bool startsWith(std::string_view text, std::string_view prefix) {
          text.compare(0, prefix.size(), prefix) == 0;
 }
 
-std::string typefaceFamily(const SkTypeface &typeface) {
+std::string typefaceFamily(const SkTypeface& typeface) {
   SkString family;
   typeface.getFamilyName(&family);
   return {family.c_str(), family.size()};
 }
 
 std::string_view preferredCjkSerif(std::string_view languageTag) {
-  if (startsWith(languageTag, "ja"))
-    return "Noto Serif JP";
-  if (startsWith(languageTag, "ko"))
-    return "Noto Serif KR";
+  if (startsWith(languageTag, "ja")) return "Noto Serif JP";
+  if (startsWith(languageTag, "ko")) return "Noto Serif KR";
   if (startsWith(languageTag, "zh-Hant") || startsWith(languageTag, "zh-TW"))
     return "Noto Serif TC";
-  if (startsWith(languageTag, "zh-HK"))
-    return "Noto Serif HK";
-  if (startsWith(languageTag, "zh"))
-    return "Noto Serif SC";
+  if (startsWith(languageTag, "zh-HK")) return "Noto Serif HK";
+  if (startsWith(languageTag, "zh")) return "Noto Serif SC";
   return {};
 }
 
-sk_sp<SkTypeface> resolvePlatformFallback(SkFontMgr &fontManager,
-                                          const SkTypeface &primaryTypeface,
+sk_sp<SkTypeface> resolvePlatformFallback(SkFontMgr& fontManager,
+                                          const SkTypeface& primaryTypeface,
                                           int32_t codePoint,
                                           std::string_view languageTag) {
   const std::string language(languageTag);
-  const char *languageTags[] = {language.c_str()};
+  const char* languageTags[] = {language.c_str()};
   return fontManager.matchFamilyStyleCharacter(
       nullptr, primaryTypeface.fontStyle(),
       language.empty() ? nullptr : languageTags, language.empty() ? 0 : 1,
       codePoint);
 }
 
-sigil::weave::FontContext::FallbackResolver
-makeGalleryFallbackResolver(SkFontMgr &fontManager) {
+sigil::weave::FontContext::FallbackResolver makeGalleryFallbackResolver(
+    SkFontMgr& fontManager) {
   std::vector<std::string> serifFamilies;
   sk_sp<SkTypeface> cuneiformTypeface =
       fontManager.makeFromFile(kSystemNotoCuneiformPath);
@@ -118,7 +113,7 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
 
   return [serifFamilies = std::move(serifFamilies),
           cuneiformTypeface = std::move(cuneiformTypeface)](
-             SkFontMgr &manager, const SkTypeface &primaryTypeface,
+             SkFontMgr& manager, const SkTypeface& primaryTypeface,
              int32_t codePoint,
              std::string_view languageTag) -> sk_sp<SkTypeface> {
     // macOS ships Noto Sans Cuneiform, but CoreText can resolve its character
@@ -135,8 +130,7 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
                                      languageTag);
 
     auto tryFamily = [&](std::string_view familyName) -> sk_sp<SkTypeface> {
-      if (familyName.empty() || familyName == primaryFamily)
-        return nullptr;
+      if (familyName.empty() || familyName == primaryFamily) return nullptr;
       const std::string terminatedFamilyName(familyName);
       sk_sp<SkTypeface> candidate = manager.matchFamilyStyle(
           terminatedFamilyName.c_str(), primaryTypeface.fontStyle());
@@ -148,10 +142,9 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
     const std::string_view preferredFamily = preferredCjkSerif(languageTag);
     if (sk_sp<SkTypeface> preferred = tryFamily(preferredFamily))
       return preferred;
-    for (const std::string &family : serifFamilies) {
+    for (const std::string& family : serifFamilies) {
       if (family != preferredFamily) {
-        if (sk_sp<SkTypeface> candidate = tryFamily(family))
-          return candidate;
+        if (sk_sp<SkTypeface> candidate = tryFamily(family)) return candidate;
       }
     }
     return resolvePlatformFallback(manager, primaryTypeface, codePoint,
@@ -159,25 +152,25 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
   };
 }
 
-} // namespace
+}  // namespace
 
 // ── Render-thread side ─────────────────────────────────────────────────────
 
 class GalleryViewRenderer : public QQuickRhiItemRenderer {
-public:
-  void initialize(QRhiCommandBuffer *commandBuffer) override;
-  void synchronize(QQuickRhiItem *item) override;
-  void render(QRhiCommandBuffer *commandBuffer) override;
+ public:
+  void initialize(QRhiCommandBuffer* commandBuffer) override;
+  void synchronize(QQuickRhiItem* item) override;
+  void render(QRhiCommandBuffer* commandBuffer) override;
 
-private:
+ private:
   struct FontCoordinate {
     uint32_t tag = 0;
     float value = 0;
-    bool operator==(const FontCoordinate &) const = default;
+    bool operator==(const FontCoordinate&) const = default;
   };
 
   /// Draws the selected scene in logical coordinates onto an Skia canvas.
-  void renderScene(SkCanvas *canvas, float devicePixelRatio, QSize logicalSize);
+  void renderScene(SkCanvas* canvas, float devicePixelRatio, QSize logicalSize);
 
   std::vector<std::unique_ptr<Scene>> m_scenes;
   std::unique_ptr<sigil::weave::FontContext> m_fontContext;
@@ -185,7 +178,7 @@ private:
   std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
   bool m_graphiteInitializationAttempted = false;
 #endif
-  std::vector<uint32_t> m_rasterPixels; // CPU fallback framebuffer.
+  std::vector<uint32_t> m_rasterPixels;  // CPU fallback framebuffer.
 
   SceneParams m_sceneParameters;
   uint64_t m_sceneParameterRevision = std::numeric_limits<uint64_t>::max();
@@ -224,7 +217,7 @@ private:
   bool m_statsDirty = false;
 };
 
-void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
+void GalleryViewRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
 #ifdef TEXTFLOW_GALLERY_GPU
   if (!m_graphiteInitializationAttempted) {
     m_graphiteInitializationAttempted = true;
@@ -236,11 +229,11 @@ void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
 #endif
 }
 
-void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
-  auto *view = static_cast<GalleryView *>(item);
+void GalleryViewRenderer::synchronize(QQuickRhiItem* item) {
+  auto* view = static_cast<GalleryView*>(item);
   if (m_scenes.empty()) {
     m_scenes.reserve(sceneRegistry().size());
-    for (const SceneDescriptor &descriptor : sceneRegistry())
+    for (const SceneDescriptor& descriptor : sceneRegistry())
       m_scenes.push_back(descriptor.make());
   }
 
@@ -261,7 +254,7 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
     m_fontAxesRevision = view->m_fontAxesRevision;
     m_fontCoordinates.clear();
     m_fontCoordinates.reserve(view->m_fontAxes.size());
-    for (const GalleryView::FontAxis &axis : view->m_fontAxes)
+    for (const GalleryView::FontAxis& axis : view->m_fontAxes)
       m_fontCoordinates.push_back({axis.tag, axis.value});
     m_typefaceDirty = true;
   }
@@ -289,7 +282,7 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
   // Ship last frame's stats back (GUI thread is blocked right now).
   if (m_statsDirty) {
     m_statsDirty = false;
-    const char *mode =
+    const char* mode =
 #ifdef TEXTFLOW_GALLERY_GPU
         (m_graphiteContext && m_useGpuBackend) ? "Graphite GPU" : "CPU raster";
 #else
@@ -314,7 +307,7 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
   }
 }
 
-void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
+void GalleryViewRenderer::renderScene(SkCanvas* canvas, float devicePixelRatio,
                                       QSize logicalSize) {
   using Clock = std::chrono::steady_clock;
   if (!m_fontContext) {
@@ -329,10 +322,9 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
     m_pausedSeconds = 0;
     m_frameNumber = 0;
   }
-  if (!m_clock.isValid())
-    m_clock.start();
+  if (!m_clock.isValid()) m_clock.start();
 
-  Scene *scene =
+  Scene* scene =
       m_scenes[static_cast<size_t>(std::clamp<int>(
                    m_sceneIndex, 0, static_cast<int>(m_scenes.size()) - 1))]
           .get();
@@ -359,7 +351,7 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
         // dirty/rebuild cycle.
         std::vector<sigil::weave::FontVariation> variations;
         variations.reserve(m_fontCoordinates.size());
-        for (const FontCoordinate &coordinate : m_fontCoordinates) {
+        for (const FontCoordinate& coordinate : m_fontCoordinates) {
           sigil::weave::FontVariation variation;
           variation.tag[0] = static_cast<char>(coordinate.tag >> 24);
           variation.tag[1] = static_cast<char>(coordinate.tag >> 16);
@@ -376,8 +368,7 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
     m_sceneParameters.typeface = m_resolvedTypeface;
   }
 
-  for (const SkPoint &click : m_pendingClicks)
-    scene->pointerPress(click);
+  for (const SkPoint& click : m_pendingClicks) scene->pointerPress(click);
   m_pendingClicks.clear();
 
   canvas->save();
@@ -395,8 +386,7 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
                                         .count();
   canvas->restore();
 
-  if (m_animating)
-    m_frameNumber++;
+  if (m_animating) m_frameNumber++;
 
   m_reshapedWordCount = m_fontContext->stats().shapeCalls - shapeCallsBefore;
   m_runCount = frameStatistics.runCount;
@@ -422,13 +412,12 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
     }
   }
   m_interFrameTimer.restart();
-  if (++m_statisticsFrameCount % 15 == 0)
-    m_statsDirty = true;
+  if (++m_statisticsFrameCount % 15 == 0) m_statsDirty = true;
 }
 
-void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
+void GalleryViewRenderer::render(QRhiCommandBuffer* commandBuffer) {
   using Clock = std::chrono::steady_clock;
-  QRhiTexture *texture = colorTexture();
+  QRhiTexture* texture = colorTexture();
   if (!texture || m_scenes.empty() || m_logicalSize.width() < 8 ||
       m_logicalSize.height() < 8)
     return;
@@ -441,7 +430,7 @@ void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
     // GPU: record straight into the item's texture, submit asynchronously —
     // Qt's scene-graph pass on the same Metal queue orders after it.
     SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
-    if (SkCanvas *canvas = surface.canvas()) {
+    if (SkCanvas* canvas = surface.canvas()) {
       renderScene(canvas, devicePixelRatio, m_logicalSize);
       const auto submissionStartTime = Clock::now();
       surface.submit();
@@ -469,12 +458,11 @@ void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
                         kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       m_rasterPixels.data(),
       static_cast<size_t>(pixelSize.width()) * sizeof(uint32_t));
-  if (!surface)
-    return;
+  if (!surface) return;
   renderScene(surface->getCanvas(), devicePixelRatio, m_logicalSize);
 
   const auto submissionStartTime = Clock::now();
-  QRhiResourceUpdateBatch *batch = rhi()->nextResourceUpdateBatch();
+  QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();
   QRhiTextureSubresourceUploadDescription sub(
       m_rasterPixels.data(), m_rasterPixels.size() * sizeof(uint32_t));
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
@@ -490,7 +478,7 @@ void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
 
 // ── GUI-thread side ────────────────────────────────────────────────────────
 
-GalleryView::GalleryView(QQuickItem *parent) : QQuickRhiItem(parent) {
+GalleryView::GalleryView(QQuickItem* parent) : QQuickRhiItem(parent) {
   setAcceptedMouseButtons(Qt::LeftButton);
   m_timer.setInterval(16);
   connect(&m_timer, &QTimer::timeout, this, [this] { update(); });
@@ -499,13 +487,13 @@ GalleryView::GalleryView(QQuickItem *parent) : QQuickRhiItem(parent) {
 
 GalleryView::~GalleryView() = default;
 
-QQuickRhiItemRenderer *GalleryView::createRenderer() {
+QQuickRhiItemRenderer* GalleryView::createRenderer() {
   return new GalleryViewRenderer;
 }
 
 QStringList GalleryView::sceneNames() const {
   QStringList names;
-  for (const SceneDescriptor &descriptor : sceneRegistry())
+  for (const SceneDescriptor& descriptor : sceneRegistry())
     names << descriptor.name;
   return names;
 }
@@ -516,7 +504,7 @@ void GalleryView::setSceneIndex(int index) {
     return;
   m_sceneIndex = index;
   m_sceneText.clear();
-  ++m_sceneParameterRevision; // renderer re-pulls the new scene's values
+  ++m_sceneParameterRevision;  // renderer re-pulls the new scene's values
   emit sceneIndexChanged();
   emit sceneTextChanged();
   emit sceneParameterValuesChanged();
@@ -524,8 +512,7 @@ void GalleryView::setSceneIndex(int index) {
 }
 
 void GalleryView::setAnimating(bool enabled) {
-  if (enabled == m_animating)
-    return;
+  if (enabled == m_animating) return;
   m_animating = enabled;
   if (enabled)
     m_timer.start();
@@ -537,47 +524,46 @@ void GalleryView::setAnimating(bool enabled) {
 
 namespace {
 
-const SceneDescriptor *descriptorAt(int sceneIndex) {
-  const auto &registry = sceneRegistry();
+const SceneDescriptor* descriptorAt(int sceneIndex) {
+  const auto& registry = sceneRegistry();
   if (sceneIndex < 0 || sceneIndex >= static_cast<int>(registry.size()))
     return nullptr;
   return &registry[static_cast<size_t>(sceneIndex)];
 }
 
-QVariantMap defaultParameterValues(const SceneDescriptor &descriptor) {
+QVariantMap defaultParameterValues(const SceneDescriptor& descriptor) {
   QVariantMap values;
-  for (const SceneParameter &parameter : descriptor.parameters)
+  for (const SceneParameter& parameter : descriptor.parameters)
     values.insert(parameter.id, parameter.defaultValue);
   return values;
 }
 
-} // namespace
+}  // namespace
 
 bool GalleryView::textEditable() const {
-  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  const SceneDescriptor* descriptor = descriptorAt(m_sceneIndex);
   return descriptor && descriptor->textEditable;
 }
 
 QVariantList GalleryView::sceneParameters() const {
   QVariantList parameters;
-  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
-  if (!descriptor)
-    return parameters;
+  const SceneDescriptor* descriptor = descriptorAt(m_sceneIndex);
+  if (!descriptor) return parameters;
   parameters.reserve(descriptor->parameters.size());
-  for (const SceneParameter &parameter : descriptor->parameters) {
+  for (const SceneParameter& parameter : descriptor->parameters) {
     QVariantMap map;
     map.insert(QStringLiteral("id"), parameter.id);
     map.insert(QStringLiteral("label"), parameter.label);
     map.insert(QStringLiteral("type"), [&] {
       switch (parameter.type) {
-      case SceneParameter::Type::kBool:
-        return QStringLiteral("bool");
-      case SceneParameter::Type::kInt:
-        return QStringLiteral("int");
-      case SceneParameter::Type::kChoice:
-        return QStringLiteral("choice");
-      case SceneParameter::Type::kFloat:
-        break;
+        case SceneParameter::Type::kBool:
+          return QStringLiteral("bool");
+        case SceneParameter::Type::kInt:
+          return QStringLiteral("int");
+        case SceneParameter::Type::kChoice:
+          return QStringLiteral("choice");
+        case SceneParameter::Type::kFloat:
+          break;
       }
       return QStringLiteral("float");
     }());
@@ -592,14 +578,14 @@ QVariantList GalleryView::sceneParameters() const {
 }
 
 QUrl GalleryView::sceneControlsQml() const {
-  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  const SceneDescriptor* descriptor = descriptorAt(m_sceneIndex);
   return descriptor ? descriptor->controlsQml : QUrl();
 }
 
-const QVariantMap &GalleryView::parameterValuesForScene(int sceneIndex) const {
+const QVariantMap& GalleryView::parameterValuesForScene(int sceneIndex) const {
   auto values = m_sceneParameterValues.find(sceneIndex);
   if (values == m_sceneParameterValues.end()) {
-    const SceneDescriptor *descriptor = descriptorAt(sceneIndex);
+    const SceneDescriptor* descriptor = descriptorAt(sceneIndex);
     values = m_sceneParameterValues.insert(
         sceneIndex,
         descriptor ? defaultParameterValues(*descriptor) : QVariantMap());
@@ -611,56 +597,52 @@ QVariantMap GalleryView::sceneParameterValues() const {
   return parameterValuesForScene(m_sceneIndex);
 }
 
-void GalleryView::setSceneParameter(const QString &id, const QVariant &value) {
-  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
-  if (!descriptor)
-    return;
+void GalleryView::setSceneParameter(const QString& id, const QVariant& value) {
+  const SceneDescriptor* descriptor = descriptorAt(m_sceneIndex);
+  if (!descriptor) return;
   const auto parameter = std::find_if(
       descriptor->parameters.cbegin(), descriptor->parameters.cend(),
-      [&](const SceneParameter &candidate) { return candidate.id == id; });
+      [&](const SceneParameter& candidate) { return candidate.id == id; });
   if (parameter == descriptor->parameters.cend())
-    return; // only declared parameters are stored
+    return;  // only declared parameters are stored
 
   QVariant clampedValue = value;
   switch (parameter->type) {
-  case SceneParameter::Type::kBool:
-    clampedValue = value.toBool();
-    break;
-  case SceneParameter::Type::kFloat:
-    clampedValue =
-        std::clamp(value.toDouble(), parameter->minimum, parameter->maximum);
-    break;
-  case SceneParameter::Type::kInt:
-    clampedValue = static_cast<int>(std::clamp<double>(
-        value.toInt(), parameter->minimum, parameter->maximum));
-    break;
-  case SceneParameter::Type::kChoice:
-    clampedValue = std::clamp(value.toInt(), 0,
-                              static_cast<int>(parameter->choices.size()) - 1);
-    break;
+    case SceneParameter::Type::kBool:
+      clampedValue = value.toBool();
+      break;
+    case SceneParameter::Type::kFloat:
+      clampedValue =
+          std::clamp(value.toDouble(), parameter->minimum, parameter->maximum);
+      break;
+    case SceneParameter::Type::kInt:
+      clampedValue = static_cast<int>(std::clamp<double>(
+          value.toInt(), parameter->minimum, parameter->maximum));
+      break;
+    case SceneParameter::Type::kChoice:
+      clampedValue = std::clamp(
+          value.toInt(), 0, static_cast<int>(parameter->choices.size()) - 1);
+      break;
   }
 
-  QVariantMap &values = const_cast<QVariantMap &>(
-      parameterValuesForScene(m_sceneIndex));
-  if (values.value(id) == clampedValue)
-    return;
+  QVariantMap& values =
+      const_cast<QVariantMap&>(parameterValuesForScene(m_sceneIndex));
+  if (values.value(id) == clampedValue) return;
   values.insert(id, clampedValue);
   ++m_sceneParameterRevision;
   emit sceneParameterValuesChanged();
   update();
 }
 
-void GalleryView::setSceneText(const QString &text) {
-  if (text == m_sceneText)
-    return;
+void GalleryView::setSceneText(const QString& text) {
+  if (text == m_sceneText) return;
   m_sceneText = text;
   emit sceneTextChanged();
   update();
 }
 
-void GalleryView::setFontFamily(const QString &family) {
-  if (family == m_fontFamily)
-    return;
+void GalleryView::setFontFamily(const QString& family) {
+  if (family == m_fontFamily) return;
   m_fontFamily = family;
   refreshFontAxes();
   emit fontFamilyChanged();
@@ -669,8 +651,7 @@ void GalleryView::setFontFamily(const QString &family) {
 
 void GalleryView::setFontSize(qreal size) {
   const qreal clampedSize = std::clamp(size, 8.0, 200.0);
-  if (clampedSize == m_fontSize)
-    return;
+  if (clampedSize == m_fontSize) return;
   m_fontSize = clampedSize;
   emit fontSizeChanged();
   update();
@@ -679,7 +660,7 @@ void GalleryView::setFontSize(qreal size) {
 QVariantList GalleryView::fontAxes() const {
   QVariantList axes;
   axes.reserve(static_cast<qsizetype>(m_fontAxes.size()));
-  for (const FontAxis &axis : m_fontAxes) {
+  for (const FontAxis& axis : m_fontAxes) {
     QVariantMap values;
     values.insert(QStringLiteral("tag"), axis.tagName);
     values.insert(QStringLiteral("minimum"), axis.minimum);
@@ -693,19 +674,17 @@ QVariantList GalleryView::fontAxes() const {
 
 QVariantMap GalleryView::fontAxisValues() const {
   QVariantMap values;
-  for (const FontAxis &axis : m_fontAxes)
+  for (const FontAxis& axis : m_fontAxes)
     values.insert(axis.tagName, axis.value);
   return values;
 }
 
-void GalleryView::setFontAxisValue(const QString &tag, qreal value) {
-  for (FontAxis &axis : m_fontAxes) {
-    if (axis.tagName != tag)
-      continue;
+void GalleryView::setFontAxisValue(const QString& tag, qreal value) {
+  for (FontAxis& axis : m_fontAxes) {
+    if (axis.tagName != tag) continue;
     const float clampedValue =
         std::clamp(static_cast<float>(value), axis.minimum, axis.maximum);
-    if (clampedValue == axis.value)
-      return;
+    if (clampedValue == axis.value) return;
     axis.value = clampedValue;
     ++m_fontAxesRevision;
     emit fontAxisValuesChanged();
@@ -719,7 +698,8 @@ void GalleryView::refreshFontAxes() {
   if (!m_fontFamily.isEmpty()) {
     // Axis discovery is GUI-side so QML updates as soon as the family changes.
     // Rendering resolves the same family independently on the render thread.
-    const sk_sp<SkFontMgr> fontManager = sigil::weave::ports::systemFontManager();
+    const sk_sp<SkFontMgr> fontManager =
+        sigil::weave::ports::systemFontManager();
     sk_sp<SkTypeface> typeface =
         resolveGalleryTypeface(fontManager.get(), m_fontFamily);
     const int axisCount =
@@ -737,15 +717,14 @@ void GalleryView::refreshFontAxes() {
               {position.data(), position.size()}) == axisCount;
       if (haveParameters) {
         axes.reserve(parameters.size());
-        for (const SkFontParameters::Variation::Axis &parameter : parameters) {
+        for (const SkFontParameters::Variation::Axis& parameter : parameters) {
           float value = parameter.def;
           if (havePosition) {
             const auto coordinate = std::find_if(
-                position.begin(), position.end(), [&](const auto &candidate) {
+                position.begin(), position.end(), [&](const auto& candidate) {
                   return candidate.axis == parameter.tag;
                 });
-            if (coordinate != position.end())
-              value = coordinate->value;
+            if (coordinate != position.end()) value = coordinate->value;
           }
           axes.push_back({parameter.tag, axisTagName(parameter.tag),
                           parameter.min, parameter.def, parameter.max,
@@ -764,8 +743,7 @@ void GalleryView::refreshFontAxes() {
 
 void GalleryView::setAlignmentIndex(int index) {
   index = std::clamp(index, 0, 3);
-  if (index == m_alignmentIndex)
-    return;
+  if (index == m_alignmentIndex) return;
   m_alignmentIndex = index;
   emit alignmentIndexChanged();
   update();
@@ -773,8 +751,7 @@ void GalleryView::setAlignmentIndex(int index) {
 
 void GalleryView::setLineBreakStrategyIndex(int index) {
   index = std::clamp(index, 0, 1);
-  if (index == m_lineBreakStrategyIndex)
-    return;
+  if (index == m_lineBreakStrategyIndex) return;
   m_lineBreakStrategyIndex = index;
   emit lineBreakStrategyIndexChanged();
   update();
@@ -789,14 +766,13 @@ bool GalleryView::gpuAvailable() const {
 }
 
 void GalleryView::setGpu(bool enabled) {
-  if (enabled == m_gpu)
-    return;
+  if (enabled == m_gpu) return;
   m_gpu = enabled;
   emit gpuChanged();
   update();
 }
 
-void GalleryView::mousePressEvent(QMouseEvent *event) {
+void GalleryView::mousePressEvent(QMouseEvent* event) {
   m_pendingClicks.push_back({static_cast<float>(event->position().x()),
                              static_cast<float>(event->position().y())});
   event->accept();

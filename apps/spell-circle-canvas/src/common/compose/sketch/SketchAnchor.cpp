@@ -13,4 +13,4 @@ namespace sigil::compose::sketch {
 /** Referenced by nothing; exists so this TU is a real compile unit. */
 void sketchAnchor() {}
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch

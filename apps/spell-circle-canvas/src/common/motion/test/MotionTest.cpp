@@ -3,11 +3,10 @@
 // VALUES (Transition / ease:: / animate() / bind()) standing up with no
 // renderer under them.
 
+#include <gtest/gtest.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/FrameClock.h>
 #include <sigilmotion/Ticker.h>
-
-#include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
@@ -21,7 +20,8 @@
 // If SigilMotion grows a link edge that drags them in, the build stops
 // rather than quietly hollowing the tests out.
 #if __has_include(<sigilcompose/Compose.h>)
-#error "motion_test can see a drawing library's headers — the tests \
+#error \
+    "motion_test can see a drawing library's headers — the tests \
 below no longer prove that SigilMotion stands alone."
 #endif
 
@@ -39,10 +39,10 @@ TEST(FrameClockTest, FirstTickIsZeroThenDeltas) {
 TEST(FrameClockTest, ClampsStallsAndScalesTime) {
   FrameClock clock({.maxDelta = 0.25});
   clock.tick(0.0);
-  EXPECT_NEAR(clock.tick(5.0), 0.25, 1e-9); // suspended app: clamped
+  EXPECT_NEAR(clock.tick(5.0), 0.25, 1e-9);  // suspended app: clamped
 
   clock.setTimeScale(0.5);
-  EXPECT_NEAR(clock.tick(5.1), 0.05, 1e-9); // half speed
+  EXPECT_NEAR(clock.tick(5.1), 0.05, 1e-9);  // half speed
 }
 
 TEST(FrameClockTest, PauseFreezesElapsed) {
@@ -69,9 +69,9 @@ TEST(TickerTest, DrivesMotionToCompletionAndSettles) {
   EXPECT_NEAR(value.value(), 5.0f, 1e-4);
   EXPECT_TRUE(ticker.active());
 
-  ticker.tick(0.6); // past the end
+  ticker.tick(0.6);  // past the end
   EXPECT_NEAR(value.value(), 10.0f, 1e-4);
-  EXPECT_FALSE(ticker.active()); // finished motions self-remove
+  EXPECT_FALSE(ticker.active());  // finished motions self-remove
 }
 
 TEST(TickerTest, SteppablesReportAndRetire) {
@@ -84,7 +84,7 @@ TEST(TickerTest, SteppablesReportAndRetire) {
 
   EXPECT_TRUE(ticker.tick(0.4));
   EXPECT_TRUE(ticker.tick(0.4));
-  EXPECT_FALSE(ticker.tick(0.4)); // crossed 1.0 → retired
+  EXPECT_FALSE(ticker.tick(0.4));  // crossed 1.0 → retired
   EXPECT_FALSE(ticker.active());
 }
 
@@ -108,7 +108,7 @@ TEST(AnimationValues, TransitionSurvivesAnEmptyEase) {
   EXPECT_NEAR(named.easing()(0.5f), choreograph::easeOutQuad(0.5f), 1e-6f);
 
   const Transition spec{200ms, ease::outBack()};
-  EXPECT_GT(spec.easing()(0.8f), 1.0f); // overshoot, then settle
+  EXPECT_GT(spec.easing()(0.8f), 1.0f);  // overshoot, then settle
   EXPECT_NEAR(spec.easing()(1.0f), 1.0f, 1e-5f);
 }
 
@@ -122,14 +122,14 @@ TEST(AnimationValues, AnimateBuildersDescribeEntranceChangeAndPath) {
 
   const Transitioned<float> change = animate(to(0.4f), {180ms});
   EXPECT_FLOAT_EQ(change.value, 0.4f);
-  EXPECT_FALSE(change.from.has_value()); // no entrance: ramp on change only
+  EXPECT_FALSE(change.from.has_value());  // no entrance: ramp on change only
 
   const Transitioned<float> path = animate(
       through({{0ms, 40.f}, {200ms, -20.f}, {300ms, 10.f}, {400ms, 0.f}}));
   EXPECT_EQ(path.waypoints.size(), 4u);
   ASSERT_TRUE(path.from.has_value());
-  EXPECT_FLOAT_EQ(*path.from, 40.f);   // first waypoint is the entrance
-  EXPECT_FLOAT_EQ(path.value, 0.f);    // last is the settled value
+  EXPECT_FLOAT_EQ(*path.from, 40.f);  // first waypoint is the entrance
+  EXPECT_FLOAT_EQ(path.value, 0.f);   // last is the settled value
   EXPECT_EQ(path.spec.duration, 400ms);
 
   // The degenerate ask must still be DETERMINATE — value-initialized, not
@@ -175,18 +175,18 @@ TEST(AnimationValues, BoundChainComposesInCallOrder) {
 namespace {
 /** Sample a shaped binding across a phase sweep — the trace every wiggle
  *  pin below reasons about. */
-std::vector<float> trace(const BoundFloat &b, float from, float to, int n) {
+std::vector<float> trace(const BoundFloat& b, float from, float to, int n) {
   std::vector<float> out;
   out.reserve((size_t)n);
   for (int i = 0; i < n; ++i)
     out.push_back(b.apply(from + (to - from) * (float)i / (float)(n - 1)));
   return out;
 }
-float spread(const std::vector<float> &v) {
+float spread(const std::vector<float>& v) {
   return *std::max_element(v.begin(), v.end()) -
          *std::min_element(v.begin(), v.end());
 }
-} // namespace
+}  // namespace
 
 TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
   ch::Output<float> phase = 0.0f;
@@ -203,8 +203,7 @@ TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
   for (size_t i = 0; i < shaken.size(); ++i) {
     const float base = plain.apply((float)i / (float)(shaken.size() - 1));
     EXPECT_LE(std::fabs(shaken[i] - base), 12.0f + 1e-3f) << "at " << i;
-    if (shaken[i] < -70.f || shaken[i] > 170.f)
-      leftTheRange = true;
+    if (shaken[i] < -70.f || shaken[i] > 170.f) leftTheRange = true;
   }
   EXPECT_TRUE(leftTheRange) << "±12 px that never leaves the range is not a "
                                "wiggle — the bound claim would be vacuous";
@@ -223,15 +222,15 @@ TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
   const std::vector<float> undersampled = trace(px, 0.f, 20.f, 181);
   float coarseStep = 0.0f;
   for (size_t i = 1; i < undersampled.size(); ++i)
-    coarseStep = std::max(coarseStep, std::fabs(undersampled[i] -
-                                                undersampled[i - 1]));
+    coarseStep =
+        std::max(coarseStep, std::fabs(undersampled[i] - undersampled[i - 1]));
   EXPECT_GT(coarseStep, 4.0f);
 
   // amount == 0 is the whole stage disengaged, exactly.
   for (float v : {0.f, 0.3f, 0.77f, 1.f})
-    EXPECT_FLOAT_EQ(bind(&phase).target(-70.f, 170.f).wiggle(0.f, 9.f).value()
-                        .apply(v),
-                    plain.apply(v));
+    EXPECT_FLOAT_EQ(
+        bind(&phase).target(-70.f, 170.f).wiggle(0.f, 9.f).value().apply(v),
+        plain.apply(v));
 }
 
 TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
@@ -242,7 +241,7 @@ TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
   // traces sharing a ramp correlate almost perfectly whatever their noise
   // fields do.
   const auto rig = [](uint32_t seed) {
-    return bind((const ch::Output<float> *)nullptr)
+    return bind((const ch::Output<float>*)nullptr)
         .scale(0.f)
         .wiggle(12.f, 9.f, seed)
         .value();
@@ -268,8 +267,7 @@ TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
   const std::vector<float> shifted = trace(rig(7), 0.055f, 3.055f, 601);
   EXPECT_NE(a, shifted);
   double drift = 0.0;
-  for (size_t i = 0; i < a.size(); ++i)
-    drift += std::fabs(a[i] - shifted[i]);
+  for (size_t i = 0; i < a.size(); ++i) drift += std::fabs(a[i] - shifted[i]);
   EXPECT_GT(drift / (double)a.size(), 1.0);
 
   // 4. SEEDING. Same seed ⇒ identical, different seed ⇒ independent —
@@ -283,7 +281,10 @@ TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
   // centred traces must be near-uncorrelated (adjacent SEEDS is the case
   // a weak hash gets wrong).
   double mx = 0, my = 0;
-  for (size_t i = 0; i < x.size(); ++i) { mx += x[i]; my += y[i]; }
+  for (size_t i = 0; i < x.size(); ++i) {
+    mx += x[i];
+    my += y[i];
+  }
   mx /= (double)x.size();
   my /= (double)y.size();
   double cov = 0, vx = 0, vy = 0;
@@ -314,9 +315,11 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
 
   // The CURVE shapes the signal, not the schedule: sampling the phase
   // before map() means an eased chain's wiggle keeps its own rate.
-  const BoundFloat eased =
-      bind(&phase).scale(0.f).map(&choreograph::easeInQuint).wiggle(1.f, 6.f, 3)
-          .value();
+  const BoundFloat eased = bind(&phase)
+                               .scale(0.f)
+                               .map(&choreograph::easeInQuint)
+                               .wiggle(1.f, 6.f, 3)
+                               .value();
   for (int i = 0; i <= 200; ++i) {
     const float v = (float)i / 200.0f;
     EXPECT_NEAR(eased.apply(v), small.apply(v), 1e-4f) << "at " << v;
@@ -338,9 +341,11 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
   EXPECT_NE(scoped.apply(0.9f), scoped.apply(0.3f));
 
   // clamp() still applies LAST — a wiggled opacity lands in [0,1].
-  const BoundFloat op =
-      bind(&phase).target(0.9f, 1.0f).wiggle(0.4f, 12.f, 5).clamp(0.f, 1.f)
-          .value();
+  const BoundFloat op = bind(&phase)
+                            .target(0.9f, 1.0f)
+                            .wiggle(0.4f, 12.f, 5)
+                            .clamp(0.f, 1.f)
+                            .value();
   for (int i = 0; i <= 500; ++i) {
     const float v = op.apply((float)i / 500.0f);
     EXPECT_GE(v, 0.0f);
@@ -353,17 +358,16 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
   // falloff each added octave carries about the same slope as the base,
   // so total variation barely moves and the normaliser hides the change
   // in step size entirely. Direction reversals see the tremble directly.
-  const auto reversals = [](const std::vector<float> &v) {
+  const auto reversals = [](const std::vector<float>& v) {
     int n = 0;
     for (size_t i = 2; i < v.size(); ++i)
-      if ((v[i] - v[i - 1] > 0) != (v[i - 1] - v[i - 2] > 0))
-        ++n;
+      if ((v[i] - v[i - 1] > 0) != (v[i - 1] - v[i - 2] > 0)) ++n;
     return n;
   };
-  const std::vector<float> one =
-      trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 1).value(), 0, 4, 4001);
-  const std::vector<float> three =
-      trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 3).value(), 0, 4, 4001);
+  const std::vector<float> one = trace(
+      bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 1).value(), 0, 4, 4001);
+  const std::vector<float> three = trace(
+      bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 3).value(), 0, 4, 4001);
   // Three octaves reverse direction well over twice as often as one, but
   // not the four times the frequency ladder alone would suggest: at
   // falloff 0.5 the fine octaves carry about the same slope as the base
@@ -372,8 +376,8 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
   // drift with a whisper on it.
   EXPECT_GT(reversals(three), reversals(one) * 2)
       << "octaves added no detail — they are not earning their two fields";
-  EXPECT_LE(spread(three), 20.0f + 1e-3f); // still inside ±10: the SIZE
-  EXPECT_LE(spread(one), 20.0f + 1e-3f);   // promise survives the octaves
+  EXPECT_LE(spread(three), 20.0f + 1e-3f);  // still inside ±10: the SIZE
+  EXPECT_LE(spread(one), 20.0f + 1e-3f);    // promise survives the octaves
 }
 
 TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
@@ -383,7 +387,7 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
   // comes from the schedule whose contribution was zeroed.
   Ticker ticker;
   ch::Output<float> seconds = 0.0f;
-  ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f); // 1:1
+  ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f);  // 1:1
 
   const BoundFloat shakeX = wiggle(&seconds, 12.f, 7.f, 1).value();
   const BoundFloat shakeY = wiggle(&seconds, 12.f, 7.f, 2).value();
@@ -399,8 +403,7 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
     EXPECT_LE(std::fabs(y), 12.0f + 1e-3f);
     maxX = std::max(maxX, std::fabs(x));
     maxY = std::max(maxY, std::fabs(y));
-    if ((x > 0) == (y > 0))
-      ++sameSign;
+    if ((x > 0) == (y > 0)) ++sameSign;
     ++samples;
   }
   EXPECT_GT(maxX, 6.0f) << "the rig never moved";
@@ -428,7 +431,7 @@ TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
   EXPECT_FLOAT_EQ(looped.apply(0.25f), 0.25f);
   EXPECT_FLOAT_EQ(looped.apply(1.25f), 0.25f);
   EXPECT_FLOAT_EQ(looped.apply(7.75f), 0.75f);
-  EXPECT_FLOAT_EQ(looped.apply(1.0f), 0.0f); // the seam itself lands at 0
+  EXPECT_FLOAT_EQ(looped.apply(1.0f), 0.0f);  // the seam itself lands at 0
 
   // A DESCENDING schedule wraps UP into [0, period) — fmod alone would
   // answer a negative phase, which no consumer of a phase wants.
@@ -442,8 +445,8 @@ TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
   // clamp (a clamp still bounds the folded value).
   EXPECT_FLOAT_EQ(bind(&phase).scale(360.0f).wrap(360.0f).value().apply(1.5f),
                   180.0f);
-  EXPECT_FLOAT_EQ(
-      bind(&phase).wrap(1.0f).clamp(0.0f, 0.5f).value().apply(1.9f), 0.5f);
+  EXPECT_FLOAT_EQ(bind(&phase).wrap(1.0f).clamp(0.0f, 0.5f).value().apply(1.9f),
+                  0.5f);
 
   // …and before wiggle, so a wrapped phase WIGGLES CONTINUOUSLY across
   // the seam: the noise phase reads the unwrapped schedule. The noise
@@ -482,8 +485,7 @@ TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
 
   // The inverted sawtooth: invert() IS 1 − v.
   const BoundFloat rev = bind(&out).invert().value();
-  for (float v : {0.0f, 0.25f, 0.61f, 1.0f})
-    EXPECT_EQ(rev.apply(v), 1.0f - v);
+  for (float v : {0.0f, 0.25f, 0.61f, 1.0f}) EXPECT_EQ(rev.apply(v), 1.0f - v);
 
   // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom. The
   // normalisation is stored as one multiply-add, so bit-identity holds
@@ -607,7 +609,7 @@ TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
   // true: when nothing else moves, nothing they read can move. A ticker
   // whose only tenant is a derivation settles, and hosts stay
   // event-driven.
-  ticker.tick(0.6); // the ramp finishes and self-removes
+  ticker.tick(0.6);  // the ramp finishes and self-removes
   EXPECT_FLOAT_EQ(trail.value(), 0.75f);
   EXPECT_FALSE(ticker.active())
       << "a derivation must not keep the host rendering forever";
@@ -632,15 +634,15 @@ TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {
   EXPECT_NEAR(toPixels.apply(phase.value()), -70.f, 1e-3f);
 
   ASSERT_TRUE(ticker.active());
-  ticker.tick(0.10); // t = 0.2 — still climbing
+  ticker.tick(0.10);  // t = 0.2 — still climbing
   const float early = toPixels.apply(phase.value());
   EXPECT_GT(early, -70.f);
   EXPECT_LT(early, 170.f);
 
-  ticker.tick(0.15); // t = 0.5 — outBack is already past its target
+  ticker.tick(0.15);  // t = 0.5 — outBack is already past its target
   EXPECT_GT(toPixels.apply(phase.value()), 170.f);
 
-  ticker.tick(0.40); // past the end
+  ticker.tick(0.40);  // past the end
   EXPECT_NEAR(toPixels.apply(phase.value()), 170.f, 1e-3f);
   EXPECT_FALSE(ticker.active());
 }
@@ -699,10 +701,9 @@ TEST(AnimationValues, AnimatableDrivenByTheTickerWithNoKernel) {
   // context-aware — inherited transitions, staggering, mount entrances
   // against its own frame state — which is why SigilMotion deliberately
   // ships no resolve surface of its own.
-  const auto readNow = [](const Animatable<float> &a, float fallback) {
-    if (const float *p = a.plain())
-      return *p;
-    if (const choreograph::Output<float> *out = a.binding())
+  const auto readNow = [](const Animatable<float>& a, float fallback) {
+    if (const float* p = a.plain()) return *p;
+    if (const choreograph::Output<float>* out = a.binding())
       return a.boundMap() ? a.boundMap()->apply(out->value()) : out->value();
     return fallback;
   };
@@ -717,7 +718,7 @@ TEST(AnimationValues, AnimatableDrivenByTheTickerWithNoKernel) {
   ticker.tick(0.5);
   EXPECT_NEAR(readNow(width, -1.f), 120.f, 1e-2f);
 
-  ticker.tick(0.6); // past the end
+  ticker.tick(0.6);  // past the end
   EXPECT_NEAR(readNow(width, -1.f), 240.f, 1e-3f);
   EXPECT_FALSE(ticker.active());
 

@@ -9,17 +9,16 @@
 // implementation, which is why nothing toolkit-specific may enter it: a change
 // here must make sense on either side.
 
-#include "SceneGeometry.h"
-#include "SceneLabels.h"
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/SingleLineParagraphCache.h>
-
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/SingleLineParagraphCache.h>
 
 #include <memory>
+
+#include "SceneGeometry.h"
+#include "SceneLabels.h"
 
 class SkCanvas;
 
@@ -69,18 +68,18 @@ struct SceneStyle {
  * sharing one across threads; nothing here detects the violation.
  */
 class SceneRenderer {
-public:
+ public:
   SceneRenderer();
   ~SceneRenderer();
 
-  SceneRenderer(const SceneRenderer &) = delete;
-  SceneRenderer &operator=(const SceneRenderer &) = delete;
+  SceneRenderer(const SceneRenderer&) = delete;
+  SceneRenderer& operator=(const SceneRenderer&) = delete;
 
   /** Draws @p scene onto @p canvas. The canvas is NOT cleared first: the caller
    *  owns the backdrop, which is what lets the same drawing serve a transparent
    *  texture for publishing and an opaque window. A null canvas is ignored. */
-  void draw(SkCanvas *canvas, const ResolvedScene &scene,
-            const SceneStyle &style);
+  void draw(SkCanvas* canvas, const ResolvedScene& scene,
+            const SceneStyle& style);
 
   /** The renderer's font context, created on first use and bound to the calling
    *  thread — the same threading rule as draw(), and calling this first is what
@@ -88,12 +87,12 @@ public:
    *  font family into a typeface through the very font manager the labels will
    *  be shaped with, instead of a second one that might resolve it differently.
    */
-  sigil::weave::FontContext &fontContext();
+  sigil::weave::FontContext& fontContext();
 
-private:
+ private:
   std::unique_ptr<sigil::weave::FontContext> m_textContext;
   sigil::weave::SingleLineParagraphCache m_labelParagraphs;
   RingLabelGeometryCache m_ringLabelGeometry;
 };
 
-} // namespace spellcircle
+}  // namespace spellcircle

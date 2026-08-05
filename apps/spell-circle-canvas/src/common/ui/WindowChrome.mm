@@ -11,11 +11,9 @@
 @end
 
 bool WindowChrome::setSubtitle(QQuickWindow *window, const QString &subtitle) {
-  if (!window)
-    return false;
+  if (!window) return false;
   auto *contentView = reinterpret_cast<NSView *>(window->winId());
-  if (!contentView || !contentView.window)
-    return false;
+  if (!contentView || !contentView.window) return false;
   if (@available(macOS 11.0, *)) {
     contentView.window.subtitle = subtitle.toNSString();
     return true;
@@ -24,22 +22,18 @@ bool WindowChrome::setSubtitle(QQuickWindow *window, const QString &subtitle) {
 }
 
 bool WindowChrome::applyVibrancy(QQuickWindow *window) {
-  if (!window)
-    return false;
+  if (!window) return false;
 
   // winId() forces platform-window creation for windows that are not yet
   // visible (the settings window starts hidden), so the NSWindow exists.
   auto *contentView = reinterpret_cast<NSView *>(window->winId());
-  if (!contentView)
-    return false;
+  if (!contentView) return false;
   NSWindow *nativeWindow = contentView.window;
-  if (!nativeWindow)
-    return false;
+  if (!nativeWindow) return false;
 
   // Escape hatch for debugging compositing issues: opaque palette-driven
   // windows instead of the glass background.
-  if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY"))
-    return false;
+  if (qEnvironmentVariableIsSet("IFRIT_NO_VIBRANCY")) return false;
 
   nativeWindow.opaque = NO;
   nativeWindow.backgroundColor = NSColor.clearColor;
@@ -49,23 +43,18 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   // their superview, so the effect view goes into the frame view *behind*
   // the content view instead.
   NSView *frameView = nativeWindow.contentView.superview;
-  if (!frameView)
-    return false;
+  if (!frameView) return false;
   for (NSView *subview in frameView.subviews) {
-    if ([subview isKindOfClass:IfritVibrancyView.class])
-      return true;
+    if ([subview isKindOfClass:IfritVibrancyView.class]) return true;
   }
 
-  IfritVibrancyView *effectView =
-      [[IfritVibrancyView alloc] initWithFrame:frameView.bounds];
+  IfritVibrancyView *effectView = [[IfritVibrancyView alloc] initWithFrame:frameView.bounds];
   effectView.material = NSVisualEffectMaterialUnderWindowBackground;
   effectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
   effectView.state = NSVisualEffectStateFollowsWindowActiveState;
   effectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
-  [frameView addSubview:effectView
-             positioned:NSWindowBelow
-             relativeTo:nativeWindow.contentView];
+  [frameView addSubview:effectView positioned:NSWindowBelow relativeTo:nativeWindow.contentView];
 
   return true;
 }

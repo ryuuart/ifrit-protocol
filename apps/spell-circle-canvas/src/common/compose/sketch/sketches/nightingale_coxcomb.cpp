@@ -57,10 +57,12 @@
 // The 13.6 s mark is the settled plate. Earlier moments show the argument
 // being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilweave/FontContext.h>
-
+#include <include/core/SkFont.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkTextBlob.h>
+#include <include/core/SkTypeface.h>
 #include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
@@ -69,13 +71,8 @@
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
-
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkTextBlob.h>
-#include <include/core/SkTypeface.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -99,8 +96,8 @@ constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
           (v & 0xffu) / 255.0f, a};
 }
 
-constexpr SkColor4f kPaper = hex(0xf1e4e0);   // aged ivory, pink undertone
-constexpr SkColor4f kInk = hex(0x241c15);     // engraver's warm black-brown
+constexpr SkColor4f kPaper = hex(0xf1e4e0);  // aged ivory, pink undertone
+constexpr SkColor4f kInk = hex(0x241c15);    // engraver's warm black-brown
 constexpr SkColor4f kInkSoft = hex(0x241c15, 0.55f);
 constexpr SkColor4f kFox = hex(0xc9a688, 0.10f);
 
@@ -117,11 +114,11 @@ constexpr SkColor4f kGreyInk = hex(0x241f19);
 
 constexpr float kW = 1900.0f;
 constexpr float kH = 1032.0f;
-constexpr float kK = 17.0f; // px per sqrt(rate); ONE scale for both wheels
-constexpr SkPoint kC1{1397, 386}; // Diagram 1 (right) — Apr 1854..Mar 1855
-constexpr SkPoint kC2{430, 384};  // Diagram 2 (left)  — Apr 1855..Mar 1856
-constexpr float kR1 = 543.7f;     // kK * sqrt(1022.8), Jan 1855 disease
-constexpr float kR2 = 267.5f;     // kK * sqrt(247.6),  Jun 1855 disease
+constexpr float kK = 17.0f;  // px per sqrt(rate); ONE scale for both wheels
+constexpr SkPoint kC1{1397, 386};  // Diagram 1 (right) — Apr 1854..Mar 1855
+constexpr SkPoint kC2{430, 384};   // Diagram 2 (left)  — Apr 1855..Mar 1856
+constexpr float kR1 = 543.7f;      // kK * sqrt(1022.8), Jan 1855 disease
+constexpr float kR2 = 267.5f;      // kK * sqrt(247.6),  Jun 1855 disease
 
 // ---------------------------------------------------------------------------
 // the data (HistData::Nightingale). Listed in WHEEL order: the engraver's
@@ -129,40 +126,40 @@ constexpr float kR2 = 267.5f;     // kK * sqrt(247.6),  Jun 1855 disease
 // July..June even though the report year runs April..March.
 
 struct Month {
-  const char *label; // outer label line
-  const char *line2; // inner label line ("" = single line)
-  float disease, wounds, other; // annual rate per 1000
+  const char* label;             // outer label line
+  const char* line2;             // inner label line ("" = single line)
+  float disease, wounds, other;  // annual rate per 1000
 };
 
 // bearing = degrees clockwise from 12 o'clock; month i spans [30i, 30i+30]
 const std::array<Month, 12> kD1 = {{
-    {"JULY", "", 150.0f, 0.0f, 9.6f},          // Jul 1854
-    {"AUGUST", "", 328.5f, 0.4f, 11.9f},       // Aug 1854
-    {"SEPTEMBER", "", 312.2f, 32.1f, 27.7f},   // Sep 1854
-    {"OCTOBER", "", 197.0f, 51.7f, 50.1f},     // Oct 1854
-    {"NOVEMBER", "", 340.6f, 115.8f, 42.8f},   // Nov 1854
-    {"DECEMBER", "", 631.5f, 41.7f, 48.0f},    // Dec 1854
-    {"JANUARY", "1855", 1022.8f, 30.7f, 120.0f}, // Jan 1855 — the maximum
-    {"FEBRUARY", "", 822.8f, 16.3f, 140.1f},   // Feb 1855
-    {"MARCH", "1855.", 480.3f, 12.8f, 68.6f},  // Mar 1855
-    {"APRIL", "1854", 1.4f, 0.0f, 7.0f},       // Apr 1854
-    {"MAY", "", 6.2f, 0.0f, 4.6f},             // May 1854
-    {"JUNE", "", 4.7f, 0.0f, 2.5f},            // Jun 1854
+    {"JULY", "", 150.0f, 0.0f, 9.6f},             // Jul 1854
+    {"AUGUST", "", 328.5f, 0.4f, 11.9f},          // Aug 1854
+    {"SEPTEMBER", "", 312.2f, 32.1f, 27.7f},      // Sep 1854
+    {"OCTOBER", "", 197.0f, 51.7f, 50.1f},        // Oct 1854
+    {"NOVEMBER", "", 340.6f, 115.8f, 42.8f},      // Nov 1854
+    {"DECEMBER", "", 631.5f, 41.7f, 48.0f},       // Dec 1854
+    {"JANUARY", "1855", 1022.8f, 30.7f, 120.0f},  // Jan 1855 — the maximum
+    {"FEBRUARY", "", 822.8f, 16.3f, 140.1f},      // Feb 1855
+    {"MARCH", "1855.", 480.3f, 12.8f, 68.6f},     // Mar 1855
+    {"APRIL", "1854", 1.4f, 0.0f, 7.0f},          // Apr 1854
+    {"MAY", "", 6.2f, 0.0f, 4.6f},                // May 1854
+    {"JUNE", "", 4.7f, 0.0f, 2.5f},               // Jun 1854
 }};
 
 const std::array<Month, 12> kD2 = {{
-    {"JULY", "", 107.5f, 37.7f, 9.3f},     // Jul 1855
-    {"AUGUST", "", 129.9f, 44.1f, 6.7f},   // Aug 1855
-    {"SEPTEMBER", "", 47.5f, 69.4f, 5.0f}, // Sep 1855
-    {"OCTOBER", "", 32.8f, 13.6f, 4.6f},   // Oct 1855
-    {"NOVEMBER", "", 56.4f, 10.5f, 10.1f}, // Nov 1855
-    {"DECEMBER", "", 25.3f, 5.0f, 7.8f},   // Dec 1855
-    {"JANUARY", "", 11.4f, 0.5f, 13.0f},   // Jan 1856
-    {"FEBRUARY", "", 6.6f, 0.0f, 5.2f},    // Feb 1856
-    {"MARCH", "", 3.9f, 0.0f, 9.1f},       // Mar 1856
-    {"APRIL", "1855", 177.5f, 17.9f, 21.2f}, // Apr 1855
-    {"MAY", "", 171.8f, 16.6f, 12.5f},     // May 1855
-    {"JUNE", "", 247.6f, 64.5f, 9.6f},     // Jun 1855 — this wheel's maximum
+    {"JULY", "", 107.5f, 37.7f, 9.3f},        // Jul 1855
+    {"AUGUST", "", 129.9f, 44.1f, 6.7f},      // Aug 1855
+    {"SEPTEMBER", "", 47.5f, 69.4f, 5.0f},    // Sep 1855
+    {"OCTOBER", "", 32.8f, 13.6f, 4.6f},      // Oct 1855
+    {"NOVEMBER", "", 56.4f, 10.5f, 10.1f},    // Nov 1855
+    {"DECEMBER", "", 25.3f, 5.0f, 7.8f},      // Dec 1855
+    {"JANUARY", "", 11.4f, 0.5f, 13.0f},      // Jan 1856
+    {"FEBRUARY", "", 6.6f, 0.0f, 5.2f},       // Feb 1856
+    {"MARCH", "", 3.9f, 0.0f, 9.1f},          // Mar 1856
+    {"APRIL", "1855", 177.5f, 17.9f, 21.2f},  // Apr 1855
+    {"MAY", "", 171.8f, 16.6f, 12.5f},        // May 1855
+    {"JUNE", "", 247.6f, 64.5f, 9.6f},        // Jun 1855 — this wheel's maximum
 }};
 
 // ---------------------------------------------------------------------------
@@ -171,20 +168,26 @@ const std::array<Month, 12> kD2 = {{
 
 struct LegendLine {
   int indent;
-  const char *text;
+  const char* text;
 };
 const std::array<LegendLine, 12> kLegendText = {{
     {0, "The Areas of the blue, red, & black wedges are each measured from"},
     {1, "the centre as the common vertex."},
-    {0, "The blue wedges measured from the centre of the circle represent area"},
-    {1, "for area the deaths from Preventible or Mitigable Zymotic diseases; the"},
+    {0,
+     "The blue wedges measured from the centre of the circle represent area"},
+    {1,
+     "for area the deaths from Preventible or Mitigable Zymotic diseases; the"},
     {1, "red wedges measured from the centre the deaths from wounds; & the"},
-    {1, "black wedges measured from the centre the deaths from all other causes."},
-    {0, "The black line across the red triangle in Novr. 1854 marks the boundary"},
+    {1,
+     "black wedges measured from the centre the deaths from all other causes."},
+    {0,
+     "The black line across the red triangle in Novr. 1854 marks the boundary"},
     {1, "of the deaths from all other causes during the month."},
-    {0, "In October 1854, & April 1855, the black area coincides with the red;"},
+    {0,
+     "In October 1854, & April 1855, the black area coincides with the red;"},
     {1, "in January & February 1855, the blue coincides with the black."},
-    {0, "The entire areas may be compared by following the blue, the red & the"},
+    {0,
+     "The entire areas may be compared by following the blue, the red & the"},
     {1, "black lines enclosing them."},
 }};
 
@@ -220,10 +223,9 @@ Element discBox(SkPoint c, float r) {
  *  delay, and a single multi-tick path would own one animation for all
  *  twelve and lose the stagger. */
 std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
-  return kit::ticks({.divisions = 1,
-                     .from = bearing,
-                     .mark = {0.0f, radiusFraction}},
-                    kPlate);
+  return kit::ticks(
+      {.divisions = 1, .from = bearing, .mark = {0.0f, radiusFraction}},
+      kPlate);
 }
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
@@ -237,8 +239,7 @@ sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
   return s;
 }
 
-Transition ramp(float delayMs, float durMs,
-                ch::EaseFn ease = ch::easeOutQuad) {
+Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
   Transition t;
   t.duration = std::chrono::milliseconds((int)durMs);
   t.delay = std::chrono::milliseconds((int)delayMs);
@@ -246,7 +247,7 @@ Transition ramp(float delayMs, float durMs,
   return t;
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -256,14 +257,14 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   static constexpr float tTitle2 = 0.9f;
   static constexpr float tCap1 = 1.0f;
   static constexpr float tSpoke1 = 1.15f;
-  static constexpr float tWedge1 = 1.35f;   // + 0.115 s per month
+  static constexpr float tWedge1 = 1.35f;  // + 0.115 s per month
   static constexpr float tLabel1 = 3.10f;
   static constexpr float tCap2 = 3.70f;
   static constexpr float tSpoke2 = 3.85f;
-  static constexpr float tWedge2 = 4.05f;   // + 0.100 s per month
+  static constexpr float tWedge2 = 4.05f;  // + 0.100 s per month
   static constexpr float tLabel2 = 5.45f;
   static constexpr float tLeader = 6.00f;
-  static constexpr float tLegend = 6.40f;   // + 0.20 s per line
+  static constexpr float tLegend = 6.40f;  // + 0.20 s per line
   static constexpr float tNeedle1 = 9.40f;
   static constexpr float tNeedle2 = 11.50f;
   static constexpr float tNeedleEnd = 13.10f;
@@ -288,23 +289,22 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   //               clockwise tangent  -> rotation = bearing
   //   radial:     advance runs outward along the spoke
   //               -> rotation = bearing - 90
-  void arcRun(std::vector<Element> &out, sketch::SketchContext &ctx,
-              const sigil::weave::TextStyle &style, SkPoint centre,
-              const std::string &content, float bearingDeg, float radius,
+  void arcRun(std::vector<Element>& out, sketch::SketchContext& ctx,
+              const sigil::weave::TextStyle& style, SkPoint centre,
+              const std::string& content, float bearingDeg, float radius,
               bool radial, float tracking, float delayMs,
-              const std::string &keyBase) {
-    if (content.empty() || radius <= 1.0f)
-      return;
+              const std::string& keyBase) {
+    if (content.empty() || radius <= 1.0f) return;
 
     std::vector<float> widths;
     widths.reserve(content.size());
     float total = 0;
     for (size_t i = 0; i < content.size(); ++i) {
       const char c = content[i];
-      float w = (c == ' ')
-                    ? style.shaping.fontSize * 0.30f
-                    : ctx.measure(text(std::u8string(1, (char8_t)c), style))
-                          .width();
+      float w =
+          (c == ' ')
+              ? style.shaping.fontSize * 0.30f
+              : ctx.measure(text(std::u8string(1, (char8_t)c), style)).width();
       widths.push_back(w);
       total += w;
     }
@@ -315,8 +315,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       const float w = widths[i];
       const float along = cum + w * 0.5f - total * 0.5f;
       cum += w + tracking;
-      if (content[i] == ' ')
-        continue;
+      if (content[i] == ' ') continue;
 
       SkPoint at;
       float rotate = 0;
@@ -340,11 +339,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  Element wheel(sketch::SketchContext &ctx, const std::array<Month, 12> &data,
+  Element wheel(sketch::SketchContext& ctx, const std::array<Month, 12>& data,
                 SkPoint centre, float rMax, float startSec, float stepSec,
-                float spokeSec, int flashBase, const char *tag) {
+                float spokeSec, int flashBase, const char* tag) {
     (void)ctx;
-    const SkPoint local{rMax, rMax}; // the wheel box's own centre
+    const SkPoint local{rMax, rMax};  // the wheel box's own centre
     auto wheelBox = discBox(centre, rMax);
 
     // The 12 hairline spokes. On the plate a radial line only exists where
@@ -352,45 +351,43 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // smaller of its two months' rims — otherwise stray hairlines shoot
     // across the empty spring quadrant.
     auto rimOf = [&](int m) {
-      const Month &d = data[(m % 12 + 12) % 12];
+      const Month& d = data[(m % 12 + 12) % 12];
       return kK * std::sqrt(std::max({d.disease, d.wounds, d.other, 0.1f}));
     };
     for (int i = 0; i < 12; ++i) {
       const float len = std::min(rimOf(i - 1), rimOf(i)) * 0.98f;
-      if (len < 4.0f)
-        continue;
+      if (len < 4.0f) continue;
       wheelBox.child(
           box()
               .inset(0)
               .key(std::string(tag) + "spoke" + std::to_string(i))
               .shape(spoke(len / rMax, (float)i * 30.0f))
-              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                  ramp(spokeSec * 1000.0f + (float)i * 16.0f,
-                                       220.0f))), stroke(0.7f, Fill::color(kInkSoft)))
-              );
+              .stroke(spans::upTo(animate(
+                          from(0.0f).to(1.0f),
+                          ramp(spokeSec * 1000.0f + (float)i * 16.0f, 220.0f))),
+                      stroke(0.7f, Fill::color(kInkSoft))));
     }
 
     for (int m = 0; m < 12; ++m) {
-      const Month &mo = data[m];
+      const Month& mo = data[m];
       // bearing (0 = 12 o'clock, clockwise) -> Skia canvas angle (0 = +x)
       const float skia0 = (float)m * 30.0f - 90.0f;
       // Painter's algorithm by magnitude: biggest first, so every band
       // shows its own colour with no stacking arithmetic anywhere.
       struct Band {
         float rate;
-        const Material *mat;
-        const char *name;
+        const Material* mat;
+        const char* name;
       };
       std::array<Band, 3> bands = {{{mo.disease, &blueMat, "b"},
                                     {mo.wounds, &roseMat, "r"},
                                     {mo.other, &greyMat, "k"}}};
       std::sort(bands.begin(), bands.end(),
-                [](const Band &a, const Band &b) { return a.rate > b.rate; });
+                [](const Band& a, const Band& b) { return a.rate > b.rate; });
 
       const float delay = (startSec + stepSec * (float)m) * 1000.0f;
-      for (const Band &band : bands) {
-        if (band.rate <= 0.0f)
-          continue;
+      for (const Band& band : bands) {
+        if (band.rate <= 0.0f) continue;
         const float r = kK * std::sqrt(band.rate);
         wheelBox.child(
             discBox(local, r)
@@ -432,8 +429,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  Element needle(SkPoint centre, float rMax, const ch::Output<float> *deg,
-                 const ch::Output<float> *alpha, const char *key) {
+  Element needle(SkPoint centre, float rMax, const ch::Output<float>* deg,
+                 const ch::Output<float>* alpha, const char* key) {
     return discBox(centre, rMax)
         .key(key)
         .shape(spoke(1.0f, 0.0f))
@@ -446,7 +443,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     auto root = stack().fill(Fill::color(kPaper));
 
     // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
@@ -462,32 +459,32 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // The group boundary sits exactly here: everything inside is the static
     // base, and the wedges and titles above it animate, so they stay outside
     // where the cache cannot be invalidated by them.
-    root.child(stack().inset(0).fill(Fill::color(kPaper))
+    root.child(stack()
+                   .inset(0)
+                   .fill(Fill::color(kPaper))
                    .child(box().inset(0).fill(paperMat).opacity(0.17f).blend(
                        SkBlendMode::kSoftLight))
                    .child(box().inset(0).fill(foxing.material()))
-                   .child(box().inset(0).fill(radialGradient(
-                       {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
-                       {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
-                        hex(0x6b4a33, 0.085f)},
-                       {0.0f, 0.70f, 1.0f})))
+                   .child(box().inset(0).fill(
+                       radialGradient({kW * 0.5f, kH * 0.5f}, kW * 0.72f,
+                                      {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
+                                       hex(0x6b4a33, 0.085f)},
+                                      {0.0f, 0.70f, 1.0f})))
                    .cache(Cache::Texture));
 
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
-    root.child(custom([this](SkCanvas &canvas, const PaintContext &) {
-                 if (!faceDisplay)
-                   return;
+    root.child(custom([this](SkCanvas& canvas, const PaintContext&) {
+                 if (!faceDisplay) return;
                  SkFont f(faceDisplay, 46);
                  SkPaint p;
                  p.setAntiAlias(true);
                  p.setColor4f(hex(0x241c15, 0.055f), nullptr);
                  canvas.save();
-                 canvas.translate(760, 118); // mirrored: the verso title
+                 canvas.translate(760, 118);  // mirrored: the verso title
                  canvas.scale(-1, 1);
                  canvas.drawString("ENGLAND", 0, 0, f, p);
                  canvas.restore();
-               })
-                   .inset(0));
+               }).inset(0));
 
     // ---- the plate mark: the physical impression of the copper ------
     root.child(box()
@@ -507,8 +504,10 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
     // ---- title block -------------------------------------------------
-    const auto title1 = kit::emboldened(type(faceDisplay, 39, kInk, 0.8f), 2.0f, kInk);
-    const auto title2 = kit::emboldened(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
+    const auto title1 =
+        kit::emboldened(type(faceDisplay, 39, kInk, 0.8f), 2.0f, kInk);
+    const auto title2 =
+        kit::emboldened(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
 
     GlyphFx t1;
     t1.effect = glyphfx::typeOn();
@@ -548,8 +547,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // ---- the two diagram captions -----------------------------------
     const auto capNum = type(faceGrotesque, 24, kInk);
     const auto capText = type(faceGrotesque, 21, kInk, 0.4f);
-    auto caption = [&](const char *num, const char *label, float cx, float numX,
-                       float startSec, const char *key) {
+    auto caption = [&](const char* num, const char* label, float cx, float numX,
+                       float startSec, const char* key) {
       root.child(text(toU8(num), capNum)
                      .key(std::string(key) + "n")
                      .centerAt({numX, 40})
@@ -579,7 +578,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(wheel(ctx, kD2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
-    const auto labelStyle = kit::emboldened(type(faceLabel, 20, kInk, 0.4f), 0.35f, kInk);
+    const auto labelStyle =
+        kit::emboldened(type(faceLabel, 20, kInk, 0.4f), 0.35f, kInk);
     const auto smallLabel = type(faceLabel, 12, kInk, 0.0f);
     const auto campaign = type(faceLabel, 16, kInk, 0.4f);
     std::vector<Element> labels;
@@ -588,12 +588,12 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // they sit on, so the ring cannot close tighter than 12 * (widest label)
     // / 2pi. That is why the plate sets the small left wheel in a smaller
     // face — the same constraint, solved the same way.
-    auto ringLabels = [&](const std::array<Month, 12> &data, SkPoint centre,
+    auto ringLabels = [&](const std::array<Month, 12>& data, SkPoint centre,
                           float rMax, float floorR,
-                          const sigil::weave::TextStyle &style, float gap,
-                          float step, float startSec, const char *tag) {
+                          const sigil::weave::TextStyle& style, float gap,
+                          float step, float startSec, const char* tag) {
       for (int m = 0; m < 12; ++m) {
-        const Month &mo = data[m];
+        const Month& mo = data[m];
         const float rim =
             kK * std::sqrt(std::max({mo.disease, mo.wounds, mo.other, 0.5f}));
         const float base = std::max(rim + gap, floorR);
@@ -622,27 +622,26 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     arcRun(labels, ctx, smallLabel, kC2, "1856", 180.0f, 134.0f, false, 0.6f,
            tLabel2 * 1000 + 300, "y1856");
 
-    for (Element &e : labels)
-      root.child(std::move(e));
+    for (Element& e : labels) root.child(std::move(e));
 
     // ---- the dashed leader between the two wheels -------------------
     PathFormat dash = stroke(1.1f, Fill::color(kInk));
     dash.dashIntervals = {7.0f, 5.0f};
-    root.child(
-        box()
-            .inset(0)
-            .key("leader")
-            .fill(Fill::none())
-            .shape([](SkSize) {
-              SkPathBuilder p;
-              p.moveTo(202, 398);
-              p.lineTo(614, 522);
-              p.lineTo(1024, 374);
-              return p.detach();
-            })
-            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                ramp(tLeader * 1000, 620, ch::easeOutQuad))), dash)
-            );
+    root.child(box()
+                   .inset(0)
+                   .key("leader")
+                   .fill(Fill::none())
+                   .shape([](SkSize) {
+                     SkPathBuilder p;
+                     p.moveTo(202, 398);
+                     p.lineTo(614, 522);
+                     p.lineTo(1024, 374);
+                     return p.detach();
+                   })
+                   .stroke(spans::upTo(animate(
+                               from(0.0f).to(1.0f),
+                               ramp(tLeader * 1000, 620, ch::easeOutQuad))),
+                           dash));
 
     // ---- the engraved-hand legend -----------------------------------
     const auto script = type(faceScript, 27, kInk);
@@ -676,7 +675,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
     // The still frame this sketch photographs itself at: the first clean
@@ -686,9 +685,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // written and the dashed leader mid-draw.
     ctx.captureAt(13.6);
 
-    auto family = [&](const char *name, SkFontStyle style) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager())
-        return nullptr;
+    auto family = [&](const char* name,
+                      SkFontStyle style) -> sk_sp<SkTypeface> {
+      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
       return ctx.fonts->fontManager()->matchFamilyStyle(name, style);
     };
     // The plate's title face is an ornamental Victorian INLINE Roman —
@@ -700,12 +699,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     faceGrotesque = family("Copperplate", SkFontStyle::Bold());
     faceLabel = family("Copperplate", SkFontStyle::Normal());
     faceScript = family("Snell Roundhand", SkFontStyle::Normal());
-    if (!faceDisplay)
-      faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
-    if (!faceLabel)
-      faceLabel = family("Helvetica Neue", SkFontStyle::Bold());
-    if (!faceGrotesque)
-      faceGrotesque = faceLabel;
+    if (!faceDisplay) faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
+    if (!faceLabel) faceLabel = family("Helvetica Neue", SkFontStyle::Bold());
+    if (!faceGrotesque) faceGrotesque = faceLabel;
     if (!faceScript)
       faceScript = family("Apple Chancery", SkFontStyle::Normal());
 
@@ -714,11 +710,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // coarse sparse one so the ink density visibly wanders, which is what
     // separates a stone-printed tint from a flat vector fill.
     auto band = [](SkColor4f wash, SkColor4f ink, int fine, int coarse,
-                   uint32_t seed, Pattern &grainOut) {
+                   uint32_t seed, Pattern& grainOut) {
       grainOut = patterns::speckle(40, fine, 0.25f, 0.66f, {ink});
       grainOut.seed(seed);
-      Pattern blot = patterns::speckle(110, coarse, 1.8f, 5.0f,
-                                       {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
+      Pattern blot = patterns::speckle(
+          110, coarse, 1.8f, 5.0f, {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
       blot.seed(seed * 7 + 3);
       return Material::blend(
           {{Material::solid(wash), SkBlendMode::kSrc},
@@ -740,8 +736,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       const float s = (float)t;
-      auto sweep = [&](float t0, float t1, ch::Output<float> &deg,
-                       ch::Output<float> &alpha, int base) {
+      auto sweep = [&](float t0, float t1, ch::Output<float>& deg,
+                       ch::Output<float>& alpha, int base) {
         if (s < t0 || s > t1 + 0.45f) {
           alpha = 0.0f;
           return;
@@ -753,8 +749,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
         for (int m = 0; m < 12; ++m) {
           const float centreB = (float)m * 30.0f + 15.0f;
           float d = std::fabs(deg.value() - centreB);
-          if (d > 180.0f)
-            d = 360.0f - d;
+          if (d > 180.0f) d = 360.0f - d;
           flash[base + m] = alpha.value() * std::max(0.0f, 1.0f - d / 13.0f);
         }
       };
@@ -766,7 +761,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(NightingaleCoxcomb)

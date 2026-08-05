@@ -31,10 +31,6 @@
  * only when you called them.
  */
 
-#include "sigilworld/Components.h"
-#include "sigilworld/Scene.h"
-#include "sigilworld/World.h"
-
 #include <sigilshape/Mesh.h>
 #include <sigilshape/Points.h>
 
@@ -46,65 +42,67 @@
 #include <utility>
 #include <vector>
 
+#include "sigilworld/Components.h"
+#include "sigilworld/Scene.h"
+#include "sigilworld/World.h"
+
 namespace sigil::world::easel {
 
 namespace detail {
 
-inline uint64_t hashBytes(uint64_t h, const void *data, size_t size) {
-  const unsigned char *bytes = (const unsigned char *)data;
+inline uint64_t hashBytes(uint64_t h, const void* data, size_t size) {
+  const unsigned char* bytes = (const unsigned char*)data;
   for (size_t i = 0; i < size; ++i) {
     h ^= bytes[i];
-    h *= 1099511628211ull; // FNV-1a
+    h *= 1099511628211ull;  // FNV-1a
   }
   return h;
 }
 
 /** Content identity for a by-value mesh — equal content means equal
  *  identity, so re-declared meshes reconcile as kept, not re-added. */
-inline uint64_t fingerprint(const shape::Mesh &mesh) {
+inline uint64_t fingerprint(const shape::Mesh& mesh) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, mesh.positions.data(),
                 mesh.positions.size() * sizeof(glm::vec3));
   h = hashBytes(h, mesh.normals.data(),
                 mesh.normals.size() * sizeof(glm::vec3));
   h = hashBytes(h, mesh.uvs.data(), mesh.uvs.size() * sizeof(glm::vec2));
-  h = hashBytes(h, mesh.colors.data(),
-                mesh.colors.size() * sizeof(glm::vec4));
-  h = hashBytes(h, mesh.indices.data(),
-                mesh.indices.size() * sizeof(uint32_t));
+  h = hashBytes(h, mesh.colors.data(), mesh.colors.size() * sizeof(glm::vec4));
+  h = hashBytes(h, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
   return h;
 }
 
 /** Content identity for a swarm's points AS SEEN through its lanes —
  *  an unchanged cloud skips the instance re-upload entirely. */
-inline uint64_t fingerprint(const shape::Cloud &cloud,
-                            const InstanceLanes &lanes) {
+inline uint64_t fingerprint(const shape::Cloud& cloud,
+                            const InstanceLanes& lanes) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, cloud.positions.data(),
                 cloud.positions.size() * sizeof(glm::vec3));
   h = hashBytes(h, &lanes.scale, sizeof(lanes.scale));
   h = hashBytes(h, &lanes.up, sizeof(lanes.up));
   h = hashBytes(h, lanes.scaleLane.data(), lanes.scaleLane.size());
-  if (const std::vector<float> *lane = cloud.scalarIf(lanes.scaleLane))
+  if (const std::vector<float>* lane = cloud.scalarIf(lanes.scaleLane))
     h = hashBytes(h, lane->data(), lane->size() * sizeof(float));
   h = hashBytes(h, lanes.tintLane.data(), lanes.tintLane.size());
-  if (const std::vector<glm::vec4> *lane = cloud.colorIf(lanes.tintLane))
+  if (const std::vector<glm::vec4>* lane = cloud.colorIf(lanes.tintLane))
     h = hashBytes(h, lane->data(), lane->size() * sizeof(glm::vec4));
   h = hashBytes(h, lanes.orientLane.data(), lanes.orientLane.size());
-  if (const std::vector<glm::vec3> *lane = cloud.vectorIf(lanes.orientLane))
+  if (const std::vector<glm::vec3>* lane = cloud.vectorIf(lanes.orientLane))
     h = hashBytes(h, lane->data(), lane->size() * sizeof(glm::vec3));
   return h;
 }
 
-} // namespace detail
+}  // namespace detail
 
 class Stage {
-public:
-  explicit Stage(World &world) : m_world(world), m_scene(world) {}
+ public:
+  explicit Stage(World& world) : m_world(world), m_scene(world) {}
 
   // -- the set's light and eye, applied on commit ---------------------------
 
-  Stage &sun(glm::vec3 direction, float intensity = 2.6f,
+  Stage& sun(glm::vec3 direction, float intensity = 2.6f,
              glm::vec4 color = {1.0f, 0.96f, 0.9f, 1}) {
     m_lighting.sunDirection = direction;
     m_lighting.sunIntensity = intensity;
@@ -112,14 +110,14 @@ public:
     m_lightingDirty = true;
     return *this;
   }
-  Stage &sky(glm::vec4 sky, glm::vec4 ground, float ambient = 0.55f) {
+  Stage& sky(glm::vec4 sky, glm::vec4 ground, float ambient = 0.55f) {
     m_lighting.skyColor = sky;
     m_lighting.groundColor = ground;
     m_lighting.ambient = ambient;
     m_lightingDirty = true;
     return *this;
   }
-  Stage &look(glm::vec3 eye, glm::vec3 target = {0, 0, 0}, float fovYDeg = 40) {
+  Stage& look(glm::vec3 eye, glm::vec3 target = {0, 0, 0}, float fovYDeg = 40) {
     m_camera.eye = eye;
     m_camera.target = target;
     m_camera.fovYDeg = fovYDeg;
@@ -130,7 +128,7 @@ public:
   // -- registry lights, reconciled by declaration order ---------------------
 
   /** A point light hovering at @p position. */
-  Stage &light(glm::vec3 position, glm::vec4 color = {1, 1, 1, 1},
+  Stage& light(glm::vec3 position, glm::vec4 color = {1, 1, 1, 1},
                float intensity = 3, float range = 600) {
     LightComponent value;
     value.type = LightComponent::Type::Point;
@@ -142,7 +140,7 @@ public:
     return *this;
   }
   /** A directional light shining along @p direction. */
-  Stage &beam(glm::vec3 direction, glm::vec4 color = {1, 1, 1, 1},
+  Stage& beam(glm::vec3 direction, glm::vec4 color = {1, 1, 1, 1},
               float intensity = 2) {
     LightComponent value;
     value.type = LightComponent::Type::Directional;
@@ -157,7 +155,7 @@ public:
 
   /** A prop with stable pointer identity — share the shared_ptr across
    *  commits and only transforms are ever touched. */
-  Stage &place(std::shared_ptr<const shape::Mesh> mesh, Material material) {
+  Stage& place(std::shared_ptr<const shape::Mesh> mesh, Material material) {
     Placement p;
     p.kind = Placement::Kind::Surface;
     p.mesh = std::move(mesh);
@@ -167,7 +165,7 @@ public:
   }
   /** A prop by value — content-hashed, so re-declaring the same mesh
    *  keeps its surface; a changed mesh re-uploads. */
-  Stage &place(shape::Mesh mesh, Material material) {
+  Stage& place(shape::Mesh mesh, Material material) {
     Placement p;
     p.kind = Placement::Kind::Surface;
     p.fingerprint = detail::fingerprint(mesh);
@@ -177,7 +175,7 @@ public:
     return *this;
   }
   /** An unlit textured quad — the diegetic UI card. */
-  Stage &panel(sk_sp<SkImage> image, float width, float height) {
+  Stage& panel(sk_sp<SkImage> image, float width, float height) {
     Placement p;
     p.kind = Placement::Kind::Panel;
     p.image = std::move(image);
@@ -189,7 +187,7 @@ public:
   /** @p stamp instanced at every point of @p cloud in ONE draw
    *  (World::addInstanced). An unchanged cloud is a keep; a changed
    *  one refreshes instances in place (setInstances). */
-  Stage &swarm(shape::Cloud cloud, shape::Mesh stamp, Material material,
+  Stage& swarm(shape::Cloud cloud, shape::Mesh stamp, Material material,
                InstanceLanes lanes = {}) {
     Placement p;
     p.kind = Placement::Kind::Swarm;
@@ -204,28 +202,25 @@ public:
 
   // -- tail styling: each call shapes the LAST declared placement -----------
 
-  Stage &at(glm::vec3 position) {
-    if (!m_pending.empty())
-      m_pending.back().position = position;
+  Stage& at(glm::vec3 position) {
+    if (!m_pending.empty()) m_pending.back().position = position;
     return *this;
   }
-  Stage &turned(float yawDeg, float pitchDeg = 0, float rollDeg = 0) {
+  Stage& turned(float yawDeg, float pitchDeg = 0, float rollDeg = 0) {
     if (!m_pending.empty()) {
-      Placement &p = m_pending.back();
+      Placement& p = m_pending.back();
       p.yawDeg = yawDeg;
       p.pitchDeg = pitchDeg;
       p.rollDeg = rollDeg;
     }
     return *this;
   }
-  Stage &sized(float scale) {
-    if (!m_pending.empty())
-      m_pending.back().scale = scale;
+  Stage& sized(float scale) {
+    if (!m_pending.empty()) m_pending.back().scale = scale;
     return *this;
   }
-  Stage &key(std::string name) {
-    if (!m_pending.empty())
-      m_pending.back().key = std::move(name);
+  Stage& key(std::string name) {
+    if (!m_pending.empty()) m_pending.back().key = std::move(name);
     return *this;
   }
 
@@ -252,9 +247,8 @@ public:
     // fall back to stable child indices.
     scene::Node root = scene::group().key("easel");
     int childIndex = 0;
-    for (Placement &p : m_pending) {
-      if (p.kind == Placement::Kind::Swarm)
-        continue;
+    for (Placement& p : m_pending) {
+      if (p.kind == Placement::Kind::Swarm) continue;
       scene::Node node =
           p.kind == Placement::Kind::Panel
               ? scene::panel(p.image, p.width, p.height)
@@ -282,8 +276,7 @@ public:
   /** Forget everything the stage placed (surfaces, swarms, lights). */
   void clear() {
     m_scene.clear();
-    for (auto &[key, entry] : m_swarms)
-      m_world.removeSurface(entry.id);
+    for (auto& [key, entry] : m_swarms) m_world.removeSurface(entry.id);
     m_swarms.clear();
     for (uint32_t id : m_lightIds)
       if (m_world.registry().valid(entity(id)))
@@ -294,7 +287,7 @@ public:
     m_pendingLights.clear();
   }
 
-private:
+ private:
   struct Placement {
     enum class Kind : uint8_t { Surface, Panel, Swarm };
     Kind kind = Kind::Surface;
@@ -302,14 +295,14 @@ private:
     glm::vec3 position = {0, 0, 0};
     float yawDeg = 0, pitchDeg = 0, rollDeg = 0;
     float scale = 1;
-    std::shared_ptr<const shape::Mesh> mesh; // Surface, shared identity
-    shape::Mesh value;      // Surface by value / Swarm stamp
+    std::shared_ptr<const shape::Mesh> mesh;  // Surface, shared identity
+    shape::Mesh value;                        // Surface by value / Swarm stamp
     uint64_t fingerprint = 0;
     Material material;
-    sk_sp<SkImage> image;   // Panel
+    sk_sp<SkImage> image;  // Panel
     float width = 0, height = 0;
-    shape::Cloud cloud;     // Swarm
-    InstanceLanes lanes;    // Swarm
+    shape::Cloud cloud;   // Swarm
+    InstanceLanes lanes;  // Swarm
   };
   struct CachedMesh {
     uint64_t fingerprint = 0;
@@ -327,23 +320,19 @@ private:
   /** By-value meshes reconcile by content hash under the placement's
    *  key (or child index): same content, same shared_ptr, so the Scene
    *  sees stable pointer identity. */
-  std::shared_ptr<const shape::Mesh> resolveMesh(Placement &p,
-                                                 int childIndex) {
-    if (p.mesh)
-      return p.mesh;
-    CachedMesh &cached =
-        m_meshes[p.key.empty() ? "#" + std::to_string(childIndex)
-                               : p.key];
+  std::shared_ptr<const shape::Mesh> resolveMesh(Placement& p, int childIndex) {
+    if (p.mesh) return p.mesh;
+    CachedMesh& cached =
+        m_meshes[p.key.empty() ? "#" + std::to_string(childIndex) : p.key];
     if (!cached.mesh || cached.fingerprint != p.fingerprint) {
-      cached.mesh =
-          std::make_shared<const shape::Mesh>(std::move(p.value));
+      cached.mesh = std::make_shared<const shape::Mesh>(std::move(p.value));
       cached.fingerprint = p.fingerprint;
     }
     return cached.mesh;
   }
 
-  void reconcileLights(scene::Scene::Stats &stats) {
-    entt::registry &registry = m_world.registry();
+  void reconcileLights(scene::Scene::Stats& stats) {
+    entt::registry& registry = m_world.registry();
     const size_t oldCount = m_lightIds.size();
     const size_t common = std::min(oldCount, m_pendingLights.size());
     for (size_t i = 0; i < common; ++i) {
@@ -353,7 +342,7 @@ private:
         ++stats.added;
         continue;
       }
-      LightComponent &live = registry.get<LightComponent>(e);
+      LightComponent& live = registry.get<LightComponent>(e);
       if (live == m_pendingLights[i]) {
         ++stats.kept;
       } else {
@@ -364,8 +353,7 @@ private:
     // Surplus previous lights leave; extra declared lights arrive.
     for (size_t i = common; i < oldCount; ++i) {
       const entt::entity e = entity(m_lightIds[i]);
-      if (registry.valid(e))
-        registry.destroy(e);
+      if (registry.valid(e)) registry.destroy(e);
       ++stats.removed;
     }
     m_lightIds.resize(common);
@@ -375,29 +363,27 @@ private:
     }
   }
 
-  void reconcileSwarms(scene::Scene::Stats &stats) {
-    for (auto &[key, entry] : m_swarms)
-      entry.visited = false;
+  void reconcileSwarms(scene::Scene::Stats& stats) {
+    for (auto& [key, entry] : m_swarms) entry.visited = false;
 
     int swarmIndex = 0;
-    for (Placement &p : m_pending) {
-      if (p.kind != Placement::Kind::Swarm)
-        continue;
+    for (Placement& p : m_pending) {
+      if (p.kind != Placement::Kind::Swarm) continue;
       const std::string key =
           p.key.empty() ? "~#" + std::to_string(swarmIndex) : p.key;
       ++swarmIndex;
       const uint64_t cloudFp = detail::fingerprint(p.cloud, p.lanes);
       const glm::mat4 world = scene::group()
-                              .at(p.position)
-                              .rotated(p.yawDeg, p.pitchDeg, p.rollDeg)
-                              .scaled(p.scale)
-                              .localMatrix();
+                                  .at(p.position)
+                                  .rotated(p.yawDeg, p.pitchDeg, p.rollDeg)
+                                  .scaled(p.scale)
+                                  .localMatrix();
 
       auto it = m_swarms.find(key);
       if (it != m_swarms.end() &&
           it->second.stampFingerprint == p.fingerprint &&
           it->second.material == p.material) {
-        SwarmEntry &entry = it->second;
+        SwarmEntry& entry = it->second;
         entry.visited = true;
         bool touched = false;
         if (entry.cloudFingerprint != cloudFp) {
@@ -413,16 +399,14 @@ private:
         touched ? ++stats.moved : ++stats.kept;
         continue;
       }
-      if (it != m_swarms.end()) { // stamp or material changed: rebuild
+      if (it != m_swarms.end()) {  // stamp or material changed: rebuild
         m_world.removeSurface(it->second.id);
         m_swarms.erase(it);
         ++stats.removed;
       }
       SwarmEntry entry;
-      entry.id =
-          m_world.addInstanced(p.value, p.cloud, p.material, p.lanes);
-      if (entry.id == 0)
-        continue;
+      entry.id = m_world.addInstanced(p.value, p.cloud, p.material, p.lanes);
+      if (entry.id == 0) continue;
       m_world.setTransform(entry.id, world);
       entry.stampFingerprint = p.fingerprint;
       entry.cloudFingerprint = cloudFp;
@@ -444,7 +428,7 @@ private:
     }
   }
 
-  World &m_world;
+  World& m_world;
   scene::Scene m_scene;
   Lighting m_lighting;
   shape::space::Camera m_camera;
@@ -457,6 +441,6 @@ private:
   std::map<std::string, SwarmEntry> m_swarms;
 };
 
-inline Stage stage(World &world) { return Stage(world); }
+inline Stage stage(World& world) { return Stage(world); }
 
-} // namespace sigil::world::easel
+}  // namespace sigil::world::easel

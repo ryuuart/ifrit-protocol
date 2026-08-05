@@ -66,8 +66,9 @@
 //    setup(). An advance assumed even a thousandth of an em wrong does not
 //    look wrong anywhere until digits overflow a 9 px cell.
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
@@ -76,14 +77,10 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/ParagraphLayout.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <array>
@@ -169,37 +166,36 @@ constexpr std::array<SkColor4f, 16> kVis = {
 // the thing to preserve, and everything else is a deliberate monospace
 // approximation at the real cell size.
 
-inline sk_sp<SkTypeface> face(const char *family, int weight,
-                              const char *fallback = nullptr) {
+inline sk_sp<SkTypeface> face(const char* family, int weight,
+                              const char* fallback = nullptr) {
   auto mgr = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
       family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
                           SkFontStyle::kUpright_Slant));
   if (!f && fallback)
-    f = mgr->matchFamilyStyle(
-        fallback, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                              SkFontStyle::kUpright_Slant));
-  if (!f)
-    f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
+    f = mgr->matchFamilyStyle(fallback,
+                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
+                                          SkFontStyle::kUpright_Slant));
+  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
   return f;
 }
-inline const sk_sp<SkTypeface> &mono() {
+inline const sk_sp<SkTypeface>& mono() {
   static sk_sp<SkTypeface> f =
       face("Menlo", SkFontStyle::kNormal_Weight, "Monaco");
   return f;
 }
-inline const sk_sp<SkTypeface> &monoBold() {
+inline const sk_sp<SkTypeface>& monoBold() {
   static sk_sp<SkTypeface> f =
       face("Menlo", SkFontStyle::kBold_Weight, "Monaco");
   return f;
 }
-inline const sk_sp<SkTypeface> &arial() {
+inline const sk_sp<SkTypeface>& arial() {
   static sk_sp<SkTypeface> f =
       face("Arial", SkFontStyle::kNormal_Weight, "Helvetica");
   return f;
 }
 
-inline sigil::weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
+inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     SkColor4f color, float track = 0,
                                     float condense = 1.0f) {
   sigil::weave::TextStyle s;
@@ -217,11 +213,11 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
  *  width, so a value off by a thousandth is enough to push the LCD digits
  *  out of their well. The initialiser is only the fallback for a probe that
  *  measures nothing. */
-inline float &monoEm() {
+inline float& monoEm() {
   static float v = 0.602f;
   return v;
 }
-inline float &boldEm() {
+inline float& boldEm() {
   static float v = 0.602f;
   return v;
 }
@@ -229,16 +225,16 @@ inline float &boldEm() {
 /** TEXT.BMP's 5x6 native cell, approximated: a monospace sized so its
  *  advance plus tracking lands on exactly `cellN` NATIVE px. Uppercase only
  *  — the real font has no lowercase glyphs at all. */
-inline sigil::weave::TextStyle pix(float cellN, SkColor4f c,
-                                   bool bold = false, float trackN = 0.0f) {
+inline sigil::weave::TextStyle pix(float cellN, SkColor4f c, bool bold = false,
+                                   float trackN = 0.0f) {
   const float em = bold ? boldEm() : monoEm();
-  return type(bold ? monoBold() : mono(), n(cellN - trackN) / em, c,
-              n(trackN), 1.0f);
+  return type(bold ? monoBold() : mono(), n(cellN - trackN) / em, c, n(trackN),
+              1.0f);
 }
-inline Element t(const char *s, sigil::weave::TextStyle st) {
+inline Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
-inline Element t(const std::string &s, sigil::weave::TextStyle st) {
+inline Element t(const std::string& s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -248,19 +244,15 @@ inline Element t(const std::string &s, sigil::weave::TextStyle st) {
 
 /** Absolute placement in NATIVE skin coordinates, local to the window. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  e
-      .left(Dim(n(x)))
-      .top(Dim(n(y)))
-      .width(Dim(n(w)))
-      .height(Dim(n(h)));
+  e.left(Dim(n(x))).top(Dim(n(y))).width(Dim(n(w))).height(Dim(n(h)));
   return e;
 }
 
 /** The raised bevel: 1 native px light top/left, 1 native px dark
  *  bottom/right, drawn inside the node's own edge. Twenty-odd controls
  *  across the three windows wear exactly this, so it is spelled once. */
-inline Element &raised(Element &e, SkColor4f hi = kBtnHi,
-                       SkColor4f lo = kBtnLo, float w = 1.0f) {
+inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
+                       float w = 1.0f) {
   e.foreground(shapes::onEdges(
       shapes::Edge::Top | shapes::Edge::Left,
       util::stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
@@ -271,7 +263,7 @@ inline Element &raised(Element &e, SkColor4f hi = kBtnHi,
 }
 /** The sunken bevel — the same pair with the light swapped to the far
  *  edges. Every LCD well, trough and list frame in the skin. */
-inline Element &sunken(Element &e, SkColor4f hi = fade(C(0x5C5C86), 0.9f),
+inline Element& sunken(Element& e, SkColor4f hi = fade(C(0x5C5C86), 0.9f),
                        SkColor4f lo = C(0x101018), float w = 1.0f) {
   e.foreground(shapes::onEdges(
       shapes::Edge::Top | shapes::Edge::Left,
@@ -284,7 +276,7 @@ inline Element &sunken(Element &e, SkColor4f hi = fade(C(0x5C5C86), 0.9f),
 
 /** Right/left/up-pointing triangles for the transport glyphs, as outlines
  *  so the node IS the shape. */
-inline std::function<SkPath(SkSize)> tri(int dir) { // 0 right 1 left 2 up
+inline std::function<SkPath(SkSize)> tri(int dir) {  // 0 right 1 left 2 up
   return [dir](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;
@@ -330,20 +322,18 @@ inline std::function<SkPath(SkSize)> upDown(bool up) {
 inline std::function<SkPath(SkSize)> bolt() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
-    static const float p[7][2] = {{0.62f, 0.00f}, {0.05f, 0.56f},
-                                  {0.40f, 0.56f}, {0.24f, 1.00f},
-                                  {0.95f, 0.40f}, {0.55f, 0.40f},
-                                  {0.92f, 0.00f}};
+    static const float p[7][2] = {
+        {0.62f, 0.00f}, {0.05f, 0.56f}, {0.40f, 0.56f}, {0.24f, 1.00f},
+        {0.95f, 0.40f}, {0.55f, 0.40f}, {0.92f, 0.00f}};
     SkPathBuilder b;
     b.moveTo(p[0][0] * w, p[0][1] * h);
-    for (int i = 1; i < 7; ++i)
-      b.lineTo(p[i][0] * w, p[i][1] * h);
+    for (int i = 1; i < 7; ++i) b.lineTo(p[i][0] * w, p[i][1] * h);
     b.close();
     return b.detach();
   };
 }
 
-} // namespace wa
+}  // namespace wa
 
 // ===========================================================================
 
@@ -360,21 +350,21 @@ struct WinampBase : sigil::compose::sketch::Sketch {
   Out volFrame{0};      // a HARD integer in 0..28: round(pct * 28), the
                         // player's 29 thumb positions over the sprite strip
   Out balFrame{0};      // the same, and 14 is dead centre
-  std::array<Out, 11> gain{}; // preamp + 10 bands, [-1,1]; drives the fader
-                              // thumbs AND the response graph
+  std::array<Out, 11> gain{};  // preamp + 10 bands, [-1,1]; drives the fader
+                               // thumbs AND the response graph
   Out graphDraw{0};
-  Out llama{0}, llamaPop{1}; // the title-bar easter egg
-  Out glint{0};              // clutter-bar specular sweep
-  Out led{0};                // play-status LED
-  std::array<Out, 25> rowIn{}; // playlist row reveal, in bands of four
+  Out llama{0}, llamaPop{1};    // the title-bar easter egg
+  Out glint{0};                 // clutter-bar specular sweep
+  Out led{0};                   // play-status LED
+  std::array<Out, 25> rowIn{};  // playlist row reveal, in bands of four
 
   // ---- generated materials, held so their identity prunes ----
   Material steel, deskMat, lcdMat, faderTrack, graphMat;
   Pattern gripTile, visDots, graphGrid;
 
   // ---- instancing: the spectrum analyser LEDs and the playlist rows ----
-  static constexpr int kCols = 19; // 19 bars x (3 px bar + 1 px gap) = 76
-  static constexpr int kRows = 16; // VISCOLOR gives exactly 16 ramp stops
+  static constexpr int kCols = 19;  // 19 bars x (3 px bar + 1 px gap) = 76
+  static constexpr int kRows = 16;  // VISCOLOR gives exactly 16 ramp stops
   std::shared_ptr<instancing::Atlas> ledAtlas;
   std::shared_ptr<instancing::Pool> ledPool;
   std::shared_ptr<instancing::Atlas> rowAtlas;
@@ -398,11 +388,11 @@ struct WinampBase : sigil::compose::sketch::Sketch {
   // shipped with.
 
   struct Track {
-    const char *title;
-    const char *time;
+    const char* title;
+    const char* time;
     int seconds;
   };
-  static const std::array<Track, 25> &tracks() {
+  static const std::array<Track, 25>& tracks() {
     static const std::array<Track, 25> v = {{
         {"DJ Mike Llama - Llama Whippin' Intro", "0:05", 5},
         {"Nine Inch Nails - The Perfect Drug", "5:15", 315},
@@ -435,7 +425,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   /** The real stock "Rock" curve: boosted bass and treble, recessed mids.
    *  [0] is the preamp. */
-  static const std::array<float, 11> &rockPreset() {
+  static const std::array<float, 11>& rockPreset() {
     static const std::array<float, 11> v = {0.18f,  0.62f,  0.44f, -0.35f,
                                             -0.55f, -0.15f, 0.30f, 0.60f,
                                             0.72f,  0.72f,  0.70f};
@@ -479,17 +469,16 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                                 SkBlendMode::kOverlay}});
 
     // CRT glass: the flat screen colour plus a soft off-centre catch-light.
-    lcdMat = Material::blend(
-        {{Material::solid(kLcd), SkBlendMode::kSrcOver},
-         {Material::radialUnit({0.28f, 0.22f}, 1.25f,
-                               {{0.0f, C(0x2A2A46, 0.75f)},
-                                {1.0f, C(0x2A2A46, 0.0f)}}),
-          SkBlendMode::kSrcOver}});
+    lcdMat =
+        Material::blend({{Material::solid(kLcd), SkBlendMode::kSrcOver},
+                         {Material::radialUnit({0.28f, 0.22f}, 1.25f,
+                                               {{0.0f, C(0x2A2A46, 0.75f)},
+                                                {1.0f, C(0x2A2A46, 0.0f)}}),
+                          SkBlendMode::kSrcOver}});
 
     // ONE fader-track value shared by all eleven faders (preamp + 10 bands).
     faderTrack = Material::linearUnit(
-        {0, 0}, {0, 1},
-        {{0.0f, kEqTop}, {0.46f, kEqMid}, {1.0f, kEqBot}});
+        {0, 0}, {0, 1}, {{0.0f, kEqTop}, {0.46f, kEqMid}, {1.0f, kEqBot}});
 
     graphMat = Material::solid(kGraph);
 
@@ -499,7 +488,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // bars, in VISCOLOR's own "grey for dots").
     visDots = patterns::halftone(n(2), n(0.5f), kUnlit, false);
     // The EQ graph's dashed rules.
-    graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas &c, SkSize, uint32_t) {
+    graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
       SkPaint p;
       p.setColor4f(kGrid, nullptr);
       c.drawRect(SkRect::MakeWH(n(2), n(1)), p);
@@ -523,10 +512,10 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // "the same bevel again, N px further in", which is Winamp's doubled
     // button edge without a second element.
     e.foreground(shapes::inset(
-        n(1), shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                              util::stroke(n(1),
-                                           Fill::color(fade(kBtnLo, 0.45f)),
-                                           PathFormat::Align::Inner))));
+        n(1),
+        shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
+                        util::stroke(n(1), Fill::color(fade(kBtnLo, 0.45f)),
+                                     PathFormat::Align::Inner))));
     e.child(glyph);
     return e;
   }
@@ -536,13 +525,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                       std::function<SkPath(SkSize)> shape = {}) {
     using namespace wa;
     Element e = at(box(), x, y, w, h).fill(kGlyph);
-    if (shape)
-      e.shape(std::move(shape));
+    if (shape) e.shape(std::move(shape));
     return e;
   }
 
   /** A tiny beveled text button — ON / AUTO / PRESETS / ADD / REM / … */
-  Element textKey(float x, float y, float w, float h, const char *label,
+  Element textKey(float x, float y, float w, float h, const char* label,
                   float cell = 4.0f) {
     using namespace wa;
     Element e = key(x, y, w, h, box());
@@ -557,40 +545,41 @@ struct WinampBase : sigil::compose::sketch::Sketch {
    *  TITLEBAR.BMP; this is a deliberate tight-monospace approximation in
    *  the sampled gold, cross-faded with the real "IT REALLY WHIPS THE
    *  LLAMA'S ASS!" state that the same bitmap carries. */
-  Element titleBar(float wN, const char *label, bool wide,
-                   bool hasMin = true, float hN = 14.0f) {
+  Element titleBar(float wN, const char* label, bool wide, bool hasMin = true,
+                   float hN = 14.0f) {
     using namespace wa;
     Element bar = at(box(), 0, 0, wN, hN);
-    bar.fill(Material::linearUnit({0, 0}, {0, 1},
-                                  {{0.0f, lift(kTitle, 0.06f)},
-                                   {1.0f, dark(kTitle, 0.25f)}}));
+    bar.fill(Material::linearUnit(
+        {0, 0}, {0, 1},
+        {{0.0f, lift(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
     raised(bar, fade(C(0x5A5A82), 0.85f), C(0x101018));
 
     // grip hairlines either side of the wordmark
     const float gripW = wide ? 100.0f : 52.0f;
     const float gy = (hN - 7.0f) * 0.5f;
     bar.child(at(box(), 24, gy, gripW, 7).fill(gripTile.material()));
-    bar.child(at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()));
+    bar.child(
+        at(box(), wN - 24 - gripW, gy, gripW, 7).fill(gripTile.material()));
 
     // the wordmark, and the easter egg crossfaded over it
     Element mark = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                        .justify(Justify::Center)
                        .alignItems(Align::Center);
-    mark.child(t(label, pix(6.6f, kGold, true, 1.7f))
-                   .opacity(bind(&llama).invert()));
+    mark.child(
+        t(label, pix(6.6f, kGold, true, 1.7f)).opacity(bind(&llama).invert()));
     bar.child(mark);
     Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                       .justify(Justify::Center)
                       .alignItems(Align::Center);
-    egg.child(t("IT REALLY WHIPS THE LLAMA'S ASS!",
-                pix(5.2f, kGold, true, 0.7f))
-                  .opacity(&llama)
-                  .scale(&llamaPop));
+    egg.child(
+        t("IT REALLY WHIPS THE LLAMA'S ASS!", pix(5.2f, kGold, true, 0.7f))
+            .opacity(&llama)
+            .scale(&llamaPop));
     bar.child(egg);
 
     // Window buttons, native 9x9, at the right-hand offsets the SDK pins
     // them to; each is centred in whatever bar height it is given.
-    auto wbtn = [&](float x, const char *g) {
+    auto wbtn = [&](float x, const char* g) {
       Element b = at(box(), x, (hN - 9) * 0.5f, 9, 9)
                       .fill(dark(kTitle, 0.35f))
                       .justify(Justify::Center)
@@ -600,9 +589,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
       return b;
     };
     if (!wide)
-      bar.child(wbtn(6, "-")); // the option/context menu, native 9x9 at x=6
-    if (hasMin)
-      bar.child(wbtn(wN - 31, "_"));
+      bar.child(wbtn(6, "-"));  // the option/context menu, native 9x9 at x=6
+    if (hasMin) bar.child(wbtn(wN - 31, "_"));
     bar.child(wbtn(wN - 21, "="));
     bar.child(wbtn(wN - 11, "x"));
     return bar;
@@ -627,7 +615,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // clutter bar O A I D V — its own dark strip, running past the well
     Element clutter = at(box(), 10, 22, 8, 43).fill(C(0x101020));
     sunken(clutter, fade(C(0x4A4A70), 0.7f), C(0x080810));
-    static const char *cl[5] = {"O", "A", "I", "D", "V"};
+    static const char* cl[5] = {"O", "A", "I", "D", "V"};
     static const float cy[5] = {3, 11, 18, 25, 33};
     static const float cht[5] = {8, 7, 7, 8, 7};
     for (int i = 0; i < 5; ++i)
@@ -636,22 +624,20 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                         .alignItems(Align::Center)
                         .child(t(cl[i], pix(3.4f, C(0x8E8EB4)))));
     // the specular glint that sweeps the stack once every 5 s
-    clutter.child(at(box(), 0, 0, 8, 6)
-                      .fill(C(0xCFE4FF, 0.55f))
-                      .blend(SkBlendMode::kPlus)
-                      .translateY(bind(&glint).target(-n(6), n(43)))
-                      .opacity(bind(&glint)
-                                   .offset(-0.5f)
-                                   .scale(2.0f)
-                                   .invert()
-                                   .clamp(0.0f, 0.75f)));
+    clutter.child(
+        at(box(), 0, 0, 8, 6)
+            .fill(C(0xCFE4FF, 0.55f))
+            .blend(SkBlendMode::kPlus)
+            .translateY(bind(&glint).target(-n(6), n(43)))
+            .opacity(bind(&glint).offset(-0.5f).scale(2.0f).invert().clamp(
+                0.0f, 0.75f)));
     w.child(clutter);
 
     // play-status LED (native 26,28,9,9)
     Element status = at(box(), 26, 28, 9, 9);
     status.child(at(box(), 0, 1, 3, 7).fill(kGreen).opacity(&led));
-    status.child(at(box(), 4, 2, 5, 5).fill(kGreen).opacity(&led)
-                     .shape(tri(0)));
+    status.child(
+        at(box(), 4, 2, 5, 5).fill(kGreen).opacity(&led).shape(tri(0)));
     w.child(status);
 
     // MM:SS. In the original the four NUMBERS.BMP digits are 9x13 cells at
@@ -673,14 +659,14 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element titleWell = at(box(), 109, 22, 158, 11).fill(C(0x101020));
     sunken(titleWell, fade(C(0x4A4A70), 0.5f), C(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
-    title.child(util::marquee(
-        t(marqueeText(), pix(5, C(0x00E000))), marqueeW, &marqueePhase, n(40)));
+    title.child(util::marquee(t(marqueeText(), pix(5, C(0x00E000))), marqueeW,
+                              &marqueePhase, n(40)));
     titleWell.child(title);
     w.child(titleWell);
 
     // kbps / kHz readouts — each a small bordered window with its unit
     // printed outside it, exactly as MAIN.BMP bakes them.
-    auto readout = [&](float x, float wN, const char *v) {
+    auto readout = [&](float x, float wN, const char* v) {
       Element e = at(box(), x, 41, wN, 9).fill(C(0x101020));
       sunken(e, fade(C(0x4A4A70), 0.5f), C(0x08080E));
       e.child(at(box(), 1, 2, wN - 2, 6)
@@ -711,9 +697,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     sunken(vis, fade(C(0x4A4A70), 0.6f), C(0x08080E));
     vis.child(box().inset(0).fill(visDots.material()));
     // ONE atlas stamp for 19x16 LED segments plus 19 peak-hold dots.
-    vis.child(box().inset(0).child(
-        instancing::instances(ledAtlas, ledPool, instancing::Mode::Live,
-                              SkBlendMode::kPlus)));
+    vis.child(box().inset(0).child(instancing::instances(
+        ledAtlas, ledPool, instancing::Mode::Live, SkBlendMode::kPlus)));
     w.child(vis);
 
     // The power-on tic: two 60 ms blinks before the display settles lit.
@@ -722,12 +707,13 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     w.child(at(box(), 0, 21, 275, 37)
                 .fill(C(0x090911))
                 .opacity(animate(through({{0ms, 1.0f},
-                                               {300ms, 1.0f},
-                                               {310ms, 0.0f},
-                                               {360ms, 0.0f},
-                                               {370ms, 1.0f},
-                                               {420ms, 1.0f},
-                                               {430ms, 0.0f}}), &ch::easeNone)));
+                                          {300ms, 1.0f},
+                                          {310ms, 0.0f},
+                                          {360ms, 0.0f},
+                                          {370ms, 1.0f},
+                                          {420ms, 1.0f},
+                                          {430ms, 0.0f}}),
+                                 &ch::easeNone)));
 
     // ---- volume / balance / EQ+PL toggles -------------------------------
     w.child(box()
@@ -748,12 +734,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                   .transformOrigin(0, 0.5f)
                   .scaleX(&playPos));
     // … and the thumb, in pixels.
-    Element thumb = at(box(), 1, 0, 29, 10)
-                        .fill(Material::linearUnit(
-                            {0, 0}, {0, 1},
-                            {{0.0f, lift(kBtnFace, 0.12f)},
-                             {1.0f, dark(kBtnFace, 0.28f)}}))
-                        .translateX(bind(&playPos).target(0, n(248 - 31)));
+    Element thumb =
+        at(box(), 1, 0, 29, 10)
+            .fill(Material::linearUnit(
+                {0, 0}, {0, 1},
+                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.28f)}}))
+            .translateX(bind(&playPos).target(0, n(248 - 31)));
     raised(thumb);
     thumb.child(at(box(), 13, 2, 1, 6).fill(fade(kBtnLo, 0.8f)));
     thumb.child(at(box(), 15, 2, 1, 6).fill(fade(kBtnHi, 0.7f)));
@@ -764,22 +750,22 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     w.child(transportRow());
 
     // the baked Nullsoft bolt, bottom right
-    w.child(at(box(), 253, 91, 13, 15)
-                .shape(bolt())
-                .fill(Material::linearUnit({0, 0}, {0, 1},
-                                           {{0.0f, C(0xFFD24A)},
-                                            {1.0f, C(0xC05C08)}})));
+    w.child(
+        at(box(), 253, 91, 13, 15)
+            .shape(bolt())
+            .fill(Material::linearUnit(
+                {0, 0}, {0, 1}, {{0.0f, C(0xFFD24A)}, {1.0f, C(0xC05C08)}})));
     return w;
   }
 
   Element eqPlToggle() {
     using namespace wa;
     Element g = at(box(), 219, 58, 46, 12);
-    auto tog = [&](float x, const char *lbl, bool on) {
+    auto tog = [&](float x, const char* lbl, bool on) {
       Element e = key(x, 0, 23, 12, box());
       e.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-      e.child(box().width(Dim(n(3))).height(Dim(n(3)))
-                  .fill(on ? wa::kGreen : C(0x3C4A58)));
+      e.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(on ? wa::kGreen
+                                                               : C(0x3C4A58)));
       e.child(box().width(Dim(n(1.5f))));
       e.child(t(lbl, pix(4.2f, C(0x121A24))));
       return e;
@@ -866,19 +852,18 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     using namespace wa;
     Element g = box();
 
-    const SkColor4f volColor =
-        kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
+    const SkColor4f volColor = kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
     Element track = at(box(), 0, 0, 68, 13).fill(C(0x1B1B2C));
     sunken(track, fade(C(0x4A4A70), 0.6f), C(0x0A0A12));
     track.child(at(box(), 1, 3, 66, 3).fill(dark(volColor, 0.45f)));
     track.child(at(box(), 1, 6, 66, 3).fill(volColor));
     track.child(at(box(), 1, 9, 66, 2).fill(dark(volColor, 0.65f)));
-    Element vt = at(box(), 0, 1, 14, 11)
-                     .fill(Material::linearUnit(
-                         {0, 0}, {0, 1},
-                         {{0.0f, lift(kBtnFace, 0.12f)},
-                          {1.0f, dark(kBtnFace, 0.30f)}}))
-                     .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
+    Element vt =
+        at(box(), 0, 1, 14, 11)
+            .fill(Material::linearUnit(
+                {0, 0}, {0, 1},
+                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+            .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
     raised(vt);
     vt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
     track.child(vt);
@@ -892,12 +877,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     sunken(btr, fade(C(0x4A4A70), 0.6f), C(0x0A0A12));
     btr.child(at(box(), 1, 4, 36, 5).fill(dark(balColor, 0.55f)));
     btr.child(at(box(), 18, 1, 2, 11).fill(fade(balColor, 0.9f)));
-    Element bt = at(box(), 0, 1, 14, 11)
-                     .fill(Material::linearUnit(
-                         {0, 0}, {0, 1},
-                         {{0.0f, lift(kBtnFace, 0.12f)},
-                          {1.0f, dark(kBtnFace, 0.30f)}}))
-                     .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
+    Element bt =
+        at(box(), 0, 1, 14, 11)
+            .fill(Material::linearUnit(
+                {0, 0}, {0, 1},
+                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+            .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
     raised(bt);
     bt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
     btr.child(bt);
@@ -906,13 +891,13 @@ struct WinampBase : sigil::compose::sketch::Sketch {
   }
 
   std::string marqueeText() {
-    const Track &tr = tracks()[(size_t)nowPlaying];
+    const Track& tr = tracks()[(size_t)nowPlaying];
     std::string s = std::to_string(nowPlaying + 1);
     s += ". ";
     s += tr.title;
     s += "  ***  ";
-    for (char &c : s)
-      c = (char)std::toupper((unsigned char)c); // TEXT.BMP has no lowercase
+    for (char& c : s)
+      c = (char)std::toupper((unsigned char)c);  // TEXT.BMP has no lowercase
     return s;
   }
 
@@ -924,7 +909,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
    *  instead would let the leading blank of " 3:02" slide the lit digits
    *  sideways off the ghost. The ghost and the live readout are built by
    *  this same function, so they cannot disagree about the pitch. */
-  static Element lcdCells(const std::string &s, SkColor4f ink) {
+  static Element lcdCells(const std::string& s, SkColor4f ink) {
     using namespace wa;
     const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
     Element row = box().row().width(Dim(n(54))).height(Dim(n(13)));
@@ -934,8 +919,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                          .shrink(0)
                          .justify(Justify::Center)
                          .alignItems(Align::Center);
-      if (ch != ' ')
-        cell.child(t(std::string(1, ch), pix(10, ink)));
+      if (ch != ' ') cell.child(t(std::string(1, ch), pix(10, ink)));
       row.child(std::move(cell));
     }
     return row;
@@ -1004,7 +988,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // +12dB / 0dB / -12dB, baked pixel art in the real EQMAIN.BMP, printed
     // here in the gap between the preamp and the first band.
-    static const char *db[3] = {"+12DB", "+0DB", "-12DB"};
+    static const char* db[3] = {"+12DB", "+0DB", "-12DB"};
     static const float dby[3] = {38, 62, 89};
     const SkColor4f dbc[3] = {dark(kEqTop, 0.15f), dark(kEqMid, 0.28f),
                               dark(kEqBot, 0.10f)};
@@ -1018,8 +1002,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     w.child(at(box(), 3, 104, 30, 7)
                 .alignItems(Align::Center)
                 .child(t("PREAMP", pix(3.6f, C(0x8E8EB4)))));
-    static const char *bands[10] = {"60",  "170", "310", "600", "1K",
-                                    "3K",  "6K",  "12K", "14K", "16K"};
+    static const char* bands[10] = {"60", "170", "310", "600", "1K",
+                                    "3K", "6K",  "12K", "14K", "16K"};
     for (int i = 0; i < 10; ++i)
       w.child(at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
                   .justify(Justify::Center)
@@ -1035,7 +1019,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
    *  left-to-right reveal, since there is no trim to animate on a path that
    *  does not exist until it is drawn. */
   Element eqCurve() {
-    return custom([this](SkCanvas &canvas, const PaintContext &ctx) {
+    return custom([this](SkCanvas& canvas, const PaintContext& ctx) {
       const float w = ctx.size.width(), h = ctx.size.height();
       const float mid = h * 0.5f;
       SkPaint zero;
@@ -1059,9 +1043,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
         const float u = (float)s / (float)kSteps * (float)(kN - 1);
         const int i = std::clamp((int)u, 0, kN - 2);
         const float f = u - (float)i;
-        auto P = [&](int k) {
-          return pts[(size_t)std::clamp(k, 0, kN - 1)];
-        };
+        auto P = [&](int k) { return pts[(size_t)std::clamp(k, 0, kN - 1)]; };
         const SkPoint p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
         const float y =
             0.5f * ((2 * p1.fY) + (-p0.fY + p2.fY) * f +
@@ -1071,11 +1053,9 @@ struct WinampBase : sigil::compose::sketch::Sketch {
             0.5f * ((2 * p1.fX) + (-p0.fX + p2.fX) * f +
                     (2 * p0.fX - 5 * p1.fX + 4 * p2.fX - p3.fX) * f * f +
                     (-p0.fX + 3 * p1.fX - 3 * p2.fX + p3.fX) * f * f * f);
-        if (s == 0)
-          b.moveTo(0, y);
+        if (s == 0) b.moveTo(0, y);
         b.lineTo(x, y);
-        if (s == kSteps)
-          b.lineTo(w, y);
+        if (s == kSteps) b.lineTo(w, y);
       }
       SkPath path = b.detach();
       // hand-rolled trim: the reveal window over a LIVE path.
@@ -1142,7 +1122,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // native px clear of the sill — in the real window the row is pinned to
     // the bottom of the playlist, not to a fixed y in the window, so it
     // stays put whatever height the list is resized to.
-    static const char *menus[4] = {"ADD", "REM", "SEL", "MISC"};
+    static const char* menus[4] = {"ADD", "REM", "SEL", "MISC"};
     for (int i = 0; i < 4; ++i)
       bottom.child(textKey(14 + 29 * (float)i, 14, 22, 18, menus[i], 4.0f));
     Element opts = key(W - 44, 14, 22, 18, box());
@@ -1175,8 +1155,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
         g.child(part(3, 3, 4, 5, tri(0)));
         g.child(part(8, 3, 1, 5));
       }
-      Element b = at(box(), 2 + 12 * (float)i, 1, 11, 10)
-                      .fill(fade(kBtnFace, 0.9f));
+      Element b =
+          at(box(), 2 + 12 * (float)i, 1, 11, 10).fill(fade(kBtnFace, 0.9f));
       raised(b, fade(kBtnHi, 0.8f), kBtnLo);
       b.child(g);
       dock.child(b);
@@ -1195,8 +1175,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   std::string runningTime() {
     int total = 0;
-    for (const Track &tr : tracks())
-      total += tr.seconds;
+    for (const Track& tr : tracks()) total += tr.seconds;
     return mmss((int)(playPos.value() * tracks()[(size_t)nowPlaying].seconds)) +
            "/" + mmss(total);
   }
@@ -1211,7 +1190,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element col = box().column();
     const float rowH = 13, listW = 368;
     for (int i = 0; i < 25; ++i) {
-      const Track &tr = tracks()[(size_t)i];
+      const Track& tr = tracks()[(size_t)i];
       const SkColor4f ink = i == nowPlaying ? kPlNow : kPlText;
       Element r = box()
                       .height(Dim(n(rowH)))
@@ -1235,13 +1214,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   /** One clipped, ellipsised row title. The paragraph is held so pointer
    *  identity keeps the shaping cache warm across slot re-renders. */
-  Element ellipsized(int idx, const std::string &s,
-                     const sigil::weave::TextStyle &st, float w) {
+  Element ellipsized(int idx, const std::string& s,
+                     const sigil::weave::TextStyle& st, float w) {
     sigil::weave::ParagraphBuilder b(st);
     b.addText(toU8(s));
     auto p = std::make_shared<sigil::weave::Paragraph>(b.build());
-    if ((int)rowPara.size() <= idx)
-      rowPara.resize((size_t)idx + 1);
+    if ((int)rowPara.size() <= idx) rowPara.resize((size_t)idx + 1);
     rowPara[(size_t)idx] = p;
     sigil::weave::ParagraphLayoutOptions o;
     o.overflow.ellipsis = u"…";
@@ -1256,10 +1234,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element root = stack().width(Dim(1320)).height(Dim(1947));
 
     // the desktop: flat teal + one baked dither pass
-    root.child(box()
-                   .inset(0)
-                   .fill(deskMat)
-                   .cache(Cache::Texture));
+    root.child(box().inset(0).fill(deskMat).cache(Cache::Texture));
 
     // Main — pops in at its final position, scale 0.9 -> 1 on outBack.
     root.child(mainWindow()
@@ -1296,7 +1271,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     using namespace wa;
     ctx.canvas(1320, 1947);
     ctx.background(kDesk);
@@ -1304,10 +1279,9 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // The substituted monospace faces, measured rather than assumed.
     {
-      auto probe = [&](const sk_sp<SkTypeface> &tf) {
+      auto probe = [&](const sk_sp<SkTypeface>& tf) {
         const float w =
-            ctx.measure(text(u8"MMMMMMMMMM", type(tf, 100.0f, kGreen)))
-                .width();
+            ctx.measure(text(u8"MMMMMMMMMM", type(tf, 100.0f, kGreen))).width();
         return w > 1.0f ? w / 1000.0f : 0.602f;
       };
       wa::monoEm() = probe(mono());
@@ -1349,8 +1323,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // --- the marquee wants its content width measured once.
     marqueeW = ctx.measure(t(marqueeText(), pix(5, C(0x00E000)))).width();
-    if (marqueeW < 1)
-      marqueeW = n(300);
+    if (marqueeW < 1) marqueeW = n(300);
 
     // --- one steppable drives every idle loop.
     ctx.ticker.add([this](double dt) {
@@ -1362,7 +1335,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     pushSlots(ctx, true);
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     elapsedNow = elapsed;
     pushSlots(ctx, false);
   }
@@ -1371,7 +1344,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
    *  Output and never re-described; these three are text content and a
    *  28-frame sprite index, neither of which an Animatable can carry, so
    *  they are pushed as fresh subtrees only when their value changes. */
-  void pushSlots(sketch::SketchContext &ctx, bool force) {
+  void pushSlots(sketch::SketchContext& ctx, bool force) {
     const int sec =
         (int)(playPos.value() * (float)tracks()[(size_t)nowPlaying].seconds);
     if (force || sec != shownSec) {
@@ -1469,8 +1442,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
           const float bb = hash(c * 3 + 11, (int)stepT / 3);
           const float lvl = (0.18f + 0.82f * a * (0.35f + 0.65f * bb)) * shape;
           colLevel[(size_t)c] = lvl * (float)kRows;
-          colPeak[(size_t)c] = std::max(colPeak[(size_t)c] - 0.35f,
-                                        colLevel[(size_t)c]);
+          colPeak[(size_t)c] =
+              std::max(colPeak[(size_t)c] - 0.35f, colLevel[(size_t)c]);
         }
       }
     }
@@ -1498,19 +1471,17 @@ struct WinampBase : sigil::compose::sketch::Sketch {
         const double start = 2.4 + 0.13 * (double)(i / 4);
         const float u = (float)std::clamp((t - start) / 0.13, 0.0, 1.0);
         rowIn[(size_t)i] = u * u;
-        SkColor4f c = i == selected ? kPlSel
-                      : i == nowPlaying
-                          ? SkColor4f{1, 1, 1, 0.10f}
-                          : SkColor4f{0, 0, 0, 0};
+        SkColor4f c = i == selected     ? kPlSel
+                      : i == nowPlaying ? SkColor4f{1, 1, 1, 0.10f}
+                                        : SkColor4f{0, 0, 0, 0};
         c.fA *= u;
         tint[(size_t)i] = c;
       }
     }
 
     // ---- the clutter-bar glint, once every 5 s -------------------------
-    glint = (float)std::fmod(t, 5.0) < 0.2
-                ? (float)(std::fmod(t, 5.0) / 0.2)
-                : 0.0f;
+    glint = (float)std::fmod(t, 5.0) < 0.2 ? (float)(std::fmod(t, 5.0) / 0.2)
+                                           : 0.0f;
 
     // ---- the LLAMA easter egg, every ~9 s for 800 ms -------------------
     {

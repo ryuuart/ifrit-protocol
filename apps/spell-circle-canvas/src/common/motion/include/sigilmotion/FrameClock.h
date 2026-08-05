@@ -20,7 +20,7 @@ struct FrameClockOptions {
 };
 
 class FrameClock {
-public:
+ public:
   using Options = FrameClockOptions;
 
   explicit FrameClock(Options options = {}) : m_options(options) {}
@@ -42,7 +42,7 @@ public:
   /** Total scaled time accumulated across ticks, in seconds. */
   double elapsed() const { return m_elapsed; }
 
-private:
+ private:
   Options m_options;
   double m_lastNow = -1.0;
   double m_elapsed = 0.0;
@@ -50,4 +50,4 @@ private:
   bool m_paused = false;
 };
 
-} // namespace sigil::motion
+}  // namespace sigil::motion

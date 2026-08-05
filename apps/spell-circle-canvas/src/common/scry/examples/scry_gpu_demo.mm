@@ -110,8 +110,7 @@ void drawSigil(SkCanvas *canvas, int size) {
   const float center = size / 2.0f;
   for (int i = 0; i < 3; ++i) {
     ring.setStrokeWidth(3.0f - i);
-    ring.setColor(i % 2 ? SkColorSetRGB(0xb1, 0x8c, 0xff)
-                        : SkColorSetRGB(0x7e, 0xe8, 0xff));
+    ring.setColor(i % 2 ? SkColorSetRGB(0xb1, 0x8c, 0xff) : SkColorSetRGB(0x7e, 0xe8, 0xff));
     canvas->drawCircle(center, center, center * (0.9f - 0.22f * i), ring);
   }
   SkPaint chord;
@@ -122,14 +121,12 @@ void drawSigil(SkCanvas *canvas, int size) {
     float angleA = (float)(i * 2.0 * M_PI / 6.0);
     float angleB = (float)(((i + 2) % 6) * 2.0 * M_PI / 6.0);
     float radius = center * 0.9f;
-    canvas->drawLine(center + radius * std::cos(angleA),
-                     center + radius * std::sin(angleA),
-                     center + radius * std::cos(angleB),
-                     center + radius * std::sin(angleB), chord);
+    canvas->drawLine(center + radius * std::cos(angleA), center + radius * std::sin(angleA),
+                     center + radius * std::cos(angleB), center + radius * std::sin(angleB), chord);
   }
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char **argv) {
   std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
@@ -151,8 +148,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  auto graphite =
-      SkiaGraphiteContext::createMetal((void *)device, (void *)queue);
+  auto graphite = SkiaGraphiteContext::createMetal((void *)device, (void *)queue);
   if (!graphite) {
     std::fprintf(stderr, "Graphite bring-up failed\n");
     return 1;
@@ -178,8 +174,7 @@ int main(int argc, char **argv) {
   int stableTicks = 0;
   while (std::chrono::steady_clock::now() < deadline && stableTicks < 10) {
     uint64_t version = view->frameVersion();
-    stableTicks = (version > 0 && version == stableVersion) ? stableTicks + 1
-                                                            : 0;
+    stableTicks = (version > 0 && version == stableVersion) ? stableTicks + 1 : 0;
     stableVersion = version;
     std::this_thread::sleep_for(std::chrono::milliseconds(32));
   }
@@ -188,15 +183,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite->recorder(), SkImageInfo::MakeN32Premul(kWidth, kHeight));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(graphite->recorder(), SkImageInfo::MakeN32Premul(kWidth, kHeight));
   SkCanvas *canvas = surface->getCanvas();
 
-  SkPoint gradientSpan[2] = {{0, 0},
-                             {(float)kWidth, (float)kHeight}};
-  SkColor4f gradientColors[2] = {
-      SkColor4f::FromColor(SkColorSetRGB(0x05, 0x10, 0x1e)),
-      SkColor4f::FromColor(SkColorSetRGB(0x1c, 0x10, 0x38))};
+  SkPoint gradientSpan[2] = {{0, 0}, {(float)kWidth, (float)kHeight}};
+  SkColor4f gradientColors[2] = {SkColor4f::FromColor(SkColorSetRGB(0x05, 0x10, 0x1e)),
+                                 SkColor4f::FromColor(SkColorSetRGB(0x1c, 0x10, 0x38))};
   SkPaint backdrop;
   backdrop.setShader(SkShaders::LinearGradient(
       gradientSpan, SkGradient({gradientColors, SkTileMode::kClamp}, {})));
@@ -224,9 +217,8 @@ int main(int argc, char **argv) {
     std::unique_ptr<const SkImage::AsyncReadResult> result;
   } readContext;
   graphite->context()->asyncRescaleAndReadPixels(
-      surface.get(), SkImageInfo::MakeN32Premul(kWidth, kHeight),
-      SkIRect::MakeWH(kWidth, kHeight), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
+      surface.get(), SkImageInfo::MakeN32Premul(kWidth, kHeight), SkIRect::MakeWH(kWidth, kHeight),
+      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
       [](SkImage::ReadPixelsContext context,
          std::unique_ptr<const SkImage::AsyncReadResult> result) {
         static_cast<ReadContext *>(context)->result = std::move(result);
@@ -244,14 +236,12 @@ int main(int argc, char **argv) {
   readback.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   const char *src = static_cast<const char *>(readContext.result->data(0));
   for (int y = 0; y < kHeight; ++y)
-    std::memcpy(readback.getAddr32(0, y),
-                src + y * readContext.result->rowBytes(0),
+    std::memcpy(readback.getAddr32(0, y), src + y * readContext.result->rowBytes(0),
                 (size_t)kWidth * 4);
 
   std::filesystem::path outPath = outDir / "composite_gpu.png";
   SkFILEWStream stream(outPath.string().c_str());
-  if (!stream.isValid() ||
-      !SkPngEncoder::Encode(&stream, readback.pixmap(), {})) {
+  if (!stream.isValid() || !SkPngEncoder::Encode(&stream, readback.pixmap(), {})) {
     std::fprintf(stderr, "failed to write %s\n", outPath.string().c_str());
     return 1;
   }

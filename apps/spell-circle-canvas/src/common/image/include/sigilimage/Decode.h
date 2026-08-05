@@ -12,10 +12,10 @@
 // Resource ACCESS (URIs, mounts, caching, hot reload) is SigilLoader's
 // concern; this header only ever sees bytes.
 
-#include "sigilimage/ImageAsset.h"
-
 #include <cstddef>
 #include <filesystem>
+
+#include "sigilimage/ImageAsset.h"
 
 namespace sigil::image {
 
@@ -33,21 +33,20 @@ struct DecodeOptions {
   int width = 0;
   int height = 0;
 
-  bool operator==(const DecodeOptions &) const = default;
+  bool operator==(const DecodeOptions&) const = default;
 };
 
 /** Decodes an image from bytes, routing between the Skia-codec path
  *  and the OpenImageIO backend by sniffing content. `pathHint` (just
  *  the name matters) sharpens OIIO's format detection. */
-std::optional<ImageAsset>
-decodeImage(const std::byte *bytes, size_t size,
-            const DecodeOptions &options = {},
-            const std::filesystem::path &pathHint = {});
+std::optional<ImageAsset> decodeImage(
+    const std::byte* bytes, size_t size, const DecodeOptions& options = {},
+    const std::filesystem::path& pathHint = {});
 
 /** Metadata without a full decode, same routing. */
-std::optional<ImageProbe>
-probeImage(const std::byte *bytes, size_t size,
-           const std::filesystem::path &pathHint = {});
+std::optional<ImageProbe> probeImage(
+    const std::byte* bytes, size_t size,
+    const std::filesystem::path& pathHint = {});
 
 /**
  * The raw decoded color data: every channel the source carries, as
@@ -87,8 +86,8 @@ struct ChannelData {
 };
 
 /** Decodes every channel the source carries. */
-std::optional<ChannelData>
-decodeChannels(const std::byte *bytes, size_t size,
-               const std::filesystem::path &pathHint = {});
+std::optional<ChannelData> decodeChannels(
+    const std::byte* bytes, size_t size,
+    const std::filesystem::path& pathHint = {});
 
-} // namespace sigil::image
+}  // namespace sigil::image

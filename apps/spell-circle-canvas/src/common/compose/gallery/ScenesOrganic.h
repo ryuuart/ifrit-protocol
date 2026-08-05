@@ -8,11 +8,11 @@
 // (Routers.h), and a wandering hit probe reading
 // Composer::hitTest() live. Catalog: #5 #9 #10 #12 + the shape kit.
 
-#include "GalleryCore.h"
-
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -22,7 +22,7 @@ struct OrganicScene final : Scene {
   std::string hitLabel = "—";
   SkPoint probe{0, 0};
 
-  const char *name() const override { return "organic"; }
+  const char* name() const override { return "organic"; }
 
   static Fill emberGradient(float w, float h) {
     SkPoint pts[2] = {{0, 0}, {w, h}};
@@ -37,56 +37,65 @@ struct OrganicScene final : Scene {
     const float w = kSceneSize.width(), h = kSceneSize.height();
 
     // -- chaos bed: seeded blobs, scatter-laid, no two runs different --
-    auto chaos = layout(layouts::Scatter{.seed = 77, .jitter = 0.9f})
-                     .inset(0).zIndex(0);
+    auto chaos =
+        layout(layouts::Scatter{.seed = 77, .jitter = 0.9f}).inset(0).zIndex(0);
     for (int i = 0; i < 14; ++i) {
       const float hue = (float)i / 14.0f;
-      const SkColor4f tint{0.25f + 0.5f * hue, 0.2f,
-                           0.45f - 0.25f * hue, 0.5f};
-      chaos.child(box().width(70 + (float)(i % 5) * 26)
-                      .height(60 + (float)(i % 4) * 24)
-                      .shape(shapes::blob((uint32_t)(100 + i), 0.35f,
-                                            5 + i % 6))
-                      .fill(Fill::color(tint))
-                      .blend(SkBlendMode::kPlus));
+      const SkColor4f tint{0.25f + 0.5f * hue, 0.2f, 0.45f - 0.25f * hue, 0.5f};
+      chaos.child(
+          box()
+              .width(70 + (float)(i % 5) * 26)
+              .height(60 + (float)(i % 4) * 24)
+              .shape(shapes::blob((uint32_t)(100 + i), 0.35f, 5 + i % 6))
+              .fill(Fill::color(tint))
+              .blend(SkBlendMode::kPlus));
     }
 
     // -- centerpiece: rounded star, stamped element border, breathing --
     ContourWalk stampWalk;
     stampWalk.spacing = 46.0f;
-    stampWalk.stamp = box().width(18).height(18)
-                          .shape(shapes::star(4, 0.4f))
-                          .fill(Fill::color({1.0f, 0.71f, 0.42f, 0.9f}))
-                          .foreground(util::stroke(
-                              1.2f, Fill::color({1, 0.9f, 0.75f, 1})));
+    stampWalk.stamp =
+        box()
+            .width(18)
+            .height(18)
+            .shape(shapes::star(4, 0.4f))
+            .fill(Fill::color({1.0f, 0.71f, 0.42f, 0.9f}))
+            .foreground(util::stroke(1.2f, Fill::color({1, 0.9f, 0.75f, 1})));
     auto centerpiece =
-        box().key("sigil").width(300).height(300)
-            .inset((w - 300) / 2, (h - 300) / 2, (w - 300) / 2,
-                   (h - 300) / 2)
+        box()
+            .key("sigil")
+            .width(300)
+            .height(300)
+            .inset((w - 300) / 2, (h - 300) / 2, (w - 300) / 2, (h - 300) / 2)
             .zIndex(3)
             .shape(shapes::rounded(shapes::star(7, 0.62f), 14))
             .fill(Fill::color({0.96f, 0.42f, 0.29f, 0.92f}))
-            .rotate(&spin).scale(&pulse)
+            .rotate(&spin)
+            .scale(&pulse)
             .foreground(stampWalk)
             .child(layout(layouts::Radial{.radiusFraction = 0.52f})
                        .inset(0)
                        .children([&] {
                          std::vector<Element> runes;
-                         const char8_t *glyphs[] = {u8"ᚠ", u8"ᚢ", u8"ᚦ",
+                         const char8_t* glyphs[] = {u8"ᚠ", u8"ᚢ", u8"ᚦ",
                                                     u8"ᚨ", u8"ᚱ", u8"ᚲ",
                                                     u8"ᚷ", u8"ᚹ", u8"ᚺ"};
                          for (int i = 0; i < 9; ++i)
-                           runes.push_back(text(
-                               std::u8string(glyphs[(size_t)i]),
-                               styleAt(22, SkColorSetARGB(
-                                               0xff, 0x2a, 0x10, 0x1c))));
+                           runes.push_back(
+                               text(std::u8string(glyphs[(size_t)i]),
+                                    styleAt(22, SkColorSetARGB(0xff, 0x2a, 0x10,
+                                                               0x1c))));
                          return runes;
                        }()));
 
     // -- satellites: blob moons the connectors route between ----------
-    auto moon = [&](const char *key, uint32_t seed, float l, float t) {
-      return box().key(key).width(90).height(90)
-          .inset(l, t, w - l - 90, h - t - 90).zIndex(2)
+    auto moon = [&](const char* key, uint32_t seed, float l, float t) {
+      return box()
+          .key(key)
+          .width(90)
+          .height(90)
+          .inset(l, t, w - l - 90, h - t - 90)
+          .zIndex(2)
           .shape(shapes::blob(seed, 0.28f, 7))
           .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
           .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
@@ -110,16 +119,19 @@ struct OrganicScene final : Scene {
     }
     ContourWalk leftDots;
     leftDots.spacing = 12.0f;
-    leftDots.draw = [](SkCanvas &c, const PathSample &,
-                       const PaintContext &) {
+    leftDots.draw = [](SkCanvas& c, const PathSample&, const PaintContext&) {
       SkPaint p;
       p.setAntiAlias(true);
       p.setColor(0xffffd9a0);
       c.drawCircle(0, 0, 2.4f, p);
     };
     auto plaque =
-        box().key("plaque").width(250).height(120)
-            .inset(40, h - 170, w - 290, 50).zIndex(2)
+        box()
+            .key("plaque")
+            .width(250)
+            .height(120)
+            .inset(40, h - 170, w - 290, 50)
+            .zIndex(2)
             .corners({0, 26, 0, 26})
             .fill(Fill::color({0.11f, 0.12f, 0.2f, 0.96f}))
             .foreground(shapes::onEdges(shapes::Edge::Top, topDash))
@@ -127,8 +139,8 @@ struct OrganicScene final : Scene {
             .foreground(shapes::onEdges(shapes::Edge::Left, leftDots))
             .padding(18, 16)
             .child(text(u8"per-edge chrome:", styleAt(15, 0xff9aa4bb)))
-            .child(text(u8"dash / zigzag / dots / bare",
-                        styleAt(17, 0xffe8d9c2)));
+            .child(
+                text(u8"dash / zigzag / dots / bare", styleAt(17, 0xffe8d9c2)));
 
     // -- routed connectors (#12) --------------------------------------
     PathFormat wire;
@@ -142,23 +154,28 @@ struct OrganicScene final : Scene {
     // The probe marker and hit readout live in SLOTS: independent
     // update domains — the world above is described ONCE and its
     // caches stay warm while these two mount points churn per frame.
-    return stack().fill(emberGradient(w, h))
+    return stack()
+        .fill(emberGradient(w, h))
         .child(chaos)
         .child(std::move(centerpiece))
         .child(moon("moon-a", 21, 90, 80))
         .child(moon("moon-b", 22, w - 170, 120))
         .child(std::move(plaque))
         .child(connector("plaque", "sigil", routers::orthogonal(18))
-                   .inset(0).foreground(wire).zIndex(1))
+                   .inset(0)
+                   .foreground(wire)
+                   .zIndex(1))
         .child(connector("moon-a", "moon-b", routers::arc(0.35f))
-                   .inset(0).foreground(bow).zIndex(1))
+                   .inset(0)
+                   .foreground(bow)
+                   .zIndex(1))
         .child(slot("probe").inset(0).zIndex(6))
         .child(slot("hud").inset(16, 12, 16, h - 44).zIndex(6));
   }
 
   Element probeDot() const {
     const SkPoint p = probe;
-    return custom([p](SkCanvas &c, const PaintContext &) {
+    return custom([p](SkCanvas& c, const PaintContext&) {
              SkPaint paint;
              paint.setAntiAlias(true);
              paint.setColor(0xffffffff);
@@ -166,10 +183,12 @@ struct OrganicScene final : Scene {
              paint.setStyle(SkPaint::kStroke_Style);
              paint.setStrokeWidth(1.5f);
              c.drawCircle(p.x(), p.y(), 10, paint);
-           }).inset(0).cache(Cache::None);
+           })
+        .inset(0)
+        .cache(Cache::None);
   }
 
-  void setup(Composer &composer, sigil::motion::Ticker &) override {
+  void setup(Composer& composer, sigil::motion::Ticker&) override {
     spin = 0.0f;
     pulse = 1.0f;
     hitLabel = "—";
@@ -180,7 +199,7 @@ struct OrganicScene final : Scene {
                                                 styleAt(16, 0xffffe0b0))));
   }
 
-  void update(double elapsed, Composer &composer) override {
+  void update(double elapsed, Composer& composer) override {
     spin = (float)std::fmod(elapsed * 9.0, 360.0);
     pulse = 1.0f + 0.05f * (float)std::sin(elapsed * 2.2);
 
@@ -194,11 +213,10 @@ struct OrganicScene final : Scene {
     composer.renderSlot("probe", probeDot());
     if (label != hitLabel) {
       hitLabel = std::move(label);
-      composer.renderSlot("hud",
-                          box().child(text(toU8("hit: " + hitLabel),
-                                           styleAt(16, 0xffffe0b0))));
+      composer.renderSlot("hud", box().child(text(toU8("hit: " + hitLabel),
+                                                  styleAt(16, 0xffffe0b0))));
     }
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

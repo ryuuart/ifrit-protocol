@@ -8,9 +8,9 @@
 // the other — pick per run with QSG_RHI_BACKEND — until a D3D11↔Vulkan
 // shared-texture path lands.
 
-#include "TexturePublisher.h"
-
 #include <rhi/qrhi.h>
+
+#include "TexturePublisher.h"
 
 #if defined(Q_OS_MACOS)
 #include "SyphonBridge.h"
@@ -18,10 +18,9 @@
 #include "SpoutBridge.h"
 #endif
 
-std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi *rhi,
+std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi* rhi,
                                                          std::string name) {
-  if (!rhi)
-    return nullptr;
+  if (!rhi) return nullptr;
 #if defined(Q_OS_MACOS)
   if (rhi->backend() == QRhi::Metal) {
     auto bridge = std::make_unique<SyphonBridge>(std::move(name));

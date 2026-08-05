@@ -11,8 +11,6 @@
  * placement; reach for it only to inspect or reuse individual glyph runs.
  */
 
-#include "Style.h"
-
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTextBlob.h>
@@ -22,6 +20,8 @@
 #include <memory>
 #include <string_view>
 #include <vector>
+
+#include "Style.h"
 
 namespace sigil::weave {
 
@@ -35,18 +35,18 @@ using ScriptTag = uint32_t;
 /// typeface / script / direction. Instances are shared out of the shape
 /// cache; a layout never mutates one, it only decides where to draw it.
 struct ShapedWord {
-  sk_sp<SkTypeface> typeface; ///< resolved face the glyph IDs index into
-  float fontSize = 0;         ///< px size every metric below is scaled to
-  float scaleX = 1.0f;        ///< horizontal condensation baked into
-                              ///< positions/advances (draw fonts must match)
-  bool aliased = false;       ///< hard-edged rasterisation (ShapingStyle)
+  sk_sp<SkTypeface> typeface;  ///< resolved face the glyph IDs index into
+  float fontSize = 0;          ///< px size every metric below is scaled to
+  float scaleX = 1.0f;         ///< horizontal condensation baked into
+                               ///< positions/advances (draw fonts must match)
+  bool aliased = false;        ///< hard-edged rasterisation (ShapingStyle)
 
-  std::vector<uint16_t> glyphs;   ///< glyph IDs in `typeface`
-  std::vector<SkPoint> positions; ///< pen-relative glyph origins
-  std::vector<float> advances;    ///< per-glyph advance (letter spacing baked
-                                  ///< in) — pen travel, used for curved lines
-  std::vector<uint32_t> clusters; ///< UTF-16 index into the shaped text
-  float advance = 0;              ///< total advance, letter spacing included
+  std::vector<uint16_t> glyphs;    ///< glyph IDs in `typeface`
+  std::vector<SkPoint> positions;  ///< pen-relative glyph origins
+  std::vector<float> advances;     ///< per-glyph advance (letter spacing baked
+                                   ///< in) — pen travel, used for curved lines
+  std::vector<uint32_t> clusters;  ///< UTF-16 index into the shaped text
+  float advance = 0;               ///< total advance, letter spacing included
 
   /// Shaped top-to-bottom ('vert' forms, vertical metrics): positions stack
   /// glyphs downward from the origin (x centred on the column axis) and
@@ -68,21 +68,22 @@ using ShapedWordRef = std::shared_ptr<const ShapedWord>;
  * FontContext::resolveTypeface); `rightToLeft` selects the HarfBuzz direction
  * and `vertical` shapes top-to-bottom (mutually exclusive with rightToLeft).
  */
-[[nodiscard]] ShapedWordRef
-shapeWord(FontContext &fontContext, const ShapingStyle &style,
-          const sk_sp<SkTypeface> &typeface, std::u16string_view text,
-          ScriptTag script, bool rightToLeft, bool vertical = false);
+[[nodiscard]] ShapedWordRef shapeWord(FontContext& fontContext,
+                                      const ShapingStyle& style,
+                                      const sk_sp<SkTypeface>& typeface,
+                                      std::u16string_view text,
+                                      ScriptTag script, bool rightToLeft,
+                                      bool vertical = false);
 
 /** Returns the shared origin-relative SkTextBlob for `word`, building and
  * memoizing it on first use. Cheap on every call after the first.
  */
-[[nodiscard]] const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word);
+[[nodiscard]] const sk_sp<SkTextBlob>& wordBlob(const ShapedWord& word);
 
 /** SkFont configured the way SigilWeave shapes: unhinted, subpixel, linear
  * metrics — rendering must match shaping or positions drift.
  */
-[[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface> &typeface,
-                              float fontSize, float scaleX = 1.0f,
-                              bool aliased = false);
+[[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize,
+                              float scaleX = 1.0f, bool aliased = false);
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

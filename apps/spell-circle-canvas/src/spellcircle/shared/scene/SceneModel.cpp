@@ -1,21 +1,21 @@
 #include "SceneModel.h"
-#include "SpellCircle_generated.h"
 
 #include <flatbuffers/flatbuffers.h>
 
 #include <unordered_map>
 
+#include "SpellCircle_generated.h"
+
 namespace spellcircle {
 
 namespace {
 
-std::string utf8(const flatbuffers::String *string) {
+std::string utf8(const flatbuffers::String* string) {
   return string ? std::string(string->c_str(), string->size()) : std::string();
 }
 
-CircleComponent toCircleComponent(const SpellCircle::Circle *circle) {
-  if (!circle)
-    return {};
+CircleComponent toCircleComponent(const SpellCircle::Circle* circle) {
+  if (!circle) return {};
   return CircleComponent{
       .name = utf8(circle->name()),
       .centerX = circle->pos() ? circle->pos()->x() : 0.0f,
@@ -35,11 +35,10 @@ CircleComponent toCircleComponent(const SpellCircle::Circle *circle) {
  * fresh duplicate per reference.
  */
 entt::entity getOrCreatePointEntity(
-    entt::registry &registry,
-    std::unordered_map<const SpellCircle::Point *, entt::entity> &pointCache,
-    const SpellCircle::Point *point) {
-  if (!point)
-    return entt::null;
+    entt::registry& registry,
+    std::unordered_map<const SpellCircle::Point*, entt::entity>& pointCache,
+    const SpellCircle::Point* point) {
+  if (!point) return entt::null;
 
   if (const auto cachedPoint = pointCache.find(point);
       cachedPoint != pointCache.end())
@@ -56,18 +55,17 @@ entt::entity getOrCreatePointEntity(
   return entity;
 }
 
-} // namespace
+}  // namespace
 
-bool verifyScenePayload(const void *payload, size_t size) {
-  flatbuffers::Verifier verifier(static_cast<const uint8_t *>(payload), size);
+bool verifyScenePayload(const void* payload, size_t size) {
+  flatbuffers::Verifier verifier(static_cast<const uint8_t*>(payload), size);
   return SpellCircle::VerifySceneBuffer(verifier);
 }
 
-SceneStats SceneDocument::decode(const void *payload, size_t size) {
-  static_cast<void>(size); // structural bounds were checked by the Verifier
-  const auto *scene = SpellCircle::GetScene(payload);
-  if (!scene)
-    return {};
+SceneStats SceneDocument::decode(const void* payload, size_t size) {
+  static_cast<void>(size);  // structural bounds were checked by the Verifier
+  const auto* scene = SpellCircle::GetScene(payload);
+  if (!scene) return {};
 
   m_registry.clear();
   m_sceneWidth = scene->width();
@@ -77,10 +75,10 @@ SceneStats SceneDocument::decode(const void *payload, size_t size) {
 
   // Shared across edges/boxes so a Point referenced by more than one of them
   // resolves to a single entity rather than being duplicated per reference.
-  std::unordered_map<const SpellCircle::Point *, entt::entity> pointCache;
+  std::unordered_map<const SpellCircle::Point*, entt::entity> pointCache;
 
   if (scene->circles()) {
-    for (const auto *circle : *scene->circles()) {
+    for (const auto* circle : *scene->circles()) {
       const entt::entity entity = m_registry.create();
       m_registry.emplace<CircleComponent>(entity, toCircleComponent(circle));
       ++stats.circles;
@@ -88,7 +86,7 @@ SceneStats SceneDocument::decode(const void *payload, size_t size) {
   }
 
   if (scene->edges()) {
-    for (const auto *edge : *scene->edges()) {
+    for (const auto* edge : *scene->edges()) {
       const entt::entity entity = m_registry.create();
       m_registry.emplace<EdgeComponent>(
           entity, EdgeComponent{
@@ -102,7 +100,7 @@ SceneStats SceneDocument::decode(const void *payload, size_t size) {
   }
 
   if (scene->boxes()) {
-    for (const auto *box : *scene->boxes()) {
+    for (const auto* box : *scene->boxes()) {
       const entt::entity entity = m_registry.create();
       m_registry.emplace<BoxComponent>(
           entity, BoxComponent{
@@ -124,4 +122,4 @@ void SceneDocument::clear() {
   m_sceneHeight = 0.0f;
 }
 
-} // namespace spellcircle
+}  // namespace spellcircle

@@ -1,6 +1,8 @@
 #include "NetworkManager.h"
-#include "SpellCircle_generated.h"
-#include "UdpReceiver.h"
+
+#include <flatbuffers/flatbuffers.h>
+#include <spdlog/spdlog.h>
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -9,11 +11,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
-#include <flatbuffers/flatbuffers.h>
-#include <spdlog/spdlog.h>
 
-NetworkManager::NetworkManager(uint16_t port, QObject *parent)
-    : QObject(parent), m_port(port), m_statusText(tr("Stopped")),
+#include "SpellCircle_generated.h"
+#include "UdpReceiver.h"
+
+NetworkManager::NetworkManager(uint16_t port, QObject* parent)
+    : QObject(parent),
+      m_port(port),
+      m_statusText(tr("Stopped")),
       m_receiver(std::make_unique<spellcircle::UdpReceiver>()) {}
 
 NetworkManager::~NetworkManager() {
@@ -24,13 +29,11 @@ NetworkManager::~NetworkManager() {
 
 void NetworkManager::setPort(int port) {
   const auto boundedPort = static_cast<uint16_t>(qBound(1, port, 65535));
-  if (m_port == boundedPort)
-    return;
+  if (m_port == boundedPort) return;
   m_port = boundedPort;
   emit portChanged();
 
-  if (m_listening)
-    start();
+  if (m_listening) start();
 }
 
 bool NetworkManager::start() {
@@ -39,9 +42,8 @@ bool NetworkManager::start() {
   // thread — hop onto this object's thread before touching any state; the
   // queued call is dropped automatically if this object is destroyed first.
   const std::string error = m_receiver->start(
-      m_port,
-      [this](std::vector<std::uint8_t> payload, std::string source) {
-        QByteArray bytes(reinterpret_cast<const char *>(payload.data()),
+      m_port, [this](std::vector<std::uint8_t> payload, std::string source) {
+        QByteArray bytes(reinterpret_cast<const char*>(payload.data()),
                          static_cast<qsizetype>(payload.size()));
         QString sourceText = QString::fromStdString(source);
         QMetaObject::invokeMethod(
@@ -73,10 +75,10 @@ void NetworkManager::stop() {
   setStatusText(tr("Stopped"));
 }
 
-void NetworkManager::deliverDatagram(const QString &source,
-                                     const QByteArray &payload) {
+void NetworkManager::deliverDatagram(const QString& source,
+                                     const QByteArray& payload) {
   flatbuffers::Verifier verifier(
-      reinterpret_cast<const uint8_t *>(payload.constData()),
+      reinterpret_cast<const uint8_t*>(payload.constData()),
       static_cast<size_t>(payload.size()));
   if (!SpellCircle::VerifySceneBuffer(verifier)) {
     spdlog::warn("Dropped invalid SpellCircle buffer from {}",
@@ -88,15 +90,13 @@ void NetworkManager::deliverDatagram(const QString &source,
 }
 
 void NetworkManager::setListening(bool listening) {
-  if (m_listening == listening)
-    return;
+  if (m_listening == listening) return;
   m_listening = listening;
   emit listeningChanged();
 }
 
-void NetworkManager::setStatusText(const QString &statusText) {
-  if (m_statusText == statusText)
-    return;
+void NetworkManager::setStatusText(const QString& statusText) {
+  if (m_statusText == statusText) return;
   m_statusText = statusText;
   emit statusTextChanged();
 }
@@ -117,8 +117,7 @@ bool NetworkManager::load() {
     // first save() writes the per-user location, which wins from then on —
     // settings stored next to the binary migrate on the next save.
     const QString legacyPath = legacyConfigFilePath();
-    if (QFile::exists(legacyPath))
-      path = legacyPath;
+    if (QFile::exists(legacyPath)) path = legacyPath;
   }
 
   QFile file(path);
@@ -136,8 +135,7 @@ bool NetworkManager::load() {
   }
 
   const QJsonObject rootObject = document.object();
-  if (rootObject.contains("port"))
-    setPort(rootObject["port"].toInt(m_port));
+  if (rootObject.contains("port")) setPort(rootObject["port"].toInt(m_port));
   return true;
 }
 

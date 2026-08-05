@@ -42,8 +42,8 @@ namespace sigil::weave {
 
 /// One OpenType feature setting, e.g. {"liga", 0} to disable ligatures.
 struct FontFeature {
-  char tag[4] = {' ', ' ', ' ', ' '}; ///< OpenType feature tag, unterminated
-  uint32_t value = 1; ///< 0 disables, 1 enables, higher selects alternates
+  char tag[4] = {' ', ' ', ' ', ' '};  ///< OpenType feature tag, unterminated
+  uint32_t value = 1;  ///< 0 disables, 1 enables, higher selects alternates
 
   /** Creates the default enabled feature with a blank tag. */
   constexpr FontFeature() = default;
@@ -52,7 +52,7 @@ struct FontFeature {
       : tag{featureTag[0], featureTag[1], featureTag[2], featureTag[3]},
         value(featureValue) {}
   /** Compares the tag and configured value. */
-  constexpr bool operator==(const FontFeature &) const = default;
+  constexpr bool operator==(const FontFeature&) const = default;
 };
 
 /// One variable-font axis override, e.g. {"wght", 650}. Applied to a
@@ -60,8 +60,8 @@ struct FontFeature {
 /// the varied SkTypeface clone so identical (typeface, variations) pairs
 /// share one instance — and therefore one shape-cache identity.
 struct FontVariation {
-  char tag[4] = {' ', ' ', ' ', ' '}; ///< OpenType axis tag, unterminated
-  float value = 0;                    ///< design-space coordinate on the axis
+  char tag[4] = {' ', ' ', ' ', ' '};  ///< OpenType axis tag, unterminated
+  float value = 0;                     ///< design-space coordinate on the axis
 
   /** Creates a blank axis setting. */
   constexpr FontVariation() = default;
@@ -69,7 +69,7 @@ struct FontVariation {
   constexpr FontVariation(const char (&axisTag)[5], float axisValue)
       : tag{axisTag[0], axisTag[1], axisTag[2], axisTag[3]}, value(axisValue) {}
   /** Compares the axis tag and design-space value. */
-  constexpr bool operator==(const FontVariation &) const = default;
+  constexpr bool operator==(const FontVariation&) const = default;
 };
 
 /// Case transformation applied to a span's text just before shaping (CSS
@@ -98,11 +98,11 @@ enum class TextTransform : uint8_t {
 /// (Paragraph::setWritingMode(WritingMode::kVerticalRL)). Ignored in
 /// horizontal paragraphs.
 enum class VerticalForm : uint8_t {
-  kAuto,        ///< UTR#50 per character: CJK upright, Latin rotated
-  kUpright,     ///< force upright (TTB shaping, 'vert' forms)
-  kRotated,     ///< force rotated 90° clockwise (book-spine Latin)
-  kTateChuYoko, ///< 縦中横: shaped horizontally, set upright in the column —
-                ///< for short runs like two-digit numbers in vertical prose
+  kAuto,         ///< UTR#50 per character: CJK upright, Latin rotated
+  kUpright,      ///< force upright (TTB shaping, 'vert' forms)
+  kRotated,      ///< force rotated 90° clockwise (book-spine Latin)
+  kTateChuYoko,  ///< 縦中横: shaped horizontally, set upright in the column —
+                 ///< for short runs like two-digit numbers in vertical prose
 };
 
 /// The subset of style that affects glyph selection and metrics. These
@@ -111,10 +111,10 @@ enum class VerticalForm : uint8_t {
 /// already-positioned glyphs are painted belongs in PaintStyle instead and
 /// never invalidates shaping.
 struct ShapingStyle {
-  sk_sp<SkTypeface> typeface; ///< null → FontContext's default (+ fallback)
-  float fontSize = 16.0f;     ///< pixels in the target canvas coordinate space
-  float letterSpacing = 0.0f; ///< px of tracking added after each cluster
-                              ///< (in vertical text this is JIS "aki")
+  sk_sp<SkTypeface> typeface;  ///< null → FontContext's default (+ fallback)
+  float fontSize = 16.0f;      ///< pixels in the target canvas coordinate space
+  float letterSpacing = 0.0f;  ///< px of tracking added after each cluster
+                               ///< (in vertical text this is JIS "aki")
   /// Horizontal glyph condensation (CSS font-stretch by transform): glyph
   /// shapes AND advances scale by this on the x axis. It is how a face with
   /// no `wdth` axis is condensed or extended. Letter-spacing is NOT scaled
@@ -132,8 +132,8 @@ struct ShapingStyle {
   /// substitutions. It is deliberately part of the shape key: even when the
   /// resolved typeface is unchanged, language can change its emitted glyphs.
   /// Bidi direction is analyzed separately and does not come from this tag.
-  std::string languageTag; ///< e.g. "ja", "sr", "zh-Hant"; empty → default
-  std::vector<FontFeature> fontFeatures; ///< passed to HarfBuzz verbatim
+  std::string languageTag;  ///< e.g. "ja", "sr", "zh-Hant"; empty → default
+  std::vector<FontFeature> fontFeatures;  ///< passed to HarfBuzz verbatim
   /// Design-space overrides applied to `typeface` (or the context default)
   /// before shaping — the ergonomic alternative to pre-building a varied
   /// SkTypeface via SkFontArguments yourself. Resolution goes through
@@ -146,8 +146,8 @@ struct ShapingStyle {
   /// Case transformation applied before shaping; see TextTransform for the
   /// cache and hit-testing story.
   TextTransform textTransform = TextTransform::kNone;
-  VerticalForm verticalForm = VerticalForm::kAuto; ///< ignored in horizontal
-                                                   ///< paragraphs
+  VerticalForm verticalForm = VerticalForm::kAuto;  ///< ignored in horizontal
+                                                    ///< paragraphs
 
   /** Draw glyphs with HARD edges — no antialiasing.
    *
@@ -164,7 +164,7 @@ struct ShapingStyle {
   bool aliased = false;
 
   /** Compares every input that participates in shaping identity. */
-  bool operator==(const ShapingStyle &other) const {
+  bool operator==(const ShapingStyle& other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
            scaleX == other.scaleX && aliased == other.aliased &&
@@ -186,8 +186,8 @@ struct ShapingStyle {
  * highlights cheap without saveLayer().
  */
 struct PaintLayer {
-  SkPaint paint;            ///< applied as configured — nothing is overridden
-  SkVector offset = {0, 0}; ///< px translation of this pass only
+  SkPaint paint;             ///< applied as configured — nothing is overridden
+  SkVector offset = {0, 0};  ///< px translation of this pass only
 
   /** Constructs an anti-aliased black fill pass. */
   PaintLayer() { paint.setAntiAlias(true); }
@@ -220,9 +220,8 @@ struct PaintLayer {
    * new hex value; values above 1 are clamped to fully opaque.
    */
   static PaintLayer dropShadow(SkColor color = 0x66000000,
-                               SkVector offset = {2, 2},
-                               float blurSigma = 2.0f, float spread = 0.0f,
-                               float intensity = 1.0f) {
+                               SkVector offset = {2, 2}, float blurSigma = 2.0f,
+                               float spread = 0.0f, float intensity = 1.0f) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setColor(color);
@@ -241,7 +240,7 @@ struct PaintLayer {
   /** Preset: a zero-offset blurred copy, normally used as an underlay. See
    *  dropShadow() for what `spread` and `intensity` control. */
   static PaintLayer glow(SkColor color, float blurSigma, float spread = 0.0f,
-                        float intensity = 1.0f) {
+                         float intensity = 1.0f) {
     return dropShadow(color, {0, 0}, blurSigma, spread, intensity);
   }
 
@@ -258,7 +257,7 @@ struct PaintLayer {
   }
 
   /** SkPaint compares every scalar and effect-object identity. */
-  bool operator==(const PaintLayer &other) const {
+  bool operator==(const PaintLayer& other) const {
     return paint == other.paint && offset == other.offset;
   }
 };
@@ -310,12 +309,12 @@ struct Decoration {
   };
   /// How far one band extends along the line.
   enum class Span : uint8_t {
-    kDecoratedRange, ///< merge contiguous same-style runs, covering gaps
-    kPerWord,        ///< one band per word run; breaks at every gap
+    kDecoratedRange,  ///< merge contiguous same-style runs, covering gaps
+    kPerWord,         ///< one band per word run; breaks at every gap
   };
 
-  Kind kind = Kind::kUnderline; ///< only underlines honor `skipInk`
-  Span span = Span::kDecoratedRange; ///< continuous band vs one per word
+  Kind kind = Kind::kUnderline;       ///< only underlines honor `skipInk`
+  Span span = Span::kDecoratedRange;  ///< continuous band vs one per word
   /// SK_ColorTRANSPARENT → the resolved foreground paint's color — except
   /// for kHighlight, where an opaque foreground would hide the text, so it
   /// resolves to the foreground color at quarter alpha instead.
@@ -341,7 +340,7 @@ struct Decoration {
 
   /** Compares kind, span, fill (color and paint override), geometry
    * overrides, and ink skipping. */
-  bool operator==(const Decoration &) const = default;
+  bool operator==(const Decoration&) const = default;
 };
 
 /** Draw-time glyph appearance with explicit composition order.
@@ -354,9 +353,9 @@ struct Decoration {
  * Paragraph::setPaint() is visible to an existing ParagraphLayout.
  */
 struct PaintStyle {
-  SkPaint foreground; ///< the main glyph pass, drawn between the layer lists
-  std::vector<PaintLayer> underlays; ///< drawn in order beneath `foreground`
-  std::vector<PaintLayer> overlays;  ///< drawn in order above `foreground`
+  SkPaint foreground;  ///< the main glyph pass, drawn between the layer lists
+  std::vector<PaintLayer> underlays;  ///< drawn in order beneath `foreground`
+  std::vector<PaintLayer> overlays;   ///< drawn in order above `foreground`
   /// Line decorations in vector order — highlights beneath every glyph
   /// pass, the rest above them. See Decoration for band defaults, range
   /// vs per-word spanning, and the straight-horizontal-runs-only scope.
@@ -372,25 +371,25 @@ struct PaintStyle {
   explicit PaintStyle(SkPaint paint) : foreground(std::move(paint)) {}
 
   /** Appends a pass behind the foreground and returns this style. */
-  PaintStyle &addUnderlay(PaintLayer layer) {
+  PaintStyle& addUnderlay(PaintLayer layer) {
     underlays.push_back(std::move(layer));
     return *this;
   }
 
   /** Appends a pass above the foreground and returns this style. */
-  PaintStyle &addOverlay(PaintLayer layer) {
+  PaintStyle& addOverlay(PaintLayer layer) {
     overlays.push_back(std::move(layer));
     return *this;
   }
 
   /** Appends a line decoration and returns this style. */
-  PaintStyle &addDecoration(Decoration decoration) {
+  PaintStyle& addDecoration(Decoration decoration) {
     decorations.push_back(std::move(decoration));
     return *this;
   }
 
   /** Compares complete paints, layer order, offsets, and decorations. */
-  bool operator==(const PaintStyle &other) const {
+  bool operator==(const PaintStyle& other) const {
     return foreground == other.foreground && underlays == other.underlays &&
            overlays == other.overlays && decorations == other.decorations;
   }
@@ -398,15 +397,15 @@ struct PaintStyle {
 
 /** Combines cache-affecting shaping state with draw-time paint state. */
 struct TextStyle {
-  ShapingStyle shaping; ///< changes re-shape the covered words
-  PaintStyle paint;     ///< changes never re-shape or relayout
+  ShapingStyle shaping;  ///< changes re-shape the covered words
+  PaintStyle paint;      ///< changes never re-shape or relayout
 
   /** Sets or replaces one variable-font axis (fluent sugar over
    *  `shaping.variations`). Replaces in place when the axis is already
    *  present — repeated calls stay order-stable, so styles built by the
    *  same call sequence share one varied-typeface memo entry. */
-  TextStyle &variation(const char (&tag)[5], float value) {
-    for (FontVariation &v : shaping.variations)
+  TextStyle& variation(const char (&tag)[5], float value) {
+    for (FontVariation& v : shaping.variations)
       if (v.tag[0] == tag[0] && v.tag[1] == tag[1] && v.tag[2] == tag[2] &&
           v.tag[3] == tag[3]) {
         v.value = value;
@@ -422,20 +421,20 @@ struct TextStyle {
    *  without re-shaping, use a face with an advance-invariant axis (`GRAD`
    *  on the faces that have it) and drive it at draw time through
    *  ParagraphLayout::LiveVariations instead of setting it here. */
-  TextStyle &weight(float wght) { return variation("wght", wght); }
+  TextStyle& weight(float wght) { return variation("wght", wght); }
   /** The optical-size axis, fluently: `style.opticalSize(72)`. */
-  TextStyle &opticalSize(float opsz) { return variation("opsz", opsz); }
+  TextStyle& opticalSize(float opsz) { return variation("opsz", opsz); }
   /** Horizontal condensation, fluently: `style.condense(0.82f)` — see
    *  ShapingStyle::scaleX. */
-  TextStyle &condense(float sx) {
+  TextStyle& condense(float sx) {
     shaping.scaleX = sx;
     return *this;
   }
 
   /** Compares both shaping and paint configuration. */
-  bool operator==(const TextStyle &other) const {
+  bool operator==(const TextStyle& other) const {
     return shaping == other.shaping && paint == other.paint;
   }
 };
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

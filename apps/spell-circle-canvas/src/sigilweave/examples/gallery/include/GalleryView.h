@@ -12,8 +12,6 @@
 // exactly once, render-side) and ships control state across in
 // synchronize(), which runs with the GUI thread blocked.
 
-#include "GalleryScenes.h"
-
 #include <QElapsedTimer>
 #include <QHash>
 #include <QQuickRhiItem>
@@ -21,10 +19,11 @@
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
-
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+#include "GalleryScenes.h"
 
 class GalleryView : public QQuickRhiItem {
   Q_OBJECT
@@ -42,8 +41,8 @@ class GalleryView : public QQuickRhiItem {
   // ever land on this view again.
   Q_PROPERTY(QVariantList sceneParameters READ sceneParameters NOTIFY
                  sceneIndexChanged)
-  Q_PROPERTY(QUrl sceneControlsQml READ sceneControlsQml NOTIFY
-                 sceneIndexChanged)
+  Q_PROPERTY(
+      QUrl sceneControlsQml READ sceneControlsQml NOTIFY sceneIndexChanged)
   Q_PROPERTY(QVariantMap sceneParameterValues READ sceneParameterValues NOTIFY
                  sceneParameterValuesChanged)
   Q_PROPERTY(QString sceneText READ sceneText WRITE setSceneText NOTIFY
@@ -63,12 +62,12 @@ class GalleryView : public QQuickRhiItem {
   Q_PROPERTY(bool gpu READ gpu WRITE setGpu NOTIFY gpuChanged)
   Q_PROPERTY(QString stats READ stats NOTIFY statsChanged)
 
-public:
-  explicit GalleryView(QQuickItem *parent = nullptr);
+ public:
+  explicit GalleryView(QQuickItem* parent = nullptr);
   ~GalleryView() override;
 
   /** Creates the render-thread counterpart for this item. */
-  QQuickRhiItemRenderer *createRenderer() override;
+  QQuickRhiItemRenderer* createRenderer() override;
 
   /** Returns gallery scene names in switcher order. */
   QStringList sceneNames() const;
@@ -90,15 +89,15 @@ public:
   QVariantMap sceneParameterValues() const;
   /** Sets one scene parameter, clamped to its declared range. Values are
    *  kept per scene, so tweaks survive switching scenes and back. */
-  Q_INVOKABLE void setSceneParameter(const QString &id, const QVariant &value);
+  Q_INVOKABLE void setSceneParameter(const QString& id, const QVariant& value);
   /** Returns the current scene text override. */
   QString sceneText() const { return m_sceneText; }
   /** Sets the current scene text override. */
-  void setSceneText(const QString &text);
+  void setSceneText(const QString& text);
   /** Returns the selected font family. */
   QString fontFamily() const { return m_fontFamily; }
   /** Selects a font family for scenes that use panel typography. */
-  void setFontFamily(const QString &family);
+  void setFontFamily(const QString& family);
   /** Returns the selected font size in points. */
   qreal fontSize() const { return m_fontSize; }
   /** Selects the font size in points. */
@@ -108,7 +107,7 @@ public:
   /** Returns current design coordinates keyed by four-character axis tag. */
   QVariantMap fontAxisValues() const;
   /** Sets one variable-font design coordinate, clamped to its axis range. */
-  Q_INVOKABLE void setFontAxisValue(const QString &tag, qreal value);
+  Q_INVOKABLE void setFontAxisValue(const QString& tag, qreal value);
   /** Returns the index into the gallery's text-alignment choices. */
   int alignmentIndex() const { return m_alignmentIndex; }
   /** Selects one of the gallery's text alignments. */
@@ -126,7 +125,7 @@ public:
   /** Returns the latest formatted rendering statistics. */
   QString stats() const { return m_stats; }
 
-signals:
+ signals:
   void sceneIndexChanged();
   void animatingChanged();
   void sceneTextChanged();
@@ -140,11 +139,11 @@ signals:
   void gpuChanged();
   void statsChanged();
 
-protected:
+ protected:
   /** Queues a click for delivery to the render-thread scene. */
-  void mousePressEvent(QMouseEvent *event) override;
+  void mousePressEvent(QMouseEvent* event) override;
 
-private:
+ private:
   friend class GalleryViewRenderer;
 
   struct FontAxis {
@@ -155,13 +154,13 @@ private:
     float maximum = 0;
     float value = 0;
     bool hidden = false;
-    bool operator==(const FontAxis &) const = default;
+    bool operator==(const FontAxis&) const = default;
   };
 
   void refreshFontAxes();
   /** Returns the active scene's parameter values, seeding defaults on
    *  first access. */
-  const QVariantMap &parameterValuesForScene(int sceneIndex) const;
+  const QVariantMap& parameterValuesForScene(int sceneIndex) const;
 
   int m_sceneIndex = 0;
   bool m_animating = true;
@@ -170,13 +169,13 @@ private:
   qreal m_fontSize = 17.0;
   std::vector<FontAxis> m_fontAxes;
   uint64_t m_fontAxesRevision = 0;
-  int m_alignmentIndex = 3; // kJustify
-  int m_lineBreakStrategyIndex = 0; // kGreedy
+  int m_alignmentIndex = 3;          // kJustify
+  int m_lineBreakStrategyIndex = 0;  // kGreedy
   // Parameter values per scene index, seeded from descriptor defaults on
   // first access; mutable because the seeding happens in const getters.
   mutable QHash<int, QVariantMap> m_sceneParameterValues;
   uint64_t m_sceneParameterRevision = 0;
-  bool m_gpu = true;                // Graphite when available
+  bool m_gpu = true;  // Graphite when available
   std::vector<SkPoint> m_pendingClicks;
 
   QTimer m_timer;

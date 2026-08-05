@@ -30,14 +30,14 @@
  * positions come from an angle convention rather than an arc length.
  */
 
-#include "sigilcompose/Shapes.h"
-#include "sigilcompose/kit/Frame.h"
-
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <functional>
+
+#include "sigilcompose/Shapes.h"
+#include "sigilcompose/kit/Frame.h"
 
 namespace sigil::compose::kit {
 
@@ -45,7 +45,7 @@ namespace sigil::compose::kit {
 struct Span {
   float inner = 0.92f;
   float outer = 1.0f;
-  bool operator==(const Span &) const = default;
+  bool operator==(const Span&) const = default;
 };
 
 /** A radial division ladder.
@@ -103,9 +103,8 @@ struct Ticks {
 
   /** Field-wise, with the classifier conservative: any classify present
    *  means "not provably the same ladder". */
-  bool operator==(const Ticks &o) const {
-    if (classify || o.classify)
-      return false;
+  bool operator==(const Ticks& o) const {
+    if (classify || o.classify) return false;
     return divisions == o.divisions && from == o.from && sweep == o.sweep &&
            closed == o.closed && mark == o.mark && longEvery == o.longEvery &&
            longMark == o.longMark;
@@ -114,19 +113,16 @@ struct Ticks {
 
 /** The ladder as a path in the FRAME's parent space (absolute coordinates:
  *  `frame.centre` is where it says it is). */
-inline SkPath ticks(const Frame &frame, const Ticks &t) {
+inline SkPath ticks(const Frame& frame, const Ticks& t) {
   SkPathBuilder b;
   const int n = std::max(0, t.divisions);
-  if (n == 0)
-    return b.detach();
+  if (n == 0) return b.detach();
   const int count = t.closed ? n + 1 : n;
   const float step = n > 0 ? t.sweep / (float)n : 0.0f;
   for (int i = 0; i < count; ++i) {
     Span s = (t.longEvery > 0 && i % t.longEvery == 0) ? t.longMark : t.mark;
-    if (t.classify)
-      s = t.classify(i, s);
-    if (s.inner == s.outer)
-      continue;
+    if (t.classify) s = t.classify(i, s);
+    if (s.inner == s.outer) continue;
     const float deg = t.from + step * (float)i;
     b.moveTo(frame.at(deg, s.inner));
     b.lineTo(frame.at(deg, s.outer));
@@ -152,7 +148,7 @@ inline SkPath ticks(const Frame &frame, const Ticks &t) {
 struct TicksShape {
   Ticks t;
   Frame conventions;
-  bool operator==(const TicksShape &) const = default;
+  bool operator==(const TicksShape&) const = default;
   SkPath path(SkSize size) const {
     Frame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
@@ -162,7 +158,7 @@ struct TicksShape {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline TicksShape ticks(const Ticks &t, Frame conventions = {}) {
+inline TicksShape ticks(const Ticks& t, Frame conventions = {}) {
   return TicksShape{t, conventions};
 }
 
@@ -207,10 +203,10 @@ struct Chords {
    *  addressable-per-side form TextPath wants. */
   bool closed = false;
 
-  bool operator==(const Chords &) const = default;
+  bool operator==(const Chords&) const = default;
 };
 
-inline SkPath chords(const Frame &frame, const Chords &c) {
+inline SkPath chords(const Frame& frame, const Chords& c) {
   SkPathBuilder b;
   const int n = std::max(2, c.sides);
   const int step = std::max(1, c.step);
@@ -223,8 +219,7 @@ inline SkPath chords(const Frame &frame, const Chords &c) {
     // ring the step generates. gcd(n, step) rings, n/gcd vertices each.
     std::vector<bool> seen((size_t)n, false);
     for (int start = 0; start < n; ++start) {
-      if (seen[(size_t)start])
-        continue;
+      if (seen[(size_t)start]) continue;
       int k = start;
       bool first = true;
       do {
@@ -243,8 +238,7 @@ inline SkPath chords(const Frame &frame, const Chords &c) {
     if (c.inset > 0) {
       const SkVector d{z.fX - a.fX, z.fY - a.fY};
       const float len = std::hypot(d.fX, d.fY);
-      if (len <= 2 * c.inset)
-        continue;
+      if (len <= 2 * c.inset) continue;
       const SkVector u{d.fX / len, d.fY / len};
       a = {a.fX + u.fX * c.inset, a.fY + u.fY * c.inset};
       z = {z.fX - u.fX * c.inset, z.fY - u.fY * c.inset};
@@ -263,7 +257,7 @@ inline SkPath chords(const Frame &frame, const Chords &c) {
 struct ChordsShape {
   Chords c;
   Frame conventions;
-  bool operator==(const ChordsShape &) const = default;
+  bool operator==(const ChordsShape&) const = default;
   SkPath path(SkSize size) const {
     Frame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
@@ -273,8 +267,8 @@ struct ChordsShape {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline ChordsShape chords(const Chords &c, Frame conventions = {}) {
+inline ChordsShape chords(const Chords& c, Frame conventions = {}) {
   return ChordsShape{c, conventions};
 }
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

@@ -1,26 +1,26 @@
 #include "sigilworld/World.h"
 
-#include "sigilworld/Animation.h"
-#include "sigilworld/Components.h"
-
-#include <sigilshape/detail/VecMath.h>
-
-#include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
+#include <sigilshape/detail/VecMath.h>
+
+#include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 
-#ifdef SIGILWORLD_POP_SPIRV
-#include "world_pop_spirv.h"
-#include "shaders/WorldShaderParams.h"
+#include "sigilworld/Animation.h"
+#include "sigilworld/Components.h"
 
+#ifdef SIGILWORLD_POP_SPIRV
 #include <glm/gtc/type_ptr.hpp>
+
+#include "shaders/WorldShaderParams.h"
+#include "world_pop_spirv.h"
 
 namespace {
 /** The compiled compute kernel for @p entry; null when absent. */
-const unsigned char *findSpirv(const char *entry, size_t *size) {
-  for (const auto &blob : kWorldPopSpirv)
+const unsigned char* findSpirv(const char* entry, size_t* size) {
+  for (const auto& blob : kWorldPopSpirv)
     if (std::strcmp(blob.name, entry) == 0) {
       *size = blob.size;
       return blob.data;
@@ -28,11 +28,11 @@ const unsigned char *findSpirv(const char *entry, size_t *size) {
   *size = 0;
   return nullptr;
 }
-} // namespace
+}  // namespace
 #endif
 
 #ifndef SIGILWORLD_POP_SPIRV
-#include <include/core/SkTypes.h> // SkDebugf — the missing-kernels diagnostic
+#include <include/core/SkTypes.h>  // SkDebugf — the missing-kernels diagnostic
 
 namespace {
 /** Announces once per process that the compute generators cannot run.
@@ -40,15 +40,15 @@ namespace {
  *  all of them. */
 void warnComputeKernelsUnavailable() {
   static bool warned = false;
-  if (warned)
-    return;
+  if (warned) return;
   warned = true;
-  SkDebugf("[world] compute kernels unavailable: this build was configured "
-           "without slangc, so no SPIR-V compute shaders were embedded. "
-           "addSweep, addFlock, addPoints and addPointsOn return 0; surface "
-           "rendering is unaffected.\n");
+  SkDebugf(
+      "[world] compute kernels unavailable: this build was configured "
+      "without slangc, so no SPIR-V compute shaders were embedded. "
+      "addSweep, addFlock, addPoints and addPointsOn return 0; surface "
+      "rendering is unaffected.\n");
 }
-} // namespace
+}  // namespace
 #endif
 
 #include <include/core/SkBitmap.h>
@@ -82,7 +82,7 @@ struct Mat4 {
   float m[16];
 };
 
-Mat4 colMajor(const glm::mat4 &src) {
+Mat4 colMajor(const glm::mat4& src) {
   Mat4 out;
   std::memcpy(out.m, glm::value_ptr(src), sizeof(out.m));
   return out;
@@ -94,10 +94,9 @@ Mat4 colMajor(const glm::mat4 &src) {
  *  There is deliberately NO Vulkan clip-y flip. The backend normalizes to
  *  the GL/D3D convention internally, so +y up in clip space is already
  *  correct and adding a flip here would render the scene upside down. */
-glm::mat4 perspectiveVk(float fovYDeg, float aspect, float zNear,
-                        float zFar) {
+glm::mat4 perspectiveVk(float fovYDeg, float aspect, float zNear, float zFar) {
   const float f = 1.0f / std::tan(fovYDeg * (float)M_PI / 360.0f);
-  glm::mat4 m(0.0f); // glm indexes [column][row]
+  glm::mat4 m(0.0f);  // glm indexes [column][row]
   m[0][0] = f / aspect;
   m[1][1] = f;
   m[2][2] = zFar / (zNear - zFar);
@@ -107,11 +106,10 @@ glm::mat4 perspectiveVk(float fovYDeg, float aspect, float zNear,
 }
 
 /** Classic normal matrix: (M^-1)^T in column-major memory. */
-Mat4 normalMatrix(const glm::mat4 &model) {
+Mat4 normalMatrix(const glm::mat4& model) {
   const float det = glm::determinant(model);
-  const glm::mat4 inv = std::abs(det) < 1e-12f
-                            ? glm::mat4(1.0f)
-                            : glm::inverse(model);
+  const glm::mat4 inv =
+      std::abs(det) < 1e-12f ? glm::mat4(1.0f) : glm::inverse(model);
   return colMajor(glm::transpose(inv));
 }
 
@@ -332,9 +330,9 @@ struct FrameConstants {
   float sunColor[4];
   float skyColor[4];
   float groundColor[4];
-  float params[4];                  // x ambient, y light count
-  float lightPos[kLightBudget][4];  // xyz pos/dir, w 1=point
-  float lightColor[kLightBudget][4]; // rgb premultiplied intensity, w range
+  float params[4];                    // x ambient, y light count
+  float lightPos[kLightBudget][4];    // xyz pos/dir, w 1=point
+  float lightColor[kLightBudget][4];  // rgb premultiplied intensity, w range
 };
 
 struct DrawConstants {
@@ -350,7 +348,7 @@ struct Vertex {
   float pos[3];
   float normal[3];
   float uv[2];
-  float color[4]; // baked mesh color lane, white when absent
+  float color[4];  // baked mesh color lane, white when absent
 };
 
 /** The per-instance vertex stream: 3x4 transform rows + tint —
@@ -360,7 +358,7 @@ struct InstanceAttribs {
   float row1[4];
   float row2[4];
   float tint[4];
-  float tex[4]; // uv window: xy offset, zw scale (identity default)
+  float tex[4];  // uv window: xy offset, zw scale (identity default)
 };
 
 // Orientation basis for a point's direction. This is the same function
@@ -369,15 +367,15 @@ struct InstanceAttribs {
 // or drawn as GPU instances.
 using shape::detail::basisFor;
 
-std::vector<InstanceAttribs> buildInstances(const shape::Cloud &cloud,
-                                            const InstanceLanes &lanes) {
-  const std::vector<float> *scaleLane =
+std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
+                                            const InstanceLanes& lanes) {
+  const std::vector<float>* scaleLane =
       lanes.scaleLane.empty() ? nullptr : cloud.scalarIf(lanes.scaleLane);
-  const std::vector<glm::vec4> *tintLane =
+  const std::vector<glm::vec4>* tintLane =
       lanes.tintLane.empty() ? nullptr : cloud.colorIf(lanes.tintLane);
-  const std::vector<glm::vec3> *orientLane =
+  const std::vector<glm::vec3>* orientLane =
       lanes.orientLane.empty() ? nullptr : cloud.vectorIf(lanes.orientLane);
-  const std::vector<glm::vec4> *texLane = cloud.colorIf("Tex");
+  const std::vector<glm::vec4>* texLane = cloud.colorIf("Tex");
 
   std::vector<InstanceAttribs> out(cloud.size());
   for (size_t i = 0; i < cloud.size(); ++i) {
@@ -388,7 +386,7 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud &cloud,
     if (orientLane && i < orientLane->size())
       basisFor((*orientLane)[i], lanes.up, &bx, &by, &bz);
     const glm::vec3 p = cloud.positions[i];
-    InstanceAttribs &a = out[i];
+    InstanceAttribs& a = out[i];
     a.row0[0] = bx.x * s;
     a.row0[1] = by.x * s;
     a.row0[2] = bz.x * s;
@@ -404,9 +402,8 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud &cloud,
     const glm::vec4 tint = tintLane && i < tintLane->size()
                                ? (*tintLane)[i]
                                : glm::vec4{1, 1, 1, 1};
-    const glm::vec4 tex = texLane && i < texLane->size()
-                              ? (*texLane)[i]
-                              : glm::vec4{0, 0, 1, 1};
+    const glm::vec4 tex =
+        texLane && i < texLane->size() ? (*texLane)[i] : glm::vec4{0, 0, 1, 1};
     a.tex[0] = tex.x;
     a.tex[1] = tex.y;
     a.tex[2] = tex.z;
@@ -419,7 +416,7 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud &cloud,
   return out;
 }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 
@@ -463,8 +460,6 @@ struct SweepComponent {
 // views of these structs cannot drift apart.
 using SweepParams = shaderparams::SweepParamsData;
 
-
-
 /** addFlock()'s private state, the flock counterpart of SweepComponent:
  *  the loop on the GPU plus the compute binding that packs the instanced
  *  draw stream in place. */
@@ -483,8 +478,6 @@ struct FlockComponent {
 
 using FlockParams = shaderparams::FlockParamsData;
 
-
-
 /** addPoints()'s private state: the chain (a value — the
  *  nondestructive description), the GPU attribute lanes it cooks into,
  *  and one shader resource binding per operator. The bindings cannot be
@@ -499,45 +492,42 @@ struct PopComponent {
    *  type: the GPU counterpart of the CPU executor's named attribute
    *  store. */
   dg::RefCntAutoPtr<dg::IBuffer> lanes;
-  dg::RefCntAutoPtr<dg::IBuffer> scratch; // Relax reads/writes alternately
+  dg::RefCntAutoPtr<dg::IBuffer> scratch;  // Relax reads/writes alternately
   /** Every Lookup op's stop table, concatenated in chain order; each
    *  dispatch gets its own (offset, count). Always non-null — a
    *  chain with no Lookup still binds a one-element placeholder. */
   dg::RefCntAutoPtr<dg::IBuffer> table;
-  std::vector<glm::vec4> tableData; ///< exactly what `table` holds
+  std::vector<glm::vec4> tableData;  ///< exactly what `table` holds
   std::vector<std::string> customNames;
   std::vector<dg::RefCntAutoPtr<dg::IShaderResourceBinding>> srbs;
-  entt::entity upstream = entt::null; ///< device-resident compose
+  entt::entity upstream = entt::null;  ///< device-resident compose
   int count = 0;
   int loopCount = 0;
   bool dirty = true;
 
-  int slotFor(const World::pop::AttrRef &attr) const {
+  int slotFor(const World::pop::AttrRef& attr) const {
     const int32_t builtin = World::pop::builtinIndex(attr);
-    if (builtin >= 0)
-      return builtin;
+    if (builtin >= 0) return builtin;
     for (size_t i = 0; i < customNames.size(); ++i)
       if (customNames[i] == attr.name)
         return World::pop::kBuiltinSlots + (int)i;
-    return 0; // unreachable when customNames covers the chain
+    return 0;  // unreachable when customNames covers the chain
   }
 };
 
 /** Every attribute name a chain touches beyond the builtins, in
  *  first-appearance order — the arena's custom slot assignment. */
-std::vector<std::string> popCustomNames(const World::pop::Chain &chain) {
+std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
   std::vector<std::string> names;
-  const auto note = [&](const World::pop::AttrRef &attr) {
-    if (World::pop::builtinIndex(attr) >= 0)
-      return;
-    for (const std::string &existing : names)
-      if (existing == attr.name)
-        return;
+  const auto note = [&](const World::pop::AttrRef& attr) {
+    if (World::pop::builtinIndex(attr) >= 0) return;
+    for (const std::string& existing : names)
+      if (existing == attr.name) return;
     names.push_back(attr.name);
   };
-  for (const World::pop::Op &op : chain)
+  for (const World::pop::Op& op : chain)
     std::visit(
-        [&](const auto &o) {
+        [&](const auto& o) {
           using T = std::decay_t<decltype(o)>;
           if constexpr (requires { o.lane; })
             note(o.lane);
@@ -556,8 +546,6 @@ std::vector<std::string> popCustomNames(const World::pop::Chain &chain) {
 
 using PopParams = shaderparams::PopParamsData;
 
-
-
 struct World::Impl {
   WorldConfig config;
   shape::space::Camera camera;
@@ -566,8 +554,8 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::IRenderDevice> device;
   dg::RefCntAutoPtr<dg::IDeviceContext> context;
 
-  dg::RefCntAutoPtr<dg::ITexture> colorTarget;   // MSAA when enabled
-  dg::RefCntAutoPtr<dg::ITexture> resolveTarget; // single-sample
+  dg::RefCntAutoPtr<dg::ITexture> colorTarget;    // MSAA when enabled
+  dg::RefCntAutoPtr<dg::ITexture> resolveTarget;  // single-sample
   dg::RefCntAutoPtr<dg::ITexture> depthTarget;
   dg::RefCntAutoPtr<dg::ITexture> stagingTarget;
   int sampleCount = 1;
@@ -586,15 +574,14 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::IPipelineState> flockPso;
   dg::RefCntAutoPtr<dg::IBuffer> flockCB;
   bool ensureFlockPipeline();
-  dg::RefCntAutoPtr<dg::IBuffer>
-  createLoopBuffer(const std::vector<glm::vec3> &loop);
+  dg::RefCntAutoPtr<dg::IBuffer> createLoopBuffer(
+      const std::vector<glm::vec3>& loop);
   // The pop kernel: one PSO per operator entry point (index = the
   // Op variant index; the last is the pack sink), lazily created.
   std::vector<dg::RefCntAutoPtr<dg::IPipelineState>> popPsos;
   dg::RefCntAutoPtr<dg::IBuffer> popCB;
   bool ensurePopPipelines();
-  bool bindPopSrbs(PopComponent &points,
-                   dg::IBuffer *instanceBuffer);
+  bool bindPopSrbs(PopComponent& points, dg::IBuffer* instanceBuffer);
   dg::RefCntAutoPtr<dg::ITexture> whiteTexture;
 
   /** Surfaces are entities, and the ids handed to callers are entity
@@ -603,37 +590,35 @@ struct World::Impl {
   entt::registry registry;
   bool rendered = false;
 
-  bool init(std::string *error);
-  bool createTargets(std::string *error);
-  bool createPipelines(std::string *error);
-  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage> &image);
-  void writeDrawConstants(const glm::mat4 &model,
-                          const Material &material);
-  bool createMeshBuffers(const shape::Mesh &mesh,
-                         dg::RefCntAutoPtr<dg::IBuffer> &vertexBuffer,
-                         dg::RefCntAutoPtr<dg::IBuffer> &indexBuffer);
-  dg::RefCntAutoPtr<dg::IBuffer>
-  createInstanceBuffer(const std::vector<InstanceAttribs> &instances);
+  bool init(std::string* error);
+  bool createTargets(std::string* error);
+  bool createPipelines(std::string* error);
+  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image);
+  void writeDrawConstants(const glm::mat4& model, const Material& material);
+  bool createMeshBuffers(const shape::Mesh& mesh,
+                         dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
+                         dg::RefCntAutoPtr<dg::IBuffer>& indexBuffer);
+  dg::RefCntAutoPtr<dg::IBuffer> createInstanceBuffer(
+      const std::vector<InstanceAttribs>& instances);
 };
 
-bool World::Impl::init(std::string *error) {
+bool World::Impl::init(std::string* error) {
   using namespace dg;
-  IEngineFactoryVk *factory = GetEngineFactoryVk();
+  IEngineFactoryVk* factory = GetEngineFactoryVk();
   if (!factory) {
-    if (error)
-      *error = "Diligent Vulkan factory unavailable";
+    if (error) *error = "Diligent Vulkan factory unavailable";
     return false;
   }
   EngineVkCreateInfo engineCI;
-  if (config.validation)
-    engineCI.SetValidationLevel(VALIDATION_LEVEL_1);
-  IRenderDevice *rawDevice = nullptr;
-  IDeviceContext *rawContext = nullptr;
+  if (config.validation) engineCI.SetValidationLevel(VALIDATION_LEVEL_1);
+  IRenderDevice* rawDevice = nullptr;
+  IDeviceContext* rawContext = nullptr;
   factory->CreateDeviceAndContextsVk(engineCI, &rawDevice, &rawContext);
   if (!rawDevice || !rawContext) {
     if (error)
-      *error = "Vulkan device creation failed (is MoltenVK installed? "
-               "brew install molten-vk vulkan-loader)";
+      *error =
+          "Vulkan device creation failed (is MoltenVK installed? "
+          "brew install molten-vk vulkan-loader)";
     return false;
   }
   device.Attach(rawDevice);
@@ -644,12 +629,12 @@ bool World::Impl::init(std::string *error) {
   return createTargets(error) && createPipelines(error);
 }
 
-bool World::Impl::createTargets(std::string *error) {
+bool World::Impl::createTargets(std::string* error) {
   using namespace dg;
   const TEXTURE_FORMAT colorFormat = TEX_FORMAT_RGBA8_UNORM;
 
   sampleCount = std::max(config.sampleCount, 1);
-  const TextureFormatInfoExt &fmtInfo =
+  const TextureFormatInfoExt& fmtInfo =
       device->GetTextureFormatInfoExt(colorFormat);
   while (sampleCount > 1 && !(fmtInfo.SampleCounts & sampleCount))
     sampleCount /= 2;
@@ -685,14 +670,13 @@ bool World::Impl::createTargets(std::string *error) {
   device->CreateTexture(desc, nullptr, &stagingTarget);
 
   if (!colorTarget || !resolveTarget || !depthTarget || !stagingTarget) {
-    if (error)
-      *error = "offscreen target creation failed";
+    if (error) *error = "offscreen target creation failed";
     return false;
   }
   return true;
 }
 
-bool World::Impl::createPipelines(std::string *error) {
+bool World::Impl::createPipelines(std::string* error) {
   using namespace dg;
 
   ShaderCreateInfo shaderCI;
@@ -718,8 +702,7 @@ bool World::Impl::createPipelines(std::string *error) {
   device->CreateShader(shaderCI, &ps);
 
   if (!vs || !vsInstanced || !ps) {
-    if (error)
-      *error = "shader compilation failed";
+    if (error) *error = "shader compilation failed";
     return false;
   }
 
@@ -734,14 +717,13 @@ bool World::Impl::createPipelines(std::string *error) {
   cbDesc.Size = sizeof(DrawConstants);
   device->CreateBuffer(cbDesc, nullptr, &drawCB);
   if (!frameCB || !drawCB) {
-    if (error)
-      *error = "constant buffer creation failed";
+    if (error) *error = "constant buffer creation failed";
     return false;
   }
 
   GraphicsPipelineStateCreateInfo psoCI;
   psoCI.PSODesc.Name = "sigilworld opaque";
-  auto &gp = psoCI.GraphicsPipeline;
+  auto& gp = psoCI.GraphicsPipeline;
   gp.NumRenderTargets = 1;
   gp.RTVFormats[0] = TEX_FORMAT_RGBA8_UNORM;
   gp.DSVFormat = TEX_FORMAT_D32_FLOAT;
@@ -755,10 +737,10 @@ bool World::Impl::createPipelines(std::string *error) {
   gp.DepthStencilDesc.DepthWriteEnable = True;
 
   LayoutElement layout[] = {
-      {0, 0, 3, VT_FLOAT32, False}, // position
-      {1, 0, 3, VT_FLOAT32, False}, // normal
-      {2, 0, 2, VT_FLOAT32, False}, // uv
-      {3, 0, 4, VT_FLOAT32, False}, // baked color
+      {0, 0, 3, VT_FLOAT32, False},  // position
+      {1, 0, 3, VT_FLOAT32, False},  // normal
+      {2, 0, 2, VT_FLOAT32, False},  // uv
+      {3, 0, 4, VT_FLOAT32, False},  // baked color
   };
   // The instanced variants add buffer slot 1: transform rows + tint,
   // advancing per instance.
@@ -777,8 +759,7 @@ bool World::Impl::createPipelines(std::string *error) {
   psoCI.pPS = ps;
 
   ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_PIXEL, "g_Texture",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
   psoCI.PSODesc.ResourceLayout.Variables = variables;
   psoCI.PSODesc.ResourceLayout.NumVariables = 1;
@@ -802,13 +783,13 @@ bool World::Impl::createPipelines(std::string *error) {
   // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
   // shader and resource layout are identical across all four, so one
   // shader-resource-binding shape serves every surface.
-  auto makePso = [&](const char *name, bool instanced, bool blend,
-                     dg::RefCntAutoPtr<IPipelineState> &out) {
+  auto makePso = [&](const char* name, bool instanced, bool blend,
+                     dg::RefCntAutoPtr<IPipelineState>& out) {
     psoCI.PSODesc.Name = name;
     psoCI.pVS = instanced ? vsInstanced : vs;
     gp.InputLayout.LayoutElements = instanced ? instancedLayout : layout;
     gp.InputLayout.NumElements = instanced ? 9u : 4u;
-    auto &rt0 = gp.BlendDesc.RenderTargets[0];
+    auto& rt0 = gp.BlendDesc.RenderTargets[0];
     rt0.BlendEnable = blend ? True : False;
     rt0.SrcBlend = BLEND_FACTOR_SRC_ALPHA;
     rt0.DestBlend = BLEND_FACTOR_INV_SRC_ALPHA;
@@ -822,20 +803,18 @@ bool World::Impl::createPipelines(std::string *error) {
   makePso("sigilworld opaque instanced", true, false, opaqueInstancedPso);
   makePso("sigilworld blended instanced", true, true, blendInstancedPso);
 
-  if (!opaquePso || !blendPso || !opaqueInstancedPso ||
-      !blendInstancedPso) {
-    if (error)
-      *error = "pipeline creation failed";
+  if (!opaquePso || !blendPso || !opaqueInstancedPso || !blendInstancedPso) {
+    if (error) *error = "pipeline creation failed";
     return false;
   }
 
-  for (IPipelineState *pso :
-       {opaquePso.RawPtr(), blendPso.RawPtr(),
-        opaqueInstancedPso.RawPtr(), blendInstancedPso.RawPtr()}) {
+  for (IPipelineState* pso :
+       {opaquePso.RawPtr(), blendPso.RawPtr(), opaqueInstancedPso.RawPtr(),
+        blendInstancedPso.RawPtr()}) {
     for (SHADER_TYPE stage : {SHADER_TYPE_VERTEX, SHADER_TYPE_PIXEL}) {
-      if (auto *var = pso->GetStaticVariableByName(stage, "FrameConstants"))
+      if (auto* var = pso->GetStaticVariableByName(stage, "FrameConstants"))
         var->Set(frameCB);
-      if (auto *var = pso->GetStaticVariableByName(stage, "DrawConstants"))
+      if (auto* var = pso->GetStaticVariableByName(stage, "DrawConstants"))
         var->Set(drawCB);
     }
   }
@@ -859,20 +838,18 @@ bool World::Impl::createPipelines(std::string *error) {
   return whiteTexture != nullptr;
 }
 
-dg::RefCntAutoPtr<dg::ITexture>
-World::Impl::uploadTexture(const sk_sp<SkImage> &image) {
+dg::RefCntAutoPtr<dg::ITexture> World::Impl::uploadTexture(
+    const sk_sp<SkImage>& image) {
   using namespace dg;
-  if (!image)
-    return whiteTexture;
+  if (!image) return whiteTexture;
   // Every source flattens to 8-bit unpremultiplied RGBA here, so a float
   // or HDR image loses its range at this point. No mipmaps are built
   // either — the sampler's mip filter has nothing to choose between.
   const int w = image->width(), h = image->height();
   SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::Make(w, h, kRGBA_8888_SkColorType,
-                                       kUnpremul_SkAlphaType));
-  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0))
-    return whiteTexture;
+  bitmap.allocPixels(
+      SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
+  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0)) return whiteTexture;
 
   TextureDesc desc;
   desc.Name = "sigilworld surface texture";
@@ -885,16 +862,15 @@ World::Impl::uploadTexture(const sk_sp<SkImage> &image) {
   desc.Format = TEX_FORMAT_RGBA8_UNORM_SRGB;
   desc.BindFlags = BIND_SHADER_RESOURCE;
   desc.MipLevels = 1;
-  TextureSubResData subres{bitmap.getPixels(),
-                           (Uint64)bitmap.rowBytes()};
+  TextureSubResData subres{bitmap.getPixels(), (Uint64)bitmap.rowBytes()};
   TextureData data{&subres, 1};
   RefCntAutoPtr<ITexture> texture;
   device->CreateTexture(desc, &data, &texture);
   return texture ? texture : whiteTexture;
 }
 
-void World::Impl::writeDrawConstants(const glm::mat4 &model,
-                                     const Material &m) {
+void World::Impl::writeDrawConstants(const glm::mat4& model,
+                                     const Material& m) {
   using namespace dg;
   MapHelper<DrawConstants> constants(context, drawCB, MAP_WRITE,
                                      MAP_FLAG_DISCARD);
@@ -920,10 +896,10 @@ void World::Impl::writeDrawConstants(const glm::mat4 &model,
 
 namespace {
 
-std::vector<Vertex> packVertices(const shape::Mesh &mesh) {
+std::vector<Vertex> packVertices(const shape::Mesh& mesh) {
   std::vector<Vertex> vertices(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i) {
-    Vertex &v = vertices[i];
+    Vertex& v = vertices[i];
     v.pos[0] = mesh.positions[i].x;
     v.pos[1] = mesh.positions[i].y;
     v.pos[2] = mesh.positions[i].z;
@@ -932,13 +908,11 @@ std::vector<Vertex> packVertices(const shape::Mesh &mesh) {
     v.normal[0] = n.x;
     v.normal[1] = n.y;
     v.normal[2] = n.z;
-    const glm::vec2 uv =
-        i < mesh.uvs.size() ? mesh.uvs[i] : glm::vec2{0, 0};
+    const glm::vec2 uv = i < mesh.uvs.size() ? mesh.uvs[i] : glm::vec2{0, 0};
     v.uv[0] = uv.x;
     v.uv[1] = uv.y;
-    const glm::vec4 c = i < mesh.colors.size()
-                            ? mesh.colors[i]
-                            : glm::vec4{1, 1, 1, 1};
+    const glm::vec4 c =
+        i < mesh.colors.size() ? mesh.colors[i] : glm::vec4{1, 1, 1, 1};
     v.color[0] = c.x;
     v.color[1] = c.y;
     v.color[2] = c.z;
@@ -947,11 +921,11 @@ std::vector<Vertex> packVertices(const shape::Mesh &mesh) {
   return vertices;
 }
 
-} // namespace
+}  // namespace
 
 bool World::Impl::createMeshBuffers(
-    const shape::Mesh &mesh, dg::RefCntAutoPtr<dg::IBuffer> &vertexBuffer,
-    dg::RefCntAutoPtr<dg::IBuffer> &indexBuffer) {
+    const shape::Mesh& mesh, dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
+    dg::RefCntAutoPtr<dg::IBuffer>& indexBuffer) {
   using namespace dg;
   const std::vector<Vertex> vertices = packVertices(mesh);
 
@@ -977,11 +951,10 @@ bool World::Impl::createMeshBuffers(
 }
 
 dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createInstanceBuffer(
-    const std::vector<InstanceAttribs> &instances) {
+    const std::vector<InstanceAttribs>& instances) {
   using namespace dg;
   RefCntAutoPtr<IBuffer> buffer;
-  if (instances.empty())
-    return buffer;
+  if (instances.empty()) return buffer;
   // DEFAULT usage, so setInstances() can update it in place when the
   // instance count is unchanged.
   BufferDesc desc;
@@ -996,8 +969,7 @@ dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createInstanceBuffer(
 
 bool World::Impl::ensureSweepPipeline() {
   using namespace dg;
-  if (sweepPso)
-    return true;
+  if (sweepPso) return true;
 
 #ifndef SIGILWORLD_POP_SPIRV
   // The compute generators exist only as SPIR-V compiled at build time;
@@ -1010,15 +982,13 @@ bool World::Impl::ensureSweepPipeline() {
   size_t byteCodeSize = 0;
   shaderCI.ByteCode = findSpirv("CSSweep", &byteCodeSize);
   shaderCI.ByteCodeSize = byteCodeSize;
-  if (!shaderCI.ByteCode)
-    return false;
+  if (!shaderCI.ByteCode) return false;
   shaderCI.EntryPoint = "CSSweep";
   shaderCI.Desc.ShaderType = SHADER_TYPE_COMPUTE;
   shaderCI.Desc.Name = "sigilworld sweep cs";
   RefCntAutoPtr<IShader> cs;
   device->CreateShader(shaderCI, &cs);
-  if (!cs)
-    return false;
+  if (!cs) return false;
 
   BufferDesc cbDesc;
   cbDesc.Name = "sigilworld sweep params";
@@ -1027,15 +997,13 @@ bool World::Impl::ensureSweepPipeline() {
   cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
   cbDesc.Size = sizeof(SweepParams);
   device->CreateBuffer(cbDesc, nullptr, &sweepCB);
-  if (!sweepCB)
-    return false;
+  if (!sweepCB) return false;
 
   ComputePipelineStateCreateInfo psoCI;
   psoCI.PSODesc.Name = "sigilworld sweep";
   psoCI.PSODesc.PipelineType = PIPELINE_TYPE_COMPUTE;
   ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_COMPUTE, "g_Points",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_COMPUTE, "g_Points", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
       {SHADER_TYPE_COMPUTE, "g_Vertices",
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
@@ -1043,10 +1011,9 @@ bool World::Impl::ensureSweepPipeline() {
   psoCI.PSODesc.ResourceLayout.NumVariables = 2;
   psoCI.pCS = cs;
   device->CreateComputePipelineState(psoCI, &sweepPso);
-  if (!sweepPso)
-    return false;
-  if (auto *var = sweepPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE,
-                                                    "SweepParams"))
+  if (!sweepPso) return false;
+  if (auto* var =
+          sweepPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE, "SweepParams"))
     var->Set(sweepCB);
   return true;
 #endif
@@ -1054,8 +1021,7 @@ bool World::Impl::ensureSweepPipeline() {
 
 bool World::Impl::ensureFlockPipeline() {
   using namespace dg;
-  if (flockPso)
-    return true;
+  if (flockPso) return true;
 
 #ifndef SIGILWORLD_POP_SPIRV
   // The compute generators exist only as SPIR-V compiled at build time;
@@ -1068,15 +1034,13 @@ bool World::Impl::ensureFlockPipeline() {
   size_t byteCodeSize = 0;
   shaderCI.ByteCode = findSpirv("CSFlock", &byteCodeSize);
   shaderCI.ByteCodeSize = byteCodeSize;
-  if (!shaderCI.ByteCode)
-    return false;
+  if (!shaderCI.ByteCode) return false;
   shaderCI.EntryPoint = "CSFlock";
   shaderCI.Desc.ShaderType = SHADER_TYPE_COMPUTE;
   shaderCI.Desc.Name = "sigilworld flock cs";
   RefCntAutoPtr<IShader> cs;
   device->CreateShader(shaderCI, &cs);
-  if (!cs)
-    return false;
+  if (!cs) return false;
 
   BufferDesc cbDesc;
   cbDesc.Name = "sigilworld flock params";
@@ -1085,15 +1049,13 @@ bool World::Impl::ensureFlockPipeline() {
   cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
   cbDesc.Size = sizeof(FlockParams);
   device->CreateBuffer(cbDesc, nullptr, &flockCB);
-  if (!flockCB)
-    return false;
+  if (!flockCB) return false;
 
   ComputePipelineStateCreateInfo psoCI;
   psoCI.PSODesc.Name = "sigilworld flock";
   psoCI.PSODesc.PipelineType = PIPELINE_TYPE_COMPUTE;
   ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_COMPUTE, "g_Points",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_COMPUTE, "g_Points", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
       {SHADER_TYPE_COMPUTE, "g_Instances",
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
@@ -1101,21 +1063,20 @@ bool World::Impl::ensureFlockPipeline() {
   psoCI.PSODesc.ResourceLayout.NumVariables = 2;
   psoCI.pCS = cs;
   device->CreateComputePipelineState(psoCI, &flockPso);
-  if (!flockPso)
-    return false;
-  if (auto *var = flockPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE,
-                                                    "FlockParams"))
+  if (!flockPso) return false;
+  if (auto* var =
+          flockPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE, "FlockParams"))
     var->Set(flockCB);
   return true;
 #endif
 }
 
-dg::RefCntAutoPtr<dg::IBuffer>
-World::Impl::createLoopBuffer(const std::vector<glm::vec3> &loop) {
+dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createLoopBuffer(
+    const std::vector<glm::vec3>& loop) {
   using namespace dg;
   std::vector<float> pointData;
   pointData.reserve(loop.size() * 4);
-  for (const glm::vec3 &p : loop) {
+  for (const glm::vec3& p : loop) {
     pointData.push_back(p.x);
     pointData.push_back(p.y);
     pointData.push_back(p.z);
@@ -1138,11 +1099,10 @@ namespace {
 
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
-constexpr const char *kPopEntries[] = {
-    "CSSplineScatter", "CSJitter",   "CSNoise",  "CSRamp",
-    "CSVary",          "CSLookAt",   "CSMath",   "CSRelax",
-    "CSSet",           "CSAtlas",    "CSLookup", "CSCopyBack",
-    "CSPopPack",
+constexpr const char* kPopEntries[] = {
+    "CSSplineScatter", "CSJitter",   "CSNoise",   "CSRamp", "CSVary",
+    "CSLookAt",        "CSMath",     "CSRelax",   "CSSet",  "CSAtlas",
+    "CSLookup",        "CSCopyBack", "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
@@ -1183,11 +1143,11 @@ constexpr size_t kPopOpPso[] = {
                    //                  whole point set is not a per-point
                    //                  map, so no kernel can express it
 };
-static_assert(std::size(kPopOpPso) ==
-                  std::variant_size_v<World::pop::Op>,
-              "every pop::Op alternative needs a row here — appending "
-              "appending one anywhere but the end would land it on another op's "
-              "kernel");
+static_assert(
+    std::size(kPopOpPso) == std::variant_size_v<World::pop::Op>,
+    "every pop::Op alternative needs a row here — appending "
+    "appending one anywhere but the end would land it on another op's "
+    "kernel");
 size_t popPsoIndex(size_t variantIndex) {
   return variantIndex < std::size(kPopOpPso) ? kPopOpPso[variantIndex]
                                              : kPopNoKernel;
@@ -1195,29 +1155,27 @@ size_t popPsoIndex(size_t variantIndex) {
 /** The boundary check reads the SAME table the dispatcher maps through,
  *  so what the executor declines and what it can actually run cannot
  *  drift apart. */
-bool popOpRunsOnGpu(const World::pop::Op &op) {
+bool popOpRunsOnGpu(const World::pop::Op& op) {
   return popPsoIndex(op.index()) != kPopNoKernel;
 }
-bool popChainRunsOnGpu(const World::pop::Chain &chain) {
-  for (const World::pop::Op &op : chain)
-    if (!popOpRunsOnGpu(op))
-      return false;
+bool popChainRunsOnGpu(const World::pop::Chain& chain) {
+  for (const World::pop::Op& op : chain)
+    if (!popOpRunsOnGpu(op)) return false;
   return true;
 }
 /** Every Lookup op's stop table, concatenated in chain order. This is
  *  the layout g_Table is uploaded with, and the cook pass walks the
  *  chain in this same order so each Lookup dispatch gets the offset its
  *  own stops landed at. */
-std::vector<glm::vec4> popTable(const World::pop::Chain &chain) {
+std::vector<glm::vec4> popTable(const World::pop::Chain& chain) {
   std::vector<glm::vec4> stops;
-  for (const World::pop::Op &op : chain)
-    if (const auto *lookup = std::get_if<World::pop::Lookup>(&op))
-      stops.insert(stops.end(), lookup->stops.begin(),
-                   lookup->stops.end());
+  for (const World::pop::Op& op : chain)
+    if (const auto* lookup = std::get_if<World::pop::Lookup>(&op))
+      stops.insert(stops.end(), lookup->stops.begin(), lookup->stops.end());
   return stops;
 }
 
-} // namespace
+}  // namespace
 
 bool World::Impl::ensurePopPipelines() {
 #ifndef SIGILWORLD_POP_SPIRV
@@ -1228,8 +1186,7 @@ bool World::Impl::ensurePopPipelines() {
   return false;
 #else
   using namespace dg;
-  if (!popPsos.empty())
-    return true;
+  if (!popPsos.empty()) return true;
 
   BufferDesc cbDesc;
   cbDesc.Name = "sigilworld pop params";
@@ -1238,23 +1195,20 @@ bool World::Impl::ensurePopPipelines() {
   cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
   cbDesc.Size = sizeof(PopParams);
   device->CreateBuffer(cbDesc, nullptr, &popCB);
-  if (!popCB)
-    return false;
+  if (!popCB) return false;
 
-  for (const char *entry : kPopEntries) {
+  for (const char* entry : kPopEntries) {
     ShaderCreateInfo shaderCI;
     size_t byteCodeSize = 0;
     shaderCI.ByteCode = findSpirv(entry, &byteCodeSize);
     shaderCI.ByteCodeSize = byteCodeSize;
-    if (!shaderCI.ByteCode)
-      return false;
+    if (!shaderCI.ByteCode) return false;
     shaderCI.EntryPoint = entry;
     shaderCI.Desc.ShaderType = SHADER_TYPE_COMPUTE;
     shaderCI.Desc.Name = entry;
     RefCntAutoPtr<IShader> cs;
     device->CreateShader(shaderCI, &cs);
-    if (!cs)
-      return false;
+    if (!cs) return false;
 
     ComputePipelineStateCreateInfo psoCI;
     psoCI.PSODesc.Name = entry;
@@ -1270,10 +1224,9 @@ bool World::Impl::ensurePopPipelines() {
     psoCI.pCS = cs;
     RefCntAutoPtr<IPipelineState> pso;
     device->CreateComputePipelineState(psoCI, &pso);
-    if (!pso)
-      return false;
-    if (auto *var = pso->GetStaticVariableByName(SHADER_TYPE_COMPUTE,
-                                                 "PopParams"))
+    if (!pso) return false;
+    if (auto* var =
+            pso->GetStaticVariableByName(SHADER_TYPE_COMPUTE, "PopParams"))
       var->Set(popCB);
     popPsos.push_back(pso);
   }
@@ -1281,27 +1234,24 @@ bool World::Impl::ensurePopPipelines() {
 #endif
 }
 
-bool World::Impl::bindPopSrbs(PopComponent &points,
-                              dg::IBuffer *instanceBuffer) {
+bool World::Impl::bindPopSrbs(PopComponent& points,
+                              dg::IBuffer* instanceBuffer) {
   using namespace dg;
   points.srbs.clear();
   if (!points.table)
-    return false; // the lookup binding needs it; a null view is not legal
-  dg::IBuffer *loopBuffer = points.loop;
+    return false;  // the lookup binding needs it; a null view is not legal
+  dg::IBuffer* loopBuffer = points.loop;
   if (!loopBuffer && registry.valid(points.upstream) &&
       registry.all_of<PopComponent>(points.upstream))
     loopBuffer = registry.get<PopComponent>(points.upstream).lanes;
-  if (!loopBuffer)
-    return false;
+  if (!loopBuffer) return false;
   const auto bindOne = [&](size_t psoIndex) -> bool {
     RefCntAutoPtr<IShaderResourceBinding> srb;
     popPsos[psoIndex]->CreateShaderResourceBinding(&srb, true);
-    if (!srb)
-      return false;
-    const auto set = [&](const char *name, IBuffer *buffer,
+    if (!srb) return false;
+    const auto set = [&](const char* name, IBuffer* buffer,
                          BUFFER_VIEW_TYPE view) {
-      if (auto *var =
-              srb->GetVariableByName(SHADER_TYPE_COMPUTE, name))
+      if (auto* var = srb->GetVariableByName(SHADER_TYPE_COMPUTE, name))
         var->Set(buffer->GetDefaultView(view));
     };
     set("g_Points", loopBuffer, BUFFER_VIEW_SHADER_RESOURCE);
@@ -1312,13 +1262,12 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
     points.srbs.push_back(srb);
     return true;
   };
-  for (const pop::Op &op : points.chain) {
+  for (const pop::Op& op : points.chain) {
     const size_t psoIndex = popPsoIndex(op.index());
     // Defence in depth behind the public doors' validation: an operator
     // with no kernel gets NO binding here rather than another
     // operator's.
-    if (psoIndex == kPopNoKernel || !bindOne(psoIndex))
-      return false;
+    if (psoIndex == kPopNoKernel || !bindOne(psoIndex)) return false;
   }
   // The Relax copy-back is second from last; the pack sink is last.
   return bindOne(kPopCopyBackIndex) && bindOne(kPopPackIndex);
@@ -1329,22 +1278,19 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
 World::World() : m_impl(std::make_unique<Impl>()) {}
 World::~World() = default;
 
-std::unique_ptr<World> World::create(const WorldConfig &config,
-                                     std::string *error) {
+std::unique_ptr<World> World::create(const WorldConfig& config,
+                                     std::string* error) {
   std::unique_ptr<World> world(new World());
   world->m_impl->config = config;
-  if (!world->m_impl->init(error))
-    return nullptr;
+  if (!world->m_impl->init(error)) return nullptr;
   return world;
 }
 
-uint32_t World::addSurface(const shape::Mesh &mesh,
-                           const glm::mat4 &model,
-                           const Material &material) {
+uint32_t World::addSurface(const shape::Mesh& mesh, const glm::mat4& model,
+                           const Material& material) {
   using namespace dg;
-  Impl &impl = *m_impl;
-  if (mesh.positions.empty() || mesh.indices.empty())
-    return 0;
+  Impl& impl = *m_impl;
+  if (mesh.positions.empty() || mesh.indices.empty()) return 0;
 
   GpuGeometry geometry;
   geometry.indexCount = (uint32_t)mesh.indices.size();
@@ -1355,10 +1301,9 @@ uint32_t World::addSurface(const shape::Mesh &mesh,
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
   impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1368,14 +1313,13 @@ uint32_t World::addSurface(const shape::Mesh &mesh,
   return (uint32_t)id;
 }
 
-uint32_t World::addInstanced(const shape::Mesh &stamp,
-                             const shape::Cloud &cloud,
-                             const Material &material,
-                             const InstanceLanes &lanes) {
+uint32_t World::addInstanced(const shape::Mesh& stamp,
+                             const shape::Cloud& cloud,
+                             const Material& material,
+                             const InstanceLanes& lanes) {
   using namespace dg;
-  Impl &impl = *m_impl;
-  if (stamp.positions.empty() || stamp.indices.empty())
-    return 0;
+  Impl& impl = *m_impl;
+  if (stamp.positions.empty() || stamp.indices.empty()) return 0;
 
   GpuInstancedGeometry geometry;
   geometry.indexCount = (uint32_t)stamp.indices.size();
@@ -1383,21 +1327,17 @@ uint32_t World::addInstanced(const shape::Mesh &stamp,
                               geometry.indexBuffer))
     return 0;
 
-  const std::vector<InstanceAttribs> instances =
-      buildInstances(cloud, lanes);
+  const std::vector<InstanceAttribs> instances = buildInstances(cloud, lanes);
   geometry.instanceCount = (uint32_t)instances.size();
   geometry.instanceBuffer = impl.createInstanceBuffer(instances);
-  if (geometry.instanceCount > 0 && !geometry.instanceBuffer)
-    return 0;
+  if (geometry.instanceCount > 0 && !geometry.instanceBuffer) return 0;
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb,
-                                                       true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1410,51 +1350,43 @@ uint32_t World::addInstanced(const shape::Mesh &stamp,
   return (uint32_t)id;
 }
 
-void World::setInstances(uint32_t id, const shape::Cloud &cloud,
-                         const InstanceLanes &lanes) {
+void World::setInstances(uint32_t id, const shape::Cloud& cloud,
+                         const InstanceLanes& lanes) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) ||
-      !impl.registry.all_of<GpuInstancedGeometry>(e))
+  if (!impl.registry.valid(e) || !impl.registry.all_of<GpuInstancedGeometry>(e))
     return;
-  GpuInstancedGeometry &geometry =
-      impl.registry.get<GpuInstancedGeometry>(e);
+  GpuInstancedGeometry& geometry = impl.registry.get<GpuInstancedGeometry>(e);
 
-  const std::vector<InstanceAttribs> instances =
-      buildInstances(cloud, lanes);
-  if (instances.size() == geometry.instanceCount &&
-      geometry.instanceBuffer) {
+  const std::vector<InstanceAttribs> instances = buildInstances(cloud, lanes);
+  if (instances.size() == geometry.instanceCount && geometry.instanceBuffer) {
     impl.context->UpdateBuffer(
         geometry.instanceBuffer, 0,
-        (Uint64)(instances.size() * sizeof(InstanceAttribs)),
-        instances.data(), RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        (Uint64)(instances.size() * sizeof(InstanceAttribs)), instances.data(),
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   } else {
     geometry.instanceBuffer = impl.createInstanceBuffer(instances);
     geometry.instanceCount = (uint32_t)instances.size();
   }
 }
 
-void World::setTransform(uint32_t id, const glm::mat4 &model) {
-  entt::registry &registry = m_impl->registry;
+void World::setTransform(uint32_t id, const glm::mat4& model) {
+  entt::registry& registry = m_impl->registry;
   const entt::entity e = entity(id);
   if (registry.valid(e) && registry.all_of<TransformComponent>(e))
     registry.get<TransformComponent>(e).model = model;
 }
 
-void World::setSurfaceMesh(uint32_t id, const shape::Mesh &mesh) {
+void World::setSurfaceMesh(uint32_t id, const shape::Mesh& mesh) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) || !impl.registry.all_of<GpuGeometry>(e))
-    return;
-  if (mesh.positions.empty() || mesh.indices.empty())
-    return;
-  GpuGeometry &geometry = impl.registry.get<GpuGeometry>(e);
-  const Uint64 vertexBytes =
-      (Uint64)(mesh.positions.size() * sizeof(Vertex));
-  const Uint64 indexBytes =
-      (Uint64)(mesh.indices.size() * sizeof(uint32_t));
+  if (!impl.registry.valid(e) || !impl.registry.all_of<GpuGeometry>(e)) return;
+  if (mesh.positions.empty() || mesh.indices.empty()) return;
+  GpuGeometry& geometry = impl.registry.get<GpuGeometry>(e);
+  const Uint64 vertexBytes = (Uint64)(mesh.positions.size() * sizeof(Vertex));
+  const Uint64 indexBytes = (Uint64)(mesh.indices.size() * sizeof(uint32_t));
   if (geometry.vertexBuffer && geometry.indexBuffer &&
       geometry.vertexBuffer->GetDesc().Size == vertexBytes &&
       geometry.indexBuffer->GetDesc().Size == indexBytes) {
@@ -1470,18 +1402,14 @@ void World::setSurfaceMesh(uint32_t id, const shape::Mesh &mesh) {
   geometry.indexCount = (uint32_t)mesh.indices.size();
   geometry.vertexBuffer.Release();
   geometry.indexBuffer.Release();
-  impl.createMeshBuffers(mesh, geometry.vertexBuffer,
-                         geometry.indexBuffer);
+  impl.createMeshBuffers(mesh, geometry.vertexBuffer, geometry.indexBuffer);
 }
 
-uint32_t World::addSweep(const SweepDesc &desc,
-                         const Material &material) {
+uint32_t World::addSweep(const SweepDesc& desc, const Material& material) {
   using namespace dg;
-  Impl &impl = *m_impl;
-  if (desc.loop.size() < 3 || desc.sections < 2)
-    return 0;
-  if (!impl.ensureSweepPipeline())
-    return 0;
+  Impl& impl = *m_impl;
+  if (desc.loop.size() < 3 || desc.sections < 2) return 0;
+  if (!impl.ensureSweepPipeline()) return 0;
 
   SweepComponent sweep;
   sweep.head = desc.head;
@@ -1523,24 +1451,20 @@ uint32_t World::addSweep(const SweepDesc &desc,
     return 0;
 
   impl.sweepPso->CreateShaderResourceBinding(&sweep.srb, true);
-  if (!sweep.srb)
-    return 0;
-  if (auto *var = sweep.srb->GetVariableByName(SHADER_TYPE_COMPUTE,
-                                               "g_Points"))
+  if (!sweep.srb) return 0;
+  if (auto* var = sweep.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Points"))
+    var->Set(sweep.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
+  if (auto* var =
+          sweep.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Vertices"))
     var->Set(
-        sweep.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
-  if (auto *var = sweep.srb->GetVariableByName(SHADER_TYPE_COMPUTE,
-                                               "g_Vertices"))
-    var->Set(geometry.vertexBuffer->GetDefaultView(
-        BUFFER_VIEW_UNORDERED_ACCESS));
+        geometry.vertexBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
   impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1552,27 +1476,24 @@ uint32_t World::addSweep(const SweepDesc &desc,
 }
 
 void World::setSweepWindow(uint32_t id, float head, float span) {
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) ||
-      !impl.registry.all_of<SweepComponent>(e))
+  if (!impl.registry.valid(e) || !impl.registry.all_of<SweepComponent>(e))
     return;
-  SweepComponent &sweep = impl.registry.get<SweepComponent>(e);
+  SweepComponent& sweep = impl.registry.get<SweepComponent>(e);
   sweep.head = head;
   sweep.span = span;
   sweep.dirty = true;
 }
 
-uint32_t World::addFlock(const shape::Mesh &stamp,
-                         const FlockDesc &desc,
-                         const Material &material) {
+uint32_t World::addFlock(const shape::Mesh& stamp, const FlockDesc& desc,
+                         const Material& material) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   if (stamp.positions.empty() || stamp.indices.empty() ||
       desc.loop.size() < 3 || desc.count < 1)
     return 0;
-  if (!impl.ensureFlockPipeline())
-    return 0;
+  if (!impl.ensureFlockPipeline()) return 0;
 
   FlockComponent flock;
   flock.head = desc.head;
@@ -1584,8 +1505,8 @@ uint32_t World::addFlock(const shape::Mesh &stamp,
   flock.seed = desc.seed;
   flock.count = desc.count;
   flock.pointCount = (int)desc.loop.size();
-  const glm::vec4 &tail = desc.tintTail;
-  const glm::vec4 &headTint = desc.tintHead;
+  const glm::vec4& tail = desc.tintTail;
+  const glm::vec4& headTint = desc.tintHead;
   flock.tintTail[0] = tail.x;
   flock.tintTail[1] = tail.y;
   flock.tintTail[2] = tail.z;
@@ -1613,29 +1534,23 @@ uint32_t World::addFlock(const shape::Mesh &stamp,
   ibDesc.ElementByteStride = sizeof(InstanceAttribs);
   ibDesc.Size = (Uint64)desc.count * sizeof(InstanceAttribs);
   impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
-  if (!flock.points || !geometry.instanceBuffer)
-    return 0;
+  if (!flock.points || !geometry.instanceBuffer) return 0;
 
   impl.flockPso->CreateShaderResourceBinding(&flock.srb, true);
-  if (!flock.srb)
-    return 0;
-  if (auto *var = flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE,
-                                               "g_Points"))
+  if (!flock.srb) return 0;
+  if (auto* var = flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Points"))
+    var->Set(flock.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
+  if (auto* var =
+          flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Instances"))
     var->Set(
-        flock.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
-  if (auto *var = flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE,
-                                               "g_Instances"))
-    var->Set(geometry.instanceBuffer->GetDefaultView(
-        BUFFER_VIEW_UNORDERED_ACCESS));
+        geometry.instanceBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb,
-                                                       true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1647,12 +1562,11 @@ uint32_t World::addFlock(const shape::Mesh &stamp,
 }
 
 void World::setFlockWindow(uint32_t id, float head, float span) {
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) ||
-      !impl.registry.all_of<FlockComponent>(e))
+  if (!impl.registry.valid(e) || !impl.registry.all_of<FlockComponent>(e))
     return;
-  FlockComponent &flock = impl.registry.get<FlockComponent>(e);
+  FlockComponent& flock = impl.registry.get<FlockComponent>(e);
   flock.head = head;
   flock.span = span;
   flock.dirty = true;
@@ -1662,23 +1576,21 @@ namespace {
 
 /** A chain's point count comes from its generator head. Answers 0 for a
  *  chain this executor declines, which every caller reads as failure. */
-int popChainCount(const World::pop::Chain &chain) {
-  if (chain.empty())
-    return 0;
+int popChainCount(const World::pop::Chain& chain) {
+  if (chain.empty()) return 0;
   // Declined, not silently stripped: dropping an operator would cook
   // geometry that looks plausible and is wrong. kPopOpPso says which
   // operators have no kernel and why.
-  if (!popChainRunsOnGpu(chain))
-    return 0;
-  if (const auto *scatter =
+  if (!popChainRunsOnGpu(chain)) return 0;
+  if (const auto* scatter =
           std::get_if<World::pop::SplineScatter>(&chain.front()))
     return scatter->loop.size() >= 3 ? scatter->count : 0;
   return 0;
 }
 
-dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice *device,
+dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice* device,
                                                 int count, int slots,
-                                                const char *name) {
+                                                const char* name) {
   using namespace dg;
   // Zero-filled so custom lanes start at {0,0,0,0}, matching the CPU
   // executor's default for an untouched attribute; the builtin lanes are
@@ -1706,11 +1618,10 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice *device,
  *  still gets a one-element placeholder, since the binding is not
  *  optional and a null buffer view is not legal. */
 dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
-    dg::IRenderDevice *device, const std::vector<glm::vec4> &stops) {
+    dg::IRenderDevice* device, const std::vector<glm::vec4>& stops) {
   using namespace dg;
   const std::vector<glm::vec4> contents =
-      stops.empty() ? std::vector<glm::vec4>{glm::vec4{0, 0, 0, 0}}
-                    : stops;
+      stops.empty() ? std::vector<glm::vec4>{glm::vec4{0, 0, 0, 0}} : stops;
   BufferDesc desc;
   desc.Name = "sigilworld pop lookup table";
   desc.Usage = USAGE_IMMUTABLE;
@@ -1724,32 +1635,26 @@ dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
   return buffer;
 }
 
-} // namespace
+}  // namespace
 
-uint32_t World::addPoints(const shape::Mesh &stamp,
-                          const pop::Chain &chain,
-                          const Material &material) {
+uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
+                          const Material& material) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const int count = popChainCount(chain);
-  if (stamp.positions.empty() || stamp.indices.empty() || count < 1)
-    return 0;
-  if (!impl.ensurePopPipelines())
-    return 0;
+  if (stamp.positions.empty() || stamp.indices.empty() || count < 1) return 0;
+  if (!impl.ensurePopPipelines()) return 0;
 
   PopComponent points;
   points.chain = chain;
   points.count = count;
-  const auto &scatter = std::get<pop::SplineScatter>(chain.front());
+  const auto& scatter = std::get<pop::SplineScatter>(chain.front());
   points.loopCount = (int)scatter.loop.size();
   points.loop = impl.createLoopBuffer(scatter.loop);
   points.customNames = popCustomNames(chain);
-  const int slots =
-      pop::kBuiltinSlots + (int)points.customNames.size();
-  points.lanes =
-      createLaneBuffer(impl.device, count, slots, "pop lanes");
-  points.scratch =
-      createLaneBuffer(impl.device, count, 1, "pop scratch");
+  const int slots = pop::kBuiltinSlots + (int)points.customNames.size();
+  points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
   points.tableData = popTable(chain);
   points.table = createTableBuffer(impl.device, points.tableData);
   if (!points.loop || !points.lanes || !points.scratch || !points.table)
@@ -1769,19 +1674,15 @@ uint32_t World::addPoints(const shape::Mesh &stamp,
   ibDesc.ElementByteStride = sizeof(InstanceAttribs);
   ibDesc.Size = (Uint64)count * sizeof(InstanceAttribs);
   impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
-  if (!geometry.instanceBuffer)
-    return 0;
-  if (!impl.bindPopSrbs(points, geometry.instanceBuffer))
-    return 0;
+  if (!geometry.instanceBuffer) return 0;
+  if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb,
-                                                       true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1792,49 +1693,39 @@ uint32_t World::addPoints(const shape::Mesh &stamp,
   return (uint32_t)id;
 }
 
-uint32_t World::addPointsOn(uint32_t upstream,
-                            const shape::Mesh &stamp,
-                            const pop::Chain &chain,
-                            const Material &material) {
+uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
+                            const pop::Chain& chain, const Material& material) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity up = entity(upstream);
-  if (!impl.registry.valid(up) ||
-      !impl.registry.all_of<PopComponent>(up))
+  if (!impl.registry.valid(up) || !impl.registry.all_of<PopComponent>(up))
     return 0;
-  const PopComponent &source = impl.registry.get<PopComponent>(up);
-  if (source.count < 3)
+  const PopComponent& source = impl.registry.get<PopComponent>(up);
+  if (source.count < 3) return 0;
+  if (chain.empty())  // no generator to ride the upstream arena
     return 0;
-  if (chain.empty()) // no generator to ride the upstream arena
-    return 0;
-  const auto *scatter = std::get_if<pop::SplineScatter>(&chain.front());
+  const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
   if (!scatter || scatter->count < 1 || stamp.positions.empty() ||
       stamp.indices.empty())
     return 0;
   // The same boundary popChainCount draws, off the same table: an
   // operator with no kernel is declined outright, never dropped.
-  if (!popChainRunsOnGpu(chain))
-    return 0;
-  if (!impl.ensurePopPipelines())
-    return 0;
+  if (!popChainRunsOnGpu(chain)) return 0;
+  if (!impl.ensurePopPipelines()) return 0;
 
   const int count = scatter->count;
   PopComponent points;
   points.chain = chain;
   points.count = count;
   points.upstream = up;
-  points.loopCount = source.count; // refreshed at cook time
+  points.loopCount = source.count;  // refreshed at cook time
   points.customNames = popCustomNames(chain);
-  const int slots =
-      pop::kBuiltinSlots + (int)points.customNames.size();
-  points.lanes =
-      createLaneBuffer(impl.device, count, slots, "pop lanes");
-  points.scratch =
-      createLaneBuffer(impl.device, count, 1, "pop scratch");
+  const int slots = pop::kBuiltinSlots + (int)points.customNames.size();
+  points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
   points.tableData = popTable(chain);
   points.table = createTableBuffer(impl.device, points.tableData);
-  if (!points.lanes || !points.scratch || !points.table)
-    return 0;
+  if (!points.lanes || !points.scratch || !points.table) return 0;
 
   GpuInstancedGeometry geometry;
   geometry.indexCount = (uint32_t)stamp.indices.size();
@@ -1850,19 +1741,15 @@ uint32_t World::addPointsOn(uint32_t upstream,
   ibDesc.ElementByteStride = sizeof(InstanceAttribs);
   ibDesc.Size = (Uint64)count * sizeof(InstanceAttribs);
   impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
-  if (!geometry.instanceBuffer)
-    return 0;
-  if (!impl.bindPopSrbs(points, geometry.instanceBuffer))
-    return 0;
+  if (!geometry.instanceBuffer) return 0;
+  if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb,
-                                                       true);
-  if (!geometry.srb)
-    return 0;
-  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                  "g_Texture"))
+  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
+  if (!geometry.srb) return 0;
+  if (auto* var =
+          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
   const entt::entity id = impl.registry.create();
@@ -1874,33 +1761,27 @@ uint32_t World::addPointsOn(uint32_t upstream,
 }
 
 void World::setPointsWindow(uint32_t id, float head, float span) {
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e))
-    return;
-  PopComponent &points = impl.registry.get<PopComponent>(e);
-  if (points.chain.empty())
-    return;
-  auto *scatter = std::get_if<pop::SplineScatter>(&points.chain.front());
-  if (!scatter)
-    return;
+  if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e)) return;
+  PopComponent& points = impl.registry.get<PopComponent>(e);
+  if (points.chain.empty()) return;
+  auto* scatter = std::get_if<pop::SplineScatter>(&points.chain.front());
+  if (!scatter) return;
   scatter->head = head;
   scatter->span = span;
   points.dirty = true;
 }
 
-void World::setPoints(uint32_t id, const pop::Chain &chain) {
+void World::setPoints(uint32_t id, const pop::Chain& chain) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e))
-    return;
+  if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e)) return;
   const int count = popChainCount(chain);
-  if (count < 1)
-    return;
-  PopComponent &points = impl.registry.get<PopComponent>(e);
-  GpuInstancedGeometry &geometry =
-      impl.registry.get<GpuInstancedGeometry>(e);
+  if (count < 1) return;
+  PopComponent& points = impl.registry.get<PopComponent>(e);
+  GpuInstancedGeometry& geometry = impl.registry.get<GpuInstancedGeometry>(e);
 
   // Same operator kinds and count: a parameter edit, so keep the
   // buffers and bindings and just re-cook. Anything structural rebuilds
@@ -1914,7 +1795,7 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
       popCustomNames(chain) == points.customNames &&
       table == points.tableData &&
       std::equal(chain.begin(), chain.end(), points.chain.begin(),
-                 [](const pop::Op &a, const pop::Op &b) {
+                 [](const pop::Op& a, const pop::Op& b) {
                    return a.index() == b.index();
                  });
   // The loop rides its own immutable buffer, uploaded when the surface
@@ -1923,14 +1804,13 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
   // chain is overwritten. A surface created with addPointsOn carries an
   // empty loop — its generator reads the upstream arena instead — and so
   // never takes this path.
-  const auto *scatter = std::get_if<pop::SplineScatter>(&chain.front());
-  const auto *stored =
+  const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
+  const auto* stored =
       points.chain.empty()
           ? nullptr
           : std::get_if<pop::SplineScatter>(&points.chain.front());
-  const bool loopChanged =
-      scatter && !scatter->loop.empty() &&
-      (!stored || stored->loop != scatter->loop);
+  const bool loopChanged = scatter && !scatter->loop.empty() &&
+                           (!stored || stored->loop != scatter->loop);
   points.chain = chain;
   if (loopChanged) {
     points.loop = impl.createLoopBuffer(scatter->loop);
@@ -1940,11 +1820,9 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
     points.count = count;
     points.customNames = popCustomNames(chain);
     points.lanes = createLaneBuffer(
-        impl.device, count,
-        pop::kBuiltinSlots + (int)points.customNames.size(),
+        impl.device, count, pop::kBuiltinSlots + (int)points.customNames.size(),
         "pop lanes");
-    points.scratch =
-        createLaneBuffer(impl.device, count, 1, "pop scratch");
+    points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
     points.tableData = table;
     points.table = createTableBuffer(impl.device, points.tableData);
     geometry.instanceCount = (uint32_t)count;
@@ -1956,8 +1834,7 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
     ibDesc.Mode = BUFFER_MODE_STRUCTURED;
     ibDesc.ElementByteStride = sizeof(InstanceAttribs);
     ibDesc.Size = (Uint64)count * sizeof(InstanceAttribs);
-    impl.device->CreateBuffer(ibDesc, nullptr,
-                              &geometry.instanceBuffer);
+    impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
     if (!points.lanes || !points.scratch || !points.table ||
         !geometry.instanceBuffer) {
       // Allocation failed partway. Zero the count so readPoints() cannot
@@ -1976,16 +1853,14 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
 
 shape::Cloud World::readPoints(uint32_t id) {
   using namespace dg;
-  Impl &impl = *m_impl;
+  Impl& impl = *m_impl;
   shape::Cloud out;
   const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) ||
-      !impl.registry.all_of<PopComponent>(e))
+  if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e))
     return out;
-  PopComponent &points = impl.registry.get<PopComponent>(e);
+  PopComponent& points = impl.registry.get<PopComponent>(e);
   const Uint64 laneBytes = (Uint64)points.count * 4 * sizeof(float);
-  const size_t slots =
-      (size_t)pop::kBuiltinSlots + points.customNames.size();
+  const size_t slots = (size_t)pop::kBuiltinSlots + points.customNames.size();
 
   BufferDesc desc;
   desc.Name = "sigilworld lane readback";
@@ -1995,45 +1870,40 @@ shape::Cloud World::readPoints(uint32_t id) {
   desc.Size = laneBytes * slots;
   RefCntAutoPtr<IBuffer> staging;
   impl.device->CreateBuffer(desc, nullptr, &staging);
-  if (!staging)
-    return out;
-  impl.context->CopyBuffer(points.lanes, 0,
-                           RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
-                           staging, 0, laneBytes * slots,
-                           RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  if (!staging) return out;
+  impl.context->CopyBuffer(
+      points.lanes, 0, RESOURCE_STATE_TRANSITION_MODE_TRANSITION, staging, 0,
+      laneBytes * slots, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   impl.context->WaitForIdle();
 
   PVoid mapped = nullptr;
   impl.context->MapBuffer(staging, MAP_READ, MAP_FLAG_NONE, mapped);
-  if (!mapped)
-    return out;
-  const float *f = static_cast<const float *>(mapped);
+  if (!mapped) return out;
+  const float* f = static_cast<const float*>(mapped);
   const size_t n = (size_t)points.count;
   out.positions.resize(n);
-  std::vector<float> &t = out.scalar("t");
-  std::vector<glm::vec3> &dir = out.vector("dir");
-  std::vector<float> &size = out.scalar("size", 1);
-  std::vector<glm::vec4> &tint = out.color("tint");
-  std::vector<glm::vec4> &tex = out.color("Tex");
-  const auto slot = [&](size_t s, size_t i) {
-    return f + (s * n + i) * 4;
-  };
+  std::vector<float>& t = out.scalar("t");
+  std::vector<glm::vec3>& dir = out.vector("dir");
+  std::vector<float>& size = out.scalar("size", 1);
+  std::vector<glm::vec4>& tint = out.color("tint");
+  std::vector<glm::vec4>& tex = out.color("Tex");
+  const auto slot = [&](size_t s, size_t i) { return f + (s * n + i) * 4; };
   for (size_t i = 0; i < n; ++i) {
-    const float *p = slot(0, i);
+    const float* p = slot(0, i);
     out.positions[i] = {p[0], p[1], p[2]};
     t[i] = slot(1, i)[0];
-    const float *d = slot(2, i);
+    const float* d = slot(2, i);
     dir[i] = {d[0], d[1], d[2]};
     size[i] = slot(3, i)[0];
-    const float *c = slot(4, i);
+    const float* c = slot(4, i);
     tint[i] = {c[0], c[1], c[2], c[3]};
-    const float *x = slot(5, i);
+    const float* x = slot(5, i);
     tex[i] = {x[0], x[1], x[2], x[3]};
   }
   for (size_t s = 0; s < points.customNames.size(); ++s) {
-    std::vector<glm::vec4> &lane = out.color(points.customNames[s]);
+    std::vector<glm::vec4>& lane = out.color(points.customNames[s]);
     for (size_t i = 0; i < n; ++i) {
-      const float *v = slot((size_t)pop::kBuiltinSlots + s, i);
+      const float* v = slot((size_t)pop::kBuiltinSlots + s, i);
       lane[i] = {v[0], v[1], v[2], v[3]};
     }
   }
@@ -2042,7 +1912,7 @@ shape::Cloud World::readPoints(uint32_t id) {
 }
 
 void World::removeSurface(uint32_t id) {
-  entt::registry &registry = m_impl->registry;
+  entt::registry& registry = m_impl->registry;
   const entt::entity e = entity(id);
   if (registry.valid(e) &&
       registry.any_of<GpuGeometry, GpuInstancedGeometry>(e))
@@ -2054,34 +1924,29 @@ size_t World::surfaceCount() const {
          m_impl->registry.view<GpuInstancedGeometry>().size();
 }
 
-uint32_t World::addLight(const LightComponent &light) {
-  entt::registry &registry = m_impl->registry;
+uint32_t World::addLight(const LightComponent& light) {
+  entt::registry& registry = m_impl->registry;
   const entt::entity id = registry.create();
   registry.emplace<LightComponent>(id, light);
   return (uint32_t)id;
 }
 
-entt::registry &World::registry() {
-  return m_impl->registry;
-}
+entt::registry& World::registry() { return m_impl->registry; }
 
-const entt::registry &World::registry() const {
-  return m_impl->registry;
-}
+const entt::registry& World::registry() const { return m_impl->registry; }
 
-void World::setCamera(const shape::space::Camera &camera) {
+void World::setCamera(const shape::space::Camera& camera) {
   m_impl->camera = camera;
 }
 
-void World::setLighting(const Lighting &lighting) {
+void World::setLighting(const Lighting& lighting) {
   m_impl->lighting = lighting;
 }
 
 bool World::render() {
   using namespace dg;
-  Impl &impl = *m_impl;
-  if (!impl.context)
-    return false;
+  Impl& impl = *m_impl;
+  if (!impl.context) return false;
 
   // Declared motion first, before anything reads a component: resolve
   // every animated lane into the Transform / Material / Light / Camera
@@ -2103,16 +1968,15 @@ bool World::render() {
     auto sweeps = impl.registry.view<SweepComponent>();
     bool bound = false;
     for (entt::entity e : sweeps) {
-      SweepComponent &sweep = sweeps.get<SweepComponent>(e);
-      if (!sweep.dirty)
-        continue;
+      SweepComponent& sweep = sweeps.get<SweepComponent>(e);
+      if (!sweep.dirty) continue;
       if (!bound) {
         impl.context->SetPipelineState(impl.sweepPso);
         bound = true;
       }
       {
-        MapHelper<SweepParams> params(impl.context, impl.sweepCB,
-                                      MAP_WRITE, MAP_FLAG_DISCARD);
+        MapHelper<SweepParams> params(impl.context, impl.sweepCB, MAP_WRITE,
+                                      MAP_FLAG_DISCARD);
         params->window[0] = sweep.head;
         params->window[1] = sweep.span;
         params->window[2] = sweep.width;
@@ -2126,8 +1990,8 @@ bool World::render() {
       }
       impl.context->CommitShaderResources(
           sweep.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-      DispatchComputeAttribs dispatch(
-          (Uint32)((sweep.sections + 63) / 64), 1, 1);
+      DispatchComputeAttribs dispatch((Uint32)((sweep.sections + 63) / 64), 1,
+                                      1);
       impl.context->DispatchCompute(dispatch);
       sweep.dirty = false;
     }
@@ -2136,16 +2000,15 @@ bool World::render() {
     auto flocks = impl.registry.view<FlockComponent>();
     bool bound = false;
     for (entt::entity e : flocks) {
-      FlockComponent &flock = flocks.get<FlockComponent>(e);
-      if (!flock.dirty)
-        continue;
+      FlockComponent& flock = flocks.get<FlockComponent>(e);
+      if (!flock.dirty) continue;
       if (!bound) {
         impl.context->SetPipelineState(impl.flockPso);
         bound = true;
       }
       {
-        MapHelper<FlockParams> params(impl.context, impl.flockCB,
-                                      MAP_WRITE, MAP_FLAG_DISCARD);
+        MapHelper<FlockParams> params(impl.context, impl.flockCB, MAP_WRITE,
+                                      MAP_FLAG_DISCARD);
         params->windowA[0] = flock.head;
         params->windowA[1] = flock.span;
         params->windowA[2] = flock.radius;
@@ -2154,10 +2017,8 @@ bool World::render() {
         params->windowB[1] = flock.noiseAmplitude;
         params->windowB[2] = flock.noiseFrequency;
         params->windowB[3] = flock.seed;
-        std::memcpy(params->tintTail, flock.tintTail,
-                    sizeof(flock.tintTail));
-        std::memcpy(params->tintHead, flock.tintHead,
-                    sizeof(flock.tintHead));
+        std::memcpy(params->tintTail, flock.tintTail, sizeof(flock.tintTail));
+        std::memcpy(params->tintHead, flock.tintHead, sizeof(flock.tintHead));
         params->loop[0] = (float)flock.pointCount;
         params->loop[1] = 0.002f;
         params->loop[2] = 0;
@@ -2165,8 +2026,7 @@ bool World::render() {
       }
       impl.context->CommitShaderResources(
           flock.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-      DispatchComputeAttribs dispatch(
-          (Uint32)((flock.count + 63) / 64), 1, 1);
+      DispatchComputeAttribs dispatch((Uint32)((flock.count + 63) / 64), 1, 1);
       impl.context->DispatchCompute(dispatch);
       flock.dirty = false;
     }
@@ -2182,16 +2042,13 @@ bool World::render() {
     std::vector<entt::entity> cooked;
     std::function<void(entt::entity)> cookOne;
     cookOne = [&](entt::entity e) {
-      PopComponent &points = popView.get<PopComponent>(e);
-      const bool upstreamCooked =
-          std::find(cooked.begin(), cooked.end(), points.upstream) !=
-          cooked.end();
+      PopComponent& points = popView.get<PopComponent>(e);
+      const bool upstreamCooked = std::find(cooked.begin(), cooked.end(),
+                                            points.upstream) != cooked.end();
       if (impl.registry.valid(points.upstream) &&
           impl.registry.all_of<PopComponent>(points.upstream)) {
-        PopComponent &up =
-            impl.registry.get<PopComponent>(points.upstream);
-        if (up.dirty)
-          cookOne(points.upstream);
+        PopComponent& up = impl.registry.get<PopComponent>(points.upstream);
+        if (up.dirty) cookOne(points.upstream);
         // Refreshed every cook, so a setPoints() on the upstream that
         // changed its point count cannot leave this one reading a stale
         // length.
@@ -2213,19 +2070,18 @@ bool World::render() {
         };
         impl.context->TransitionResourceStates(2, barriers);
       };
-      const DispatchComputeAttribs dispatch(
-          (Uint32)((points.count + 63) / 64), 1, 1);
+      const DispatchComputeAttribs dispatch((Uint32)((points.count + 63) / 64),
+                                            1, 1);
       const auto runOp = [&](size_t psoIndex, size_t srbIndex,
-                             const PopParams &params) {
+                             const PopParams& params) {
         impl.context->SetPipelineState(impl.popPsos[psoIndex]);
         {
-          MapHelper<PopParams> mapped(impl.context, impl.popCB,
-                                      MAP_WRITE, MAP_FLAG_DISCARD);
+          MapHelper<PopParams> mapped(impl.context, impl.popCB, MAP_WRITE,
+                                      MAP_FLAG_DISCARD);
           *mapped = params;
         }
         impl.context->CommitShaderResources(
-            points.srbs[srbIndex],
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            points.srbs[srbIndex], RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         impl.context->DispatchCompute(dispatch);
       };
       const auto base = [&] {
@@ -2241,7 +2097,7 @@ bool World::render() {
       for (size_t i = 0; i < points.chain.size(); ++i) {
         PopParams params = base();
         std::visit(
-            [&](const auto &op) {
+            [&](const auto& op) {
               using T = std::decay_t<decltype(op)>;
               if constexpr (std::is_same_v<T, pop::SplineScatter>) {
                 params.a[0] = op.head;
@@ -2314,8 +2170,7 @@ bool World::render() {
               }
             },
             points.chain[i]);
-        if (const auto *relax =
-                std::get_if<pop::Relax>(&points.chain[i])) {
+        if (const auto* relax = std::get_if<pop::Relax>(&points.chain[i])) {
           for (int pass = 0; pass < relax->iterations; ++pass) {
             runOp(popPsoIndex(points.chain[i].index()), i, params);
             laneBarrier();
@@ -2331,21 +2186,18 @@ bool World::render() {
       points.dirty = false;
       cooked.push_back(e);
     };
-    for (entt::entity e : popView)
-      cookOne(e);
+    for (entt::entity e : popView) cookOne(e);
   }
 
   const bool msaa = impl.sampleCount > 1;
-  ITextureView *rtv = (msaa ? impl.colorTarget : impl.resolveTarget)
+  ITextureView* rtv = (msaa ? impl.colorTarget : impl.resolveTarget)
                           ->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
-  ITextureView *dsv =
+  ITextureView* dsv =
       impl.depthTarget->GetDefaultView(TEXTURE_VIEW_DEPTH_STENCIL);
   impl.context->SetRenderTargets(1, &rtv, dsv,
                                  RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  const float clear[4] = {impl.config.clearColor.x,
-                          impl.config.clearColor.y,
-                          impl.config.clearColor.z,
-                          impl.config.clearColor.w};
+  const float clear[4] = {impl.config.clearColor.x, impl.config.clearColor.y,
+                          impl.config.clearColor.z, impl.config.clearColor.w};
   impl.context->ClearRenderTarget(rtv, clear,
                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   impl.context->ClearDepthStencil(dsv, CLEAR_DEPTH_FLAG, 1.0f, 0,
@@ -2356,8 +2208,7 @@ bool World::render() {
   // fallback camera drives the frame; with several, the first the
   // registry iterates wins.
   shape::space::Camera cam = impl.camera;
-  for (auto [e, camComponent] :
-       impl.registry.view<CameraComponent>().each()) {
+  for (auto [e, camComponent] : impl.registry.view<CameraComponent>().each()) {
     if (camComponent.active) {
       cam = camComponent.camera;
       break;
@@ -2366,17 +2217,15 @@ bool World::render() {
 
   // Frame constants.
   {
-    const float aspect =
-        impl.config.height > 0
-            ? (float)impl.config.width / (float)impl.config.height
-            : 1.0f;
+    const float aspect = impl.config.height > 0 ? (float)impl.config.width /
+                                                      (float)impl.config.height
+                                                : 1.0f;
     // Column-vector chain: clip = proj * view * model.
     const glm::mat4 viewProj =
-        perspectiveVk(cam.fovYDeg, aspect, cam.zNear, cam.zFar) *
-        cam.view();
+        perspectiveVk(cam.fovYDeg, aspect, cam.zNear, cam.zFar) * cam.view();
 
-    MapHelper<FrameConstants> constants(impl.context, impl.frameCB,
-                                        MAP_WRITE, MAP_FLAG_DISCARD);
+    MapHelper<FrameConstants> constants(impl.context, impl.frameCB, MAP_WRITE,
+                                        MAP_FLAG_DISCARD);
     constants->viewProj = colMajor(viewProj);
     constants->camPos[0] = cam.eye.x;
     constants->camPos[1] = cam.eye.y;
@@ -2384,13 +2233,12 @@ bool World::render() {
     constants->camPos[3] = 1;
     glm::vec3 sunDir = impl.lighting.sunDirection;
     const float len = glm::length(sunDir);
-    if (len > 1e-6f)
-      sunDir = sunDir * (1.0f / len);
+    if (len > 1e-6f) sunDir = sunDir * (1.0f / len);
     constants->sunDir[0] = sunDir.x;
     constants->sunDir[1] = sunDir.y;
     constants->sunDir[2] = sunDir.z;
     constants->sunDir[3] = impl.lighting.sunIntensity;
-    auto putColor = [](float *dst, const glm::vec4 &c, float alpha) {
+    auto putColor = [](float* dst, const glm::vec4& c, float alpha) {
       dst[0] = c.x;
       dst[1] = c.y;
       dst[2] = c.z;
@@ -2406,10 +2254,9 @@ bool World::render() {
     // registry iteration order. Any beyond that are silently ignored.
     int lightCount = 0;
     for (auto [e, light] : impl.registry.view<LightComponent>().each()) {
-      if (lightCount >= kLightBudget)
-        break;
-      float *pos = constants->lightPos[lightCount];
-      float *color = constants->lightColor[lightCount];
+      if (lightCount >= kLightBudget) break;
+      float* pos = constants->lightPos[lightCount];
+      float* color = constants->lightColor[lightCount];
       if (light.type == LightComponent::Type::Point) {
         pos[0] = light.position.x;
         pos[1] = light.position.y;
@@ -2437,55 +2284,49 @@ bool World::render() {
   // routes as a whole and counts as ONE sorted item, so its instances
   // are not sorted against each other.
   struct DrawItem {
-    const GpuGeometry *geometry = nullptr;
-    const GpuInstancedGeometry *instanced = nullptr;
-    const glm::mat4 *model = nullptr;
-    const Material *material = nullptr;
+    const GpuGeometry* geometry = nullptr;
+    const GpuInstancedGeometry* instanced = nullptr;
+    const glm::mat4* model = nullptr;
+    const Material* material = nullptr;
   };
   std::vector<DrawItem> opaque, blended;
   for (auto [e, geometry, transform, material] :
-       impl.registry
-           .view<GpuGeometry, TransformComponent, MaterialComponent>()
+       impl.registry.view<GpuGeometry, TransformComponent, MaterialComponent>()
            .each()) {
     DrawItem item;
     item.geometry = &geometry;
     item.model = &transform.model;
     item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque)
-        .push_back(item);
+    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
   }
   for (auto [e, geometry, transform, material] :
        impl.registry
-           .view<GpuInstancedGeometry, TransformComponent,
-                 MaterialComponent>()
+           .view<GpuInstancedGeometry, TransformComponent, MaterialComponent>()
            .each()) {
-    if (geometry.instanceCount == 0)
-      continue;
+    if (geometry.instanceCount == 0) continue;
     DrawItem item;
     item.instanced = &geometry;
     item.model = &transform.model;
     item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque)
-        .push_back(item);
+    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
   }
   if (!blended.empty()) {
     const glm::mat4 view = cam.view();
-    auto viewZ = [&](const DrawItem &item) {
+    auto viewZ = [&](const DrawItem& item) {
       const glm::vec4 origin = (view * *item.model) * glm::vec4{0, 0, 0, 1};
       return origin.z;
     };
     std::sort(blended.begin(), blended.end(),
-              [&](const DrawItem &a, const DrawItem &b) {
+              [&](const DrawItem& a, const DrawItem& b) {
                 return viewZ(a) < viewZ(b);
               });
   }
 
-  auto drawList = [&](const std::vector<DrawItem> &list,
-                      IPipelineState *plainPso,
-                      IPipelineState *instancedPso) {
-    IPipelineState *bound = nullptr;
-    for (const DrawItem &item : list) {
-      IPipelineState *pso = item.instanced ? instancedPso : plainPso;
+  auto drawList = [&](const std::vector<DrawItem>& list,
+                      IPipelineState* plainPso, IPipelineState* instancedPso) {
+    IPipelineState* bound = nullptr;
+    for (const DrawItem& item : list) {
+      IPipelineState* pso = item.instanced ? instancedPso : plainPso;
       if (pso != bound) {
         impl.context->SetPipelineState(pso);
         bound = pso;
@@ -2495,33 +2336,29 @@ bool World::render() {
       attribs.IndexType = VT_UINT32;
       attribs.Flags = DRAW_FLAG_VERIFY_ALL;
       if (item.instanced) {
-        const GpuInstancedGeometry &geometry = *item.instanced;
+        const GpuInstancedGeometry& geometry = *item.instanced;
         impl.context->CommitShaderResources(
             geometry.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        IBuffer *buffers[] = {geometry.vertexBuffer,
-                              geometry.instanceBuffer};
+        IBuffer* buffers[] = {geometry.vertexBuffer, geometry.instanceBuffer};
         const Uint64 offsets[] = {0, 0};
         impl.context->SetVertexBuffers(
-            0, 2, buffers, offsets,
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+            0, 2, buffers, offsets, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
             SET_VERTEX_BUFFERS_FLAG_RESET);
-        impl.context->SetIndexBuffer(
-            geometry.indexBuffer, 0,
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl.context->SetIndexBuffer(geometry.indexBuffer, 0,
+                                     RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         attribs.NumIndices = geometry.indexCount;
         attribs.NumInstances = geometry.instanceCount;
       } else {
-        const GpuGeometry &geometry = *item.geometry;
+        const GpuGeometry& geometry = *item.geometry;
         impl.context->CommitShaderResources(
             geometry.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        IBuffer *vb = geometry.vertexBuffer;
+        IBuffer* vb = geometry.vertexBuffer;
         const Uint64 offset = 0;
         impl.context->SetVertexBuffers(
             0, 1, &vb, &offset, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
             SET_VERTEX_BUFFERS_FLAG_RESET);
-        impl.context->SetIndexBuffer(
-            geometry.indexBuffer, 0,
-            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl.context->SetIndexBuffer(geometry.indexBuffer, 0,
+                                     RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         attribs.NumIndices = geometry.indexCount;
       }
       impl.context->DrawIndexed(attribs);
@@ -2533,8 +2370,7 @@ bool World::render() {
   // A frame with no draws never begins a render pass, so the backend
   // leaves the clears deferred. Flush here, BEFORE the resolve below, or
   // the resolve publishes the previous frame's contents.
-  if (opaque.empty() && blended.empty())
-    impl.context->Flush();
+  if (opaque.empty() && blended.empty()) impl.context->Flush();
 
   if (msaa) {
     ResolveTextureSubresourceAttribs resolve;
@@ -2552,9 +2388,8 @@ bool World::render() {
 
 sk_sp<SkImage> World::readback() {
   using namespace dg;
-  Impl &impl = *m_impl;
-  if (!impl.rendered)
-    return nullptr;
+  Impl& impl = *m_impl;
+  if (!impl.rendered) return nullptr;
 
   CopyTextureAttribs copy;
   copy.pSrcTexture = impl.resolveTarget;
@@ -2566,17 +2401,14 @@ sk_sp<SkImage> World::readback() {
 
   MappedTextureSubresource mapped;
   impl.context->MapTextureSubresource(impl.stagingTarget, 0, 0, MAP_READ,
-                                      MAP_FLAG_DO_NOT_WAIT, nullptr,
-                                      mapped);
-  if (!mapped.pData)
-    return nullptr;
+                                      MAP_FLAG_DO_NOT_WAIT, nullptr, mapped);
+  if (!mapped.pData) return nullptr;
 
   SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::Make(impl.config.width,
-                                       impl.config.height,
+  bitmap.allocPixels(SkImageInfo::Make(impl.config.width, impl.config.height,
                                        kRGBA_8888_SkColorType,
                                        kOpaque_SkAlphaType));
-  const uint8_t *src = (const uint8_t *)mapped.pData;
+  const uint8_t* src = (const uint8_t*)mapped.pData;
   for (int y = 0; y < impl.config.height; ++y)
     std::memcpy(bitmap.getAddr32(0, y), src + (size_t)y * mapped.Stride,
                 (size_t)impl.config.width * 4);
@@ -2585,23 +2417,20 @@ sk_sp<SkImage> World::readback() {
   return bitmap.asImage();
 }
 
-bool World::savePng(const std::filesystem::path &path) {
+bool World::savePng(const std::filesystem::path& path) {
   sk_sp<SkImage> image = readback();
-  if (!image)
-    return false;
+  if (!image) return false;
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::Make(image->width(), image->height(),
                                        kRGBA_8888_SkColorType,
                                        kOpaque_SkAlphaType));
-  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0))
-    return false;
+  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0)) return false;
   SkFILEWStream stream(path.string().c_str());
-  return stream.isValid() &&
-         SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
+  return stream.isValid() && SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
 }
 
-const char *World::backendName() const {
+const char* World::backendName() const {
   return m_impl->device ? "Vulkan" : "none";
 }
 
-} // namespace sigil::world
+}  // namespace sigil::world

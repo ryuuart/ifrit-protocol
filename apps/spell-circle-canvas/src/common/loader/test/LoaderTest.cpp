@@ -2,13 +2,12 @@
 // probe metadata, hot reload, and — with the OpenImageIO backend —
 // EXR decode into float SkImages with layer/channel selection.
 
-#include <sigilloader/Loader.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilloader/Loader.h>
 
 #ifdef SIGILLOADER_HAS_OIIO
 #include <OpenImageIO/imageio.h>
@@ -36,7 +35,7 @@ struct TempDir {
     std::error_code ec;
     fs::remove_all(path, ec);
   }
-  void write(const std::string &name, std::string_view content) {
+  void write(const std::string& name, std::string_view content) {
     fs::create_directories((path / name).parent_path());
     std::ofstream(path / name, std::ios::binary) << content;
   }
@@ -45,7 +44,7 @@ struct TempDir {
 /** A size x size solid PNG, for tests that need a real decodable
  *  image whose dimensions identify which file (or which version of a
  *  file) a decode came from. */
-void writePng(const fs::path &path, int size, SkColor color) {
+void writePng(const fs::path& path, int size, SkColor color) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
   bitmap.eraseColor(color);
@@ -54,7 +53,7 @@ void writePng(const fs::path &path, int size, SkColor color) {
   stream.flush();
 }
 
-} // namespace
+}  // namespace
 
 TEST(LoaderHub, MountsResolveLongestPrefix) {
   TempDir dir;
@@ -62,8 +61,7 @@ TEST(LoaderHub, MountsResolveLongestPrefix) {
   hub.mount("res://", dir.path);
   hub.mount("res://deep/", dir.path / "elsewhere");
   EXPECT_EQ(hub.resolve("res://a.txt"), dir.path / "a.txt");
-  EXPECT_EQ(hub.resolve("res://deep/b.txt"),
-            dir.path / "elsewhere" / "b.txt");
+  EXPECT_EQ(hub.resolve("res://deep/b.txt"), dir.path / "elsewhere" / "b.txt");
   EXPECT_TRUE(hub.resolve("other://x").empty());
 }
 
@@ -98,9 +96,8 @@ TEST(LoaderHub, PollReloadsChangedText) {
   EXPECT_EQ(hub.text("res://live.txt"), "one");
   // Filesystem mtime granularity can be coarse; force a distinct stamp.
   dir.write("live.txt", "two");
-  fs::last_write_time(dir.path / "live.txt",
-                      fs::file_time_type::clock::now() +
-                          std::chrono::seconds(2));
+  fs::last_write_time(dir.path / "live.txt", fs::file_time_type::clock::now() +
+                                                 std::chrono::seconds(2));
   EXPECT_TRUE(hub.poll());
   EXPECT_EQ(hub.text("res://live.txt"), "two");
 }
@@ -171,8 +168,8 @@ TEST(LoaderHub, ImageDecodesOnDemandFromCachedBytes) {
 // poll() must stat and reload the real file, never the decoy.
 TEST(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
   TempDir dir;
-  writePng(dir.path / "tile", 2, SK_ColorGREEN);     // decoy
-  writePng(dir.path / "tile#3.png", 1, SK_ColorRED); // the resource
+  writePng(dir.path / "tile", 2, SK_ColorGREEN);      // decoy
+  writePng(dir.path / "tile#3.png", 1, SK_ColorRED);  // the resource
   Hub hub;
   hub.mount("res://", dir.path);
   auto image = hub.image("res://tile#3.png");
@@ -184,9 +181,9 @@ TEST(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
   EXPECT_EQ(hub.image("res://tile#3.png")->width(), 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
-  fs::last_write_time(dir.path / "tile#3.png",
-                      fs::file_time_type::clock::now() +
-                          std::chrono::seconds(2));
+  fs::last_write_time(
+      dir.path / "tile#3.png",
+      fs::file_time_type::clock::now() + std::chrono::seconds(2));
   EXPECT_TRUE(hub.poll());
   auto reloaded = hub.image("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
@@ -207,9 +204,8 @@ TEST(LoaderHub, ProbeReportsPlainData) {
 TEST(LoaderHub, FileUrlsLoadAsLocalPaths) {
   TempDir dir;
   dir.write("direct.txt", "no mount needed");
-  Hub hub; // note: nothing mounted
-  const std::string url =
-      "file://" + (dir.path / "direct.txt").string();
+  Hub hub;  // note: nothing mounted
+  const std::string url = "file://" + (dir.path / "direct.txt").string();
   auto text = hub.text(url);
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "no mount needed");
@@ -225,8 +221,7 @@ TEST(LoaderNet, CacheKeyKeepsUrlExtension) {
   EXPECT_EQ(key, networkCacheKey("https://fake.invalid/a/logo.png?v=2"));
   EXPECT_NE(key, networkCacheKey("https://fake.invalid/a/other.png?v=2"));
   // No extension in the URL path: bare hash, no trailing dot-noise.
-  EXPECT_EQ(networkCacheKey("https://fake.invalid/api/blob")
-                .find('.'),
+  EXPECT_EQ(networkCacheKey("https://fake.invalid/api/blob").find('.'),
             std::string::npos);
 }
 
@@ -250,8 +245,7 @@ TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
-  SkFILEWStream stream(
-      (cache.path / networkCacheKey(url)).string().c_str());
+  SkFILEWStream stream((cache.path / networkCacheKey(url)).string().c_str());
   ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
   stream.flush();
   Hub hub;
@@ -268,12 +262,11 @@ TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
 TEST(LoaderNet, PollSkipsNetworkEntries) {
   TempDir cache;
   const std::string url = "https://fake.invalid/data.bin";
-  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
-      << "abc";
+  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary) << "abc";
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   ASSERT_NE(hub.blob(url), nullptr);
-  EXPECT_FALSE(hub.poll()); // no mtime to watch, nothing erased
+  EXPECT_FALSE(hub.poll());  // no mtime to watch, nothing erased
   auto again = hub.blob(url);
   ASSERT_NE(again, nullptr);
   EXPECT_EQ(again->bytes.size(), 3u);
@@ -285,26 +278,32 @@ namespace {
 
 /** Writes a tiny EXR with layered channels: default RGBA plus a
  *  "glow" layer whose red channel is 2.5 (HDR range). */
-void writeLayeredExr(const fs::path &path) {
+void writeLayeredExr(const fs::path& path) {
   using namespace OIIO;
   constexpr int kSize = 4;
   ImageSpec spec(kSize, kSize, 8, TypeDesc::FLOAT);
-  spec.channelnames = {"R", "G", "B", "A",
+  spec.channelnames = {"R",      "G",      "B",      "A",
                        "glow.R", "glow.G", "glow.B", "glow.A"};
   auto out = ImageOutput::create(path.string());
   ASSERT_TRUE(out);
   ASSERT_TRUE(out->open(path.string(), spec));
   std::vector<float> pixels(kSize * kSize * 8);
   for (int px = 0; px < kSize * kSize; ++px) {
-    float *p = pixels.data() + px * 8;
-    p[0] = 0.25f; p[1] = 0.5f; p[2] = 0.75f; p[3] = 1.0f; // base RGBA
-    p[4] = 2.5f;  p[5] = 0.125f; p[6] = 0.0f; p[7] = 1.0f; // glow.*
+    float* p = pixels.data() + px * 8;
+    p[0] = 0.25f;
+    p[1] = 0.5f;
+    p[2] = 0.75f;
+    p[3] = 1.0f;  // base RGBA
+    p[4] = 2.5f;
+    p[5] = 0.125f;
+    p[6] = 0.0f;
+    p[7] = 1.0f;  // glow.*
   }
   ASSERT_TRUE(out->write_image(TypeDesc::FLOAT, pixels.data()));
   ASSERT_TRUE(out->close());
 }
 
-} // namespace
+}  // namespace
 
 TEST(LoaderOiio, ExrDecodesToFloatImage) {
   TempDir dir;
@@ -314,7 +313,7 @@ TEST(LoaderOiio, ExrDecodesToFloatImage) {
   auto image = hub.image("res://probe.exr");
   ASSERT_NE(image, nullptr);
   ASSERT_FALSE(image->frames().empty());
-  const sk_sp<SkImage> &sk = image->frames().front().image;
+  const sk_sp<SkImage>& sk = image->frames().front().image;
   EXPECT_EQ(sk->width(), 4);
   EXPECT_EQ(sk->colorType(), kRGBA_F32_SkColorType);
 }
@@ -326,11 +325,11 @@ TEST(LoaderOiio, ExrLayerSelectionReadsHdrChannels) {
   hub.mount("res://", dir.path);
   auto glow = hub.image("res://probe.exr", {.layer = "glow"});
   ASSERT_NE(glow, nullptr);
-  const sk_sp<SkImage> &sk = glow->frames().front().image;
+  const sk_sp<SkImage>& sk = glow->frames().front().image;
   SkPixmap pixmap;
   ASSERT_TRUE(sk->peekPixels(&pixmap));
-  const float *px = (const float *)pixmap.addr(0, 0);
-  EXPECT_FLOAT_EQ(px[0], 2.5f);   // HDR value survives (F32)
+  const float* px = (const float*)pixmap.addr(0, 0);
+  EXPECT_FLOAT_EQ(px[0], 2.5f);  // HDR value survives (F32)
   EXPECT_FLOAT_EQ(px[1], 0.125f);
 }
 
@@ -369,7 +368,7 @@ TEST(LoaderOiio, ChannelsExposeRawFloatData) {
   EXPECT_EQ(composed->colorType(), kRGBA_F32_SkColorType);
 }
 
-#endif // SIGILLOADER_HAS_OIIO
+#endif  // SIGILLOADER_HAS_OIIO
 
 TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
   // A 1x1 red PNG (encoded by Skia) via the Skia decode path:
@@ -387,8 +386,8 @@ TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
   ASSERT_NE(channels, nullptr);
   ASSERT_EQ(channels->names.size(), 4u);
   EXPECT_FALSE(channels->floatingPoint);
-  EXPECT_FLOAT_EQ(channels->at(0, 0, 0), 1.0f); // R
-  EXPECT_FLOAT_EQ(channels->at(0, 0, 3), 1.0f); // A
+  EXPECT_FLOAT_EQ(channels->at(0, 0, 0), 1.0f);  // R
+  EXPECT_FLOAT_EQ(channels->at(0, 0, 3), 1.0f);  // A
 }
 
 TEST(LoaderNet, OfflinePolicyServesCacheAndNeverFetches) {

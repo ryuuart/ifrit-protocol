@@ -2,7 +2,6 @@
 // Internal to SigilScry — the graphics-API-neutral GPU backend contract.
 
 #include <Ultralight/platform/GPUDriver.h>
-
 #include <include/core/SkRefCnt.h>
 
 #include <cstdint>
@@ -32,7 +31,7 @@ namespace sigil::scry {
  * on the web thread unless noted.
  */
 class WebGpuDriver : public ultralight::GPUDriver {
-public:
+ public:
   ~WebGpuDriver() override = default;
 
   /** Executes the pending Ultralight command list. Returns the ids of
@@ -41,46 +40,45 @@ public:
 
   /** Creates a shader-readable texture for per-view frame publishing.
    *  Returned retained; free with releaseNativeTexture(). */
-  virtual void *createPublishTexture(int width, int height) = 0;
+  virtual void* createPublishTexture(int width, int height) = 0;
 
   /** Creates a texture usable both as a Skia render target and as a
    *  sampled page image (WebImage slots), CPU-uploadable. Returned
    *  retained; free with releaseNativeTexture(). */
-  virtual void *createImageTexture(int width, int height) = 0;
+  virtual void* createImageTexture(int width, int height) = 0;
 
   /** Releases a texture created by this driver (safe from any thread). */
-  virtual void releaseNativeTexture(void *texture) = 0;
+  virtual void releaseNativeTexture(void* texture) = 0;
 
   /** Copies the top-left region of the texture registered under
    *  @p srcTextureId into @p dstTexture. */
-  virtual void copyTexture(uint32_t srcTextureId, void *dstTexture,
-                           int width, int height) = 0;
+  virtual void copyTexture(uint32_t srcTextureId, void* dstTexture, int width,
+                           int height) = 0;
 
   /** Copies between two native textures (clamped to the smaller size). */
-  virtual void copyNativeTexture(void *srcTexture, void *dstTexture,
-                                 int width, int height) = 0;
+  virtual void copyNativeTexture(void* srcTexture, void* dstTexture, int width,
+                                 int height) = 0;
 
   /** Registers an externally-supplied texture under a fresh Ultralight
    *  texture id so page draw commands can bind it. */
-  virtual uint32_t registerExternalTexture(void *texture) = 0;
+  virtual uint32_t registerExternalTexture(void* texture) = 0;
   virtual void unregisterExternalTexture(uint32_t textureId) = 0;
 
   /** Copies raster pixels (premultiplied BGRA) into an image texture. */
-  virtual void uploadToTexture(void *texture, const void *pixels, int width,
+  virtual void uploadToTexture(void* texture, const void* pixels, int width,
                                int height, size_t rowBytes) = 0;
 
   /** Runs @p painter with an SkCanvas targeting @p texture through the
    *  driver's own Graphite context, then flushes that work. Returns false
    *  if the frame did not render (no surface, empty recording, or a
    *  failed Graphite insert). */
-  virtual bool paintTexture(void *texture, int width, int height,
-                            const std::function<void(SkCanvas &)> &painter) = 0;
+  virtual bool paintTexture(void* texture, int width, int height,
+                            const std::function<void(SkCanvas&)>& painter) = 0;
 
   /** Wraps @p texture as an SkImage for @p recorder's Graphite context.
    *  The image keeps the texture alive. Any thread. */
-  virtual sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder *recorder,
-                                     void *texture, int width,
-                                     int height) = 0;
+  virtual sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder,
+                                     void* texture, int width, int height) = 0;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

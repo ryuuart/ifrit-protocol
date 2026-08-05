@@ -100,18 +100,16 @@
 // centre, 1.45 the inlay chaining on, 4.6 the finished plaza.
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkMatrix.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkString.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
+#include <sigilsketch/Sketch.h>
 
 #include <algorithm>
 #include <array>
@@ -140,19 +138,19 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
 // setts under an overcast sky, and because a φ²-weighted majority of the field
 // is fat rhombs: at the catalogue value the plaza blows out to paper.
 
-const SkColor4f kWhiteBase = rgb(0xBFBCB2); // Royal White, weathered
-const SkColor4f kWhiteLit = rgb(0xD4D0C6);  // Royal White, sun side
-const SkColor4f kWhiteVein = rgb(0x2B2A28); // black feather-vein inclusions
-const SkColor4f kGreyBase = rgb(0x82858A);  // Kobra grey
-const SkColor4f kGreyLit = rgb(0x969A9E);   // Kobra grey, sun side
-const SkColor4f kGreyVein = rgb(0x3E4042);  // Kobra's tighter speckle
+const SkColor4f kWhiteBase = rgb(0xBFBCB2);  // Royal White, weathered
+const SkColor4f kWhiteLit = rgb(0xD4D0C6);   // Royal White, sun side
+const SkColor4f kWhiteVein = rgb(0x2B2A28);  // black feather-vein inclusions
+const SkColor4f kGreyBase = rgb(0x82858A);   // Kobra grey
+const SkColor4f kGreyLit = rgb(0x969A9E);    // Kobra grey, sun side
+const SkColor4f kGreyVein = rgb(0x3E4042);   // Kobra's tighter speckle
 
-const SkColor4f kSteelBase = rgb(0xEEF1F2); // polished stainless, overcast
-const SkColor4f kSteelSpec = rgb(0xFEFEFE); // direct catch-light
-const SkColor4f kSteelEdge = rgb(0xC9CED1); // the insert's chamfered lip
-const SkColor4f kGroove = rgb(0x5A5F63, 0.38f); // occlusion in the milled slot
+const SkColor4f kSteelBase = rgb(0xEEF1F2);      // polished stainless, overcast
+const SkColor4f kSteelSpec = rgb(0xFEFEFE);      // direct catch-light
+const SkColor4f kSteelEdge = rgb(0xC9CED1);      // the insert's chamfered lip
+const SkColor4f kGroove = rgb(0x5A5F63, 0.38f);  // occlusion in the milled slot
 
-const SkColor4f kJointBed = rgb(0x33363A); // saw-cut joint / bedding mortar
+const SkColor4f kJointBed = rgb(0x33363A);  // saw-cut joint / bedding mortar
 const SkColor4f kNight = rgb(0x101112);
 const SkColor4f kCaption = rgb(0x9CA0A2);
 
@@ -166,15 +164,15 @@ const SkColor4f kCaption = rgb(0x9CA0A2);
 
 constexpr float kW = 1600, kH = 1200;
 constexpr float kCx = kW * 0.5f, kCy = kH * 0.5f;
-constexpr float kModule = 78.0f; // <<< the rhomb side, px. THE free constant.
-constexpr float kJoint = 1.5f;   // saw-cut joint, total width px
-constexpr float kChamfer = 2.3f; // arris chamfer band, px
-constexpr float kBandW = 9.8f;   // steel inlay band, px (≈0.125·s, per photo)
-constexpr float kCorner = 1000.0f; // canvas half-diagonal — the ripple's reach
-constexpr float kDiagW = 328.0f, kDiagH = 224.0f; // the vignette's drawing box
+constexpr float kModule = 78.0f;  // <<< the rhomb side, px. THE free constant.
+constexpr float kJoint = 1.5f;    // saw-cut joint, total width px
+constexpr float kChamfer = 2.3f;  // arris chamfer band, px
+constexpr float kBandW = 9.8f;    // steel inlay band, px (≈0.125·s, per photo)
+constexpr float kCorner = 1000.0f;  // canvas half-diagonal — the ripple's reach
+constexpr float kDiagW = 328.0f, kDiagH = 224.0f;  // the vignette's drawing box
 
 // The sun. One world-fixed direction for every chamfer on every sett.
-const SkVector kSunTo{0.48f, 0.877f}; // the light's direction of travel
+const SkVector kSunTo{0.48f, 0.877f};  // the light's direction of travel
 
 // ---------------------------------------------------------------------------
 // Timeline. Every delay is a continuous function of a tile's own centre
@@ -222,10 +220,10 @@ constexpr double kOffset = 0.2;
 struct Tile {
   int r = 0, s = 0, kr = 0, ks = 0;
   bool fat = true;
-  SkPoint v[4]{};   // world px; v[0] = z, the canonical low corner
-  SkPoint centre{}; // world px
-  float radius = 0; // px from the pentagrid origin
-  int arcAt[2]{0, 2}; // v[] indices carrying the two matching-rule arcs
+  SkPoint v[4]{};      // world px; v[0] = z, the canonical low corner
+  SkPoint centre{};    // world px
+  float radius = 0;    // px from the pentagrid origin
+  int arcAt[2]{0, 2};  // v[] indices carrying the two matching-rule arcs
   uint32_t seed = 0;
 };
 
@@ -258,7 +256,7 @@ std::vector<Tile> buildField(float module, float padPx) {
       const V2 zr = kZeta[(size_t)r], zs = kZeta[(size_t)s];
       const double det = zr.x * zs.y - zr.y * zs.x;
       if (std::abs(det) < 1e-9)
-        continue; // never happens: five distinct 72° directions
+        continue;  // never happens: five distinct 72° directions
       const int dd = std::min(std::abs(r - s), 5 - std::abs(r - s));
       const bool fat = (dd == 1);
 
@@ -272,10 +270,10 @@ std::vector<Tile> buildField(float module, float padPx) {
 
           V2 z{0, 0};
           for (int j = 0; j < 5; ++j) {
-            const int Kj = (j == r)   ? kr
-                           : (j == s) ? ks
-                                      : (int)std::ceil(dot(kZeta[(size_t)j], x) +
-                                                       kOffset);
+            const int Kj =
+                (j == r)   ? kr
+                : (j == s) ? ks
+                           : (int)std::ceil(dot(kZeta[(size_t)j], x) + kOffset);
             z = z + kZeta[(size_t)j] * (double)Kj;
           }
 
@@ -315,8 +313,7 @@ std::vector<Tile> buildField(float module, float padPx) {
 
           SkRect bb = SkRect::MakeEmpty();
           bb.setBounds({t.v, 4});
-          if (SkRect::Intersects(bb, keep))
-            out.push_back(t);
+          if (SkRect::Intersects(bb, keep)) out.push_back(t);
         }
       }
     }
@@ -328,20 +325,18 @@ std::vector<Tile> buildField(float module, float padPx) {
 // The arc decoration, built in the tile's OWN edge frame
 
 struct ArcSpec {
-  SkPoint centre{}; // the arc-carrying vertex (v[0] or v[2])
+  SkPoint centre{};  // the arc-carrying vertex (v[0] or v[2])
   float startDeg = 0, sweepDeg = 0;
-  SkPoint end0{}, end1{}; // the two edge midpoints it lands on
+  SkPoint end0{}, end1{};  // the two edge midpoints it lands on
 };
 
 inline float wrap180(float d) {
-  while (d > 180.0f)
-    d -= 360.0f;
-  while (d <= -180.0f)
-    d += 360.0f;
+  while (d > 180.0f) d -= 360.0f;
+  while (d <= -180.0f) d += 360.0f;
   return d;
 }
 
-ArcSpec arcAt(const Tile &t, int k, float module) {
+ArcSpec arcAt(const Tile& t, int k, float module) {
   const int ai = t.arcAt[k];
   const SkPoint A = t.v[ai];
   const SkPoint N1 = t.v[(ai + 1) % 4];
@@ -353,19 +348,20 @@ ArcSpec arcAt(const Tile &t, int k, float module) {
   spec.centre = A;
   spec.startDeg = a0;
   spec.sweepDeg = wrap180(a1 - a0);
-  spec.end0 = {A.x() + (N1.x() - A.x()) * 0.5f, A.y() + (N1.y() - A.y()) * 0.5f};
-  spec.end1 = {A.x() + (N2.x() - A.x()) * 0.5f, A.y() + (N2.y() - A.y()) * 0.5f};
+  spec.end0 = {A.x() + (N1.x() - A.x()) * 0.5f,
+               A.y() + (N1.y() - A.y()) * 0.5f};
+  spec.end1 = {A.x() + (N2.x() - A.x()) * 0.5f,
+               A.y() + (N2.y() - A.y()) * 0.5f};
   (void)R;
   return spec;
 }
 
-SkPath arcPath(const ArcSpec &a, float module, float shortenPx) {
+SkPath arcPath(const ArcSpec& a, float module, float shortenPx) {
   const float R = module * 0.5f;
   const float trim = shortenPx / R * 57.29578f;
   const float sgn = a.sweepDeg >= 0 ? 1.0f : -1.0f;
-  const SkRect oval =
-      SkRect::MakeLTRB(a.centre.x() - R, a.centre.y() - R, a.centre.x() + R,
-                       a.centre.y() + R);
+  const SkRect oval = SkRect::MakeLTRB(a.centre.x() - R, a.centre.y() - R,
+                                       a.centre.x() + R, a.centre.y() + R);
   SkPathBuilder b;
   b.arcTo(oval, a.startDeg + sgn * trim, a.sweepDeg - sgn * 2 * trim, true);
   return b.detach();
@@ -386,7 +382,7 @@ struct Audit {
   double worstMidErr = 0, worstTangentErr = 0;
 };
 
-Audit verify(const std::vector<Tile> &tiles, float module) {
+Audit verify(const std::vector<Tile>& tiles, float module) {
   Audit a;
   a.tiles = (int)tiles.size();
 
@@ -398,24 +394,24 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
   // 1. Angle sums. Every interior vertex of a genuine tiling closes at 360°;
   //    a gap or an overlap in the dualization shows up here first.
   std::unordered_map<int64_t, std::pair<double, SkPoint>> vsum;
-  for (const Tile &t : tiles) {
+  for (const Tile& t : tiles) {
     (t.fat ? a.fat : a.thin)++;
     for (int i = 0; i < 4; ++i) {
       const SkPoint p = t.v[i], q = t.v[(i + 1) % 4], r = t.v[(i + 3) % 4];
       const double d1x = q.x() - p.x(), d1y = q.y() - p.y();
       const double d2x = r.x() - p.x(), d2y = r.y() - p.y();
       const double ang =
-          std::acos(std::clamp((d1x * d2x + d1y * d2y) /
-                                   (std::hypot(d1x, d1y) * std::hypot(d2x, d2y)),
+          std::acos(std::clamp((d1x * d2x + d1y * d2y) / (std::hypot(d1x, d1y) *
+                                                          std::hypot(d2x, d2y)),
                                -1.0, 1.0)) *
           57.29577951;
-      auto &e = vsum[qkey(p)];
+      auto& e = vsum[qkey(p)];
       e.first += ang;
       e.second = p;
     }
   }
   const float inset = module * 1.6f;
-  for (const auto &kv : vsum) {
+  for (const auto& kv : vsum) {
     const SkPoint p = kv.second.second;
     if (p.x() < inset || p.y() < inset || p.x() > kW - inset ||
         p.y() > kH - inset)
@@ -423,8 +419,7 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
     a.interiorVerts++;
     const double err = std::abs(kv.second.first - 360.0);
     a.worstVertErr = std::max(a.worstVertErr, err);
-    if (err > 0.5)
-      a.badVerts++;
+    if (err > 0.5) a.badVerts++;
   }
   a.ratio = a.thin > 0 ? (double)a.fat / (double)a.thin : 0.0;
 
@@ -437,7 +432,7 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
   //    at its midpoint.
   std::unordered_map<int64_t, std::pair<int, SkPoint>> ends;
   std::unordered_map<int64_t, int> mids;
-  for (const Tile &t : tiles) {
+  for (const Tile& t : tiles) {
     for (int i = 0; i < 4; ++i) {
       const SkPoint p = t.v[i], q = t.v[(i + 1) % 4];
       mids[qkey({(p.x() + q.x()) * 0.5f, (p.y() + q.y()) * 0.5f})]++;
@@ -452,15 +447,14 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
       const SkPoint endPts[2] = {s.end0, s.end1};
       for (int ei = 0; ei < 2; ++ei) {
         const SkPoint e = endPts[ei];
-        auto &slot = ends[qkey(e)];
+        auto& slot = ends[qkey(e)];
         slot.first++;
         slot.second = e;
         // radius check: the endpoint sits exactly module/2 from the centre
         a.worstMidErr = std::max(
-            a.worstMidErr,
-            (double)std::abs(std::hypot(e.x() - s.centre.x(),
-                                        e.y() - s.centre.y()) -
-                             module * 0.5f));
+            a.worstMidErr, (double)std::abs(std::hypot(e.x() - s.centre.x(),
+                                                       e.y() - s.centre.y()) -
+                                            module * 0.5f));
         // Tangent check, the C1 half: the arc's tangent at e must be
         // perpendicular to the edge e sits on. The tangent comes from the
         // arc's own radius; the edge direction comes from the tile's two
@@ -468,26 +462,26 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
         // endpoint that drifts off its tile moves this dot product off zero.
         const double rx = e.x() - s.centre.x(), ry = e.y() - s.centre.y();
         const double L = std::hypot(rx, ry);
-        const double tx = -ry / L, ty = rx / L; // arc tangent at e
+        const double tx = -ry / L, ty = rx / L;  // arc tangent at e
         const double edx = edgeFar[ei].x() - t.v[ai].x();
         const double edy = edgeFar[ei].y() - t.v[ai].y();
-        const double eL = std::hypot(edx, edy); // the edge, vertex to vertex
-        a.worstTangentErr = std::max(
-            a.worstTangentErr, std::abs((tx * edx + ty * edy) / eL));
+        const double eL = std::hypot(edx, edy);  // the edge, vertex to vertex
+        a.worstTangentErr =
+            std::max(a.worstTangentErr, std::abs((tx * edx + ty * edy) / eL));
       }
     }
   }
-  for (const auto &kv : ends) {
+  for (const auto& kv : ends) {
     a.arcNodes++;
     const SkPoint p = kv.second.second;
-    const bool interior = p.x() > inset && p.y() > inset && p.x() < kW - inset &&
-                          p.y() < kH - inset;
+    const bool interior = p.x() > inset && p.y() > inset &&
+                          p.x() < kW - inset && p.y() < kH - inset;
     if (kv.second.first == 2)
       a.chained++;
     else if (interior)
       a.danglingInterior++;
     if (mids.find(kv.first) == mids.end())
-      a.danglingInterior++; // an endpoint that is not an edge midpoint at all
+      a.danglingInterior++;  // an endpoint that is not an edge midpoint at all
   }
   return a;
 }
@@ -501,30 +495,28 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
 
 struct Granite {
   SkColor4f base, lit, vein;
-  float speckleFreq;  // features/px — the mineral grain
-  float speckleAmp;   // soft-light contrast
-  float blotchFreq;   // the slow tonal drift across a slab
-  float veinContrast; // how hard the dark inclusions bite
+  float speckleFreq;   // features/px — the mineral grain
+  float speckleAmp;    // soft-light contrast
+  float blotchFreq;    // the slow tonal drift across a slab
+  float veinContrast;  // how hard the dark inclusions bite
 };
 
-const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein,
-                          0.56f,      1.05f,     0.052f,
-                          0.42f};
-const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f, 0.88f, 0.070f,
-                         0.32f};
+const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein, 0.56f,
+                          1.05f,      0.052f,    0.42f};
+const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
+                         0.88f,     0.070f,   0.32f};
 
 // A bank keyed by (species, seed bucket). A tile's seed is folded into one of
 // 40 buckets per granite, which is more variety than a field of two prototiles
 // at ten orientations can expose, and it caps the number of live shaders at
 // 80 instead of one per sett.
 class GraniteBank {
-public:
-  Material get(const Granite &g, uint32_t seed, bool fat) {
+ public:
+  Material get(const Granite& g, uint32_t seed, bool fat) {
     const uint32_t bucket = seed % 40u;
     const uint64_t key = ((uint64_t)(fat ? 1 : 0) << 32) | bucket;
     auto it = m_bank.find(key);
-    if (it != m_bank.end())
-      return it->second;
+    if (it != m_bank.end()) return it->second;
 
     const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
     auto tone = [&](SkColor4f c, float k) {
@@ -541,11 +533,11 @@ public:
       return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
                        a.fB + (b.fB - a.fB) * u, 1};
     };
-    Material body = Material::linearUnit(
-        {0.10f, 0.0f}, {0.90f, 1.0f},
-        {{0.00f, tone(mixc(g.base, g.lit, 0.40f), jitter)},
-         {0.55f, tone(g.base, jitter)},
-         {1.00f, tone(g.base, jitter - 0.030f)}});
+    Material body =
+        Material::linearUnit({0.10f, 0.0f}, {0.90f, 1.0f},
+                             {{0.00f, tone(mixc(g.base, g.lit, 0.40f), jitter)},
+                              {0.55f, tone(g.base, jitter)},
+                              {1.00f, tone(g.base, jitter - 0.030f)}});
 
     Material m = Material::blend(
         {{body, SkBlendMode::kSrcOver},
@@ -568,7 +560,7 @@ public:
     return m;
   }
 
-private:
+ private:
   std::map<uint64_t, Material> m_bank;
 };
 
@@ -592,9 +584,8 @@ void insetQuad(const SkPoint in[4], float d, SkPoint out[4],
     const SkVector u2 = normv({nx.x() - p.x(), nx.y() - p.y()});
     const SkVector bis = normv({u1.x() + u2.x(), u1.y() + u2.y()});
     // |u1+u2| = 2cos(θ/2) exactly, so the half-angle sine comes for free.
-    const float halfCos =
-        std::clamp(0.5f * std::hypot(u1.x() + u2.x(), u1.y() + u2.y()), 0.02f,
-                   0.999f);
+    const float halfCos = std::clamp(
+        0.5f * std::hypot(u1.x() + u2.x(), u1.y() + u2.y()), 0.02f, 0.999f);
     const float halfSin = std::sqrt(1 - halfCos * halfCos);
     // |offset| = d/sin(θ/2); at the thin rhomb's 36° corners that is 3.24·d,
     // which is geometrically right for the silhouette but turns a chamfer
@@ -633,10 +624,10 @@ inline SkPoint lerpP(SkPoint p, SkPoint q, double t) {
           (float)(p.y() + (q.y() - p.y()) * t)};
 }
 
-std::vector<Tri> deflate(const std::vector<Tri> &in) {
+std::vector<Tri> deflate(const std::vector<Tri>& in) {
   std::vector<Tri> out;
   out.reserve(in.size() * 3);
-  for (const Tri &t : in) {
+  for (const Tri& t : in) {
     if (t.type == 0) {
       const SkPoint P = lerpP(t.a, t.b, 1.0 / kPhi);
       out.push_back({0, t.c, P, t.b});
@@ -654,7 +645,7 @@ std::vector<Tri> deflate(const std::vector<Tri> &in) {
 
 /** Is p inside triangle t (tolerantly)? The area audit below cannot see a
  *  child that is the right SIZE in the wrong PLACE; this can. */
-inline bool insideTri(const Tri &t, SkPoint p, double eps) {
+inline bool insideTri(const Tri& t, SkPoint p, double eps) {
   auto side = [](SkPoint a, SkPoint b, SkPoint q) {
     return (double)(b.x() - a.x()) * (q.y() - a.y()) -
            (double)(b.y() - a.y()) * (q.x() - a.x());
@@ -666,7 +657,7 @@ inline bool insideTri(const Tri &t, SkPoint p, double eps) {
   return !(neg && pos);
 }
 
-inline double triArea(const Tri &t) {
+inline double triArea(const Tri& t) {
   return std::abs((double)(t.b.x() - t.a.x()) * (t.c.y() - t.a.y()) -
                   (double)(t.c.x() - t.a.x()) * (t.b.y() - t.a.y())) *
          0.5;
@@ -683,7 +674,7 @@ sigil::weave::TextStyle type(float size, SkColor4f color, float tracking) {
   return s;
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -711,7 +702,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   // orientation, so the chamfer's raking light and the granite ramp stay
   // world-fixed across all ten tile orientations for free.
 
-  Element sett(const Tile &t, size_t i) {
+  Element sett(const Tile& t, size_t i) {
     SkPoint outer[4], top[4];
     insetQuad(t.v, kJoint * 0.5f, outer, 2.6f);
     insetQuad(t.v, kJoint * 0.5f + kChamfer, top, 2.6f);
@@ -737,12 +728,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       SkVector n = normv({-(q.y() - p.y()), q.x() - p.x()});
       const SkVector mid{(p.x() + q.x()) * 0.5f - ctr.x(),
                          (p.y() + q.y()) * 0.5f - ctr.y()};
-      if (n.x() * mid.x() + n.y() * mid.y() < 0)
-        n = {-n.x(), -n.y()};
+      if (n.x() * mid.x() + n.y() * mid.y() < 0) n = {-n.x(), -n.y()};
       keyed[(size_t)e] = -(n.x() * kSunTo.x() + n.y() * kSunTo.y());
     }
 
-    auto chamfer = [lo, hi, keyed](SkCanvas &c, const PaintContext &) {
+    auto chamfer = [lo, hi, keyed](SkCanvas& c, const PaintContext&) {
       SkPaint p;
       p.setAntiAlias(true);
       for (int e = 0; e < 4; ++e) {
@@ -765,31 +755,28 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       }
     };
 
-    Element e = box()
-                    .left(bb.left())
-                    .top(bb.top())
-                    .width(bb.width())
-                    .height(bb.height())
-                    .shape([shape](SkSize) { return shape; })
-                    .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed,
-                                   t.fat))
-                    .foreground(Decoration(PaintProgram(chamfer)))
-                    // the saw cut: a hairline of the joint's own colour just
-                    // inside the silhouette, so neighbouring setts never fuse
-                    .stroke(util::stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
-                                         PathFormat::Align::Inner))
-                    // one Output, two curves: the fade eases out cubic, the
-                    // seating overshoots — shaped at the property, not in
-                    // the tick loop
-                    .opacity(bind(&grow[i])
-                                 .map(choreograph::easeOutCubic)
-                                 .clamp(0.0f, 1.0f))
-                    .scale(bind(&grow[i])
-                               .map(ease::outBack(1.32f))
-                               .target(0.52f, 1.0f));
+    Element e =
+        box()
+            .left(bb.left())
+            .top(bb.top())
+            .width(bb.width())
+            .height(bb.height())
+            .shape([shape](SkSize) { return shape; })
+            .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed, t.fat))
+            .foreground(Decoration(PaintProgram(chamfer)))
+            // the saw cut: a hairline of the joint's own colour just
+            // inside the silhouette, so neighbouring setts never fuse
+            .stroke(util::stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
+                                 PathFormat::Align::Inner))
+            // one Output, two curves: the fade eases out cubic, the
+            // seating overshoots — shaped at the property, not in
+            // the tick loop
+            .opacity(
+                bind(&grow[i]).map(choreograph::easeOutCubic).clamp(0.0f, 1.0f))
+            .scale(
+                bind(&grow[i]).map(ease::outBack(1.32f)).target(0.52f, 1.0f));
 
-    for (int k = 0; k < 2; ++k)
-      e.child(inlay(t, k, org, i));
+    for (int k = 0; k < 2; ++k) e.child(inlay(t, k, org, i));
     return e;
   }
 
@@ -799,7 +786,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   // R−w/2 and R+w/2, so the gradient runs across the band's width and nowhere
   // else. That is the one thing a linear gradient cannot do on a curve.
 
-  Element inlay(const Tile &t, int k, SkPoint parentOrg, size_t i) {
+  Element inlay(const Tile& t, int k, SkPoint parentOrg, size_t i) {
     const ArcSpec spec = arcAt(t, k, kModule);
     const SkPath world = arcPath(spec, kModule, kJoint * 0.5f + 0.9f);
     SkRect bb = world.getBounds();
@@ -814,12 +801,12 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     const float gR = R + kBandW;
     const float inner = (R - kBandW * 0.5f) / gR;
     const float outer = (R + kBandW * 0.5f) / gR;
-    Fill band = util::radialGradient(
-        c, gR,
-        {kSteelEdge, kSteelEdge, kSteelSpec, kSteelBase, kSteelEdge,
-         kSteelEdge},
-        {0.0f, inner, inner + (outer - inner) * 0.26f,
-         inner + (outer - inner) * 0.66f, outer, 1.0f});
+    Fill band =
+        util::radialGradient(c, gR,
+                             {kSteelEdge, kSteelEdge, kSteelSpec, kSteelBase,
+                              kSteelEdge, kSteelEdge},
+                             {0.0f, inner, inner + (outer - inner) * 0.26f,
+                              inner + (outer - inner) * 0.66f, outer, 1.0f});
 
     return box()
         .left(bb.left() - parentOrg.x())
@@ -827,11 +814,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .width(bb.width())
         .height(bb.height())
         .shape([local](SkSize) { return local; })
-        .stroke(spans::upTo(&arcT[i]), Brush{}
-                    // the milled slot the insert sits in — a hairline of
-                    // occlusion either side, not an outline
+        .stroke(spans::upTo(&arcT[i]),
+                Brush{}  // the milled slot the insert sits in — a hairline of
+                         // occlusion either side, not an outline
                     .layer(PathFormat{.width = kBandW + 0.9f,
-                                    .strokeFill = Fill::color(kGroove)})
+                                      .strokeFill = Fill::color(kGroove)})
                     // the 30 mm polished insert
                     .layer(PathFormat{.width = kBandW, .strokeFill = band}));
   }
@@ -841,7 +828,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   // reads as the diagram beside the paving rather than as more paving.
 
   Element diagram(int gen) {
-    const std::vector<Tri> &tri = gens[(size_t)std::clamp(gen, 0, 3)];
+    const std::vector<Tri>& tri = gens[(size_t)std::clamp(gen, 0, 3)];
     // positioned(): every triangle carries its own bb rect — the
     // deflation patch is the field's pattern in miniature, Yoga-free.
     auto group = positioned()
@@ -853,7 +840,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                                     Transition{320ms, ease::outBack(1.1f)}));
 
     for (size_t i = 0; i < tri.size(); ++i) {
-      const Tri &src = tri[i];
+      const Tri& src = tri[i];
       // Two antialiased half-triangles sharing a rhomb diagonal leave a
       // hairline seam along it, which makes the whole diagram read as
       // TRIANGLES instead of rhombs — the one thing it must not say. Push
@@ -862,7 +849,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       {
         const float cx = (src.a.x() + src.b.x() + src.c.x()) / 3.0f;
         const float cy = (src.a.y() + src.b.y() + src.c.y()) / 3.0f;
-        for (SkPoint *q : {&g.a, &g.b, &g.c}) {
+        for (SkPoint* q : {&g.a, &g.b, &g.c}) {
           const SkVector d = normv({q->x() - cx, q->y() - cy});
           *q = {q->x() + d.x() * 0.8f, q->y() + d.y() * 0.8f};
         }
@@ -901,13 +888,13 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     // two this run does draw. Close the path and the diagram claims a tiling
     // by triangles, which is the one thing it must not say.
     auto edges = tri;
-    group.child(custom([edges](SkCanvas &c, const PaintContext &) {
+    group.child(custom([edges](SkCanvas& c, const PaintContext&) {
                   SkPaint p;
                   p.setAntiAlias(true);
                   p.setStyle(SkPaint::kStroke_Style);
                   p.setStrokeWidth(1.0f);
                   p.setColor4f(rgb(0x1B1D1E, 0.85f), nullptr);
-                  for (const Tri &g : edges) {
+                  for (const Tri& g : edges) {
                     SkPathBuilder b;
                     b.moveTo(g.b);
                     b.lineTo(g.a);
@@ -932,29 +919,25 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                              PathFormat::Align::Inner))
         .background(styles::dropShadow(rgb(0x000000, 0.55f), {0, 6}, 22))
         .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                         "\xc3\x97" "1/\xcf\x86"),
+                         "\xc3\x97"
+                         "1/\xcf\x86"),
                     type(10.5f, rgb(0x8E9295), 1.0f))
                    .left(14)
                    .top(12))
-        .child(box()
-                   .left(10)
-                   .top(34)
-                   .width(kDiagW)
-                   .height(kDiagH)
-                   .child(slot("deflate")));
+        .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
+            slot("deflate")));
   }
 
   // -------------------------------------------------------------------------
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
     // A positioned leaf set: every sett already carries its own computed
     // rect, so there is nothing for a layout pass to solve. Under a plain
     // box() each sett and its two inlays would mount three flex nodes;
     // positioned() mounts them with none.
     auto field = positioned().inset(0, 0, 0, 0);
-    for (size_t i = 0; i < tiles.size(); ++i)
-      field.child(sett(tiles[i], i));
+    for (size_t i = 0; i < tiles.size(); ++i) field.child(sett(tiles[i], i));
 
     char spec[220];
     std::snprintf(spec, sizeof(spec),
@@ -970,8 +953,10 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // depends on animates, so Cache::Texture bakes it once and the cache
         // never invalidates; the node's opacity is what keeps it out of the
         // automatic bake, so the cache has to be asked for by hand.
-        .child(box().inset(0, 0, 0, 0).fill(
-            patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f)
+        .child(box()
+                   .inset(0, 0, 0, 0)
+                   .fill(patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f))
+                   .opacity(0.20f)
                    .cache(Cache::Texture))
         .child(field)
         // Weathering at PLAZA scale — cells a couple of hundred px across,
@@ -1030,16 +1015,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // ---- the site plaque. A civic plaque sits on the paving, so give
         // it a shadowed band to sit in rather than dropping 10 px type onto
         // speckled granite where it cannot be read at any exposure.
-        .child(box()
-                   .left(0)
-                   .top(kH - 190)
-                   .width(kW)
-                   .height(190)
-                   .fill(util::linearGradient(
-                       {0, kH - 190}, {0, kH},
-                       {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
-                        rgb(0x08090A, 0.72f)},
-                       {0.0f, 0.5f, 1.0f})))
+        .child(box().left(0).top(kH - 190).width(kW).height(190).fill(
+            util::linearGradient({0, kH - 190}, {0, kH},
+                                 {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
+                                  rgb(0x08090A, 0.72f)},
+                                 {0.0f, 0.5f, 1.0f})))
         .child(box()
                    .left(56)
                    .top(1084)
@@ -1048,8 +1028,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                    .fill(Fill::color(rgb(0x101314, 0.90f)))
                    .stroke(util::stroke(1.0f, Fill::color(rgb(0x676B6D, 0.45f)),
                                         PathFormat::Align::Inner))
-                   .background(styles::dropShadow(rgb(0x000000, 0.5f), {0, 5},
-                                                  18)))
+                   .background(
+                       styles::dropShadow(rgb(0x000000, 0.5f), {0, 5}, 18)))
         .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
                          "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
                          "STAINLESS INSERTS"),
@@ -1071,7 +1051,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
 
@@ -1081,9 +1061,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     std::printf(
         "\n[penrose] pentagrid gamma=%.3f  module=%.1f px\n"
         "[penrose] tiles=%d  fat=%d  thin=%d  fat:thin=%.4f  (phi=1.6180)\n"
-        "[penrose] interior vertices=%d  angle-sum failures=%d  worst err=%.4f deg\n"
+        "[penrose] interior vertices=%d  angle-sum failures=%d  worst err=%.4f "
+        "deg\n"
         "[penrose] arc nodes=%d  chained(deg 2)=%d  dangling interior=%d\n"
-        "[penrose] worst |endpoint-midpoint| = %.6f px   worst tangent dot = %.2e\n",
+        "[penrose] worst |endpoint-midpoint| = %.6f px   worst tangent dot = "
+        "%.2e\n",
         kOffset, kModule, audit.tiles, audit.fat, audit.thin, audit.ratio,
         audit.interiorVerts, audit.badVerts, audit.worstVertErr, audit.arcNodes,
         audit.chained, audit.danglingInterior, audit.worstMidErr,
@@ -1093,7 +1075,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     {
       // Seed: ONE fat rhomb = two obtuse Robinson halves mirrored across its
       // long diagonal (which joins the 72° corners and has length φ·s).
-      const double a0 = -0.9424777961; // −54°: the first edge's direction
+      const double a0 = -0.9424777961;  // −54°: the first edge's direction
       const V2 u{std::cos(a0), std::sin(a0)};
       const V2 v{std::cos(a0 + 1.2566370614), std::sin(a0 + 1.2566370614)};
       auto P = [&](V2 p) { return SkPoint{(float)p.x, (float)p.y}; };
@@ -1101,30 +1083,26 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       gens.clear();
       gens.push_back({{1, V1, V0, V2p}, {1, V3, V2p, V0}});
       genArea0 = 0;
-      for (const Tri &t : gens[0])
-        genArea0 += triArea(t);
+      for (const Tri& t : gens[0]) genArea0 += triArea(t);
       genAreaFails = 0;
       int genOutside = 0;
       for (int g = 0; g < 3; ++g) {
         const std::vector<Tri> parents = gens.back();
         gens.push_back(deflate(parents));
         double area = 0;
-        for (const Tri &t : gens.back())
-          area += triArea(t);
-        if (std::abs(area - genArea0) > genArea0 * 1e-4)
-          genAreaFails++;
+        for (const Tri& t : gens.back()) area += triArea(t);
+        if (std::abs(area - genArea0) > genArea0 * 1e-4) genAreaFails++;
         // every child must lie inside SOME parent — equal areas alone would
         // happily accept a correctly-sized child dropped in the wrong place
-        for (const Tri &ch : gens.back()) {
+        for (const Tri& ch : gens.back()) {
           bool ok = false;
-          for (const Tri &pa : parents)
+          for (const Tri& pa : parents)
             if (insideTri(pa, ch.a, 1e-6) && insideTri(pa, ch.b, 1e-6) &&
                 insideTri(pa, ch.c, 1e-6)) {
               ok = true;
               break;
             }
-          if (!ok)
-            genOutside++;
+          if (!ok) genOutside++;
         }
       }
       // Deflation subdivides the SAME region, so one fit computed on the
@@ -1140,9 +1118,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                                (kDiagH - 2 * m) / bb.height());
       const float ox = (kDiagW - bb.width() * k) * 0.5f - bb.left() * k;
       const float oy = (kDiagH - bb.height() * k) * 0.5f - bb.top() * k;
-      for (auto &gen : gens)
-        for (Tri &tr : gen)
-          for (SkPoint *q : {&tr.a, &tr.b, &tr.c})
+      for (auto& gen : gens)
+        for (Tri& tr : gen)
+          for (SkPoint* q : {&tr.a, &tr.b, &tr.c})
             *q = {q->x() * k + ox, q->y() * k + oy};
 
       // Point-sampled coverage: the audit that actually sees a hole. Area
@@ -1158,32 +1136,32 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         int uncovered = 0, doubled = 0, inside = 0;
         for (int iy = 0; iy < 120; ++iy)
           for (int ix = 0; ix < 120; ++ix) {
-            const SkPoint q{bb0.left() + bb0.width() * ((float)ix + 0.5f) / 120,
-                            bb0.top() + bb0.height() * ((float)iy + 0.5f) / 120};
+            const SkPoint q{
+                bb0.left() + bb0.width() * ((float)ix + 0.5f) / 120,
+                bb0.top() + bb0.height() * ((float)iy + 0.5f) / 120};
             int inSeed = 0;
-            for (const Tri &t : gens[0])
-              if (insideTri(t, q, -1e-4))
-                inSeed++;
-            if (inSeed == 0)
-              continue;
+            for (const Tri& t : gens[0])
+              if (insideTri(t, q, -1e-4)) inSeed++;
+            if (inSeed == 0) continue;
             inside++;
             int n = 0;
-            for (const Tri &t : gens[3])
-              if (insideTri(t, q, -1e-4))
-                n++;
+            for (const Tri& t : gens[3])
+              if (insideTri(t, q, -1e-4)) n++;
             if (n == 0)
               uncovered++;
             else if (n > 1)
               doubled++;
           }
-        std::printf("[penrose] deflation coverage @gen3: %d samples in the seed,"
-                    " %d uncovered, %d double-covered\n",
-                    inside, uncovered, doubled);
+        std::printf(
+            "[penrose] deflation coverage @gen3: %d samples in the seed,"
+            " %d uncovered, %d double-covered\n",
+            inside, uncovered, doubled);
       }
-      std::printf("[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
-                  "area failures=%d  children outside their parent=%d\n",
-                  gens[0].size() / 2, gens[1].size() / 2, gens[2].size() / 2,
-                  gens[3].size() / 2, genAreaFails, genOutside);
+      std::printf(
+          "[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
+          "area failures=%d  children outside their parent=%d\n",
+          gens[0].size() / 2, gens[1].size() / 2, gens[2].size() / 2,
+          gens[3].size() / 2, genAreaFails, genOutside);
       std::fflush(stdout);
     }
 
@@ -1203,11 +1181,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         const double u = (double)tiles[i].radius / (double)kCorner;
         // the ripple front: a raw linear progress, nothing shaped here
         grow[i] = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
-        arcT[i] = easeOutCubic(
-            clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
+        arcT[i] =
+            easeOutCubic(clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
       }
       const float sp = clamp01((now - kSheen0) / kSheenDur);
-      sheen = std::sin(sp * 3.14159265f); // one pass, then gone
+      sheen = std::sin(sp * 3.14159265f);  // one pass, then gone
       return true;
     });
 
@@ -1216,7 +1194,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("deflate", diagram(0));
   }
 
-  void update(double, sketch::SketchContext &ctx) override {
+  void update(double, sketch::SketchContext& ctx) override {
     const double now = std::fmod(t, kPeriod);
     int g = 0;
     for (int i = 3; i >= 0; --i)
@@ -1224,8 +1202,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         g = i;
         break;
       }
-    if (now < kGenAt[0])
-      g = 0;
+    if (now < kGenAt[0]) g = 0;
     if (g != generation) {
       generation = g;
       // Only the vignette's mount point re-renders. The paving's setts and

@@ -8,24 +8,22 @@
 
 namespace sigil::compose::sketch {
 
-std::vector<StaticSketch> &staticSketches() {
+std::vector<StaticSketch>& staticSketches() {
   // Function-local: registrations run during static initialization, and a
   // namespace-scope vector could be constructed after the first of them.
   static std::vector<StaticSketch> registry;
   return registry;
 }
 
-bool registerStaticSketch(const char *key, SketchFactory factory) {
-  if (key && factory)
-    staticSketches().push_back({key, factory});
+bool registerStaticSketch(const char* key, SketchFactory factory) {
+  if (key && factory) staticSketches().push_back({key, factory});
   return true;
 }
 
 SketchFactory findStaticSketch(std::string_view key) {
-  for (const StaticSketch &entry : staticSketches())
-    if (key == entry.key)
-      return entry.factory;
+  for (const StaticSketch& entry : staticSketches())
+    if (key == entry.key) return entry.factory;
   return nullptr;
 }
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch

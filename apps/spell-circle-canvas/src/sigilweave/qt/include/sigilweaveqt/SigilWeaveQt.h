@@ -9,6 +9,13 @@
  * zero-copy view — no transcoding, no allocation.
  */
 
+#include <include/core/SkColor.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPoint.h>
+#include <include/core/SkRect.h>
+#include <include/core/SkRefCnt.h>
+#include <include/core/SkTypeface.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/Query.h>
 
@@ -17,15 +24,6 @@
 #include <QPointF>
 #include <QRectF>
 #include <QString>
-
-#include <include/core/SkColor.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
-
 #include <string_view>
 
 namespace sigil::weave::qt {
@@ -37,8 +35,8 @@ namespace sigil::weave::qt {
 /** Returns a borrowed view of a QString's storage: valid only while `text`
  * is alive and unmodified.
  */
-inline std::u16string_view toU16(const QString &text) {
-  return {reinterpret_cast<const char16_t *>(text.constData()),
+inline std::u16string_view toU16(const QString& text) {
+  return {reinterpret_cast<const char16_t*>(text.constData()),
           static_cast<size_t>(text.size())};
 }
 
@@ -48,26 +46,25 @@ inline QString toQString(std::u16string_view text) {
 }
 
 /** Appends QString text without transcoding its UTF-16 storage. */
-inline void appendText(sigil::weave::Paragraph &paragraph, const QString &text,
-                       const sigil::weave::TextStyle &style) {
+inline void appendText(sigil::weave::Paragraph& paragraph, const QString& text,
+                       const sigil::weave::TextStyle& style) {
   paragraph.appendText(toU16(text), style);
 }
 
 /** Replaces a paragraph range with QString text. */
-inline void replaceText(sigil::weave::Paragraph &paragraph, uint32_t start,
-                        uint32_t end, const QString &text) {
+inline void replaceText(sigil::weave::Paragraph& paragraph, uint32_t start,
+                        uint32_t end, const QString& text) {
   // Paragraph::replaceText takes UTF-8; convert once, no extra copies.
   const QByteArray utf8 = text.toUtf8();
   paragraph.replaceText(
       start, end,
-      std::u8string_view(reinterpret_cast<const char8_t *>(utf8.constData()),
+      std::u8string_view(reinterpret_cast<const char8_t*>(utf8.constData()),
                          static_cast<size_t>(utf8.size())));
 }
 
 /** Finds every occurrence of `needle` without transcoding it. */
-inline std::vector<sigil::weave::CharRange>
-findAllOccurrences(const sigil::weave::Paragraph &paragraph,
-                   const QString &needle) {
+inline std::vector<sigil::weave::CharRange> findAllOccurrences(
+    const sigil::weave::Paragraph& paragraph, const QString& needle) {
   return sigil::weave::findAllOccurrences(paragraph, toU16(needle));
 }
 
@@ -78,18 +75,18 @@ findAllOccurrences(const sigil::weave::Paragraph &paragraph,
  */
 
 /** Converts a QColor to its unpremultiplied Skia color value. */
-inline SkColor toSkColor(const QColor &color) {
+inline SkColor toSkColor(const QColor& color) {
   return SkColorSetARGB(color.alpha(), color.red(), color.green(),
                         color.blue());
 }
 
 /** Converts a QPointF to a float SkPoint. */
-inline SkPoint toSkPoint(const QPointF &point) {
+inline SkPoint toSkPoint(const QPointF& point) {
   return {static_cast<float>(point.x()), static_cast<float>(point.y())};
 }
 
 /** Converts a QRectF to a float SkRect. */
-inline SkRect toSkRect(const QRectF &rectangle) {
+inline SkRect toSkRect(const QRectF& rectangle) {
   return SkRect::MakeXYWH(static_cast<float>(rectangle.x()),
                           static_cast<float>(rectangle.y()),
                           static_cast<float>(rectangle.width()),
@@ -106,7 +103,7 @@ inline SkRect toSkRect(const QRectF &rectangle) {
  * already on the 1–900 (Thin..Black) scale SkFontStyle uses, so it carries
  * straight through.
  */
-inline SkFontStyle toSkFontStyle(const QFont &font) {
+inline SkFontStyle toSkFontStyle(const QFont& font) {
   SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant;
   if (font.style() == QFont::StyleItalic)
     slant = SkFontStyle::kItalic_Slant;
@@ -122,10 +119,9 @@ inline SkFontStyle toSkFontStyle(const QFont &font) {
  * manager has no match at all — callers should fall back to their default
  * typeface (e.g. FontContext::defaultTypeface()).
  */
-inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *fontManager,
-                                      const QFont &font) {
-  if (!fontManager)
-    return nullptr;
+inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr* fontManager,
+                                      const QFont& font) {
+  if (!fontManager) return nullptr;
   const QByteArray family = font.family().toUtf8();
   return fontManager->matchFamilyStyle(
       family.isEmpty() ? nullptr : family.constData(), toSkFontStyle(font));
@@ -133,4 +129,4 @@ inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *fontManager,
 
 /** @} */
 
-} // namespace sigil::weave::qt
+}  // namespace sigil::weave::qt

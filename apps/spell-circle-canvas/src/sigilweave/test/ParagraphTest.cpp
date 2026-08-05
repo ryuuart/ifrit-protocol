@@ -3,18 +3,17 @@
  * incremental reshape locality, and inline placeholders.
  */
 
-#include "TestSupport.h"
-
+#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 
-#include <absl/container/flat_hash_set.h>
-
 #include <string>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   TextStyle red = basicStyle();
   red.paint.foreground.setColor(SK_ColorRED);
@@ -23,7 +22,7 @@ TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
   paragraph.appendText(u8"red ", red);
   paragraph.appendText(u8"blue", blue);
 
-  paragraph.replaceText(4, 8, u8"teal"); // swap the blue word's text
+  paragraph.replaceText(4, 8, u8"teal");  // swap the blue word's text
   paragraph.ensureShaped(fontContext);
   ASSERT_GE(paragraph.spans().size(), 2u);
   EXPECT_EQ(paragraph.spans().front().style.paint.foreground.getColor(),
@@ -36,28 +35,27 @@ TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
 // ── Incremental behavior end-to-end ───────────────────────────────────────
 
 TEST(Incremental, OneWordEditKeepsOtherWordBlobs) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"steady text with one word that will change between frames while all "
       "other words keep their shaped blobs perfectly intact");
   BlockFlow flow(SkRect::MakeWH(300, 600));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
-  paragraph.replaceText(17, 20, u8"two"); // "one" → "two"
+  paragraph.replaceText(17, 20, u8"two");  // "one" → "two"
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
 
   // Blobs are shared via the shape cache: unchanged words reuse the very
   // same SkTextBlob instances across the edit.
   size_t sharedBlobs = 0;
-  for (const PositionedRun &beforeRun : before.runs)
-    for (const PositionedRun &afterRun : after.runs)
-      if (beforeRun.blob.get() == afterRun.blob.get())
-        sharedBlobs++;
+  for (const PositionedRun& beforeRun : before.runs)
+    for (const PositionedRun& afterRun : after.runs)
+      if (beforeRun.blob.get() == afterRun.blob.get()) sharedBlobs++;
   EXPECT_GT(sharedBlobs, before.runs.size() / 2);
 }
 
 TEST(Incremental, MovingExclusionOnlyRepositions) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"the shape moves through the paragraph and every frame the words "
       "reflow around it without any reshaping at all, just new positions");
@@ -77,13 +75,13 @@ TEST(Incremental, MovingExclusionOnlyRepositions) {
 // ── Inline placeholders (pills / images woven into the flow) ─────────────
 
 TEST(Placeholders, ReservesWidthInTheLine) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   paragraph.appendText(u8"before ", basicStyle());
   paragraph.appendPlaceholder({90, 20, 0}, basicStyle());
   paragraph.appendText(u8" after", basicStyle());
 
-  BlockFlow flow(SkRect::MakeWH(600, 60)); // everything on one line
+  BlockFlow flow(SkRect::MakeWH(600, 60));  // everything on one line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   const auto rects = layout.placeholderRects(paragraph);
@@ -93,31 +91,28 @@ TEST(Placeholders, ReservesWidthInTheLine) {
 
   // "after" starts past the slot's right edge.
   float afterX = -1;
-  for (const PositionedRun &run : layout.runs) {
-    if (run.placeholderIndex >= 0)
-      continue;
-    const Word &word = paragraph.words()[run.wordIndex];
+  for (const PositionedRun& run : layout.runs) {
+    if (run.placeholderIndex >= 0) continue;
+    const Word& word = paragraph.words()[run.wordIndex];
     const std::u16string_view text(paragraph.text());
-    if (text.substr(word.textBegin, 5) == u"after")
-      afterX = run.origin.x();
+    if (text.substr(word.textBegin, 5) == u"after") afterX = run.origin.x();
   }
   ASSERT_GE(afterX, 0);
   EXPECT_GE(afterX, rects[0].rect.right() - 0.25f);
 }
 
 TEST(Placeholders, SitOnTheBaselineWithDrop) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   paragraph.appendText(u8"x ", basicStyle());
   paragraph.appendPlaceholder({40, 30, 8},
-                              basicStyle()); // bottom 8px below base
+                              basicStyle());  // bottom 8px below base
   BlockFlow flow(SkRect::MakeWH(300, 60));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   float baselineY = -1;
-  for (const PositionedRun &run : layout.runs)
-    if (run.placeholderIndex < 0)
-      baselineY = run.origin.y();
+  for (const PositionedRun& run : layout.runs)
+    if (run.placeholderIndex < 0) baselineY = run.origin.y();
   const auto rects = layout.placeholderRects(paragraph);
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_FLOAT_EQ(rects[0].rect.bottom(), baselineY + 8);
@@ -125,7 +120,7 @@ TEST(Placeholders, SitOnTheBaselineWithDrop) {
 }
 
 TEST(Placeholders, WrapAndJustifyLikeWords) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   for (int placeholderIndex = 0; placeholderIndex < 6; ++placeholderIndex) {
     paragraph.appendText(u8"word word word ", basicStyle());
@@ -141,7 +136,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
   const auto rects = layout.placeholderRects(paragraph);
   ASSERT_EQ(rects.size(), 6u);
   absl::flat_hash_set<int> lines;
-  for (const auto &placed : rects) {
+  for (const auto& placed : rects) {
     lines.insert(placed.lineIndex);
     // Slots never overflow the measure.
     EXPECT_GE(placed.rect.left(), -0.25f);
@@ -151,7 +146,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 }
 
 TEST(Placeholders, ResizeRelayoutsLive) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph;
   paragraph.appendText(u8"pill: ", basicStyle());
   paragraph.appendPlaceholder({50, 16, 0}, basicStyle());

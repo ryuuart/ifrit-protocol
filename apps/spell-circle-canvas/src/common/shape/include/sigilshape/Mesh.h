@@ -20,10 +20,9 @@
 
 #include <include/core/SkPath.h>
 
-#include <glm/glm.hpp>
-
 #include <cstdint>
 #include <functional>
+#include <glm/glm.hpp>
 #include <map>
 #include <string>
 #include <vector>
@@ -62,10 +61,10 @@ struct Mesh {
 
   /** Primitive-lane accessor, create-on-touch, sized to
    *  triangleCount(). */
-  std::vector<glm::vec4> &prim(const std::string &name,
+  std::vector<glm::vec4>& prim(const std::string& name,
                                glm::vec4 fill = {1, 1, 1, 1});
   /** Read-only primitive-lane lookup; null when absent. */
-  const std::vector<glm::vec4> *primIf(std::string_view name) const;
+  const std::vector<glm::vec4>* primIf(std::string_view name) const;
 
   /** Append another mesh (indices re-based). Primitive lanes
    *  concatenate; a lane missing on one side pads by NAME convention
@@ -79,20 +78,20 @@ struct Mesh {
    *  the whole mesh (space::drawMesh's hasNormals is exactly that), so
    *  an undersized merge would turn lighting, texturing or tinting off
    *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0). */
-  void append(const Mesh &other);
+  void append(const Mesh& other);
   /** Transform positions by @p m and normals by its inverse transpose. */
-  void transform(const glm::mat4 &m);
+  void transform(const glm::mat4& m);
   /** Recompute vertex normals as area-weighted triangle-normal sums. */
   void computeNormals();
   /** Axis-aligned bounds. */
-  void bounds(glm::vec3 *lo, glm::vec3 *hi) const;
+  void bounds(glm::vec3* lo, glm::vec3* hi) const;
 };
 
 namespace mesh {
 
 struct ExtrudeOptions {
-  float depth = 24;          ///< total thickness, centered on z = 0
-  float tolerance = 0.25f;   ///< curve flattening tolerance for walls/caps
+  float depth = 24;         ///< total thickness, centered on z = 0
+  float tolerance = 0.25f;  ///< curve flattening tolerance for walls/caps
   bool frontCap = true;
   bool backCap = true;
   bool walls = true;
@@ -102,31 +101,29 @@ struct ExtrudeOptions {
  *  hole support (even-odd containment decides outer vs hole rings),
  *  walls swept between them. Cap UVs are the path's unit bounds; wall
  *  UVs run u = contour arc length, v = depth. */
-Mesh extrude(const SkPath &path, const ExtrudeOptions &options = {});
+Mesh extrude(const SkPath& path, const ExtrudeOptions& options = {});
 
 struct RevolveOptions {
-  int segments = 48;        ///< steps around the axis
-  float sweepDeg = 360;     ///< partial sweeps leave an open seam
-  bool close = true;        ///< duplicate seam ring for clean UV wrap
+  int segments = 48;     ///< steps around the axis
+  float sweepDeg = 360;  ///< partial sweeps leave an open seam
+  bool close = true;     ///< duplicate seam ring for clean UV wrap
 };
 
 /** Lathe a profile polyline around the +y axis: each profile point is
  *  (radius, height). UVs: u around the sweep, v along the profile. */
-Mesh revolve(const std::vector<glm::vec2> &profile,
-             const RevolveOptions &options = {});
+Mesh revolve(const std::vector<glm::vec2>& profile,
+             const RevolveOptions& options = {});
 
 /** Evaluate a parametric sheet on an nu x nv vertex grid. UVs are the
  *  (u,v) parameters. Normals from the analytic cross of numeric partial
  *  derivatives. */
-Mesh grid(int nu, int nv,
-          const std::function<glm::vec3(float u, float v)> &fn);
+Mesh grid(int nu, int nv, const std::function<glm::vec3(float u, float v)>& fn);
 
 /** Torus around +y: major radius R in xz, tube radius r. */
 Mesh torus(float R, float r, int nu = 64, int nv = 32);
 
 /** Superellipsoid (exponent 2 = sphere, higher = rounded box). */
-Mesh superellipsoid(glm::vec3 radii, float exponent, int nu = 48,
-                    int nv = 32);
+Mesh superellipsoid(glm::vec3 radii, float exponent, int nu = 48, int nv = 32);
 
 /** A width x height panel curved around a vertical cylinder of
  *  @p radius (0 or infinite radius = flat), facing +z, centered at the
@@ -144,8 +141,8 @@ Mesh quad(float width, float height);
  *  with no shader change. Existing vertex colors multiply through; a
  *  missing or mis-sized lane returns the mesh unchanged. Primitive
  *  lanes survive on the result (triangle order is preserved). */
-Mesh bakePrimColor(const Mesh &mesh, std::string_view lane = "Color");
+Mesh bakePrimColor(const Mesh& mesh, std::string_view lane = "Color");
 
-} // namespace mesh
+}  // namespace mesh
 
-} // namespace sigil::shape
+}  // namespace sigil::shape

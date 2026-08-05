@@ -10,8 +10,8 @@ namespace sigil::weave::kit {
 
 /** Converts a steady-clock duration to fractional microseconds — the unit
  *  the HUDs and reports use. */
-[[nodiscard]] inline double
-toMicroseconds(std::chrono::steady_clock::duration duration) {
+[[nodiscard]] inline double toMicroseconds(
+    std::chrono::steady_clock::duration duration) {
   return std::chrono::duration<double, std::micro>(duration).count();
 }
 
@@ -19,7 +19,7 @@ toMicroseconds(std::chrono::steady_clock::duration duration) {
  *  microseconds(). Handy inside relayout lambdas, where the measured work
  *  only happens on cache misses. */
 class Stopwatch {
-public:
+ public:
   using Clock = std::chrono::steady_clock;
 
   /** Returns the time elapsed since construction or restart(). */
@@ -30,8 +30,8 @@ public:
   /** Restarts the measured region at now. */
   void restart() { m_start = Clock::now(); }
 
-private:
+ private:
   Clock::time_point m_start = Clock::now();
 };
 
-} // namespace sigil::weave::kit
+}  // namespace sigil::weave::kit

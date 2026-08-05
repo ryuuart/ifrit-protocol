@@ -4,13 +4,12 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #define CGLTF_IMPLEMENTATION
-#include <cgltf.h>
-#include <tiny_obj_loader.h>
-
 #include <Alembic/Abc/All.h>
 #include <Alembic/AbcCoreFactory/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
 #include <Alembic/AbcGeom/All.h>
+#include <cgltf.h>
+#include <tiny_obj_loader.h>
 
 #include <algorithm>
 #include <array>
@@ -19,8 +18,8 @@
 #include <cstring>
 #include <fstream>
 #include <functional>
-#include <map>
 #include <istream>
+#include <map>
 #include <sstream>
 #include <streambuf>
 
@@ -30,8 +29,8 @@ namespace {
 
 constexpr glm::vec4 kWhite = {1, 1, 1, 1};
 
-std::string_view asText(const void *bytes, size_t size) {
-  return {static_cast<const char *>(bytes), size};
+std::string_view asText(const void* bytes, size_t size) {
+  return {static_cast<const char*>(bytes), size};
 }
 
 std::string lowerExtension(std::string_view pathHint) {
@@ -41,22 +40,20 @@ std::string lowerExtension(std::string_view pathHint) {
       (slash != std::string_view::npos && dot < slash))
     return {};
   std::string ext(pathHint.substr(dot + 1));
-  for (char &c : ext)
-    c = (char)std::tolower((unsigned char)c);
+  for (char& c : ext) c = (char)std::tolower((unsigned char)c);
   return ext;
 }
 
 /** Every importer's closing chores: lanes sized to positions (the Mesh
  *  contract), normals derived from the triangles when the file carried
  *  none. */
-void finishPart(Part &part, bool hasNormals) {
-  Mesh &mesh = part.mesh;
+void finishPart(Part& part, bool hasNormals) {
+  Mesh& mesh = part.mesh;
   if (!hasNormals || mesh.normals.size() != mesh.positions.size())
     mesh.computeNormals();
   if (mesh.uvs.size() != mesh.positions.size())
     mesh.uvs.resize(mesh.positions.size(), {0, 0});
-  if (!mesh.colors.empty() &&
-      mesh.colors.size() != mesh.positions.size())
+  if (!mesh.colors.empty() && mesh.colors.size() != mesh.positions.size())
     mesh.colors.resize(mesh.positions.size(), kWhite);
 }
 
@@ -65,18 +62,16 @@ void finishPart(Part &part, bool hasNormals) {
 /** The .mtl texts an OBJ names, concatenated — newmtl blocks are
  *  independent, so one string feeds tinyobj for any number of
  *  mtllib lines. */
-std::string gatherMtl(std::string_view text, const Resolver &resolve) {
+std::string gatherMtl(std::string_view text, const Resolver& resolve) {
   std::string mtl;
-  if (!resolve)
-    return mtl;
+  if (!resolve) return mtl;
   std::istringstream lines{std::string(text)};
   std::string line;
   while (std::getline(lines, line)) {
     std::istringstream words(line);
     std::string keyword;
     words >> keyword;
-    if (keyword != "mtllib")
-      continue;
+    if (keyword != "mtllib") continue;
     std::string name;
     while (words >> name)
       if (auto bytes = resolve(name)) {
@@ -87,8 +82,7 @@ std::string gatherMtl(std::string_view text, const Resolver &resolve) {
   return mtl;
 }
 
-std::optional<Model> importObj(std::string_view text,
-                               const Resolver &resolve) {
+std::optional<Model> importObj(std::string_view text, const Resolver& resolve) {
   tinyobj::ObjReaderConfig config;
   config.triangulate = true;
   tinyobj::ObjReader reader;
@@ -96,15 +90,13 @@ std::optional<Model> importObj(std::string_view text,
                               config))
     return std::nullopt;
 
-  const tinyobj::attrib_t &attrib = reader.GetAttrib();
-  const std::vector<tinyobj::material_t> &materials =
-      reader.GetMaterials();
-  const bool tinted =
-      std::any_of(attrib.colors.begin(), attrib.colors.end(),
-                  [](tinyobj::real_t c) { return c != 1; });
+  const tinyobj::attrib_t& attrib = reader.GetAttrib();
+  const std::vector<tinyobj::material_t>& materials = reader.GetMaterials();
+  const bool tinted = std::any_of(attrib.colors.begin(), attrib.colors.end(),
+                                  [](tinyobj::real_t c) { return c != 1; });
 
   Model out;
-  for (const tinyobj::shape_t &shape : reader.GetShapes()) {
+  for (const tinyobj::shape_t& shape : reader.GetShapes()) {
     // One Part per material used inside the shape; -1 = no material.
     struct Building {
       Part part;
@@ -114,32 +106,26 @@ std::optional<Model> importObj(std::string_view text,
     std::map<int, Building> byMaterial;
 
     size_t cursor = 0;
-    for (size_t face = 0; face < shape.mesh.num_face_vertices.size();
-         ++face) {
+    for (size_t face = 0; face < shape.mesh.num_face_vertices.size(); ++face) {
       const size_t corners = shape.mesh.num_face_vertices[face];
-      const int materialId =
-          face < shape.mesh.material_ids.size()
-              ? shape.mesh.material_ids[face]
-              : -1;
-      Building &building = byMaterial[materialId];
-      Mesh &mesh = building.part.mesh;
+      const int materialId = face < shape.mesh.material_ids.size()
+                                 ? shape.mesh.material_ids[face]
+                                 : -1;
+      Building& building = byMaterial[materialId];
+      Mesh& mesh = building.part.mesh;
       for (size_t corner = 0; corner < corners; ++corner) {
-        const tinyobj::index_t index =
-            shape.mesh.indices[cursor + corner];
-        const std::array<int, 3> key = {index.vertex_index,
-                                        index.texcoord_index,
-                                        index.normal_index};
+        const tinyobj::index_t index = shape.mesh.indices[cursor + corner];
+        const std::array<int, 3> key = {
+            index.vertex_index, index.texcoord_index, index.normal_index};
         auto [it, inserted] =
             building.seen.emplace(key, (uint32_t)mesh.positions.size());
         if (inserted) {
           const size_t v = (size_t)index.vertex_index * 3;
-          mesh.positions.push_back({attrib.vertices[v],
-                                    attrib.vertices[v + 1],
+          mesh.positions.push_back({attrib.vertices[v], attrib.vertices[v + 1],
                                     attrib.vertices[v + 2]});
           if (index.normal_index >= 0) {
             const size_t n = (size_t)index.normal_index * 3;
-            mesh.normals.push_back({attrib.normals[n],
-                                    attrib.normals[n + 1],
+            mesh.normals.push_back({attrib.normals[n], attrib.normals[n + 1],
                                     attrib.normals[n + 2]});
           } else {
             building.hasNormals = false;
@@ -148,14 +134,13 @@ std::optional<Model> importObj(std::string_view text,
             const size_t t = (size_t)index.texcoord_index * 2;
             // OBJ vt origin is bottom-left; Mesh uvs are IMAGE
             // convention (top-left), so v flips.
-            mesh.uvs.push_back({attrib.texcoords[t],
-                                1 - attrib.texcoords[t + 1]});
+            mesh.uvs.push_back(
+                {attrib.texcoords[t], 1 - attrib.texcoords[t + 1]});
           } else {
             mesh.uvs.push_back({0, 0});
           }
           if (tinted)
-            mesh.colors.push_back({attrib.colors[v],
-                                   attrib.colors[v + 1],
+            mesh.colors.push_back({attrib.colors[v], attrib.colors[v + 1],
                                    attrib.colors[v + 2], 1});
         }
         mesh.indices.push_back(it->second);
@@ -164,12 +149,11 @@ std::optional<Model> importObj(std::string_view text,
     }
 
     const bool split = byMaterial.size() > 1;
-    for (auto &[materialId, building] : byMaterial) {
-      Part &part = building.part;
+    for (auto& [materialId, building] : byMaterial) {
+      Part& part = building.part;
       part.name = shape.name;
       if (materialId >= 0 && (size_t)materialId < materials.size()) {
-        const tinyobj::material_t &material =
-            materials[(size_t)materialId];
+        const tinyobj::material_t& material = materials[(size_t)materialId];
         if (split && !material.name.empty())
           part.name += (part.name.empty() ? "" : "/") + material.name;
         part.baseColor = {material.diffuse[0], material.diffuse[1],
@@ -180,71 +164,63 @@ std::optional<Model> importObj(std::string_view text,
             part.textureBytes = std::move(*bytes);
       }
       finishPart(part, building.hasNormals);
-      if (!part.mesh.indices.empty())
-        out.parts.push_back(std::move(part));
+      if (!part.mesh.indices.empty()) out.parts.push_back(std::move(part));
     }
   }
-  if (out.parts.empty())
-    return std::nullopt;
+  if (out.parts.empty()) return std::nullopt;
   return out;
 }
 
 // --- glTF 2.0 (cgltf) -----------------------------------------------------
 
-cgltf_result cgltfRead(const cgltf_memory_options *,
-                       const cgltf_file_options *file, const char *path,
-                       cgltf_size *size, void **data) {
-  const auto *resolve = static_cast<const Resolver *>(file->user_data);
-  if (!resolve || !*resolve)
-    return cgltf_result_file_not_found;
+cgltf_result cgltfRead(const cgltf_memory_options*,
+                       const cgltf_file_options* file, const char* path,
+                       cgltf_size* size, void** data) {
+  const auto* resolve = static_cast<const Resolver*>(file->user_data);
+  if (!resolve || !*resolve) return cgltf_result_file_not_found;
   std::optional<std::vector<std::byte>> bytes = (*resolve)(path);
-  if (!bytes)
-    return cgltf_result_file_not_found;
-  void *out = std::malloc(bytes->empty() ? 1 : bytes->size());
-  if (!out)
-    return cgltf_result_out_of_memory;
+  if (!bytes) return cgltf_result_file_not_found;
+  void* out = std::malloc(bytes->empty() ? 1 : bytes->size());
+  if (!out) return cgltf_result_out_of_memory;
   std::memcpy(out, bytes->data(), bytes->size());
   *size = bytes->size();
   *data = out;
   return cgltf_result_success;
 }
 
-void cgltfRelease(const cgltf_memory_options *,
-                  const cgltf_file_options *, void *data) {
+void cgltfRelease(const cgltf_memory_options*, const cgltf_file_options*,
+                  void* data) {
   std::free(data);
 }
 
 /** The encoded bytes of a glTF image, wherever they live: a buffer
  *  view (GLB), a data: URI, or an external file via the resolver.
  *  Also records the external URI (percent-decoded) in the part. */
-void fetchGltfImage(const cgltf_options &options,
-                    const cgltf_image &image, const Resolver &resolve,
-                    Part &part) {
+void fetchGltfImage(const cgltf_options& options, const cgltf_image& image,
+                    const Resolver& resolve, Part& part) {
   if (image.buffer_view && image.buffer_view->buffer &&
       image.buffer_view->buffer->data) {
-    const auto *begin =
-        static_cast<const std::byte *>(image.buffer_view->buffer->data) +
+    const auto* begin =
+        static_cast<const std::byte*>(image.buffer_view->buffer->data) +
         image.buffer_view->offset;
     part.textureBytes.assign(begin, begin + image.buffer_view->size);
     return;
   }
-  if (!image.uri)
-    return;
+  if (!image.uri) return;
   const std::string_view uri = image.uri;
   if (uri.starts_with("data:")) {
     const size_t comma = uri.find(";base64,");
-    if (comma == std::string_view::npos)
-      return;
+    if (comma == std::string_view::npos) return;
     const std::string encoded(uri.substr(comma + 8));
     size_t padding = 0;
     while (padding < 2 && encoded.size() > padding &&
            encoded[encoded.size() - 1 - padding] == '=')
       ++padding;
     const size_t decodedSize = encoded.size() / 4 * 3 - padding;
-    void *decoded = nullptr;
+    void* decoded = nullptr;
     if (cgltf_load_buffer_base64(&options, decodedSize, encoded.c_str(),
                                  &decoded) == cgltf_result_success) {
-      const auto *begin = static_cast<const std::byte *>(decoded);
+      const auto* begin = static_cast<const std::byte*>(decoded);
       part.textureBytes.assign(begin, begin + decodedSize);
       std::free(decoded);
     }
@@ -255,26 +231,24 @@ void fetchGltfImage(const cgltf_options &options,
   decoded.resize(std::strlen(decoded.c_str()));
   part.textureUri = decoded;
   if (resolve)
-    if (auto bytes = resolve(decoded))
-      part.textureBytes = std::move(*bytes);
+    if (auto bytes = resolve(decoded)) part.textureBytes = std::move(*bytes);
 }
 
-void importGltfMesh(const cgltf_options &options, const cgltf_data &data,
-                    const cgltf_mesh &gltfMesh, const glm::mat4 &world,
-                    const char *nodeName, const Resolver &resolve,
-                    Model &out) {
+void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
+                    const cgltf_mesh& gltfMesh, const glm::mat4& world,
+                    const char* nodeName, const Resolver& resolve, Model& out) {
   for (size_t p = 0; p < gltfMesh.primitives_count; ++p) {
-    const cgltf_primitive &primitive = gltfMesh.primitives[p];
+    const cgltf_primitive& primitive = gltfMesh.primitives[p];
     if (primitive.type != cgltf_primitive_type_triangles ||
         primitive.has_draco_mesh_compression)
       continue;
 
-    const cgltf_accessor *position = nullptr;
-    const cgltf_accessor *normal = nullptr;
-    const cgltf_accessor *texcoord = nullptr;
-    const cgltf_accessor *color = nullptr;
+    const cgltf_accessor* position = nullptr;
+    const cgltf_accessor* normal = nullptr;
+    const cgltf_accessor* texcoord = nullptr;
+    const cgltf_accessor* color = nullptr;
     for (size_t a = 0; a < primitive.attributes_count; ++a) {
-      const cgltf_attribute &attribute = primitive.attributes[a];
+      const cgltf_attribute& attribute = primitive.attributes[a];
       if (attribute.type == cgltf_attribute_type_position)
         position = attribute.data;
       else if (attribute.type == cgltf_attribute_type_normal)
@@ -286,14 +260,11 @@ void importGltfMesh(const cgltf_options &options, const cgltf_data &data,
                attribute.index == 0)
         color = attribute.data;
     }
-    if (!position)
-      continue;
+    if (!position) continue;
 
     Part part;
-    part.name = nodeName            ? nodeName
-                : gltfMesh.name     ? gltfMesh.name
-                                    : "";
-    Mesh &mesh = part.mesh;
+    part.name = nodeName ? nodeName : gltfMesh.name ? gltfMesh.name : "";
+    Mesh& mesh = part.mesh;
     const size_t count = position->count;
     mesh.positions.resize(count);
     for (size_t i = 0; i < count; ++i) {
@@ -333,21 +304,19 @@ void importGltfMesh(const cgltf_options &options, const cgltf_data &data,
     // import VERBATIM: node transforms bake into positions/normals
     // only, never into attribute data.
     for (size_t a = 0; a < primitive.attributes_count; ++a) {
-      const cgltf_attribute &attribute = primitive.attributes[a];
-      if (!attribute.name || attribute.name[0] != '_' ||
-          !attribute.data || attribute.data->count != count ||
-          attribute.name[1] == '\0')
+      const cgltf_attribute& attribute = primitive.attributes[a];
+      if (!attribute.name || attribute.name[0] != '_' || !attribute.data ||
+          attribute.data->count != count || attribute.name[1] == '\0')
         continue;
       const std::string lane = attribute.name + 1;
-      const cgltf_size components =
-          cgltf_num_components(attribute.data->type);
+      const cgltf_size components = cgltf_num_components(attribute.data->type);
       if (components == 1) {
-        std::vector<float> &values = part.scalarLanes[lane];
+        std::vector<float>& values = part.scalarLanes[lane];
         values.resize(count);
         for (size_t i = 0; i < count; ++i)
           cgltf_accessor_read_float(attribute.data, i, &values[i], 1);
       } else if (components == 3) {
-        std::vector<glm::vec3> &values = part.vectorLanes[lane];
+        std::vector<glm::vec3>& values = part.vectorLanes[lane];
         values.resize(count);
         for (size_t i = 0; i < count; ++i) {
           float v[3] = {};
@@ -355,7 +324,7 @@ void importGltfMesh(const cgltf_options &options, const cgltf_data &data,
           values[i] = {v[0], v[1], v[2]};
         }
       } else {
-        std::vector<glm::vec4> &values = part.colorLanes[lane];
+        std::vector<glm::vec4>& values = part.colorLanes[lane];
         values.resize(count);
         for (size_t i = 0; i < count; ++i) {
           float v[4] = {0, 0, 0, 0};
@@ -372,41 +341,36 @@ void importGltfMesh(const cgltf_options &options, const cgltf_data &data,
             (uint32_t)cgltf_accessor_read_index(primitive.indices, i);
     } else {
       mesh.indices.resize(count);
-      for (size_t i = 0; i < count; ++i)
-        mesh.indices[i] = (uint32_t)i;
+      for (size_t i = 0; i < count; ++i) mesh.indices[i] = (uint32_t)i;
     }
 
-    if (primitive.material &&
-        primitive.material->has_pbr_metallic_roughness) {
-      const cgltf_pbr_metallic_roughness &pbr =
+    if (primitive.material && primitive.material->has_pbr_metallic_roughness) {
+      const cgltf_pbr_metallic_roughness& pbr =
           primitive.material->pbr_metallic_roughness;
-      part.baseColor = {pbr.base_color_factor[0],
-                        pbr.base_color_factor[1],
-                        pbr.base_color_factor[2],
-                        pbr.base_color_factor[3]};
+      part.baseColor = {pbr.base_color_factor[0], pbr.base_color_factor[1],
+                        pbr.base_color_factor[2], pbr.base_color_factor[3]};
       if (pbr.base_color_texture.texture &&
           pbr.base_color_texture.texture->image)
-        fetchGltfImage(options, *pbr.base_color_texture.texture->image,
-                       resolve, part);
+        fetchGltfImage(options, *pbr.base_color_texture.texture->image, resolve,
+                       part);
     }
 
     finishPart(part, normal && normal->count == count);
     part.mesh.transform(world);
-    if (!part.mesh.indices.empty())
-      out.parts.push_back(std::move(part));
+    if (!part.mesh.indices.empty()) out.parts.push_back(std::move(part));
   }
   (void)data;
 }
 
-std::optional<Model> importGltf(const void *bytes, size_t size,
+std::optional<Model> importGltf(const void* bytes, size_t size,
                                 std::string_view pathHint,
-                                const Resolver &resolve) {
+                                const Resolver& resolve) {
   cgltf_options options = {};
   options.file.read = &cgltfRead;
   options.file.release = &cgltfRelease;
-  options.file.user_data = const_cast<Resolver *>(&resolve);
+  options.file.user_data = const_cast<Resolver*>(&resolve);
 
-  cgltf_data *data = nullptr;
+  cgltf_data* data = nullptr;
   if (cgltf_parse(&options, bytes, size, &data) != cgltf_result_success)
     return std::nullopt;
   const std::string base(pathHint);
@@ -422,29 +386,26 @@ std::optional<Model> importGltf(const void *bytes, size_t size,
     // The flat node array covers every node once; bake each mesh
     // instance at its world transform.
     for (size_t n = 0; n < data->nodes_count; ++n) {
-      const cgltf_node &node = data->nodes[n];
-      if (!node.mesh)
-        continue;
+      const cgltf_node& node = data->nodes[n];
+      if (!node.mesh) continue;
       cgltf_float matrix[16];
       cgltf_node_transform_world(&node, matrix);
-      importGltfMesh(options, *data, *node.mesh,
-                     glm::make_mat4(matrix), node.name, resolve, out);
+      importGltfMesh(options, *data, *node.mesh, glm::make_mat4(matrix),
+                     node.name, resolve, out);
     }
   } else {
     for (size_t m = 0; m < data->meshes_count; ++m)
-      importGltfMesh(options, *data, data->meshes[m], glm::mat4(1.0f),
-                     nullptr, resolve, out);
+      importGltfMesh(options, *data, data->meshes[m], glm::mat4(1.0f), nullptr,
+                     resolve, out);
   }
   cgltf_free(data);
-  if (out.parts.empty())
-    return std::nullopt;
+  if (out.parts.empty()) return std::nullopt;
   return out;
 }
 
 // --- STL ------------------------------------------------------------------
 
-void pushStlTriangle(Mesh &mesh, const glm::vec3 corners[3],
-                     glm::vec3 normal) {
+void pushStlTriangle(Mesh& mesh, const glm::vec3 corners[3], glm::vec3 normal) {
   if (glm::dot(normal, normal) < 1e-12f) {
     const glm::vec3 a = corners[1] - corners[0];
     const glm::vec3 b = corners[2] - corners[0];
@@ -464,23 +425,20 @@ void pushStlTriangle(Mesh &mesh, const glm::vec3 corners[3],
   }
 }
 
-std::optional<Model> importStlBinary(const std::byte *bytes,
-                                     size_t size) {
+std::optional<Model> importStlBinary(const std::byte* bytes, size_t size) {
   uint32_t count = 0;
   std::memcpy(&count, bytes + 80, 4);
   Part part;
-  const std::byte *cursor = bytes + 84;
+  const std::byte* cursor = bytes + 84;
   for (uint32_t t = 0; t < count; ++t, cursor += 50) {
     float f[12];
     std::memcpy(f, cursor, sizeof(f));
-    const glm::vec3 corners[3] = {{f[3], f[4], f[5]},
-                             {f[6], f[7], f[8]},
-                             {f[9], f[10], f[11]}};
+    const glm::vec3 corners[3] = {
+        {f[3], f[4], f[5]}, {f[6], f[7], f[8]}, {f[9], f[10], f[11]}};
     pushStlTriangle(part.mesh, corners, {f[0], f[1], f[2]});
   }
   (void)size;
-  if (part.mesh.indices.empty())
-    return std::nullopt;
+  if (part.mesh.indices.empty()) return std::nullopt;
   Model out;
   out.parts.push_back(std::move(part));
   return out;
@@ -502,18 +460,15 @@ std::optional<Model> importStlAscii(std::string_view text) {
       part.name = start == std::string::npos ? "" : rest.substr(start);
       named = true;
     } else if (word == "facet") {
-      words >> word; // "normal"
+      words >> word;  // "normal"
       words >> normal.x >> normal.y >> normal.z;
       corner = 0;
     } else if (word == "vertex" && corner < 3) {
-      words >> corners[corner].x >> corners[corner].y >>
-          corners[corner].z;
-      if (++corner == 3)
-        pushStlTriangle(part.mesh, corners, normal);
+      words >> corners[corner].x >> corners[corner].y >> corners[corner].z;
+      if (++corner == 3) pushStlTriangle(part.mesh, corners, normal);
     }
   }
-  if (part.mesh.indices.empty())
-    return std::nullopt;
+  if (part.mesh.indices.empty()) return std::nullopt;
   Model out;
   out.parts.push_back(std::move(part));
   return out;
@@ -522,17 +477,15 @@ std::optional<Model> importStlAscii(std::string_view text) {
 /** 80-byte header, uint32 triangle count, 50 bytes a triangle: the
  *  arithmetic identifies binary STL beyond doubt (some binary files
  *  even start with "solid"). */
-bool looksLikeBinaryStl(const std::byte *bytes, size_t size) {
-  if (size < 84)
-    return false;
+bool looksLikeBinaryStl(const std::byte* bytes, size_t size) {
+  if (size < 84) return false;
   uint32_t count = 0;
   std::memcpy(&count, bytes + 80, 4);
   return 84 + 50ull * count == size;
 }
 
-std::optional<Model> importStl(const std::byte *bytes, size_t size) {
-  if (looksLikeBinaryStl(bytes, size))
-    return importStlBinary(bytes, size);
+std::optional<Model> importStl(const std::byte* bytes, size_t size) {
+  if (looksLikeBinaryStl(bytes, size)) return importStlBinary(bytes, size);
   return importStlAscii(asText(bytes, size));
 }
 
@@ -554,7 +507,7 @@ struct PlyScalarType {
   int size = 0;
   bool floating = false;
   bool signedInt = false;
-  double intMax = 1; ///< color normalization divisor for integers
+  double intMax = 1;  ///< color normalization divisor for integers
 };
 
 std::optional<PlyScalarType> plyScalarType(std::string_view name) {
@@ -577,9 +530,9 @@ std::optional<PlyScalarType> plyScalarType(std::string_view name) {
   return std::nullopt;
 }
 
-double plyLoadBinary(const std::byte *&cursor, const PlyScalarType &type) {
+double plyLoadBinary(const std::byte*& cursor, const PlyScalarType& type) {
   uint64_t raw = 0;
-  std::memcpy(&raw, cursor, (size_t)type.size); // little-endian host
+  std::memcpy(&raw, cursor, (size_t)type.size);  // little-endian host
   cursor += type.size;
   if (type.floating) {
     if (type.size == 4) {
@@ -624,26 +577,25 @@ struct PlyElement {
  *  grammar is one grammar, so it gets one implementation — a second
  *  copy would be the thing that drifts. */
 void foldSuffixedLanes(
-    std::map<std::string, std::vector<float>, std::less<>> &scalars,
-    std::map<std::string, std::vector<glm::vec3>, std::less<>> &vectors,
-    std::map<std::string, std::vector<glm::vec4>, std::less<>> &colors) {
+    std::map<std::string, std::vector<float>, std::less<>>& scalars,
+    std::map<std::string, std::vector<glm::vec3>, std::less<>>& vectors,
+    std::map<std::string, std::vector<glm::vec4>, std::less<>>& colors) {
   std::vector<std::string> vectorBases, colorBases;
-  for (const auto &[name, lane] : scalars) {
+  for (const auto& [name, lane] : scalars) {
     if (name.size() > 2 && name.ends_with("_x"))
       vectorBases.push_back(name.substr(0, name.size() - 2));
     else if (name.size() > 2 && name.ends_with("_r"))
       colorBases.push_back(name.substr(0, name.size() - 2));
   }
-  for (const std::string &base : vectorBases) {
+  for (const std::string& base : vectorBases) {
     const auto x = scalars.find(base + "_x");
     const auto y = scalars.find(base + "_y");
     const auto z = scalars.find(base + "_z");
     if (x == scalars.end() || y == scalars.end() || z == scalars.end())
       continue;
     const size_t n = x->second.size();
-    if (y->second.size() != n || z->second.size() != n)
-      continue;
-    std::vector<glm::vec3> &lane = vectors[base];
+    if (y->second.size() != n || z->second.size() != n) continue;
+    std::vector<glm::vec3>& lane = vectors[base];
     lane.resize(n);
     for (size_t i = 0; i < n; ++i)
       lane[i] = {x->second[i], y->second[i], z->second[i]};
@@ -651,19 +603,18 @@ void foldSuffixedLanes(
     scalars.erase(y);
     scalars.erase(z);
   }
-  for (const std::string &base : colorBases) {
+  for (const std::string& base : colorBases) {
     const auto r = scalars.find(base + "_r");
     const auto g = scalars.find(base + "_g");
     const auto b = scalars.find(base + "_b");
     if (r == scalars.end() || g == scalars.end() || b == scalars.end())
       continue;
     const size_t n = r->second.size();
-    if (g->second.size() != n || b->second.size() != n)
-      continue;
+    if (g->second.size() != n || b->second.size() != n) continue;
     const auto alpha = scalars.find(base + "_a");
     const bool alphaMatched =
         alpha != scalars.end() && alpha->second.size() == n;
-    std::vector<glm::vec4> &lane = colors[base];
+    std::vector<glm::vec4>& lane = colors[base];
     lane.resize(n);
     for (size_t i = 0; i < n; ++i)
       lane[i] = {r->second[i], g->second[i], b->second[i],
@@ -673,27 +624,24 @@ void foldSuffixedLanes(
     scalars.erase(b);
     // A size-mismatched "_a" was ignored above; only a consumed alpha
     // lane is erased.
-    if (alphaMatched)
-      scalars.erase(base + "_a");
+    if (alphaMatched) scalars.erase(base + "_a");
   }
 }
 
-std::optional<Model> importPly(const std::byte *bytes, size_t size) {
+std::optional<Model> importPly(const std::byte* bytes, size_t size) {
   const std::string_view text = asText(bytes, size);
   const size_t headerEnd = text.find("end_header");
   if (!text.starts_with("ply") || headerEnd == std::string_view::npos)
     return std::nullopt;
   size_t bodyStart = text.find('\n', headerEnd);
-  if (bodyStart == std::string_view::npos)
-    return std::nullopt;
+  if (bodyStart == std::string_view::npos) return std::nullopt;
   ++bodyStart;
 
   // Header.
   bool binary = false;
   std::vector<PlyElement> elements;
   {
-    std::istringstream header(
-        std::string(text.substr(0, headerEnd)));
+    std::istringstream header(std::string(text.substr(0, headerEnd)));
     std::string line;
     while (std::getline(header, line)) {
       std::istringstream words(line);
@@ -705,15 +653,14 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
         if (format == "binary_little_endian")
           binary = true;
         else if (format != "ascii")
-          return std::nullopt; // big-endian: not this century
+          return std::nullopt;  // big-endian: not this century
       } else if (word == "element") {
         // The count is file-supplied: a negative (or missing) value
         // must never reach the size_t — it would wrap huge.
         PlyElement element;
         long long declared = -1;
         words >> element.name >> declared;
-        if (declared < 0)
-          return std::nullopt;
+        if (declared < 0) return std::nullopt;
         element.count = (size_t)declared;
         elements.push_back(std::move(element));
       } else if (word == "property" && !elements.empty()) {
@@ -725,15 +672,13 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
           words >> countName >> valueName >> property.name;
           const auto count = plyScalarType(countName);
           const auto value = plyScalarType(valueName);
-          if (!count || !value)
-            return std::nullopt;
+          if (!count || !value) return std::nullopt;
           property.list = true;
           property.countType = *count;
           property.type = *value;
         } else {
           const auto value = plyScalarType(type);
-          if (!value)
-            return std::nullopt;
+          if (!value) return std::nullopt;
           words >> property.name;
           property.type = *value;
         }
@@ -747,12 +692,11 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
   // — a row costs at least one byte per property (two in ascii), so a
   // count beyond the remaining byte count cannot be backed by data.
   const size_t remaining = size - bodyStart;
-  for (const PlyElement &element : elements)
-    if (element.count > remaining)
-      return std::nullopt;
+  for (const PlyElement& element : elements)
+    if (element.count > remaining) return std::nullopt;
 
   Part part;
-  Mesh &mesh = part.mesh;
+  Mesh& mesh = part.mesh;
   bool hasNormals = false;
   /** PRIMITIVE-class values as they arrive: raw floats under the
    *  property's own name, one entry per TRIANGLE (not per face row —
@@ -762,22 +706,20 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
   std::map<std::string, std::vector<float>, std::less<>> primScalars;
 
   // One reader per source; ascii tokenizes, binary walks a cursor.
-  std::istringstream ascii(
-      binary ? std::string() : std::string(text.substr(bodyStart)));
-  const std::byte *cursor = bytes + bodyStart;
-  const std::byte *end = bytes + size;
-  const auto read = [&](const PlyScalarType &type,
-                        double *value) -> bool {
+  std::istringstream ascii(binary ? std::string()
+                                  : std::string(text.substr(bodyStart)));
+  const std::byte* cursor = bytes + bodyStart;
+  const std::byte* end = bytes + size;
+  const auto read = [&](const PlyScalarType& type, double* value) -> bool {
     if (binary) {
-      if (cursor + type.size > end)
-        return false;
+      if (cursor + type.size > end) return false;
       *value = plyLoadBinary(cursor, type);
       return true;
     }
     return (bool)(ascii >> *value);
   };
 
-  for (const PlyElement &element : elements) {
+  for (const PlyElement& element : elements) {
     const bool isVertex = element.name == "vertex";
     const bool isFace = element.name == "face";
 
@@ -789,15 +731,14 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
       // lone "t" — the scalar every readPoints/cook/asCloud cloud
       // carries — must stay a lane, not clobber uv.y.
       const auto hasProp = [&element](std::string_view want) {
-        for (const PlyProperty &p : element.properties)
-          if (!p.list && p.name == want)
-            return true;
+        for (const PlyProperty& p : element.properties)
+          if (!p.list && p.name == want) return true;
         return false;
       };
       const bool uvST = hasProp("s") && hasProp("t");
       const bool uvUV = hasProp("u") && hasProp("v");
-      for (const PlyProperty &property : element.properties) {
-        const std::string &n = property.name;
+      for (const PlyProperty& property : element.properties) {
+        const std::string& n = property.name;
         if (property.list) {
           // A list on the vertex element has no lane shape here: keep
           // the sink walk aligned with a no-op and create no lane.
@@ -828,24 +769,19 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
                    ((n == "u" || n == "v") && uvUV)) {
           mesh.uvs.resize(element.count, glm::vec2{0});
           const int c = (n == "s" || n == "u") ? 0 : 1;
-          sinks.push_back([&mesh, c](size_t i, double v) {
-            mesh.uvs[i][c] = (float)v;
-          });
-        } else if (n == "red" || n == "green" || n == "blue" ||
-                   n == "alpha") {
+          sinks.push_back(
+              [&mesh, c](size_t i, double v) { mesh.uvs[i][c] = (float)v; });
+        } else if (n == "red" || n == "green" || n == "blue" || n == "alpha") {
           mesh.colors.resize(element.count, kWhite);
-          const int c = n == "red"     ? 0
-                        : n == "green" ? 1
-                        : n == "blue"  ? 2
-                                       : 3;
+          const int c = n == "red" ? 0 : n == "green" ? 1 : n == "blue" ? 2 : 3;
           sinks.push_back([&mesh, c, norm](size_t i, double v) {
             mesh.colors[i][c] = (float)(v * norm);
           });
         } else {
-          std::vector<float> &lane = part.scalarLanes[n];
+          std::vector<float>& lane = part.scalarLanes[n];
           lane.resize(element.count, 0.0f);
           sinks.push_back([&lane](size_t i, double v) {
-            lane[i] = (float)v; // raw — ids stay ids
+            lane[i] = (float)v;  // raw — ids stay ids
           });
         }
       }
@@ -858,7 +794,7 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
     // sized from element.count: a header that promises face rows it
     // never delivers allocates nothing here.
     struct FaceLane {
-      std::vector<float> *lane = nullptr;
+      std::vector<float>* lane = nullptr;
       double scale = 1;
     };
     std::vector<FaceLane> faceLanes;
@@ -867,30 +803,27 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
       faceLanes.resize(element.properties.size());
       faceRow.assign(element.properties.size(), 0.0);
       for (size_t p = 0; p < element.properties.size(); ++p) {
-        const PlyProperty &property = element.properties[p];
-        if (property.list || property.name.empty())
-          continue;
+        const PlyProperty& property = element.properties[p];
+        if (property.list || property.name.empty()) continue;
         // MeshLab-style conventional per-face color is spelled
         // red/green/blue/alpha; it is collected under the SUFFIXED
         // name so the one folder below reconstitutes it as the same
         // "Color" lane save::ply writes as Color_r/_g/_b/_a. Integer
         // channels normalize, exactly like the vertex leg; every other
         // property stays raw (ids stay ids).
-        const std::string &n = property.name;
+        const std::string& n = property.name;
         const std::string laneName = n == "red"     ? "Color_r"
                                      : n == "green" ? "Color_g"
                                      : n == "blue"  ? "Color_b"
                                      : n == "alpha" ? "Color_a"
                                                     : n;
-        std::vector<float> *target = &primScalars[laneName];
-        const bool duplicate =
-            std::any_of(faceLanes.begin(),
-                        faceLanes.begin() + (std::ptrdiff_t)p,
-                        [target](const FaceLane &existing) {
-                          return existing.lane == target;
-                        });
-        if (duplicate)
-          continue;
+        std::vector<float>* target = &primScalars[laneName];
+        const bool duplicate = std::any_of(
+            faceLanes.begin(), faceLanes.begin() + (std::ptrdiff_t)p,
+            [target](const FaceLane& existing) {
+              return existing.lane == target;
+            });
+        if (duplicate) continue;
         const bool color = laneName != n;
         faceLanes[p] = {target, color && !property.type.floating
                                     ? 1.0 / property.type.intMax
@@ -901,11 +834,10 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
     for (size_t i = 0; i < element.count; ++i) {
       size_t sink = 0;
       size_t faceTriangles = 0;
-      for (const PlyProperty &property : element.properties) {
+      for (const PlyProperty& property : element.properties) {
         if (property.list) {
           double countValue = 0;
-          if (!read(property.countType, &countValue))
-            return std::nullopt;
+          if (!read(property.countType, &countValue)) return std::nullopt;
           // Malformed list counts — negative, NaN, or beyond anything
           // the file's bytes could back — must never reach the size_t
           // cast or the reserve below.
@@ -916,12 +848,10 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
           row.reserve(count);
           for (size_t k = 0; k < count; ++k) {
             double value = 0;
-            if (!read(property.type, &value))
-              return std::nullopt;
+            if (!read(property.type, &value)) return std::nullopt;
             // Negative (or NaN) list values would wrap in the
             // uint32_t cast — malformed file.
-            if (!(value >= 0))
-              return std::nullopt;
+            if (!(value >= 0)) return std::nullopt;
             row.push_back((uint32_t)value);
           }
           if (isFace && (property.name == "vertex_indices" ||
@@ -929,8 +859,8 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
             // File-supplied indices feed every later positions[] and
             // normals[] access; a face naming a vertex that does not
             // exist is dropped whole, the rest still imports.
-            const bool inRange = std::all_of(
-                row.begin(), row.end(), [&mesh](uint32_t v) {
+            const bool inRange =
+                std::all_of(row.begin(), row.end(), [&mesh](uint32_t v) {
                   return (size_t)v < mesh.positions.size();
                 });
             if (inRange) {
@@ -942,8 +872,7 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
           }
         } else {
           double value = 0;
-          if (!read(property.type, &value))
-            return std::nullopt;
+          if (!read(property.type, &value)) return std::nullopt;
           if (isVertex)
             sinks[sink](i, value);
           else if (isFace)
@@ -959,14 +888,12 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
       // data that was actually read.
       for (size_t p = 0; faceTriangles > 0 && p < faceLanes.size(); ++p)
         if (faceLanes[p].lane)
-          faceLanes[p].lane->insert(
-              faceLanes[p].lane->end(), faceTriangles,
-              (float)(faceRow[p] * faceLanes[p].scale));
+          faceLanes[p].lane->insert(faceLanes[p].lane->end(), faceTriangles,
+                                    (float)(faceRow[p] * faceLanes[p].scale));
     }
   }
 
-  if (mesh.positions.empty())
-    return std::nullopt;
+  if (mesh.positions.empty()) return std::nullopt;
 
   foldSuffixedLanes(part.scalarLanes, part.vectorLanes, part.colorLanes);
 
@@ -987,25 +914,23 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
     // than published at a lying cardinality — the same posture the
     // dropped-face path takes, and the reason a header that promises
     // face properties it never delivers cannot desync mesh.prims.
-    const auto publish = [tris](const std::string &name, size_t n) {
+    const auto publish = [tris](const std::string& name, size_t n) {
       return tris > 0 && n == tris && !name.empty();
     };
-    for (const auto &[name, lane] : primColors)
-      if (publish(name, lane.size()))
-        mesh.prims[name] = lane;
-    for (const auto &[name, lane] : primVectors)
+    for (const auto& [name, lane] : primColors)
+      if (publish(name, lane.size())) mesh.prims[name] = lane;
+    for (const auto& [name, lane] : primVectors)
       if (publish(name, lane.size())) {
-        std::vector<glm::vec4> &out = mesh.prims[name];
+        std::vector<glm::vec4>& out = mesh.prims[name];
         out.resize(lane.size());
         for (size_t i = 0; i < lane.size(); ++i)
           out[i] = glm::vec4(lane[i], 0.0f);
       }
-    for (const auto &[name, lane] : primScalars)
+    for (const auto& [name, lane] : primScalars)
       if (publish(name, lane.size())) {
-        std::vector<glm::vec4> &out = mesh.prims[name];
+        std::vector<glm::vec4>& out = mesh.prims[name];
         out.assign(lane.size(), glm::vec4{0});
-        for (size_t i = 0; i < lane.size(); ++i)
-          out[i].x = lane[i];
+        for (size_t i = 0; i < lane.size(); ++i) out[i].x = lane[i];
       }
   }
 
@@ -1057,21 +982,20 @@ namespace AbcGeom = Alembic::AbcGeom;
  *  the same scope, so destruction unwinds archive first. Do not hoist
  *  the archive out of that scope or hand it back to a caller. */
 class NonOwningStreamBuf final : public std::streambuf {
-public:
-  NonOwningStreamBuf(const void *bytes, size_t size) {
+ public:
+  NonOwningStreamBuf(const void* bytes, size_t size) {
     // setg's non-const signature is a formality: nothing here writes,
     // and no overflow/pbackfail path can reach the pointers.
-    char *begin = const_cast<char *>(static_cast<const char *>(bytes));
+    char* begin = const_cast<char*>(static_cast<const char*>(bytes));
     setg(begin, begin, begin + size);
   }
 
-protected:
+ protected:
   std::streamsize showmanyc() override { return egptr() - gptr(); }
 
   pos_type seekoff(off_type off, std::ios_base::seekdir dir,
                    std::ios_base::openmode which) override {
-    if (!(which & std::ios_base::in))
-      return pos_type(off_type(-1));
+    if (!(which & std::ios_base::in)) return pos_type(off_type(-1));
     const off_type size = egptr() - eback();
     off_type target = off;
     if (dir == std::ios_base::cur)
@@ -1081,14 +1005,12 @@ protected:
     // A seek PAST the end is a failure, not a clamp: Ogawa uses a
     // short read to detect truncation, and clamping would hand it a
     // valid-looking position into a file that has no such bytes.
-    if (target < 0 || target > size)
-      return pos_type(off_type(-1));
+    if (target < 0 || target > size) return pos_type(off_type(-1));
     setg(eback(), eback() + target, egptr());
     return pos_type(target);
   }
 
-  pos_type seekpos(pos_type pos,
-                   std::ios_base::openmode which) override {
+  pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
     return seekoff(off_type(pos), std::ios_base::beg, which);
   }
 };
@@ -1097,16 +1019,16 @@ protected:
  *  vector. Reading the 16 doubles in memory order through make_mat4
  *  IS the row->column conversion — no explicit transpose — so the
  *  walk composes world * local like any glm stack. */
-glm::mat4 toGlm(const Abc::M44d &m) {
+glm::mat4 toGlm(const Abc::M44d& m) {
   return glm::mat4(glm::make_mat4(&m[0][0]));
 }
 
 /** Where an output vertex came from — the indices the geom-param
  *  scopes select by. */
 struct AbcVertexSource {
-  int32_t point = 0;  ///< index into the sample's positions
-  int32_t corner = 0; ///< index into faceIndices, FILE order
-  int32_t face = 0;   ///< the face the vertex was first seen on
+  int32_t point = 0;   ///< index into the sample's positions
+  int32_t corner = 0;  ///< index into faceIndices, FILE order
+  int32_t face = 0;    ///< the face the vertex was first seen on
 };
 
 /** One part's sampling domain: a source per output vertex plus the
@@ -1127,45 +1049,41 @@ struct AbcDomain {
  *  face's value. False when the scope cannot apply or the array runs
  *  short — the caller drops the lane rather than half-fill it. */
 template <typename Param, typename Sink>
-bool unpackAbcParam(const Param &param, const Abc::ISampleSelector &at,
-                    const AbcDomain &domain, Sink &&sink) {
+bool unpackAbcParam(const Param& param, const Abc::ISampleSelector& at,
+                    const AbcDomain& domain, Sink&& sink) {
   typename Param::Sample sample = param.getExpandedValue(at);
   const auto values = sample.getVals();
-  if (!values)
-    return false;
+  if (!values) return false;
   const AbcGeom::GeometryScope scope = param.getScope();
   const bool faceless = domain.corners == 0;
   size_t need = 0;
   switch (scope) {
-  case AbcGeom::kConstantScope:
-    need = 1;
-    break;
-  case AbcGeom::kUniformScope:
-    if (faceless)
+    case AbcGeom::kConstantScope:
+      need = 1;
+      break;
+    case AbcGeom::kUniformScope:
+      if (faceless) return false;
+      need = domain.faces;
+      break;
+    case AbcGeom::kVaryingScope:
+    case AbcGeom::kVertexScope:
+      need = domain.points;
+      break;
+    case AbcGeom::kFacevaryingScope:
+      if (faceless) return false;
+      need = domain.corners;
+      break;
+    default:
       return false;
-    need = domain.faces;
-    break;
-  case AbcGeom::kVaryingScope:
-  case AbcGeom::kVertexScope:
-    need = domain.points;
-    break;
-  case AbcGeom::kFacevaryingScope:
-    if (faceless)
-      return false;
-    need = domain.corners;
-    break;
-  default:
-    return false;
   }
-  if (need == 0 || values->size() < need)
-    return false;
+  if (need == 0 || values->size() < need) return false;
   for (size_t i = 0; i < domain.sources.size(); ++i) {
-    const AbcVertexSource &v = domain.sources[i];
-    const size_t index =
-        scope == AbcGeom::kConstantScope      ? 0
-        : scope == AbcGeom::kUniformScope     ? (size_t)v.face
-        : scope == AbcGeom::kFacevaryingScope ? (size_t)v.corner
-                                              : (size_t)v.point;
+    const AbcVertexSource& v = domain.sources[i];
+    const size_t index = scope == AbcGeom::kConstantScope  ? 0
+                         : scope == AbcGeom::kUniformScope ? (size_t)v.face
+                         : scope == AbcGeom::kFacevaryingScope
+                             ? (size_t)v.corner
+                             : (size_t)v.point;
     sink(i, (*values)[index]);
   }
   return true;
@@ -1175,26 +1093,25 @@ bool unpackAbcParam(const Param &param, const Abc::ISampleSelector &at,
  *  1 -> scalars (ints cast raw — ids stay ids), 3 -> vectors, 2 and
  *  4 -> colors (vec4; V2f zero-pads, C3f gets alpha 1). Names arrive
  *  verbatim — no Houdini renaming. */
-void importAbcLanes(const Abc::ICompoundProperty &params,
-                    const Abc::ISampleSelector &at,
-                    const AbcDomain &domain, Part &part) {
-  if (!params.valid())
-    return;
+void importAbcLanes(const Abc::ICompoundProperty& params,
+                    const Abc::ISampleSelector& at, const AbcDomain& domain,
+                    Part& part) {
+  if (!params.valid()) return;
   const size_t n = domain.sources.size();
   for (size_t i = 0; i < params.getNumProperties(); ++i) {
-    const AbcA::PropertyHeader &header = params.getPropertyHeader(i);
-    const std::string &name = header.getName();
-    const auto scalars = [&](const auto &param) {
+    const AbcA::PropertyHeader& header = params.getPropertyHeader(i);
+    const std::string& name = header.getName();
+    const auto scalars = [&](const auto& param) {
       std::vector<float> lane(n, 0.0f);
       if (unpackAbcParam(param, at, domain, [&lane](size_t v, auto value) {
-            lane[v] = (float)value; // raw — ids stay ids
+            lane[v] = (float)value;  // raw — ids stay ids
           }))
         part.scalarLanes[name] = std::move(lane);
     };
-    const auto vectors = [&](const auto &param) {
+    const auto vectors = [&](const auto& param) {
       std::vector<glm::vec3> lane(n, glm::vec3{0});
       if (unpackAbcParam(param, at, domain,
-                         [&lane](size_t v, const Imath::V3f &value) {
+                         [&lane](size_t v, const Imath::V3f& value) {
                            lane[v] = {value.x, value.y, value.z};
                          }))
         part.vectorLanes[name] = std::move(lane);
@@ -1216,14 +1133,14 @@ void importAbcLanes(const Abc::ICompoundProperty &params,
     else if (AbcGeom::IC3fGeomParam::matches(header)) {
       std::vector<glm::vec4> lane(n, glm::vec4{0});
       if (unpackAbcParam(AbcGeom::IC3fGeomParam(params, name), at, domain,
-                         [&lane](size_t v, const Imath::C3f &value) {
+                         [&lane](size_t v, const Imath::C3f& value) {
                            lane[v] = {value.x, value.y, value.z, 1};
                          }))
         part.colorLanes[name] = std::move(lane);
     } else if (AbcGeom::IC4fGeomParam::matches(header)) {
       std::vector<glm::vec4> lane(n, glm::vec4{0});
       if (unpackAbcParam(AbcGeom::IC4fGeomParam(params, name), at, domain,
-                         [&lane](size_t v, const Imath::C4f &value) {
+                         [&lane](size_t v, const Imath::C4f& value) {
                            lane[v] = {value.r, value.g, value.b, value.a};
                          }))
         part.colorLanes[name] = std::move(lane);
@@ -1231,7 +1148,7 @@ void importAbcLanes(const Abc::ICompoundProperty &params,
       // Width 2 rides the color lane zero-padded — the routing rule.
       std::vector<glm::vec4> lane(n, glm::vec4{0});
       if (unpackAbcParam(AbcGeom::IV2fGeomParam(params, name), at, domain,
-                         [&lane](size_t v, const Imath::V2f &value) {
+                         [&lane](size_t v, const Imath::V2f& value) {
                            lane[v] = {value.x, value.y, 0, 0};
                          }))
         part.colorLanes[name] = std::move(lane);
@@ -1245,50 +1162,44 @@ void importAbcLanes(const Abc::ICompoundProperty &params,
  *  sources. Deliberate simplification: custom facevarying lanes ride
  *  that same key, so corners agreeing on point+uv+normal share one
  *  lane slot. */
-void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4 &world,
-                   const Abc::ISampleSelector &at, Model &out) {
-  AbcGeom::IPolyMeshSchema &schema = object.getSchema();
+void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4& world,
+                   const Abc::ISampleSelector& at, Model& out) {
+  AbcGeom::IPolyMeshSchema& schema = object.getSchema();
   AbcGeom::IPolyMeshSchema::Sample sample;
   schema.get(sample, at);
   const Abc::P3fArraySamplePtr positions = sample.getPositions();
   const Abc::Int32ArraySamplePtr faceIndices = sample.getFaceIndices();
   const Abc::Int32ArraySamplePtr faceCounts = sample.getFaceCounts();
   // The quiet policy hands back empty samples, never throws.
-  if (!positions || !faceIndices || !faceCounts)
-    return;
+  if (!positions || !faceIndices || !faceCounts) return;
   const size_t numPoints = positions->size();
   const size_t numCorners = faceIndices->size();
 
   // UV/normal sources: -1 absent, else per-point or per-corner by the
   // declared scope (kVertex/kVarying carry one value per POINT here).
   const auto classify = [&](AbcGeom::GeometryScope scope, size_t count) {
-    if ((scope == AbcGeom::kVertexScope ||
-         scope == AbcGeom::kVaryingScope) &&
+    if ((scope == AbcGeom::kVertexScope || scope == AbcGeom::kVaryingScope) &&
         count >= numPoints)
       return 0;
-    if (scope == AbcGeom::kFacevaryingScope && count >= numCorners)
-      return 1;
+    if (scope == AbcGeom::kFacevaryingScope && count >= numCorners) return 1;
     return -1;
   };
   Abc::V2fArraySamplePtr uvs;
   int uvMode = -1;
   if (AbcGeom::IV2fGeomParam param = schema.getUVsParam(); param.valid()) {
     uvs = param.getExpandedValue(at).getVals();
-    if (uvs)
-      uvMode = classify(param.getScope(), uvs->size());
+    if (uvs) uvMode = classify(param.getScope(), uvs->size());
   }
   Abc::N3fArraySamplePtr normals;
   int normalMode = -1;
-  if (AbcGeom::IN3fGeomParam param = schema.getNormalsParam();
-      param.valid()) {
+  if (AbcGeom::IN3fGeomParam param = schema.getNormalsParam(); param.valid()) {
     normals = param.getExpandedValue(at).getVals();
-    if (normals)
-      normalMode = classify(param.getScope(), normals->size());
+    if (normals) normalMode = classify(param.getScope(), normals->size());
   }
 
   Part part;
   part.name = object.getName();
-  Mesh &mesh = part.mesh;
+  Mesh& mesh = part.mesh;
   AbcDomain domain;
   domain.points = numPoints;
   domain.corners = numCorners;
@@ -1300,7 +1211,7 @@ void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4 &world,
   for (size_t face = 0; face < faceCounts->size(); ++face) {
     const int32_t count = (*faceCounts)[face];
     if (count < 0 || cursor + (size_t)count > numCorners)
-      return; // inconsistent topology — drop the whole part
+      return;  // inconsistent topology — drop the whole part
     if (count < 3) {
       cursor += (size_t)count;
       continue;
@@ -1312,26 +1223,24 @@ void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4 &world,
       // addressed by it.
       const size_t corner = cursor + (size_t)(count - 1 - j);
       const int32_t point = (*faceIndices)[corner];
-      if (point < 0 || (size_t)point >= numPoints)
-        return;
-      const int32_t uvSource =
-          uvMode < 0 ? -1 : uvMode == 0 ? point : (int32_t)corner;
-      const int32_t normalSource =
-          normalMode < 0 ? -1
-          : normalMode == 0 ? point
-                            : (int32_t)corner;
+      if (point < 0 || (size_t)point >= numPoints) return;
+      const int32_t uvSource = uvMode < 0    ? -1
+                               : uvMode == 0 ? point
+                                             : (int32_t)corner;
+      const int32_t normalSource = normalMode < 0    ? -1
+                                   : normalMode == 0 ? point
+                                                     : (int32_t)corner;
       const std::array<int32_t, 3> key = {point, uvSource, normalSource};
-      auto [it, inserted] =
-          seen.emplace(key, (uint32_t)mesh.positions.size());
+      auto [it, inserted] = seen.emplace(key, (uint32_t)mesh.positions.size());
       if (inserted) {
-        const Imath::V3f &p = (*positions)[point];
+        const Imath::V3f& p = (*positions)[point];
         mesh.positions.push_back({p.x, p.y, p.z});
         if (normalSource >= 0) {
-          const Imath::V3f &nrm = (*normals)[normalSource];
+          const Imath::V3f& nrm = (*normals)[normalSource];
           mesh.normals.push_back({nrm.x, nrm.y, nrm.z});
         }
         if (uvSource >= 0) {
-          const Imath::V2f &uv = (*uvs)[uvSource];
+          const Imath::V2f& uv = (*uvs)[uvSource];
           // Alembic uv origin is bottom-left; Mesh is IMAGE
           // convention (top-left), so v flips — the OBJ rule.
           mesh.uvs.push_back({uv.x, 1 - uv.y});
@@ -1343,69 +1252,65 @@ void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4 &world,
       ring.push_back(it->second);
     }
     for (size_t j = 1; j + 1 < ring.size(); ++j)
-      mesh.indices.insert(mesh.indices.end(),
-                          {ring[0], ring[j], ring[j + 1]});
+      mesh.indices.insert(mesh.indices.end(), {ring[0], ring[j], ring[j + 1]});
     cursor += (size_t)count;
   }
 
   // Conventional member: velocities land verbatim as a lane.
   if (const Abc::V3fArraySamplePtr velocities = sample.getVelocities();
       velocities && velocities->size() >= numPoints) {
-    std::vector<glm::vec3> &lane = part.vectorLanes["velocity"];
+    std::vector<glm::vec3>& lane = part.vectorLanes["velocity"];
     lane.resize(domain.sources.size());
     for (size_t i = 0; i < domain.sources.size(); ++i) {
-      const Imath::V3f &v = (*velocities)[domain.sources[i].point];
+      const Imath::V3f& v = (*velocities)[domain.sources[i].point];
       lane[i] = {v.x, v.y, v.z};
     }
   }
   importAbcLanes(schema.getArbGeomParams(), at, domain, part);
 
   finishPart(part, normalMode >= 0);
-  part.mesh.transform(world); // bake AFTER finishing — lanes verbatim
-  if (!part.mesh.indices.empty())
-    out.parts.push_back(std::move(part));
+  part.mesh.transform(world);  // bake AFTER finishing — lanes verbatim
+  if (!part.mesh.indices.empty()) out.parts.push_back(std::move(part));
 }
 
 /** One IPoints at one time into a faceless Part — the PLY point-cloud
  *  posture: empty indices, asCloud() the natural consumer. ids and
  *  widths keep their file names ("id" casts uint64 to float, exact
  *  only to 2^24 — a stated trade); velocities land as "velocity". */
-void importAbcPoints(AbcGeom::IPoints object, const glm::mat4 &world,
-                     const Abc::ISampleSelector &at, Model &out) {
-  AbcGeom::IPointsSchema &schema = object.getSchema();
+void importAbcPoints(AbcGeom::IPoints object, const glm::mat4& world,
+                     const Abc::ISampleSelector& at, Model& out) {
+  AbcGeom::IPointsSchema& schema = object.getSchema();
   AbcGeom::IPointsSchema::Sample sample;
   schema.get(sample, at);
   const Abc::P3fArraySamplePtr positions = sample.getPositions();
-  if (!positions || positions->size() == 0)
-    return;
+  if (!positions || positions->size() == 0) return;
   const size_t n = positions->size();
 
   Part part;
   part.name = object.getName();
-  Mesh &mesh = part.mesh;
+  Mesh& mesh = part.mesh;
   mesh.positions.resize(n);
   AbcDomain domain;
-  domain.points = n; // corners/faces stay 0: faceless
+  domain.points = n;  // corners/faces stay 0: faceless
   domain.sources.resize(n);
   for (size_t i = 0; i < n; ++i) {
-    const Imath::V3f &p = (*positions)[i];
+    const Imath::V3f& p = (*positions)[i];
     mesh.positions[i] = {p.x, p.y, p.z};
     domain.sources[i].point = (int32_t)i;
   }
 
   if (const Abc::UInt64ArraySamplePtr ids = sample.getIds();
       ids && ids->size() >= n) {
-    std::vector<float> &lane = part.scalarLanes["id"];
+    std::vector<float>& lane = part.scalarLanes["id"];
     lane.resize(n);
-    for (size_t i = 0; i < n; ++i)
-      lane[i] = (float)(*ids)[i];
+    for (size_t i = 0; i < n; ++i) lane[i] = (float)(*ids)[i];
   }
   if (const Abc::V3fArraySamplePtr velocities = sample.getVelocities();
       velocities && velocities->size() >= n) {
-    std::vector<glm::vec3> &lane = part.vectorLanes["velocity"];
+    std::vector<glm::vec3>& lane = part.vectorLanes["velocity"];
     lane.resize(n);
     for (size_t i = 0; i < n; ++i) {
-      const Imath::V3f &v = (*velocities)[i];
+      const Imath::V3f& v = (*velocities)[i];
       lane[i] = {v.x, v.y, v.z};
     }
   }
@@ -1418,7 +1323,7 @@ void importAbcPoints(AbcGeom::IPoints object, const glm::mat4 &world,
   }
   importAbcLanes(schema.getArbGeomParams(), at, domain, part);
 
-  finishPart(part, false); // faceless: same posture as importPly
+  finishPart(part, false);  // faceless: same posture as importPly
   part.mesh.transform(world);
   out.parts.push_back(std::move(part));
 }
@@ -1426,29 +1331,29 @@ void importAbcPoints(AbcGeom::IPoints object, const glm::mat4 &world,
 /** Depth-first over the hierarchy, xform stack carried as glm and
  *  baked at the leaves — the glTF posture. Honors each xform's
  *  inherits flag; unknown object types recurse transparently. */
-void walkAlembic(const Abc::IObject &parent, const glm::mat4 &world,
-                 const Abc::ISampleSelector &at, Model &out) {
+void walkAlembic(const Abc::IObject& parent, const glm::mat4& world,
+                 const Abc::ISampleSelector& at, Model& out) {
   for (size_t i = 0; i < parent.getNumChildren(); ++i) {
-    const AbcA::ObjectHeader &header = parent.getChildHeader(i);
+    const AbcA::ObjectHeader& header = parent.getChildHeader(i);
     if (AbcGeom::IXform::matches(header)) {
       AbcGeom::IXform xform(parent, header.getName());
       AbcGeom::XformSample xs = xform.getSchema().getValue(at);
       const glm::mat4 local = toGlm(xs.getMatrix());
-      walkAlembic(xform, xs.getInheritsXforms() ? world * local : local,
-                  at, out);
+      walkAlembic(xform, xs.getInheritsXforms() ? world * local : local, at,
+                  out);
     } else if (AbcGeom::IPolyMesh::matches(header)) {
-      importAbcMesh(AbcGeom::IPolyMesh(parent, header.getName()), world,
-                    at, out);
+      importAbcMesh(AbcGeom::IPolyMesh(parent, header.getName()), world, at,
+                    out);
     } else if (AbcGeom::IPoints::matches(header)) {
-      importAbcPoints(AbcGeom::IPoints(parent, header.getName()), world,
-                      at, out);
+      importAbcPoints(AbcGeom::IPoints(parent, header.getName()), world, at,
+                      out);
     } else {
       walkAlembic(Abc::IObject(parent, header.getName()), world, at, out);
     }
   }
 }
 
-} // namespace
+}  // namespace
 
 // --- Model ----------------------------------------------------------------
 
@@ -1456,60 +1361,50 @@ Cloud Part::asCloud() const {
   Cloud out;
   out.positions = mesh.positions;
   const size_t n = out.positions.size();
-  std::vector<float> &t = out.scalar("t");
+  std::vector<float>& t = out.scalar("t");
   for (size_t i = 0; i < n; ++i)
     t[i] = n > 1 ? (float)i / (float)(n - 1) : 0.0f;
-  if (mesh.normals.size() == n)
-    out.vectors["normal"] = mesh.normals;
+  if (mesh.normals.size() == n) out.vectors["normal"] = mesh.normals;
   if (mesh.uvs.size() == n) {
-    std::vector<glm::vec4> &uv = out.color("uv", {0, 0, 0, 0});
-    for (size_t i = 0; i < n; ++i)
-      uv[i] = {mesh.uvs[i].x, mesh.uvs[i].y, 0, 0};
+    std::vector<glm::vec4>& uv = out.color("uv", {0, 0, 0, 0});
+    for (size_t i = 0; i < n; ++i) uv[i] = {mesh.uvs[i].x, mesh.uvs[i].y, 0, 0};
   }
-  if (mesh.colors.size() == n)
-    out.colors["tint"] = mesh.colors;
-  for (const auto &[name, lane] : scalarLanes)
-    if (lane.size() == n)
-      out.scalars[name] = lane;
-  for (const auto &[name, lane] : vectorLanes)
-    if (lane.size() == n)
-      out.vectors[name] = lane;
-  for (const auto &[name, lane] : colorLanes)
-    if (lane.size() == n)
-      out.colors[name] = lane;
+  if (mesh.colors.size() == n) out.colors["tint"] = mesh.colors;
+  for (const auto& [name, lane] : scalarLanes)
+    if (lane.size() == n) out.scalars[name] = lane;
+  for (const auto& [name, lane] : vectorLanes)
+    if (lane.size() == n) out.vectors[name] = lane;
+  for (const auto& [name, lane] : colorLanes)
+    if (lane.size() == n) out.colors[name] = lane;
   return out;
 }
 
 Cloud Model::mergedCloud() const {
   Cloud out;
-  for (const Part &part : parts)
-    out.append(part.asCloud());
+  for (const Part& part : parts) out.append(part.asCloud());
   return out;
 }
 
 size_t Model::vertexCount() const {
   size_t count = 0;
-  for (const Part &part : parts)
-    count += part.mesh.vertexCount();
+  for (const Part& part : parts) count += part.mesh.vertexCount();
   return count;
 }
 
 size_t Model::triangleCount() const {
   size_t count = 0;
-  for (const Part &part : parts)
-    count += part.mesh.triangleCount();
+  for (const Part& part : parts) count += part.mesh.triangleCount();
   return count;
 }
 
-void Model::bounds(glm::vec3 *lo, glm::vec3 *hi) const {
+void Model::bounds(glm::vec3* lo, glm::vec3* hi) const {
   glm::vec3 mn = {std::numeric_limits<float>::max(),
-             std::numeric_limits<float>::max(),
-             std::numeric_limits<float>::max()};
+                  std::numeric_limits<float>::max(),
+                  std::numeric_limits<float>::max()};
   glm::vec3 mx = {-mn.x, -mn.y, -mn.z};
   bool any = false;
-  for (const Part &part : parts) {
-    if (part.mesh.positions.empty())
-      continue;
+  for (const Part& part : parts) {
+    if (part.mesh.positions.empty()) continue;
     glm::vec3 partLo, partHi;
     part.mesh.bounds(&partLo, &partHi);
     mn = {std::min(mn.x, partLo.x), std::min(mn.y, partLo.y),
@@ -1518,22 +1413,20 @@ void Model::bounds(glm::vec3 *lo, glm::vec3 *hi) const {
           std::max(mx.z, partHi.z)};
     any = true;
   }
-  if (!any)
-    mn = mx = {0, 0, 0};
+  if (!any) mn = mx = {0, 0, 0};
   *lo = mn;
   *hi = mx;
 }
 
 Mesh Model::merged() const {
   Mesh out;
-  for (const Part &part : parts) {
+  for (const Part& part : parts) {
     Mesh mesh = part.mesh;
     if (!(part.baseColor == kWhite)) {
       if (mesh.colors.empty())
         mesh.colors.assign(mesh.positions.size(), part.baseColor);
       else
-        for (glm::vec4 &c : mesh.colors)
-          c *= part.baseColor;
+        for (glm::vec4& c : mesh.colors) c *= part.baseColor;
     }
     out.append(mesh);
   }
@@ -1545,8 +1438,7 @@ glm::mat4 Model::fitTransform(float size) const {
   bounds(&lo, &hi);
   const glm::vec3 center = (lo + hi) * 0.5f;
   const glm::vec3 extent = hi - lo;
-  const float largest =
-      std::max(extent.x, std::max(extent.y, extent.z));
+  const float largest = std::max(extent.x, std::max(extent.y, extent.z));
   const float scale = largest > 1e-12f ? size / largest : 1;
   return glm::scale(glm::mat4(1.0f), {scale, scale, scale}) *
          glm::translate(glm::mat4(1.0f), -center);
@@ -1554,10 +1446,9 @@ glm::mat4 Model::fitTransform(float size) const {
 
 // --- entry points ---------------------------------------------------------
 
-std::optional<Model> alembic(const void *bytes, size_t size,
-                             const AlembicOptions &options) {
-  if (!bytes || size == 0)
-    return std::nullopt;
+std::optional<Model> alembic(const void* bytes, size_t size,
+                             const AlembicOptions& options) {
+  if (!bytes || size == 0) return std::nullopt;
   // The library can still throw on malformed input despite the quiet
   // policy below — one net turns every failure into nullopt.
   try {
@@ -1571,41 +1462,33 @@ std::optional<Model> alembic(const void *bytes, size_t size,
     factory.setPolicy(Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
     Alembic::AbcCoreFactory::IFactory::CoreType core =
         Alembic::AbcCoreFactory::IFactory::kUnknown;
-    std::vector<std::istream *> streams = {&stream};
+    std::vector<std::istream*> streams = {&stream};
     Alembic::Abc::IArchive archive = factory.getArchive(streams, core);
     // HDF5-cored archives need the backend we deliberately don't
     // build — they land here as kUnknown/invalid, honest nullopt.
-    if (!archive.valid())
-      return std::nullopt;
+    if (!archive.valid()) return std::nullopt;
     const Abc::ISampleSelector at(options.time,
                                   Abc::ISampleSelector::kNearIndex);
     Model out;
     walkAlembic(archive.getTop(), glm::mat4(1.0f), at, out);
-    if (out.parts.empty())
-      return std::nullopt;
+    if (out.parts.empty()) return std::nullopt;
     return out;
   } catch (...) {
     return std::nullopt;
   }
 }
 
-std::optional<Model> model(const void *bytes, size_t size,
-                           std::string_view pathHint,
-                           const Resolver &resolve) {
-  if (!bytes || size == 0)
-    return std::nullopt;
-  const auto *data = static_cast<const std::byte *>(bytes);
+std::optional<Model> model(const void* bytes, size_t size,
+                           std::string_view pathHint, const Resolver& resolve) {
+  if (!bytes || size == 0) return std::nullopt;
+  const auto* data = static_cast<const std::byte*>(bytes);
   const std::string ext = lowerExtension(pathHint);
-  if (ext == "obj")
-    return importObj(asText(bytes, size), resolve);
+  if (ext == "obj") return importObj(asText(bytes, size), resolve);
   if (ext == "gltf" || ext == "glb")
     return importGltf(bytes, size, pathHint, resolve);
-  if (ext == "stl")
-    return importStl(data, size);
-  if (ext == "ply")
-    return importPly(data, size);
-  if (ext == "abc")
-    return alembic(bytes, size);
+  if (ext == "stl") return importStl(data, size);
+  if (ext == "ply") return importPly(data, size);
+  if (ext == "abc") return alembic(bytes, size);
 
   // No useful extension: sniff. GLB and Ogawa magics and JSON are
   // unambiguous; binary STL is identified by its size arithmetic.
@@ -1617,38 +1500,34 @@ std::optional<Model> model(const void *bytes, size_t size,
   const size_t start = text.find_first_not_of(" \t\r\n");
   if (start != std::string_view::npos && text[start] == '{')
     return importGltf(bytes, size, pathHint, resolve);
-  if (looksLikePly(text))
-    return importPly(data, size);
+  if (looksLikePly(text)) return importPly(data, size);
   if (looksLikeBinaryStl(data, size) || looksLikeAsciiStl(text))
     return importStl(data, size);
   return std::nullopt;
 }
 
-std::optional<Model> model(const std::filesystem::path &file) {
+std::optional<Model> model(const std::filesystem::path& file) {
   std::ifstream stream(file, std::ios::binary | std::ios::ate);
-  if (!stream)
-    return std::nullopt;
+  if (!stream) return std::nullopt;
   const std::streamsize size = stream.tellg();
   stream.seekg(0);
   std::vector<std::byte> bytes((size_t)size);
-  if (!stream.read(reinterpret_cast<char *>(bytes.data()), size))
+  if (!stream.read(reinterpret_cast<char*>(bytes.data()), size))
     return std::nullopt;
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =
       [dir](std::string_view uri) -> std::optional<std::vector<std::byte>> {
     std::ifstream ref(dir / std::filesystem::path(std::string(uri)),
                       std::ios::binary | std::ios::ate);
-    if (!ref)
-      return std::nullopt;
+    if (!ref) return std::nullopt;
     const std::streamsize refSize = ref.tellg();
     ref.seekg(0);
     std::vector<std::byte> refBytes((size_t)refSize);
-    if (!ref.read(reinterpret_cast<char *>(refBytes.data()), refSize))
+    if (!ref.read(reinterpret_cast<char*>(refBytes.data()), refSize))
       return std::nullopt;
     return refBytes;
   };
-  return model(bytes.data(), bytes.size(), file.filename().string(),
-               siblings);
+  return model(bytes.data(), bytes.size(), file.filename().string(), siblings);
 }
 
-} // namespace sigil::shape::import
+}  // namespace sigil::shape::import

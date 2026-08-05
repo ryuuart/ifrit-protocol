@@ -20,24 +20,24 @@ class SkSurface;
  * compiled into each build.
  */
 class SkiaOffscreenSurface {
-public:
+ public:
   /** @p texture must be a QRhiTexture created by the same QRhi whose native
    *  device/queue @p context was built from. Qt adapter — link
    *  SpellCircleSkiaQt for this constructor. */
-  SkiaOffscreenSurface(SkiaGraphiteContext &context, QRhiTexture *texture,
+  SkiaOffscreenSurface(SkiaGraphiteContext& context, QRhiTexture* texture,
                        QSize pixelSize);
 
 #ifdef __APPLE__
   /** Qt-free Metal wrap: @p mtlTexture is an id<MTLTexture> bridged to
    *  void*, created on the same device @p context was built from. */
-  SkiaOffscreenSurface(SkiaGraphiteContext &context, void *mtlTexture,
+  SkiaOffscreenSurface(SkiaGraphiteContext& context, void* mtlTexture,
                        int width, int height);
 #endif
 
   ~SkiaOffscreenSurface();
 
   /** Null if wrapping the backend texture failed. */
-  SkCanvas *canvas() const;
+  SkCanvas* canvas() const;
 
   /** Snaps the Recorder's accumulated draw commands into a Recording,
    *  inserts it into the Context, and submits it to the GPU asynchronously.
@@ -45,7 +45,7 @@ public:
    *  later GPU work is ordered after this submission on the same queue. */
   void submit();
 
-private:
-  SkiaGraphiteContext &m_context;
+ private:
+  SkiaGraphiteContext& m_context;
   sk_sp<SkSurface> m_surface;
 };

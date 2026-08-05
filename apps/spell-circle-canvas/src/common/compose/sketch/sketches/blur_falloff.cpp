@@ -27,13 +27,11 @@
 // the volatility declaration — a live map or a live maxSigma lifts the whole
 // effect to live, so no bake can sample the parameter once and freeze it.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Material.h>
-
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Material.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
@@ -43,9 +41,9 @@ using namespace sigil::compose::util;
 namespace {
 
 constexpr float kPanel = 240.0f;
-constexpr float kMaxSigma = 14.0f; // the map's 1.0 end, in px of sigma
-constexpr float kFocal = 0.42f;    // panel 2's sharp line, 0..1 down the box
-constexpr double kRackHz = 0.18;   // panel 4's breathing rate
+constexpr float kMaxSigma = 14.0f;  // the map's 1.0 end, in px of sigma
+constexpr float kFocal = 0.42f;     // panel 2's sharp line, 0..1 down the box
+constexpr double kRackHz = 0.18;    // panel 4's breathing rate
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -96,10 +94,9 @@ Element subject() {
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the top
  *  edge, zero at the focal line, max again at the bottom. */
 Material dofMap() {
-  return Material::linearUnit({0, 0}, {0, 1},
-                              {{0.0f, {1, 1, 1, 1}},
-                               {kFocal, {0, 0, 0, 1}},
-                               {1.0f, {1, 1, 1, 1}}});
+  return Material::linearUnit(
+      {0, 0}, {0, 1},
+      {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
 /** A LENS EDGE: zero on axis, max at the inscribed circle. glowUnit is the
@@ -109,7 +106,7 @@ Material lensMap() {
                             {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
-Element panel(const char *title, const char *note, Effect e, std::string key) {
+Element panel(const char* title, const char* note, Effect e, std::string key) {
   return box()
       .width(kPanel)
       .column()
@@ -119,10 +116,10 @@ Element panel(const char *title, const char *note, Effect e, std::string key) {
       .child(text(toU8(note), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct BlurFalloff : sigil::compose::sketch::Sketch {
-  choreograph::Output<float> rack{0.0f}; // panel 4's bound maxSigma
+  choreograph::Output<float> rack{0.0f};  // panel 4's bound maxSigma
 
   Element describe() {
     return stack()
@@ -136,20 +133,22 @@ struct BlurFalloff : sigil::compose::sketch::Sketch {
                    .left(30)
                    .top(52)
                    .gap(20)
-                   .child(panel("constant (before)", "Blur(14, 14): all or "
-                                                     "nothing",
+                   .child(panel("constant (before)",
+                                "Blur(14, 14): all or "
+                                "nothing",
                                 Effect::filter(SkImageFilters::Blur(
                                     kMaxSigma, kMaxSigma, nullptr)),
                                 "flat"))
-                   .child(panel("depth of field", "linearUnit, 3 stops down "
-                                                  "the box",
+                   .child(panel("depth of field",
+                                "linearUnit, 3 stops down "
+                                "the box",
                                 Effect::blur(dofMap(), kMaxSigma), "dof"))
                    .child(panel("lens edge", "glowUnit from the centre",
                                 Effect::blur(lensMap(), kMaxSigma), "lens"))
-                   .child(panel("rack focus", "the SAME map, maxSigma bound",
-                                Effect::blur(dofMap(), 0)
-                                    .uniform("maxSigma", &rack),
-                                "rack")))
+                   .child(panel(
+                       "rack focus", "the SAME map, maxSigma bound",
+                       Effect::blur(dofMap(), 0).uniform("maxSigma", &rack),
+                       "rack")))
         .child(text(toU8("the parameter is a Material, so it prunes, it "
                          "animates on the one uniform channel, and its unit "
                          "square is whatever box the layout decided"),
@@ -158,14 +157,14 @@ struct BlurFalloff : sigil::compose::sketch::Sketch {
                    .bottom(14));
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1080, 372);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(1.6); // rack focus near its widest
+    ctx.captureAt(1.6);  // rack focus near its widest
     ctx.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     (void)ctx;
     // Derived from `elapsed`, not accumulated: a still at a declared time is
     // then the same still every run. No re-describe — the bound parameter

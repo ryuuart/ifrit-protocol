@@ -22,11 +22,6 @@
  * each style is attached to plus the order within that slot.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Decorations.h" // PathFormat keylines in the presets
-#include "sigilcompose/Material.h"
-#include "sigilcompose/Util.h" // drop shadow lives there already
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkMaskFilter.h>
@@ -40,14 +35,18 @@
 #include <array>
 #include <cmath>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Decorations.h"  // PathFormat keylines in the presets
+#include "sigilcompose/Material.h"
+#include "sigilcompose/Util.h"  // drop shadow lives there already
+
 namespace sigil::compose::styles {
 
 namespace detail {
 /** 0xRRGGBB → SkColor4f (straight alpha). */
 inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
   return {(float)((hex >> 16) & 0xff) / 255.0f,
-          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f,
-          a};
+          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
 }
 inline SkColor4f scale(SkColor4f c, float k, float a) {
   return {c.fR * k, c.fG * k, c.fB * k, a};
@@ -56,17 +55,16 @@ inline SkColor4f toward(SkColor4f c, SkColor4f target, float t, float a) {
   return {c.fR + (target.fR - c.fR) * t, c.fG + (target.fG - c.fG) * t,
           c.fB + (target.fB - c.fB) * t, a};
 }
-inline sk_sp<SkShader> vRamp(float y0, float y1,
-                             std::vector<SkColor4f> colors,
+inline sk_sp<SkShader> vRamp(float y0, float y1, std::vector<SkColor4f> colors,
                              std::vector<float> stops) {
   SkPoint pts[2] = {{0, y0}, {0, y1}};
-  return SkShaders::LinearGradient(
-      pts, SkGradient({{colors.data(), colors.size()},
-                       {stops.data(), stops.size()},
-                       SkTileMode::kClamp},
-                      {}));
+  return SkShaders::LinearGradient(pts,
+                                   SkGradient({{colors.data(), colors.size()},
+                                               {stops.data(), stops.size()},
+                                               SkTileMode::kClamp},
+                                              {}));
 }
-} // namespace detail
+}  // namespace detail
 
 /** Drop shadow — `util::shadow` under the name it has in this family.
  *  Attach as the FIRST background, so everything else paints over it. */
@@ -87,20 +85,19 @@ inline util::Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
 struct InnerShadow {
   SkColor4f color = {0, 0, 0, 0.5f};
   SkVector offset = {0, 3};
-  float size = 5; // blur extent, px
+  float size = 5;  // blur extent, px
 
-  bool operator==(const InnerShadow &) const = default;
+  bool operator==(const InnerShadow&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     c.save();
     c.clipPath(ctx.outline, true);
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
     p.setStyle(SkPaint::kStroke_Style);
-    const float reach =
-        std::max(size, 1.0f) +
-        std::max(std::abs(offset.fX), std::abs(offset.fY));
+    const float reach = std::max(size, 1.0f) +
+                        std::max(std::abs(offset.fX), std::abs(offset.fY));
     p.setStrokeWidth(reach);
     if (size > 0)
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, size * 0.5f));
@@ -122,14 +119,14 @@ inline InnerShadow innerGlow(SkColor4f color, float size) {
  *  attach as a background; the fill covers the center. */
 struct OuterGlow {
   SkColor4f color = {1, 1, 1, 0.8f};
-  float size = 8;   // blur extent, px
-  float spread = 0; // hard expansion before the blur, px
+  float size = 8;    // blur extent, px
+  float spread = 0;  // hard expansion before the blur, px
 
-  bool operator==(const OuterGlow &) const = default;
+  bool operator==(const OuterGlow&) const = default;
   /** Paint reach beyond the node's bounds (recording cull grows by this). */
   float bleed() const { return size * 2 + spread; }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
@@ -149,21 +146,21 @@ struct OuterGlow {
  *  two bands. `angleDeg` is the light angle, counter-clockwise from +x and
  *  naming the direction the light COMES FROM, so 120° is upper-left. */
 struct BevelEmboss {
-  float depth = 3;     // plane offset, px
-  float size = 4;      // soften blur, px
+  float depth = 3;  // plane offset, px
+  float size = 4;   // soften blur, px
   float angleDeg = 120;
   SkColor4f highlight = {1, 1, 1, 0.65f};
   SkColor4f shadow = {0, 0, 0, 0.45f};
 
-  bool operator==(const BevelEmboss &) const = default;
+  bool operator==(const BevelEmboss&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     const float rad = angleDeg * 3.1415927f / 180.0f;
     // Canvas y grows downward: light FROM angle → the vector pointing away
     // from the light. An inner shadow's visible edge is OPPOSITE its offset.
     const SkVector away = {-std::cos(rad) * depth, std::sin(rad) * depth};
-    InnerShadow{highlight, away, size}.paint(c, ctx);          // lit edges
-    InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(c, ctx); // far edges
+    InnerShadow{highlight, away, size}.paint(c, ctx);               // lit edges
+    InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(c, ctx);  // far edges
   }
 };
 
@@ -183,9 +180,9 @@ struct Overlay {
   SkBlendMode blend = SkBlendMode::kSrcOver;
   float opacity = 1.0f;
 
-  bool operator==(const Overlay &) const = default;
+  bool operator==(const Overlay&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     if (material.isSolid())
@@ -195,8 +192,7 @@ struct Overlay {
     else
       return;
     p.setBlendMode(blend);
-    if (opacity < 1.0f)
-      p.setAlphaf(p.getAlphaf() * opacity);
+    if (opacity < 1.0f) p.setAlphaf(p.getAlphaf() * opacity);
     c.drawPath(ctx.outline, p);
   }
 };
@@ -217,8 +213,8 @@ inline Overlay gradientOverlay(Material gradient,
  *  on top. Attach with `.effect()`, and chain with `.then()` for a tighter
  *  core over a wider halo: `text(...).effect(styles::textGlow(cyan, 6))`. */
 inline Effect textGlow(SkColor4f color, float sigma) {
-  return Effect::filter(SkImageFilters::DropShadow(
-      0, 0, sigma, sigma, color.toSkColor(), nullptr));
+  return Effect::filter(SkImageFilters::DropShadow(0, 0, sigma, sigma,
+                                                   color.toSkColor(), nullptr));
 }
 
 /** The water/heat warp: the node's rendered layer resampled through a sine
@@ -232,8 +228,8 @@ inline Effect textGlow(SkColor4f color, float sigma) {
  *  a moving `phase`, and the node re-records on every change. Keep it for
  *  moments that earn it, or pair it with Cache::None so the node is not
  *  paying to invalidate a cache it never keeps. */
-inline Effect ripple(float amplitudePx, float wavelengthPx,
-                     float phase = 0.0f, bool vertical = false) {
+inline Effect ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
+                     bool vertical = false) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform shader content;
@@ -250,17 +246,15 @@ inline Effect ripple(float amplitudePx, float wavelengthPx,
         return content.eval(q);
       }
     )"));
-    if (!effect)
-      SkDebugf("sigilcompose ripple shader: %s\n", err.c_str());
+    if (!effect) SkDebugf("sigilcompose ripple shader: %s\n", err.c_str());
     return effect;
   }();
-  if (!fx)
-    return {};
-  return Effect::shader(
-      fx, {{"uAmp", amplitudePx},
-           {"uFreq", 6.2831853f / std::max(wavelengthPx, 1.0f)},
-           {"uPhase", phase},
-           {"uVertical", vertical ? 1.0f : 0.0f}});
+  if (!fx) return {};
+  return Effect::shader(fx,
+                        {{"uAmp", amplitudePx},
+                         {"uFreq", 6.2831853f / std::max(wavelengthPx, 1.0f)},
+                         {"uPhase", phase},
+                         {"uVertical", vertical ? 1.0f : 0.0f}});
 }
 
 // ---------------------------------------------------------------------------
@@ -268,17 +262,17 @@ inline Effect ripple(float amplitudePx, float wavelengthPx,
 
 /** Knobs the gel bundle exposes; the defaults dress a pill. */
 struct AquaGelOptions {
-  float lensAlphaTop = 0.72f;   ///< lens ramp: white at the top, clear below
-  float lensBottomFrac = 0.52f; ///< lens ends this far down the box
-  float lensInsetXFrac = 0.05f; ///< lens inset each side; ~0.16 on spheres
-  float bottomGlow = 0.85f;     ///< strength of the light from below
-  bool halo = true;             ///< luminous tint drop beneath the shape
+  float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top, clear below
+  float lensBottomFrac = 0.52f;  ///< lens ends this far down the box
+  float lensInsetXFrac = 0.05f;  ///< lens inset each side; ~0.16 on spheres
+  float bottomGlow = 0.85f;      ///< strength of the light from below
+  bool halo = true;              ///< luminous tint drop beneath the shape
   /** `bleed()` runs before the node has a layout size, so the halo's cull
    *  reserve has to be declared here: set this to the tallest the gel will
    *  be. The halo reaches about 0.65 of that height beyond the box, and
    *  under-declaring it truncates the halo at the cached picture's edge. */
   float expectedHeight = 64.0f;
-  bool operator==(const AquaGelOptions &) const = default;
+  bool operator==(const AquaGelOptions&) const = default;
 };
 
 /** The gel pill body, everything sized as a FRACTION of the node's height:
@@ -291,30 +285,28 @@ struct AquaBody {
   SkColor4f tint = detail::rgb(0x1E8FFF);
   AquaGelOptions opts;
 
-  bool operator==(const AquaBody &) const = default;
-  float bleed() const {
-    return opts.halo ? opts.expectedHeight * 0.65f : 0.0f;
-  }
+  bool operator==(const AquaBody&) const = default;
+  float bleed() const { return opts.halo ? opts.expectedHeight * 0.65f : 0.0f; }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     const float H = ctx.size.height();
-    if (opts.halo) { // a lightened, half-transparent cast of the tint
+    if (opts.halo) {  // a lightened, half-transparent cast of the tint
       util::Shadow{detail::toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f),
                    {0, H * 0.25f},
                    H * 0.40f}
           .paint(c, ctx);
     }
-    SkPaint body; // deep at the top, saturated in the middle, light below
+    SkPaint body;  // deep at the top, saturated in the middle, light below
     body.setAntiAlias(true);
-    body.setShader(detail::vRamp(
-        0, H,
-        {detail::scale(tint, 0.55f, 0.9f), tint,
-         detail::toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)},
-        {0.0f, 0.55f, 1.0f}));
+    body.setShader(
+        detail::vRamp(0, H,
+                      {detail::scale(tint, 0.55f, 0.9f), tint,
+                       detail::toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)},
+                      {0.0f, 0.55f, 1.0f}));
     c.drawPath(ctx.outline, body);
     InnerShadow{detail::scale(tint, 0.30f, 0.45f), {0, H * 0.08f}, H * 0.25f}
         .paint(c, ctx);
-    if (opts.bottomGlow > 0) { // screen-blended, fading out by mid-height
+    if (opts.bottomGlow > 0) {  // screen-blended, fading out by mid-height
       SkPaint glow;
       glow.setAntiAlias(true);
       glow.setBlendMode(SkBlendMode::kScreen);
@@ -338,9 +330,9 @@ struct AquaGloss {
   float topFrac = 0.04f, bottomFrac = 0.52f;
   float alphaTop = 0.72f, alphaBottom = 0.0f;
 
-  bool operator==(const AquaGloss &) const = default;
+  bool operator==(const AquaGloss&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     const float W = ctx.size.width(), H = ctx.size.height();
     const SkRect lens = SkRect::MakeLTRB(W * insetXFrac, H * topFrac,
                                          W * (1 - insetXFrac), H * bottomFrac);
@@ -367,11 +359,11 @@ inline LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
   hairline.width = 1.0f;
   hairline.strokeFill = Fill::color(detail::scale(tint, 0.45f, 0.6f));
   hairline.align = PathFormat::Align::Inner;
-  return LayerStyle{{Decoration(AquaBody{tint, opts})},
-                    {Decoration(AquaGloss{opts.lensInsetXFrac, 0.04f,
-                                          opts.lensBottomFrac,
-                                          opts.lensAlphaTop, 0.0f}),
-                     Decoration(hairline)}};
+  return LayerStyle{
+      {Decoration(AquaBody{tint, opts})},
+      {Decoration(AquaGloss{opts.lensInsetXFrac, 0.04f, opts.lensBottomFrac,
+                            opts.lensAlphaTop, 0.0f}),
+       Decoration(hairline)}};
 }
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
@@ -391,15 +383,15 @@ inline LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
 /** Which chrome the bundle wears. */
 struct ChromeOptions {
   enum class Palette : uint8_t {
-    Steel, ///< the dark ramp — heavy contrast, for plates and wordmarks
-    Silver ///< the light ramp — window and control chrome
+    Steel,  ///< the dark ramp — heavy contrast, for plates and wordmarks
+    Silver  ///< the light ramp — window and control chrome
   };
   Palette palette = Palette::Steel;
-  bool horizonSliver = true; ///< white specular sliver straddling 50%
+  bool horizonSliver = true;  ///< white specular sliver straddling 50%
   float keylineWidth = 2.0f;
   SkColor4f keyline = detail::rgb(0x10141A);
   float bevelDepth = 3.0f, bevelSize = 5.0f;
-  bool operator==(const ChromeOptions &) const = default;
+  bool operator==(const ChromeOptions&) const = default;
 };
 
 /** Where the chrome ramp's hard stop sits, as a fraction of the node's
@@ -411,9 +403,9 @@ inline constexpr float kChromeHorizonFrac = 0.50f;
  *  horizon, drawn through the shape's outline. */
 struct ChromeBody {
   ChromeOptions::Palette palette = ChromeOptions::Palette::Steel;
-  bool operator==(const ChromeBody &) const = default;
+  bool operator==(const ChromeBody&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     if (palette == ChromeOptions::Palette::Silver) {
@@ -445,16 +437,16 @@ struct ChromeSliver {
   float horizonFrac = kChromeHorizonFrac;
   /** Fraction of the width the highlight takes to reach full strength. */
   float falloff = 0.22f;
-  bool operator==(const ChromeSliver &) const = default;
+  bool operator==(const ChromeSliver&) const = default;
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     const float W = ctx.size.width(), H = ctx.size.height();
     c.save();
     c.clipPath(ctx.outline, true);
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f({1, 1, 1, 0.9f}, nullptr);
-    c.drawRect(SkRect::MakeXYWH(0, 0, W, 1), p); // the top edge
+    c.drawRect(SkRect::MakeXYWH(0, 0, W, 1), p);  // the top edge
 
     // One horizontal alpha ramp reused for the hot line and the bloom
     // under it; the bloom also falls off vertically, so the pair reads as
@@ -463,10 +455,8 @@ struct ChromeSliver {
     const float fade = std::clamp(falloff, 0.02f, 0.49f);
     const float mid[4] = {0.0f, fade, 1.0f - fade, 1.0f};
     auto band = [&](float y, float height, float alpha) {
-      const SkColor4f colors[4] = {{1, 1, 1, 0},
-                                   {1, 1, 1, alpha},
-                                   {1, 1, 1, alpha},
-                                   {1, 1, 1, 0}};
+      const SkColor4f colors[4] = {
+          {1, 1, 1, 0}, {1, 1, 1, alpha}, {1, 1, 1, alpha}, {1, 1, 1, 0}};
       SkPoint pts[2] = {{0, y}, {W, y}};
       SkPaint bp;
       bp.setAntiAlias(true);
@@ -497,16 +487,16 @@ inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
   // The sliver goes UNDER the content, with the plate. As a foreground it
   // would cross the node's own type, where a horizontal white band at half
   // height reads as a strikethrough instead of as a sheen on the plate.
-  if (opts.horizonSliver)
-    bundle.under.push_back(Decoration(ChromeSliver{}));
+  if (opts.horizonSliver) bundle.under.push_back(Decoration(ChromeSliver{}));
   if (opts.palette == ChromeOptions::Palette::Steel)
     bundle.over.push_back(
         Decoration(InnerShadow{detail::rgb(0x001020, 0.30f), {0, 3}, 4}));
-  bundle.over.push_back(Decoration(BevelEmboss{
-      opts.bevelDepth, opts.bevelSize, 120, {1, 1, 1, 0.5f},
-      {0, 0, 0, 0.65f}}));
-  if (opts.keylineWidth > 0)
-    bundle.over.push_back(Decoration(keyline));
+  bundle.over.push_back(Decoration(BevelEmboss{opts.bevelDepth,
+                                               opts.bevelSize,
+                                               120,
+                                               {1, 1, 1, 0.5f},
+                                               {0, 0, 0, 0.65f}}));
+  if (opts.keylineWidth > 0) bundle.over.push_back(Decoration(keyline));
   return bundle;
 }
 
@@ -558,13 +548,13 @@ struct GlossContour {
   SkVector offset = {0, -3};
   std::array<uint8_t, 256> table{};
 
-  bool operator==(const GlossContour &o) const {
+  bool operator==(const GlossContour& o) const {
     return color == o.color && sigma == o.sigma && offset == o.offset &&
            table == o.table;
   }
   float bleed() const { return sigma * 3.0f; }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
@@ -572,7 +562,7 @@ struct GlossContour {
         SkColorFilters::TableARGB(table.data(), nullptr, nullptr, nullptr),
         SkImageFilters::Blur(sigma, sigma, nullptr)));
     c.save();
-    c.clipPath(ctx.outline, true); // satin lives INSIDE the shape
+    c.clipPath(ctx.outline, true);  // satin lives INSIDE the shape
     c.translate(offset.fX, offset.fY);
     c.drawPath(ctx.outline, p);
     c.restore();
@@ -590,7 +580,7 @@ inline std::array<uint8_t, 256> glossRing(float center = 0.55f,
     const float d = std::abs(a - center) / std::max(0.05f, width * 0.5f);
     const float peak = std::max(0.0f, 1.0f - d);
     t[(size_t)i] = (uint8_t)std::lround(255.0f * peak * peak *
-                                        (3.0f - 2.0f * peak)); // smoothstep
+                                        (3.0f - 2.0f * peak));  // smoothstep
   }
   return t;
 }
@@ -608,4 +598,4 @@ inline GlossContour gloss(SkColor4f color = {1, 1, 1, 0.85f},
   return g;
 }
 
-} // namespace sigil::compose::styles
+}  // namespace sigil::compose::styles

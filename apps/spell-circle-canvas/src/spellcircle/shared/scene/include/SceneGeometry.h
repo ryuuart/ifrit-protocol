@@ -6,10 +6,10 @@
 // backends (Skia and QCanvasPainter) and the native macOS app draw from the
 // ResolvedScene it produces.
 
-#include "SceneModel.h"
-
 #include <string>
 #include <vector>
+
+#include "SceneModel.h"
 
 namespace spellcircle {
 
@@ -21,7 +21,7 @@ struct Vec2 {
 
 /** A circle resolved to absolute, native-scaled canvas coordinates. */
 struct ResolvedCircle {
-  std::string name; // UTF-8
+  std::string name;  // UTF-8
   Vec2 center;
   float radius = 0.0f;
   // Label anchor as a fraction of the DRAWN CONTOUR, which starts at
@@ -30,7 +30,7 @@ struct ResolvedCircle {
   // (matching Point.position); resolveScene() converts, so nothing
   // downstream needs to know two conventions ever existed.
   float textStart = 0.0f;
-  float active = 0.0f; // background fill alpha/intensity [0, 1]
+  float active = 0.0f;  // background fill alpha/intensity [0, 1]
 };
 
 /** A straight connector between two resolved point positions. */
@@ -42,13 +42,13 @@ struct ResolvedEdge {
 /** A labelled box anchored at a resolved point position, offset outward
  *  along the ray from the canvas center through that point. */
 struct ResolvedBox {
-  std::string value; // UTF-8
+  std::string value;  // UTF-8
   Vec2 anchor;
   // Unit vector from the canvas center through `anchor`, used both to push
   // the box outward by the configured distance and to pick which of its
   // edges (the one facing the center) sits at that offset.
   Vec2 direction;
-  float active = 0.0f; // background fill alpha/intensity [0, 1]
+  float active = 0.0f;  // background fill alpha/intensity [0, 1]
 };
 
 /** Every entity of a SceneDocument resolved into drawable geometry. */
@@ -82,7 +82,7 @@ float ringFractionFromTwelve(float fraction);
  * authored in a smaller coordinate space and scaled up to the native canvas;
  * document width/height of 0 mean coordinates are already native.
  */
-ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
+ResolvedScene resolveScene(const SceneDocument& document, float canvasWidth,
                            float canvasHeight);
 
-} // namespace spellcircle
+}  // namespace spellcircle

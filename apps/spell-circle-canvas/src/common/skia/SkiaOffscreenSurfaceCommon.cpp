@@ -4,9 +4,6 @@
 // SkiaOffscreenSurfaceVulkan.cpp is compiled into a given build (see
 // CMakeLists.txt), matching the SkiaGraphiteContext create() TU.
 
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
-
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
@@ -14,21 +11,22 @@
 
 #include <cstdio>
 
+#include "SkiaGraphiteContext.h"
+#include "SkiaOffscreenSurface.h"
+
 SkiaOffscreenSurface::~SkiaOffscreenSurface() = default;
 
-SkCanvas *SkiaOffscreenSurface::canvas() const {
+SkCanvas* SkiaOffscreenSurface::canvas() const {
   return m_surface ? m_surface->getCanvas() : nullptr;
 }
 
 void SkiaOffscreenSurface::submit() {
-  auto *recorder = m_context.recorder();
-  auto *context = m_context.context();
-  if (!recorder || !context)
-    return;
+  auto* recorder = m_context.recorder();
+  auto* context = m_context.context();
+  if (!recorder || !context) return;
 
   std::unique_ptr<skgpu::graphite::Recording> recording = recorder->snap();
-  if (!recording)
-    return;
+  if (!recording) return;
 
   skgpu::graphite::InsertRecordingInfo recordingInfo;
   recordingInfo.fRecording = recording.get();
@@ -48,8 +46,7 @@ void SkiaOffscreenSurface::submit() {
           "frame did not render\n",
           static_cast<int>(
               static_cast<skgpu::graphite::InsertStatus::V>(status)),
-          status.message().empty() ? "" : ": ",
-          status.message().c_str());
+          status.message().empty() ? "" : ": ", status.message().c_str());
     }
     // Still pump completion: this is the only place the process retires
     // finished GPU work, and a permanently failing chain must not also

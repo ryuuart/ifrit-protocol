@@ -4,19 +4,19 @@
 // The public bounds()/paragraphLayout()/hitTest()/stats() surface that calls
 // into these lives in Composer.cpp.
 
-#include "ComposeRuntime.h"
-
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
 using namespace detail;
 
-bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
+bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
                                    SkSize size) const {
-  const ElementNode &node = *inst.desc;
+  const ElementNode& node = *inst.desc;
   // Routed elements (rails, connectors) hit near their PATH, not their
   // layout box — a rail placed absolute().inset(0) must not eclipse the
   // scene. The stroke-expanded hit path is built at derive time.
@@ -27,8 +27,7 @@ bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
   if (node.shapeFn)
     return resolveOutline(inst, size).contains(local.x(), local.y());
   const SkRect bounds = SkRect::MakeWH(size.width(), size.height());
-  if (!bounds.contains(local.x(), local.y()))
-    return false;
+  if (!bounds.contains(local.x(), local.y())) return false;
   if (node.corners.any()) {
     SkPathBuilder b;
     b.addRRect(cornersRRect(bounds, node.corners));
@@ -37,15 +36,13 @@ bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
   return true;
 }
 
-std::optional<std::string>
-Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
-                            const std::string *inheritedKey) {
-  const ElementNode &node = *inst.desc;
+std::optional<std::string> Composer::Impl::hitInstance(
+    Instance& inst, SkPoint parentPt, const std::string* inheritedKey) {
+  const ElementNode& node = *inst.desc;
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
-  if (opacity <= 0.0f)
-    return std::nullopt; // invisible subtrees don't hit
+  if (opacity <= 0.0f) return std::nullopt;  // invisible subtrees don't hit
 
   // Into local space: undo the layout offset, then the paint transform (the
   // exact inverse of paint()'s matrix stack).
@@ -71,45 +68,40 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
     safe.scl = safe.sx = safe.sy = 1;
   const float kx = std::tan(tf.skx * 0.017453293f);
   const float ky = std::tan(tf.sky * 0.017453293f);
-  if (std::abs(1.0f - kx * ky) <= 1e-6f)
-    safe.skx = safe.sky = 0;
+  if (std::abs(1.0f - kx * ky) <= 1e-6f) safe.skx = safe.sky = 0;
   SkMatrix inv;
-  if (safe.matrix({0, 0}, node.paint, rect.width(), rect.height())
-          .invert(&inv))
+  if (safe.matrix({0, 0}, node.paint, rect.width(), rect.height()).invert(&inv))
     local = inv.mapPoint(local);
-  else // unreachable once sanitized; match "never refuse": translate only
+  else  // unreachable once sanitized; match "never refuse": translate only
     local.offset(-tf.tx, -tf.ty);
 
   const SkSize size{rect.width(), rect.height()};
   const bool inside = shapeContains(inst, local, size);
   if (node.clipContent && !inside)
-    return std::nullopt; // clip bounds the whole subtree's hit region
+    return std::nullopt;  // clip bounds the whole subtree's hit region
 
-  const std::shared_ptr<ElementNode> &shell =
+  const std::shared_ptr<ElementNode>& shell =
       inst.memoShell && !inst.memoShell->key.empty() ? inst.memoShell
                                                      : inst.desc;
-  const std::string *key = !shell->key.empty() ? &shell->key : inheritedKey;
+  const std::string* key = !shell->key.empty() ? &shell->key : inheritedKey;
 
   // Children topmost-first (reverse paint order); they may overflow the parent
   // box, so recurse regardless of `inside`.
   for (auto it = inst.paintOrder.rbegin(); it != inst.paintOrder.rend(); ++it)
-    if (auto hit = hitInstance(*inst.children[*it], local, key))
-      return hit;
+    if (auto hit = hitInstance(*inst.children[*it], local, key)) return hit;
 
-  if (inside && key && !key->empty() && node.hitTestable)
-    return *key;
+  if (inside && key && !key->empty() && node.hitTestable) return *key;
   return std::nullopt;
 }
 
 std::vector<std::string> Composer::routesAt(std::string_view nodeKey) const {
   std::vector<std::string> keys;
   auto it = m_impl->routesByAnchor.find(std::string(nodeKey));
-  if (it == m_impl->routesByAnchor.end())
-    return keys;
+  if (it == m_impl->routesByAnchor.end()) return keys;
   keys.reserve(it->second.size());
-  for (const detail::Instance *route : it->second) {
+  for (const detail::Instance* route : it->second) {
     // A route's addressable key may live on its memo shell (memo'd routes).
-    const std::shared_ptr<detail::ElementNode> &shell =
+    const std::shared_ptr<detail::ElementNode>& shell =
         route->memoShell ? route->memoShell : route->desc;
     if (!shell->key.empty())
       keys.push_back(shell->key);
@@ -119,4 +111,4 @@ std::vector<std::string> Composer::routesAt(std::string_view nodeKey) const {
   return keys;
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

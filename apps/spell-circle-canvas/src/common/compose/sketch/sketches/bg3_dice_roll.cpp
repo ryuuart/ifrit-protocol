@@ -128,8 +128,8 @@
 // found by taking every triple whose three pairwise distances are the edge
 // length 2 — not a table, a search, so a wrong phi produces no faces at all
 // rather than a wrong solid. Thirty edges fall out of the faces. Each face is
-// oriented outward against its own centroid, rotated, projected orthographically
-// and culled by normal . view <= 0.
+// oriented outward against its own centroid, rotated, projected
+// orthographically and culled by normal . view <= 0.
 //
 // The read comes entirely from a THREE-TIER EDGE WEIGHT, because a 2D library
 // has no shading to lean on:
@@ -198,8 +198,11 @@
 //
 // -----------------------------------------------------------------------------
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkCanvas.h>
+#include <include/core/SkFont.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Lines.h>
@@ -207,14 +210,8 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
 #include <array>
@@ -238,7 +235,7 @@ constexpr float kH = 1200.0f;
 constexpr float kCx = 600.0f;
 constexpr float kCy = 520.0f;
 
-constexpr float kBezelOuter = 330.0f; ///< 20-gon circumradius
+constexpr float kBezelOuter = 330.0f;  ///< 20-gon circumradius
 constexpr float kBezelInner = 268.0f;
 constexpr float kDieRadius = 174.0f;  ///< projected circumradius of the solid
 
@@ -247,23 +244,25 @@ constexpr float kCornerAngle = 12.0f;
 
 // ------------------------------------------------------------------ palette
 // Illuminated-manuscript register.
-constexpr SkColor4f kVellum{0.910f, 0.863f, 0.753f, 1.0f};   // #E8DCC0
+constexpr SkColor4f kVellum{0.910f, 0.863f, 0.753f, 1.0f};  // #E8DCC0
 constexpr SkColor4f kVellumDeep{0.796f, 0.733f, 0.604f, 1.0f};
-constexpr SkColor4f kInk{0.141f, 0.110f, 0.078f, 1.0f};      // #241C14
-constexpr SkColor4f kGilt{0.788f, 0.635f, 0.153f, 1.0f};     // #C9A227
-constexpr SkColor4f kGiltDark{0.549f, 0.420f, 0.082f, 1.0f}; // #8C6B15
-constexpr SkColor4f kViridian{0.184f, 0.365f, 0.290f, 1.0f}; // #2F5D4A
-constexpr SkColor4f kOxblood{0.431f, 0.122f, 0.133f, 1.0f};  // #6E1F22
-constexpr SkColor4f kAdvantage{0.306f, 0.604f, 0.306f, 1.0f};// #4E9A4E
-constexpr SkColor4f kBone{0.871f, 0.824f, 0.706f, 1.0f};     // #DED2B4
+constexpr SkColor4f kInk{0.141f, 0.110f, 0.078f, 1.0f};        // #241C14
+constexpr SkColor4f kGilt{0.788f, 0.635f, 0.153f, 1.0f};       // #C9A227
+constexpr SkColor4f kGiltDark{0.549f, 0.420f, 0.082f, 1.0f};   // #8C6B15
+constexpr SkColor4f kViridian{0.184f, 0.365f, 0.290f, 1.0f};   // #2F5D4A
+constexpr SkColor4f kOxblood{0.431f, 0.122f, 0.133f, 1.0f};    // #6E1F22
+constexpr SkColor4f kAdvantage{0.306f, 0.604f, 0.306f, 1.0f};  // #4E9A4E
+constexpr SkColor4f kBone{0.871f, 0.824f, 0.706f, 1.0f};       // #DED2B4
 
 inline SkColor4f alpha(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 inline Fill ink(float a = 1.0f) { return Fill::color(alpha(kInk, a)); }
 inline Fill gilt(float a = 1.0f) { return Fill::color(alpha(kGilt, a)); }
-inline Fill giltDark(float a = 1.0f) { return Fill::color(alpha(kGiltDark, a)); }
+inline Fill giltDark(float a = 1.0f) {
+  return Fill::color(alpha(kGiltDark, a));
+}
 
-inline std::u8string u8(const std::string &s) {
-  return std::u8string(reinterpret_cast<const char8_t *>(s.c_str()), s.size());
+inline std::u8string u8(const std::string& s) {
+  return std::u8string(reinterpret_cast<const char8_t*>(s.c_str()), s.size());
 }
 
 // ------------------------------------------------------- the roll, as typed
@@ -277,11 +276,11 @@ constexpr int kFinalTotal = 20;         ///< StatsRollResult.Total
 /** One `ResolvedRollBonus` (:6129). `numDice`/`diceSize` non-zero means the
  *  row rolled for its own value and `resolved` is what it got. */
 struct Bonus {
-  const char *sourceName;   ///< SourceName    TranslatedString
-  const char *description;  ///< Description   TranslatedString
+  const char* sourceName;   ///< SourceName    TranslatedString
+  const char* description;  ///< Description   TranslatedString
   int bonus;                ///< Bonus         int32
   int numDice;              ///< NumDice       uint8
-  const char *diceSize;     ///< DiceSize      DiceSizeId
+  const char* diceSize;     ///< DiceSize      DiceSizeId
   int resolved;             ///< ResolvedRollBonus int32
   double landsAt;           ///< s, after the die is still
 };
@@ -293,29 +292,39 @@ inline const std::array<Bonus, 3> kBonuses{{
     {"Guidance", "Cantrip  Guidance", 0, 1, "D4", 3, 1.67},
 }};
 
-constexpr double kSettleAt = 1.45;  ///< the die is still
-constexpr double kOutcomeAt = 1.95; ///< the last row has counted in
+constexpr double kSettleAt = 1.45;   ///< the die is still
+constexpr double kOutcomeAt = 1.95;  ///< the last row has counted in
 
 /** `Ext_Enums.SkillId` (:33053) at its true ordinals — the engine's order,
  *  which is the governing-ability grouping. See correction 1. */
 struct Skill {
   int ordinal;
-  const char *name;
+  const char* name;
 };
 inline const std::array<Skill, 18> kSkills{{
-    {0, "Deception"}, {1, "Intimidation"}, {2, "Performance"},
+    {0, "Deception"},
+    {1, "Intimidation"},
+    {2, "Performance"},
     {3, "Persuasion"},
-    {4, "Acrobatics"}, {5, "SleightOfHand"}, {6, "Stealth"},
-    {7, "Arcana"}, {8, "History"}, {9, "Investigation"}, {10, "Nature"},
+    {4, "Acrobatics"},
+    {5, "SleightOfHand"},
+    {6, "Stealth"},
+    {7, "Arcana"},
+    {8, "History"},
+    {9, "Investigation"},
+    {10, "Nature"},
     {11, "Religion"},
     {12, "Athletics"},
-    {13, "AnimalHandling"}, {14, "Insight"}, {15, "Medicine"},
-    {16, "Perception"}, {17, "Survival"},
+    {13, "AnimalHandling"},
+    {14, "Insight"},
+    {15, "Medicine"},
+    {16, "Perception"},
+    {17, "Survival"},
 }};
 /** The five blocks, as first-ordinal / count / AbilityId name+ordinal. */
 struct AbilityBlock {
   int first, count, abilityOrdinal;
-  const char *ability;
+  const char* ability;
 };
 inline const std::array<AbilityBlock, 5> kBlocks{{
     {0, 4, 6, "CHARISMA"},
@@ -324,7 +333,7 @@ inline const std::array<AbilityBlock, 5> kBlocks{{
     {12, 1, 1, "STRENGTH"},
     {13, 5, 5, "WISDOM"},
 }};
-constexpr int kActiveSkill = 3; ///< Persuasion
+constexpr int kActiveSkill = 3;  ///< Persuasion
 
 // ------------------------------------------------------------ the solid
 constexpr float kPhi = 1.618033988749895f;
@@ -358,12 +367,12 @@ inline std::vector<V3> icosaVertices() {
 }
 
 struct Solid {
-  std::vector<V3> verts;                    // 12
-  std::vector<std::array<int, 3>> faces;    // 20, wound outward
-  std::vector<V3> centroid, normal;         // per face
-  std::vector<int> pip;                     // face -> 1..20
-  std::vector<std::array<int, 2>> edges;    // 30
-  std::vector<std::array<int, 2>> edgeFace; // 30, the two faces on each edge
+  std::vector<V3> verts;                     // 12
+  std::vector<std::array<int, 3>> faces;     // 20, wound outward
+  std::vector<V3> centroid, normal;          // per face
+  std::vector<int> pip;                      // face -> 1..20
+  std::vector<std::array<int, 2>> edges;     // 30
+  std::vector<std::array<int, 2>> edgeFace;  // 30, the two faces on each edge
 };
 
 /** Faces by SEARCH, not by table: every triple whose three pairwise distances
@@ -378,8 +387,7 @@ inline Solid buildSolid() {
   };
   for (int i = 0; i < n; ++i)
     for (int j = i + 1; j < n; ++j) {
-      if (std::abs(d2(i, j) - 4.0f) > 1e-3f)
-        continue;
+      if (std::abs(d2(i, j) - 4.0f) > 1e-3f) continue;
       for (int k = j + 1; k < n; ++k) {
         if (std::abs(d2(j, k) - 4.0f) > 1e-3f ||
             std::abs(d2(i, k) - 4.0f) > 1e-3f)
@@ -390,7 +398,7 @@ inline Solid buildSolid() {
         V3 cen{(a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3,
                (a.z + b.z + c.z) / 3};
         V3 nrm = cross(b - a, c - a);
-        if (dot(nrm, cen) < 0) { // wind outward
+        if (dot(nrm, cen) < 0) {  // wind outward
           std::swap(f[1], f[2]);
           nrm = {-nrm.x, -nrm.y, -nrm.z};
         }
@@ -405,12 +413,10 @@ inline Solid buildSolid() {
     for (int e = 0; e < 3; ++e) {
       int a = s.faces[(size_t)f][(size_t)e];
       int b = s.faces[(size_t)f][(size_t)((e + 1) % 3)];
-      if (a > b)
-        std::swap(a, b);
+      if (a > b) std::swap(a, b);
       int found = -1;
       for (int q = 0; q < (int)s.edges.size(); ++q)
-        if (s.edges[(size_t)q][0] == a && s.edges[(size_t)q][1] == b)
-          found = q;
+        if (s.edges[(size_t)q][0] == a && s.edges[(size_t)q][1] == b) found = q;
       if (found < 0) {
         s.edges.push_back({a, b});
         s.edgeFace.push_back({f, -1});
@@ -435,13 +441,13 @@ inline V3 rotate(V3 p, float ax, float ay, float az) {
 
 /** Number the faces so opposites sum to 21 and the settled front face is the
  *  roll. Antipodes are found by centroid, not assumed. */
-inline void numberFaces(Solid &s, float ax, float ay, float az, int frontPip) {
+inline void numberFaces(Solid& s, float ax, float ay, float az, int frontPip) {
   const int nf = (int)s.faces.size();
   std::vector<int> anti((size_t)nf, -1);
   for (int i = 0; i < nf; ++i)
     for (int j = 0; j < nf; ++j) {
-      const V3 &a = s.centroid[(size_t)i];
-      const V3 &b = s.centroid[(size_t)j];
+      const V3& a = s.centroid[(size_t)i];
+      const V3& b = s.centroid[(size_t)j];
       if (std::abs(a.x + b.x) < 1e-3f && std::abs(a.y + b.y) < 1e-3f &&
           std::abs(a.z + b.z) < 1e-3f)
         anti[(size_t)i] = j;
@@ -461,13 +467,10 @@ inline void numberFaces(Solid &s, float ax, float ay, float az, int frontPip) {
     s.pip[(size_t)anti[(size_t)front]] = 21 - frontPip;
   int next = 1;
   for (int i = 0; i < nf; ++i) {
-    if (s.pip[(size_t)i] != 0)
-      continue;
-    while (next == frontPip || next == 21 - frontPip || next > 20)
-      ++next;
+    if (s.pip[(size_t)i] != 0) continue;
+    while (next == frontPip || next == 21 - frontPip || next > 20) ++next;
     s.pip[(size_t)i] = next;
-    if (anti[(size_t)i] >= 0)
-      s.pip[(size_t)anti[(size_t)i]] = 21 - next;
+    if (anti[(size_t)i] >= 0) s.pip[(size_t)anti[(size_t)i]] = 21 - next;
     ++next;
   }
 }
@@ -477,40 +480,40 @@ inline void numberFaces(Solid &s, float ax, float ay, float az, int frontPip) {
  *  axis, because a perfectly face-on icosahedron projects to a symmetric
  *  figure and a symmetric figure reads as a badge. The tilt is what makes
  *  the surviving edges unequal. */
-inline void settleAttitude(const Solid &s, float &tx, float &ty, float &tz) {
+inline void settleAttitude(const Solid& s, float& tx, float& ty, float& tz) {
   const V3 n = s.normal.empty() ? V3{0, 0, 1} : s.normal[0];
   const float h = std::sqrt(n.y * n.y + n.z * n.z);
-  tx = std::atan2(n.y, n.z) + 0.175f; // align, then tilt 10 deg
-  ty = -std::atan2(n.x, h) - 0.125f;  // …and 7 deg
+  tx = std::atan2(n.y, n.z) + 0.175f;  // align, then tilt 10 deg
+  ty = -std::atan2(n.x, h) - 0.125f;   // …and 7 deg
   tz = 0.085f;
 }
 
 /** The tumble: a fast spin decelerating into the settle, then two decaying
  *  bounces. One ramp cannot shape this. Settled by kSettleAt. */
-inline void tumbleAngles(double t, float kAx, float kAy, float kAz, float &ax,
-                         float &ay, float &az) {
+inline void tumbleAngles(double t, float kAx, float kAy, float kAz, float& ax,
+                         float& ay, float& az) {
   const float u = (float)std::clamp(t / 1.10, 0.0, 1.0);
-  const float e = 1.0f - std::pow(1.0f - u, 5.0f); // easeOutQuint
+  const float e = 1.0f - std::pow(1.0f - u, 5.0f);  // easeOutQuint
   const float remain = 1.0f - e;
   constexpr float kTau = 6.2831853f;
   ax = kAx + remain * 2.25f * kTau;
   ay = kAy + remain * 1.50f * kTau;
   az = kAz + remain * 0.75f * kTau;
-  if (t > 0.95) { // two decaying bounces, dead by 1.45
+  if (t > 0.95) {  // two decaying bounces, dead by 1.45
     const float w = (float)(t - 0.95);
     const float b = 0.17f * std::exp(-9.0f * w) * std::sin(w * 34.0f);
     ax += b;
     ay += b * 0.7f;
     az += b * 1.3f;
   }
-  if (t > kSettleAt) { // a breath, so the plate is never frozen
+  if (t > kSettleAt) {  // a breath, so the plate is never frozen
     const float w = (float)(t - kSettleAt);
     ax += 0.010f * std::sin(w * 0.8f);
     ay += 0.013f * std::sin(w * 0.55f + 1.1f);
   }
 }
 
-} // namespace bg3
+}  // namespace bg3
 
 // =============================================================================
 
@@ -532,10 +535,10 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   bg3::Solid solid;
   sk_sp<SkTypeface> serif, mono;
   float ax = 0, ay = 0, az = 0;
-  float tx = 0, ty = 0, tz = 0; ///< the settle attitude
+  float tx = 0, ty = 0, tz = 0;  ///< the settle attitude
 
   // ------------------------------------------------------------------- type
-  Element label(const std::string &s, float x, float y, float size,
+  Element label(const std::string& s, float x, float y, float size,
                 SkColor4f col, float track = 0.0f, bool useMono = false) const {
     weave::TextStyle st;
     st.shaping.typeface = useMono ? mono : serif;
@@ -548,25 +551,20 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  Yoga is not the skeleton here. `right` is in the PARENT's space, so the
    *  parent's width has to be named — pinning `right` against the canvas
    *  width inside a 528 px row is the bug this parameter exists to stop. */
-  Element labelR(const std::string &s, float right, float y, float size,
+  Element labelR(const std::string& s, float right, float y, float size,
                  SkColor4f col, bool useMono = false,
                  float parentWidth = bg3::kW) const {
     weave::TextStyle st;
     st.shaping.typeface = useMono ? mono : serif;
     st.shaping.fontSize = size;
     st.paint.foreground.setColor4f(col, nullptr);
-    return box()
-        .right(parentWidth - right)
-        .top(y)
-        .child(text(bg3::u8(s), st));
+    return box().right(parentWidth - right).top(y).child(text(bg3::u8(s), st));
   }
 
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
    *  stroke, never the canvas. */
-  static Element rule(float x, float y, float w, Decoration d,
-                      float h = 1.0f) {
-    return box().left(x).top(y).width(w).height(h).foreground(
-        std::move(d));
+  static Element rule(float x, float y, float w, Decoration d, float h = 1.0f) {
+    return box().left(x).top(y).width(w).height(h).foreground(std::move(d));
   }
 
   // -------------------------------------------------------------- the solid
@@ -575,108 +573,108 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element die(float radius, float opacity, bool numerals, float spin) const {
     const float boxSize = radius * 2.28f;
     return custom([this, radius, opacity, numerals, spin](
-                      SkCanvas &c, const PaintContext &ctx) {
-      const float cx = ctx.size.width() * 0.5f;
-      const float cy = ctx.size.height() * 0.5f;
-      const float s = radius / 1.9021130f; // circumradius sqrt(1 + phi^2)
+                      SkCanvas& c, const PaintContext& ctx) {
+             const float cx = ctx.size.width() * 0.5f;
+             const float cy = ctx.size.height() * 0.5f;
+             const float s =
+                 radius / 1.9021130f;  // circumradius sqrt(1 + phi^2)
 
-      std::array<SkPoint, 12> proj{};
-      for (int i = 0; i < 12; ++i) {
-        const bg3::V3 r =
-            bg3::rotate(solid.verts[(size_t)i], ax, ay + spin, az);
-        proj[(size_t)i] = {cx + r.x * s, cy - r.y * s};
-      }
-      const int nf = (int)solid.faces.size();
-      std::vector<float> nz((size_t)nf);
-      std::vector<bool> vis((size_t)nf);
-      for (int f = 0; f < nf; ++f) {
-        const bg3::V3 r =
-            bg3::rotate(solid.normal[(size_t)f], ax, ay + spin, az);
-        nz[(size_t)f] = r.z;
-        vis[(size_t)f] = r.z > 0.0f;
-      }
+             std::array<SkPoint, 12> proj{};
+             for (int i = 0; i < 12; ++i) {
+               const bg3::V3 r =
+                   bg3::rotate(solid.verts[(size_t)i], ax, ay + spin, az);
+               proj[(size_t)i] = {cx + r.x * s, cy - r.y * s};
+             }
+             const int nf = (int)solid.faces.size();
+             std::vector<float> nz((size_t)nf);
+             std::vector<bool> vis((size_t)nf);
+             for (int f = 0; f < nf; ++f) {
+               const bg3::V3 r =
+                   bg3::rotate(solid.normal[(size_t)f], ax, ay + spin, az);
+               nz[(size_t)f] = r.z;
+               vis[(size_t)f] = r.z > 0.0f;
+             }
 
-      // Carved bone: the visible faces as one filled body, shaded only by a
-      // flat gradient the node already carries. No per-face tone — the read
-      // is the edges.
-      SkPaint body;
-      body.setAntiAlias(true);
-      body.setStyle(SkPaint::kFill_Style);
-      SkPathBuilder solidBody;
-      for (int f = 0; f < nf; ++f) {
-        if (!vis[(size_t)f])
-          continue;
-        const auto &t = solid.faces[(size_t)f];
-        solidBody.moveTo(proj[(size_t)t[0]]);
-        solidBody.lineTo(proj[(size_t)t[1]]);
-        solidBody.lineTo(proj[(size_t)t[2]]);
-        solidBody.close();
-      }
-      const SkPath bodyPath = solidBody.detach();
-      // Each visible face gets its own tone from its own normal — the only
-      // shading, and it is derived from the geometry rather than painted.
-      for (int f = 0; f < nf; ++f) {
-        if (!vis[(size_t)f])
-          continue;
-        const auto &t = solid.faces[(size_t)f];
-        const float k = 0.72f + 0.28f * nz[(size_t)f];
-        body.setColor4f({bg3::kBone.fR * k, bg3::kBone.fG * k,
-                         bg3::kBone.fB * k, opacity},
-                        nullptr);
-        SkPathBuilder tri;
-        tri.moveTo(proj[(size_t)t[0]]);
-        tri.lineTo(proj[(size_t)t[1]]);
-        tri.lineTo(proj[(size_t)t[2]]);
-        tri.close();
-        c.drawPath(tri.detach(), body);
-      }
+             // Carved bone: the visible faces as one filled body, shaded only
+             // by a flat gradient the node already carries. No per-face tone —
+             // the read is the edges.
+             SkPaint body;
+             body.setAntiAlias(true);
+             body.setStyle(SkPaint::kFill_Style);
+             SkPathBuilder solidBody;
+             for (int f = 0; f < nf; ++f) {
+               if (!vis[(size_t)f]) continue;
+               const auto& t = solid.faces[(size_t)f];
+               solidBody.moveTo(proj[(size_t)t[0]]);
+               solidBody.lineTo(proj[(size_t)t[1]]);
+               solidBody.lineTo(proj[(size_t)t[2]]);
+               solidBody.close();
+             }
+             const SkPath bodyPath = solidBody.detach();
+             // Each visible face gets its own tone from its own normal — the
+             // only shading, and it is derived from the geometry rather than
+             // painted.
+             for (int f = 0; f < nf; ++f) {
+               if (!vis[(size_t)f]) continue;
+               const auto& t = solid.faces[(size_t)f];
+               const float k = 0.72f + 0.28f * nz[(size_t)f];
+               body.setColor4f({bg3::kBone.fR * k, bg3::kBone.fG * k,
+                                bg3::kBone.fB * k, opacity},
+                               nullptr);
+               SkPathBuilder tri;
+               tri.moveTo(proj[(size_t)t[0]]);
+               tri.lineTo(proj[(size_t)t[1]]);
+               tri.lineTo(proj[(size_t)t[2]]);
+               tri.close();
+               c.drawPath(tri.detach(), body);
+             }
 
-      // THE THREE-TIER EDGE WEIGHT.
-      SkPaint edge;
-      edge.setAntiAlias(true);
-      edge.setStyle(SkPaint::kStroke_Style);
-      edge.setStrokeCap(SkPaint::kRound_Cap);
-      SkPathBuilder interior, silhouette;
-      for (size_t e = 0; e < solid.edges.size(); ++e) {
-        const int f0 = solid.edgeFace[e][0], f1 = solid.edgeFace[e][1];
-        const int seen = (f0 >= 0 && vis[(size_t)f0] ? 1 : 0) +
-                         (f1 >= 0 && vis[(size_t)f1] ? 1 : 0);
-        if (seen == 0)
-          continue; // back edge: omitted entirely
-        SkPathBuilder &into = seen == 2 ? interior : silhouette;
-        into.moveTo(proj[(size_t)solid.edges[e][0]]);
-        into.lineTo(proj[(size_t)solid.edges[e][1]]);
-      }
-      edge.setStrokeWidth(1.1f);
-      edge.setColor4f(bg3::alpha(bg3::kGiltDark, opacity * 0.75f), nullptr);
-      c.drawPath(interior.detach(), edge);
-      edge.setStrokeWidth(2.6f);
-      edge.setColor4f(bg3::alpha(bg3::kInk, opacity), nullptr);
-      c.drawPath(silhouette.detach(), edge);
+             // THE THREE-TIER EDGE WEIGHT.
+             SkPaint edge;
+             edge.setAntiAlias(true);
+             edge.setStyle(SkPaint::kStroke_Style);
+             edge.setStrokeCap(SkPaint::kRound_Cap);
+             SkPathBuilder interior, silhouette;
+             for (size_t e = 0; e < solid.edges.size(); ++e) {
+               const int f0 = solid.edgeFace[e][0], f1 = solid.edgeFace[e][1];
+               const int seen = (f0 >= 0 && vis[(size_t)f0] ? 1 : 0) +
+                                (f1 >= 0 && vis[(size_t)f1] ? 1 : 0);
+               if (seen == 0) continue;  // back edge: omitted entirely
+               SkPathBuilder& into = seen == 2 ? interior : silhouette;
+               into.moveTo(proj[(size_t)solid.edges[e][0]]);
+               into.lineTo(proj[(size_t)solid.edges[e][1]]);
+             }
+             edge.setStrokeWidth(1.1f);
+             edge.setColor4f(bg3::alpha(bg3::kGiltDark, opacity * 0.75f),
+                             nullptr);
+             c.drawPath(interior.detach(), edge);
+             edge.setStrokeWidth(2.6f);
+             edge.setColor4f(bg3::alpha(bg3::kInk, opacity), nullptr);
+             c.drawPath(silhouette.detach(), edge);
 
-      if (!numerals || !serif)
-        return;
-      // Ink-filled numerals at each visible face's centroid, scaled by that
-      // face's own foreshortening and dropped when it turns too far away.
-      SkPaint glyph;
-      glyph.setAntiAlias(true);
-      glyph.setColor4f(bg3::alpha(bg3::kInk, opacity), nullptr);
-      for (int f = 0; f < nf; ++f) {
-        if (nz[(size_t)f] < 0.34f)
-          continue;
-        const bg3::V3 r =
-            bg3::rotate(solid.centroid[(size_t)f], ax, ay + spin, az);
-        const float fx = cx + r.x * s, fy = cy - r.y * s;
-        const float fs = radius * 0.30f * (0.55f + 0.45f * nz[(size_t)f]);
-        SkFont font(serif, fs);
-        char buf[8];
-        std::snprintf(buf, sizeof(buf), "%d", solid.pip[(size_t)f]);
-        const float w =
-            font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
-        glyph.setAlphaf(opacity * (0.35f + 0.65f * nz[(size_t)f]));
-        c.drawString(buf, fx - w * 0.5f, fy + fs * 0.34f, font, glyph);
-      }
-    })
+             if (!numerals || !serif) return;
+             // Ink-filled numerals at each visible face's centroid, scaled by
+             // that face's own foreshortening and dropped when it turns too far
+             // away.
+             SkPaint glyph;
+             glyph.setAntiAlias(true);
+             glyph.setColor4f(bg3::alpha(bg3::kInk, opacity), nullptr);
+             for (int f = 0; f < nf; ++f) {
+               if (nz[(size_t)f] < 0.34f) continue;
+               const bg3::V3 r =
+                   bg3::rotate(solid.centroid[(size_t)f], ax, ay + spin, az);
+               const float fx = cx + r.x * s, fy = cy - r.y * s;
+               const float fs =
+                   radius * 0.30f * (0.55f + 0.45f * nz[(size_t)f]);
+               SkFont font(serif, fs);
+               char buf[8];
+               std::snprintf(buf, sizeof(buf), "%d", solid.pip[(size_t)f]);
+               const float w = font.measureText(buf, std::strlen(buf),
+                                                SkTextEncoding::kUTF8);
+               glyph.setAlphaf(opacity * (0.35f + 0.65f * nz[(size_t)f]));
+               c.drawString(buf, fx - w * 0.5f, fy + fs * 0.34f, font, glyph);
+             }
+           })
         .left(bg3::kCx - boxSize * 0.5f)
         .top(bg3::kCy - boxSize * 0.5f)
         .width(boxSize)
@@ -700,14 +698,14 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                         .foreground(stroke(0.9f, bg3::giltDark(0.85f)));
     // A four-pointed rosette, symmetric about its own bisector: an
     // ORNAMENT, which is what Bisector is for.
-    ornament.corner = brush::CornerArt{
-        box()
-            .width(22)
-            .height(22)
-            .shape(shapes::star(4, 0.34f, 0.14f))
-            .fill(bg3::alpha(bg3::kGilt, 0.92f))
-            .foreground(stroke(0.8f, bg3::ink(0.55f))),
-        brush::CornerAlign::Bisector};
+    ornament.corner =
+        brush::CornerArt{box()
+                             .width(22)
+                             .height(22)
+                             .shape(shapes::star(4, 0.34f, 0.14f))
+                             .fill(bg3::alpha(bg3::kGilt, 0.92f))
+                             .foreground(stroke(0.8f, bg3::ink(0.55f))),
+                         brush::CornerAlign::Bisector};
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
     ornament.reach = 26.0f;
@@ -736,10 +734,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                        .stroke(spans::corners(15.0f, a),
                                brush::solid(2.4f, bg3::ink(0.7f))))
             // The illuminated border proper: fleuron on every vertex.
-            .child(box()
-                       .inset(36)
-                       .shape(shapes::polygon(20))
-                       .stroke(ornament))
+            .child(box().inset(36).shape(shapes::polygon(20)).stroke(ornament))
             // The inner 20-gon: stops short at every flat, so vellum
             // breathes between the two rules.
             .child(box()
@@ -768,11 +763,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .shape(shapes::polygon(20))
         // Light enough that the rules read as ornament ON vellum rather than
         // ink on a brown ring — this is gilt, not bronze.
-        .fill(linearGradient({0, 0}, {o * 1.4f, o * 2},
-                             {bg3::alpha(bg3::kGilt, 0.16f),
-                              bg3::alpha(bg3::kGiltDark, 0.09f),
-                              bg3::alpha(bg3::kGilt, 0.14f)},
-                             {0.0f, 0.55f, 1.0f}))
+        .fill(linearGradient(
+            {0, 0}, {o * 1.4f, o * 2},
+            {bg3::alpha(bg3::kGilt, 0.16f), bg3::alpha(bg3::kGiltDark, 0.09f),
+             bg3::alpha(bg3::kGilt, 0.14f)},
+            {0.0f, 0.55f, 1.0f}))
         // OVERLAY, not background: `background()` paints BENEATH the fill
         // (the CSS box-shadow slot), so turned rings put there vanish under
         // any opaque surface. `overlay()` is over the fill, under children.
@@ -794,8 +789,8 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .height(r * 2)
         .shape(shapes::polygon(20, 9.0f))
         // Opaque, so it masks the band's concentric rules down to the band.
-        .fill(radialGradient({r, r}, r,
-                             {bg3::kVellum, bg3::alpha(bg3::kVellumDeep, 1.0f)}))
+        .fill(radialGradient(
+            {r, r}, r, {bg3::kVellum, bg3::alpha(bg3::kVellumDeep, 1.0f)}))
         .overlay(lines::radialHatch(bg3::giltDark(0.34f), 60, 0.6f))
         .rotate(&rosetteSpin)
         .transformOrigin(0.5f, 0.5f)
@@ -843,9 +838,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
               [dir](float t) {
                 // Unit space: a hooked spur that curls back on itself.
                 const float u = t * 3.14159f;
-                return SkPoint{dir * (-0.92f + 1.72f * t),
-                               -0.55f * std::sin(u) * std::cos(u * 0.62f) +
-                                   0.30f * t};
+                return SkPoint{
+                    dir * (-0.92f + 1.72f * t),
+                    -0.55f * std::sin(u) * std::cos(u * 0.62f) + 0.30f * t};
               },
               0.0f, 1.0f, 96))
           .background(nib);
@@ -892,18 +887,17 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  Eighteen ticks at their true ordinals, five blocks bracketed, the active
    *  skill marked. Ornament that is data. */
   Element skillLadder() const {
-    constexpr float kX = 74.0f;   // the tick ladder's spine
+    constexpr float kX = 74.0f;  // the tick ladder's spine
     constexpr float kTop = 286.0f;
     constexpr float kPitch = 25.0f;
-    constexpr float kBlockGap = 27.0f; ///< the header's OWN row
+    constexpr float kBlockGap = 27.0f;  ///< the header's OWN row
 
     // The ordinal is the true index; the gap between blocks is drawn, so the
     // grouping the ordinals encode is visible rather than asserted.
     auto yOf = [](int ordinal) {
       int blockIndex = 0;
-      for (const auto &b : bg3::kBlocks)
-        if (ordinal >= b.first + b.count)
-          ++blockIndex;
+      for (const auto& b : bg3::kBlocks)
+        if (ordinal >= b.first + b.count) ++blockIndex;
       return kTop + (float)ordinal * kPitch + (float)blockIndex * kBlockGap;
     };
 
@@ -913,7 +907,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                  lines::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
                  yLast - kTop + 26.0f));
 
-    for (const auto &blk : bg3::kBlocks) {
+    for (const auto& blk : bg3::kBlocks) {
       const float y0 = yOf(blk.first);
       const float y1 = yOf(blk.first + blk.count - 1);
       // A bracket that only exists at the block's ends.
@@ -929,21 +923,20 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       g.child(label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
                     bg3::alpha(bg3::kGiltDark, 0.95f), 2.4f, true));
       g.child(label("AbilityId " + std::to_string(blk.abilityOrdinal),
-                    kX + 128.0f, y0 - 20.0f, 7.5f,
-                    bg3::alpha(bg3::kInk, 0.34f), 0.8f, true));
+                    kX + 128.0f, y0 - 20.0f, 7.5f, bg3::alpha(bg3::kInk, 0.34f),
+                    0.8f, true));
     }
 
-    for (const auto &sk : bg3::kSkills) {
+    for (const auto& sk : bg3::kSkills) {
       const float y = yOf(sk.ordinal);
       const bool live = sk.ordinal == bg3::kActiveSkill;
-      g.child(rule(kX, y, live ? 26.0f : 15.0f,
-                   stroke(live ? 2.4f : 1.0f,
-                          live ? bg3::gilt() : bg3::ink(0.55f)),
-                   live ? 2.4f : 1.0f));
-      g.child(label(sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f,
-                    live ? 15.0f : 11.5f,
-                    live ? bg3::kInk : bg3::alpha(bg3::kInk, 0.58f),
-                    live ? 1.6f : 0.6f));
+      g.child(
+          rule(kX, y, live ? 26.0f : 15.0f,
+               stroke(live ? 2.4f : 1.0f, live ? bg3::gilt() : bg3::ink(0.55f)),
+               live ? 2.4f : 1.0f));
+      g.child(label(
+          sk.name, kX + (live ? 34.0f : 22.0f), y - 8.0f, live ? 15.0f : 11.5f,
+          live ? bg3::kInk : bg3::alpha(bg3::kInk, 0.58f), live ? 1.6f : 0.6f));
       g.child(labelR(std::to_string(sk.ordinal), kX - 19.0f, y - 6.0f, 9.5f,
                      bg3::alpha(bg3::kInk, live ? 0.85f : 0.34f), true));
     }
@@ -967,15 +960,12 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     constexpr float kRight = 1076.0f;
     constexpr float kRowW = kRight - kX + 112.0f;
 
-    Element col = box()
-                      .left(0)
-                      .top(0)
-                      .width(bg3::kW)
-                      .height(bg3::kH)
-                      .staggerChildren(110ms);
+    Element col =
+        box().left(0).top(0).width(bg3::kW).height(bg3::kH).staggerChildren(
+            110ms);
 
     for (int i = 0; i < rowsMounted && i < (int)bg3::kBonuses.size(); ++i) {
-      const auto &b = bg3::kBonuses[(size_t)i];
+      const auto& b = bg3::kBonuses[(size_t)i];
       const float y = kTop + (float)i * kPitch;
       const std::string amount =
           b.numDice > 0
@@ -1034,8 +1024,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   /** The outcome. `Hatch` with BOTH bindings — pitch and angle — on a box
    *  the size of the banner, never the canvas. */
   Element outcome() const {
-    if (!outcomeMounted)
-      return box().left(0).top(0).width(1).height(1);
+    if (!outcomeMounted) return box().left(0).top(0).width(1).height(1);
     lines::Hatch wash;
     wash.strokeFill = Fill::color(bg3::alpha(bg3::kViridian, 0.34f));
     wash.width = 1.5f;
@@ -1052,10 +1041,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .foreground(decorations::weightedCorners(1.2f, 3.4f, bg3::gilt(), 16.0f,
                                                  0.0f, 30.0f))
         .child(label("SUCCESS", 34.0f, 12.0f, 30.0f, bg3::kViridian, 8.0f))
-        .child(label("RollCritical.None 0  \xc2\xb7  Total 20 \xe2\x89\xa5 DC 15",
-                     34.0f, 44.0f, 9.0f, bg3::alpha(bg3::kInk, 0.55f), 0.9f,
-                     true))
-        .opacity(animate(from(0.0f).to(1.0f), {380ms, choreograph::easeOutQuad}));
+        .child(
+            label("RollCritical.None 0  \xc2\xb7  Total 20 \xe2\x89\xa5 DC 15",
+                  34.0f, 44.0f, 9.0f, bg3::alpha(bg3::kInk, 0.55f), 0.9f, true))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {380ms, choreograph::easeOutQuad}));
   }
 
   // ------------------------------------------------------------- marginalia
@@ -1069,10 +1059,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .shape(shapes::chamfered(10.0f))
         .fill(bg3::alpha(bg3::kVellumDeep, 0.95f))
         .background(shadow({0.1f, 0.07f, 0.04f, 0.32f}, {0, 3}, 10))
-        .style(
-            decorations::doubleBorder(decorations::border(1.8f, bg3::ink(0.9f)),
-                                      decorations::border(0.7f,
-                                                          bg3::giltDark(), 5.0f)))
+        .style(decorations::doubleBorder(
+            decorations::border(1.8f, bg3::ink(0.9f)),
+            decorations::border(0.7f, bg3::giltDark(), 5.0f)))
         .child(box()
                    .left(16.0f)
                    .top(16.0f)
@@ -1096,7 +1085,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element dcLadder() const {
     constexpr float kX = 1102.0f;
     constexpr float kBottom = 762.0f;
-    constexpr float kStep = 68.0f; // per 5 points of DC
+    constexpr float kStep = 68.0f;  // per 5 points of DC
     auto yOf = [](float dc) { return kBottom - (dc - 5.0f) / 5.0f * kStep; };
 
     Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
@@ -1109,10 +1098,10 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     for (int dc = 5; dc <= 30; dc += 5) {
       const float y = yOf((float)dc);
       const bool target = dc == bg3::kDC;
-      g.child(rule(kX - (target ? 20.0f : 11.0f), y, target ? 20.0f : 11.0f,
-                   stroke(target ? 2.6f : 1.0f,
-                          target ? bg3::gilt() : bg3::ink(0.5f)),
-                   target ? 2.6f : 1.0f));
+      g.child(rule(
+          kX - (target ? 20.0f : 11.0f), y, target ? 20.0f : 11.0f,
+          stroke(target ? 2.6f : 1.0f, target ? bg3::gilt() : bg3::ink(0.5f)),
+          target ? 2.6f : 1.0f));
       g.child(label(std::to_string(dc), kX + 8.0f, y - 8.0f,
                     target ? 15.0f : 11.5f,
                     target ? bg3::kInk : bg3::alpha(bg3::kInk, 0.55f),
@@ -1160,15 +1149,16 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                                    .mode = Border::Mode::Gapped,
                                    .corner = 46.0f,
                                    .cornerAngleDeg = 24.0f}));
-    g.child(label("BALDUR\xe2\x80\x99S GATE 3  \xc2\xb7  DIALOGUE ABILITY CHECK",
-                  56.0f, 44.0f, 13.0f, bg3::alpha(bg3::kInk, 0.62f), 3.4f));
+    g.child(
+        label("BALDUR\xe2\x80\x99S GATE 3  \xc2\xb7  DIALOGUE ABILITY CHECK",
+              56.0f, 44.0f, 13.0f, bg3::alpha(bg3::kInk, 0.62f), 3.4f));
     g.child(label("AdvantageContext.SourceDialogue  8", 56.0f, 64.0f, 9.0f,
                   bg3::alpha(bg3::kGiltDark, 0.9f), 1.2f, true));
     g.child(labelR("PLATE I", bg3::kW - 56.0f, 44.0f, 11.0f,
                    bg3::alpha(bg3::kInk, 0.5f), true));
-    g.child(labelR("Norbyte/bg3se \xc2\xb7 ExtIdeHelpers.lua \xc2\xb7 35,855 lines",
-                   bg3::kW - 56.0f, 60.0f, 8.5f, bg3::alpha(bg3::kInk, 0.36f),
-                   true));
+    g.child(labelR(
+        "Norbyte/bg3se \xc2\xb7 ExtIdeHelpers.lua \xc2\xb7 35,855 lines",
+        bg3::kW - 56.0f, 60.0f, 8.5f, bg3::alpha(bg3::kInk, 0.36f), true));
 
     // The advantage note: in the top-left margin, clear of both the skill
     // ladder and the bezel. The leader running from it down to the discarded
@@ -1199,9 +1189,12 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     constexpr float kFootLead = 15.0f;
     g.child(rule(kFootX, kFootTop - 12.0f, 470.0f,
                  lines::cased(0.7f, bg3::ink(0.34f), 3.0f), 1.0f));
-    const char *foot[] = {
-        "PROFICIENCY  +2 (1\xe2\x80\x93" "4)   +3 (5\xe2\x80\x93" "8)   "
-        "+4 (9\xe2\x80\x93" "12)  \xe2\x97\x82 BG3 caps at level 12",
+    const char* foot[] = {
+        "PROFICIENCY  +2 (1\xe2\x80\x93"
+        "4)   +3 (5\xe2\x80\x93"
+        "8)   "
+        "+4 (9\xe2\x80\x93"
+        "12)  \xe2\x97\x82 BG3 caps at level 12",
         "RollCritical  None 0 \xc2\xb7 Success 1 \xc2\xb7 Fail 2      "
         "DiceSizeId  D20 = 5",
         "ResolvedRollBonus{SourceName, Description, NumDice, DiceSize, Bonus}",
@@ -1217,12 +1210,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     // modifiers accumulate, so it gets the margin to itself: a leader running
     // out of the bezel to a label and a numeral nothing crosses.
     constexpr float kNx = 962.0f, kNy = 246.0f;
-    g.child(rule(kNx - 74.0f, kNy + 44.0f, 74.0f,
-                 lines::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f,
-                                   7.0f),
-                 1.0f));
-    g.child(label("NaturalRoll", kNx, kNy, 12.0f,
-                  bg3::alpha(bg3::kInk, 0.62f), 2.6f));
+    g.child(rule(
+        kNx - 74.0f, kNy + 44.0f, 74.0f,
+        lines::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f, 7.0f), 1.0f));
+    g.child(label("NaturalRoll", kNx, kNy, 12.0f, bg3::alpha(bg3::kInk, 0.62f),
+                  2.6f));
     g.child(label("StatsRollResult", kNx, kNy + 16.0f, 8.0f,
                   bg3::alpha(bg3::kInk, 0.38f), 0.8f, true));
     g.child(label(std::to_string(bg3::kNaturalRoll), kNx, kNy + 28.0f, 52.0f,
@@ -1246,10 +1238,10 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .inset(0)
         .width(bg3::kW)
         .height(bg3::kH)
-        .fill(linearGradient({0, 0}, {bg3::kW * 0.7f, bg3::kH},
-                             {bg3::kVellum, bg3::kVellumDeep,
-                              {0.741f, 0.667f, 0.529f, 1.0f}},
-                             {0.0f, 0.62f, 1.0f}))
+        .fill(linearGradient(
+            {0, 0}, {bg3::kW * 0.7f, bg3::kH},
+            {bg3::kVellum, bg3::kVellumDeep, {0.741f, 0.667f, 0.529f, 1.0f}},
+            {0.0f, 0.62f, 1.0f}))
         .cache(Cache::Texture);
   }
 
@@ -1312,11 +1304,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .height(bg3::kH)
         .transformOriginPx({bg3::kCx, bg3::kCy})
         .scale(animate(through({{0ms, 0.80f},
-                                     {1100ms, 1.0f},
-                                     {1210ms, 1.075f},
-                                     {1300ms, 0.975f},
-                                     {1390ms, 1.02f},
-                                     {1450ms, 1.0f}})))
+                                {1100ms, 1.0f},
+                                {1210ms, 1.075f},
+                                {1300ms, 0.975f},
+                                {1390ms, 1.02f},
+                                {1450ms, 1.0f}})))
         .child(die(bg3::kDieRadius, 1.0f, true, 0.0f));
   }
 
@@ -1332,9 +1324,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  VALUE, so a freshly constructed brush gets an EMPTY one and all twenty
    *  fleurons plus every side tile are re-baked on every pass. Memoised, the
    *  reveal costs what the settled frame does. */
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
-    auto once = [](auto fn) { return memo(0, [fn](const int &) { return fn(); }); };
+    auto once = [](auto fn) {
+      return memo(0, [fn](const int&) { return fn(); });
+    };
     return stack()
         .child(once([this] { return ground(); }))
         .child(once([this] { return outerRing(); }))
@@ -1355,14 +1349,15 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------- setup
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(bg3::kW, bg3::kH);
     ctx.background(bg3::kVellum);
 
     sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    auto pick = [&](std::initializer_list<const char *> names) {
-      for (const char *n : names)
-        if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
+    auto pick = [&](std::initializer_list<const char*> names) {
+      for (const char* n : names)
+        if (sk_sp<SkTypeface> f =
+                mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
           return f;
       return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
     };
@@ -1389,18 +1384,17 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       // The total accumulates as each row lands — retargeted, so the number
       // visibly climbs rather than stepping.
       int target = bg3::kNaturalRoll;
-      for (const auto &b : bg3::kBonuses)
-        if (clock >= b.landsAt)
-          target += b.numDice > 0 ? b.resolved : b.bonus;
-      totalAnim += ((float)target - totalAnim) *
-                   (1.0f - std::exp(-(float)dt * 13.0f));
+      for (const auto& b : bg3::kBonuses)
+        if (clock >= b.landsAt) target += b.numDice > 0 ? b.resolved : b.bonus;
+      totalAnim +=
+          ((float)target - totalAnim) * (1.0f - std::exp(-(float)dt * 13.0f));
 
       if (clock >= bg3::kOutcomeAt) {
         const float u =
             (float)std::clamp((clock - bg3::kOutcomeAt) / 0.38, 0.0, 1.0);
         const float e = 1.0f - (1.0f - u) * (1.0f - u);
-        hatchSpacing = 14.0f - 11.0f * e; // 14 px -> 3 px
-        hatchAngle = 12.0f + 12.0f * e;   // a 12 degree swing
+        hatchSpacing = 14.0f - 11.0f * e;  // 14 px -> 3 px
+        hatchAngle = 12.0f + 12.0f * e;    // a 12 degree swing
         outcomeInk = e;
       }
       return true;
@@ -1411,7 +1405,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
 
   /** Content changes — the digits, and the rows' MOUNT, which is what makes
    *  the column a dependency chain instead of a stagger. */
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     (void)elapsed;
     bool dirty = false;
     const int rounded = (int)std::lround(totalAnim);
@@ -1429,8 +1423,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       outcomeMounted = true;
       dirty = true;
     }
-    if (dirty)
-      ctx.composer.render(describe(ctx));
+    if (dirty) ctx.composer.render(describe(ctx));
   }
 };
 

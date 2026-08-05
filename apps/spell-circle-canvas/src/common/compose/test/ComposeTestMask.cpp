@@ -1,6 +1,5 @@
+#include "../ComposeInternal.h"  // propsEqual — the comparator, taken directly
 #include "ComposeTestSupport.h"
-
-#include "../ComposeInternal.h" // propsEqual — the comparator, taken directly
 
 // ---------------------------------------------------------------------------
 // THE MASKING FAMILY
@@ -19,12 +18,10 @@ namespace {
 
 /** A 100×100 box at (20,20) whose boundary is the ring `boundaryRing`
  *  samples, dressed with one red stroke. The masking family's fixture. */
-Element maskBox() {
-  return box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
-}
+Element maskBox() { return box().rect(SkRect::MakeXYWH(20, 20, 100, 100)); }
 
 /** How much red ink is anywhere in a 200×200 host. */
-int redInk(Host &host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
+int redInk(Host& host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
   int n = 0;
   for (int y = y0; y < y1; ++y)
     for (int x = x0; x < x1; ++x)
@@ -34,7 +31,7 @@ int redInk(Host &host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
   return n;
 }
 
-} // namespace
+}  // namespace
 
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
 
@@ -53,8 +50,8 @@ TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
   Host all(200, 200), gated(200, 200);
   all.composer.render(stack().child(helper()));
   all.frame();
-  gated.composer.render(
-      stack().child(helper().mask(parts::marks(), by::spans(spans::upTo(0.4f)))));
+  gated.composer.render(stack().child(
+      helper().mask(parts::marks(), by::spans(spans::upTo(0.4f)))));
   gated.frame();
   // Every one of the three is cut by the one call the CALLER wrote.
   EXPECT_EQ(gated.pixel(40, 20), all.pixel(40, 20)) << "inside the window";
@@ -79,11 +76,14 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
   wet.trimStart = 0.90f;
   wet.trimEnd = 1.0f;
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box().absolute().inset(0).shape(line).fill(Fill::none())
-          .stroke(util::stroke(4, red()))
-          .foreground(wet)
-          .mask(by::spans(spans::upTo(0.5f)))));
+  host.composer.render(stack().child(box()
+                                         .absolute()
+                                         .inset(0)
+                                         .shape(line)
+                                         .fill(Fill::none())
+                                         .stroke(util::stroke(4, red()))
+                                         .foreground(wet)
+                                         .mask(by::spans(spans::upTo(0.5f)))));
   host.frame();
   // The body reaches x≈100; nothing past it.
   EXPECT_GT(redInk(host, 20, 95, 90, 105), 40);
@@ -91,8 +91,7 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
   // …and the nib sits at the HEAD OF THE REVEALED PART (x≈95), not at the
   // head of the whole line (x≈190), which is the entire point.
   int nib = 0, farEnd = 0;
-  for (int x = 88; x < 100; ++x)
-    nib += SkColorGetG(host.pixel(x, 100)) > 170;
+  for (int x = 88; x < 100; ++x) nib += SkColorGetG(host.pixel(x, 100)) > 170;
   for (int x = 170; x < 195; ++x)
     farEnd += SkColorGetG(host.pixel(x, 100)) > 170;
   EXPECT_GT(nib, 3);
@@ -126,9 +125,9 @@ TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
   host.frame();
   const size_t parked = inkedCount(boundaryRing(host));
   host.composer.render(tree(1));
-  host.frame(0.2); // halfway
+  host.frame(0.2);  // halfway
   const size_t half = inkedCount(boundaryRing(host));
-  host.frame(0.25); // settled at 0.5
+  host.frame(0.25);  // settled at 0.5
   const size_t settled = inkedCount(boundaryRing(host));
   EXPECT_GT(parked, settled + 5u) << "0.8 shows more arc than 0.5";
   EXPECT_LT(half, parked) << "the gate left its parked value";
@@ -150,8 +149,7 @@ TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
   // rather than qualifying it.
   const auto build = [](bool still) {
     Element ring = maskBox().stroke(util::stroke(6, red()));
-    if (!still)
-      ring.mask(by::spans(spans::upTo(0.25f)));
+    if (!still) ring.mask(by::spans(spans::upTo(0.25f)));
     return stack().child(std::move(ring));
   };
   Host live(200, 200), shot(200, 200);
@@ -213,11 +211,16 @@ TEST(ComposeR4Mask, S6TheEdgeGateReachesTheChildren) {
   // say about them, and this is the sample that says the family needs more
   // than one gate kind.
   const auto lattice = [](float t) {
-    Element g = box().absolute().left(20).top(20).width(160).height(160)
-                    .mask(by::edge(90.0f, t));
+    Element g = box().absolute().left(20).top(20).width(160).height(160).mask(
+        by::edge(90.0f, t));
     for (int i = 0; i < 4; ++i)
-      g.child(box().absolute().left(0).top((float)i * 40).width(160)
-                  .height(36).fill(red()));
+      g.child(box()
+                  .absolute()
+                  .left(0)
+                  .top((float)i * 40)
+                  .width(160)
+                  .height(36)
+                  .fill(red()));
     return stack().child(std::move(g));
   };
   Host half(200, 200), whole(200, 200);
@@ -241,8 +244,7 @@ TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
   const SkRect seal = SkRect::MakeXYWH(20, 20, 60, 60);
   Host inside(200, 200), outside(200, 200), diff(200, 200);
   const auto plate = [] {
-    return box().absolute().left(20).top(20).width(100).height(100)
-        .fill(red());
+    return box().absolute().left(20).top(20).width(100).height(100).fill(red());
   };
   inside.composer.render(
       stack().child(plate().mask(by::shape(Region::rect(seal)))));
@@ -274,15 +276,16 @@ TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
   // roll a Material plus a kDstIn layer at every call site.
   Host host(200, 200);
   host.composer.render(stack().child(
-      box().absolute().left(20).top(20).width(160).height(160).fill(red())
-          .mask(by::alpha(Material::linear({0, 0}, {160, 0},
-                                           {{0.0f, {1, 1, 1, 1}},
-                                            {1.0f, {1, 1, 1, 0}}})))));
+      box().absolute().left(20).top(20).width(160).height(160).fill(red()).mask(
+          by::alpha(Material::linear(
+              {0, 0}, {160, 0},
+              {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}})))));
   host.frame();
   // Opaque at the left of the ramp, gone at the right, monotone between.
   EXPECT_GT(SkColorGetR(host.pixel(25, 100)), 200);
   EXPECT_LT(SkColorGetR(host.pixel(175, 100)), 40);
-  EXPECT_GT(SkColorGetR(host.pixel(60, 100)), SkColorGetR(host.pixel(140, 100)));
+  EXPECT_GT(SkColorGetR(host.pixel(60, 100)),
+            SkColorGetR(host.pixel(140, 100)));
 }
 
 // ---- S7c · the OTHER coverage channel, and both complements ---------------
@@ -291,10 +294,10 @@ namespace {
 /** Five white plates side by side, each masked by its own coverage gate.
  *  White over the black clear colour, so the byte a plate shows IS its
  *  coverage times 255 and nothing else is in the arithmetic. */
-Element coveragePlates(const std::vector<Gate> &gates) {
+Element coveragePlates(const std::vector<Gate>& gates) {
   Element root = stack();
   int i = 0;
-  for (const Gate &g : gates) {
+  for (const Gate& g : gates) {
     root.child(box()
                    .absolute()
                    .left(10.0f + 38.0f * (float)i)
@@ -307,10 +310,10 @@ Element coveragePlates(const std::vector<Gate> &gates) {
   }
   return root;
 }
-int plateByte(Host &host, int i) {
+int plateByte(Host& host, int i) {
   return (int)SkColorGetR(host.pixel(25 + 38 * i, 100));
 }
-} // namespace
+}  // namespace
 
 TEST(ComposeR4Mask, S7cTheLumaGateIsRec601OnEncodedPremultipliedValues) {
   // THE PIXEL PIN FOR THE LUMA LAW, and it is deliberately not pinned with
@@ -366,12 +369,17 @@ TEST(ComposeR4Mask, S7cTheLumaLawIsTheSameThroughAShader) {
   //   mid   (0,.5,.5) -> .2935+.057   ->  89
   //   right (0,0,1) -> 0.114          ->  29
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box().absolute().left(20).top(20).width(160).height(160)
-          .fill(Fill::color({1, 1, 1, 1}))
-          .mask(by::luma(Material::linear({0, 0}, {160, 0},
-                                          {{0.0f, {0, 1, 0, 1}},
-                                           {1.0f, {0, 0, 1, 1}}})))));
+  host.composer.render(
+      stack().child(box()
+                        .absolute()
+                        .left(20)
+                        .top(20)
+                        .width(160)
+                        .height(160)
+                        .fill(Fill::color({1, 1, 1, 1}))
+                        .mask(by::luma(Material::linear(
+                            {0, 0}, {160, 0},
+                            {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))));
   host.frame();
   EXPECT_NEAR((int)SkColorGetR(host.pixel(22, 100)), 150, 4) << "green end";
   EXPECT_NEAR((int)SkColorGetR(host.pixel(100, 100)), 89, 4) << "the mix";
@@ -387,10 +395,10 @@ TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
   Host host(200, 200);
   const Material ramp = Material::solid({0.5f, 0.5f, 0.5f, 0.25f});
   host.composer.render(coveragePlates({
-      by::alpha(ramp),    // 0.25            ->  64
-      by::alphaOut(ramp), // 1 - 0.25        -> 191
-      by::luma(ramp),     // 0.25 * 0.5      ->  32
-      by::lumaOut(ramp),  // 1 - 0.125       -> 223
+      by::alpha(ramp),     // 0.25            ->  64
+      by::alphaOut(ramp),  // 1 - 0.25        -> 191
+      by::luma(ramp),      // 0.25 * 0.5      ->  32
+      by::lumaOut(ramp),   // 1 - 0.125       -> 223
   }));
   host.frame();
   EXPECT_NEAR(plateByte(host, 0), 64, 2);
@@ -440,11 +448,15 @@ TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
   // re-declares its parent's shape, which costs a node and loses the
   // outline the marks were following.
   const auto panel = [](float t) {
-    return stack().child(
-        box().absolute().left(20).top(20).width(160).height(160)
-            .overlay(util::stroke(20, red()), "hazard")
-            .foreground(util::stroke(4, green()), "keyline")
-            .mask(parts::named("hazard"), by::edge(0.0f, t)));
+    return stack().child(box()
+                             .absolute()
+                             .left(20)
+                             .top(20)
+                             .width(160)
+                             .height(160)
+                             .overlay(util::stroke(20, red()), "hazard")
+                             .foreground(util::stroke(4, green()), "keyline")
+                             .mask(parts::named("hazard"), by::edge(0.0f, t)));
   };
   Host closed(200, 200), open(200, 200);
   closed.composer.render(panel(0.0f));
@@ -459,7 +471,7 @@ TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
   EXPECT_LT(redInk(closed), 30) << "the gated mark is withheld";
   EXPECT_GT(redInk(open), 200) << "…and fully shown at 1";
   // The SIBLING is untouched in both — that is the whole sample.
-  const auto greenInk = [](Host &h) {
+  const auto greenInk = [](Host& h) {
     int n = 0;
     for (int y = 0; y < 200; ++y)
       for (int x = 0; x < 200; ++x)
@@ -480,7 +492,13 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
   choreograph::Output<float> slow{1.0f}, fast{1.0f};
   Host host(200, 200);
   host.composer.render(stack().child(
-      box().absolute().left(20).top(20).width(160).height(160).fill(red())
+      box()
+          .absolute()
+          .left(20)
+          .top(20)
+          .width(160)
+          .height(160)
+          .fill(red())
           .mask(by::edge(0.0f, &fast))    // from the left
           .mask(by::edge(180.0f, &slow))  // …and from the right
           .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))));
@@ -500,8 +518,8 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
   EXPECT_EQ(redInk(host), 0) << "disjoint half-planes intersect to nothing";
 
   // …and where they DO overlap, only the overlap paints.
-  fast = 0.75f; // shows x in [20, 140]
-  slow = 0.75f; // shows x in [60, 180]
+  fast = 0.75f;  // shows x in [20, 140]
+  slow = 0.75f;  // shows x in [60, 180]
   host.frame();
   EXPECT_EQ(redInk(host, 20, 60, 55, 150), 0) << "left of the slow edge";
   EXPECT_GT(redInk(host, 70, 65, 130, 150), 2000) << "the overlap paints";
@@ -515,17 +533,17 @@ TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
   // only worth anything if it reaches the boundary. maskBox()'s perimeter
   // is 400 px and fraction 0 is the BOTTOM-LEFT corner running UP the left
   // edge, so [0.25, 0.5] is exactly the top edge, left to right.
-  const auto topEdgeInk = [](Host &host, int x0, int x1) {
+  const auto topEdgeInk = [](Host& host, int x0, int x1) {
     int n = 0;
     for (int x = x0; x < x1; ++x)
-      if (host.pixel(x, 20) != SK_ColorBLACK)
-        ++n;
+      if (host.pixel(x, 20) != SK_ColorBLACK) ++n;
     return n;
   };
   Host host(200, 200);
   host.composer.render(stack().child(
-      maskBox().stroke(util::stroke(6, red()))
-          .mask(by::spans(spans::range(0.0f, 0.5f)))    // left + top
+      maskBox()
+          .stroke(util::stroke(6, red()))
+          .mask(by::spans(spans::range(0.0f, 0.5f)))     // left + top
           .mask(by::spans(spans::range(0.3f, 1.0f)))));  // top's last 80%
   host.frame();
   // [0.3, 0.5] is the top edge from x = 40 to x = 120 and nothing else.
@@ -538,10 +556,11 @@ TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
 
   // Two masks that share nothing show nothing — intersection, never union.
   Host disjoint(200, 200);
-  disjoint.composer.render(stack().child(
-      maskBox().stroke(util::stroke(6, red()))
-          .mask(by::spans(spans::range(0.0f, 0.2f)))
-          .mask(by::spans(spans::range(0.6f, 0.8f)))));
+  disjoint.composer.render(
+      stack().child(maskBox()
+                        .stroke(util::stroke(6, red()))
+                        .mask(by::spans(spans::range(0.0f, 0.2f)))
+                        .mask(by::spans(spans::range(0.6f, 0.8f)))));
   disjoint.frame();
   EXPECT_EQ(inkedCount(boundaryRing(disjoint)), 0u);
 }
@@ -577,7 +596,7 @@ TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
   // matches nothing selects nothing — SILENTLY. This is the same rule the
   // whole derive family follows for unknown keys, and it is a real trap:
   // a typo'd label produces an ungated mark, not an error.
-  const auto draw = [](const char *label) {
+  const auto draw = [](const char* label) {
     Host host(200, 200);
     host.composer.render(stack().child(
         maskBox()
@@ -604,16 +623,20 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   // the node must repaint NOTHING — and note that a byte-identical picture
   // proves nothing here, since the failure costs work rather than pixels.
   const auto ring = [] {
-    return box().cache(Cache::None).child(
-        box().width(120).height(120).key("ring")
-            .shape(shapes::circle())
-            .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
-            .mask(by::spans(spans::upTo(animate(
-                through({{std::chrono::milliseconds(0), 0.0f},
-                         {std::chrono::milliseconds(200), 0.6f},
-                         {std::chrono::milliseconds(600), 0.6f},
-                         {std::chrono::milliseconds(800), 1.0f}}),
-                &choreograph::easeNone)))));
+    return box()
+        .cache(Cache::None)
+        .child(box()
+                   .width(120)
+                   .height(120)
+                   .key("ring")
+                   .shape(shapes::circle())
+                   .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
+                   .mask(by::spans(spans::upTo(animate(
+                       through({{std::chrono::milliseconds(0), 0.0f},
+                                {std::chrono::milliseconds(200), 0.6f},
+                                {std::chrono::milliseconds(600), 0.6f},
+                                {std::chrono::milliseconds(800), 1.0f}}),
+                       &choreograph::easeNone)))));
   };
   Host host;
   host.composer.render(ring());
@@ -623,10 +646,10 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   // the price of the ancestors gaining their caches. The hold's steady state
   // after that is the zero this test pins.
   for (int i = 0; i < 26; ++i)
-    host.frame(1.0 / 60.0); // t ≈ 0.43 s — deep in the hold, post-release
+    host.frame(1.0 / 60.0);  // t ≈ 0.43 s — deep in the hold, post-release
   unsigned duringHold = 0;
   for (int i = 0; i < 8; ++i) {
-    host.frame(1.0 / 60.0); // t ≈ 0.43 → 0.57 s, still held
+    host.frame(1.0 / 60.0);  // t ≈ 0.43 → 0.57 s, still held
     duringHold += host.composer.stats().picturesRecorded;
   }
   EXPECT_EQ(duringHold, 0u) << "a held gate must repaint nothing";
@@ -644,7 +667,9 @@ TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
   // participates in reconciler equality. A re-describe with the SAME mask
   // must prune; a re-describe with a different one must not.
   const auto tree = [](float t) {
-    return stack().child(maskBox().key("m").stroke(util::stroke(6, red()))
+    return stack().child(maskBox()
+                             .key("m")
+                             .stroke(util::stroke(6, red()))
                              .mask(by::spans(spans::upTo(t))));
   };
   Host host(200, 200);
@@ -705,9 +730,9 @@ TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   // parts::all(), and gating children by an arc-length window is therefore
   // a silent no-op rather than an error.
   Host host(200, 200);
-  Element e = box().absolute().left(20).top(20).width(100).height(100)
-                  .fill(red())
-                  .mask(by::spans(spans::upTo(0.0f)));
+  Element e =
+      box().absolute().left(20).top(20).width(100).height(100).fill(red()).mask(
+          by::spans(spans::upTo(0.0f)));
   e.child(box().absolute().left(10).top(10).width(40).height(40).fill(green()));
   host.composer.render(stack().child(std::move(e)));
   host.frame();
@@ -721,8 +746,8 @@ TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   const auto both = [] {
     return maskBox().fill(red()).stroke(util::stroke(6, green()));
   };
-  onlyMarks.composer.render(stack().child(
-      both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
+  onlyMarks.composer.render(
+      stack().child(both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
   onlyMarks.frame();
   onlySurface.composer.render(stack().child(
       both().mask(parts::surface(), by::spans(spans::upTo(0.0f)))));
@@ -738,16 +763,20 @@ TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
   // It reaches the node's decorations and its children too, which is what
   // distinguishes it from a spans gate.
   Host host(200, 200);
-  host.composer.render(stack().child(
-      box().absolute().left(20).top(20).width(160).height(160).fill(red())
-          .stroke(util::stroke(6, green()))
-          .mask(by::edge(0.0f, 0.5f))));
+  host.composer.render(stack().child(box()
+                                         .absolute()
+                                         .left(20)
+                                         .top(20)
+                                         .width(160)
+                                         .height(160)
+                                         .fill(red())
+                                         .stroke(util::stroke(6, green()))
+                                         .mask(by::edge(0.0f, 0.5f))));
   host.frame();
   // A reveal, not a squash: the edge lands at the box's MIDPOINT.
   int edge = 0;
   for (int x = 20; x < 180; ++x)
-    if (host.pixel(x, 100) != SK_ColorBLACK)
-      edge = x;
+    if (host.pixel(x, 100) != SK_ColorBLACK) edge = x;
   EXPECT_NEAR(edge, 100, 3);
   // …and it covers the node's decorations too, because a reveal reveals.
   EXPECT_EQ(host.pixel(178, 100), SK_ColorBLACK) << "the right stroke is gone";
@@ -772,24 +801,25 @@ TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
                         std::pair{0.6f, 1.0f}}) {
     SkPathBuilder dst;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-    ASSERT_TRUE(SkTrimPathEffect::Make(lo, hi)->filterPath(&dst, boundary,
-                                                           &rec));
+    ASSERT_TRUE(
+        SkTrimPathEffect::Make(lo, hi)->filterPath(&dst, boundary, &rec));
     const SkPath want = dst.detach();
 
     Host gated(200, 200), truth(200, 200);
-    gated.composer.render(stack().child(
-        maskBox().stroke(util::stroke(6, red()))
-            .mask(by::spans(spans::range(lo, hi)))));
+    gated.composer.render(
+        stack().child(maskBox()
+                          .stroke(util::stroke(6, red()))
+                          .mask(by::spans(spans::range(lo, hi)))));
     gated.frame();
-    truth.composer.render(stack().child(
-        custom([want](SkCanvas &c, const PaintContext &) {
-          SkPaint p;
-          p.setAntiAlias(true);
-          p.setStyle(SkPaint::kStroke_Style);
-          p.setStrokeWidth(6);
-          p.setColor4f({1, 0, 0, 1}, nullptr);
-          c.drawPath(want, p);
-        }).rect(r)));
+    truth.composer.render(
+        stack().child(custom([want](SkCanvas& c, const PaintContext&) {
+                        SkPaint p;
+                        p.setAntiAlias(true);
+                        p.setStyle(SkPaint::kStroke_Style);
+                        p.setStrokeWidth(6);
+                        p.setColor4f({1, 0, 0, 1}, nullptr);
+                        c.drawPath(want, p);
+                      }).rect(r)));
     truth.frame();
     EXPECT_EQ(boundaryRing(gated), boundaryRing(truth))
         << "window " << lo << ".." << hi;
@@ -817,7 +847,7 @@ TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
   EXPECT_EQ(host.pixel(90, 110), SK_ColorRED);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
   // The whole point: root + container carry Yoga nodes, the leaves do not.
-  const Composer::Stats &stats = host.composer.stats();
+  const Composer::Stats& stats = host.composer.stats();
   EXPECT_EQ(stats.instances, 3u);
   EXPECT_EQ(stats.yogaNodes, 1u);
 }
@@ -825,9 +855,11 @@ TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
 TEST(ComposePositioned, NestedRectsComposeYogaFreeAllTheWayDown) {
   Host host;
   host.composer.render(
-      positioned().inset(0, 0, 0, 0).child(
-          box().key("outer").left(40).top(40).width(100).height(100).child(
-              box().key("inner").left(10).top(20).width(30).height(30))));
+      positioned()
+          .inset(0, 0, 0, 0)
+          .child(
+              box().key("outer").left(40).top(40).width(100).height(100).child(
+                  box().key("inner").left(10).top(20).width(30).height(30))));
   host.frame();
   const auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner);
@@ -838,13 +870,13 @@ TEST(ComposePositioned, NestedRectsComposeYogaFreeAllTheWayDown) {
 }
 
 TEST(ComposePositioned, PctAndOpposingInsetsResolve) {
-  Host host; // 200x200 canvas; container fills it
+  Host host;  // 200x200 canvas; container fills it
   host.composer.render(
       positioned()
           .inset(0, 0, 0, 0)
           // pct dims resolve against the container's rect
-          .child(box().key("half").left(0).top(0).width(pct(50)).height(
-              pct(25)))
+          .child(
+              box().key("half").left(0).top(0).width(pct(50)).height(pct(25)))
           // open width + right inset pins the far edge
           .child(box().key("pinned").left(20).top(100).right(30).height(10)));
   host.frame();
@@ -861,12 +893,13 @@ TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {
   style.shaping.fontSize = 14;
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(
-      positioned().inset(0, 0, 0, 0).child(
-          text(u8"wrap me across a narrow measure", style)
-              .key("t")
-              .left(10)
-              .top(10)
-              .width(90)));
+      positioned()
+          .inset(0, 0, 0, 0)
+          .child(text(u8"wrap me across a narrow measure", style)
+                     .key("t")
+                     .left(10)
+                     .top(10)
+                     .width(90)));
   host.frame();
   const auto t = host.composer.bounds("t");
   ASSERT_TRUE(t);
@@ -880,16 +913,17 @@ TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {
 TEST(ComposePositioned, StructuralPruneAndMovesStillWork) {
   Host host;
   auto tree = [](float x) {
-    return positioned().inset(0, 0, 0, 0).child(
-        box().key("m").left(x).top(10).width(40).height(40).fill(
-            green()));
+    return positioned()
+        .inset(0, 0, 0, 0)
+        .child(
+            box().key("m").left(x).top(10).width(40).height(40).fill(green()));
   };
   host.composer.render(tree(10));
   host.frame();
-  host.composer.render(tree(10)); // identical: prune, no cache writes
+  host.composer.render(tree(10));  // identical: prune, no cache writes
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  host.composer.render(tree(120)); // moved: repaints, and the rect follows
+  host.composer.render(tree(120));  // moved: repaints, and the rect follows
   host.frame();
   EXPECT_EQ(host.pixel(140, 30), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK);
@@ -900,18 +934,27 @@ TEST(ComposePositioned, StructuralPruneAndMovesStillWork) {
 
 TEST(ComposePositioned, HitTestAndZOrderSeeChildren) {
   Host host;
-  host.composer.render(
-      positioned()
-          .inset(0, 0, 0, 0)
-          .child(box().key("under").left(20).top(20).width(60).height(60)
-                     .fill(Fill::color({1, 0, 0, 1}))
-                     .hitTestable(true))
-          .child(box().key("over").left(50).top(50).width(60).height(60)
-                     .zIndex(1)
-                     .fill(green())
-                     .hitTestable(true)));
+  host.composer.render(positioned()
+                           .inset(0, 0, 0, 0)
+                           .child(box()
+                                      .key("under")
+                                      .left(20)
+                                      .top(20)
+                                      .width(60)
+                                      .height(60)
+                                      .fill(Fill::color({1, 0, 0, 1}))
+                                      .hitTestable(true))
+                           .child(box()
+                                      .key("over")
+                                      .left(50)
+                                      .top(50)
+                                      .width(60)
+                                      .height(60)
+                                      .zIndex(1)
+                                      .fill(green())
+                                      .hitTestable(true)));
   host.frame();
-  EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN); // zIndex 1 paints on top
+  EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);  // zIndex 1 paints on top
   const auto hitOver = host.composer.hitTest({60, 60});
   const auto hitUnder = host.composer.hitTest({25, 25});
   ASSERT_TRUE(hitOver && hitUnder);
@@ -922,8 +965,7 @@ TEST(ComposePositioned, HitTestAndZOrderSeeChildren) {
 TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   Host host;
   auto child = []() {
-    return box().key("c").left(10).top(10).width(30).height(30).fill(
-        green());
+    return box().key("c").left(10).top(10).width(30).height(30).fill(green());
   };
   host.composer.render(positioned().inset(0, 0, 0, 0).child(child()));
   host.frame();
@@ -932,7 +974,7 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   host.composer.render(box().inset(0, 0, 0, 0).child(child()));
   host.frame();
   EXPECT_EQ(host.composer.stats().yogaNodes, 2u);
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN); // absolute insets agree
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);  // absolute insets agree
   // And back again.
   host.composer.render(positioned().inset(0, 0, 0, 0).child(child()));
   host.frame();
@@ -947,12 +989,12 @@ TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
   // looks cached and costs as if it were not.
   choreograph::Output<float> reveal{0.0f};
   Host host;
-  host.composer.render(box().child(
-      maskBox().stroke(util::stroke(6, red()))
-          .mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(box().child(maskBox()
+                                       .stroke(util::stroke(6, red()))
+                                       .mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
-  reveal = 1.0f;                 // the ramp lands…
-  for (int i = 0; i < 12; ++i)   // …and the release warms up (8 frames)
+  reveal = 1.0f;                // the ramp lands…
+  for (int i = 0; i < 12; ++i)  // …and the release warms up (8 frames)
     host.frame(0.016);
   unsigned settledRecords = 0, settledPaints = 0;
   for (int i = 0; i < 5; ++i) {  // the hold must now cost NOTHING
@@ -964,7 +1006,7 @@ TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
       << "a pinned bound gate re-recorded during its hold";
   EXPECT_EQ(settledPaints, 0u)
       << "a pinned bound gate painted live during its hold";
-  EXPECT_GT(redInk(host, 0, 0, 200, 200), 400); // fully revealed, drawn
+  EXPECT_GT(redInk(host, 0, 0, 200, 200), 400);  // fully revealed, drawn
 
   // THE STALE-REPLAY CONTROL: the frame the binding moves again, the
   // release must re-declare BEFORE anything paints — the ancestor's
@@ -1002,7 +1044,7 @@ namespace {
  *  an explicitly asked-for bake obeys the same volatility gate automatic
  *  promotion does, without the cost-threshold timing an assertion could
  *  flap on. */
-Element settledFillPanel(const choreograph::Output<Fill> *tint) {
+Element settledFillPanel(const choreograph::Output<Fill>* tint) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
     row.child(box()
@@ -1011,23 +1053,26 @@ Element settledFillPanel(const choreograph::Output<Fill> *tint) {
                   .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(blue())
                   .stroke(util::stroke(1.5f, green())));
-  row.child(box().key("accent").width(26).height(26).fill(
-      Animatable<Fill>(tint)));
-  return box().key("root").cache(Cache::Texture).column().padding(6).child(
-      box().key("frame").column().padding(4).child(std::move(row)));
+  row.child(
+      box().key("accent").width(26).height(26).fill(Animatable<Fill>(tint)));
+  return box()
+      .key("root")
+      .cache(Cache::Texture)
+      .column()
+      .padding(6)
+      .child(box().key("frame").column().padding(4).child(std::move(row)));
 }
 
 /** The profile row for the node keyed `key`, from the last draw (labels
  *  are "<key> (<kind> WxH)"). */
-const Composer::NodeCost *rowOf(Host &host, const char *key) {
+const Composer::NodeCost* rowOf(Host& host, const char* key) {
   const std::string prefix = std::string(key) + " (";
-  for (const Composer::NodeCost &row : host.composer.profile())
-    if (row.label.rfind(prefix, 0) == 0)
-      return &row;
+  for (const Composer::NodeCost& row : host.composer.profile())
+    if (row.label.rfind(prefix, 0) == 0) return &row;
   return nullptr;
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   // Pin (a): the release must show against Promotion::Volatile's
@@ -1046,18 +1091,18 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   // BEFORE the settle: the bound fill denies contentStable at the root —
   // the asked-for texture is refused and the whole chain paints live.
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "a fresh bound fill must declare volatility";
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "the root's asked-for bake must be refused while volatile";
   }
-  for (int i = 0; i < 12; ++i) // past the settle count, the release walk,
-    host.frame(0.016);         // and the settling frame's re-record
+  for (int i = 0; i < 12; ++i)  // past the settle count, the release walk,
+    host.frame(0.016);          // and the settling frame's re-record
   // AFTER: released — the node promotes like a plain one.
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
         << "a settled bound fill still denies contentStable — no release";
@@ -1083,15 +1128,14 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorGREEN)
       << "the moved fill's frame showed a stale colour";
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "the moved fill must re-declare volatility the same frame";
   }
   // …and the cycle closes: it settles AGAIN and re-releases.
-  for (int i = 0; i < 12; ++i)
-    host.frame(0.016);
-  const Composer::NodeCost *root = rowOf(host, "root");
+  for (int i = 0; i < 12; ++i) host.frame(0.016);
+  const Composer::NodeCost* root = rowOf(host, "root");
   ASSERT_TRUE(root);
   EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
       << "a re-settled bound fill did not re-release";
@@ -1114,7 +1158,7 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
     const float t = (float)(i % 10) / 10.0f;
     tint = Fill::color({1.0f - t, 0.0f, t, 1.0f});
     host.frame(0.016);
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "a driven bound fill released its volatility at frame " << i;
@@ -1144,7 +1188,7 @@ namespace {
 /** A 16 px tile, left half red / right half green — a half-tile pan flips
  *  which colour sits at any given pixel, so phase is binary-assertable. */
 Pattern halfTilePattern() {
-  return Pattern::tile({16, 16}, [](SkCanvas &c, SkSize s, uint32_t) {
+  return Pattern::tile({16, 16}, [](SkCanvas& c, SkSize s, uint32_t) {
     SkPaint left;
     left.setColor4f({1, 0, 0, 1}, nullptr);
     c.drawRect(SkRect::MakeWH(s.width() * 0.5f, s.height()), left);
@@ -1161,7 +1205,7 @@ Pattern halfTilePattern() {
  *  star cells, plus ONE cell filled with `pat.material()`. The Pattern is
  *  passed in by reference because its baked tile IS its identity — the test
  *  holds it like an asset rather than re-minting it. */
-Element pannedPanel(Pattern &pat) {
+Element pannedPanel(Pattern& pat) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
     row.child(box()
@@ -1171,11 +1215,15 @@ Element pannedPanel(Pattern &pat) {
                   .fill(blue())
                   .stroke(util::stroke(1.5f, green())));
   row.child(box().key("accent").width(26).height(26).fill(pat.material()));
-  return box().key("root").cache(Cache::Texture).column().padding(6).child(
-      box().key("frame").column().padding(4).child(std::move(row)));
+  return box()
+      .key("root")
+      .cache(Cache::Texture)
+      .column()
+      .padding(6)
+      .child(box().key("frame").column().padding(4).child(std::move(row)));
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   // Pin (a): assign the Output, the repeat moves — per frame, two frames
@@ -1193,11 +1241,11 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   // Node-local x = 3 samples source x = (3 - pan) mod 16: red at pan 0.
   const int px = (int)accent->left() + 3, py = (int)accent->centerY();
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
-  panX = 8.0f; // half a tile
+  panX = 8.0f;  // half a tile
   host.frame(0.016);
   EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN)
       << "frame one: the bound pan did not move the repeat";
-  panX = 16.0f; // a full tile — back to phase 0
+  panX = 16.0f;  // a full tile — back to phase 0
   host.frame(0.016);
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED)
       << "frame two: the bound pan did not keep moving";
@@ -1222,18 +1270,18 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
   // BEFORE the settle: a fresh bound pan denies contentStable at the root.
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "a fresh bound pan must declare volatility";
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "the root's asked-for bake must be refused while volatile";
   }
-  for (int i = 0; i < 12; ++i) // kScalarSettleFrames = 8, plus the release
-    host.frame(0.016);         // walk and the settling frame's re-record
+  for (int i = 0; i < 12; ++i)  // kScalarSettleFrames = 8, plus the release
+    host.frame(0.016);          // walk and the settling frame's re-record
   // AFTER: released — the node promotes like a static pattern.
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
         << "a settled bound pan still denies contentStable — no release";
@@ -1258,15 +1306,14 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN)
       << "the resumed pan's frame showed the parked phase";
   {
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "the resumed pan must re-declare volatility the same frame";
   }
   // …and the cycle closes: it settles AGAIN and re-releases.
-  for (int i = 0; i < 12; ++i)
-    host.frame(0.016);
-  const Composer::NodeCost *root = rowOf(host, "root");
+  for (int i = 0; i < 12; ++i) host.frame(0.016);
+  const Composer::NodeCost* root = rowOf(host, "root");
   ASSERT_TRUE(root);
   EXPECT_FALSE(root->refused(Composer::Promotion::Volatile))
       << "a re-settled bound pan did not re-release";
@@ -1289,9 +1336,9 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   ASSERT_TRUE(accent);
   const int px = (int)accent->left() + 3, py = (int)accent->centerY();
   for (int i = 0; i < 20; ++i) {
-    panX = (float)((i % 4) + 1); // moves every frame, never twice the same
+    panX = (float)((i % 4) + 1);  // moves every frame, never twice the same
     host.frame(0.016);
-    const Composer::NodeCost *root = rowOf(host, "root");
+    const Composer::NodeCost* root = rowOf(host, "root");
     ASSERT_TRUE(root);
     EXPECT_TRUE(root->refused(Composer::Promotion::Volatile))
         << "a driven bound pan released its volatility at frame " << i;
@@ -1327,7 +1374,7 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   const auto accent = host.composer.bounds("accent");
   ASSERT_TRUE(accent);
   const int px = (int)accent->left() + 3, py = (int)accent->centerY();
-  EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN); // 8 px static pan: flipped
+  EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN);  // 8 px static pan: flipped
   host.composer.render(pannedPanel(pat));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
@@ -1382,13 +1429,12 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   // part of the memo's comparison, moving it while the gate holds replays
   // the old colour.
   choreograph::Output<float> reveal{1.0f};
-  choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})}; // red
+  choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})};  // red
   Host host(200, 200);
-  host.composer.render(box().child(
-      maskBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(
+      box().child(maskBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
-  for (int i = 0; i < 4; ++i)
-    host.frame(0.016); // let the memo bake and hold
+  for (int i = 0; i < 4; ++i) host.frame(0.016);  // let the memo bake and hold
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
   // The counts below describe the memo actually working: the recording,
   // which baked the red, REPLAYS while both the fill and the gate provably
@@ -1403,7 +1449,7 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   }
   EXPECT_EQ(records, 0u) << "the memoized recording holds while both hold";
   EXPECT_EQ(live, 4u) << "the parent paints live; the node replays its memo";
-  tint = Fill::color({0, 0, 1, 1}); // …now turn it blue, gate unmoved
+  tint = Fill::color({0, 0, 1, 1});  // …now turn it blue, gate unmoved
   host.frame(0.016);
   EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
       << "the bound fill moved and the node replayed a stale recording";
@@ -1418,8 +1464,7 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
         SkString("uniform shader content; uniform float amt;"
                  "half4 main(float2 p) { half4 c = content.eval(p);"
                  "  return half4(c.r * half(amt), c.g, c.b, c.a); }"));
-    if (!e)
-      ADD_FAILURE() << err.c_str();
+    if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
   choreograph::Output<float> reveal{1.0f};
@@ -1431,10 +1476,9 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
           .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))
           .mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
-  for (int i = 0; i < 4; ++i)
-    host.frame(0.016);
+  for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
-  amt = 0.0f; // the effect must now kill the red channel
+  amt = 0.0f;  // the effect must now kill the red channel
   host.frame(0.016);
   EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
       << "the live effect moved and the node replayed a stale recording";
@@ -1449,8 +1493,7 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
         SkString("uniform shader content; uniform float amt;"
                  "half4 main(float2 p) { half4 c = content.eval(p);"
                  "  return half4(c.r * half(amt), c.g, c.b, c.a); }"));
-    if (!e)
-      ADD_FAILURE() << err.c_str();
+    if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
   static sk_sp<SkRuntimeEffect> matfx = [] {
@@ -1458,24 +1501,21 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
         SkString("uniform float lift;"
                  "half4 main(float2 p) { return half4(1.0, half(lift), 0.0,"
                  "                                    1.0); }"));
-    if (!e)
-      ADD_FAILURE() << err.c_str();
+    if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
-  choreograph::Output<float> lift{0.0f}; // the material's own bound uniform
-  choreograph::Output<float> amt{1.0f};  // the effect's
+  choreograph::Output<float> lift{0.0f};  // the material's own bound uniform
+  choreograph::Output<float> amt{1.0f};   // the effect's
   Host host(200, 200);
   host.composer.render(box().child(
       maskBox()
           .fill(Material::sksl(matfx).uniform("lift", &lift))
           .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))));
   host.frame();
-  for (int i = 0; i < 4; ++i)
-    host.frame(0.016);
+  for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
-  amt = 0.0f; // the material holds; only the EFFECT moves
+  amt = 0.0f;  // the material holds; only the EFFECT moves
   host.frame(0.016);
   EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
       << "the live effect moved and the live-material memo replayed stale";
 }
-

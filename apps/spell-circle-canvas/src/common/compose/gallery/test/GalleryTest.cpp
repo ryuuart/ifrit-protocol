@@ -1,11 +1,10 @@
-#include "GalleryScenes.h"
-
 #include <gtest/gtest.h>
-
 #include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <string_view>
+
+#include "GalleryScenes.h"
 
 namespace compose_gallery {
 namespace {
@@ -13,15 +12,13 @@ namespace {
 struct ClockProbeScene final : Scene {
   double elapsed = -1.0;
 
-  const char *name() const override { return "clock_probe"; }
+  const char* name() const override { return "clock_probe"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &) override {
+  void setup(Composer& composer, sigil::motion::Ticker&) override {
     composer.render(box());
   }
 
-  void update(double nextElapsed, Composer &) override {
-    elapsed = nextElapsed;
-  }
+  void update(double nextElapsed, Composer&) override { elapsed = nextElapsed; }
 };
 
 TEST(ComposeGallery, EveryRegistryEntryHasAFactory) {
@@ -42,7 +39,7 @@ TEST(ComposeGallery, EveryRegistryEntryHasAFactory) {
 // thing keeping them honest is this: a study named here but not linked has
 // no factory, and would otherwise show up as a row that renders nothing.
 TEST(ComposeGallery, EveryStudyInTheTableIsLinkedIn) {
-  for (const StudyInfo &study : kStudies) {
+  for (const StudyInfo& study : kStudies) {
     SCOPED_TRACE(study.key);
     EXPECT_NE(sketch::findStaticSketch(study.key), nullptr);
   }
@@ -57,12 +54,11 @@ TEST(ComposeGallery, EveryStudyInTheTableIsLinkedIn) {
 // registered stem must have a table row, checked by name so the failure
 // says which stem is missing.
 TEST(ComposeGallery, EveryLinkedStudyIsInTheTable) {
-  for (const sketch::StaticSketch &linked : sketch::staticSketches()) {
-    const bool listed =
-        std::any_of(std::begin(kStudies), std::end(kStudies),
-                    [&](const StudyInfo &study) {
-                      return std::string_view(study.key) == linked.key;
-                    });
+  for (const sketch::StaticSketch& linked : sketch::staticSketches()) {
+    const bool listed = std::any_of(
+        std::begin(kStudies), std::end(kStudies), [&](const StudyInfo& study) {
+          return std::string_view(study.key) == linked.key;
+        });
     EXPECT_TRUE(listed)
         << "study \"" << linked.key << "\" is compiled into this binary but "
         << "has no kStudies entry, so it would never appear in the gallery "
@@ -105,11 +101,11 @@ TEST(ComposeGallery, FixedFramesAdvanceSyntheticElapsedTime) {
   GalleryStage stage;
   stage.showStats = false;
   auto probe = std::make_unique<ClockProbeScene>();
-  ClockProbeScene *probePtr = probe.get();
+  ClockProbeScene* probePtr = probe.get();
   stage.activate(std::move(probe));
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(static_cast<int>(kSceneSize.width()),
-                                static_cast<int>(kSceneSize.height())));
+                                 static_cast<int>(kSceneSize.height())));
   ASSERT_NE(surface, nullptr);
 
   constexpr double dt = 1.0 / 60.0;
@@ -136,5 +132,5 @@ TEST(ComposeGallery, PresentationCadenceResetsAcrossPause) {
   EXPECT_EQ(stage.lastPresent, std::chrono::steady_clock::time_point{});
 }
 
-} // namespace
-} // namespace compose_gallery
+}  // namespace
+}  // namespace compose_gallery

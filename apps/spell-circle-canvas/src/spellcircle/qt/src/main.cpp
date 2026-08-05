@@ -1,12 +1,13 @@
 #ifdef __APPLE__
 #include "AppNap.h"
 #endif
-#include "spdlog/spdlog.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
-int main(int argc, char *argv[]) {
+#include "spdlog/spdlog.h"
+
+int main(int argc, char* argv[]) {
 #ifdef __APPLE__
   AppNap::disable();
 #endif
@@ -30,10 +31,9 @@ int main(int argc, char *argv[]) {
   engine.loadFromModule("SpellCircle.App", "Main");
 
 #ifdef __APPLE__
-  for (QObject *rootObject : engine.rootObjects()) {
-    auto *window = qobject_cast<QQuickWindow *>(rootObject);
-    if (!window)
-      continue;
+  for (QObject* rootObject : engine.rootObjects()) {
+    auto* window = qobject_cast<QQuickWindow*>(rootObject);
+    if (!window) continue;
 
     // Keep the render-side texture and Syphon server alive across ordinary
     // visibility changes, and keep the render loop active when the native

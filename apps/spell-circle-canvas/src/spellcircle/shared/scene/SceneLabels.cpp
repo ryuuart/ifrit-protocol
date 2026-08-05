@@ -4,12 +4,12 @@
 
 namespace spellcircle {
 
-float centeredBaselineOffset(const SkFontMetrics &metrics) {
+float centeredBaselineOffset(const SkFontMetrics& metrics) {
   return -(metrics.fAscent + metrics.fDescent) * 0.5f;
 }
 
-const sk_sp<SkContourMeasure> &
-RingLabelGeometryCache::ringForRadius(float radius) {
+const sk_sp<SkContourMeasure>& RingLabelGeometryCache::ringForRadius(
+    float radius) {
   const int quantizedRadius = static_cast<int>(radius * 4.0f);
   auto measuredRing = m_rings.find(quantizedRadius);
   if (measuredRing == m_rings.end()) {
@@ -28,17 +28,15 @@ RingLabelGeometryCache::ringForRadius(float radius) {
     // recently used entry: no use order is tracked, and re-measuring is a
     // contour walk over four conics. Rings already handed out survive, because
     // callers hold sk_sp copies.
-    if (m_rings.size() >= m_maximumEntries)
-      m_rings.clear();
+    if (m_rings.size() >= m_maximumEntries) m_rings.clear();
     measuredRing = m_rings.emplace(quantizedRadius, std::move(ring)).first;
   }
   return measuredRing->second;
 }
 
-sigil::weave::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCache,
-                                             const SkFontMetrics &metrics,
-                                             float opticalMiddleRadius,
-                                             float anchorFraction) {
+sigil::weave::LineInterval makeRingLabelInterval(
+    RingLabelGeometryCache& ringCache, const SkFontMetrics& metrics,
+    float opticalMiddleRadius, float anchorFraction) {
   sigil::weave::LineInterval interval;
 
   // The pen rides the baseline, which sits inward of the ring the glyphs'
@@ -46,12 +44,10 @@ sigil::weave::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCac
   const float baselineRadius =
       opticalMiddleRadius - centeredBaselineOffset(metrics);
   // Both radii have to be large enough to measure and to divide by below.
-  if (baselineRadius <= 1.0f || opticalMiddleRadius <= 1.0f)
-    return interval;
+  if (baselineRadius <= 1.0f || opticalMiddleRadius <= 1.0f) return interval;
 
   interval.contour = ringCache.ringForRadius(baselineRadius);
-  if (!interval.contour)
-    return interval;
+  if (!interval.contour) return interval;
 
   // `circumference` is the baseline ring's. Shrinking each advance by the
   // radius ratio is what makes glyph advances measured for the wider optical
@@ -70,4 +66,4 @@ sigil::weave::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCac
   return interval;
 }
 
-} // namespace spellcircle
+}  // namespace spellcircle

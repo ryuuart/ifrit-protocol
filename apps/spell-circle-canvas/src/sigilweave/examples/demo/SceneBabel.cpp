@@ -2,9 +2,6 @@
 // rotated confetti: Arabic joins, Devanagari conjuncts, emoji ZWJ sequences
 // and all — every token resolved through per-codepoint fallback and the one
 // shape cache.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 
@@ -13,11 +10,14 @@
 #include <random>
 #include <string>
 
+#include "DemoScenes.h"
+#include "DemoSupport.h"
+
 using namespace sigil::weave;
 
-void sceneBabel(FontContext &fontContext,
-                const std::filesystem::path &outputDirectory) {
-  const char8_t *tokens[] = {
+void sceneBabel(FontContext& fontContext,
+                const std::filesystem::path& outputDirectory) {
+  const char8_t* tokens[] = {
       u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
       u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
       u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
@@ -57,9 +57,10 @@ void sceneBabel(FontContext &fontContext,
   surface->getCanvas()->clear(kPaper);
   layout.draw(surface->getCanvas(), paragraph);
   writePng(surface.get(), outputDirectory / "babel.png");
-  std::printf("Scene G — babel confetti: %zu tokens, %zu runs, cold %.1f us, "
-              "warm %.1f us\n",
-              paragraph.words().size(), layout.runs.size(),
-              toMicroseconds(coldEndTime - coldStartTime),
-              toMicroseconds(warmEndTime - coldEndTime));
+  std::printf(
+      "Scene G — babel confetti: %zu tokens, %zu runs, cold %.1f us, "
+      "warm %.1f us\n",
+      paragraph.words().size(), layout.runs.size(),
+      toMicroseconds(coldEndTime - coldStartTime),
+      toMicroseconds(warmEndTime - coldEndTime));
 }

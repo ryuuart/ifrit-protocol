@@ -1,11 +1,12 @@
 #pragma once
-#include "CanvasSceneBackend.h"
-#include "SceneGeometry.h"
-#include "SpellCircleModel.h"
 #include <QColor>
 #include <QFont>
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
 #include <memory>
+
+#include "CanvasSceneBackend.h"
+#include "SceneGeometry.h"
+#include "SpellCircleModel.h"
 
 class TexturePublisher;
 
@@ -18,24 +19,24 @@ class TexturePublisher;
  * for inter-application sharing.
  */
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
-public:
+ public:
   SpellCircleRenderer();
   ~SpellCircleRenderer() override;
 
   /** Copies GUI-thread model and configuration state into the renderer. */
-  void synchronize(QCanvasPainterItem *item) override;
+  void synchronize(QCanvasPainterItem* item) override;
   /** Creates the offscreen backend and external publishing resources. */
-  void initializeResources(QCanvasPainter *painter) override;
+  void initializeResources(QCanvasPainter* painter) override;
   /** Resolves dirty geometry and records the current offscreen image. */
-  void prePaint(QCanvasPainter *painter) override;
+  void prePaint(QCanvasPainter* painter) override;
   /** Blits the cached display image into the visible item. */
-  void paint(QCanvasPainter *painter) override;
+  void paint(QCanvasPainter* painter) override;
 
-protected:
+ protected:
   /** Publishes the native offscreen texture after Qt records its frame. */
-  void render(QRhiCommandBuffer *commandBuffer) override;
+  void render(QRhiCommandBuffer* commandBuffer) override;
 
-private:
+ private:
   // Grants access to the resolved geometry (m_resolved) and style fields.
   // SkiaSceneBackendImpl (defined at global scope in SkiaSceneBackend.cpp,
   // not in an anonymous namespace, so this forward-declaring friend
@@ -46,7 +47,7 @@ private:
   /** Queries the model's document (if the generation changed) and resolves
    *  every entity's canvas position/scale into m_resolved via the shared
    *  spellcircle::resolveScene(). */
-  void resolveGeometry(SpellCircleModel *model);
+  void resolveGeometry(SpellCircleModel* model);
 
   // Scene geometry in absolute, native-scaled canvas coordinates — the
   // same Qt-free structures the native macOS app draws from.

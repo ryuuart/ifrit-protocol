@@ -6,10 +6,9 @@
 // statistics reporting and PNG output. Nothing here is scene-specific;
 // scene-specific state lives in each scene's own file.
 
+#include <include/core/SkSurface.h>
 #include <sigilweave/SigilWeave.h>
 #include <sigilweavekit/SigilWeaveKit.h>
-
-#include <include/core/SkSurface.h>
 
 #include <chrono>
 #include <filesystem>
@@ -32,15 +31,15 @@ struct TimingStats {
   void add(double sampleMicroseconds);
 
   /** Prints mean and percentile statistics for all recorded samples. */
-  void report(const char *label) const;
+  void report(const char* label) const;
 };
 
 /** Writes a raster surface's pixels to a PNG file at `path`. */
-void writePng(SkSurface *surface, const std::filesystem::path &path);
+void writePng(SkSurface* surface, const std::filesystem::path& path);
 
 /** Creates a single-span style for demo paragraphs. */
 inline sigil::weave::TextStyle style(float fontSize, SkColor color = kInk,
-                                 const char *languageTag = "") {
+                                     const char* languageTag = "") {
   return sigil::weave::kit::makeStyle(fontSize, color, languageTag);
 }
 

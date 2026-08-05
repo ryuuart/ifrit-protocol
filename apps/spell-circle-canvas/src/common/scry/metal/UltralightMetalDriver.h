@@ -1,9 +1,9 @@
 #pragma once
 // Internal to SigilScry — the Metal implementation of WebGpuDriver.
 
-#include "../WebGpuDriver.h"
-
 #include <memory>
+
+#include "../WebGpuDriver.h"
 
 namespace sigil::scry {
 
@@ -16,12 +16,12 @@ namespace sigil::scry {
  * contract, with native handles being id<MTLTexture> bridged to void*.
  */
 class UltralightMetalDriver final : public WebGpuDriver {
-public:
+ public:
   /** @p mtlDevice / @p mtlCommandQueue are id<MTLDevice> /
    *  id<MTLCommandQueue> bridged to void*; both are retained. Null when
    *  pipeline-state creation fails (broken shader compile). */
-  static std::unique_ptr<UltralightMetalDriver> create(void *mtlDevice,
-                                                       void *mtlCommandQueue);
+  static std::unique_ptr<UltralightMetalDriver> create(void* mtlDevice,
+                                                       void* mtlCommandQueue);
 
   ~UltralightMetalDriver() override;
 
@@ -36,41 +36,41 @@ public:
   void DestroyTexture(uint32_t textureId) override;
   uint32_t NextRenderBufferId() override;
   void CreateRenderBuffer(uint32_t renderBufferId,
-                          const ultralight::RenderBuffer &buffer) override;
+                          const ultralight::RenderBuffer& buffer) override;
   void DestroyRenderBuffer(uint32_t renderBufferId) override;
   uint32_t NextGeometryId() override;
   void CreateGeometry(uint32_t geometryId,
-                      const ultralight::VertexBuffer &vertices,
-                      const ultralight::IndexBuffer &indices) override;
+                      const ultralight::VertexBuffer& vertices,
+                      const ultralight::IndexBuffer& indices) override;
   void UpdateGeometry(uint32_t geometryId,
-                      const ultralight::VertexBuffer &vertices,
-                      const ultralight::IndexBuffer &indices) override;
+                      const ultralight::VertexBuffer& vertices,
+                      const ultralight::IndexBuffer& indices) override;
   void DestroyGeometry(uint32_t geometryId) override;
-  void UpdateCommandList(const ultralight::CommandList &list) override;
+  void UpdateCommandList(const ultralight::CommandList& list) override;
 
   // WebGpuDriver
   std::unordered_set<uint32_t> flush() override;
-  void *createPublishTexture(int width, int height) override;
-  void *createImageTexture(int width, int height) override;
-  void releaseNativeTexture(void *texture) override;
-  void copyTexture(uint32_t srcTextureId, void *dstTexture, int width,
+  void* createPublishTexture(int width, int height) override;
+  void* createImageTexture(int width, int height) override;
+  void releaseNativeTexture(void* texture) override;
+  void copyTexture(uint32_t srcTextureId, void* dstTexture, int width,
                    int height) override;
-  void copyNativeTexture(void *srcTexture, void *dstTexture, int width,
+  void copyNativeTexture(void* srcTexture, void* dstTexture, int width,
                          int height) override;
-  uint32_t registerExternalTexture(void *texture) override;
+  uint32_t registerExternalTexture(void* texture) override;
   void unregisterExternalTexture(uint32_t textureId) override;
-  void uploadToTexture(void *texture, const void *pixels, int width,
-                       int height, size_t rowBytes) override;
-  bool paintTexture(void *texture, int width, int height,
-                    const std::function<void(SkCanvas &)> &painter) override;
-  sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder *recorder,
-                             void *texture, int width, int height) override;
+  void uploadToTexture(void* texture, const void* pixels, int width, int height,
+                       size_t rowBytes) override;
+  bool paintTexture(void* texture, int width, int height,
+                    const std::function<void(SkCanvas&)>& painter) override;
+  sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder, void* texture,
+                             int width, int height) override;
 
-private:
+ private:
   struct State;
   explicit UltralightMetalDriver(std::unique_ptr<State> state);
 
   std::unique_ptr<State> m_state;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

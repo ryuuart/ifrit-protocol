@@ -22,12 +22,10 @@
 // update() changes DATA (which LUT is current), re-describes, and the
 // reconciler diffs — there is no binding and no per-frame work anywhere.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Material.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Material.h>
+#include <sigilsketch/Sketch.h>
 
 #include <vector>
 
@@ -72,7 +70,7 @@ sk_sp<SkRuntimeEffect> paletteEffect() {
 
 /** A 1-row LUT. No colour space, like every compose surface — the byte
  *  written here is the byte the shader reads. */
-sk_sp<SkImage> lut(const std::vector<SkColor> &entries) {
+sk_sp<SkImage> lut(const std::vector<SkColor>& entries) {
   SkBitmap bm;
   bm.allocN32Pixels((int)entries.size(), 1);
   for (size_t i = 0; i < entries.size(); ++i)
@@ -86,23 +84,22 @@ SkColor grey(int v) { return SkColorSetARGB(255, v, v, v); }
 /** The three LUTs. Held as process-wide singletons because Material::image
  *  compares by image POINTER — minting a fresh SkImage per describe would
  *  make every material unequal to every other and defeat every prune. */
-const sk_sp<SkImage> &greyLut() {
+const sk_sp<SkImage>& greyLut() {
   static const sk_sp<SkImage> img = [] {
     std::vector<SkColor> v;
-    for (int i = 0; i < 16; ++i)
-      v.push_back(grey(17 * i));
+    for (int i = 0; i < 16; ++i) v.push_back(grey(17 * i));
     return lut(v);
   }();
   return img;
 }
-const sk_sp<SkImage> &fireLut() {
+const sk_sp<SkImage>& fireLut() {
   static const sk_sp<SkImage> img = lut(
       {0xff100005, 0xff2a0410, 0xff450a16, 0xff62111a, 0xff7f1a1c, 0xff9c261b,
        0xffb8351a, 0xffd04718, 0xffe25c17, 0xffee7419, 0xfff58f26, 0xfff9a840,
        0xfffcc063, 0xfffdd68e, 0xfffee8bd, 0xffffffff});
   return img;
 }
-const sk_sp<SkImage> &iceLut() {
+const sk_sp<SkImage>& iceLut() {
   static const sk_sp<SkImage> img = lut(
       {0xff03060f, 0xff071228, 0xff0b1f42, 0xff102c5c, 0xff143a76, 0xff17498f,
        0xff1a59a7, 0xff1f6bbc, 0xff2a7fcd, 0xff3d93da, 0xff56a7e4, 0xff74baec,
@@ -114,7 +111,7 @@ const sk_sp<SkImage> &iceLut() {
  *  reading order. It is DATA, so it is sampled NEAREST everywhere: an index
  *  read at kLinear is a blend of two unrelated palette entries, which is
  *  the trap this whole texture kind carries. */
-const sk_sp<SkImage> &indexChart() {
+const sk_sp<SkImage>& indexChart() {
   static const sk_sp<SkImage> img = [] {
     SkBitmap bm;
     bm.allocN32Pixels(kCells, kCells);
@@ -136,7 +133,7 @@ Material indexSource() {
                          SkSamplingOptions(SkFilterMode::kNearest));
 }
 
-Material lutSource(const sk_sp<SkImage> &table) {
+Material lutSource(const sk_sp<SkImage>& table) {
   return Material::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
                          SkMatrix::I(),
                          SkSamplingOptions(SkFilterMode::kNearest));
@@ -144,7 +141,7 @@ Material lutSource(const sk_sp<SkImage> &table) {
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
-Material paletted(const sk_sp<SkImage> &table, float shade) {
+Material paletted(const sk_sp<SkImage>& table, float shade) {
   return Material::sksl(paletteEffect())
       .uniform("uShade", shade)
       .child("uIndex", indexSource())
@@ -152,14 +149,14 @@ Material paletted(const sk_sp<SkImage> &table, float shade) {
 }
 
 /** The LUT itself, shown as the 16-swatch strip it is. */
-Element lutStrip(const sk_sp<SkImage> &table) {
+Element lutStrip(const sk_sp<SkImage>& table) {
   return box().width(kPanel).height(14).fill(
       Material::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
                       SkMatrix::Scale(kPanel / 16.0f, 14.0f),
                       SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
-Element panel(const char *title, const char *note, const sk_sp<SkImage> &table,
+Element panel(const char* title, const char* note, const sk_sp<SkImage>& table,
               float shade, std::string key) {
   return box()
       .width(kPanel)
@@ -176,23 +173,23 @@ Element panel(const char *title, const char *note, const sk_sp<SkImage> &table,
       .child(text(toU8(note), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct MaterialChild : sigil::compose::sketch::Sketch {
   int live = 0;
 
-  const sk_sp<SkImage> &liveLut() const {
+  const sk_sp<SkImage>& liveLut() const {
     switch (live % 3) {
-    case 0:
-      return greyLut();
-    case 1:
-      return fireLut();
-    default:
-      return iceLut();
+      case 0:
+        return greyLut();
+      case 1:
+        return fireLut();
+      default:
+        return iceLut();
     }
   }
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
     return stack()
         .child(text(toU8("Material::sksl(...).child(name, Material) \xc2\xb7 "
@@ -210,8 +207,8 @@ struct MaterialChild : sigil::compose::sketch::Sketch {
                              greyLut(), 0.0f, "grey"))
                 .child(panel("palette A", "child(\"uPalette\", fire)",
                              fireLut(), 0.0f, "fire"))
-                .child(panel("palette B", "…the SAME index texture",
-                             iceLut(), 0.0f, "ice"))
+                .child(panel("palette B", "…the SAME index texture", iceLut(),
+                             0.0f, "ice"))
                 .child(panel("+ uShade = 6", "min(i + 6, 15): top cells clip",
                              iceLut(), kShade, "shade"))
                 .child(panel("LIVE swap", "update() re-describes; 1 patch",
@@ -224,19 +221,18 @@ struct MaterialChild : sigil::compose::sketch::Sketch {
                    .bottom(14));
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1060, 335);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(1.0); // the live panel is on the fire LUT here
+    ctx.captureAt(1.0);  // the live panel is on the fire LUT here
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // Derived from `elapsed`, not accumulated: a still at a declared time
     // is then the same still every run.
     const int want = (int)(elapsed / kSwapEvery);
-    if (want == live)
-      return;
+    if (want == live) return;
     live = want;
     ctx.composer.render(describe(ctx));
   }

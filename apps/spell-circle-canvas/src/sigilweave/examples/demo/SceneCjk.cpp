@@ -5,18 +5,17 @@
 // — the "build externally on SigilWeave" pattern. Tate-chu-yoko needs the
 // breaker's cooperation, so it *is* a library feature
 // (VerticalForm::kTateChuYoko).
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
-#include <sigilweave/Query.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
+#include <sigilweave/Query.h>
 
 #include <algorithm>
 #include <cstdio>
+
+#include "DemoScenes.h"
+#include "DemoSupport.h"
 
 using namespace sigil::weave;
 
@@ -27,18 +26,18 @@ namespace {
 struct RangeExtent {
   bool valid = false;
   int lineIndex = 0;
-  SkPoint origin = {0, 0}; // first covering run's origin (on the axis)
+  SkPoint origin = {0, 0};  // first covering run's origin (on the axis)
   float flowBegin = 0;
   float flowEnd = 0;
 };
 
 /** Measures a text range along the flow direction of its placed line. */
-RangeExtent placedExtent(const Paragraph &paragraph,
-                         const ParagraphLayout &layout, uint32_t rangeStart,
+RangeExtent placedExtent(const Paragraph& paragraph,
+                         const ParagraphLayout& layout, uint32_t rangeStart,
                          uint32_t rangeEnd) {
   RangeExtent extent;
-  for (const PositionedRun &run : layout.runs) {
-    const Word &word = paragraph.words()[run.wordIndex];
+  for (const PositionedRun& run : layout.runs) {
+    const Word& word = paragraph.words()[run.wordIndex];
     if (word.textEnd <= rangeStart || word.textBegin >= rangeEnd ||
         run.transformed)
       continue;
@@ -58,11 +57,11 @@ RangeExtent placedExtent(const Paragraph &paragraph,
   return extent;
 }
 
-} // namespace
+}  // namespace
 
-void sceneCjk(FontContext &fontContext,
-              const std::filesystem::path &outputDirectory) {
-  SkFontMgr *fontManager = fontContext.fontManager();
+void sceneCjk(FontContext& fontContext,
+              const std::filesystem::path& outputDirectory) {
+  SkFontMgr* fontManager = fontContext.fontManager();
   sk_sp<SkTypeface> minchoTypeface =
       fontManager->matchFamilyStyle("Hiragino Mincho ProN", SkFontStyle());
   sk_sp<SkTypeface> notoSansTypeface =
@@ -74,7 +73,7 @@ void sceneCjk(FontContext &fontContext,
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 700));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
   const float fontSize = 26.0f;
@@ -114,15 +113,13 @@ void sceneCjk(FontContext &fontContext,
   // Ruby (furigana): a small vertical paragraph laid along the base's
   // column, offset into the inter-column gap.
   auto drawVerticalRuby = [&](std::u16string_view baseText,
-                              const char8_t *rubyText) {
+                              const char8_t* rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(verticalParagraph, baseText);
-    if (matches.empty())
-      return;
+    if (matches.empty()) return;
     const RangeExtent extent = placedExtent(verticalParagraph, verticalLayout,
                                             matches[0].start, matches[0].end);
-    if (!extent.valid)
-      return;
+    if (!extent.valid) return;
     Paragraph ruby;
     ruby.appendText(rubyText, japaneseStyle(fontSize * 0.5f));
     ruby.setWritingMode(WritingMode::kVerticalRL);
@@ -148,14 +145,14 @@ void sceneCjk(FontContext &fontContext,
     dot.setAntiAlias(true);
     dot.setColor(kAccent);
     if (!matches.empty()) {
-      for (const PositionedRun &run : verticalLayout.runs) {
-        const Word &word = verticalParagraph.words()[run.wordIndex];
+      for (const PositionedRun& run : verticalLayout.runs) {
+        const Word& word = verticalParagraph.words()[run.wordIndex];
         if (word.textEnd <= matches[0].start ||
             word.textBegin >= matches[0].end || run.transformed ||
             !run.shaped->vertical)
           continue;
         float penAdvance = 0;
-        const ShapedWord &shapedWord = *run.shaped;
+        const ShapedWord& shapedWord = *run.shaped;
         for (size_t glyphIndex = 0; glyphIndex < shapedWord.advances.size();
              ++glyphIndex) {
           // Clusters are offsets into the shaped segment, which starts at
@@ -187,18 +184,17 @@ void sceneCjk(FontContext &fontContext,
   horizontalLayout.draw(canvas, horizontalParagraph);
 
   auto drawHorizontalRuby = [&](std::u16string_view baseText,
-                                const char8_t *rubyText) {
+                                const char8_t* rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(horizontalParagraph, baseText);
-    if (matches.empty())
-      return;
+    if (matches.empty()) return;
     // Horizontal extent along the line this time.
     float rangeLeft = 0;
     float rangeRight = 0;
     float baseline = 0;
     bool valid = false;
-    for (const PositionedRun &run : horizontalLayout.runs) {
-      const Word &word = horizontalParagraph.words()[run.wordIndex];
+    for (const PositionedRun& run : horizontalLayout.runs) {
+      const Word& word = horizontalParagraph.words()[run.wordIndex];
       if (word.textEnd <= matches[0].start || word.textBegin >= matches[0].end)
         continue;
       if (!valid) {
@@ -210,8 +206,7 @@ void sceneCjk(FontContext &fontContext,
         rangeRight = std::max(rangeRight, run.origin.x() + word.width);
       }
     }
-    if (!valid)
-      return;
+    if (!valid) return;
     Paragraph ruby;
     ruby.appendText(rubyText, japaneseStyle(fontSize * 0.42f));
     const float width = ruby.naturalWidth(fontContext);
@@ -233,13 +228,13 @@ void sceneCjk(FontContext &fontContext,
     dot.setAntiAlias(true);
     dot.setColor(kAccent);
     if (!matches.empty()) {
-      for (const PositionedRun &run : horizontalLayout.runs) {
-        const Word &word = horizontalParagraph.words()[run.wordIndex];
+      for (const PositionedRun& run : horizontalLayout.runs) {
+        const Word& word = horizontalParagraph.words()[run.wordIndex];
         if (word.textEnd <= matches[0].start ||
             word.textBegin >= matches[0].end)
           continue;
         float penAdvance = 0;
-        const ShapedWord &shapedWord = *run.shaped;
+        const ShapedWord& shapedWord = *run.shaped;
         for (size_t glyphIndex = 0; glyphIndex < shapedWord.advances.size();
              ++glyphIndex) {
           const uint32_t textOffset =
@@ -256,11 +251,15 @@ void sceneCjk(FontContext &fontContext,
   }
 
   // Captions.
-  auto drawCaption = [&](const char8_t *text, float positionX,
+  auto drawCaption = [&](const char8_t* text, float positionX,
                          float positionY) {
-    sigil::weave::kit::drawLabel(canvas, fontContext, text, {positionX, positionY},
-                           {.fontSize = 13, .color = kBlue, .width = 400,
-                            .height = 18, .typeface = notoSansTypeface});
+    sigil::weave::kit::drawLabel(canvas, fontContext, text,
+                                 {positionX, positionY},
+                                 {.fontSize = 13,
+                                  .color = kBlue,
+                                  .width = 400,
+                                  .height = 18,
+                                  .typeface = notoSansTypeface});
   };
   drawCaption(u8"horizontal: ruby + kenten (external utilities)", 50, 90);
   drawCaption(u8"vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430,

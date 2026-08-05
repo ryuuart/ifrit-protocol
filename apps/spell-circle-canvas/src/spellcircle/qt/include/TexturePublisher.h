@@ -17,15 +17,15 @@ class QRhiCommandBuffer;
  * as optional and skip publishing when it is absent.
  */
 class TexturePublisher {
-public:
+ public:
   virtual ~TexturePublisher() = default;
 
   /**
    * Appends the publish work for @p texture to the still-open
    * @p commandBuffer. No-op when no clients are connected.
    */
-  virtual void publishFrame(QRhiTexture *texture,
-                            QRhiCommandBuffer *commandBuffer, int width,
+  virtual void publishFrame(QRhiTexture* texture,
+                            QRhiCommandBuffer* commandBuffer, int width,
                             int height) = 0;
 };
 
@@ -35,5 +35,5 @@ public:
  * backend — this factory is the only place allowed to inspect
  * QRhi::backend() on behalf of publishing.
  */
-std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi *rhi,
+std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi* rhi,
                                                          std::string name);

@@ -32,9 +32,8 @@
 // The accent's colour is driven by an animation output, and deliberately
 // parked. Parked is the whole point.
 
-#include <sigilsketch/Sketch.h>
-
 #include <sigilcompose/Brushes.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 #include <string>
@@ -44,8 +43,8 @@ using namespace sigil::compose::util;
 
 namespace {
 
-constexpr int kCells = 512;        // enough cells for picture replay to hurt
-constexpr double kRepaintHz = 0.0; // 0 = the bound colour never moves
+constexpr int kCells = 512;         // enough cells for picture replay to hurt
+constexpr double kRepaintHz = 0.0;  // 0 = the bound colour never moves
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -64,7 +63,7 @@ const SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
  *  ONE accent cell in the same row whose fill is BOUND rather than a plain
  *  value. Everything above that accent shares its volatility, which is why
  *  a single leaf decides the cost of the whole panel. */
-Element panel(const choreograph::Output<Fill> *tint) {
+Element panel(const choreograph::Output<Fill>* tint) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < kCells; ++id) {
     const float t = 0.20f + 0.04f * (float)(id % 6);
@@ -88,10 +87,10 @@ Element panel(const choreograph::Output<Fill> *tint) {
   return box().key("frame").column().padding(4).child(std::move(row));
 }
 
-} // namespace
+}  // namespace
 
 struct StillAccent : sigil::compose::sketch::Sketch {
-  choreograph::Output<Fill> tint{Fill::color(kAccent)}; // assigned ONCE
+  choreograph::Output<Fill> tint{Fill::color(kAccent)};  // assigned ONCE
   int step = 0;
 
   Element describe() {
@@ -112,17 +111,16 @@ struct StillAccent : sigil::compose::sketch::Sketch {
         .child(panel(&tint));
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(900, 620);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(1.0); // well past the 8-frame settle: the released state
+    ctx.captureAt(1.0);  // well past the 8-frame settle: the released state
     ctx.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     (void)ctx;
-    if (kRepaintHz <= 0.0)
-      return; // the colour never moves after setup
+    if (kRepaintHz <= 0.0) return;  // the colour never moves after setup
     // The demonstration mode: a change every 1/kRepaintHz seconds — each
     // one re-declares volatility for a frame, after which the value holds
     // long enough to settle and release again. Derived from `elapsed`, so a

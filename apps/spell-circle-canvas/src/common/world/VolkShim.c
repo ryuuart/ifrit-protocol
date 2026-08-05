@@ -19,7 +19,7 @@
 #include <stdlib.h>
 
 VkResult volkInitialize(void) {
-  const char *candidates[] = {
+  const char* candidates[] = {
       getenv("SIGILWORLD_VULKAN_LIBRARY"), /* explicit override first */
       "libvulkan.dylib",
       "libvulkan.1.dylib",
@@ -30,21 +30,17 @@ VkResult volkInitialize(void) {
       "/usr/local/lib/libMoltenVK.dylib",
       "libMoltenVK.dylib",
   };
-  void *module = NULL;
+  void* module = NULL;
   for (unsigned i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
-    if (!candidates[i])
-      continue;
+    if (!candidates[i]) continue;
     module = dlopen(candidates[i], RTLD_NOW | RTLD_LOCAL);
-    if (module)
-      break;
+    if (module) break;
   }
-  if (!module)
-    return VK_ERROR_INITIALIZATION_FAILED;
+  if (!module) return VK_ERROR_INITIALIZATION_FAILED;
 
   PFN_vkGetInstanceProcAddr proc =
       (PFN_vkGetInstanceProcAddr)dlsym(module, "vkGetInstanceProcAddr");
-  if (!proc)
-    return VK_ERROR_INITIALIZATION_FAILED;
+  if (!proc) return VK_ERROR_INITIALIZATION_FAILED;
 
   /* The Homebrew loader discovers the MoltenVK ICD through its
    * sysconfdir; when the process runs with a stripped environment help

@@ -20,13 +20,13 @@
  * per-line opacity, which would make every faded line volatile.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Studio.h"
-#include "sigilcompose/Util.h"
-
 #include <deque>
 #include <string>
 #include <vector>
+
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Studio.h"
+#include "sigilcompose/Util.h"
 
 namespace sigil::compose::console {
 
@@ -40,21 +40,20 @@ struct Line {
 
 /** Append-only scrollback with monotonic sequence ids. */
 class LineRing {
-public:
+ public:
   explicit LineRing(size_t capacity = 512) : m_capacity(capacity) {}
 
   uint64_t append(std::u8string text, size_t paletteIndex = SIZE_MAX) {
     const uint64_t seq = m_next++;
     m_lines.push_back({seq, std::move(text), paletteIndex});
-    if (m_lines.size() > m_capacity)
-      m_lines.pop_front();
+    if (m_lines.size() > m_capacity) m_lines.pop_front();
     return seq;
   }
   void clear() { m_lines.clear(); }
-  const std::deque<Line> &lines() const { return m_lines; }
+  const std::deque<Line>& lines() const { return m_lines; }
   uint64_t nextSeq() const { return m_next; }
 
-private:
+ private:
   size_t m_capacity;
   uint64_t m_next = 1;
   std::deque<Line> m_lines;
@@ -64,12 +63,12 @@ struct Style {
   sigil::weave::TextStyle text;                  // default line style
   std::vector<sigil::weave::TextStyle> palette;  // Line::paletteIndex targets
   float gap = 2.0f;
-  size_t visibleLines = 24; // the viewport window (virtualization)
+  size_t visibleLines = 24;  // the viewport window (virtualization)
   /** Cursor block after the tail line (alpha 0 = none); bind the blink via
    *  cursorOpacity — the ONLY volatile node in the whole console. */
   SkColor4f cursorColor = {0, 0, 0, 0};
   float cursorWidth = 8.0f, cursorHeight = 14.0f;
-  const choreograph::Output<float> *cursorOpacity = nullptr;
+  const choreograph::Output<float>* cursorOpacity = nullptr;
 
   /** Comparable, so a `Style` can BE an inherited value: `env::` bindings
    *  are keyed by C++ type, and the key this component uses is its own
@@ -77,7 +76,7 @@ struct Style {
    *  the library shipping a palette layer (see `console(const LineRing&)`).
    *  Exact and structural, like every other value the reconciler compares:
    *  the binding pointer by identity, colours bitwise. */
-  bool operator==(const Style &) const = default;
+  bool operator==(const Style&) const = default;
 };
 
 /** ONE console row — the exact Element `console()` builds for each line,
@@ -96,8 +95,8 @@ struct Style {
  *
  *  Windowing is the caller's in that spelling: `console()` shows the last
  *  `Style::visibleLines` and the loop above shows the whole ring. */
-inline Element line(const Line &l, const Style &style) {
-  const sigil::weave::TextStyle &ts = l.paletteIndex < style.palette.size()
+inline Element line(const Line& l, const Style& style) {
+  const sigil::weave::TextStyle& ts = l.paletteIndex < style.palette.size()
                                           ? style.palette[l.paletteIndex]
                                           : style.text;
   return text(l.text, ts).key("con#" + std::to_string(l.seq));
@@ -106,7 +105,7 @@ inline Element line(const Line &l, const Style &style) {
 /** The console: the ring's last visibleLines as seq-keyed rows. Re-render
  *  on every append — reconciliation prices it at one mount (the tail), one
  *  unmount (the scrolled head), zero patches on surviving lines. */
-inline Element console(const LineRing &ring, const Style &style);
+inline Element console(const LineRing& ring, const Style& style);
 
 /** The same console, styled by whoever composed it rather than by whoever
  *  wrote this call — bind `env::Provide<console::Style>` upstream and
@@ -117,24 +116,24 @@ inline Element console(const LineRing &ring, const Style &style);
  *  library-wide theme value to inherit instead: a design-token layer would
  *  have to decide what a token IS for every component, and this library
  *  deliberately leaves that to the composition. */
-inline Element console(const LineRing &ring) {
+inline Element console(const LineRing& ring) {
   return console(ring, env::inheritedOr(Style{}));
 }
 
-inline Element console(const LineRing &ring, const Style &style) {
+inline Element console(const LineRing& ring, const Style& style) {
   auto panel = box().column().gap(style.gap).clip();
-  const std::deque<Line> &lines = ring.lines();
+  const std::deque<Line>& lines = ring.lines();
   const size_t n = lines.size();
   const size_t from = n > style.visibleLines ? n - style.visibleLines : 0;
   for (size_t i = from; i < n; ++i)
-    panel.child(line(lines[i], style)); // console::line — the row, exposed
+    panel.child(line(lines[i], style));  // console::line — the row, exposed
   if (style.cursorColor.fA > 0) {
-    Element cursor = box().width(style.cursorWidth)
+    Element cursor = box()
+                         .width(style.cursorWidth)
                          .height(style.cursorHeight)
                          .fill(Fill::color(style.cursorColor))
                          .key("con#cursor");
-    if (style.cursorOpacity)
-      cursor.opacity(style.cursorOpacity);
+    if (style.cursorOpacity) cursor.opacity(style.cursorOpacity);
     panel.child(std::move(cursor));
   }
   return panel;
@@ -176,17 +175,16 @@ inline Element console(const LineRing &ring, const Style &style) {
  *  nothing today — `console()` returns a panel that sets neither a width
  *  nor a height — and it keeps the measurement honest if that ever
  *  changes. */
-inline float height(const Style &style, size_t lines,
-                    sigil::weave::FontContext &fonts) {
+inline float height(const Style& style, size_t lines,
+                    sigil::weave::FontContext& fonts) {
   LineRing probe(lines > 0 ? lines : 1);
-  for (size_t i = 0; i < lines; ++i)
-    probe.append(u8"H");
+  for (size_t i = 0; i < lines; ++i) probe.append(u8"H");
   return compose::measure(box().child(console(probe, style)), fonts).height();
 }
 
 /** The height of the style's OWN window — `height(style, style.visibleLines,
  *  fonts)`, which is what an author laying out a console panel wants. */
-inline float height(const Style &style, sigil::weave::FontContext &fonts) {
+inline float height(const Style& style, sigil::weave::FontContext& fonts) {
   return height(style, style.visibleLines, fonts);
 }
 
@@ -208,8 +206,7 @@ inline Style monoStyle(sk_sp<SkTypeface> face, float size, SkColor4f base,
   s.text = studio::type({.face = face, .size = size, .color = base});
   s.palette.reserve(palette.size());
   for (SkColor4f c : palette)
-    s.palette.push_back(
-        studio::type({.face = face, .size = size, .color = c}));
+    s.palette.push_back(studio::type({.face = face, .size = size, .color = c}));
   return s;
 }
 
@@ -234,7 +231,7 @@ inline Style monoStyle(sk_sp<SkTypeface> face, float size, SkColor4f base,
  *  rather than looking for a mode here. */
 struct Panel {
   /** In order along the axis. Null entries are skipped. */
-  std::vector<const LineRing *> rings;
+  std::vector<const LineRing*> rings;
   /** Shared by every ring — one type treatment across the whole plate. */
   Style style;
   /** false (default) lays the rings out as a ROW of columns; true stacks
@@ -267,7 +264,7 @@ struct Panel {
   float ringExtent = 0.0f;
 };
 
-inline Element panel(const Panel &p) {
+inline Element panel(const Panel& p) {
   Element plate = box().fill(p.fill);
   if (p.border.kind != Fill::Kind::None)
     plate.stroke(util::stroke(p.borderWidth, p.border, p.borderAlign));
@@ -282,13 +279,11 @@ inline Element panel(const Panel &p) {
 
   const bool dividers = p.divider.kind != Fill::Kind::None;
   bool first = true;
-  for (const LineRing *ring : p.rings) {
-    if (!ring)
-      continue;
+  for (const LineRing* ring : p.rings) {
+    if (!ring) continue;
     if (!first && dividers)
-      inner.child(p.column
-                      ? box().height(p.dividerWidth).fill(p.divider)
-                      : box().width(p.dividerWidth).fill(p.divider));
+      inner.child(p.column ? box().height(p.dividerWidth).fill(p.divider)
+                           : box().width(p.dividerWidth).fill(p.divider));
     first = false;
     // Shared-space rings go in DIRECTLY with grow(1) — no wrapper box. The
     // difference is not cosmetic: as a flex child of the row the console
@@ -309,4 +304,4 @@ inline Element panel(const Panel &p) {
   return plate;
 }
 
-} // namespace sigil::compose::console
+}  // namespace sigil::compose::console

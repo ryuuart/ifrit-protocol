@@ -1,16 +1,15 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
-#include "EffectsParts.h"
-#include "SceneSupport.h"
-
+#include <include/core/SkBlendMode.h>
 #include <sigilweave/PaintShaders.h>
 #include <sigilweaveqt/SigilWeaveQt.h>
-
-#include <include/core/SkBlendMode.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
+
+#include "EffectsParts.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -37,13 +36,12 @@ std::u8string makeStressText() {
 }
 
 class StressPart final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
-    const sk_sp<SkTypeface> &typeface =
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
+    const sk_sp<SkTypeface>& typeface =
         params.typeface ? params.typeface : m_serif;
 
     const SkRect textBounds = SkRect::MakeLTRB(
@@ -82,7 +80,7 @@ public:
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
       layoutMicroseconds = layoutTime.microseconds();
       m_glyphCount = 0;
-      for (const PositionedRun &run : m_layout.runs)
+      for (const PositionedRun& run : m_layout.runs)
         if (run.shaped)
           m_glyphCount += static_cast<int>(run.shaped->glyphs.size());
     });
@@ -90,40 +88,41 @@ public:
     // The paint stack keys on the toggles plus the font size its blur/stroke
     // scales derive from — never on canvas size or typeface, so resizes
     // rebuild the layout above without touching the effect below.
-    m_effectBuild.ensure({effectGlow, effectOutline, effectStars, glowSpread,
-                          glowIntensity, stressFontSize},
-                         [&] {
-      m_effectGlow = effectGlow;
-      m_effectOutline = effectOutline;
-      m_effectStars = effectStars;
-      m_glowSpread = glowSpread;
-      m_glowIntensity = glowIntensity;
+    m_effectBuild.ensure(
+        {effectGlow, effectOutline, effectStars, glowSpread, glowIntensity,
+         stressFontSize},
+        [&] {
+          m_effectGlow = effectGlow;
+          m_effectOutline = effectOutline;
+          m_effectStars = effectStars;
+          m_glowSpread = glowSpread;
+          m_glowIntensity = glowIntensity;
 
-      m_effect = PaintStyle(SK_ColorWHITE);
-      if (m_effectGlow) {
-        // Dilating the glyph shape before the blur flattens its falloff into
-        // a wider plateau rather than just a softer edge, so even a couple
-        // of pixels of spread reads as solid at this scene's small sizes and
-        // bridges neighboring glyphs and lines. Scale the cap tightly with
-        // the font so the slider stays gentle there and only opens up once
-        // the text is large enough to take it.
-        const float cappedSpread =
-            std::min(m_glowSpread, stressFontSize * 0.06f);
-        m_effect.addUnderlay(
-            PaintLayer::glow(0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
-                             cappedSpread, m_glowIntensity));
-      }
-      if (m_effectOutline)
-        m_effect.addUnderlay(
-            PaintLayer::outline(SkColors::kBlue.toSkColor(),
-                                std::max(0.55f, stressFontSize * 0.03f)));
-      if (m_effectStars) {
-        SkPaint stars;
-        stars.setAntiAlias(true);
-        stars.setBlendMode(SkBlendMode::kScreen);
-        m_effect.addOverlay(PaintLayer(std::move(stars)));
-      }
-    });
+          m_effect = PaintStyle(SK_ColorWHITE);
+          if (m_effectGlow) {
+            // Dilating the glyph shape before the blur flattens its falloff
+            // into a wider plateau rather than just a softer edge, so even a
+            // couple of pixels of spread reads as solid at this scene's small
+            // sizes and bridges neighboring glyphs and lines. Scale the cap
+            // tightly with the font so the slider stays gentle there and only
+            // opens up once the text is large enough to take it.
+            const float cappedSpread =
+                std::min(m_glowSpread, stressFontSize * 0.06f);
+            m_effect.addUnderlay(PaintLayer::glow(
+                0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
+                cappedSpread, m_glowIntensity));
+          }
+          if (m_effectOutline)
+            m_effect.addUnderlay(
+                PaintLayer::outline(SkColors::kBlue.toSkColor(),
+                                    std::max(0.55f, stressFontSize * 0.03f)));
+          if (m_effectStars) {
+            SkPaint stars;
+            stars.setAntiAlias(true);
+            stars.setBlendMode(SkBlendMode::kScreen);
+            m_effect.addOverlay(PaintLayer(std::move(stars)));
+          }
+        });
 
     const float time = static_cast<float>(elapsedSeconds);
     if (effectShader)
@@ -144,8 +143,9 @@ public:
                           static_cast<int>(m_effectStars);
     const QString captionText =
         m_layout.overflowed()
-            ? QStringLiteral("2,000 words · overflowed (lower the font size "
-                             "to fit)")
+            ? QStringLiteral(
+                  "2,000 words · overflowed (lower the font size "
+                  "to fit)")
             : QStringLiteral("2,000 words · all placed · %1 %2 · no relayout")
                   .arg(passCount)
                   .arg(passCount == 1 ? QStringLiteral("pass")
@@ -159,11 +159,11 @@ public:
             m_glyphCount};
   }
 
-private:
+ private:
   Paragraph m_paragraph;
   ParagraphLayout m_layout;
   PaintStyle m_effect;
-  kit::RebuildGuard<SkISize, const SkTypeface *, float> m_layoutBuild;
+  kit::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
   kit::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
   sk_sp<SkTypeface> m_serif;
   uint32_t m_textLength = 0;
@@ -175,10 +175,10 @@ private:
   float m_glowIntensity = 1;
 };
 
-} // namespace
+}  // namespace
 
 std::unique_ptr<Scene> makeStressPart() {
   return std::make_unique<StressPart>();
 }
 
-} // namespace gallery
+}  // namespace gallery

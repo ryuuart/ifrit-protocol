@@ -5,6 +5,27 @@
 // Poly Haven studio HDRI is present there, an extra materials panel
 // renders under the REAL environment instead of the procedural bakes.
 
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkStream.h>
+#include <include/core/SkSurface.h>
+#include <include/encode/SkPngEncoder.h>
+#include <sigilcompose/Compose.h>
+#include <sigilimage/Decode.h>
+#include <sigilimage/ImageAsset.h>
+#include <sigilloader/Loader.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweavekit/SigilWeaveKit.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <functional>
+
 #include "sigilshape/Blend.h"
 #include "sigilshape/Curves.h"
 #include "sigilshape/Geometry.h"
@@ -16,47 +37,21 @@
 #include "sigilshape/Pop.h"
 #include "sigilshape/Space.h"
 
-#include <sigilcompose/Compose.h>
-#include <sigilimage/Decode.h>
-#include <sigilimage/ImageAsset.h>
-#include <sigilloader/Loader.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweavekit/SigilWeaveKit.h>
-
-#include <include/core/SkPicture.h>
-
-#include <algorithm>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkStream.h>
-#include <include/core/SkSurface.h>
-#include <include/encode/SkPngEncoder.h>
-
-#include <cmath>
-#include <cstdio>
-#include <filesystem>
-#include <functional>
-
 using namespace sigil::shape;
 
 namespace {
 
-bool writePanel(SkSize size, const std::filesystem::path &path,
-                const std::function<void(SkCanvas &)> &draw,
+bool writePanel(SkSize size, const std::filesystem::path& path,
+                const std::function<void(SkCanvas&)>& draw,
                 SkColor clear = 0xff101014) {
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-      (int)size.width(), (int)size.height()));
-  if (!surface)
-    return false;
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height()));
+  if (!surface) return false;
   surface->getCanvas()->clear(clear);
   draw(*surface->getCanvas());
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
-  if (!surface->readPixels(bm.pixmap(), 0, 0))
-    return false;
+  if (!surface->readPixels(bm.pixmap(), 0, 0)) return false;
   SkFILEWStream stream(path.string().c_str());
   return stream.isValid() && SkPngEncoder::Encode(&stream, bm.pixmap(), {});
 }
@@ -93,8 +88,7 @@ SkPath squircle(float radius, SkPoint center, float exponent = 4) {
     const float t = (float)i / (float)n * 2.0f * (float)M_PI;
     const float c = std::cos(t), s = std::sin(t);
     auto shaped = [&](float x) {
-      return (x < 0 ? -1.0f : 1.0f) *
-             std::pow(std::abs(x), 2.0f / exponent);
+      return (x < 0 ? -1.0f : 1.0f) * std::pow(std::abs(x), 2.0f / exponent);
     };
     const SkPoint p = {center.fX + radius * shaped(c),
                        center.fY + radius * shaped(s)};
@@ -113,9 +107,9 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
   for (int i = 0; i <= n; ++i) {
     const float t = (float)i / (float)n;
     const float x = from.fX + (to.fX - from.fX) * t;
-    const float y = from.fY + (to.fY - from.fY) * t +
-                    amplitude * std::sin(t * (float)cycles * 2.0f *
-                                         (float)M_PI);
+    const float y =
+        from.fY + (to.fY - from.fY) * t +
+        amplitude * std::sin(t * (float)cycles * 2.0f * (float)M_PI);
     if (i == 0)
       b.moveTo({x, y});
     else
@@ -124,16 +118,15 @@ SkPath wave(SkPoint from, SkPoint to, float amplitude, int cycles) {
   return b.detach();
 }
 
-void checker(SkCanvas &canvas, SkRect area, float cell, SkColor a,
-             SkColor b) {
+void checker(SkCanvas& canvas, SkRect area, float cell, SkColor a, SkColor b) {
   SkPaint paint;
   for (int y = 0; (float)y * cell < area.height(); ++y)
     for (int x = 0; (float)x * cell < area.width(); ++x) {
       paint.setColor((x + y) % 2 == 0 ? a : b);
-      canvas.drawRect(SkRect::MakeXYWH(area.left() + (float)x * cell,
-                                       area.top() + (float)y * cell, cell,
-                                       cell),
-                      paint);
+      canvas.drawRect(
+          SkRect::MakeXYWH(area.left() + (float)x * cell,
+                           area.top() + (float)y * cell, cell, cell),
+          paint);
     }
 }
 
@@ -142,22 +135,22 @@ void checker(SkCanvas &canvas, SkRect area, float cell, SkColor a,
 sk_sp<SkImage> uiCardImage(int w, int h, SkColor4f accent) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas *c = surface->getCanvas();
+  SkCanvas* c = surface->getCanvas();
   c->clear(0xE60E1220);
   SkPaint p;
   p.setAntiAlias(true);
 
   p.setColor4f({accent.fR, accent.fG, accent.fB, 0.9f});
-  c->drawRRect(SkRRect::MakeRectXY(
-                   SkRect::MakeXYWH(16, 16, (float)w - 32, 14), 7, 7),
-               p);
+  c->drawRRect(
+      SkRRect::MakeRectXY(SkRect::MakeXYWH(16, 16, (float)w - 32, 14), 7, 7),
+      p);
   p.setColor4f({1, 1, 1, 0.25f});
   for (int i = 0; i < 4; ++i)
-    c->drawRRect(SkRRect::MakeRectXY(
-                     SkRect::MakeXYWH(16, 48 + (float)i * 22,
-                                      (float)(w - 60 - i * 40), 8),
-                     4, 4),
-                 p);
+    c->drawRRect(
+        SkRRect::MakeRectXY(SkRect::MakeXYWH(16, 48 + (float)i * 22,
+                                             (float)(w - 60 - i * 40), 8),
+                            4, 4),
+        p);
 
   // gauge arc
   SkPaint arc;
@@ -166,8 +159,8 @@ sk_sp<SkImage> uiCardImage(int w, int h, SkColor4f accent) {
   arc.setStrokeWidth(12);
   arc.setStrokeCap(SkPaint::kRound_Cap);
   arc.setColor4f({1, 1, 1, 0.15f});
-  const SkRect gauge = SkRect::MakeXYWH((float)w - 130, (float)h - 130,
-                                        100, 100);
+  const SkRect gauge =
+      SkRect::MakeXYWH((float)w - 130, (float)h - 130, 100, 100);
   c->drawArc(gauge, 130, 280, false, arc);
   arc.setColor4f(accent);
   c->drawArc(gauge, 130, 200, false, arc);
@@ -196,7 +189,7 @@ sk_sp<SkImage> uiCardImage(int w, int h, SkColor4f accent) {
 
 // --- panels ---------------------------------------------------------------
 
-void panelBlendMorph(SkCanvas &canvas) {
+void panelBlendMorph(SkCanvas& canvas) {
   // Row 1: star -> circle, the eight-step classic.
   {
     blend::Key from{star(5, 70, 30, {110, 130}), {1.0f, 0.42f, 0.30f, 1}};
@@ -231,7 +224,7 @@ void panelBlendMorph(SkCanvas &canvas) {
   }
 }
 
-void panelBlendColor(SkCanvas &canvas) {
+void panelBlendColor(SkCanvas& canvas) {
   // Left: the smooth-color glow stack — one blob scaled down through
   // hue, Illustrator's Smooth Color choosing the step count.
   {
@@ -258,7 +251,7 @@ void panelBlendColor(SkCanvas &canvas) {
   }
 }
 
-void panelBlendSpine(SkCanvas &canvas) {
+void panelBlendSpine(SkCanvas& canvas) {
   // Blend riding a spiral spine, align-to-path.
   SkPathBuilder spiral;
   const SkPoint c = {620, 360};
@@ -283,7 +276,7 @@ void panelBlendSpine(SkCanvas &canvas) {
   blend::draw(canvas, blend::make(from, to, options));
 }
 
-void panelMaterials(SkCanvas &canvas) {
+void panelMaterials(SkCanvas& canvas) {
   const materials::Environment studio = materials::Environment::studio();
   const materials::Environment sunset = materials::Environment::sunset();
 
@@ -296,9 +289,9 @@ void panelMaterials(SkCanvas &canvas) {
     SkPaint bright;
     bright.setAntiAlias(true);
     bright.setColor4f({0.85f, 0.88f, 0.95f, 0.9f});
-    canvas.drawRRect(SkRRect::MakeRectXY(
-                         SkRect::MakeXYWH(640, 40, 300, 640), 24, 24),
-                     bright);
+    canvas.drawRRect(
+        SkRRect::MakeRectXY(SkRect::MakeXYWH(640, 40, 300, 640), 24, 24),
+        bright);
   }
   checker(canvas, SkRect::MakeXYWH(650, 50, 280, 620), 35, 0xffdadde8,
           0xff9aa0b8);
@@ -330,8 +323,7 @@ void panelMaterials(SkCanvas &canvas) {
   foil.crinkle = 0.55f;
   foil.sparkle = 0.8f;
   foil.roughness = 0.35f;
-  materials::drawGold(canvas, star(5, 100, 46, {180, 390}), studio, 8,
-                      foil);
+  materials::drawGold(canvas, star(5, 100, 46, {180, 390}), studio, 8, foil);
   materials::GoldParams rough;
   rough.roughness = 0.7f;
   rough.crinkle = 0.2f;
@@ -343,18 +335,15 @@ void panelMaterials(SkCanvas &canvas) {
   brushed.brushed = 0.85f;
   brushed.roughness = 0.25f;
   brushed.contrast = 1.2f;
-  materials::drawChrome(canvas, circle(88, {480, 390}), studio, 14,
-                        brushed);
+  materials::drawChrome(canvas, circle(88, {480, 390}), studio, 14, brushed);
   materials::ChromeParams y2k;
   y2k.contrast = 1.35f;
   y2k.roughness = 0.08f;
-  materials::drawChrome(canvas, star(9, 98, 64, {480, 600}), sunset, 10,
-                        y2k);
+  materials::drawChrome(canvas, star(9, 98, 64, {480, 600}), sunset, 10, y2k);
 
   // Column 3: glass over the backdrop.
   if (backdrop) {
-    materials::drawGlass(canvas, circle(92, {780, 170}), studio, backdrop,
-                         16);
+    materials::drawGlass(canvas, circle(92, {780, 170}), studio, backdrop, 16);
     materials::GlassParams deep;
     deep.tint = {0.75f, 0.9f, 0.8f, 1};
     deep.refractPx = 30;
@@ -364,12 +353,12 @@ void panelMaterials(SkCanvas &canvas) {
     materials::GlassParams shard;
     shard.tint = {0.9f, 0.85f, 1.0f, 1};
     shard.reflect = 0.75f;
-    materials::drawGlass(canvas, star(6, 100, 52, {780, 630}), sunset,
-                         backdrop, 12, shard);
+    materials::drawGlass(canvas, star(6, 100, 52, {780, 630}), sunset, backdrop,
+                         12, shard);
   }
 }
 
-void panelMeshPerspective(SkCanvas &canvas) {
+void panelMeshPerspective(SkCanvas& canvas) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 260, 950};
@@ -386,37 +375,38 @@ void panelMeshPerspective(SkCanvas &canvas) {
   // Extruded star, tilted.
   Mesh starMesh = mesh::extrude(star(5, 95, 44, {0, 0}), {.depth = 40});
   space::drawMesh(canvas, starMesh, space::place({-300, 60, 0}, 38, -18, 8),
-           camera, viewport, steel);
+                  camera, viewport, steel);
 
   // Torus.
   space::MeshStyle bronze = steel;
   bronze.baseColor = {0.85f, 0.55f, 0.3f, 1};
   space::drawMesh(canvas, mesh::torus(110, 40),
-           space::place({20, 40, -60}, 0, -32, 14), camera, viewport,
-           bronze);
+                  space::place({20, 40, -60}, 0, -32, 14), camera, viewport,
+                  bronze);
 
   // Revolved vase.
   std::vector<glm::vec2> profile;
   for (int i = 0; i <= 24; ++i) {
     const float t = (float)i / 24.0f;
-    const float r = 46.0f + 34.0f * std::sin(t * 3.1f + 0.4f) +
-                    18.0f * std::sin(t * 8.0f);
+    const float r =
+        46.0f + 34.0f * std::sin(t * 3.1f + 0.4f) + 18.0f * std::sin(t * 8.0f);
     profile.push_back({r, (t - 0.5f) * 240.0f});
   }
   space::MeshStyle jade = steel;
   jade.baseColor = {0.35f, 0.8f, 0.6f, 1};
   space::drawMesh(canvas, mesh::revolve(profile),
-           space::place({330, 30, -30}, 0, 0, 0), camera, viewport, jade);
+                  space::place({330, 30, -30}, 0, 0, 0), camera, viewport,
+                  jade);
 
   // Superellipsoid pedestal under everything.
   space::MeshStyle slate = steel;
   slate.baseColor = {0.3f, 0.32f, 0.4f, 1};
   slate.specular = 0.4f;
   space::drawMesh(canvas, mesh::superellipsoid({420, 26, 200}, 6),
-           space::place({0, -150, 0}), camera, viewport, slate);
+                  space::place({0, -150, 0}), camera, viewport, slate);
 }
 
-void panelMeshChrome(SkCanvas &canvas) {
+void panelMeshChrome(SkCanvas& canvas) {
   // The deferred bridge: 3D normal G-buffer -> per-pixel materials.
   const SkSize viewport = {1240, 720};
   space::Camera camera;
@@ -426,10 +416,9 @@ void panelMeshChrome(SkCanvas &canvas) {
   space::MeshStyle normals;
   normals.mode = space::MeshStyle::Mode::Normals;
 
-  auto renderNormals = [&](const Mesh &m, const glm::mat4 &model) {
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul((int)viewport.width(),
-                                   (int)viewport.height()));
+  auto renderNormals = [&](const Mesh& m, const glm::mat4& model) {
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+        (int)viewport.width(), (int)viewport.height()));
     // Flat-normal clear: outside geometry stays (0,0,1).
     surface->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 255));
     space::drawMesh(*surface->getCanvas(), m, model, camera, viewport, normals);
@@ -447,8 +436,7 @@ void panelMeshChrome(SkCanvas &canvas) {
     sk_sp<SkImage> g = renderNormals(m, model);
     materials::ChromeParams params;
     params.contrast = 1.35f;
-    sk_sp<SkShader> shader =
-        materials::chrome(g, sunset, {0, 0}, params);
+    sk_sp<SkShader> shader = materials::chrome(g, sunset, {0, 0}, params);
     // Coverage mask: rasterize the mesh once more (any opaque mode),
     // then shade its pixels through kSrcIn.
     canvas.saveLayer(nullptr, nullptr);
@@ -482,7 +470,7 @@ void panelMeshChrome(SkCanvas &canvas) {
   }
 }
 
-void panelSpace(SkCanvas &canvas) {
+void panelSpace(SkCanvas& canvas) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 80, 900};
@@ -495,8 +483,7 @@ void panelSpace(SkCanvas &canvas) {
   wire.mode = space::MeshStyle::Mode::Lit;
   wire.specular = 0;
   Mesh floor = mesh::grid(24, 24, [](float u, float v) -> glm::vec3 {
-    return {(u - 0.5f) * 1400, -170,
-            (v - 0.5f) * 1400};
+    return {(u - 0.5f) * 1400, -170, (v - 0.5f) * 1400};
   });
   space::drawMesh(canvas, floor, glm::mat4(1.0f), camera, viewport, wire);
 
@@ -505,14 +492,14 @@ void panelSpace(SkCanvas &canvas) {
   sk_sp<SkImage> cardB = uiCardImage(360, 240, {1.0f, 0.6f, 0.25f, 1});
   sk_sp<SkImage> cardC = uiCardImage(360, 240, {0.7f, 0.45f, 1.0f, 1});
   space::drawImagePanel(canvas, cardA, 360, 240,
-                        space::place({-350, 120, -80}, 34), camera,
-                        viewport, 0.95f);
+                        space::place({-350, 120, -80}, 34), camera, viewport,
+                        0.95f);
   space::drawImagePanel(canvas, cardB, 360, 240,
-                        space::place({0, 130, 30}, 0, -4), camera,
-                        viewport, 0.98f);
+                        space::place({0, 130, 30}, 0, -4), camera, viewport,
+                        0.98f);
   space::drawImagePanel(canvas, cardC, 360, 240,
-                        space::place({350, 110, -80}, -34), camera,
-                        viewport, 0.95f);
+                        space::place({350, 110, -80}, -34), camera, viewport,
+                        0.95f);
 
   // A curved panel: texture the cylinderPanel mesh.
   space::MeshStyle screen;
@@ -522,23 +509,21 @@ void panelSpace(SkCanvas &canvas) {
   screen.lights = {};
   screen.specular = 0;
   space::drawMesh(canvas, mesh::cylinderPanel(680, 190, 420, 48, 10),
-                  space::place({0, -160, 60}, 0, 10), camera, viewport,
-                  screen);
+                  space::place({0, -160, 60}, 0, 10), camera, viewport, screen);
 }
 
-} // namespace
+}  // namespace
 
 // The Pathfinder panel and the Distort menu: booleans on a star+circle
 // pair, offset rings, and the four distorts over one base star.
-void panelPathfinder(SkCanvas &canvas) {
-  const auto fill = [&](const SkPath &path, SkColor4f color) {
+void panelPathfinder(SkCanvas& canvas) {
+  const auto fill = [&](const SkPath& path, SkColor4f color) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setColor4f(color);
     canvas.drawPath(path, paint);
   };
-  const auto outline = [&](const SkPath &path, SkColor4f color,
-                           float width) {
+  const auto outline = [&](const SkPath& path, SkColor4f color, float width) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
@@ -552,15 +537,15 @@ void panelPathfinder(SkCanvas &canvas) {
     const float y = 140;
     const SkColor4f ink = {0.85f, 0.9f, 1.0f, 1};
     struct Case {
-      const char *name;
-      SkPath (*op)(const SkPath &, const SkPath &);
+      const char* name;
+      SkPath (*op)(const SkPath&, const SkPath&);
     };
     const Case cases[] = {{"unite", ops::unite},
                           {"subtract", ops::subtract},
                           {"intersect", ops::intersect},
                           {"exclude", ops::exclude}};
     float x = 170;
-    for (const Case &c : cases) {
+    for (const Case& c : cases) {
       const SkPath a = star(5, 78, 34, {x - 18, y});
       const SkPath b = circle(52, {x + 34, y + 18});
       outline(a, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
@@ -574,8 +559,9 @@ void panelPathfinder(SkCanvas &canvas) {
     const SkPath base = squircle(70, {250, 430}, 3.0f);
     for (int i = -2; i <= 3; ++i) {
       const SkPath ring = ops::offset(base, (float)i * 22.0f);
-      outline(ring, {0.3f + 0.12f * (float)(i + 2),
-                     0.75f - 0.09f * (float)(i + 2), 1.0f, 0.9f},
+      outline(ring,
+              {0.3f + 0.12f * (float)(i + 2), 0.75f - 0.09f * (float)(i + 2),
+               1.0f, 0.9f},
               i == 0 ? 4.0f : 2.0f);
     }
   }
@@ -583,9 +569,9 @@ void panelPathfinder(SkCanvas &canvas) {
   {
     const SkPath base = circle(80, {700, 430});
     outline(base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
-    const ops::PathOp recipe = ops::chain(
-        {ops::offsetBy(18), ops::Zigzag{7, 30, true},
-         ops::Roughen{2.5f, 6, 11}});
+    const ops::PathOp recipe =
+        ops::chain({ops::offsetBy(18), ops::Zigzag{7, 30, true},
+                    ops::Roughen{2.5f, 6, 11}});
     fill(recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
   }
   // Row 3 — the distorts over one base star.
@@ -605,7 +591,7 @@ void panelPathfinder(SkCanvas &canvas) {
         {ops::Twirl{100}.apply(base), {0.95f, 0.5f, 0.7f, 1}},
     };
     float x = 130;
-    for (const Row &row : rows) {
+    for (const Row& row : rows) {
       canvas.save();
       canvas.translate(x, y);
       fill(row.path, row.color);
@@ -618,7 +604,7 @@ void panelPathfinder(SkCanvas &canvas) {
 // Splines crossing space: one knotted 3D curve carrying everything —
 // tube geometry, a taper ribbon, arc-length beads as billboards, and
 // instanced panels standing on its frames.
-void panelSplines(SkCanvas &canvas) {
+void panelSplines(SkCanvas& canvas) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {60, 500, 780};
@@ -629,9 +615,8 @@ void panelSplines(SkCanvas &canvas) {
   knot.closed = true;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    knot.points.push_back({std::cos(a) * 300,
-                           std::sin(a * 3.0f) * 110,
-                           std::sin(a) * 300});
+    knot.points.push_back(
+        {std::cos(a) * 300, std::sin(a * 3.0f) * 110, std::sin(a) * 300});
   }
 
   // The tube, lit like brushed steel.
@@ -639,22 +624,19 @@ void panelSplines(SkCanvas &canvas) {
   steel.baseColor = {0.6f, 0.68f, 0.8f, 1};
   steel.specular = 0.9f;
   steel.shininess = 48;
-  space::drawMesh(canvas,
-                  curves::tube(knot, {.radius = 9,
-                                      .segments = 220,
-                                      .sides = 12}),
-                  glm::mat4(1.0f), camera, viewport, steel);
+  space::drawMesh(
+      canvas, curves::tube(knot, {.radius = 9, .segments = 220, .sides = 12}),
+      glm::mat4(1.0f), camera, viewport, steel);
 
   // Instanced panels standing on the curve's frames, tilted like
   // solar panels (a cooked lane: binormal leaned toward the normal).
   Cloud stations = points::onSpline(knot, 14);
   {
-    std::vector<glm::vec4> &tint = stations.color("tint");
-    std::vector<glm::vec3> &facing = stations.vector("facing");
-    const std::vector<float> &t = *stations.scalarIf("t");
-    const std::vector<glm::vec3> &normal = *stations.vectorIf("normal");
-    const std::vector<glm::vec3> &binormal =
-        *stations.vectorIf("binormal");
+    std::vector<glm::vec4>& tint = stations.color("tint");
+    std::vector<glm::vec3>& facing = stations.vector("facing");
+    const std::vector<float>& t = *stations.scalarIf("t");
+    const std::vector<glm::vec3>& normal = *stations.vectorIf("normal");
+    const std::vector<glm::vec3>& binormal = *stations.vectorIf("binormal");
     for (size_t i = 0; i < stations.size(); ++i) {
       tint[i] = {0.35f + 0.6f * t[i], 0.9f - 0.5f * t[i], 1.0f, 0.85f};
       const glm::vec3 lean = binormal[i] + normal[i] * 1.2f;
@@ -675,9 +657,9 @@ void panelSplines(SkCanvas &canvas) {
   // Particles: a drifting halo around the wire, additive.
   Cloud sparks = points::onSpline(knot, 320);
   {
-    std::vector<glm::vec4> &tint = sparks.color("tint");
-    std::vector<float> &size = sparks.scalar("size", 1);
-    const std::vector<float> &t = *sparks.scalarIf("t");
+    std::vector<glm::vec4>& tint = sparks.color("tint");
+    std::vector<float>& size = sparks.scalar("size", 1);
+    const std::vector<float>& t = *sparks.scalarIf("t");
     for (size_t i = 0; i < sparks.size(); ++i) {
       tint[i] = {0.4f + 0.6f * t[i], 0.75f, 1.0f - 0.5f * t[i], 0.28f};
       size[i] = 0.4f + 0.8f * std::abs(std::sin(t[i] * 40.0f));
@@ -703,8 +685,7 @@ void panelSplines(SkCanvas &canvas) {
 // Materials under a fetched HDRI: SigilLoader -> OIIO -> F32 equirect
 // SkImage -> Environment::fromEquirect. Gold/chrome/glass badges lit by
 // a real studio.
-void panelMaterialsHdri(SkCanvas &canvas,
-                        const materials::Environment &env) {
+void panelMaterialsHdri(SkCanvas& canvas, const materials::Environment& env) {
   checker(canvas, SkRect::MakeXYWH(0, 0, 1240, 720), 40, 0xff191920,
           0xff232330);
   SkPaint blob;
@@ -725,8 +706,7 @@ void panelMaterialsHdri(SkCanvas &canvas,
   materials::GoldParams gold;
   gold.crinkle = 0.3f;
   gold.roughness = 0.2f;
-  materials::drawGold(canvas, star(6, 110, 60, {210, 200}), env, 12,
-                      gold);
+  materials::drawGold(canvas, star(6, 110, 60, {210, 200}), env, 12, gold);
   materials::GoldParams coin;
   coin.roughness = 0.55f;
   coin.crinkle = 0.1f;
@@ -743,12 +723,11 @@ void panelMaterialsHdri(SkCanvas &canvas,
   brushed.exposure = 2.8f;
   materials::drawChrome(canvas, circle(98, {560, 520}), env, 16, brushed);
   if (backdrop) {
-    materials::drawGlass(canvas, circle(102, {920, 240}), env, backdrop,
-                         18);
+    materials::drawGlass(canvas, circle(102, {920, 240}), env, backdrop, 18);
     materials::GlassParams deep;
     deep.refractPx = 26;
-    materials::drawGlass(canvas, squircle(98, {940, 520}, 2.8f), env,
-                         backdrop, 20, deep);
+    materials::drawGlass(canvas, squircle(98, {940, 520}, 2.8f), env, backdrop,
+                         20, deep);
   }
 }
 
@@ -757,8 +736,8 @@ void panelMaterialsHdri(SkCanvas &canvas,
 // joins the lineup). Each part draws with its own base color and, when
 // the file carries one, its base-color texture — SigilImage decodes
 // the encoded bytes the importer hands over.
-void panelImportedModels(SkCanvas &canvas,
-                         const std::vector<import::Model> &models) {
+void panelImportedModels(SkCanvas& canvas,
+                         const std::vector<import::Model>& models) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 170, 860};
@@ -777,15 +756,14 @@ void panelImportedModels(SkCanvas &canvas,
   const float slots[3] = {-370, 0, 370};
   const int count = std::min((int)models.size(), 3);
   for (int i = 0; i < count; ++i) {
-    const import::Model &model = models[(size_t)i];
-    const glm::mat4 place =
-        space::place({slots[count == 1 ? 1 : i], 0, 0},
-                     -34 + 26.0f * (float)i, -6) *
-        model.fitTransform(290);
-    for (const import::Part &part : model.parts) {
+    const import::Model& model = models[(size_t)i];
+    const glm::mat4 place = space::place({slots[count == 1 ? 1 : i], 0, 0},
+                                         -34 + 26.0f * (float)i, -6) *
+                            model.fitTransform(290);
+    for (const import::Part& part : model.parts) {
       space::MeshStyle style;
-      style.baseColor = {part.baseColor.r, part.baseColor.g,
-                         part.baseColor.b, part.baseColor.a};
+      style.baseColor = {part.baseColor.r, part.baseColor.g, part.baseColor.b,
+                         part.baseColor.a};
       style.lights = {
           {{-0.5f, -0.75f, -0.4f}, {1.0f, 0.97f, 0.92f, 1}, 1.05f},
           {{0.65f, -0.15f, -0.35f}, {0.45f, 0.55f, 0.85f, 1}, 0.4f}};
@@ -793,9 +771,9 @@ void panelImportedModels(SkCanvas &canvas,
       style.specular = 0.25f;
       style.shininess = 24;
       if (!part.textureBytes.empty()) {
-        if (auto decoded = sigil::image::decodeImage(
-                part.textureBytes.data(), part.textureBytes.size(), {},
-                part.textureUri))
+        if (auto decoded = sigil::image::decodeImage(part.textureBytes.data(),
+                                                     part.textureBytes.size(),
+                                                     {}, part.textureUri))
           style.texture = decoded->frameAt(0).image;
       }
       space::drawMesh(canvas, part.mesh, place, camera, viewport, style);
@@ -808,32 +786,34 @@ void panelImportedModels(SkCanvas &canvas,
 sk_sp<SkImage> spriteAtlas() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(256, 256));
-  SkCanvas *c = surface->getCanvas();
+  SkCanvas* c = surface->getCanvas();
   c->clear(SK_ColorTRANSPARENT);
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f({0.4f, 0.85f, 1.0f, 1});
-  c->drawCircle(64, 64, 44, p); // dot
+  c->drawCircle(64, 64, 44, p);  // dot
   p.setColor4f({1.0f, 0.6f, 0.3f, 1});
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(16);
-  c->drawCircle(192, 64, 38, p); // ring
+  c->drawCircle(192, 64, 38, p);  // ring
   p.setStyle(SkPaint::kFill_Style);
   p.setColor4f({0.6f, 1.0f, 0.6f, 1});
   SkPathBuilder diamond;
-  diamond.moveTo({64, 148}).lineTo({108, 192}).lineTo({64, 236}).lineTo(
-      {20, 192});
+  diamond.moveTo({64, 148})
+      .lineTo({108, 192})
+      .lineTo({64, 236})
+      .lineTo({20, 192});
   diamond.close();
-  c->drawPath(diamond.detach(), p); // diamond
+  c->drawPath(diamond.detach(), p);  // diamond
   p.setColor4f({1.0f, 0.8f, 0.3f, 1});
-  c->drawPath(star(4, 46, 16, {192, 192}), p); // sparkle
+  c->drawPath(star(4, 46, 16, {192, 192}), p);  // sparkle
   return surface->makeImageSnapshot();
 }
 
 // The pop combinators, spoken as an artist: chains form models, sinks
 // pick the former, every edit is a value. This panel IS the example —
 // copy any stanza into a sketch and turn the dials.
-void panelPop(SkCanvas &canvas) {
+void panelPop(SkCanvas& canvas) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 260, 980};
@@ -843,8 +823,8 @@ void panelPop(SkCanvas &canvas) {
   std::vector<glm::vec3> ring;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    ring.push_back({std::cos(a) * 230, std::sin(a * 2.0f) * 60,
-                    std::sin(a) * 230});
+    ring.push_back(
+        {std::cos(a) * 230, std::sin(a * 2.0f) * 60, std::sin(a) * 230});
   }
 
   space::MeshStyle steel;
@@ -853,11 +833,9 @@ void panelPop(SkCanvas &canvas) {
   steel.shininess = 48;
 
   // A noised ring becomes a wobbly tube: three verbs and a sink.
-  space::drawMesh(canvas,
-                  pop::on(ring).count(220).noise(26, 0.004f).tube(
-                      11, 14, true),
-                  space::place({-330, 40, 0}, 24, -10), camera,
-                  viewport, steel);
+  space::drawMesh(
+      canvas, pop::on(ring).count(220).noise(26, 0.004f).tube(11, 14, true),
+      space::place({-330, 40, 0}, 24, -10), camera, viewport, steel);
 
   // The same loop, stamped: scattered plates facing the camera,
   // scale varied, tint faded around the ring.
@@ -865,7 +843,7 @@ void panelPop(SkCanvas &canvas) {
   plates.baseColor = {1, 1, 1, 1};
   plates.ambient = {0.85f, 0.85f, 0.9f, 1};
   plates.specular = 0;
-  plates.texture = spriteAtlas(); // .atlas() picks each stamp's cell
+  plates.texture = spriteAtlas();  // .atlas() picks each stamp's cell
   space::drawMesh(canvas,
                   pop::on(ring)
                       .count(900)
@@ -875,8 +853,7 @@ void panelPop(SkCanvas &canvas) {
                       .atlas(2, 2)
                       .lookAt(camera.eye)
                       .stamps(mesh::quad(11, 11)),
-                  space::place({330, 60, 0}, -16), camera, viewport,
-                  plates);
+                  space::place({330, 60, 0}, -16), camera, viewport, plates);
 
   // A ribbon on a lifted window of the loop — the chain is open:
   // reach in, move it, re-form.
@@ -889,8 +866,7 @@ void panelPop(SkCanvas &canvas) {
                          .noise(20, 0.004f)
                          .smooth(0.5f, 2)
                          .sweep(star(5, 30, 14, {0, 0}), true);
-  const glm::mat4 crownPlace =
-      space::place({0, 255, -140}, 14, -10, 0, 0.85f);
+  const glm::mat4 crownPlace = space::place({0, 255, -140}, 14, -10, 0, 0.85f);
   space::drawMesh(canvas, crown, crownPlace, camera, viewport, gold);
   // ...and pops seed from FORMED models: glints scattered on the
   // crown's own surface, facing along its normals.
@@ -902,18 +878,16 @@ void panelPop(SkCanvas &canvas) {
                   pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3)),
                   crownPlace, camera, viewport, glint);
 
-  pop::Chain wave =
-      pop::on(ring)
-          .count(120)
-          .window(0.5f, 0.5f)
-          .noise(16, 0.004f)
-          .smooth(0.6f, 3); // heal the kinks before the sweep
+  pop::Chain wave = pop::on(ring)
+                        .count(120)
+                        .window(0.5f, 0.5f)
+                        .noise(16, 0.004f)
+                        .smooth(0.6f, 3);  // heal the kinks before the sweep
   space::MeshStyle jade = steel;
   jade.baseColor = {0.4f, 0.85f, 0.6f, 1};
-  jade.backfaceCull = false; // a band twists; show both faces
+  jade.backfaceCull = false;  // a band twists; show both faces
   space::drawMesh(canvas, popops::cookRibbon(wave, 42, {.segments = 120}),
-                  space::place({0, -60, 140}, 0, 14), camera, viewport,
-                  jade);
+                  space::place({0, -60, 140}, 0, 14), camera, viewport, jade);
 }
 
 // The PRIMITIVE class: attributes that live on TRIANGLES, the sibling
@@ -931,7 +905,7 @@ void panelPop(SkCanvas &canvas) {
 //     .promote("Id") stamps each triangle with its owning point's
 //     index, and the demo colours by it. A stamp instance is a run of
 //     triangles sharing an Id value, not a second container.
-void panelPopPrims(SkCanvas &canvas) {
+void panelPopPrims(SkCanvas& canvas) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 210, 900};
@@ -948,24 +922,23 @@ void panelPopPrims(SkCanvas &canvas) {
   space::MeshStyle flat;
   flat.baseColor = {1, 1, 1, 1};
   flat.ambient = {0.34f, 0.34f, 0.38f, 1};
-  flat.specular = 0; // keep 1 and 2 comparable: no view-dependent terms
+  flat.specular = 0;  // keep 1 and 2 comparable: no view-dependent terms
   flat.rim = 0;
 
   // 1. A prim lane written straight onto a formed model.
   Mesh facets = mesh::torus(130, 46, 34, 14);
-  std::vector<glm::vec4> &color = facets.prim("Color");
+  std::vector<glm::vec4>& color = facets.prim("Color");
   for (size_t t = 0; t < color.size(); ++t)
     color[t] = wheel((float)(t / 2) / (float)(color.size() / 2),
                      t % 2 == 0 ? 1.0f : 0.55f);
   space::MeshStyle lit = flat;
   lit.primColorLane = "Color";
-  space::drawMesh(canvas, facets, space::place({-380, 10, 0}, 0, -28),
-                  camera, viewport, lit);
+  space::drawMesh(canvas, facets, space::place({-380, 10, 0}, 0, -28), camera,
+                  viewport, lit);
 
   // 2. The same lane, baked into vertices for renderers without one.
   space::drawMesh(canvas, mesh::bakePrimColor(facets, "Color"),
-                  space::place({0, 10, 0}, 0, -28), camera, viewport,
-                  flat);
+                  space::place({0, 10, 0}, 0, -28), camera, viewport, flat);
 
   // 3. The promote: point class -> prim class, addressed by name.
   std::vector<glm::vec3> loop;
@@ -982,8 +955,8 @@ void panelPopPrims(SkCanvas &canvas) {
                     .lookAt(camera.eye)
                     .promote("Id")
                     .stamps(mesh::quad(46, 46));
-  if (const std::vector<glm::vec4> *ids = pieces.primIf("Id")) {
-    std::vector<glm::vec4> &tint = pieces.prim("Color");
+  if (const std::vector<glm::vec4>* ids = pieces.primIf("Id")) {
+    std::vector<glm::vec4>& tint = pieces.prim("Color");
     for (size_t t = 0; t < tint.size(); ++t) {
       const int id = (int)(*ids)[t].x;
       tint[t] = wheel((float)(id * 19 % kPieces) / (float)kPieces,
@@ -992,8 +965,8 @@ void panelPopPrims(SkCanvas &canvas) {
   }
   space::MeshStyle stamped = lit;
   stamped.ambient = {0.9f, 0.9f, 0.95f, 1};
-  space::drawMesh(canvas, pieces, space::place({380, 10, 0}), camera,
-                  viewport, stamped);
+  space::drawMesh(canvas, pieces, space::place({380, 10, 0}), camera, viewport,
+                  stamped);
 }
 
 // The Skia yarn marquee: the SAME idea as SigilWorld's — a ball
@@ -1001,7 +974,7 @@ void panelPopPrims(SkCanvas &canvas) {
 // text — but formed by curves::banner and drawn by the PAINTER
 // (space::drawMesh), no GPU device anywhere. Arcs draw back-to-front
 // by centroid depth; interpenetrating wraps accept painter honesty.
-void panelYarnMarquee(SkCanvas &canvas) {
+void panelYarnMarquee(SkCanvas& canvas) {
   namespace sc = sigil::compose;
   namespace weave = sigil::weave;
   const SkSize viewport = {1240, 720};
@@ -1031,23 +1004,24 @@ void panelYarnMarquee(SkCanvas &canvas) {
   weave::FontContext fonts(weave::ports::systemFontManager());
   const SkColor kInk = SkColorSetARGB(255, 236, 244, 254);
   const SkColor kAccent = SkColorSetARGB(255, 116, 224, 190);
-  const auto para = [](const char8_t *s, float size, SkColor c) {
+  const auto para = [](const char8_t* s, float size, SkColor c) {
     auto p = std::make_shared<weave::Paragraph>();
     p->appendText(s, weave::kit::makeStyle(size, c));
     return p;
   };
   weave::ParagraphLayoutOptions centered;
   centered.alignment = weave::TextAlignment::kCenter;
-  sc::Element column = sc::box()
-                           .column()
-                           .width((float)kAcrossPx)
-                           .height(total)
-                           .padding(18, 60)
-                           .child(sc::box().left(4).top(0).bottom(0).width(3).fill(
-                               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.9f})))
-                           .child(sc::box().right(4).top(0).bottom(0).width(2).fill(
-                               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
-  const char8_t *pool[6] = {
+  sc::Element column =
+      sc::box()
+          .column()
+          .width((float)kAcrossPx)
+          .height(total)
+          .padding(18, 60)
+          .child(sc::box().left(4).top(0).bottom(0).width(3).fill(
+              sc::Fill::color({0.455f, 0.878f, 0.745f, 0.9f})))
+          .child(sc::box().right(4).top(0).bottom(0).width(2).fill(
+              sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
+  const char8_t* pool[6] = {
       u8"the same winding, no GPU anywhere",
       u8"curves::banner forms the band",
       u8"space::drawMesh paints the cloth",
@@ -1055,31 +1029,29 @@ void panelYarnMarquee(SkCanvas &canvas) {
       u8"one compose column, sliced to tiles",
       u8"skia end to end, the artist's backend",
   };
-  column.child(sc::text(para(u8"THE PAINTER'S YARN", 52, kAccent),
-                        centered));
+  column.child(sc::text(para(u8"THE PAINTER'S YARN", 52, kAccent), centered));
   for (int s = 0; s < 48; ++s) {
     column.child(sc::box().grow());
     char numeral[16];
     std::snprintf(numeral, sizeof(numeral), "- %02d -", s + 1);
-    std::u8string label((const char8_t *)numeral);
+    std::u8string label((const char8_t*)numeral);
     auto n = std::make_shared<weave::Paragraph>();
-    n->appendText(label, weave::kit::makeStyle(
-                             30, SkColorSetARGB(255, 150, 168, 196)));
+    n->appendText(
+        label, weave::kit::makeStyle(30, SkColorSetARGB(255, 150, 168, 196)));
     column.child(sc::text(n, centered));
     column.child(sc::text(para(pool[s % 6], 38, kInk), centered));
   }
   column.child(sc::box().grow());
-  column.child(sc::text(para(u8"and back to its own beginning", 42,
-                             kAccent),
-                        centered));
+  column.child(
+      sc::text(para(u8"and back to its own beginning", 42, kAccent), centered));
   const sk_sp<SkPicture> art = sc::snapshot(column, fonts);
 
   // Slice into tiles (mirror-x: the wall samples u right-to-left).
   std::vector<sk_sp<SkImage>> tiles;
   for (int k = 0; k < kTiles; ++k) {
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul(kAcrossPx, kTilePx));
-    SkCanvas *c = surface->getCanvas();
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kAcrossPx, kTilePx));
+    SkCanvas* c = surface->getCanvas();
     c->clear(SkColorSetARGB(120, 8, 12, 22));
     c->translate((float)kAcrossPx, 0);
     c->scale(-1, 1);
@@ -1097,11 +1069,10 @@ void panelYarnMarquee(SkCanvas &canvas) {
   std::vector<Arc> arcs;
   for (int k = 0; k < kTiles; ++k) {
     Arc arc;
-    arc.mesh = curves::banner(
-        yarn, {.width = kWidth,
-               .head = (float)(k + 1) / (float)kTiles,
-               .span = 1.0f / (float)kTiles,
-               .sections = 160});
+    arc.mesh = curves::banner(yarn, {.width = kWidth,
+                                     .head = (float)(k + 1) / (float)kTiles,
+                                     .span = 1.0f / (float)kTiles,
+                                     .sections = 160});
     glm::vec3 lo, hi;
     arc.mesh.bounds(&lo, &hi);
     const glm::vec3 mid = (lo + hi) * 0.5f;
@@ -1110,31 +1081,29 @@ void panelYarnMarquee(SkCanvas &canvas) {
     arcs.push_back(std::move(arc));
   }
   std::sort(arcs.begin(), arcs.end(),
-            [](const Arc &a, const Arc &b) { return a.depth > b.depth; });
-  for (const Arc &arc : arcs) {
+            [](const Arc& a, const Arc& b) { return a.depth > b.depth; });
+  for (const Arc& arc : arcs) {
     space::MeshStyle cloth;
     cloth.texture = tiles[(size_t)arc.tile];
     cloth.baseColor = {1, 1, 1, 1};
     cloth.ambient = {1, 1, 1, 1};
     cloth.lights = {};
     cloth.specular = 0;
-    cloth.backfaceCull = false; // the back of the cloth shows, honest
-    space::drawMesh(canvas, arc.mesh, glm::mat4(1.0f), camera, viewport,
-                    cloth);
+    cloth.backfaceCull = false;  // the back of the cloth shows, honest
+    space::drawMesh(canvas, arc.mesh, glm::mat4(1.0f), camera, viewport, cloth);
   }
   static_cast<void>(loopLen);
 }
 
-int main(int argc, char **argv) {
-  const std::filesystem::path outDir =
-      argc > 1 ? argv[1] : "shape_demo_out";
+int main(int argc, char** argv) {
+  const std::filesystem::path outDir = argc > 1 ? argv[1] : "shape_demo_out";
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
 
   struct Panel {
-    const char *name;
-    void (*draw)(SkCanvas &);
+    const char* name;
+    void (*draw)(SkCanvas&);
     SkColor clear;
   };
   const Panel panels[] = {
@@ -1154,9 +1123,10 @@ int main(int argc, char **argv) {
 
   int written = 0;
   int total = (int)std::size(panels);
-  for (const Panel &panel : panels) {
-    if (writePanel({1240, 720}, outDir / panel.name,
-                   [&](SkCanvas &c) { panel.draw(c); }, panel.clear)) {
+  for (const Panel& panel : panels) {
+    if (writePanel(
+            {1240, 720}, outDir / panel.name,
+            [&](SkCanvas& c) { panel.draw(c); }, panel.clear)) {
       ++written;
     } else {
       std::fprintf(stderr, "failed: %s\n", panel.name);
@@ -1173,9 +1143,9 @@ int main(int argc, char **argv) {
       const materials::Environment env =
           materials::Environment::fromEquirect(equirect->frameAt(0).image);
       ++total;
-      if (writePanel({1240, 720}, outDir / "materials_hdri.png",
-                     [&](SkCanvas &c) { panelMaterialsHdri(c, env); },
-                     0xff101014))
+      if (writePanel(
+              {1240, 720}, outDir / "materials_hdri.png",
+              [&](SkCanvas& c) { panelMaterialsHdri(c, env); }, 0xff101014))
         ++written;
       else
         std::fprintf(stderr, "failed: materials_hdri.png\n");
@@ -1189,24 +1159,20 @@ int main(int argc, char **argv) {
   const std::filesystem::path modelDir = assetDir / "models";
   if (std::filesystem::exists(modelDir)) {
     std::vector<std::filesystem::path> files;
-    for (const auto &entry :
-         std::filesystem::directory_iterator(modelDir))
-      if (entry.is_regular_file())
-        files.push_back(entry.path());
+    for (const auto& entry : std::filesystem::directory_iterator(modelDir))
+      if (entry.is_regular_file()) files.push_back(entry.path());
     std::sort(files.begin(), files.end());
-    for (const std::filesystem::path &file : files) {
-      if (models.size() == 3)
-        break;
-      if (auto model = import::model(file))
-        models.push_back(std::move(*model));
+    for (const std::filesystem::path& file : files) {
+      if (models.size() == 3) break;
+      if (auto model = import::model(file)) models.push_back(std::move(*model));
       // non-model files (licenses) simply don't import; no complaint
     }
   }
   if (!models.empty()) {
     ++total;
-    if (writePanel({1240, 720}, outDir / "imported_models.png",
-                   [&](SkCanvas &c) { panelImportedModels(c, models); },
-                   0xff0d0d13))
+    if (writePanel(
+            {1240, 720}, outDir / "imported_models.png",
+            [&](SkCanvas& c) { panelImportedModels(c, models); }, 0xff0d0d13))
       ++written;
     else
       std::fprintf(stderr, "failed: imported_models.png\n");

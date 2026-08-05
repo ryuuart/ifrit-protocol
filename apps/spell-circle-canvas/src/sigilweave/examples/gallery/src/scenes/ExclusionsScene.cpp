@@ -1,12 +1,12 @@
 // Scene: exclusions & SkPath shapes.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -16,34 +16,33 @@ namespace {
 
 QString exclusionsDefaultText() {
   return QStringLiteral(
-        "Typography is the craft of arranging type, and glyphs flow around "
-        "obstacles the way water flows around stones. 日本語のテキストも同じ"
-        "流れに乗って進み、한국어 단어들도 자연스럽게 흐르고, 中文字符同样围"
-        "绕形状排布。Latin and CJK mix freely because every word is shaped "
-        "once, cached, and repositioned with pure arithmetic. The orbiting "
-        "circle is a classic exclusion; the pulsing spiky ring and the donut "
-        "are arbitrary SkPaths — the ring is a brand-new path every frame as "
-        "its points breathe in and out, and both holes stay open to text. "
-        "When a shape slides across a line the line splits into fragments "
-        "and each fragment justifies itself independently; when it moves on, "
-        "the fragments knit back together as if nothing happened. No word is "
-        "ever reshaped for any of this, frame after frame after frame. "
-        "Everything you read here can be rewritten live from the panel on "
-        "the left: retype the body, swap the family, drag the size — the "
-        "shape cache absorbs each keystroke and the flow simply re-places "
-        "the words. 形が動くたびに行は裂け、また元通りに繋がる。글자는 한 번"
-        "만 성형되고 계속 재사용됩니다. The donut's hole is part of the same "
-        "even-odd path, so with enough text the lines pour straight through "
-        "its centre while avoiding the ring around it.");
+      "Typography is the craft of arranging type, and glyphs flow around "
+      "obstacles the way water flows around stones. 日本語のテキストも同じ"
+      "流れに乗って進み、한국어 단어들도 자연스럽게 흐르고, 中文字符同样围"
+      "绕形状排布。Latin and CJK mix freely because every word is shaped "
+      "once, cached, and repositioned with pure arithmetic. The orbiting "
+      "circle is a classic exclusion; the pulsing spiky ring and the donut "
+      "are arbitrary SkPaths — the ring is a brand-new path every frame as "
+      "its points breathe in and out, and both holes stay open to text. "
+      "When a shape slides across a line the line splits into fragments "
+      "and each fragment justifies itself independently; when it moves on, "
+      "the fragments knit back together as if nothing happened. No word is "
+      "ever reshaped for any of this, frame after frame after frame. "
+      "Everything you read here can be rewritten live from the panel on "
+      "the left: retype the body, swap the family, drag the size — the "
+      "shape cache absorbs each keystroke and the flow simply re-places "
+      "the words. 形が動くたびに行は裂け、また元通りに繋がる。글자는 한 번"
+      "만 성형되고 계속 재사용됩니다. The donut's hole is part of the same "
+      "even-odd path, so with enough text the lines pour straight through "
+      "its centre while avoiding the ring around it.");
 }
 
 class ExclusionsScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
     m_body.ensure(params, exclusionsDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
@@ -66,7 +65,7 @@ public:
                          2 * circleRadius),
         fontSize * 0.5f));
 
-    const SkPath &donutPath = m_donut.ensure({size}, [&] {
+    const SkPath& donutPath = m_donut.ensure({size}, [&] {
       SkPathBuilder donut;
       const float donutRadius = std::min(canvasWidth, canvasHeight) * 0.16f;
       donut.addCircle(canvasWidth * 0.72f, canvasHeight * 0.68f, donutRadius);
@@ -108,7 +107,7 @@ public:
     options.lineMetrics.height = fontSize * 1.7f;
     options.knuthPlass.minimumIntervalWidth = fontSize * 3;
     options.overflow.ellipsis =
-        u"…"; // paste a novel: the tail is marked, not shaped
+        u"…";  // paste a novel: the tail is marked, not shaped
 
     const auto layoutStartTime = Clock::now();
     ParagraphLayout layout =
@@ -134,7 +133,7 @@ public:
             static_cast<int>(layout.runs.size()), 0};
   }
 
-private:
+ private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
   kit::CachedValue<SkPath, SkISize> m_donut;
@@ -149,8 +148,8 @@ SceneDescriptor makeExclusionsDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeExclusionsDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

@@ -35,14 +35,11 @@
  *    lines and add a type to learn. `ramp()` ships; the grammar does not.
  */
 
-#include "sigilcompose/Compose.h"
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkColor.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkTypeface.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 #include <cstdarg>
@@ -52,6 +49,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::studio {
 
@@ -148,7 +147,7 @@ struct Type {
 };
 
 /** Type{} → weave::TextStyle. */
-inline sigil::weave::TextStyle type(const Type &t) {
+inline sigil::weave::TextStyle type(const Type& t) {
   sigil::weave::TextStyle s;
   s.shaping.typeface = t.face;
   s.shaping.fontSize = t.size;
@@ -157,11 +156,9 @@ inline sigil::weave::TextStyle type(const Type &t) {
   s.shaping.aliased = t.aliased;
   s.paint.foreground.setColor4f(t.color, nullptr);
   s.paint.foreground.setAntiAlias(t.antiAlias);
-  if (t.weight > 0)
-    s.variation("wght", t.weight);
-  if (t.slant != 0)
-    s.variation("slnt", t.slant);
-  for (const sigil::weave::FontVariation &v : t.variations)
+  if (t.weight > 0) s.variation("wght", t.weight);
+  if (t.slant != 0) s.variation("slnt", t.slant);
+  for (const sigil::weave::FontVariation& v : t.variations)
     s.shaping.variations.push_back(v);
   return s;
 }
@@ -181,12 +178,11 @@ inline sigil::weave::TextStyle type(const Type &t) {
  *
  *  `matchFamilyStyle` walks the system font list; hold the result in a
  *  `static` rather than calling this per frame. */
-inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char *> families,
+inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char*> families,
                                   SkFontStyle style = SkFontStyle::Normal()) {
   sk_sp<SkFontMgr> mgr = sigil::weave::ports::systemFontManager();
-  if (!mgr)
-    return nullptr;
-  for (const char *family : families)
+  if (!mgr) return nullptr;
+  for (const char* family : families)
     if (sk_sp<SkTypeface> face = mgr->matchFamilyStyle(family, style))
       return face;
   return mgr->matchFamilyStyle(nullptr, style);
@@ -194,10 +190,9 @@ inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char *> families,
 
 /** `pickFace` spelled with a weight and a slant, for the (common) case
  *  where the caller has those two numbers and not an SkFontStyle. */
-inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char *> families,
-                                  int weight,
-                                  SkFontStyle::Slant slant =
-                                      SkFontStyle::kUpright_Slant) {
+inline sk_sp<SkTypeface> pickFace(
+    std::initializer_list<const char*> families, int weight,
+    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant) {
   return pickFace(families,
                   SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
 }
@@ -236,8 +231,7 @@ inline Transition ramp(float delayMs, float durationMs,
  *  Deliberately narrow. The two neighbouring signals, `0.5 + 0.5·sin(t·k)`
  *  and `min(1, t/k)`, are one short expression each and are not here. */
 inline float phase(double t, double period) {
-  if (!(period > 0))
-    return 0.0f;
+  if (!(period > 0)) return 0.0f;
   const double p = std::fmod(t / period, 1.0);
   return (float)(p < 0 ? p + 1.0 : p);
 }
@@ -254,7 +248,8 @@ inline float phase(double t, double period) {
 // the same clock the accumulator was reconstructing, so read it instead of
 // carrying a mutable total in the capture.
 //
-//     ticker.add([&](double) { spin = phase(ticker.elapsed(), 6.0); return true; });
+//     ticker.add([&](double) { spin = phase(ticker.elapsed(), 6.0); return
+//     true; });
 
 // ---------------------------------------------------------------------------
 // Strings.
@@ -266,8 +261,7 @@ inline float phase(double t, double period) {
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((format(printf, 1, 2)))
 #endif
-inline std::string
-fmt(const char *format, ...) {
+inline std::string fmt(const char* format, ...) {
   va_list args;
   va_start(args, format);
   va_list probe;
@@ -284,4 +278,4 @@ fmt(const char *format, ...) {
   return out;
 }
 
-} // namespace sigil::compose::studio
+}  // namespace sigil::compose::studio

@@ -22,12 +22,6 @@
  * plain compositions instead.
  */
 
-#include "sigilcompose/Brushes.h"
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Lines.h"
-#include "sigilcompose/Routers.h"
-#include "sigilcompose/Shapes.h"
-
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
@@ -35,6 +29,12 @@
 
 #include <cmath>
 #include <vector>
+
+#include "sigilcompose/Brushes.h"
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Lines.h"
+#include "sigilcompose/Routers.h"
+#include "sigilcompose/Shapes.h"
 
 namespace sigil::compose::kit {
 
@@ -63,7 +63,8 @@ namespace shapers {
  *        kit::brush::shapers::Wave wobble{6, 40};
  *        bool operator==(const Undulating &) const = default;
  *        float max() const { return 20.0f + wobble.max(); }
- *        float across(float along) const { return 20.0f + wobble.across(along); }
+ *        float across(float along) const { return 20.0f + wobble.across(along);
+ * }
  *      };
  *      band(spine, across(Profile(Undulating{}))).centered();
  *
@@ -79,21 +80,21 @@ namespace shapers {
  *  oscillation is `Zigzag` below, a separate value. */
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
-  bool operator==(const Wave &) const = default;
+  bool operator==(const Wave&) const = default;
   float bleed() const { return std::abs(amplitude); }
   float max() const { return std::abs(amplitude); }
   /** As a PROFILE: the same value read as a width across a spine, which
    *  is what makes a braid strand and a wavy band one vocabulary. */
   float across(float along) const {
-    return amplitude *
-           std::sin(2.0f * 3.14159265f * (along / wavelengthFraction() + phase));
+    return amplitude * std::sin(2.0f * 3.14159265f *
+                                (along / wavelengthFraction() + phase));
   }
   /** As a SHAPER: displace the path itself. */
-  SkPath shape(const SkPath &p) const {
+  SkPath shape(const SkPath& p) const {
     return lines::displace(p, amplitude, wavelength, false);
   }
 
-private:
+ private:
   /** See the note on the struct: px per cycle on a nominal 1000 px contour. */
   float wavelengthFraction() const {
     return wavelength > 0 ? wavelength / 1000.0f : 0.024f;
@@ -109,9 +110,9 @@ private:
 struct Jitter {
   float segLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
-  bool operator==(const Jitter &) const = default;
+  bool operator==(const Jitter&) const = default;
   float bleed() const { return deviation * 2.0f; }
-  SkPath shape(const SkPath &p) const {
+  SkPath shape(const SkPath& p) const {
     SkPathBuilder out;
     // HAIRLINE rec is required: under a fill rec SkDiscretePathEffect
     // force-CLOSES open contours, so an open mark gains a return chord
@@ -137,9 +138,9 @@ struct Jitter {
 struct Offset {
   float px = 0.0f;
   float step = 4.0f;
-  bool operator==(const Offset &) const = default;
+  bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
-  SkPath shape(const SkPath &p) const {
+  SkPath shape(const SkPath& p) const {
     return lines::offsetAcross(p, px, step);
   }
 };
@@ -150,8 +151,8 @@ struct Offset {
  *  displaced zigzag or an offset rail, not just a silhouette. */
 struct Rounded {
   float radius = 6.0f;
-  bool operator==(const Rounded &) const = default;
-  SkPath shape(const SkPath &p) const {
+  bool operator==(const Rounded&) const = default;
+  SkPath shape(const SkPath& p) const {
     SkPathBuilder out;
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
@@ -171,8 +172,8 @@ struct Rounded {
  *  UNTOUCHED, so this is a silent no-op over a curved mark. */
 struct Chamfer {
   float cut = 6.0f;
-  bool operator==(const Chamfer &) const = default;
-  SkPath shape(const SkPath &p) const { return routers::chamfer(p, cut); }
+  bool operator==(const Chamfer&) const = default;
+  SkPath shape(const SkPath& p) const { return routers::chamfer(p, cut); }
 };
 
 /** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
@@ -180,9 +181,9 @@ struct Chamfer {
  *  no profile reading, only a shaper one. */
 struct Square {
   float amplitude = 5.0f, wavelength = 32.0f;
-  bool operator==(const Square &) const = default;
+  bool operator==(const Square&) const = default;
   float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath &p) const {
+  SkPath shape(const SkPath& p) const {
     return lines::displaceSquare(p, amplitude, wavelength);
   }
 };
@@ -197,9 +198,9 @@ struct Square {
  *  readings of one value. */
 struct Zigzag {
   float amplitude = 4.0f, wavelength = 24.0f;
-  bool operator==(const Zigzag &) const = default;
+  bool operator==(const Zigzag&) const = default;
   float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath &p) const {
+  SkPath shape(const SkPath& p) const {
     return lines::displace(p, amplitude, wavelength, true);
   }
 };
@@ -219,12 +220,10 @@ inline Jitter jitter(float segLength = 8.0f, float deviation = 2.0f,
                      uint32_t seed = 7) {
   return Jitter{segLength, deviation, seed};
 }
-inline Offset offset(float px, float step = 4.0f) {
-  return Offset{px, step};
-}
+inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
-} // namespace shapers
-} // namespace brush
+}  // namespace shapers
+}  // namespace brush
 
 // ---------------------------------------------------------------------------
 // kit::profile — the oscillating profile
@@ -241,7 +240,7 @@ namespace profile {
 inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Profile(brush::shapers::Wave{amplitude, wavelength, phase});
 }
-} // namespace profile
+}  // namespace profile
 
 // ---------------------------------------------------------------------------
 // kit::strands — strand SETS
@@ -259,8 +258,9 @@ namespace strands {
  *  Pair it with a crossing rule to say who passes over whom:
  *  `crossing::alternate()` for a plain weave, `crossing::pairs(...)` with
  *  a cycle for an impossible braid. */
-inline std::vector<sigil::compose::brush::Strand>
-braid(int n, float amplitude, float wavelength, Decoration ink) {
+inline std::vector<sigil::compose::brush::Strand> braid(int n, float amplitude,
+                                                        float wavelength,
+                                                        Decoration ink) {
   // Fully qualified on purpose. Inside `sigil::compose::kit`, an
   // unqualified `brush::` resolves to kit::brush — the shapers scope
   // above — and NOT to the library's own brush namespace, so any name
@@ -275,7 +275,7 @@ braid(int n, float amplitude, float wavelength, Decoration ink) {
   return out;
 }
 
-} // namespace strands
+}  // namespace strands
 
 // ---------------------------------------------------------------------------
 // kit::spans — span values
@@ -287,7 +287,7 @@ namespace spans {
 inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
   return sigil::compose::spans::corners(arm, angleDeg);
 }
-} // namespace spans
+}  // namespace spans
 
 // ---------------------------------------------------------------------------
 // kit::shapes — silhouette values
@@ -299,7 +299,7 @@ namespace shapes {
 inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
   return sigil::compose::shapes::annulus(innerRatio);
 }
-} // namespace shapes
+}  // namespace shapes
 
 // ---------------------------------------------------------------------------
 // kit::brush::presets — finished compositions with craft names
@@ -364,26 +364,30 @@ inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
  *  blur moves with it together. The default suits widely-spaced nodes; a
  *  dense cluster wants around 0.6. */
 inline LayeredBrush rope(int state, float scale = 1.0f) {
-  struct P { SkColor4f body, ridge; };
-  static constexpr P kStates[3] = {
-      {{0.227f, 0.200f, 0.165f, 1}, {0.341f, 0.286f, 0.227f, 1}}, // #3A332A/#57493A
-      {{0.420f, 0.353f, 0.251f, 1}, {0.553f, 0.459f, 0.314f, 1}}, // #6B5A40/#8D7550
-      {{0.541f, 0.447f, 0.282f, 1}, {0.780f, 0.659f, 0.420f, 1}}, // #8A7248/#C7A86B
+  struct P {
+    SkColor4f body, ridge;
   };
-  const P &p = kStates[state < 0 ? 0 : state > 2 ? 2 : state];
-  SkColor4f bodyLit = {p.body.fR * 1.15f, p.body.fG * 1.15f,
-                       p.body.fB * 1.15f, 1};
-  SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f,
-                        p.ridge.fB * 1.3f, 0.6f};
+  static constexpr P kStates[3] = {
+      {{0.227f, 0.200f, 0.165f, 1},
+       {0.341f, 0.286f, 0.227f, 1}},  // #3A332A/#57493A
+      {{0.420f, 0.353f, 0.251f, 1},
+       {0.553f, 0.459f, 0.314f, 1}},  // #6B5A40/#8D7550
+      {{0.541f, 0.447f, 0.282f, 1},
+       {0.780f, 0.659f, 0.420f, 1}},  // #8A7248/#C7A86B
+  };
+  const P& p = kStates[state < 0 ? 0 : state > 2 ? 2 : state];
+  SkColor4f bodyLit = {p.body.fR * 1.15f, p.body.fG * 1.15f, p.body.fB * 1.15f,
+                       1};
+  SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f, p.ridge.fB * 1.3f,
+                        0.6f};
   const float k = scale <= 0 ? 1.0f : scale;
   LayeredBrush b;
   if (state >= 2)
-    b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k}); // halo
-  b.layers.push_back(
-      {11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});   // strand
-  b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k}); // counter
-  b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k}); // ridge
+    b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k});  // halo
+  b.layers.push_back({11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});       // strand
+  b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k});   // counter
+  b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k});  // ridge
   return b;
 }
 
@@ -403,7 +407,7 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
   }};
 }
 
-} // namespace presets
-} // namespace brush
+}  // namespace presets
+}  // namespace brush
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

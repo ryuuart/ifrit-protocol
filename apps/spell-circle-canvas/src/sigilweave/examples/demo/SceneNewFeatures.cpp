@@ -4,37 +4,36 @@
 // text-transform, word spacing, variable-font axes through
 // ShapingStyle::variations, tab stops, and line clamp. Doubles as the
 // visual-regression PNG for those features.
-#include "DemoScenes.h"
-#include "DemoSupport.h"
-
-#include <sigilweave/Features.h>
-#include <sigilweave/PaintShaders.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilweave/Features.h>
+#include <sigilweave/PaintShaders.h>
 
 #include <cstdio>
+
+#include "DemoScenes.h"
+#include "DemoSupport.h"
 
 using namespace sigil::weave;
 
 namespace {
 
-void drawLabel(FontContext &fontContext, SkCanvas *canvas,
-               const char8_t *label, float top) {
+void drawLabel(FontContext& fontContext, SkCanvas* canvas, const char8_t* label,
+               float top) {
   sigil::weave::kit::drawLabel(canvas, fontContext, label, {40, top},
-                         {.color = kAccent, .width = 900, .height = 18});
+                               {.color = kAccent, .width = 900, .height = 18});
 }
 
-} // namespace
+}  // namespace
 
-void sceneNewFeatures(FontContext &fontContext,
-                      const std::filesystem::path &outputDirectory) {
+void sceneNewFeatures(FontContext& fontContext,
+                      const std::filesystem::path& outputDirectory) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 900));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
   float rowTop = 30;
@@ -46,7 +45,7 @@ void sceneNewFeatures(FontContext &fontContext,
   {
     Paragraph paragraph;
     TextStyle underlined = style(26, kInk);
-    underlined.paint.addDecoration({}); // metric underline, skipInk default
+    underlined.paint.addDecoration({});  // metric underline, skipInk default
     paragraph.appendText(u8"typography just judged ", underlined);
     TextStyle struck = style(26, kInk);
     struck.paint.addDecoration(
@@ -68,11 +67,11 @@ void sceneNewFeatures(FontContext &fontContext,
   {
     Paragraph paragraph;
     TextStyle range = style(24, kInk);
-    range.paint.addDecoration({.skipInk = false}); // one continuous line
+    range.paint.addDecoration({.skipInk = false});  // one continuous line
     paragraph.appendText(u8"spans the range ", range);
     TextStyle perWord = style(24, kInk);
-    perWord.paint.addDecoration({.span = Decoration::Span::kPerWord,
-                                 .skipInk = false});
+    perWord.paint.addDecoration(
+        {.span = Decoration::Span::kPerWord, .skipInk = false});
     paragraph.appendText(u8"breaks per word ", perWord);
     TextStyle marked = style(24, kInk);
     marked.paint.addDecoration(
@@ -98,7 +97,7 @@ void sceneNewFeatures(FontContext &fontContext,
     meshHighlight.kind = Decoration::Kind::kHighlight;
     SkPaint meshPaint;
     meshPaint.setAntiAlias(true);
-    meshPaint.setAlphaf(0.55f); // keep the ink readable through the band
+    meshPaint.setAlphaf(0.55f);  // keep the ink readable through the band
     meshPaint.setShader(PaintShaders::meshGradient(bandBounds, 1.5f));
     meshHighlight.paint = meshPaint;
     meshMarked.paint.addDecoration(meshHighlight);
@@ -188,11 +187,11 @@ void sceneNewFeatures(FontContext &fontContext,
   {
     ParagraphLayoutOptions options;
     options.tabStops.positions = {180, 420, 640};
-    const char8_t *tabRows[] = {u8"ledger\t128.50\tconfirmed\tA",
+    const char8_t* tabRows[] = {u8"ledger\t128.50\tconfirmed\tA",
                                 u8"ink\t7.25\tpending\tB",
                                 u8"paper\t1024.00\tarchived\tC"};
     float tabRowTop = rowTop + 22;
-    for (const char8_t *rowText : tabRows) {
+    for (const char8_t* rowText : tabRows) {
       // Tabular figures keep the numeric column rigid.
       TextStyle tabularStyle = style(18, kInk);
       tabularStyle.shaping.fontFeatures = {Features::tabularNumbers};

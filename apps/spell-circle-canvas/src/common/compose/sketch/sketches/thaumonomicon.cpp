@@ -137,8 +137,13 @@
 // a wider dark line rather than a blur.
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkBitmap.h>
+#include <include/core/SkContourMeasure.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Lines.h>
@@ -148,16 +153,8 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <array>
@@ -192,11 +189,11 @@ constexpr float U = 3.0f;
 constexpr float g(float v) { return v * U; }
 
 constexpr float kCanvasW = 1280.0f, kCanvasH = 800.0f;
-constexpr float kGuiW = 427, kGuiH = 267;        // ceil(canvas / 3)
-constexpr float kStartX = 16, kStartY = 16;      // GuiResearchBrowser ctor
-constexpr float kScreenX = kGuiW - 32;           // width - 32  = 395
-constexpr float kScreenY = kGuiH - 32;           // height - 32 = 235
-constexpr float kCell = g(24);                   // the lattice cell, canvas px
+constexpr float kGuiW = 427, kGuiH = 267;    // ceil(canvas / 3)
+constexpr float kStartX = 16, kStartY = 16;  // GuiResearchBrowser ctor
+constexpr float kScreenX = kGuiW - 32;       // width - 32  = 395
+constexpr float kScreenY = kGuiH - 32;       // height - 32 = 235
+constexpr float kCell = g(24);               // the lattice cell, canvas px
 
 // The scroll is DERIVED, not chosen: updateResearch():246-262 accumulates
 // guiBounds over the category's columns/rows and the view centres on their
@@ -225,13 +222,13 @@ inline bool culled(int col, int row) {
   return !(vx >= -24 && vy >= -24 && vx <= kScreenX && vy <= kScreenY);
 }
 
-inline SkPoint centre(const SkRect &r) { return {r.centerX(), r.centerY()}; }
+inline SkPoint centre(const SkRect& r) { return {r.centerX(), r.centerY()}; }
 
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
 inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 255) / 255.0f, (float)((hex >> 8) & 255) / 255.0f,
-          (float)(hex & 255) / 255.0f, a};
+  return {(float)((hex >> 16) & 255) / 255.0f,
+          (float)((hex >> 8) & 255) / 255.0f, (float)(hex & 255) / 255.0f, a};
 }
 inline SkColor4f mul(SkColor4f c, float k, float a = -1) {
   return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
@@ -244,7 +241,7 @@ inline uint32_t hash3(int a, int b, int c) {
   return h ^ (h >> 16);
 }
 inline float noise1(int a, int b, int c) {
-  return (float)(hash3(a, b, c) & 0xFFFFu) / 32767.5f - 1.0f; // [-1,1]
+  return (float)(hash3(a, b, c) & 0xFFFFu) / 32767.5f - 1.0f;  // [-1,1]
 }
 
 // ---------------------------------------------------------------------------
@@ -261,7 +258,7 @@ constexpr uint32_t kAversio = 0xC05050, kAuram = 0xFFC0FF;
 constexpr uint32_t kMachina = 0x8080A0, kHumanus = 0xFFD7C0;
 constexpr uint32_t kAlienis = 0x805080, kHerba = 0x01AC00;
 constexpr uint32_t kMortuus = 0x6A0005, kInstrumentum = 0x4040EE;
-} // namespace aspect
+}  // namespace aspect
 
 // Reconstructed ink/parchment.
 const SkColor4f kInkDeep = rgb(0x0E0A06);
@@ -274,36 +271,61 @@ const SkColor4f kBrassLit = rgb(0xC9A860);
 const SkColor4f kBrassDark = rgb(0x2A200F);
 
 // Text colours, converted from the source's decimal literals.
-const SkColor4f kTextGold = rgb(0xFFAA00);   // §6
-const SkColor4f kTextRed = rgb(0xFF5555);    // §c
-const SkColor4f kTextYellow = rgb(0xFFFF55); // §e
+const SkColor4f kTextGold = rgb(0xFFAA00);    // §6
+const SkColor4f kTextRed = rgb(0xFF5555);     // §c
+const SkColor4f kTextYellow = rgb(0xFFFF55);  // §e
 const SkColor4f kTextWhite = rgb(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // THE GRAPH — alchemy.json, all 22 entries, verbatim.
 
-enum Meta : uint8_t { kPlain = 0, kRound = 1, kHex = 2, kSpiky = 4,
-                      kHidden = 8, kReverse = 16 };
+enum Meta : uint8_t {
+  kPlain = 0,
+  kRound = 1,
+  kHex = 2,
+  kSpiky = 4,
+  kHidden = 8,
+  kReverse = 16
+};
 enum State : uint8_t { kComplete, kUnlockable, kLocked };
 
 struct Node {
-  const char *key;
+  const char* key;
   int col, row;
   uint8_t meta;
-  int icon;      // index into the reconstructed glyph set
+  int icon;  // index into the reconstructed glyph set
   State state;
-  const char *title; // en_us.lang research.<KEY>.title
-  uint8_t warp;      // max stage warp — drives drawForbidden()
-  bool flagResearch; // EnumResearchFlag.RESEARCH -> the UV(176,16) badge
-  bool flagPage;     // EnumResearchFlag.PAGE     -> the UV(208,16) badge
+  const char* title;  // en_us.lang research.<KEY>.title
+  uint8_t warp;       // max stage warp — drives drawForbidden()
+  bool flagResearch;  // EnumResearchFlag.RESEARCH -> the UV(176,16) badge
+  bool flagPage;      // EnumResearchFlag.PAGE     -> the UV(208,16) badge
 };
 
 // Icon glyph ids (reconstructed art; the names are the mod's own texture
 // names from alchemy.json's `icons`).
 enum Glyph {
-  gAspect, gAlumentum, gIngot, gCluster, gTallow, gBucket, gBottle, gSalts,
-  gSoap, gSpa, gSmelter, gJar, gTube, gSmelterThaum, gSmelterVoid, gSmelterAux,
-  gVent, gCentrifuge, gThaumatorium, gInput, gUrn, gSprayer,
+  gAspect,
+  gAlumentum,
+  gIngot,
+  gCluster,
+  gTallow,
+  gBucket,
+  gBottle,
+  gSalts,
+  gSoap,
+  gSpa,
+  gSmelter,
+  gJar,
+  gTube,
+  gSmelterThaum,
+  gSmelterVoid,
+  gSmelterAux,
+  gVent,
+  gCentrifuge,
+  gThaumatorium,
+  gInput,
+  gUrn,
+  gSprayer,
 };
 
 // The save state is RECONSTRUCTED — a mid-game player who has just finished
@@ -311,8 +333,8 @@ enum Glyph {
 // It is chosen so the one hovered node's tooltip is self-consistent with the
 // graph: THAUMATORIUM needs CENTRIFUGE, and CENTRIFUGE is not complete.
 constexpr Node kNodes[] = {
-    {"BASEALCHEMY", 0, 0, kRound | kHidden, gAspect, kComplete,
-     "Basic Alchemy", 0, false, false},
+    {"BASEALCHEMY", 0, 0, kRound | kHidden, gAspect, kComplete, "Basic Alchemy",
+     0, false, false},
     {"ALUMENTUM", 2, -1, kPlain, gAlumentum, kComplete, "Alumentum", 0, false,
      false},
     {"METALLURGY", 2, 2, kPlain, gIngot, kComplete, "Alchemical Metallurgy", 0,
@@ -358,16 +380,14 @@ constexpr Node kNodes[] = {
 };
 constexpr int kNodeCount = (int)(sizeof(kNodes) / sizeof(kNodes[0]));
 
-inline const Node &nodeByKey(const char *k) {
-  for (const Node &n : kNodes)
-    if (std::string(n.key) == k)
-      return n;
+inline const Node& nodeByKey(const char* k) {
+  for (const Node& n : kNodes)
+    if (std::string(n.key) == k) return n;
   return kNodes[0];
 }
-inline int indexByKey(const char *k) {
+inline int indexByKey(const char* k) {
   for (int i = 0; i < kNodeCount; ++i)
-    if (std::string(kNodes[i].key) == k)
-      return i;
+    if (std::string(kNodes[i].key) == k) return i;
   return 0;
 }
 
@@ -376,15 +396,15 @@ inline int indexByKey(const char *k) {
  *  carries an arrowhead. Only three of the four occur in this save: nothing in
  *  ALCHEMY has an unknown sibling, so the 0.1875 tier never fires. */
 enum EdgeTier : uint8_t {
-  kParentKnown,   // 0.6,0.6,0.6  z=3  arrow
-  kParentUnknown, // 0.2,0.2,0.2  z=2  arrow
-  kSiblingKnown,  // 0.3,0.3,0.4  z=1  no arrow
+  kParentKnown,    // 0.6,0.6,0.6  z=3  arrow
+  kParentUnknown,  // 0.2,0.2,0.2  z=2  arrow
+  kSiblingKnown,   // 0.3,0.3,0.4  z=1  no arrow
 };
 struct Edge {
-  const char *child;
-  const char *parent;
+  const char* child;
+  const char* parent;
   EdgeTier tier;
-  bool flipped; // source.hasMeta(REVERSE)
+  bool flipped;  // source.hasMeta(REVERSE)
 };
 
 // Parent edges are drawn only when the parent is in the same category, and are
@@ -428,7 +448,7 @@ inline SkColor4f tierTint(EdgeTier t, SkColor4f base) {
   const float k = tierMul(t);
   SkColor4f c = mul(base, k);
   if (t == kSiblingKnown)
-    c.fB = base.fB * 0.4f; // 0.3,0.3,0.4 — the one tier with a hue
+    c.fB = base.fB * 0.4f;  // 0.3,0.3,0.4 — the one tier with a hue
   return c;
 }
 inline int tierZ(EdgeTier t) {
@@ -460,12 +480,12 @@ inline int tierZ(EdgeTier t) {
 struct RouteShape {
   bool bigCorner = false;
   bool hasCorner = false;
-  float handed = 0; // cross(incoming, outgoing): picks the elbow's mirror
+  float handed = 0;  // cross(incoming, outgoing): picks the elbow's mirror
 };
 
 /** Classify without building — the Brush must pick its elbow art before the
  *  path exists. */
-inline RouteShape shapeOf(const Node &child, const Node &parent, bool flipped) {
+inline RouteShape shapeOf(const Node& child, const Node& parent, bool flipped) {
   const int sx = flipped ? parent.col : child.col;
   const int sy = flipped ? parent.row : child.row;
   const int ex = flipped ? child.col : parent.col;
@@ -480,9 +500,9 @@ inline RouteShape shapeOf(const Node &child, const Node &parent, bool flipped) {
 inline float cornerArm(bool big) { return big ? kCell * 1.5f : kCell * 0.5f; }
 
 inline Router thaumRoute(bool flipped) {
-  return [flipped](const SkRect &fromR, const SkRect &toR) {
+  return [flipped](const SkRect& fromR, const SkRect& toR) {
     const SkPoint C = centre(fromR), P = centre(toR);
-    const SkPoint S = flipped ? P : C; // the walk's start
+    const SkPoint S = flipped ? P : C;  // the walk's start
     const SkPoint E = flipped ? C : P;
     const int xd = (int)std::lround(std::abs(E.fX - S.fX) / kCell);
     const int yd = (int)std::lround(std::abs(E.fY - S.fY) / kCell);
@@ -492,14 +512,13 @@ inline Router thaumRoute(bool flipped) {
     const float h = kCell * 0.5f;
 
     SkPathBuilder b;
-    if (yd == 0 && xd == 0)
-      return b.detach();
-    if (yd == 0) { // a pure horizontal run, no turn
+    if (yd == 0 && xd == 0) return b.detach();
+    if (yd == 0) {  // a pure horizontal run, no turn
       b.moveTo(S.fX + xm * h, S.fY);
       b.lineTo(E.fX - xm * h, E.fY);
       return b.detach();
     }
-    if (xd == 0) { // a pure vertical run, no turn
+    if (xd == 0) {  // a pure vertical run, no turn
       b.moveTo(S.fX, S.fY + ym * h);
       b.lineTo(E.fX, E.fY - ym * h);
       return b.detach();
@@ -522,11 +541,12 @@ inline Router thaumRoute(bool flipped) {
  *  hairline outriders are the pen's own casing, and a scatter of spatter
  *  grains. An edge's state moves its VALUE and never its width, so every tier
  *  of edge lays down the same weight of line. */
-inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
+inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
                       float bow = 0.0f) {
   Brush br;
   if (bow > 0)
-    br.shaped(kit::brush::shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
+    br.shaped(
+        kit::brush::shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
   br.shaped(kit::brush::shapers::Jitter{
       .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
@@ -542,39 +562,42 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
   br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
   // the dry edge: a hairline offset to one side, where the nib lifted
   br.layer(lines::Line{.width = g(0.45f) * k,
-                     .fill = Fill::color(mul(tint, 1.35f, 0.85f * tint.fA))},
-         {kit::brush::shapers::Offset{.px = g(0.85f), .step = g(2)}});
+                       .fill = Fill::color(mul(tint, 1.35f, 0.85f * tint.fA))},
+           {kit::brush::shapers::Offset{.px = g(0.85f), .step = g(2)}});
   br.layer(brush::Scatter{.art = spatter,
-                               .spacing = g(13),
-                               .seed = 9,
-                               .jitterAlong = g(4),
-                               .jitterNormal = g(2.4f),
-                               .jitterScale = 0.8f,
-                               .jitterRotateDeg = 40,
-                               .alignToPath = false,
-                               .reach = g(6)});
+                          .spacing = g(13),
+                          .seed = 9,
+                          .jitterAlong = g(4),
+                          .jitterNormal = g(2.4f),
+                          .jitterScale = 0.8f,
+                          .jitterRotateDeg = 40,
+                          .alignToPath = false,
+                          .reach = g(6)});
   return br;
 }
 
 /** One ink grain — the brush::Scatter cell. */
 inline Element spatterCell(SkColor4f tint) {
-  return box().width(g(1.2f)).height(g(1.2f)).shape(shapes::circle()).fill(
-      Fill::color(mul(tint, 0.85f, 0.7f * tint.fA)));
+  return box()
+      .width(g(1.2f))
+      .height(g(1.2f))
+      .shape(shapes::circle())
+      .fill(Fill::color(mul(tint, 0.85f, 0.7f * tint.fA)));
 }
 
 /** One 24x24 straight tile, authored 28 GUI px wide so successive stamps
  *  overlap by 2 px and the sketchy jitter never opens a seam. The KNOT at the
  *  tile's centre is what makes the 24-px repeat legible as a repeat — the run
  *  has to read as a chain of stamped cells, because that is what it is. */
-inline Element straightTile(SkColor4f tint, const Element &spatter,
-                            const Element &knot) {
+inline Element straightTile(SkColor4f tint, const Element& spatter,
+                            const Element& knot) {
   const float w = g(28), h = g(14);
   Brush br = penBrush(tint, 1.0f, spatter, 0.45f);
-  br.layer(brush::Scatter{
-      .art = knot,
-      .place = {.mode = brush::Placement::Mode::CentralPoint},
-      .alignToPath = true,
-      .reach = g(6)});
+  br.layer(
+      brush::Scatter{.art = knot,
+                     .place = {.mode = brush::Placement::Mode::CentralPoint},
+                     .alignToPath = true,
+                     .reach = g(6)});
   return box()
       .width(w)
       .height(h)
@@ -594,9 +617,9 @@ inline Element knotCell(SkColor4f tint) {
                   .height(g(3.2f))
                   .shape(shapes::polygon(4, 0))
                   .fill(Fill::color(mul(tint, 1.12f)));
-  e.stroke(PathFormat{.width = g(1.1f),
-                      .strokeFill =
-                          Fill::color(mul(kInkDeep, 1, 0.9f * tint.fA))});
+  e.stroke(
+      PathFormat{.width = g(1.1f),
+                 .strokeFill = Fill::color(mul(kInkDeep, 1, 0.9f * tint.fA))});
   return e;
 }
 
@@ -615,18 +638,18 @@ inline Element knotCell(SkColor4f tint) {
  *  1.5*kCell for the 48x48 one. The turn is HARD: the mod stamps a cell, it
  *  does not round a join. */
 inline Element elbowTile(float arm, float handed, SkColor4f tint,
-                         const Element &spatter, const Element &knot) {
+                         const Element& spatter, const Element& knot) {
   const float pad = g(7);
   const float half = arm + pad;
   const float side = half * 2.0f;
   const SkPoint entry{half, half + handed * arm};
   const SkPoint exit{half + arm, half};
   Brush br = penBrush(tint, 1.0f, spatter, 0.0f);
-  br.layer(brush::Scatter{
-      .art = knot,
-      .place = {.mode = brush::Placement::Mode::InnerVertices},
-      .alignToPath = true,
-      .reach = g(6)});
+  br.layer(
+      brush::Scatter{.art = knot,
+                     .place = {.mode = brush::Placement::Mode::InnerVertices},
+                     .alignToPath = true,
+                     .reach = g(6)});
   return box()
       .width(side)
       .height(side)
@@ -648,9 +671,9 @@ inline Element arrowCell(SkColor4f tint) {
       .height(g(7.5f))
       .shape(shapes::arrow(0.02f, 0.98f))
       .fill(Fill::color(tint))
-      .stroke(PathFormat{.width = g(1),
-                         .strokeFill =
-                             Fill::color(mul(kInkDeep, 1, 0.6f * tint.fA))});
+      .stroke(PathFormat{
+          .width = g(1),
+          .strokeFill = Fill::color(mul(kInkDeep, 1, 0.6f * tint.fA))});
 }
 
 // ---------------------------------------------------------------------------
@@ -672,10 +695,22 @@ inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
       SkPoint q;
       SkVector out;
       switch (e) {
-      case 0: q = {w * f, 0}; out = {0, -1}; break;
-      case 1: q = {w, h * f}; out = {1, 0}; break;
-      case 2: q = {w * (1 - f), h}; out = {0, 1}; break;
-      default: q = {0, h * (1 - f)}; out = {-1, 0}; break;
+        case 0:
+          q = {w * f, 0};
+          out = {0, -1};
+          break;
+        case 1:
+          q = {w, h * f};
+          out = {1, 0};
+          break;
+        case 2:
+          q = {w * (1 - f), h};
+          out = {0, 1};
+          break;
+        default:
+          q = {0, h * (1 - f)};
+          out = {-1, 0};
+          break;
       }
       const float d = noise1((int)seed, i, 3) * amp;
       const SkPoint r{q.fX + out.fX * d, q.fY + out.fY * d};
@@ -692,7 +727,7 @@ inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
 /** The plate: silhouette + parchment + tooth + a sketched double rule. The
  *  border is a Brush rather than a stroke width, so the rule can carry its own
  *  jitter and a second dotted pass offset inside it. */
-inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
+inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   const bool hidden = (meta & kHidden) != 0;
   shapes::OutlineFn shape = tornSquare(seed, g(hidden ? 2.4f : 1.3f));
   if (meta & kRound)
@@ -707,15 +742,14 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
                   .width(g(32))
                   .height(g(32))
                   .shape(shape)
-                  .fill(Material::radialUnit({0.38f, 0.32f}, 1.05f,
-                                             {{0.0f, lit},
-                                              {0.55f, face},
-                                              {1.0f, mul(face, 0.42f)}}))
-                  .overlay(lines::Hatch{.strokeFill = Fill::color(
-                                            mul(kPaperDark, 1, 0.13f)),
-                                        .spacing = g(3.2f),
-                                        .width = g(0.6f),
-                                        .angleDeg = 32});
+                  .fill(Material::radialUnit(
+                      {0.38f, 0.32f}, 1.05f,
+                      {{0.0f, lit}, {0.55f, face}, {1.0f, mul(face, 0.42f)}}))
+                  .overlay(lines::Hatch{
+                      .strokeFill = Fill::color(mul(kPaperDark, 1, 0.13f)),
+                      .spacing = g(3.2f),
+                      .width = g(0.6f),
+                      .angleDeg = 32});
   // A doubled rule: a solid outer and a dotted inner that stops short.
   Brush rule;
   rule.shaped(kit::brush::shapers::Jitter{
@@ -728,7 +762,8 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
   inner.width = g(0.8f);
   inner.fill = Fill::color(mul(kBrassLit, hidden ? 0.35f : 0.75f));
   inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
-  rule.layer(inner, {kit::brush::shapers::Offset{.px = -g(2.4f), .step = g(2)}});
+  rule.layer(inner,
+             {kit::brush::shapers::Offset{.px = -g(2.4f), .step = g(2)}});
   e.stroke(rule);
   return e;
 }
@@ -765,10 +800,9 @@ inline uint32_t mulHex(uint32_t hex, float k) {
 }
 
 struct Ink {
-  SkCanvas &c;
+  SkCanvas& c;
   void r(float x, float y, float w, float h, SkColor4f col) const {
-    if (col.fA <= 0)
-      return;
+    if (col.fA <= 0) return;
     SkPaint p;
     p.setAntiAlias(false);
     p.setColor4f(col, nullptr);
@@ -778,168 +812,168 @@ struct Ink {
 };
 
 /** A stoppered phial/bottle silhouette shared by several icons. */
-inline void glassVessel(const Ink &k, SkColor4f liquid, float top = 4) {
-  k.r(6, top - 1, 4, 2, rgb(0x6B5030));           // cork
-  k.r(6, top + 1, 4, 1, rgb(0x8A8FA0));           // neck
+inline void glassVessel(const Ink& k, SkColor4f liquid, float top = 4) {
+  k.r(6, top - 1, 4, 2, rgb(0x6B5030));  // cork
+  k.r(6, top + 1, 4, 1, rgb(0x8A8FA0));  // neck
   k.r(5, top + 2, 6, 11 - (top - 4), rgb(0xB6C6D6, 0.35f));
   k.r(5, top + 2, 1, 11 - (top - 4), rgb(0xE7F1F8, 0.55f));
   k.r(6, top + 6, 4, 7 - (top - 4), liquid);
   k.r(5, 14, 6, 1, rgb(0x2A3240));
 }
 
-inline void drawGlyph(SkCanvas &canvas, int glyph, float alpha) {
+inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
   const Ink k{canvas};
   auto a = [alpha](uint32_t hex, float mulA = 1.0f) {
     return rgb(hex, alpha * mulA);
   };
   switch (glyph) {
-  case gAspect: { // cat_alchemy.png — the alkimia aspect medallion
-    const SkColor4f c = a(aspect::kAlkimia);
-    for (int i = 0; i < 6; ++i) {
-      const float ang = (float)i * 60.0f * 0.0174533f;
-      k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
+    case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
+      const SkColor4f c = a(aspect::kAlkimia);
+      for (int i = 0; i < 6; ++i) {
+        const float ang = (float)i * 60.0f * 0.0174533f;
+        k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
+      }
+      k.r(6, 4, 4, 1, c);
+      k.r(5, 5, 1, 6, c);
+      k.r(10, 5, 1, 6, c);
+      k.r(6, 11, 4, 1, c);
+      k.r(7, 7, 2, 2, a(aspect::kAlkimia, 0.75f));
+      break;
     }
-    k.r(6, 4, 4, 1, c);
-    k.r(5, 5, 1, 6, c);
-    k.r(10, 5, 1, 6, c);
-    k.r(6, 11, 4, 1, c);
-    k.r(7, 7, 2, 2, a(aspect::kAlkimia, 0.75f));
-    break;
-  }
-  case gAlumentum: // a burning nugget
-    k.r(6, 6, 4, 6, a(0x241A12));
-    k.r(7, 4, 2, 3, a(aspect::kIgnis));
-    k.r(6, 7, 1, 3, a(0xFFB25A, 0.9f));
-    k.r(9, 8, 1, 2, a(0xFF8020, 0.9f));
-    k.r(5, 12, 6, 1, a(0x120C08));
-    break;
-  case gIngot: // ingot_brass
-    k.r(3, 8, 10, 4, a(0xB98A32));
-    k.r(4, 7, 8, 1, a(0xE0BE6A));
-    k.r(3, 11, 10, 1, a(0x6B4E18));
-    k.r(5, 9, 6, 1, a(0xE8D296, 0.7f));
-    break;
-  case gCluster: // cluster_iron
-    k.r(4, 9, 3, 4, a(0x6E6E72));
-    k.r(7, 6, 4, 7, a(0x9A9AA2));
-    k.r(8, 4, 2, 3, a(0xC8C8D0));
-    k.r(11, 10, 2, 3, a(0x55555A));
-    k.r(8, 7, 1, 3, a(0xE6E6EE, 0.8f));
-    break;
-  case gTallow: // tallow
-    k.r(5, 5, 6, 8, a(0xE3D8A8));
-    k.r(5, 4, 6, 1, a(0xF6EFCC));
-    k.r(5, 12, 6, 1, a(0x8C8358));
-    k.r(7, 7, 1, 4, a(0xFFFCE2, 0.55f));
-    break;
-  case gBucket: // bucket_death
-    k.r(4, 5, 8, 8, a(0x8D9299));
-    k.r(5, 6, 6, 5, a(aspect::kMortuus));
-    k.r(4, 4, 8, 1, a(0xB9BEC6));
-    k.r(4, 12, 8, 1, a(0x4A4E55));
-    k.r(3, 5, 1, 4, a(0x6E7278));
-    break;
-  case gBottle: // bottle_taint
-    glassVessel(k, a(aspect::kVitium), 3);
-    k.px(7, 9, a(0xC060FF, 0.9f));
-    break;
-  case gSalts: // bath_salts
-    k.r(4, 8, 8, 5, a(0xD8CFE6));
-    k.r(4, 7, 8, 1, a(0xF0E9F8));
-    for (int i = 0; i < 7; ++i)
-      k.px(4 + i, 5 + (float)(hash3(i, 3, 5) % 3u), a(0xEDE6FA, 0.85f));
-    k.r(4, 12, 8, 1, a(0x807A90));
-    break;
-  case gSoap: // sanity_soap
-    k.r(4, 7, 8, 5, a(0xE6E0C4));
-    k.r(4, 6, 8, 1, a(0xF7F3DC));
-    k.r(4, 11, 8, 1, a(0x8E8868));
-    k.r(6, 8, 4, 2, a(0xC9C29A, 0.8f));
-    k.px(11, 5, a(0xFFFFFF, 0.7f));
-    k.px(12, 4, a(0xFFFFFF, 0.5f));
-    break;
-  case gSpa: // spa
-    k.r(3, 9, 10, 4, a(0x9A7A50));
-    k.r(3, 8, 10, 1, a(0xC29B66));
-    k.r(4, 10, 8, 2, a(aspect::kAqua, 0.8f));
-    for (int i = 0; i < 3; ++i)
-      k.px(5 + i * 3, 5 + (float)(hash3(i, 7, 2) % 2u), a(0xDDF2FF, 0.6f));
-    break;
-  case gSmelter: // smelter_basic — a squat crucible on legs
-  case gSmelterThaum:
-  case gSmelterVoid: {
-    const uint32_t body = glyph == gSmelter    ? 0x7E5A34
-                          : glyph == gSmelterThaum ? 0x6C6AA8
-                                                   : 0x2C2438;
-    k.r(3, 5, 10, 7, a(body));
-    k.r(3, 4, 10, 1, a(body + 0x181818));
-    k.r(4, 6, 8, 3, a(aspect::kIgnis, 0.85f));
-    k.r(5, 7, 6, 1, a(0xFFD27A, 0.9f));
-    k.r(3, 12, 2, 2, a(mulHex(body, 0.6f)));
-    k.r(11, 12, 2, 2, a(mulHex(body, 0.6f)));
-    break;
-  }
-  case gJar: // jar_normal
-    k.r(4, 4, 8, 2, a(0x8A6E38));
-    k.r(4, 6, 8, 8, a(0xC5D9E4, 0.42f));
-    k.r(4, 6, 1, 8, a(0xE9F4FA, 0.6f));
-    k.r(5, 9, 6, 4, a(aspect::kAlkimia, 0.85f));
-    k.r(4, 13, 8, 1, a(0x3A4450));
-    break;
-  case gTube: // tube
-    k.r(2, 7, 12, 3, a(0x8A8FA0));
-    k.r(2, 7, 12, 1, a(0xC0C6D6));
-    k.r(6, 6, 4, 5, a(0x6B7080));
-    k.r(2, 9, 12, 1, a(0x4A4E5A));
-    break;
-  case gSmelterAux: // smelter_aux
-    k.r(4, 6, 8, 7, a(0x6E5A3A));
-    k.r(4, 5, 8, 1, a(0x8E7448));
-    k.r(6, 3, 4, 3, a(0x8A8FA0));
-    k.r(5, 8, 6, 3, a(aspect::kIgnis, 0.7f));
-    break;
-  case gVent: // smelter_vent
-    k.r(5, 8, 6, 5, a(0x6E6E72));
-    k.r(4, 7, 8, 1, a(0x9A9AA2));
-    for (int i = 0; i < 3; ++i)
-      k.r(6 + i * 2, 3 + (float)(hash3(i, 2, 9) % 2u), 1, 3,
-          a(0xCFE2EE, 0.55f));
-    break;
-  case gCentrifuge: // centrifuge
-    k.r(4, 3, 8, 3, a(0x8A8FA0));
-    k.r(5, 6, 6, 6, a(0x5E626C));
-    k.r(6, 7, 4, 4, a(aspect::kAlkimia, 0.8f));
-    k.r(3, 12, 10, 2, a(0x3E424A));
-    k.px(5, 4, a(0xE0E6F0, 0.8f));
-    break;
-  case gThaumatorium: // thaumatorium
-    k.r(3, 4, 10, 9, a(0x5A4A2E));
-    k.r(3, 3, 10, 1, a(0x7E6A44));
-    k.r(5, 6, 6, 5, a(0x1C1810));
-    k.r(6, 7, 4, 3, a(aspect::kPraecantatio, 0.85f));
-    k.r(2, 6, 1, 5, a(0x8A6E38));
-    k.r(13, 6, 1, 5, a(0x8A6E38));
-    break;
-  case gInput: // essentia_input
-    k.r(4, 4, 8, 8, a(0x6C6AA8));
-    k.r(5, 5, 6, 6, a(0x2A2840));
-    k.r(6, 6, 4, 4, a(aspect::kAlkimia, 0.9f));
-    k.r(4, 12, 8, 1, a(0x3A3860));
-    break;
-  case gUrn: // everfull_urn
-    k.r(5, 3, 6, 2, a(0x7E6242));
-    k.r(4, 5, 8, 8, a(0x9A7A50));
-    k.r(4, 5, 1, 8, a(0xC29B66));
-    k.r(5, 7, 6, 4, a(aspect::kAqua, 0.75f));
-    k.r(4, 13, 8, 1, a(0x50402A));
-    break;
-  default: // potion_sprayer
-    k.r(4, 6, 5, 7, a(0x8A8FA0));
-    k.r(5, 7, 3, 5, a(aspect::kVictus, 0.8f));
-    k.r(9, 4, 3, 3, a(0x6B7080));
-    for (int i = 0; i < 4; ++i)
-      k.px(12 + (float)(i % 2), 3 + (float)i, a(0xFFB6C8, 0.55f));
-    break;
+    case gAlumentum:  // a burning nugget
+      k.r(6, 6, 4, 6, a(0x241A12));
+      k.r(7, 4, 2, 3, a(aspect::kIgnis));
+      k.r(6, 7, 1, 3, a(0xFFB25A, 0.9f));
+      k.r(9, 8, 1, 2, a(0xFF8020, 0.9f));
+      k.r(5, 12, 6, 1, a(0x120C08));
+      break;
+    case gIngot:  // ingot_brass
+      k.r(3, 8, 10, 4, a(0xB98A32));
+      k.r(4, 7, 8, 1, a(0xE0BE6A));
+      k.r(3, 11, 10, 1, a(0x6B4E18));
+      k.r(5, 9, 6, 1, a(0xE8D296, 0.7f));
+      break;
+    case gCluster:  // cluster_iron
+      k.r(4, 9, 3, 4, a(0x6E6E72));
+      k.r(7, 6, 4, 7, a(0x9A9AA2));
+      k.r(8, 4, 2, 3, a(0xC8C8D0));
+      k.r(11, 10, 2, 3, a(0x55555A));
+      k.r(8, 7, 1, 3, a(0xE6E6EE, 0.8f));
+      break;
+    case gTallow:  // tallow
+      k.r(5, 5, 6, 8, a(0xE3D8A8));
+      k.r(5, 4, 6, 1, a(0xF6EFCC));
+      k.r(5, 12, 6, 1, a(0x8C8358));
+      k.r(7, 7, 1, 4, a(0xFFFCE2, 0.55f));
+      break;
+    case gBucket:  // bucket_death
+      k.r(4, 5, 8, 8, a(0x8D9299));
+      k.r(5, 6, 6, 5, a(aspect::kMortuus));
+      k.r(4, 4, 8, 1, a(0xB9BEC6));
+      k.r(4, 12, 8, 1, a(0x4A4E55));
+      k.r(3, 5, 1, 4, a(0x6E7278));
+      break;
+    case gBottle:  // bottle_taint
+      glassVessel(k, a(aspect::kVitium), 3);
+      k.px(7, 9, a(0xC060FF, 0.9f));
+      break;
+    case gSalts:  // bath_salts
+      k.r(4, 8, 8, 5, a(0xD8CFE6));
+      k.r(4, 7, 8, 1, a(0xF0E9F8));
+      for (int i = 0; i < 7; ++i)
+        k.px(4 + i, 5 + (float)(hash3(i, 3, 5) % 3u), a(0xEDE6FA, 0.85f));
+      k.r(4, 12, 8, 1, a(0x807A90));
+      break;
+    case gSoap:  // sanity_soap
+      k.r(4, 7, 8, 5, a(0xE6E0C4));
+      k.r(4, 6, 8, 1, a(0xF7F3DC));
+      k.r(4, 11, 8, 1, a(0x8E8868));
+      k.r(6, 8, 4, 2, a(0xC9C29A, 0.8f));
+      k.px(11, 5, a(0xFFFFFF, 0.7f));
+      k.px(12, 4, a(0xFFFFFF, 0.5f));
+      break;
+    case gSpa:  // spa
+      k.r(3, 9, 10, 4, a(0x9A7A50));
+      k.r(3, 8, 10, 1, a(0xC29B66));
+      k.r(4, 10, 8, 2, a(aspect::kAqua, 0.8f));
+      for (int i = 0; i < 3; ++i)
+        k.px(5 + i * 3, 5 + (float)(hash3(i, 7, 2) % 2u), a(0xDDF2FF, 0.6f));
+      break;
+    case gSmelter:  // smelter_basic — a squat crucible on legs
+    case gSmelterThaum:
+    case gSmelterVoid: {
+      const uint32_t body = glyph == gSmelter        ? 0x7E5A34
+                            : glyph == gSmelterThaum ? 0x6C6AA8
+                                                     : 0x2C2438;
+      k.r(3, 5, 10, 7, a(body));
+      k.r(3, 4, 10, 1, a(body + 0x181818));
+      k.r(4, 6, 8, 3, a(aspect::kIgnis, 0.85f));
+      k.r(5, 7, 6, 1, a(0xFFD27A, 0.9f));
+      k.r(3, 12, 2, 2, a(mulHex(body, 0.6f)));
+      k.r(11, 12, 2, 2, a(mulHex(body, 0.6f)));
+      break;
+    }
+    case gJar:  // jar_normal
+      k.r(4, 4, 8, 2, a(0x8A6E38));
+      k.r(4, 6, 8, 8, a(0xC5D9E4, 0.42f));
+      k.r(4, 6, 1, 8, a(0xE9F4FA, 0.6f));
+      k.r(5, 9, 6, 4, a(aspect::kAlkimia, 0.85f));
+      k.r(4, 13, 8, 1, a(0x3A4450));
+      break;
+    case gTube:  // tube
+      k.r(2, 7, 12, 3, a(0x8A8FA0));
+      k.r(2, 7, 12, 1, a(0xC0C6D6));
+      k.r(6, 6, 4, 5, a(0x6B7080));
+      k.r(2, 9, 12, 1, a(0x4A4E5A));
+      break;
+    case gSmelterAux:  // smelter_aux
+      k.r(4, 6, 8, 7, a(0x6E5A3A));
+      k.r(4, 5, 8, 1, a(0x8E7448));
+      k.r(6, 3, 4, 3, a(0x8A8FA0));
+      k.r(5, 8, 6, 3, a(aspect::kIgnis, 0.7f));
+      break;
+    case gVent:  // smelter_vent
+      k.r(5, 8, 6, 5, a(0x6E6E72));
+      k.r(4, 7, 8, 1, a(0x9A9AA2));
+      for (int i = 0; i < 3; ++i)
+        k.r(6 + i * 2, 3 + (float)(hash3(i, 2, 9) % 2u), 1, 3,
+            a(0xCFE2EE, 0.55f));
+      break;
+    case gCentrifuge:  // centrifuge
+      k.r(4, 3, 8, 3, a(0x8A8FA0));
+      k.r(5, 6, 6, 6, a(0x5E626C));
+      k.r(6, 7, 4, 4, a(aspect::kAlkimia, 0.8f));
+      k.r(3, 12, 10, 2, a(0x3E424A));
+      k.px(5, 4, a(0xE0E6F0, 0.8f));
+      break;
+    case gThaumatorium:  // thaumatorium
+      k.r(3, 4, 10, 9, a(0x5A4A2E));
+      k.r(3, 3, 10, 1, a(0x7E6A44));
+      k.r(5, 6, 6, 5, a(0x1C1810));
+      k.r(6, 7, 4, 3, a(aspect::kPraecantatio, 0.85f));
+      k.r(2, 6, 1, 5, a(0x8A6E38));
+      k.r(13, 6, 1, 5, a(0x8A6E38));
+      break;
+    case gInput:  // essentia_input
+      k.r(4, 4, 8, 8, a(0x6C6AA8));
+      k.r(5, 5, 6, 6, a(0x2A2840));
+      k.r(6, 6, 4, 4, a(aspect::kAlkimia, 0.9f));
+      k.r(4, 12, 8, 1, a(0x3A3860));
+      break;
+    case gUrn:  // everfull_urn
+      k.r(5, 3, 6, 2, a(0x7E6242));
+      k.r(4, 5, 8, 8, a(0x9A7A50));
+      k.r(4, 5, 1, 8, a(0xC29B66));
+      k.r(5, 7, 6, 4, a(aspect::kAqua, 0.75f));
+      k.r(4, 13, 8, 1, a(0x50402A));
+      break;
+    default:  // potion_sprayer
+      k.r(4, 6, 5, 7, a(0x8A8FA0));
+      k.r(5, 7, 3, 5, a(aspect::kVictus, 0.8f));
+      k.r(9, 4, 3, 3, a(0x6B7080));
+      for (int i = 0; i < 4; ++i)
+        k.px(12 + (float)(i % 2), 3 + (float)i, a(0xFFB6C8, 0.55f));
+      break;
   }
 }
 
@@ -948,7 +982,7 @@ inline void drawGlyph(SkCanvas &canvas, int glyph, float alpha) {
  *  0.1-0.2 grey (:639-643, :683). */
 inline Element iconEl(int glyph, float alpha, bool bw) {
   return box().width(g(16)).height(g(16)).background(
-      prog([glyph, alpha, bw](SkCanvas &c, const PaintContext &) {
+      prog([glyph, alpha, bw](SkCanvas& c, const PaintContext&) {
         if (!bw) {
           drawGlyph(c, glyph, alpha);
           return;
@@ -977,10 +1011,9 @@ inline Element researchBadge() {
       .width(g(16))
       .height(g(16))
       .shape(shapes::star(4, 0.30f, 0.55f))
-      .fill(Material::radialUnit({0.5f, 0.5f}, 0.9f,
-                                 {{0, rgb(0xFFF3C0)},
-                                  {0.45f, rgb(0xFFAA00)},
-                                  {1, rgb(0xFFAA00, 0)}}));
+      .fill(Material::radialUnit(
+          {0.5f, 0.5f}, 0.9f,
+          {{0, rgb(0xFFF3C0)}, {0.45f, rgb(0xFFAA00)}, {1, rgb(0xFFAA00, 0)}}));
 }
 inline Element pageBadge() {
   Element e = box()
@@ -998,8 +1031,7 @@ inline Element pageBadge() {
                     return p.detach();
                   })
                   .fill(Fill::color(rgb(0xD9E8C6)));
-  e.stroke(PathFormat{.width = g(1),
-                      .strokeFill = Fill::color(rgb(0x2A3A1E))});
+  e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(rgb(0x2A3A1E))});
   e.overlay(lines::Hatch{.strokeFill = Fill::color(rgb(0x5A7A46, 0.75f)),
                          .spacing = g(2.4f),
                          .width = g(0.8f),
@@ -1018,7 +1050,7 @@ inline Element pageBadge() {
 // that fills its own cell, on a bound rotation — paint-only volatility, so the
 // node keeps its cached picture.
 
-inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
+inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
   const float a = 0.30f + 0.09f * (float)strength;
   Element e = box()
                   .width(g(44))
@@ -1046,7 +1078,7 @@ inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
 inline Element frameRun() {
   const float w = g(64), h = g(22);
   return box().width(w).height(h).background(
-      prog([](SkCanvas &c, const PaintContext &in) {
+      prog([](SkCanvas& c, const PaintContext& in) {
         const Ink k{c};
         const float W = in.size.width() / U, H = in.size.height() / U;
         // the band
@@ -1079,7 +1111,7 @@ inline Element frameRun() {
 inline Element cornerPlate(SkColor4f tint) {
   const float s = g(24);
   return box().width(s).height(s).background(
-      prog([tint](SkCanvas &c, const PaintContext &in) {
+      prog([tint](SkCanvas& c, const PaintContext& in) {
         const float m = in.size.width() * 0.5f;
         auto T = [tint](SkColor4f a) {
           return SkColor4f{a.fR * tint.fR, a.fG * tint.fG, a.fB * tint.fB,
@@ -1109,8 +1141,8 @@ inline Element cornerPlate(SkColor4f tint) {
         // the bevel: a bright arc up-left, a dark arc down-right
         p.setStyle(SkPaint::kStroke_Style);
         p.setStrokeWidth(g(1.3f));
-        const SkRect ring = SkRect::MakeLTRB(m - g(10), m - g(10), m + g(10),
-                                            m + g(10));
+        const SkRect ring =
+            SkRect::MakeLTRB(m - g(10), m - g(10), m + g(10), m + g(10));
         p.setColor4f(T(mul(kBrassLit, 1.25f, 0.9f)), nullptr);
         c.drawArc(ring, 150, 150, false, p);
         p.setColor4f(T(mul(kBrassDark, 1.0f, 0.9f)), nullptr);
@@ -1151,7 +1183,7 @@ inline Element cornerPlate(SkColor4f tint) {
 // path opens e at every cutoff that also fills in m.
 
 struct PixText {
-  sk_sp<SkImage> mask; // A8, one pixel per GUI px
+  sk_sp<SkImage> mask;  // A8, one pixel per GUI px
   int w = 0, h = 0;
 };
 
@@ -1159,14 +1191,14 @@ struct PixText {
  *  lowercase e and 11 fills in m. */
 inline constexpr float kPixSizePx = 10.0f;
 
-inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
-                        const sk_sp<SkTypeface> &face, float sizePx) {
+inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
+                        const sk_sp<SkTypeface>& face, float sizePx) {
   weave::TextStyle st;
   st.shaping.typeface = face;
   st.shaping.fontSize = sizePx;
   st.shaping.aliased = true;
   st.paint.foreground.setColor(SK_ColorWHITE);
-  const std::u8string u8(reinterpret_cast<const char8_t *>(s.c_str()));
+  const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
   Element tree = box().child(text(u8, st));
   const SkSize sz = measure(box().child(text(u8, st)), fonts);
   // The surface must be wider than the measurement. measure() gives the
@@ -1177,25 +1209,22 @@ inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
   // slack here costs nothing.
   const int w = std::max(1, (int)std::ceil(sz.width()) + 8);
   const int h = std::max(1, (int)std::ceil(sz.height()) + 4);
-  sk_sp<SkSurface> surf =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  if (!surf)
-    return {};
+  sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
+  if (!surf) return {};
   surf->getCanvas()->clear(SK_ColorTRANSPARENT);
   if (sk_sp<SkPicture> pic = snapshot(std::move(tree), fonts))
     surf->getCanvas()->drawPicture(pic);
   SkBitmap read;
   read.allocPixels(
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
-  if (!surf->readPixels(read.pixmap(), 0, 0))
-    return {};
+  if (!surf->readPixels(read.pixmap(), 0, 0)) return {};
   SkBitmap out;
   out.allocPixels(SkImageInfo::MakeA8(w, h));
   out.eraseColor(SK_ColorTRANSPARENT);
   int x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (int y = 0; y < h; ++y)
     for (int x = 0; x < w; ++x) {
-      const bool lit = SkColorGetA(read.getColor(x, y)) >= 110; // 1-bit
+      const bool lit = SkColorGetA(read.getColor(x, y)) >= 110;  // 1-bit
       *out.getAddr8(x, y) = lit ? 255 : 0;
       if (lit) {
         x0 = std::min(x0, x);
@@ -1204,8 +1233,7 @@ inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
         y1 = std::max(y1, y);
       }
     }
-  if (x1 < 0)
-    return {};
+  if (x1 < 0) return {};
   SkBitmap crop;
   out.extractSubset(&crop, SkIRect::MakeLTRB(x0, y0, x1 + 1, y1 + 1));
   SkBitmap owned;
@@ -1216,10 +1244,9 @@ inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
 }
 
 /** Draw a baked mask at 2x, nearest, with the +1 GUI px 25% shadow. */
-inline void blitText(SkCanvas &c, const PixText &t, float x, float y,
+inline void blitText(SkCanvas& c, const PixText& t, float x, float y,
                      SkColor4f col, bool shadow = true) {
-  if (!t.mask)
-    return;
+  if (!t.mask) return;
   const SkRect dst = SkRect::MakeXYWH(g(x), g(y), g((float)t.w), g((float)t.h));
   const SkSamplingOptions near(SkFilterMode::kNearest);
   SkPaint p;
@@ -1233,7 +1260,7 @@ inline void blitText(SkCanvas &c, const PixText &t, float x, float y,
   c.drawImageRect(t.mask, dst, near, &p);
 }
 
-} // namespace thaum
+}  // namespace thaum
 
 using namespace thaum;
 
@@ -1260,10 +1287,10 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   static sk_sp<SkTypeface> systemFace() {
     sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    if (!mgr)
-      return nullptr;
-    for (const char *name : {"Menlo", "Monaco", "Courier New", "Helvetica"})
-      if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(name, SkFontStyle::Normal()))
+    if (!mgr) return nullptr;
+    for (const char* name : {"Menlo", "Monaco", "Courier New", "Helvetica"})
+      if (sk_sp<SkTypeface> f =
+              mgr->matchFamilyStyle(name, SkFontStyle::Normal()))
         return f;
     return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
   }
@@ -1276,20 +1303,16 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   static Element backdropBase() {
     const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
-    Element e = box()
-                    .left(g(-22))
-                    .top(g(-22))
-                    .width(w)
-                    .height(h)
-                    .fill(Material::radialUnit({0.44f, 0.38f}, 1.20f,
-                                               {{0.0f, rgb(0x3E3220)},
-                                                {0.40f, rgb(0x241B10)},
-                                                {0.78f, rgb(0x140E07)},
-                                                {1.0f, rgb(0x070402)}}));
+    Element e = box().left(g(-22)).top(g(-22)).width(w).height(h).fill(
+        Material::radialUnit({0.44f, 0.38f}, 1.20f,
+                             {{0.0f, rgb(0x3E3220)},
+                              {0.40f, rgb(0x241B10)},
+                              {0.78f, rgb(0x140E07)},
+                              {1.0f, rgb(0x070402)}}));
     // The painted plate under it: an alchemical wheel, a ruled margin, and
     // washes — the structure a photographed grimoire page carries and a noise
     // field never will.
-    e.overlay(prog([](SkCanvas &c, const PaintContext &in) {
+    e.overlay(prog([](SkCanvas& c, const PaintContext& in) {
       SkPaint p;
       p.setAntiAlias(true);
       const SkPoint o{in.size.width() * 0.50f, in.size.height() * 0.47f};
@@ -1377,20 +1400,20 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   // cornerLength reserving the elbow's own room so the side run butts against
   // it instead of continuing underneath. Nothing here is a stroke.
 
-  Element edgeEl(const Edge &e, int order) const {
-    const Node &child = nodeByKey(e.child);
-    const Node &parent = nodeByKey(e.parent);
+  Element edgeEl(const Edge& e, int order) const {
+    const Node& child = nodeByKey(e.child);
+    const Node& parent = nodeByKey(e.parent);
     const RouteShape shape = shapeOf(child, parent, e.flipped);
     const int t = (int)e.tier;
-    const int elbow =
-        !shape.hasCorner ? -1
-                         : (shape.bigCorner ? 2 : 0) + (shape.handed > 0 ? 1 : 0);
+    const int elbow = !shape.hasCorner ? -1
+                                       : (shape.bigCorner ? 2 : 0) +
+                                             (shape.handed > 0 ? 1 : 0);
 
     brush::Pattern pb{.side = straight[t],
-                             .advance = kCell,
-                             .cornerAngleDeg = 35.0f,
-                             .stretchToFit = true,
-                             .reach = g(56)};
+                      .advance = kCell,
+                      .cornerAngleDeg = 35.0f,
+                      .stretchToFit = true,
+                      .reach = g(56)};
     if (elbow >= 0) {
       // An elbow of PIPE, not an ornament: entry, exit and a handedness, and
       // elbowTile() authors it with local +x along the outgoing leg. On the
@@ -1398,7 +1421,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       // corner and no side tiles, so the whole edge becomes a chevron. The
       // alignment therefore travels with the art rather than being defaulted.
       pb.corner = brush::CornerArt{elbows[t][(size_t)elbow],
-                                     brush::CornerAlign::Outgoing};
+                                   brush::CornerAlign::Outgoing};
       pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
     }
     Brush br;
@@ -1417,9 +1440,9 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
             br);
   }
 
-  Element arrowEl(const Edge &e) const {
-    const Node &child = nodeByKey(e.child);
-    const Node &parent = nodeByKey(e.parent);
+  Element arrowEl(const Edge& e) const {
+    const Node& child = nodeByKey(e.child);
+    const Node& parent = nodeByKey(e.parent);
     const int dy = child.row - parent.row, dx = child.col - parent.col;
     // The arrowhead sits on the walk's leg AT THE CHILD. An ordinary edge
     // leaves the child vertically (the bend is at the child's column); a
@@ -1438,8 +1461,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       else if (dy != 0)
         travel = {0, dy > 0 ? 1.0f : -1.0f};
     }
-    if (travel.fX == 0 && travel.fY == 0)
-      return box().width(0).height(0);
+    if (travel.fX == 0 && travel.fY == 0) return box().width(0).height(0);
     const SkPoint c = centreOf(child.col, child.row);
     const SkColor4f tint = tierTint(e.tier, kInkBody);
     return arrowCell(tint)
@@ -1450,7 +1472,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  Element nodePlate(const Node &n) const {
+  Element nodePlate(const Node& n) const {
     const SkPoint c = centreOf(n.col, n.row);
     // Cache::Texture, not the automatic picture. A plate is a torn-square
     // outline + a radial + an Sk2D hatch + a sketchy double rule, and a
@@ -1466,8 +1488,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // :598 culls the whole node, art and all, but drawLine still draws its
     // edges — so a culled node keeps its KEYED, empty box (the connector
     // still needs somewhere to route to) and paints nothing.
-    if (culled(n.col, n.row))
-      return wrap;
+    if (culled(n.col, n.row)) return wrap;
     wrap.cache(Cache::Texture);
     if (n.state == kUnlockable)
       wrap.opacity(bind(&pulse).target(0.5f, 1.0f));
@@ -1476,16 +1497,15 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
     const uint32_t seed = (uint32_t)(n.col * 31 + n.row * 17 + 101);
     wrap.child(plateArt(n.meta, seed, spatter[0]).inset(g(2)));
-    if (n.meta & kSpiky)
-      wrap.child(spikyOverlay(seed + 7));
-    wrap.child(iconEl(n.icon, n.state == kLocked ? 0.6f : 1.0f,
-                      n.state == kLocked)
-                   .left(g(8))
-                   .top(g(8)));
+    if (n.meta & kSpiky) wrap.child(spikyOverlay(seed + 7));
+    wrap.child(
+        iconEl(n.icon, n.state == kLocked ? 0.6f : 1.0f, n.state == kLocked)
+            .left(g(8))
+            .top(g(8)));
     return wrap;
   }
 
-  Element nodeBadges(const Node &n) const {
+  Element nodeBadges(const Node& n) const {
     const SkPoint c = centreOf(n.col, n.row);
     // The source's -9/+9 badge offsets are measured from the ICON'S TOP-LEFT
     // (iconX, iconY), which sits 8 GUI px up-left of centreOf(); the + terms
@@ -1493,10 +1513,10 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // centerAt().
     const float tlx = c.fX - g(8), tly = c.fY - g(8);
     Element g0 = box().inset(0);
-    if (culled(n.col, n.row))
-      return g0;
+    if (culled(n.col, n.row)) return g0;
     if (n.flagResearch)
-      g0.child(researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)}));
+      g0.child(
+          researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)}));
     if (n.flagPage)
       g0.child(pageBadge().centerAt({tlx - g(9) + g(6), tly + g(9) + g(7)}));
     return g0;
@@ -1521,8 +1541,8 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         // it. Stating it keeps the two brushes' choices readable side by side.
         .stroke(brush::Pattern{
             .side = runTile,
-            .corner = brush::CornerArt{cornerTile,
-                                         brush::CornerAlign::Bisector},
+            .corner =
+                brush::CornerArt{cornerTile, brush::CornerAlign::Bisector},
             .advance = g(64),
             .cornerAngleDeg = 35.0f,
             .cornerLength = g(20),
@@ -1537,10 +1557,14 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     Element e = box().inset(0).shape([m, cut](SkSize s) {
       const float l = m, t = m, r = s.width() - m, b = s.height() - m;
       SkPathBuilder p;
-      p.moveTo(l + cut, t); p.lineTo(r - cut, t);
-      p.moveTo(r, t + cut); p.lineTo(r, b - cut);
-      p.moveTo(r - cut, b); p.lineTo(l + cut, b);
-      p.moveTo(l, b - cut); p.lineTo(l, t + cut);
+      p.moveTo(l + cut, t);
+      p.lineTo(r - cut, t);
+      p.moveTo(r, t + cut);
+      p.lineTo(r, b - cut);
+      p.moveTo(r - cut, b);
+      p.lineTo(l + cut, b);
+      p.moveTo(l, b - cut);
+      p.lineTo(l, t + cut);
       return p.detach();
     });
     Brush br;
@@ -1552,7 +1576,8 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     dotted.width = g(0.8f);
     dotted.fill = Fill::color(mul(kBrassLit, 0.85f, 0.65f));
     dotted.dashIntervals = {g(1.2f), g(3.0f)};
-    br.layer(dotted, {kit::brush::shapers::Offset{.px = -g(2.5f), .step = g(3)}});
+    br.layer(dotted,
+             {kit::brush::shapers::Offset{.px = -g(2.5f), .step = g(3)}});
     e.stroke(br);
     return e;
   }
@@ -1577,7 +1602,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   // the 22x22 plate at (x-3, y-3) is UV(13,13) — the SAME cell as the frame's
   // four corners, which is why one art element serves both here.
 
-  struct Category { const char *name; uint32_t aspect; int rune; };
+  struct Category {
+    const char* name;
+    uint32_t aspect;
+    int rune;
+  };
 
   Element tabRail() const {
     static const Category kCats[7] = {
@@ -1592,42 +1621,66 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     Element rail = box().inset(0);
     for (int i = 0; i < 7; ++i) {
       const float y = 10.0f + (float)(i + 1) * 24.0f;
-      const bool selected = i == 2; // ALCHEMY
+      const bool selected = i == 2;  // ALCHEMY
       rail.child(cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
                                       : SkColor4f{1, 1, 1, 1})
                      .left(g(-2 - 1))
                      .top(g(y - 3 - 1))
                      .opacity(selected ? 1.0f : 0.86f));
-      const Category &cat = kCats[i];
+      const Category& cat = kCats[i];
       rail.child(box()
                      .left(g(1))
                      .top(g(y))
                      .width(g(16))
                      .height(g(16))
                      .opacity(selected ? 1.0f : 0.8f)
-                     .background(prog([cat, selected](SkCanvas &c,
-                                                      const PaintContext &) {
-                       const Ink k{c};
-                       const SkColor4f col =
-                           rgb(cat.aspect, selected ? 1.0f : 0.66f);
-                       // seven distinct runes, one per category
-                       switch (cat.rune) {
-                       case 0: k.r(7, 2, 2, 12, col); k.r(3, 6, 10, 2, col); break;
-                       case 1: k.r(3, 4, 10, 2, col); k.r(3, 10, 10, 2, col);
-                               k.r(7, 4, 2, 8, col); break;
-                       case 2: k.r(4, 3, 8, 2, col); k.r(4, 3, 2, 10, col);
-                               k.r(10, 3, 2, 10, col); k.r(4, 11, 8, 2, col);
-                               k.r(7, 7, 2, 2, col); break;
-                       case 3: k.r(3, 7, 10, 2, col); k.r(6, 3, 2, 10, col);
-                               k.r(10, 3, 2, 10, col); break;
-                       case 4: k.r(7, 2, 2, 12, col); k.r(3, 5, 10, 2, col);
-                               k.r(5, 11, 6, 2, col); break;
-                       case 5: k.r(6, 2, 4, 4, col); k.r(4, 7, 8, 4, col);
-                               k.r(5, 11, 2, 3, col); k.r(9, 11, 2, 3, col); break;
-                       default: k.r(3, 3, 2, 10, col); k.r(11, 3, 2, 10, col);
-                                k.r(5, 7, 6, 2, col); k.r(7, 3, 2, 4, col); break;
-                       }
-                     })));
+                     .background(prog(
+                         [cat, selected](SkCanvas& c, const PaintContext&) {
+                           const Ink k{c};
+                           const SkColor4f col =
+                               rgb(cat.aspect, selected ? 1.0f : 0.66f);
+                           // seven distinct runes, one per category
+                           switch (cat.rune) {
+                             case 0:
+                               k.r(7, 2, 2, 12, col);
+                               k.r(3, 6, 10, 2, col);
+                               break;
+                             case 1:
+                               k.r(3, 4, 10, 2, col);
+                               k.r(3, 10, 10, 2, col);
+                               k.r(7, 4, 2, 8, col);
+                               break;
+                             case 2:
+                               k.r(4, 3, 8, 2, col);
+                               k.r(4, 3, 2, 10, col);
+                               k.r(10, 3, 2, 10, col);
+                               k.r(4, 11, 8, 2, col);
+                               k.r(7, 7, 2, 2, col);
+                               break;
+                             case 3:
+                               k.r(3, 7, 10, 2, col);
+                               k.r(6, 3, 2, 10, col);
+                               k.r(10, 3, 2, 10, col);
+                               break;
+                             case 4:
+                               k.r(7, 2, 2, 12, col);
+                               k.r(3, 5, 10, 2, col);
+                               k.r(5, 11, 6, 2, col);
+                               break;
+                             case 5:
+                               k.r(6, 2, 4, 4, col);
+                               k.r(4, 7, 8, 4, col);
+                               k.r(5, 11, 2, 3, col);
+                               k.r(9, 11, 2, 3, col);
+                               break;
+                             default:
+                               k.r(3, 3, 2, 10, col);
+                               k.r(11, 3, 2, 10, col);
+                               k.r(5, 7, 6, 2, col);
+                               k.r(7, 3, 2, 4, col);
+                               break;
+                           }
+                         })));
     }
     // the search button (:170, UV 160,16 at x=1, y=height-17), 0.8 grey
     rail.child(box()
@@ -1636,7 +1689,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
                    .width(g(16))
                    .height(g(16))
                    .opacity(0.8f)
-                   .background(prog([](SkCanvas &c, const PaintContext &) {
+                   .background(prog([](SkCanvas& c, const PaintContext&) {
                      SkPaint p;
                      p.setAntiAlias(true);
                      p.setStyle(SkPaint::kStroke_Style);
@@ -1670,7 +1723,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     const float x = (mx + 3 + wd + 4 <= kGuiW) ? mx + 3 : mx - 3 - wd;
     const float y = my - 3;
     return box().inset(0).background(
-        prog([a, b, d, x, y, wd, ht](SkCanvas &c, const PaintContext &) {
+        prog([a, b, d, x, y, wd, ht](SkCanvas& c, const PaintContext&) {
           SkPaint p;
           p.setAntiAlias(false);
           // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
@@ -1696,17 +1749,19 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(rgb(0x0B0906));
 
     face = systemFace();
     if (ctx.fonts) {
       // The size is load-bearing; see kPixSizePx and the note above it.
-      tipTitle = bakeText("Alchemical Automation", *ctx.fonts, face, kPixSizePx);
+      tipTitle =
+          bakeText("Alchemical Automation", *ctx.fonts, face, kPixSizePx);
       tipMissing =
           bakeText("Missing required research:", *ctx.fonts, face, kPixSizePx);
-      tipParent = bakeText(" - Essentia Centrifuge", *ctx.fonts, face, kPixSizePx);
+      tipParent =
+          bakeText(" - Essentia Centrifuge", *ctx.fonts, face, kPixSizePx);
     }
 
     for (int t = 0; t < 3; ++t) {
@@ -1729,8 +1784,8 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       t += dt;
       // :610 — sin(systemTime % 600 / 600 * 2pi) * 0.25 + 0.75, wall clock,
       // so every unlockable node is in lockstep with zero phase offset.
-      pulse = (float)(std::sin(std::fmod(t, 0.6) / 0.6 * 6.2831853) * 0.25 +
-                      0.75);
+      pulse =
+          (float)(std::sin(std::fmod(t, 0.6) / 0.6 * 6.2831853) * 0.25 + 0.75);
       spin = (float)std::fmod(t * 0.06, 1.0);
       driftX = (float)(std::sin(t * 0.17) * 26.0);
       driftY = (float)(std::cos(t * 0.11) * 16.0);
@@ -1775,7 +1830,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     Element inner = box().inset(0);
 
     // 2a. warp swirls go under everything (drawForbidden, :603).
-    for (const Node &n : kNodes)
+    for (const Node& n : kNodes)
       if (n.warp > 0 && !culled(n.col, n.row)) {
         const SkPoint c = centreOf(n.col, n.row);
         inner.child(warpSwirl(&spin, n.warp).centerAt(c).zIndex(-1));
@@ -1786,20 +1841,16 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     Element edges = box().inset(0).zIndex(0);
     std::vector<int> order = edgeOrder();
     int k = 0;
+    for (int i : order) edges.child(edgeEl(kEdges[i], k++));
     for (int i : order)
-      edges.child(edgeEl(kEdges[i], k++));
-    for (int i : order)
-      if (kEdges[i].tier != kSiblingKnown)
-        edges.child(arrowEl(kEdges[i]));
+      if (kEdges[i].tier != kSiblingKnown) edges.child(arrowEl(kEdges[i]));
     inner.child(std::move(edges));
 
     // 2c. the plates, then the badges at full brightness over them.
     Element plates = box().inset(0).zIndex(4);
-    for (const Node &n : kNodes)
-      plates.child(nodePlate(n));
-    for (const Node &n : kNodes)
-      if (n.flagResearch || n.flagPage)
-        plates.child(nodeBadges(n));
+    for (const Node& n : kNodes) plates.child(nodePlate(n));
+    for (const Node& n : kNodes)
+      if (n.flagResearch || n.flagPage) plates.child(nodeBadges(n));
     inner.child(std::move(plates));
 
     root.child(std::move(inner));
@@ -1822,13 +1873,12 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     depth.fill(99);
     depth[(size_t)indexByKey("BASEALCHEMY")] = 0;
     for (int pass = 0; pass < 8; ++pass)
-      for (const Edge &e : kEdges) {
+      for (const Edge& e : kEdges) {
         const int ci = indexByKey(e.child), pi = indexByKey(e.parent);
         depth[(size_t)ci] = std::min(depth[(size_t)ci], depth[(size_t)pi] + 1);
       }
     std::vector<int> idx;
-    for (int i = 0; i < kEdgeCount; ++i)
-      idx.push_back(i);
+    for (int i = 0; i < kEdgeCount; ++i) idx.push_back(i);
     std::sort(idx.begin(), idx.end(), [&](int a, int b) {
       return depth[(size_t)indexByKey(kEdges[a].child)] <
              depth[(size_t)indexByKey(kEdges[b].child)];

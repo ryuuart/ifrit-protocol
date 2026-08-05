@@ -29,9 +29,9 @@
  * it overrides World::setCamera until deactivated or destroyed.
  */
 
-#include "sigilworld/World.h"
-
 #include <entt/entt.hpp>
+
+#include "sigilworld/World.h"
 
 namespace sigil::world {
 
@@ -63,7 +63,7 @@ struct LightComponent {
    *  this distance ((1 - (d/range)^2)^2, 1 at the light). */
   float range = 600;
 
-  bool operator==(const LightComponent &) const = default;
+  bool operator==(const LightComponent&) const = default;
 };
 
 /** An active camera entity overrides World::setCamera; deactivate or
@@ -79,4 +79,4 @@ inline entt::entity entity(uint32_t surfaceId) {
   return (entt::entity)surfaceId;
 }
 
-} // namespace sigil::world
+}  // namespace sigil::world

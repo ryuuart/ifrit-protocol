@@ -1,18 +1,17 @@
 #include "SkiaSceneBackend.h"
-#include "SceneRenderer.h"
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
-#include "SpellCircleRenderer.h"
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-
 #include <sigilweaveqt/SigilWeaveQt.h>
-
 #include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <memory>
+
+#include "SceneRenderer.h"
+#include "SkiaGraphiteContext.h"
+#include "SkiaOffscreenSurface.h"
+#include "SpellCircleRenderer.h"
 
 using sigil::weave::qt::toSkColor;
 
@@ -29,12 +28,12 @@ using sigil::weave::qt::toSkColor;
 // SkSurface, translating the renderer's Qt-typed style fields, and
 // registering the finished image with QCanvasPainter.
 class SkiaSceneBackendImpl final : public CanvasSceneBackend {
-public:
+ public:
   explicit SkiaSceneBackendImpl(std::unique_ptr<SkiaGraphiteContext> context)
       : m_context(std::move(context)) {}
 
-  QCanvasImage drawScene(SpellCircleRenderer &renderer, QCanvasPainter *painter,
-                         QCanvasOffscreenCanvas &canvas,
+  QCanvasImage drawScene(SpellCircleRenderer& renderer, QCanvasPainter* painter,
+                         QCanvasOffscreenCanvas& canvas,
                          QSize pixelSize) override {
     // All coordinates are in 0..canvasWidth / 0..canvasHeight scene space —
     // pixelSize always matches that scene size (see
@@ -42,9 +41,8 @@ public:
     // renderer.m_resolved can be drawn directly with no extra scaling here.
     const auto frameStart = std::chrono::steady_clock::now();
     SkiaOffscreenSurface surface(*m_context, canvas.texture(), pixelSize);
-    SkCanvas *skCanvas = surface.canvas();
-    if (!skCanvas)
-      return {};
+    SkCanvas* skCanvas = surface.canvas();
+    if (!skCanvas) return {};
 
     skCanvas->clear(SK_ColorTRANSPARENT);
 
@@ -58,8 +56,7 @@ public:
     style.boxHeight = static_cast<float>(renderer.m_boxHeight * scale);
     style.boxPadding = static_cast<float>(renderer.m_boxPadding * scale);
     style.boxDistance = static_cast<float>(renderer.m_boxDistance * scale);
-    style.fontSize =
-        static_cast<float>(renderer.m_font.pointSizeF() * scale);
+    style.fontSize = static_cast<float>(renderer.m_font.pointSizeF() * scale);
     // The settings dialog's "Font Style" picker (e.g. "Light", "Semibold
     // Italic") sets weight/slant via QFontDatabase::font() (see
     // FontDatabase.cpp); sigil::weave::qt::toSkTypeface carries both through,
@@ -88,10 +85,11 @@ public:
             ? submitMicroseconds
             : m_submitMicrosecondsAverage * 0.98 + submitMicroseconds * 0.02;
     if (m_sceneFrame++ % 600 == 0)
-      spdlog::info("drawScene: record {:.0f} us (ema {:.0f}), submit {:.0f} "
-                   "us (ema {:.0f})",
-                   recordMicroseconds, m_recordMicrosecondsAverage,
-                   submitMicroseconds, m_submitMicrosecondsAverage);
+      spdlog::info(
+          "drawScene: record {:.0f} us (ema {:.0f}), submit {:.0f} "
+          "us (ema {:.0f})",
+          recordMicroseconds, m_recordMicrosecondsAverage, submitMicroseconds,
+          m_submitMicrosecondsAverage);
 
     // The offscreen canvas's blended output is premultiplied-alpha; without
     // this flag drawImage() re-applies alpha on top of already alpha-baked-in
@@ -101,7 +99,7 @@ public:
                                  QCanvasPainter::ImageFlag::Premultiplied);
   }
 
-private:
+ private:
   std::unique_ptr<SkiaGraphiteContext> m_context;
 
   // Shared Qt-free scene drawing (FontContext + label caches inside).
@@ -113,10 +111,9 @@ private:
   double m_submitMicrosecondsAverage = 0;
 };
 
-std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi *rhi) {
+std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi* rhi) {
   std::unique_ptr<SkiaGraphiteContext> context =
       SkiaGraphiteContext::create(rhi);
-  if (!context)
-    return nullptr;
+  if (!context) return nullptr;
   return std::make_unique<SkiaSceneBackendImpl>(std::move(context));
 }

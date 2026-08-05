@@ -1,7 +1,8 @@
 #include "Models.h"
+
 #include <spdlog/spdlog.h>
 
-Models::Models(QObject *parent) : QObject(parent) {
+Models::Models(QObject* parent) : QObject(parent) {
   m_spellCircleModel = new SpellCircleModel(this);
   m_graphicsConfig = new GraphicsConfig(this);
   m_networkManager = new NetworkManager(NetworkManager::kDefaultPort, this);

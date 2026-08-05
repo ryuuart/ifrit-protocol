@@ -1,5 +1,3 @@
-#include "WebInternal.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImage.h>
@@ -8,30 +6,31 @@
 
 #include <cstring>
 
+#include "WebInternal.h"
+
 namespace sigil::scry {
 
 namespace {
 
 ultralight::MouseEvent::Button toUlButton(WebView::MouseButton button) {
   switch (button) {
-  case WebView::MouseButton::Left:
-    return ultralight::MouseEvent::kButton_Left;
-  case WebView::MouseButton::Middle:
-    return ultralight::MouseEvent::kButton_Middle;
-  case WebView::MouseButton::Right:
-    return ultralight::MouseEvent::kButton_Right;
-  case WebView::MouseButton::None:
-    break;
+    case WebView::MouseButton::Left:
+      return ultralight::MouseEvent::kButton_Left;
+    case WebView::MouseButton::Middle:
+      return ultralight::MouseEvent::kButton_Middle;
+    case WebView::MouseButton::Right:
+      return ultralight::MouseEvent::kButton_Right;
+    case WebView::MouseButton::None:
+      break;
   }
   return ultralight::MouseEvent::kButton_None;
 }
 
-} // namespace
+}  // namespace
 
 bool WebView::Impl::publishIfDirty() {
-  auto *surface = static_cast<SkiaSurface *>(view->surface());
-  if (!surface || surface->dirty_bounds().IsEmpty())
-    return false;
+  auto* surface = static_cast<SkiaSurface*>(view->surface());
+  if (!surface || surface->dirty_bounds().IsEmpty()) return false;
 
   ultralight::IntRect dirty = surface->dirty_bounds();
   SkIRect dirtyBounds =
@@ -43,7 +42,7 @@ bool WebView::Impl::publishIfDirty() {
   // consumer releases a frame, its allocation is reused instead of
   // paying a fresh multi-megabyte alloc (and its page faults) per
   // publish.
-  const SkBitmap &src = surface->bitmap();
+  const SkBitmap& src = surface->bitmap();
   const size_t byteSize = src.computeByteSize();
   sk_sp<SkData> buffer;
   for (auto it = publishPool.begin(); it != publishPool.end(); ++it) {
@@ -55,17 +54,15 @@ bool WebView::Impl::publishIfDirty() {
       break;
     }
   }
-  std::erase_if(publishPool, [byteSize](const sk_sp<SkData> &pooled) {
-    return pooled->size() != byteSize && pooled->unique(); // post-resize
+  std::erase_if(publishPool, [byteSize](const sk_sp<SkData>& pooled) {
+    return pooled->size() != byteSize && pooled->unique();  // post-resize
   });
-  if (!buffer)
-    buffer = SkData::MakeUninitialized(byteSize);
+  if (!buffer) buffer = SkData::MakeUninitialized(byteSize);
   std::memcpy(buffer->writable_data(), src.getPixels(), byteSize);
 
   sk_sp<SkImage> image =
       SkImages::RasterFromData(src.info(), buffer, src.rowBytes());
-  if (publishPool.size() < 2)
-    publishPool.push_back(std::move(buffer));
+  if (publishPool.size() < 2) publishPool.push_back(std::move(buffer));
   {
     std::lock_guard<std::mutex> lock(frameMutex);
     latestImage = image;
@@ -81,8 +78,8 @@ bool WebView::Impl::publishIfDirty() {
 }
 
 bool WebView::Impl::publishGpuIfDirty(
-    WebGpuDriver &driver,
-    const std::unordered_set<uint32_t> &dirtyRenderBuffers) {
+    WebGpuDriver& driver,
+    const std::unordered_set<uint32_t>& dirtyRenderBuffers) {
   ultralight::RenderTarget target = view->render_target();
   if (target.is_empty || !dirtyRenderBuffers.count(target.render_buffer_id))
     return false;
@@ -115,7 +112,7 @@ bool WebView::Impl::publishGpuIfDirty(
 
 void WebView::Impl::releaseGpuTextures() {
   std::lock_guard<std::mutex> lock(frameMutex);
-  if (WebGpuDriver *driver = engine->gpuDriver()) {
+  if (WebGpuDriver* driver = engine->gpuDriver()) {
     driver->releaseNativeTexture(publishedGpuTexture);
     driver->releaseNativeTexture(spareGpuTexture);
   }
@@ -123,20 +120,19 @@ void WebView::Impl::releaseGpuTextures() {
   spareGpuTexture = nullptr;
   gpuTextureWidth = 0;
   gpuTextureHeight = 0;
-  cachedWrap = nullptr; // the wrap itself keeps its texture alive
+  cachedWrap = nullptr;  // the wrap itself keeps its texture alive
   cachedWrapVersion = 0;
   cachedWrapRecorder = nullptr;
 }
 
-void WebView::Impl::OnFinishLoading(ultralight::View *, uint64_t,
+void WebView::Impl::OnFinishLoading(ultralight::View*, uint64_t,
                                     bool isMainFrame,
-                                    const ultralight::String &) {
-  if (isMainFrame && loadCallback)
-    loadCallback();
+                                    const ultralight::String&) {
+  if (isMainFrame && loadCallback) loadCallback();
 }
 
 void WebView::Impl::OnAddConsoleMessage(
-    ultralight::View *, const ultralight::ConsoleMessage &message) {
+    ultralight::View*, const ultralight::ConsoleMessage& message) {
   LogLevel level = LogLevel::Info;
   if (message.level() == ultralight::MessageLevel::kMessageLevel_Error)
     level = LogLevel::Error;
@@ -186,16 +182,14 @@ void WebView::loadHTML(std::string html) {
     // A file:/// base URL lets the page load relative resources (images,
     // .imgsrc indirections, fonts) through the engine's FileSystem; the
     // default about:blank origin is blocked from file content entirely.
-    if (impl->view)
-      impl->view->LoadHTML(html.c_str(), "file:///");
+    if (impl->view) impl->view->LoadHTML(html.c_str(), "file:///");
   });
 }
 
 void WebView::loadURL(std::string url) {
   auto impl = m_impl;
   m_impl->engine->post([impl, url = std::move(url)] {
-    if (impl->view)
-      impl->view->LoadURL(url.c_str());
+    if (impl->view) impl->view->LoadURL(url.c_str());
   });
 }
 
@@ -204,8 +198,7 @@ void WebView::evaluateScript(std::string script,
   auto impl = m_impl;
   m_impl->engine->post(
       [impl, script = std::move(script), onResult = std::move(onResult)] {
-        if (!impl->view)
-          return;
+        if (!impl->view) return;
         ultralight::String exception;
         ultralight::String result =
             impl->view->EvaluateScript(script.c_str(), &exception);
@@ -221,14 +214,14 @@ void WebView::setLoadCallback(std::function<void()> callback) {
   });
 }
 
-void WebView::setFrameCallback(std::function<void(const Frame &)> callback) {
+void WebView::setFrameCallback(std::function<void(const Frame&)> callback) {
   auto impl = m_impl;
   m_impl->engine->post([impl, callback = std::move(callback)]() mutable {
     impl->frameCallback = std::move(callback);
   });
 }
 
-WebView::Frame WebView::frame(skgpu::graphite::Recorder *recorder) const {
+WebView::Frame WebView::frame(skgpu::graphite::Recorder* recorder) const {
   std::lock_guard<std::mutex> lock(m_impl->frameMutex);
   Frame result;
   result.version = m_impl->version.load();
@@ -239,12 +232,10 @@ WebView::Frame WebView::frame(skgpu::graphite::Recorder *recorder) const {
     result.width = m_impl->gpuTextureWidth;
     result.height = m_impl->gpuTextureHeight;
     if (recorder) {
-      if (!m_impl->cachedWrap ||
-          m_impl->cachedWrapVersion != result.version ||
+      if (!m_impl->cachedWrap || m_impl->cachedWrapVersion != result.version ||
           m_impl->cachedWrapRecorder != recorder) {
         m_impl->cachedWrap = m_impl->engine->gpuDriver()->wrapTexture(
-            recorder, m_impl->publishedGpuTexture, result.width,
-            result.height);
+            recorder, m_impl->publishedGpuTexture, result.width, result.height);
         m_impl->cachedWrapVersion = result.version;
         m_impl->cachedWrapRecorder = recorder;
       }
@@ -263,30 +254,26 @@ WebView::Frame WebView::frame(skgpu::graphite::Recorder *recorder) const {
 
 uint64_t WebView::frameVersion() const { return m_impl->version.load(); }
 
-void WebView::draw(SkCanvas &canvas, const SkRect &dst,
-                   const SkSamplingOptions &sampling) const {
+void WebView::draw(SkCanvas& canvas, const SkRect& dst,
+                   const SkSamplingOptions& sampling) const {
   Frame current = frame(canvas.recorder());
-  if (!current.image)
-    return;
+  if (!current.image) return;
   canvas.drawImageRect(current.image, dst, sampling);
 }
 
-bool WebView::peekPixels(SkPixmap *pixmap) const {
-  if (!m_impl->engine->onWebThread() || !m_impl->view)
-    return false;
-  auto *surface = static_cast<SkiaSurface *>(m_impl->view->surface());
-  if (!surface)
-    return false;
+bool WebView::peekPixels(SkPixmap* pixmap) const {
+  if (!m_impl->engine->onWebThread() || !m_impl->view) return false;
+  auto* surface = static_cast<SkiaSurface*>(m_impl->view->surface());
+  if (!surface) return false;
   return surface->bitmap().peekPixels(pixmap);
 }
 
 void WebView::mouseMove(int x, int y, MouseButton button) {
   auto impl = m_impl;
   m_impl->engine->post([impl, x, y, button] {
-    if (!impl->view)
-      return;
-    ultralight::MouseEvent event{ultralight::MouseEvent::kType_MouseMoved, x,
-                                 y, toUlButton(button)};
+    if (!impl->view) return;
+    ultralight::MouseEvent event{ultralight::MouseEvent::kType_MouseMoved, x, y,
+                                 toUlButton(button)};
     impl->view->FireMouseEvent(event);
   });
 }
@@ -294,8 +281,7 @@ void WebView::mouseMove(int x, int y, MouseButton button) {
 void WebView::mouseDown(int x, int y, MouseButton button) {
   auto impl = m_impl;
   m_impl->engine->post([impl, x, y, button] {
-    if (!impl->view)
-      return;
+    if (!impl->view) return;
     ultralight::MouseEvent event{ultralight::MouseEvent::kType_MouseDown, x, y,
                                  toUlButton(button)};
     impl->view->FireMouseEvent(event);
@@ -305,8 +291,7 @@ void WebView::mouseDown(int x, int y, MouseButton button) {
 void WebView::mouseUp(int x, int y, MouseButton button) {
   auto impl = m_impl;
   m_impl->engine->post([impl, x, y, button] {
-    if (!impl->view)
-      return;
+    if (!impl->view) return;
     ultralight::MouseEvent event{ultralight::MouseEvent::kType_MouseUp, x, y,
                                  toUlButton(button)};
     impl->view->FireMouseEvent(event);
@@ -316,12 +301,11 @@ void WebView::mouseUp(int x, int y, MouseButton button) {
 void WebView::scroll(int dx, int dy) {
   auto impl = m_impl;
   m_impl->engine->post([impl, dx, dy] {
-    if (!impl->view)
-      return;
+    if (!impl->view) return;
     ultralight::ScrollEvent event{ultralight::ScrollEvent::kType_ScrollByPixel,
                                   dx, dy};
     impl->view->FireScrollEvent(event);
   });
 }
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

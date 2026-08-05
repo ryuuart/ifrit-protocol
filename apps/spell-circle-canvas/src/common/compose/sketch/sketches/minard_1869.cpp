@@ -129,10 +129,12 @@
 //       src/common/compose/sketch/sketches/minard_1869.cpp \
 //       --frame /tmp/minard_1869.png --at 20.0
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilweave/FontContext.h>
-
+#include <include/core/SkFont.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathMeasure.h>
+#include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
@@ -141,13 +143,8 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Studio.h>
-
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathMeasure.h>
-#include <include/core/SkTypeface.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -166,29 +163,29 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-using studio::hex;   // hex(0xRRGGBB[, a]) -> SkColor4f, usable in constexpr
+using studio::hex;  // hex(0xRRGGBB[, a]) -> SkColor4f, usable in constexpr
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
 // TWO worlds, deliberately kept apart: the aged artefact, and the audit.
 
-constexpr SkColor4f kDesk = hex(0x1b1a18);       // the table the sheet lies on
-constexpr SkColor4f kPaperShadow = hex(0xb9ad98); // p10: edges, foxing
-constexpr SkColor4f kPaperBody = hex(0xcbbfab);   // p50: the sheet's ground
-constexpr SkColor4f kPaperLight = hex(0xd6cab6);  // p90
+constexpr SkColor4f kDesk = hex(0x1b1a18);  // the table the sheet lies on
+constexpr SkColor4f kPaperShadow = hex(0xb9ad98);  // p10: edges, foxing
+constexpr SkColor4f kPaperBody = hex(0xcbbfab);    // p50: the sheet's ground
+constexpr SkColor4f kPaperLight = hex(0xd6cab6);   // p90
 constexpr SkColor4f kZoneDark = hex(0xa98674);
-constexpr SkColor4f kZone = hex(0xb08d7a);        // "le rouge"
+constexpr SkColor4f kZone = hex(0xb08d7a);  // "le rouge"
 constexpr SkColor4f kZoneLight = hex(0xb79481);
-constexpr SkColor4f kInk = hex(0x25211d);         // p50 printed black
+constexpr SkColor4f kInk = hex(0x25211d);  // p50 printed black
 constexpr SkColor4f kInkDeep = hex(0x0a0806);
 constexpr SkColor4f kInkThin = hex(0x4e4436);     // hairlines, hachures
 constexpr SkColor4f kManuscript = hex(0x3b3a46);  // iron-gall, colder
 constexpr SkColor4f kStampRed = hex(0x8e3b34);
 
-constexpr SkColor4f kCard = hex(0xf2ece0);        // the audit's cooler paper
+constexpr SkColor4f kCard = hex(0xf2ece0);  // the audit's cooler paper
 constexpr SkColor4f kCardInk = hex(0x1c1a17);
-constexpr SkColor4f kBlue = hex(0x2f6f9c);        // MEASURED
-constexpr SkColor4f kClaimRed = hex(0x8c2f22);    // WHAT THE LEGEND SAYS
+constexpr SkColor4f kBlue = hex(0x2f6f9c);      // MEASURED
+constexpr SkColor4f kClaimRed = hex(0x8c2f22);  // WHAT THE LEGEND SAYS
 constexpr SkColor4f kPass = hex(0x3e6b4a);
 constexpr SkColor4f kAmber = hex(0xb5761e);
 constexpr SkColor4f kGrey = hex(0x6d675c);
@@ -198,34 +195,34 @@ constexpr SkColor4f kGrey = hex(0x6d675c);
 
 constexpr float kW = 2560.0f, kH = 1600.0f;
 constexpr float kSheetX = 48.0f, kSheetY = 128.0f;
-constexpr float kSheetW = 1400.0f, kSheetH = 1220.0f; // aspect 1.1475
+constexpr float kSheetW = 1400.0f, kSheetH = 1220.0f;  // aspect 1.1475
 // The sheet is drawn at its own aspect, so this number is REAL: every band
 // width on screen is a millimetre count of Minard's paper.
-constexpr float kPxPerMm = kSheetW / 620.0f; // 2.2581
+constexpr float kPxPerMm = kSheetW / 620.0f;  // 2.2581
 
 // the printed frame, shared by both panels (BnF scan: x 157.5..3842.5)
 constexpr float kFrameL = 46.0f;
-constexpr float kFrameW = 579.14f * kPxPerMm; // 1307.7
+constexpr float kFrameW = 579.14f * kPxPerMm;  // 1307.7
 constexpr float kFrameR = kFrameL + kFrameW;
 constexpr float kFrameT = 47.0f;
-constexpr float kDivHN = 566.0f;  // Hannibal | Napoleon
-constexpr float kDivNT = 1016.0f; // map | temperature
+constexpr float kDivHN = 566.0f;   // Hannibal | Napoleon
+constexpr float kDivNT = 1016.0f;  // map | temperature
 constexpr float kFrameB = 1160.0f;
 
 // Napoleon panel: x = a + b*lon, y = c − d*lat.
 // b from the Commons scan (130.890 px/deg / 3.4482 px/mm * kPxPerMm);
 // d/b = 2.142 from lat2.py.
 constexpr float kLonPx = 85.69f;
-constexpr float kLon0 = 22.867f; // longitude at the frame's left rule
-constexpr float kLatPx = kLonPx * 2.142f; // 183.55
-constexpr float kLatRefY = 668.0f;        // y of lat 55.8 (Moscou)
+constexpr float kLon0 = 22.867f;           // longitude at the frame's left rule
+constexpr float kLatPx = kLonPx * 2.142f;  // 183.55
+constexpr float kLatRefY = 668.0f;         // y of lat 55.8 (Moscou)
 
 // the audited scale: 1.1258 mm per 10,000 men (four direct BnF spot reads)
 constexpr float kMmPer10k = 1.1258f;
 constexpr float kStatedMmPer10k = 1.0f;
-constexpr float kPxPer10k = kMmPer10k * kPxPerMm; // 2.5421
-constexpr float kLigneHalf = 1.1279f;             // 2.2558 / 2
-constexpr float kFloorMm = 1.57f;                 // what the crayon holds
+constexpr float kPxPer10k = kMmPer10k * kPxPerMm;  // 2.5421
+constexpr float kLigneHalf = 1.1279f;              // 2.2558 / 2
+constexpr float kFloorMm = 1.57f;                  // what the crayon holds
 
 inline float mapX(float lon) { return kFrameL + (lon - kLon0) * kLonPx; }
 inline float mapY(float lat) { return kLatRefY + (55.8f - lat) * kLatPx; }
@@ -246,15 +243,15 @@ constexpr float kConsoleY = 1356.0f, kConsoleH = 236.0f;
 
 struct Station {
   float lon, lat;
-  float men; // the strength the band CARRIES from this station eastward/onward
+  float men;  // the strength the band CARRIES from this station eastward/onward
 };
 
 // --- the advance, as Minard draws it -------------------------------------
 // trunk: the Niemen -> Moscou, with the two branch treads prepended
 const std::vector<Station> kAdvTrunk = {
-    {23.85f, 54.85f, 422000}, // the Niemen crossing
-    {24.50f, 55.00f, 400000}, // the northern column has peeled off
-    {25.50f, 54.50f, 340000}, // the Polotzk column has peeled off (Wilna)
+    {23.85f, 54.85f, 422000},  // the Niemen crossing
+    {24.50f, 55.00f, 400000},  // the northern column has peeled off
+    {25.50f, 54.50f, 340000},  // the Polotzk column has peeled off (Wilna)
     {26.00f, 54.70f, 320000}, {27.00f, 54.80f, 300000},
     {28.00f, 54.90f, 280000}, {28.50f, 55.00f, 240000},
     {29.00f, 55.10f, 210000}, {30.00f, 55.20f, 180000},
@@ -265,29 +262,32 @@ const std::vector<Station> kAdvTrunk = {
 };
 // the 22,000 that peels north (group 3 A)
 const std::vector<Station> kAdvNorth = {
-    {24.50f, 55.00f, 22000}, {24.50f, 55.30f, 22000}, {24.60f, 55.80f, 6000},
+    {24.50f, 55.00f, 22000},
+    {24.50f, 55.30f, 22000},
+    {24.60f, 55.80f, 6000},
 };
 // the 60,000 that peels toward Polotzk (group 2 A)
 const std::vector<Station> kAdvPolotzk = {
-    {25.50f, 54.50f, 60000}, {26.60f, 55.70f, 40000},
-    {27.40f, 55.60f, 33000}, {28.70f, 55.50f, 33000},
+    {25.50f, 54.50f, 60000},
+    {26.60f, 55.70f, 40000},
+    {27.40f, 55.60f, 33000},
+    {28.70f, 55.50f, 33000},
 };
 
 // --- the retreat, east -> west -------------------------------------------
 // Drawn in two pieces so the Bobr junction is an ENDPOINT of both, which
 // is what debug::endpointDegrees needs to see the army as one component.
 const std::vector<Station> kRetEast = {
-    {37.70f, 55.70f, 100000}, {37.50f, 55.70f, 98000},
-    {37.00f, 55.00f, 97000},  {36.80f, 55.00f, 96000},
-    {35.40f, 55.30f, 87000},  {34.30f, 55.20f, 55000},
-    {33.30f, 54.80f, 37000},  {32.00f, 54.60f, 24000},
-    {30.40f, 54.40f, 20000},  {29.20f, 54.30f, 20000}, // Bobr
+    {37.70f, 55.70f, 100000}, {37.50f, 55.70f, 98000}, {37.00f, 55.00f, 97000},
+    {36.80f, 55.00f, 96000},  {35.40f, 55.30f, 87000}, {34.30f, 55.20f, 55000},
+    {33.30f, 54.80f, 37000},  {32.00f, 54.60f, 24000}, {30.40f, 54.40f, 20000},
+    {29.20f, 54.30f, 20000},  // Bobr
 };
 const std::vector<Station> kRetWest = {
-    {29.20f, 54.30f, 50000}, // + the Polotzk column's 30,000 = 50,000
-    {28.50f, 54.20f, 50000}, // Studienska — the Berezina
+    {29.20f, 54.30f, 50000},  // + the Polotzk column's 30,000 = 50,000
+    {28.50f, 54.20f, 50000},  // Studienska — the Berezina
     {28.30f, 54.30f, 28000}, {27.50f, 54.50f, 20000},
-    {26.80f, 54.30f, 12000}, {26.40f, 54.40f, 14000}, // <- the anomaly
+    {26.80f, 54.30f, 12000}, {26.40f, 54.40f, 14000},  // <- the anomaly
     {25.00f, 54.40f, 8000},  {24.40f, 54.40f, 4000},
     {24.20f, 54.40f, 4000},  {24.10f, 54.40f, 4000},
 };
@@ -302,10 +302,10 @@ const std::vector<Station> kRetNorth = {
 };
 
 struct City {
-  const char *plate; // Minard's own spelling, kept
-  float lon, lat;    // Minard's plotted position
-  float rlon, rlat;  // gazetteer
-  float dx, dy;      // label offset in sheet px
+  const char* plate;  // Minard's own spelling, kept
+  float lon, lat;     // Minard's plotted position
+  float rlon, rlat;   // gazetteer
+  float dx, dy;       // label offset in sheet px
 };
 // residuals recomputed live from these by haversine (see cityKm below).
 const std::array<City, 20> kCities = {{
@@ -332,7 +332,7 @@ const std::array<City, 20> kCities = {{
 }};
 
 struct Temp {
-  const char *label; // exactly as engraved (8bre / 9bre / Xbre kept)
+  const char* label;  // exactly as engraved (8bre / 9bre / Xbre kept)
   float lon;
   float reaumur;
   int daysSincePrev;
@@ -342,7 +342,7 @@ const std::array<Temp, 9> kTemps = {{
     {"Pluie 24 8bre", 36.0f, 0, 6},
     {"- 9° le 9 9bre", 33.2f, -9, 16},
     {"- 21° le 14 9bre", 32.0f, -21, 5},
-    {"- 11°", 29.2f, -11, 10}, // NO DATE ENGRAVED
+    {"- 11°", 29.2f, -11, 10},  // NO DATE ENGRAVED
     {"- 20° le 28 9bre", 28.5f, -20, 4},
     {"- 24° le 1er Xbre", 27.2f, -24, 3},
     {"- 30° le 6 Xbre", 26.7f, -30, 5},
@@ -356,24 +356,32 @@ const std::array<Temp, 9> kTemps = {{
 struct HStation {
   float x, y;
   float men;
-  const char *at;
+  const char* at;
 };
 const std::vector<HStation> kHannibal = {
-    {102, 268, 96000, "Espagne"},   {222, 264, 94000, "Tortose"},
-    {322, 306, 80000, "Terragone"}, {400, 336, 80000, "Barcelone"},
-    {510, 328, 80000, "Girone"},    {578, 318, 60000, "Collioure"},
-    {600, 296, 60000, "Perpignan"}, {662, 272, 60000, "Narbone"},
-    {760, 258, 60000, ""},          {830, 280, 60000, "Pt St Esprit"},
-    {858, 308, 60000, "Orange"},    {934, 280, 46000, "l'Isere"},
-    {998, 298, 46000, "Grenoble"},  {1034, 330, 46000, "St Jn de Maurienne"},
-    {1068, 372, 26000, "le Mt Cenis"}, {1098, 400, 26000, "Suze"},
+    {102, 268, 96000, "Espagne"},
+    {222, 264, 94000, "Tortose"},
+    {322, 306, 80000, "Terragone"},
+    {400, 336, 80000, "Barcelone"},
+    {510, 328, 80000, "Girone"},
+    {578, 318, 60000, "Collioure"},
+    {600, 296, 60000, "Perpignan"},
+    {662, 272, 60000, "Narbone"},
+    {760, 258, 60000, ""},
+    {830, 280, 60000, "Pt St Esprit"},
+    {858, 308, 60000, "Orange"},
+    {934, 280, 46000, "l'Isere"},
+    {998, 298, 46000, "Grenoble"},
+    {1034, 330, 46000, "St Jn de Maurienne"},
+    {1068, 372, 26000, "le Mt Cenis"},
+    {1098, 400, 26000, "Suze"},
     {1124, 436, 26000, "Turin"},
 };
 
 struct Place {
-  const char *name;
+  const char* name;
   float x, y;
-  int kind; // 0 region caps, 1 town, 2 river, 3 people
+  int kind;  // 0 region caps, 1 town, 2 river, 3 people
 };
 const std::array<Place, 30> kHPlaces = {{
     {"Seltibériens", 118, 148, 3},
@@ -408,7 +416,7 @@ const std::array<Place, 30> kHPlaces = {{
     {"Suze", 1108, 396, 1},
 }};
 
-const char *kLegendNapoleon[] = {
+const char* kLegendNapoleon[] = {
     "Les nombres d'hommes présents sont représentés par les "
     "largeurs des zônes colorées à raison d'un millimètre "
     "pour dix mille hommes; ils sont",
@@ -430,9 +438,9 @@ const char *kLegendNapoleon[] = {
 // ---------------------------------------------------------------------------
 // geometry helpers
 
-SkPoint stationPt(const Station &s) { return {mapX(s.lon), mapY(s.lat)}; }
+SkPoint stationPt(const Station& s) { return {mapX(s.lon), mapY(s.lat)}; }
 
-SkPath polyline(const std::vector<Station> &st) {
+SkPath polyline(const std::vector<Station>& st) {
   SkPathBuilder p;
   for (size_t i = 0; i < st.size(); ++i) {
     const SkPoint q = stationPt(st[i]);
@@ -444,7 +452,7 @@ SkPath polyline(const std::vector<Station> &st) {
   return p.detach();
 }
 
-SkPath polylineH(const std::vector<HStation> &st) {
+SkPath polylineH(const std::vector<HStation>& st) {
   SkPathBuilder p;
   for (size_t i = 0; i < st.size(); ++i) {
     if (i == 0)
@@ -456,7 +464,7 @@ SkPath polylineH(const std::vector<HStation> &st) {
 }
 
 /** Cumulative arc length to each station of a polyline. */
-std::vector<float> arcAt(const std::vector<SkPoint> &pts) {
+std::vector<float> arcAt(const std::vector<SkPoint>& pts) {
   std::vector<float> a(pts.size(), 0.0f);
   for (size_t i = 1; i < pts.size(); ++i)
     a[i] = a[i - 1] + SkPoint::Distance(pts[i], pts[i - 1]);
@@ -469,18 +477,17 @@ std::vector<float> arcAt(const std::vector<SkPoint> &pts) {
  *  x, so a fraction-indexed profile puts every riser in the wrong place.
  *  The check is concrete — each riser must fall at its named city. */
 struct WidthProfile {
-  std::vector<float> arc; // cumulative arc length at each station
+  std::vector<float> arc;  // cumulative arc length at each station
   std::vector<float> men;
   float maxPx = 0.0f;
 
   float menAt(float s) const {
     size_t i = 0;
-    while (i + 1 < arc.size() && arc[i + 1] <= s)
-      ++i;
+    while (i + 1 < arc.size() && arc[i + 1] <= s) ++i;
     return men[i];
   }
   float pxAt(float s) const { return bandPx(menAt(s)); }
-  bool operator==(const WidthProfile &) const = default;
+  bool operator==(const WidthProfile&) const = default;
 };
 
 /** THE FLOW BAND'S WIDTH, as a comparable Profile — and the sketch's own
@@ -504,39 +511,36 @@ struct WidthProfile {
  *  be wrong: this one is derived from the morph's own endpoints. */
 struct FlowWidth {
   WidthProfile prof;
-  const ch::Output<float> *scale = nullptr;
+  const ch::Output<float>* scale = nullptr;
   static constexpr bool alongIsPx = true;
   float across(float px) const {
-    return prof.pxAt(px) *
-           ((scale ? scale->value() : kMmPer10k) / kMmPer10k);
+    return prof.pxAt(px) * ((scale ? scale->value() : kMmPer10k) / kMmPer10k);
   }
   float max() const { return prof.maxPx; }
-  bool operator==(const FlowWidth &o) const {
+  bool operator==(const FlowWidth& o) const {
     return prof == o.prof && scale == o.scale;
   }
 };
 
-WidthProfile profileOf(const std::vector<Station> &st) {
+WidthProfile profileOf(const std::vector<Station>& st) {
   std::vector<SkPoint> pts;
   pts.reserve(st.size());
-  for (const Station &s : st)
-    pts.push_back(stationPt(s));
+  for (const Station& s : st) pts.push_back(stationPt(s));
   WidthProfile w;
   w.arc = arcAt(pts);
-  for (const Station &s : st) {
+  for (const Station& s : st) {
     w.men.push_back(s.men);
     w.maxPx = std::max(w.maxPx, bandPx(s.men));
   }
   return w;
 }
 
-WidthProfile profileOfH(const std::vector<HStation> &st) {
+WidthProfile profileOfH(const std::vector<HStation>& st) {
   std::vector<SkPoint> pts;
-  for (const HStation &s : st)
-    pts.push_back({s.x, s.y});
+  for (const HStation& s : st) pts.push_back({s.x, s.y});
   WidthProfile w;
   w.arc = arcAt(pts);
-  for (const HStation &s : st) {
+  for (const HStation& s : st) {
     w.men.push_back(s.men);
     w.maxPx = std::max(w.maxPx, bandPx(s.men));
   }
@@ -557,8 +561,8 @@ WidthProfile profileOfH(const std::vector<HStation> &st) {
  *  is wider than about half its leg, which the advance band is at every
  *  turn between the Niemen and Witebsk. The two areas are both measured
  *  below; their difference is the corner defect, in ink. */
-SkPath quadUnion(const std::vector<SkPoint> &pts,
-                 const std::vector<float> &men, float scale = 1.0f) {
+SkPath quadUnion(const std::vector<SkPoint>& pts, const std::vector<float>& men,
+                 float scale = 1.0f) {
   SkPathBuilder b;
   // Every sub-polygon must be wound the SAME way: under kWinding a
   // reversed triangle laid over a quad cancels to winding 0 and punches a
@@ -597,8 +601,7 @@ SkPath quadUnion(const std::vector<SkPoint> &pts,
   for (size_t i = 0; i + 1 < pts.size(); ++i) {
     const SkVector e{pts[i + 1].x() - pts[i].x(), pts[i + 1].y() - pts[i].y()};
     const float L = std::hypot(e.x(), e.y());
-    if (L < 1e-4f)
-      continue;
+    if (L < 1e-4f) continue;
     const SkVector n{-e.y() / L, e.x() / L};
     const float h = bandPx(men[i]) * 0.5f * scale;
     b.moveTo(pts[i].x() + n.x() * h, pts[i].y() + n.y() * h);
@@ -610,17 +613,15 @@ SkPath quadUnion(const std::vector<SkPoint> &pts,
   return b.detach();
 }
 
-std::vector<SkPoint> pointsOf(const std::vector<Station> &st) {
+std::vector<SkPoint> pointsOf(const std::vector<Station>& st) {
   std::vector<SkPoint> p;
   p.reserve(st.size());
-  for (const Station &s : st)
-    p.push_back(stationPt(s));
+  for (const Station& s : st) p.push_back(stationPt(s));
   return p;
 }
-std::vector<float> menOf(const std::vector<Station> &st) {
+std::vector<float> menOf(const std::vector<Station>& st) {
   std::vector<float> m;
-  for (const Station &s : st)
-    m.push_back(s.men);
+  for (const Station& s : st) m.push_back(s.men);
   return m;
 }
 
@@ -633,7 +634,7 @@ std::vector<float> menOf(const std::vector<Station> &st) {
  *  that was actually drawn, so the study reconstructs it. Any change to
  *  Ribbon's sampling has to be mirrored here or the audit measures a band
  *  nobody draws. */
-SkPath ribbonBand(const SkPath &spine, const WidthProfile &w,
+SkPath ribbonBand(const SkPath& spine, const WidthProfile& w,
                   float stride = 3.0f) {
   SkPathBuilder band;
   SkContourMeasureIter iter(spine, false);
@@ -644,22 +645,17 @@ SkPath ribbonBand(const SkPath &spine, const WidthProfile &w,
       const float at = std::min(d, len);
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(at, &pos, &tan))
-        break;
+      if (!contour->getPosTan(at, &pos, &tan)) break;
       const float ww = w.pxAt(at);
       const SkVector n{-tan.y(), tan.x()};
       left.push_back({pos.x() + n.x() * ww / 2, pos.y() + n.y() * ww / 2});
       right.push_back({pos.x() - n.x() * ww / 2, pos.y() - n.y() * ww / 2});
-      if (at >= len)
-        break;
+      if (at >= len) break;
     }
-    if (left.size() < 2)
-      continue;
+    if (left.size() < 2) continue;
     band.moveTo(left.front());
-    for (size_t i = 1; i < left.size(); ++i)
-      band.lineTo(left[i]);
-    for (size_t i = right.size(); i-- > 0;)
-      band.lineTo(right[i]);
+    for (size_t i = 1; i < left.size(); ++i) band.lineTo(left[i]);
+    for (size_t i = right.size(); i-- > 0;) band.lineTo(right[i]);
     band.close();
   }
   return band.detach();
@@ -682,20 +678,18 @@ struct WidthAudit {
 
 /** Chord of `edges` through `p` along direction `u`, or -1 if p is outside.
  *  Edges are a flat list of segment endpoints. */
-float chordThrough(const std::vector<SkPoint> &edges, SkPoint p, SkVector u,
+float chordThrough(const std::vector<SkPoint>& edges, SkPoint p, SkVector u,
                    float limit) {
   float fwd = limit, back = limit;
   for (size_t i = 0; i + 1 < edges.size(); i += 2) {
     const SkPoint a = edges[i], b = edges[i + 1];
     const SkVector e{b.x() - a.x(), b.y() - a.y()};
     const float den = u.x() * e.y() - u.y() * e.x();
-    if (std::fabs(den) < 1e-9f)
-      continue;
+    if (std::fabs(den) < 1e-9f) continue;
     const SkVector w{a.x() - p.x(), a.y() - p.y()};
-    const float t = (w.x() * e.y() - w.y() * e.x()) / den; // along u
-    const float s = (w.x() * u.y() - w.y() * u.x()) / den; // along e
-    if (s < 0.0f || s > 1.0f)
-      continue;
+    const float t = (w.x() * e.y() - w.y() * e.x()) / den;  // along u
+    const float s = (w.x() * u.y() - w.y() * u.x()) / den;  // along e
+    if (s < 0.0f || s > 1.0f) continue;
     if (t > 0.0f)
       fwd = std::min(fwd, t);
     else
@@ -704,8 +698,8 @@ float chordThrough(const std::vector<SkPoint> &edges, SkPoint p, SkVector u,
   return fwd + back;
 }
 
-WidthAudit widthAlong(const SkPath &band, const SkPath &spine,
-                      const WidthProfile &w, float step = 4.0f,
+WidthAudit widthAlong(const SkPath& band, const SkPath& spine,
+                      const WidthProfile& w, float step = 4.0f,
                       int directions = 90) {
   // flatten the band into segments once
   std::vector<SkPoint> edges;
@@ -746,8 +740,7 @@ WidthAudit widthAlong(const SkPath &band, const SkPath &spine,
     for (float d = std::max(step, margin); d < len - margin; d += step) {
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan))
-        continue;
+      if (!contour->getPosTan(d, &pos, &tan)) continue;
       float best = limit;
       for (int k = 0; k < directions; ++k) {
         const float a = kPi * (float)k / (float)directions;
@@ -769,13 +762,12 @@ WidthAudit widthAlong(const SkPath &band, const SkPath &spine,
       }
     }
   }
-  if (out.samples)
-    out.rms = std::sqrt(out.rms / (float)out.samples);
+  if (out.samples) out.rms = std::sqrt(out.rms / (float)out.samples);
   return out;
 }
 
 /** ∫ w ds over the profile — the ink Minard intended, in px². */
-float inkIntegral(const SkPath &spine, const WidthProfile &w,
+float inkIntegral(const SkPath& spine, const WidthProfile& w,
                   float step = 1.0f) {
   float total = 0;
   SkContourMeasureIter iter(spine, false);
@@ -794,12 +786,12 @@ float haversineKm(float lon1, float lat1, float lon2, float lat2) {
   const float R = 6371.0088f;
   const float p1 = lat1 * kDeg, p2 = lat2 * kDeg;
   const float dp = (lat2 - lat1) * kDeg, dl = (lon2 - lon1) * kDeg;
-  const float a = std::sin(dp / 2) * std::sin(dp / 2) +
-                  std::cos(p1) * std::cos(p2) * std::sin(dl / 2) *
-                      std::sin(dl / 2);
+  const float a =
+      std::sin(dp / 2) * std::sin(dp / 2) +
+      std::cos(p1) * std::cos(p2) * std::sin(dl / 2) * std::sin(dl / 2);
   return 2 * R * std::asin(std::min(1.0f, std::sqrt(a)));
 }
-float cityKm(const City &c) {
+float cityKm(const City& c) {
   return haversineKm(c.lon, c.lat, c.rlon, c.rlat);
 }
 
@@ -820,10 +812,9 @@ std::function<SkPath(SkSize)> pathFn(SkPath path) {
 
 /** Quadratic smoothing through a point list (midpoint construction) —
  *  the coastlines and rivers of both panels. */
-SkPath smooth(const std::vector<SkPoint> &p) {
+SkPath smooth(const std::vector<SkPoint>& p) {
   SkPathBuilder b;
-  if (p.size() < 2)
-    return b.detach();
+  if (p.size() < 2) return b.detach();
   b.moveTo(p[0]);
   for (size_t i = 1; i + 1 < p.size(); ++i) {
     const SkPoint m{(p[i].x() + p[i + 1].x()) * 0.5f,
@@ -842,17 +833,19 @@ SkPath rectPath(float l, float t, float r, float bm) {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  return studio::type({.face = std::move(face), .size = size, .color = color,
+  return studio::type({.face = std::move(face),
+                       .size = size,
+                       .color = color,
                        .track = tracking});
 }
 
-using studio::fmt;   // variadic, and it sizes the result
-std::string fmt2(const char *f, double a, double b) {
+using studio::fmt;  // variadic, and it sizes the result
+std::string fmt2(const char* f, double a, double b) {
   char buf[192];
   std::snprintf(buf, sizeof buf, f, a, b);
   return buf;
 }
-std::string fmt3(const char *f, double a, double b, double c) {
+std::string fmt3(const char* f, double a, double b, double c) {
   char buf[224];
   std::snprintf(buf, sizeof buf, f, a, b, c);
   return buf;
@@ -862,8 +855,7 @@ std::string fmt3(const char *f, double a, double b, double c) {
 std::string french(float men) {
   const long v = (long)std::lround(men);
   std::string s = std::to_string(v);
-  for (int i = (int)s.size() - 3; i > 0; i -= 3)
-    s.insert((size_t)i, ".");
+  for (int i = (int)s.size() - 3; i > 0; i -= 3) s.insert((size_t)i, ".");
   return s;
 }
 
@@ -875,7 +867,7 @@ Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
   return t;
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -885,7 +877,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   // would feed the curve outside its domain. bind().window(a, b) clamps
   // instead, which is what lets one clock drive every beat on the sheet.
   ch::Output<float> T{0};
-  ch::Output<float> mmScale{kMmPer10k}; // the 12.6% morph
+  ch::Output<float> mmScale{kMmPer10k};  // the 12.6% morph
   ch::Output<float> dimAmt{0};
   ch::Output<float> calAlpha{0};
   /** The caliper's discrete steps: an instrument walks in clicks, so its
@@ -897,8 +889,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   sk_sp<SkTypeface> faceScript, faceItalic, faceRoman, faceNum, faceUi,
       faceUiBold, faceMono;
-  sigil::weave::FontContext *fonts = nullptr; // the composer's, held for
-                                              // metrics()/measureRun()
+  sigil::weave::FontContext* fonts = nullptr;  // the composer's, held for
+                                               // metrics()/measureRun()
 
   Pattern paperPulp, laidLines, chainLines, foxing, tintSpeckle;
   Material paperMat, zoneMat, inkMat, vignette, stampGrain;
@@ -909,12 +901,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   float retreatInk = 0, retreatArea = 0;
   float coverDoubled = 0;
   float unionArea = 0;
-  const char *worstCorner = "";
-  size_t advComponentsDrawn = 0, advComponentsWilkinson = 0,
-         retComponents = 0;
+  const char* worstCorner = "";
+  size_t advComponentsDrawn = 0, advComponentsWilkinson = 0, retComponents = 0;
   float riserArcErr = 0;   // arc-length indexed  — the right way
   float riserFracErr = 0;  // fraction indexed    — the trap
-  const char *riserWorstCity = "";
+  const char* riserWorstCity = "";
 
   console::LineRing colA{200}, colB{200}, colC{200}, colD{200}, colE{200};
 
@@ -957,12 +948,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto g = box().inset(0);
     // the two printed frames are ONE rule around each panel, drawn as a
     // double rule the way the plate cuts them
-    auto rule = [&](float l, float t, float r, float bm, const char *k,
+    auto rule = [&](float l, float t, float r, float bm, const char* k,
                     float t0, float t1) {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(rectPath(l, t, r, bm)))
-                  .stroke(spans::upTo(beat(t0, t1)), lines::Line{.width = 1.1f,
+                  .stroke(spans::upTo(beat(t0, t1)),
+                          lines::Line{.width = 1.1f,
                                       .fill = Fill::color(kInk),
                                       .parallels = 2,
                                       .gap = 3.0f})
@@ -993,8 +985,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .at({1218, 12})
                 .key("gedon")
                 .opacity(beat(0.9f, 1.2f)));
-    auto stamp = [&](float cx, float cy, float r, const char *label,
-                     const char *k, float t0) {
+    auto stamp = [&](float cx, float cy, float r, const char* label,
+                     const char* k, float t0) {
       g.child(
           box()
               .rect(SkRect::MakeXYWH(cx - r, cy - r * 0.66f, 2 * r, 1.32f * r))
@@ -1049,7 +1041,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
 
     auto g = box().inset(0);
-    g.child(custom([sea, rings](SkCanvas &c, const PaintContext &) {
+    g.child(custom([sea, rings](SkCanvas& c, const PaintContext&) {
               SkPaint p;
               p.setAntiAlias(true);
               p.setStyle(SkPaint::kStroke_Style);
@@ -1087,13 +1079,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  weight and alpha come from the local gradient, so this is a FIELD
    *  rather than a repeated motif and patterns::stripes cannot express
    *  it. */
-  Element lehmann(const std::vector<std::array<float, 4>> &ridges, float x0,
-                  float y0, float x1, float y1, const char *key, float t0) {
-    return custom([ridges, x0, y0, x1, y1](SkCanvas &c,
-                                           const PaintContext &) {
+  Element lehmann(const std::vector<std::array<float, 4>>& ridges, float x0,
+                  float y0, float x1, float y1, const char* key, float t0) {
+    return custom([ridges, x0, y0, x1, y1](SkCanvas& c, const PaintContext&) {
              auto height = [&](float x, float y) {
                float h = 0;
-               for (const auto &r : ridges) {
+               for (const auto& r : ridges) {
                  const float dx = (x - r[0]) / r[2];
                  const float dy = (y - r[1]) / r[3];
                  h += std::exp(-(dx * dx + dy * dy));
@@ -1107,22 +1098,23 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
              for (float y = y0; y < y1; y += pitch) {
                for (float x = x0; x < x1; x += pitch) {
                  const float h = height(x, y);
-                 if (h < 0.10f)
-                   continue;
+                 if (h < 0.10f) continue;
                  const float e = 1.2f;
-                 const float gx = (height(x + e, y) - height(x - e, y)) / (2 * e);
-                 const float gy = (height(x, y + e) - height(x, y - e)) / (2 * e);
+                 const float gx =
+                     (height(x + e, y) - height(x - e, y)) / (2 * e);
+                 const float gy =
+                     (height(x, y + e) - height(x, y - e)) / (2 * e);
                  const float slope = std::sqrt(gx * gx + gy * gy);
-                 if (slope < 0.004f)
-                   continue;
+                 if (slope < 0.004f) continue;
                  // Lehmann: black fraction = slope/45deg, capped
                  const float k = std::min(1.0f, slope / 0.055f);
                  const float len = pitch * (0.55f + 1.35f * k);
-                 const float ux = -gx / (slope + 1e-6f), uy = -gy / (slope + 1e-6f);
+                 const float ux = -gx / (slope + 1e-6f),
+                             uy = -gy / (slope + 1e-6f);
                  p.setStrokeWidth(0.45f + 0.75f * k);
-                 p.setColor4f({kInkThin.fR, kInkThin.fG, kInkThin.fB,
-                               0.30f + 0.62f * k},
-                              nullptr);
+                 p.setColor4f(
+                     {kInkThin.fR, kInkThin.fG, kInkThin.fB, 0.30f + 0.62f * k},
+                     nullptr);
                  c.drawLine(x - ux * len * 0.5f, y - uy * len * 0.5f,
                             x + ux * len * 0.5f, y + uy * len * 0.5f, p);
                }
@@ -1163,8 +1155,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(hannibalSea());
 
     // The Pyrenees and the Alps, hachured by Lehmann's rule.
-    g.child(lehmann({{{562, 302, 58, 15}}, {{604, 288, 50, 13}}}, 440, 250,
-                    720, 350, "pyrenees", tHann + 0.55f));
+    g.child(lehmann({{{562, 302, 58, 15}}, {{604, 288, 50, 13}}}, 440, 250, 720,
+                    350, "pyrenees", tHann + 0.55f));
     g.child(lehmann({{{1046, 336, 52, 30}},
                      {{1086, 382, 62, 34}},
                      {{1002, 296, 40, 22}},
@@ -1174,7 +1166,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                     900, 220, 1290, 570, "alps", tHann + 0.7f));
 
     // rivers, in a lighter sloped hand
-    auto river = [&](std::vector<SkPoint> pts, const char *k, float t0) {
+    auto river = [&](std::vector<SkPoint> pts, const char* k, float t0) {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
@@ -1200,8 +1192,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the ten numbers, written ACROSS the zones ("écrits en travers"),
     // Orient::Tangent on a cross-segment
     for (size_t i = 0; i + 1 < kHannibal.size(); ++i) {
-      if (i > 0 && kHannibal[i].men == kHannibal[i - 1].men)
-        continue;
+      if (i > 0 && kHannibal[i].men == kHannibal[i - 1].men) continue;
       g.child(bandNumber({kHannibal[i].x, kHannibal[i].y},
                          {kHannibal[i + 1].x - kHannibal[i].x,
                           kHannibal[i + 1].y - kHannibal[i].y},
@@ -1211,7 +1202,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // the place names
     for (size_t i = 0; i < kHPlaces.size(); ++i) {
-      const Place &p = kHPlaces[i];
+      const Place& p = kHPlaces[i];
       sigil::weave::TextStyle st =
           p.kind == 0   ? type(faceRoman, 11, kInk, 2.6f)
           : p.kind == 3 ? type(faceItalic, 10, hex(0x4e4436), 1.2f)
@@ -1248,9 +1239,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                  .stroke(util::stroke(1.0f, Fill::color(kInk)))
                  .key("legendbox")
                  .opacity(beat(tHann + 1.5f, tHann + 1.8f));
-    g.child(text(toU8("Légende."), type(faceScript, 14, kInk))
-                .at({140, 4}));
-    const char *lines_[] = {
+    g.child(text(toU8("Légende."), type(faceScript, 14, kInk)).at({140, 4}));
+    const char* lines_[] = {
         "Les nombres d'hommes restés à Annibal sont "
         "représentés",
         "par la largeur des zônes colorées à raison d'un "
@@ -1275,8 +1265,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  the ROUTE's bounding box so that the profile's `max()` is actually
    *  load bearing (the band overflows that box by up to w/2 on each
    *  side). */
-  Element bandElement(const SkPath &spine, const WidthProfile &prof,
-                      SkColor4f colour, const std::string &key,
+  Element bandElement(const SkPath& spine, const WidthProfile& prof,
+                      SkColor4f colour, const std::string& key,
                       Animatable<float> reveal) {
     const SkRect bb = spine.getBounds();
     const SkPath local = spine.makeOffset(-bb.left(), -bb.top());
@@ -1300,8 +1290,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  here rather than per paint, so the 12.6% morph re-describes this
    *  subtree; that is the cost of a comparable value, and it is the right
    *  trade for a band that must not lose its bends. */
-  Element quadBandElement(const std::vector<Station> &st, SkColor4f colour,
-                          const std::string &key, Animatable<float> reveal,
+  Element quadBandElement(const std::vector<Station>& st, SkColor4f colour,
+                          const std::string& key, Animatable<float> reveal,
                           float wipeDeg) {
     const std::vector<SkPoint> pts = pointsOf(st);
     const SkPath band = quadUnion(pts, menOf(st), mmScale.value() / kMmPer10k);
@@ -1324,24 +1314,23 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  clearance scales with the type instead of sitting at a guessed
    *  constant. */
   Element bandNumber(SkPoint at, SkVector tangent, float men, float size,
-                     const std::string &key, float t0) {
+                     const std::string& key, float t0) {
     const float L = std::hypot(tangent.x(), tangent.y());
-    SkVector t = L > 0 ? SkVector{tangent.x() / L, tangent.y() / L}
-                       : SkVector{1, 0};
+    SkVector t =
+        L > 0 ? SkVector{tangent.x() / L, tangent.y() / L} : SkVector{1, 0};
     SkVector n{-t.y(), t.x()};
-    if (n.y() > 0) { // make the type read bottom-up, as on the plate
+    if (n.y() > 0) {  // make the type read bottom-up, as on the plate
       n = {-n.x(), -n.y()};
     }
     const auto style = type(faceNum, size, kInk, 0.2f);
     float runLen = 0;
-    float slack = size * 0.3f; // metrics-free fallback, same shape
+    float slack = size * 0.3f;  // metrics-free fallback, same shape
     if (fonts) {
       for (float adv : measureRun(toU8(french(men)), style, *fonts))
         runLen += adv;
       slack = metrics(style, *fonts).capSlack();
     }
-    const float half =
-        std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
+    const float half = std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
     const SkPoint a{at.x() - n.x() * half, at.y() - n.y() * half};
     const SkPoint b{at.x() + n.x() * half, at.y() + n.y() * half};
     return text(toU8(french(men)), style)
@@ -1367,7 +1356,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                                beat(tAdv + 0.55f, tAdv + 1.2f), 0.0f));
   }
 
-  Element napoleonPanel(sketch::SketchContext &ctx) {
+  Element napoleonPanel(sketch::SketchContext& ctx) {
     auto g = box().inset(0);
 
     g.child(text(toU8("Carte Figurative des pertes successives en hommes de "
@@ -1387,18 +1376,17 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // the legend as a PARAGRAPH, which is what it is — not a key.
     for (int i = 0; i < 5; ++i) {
-      g.child(text(toU8(kLegendNapoleon[i]),
-                   type(faceScript, 9.8f, kInk, 0.02f))
-                  .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
-                  .key("nleg" + std::to_string(i))
-                  .mask(by::edge(0.0f,
-                                 beat(tLegend + 0.25f + 0.16f * (float)i,
-                                      tLegend + 0.55f + 0.16f * (float)i))));
+      g.child(
+          text(toU8(kLegendNapoleon[i]), type(faceScript, 9.8f, kInk, 0.02f))
+              .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
+              .key("nleg" + std::to_string(i))
+              .mask(by::edge(0.0f, beat(tLegend + 0.25f + 0.16f * (float)i,
+                                        tLegend + 0.55f + 0.16f * (float)i))));
     }
 
     // the rivers of the Russian panel
-    auto river = [&](std::vector<SkPoint> pts, const char *label, SkPoint lp,
-                     const char *k, float t0) {
+    auto river = [&](std::vector<SkPoint> pts, const char* label, SkPoint lp,
+                     const char* k, float t0) {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
@@ -1415,20 +1403,17 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
            {mapX(23.8f), mapY(54.8f)},
            {mapX(24.0f), mapY(54.2f)},
            {mapX(23.9f), mapY(53.8f)}},
-          "Niémen R.", {mapX(23.45f), 774.0f}, "rNiemen",
-          tAdv - 0.2f);
+          "Niémen R.", {mapX(23.45f), 774.0f}, "rNiemen", tAdv - 0.2f);
     river({{mapX(28.6f), mapY(54.9f)},
            {mapX(28.45f), mapY(54.5f)},
            {mapX(28.6f), mapY(54.1f)},
            {mapX(28.4f), mapY(53.7f)}},
-          "Bérézina R.", {mapX(28.2f), mapY(54.72f)}, "rBerez",
-          tAdv - 0.15f);
+          "Bérézina R.", {mapX(28.2f), mapY(54.72f)}, "rBerez", tAdv - 0.15f);
     river({{mapX(31.2f), mapY(54.05f)},
            {mapX(30.9f), mapY(54.5f)},
            {mapX(31.05f), mapY(54.95f)},
            {mapX(30.7f), mapY(55.4f)}},
-          "Dniéper R.", {mapX(30.95f), mapY(54.35f)}, "rDniepr",
-          tAdv - 0.1f);
+          "Dniéper R.", {mapX(30.95f), mapY(54.35f)}, "rDniepr", tAdv - 0.1f);
     river({{mapX(36.6f), mapY(56.05f)},
            {mapX(36.9f), mapY(55.7f)},
            {mapX(37.3f), mapY(55.45f)}},
@@ -1476,7 +1461,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the map panel — five identities, all exact, on numbers Minard
     // engraved, and they need no measurement at all.
     {
-      const char *ident[] = {"422 − 22 = 400", "400 − 60 = 340",
+      const char* ident[] = {"422 − 22 = 400", "400 − 60 = 340",
                              "20 + 30 = 50  (Bobr)",
                              "50 − 28 = 22,000 in four days  (the "
                              "Berezina)",
@@ -1497,11 +1482,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
 
     // --- the engraved numbers --------------------------------------------
-    auto numbersFor = [&](const std::vector<Station> &st, const char *tag,
+    auto numbersFor = [&](const std::vector<Station>& st, const char* tag,
                           float t0, float dt) {
       for (size_t i = 0; i + 1 < st.size(); ++i) {
-        if (i > 0 && st[i].men == st[i - 1].men)
-          continue;
+        if (i > 0 && st[i].men == st[i - 1].men) continue;
         const SkPoint a = stationPt(st[i]), b = stationPt(st[i + 1]);
         g.child(bandNumber({(a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f},
                            {b.x() - a.x(), b.y() - a.y()}, st[i].men, 8.6f,
@@ -1520,16 +1504,15 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // --- the place names --------------------------------------------------
     for (size_t i = 0; i < kCities.size(); ++i) {
-      const City &c = kCities[i];
+      const City& c = kCities[i];
       const bool moscou = std::string(c.plate) == "Moscou";
       // MOSCOU alone is set in spaced roman capitals, and it is the only
       // word on the map that is.
-      Element e =
-          moscou ? text(toU8("MOSCOU"), type(faceRoman, 13, kInk, 2.2f))
-                       .textStroke(0.5f, Fill::color(kInk))
-                 : text(toU8(c.plate), type(faceItalic, 9.6f, kInk, 0.2f));
-      g.child(e
-                  .at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
+      Element e = moscou
+                      ? text(toU8("MOSCOU"), type(faceRoman, 13, kInk, 2.2f))
+                            .textStroke(0.5f, Fill::color(kInk))
+                      : text(toU8(c.plate), type(faceItalic, 9.6f, kInk, 0.2f));
+      g.child(e.at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
                   .key("city" + std::to_string(i))
                   .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
                                 tAdv + 0.4f + 0.03f * (float)i)));
@@ -1543,8 +1526,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const float floorPx = 5.4f * 0.6549f;
       SkPathBuilder fb;
       const float y = mapY(54.4f);
-      fb.addRect(SkRect::MakeLTRB(mapX(24.1f), y - floorPx * 0.5f,
-                                  mapX(25.0f), y + floorPx * 0.5f));
+      fb.addRect(SkRect::MakeLTRB(mapX(24.1f), y - floorPx * 0.5f, mapX(25.0f),
+                                  y + floorPx * 0.5f));
       g.child(box()
                   .inset(0)
                   .shape(pathFn(fb.detach()))
@@ -1587,7 +1570,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  a contour: each graduation carries its own number, and a stamped
    *  element cannot know which sample it is. */
   Element scaleBar(float x, float y, float pxPerUnit, int span, int step,
-                   const char *label, const char *key, float t0) {
+                   const char* label, const char* key, float t0) {
     auto g = box().inset(0).key(key).opacity(beat(t0, t0 + 0.3f));
     const float w = pxPerUnit * (float)span;
     g.child(box()
@@ -1597,10 +1580,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     for (int v = 0; v <= span; v += step) {
       const float tx = x + pxPerUnit * (float)v;
       if (v > 25 && v < span)
-        continue; // the plate's own graduation: 0 5 10 15 20 25 ...... 50
-      g.child(box()
-                  .inset(0)
-                  .shape(segFn({tx, y - 4}, {tx, y})));
+        continue;  // the plate's own graduation: 0 5 10 15 20 25 ...... 50
+      g.child(box().inset(0).shape(segFn({tx, y - 4}, {tx, y})));
       g.child(text(toU8(std::to_string(v)), type(faceNum, 6.5f, kInk))
                   .at({tx - 3, y + 2}));
     }
@@ -1608,8 +1589,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     {
       SkPathBuilder tb;
       for (int v = 0; v <= span; v += step) {
-        if (v > 25 && v < span)
-          continue;
+        if (v > 25 && v < span) continue;
         const float tx = x + pxPerUnit * (float)v;
         tb.moveTo(tx, y - 4);
         tb.lineTo(tx, y);
@@ -1619,8 +1599,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .shape(pathFn(tb.detach()))
                   .stroke(util::stroke(0.9f, Fill::color(kInk))));
     }
-    g.child(text(toU8(label), type(faceItalic, 7.5f, kInk, 0.1f))
-                .at({x, y - 18}));
+    g.child(
+        text(toU8(label), type(faceItalic, 7.5f, kInk, 0.1f)).at({x, y - 18}));
     return g;
   }
 
@@ -1662,7 +1642,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // the curve, and the fine ticks hatched UNDER it (not a fill)
     std::vector<SkPoint> curve;
-    for (const Temp &t : kTemps)
+    for (const Temp& t : kTemps)
       curve.push_back({mapX(t.lon), tempY(t.reaumur)});
     SkPathBuilder cb;
     for (size_t i = 0; i < curve.size(); ++i)
@@ -1676,7 +1656,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
                 .key("tcurve"));
     // the hatched underside: short ticks hanging off the curve
-    g.child(custom([curvePath](SkCanvas &c, const PaintContext &) {
+    g.child(custom([curvePath](SkCanvas& c, const PaintContext&) {
               SkPaint p;
               p.setAntiAlias(true);
               p.setStyle(SkPaint::kStroke_Style);
@@ -1688,8 +1668,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 for (float d = 0; d < len; d += 3.0f) {
                   SkPoint q;
                   SkVector tn;
-                  if (!m->getPosTan(d, &q, &tn))
-                    continue;
+                  if (!m->getPosTan(d, &q, &tn)) continue;
                   c.drawLine(q.x(), q.y(), q.x() - 1.4f, q.y() + 5.0f, p);
                 }
               }
@@ -1711,16 +1690,16 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       PathFormat f;
       f.width = 0.7f;
       // the rule fades as it crosses the panel divider
-      f.strokeMaterial = Material::linearUnit(
-          {0, 0}, {0, 1},
-          {{0.0f, hex(0x4e4436, 0.80f)},
-           {0.66f, hex(0x4e4436, 0.22f)},
-           {1.0f, hex(0x4e4436, 0.75f)}});
+      f.strokeMaterial = Material::linearUnit({0, 0}, {0, 1},
+                                              {{0.0f, hex(0x4e4436, 0.80f)},
+                                               {0.66f, hex(0x4e4436, 0.22f)},
+                                               {1.0f, hex(0x4e4436, 0.75f)}});
       g.child(box()
                   .inset(0)
                   .shape(pathFn(d.detach()))
                   .stroke(spans::upTo(beat(tTemp + 0.25f + 0.05f * (float)i,
-                                   tTemp + 0.55f + 0.05f * (float)i)), f)
+                                           tTemp + 0.55f + 0.05f * (float)i)),
+                          f)
                   .key("drop" + std::to_string(i)));
 
       // the annotation, as engraved. 8bre / 9bre / Xbre are October /
@@ -1760,32 +1739,33 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .at({kFrameL + 6, kFrameB + 6})
                 .key("imp1")
                 .opacity(beat(1.0f, 1.3f)));
-    g.child(text(toU8("Imp. Lith. Regnier et Dourdet"),
-                 type(faceItalic, 7, kInk))
-                .at({kFrameR - 140, kFrameB + 6})
-                .key("imp2")
-                .opacity(beat(1.0f, 1.3f)));
+    g.child(
+        text(toU8("Imp. Lith. Regnier et Dourdet"), type(faceItalic, 7, kInk))
+            .at({kFrameR - 140, kFrameB + 6})
+            .key("imp2")
+            .opacity(beat(1.0f, 1.3f)));
     return g;
   }
 
   struct SpotRead {
     float x, y, halfPx, mm, men;
-    const char *where;
+    const char* where;
   };
   SpotRead spot(int i) const {
     switch (i & 3) {
-    case 0:
-      return {mapX(24.0f) + 8, mapY(54.9f), bandPx(422000) * 0.5f, 47.15f,
-              422000, "Napoléon, at the Niemen"};
-    case 1:
-      return {mapX(24.9f), mapY(55.0f), bandPx(400000) * 0.5f, 44.54f, 400000,
-              "Napoléon, after the northern column"};
-    case 2:
-      return {mapX(37.0f), mapY(55.62f), bandPx(100000) * 0.5f, 11.43f, 100000,
-              "Napoléon, at Moscou"};
-    default:
-      return {222, 264, bandPx(96000) * 0.5f, 10.84f, 96000,
-              "Annibal, at the Ebro — a DIFFERENT panel"};
+      case 0:
+        return {mapX(24.0f) + 8, mapY(54.9f), bandPx(422000) * 0.5f,
+                47.15f,          422000,      "Napoléon, at the Niemen"};
+      case 1:
+        return {
+            mapX(24.9f), mapY(55.0f), bandPx(400000) * 0.5f,
+            44.54f,      400000,      "Napoléon, after the northern column"};
+      case 2:
+        return {mapX(37.0f), mapY(55.62f), bandPx(100000) * 0.5f,
+                11.43f,      100000,       "Napoléon, at Moscou"};
+      default:
+        return {222,    264,   bandPx(96000) * 0.5f,
+                10.84f, 96000, "Annibal, at the Ebro — a DIFFERENT panel"};
     }
   }
 
@@ -1795,7 +1775,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element caliper() {
     const SpotRead r = spot(calStep);
     auto g = box().inset(0).key("caliperGrp").opacity(&calAlpha);
-    auto jaw = [&](float x, float y, float halfPx, const char *k) {
+    auto jaw = [&](float x, float y, float halfPx, const char* k) {
       SkPathBuilder p;
       p.moveTo(x - 16, y - halfPx);
       p.lineTo(x + 16, y - halfPx);
@@ -1806,8 +1786,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(p.detach()))
-                  .background(util::shadow(hex(0x000000, 0.30f), {1.5f, 2.0f},
-                                           3.0f))
+                  .background(
+                      util::shadow(hex(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
                   .stroke(util::stroke(2.0f, Fill::color(kBlue)))
                   .key(k));
     };
@@ -1827,14 +1807,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                  type(faceUi, 9, hex(0x2f6f9c, 0.9f)))
                 .at({rx, ry + 33})
                 .key("calread3"));
-    g.child(text(toU8("the legend says 1.0000"),
-                 type(faceUiBold, 10, kClaimRed))
-                .at({rx, ry + 58})
-                .key("calread4"));
+    g.child(
+        text(toU8("the legend says 1.0000"), type(faceUiBold, 10, kClaimRed))
+            .at({rx, ry + 58})
+            .key("calread4"));
     return g;
   }
 
-  Element sheet(sketch::SketchContext &ctx) {
+  Element sheet(sketch::SketchContext& ctx) {
     return box()
         .rect(SkRect::MakeXYWH(kSheetX, kSheetY, kSheetW, kSheetH))
         .background(util::shadow(hex(0x000000, 0.55f), {6, 10}, 26))
@@ -1870,8 +1850,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   // THE AUDIT — five cards, a different world: clean paper, crisp rules,
   // no grain.
 
-  Element card(float y, float h, const char *title, const char *key,
-               float t0, Element body) {
+  Element card(float y, float h, const char* title, const char* key, float t0,
+               Element body) {
     auto c = box()
                  .rect(SkRect::MakeXYWH(kAuditX, y, kAuditW, h))
                  .fill(Material::solid(kCard))
@@ -1879,8 +1859,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                  .key(key)
                  .opacity(beat(t0, t0 + 0.4f))
                  .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
-    c.child(text(toU8(title), type(faceUiBold, 15, kCardInk, 1.6f))
-                .at({18, 12}));
+    c.child(
+        text(toU8(title), type(faceUiBold, 15, kCardInk, 1.6f)).at({18, 12}));
     c.child(box()
                 .inset(0)
                 .shape(segFn({18, 36}, {kAuditW - 18, 36}))
@@ -1894,10 +1874,17 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element cardScale() {
     // the measured staircase (Commons scan, stair2.py)
     static const std::array<std::pair<float, float>, 11> treads = {{
-        {422000, 166.54f}, {400000, 154.46f}, {340000, 130.92f},
-        {300000, 111.67f}, {280000, 101.55f}, {240000, 87.13f},
-        {210000, 76.41f},  {175000, 67.42f},  {145000, 57.63f},
-        {127100, 52.39f},  {100000, 40.25f},
+        {422000, 166.54f},
+        {400000, 154.46f},
+        {340000, 130.92f},
+        {300000, 111.67f},
+        {280000, 101.55f},
+        {240000, 87.13f},
+        {210000, 76.41f},
+        {175000, 67.42f},
+        {145000, 57.63f},
+        {127100, 52.39f},
+        {100000, 40.25f},
     }};
     const float slope = 3.828f, intercept = -0.19f, r2 = 0.99266f;
     const float px0 = 60, py0 = 60, pw = 560, ph = 236;
@@ -1945,15 +1932,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .opacity(beat(tScale + 2.4f, tScale + 2.7f)));
     g.child(text(toU8("men →"), type(faceUi, 9, kGrey))
                 .at({px0 + pw - 40, py0 + ph + 6}));
-    g.child(text(toU8("px"), type(faceUi, 9, kGrey))
-                .at({px0 - 24, py0 - 2}));
+    g.child(text(toU8("px"), type(faceUi, 9, kGrey)).at({px0 - 24, py0 - 2}));
 
     // the two horizontal rules that matter
     // the two rules are drawn PROPORTIONAL: their lengths are the two
     // millimetre values, so the 12.6% is a length rather than a caption
     const float rx = 660, rwUnit = 268;
-    auto ruleRow = [&](float y, const char *v, const char *what, SkColor4f col,
-                       const char *k, float t0, float mm) {
+    auto ruleRow = [&](float y, const char* v, const char* what, SkColor4f col,
+                       const char* k, float t0, float mm) {
       const float rw = rwUnit * mm;
       g.child(box()
                   .inset(0)
@@ -2006,9 +1992,16 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  12,000 -> 14,000 anomaly is invisible in the ink. */
   Element cardFloor() {
     static const std::array<std::pair<float, float>, 10> pts = {{
-        {96000, 3.57f}, {87000, 3.93f}, {55000, 3.80f}, {50000, 3.85f},
-        {37000, 3.90f}, {24000, 4.67f}, {20000, 4.29f}, {12000, 4.20f},
-        {8000, 7.04f},  {4000, 10.48f},
+        {96000, 3.57f},
+        {87000, 3.93f},
+        {55000, 3.80f},
+        {50000, 3.85f},
+        {37000, 3.90f},
+        {24000, 4.67f},
+        {20000, 4.29f},
+        {12000, 4.20f},
+        {8000, 7.04f},
+        {4000, 10.48f},
     }};
     const float px0 = 60, py0 = 58, pw = 470, ph = 108;
     auto g = box().inset(0);
@@ -2085,7 +2078,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** Card 3 — THE MAP IS A REAL MAP. The received account is wrong. */
   Element cardGeo() {
     auto g = box().inset(0);
-    const float ox = 40, oy = 52, sc = 31.0f; // px per degree, inset map
+    const float ox = 40, oy = 52, sc = 31.0f;  // px per degree, inset map
     const float exagg = 8.0f;
     auto MX = [&](float lon) { return ox + (lon - 23.5f) * sc; };
     auto MY = [&](float lat) { return oy + (56.2f - lat) * sc * 1.4f; };
@@ -2094,8 +2087,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the route itself, so the dots read as a campaign and not a scatter
     {
       SkPathBuilder rt;
-      const std::vector<Station> *legs[] = {&kAdvTrunk, &kRetEast, &kRetWest};
-      for (const std::vector<Station> *v : legs)
+      const std::vector<Station>* legs[] = {&kAdvTrunk, &kRetEast, &kRetWest};
+      for (const std::vector<Station>* v : legs)
         for (size_t i = 0; i < v->size(); ++i) {
           const SkPoint q{MX((*v)[i].lon), MY((*v)[i].lat)};
           i == 0 ? rt.moveTo(q) : rt.lineTo(q);
@@ -2108,7 +2101,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .key("georoute"));
     }
     SkPathBuilder crosses, vectors;
-    for (const City &c : kCities) {
+    for (const City& c : kCities) {
       const float mx = MX(c.lon), my = MY(c.lat);
       const float rx = mx + (c.rlon - c.lon) * sc * exagg;
       const float ry = my - (c.rlat - c.lat) * sc * 1.4f * exagg;
@@ -2132,7 +2125,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .key("geocross")
                 .opacity(beat(tGeo + 0.2f, tGeo + 0.6f)));
     for (size_t i = 0; i < kCities.size(); ++i) {
-      const City &c = kCities[i];
+      const City& c = kCities[i];
       const bool out = cityKm(c) > 20.0f;
       g.child(util::disc({MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
                   .shape(shapes::circle())
@@ -2150,7 +2143,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the histogram of the 20 residuals
     const float hx = 640, hy = 58, hw = 250, hh = 108;
     std::array<int, 8> bins{};
-    for (const City &c : kCities) {
+    for (const City& c : kCities) {
       int b = (int)(cityKm(c) / 5.0f);
       bins[(size_t)std::min(7, b)]++;
     }
@@ -2205,7 +2198,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** Card 4 — WHAT HE DID DISTORT. Ten leg ratios against 1.00. */
   Element cardLegs() {
     struct Leg {
-      const char *name;
+      const char* name;
       float ratio;
     };
     static const std::array<Leg, 10> legs = {{
@@ -2274,27 +2267,27 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element cardReaumur() {
     auto g = box().inset(0);
     const float x0 = 40, y0 = 50, rowH = 15.0f;
-    const char *heads[] = {"date on the plate", "°R", "°C",
-                           "°F", "days"};
+    const char* heads[] = {"date on the plate", "°R", "°C", "°F", "days"};
     const float cols[] = {0, 250, 330, 410, 500};
     for (int c = 0; c < 5; ++c)
       g.child(text(toU8(heads[c]), type(faceUiBold, 9.5f, kGrey))
                   .at({x0 + cols[c], y0 - 16})
                   .key("rh" + std::to_string(c)));
     for (size_t i = 0; i < kTemps.size(); ++i) {
-      const Temp &t = kTemps[i];
+      const Temp& t = kTemps[i];
       const bool cold = t.reaumur <= -30.0f;
       const SkColor4f col = cold ? kBlue : kCardInk;
       const float y = y0 + rowH * (float)i;
-      auto cell = [&](int c, const std::string &s, SkColor4f cc, float sz) {
+      auto cell = [&](int c, const std::string& s, SkColor4f cc, float sz) {
         g.child(text(toU8(s), type(faceUi, sz, cc))
                     .at({x0 + cols[c], y})
                     .key("rc" + std::to_string(i) + "_" + std::to_string(c))
                     .opacity(beat(tReaumur + 0.05f * (float)i,
                                   tReaumur + 0.25f + 0.05f * (float)i)));
       };
-      cell(0, i == 4 ? std::string(t.label) + "   (NO DATE ENGRAVED)"
-                     : std::string(t.label),
+      cell(0,
+           i == 4 ? std::string(t.label) + "   (NO DATE ENGRAVED)"
+                  : std::string(t.label),
            i == 4 ? kAmber : col, cold ? 11.0f : 10.0f);
       cell(1, fmt("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
       cell(2, fmt("%.2f", t.reaumur * 1.25f), col, cold ? 11.5f : 10.0f);
@@ -2340,8 +2333,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                  tScale, cardScale()));
     g.child(card(466, 196, "THE FLOOR", "card2", tScale + 0.8f, cardFloor()));
     g.child(card(668, 250, "THE MAP IS A REAL MAP", "card3", tGeo, cardGeo()));
-    g.child(card(926, 206, "WHAT HE DID DISTORT", "card4", tDistort,
-                 cardLegs()));
+    g.child(
+        card(926, 206, "WHAT HE DID DISTORT", "card4", tDistort, cardLegs()));
     g.child(card(1144, 204, "RÉAUMUR", "card5", tReaumur, cardReaumur()));
     return g;
   }
@@ -2400,7 +2393,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   // =======================================================================
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     return box()
         .fill(Material::solid(kDesk))
         .child(titleStrip())
@@ -2414,7 +2407,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   void runAudits() {
     // --- flow conservation, on Minard's own engraved numbers -------------
-    auto say = [&](console::LineRing &r, const std::string &s, size_t pal) {
+    auto say = [&](console::LineRing& r, const std::string& s, size_t pal) {
       r.append(toU8(s), pal);
     };
     // The verdict is never written by hand: debug::check computes it FROM
@@ -2422,14 +2415,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // verdict chose, so a line that reads EXACT cannot disagree with the
     // arithmetic printed beside it, and a line that fails says what it
     // expected as well as what it got.
-    auto chk = [&](console::LineRing &r, const std::string &label, long lhs,
+    auto chk = [&](console::LineRing& r, const std::string& label, long lhs,
                    long rhs) {
       debug::report(r, debug::check(label, rhs, lhs), 1, 2);
     };
 
     say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", 4);
-    chk(colA, "422,000 − 22,000 (northern column)", 422000 - 22000,
-        400000);
+    chk(colA, "422,000 − 22,000 (northern column)", 422000 - 22000, 400000);
     chk(colA, "400,000 − 60,000 (Polotzk column)", 400000 - 60000, 340000);
     chk(colA, "340,000 + 60,000 + 22,000", 340000 + 60000 + 22000, 422000);
     chk(colA, "20,000 + 30,000 at the Berezina", 20000 + 30000, 50000);
@@ -2446,8 +2438,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       std::vector<Station> all = kRetEast;
       all.insert(all.end(), kRetWest.begin() + 1, kRetWest.end());
       for (size_t i = 1; i < all.size(); ++i) {
-        if (all[i].men == all[i - 1].men)
-          continue;
+        if (all[i].men == all[i - 1].men) continue;
         ++junctions;
         // the Bobr junction legitimately gains the Polotzk column's 30,000
         const bool bobr = std::fabs(all[i].lon - 29.2f) < 0.01f;
@@ -2491,30 +2482,33 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         "  legend (BOTH panels)  \"à raison d'un millimètre pour dix "
         "mille hommes\"",
         0);
-    say(colB, "  11 treads, Commons scan:  3.828 px/10k, intercept "
-              "−0.19 px, R² 0.99266",
+    say(colB,
+        "  11 treads, Commons scan:  3.828 px/10k, intercept "
+        "−0.19 px, R² 0.99266",
         3);
-    say(colB, "  intercept / (10,000-men width)   −0.05        PASS "
-              "(proportional)",
+    say(colB,
+        "  intercept / (10,000-men width)   −0.05        PASS "
+        "(proportional)",
         1);
-    say(colB, "  paper 3945×3423 px, aspect 1.1525 vs 62/54 = 1.1481   "
-              "+0.4%  PASS",
+    say(colB,
+        "  paper 3945×3423 px, aspect 1.1525 vs 62/54 = 1.1481   "
+        "+0.4%  PASS",
         1);
-    say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan",
-        0);
-    say(colB, fmt("  from the regression                        %.3f mm/10k",
-                  3.828 / 3.4482),
+    say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", 0);
+    say(colB,
+        fmt("  from the regression                        %.3f mm/10k",
+            3.828 / 3.4482),
         3);
-    say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
-        3);
+    say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm", 3);
     say(colB, "  STATED                                 1.0000 mm", 0);
     say(colB,
         fmt("  → the engraved zones are %.1f%% WIDER than the legend "
             "claims     FAIL (the plate's)",
             100.0 * (kMmPer10k - 1.0) / 1.0),
         2);
-    say(colB, "  and the SAME factor on the Hannibal panel, other data, other "
-              "continent",
+    say(colB,
+        "  and the SAME factor on the Hannibal panel, other data, other "
+        "continent",
         2);
     say(colB,
         fmt("  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
@@ -2523,25 +2517,28 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         0);
     say(colB, "", 0);
     say(colB, "THE FLOOR", 4);
-    say(colB, "  above ~35,000 men      3.6 – 3.9 px per 10,000   (holds "
-              "scale)",
+    say(colB,
+        "  above ~35,000 men      3.6 – 3.9 px per 10,000   (holds "
+        "scale)",
         1);
-    say(colB, "  at 8,000 / 4,000       7.0 / 10.5 px per 10,000   (2.6× "
-              "too wide)",
+    say(colB,
+        "  at 8,000 / 4,000       7.0 / 10.5 px per 10,000   (2.6× "
+        "too wide)",
         2);
-    say(colB, "  minimum drawn width    5.4 px = 1.57 mm — what a crayon "
-              "holds",
+    say(colB,
+        "  minimum drawn width    5.4 px = 1.57 mm — what a crayon "
+        "holds",
         2);
-    say(colB, "  → 12,000→14,000 is NOT measurable in the ink. "
-              "NEGATIVE RESULT, REPORTED.",
+    say(colB,
+        "  → 12,000→14,000 is NOT measurable in the ink. "
+        "NEGATIVE RESULT, REPORTED.",
         2);
     say(colB, "", 0);
 
     say(colC, "MINARD'S GEOGRAPHY vs THE REAL WORLD", 4);
     {
       std::vector<float> km;
-      for (const City &c : kCities)
-        km.push_back(cityKm(c));
+      for (const City& c : kCities) km.push_back(cityKm(c));
       std::vector<float> sorted = km;
       std::sort(sorted.begin(), sorted.end());
       float mean = 0, ss = 0;
@@ -2564,76 +2561,88 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
               "         PASS",
               rms / 3.70),
           1);
-      const float kmKM =
-          haversineKm(kCities[0].rlon, kCities[0].rlat, kCities[17].rlon,
-                      kCities[17].rlat);
+      const float kmKM = haversineKm(kCities[0].rlon, kCities[0].rlat,
+                                     kCities[17].rlon, kCities[17].rlat);
       const float kmM = haversineKm(kCities[0].lon, kCities[0].lat,
                                     kCities[17].lon, kCities[17].lat);
       say(colC,
-          fmt2("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM, kmM),
-          3);
-      say(colC, "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk "
-                "1.528  TOTAL 1.011",
+          fmt2("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM, kmM), 3);
+      say(colC,
+          "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk "
+          "1.528  TOTAL 1.011",
           2);
     }
     say(colC, "", 0);
 
     // --- the projection fits, both panels --------------------------------
-    say(colC, "THE PROJECTION — re-measured here, and one finding is new",
-        4);
-    say(colC, "  Napoleon panel, tan centreline, 8 stations east of Polotzk:",
-        0);
-    say(colC, "    d = 280.3 px/deg lat,  d/b = 2.142,  R² 0.866, rms 34 "
-              "px",
+    say(colC, "THE PROJECTION — re-measured here, and one finding is new", 4);
+    say(colC,
+        "  Napoleon panel, tan centreline, 8 stations east of Polotzk:", 0);
+    say(colC,
+        "    d = 280.3 px/deg lat,  d/b = 2.142,  R² 0.866, rms 34 "
+        "px",
         3);
-    say(colC, "    true-to-scale at 55°N = 1.743  → latitude "
-              "STRETCHED 1.23×",
+    say(colC,
+        "    true-to-scale at 55°N = 1.743  → latitude "
+        "STRETCHED 1.23×",
         3);
     say(colC, "  Hannibal panel, same fit, 11 stations, BnF sheet:", 0);
-    say(colC, "    d/b = 0.048,  R² = 0.12   (robust: 0.048–0.075 "
-              "over any anchor)",
+    say(colC,
+        "    d/b = 0.048,  R² = 0.12   (robust: 0.048–0.075 "
+        "over any anchor)",
         2);
-    say(colC, "  → THE TWO PANELS DO NOT SHARE A PROJECTION. The top one "
-              "is a STRIP,",
+    say(colC,
+        "  → THE TWO PANELS DO NOT SHARE A PROJECTION. The top one "
+        "is a STRIP,",
         2);
-    say(colC, "    not a map: latitude explains an eighth of the band's "
-              "height. So the",
+    say(colC,
+        "    not a map: latitude explains an eighth of the band's "
+        "height. So the",
         2);
-    say(colC, "    received \"Minard sacrificed geography\" is wrong about the "
-              "panel every-",
+    say(colC,
+        "    received \"Minard sacrificed geography\" is wrong about the "
+        "panel every-",
         2);
     say(colC, "    one quotes and right about the panel nobody looks at.", 2);
     say(colC, "", 0);
 
     say(colD, "THE SCALE BAR DISAGREES WITH THE MAP", 4);
-    say(colD, "  \"Lieues communes\" 4.985 px/lieue, linear to 0.2% ⇒ 1 mm "
-              "= 3.074 km",
+    say(colD,
+        "  \"Lieues communes\" 4.985 px/lieue, linear to 0.2% ⇒ 1 mm "
+        "= 3.074 km",
         3);
-    say(colD, "  the map, from real longitudes: 1 mm = 1.688 km   1 : "
-              "1,688,000",
+    say(colD,
+        "  the map, from real longitudes: 1 mm = 1.688 km   1 : "
+        "1,688,000",
         3);
     say(colD, "  ratio 1.82                                     UNEXPLAINED",
         2);
-    say(colD, "  Kowno→Smolensk with Minard's own bar: 933 km. Truth: 520 "
-              "km.",
+    say(colD,
+        "  Kowno→Smolensk with Minard's own bar: 933 km. Truth: 520 "
+        "km.",
         2);
-    say(colD, "  hypotheses: labels half value | copied unrescaled from "
-              "Fezensac | my scale",
+    say(colD,
+        "  hypotheses: labels half value | copied unrescaled from "
+        "Fezensac | my scale",
         0);
-    say(colD, "  (the two panels also use DIFFERENT lieues: 4,444.8 m and "
-              "4,560 m)",
+    say(colD,
+        "  (the two panels also use DIFFERENT lieues: 4,444.8 m and "
+        "4,560 m)",
         0);
     say(colD, "", 0);
 
     say(colD, "RÉAUMUR", 4);
-    say(colD, "  °C = °R × 5/4   °F = °R × 9/4 + "
-              "32   (exact, no offset)",
+    say(colD,
+        "  °C = °R × 5/4   °F = °R × 9/4 + "
+        "32   (exact, no offset)",
         0);
-    say(colD, "  −30 °R = −37.50 °C = −35.50 °F  "
-              "  9 readings converted     PASS",
+    say(colD,
+        "  −30 °R = −37.50 °C = −35.50 °F  "
+        "  9 readings converted     PASS",
         1);
-    say(colD, "  the undated −11° recovers as 24 Nov (days col.) and "
-              "25 Nov (lon interp.)",
+    say(colD,
+        "  the undated −11° recovers as 24 Nov (days col.) and "
+        "25 Nov (lon interp.)",
         3);
     say(colD, "", 0);
 
@@ -2652,12 +2661,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     {
       // which station is the worst chord error sitting on?
       float best = 1e9f;
-      for (const Station &st : kAdvTrunk) {
+      for (const Station& st : kAdvTrunk) {
         const float d = SkPoint::Distance(stationPt(st), auditAdvance.worst);
         if (d < best) {
           best = d;
           float c = 1e9f;
-          for (const City &ci : kCities) {
+          for (const City& ci : kCities) {
             const float dc = std::hypot(mapX(ci.lon) - mapX(st.lon),
                                         mapY(ci.lat) - mapY(st.lat));
             if (dc < c) {
@@ -2705,8 +2714,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       std::vector<Station> t1(kAdvTrunk.begin(), kAdvTrunk.begin() + 2);
       std::vector<Station> t2(kAdvTrunk.begin() + 1, kAdvTrunk.begin() + 3);
       std::vector<Station> t3(kAdvTrunk.begin() + 2, kAdvTrunk.end());
-      const std::array<SkPath, 5> asDrawn{polyline(t1),      polyline(t2),
-                                          polyline(t3),      polyline(kAdvNorth),
+      const std::array<SkPath, 5> asDrawn{polyline(t1), polyline(t2),
+                                          polyline(t3), polyline(kAdvNorth),
                                           polyline(kAdvPolotzk)};
       advComponentsDrawn = debug::endpointDegrees(asDrawn, 0.5f).components();
       // Wilkinson's encoding: three parallel columns from x = 0
@@ -2750,9 +2759,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
             riserFracErr = fe;
             // which city is that riser's?
             float best = 1e9f;
-            for (const City &c : kCities) {
-              const float d = std::hypot(mapX(c.lon) - want.x(),
-                                         mapY(c.lat) - want.y());
+            for (const City& c : kCities) {
+              const float d =
+                  std::hypot(mapX(c.lon) - want.x(), mapY(c.lat) - want.y());
               if (d < best) {
                 best = d;
                 riserWorstCity = c.plate;
@@ -2764,26 +2773,30 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
 
     say(colD, "THE TWO PANELS SHARE ONE ABSCISSA", 4);
-    say(colD, "  vertical rules detected in y ∈ [700,930]     9 inner + 2 "
-              "frame",
+    say(colD,
+        "  vertical rules detected in y ∈ [700,930]     9 inner + 2 "
+        "frame",
         0);
 
-    say(colD, "  best matches  lon 25.300 vs 25.3  Δ 0.000  |  28.593 vs "
-              "28.5  Δ 0.09",
+    say(colD,
+        "  best matches  lon 25.300 vs 25.3  Δ 0.000  |  28.593 vs "
+        "28.5  Δ 0.09",
         3);
 
-    say(colD, "  2 rules unmatched, 2 readings unmatched     PARTIAL — "
-              "reported, not fudged",
+    say(colD,
+        "  2 rules unmatched, 2 readings unmatched     PARTIAL — "
+        "reported, not fudged",
         2);
-    say(colD, "  in THIS sketch the lock is one shared mapX(lon) called from "
-              "both panels;",
+    say(colD,
+        "  in THIS sketch the lock is one shared mapX(lon) called from "
+        "both panels;",
         0);
-    say(colD, "  nothing in the library can declare it. A scale is not a "
-              "layout.",
+    say(colD,
+        "  nothing in the library can declare it. A scale is not a "
+        "layout.",
         2);
 
-    say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
-        4);
+    say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round", 4);
     say(colE,
         fmt2("  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
              "mm",
@@ -2797,8 +2810,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     say(colE,
         fmt3("  retreat band (a real Ribbon): max |err| %.2f px = %.3f mm "
              "· fills %.0f px²",
-             auditRetreat.maxErr, auditRetreat.maxErr / kPxPerMm,
-             retreatArea),
+             auditRetreat.maxErr, auditRetreat.maxErr / kPxPerMm, retreatArea),
         auditRetreat.maxErr > 2.0f ? 2 : 1);
     say(colE,
         fmt3("  ∫w ds %.0f · Ribbon fills %.0f · quads+bevel %.0f  (px²)",
@@ -2809,23 +2821,29 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
             "Ribbon loses the",
             100.0 * std::fabs(unionArea - advanceArea) / advanceInk),
         2);
-    say(colE, "  inner lobe of each bend and gains an outer chord, and the "
-              "two nearly cancel.",
+    say(colE,
+        "  inner lobe of each bend and gains an outer chord, and the "
+        "two nearly cancel.",
         2);
-    say(colE, "  Debug.h's own lesson from the other side: AREA is the "
-              "cheap check that PASSES",
+    say(colE,
+        "  Debug.h's own lesson from the other side: AREA is the "
+        "cheap check that PASSES",
         0);
-    say(colE, "  here. Min-chord sees it at once, at Wilna, 28 mm of "
-              "Minard's paper.",
+    say(colE,
+        "  here. Min-chord sees it at once, at Wilna, 28 mm of "
+        "Minard's paper.",
         0);
-    say(colE, "  ⇒ debug::widthAlong is not a nicety: coverage() provably "
-              "cannot substitute.",
+    say(colE,
+        "  ⇒ debug::widthAlong is not a nicety: coverage() provably "
+        "cannot substitute.",
         2);
-    say(colE, "  The advance zones are drawn as quads + a hand-rolled "
-              "BEVEL JOIN; the audit",
+    say(colE,
+        "  The advance zones are drawn as quads + a hand-rolled "
+        "BEVEL JOIN; the audit",
         0);
-    say(colE, "  measures the Ribbon band they replaced. The retreat IS a "
-              "Ribbon, and works.",
+    say(colE,
+        "  measures the Ribbon band they replaced. The retreat IS a "
+        "Ribbon, and works.",
         1);
     say(colE,
         fmt("  coverage(advance ∪ retreat) doubled %.4f — they touch "
@@ -2851,22 +2869,24 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
             "FAIL",
             riserFracErr),
         2);
-    say(colE, std::string("    ^ the trap, and its worst riser is ") +
-                  riserWorstCity + "'s",
+    say(colE,
+        std::string("    ^ the trap, and its worst riser is ") +
+            riserWorstCity + "'s",
         2);
-    say(colE, "  → the corner error is brush::Ribbon's, not the data's: "
-              "a variable-width",
+    say(colE,
+        "  → the corner error is brush::Ribbon's, not the data's: "
+        "a variable-width",
         0);
-    say(colE, "    band IS a stroke and Ribbon has no join — compare Wilna's "
-              "corner, where",
+    say(colE,
+        "    band IS a stroke and Ribbon has no join — compare Wilna's "
+        "corner, where",
         0);
-    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.",
-        0);
+    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.", 0);
   }
 
   // =======================================================================
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kDesk);
     fonts = ctx.fonts;
@@ -2876,9 +2896,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // quiescent alternative — every beat settled, nothing still moving.
     ctx.captureAt(20.0);
 
-    auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager())
-        return nullptr;
+    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
+      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
       return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
     };
     // The plate's lettering is FOUR systems and they are genuinely
@@ -2899,12 +2918,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     faceUi = family("Helvetica Neue", SkFontStyle::Normal());
     faceUiBold = family("Helvetica Neue", SkFontStyle::Bold());
     faceMono = family("Menlo", SkFontStyle::Normal());
-    if (!faceMono)
-      faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceUi)
-      faceUi = faceRoman;
-    if (!faceUiBold)
-      faceUiBold = faceUi;
+    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
+    if (!faceUi) faceUi = faceRoman;
+    if (!faceUiBold) faceUiBold = faceUi;
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
@@ -2931,10 +2947,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         {foxing.material(), SkBlendMode::kSrcOver},
     });
     // lying under a window: the vignette centre sits slightly ABOVE middle
-    vignette = Material::radialUnit({0.46f, 0.40f}, 1.10f,
-                                    {{0.0f, hex(0xffffff)},
-                                     {0.70f, hex(0xf6f1e6)},
-                                     {1.0f, hex(0xc4b9a4)}});
+    vignette = Material::radialUnit(
+        {0.46f, 0.40f}, 1.10f,
+        {{0.0f, hex(0xffffff)}, {0.70f, hex(0xf6f1e6)}, {1.0f, hex(0xc4b9a4)}});
 
     runAudits();
 
@@ -2962,9 +2977,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         d = std::min(d, (tGeo - s) / 0.6f);
       }
       dimAmt = 0.42f * std::clamp(d, 0.0f, 1.0f);
-      calAlpha = std::clamp(std::min((s - tScale - 0.2f) / 0.3f,
-                                     (28.6f - s) / 0.9f),
-                            0.0f, 1.0f);
+      calAlpha = std::clamp(
+          std::min((s - tScale - 0.2f) / 0.3f, (28.6f - s) / 0.9f), 0.0f, 1.0f);
       return true;
     });
     // The caliper walks in CLICKS: one spot reading every 2/3 s on its own
@@ -2972,8 +2986,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     ctx.ticker.addFixed(
         1.5f,
         [this]() {
-          if (T.value() >= tScale && T.value() <= tLigneEnd)
-            ++calStep;
+          if (T.value() >= tScale && T.value() <= tLigneEnd) ++calStep;
           return true;
         },
         8);
@@ -2989,7 +3002,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  memoised on (descriptor, size), so a shape cannot be a bound value
    *  the way a transform or an opacity can. The morph therefore
    *  re-describes, and renderSlot() keeps that to three nodes. */
-  void update(double, sketch::SketchContext &ctx) override {
+  void update(double, sketch::SketchContext& ctx) override {
     const float now = mmScale.value();
     if (std::fabs(now - m_lastMorph) > 0.0008f) {
       m_lastMorph = now;

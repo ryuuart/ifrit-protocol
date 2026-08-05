@@ -54,7 +54,7 @@ struct WebEngineConfig {
   /** Receives Ultralight log and console output plus engine diagnostics.
    *  Called from engine-internal threads (usually the web thread).
    *  Defaults to stderr for Error/Warning. */
-  std::function<void(LogLevel, const std::string &)> logCallback;
+  std::function<void(LogLevel, const std::string&)> logCallback;
 
   /**
    * GPU rendering: native device and command-queue handles for this
@@ -72,8 +72,8 @@ struct WebEngineConfig {
    * Windows/Linux ports add a Vulkan/D3D driver implementation and their
    * own handle fields here without touching the rest of the library.
    */
-  void *metalDevice = nullptr;
-  void *metalCommandQueue = nullptr;
+  void* metalDevice = nullptr;
+  void* metalCommandQueue = nullptr;
 };
 
 /** Per-view options for WebEngine::createView(). */
@@ -111,7 +111,7 @@ struct ViewOptions {
  * alive: destruction order between WebView and WebEngine handles is free.
  */
 class WebEngine : public std::enable_shared_from_this<WebEngine> {
-public:
+ public:
   ~WebEngine();
 
   /** Boots Ultralight (platform handlers, renderer, web thread). Null on
@@ -146,7 +146,7 @@ public:
 
   class Impl;
 
-private:
+ private:
   explicit WebEngine(std::shared_ptr<Impl> impl);
 
   std::shared_ptr<Impl> m_impl;
@@ -154,4 +154,4 @@ private:
   friend class WebView;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

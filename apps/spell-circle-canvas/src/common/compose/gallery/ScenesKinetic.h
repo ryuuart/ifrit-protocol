@@ -17,16 +17,15 @@
 // Loop phases are Outputs driven from a ticker lambda and re-zeroed in
 // setup(), because a scene can be activated more than once.
 
-#include "GalleryCore.h"
-
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
 
-#include <include/core/SkPathBuilder.h>
-
 #include <cmath>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -53,22 +52,22 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr float kHeroSize = 112;
 constexpr float kTickerH = 48;
-constexpr float kTickerSpeed = 90;   // px/s — readable-crawl range is 50-120
-constexpr float kTickerGap = 56;     // between the two marquee copies
-constexpr float kWavePeriod = 1.6f;  // seconds per sine float cycle
-constexpr float kCometPeriod = 2.8f; // seconds per comet lap of the rule
+constexpr float kTickerSpeed = 90;    // px/s — readable-crawl range is 50-120
+constexpr float kTickerGap = 56;      // between the two marquee copies
+constexpr float kWavePeriod = 1.6f;   // seconds per sine float cycle
+constexpr float kCometPeriod = 2.8f;  // seconds per comet lap of the rule
 constexpr float kRuleW = 380;
 
-} // namespace kinetic_card
+}  // namespace kinetic_card
 
 struct KineticCardScene final : Scene {
   choreograph::Output<float> wavePhase{0}, cometPhase{0}, tickX{0};
-  float unitW = 0;   // ticker content's intrinsic width (compose::measure)
-  float wrapLen = 1; // marquee wrap length = unitW + gap
+  float unitW = 0;    // ticker content's intrinsic width (compose::measure)
+  float wrapLen = 1;  // marquee wrap length = unitW + gap
 
-  const char *name() const override { return "kinetic card"; }
+  const char* name() const override { return "kinetic card"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace kc = kinetic_card;
     wavePhase = 0;
     cometPhase = 0;
@@ -92,17 +91,20 @@ struct KineticCardScene final : Scene {
 
   Element tickerContent() {
     namespace kc = kinetic_card;
-    const char *unit = "WITHFROM MOUNT CHOREOGRAPHY   \xe2\x97\x8f   "
-                       "EASE-OUT-EXPO 0.16 / 1 / 0.3 / 1   \xe2\x97\x8f   "
-                       "AMOUNT-MODE 700 MS   \xe2\x97\x8f   BACK.OUT(1.7)   "
-                       "\xe2\x97\x8f   WAVE 1.6 S \xc2\xb7 0.10 EM   "
-                       "\xe2\x97\x8f   TRIM WRAP COMET   \xe2\x97\x8f   "
-                       "90 PX/S LINEAR";
+    const char* unit =
+        "WITHFROM MOUNT CHOREOGRAPHY   \xe2\x97\x8f   "
+        "EASE-OUT-EXPO 0.16 / 1 / 0.3 / 1   \xe2\x97\x8f   "
+        "AMOUNT-MODE 700 MS   \xe2\x97\x8f   BACK.OUT(1.7)   "
+        "\xe2\x97\x8f   WAVE 1.6 S \xc2\xb7 0.10 EM   "
+        "\xe2\x97\x8f   TRIM WRAP COMET   \xe2\x97\x8f   "
+        "90 PX/S LINEAR";
     Element content =
-        box().row().alignItems(Align::Center).height(Dim(kc::kTickerH))
+        box()
+            .row()
+            .alignItems(Align::Center)
+            .height(Dim(kc::kTickerH))
             .child(text(toU8(unit), kc::type(15, kc::kAsh, 2)).shrink(0));
-    if (unitW > 0)
-      content.width(Dim(unitW)).shrink(0);
+    if (unitW > 0) content.width(Dim(unitW)).shrink(0);
     return content;
   }
 
@@ -115,14 +117,15 @@ struct KineticCardScene final : Scene {
         {0, 0}, {0, kc::kH},
         {{0.00f, kc::kInk}, {0.62f, kc::kInkLift}, {1.00f, kc::kInkFoot}});
 
-    auto heroLine = [&](const char *s, const char *key, int delayMs) {
+    auto heroLine = [&](const char* s, const char* key, int delayMs) {
       GlyphFx fx;
       fx.effect = glyphfx::rise(kc::kHeroSize * 1.26f);
       fx.stagger = {.amountMs = 180, .durationMs = 500};
       fx.progress =
           animate(from(0.0f).to(1.0f),
                   {680ms, &ch::easeNone, std::chrono::milliseconds(delayMs)});
-      return box().clip() // the line-box mask
+      return box()
+          .clip()  // the line-box mask
           .child(text(toU8(s), kc::type(kc::kHeroSize, kc::kBone, 2))
                      .key(key)
                      .width(pct(100))
@@ -131,15 +134,16 @@ struct KineticCardScene final : Scene {
     };
 
     GlyphFx popFx;
-    popFx.effect = glyphfx::pop(0.35f, 1.70158f); // back.out(1.7)
-    popFx.stagger = {.amountMs = 700, .durationMs = 420,
-                     .from = Stagger::From::Center};
-    popFx.progress = animate(from(0.0f).to(1.0f), {1120ms, &ch::easeNone, 450ms});
+    popFx.effect = glyphfx::pop(0.35f, 1.70158f);  // back.out(1.7)
+    popFx.stagger = {
+        .amountMs = 700, .durationMs = 420, .from = Stagger::From::Center};
+    popFx.progress =
+        animate(from(0.0f).to(1.0f), {1120ms, &ch::easeNone, 450ms});
 
     GlyphFx waveFx;
     // Amplitude in em, phase offset per glyph in radians.
-  waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f);
-    waveFx.stagger = {.eachMs = 0, .durationMs = 450}; // one master phase
+    waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f);
+    waveFx.stagger = {.eachMs = 0, .durationMs = 450};  // one master phase
     waveFx.progress = &wavePhase;
 
     auto lineOutline = [](SkSize s) {
@@ -172,7 +176,8 @@ struct KineticCardScene final : Scene {
     // entrance is active subtree volatility bypasses the texture; once it
     // settles the expensive filter result becomes one cached blit.
     Element popLine =
-        box().width(pct(100))
+        box()
+            .width(pct(100))
             .padding(0, 32)
             .margin(0, -6, 0, -32)
             .cache(Cache::Texture)
@@ -255,4 +260,4 @@ struct KineticCardScene final : Scene {
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

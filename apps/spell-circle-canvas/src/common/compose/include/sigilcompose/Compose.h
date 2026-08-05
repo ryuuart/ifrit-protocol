@@ -23,33 +23,31 @@
  * because nothing introspects a type-erased value.
  */
 
-#include <sigilmotion/Animation.h>
-#include <sigilmotion/FrameClock.h>
-#include <sigilmotion/Ticker.h>
-
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweave/Style.h>
-
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkShader.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/FrameClock.h>
+#include <sigilmotion/Ticker.h>
+#include <sigilweave/ParagraphLayout.h>
+#include <sigilweave/Style.h>
 
 #include <any>
 #include <cassert>
 #include <chrono>
 #include <cmath>
 #include <concepts>
-#include <ranges>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -78,7 +76,7 @@ namespace sigil::compose {
 namespace detail {
 struct ElementNode;
 struct Instance;
-} // namespace detail
+}  // namespace detail
 
 // The polymorphic paint value (<sigilcompose/Material.h>) — supersedes Fill as
 // the authoring value for fill(); a static Material collapses to a Fill.
@@ -98,19 +96,19 @@ class Material;
  *  Animatable property), so they are part of compose's authoring surface
  *  whoever defines them. `compose::Transition` and `motion::Transition`
  *  name one entity, not two competing spellings. */
+using motion::animate;
+using motion::bind;
 using motion::Bound;
 using motion::BoundFloat;
 using motion::From;
+using motion::from;
 using motion::FromTo;
+using motion::through;
 using motion::To;
+using motion::to;
 using motion::Transition;
 using motion::Transitioned;
 using motion::Waypoints;
-using motion::animate;
-using motion::bind;
-using motion::from;
-using motion::through;
-using motion::to;
 using motion::wiggle;
 namespace ease = motion::ease;
 /** The `floor(t·hz)/hz` time quantizer — the same arithmetic
@@ -146,7 +144,6 @@ using motion::quantizeTime;
  *  node. */
 using motion::Animatable;
 
-
 // ---------------------------------------------------------------------------
 // Paint values
 
@@ -163,7 +160,7 @@ struct Fill {
   SkColor4f colorValue = {0, 0, 0, 0};
   sk_sp<SkShader> shaderValue;
 
-  bool operator==(const Fill &o) const {
+  bool operator==(const Fill& o) const {
     return kind == o.kind && colorValue == o.colorValue &&
            shaderValue == o.shaderValue;
   }
@@ -174,11 +171,10 @@ struct Fill {
  *  corners aren't box corners (stars, polygons, custom outlines), use
  *  shapes::rounded() around the outline generator instead. */
 struct Corners {
-  float topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f,
-        bottomLeft = 0.0f;
+  float topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f, bottomLeft = 0.0f;
 
   Corners() = default;
-  Corners(float all) // NOLINT: implicit by design (.corners({8}))
+  Corners(float all)  // NOLINT: implicit by design (.corners({8}))
       : topLeft(all), topRight(all), bottomRight(all), bottomLeft(all) {}
   Corners(float tl, float tr, float br, float bl)
       : topLeft(tl), topRight(tr), bottomRight(br), bottomLeft(bl) {}
@@ -186,7 +182,7 @@ struct Corners {
   bool any() const {
     return topLeft > 0 || topRight > 0 || bottomRight > 0 || bottomLeft > 0;
   }
-  bool operator==(const Corners &) const = default;
+  bool operator==(const Corners&) const = default;
 };
 
 /** The one paint-program context: custom leaves (and, in extensions,
@@ -208,7 +204,7 @@ struct PaintContext {
    *  False outside a composer (a decoration painted standalone), which is
    *  the honest answer there: there is no ticker to be active. */
   bool animating = false;
-  sigil::weave::FontContext *fonts = nullptr;
+  sigil::weave::FontContext* fonts = nullptr;
   /** Paths this node BORROWED from keyed elements in the derive phase, in
    *  its own local space — what `strand::from(key)` reads. Null outside a
    *  composer, or when the node borrowed nothing. Non-owning: valid for
@@ -218,14 +214,13 @@ struct PaintContext {
    *  below) so the element can register the keys without introspecting a
    *  type-erased value; the derive pass then resolves them on the same
    *  flat edge-store walk connectors and flowAround ride. */
-  const std::vector<std::pair<std::string, SkPath>> *borrowed = nullptr;
+  const std::vector<std::pair<std::string, SkPath>>* borrowed = nullptr;
 
   /** The borrowed path for `key`, or an empty path. */
-  SkPath borrowedPath(const std::string &key) const {
+  SkPath borrowedPath(const std::string& key) const {
     if (borrowed)
-      for (const auto &[k, p] : *borrowed)
-        if (k == key)
-          return p;
+      for (const auto& [k, p] : *borrowed)
+        if (k == key) return p;
     return SkPath();
   }
 
@@ -233,7 +228,7 @@ struct PaintContext {
    *  decoration paints fall back to the brush value's own cache). Mutable
    *  through a const context on purpose: a bake is a cache write, not a
    *  paint output. */
-  class StampCache *stamps = nullptr;
+  class StampCache* stamps = nullptr;
 
   /** The node→composer-root matrix, i.e. the forward accumulation of
    *  paint()'s own transform stack; the hit test walks its inverse. This
@@ -249,7 +244,7 @@ struct PaintContext {
   SkSize rootSize = SkSize::MakeEmpty();
 };
 
-using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
+using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;
 
 /** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
  *  the NODE, not inside the brush value. A brush value constructed fresh
@@ -265,32 +260,29 @@ using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
  *  (pattern and scatter tiles) or a rastered image plus its logical size;
  *  each consumer reads only its own kind. */
 class StampCache {
-public:
+ public:
   struct Entry {
     sk_sp<SkPicture> pic;
     sk_sp<SkImage> image;
     SkSize artSize{0, 0};
   };
   /** The entry for `key`, or null — never a recycled address's entry. */
-  const Entry *get(const std::shared_ptr<const void> &key) const {
+  const Entry* get(const std::shared_ptr<const void>& key) const {
     auto it = m_entries.find(key.get());
-    if (it == m_entries.end())
-      return nullptr;
+    if (it == m_entries.end()) return nullptr;
     if (it->second.first.lock() != key)
-      return nullptr; // the address was recycled: not this art's bake
+      return nullptr;  // the address was recycled: not this art's bake
     return &it->second.second;
   }
-  void put(const std::shared_ptr<const void> &key, Entry entry) {
+  void put(const std::shared_ptr<const void>& key, Entry entry) {
     // A node's stamp arts are few; a runaway map means keys churn every
     // frame, and keeping stale bakes alive would pin their nodes' memory.
-    if (m_entries.size() >= 16)
-      m_entries.clear();
+    if (m_entries.size() >= 16) m_entries.clear();
     m_entries[key.get()] = {std::weak_ptr<const void>(key), std::move(entry)};
   }
 
-private:
-  std::unordered_map<const void *,
-                     std::pair<std::weak_ptr<const void>, Entry>>
+ private:
+  std::unordered_map<const void*, std::pair<std::weak_ptr<const void>, Entry>>
       m_entries;
 };
 
@@ -304,12 +296,13 @@ private:
  * — expensive filters on static content are paid once.
  */
 class Effect {
-public:
+ public:
   static Effect filter(sk_sp<SkImageFilter> f);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
    *  the layer arrives as the child shader named "content". */
-  static Effect shader(sk_sp<SkRuntimeEffect> effect,
-                       std::vector<std::pair<std::string, float>> uniforms = {});
+  static Effect shader(
+      sk_sp<SkRuntimeEffect> effect,
+      std::vector<std::pair<std::string, float>> uniforms = {});
   /** A blur that smears ALONG one direction: @p sigma along the axis at
    *  @p angleDeg (degrees, Element::rotate's screen sense — 0 smears
    *  horizontally, 90 vertically, 45 down-right), @p across
@@ -327,8 +320,7 @@ public:
    *  named parameters "sigma" / "angle" / "across" accept
    *  uniform(name, &output) below, so an animated smear angle rides the
    *  live channel instead of re-describing per frame. */
-  static Effect directionalBlur(float sigma, float angleDeg,
-                                float across = 0);
+  static Effect directionalBlur(float sigma, float angleDeg, float across = 0);
   /** A blur whose SIGMA VARIES ACROSS THE NODE — a depth-of-field
    *  falloff, a lens edge, a tube's curvature. @p sigmaMap is a Material
    *  read as a NUMBER rather than as paint: its RED channel at a pixel,
@@ -377,7 +369,7 @@ public:
    *  already-built SkImageFilter, or a bare `directionalBlur()` — the call
    *  is a no-op with a warning, exactly as uniform() is there. On a
    *  blur() the one fillable name is "sigma", its sigma map. */
-  Effect &child(std::string name, Material source);
+  Effect& child(std::string name, Material source);
   /** A LIVE float uniform — Material's contract, on the effect seam. The
    *  value is read from the Output at every paint, and the node repaints
    *  every frame while the effect is attached: a bound uniform declares
@@ -390,14 +382,14 @@ public:
    *  binding warns and is ignored there, and no volatility is declared, so
    *  nothing animates. Unknown recipe names on the other kinds warn and
    *  are ignored, as does a null @p value. */
-  Effect &uniform(std::string name, const choreograph::Output<float> *value);
+  Effect& uniform(std::string name, const choreograph::Output<float>* value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
    *  Effect::shader(colorize)). Static chains precompose once; a chain
    *  with a live side re-composes at each paint. */
-  Effect then(const Effect &next) const;
+  Effect then(const Effect& next) const;
 
-  const sk_sp<SkImageFilter> &imageFilter() const { return m_filter; }
+  const sk_sp<SkImageFilter>& imageFilter() const { return m_filter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
    *  phase applies. Identical to imageFilter() for a static effect.
    *  @p ctx is the painting node's PaintContext, which child() materials
@@ -405,8 +397,8 @@ public:
    *  Material::child hands its children. Null is the context-free form:
    *  static children keep their snapshot, and it is what a caller holding
    *  an Effect outside a paint can ask for. */
-  sk_sp<SkImageFilter>
-  resolvedImageFilter(const PaintContext *ctx = nullptr) const;
+  sk_sp<SkImageFilter> resolvedImageFilter(
+      const PaintContext* ctx = nullptr) const;
   /** THE VOLATILITY DECLARATION — one word across the whole library: does
    *  this effect change without a re-describe? True while any uniform is
    *  bound, or while any child Material is live. The tier inheritance
@@ -425,15 +417,15 @@ public:
    *  effect never compares equal, conservatively, like a live material.
    *  A filter() effect compares by filter pointer, since an already-built
    *  SkImageFilter carries no recipe to compare. */
-  bool operator==(const Effect &o) const;
+  bool operator==(const Effect& o) const;
 
-private:
+ private:
   /** directionalBlur()'s comparable recipe — what operator== compares
    *  (structural, like a shader recipe) and what bound "sigma" / "angle"
    *  / "across" uniforms rebuild from per paint. */
   struct DirectionalBlur {
     float sigma = 0, angleDeg = 0, across = 0;
-    bool operator==(const DirectionalBlur &) const = default;
+    bool operator==(const DirectionalBlur&) const = default;
   };
   /** blur()'s comparable recipe — the parameter's RANGE only. The sigma
    *  MAP itself lives in m_children under "sigma", so one child vector
@@ -442,7 +434,7 @@ private:
    *  free. */
   struct ParamBlur {
     float maxSigma = 0;
-    bool operator==(const ParamBlur &) const = default;
+    bool operator==(const ParamBlur&) const = default;
   };
 
   sk_sp<SkImageFilter> m_filter;
@@ -450,10 +442,10 @@ private:
   // so equality can compare structurally).
   sk_sp<SkRuntimeEffect> m_effect;
   std::vector<std::pair<std::string, float>> m_uniforms;
-  std::vector<std::pair<std::string, const choreograph::Output<float> *>>
+  std::vector<std::pair<std::string, const choreograph::Output<float>*>>
       m_bound;
-  std::optional<DirectionalBlur> m_dirBlur; // directionalBlur()'s recipe
-  std::optional<ParamBlur> m_paramBlur;     // blur()'s recipe
+  std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
+  std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe
   // The child slots: `uniform shader NAME` → Material. Held by
   // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
   // includes this header, so it cannot be included back) — the surface is
@@ -472,20 +464,20 @@ private:
   bool anyChildNeedsContext() const;
   /** The child slot @p name as a shader, resolved against @p ctx. */
   sk_sp<SkShader> childShaderFor(std::string_view name,
-                                 const PaintContext *ctx) const;
+                                 const PaintContext* ctx) const;
   /** The recipe's filter, built unconditionally — the store-time snapshot
    *  (null ctx) and the per-paint resolve are one construction. */
-  sk_sp<SkImageFilter> buildFilter(const PaintContext *ctx) const;
+  sk_sp<SkImageFilter> buildFilter(const PaintContext* ctx) const;
 
   /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). operator== is
    *  hand-written in Compose.cpp and reads these members directly; the state
    *  is private, so the decomposition lives inside the class. */
-  static void fieldPin(Effect &v) {
-    auto &[filter, effect, uniforms, bound, dirBlur, paramBlur, children,
+  static void fieldPin(Effect& v) {
+    auto& [filter, effect, uniforms, bound, dirBlur, paramBlur, children,
            chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(
-                      filter, effect, uniforms, bound, dirBlur, paramBlur,
-                      children, chainA, chainB))> == 9,
+                          filter, effect, uniforms, bound, dirBlur, paramBlur,
+                          children, chainA, chainB))> == 9,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Compose.cpp), then bump this count. "
                   "(m_filter is EXCLUDED on the shader, directionalBlur and "
@@ -502,11 +494,11 @@ private:
 /** What a glyph effect sees for one glyph. Enumeration order is stable
  *  across relayouts while the text is unchanged (SigilWeave contract). */
 struct GlyphInfo {
-  size_t index = 0;   ///< glyph position in the paragraph
-  size_t count = 1;   ///< total glyphs
-  SkPoint rest;       ///< the glyph's laid-out origin (pen position)
-  float advance = 0;  ///< the glyph's advance width
-  float fontSize = 0; ///< the glyph's font size (em-relative effects)
+  size_t index = 0;    ///< glyph position in the paragraph
+  size_t count = 1;    ///< total glyphs
+  SkPoint rest;        ///< the glyph's laid-out origin (pen position)
+  float advance = 0;   ///< the glyph's advance width
+  float fontSize = 0;  ///< the glyph's font size (em-relative effects)
 };
 
 /** One glyph's deviation from rest — what an effect returns for local
@@ -519,7 +511,7 @@ struct GlyphMod {
 };
 
 /** A pure value: (glyph, local progress) → deviation. Compose freely. */
-using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo &, float)>;
+using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo&, float)>;
 
 /** The per-glyph time remap (the GSAP stagger model): the element's master
  *  progress [0,1] spans `durationMs + eachMs·(N−1)` of virtual time; glyph i
@@ -534,7 +526,7 @@ struct Stagger {
   float amountMs = 0;
   float durationMs = 450;
   enum class From : uint8_t { Start, Center, End } from = From::Start;
-  bool operator==(const Stagger &) const = default;
+  bool operator==(const Stagger&) const = default;
 };
 
 // ---------------------------------------------------------------------------
@@ -554,8 +546,8 @@ struct Stagger {
  *  reason. A scheme's equality is a contract on the author: equal values
  *  must generate identical paths at every size. */
 template <typename S>
-concept ShapeScheme = std::equality_comparable<S> &&
-    requires(const S &s, SkSize size) {
+concept ShapeScheme =
+    std::equality_comparable<S> && requires(const S& s, SkSize size) {
       { s.path(size) } -> std::convertible_to<SkPath>;
     };
 
@@ -578,16 +570,16 @@ concept ShapeScheme = std::equality_comparable<S> &&
  *  Held as one shared immutable pointer, so a node carrying a shape costs
  *  a pointer and a copy-on-write node copy is a refcount bump. */
 class Shape {
-public:
+ public:
   Shape() = default;
 
   template <ShapeScheme S>
     requires(!std::same_as<std::remove_cvref_t<S>, Shape>)
-  Shape(S scheme) { // NOLINT: implicit by design (.shape(shapes::star(5)))
+  Shape(S scheme) {  // NOLINT: implicit by design (.shape(shapes::star(5)))
     State state;
     state.held = scheme;
-    state.equals = [](const std::any &a, const std::any &b) {
-      return std::any_cast<const S &>(a) == std::any_cast<const S &>(b);
+    state.equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const S&>(a) == std::any_cast<const S&>(b);
     };
     state.generate = [s = std::move(scheme)](SkSize size) {
       return s.path(size);
@@ -600,17 +592,15 @@ public:
   template <typename F>
     requires(!ShapeScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, Shape> &&
-             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F> &,
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
                                    SkSize>)
-  Shape(F fn) { // NOLINT: implicit by design (.shape([](SkSize s) {...}))
+  Shape(F fn) {  // NOLINT: implicit by design (.shape([](SkSize s) {...}))
     State state;
     state.generate = std::move(fn);
     m_state = std::make_shared<const State>(std::move(state));
   }
 
-  explicit operator bool() const {
-    return m_state && (bool)m_state->generate;
-  }
+  explicit operator bool() const { return m_state && (bool)m_state->generate; }
   SkPath operator()(SkSize size) const {
     return m_state && m_state->generate ? m_state->generate(size) : SkPath();
   }
@@ -620,22 +610,19 @@ public:
 
   /** Shared state (copies of one Shape) is equal; comparable schemes of
    *  one type compare their values; anything else is conservative. */
-  bool operator==(const Shape &o) const {
-    if (m_state == o.m_state)
-      return true;
-    if (!m_state || !o.m_state)
-      return false;
-    if (!m_state->equals || !o.m_state->equals)
-      return false;
+  bool operator==(const Shape& o) const {
+    if (m_state == o.m_state) return true;
+    if (!m_state || !o.m_state) return false;
+    if (!m_state->equals || !o.m_state->equals) return false;
     return m_state->held.type() == o.m_state->held.type() &&
            m_state->equals(m_state->held, o.m_state->held);
   }
 
-private:
+ private:
   struct State {
     std::function<SkPath(SkSize)> generate;
     std::any held;
-    bool (*equals)(const std::any &, const std::any &) = nullptr;
+    bool (*equals)(const std::any&, const std::any&) = nullptr;
   };
   std::shared_ptr<const State> m_state;
 };
@@ -656,7 +643,8 @@ private:
  *  lane supplies the SCHEDULE. That separation is the whole design.
  *
  *      .travel({.path = shapes::circle(),
- *               .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0, 1)})
+ *               .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0,
+ * 1)})
  *
  *  The rules:
  *
@@ -782,7 +770,7 @@ struct TextPath {
    *  generator — or any comparable scheme — PRUNES, and a ring of labels
    *  costs nothing per describe. A raw-callable baseline compares unequal,
    *  so every such label re-records on every render(). */
-  bool operator==(const TextPath &) const = default;
+  bool operator==(const TextPath&) const = default;
 };
 
 /** Kinetic text: attach to a text() element with Element::glyphFx(). The
@@ -802,7 +790,7 @@ struct GlyphFx {
  *  volatility; see AnimatedDecoration below. */
 template <typename D>
 concept DecorationScheme =
-    requires(const D &d, SkCanvas &canvas, const PaintContext &ctx) {
+    requires(const D& d, SkCanvas& canvas, const PaintContext& ctx) {
       { d.paint(canvas, ctx) };
     };
 
@@ -826,7 +814,7 @@ concept DecorationScheme =
  *  and it is always a query derived from how the value was constructed,
  *  never a setter. */
 template <typename D>
-concept AnimatedDecoration = requires(const D &d) {
+concept AnimatedDecoration = requires(const D& d) {
   { d.isAnimated() } -> std::convertible_to<bool>;
 };
 
@@ -834,7 +822,7 @@ concept AnimatedDecoration = requires(const D &d) {
  *  bounds (soft shadows, glows). The recording cull grows by the node's
  *  max bleed so cached pictures never truncate overflowing chrome. */
 template <typename D>
-concept BleedingDecoration = requires(const D &d) {
+concept BleedingDecoration = requires(const D& d) {
   { d.bleed() } -> std::convertible_to<float>;
 };
 
@@ -851,7 +839,7 @@ concept BleedingDecoration = requires(const D &d) {
  *  number is safe; under-reporting either one silently clips cached
  *  output. */
 template <typename D>
-concept ReachingDecoration = requires(const D &d) {
+concept ReachingDecoration = requires(const D& d) {
   { d.reach() } -> std::convertible_to<float>;
 };
 
@@ -866,7 +854,7 @@ concept ReachingDecoration = requires(const D &d) {
  *  decoration must forward its children's keys, or their borrows resolve
  *  to nothing and they draw nothing. */
 template <typename D>
-concept BorrowingDecoration = requires(const D &d) {
+concept BorrowingDecoration = requires(const D& d) {
   { d.borrows() } -> std::convertible_to<std::vector<std::string>>;
 };
 
@@ -875,9 +863,9 @@ concept BorrowingDecoration = requires(const D &d) {
  *  PaintProgram works too, at the cost of comparability — see
  *  operator== below. */
 class Decoration {
-public:
+ public:
   template <DecorationScheme D>
-  Decoration(D scheme) // NOLINT: implicit by design
+  Decoration(D scheme)  // NOLINT: implicit by design
       : m_animated([&] {
           if constexpr (AnimatedDecoration<D>)
             return scheme.isAnimated();
@@ -894,7 +882,7 @@ public:
           if constexpr (ReachingDecoration<D>)
             return (float)scheme.reach();
           else if constexpr (BleedingDecoration<D>)
-            return (float)scheme.bleed(); // the best available answer
+            return (float)scheme.bleed();  // the best available answer
           else
             return 0.0f;
         }()),
@@ -909,21 +897,20 @@ public:
     // memo (see propsEqual). A non-comparable scheme — or a bare
     // PaintProgram — keeps none and stays conservatively unequal.
     if constexpr (std::equality_comparable<D>) {
-      m_scheme = scheme; // retained copy, compared structurally
-      m_equals = [](const std::any &a, const std::any &b) {
-        return std::any_cast<const D &>(a) == std::any_cast<const D &>(b);
+      m_scheme = scheme;  // retained copy, compared structurally
+      m_equals = [](const std::any& a, const std::any& b) {
+        return std::any_cast<const D&>(a) == std::any_cast<const D&>(b);
       };
     }
-    m_paint = [s = std::move(scheme)](SkCanvas &c, const PaintContext &ctx) {
+    m_paint = [s = std::move(scheme)](SkCanvas& c, const PaintContext& ctx) {
       s.paint(c, ctx);
     };
   }
-  Decoration(PaintProgram program) // NOLINT: implicit by design
+  Decoration(PaintProgram program)  // NOLINT: implicit by design
       : m_paint(std::move(program)) {}
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (m_paint)
-      m_paint(canvas, ctx);
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (m_paint) m_paint(canvas, ctx);
   }
   /** Declared volatility, read off whichever word the scheme spelled. */
   bool isAnimated() const { return m_animated; }
@@ -933,7 +920,7 @@ public:
   float reach() const { return m_reach; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
-  const std::vector<std::string> &borrows() const { return m_borrows; }
+  const std::vector<std::string>& borrows() const { return m_borrows; }
 
   /** Structural equality, which is what lets a decorated node prune with
    *  no memo around it: true only when both wrap the same value-comparable
@@ -944,19 +931,19 @@ public:
    *  a callable is the same drawing — but it has a cost: such a node is
    *  re-patched and re-recorded on every describe, forever. Prefer a value
    *  scheme for static chrome, or wrap the node in memo(). */
-  bool operator==(const Decoration &o) const {
+  bool operator==(const Decoration& o) const {
     return m_equals && o.m_equals && m_scheme.type() == o.m_scheme.type() &&
            m_equals(m_scheme, o.m_scheme);
   }
 
-private:
+ private:
   bool m_animated = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::vector<std::string> m_borrows;
   PaintProgram m_paint;
   std::any m_scheme;
-  std::function<bool(const std::any &, const std::any &)> m_equals;
+  std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
 /** A named bundle of decorations applied together — the Photoshop "layer
@@ -984,7 +971,7 @@ struct LayerStyle {
  *  the one every span, reveal and motion path in the library speaks. */
 struct Span {
   float begin = 0.0f, end = 1.0f;
-  bool operator==(const Span &) const = default;
+  bool operator==(const Span&) const = default;
 };
 
 /** What a Spans value is resolved against. `fitRects` are the derive
@@ -995,9 +982,9 @@ struct Span {
  *  tolerated: a missing slot reads its default, so a caller that only
  *  cares about endpoints may pass two. */
 struct SpanInput {
-  const SkPath *outline = nullptr;
-  const std::vector<std::pair<std::string, SkRect>> *fitRects = nullptr;
-  const std::vector<float> *values = nullptr;
+  const SkPath* outline = nullptr;
+  const std::vector<std::pair<std::string, SkRect>>* fitRects = nullptr;
+  const std::vector<float>* values = nullptr;
 };
 
 /** WHERE a stroke pass goes: a comparable value built by the `spans::`
@@ -1017,16 +1004,16 @@ struct SpanInput {
  *  as `kit::spans::brackets` are COMPOSITIONS of these terms, not new
  *  kinds, so the value stays trivially comparable and prunable. */
 class Spans {
-public:
+ public:
   enum class Rule : uint8_t {
-    Range,   ///< [begin, end] outright — and upTo(t) is range(0, t)
-    Wrap,    ///< [begin, end] on the boundary read as a CYCLE (spans::wrap)
-    Corners, ///< a window of `arm` px either side of every tangent break
-    Edges,   ///< everything EXCEPT within `arm` px of a break
-    Every,   ///< `count` equal slots, each claiming its leading `duty`
-    At,      ///< one slot (`index`) of `count`
-    Fit,     ///< the run the keyed element covers, grown by `margin` px
-    Rest,    ///< the complement (see Element::stroke)
+    Range,    ///< [begin, end] outright — and upTo(t) is range(0, t)
+    Wrap,     ///< [begin, end] on the boundary read as a CYCLE (spans::wrap)
+    Corners,  ///< a window of `arm` px either side of every tangent break
+    Edges,    ///< everything EXCEPT within `arm` px of a break
+    Every,    ///< `count` equal slots, each claiming its leading `duty`
+    At,       ///< one slot (`index`) of `count`
+    Fit,      ///< the run the keyed element covers, grown by `margin` px
+    Rest,     ///< the complement (see Element::stroke)
   };
   /** One term of the union. Only the members its Rule reads are
    *  meaningful; the rest keep their defaults so the value compares. */
@@ -1041,12 +1028,12 @@ public:
      *  driven by another. A bound endpoint holds exactly one source
      *  pointer, and summing two live values into one number needs two. */
     Animatable<float> offset = 0.0f;
-    float arm = 0.0f;         ///< Corners/Edges: px of arc length
-    float angleDeg = 30.0f;   ///< Corners/Edges: the tangent break that counts
-    float duty = 1.0f;        ///< Every: fraction of each slot claimed
-    float margin = 0.0f;      ///< Fit: px grown around the keyed content
-    int count = 1, index = 0; ///< Every/At
-    std::string key;          ///< Fit: the content key; Rest: the pass name
+    float arm = 0.0f;          ///< Corners/Edges: px of arc length
+    float angleDeg = 30.0f;    ///< Corners/Edges: the tangent break that counts
+    float duty = 1.0f;         ///< Every: fraction of each slot claimed
+    float margin = 0.0f;       ///< Fit: px grown around the keyed content
+    int count = 1, index = 0;  ///< Every/At
+    std::string key;           ///< Fit: the content key; Rest: the pass name
   };
   std::vector<Term> terms;
 
@@ -1071,30 +1058,29 @@ public:
    *    ignores it);
    *  - on an empty value it does nothing, silently — there is no term to
    *    carry the offset and nothing to warn about. */
-  Spans &offset(Animatable<float> by);
+  Spans& offset(Animatable<float> by);
 
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated endpoint
    *  compares the way every other animated property does — by binding
    *  identity when live, by value when described. */
-  bool operator==(const Spans &other) const;
+  bool operator==(const Spans& other) const;
 
   /** Resolve to intervals. Rest terms return nothing — the complement
    *  needs the element's OTHER passes and is computed by the painter. */
-  std::vector<Span> resolve(const SpanInput &in) const;
+  std::vector<Span> resolve(const SpanInput& in) const;
   /** How many floats `SpanInput::values` must carry: begin, end and
    *  offset, in that order, for every term. */
   size_t valueCount() const { return terms.size() * 3; }
   bool hasRest() const {
-    for (const Term &t : terms)
-      if (t.rule == Rule::Rest)
-        return true;
+    for (const Term& t : terms)
+      if (t.rule == Rule::Rest) return true;
     return false;
   }
 };
 
 /** Union. `spans::corners(18) | spans::at(0, 4)` is one pass. */
-inline Spans operator|(Spans a, const Spans &b) {
+inline Spans operator|(Spans a, const Spans& b) {
   a.terms.insert(a.terms.end(), b.terms.begin(), b.terms.end());
   return a;
 }
@@ -1160,7 +1146,7 @@ Spans rest();
 /** The complement of ONE named pass — and, unlike bare rest(), allowed
  *  to overlay other passes on purpose. */
 Spans rest(std::string_view passName);
-} // namespace spans
+}  // namespace spans
 
 // ---------------------------------------------------------------------------
 // THE MASKING FAMILY — `mask(by::…)` and `mask(parts::…, by::…)`
@@ -1203,30 +1189,30 @@ Spans rest(std::string_view passName);
  *  `own()` is the node's own shape — the region `clip()` uses, and the
  *  reason clip() survives as sugar over this. */
 class Region {
-public:
+ public:
   enum class Kind : uint8_t {
-    Own,  ///< the node's own shape() / corners box
-    Rect, ///< a rectangle in local coordinates
-    Oval, ///< the oval inscribed in a local rectangle
-    Path, ///< an explicit local path (SkPath is a comparable value)
+    Own,   ///< the node's own shape() / corners box
+    Rect,  ///< a rectangle in local coordinates
+    Oval,  ///< the oval inscribed in a local rectangle
+    Path,  ///< an explicit local path (SkPath is a comparable value)
   };
 
   /** The node's own silhouette — clip()'s region, as a value. */
   static Region own();
-  static Region rect(const SkRect &r);
-  static Region oval(const SkRect &bounds);
+  static Region rect(const SkRect& r);
+  static Region oval(const SkRect& bounds);
   /** An explicit path in the node's LOCAL space. Comparable (SkPath has
    *  structural equality), so this is the general escape hatch that still
    *  prunes — unlike a generator. */
   static Region path(SkPath p);
 
   Kind kind() const { return m_kind; }
-  bool operator==(const Region &other) const;
+  bool operator==(const Region& other) const;
 
   /** The path this region covers, given the node's own silhouette. */
-  SkPath resolve(const SkPath &ownShape) const;
+  SkPath resolve(const SkPath& ownShape) const;
 
-private:
+ private:
   Kind m_kind = Kind::Own;
   SkRect m_rect = SkRect::MakeEmpty();
   SkPath m_path;
@@ -1235,8 +1221,8 @@ private:
    *  inside a mask gate, which is read LIVE every frame — a region that
    *  compares equal when it isn't leaves a pruned node revealing to its
    *  first frame forever. */
-  static void fieldPin(Region &v) {
-    auto &[kind, rect, path] = v;
+  static void fieldPin(Region& v) {
+    auto& [kind, rect, path] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(kind, rect, path))> == 3,
         "Region gained or lost a member — rule on it in Region::operator== "
@@ -1268,7 +1254,7 @@ private:
  *  A name that matches nothing selects nothing, silently, exactly as
  *  `spans::rest("unknown")` and `spans::fit("unknown")` do. */
 class Parts {
-public:
+ public:
   enum Bits : uint8_t {
     kSurface = 1u << 0,
     kMarks = 1u << 1,
@@ -1280,17 +1266,14 @@ public:
   /** parts::named(): local mark labels, in declaration order. */
   std::vector<std::string> names;
 
-  bool operator==(const Parts &) const = default;
+  bool operator==(const Parts&) const = default;
   bool selects(Bits what) const { return (bits & what) != 0; }
   /** Does this selection reach a mark carrying `label` (possibly empty)? */
   bool selectsMark(std::string_view label) const {
-    if (bits & kMarks)
-      return true;
-    if (label.empty())
-      return false;
-    for (const std::string &n : names)
-      if (n == label)
-        return true;
+    if (bits & kMarks) return true;
+    if (label.empty()) return false;
+    for (const std::string& n : names)
+      if (n == label) return true;
     return false;
   }
   /** Everything this node paints — the one-argument mask()'s selection. */
@@ -1298,7 +1281,7 @@ public:
 };
 
 /** Union: `parts::content() | parts::surface()`. */
-inline Parts operator|(Parts a, const Parts &b) {
+inline Parts operator|(Parts a, const Parts& b) {
   a.bits = (uint8_t)(a.bits | b.bits);
   a.names.insert(a.names.end(), b.names.begin(), b.names.end());
   return a;
@@ -1319,7 +1302,7 @@ Parts content();
 Parts children();
 /** ONE mark, by the local name its slot call gave it. */
 Parts named(std::string_view name);
-} // namespace parts
+}  // namespace parts
 
 class Gate;
 
@@ -1385,13 +1368,13 @@ Gate luma(Material coverage);
 /** …and ITS complement: the selected paint keeps what the Material's luma
  *  leaves DARK. After Effects' Luma Inverted Matte. */
 Gate lumaOut(Material coverage);
-} // namespace by
+}  // namespace by
 
 /** HOW paint arrives past a mask — a comparable value built by the `by::`
  *  factories. Only the members its Kind reads are meaningful; the rest
  *  keep their defaults so the value compares. */
 class Gate {
-public:
+ public:
   enum class Kind : uint8_t { Spans, Edge, Shape, Coverage };
   /** Coverage: WHICH channel of the Material becomes coverage. The two
    *  members are one mechanism — the same `saveLayer` and the same
@@ -1399,15 +1382,15 @@ public:
    *  See `by::alpha` / `by::luma` for the law each names. */
   enum class Channel : uint8_t { Alpha, Luma };
   Kind kind = Kind::Spans;
-  Spans where;                       ///< Spans
-  float angleDeg = 0.0f;             ///< Edge
-  Animatable<float> fraction = 1.0f; ///< Edge
-  Region region;                     ///< Shape
+  Spans where;                        ///< Spans
+  float angleDeg = 0.0f;              ///< Edge
+  Animatable<float> fraction = 1.0f;  ///< Edge
+  Region region;                      ///< Shape
   /** Shape AND Coverage: keep the COMPLEMENT of what this gate names —
    *  `by::outside`, `by::alphaOut`, `by::lumaOut`. One field because it is
    *  one question ("which side of the show set?"), asked of two kinds. */
   bool outside = false;
-  Channel channel = Channel::Alpha; ///< Coverage
+  Channel channel = Channel::Alpha;  ///< Coverage
   /** Coverage. Held out of line because Material is declared in its own
    *  header, which includes this one. */
   std::shared_ptr<const Material> coverage;
@@ -1415,7 +1398,7 @@ public:
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated fraction
    *  compares the way every other animated property does. */
-  bool operator==(const Gate &other) const;
+  bool operator==(const Gate& other) const;
   /** How many animatable floats this gate contributes, in the order
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
    *  offset), one for an Edge fraction, none for Shape or Coverage (a
@@ -1427,7 +1410,7 @@ public:
 struct Mask {
   Parts what;
   Gate with;
-  bool operator==(const Mask &other) const {
+  bool operator==(const Mask& other) const {
     return what == other.what && with == other.with;
   }
 };
@@ -1459,8 +1442,8 @@ struct Mask {
  *  normal, positive to the LEFT of travel — see bandPointAt for the one
  *  statement of that convention. */
 template <typename P>
-concept ProfileScheme = std::equality_comparable<P> &&
-    requires(const P &p, float along) {
+concept ProfileScheme =
+    std::equality_comparable<P> && requires(const P& p, float along) {
       { p.across(along) } -> std::convertible_to<float>;
       { p.max() } -> std::convertible_to<float>;
     };
@@ -1493,17 +1476,16 @@ concept PxKeyedProfileScheme = ProfileScheme<P> && requires {
  *  width seam. One shared vocabulary: a band's taper, a weave strand's
  *  offset and a ribbon's width are all this same value. */
 class Profile {
-public:
+ public:
   template <ProfileScheme P>
-  Profile(P scheme) // NOLINT: implicit by design (across(myTaper))
+  Profile(P scheme)  // NOLINT: implicit by design (across(myTaper))
       : m_max((float)scheme.max()) {
-    if constexpr (PxKeyedProfileScheme<P>)
-      m_alongIsPx = P::alongIsPx;
+    if constexpr (PxKeyedProfileScheme<P>) m_alongIsPx = P::alongIsPx;
     // The concept requires equality, so every profile keeps a comparator —
     // there is no conservatively-unequal fallback here, unlike Decoration.
     m_held = scheme;
-    m_equals = [](const std::any &a, const std::any &b) {
-      return std::any_cast<const P &>(a) == std::any_cast<const P &>(b);
+    m_equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const P&>(a) == std::any_cast<const P&>(b);
     };
     m_across = [s = std::move(scheme)](float along) { return s.across(along); };
   }
@@ -1528,21 +1510,20 @@ public:
   /** The widest this profile ever reaches — what bleed and cull are
    *  computed from, so nothing it draws is silently truncated. */
   float max() const { return m_max; }
-  bool operator==(const Profile &o) const {
+  bool operator==(const Profile& o) const {
     // Reflexive on the DEFAULT-CONSTRUCTED value too: two empty profiles
     // are the same nothing, and a value that does not compare equal to
     // itself makes every containing description patch forever.
-    if (!m_equals || !o.m_equals)
-      return !m_equals && !o.m_equals;
+    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
     return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
   }
 
-private:
+ private:
   float m_max = 0.0f;
   bool m_alongIsPx = false;
   std::function<float(float)> m_across;
   std::any m_held;
-  std::function<bool(const std::any &, const std::any &)> m_equals;
+  std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
 /** The core profile presets: the two every other profile is defined
@@ -1553,7 +1534,7 @@ namespace strand {
 struct Self {
   float across(float) const { return 0.0f; }
   float max() const { return 0.0f; }
-  bool operator==(const Self &) const = default;
+  bool operator==(const Self&) const = default;
 };
 /** across ≡ px: a parallel. Parallels are rails — they never cross.
  *
@@ -1565,17 +1546,17 @@ struct Offset {
   float px = 0.0f;
   float across(float) const { return px; }
   float max() const { return std::abs(px); }
-  bool operator==(const Offset &) const = default;
+  bool operator==(const Offset&) const = default;
 };
 inline Profile self() { return Profile(Self{}); }
 inline Profile offset(float px) { return Profile(Offset{px}); }
-} // namespace strand
+}  // namespace strand
 
 /** The band's width, named at the call site: `band(spine, across(22))`.
  *  Takes a constant or any Profile (a taper, a kit oscillation). */
 struct Across {
   Profile profile;
-  bool operator==(const Across &) const = default;
+  bool operator==(const Across&) const = default;
 };
 inline Across across(float px) { return Across{strand::offset(px)}; }
 inline Across across(Profile p) { return Across{std::move(p)}; }
@@ -1588,7 +1569,7 @@ enum class Formation : uint8_t { Centered, Outward, Inward };
  *  the derive phase: `band(around("dial"), across(14))`. */
 struct Around {
   std::string key;
-  bool operator==(const Around &) const = default;
+  bool operator==(const Around&) const = default;
 };
 inline Around around(std::string_view key) { return Around{std::string(key)}; }
 
@@ -1612,43 +1593,44 @@ inline Around around(std::string_view key) { return Around{std::string(key)}; }
  *  are ordinary kit values (`kit::brush::shapers::`), peers of anything
  *  you write — which is what a seam is for. */
 template <typename S>
-concept ShaperScheme = std::equality_comparable<S> &&
-    requires(const S &s, const SkPath &p) {
+concept ShaperScheme =
+    std::equality_comparable<S> && requires(const S& s, const SkPath& p) {
       { s.shape(p) } -> std::convertible_to<SkPath>;
     };
 
 /** Type-erased comparable shaper. */
 class Shaper {
-public:
+ public:
   template <ShaperScheme S>
-  Shaper(S scheme) // NOLINT: implicit by design (.shaped(myWave))
+  Shaper(S scheme)  // NOLINT: implicit by design (.shaped(myWave))
       : m_bleed([&] {
-          if constexpr (requires { { scheme.bleed() } -> std::convertible_to<float>; })
+          if constexpr (requires {
+                          { scheme.bleed() } -> std::convertible_to<float>;
+                        })
             return (float)scheme.bleed();
           else
             return 0.0f;
         }()) {
     m_held = scheme;
-    m_equals = [](const std::any &a, const std::any &b) {
-      return std::any_cast<const S &>(a) == std::any_cast<const S &>(b);
+    m_equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const S&>(a) == std::any_cast<const S&>(b);
     };
-    m_shape = [s = std::move(scheme)](const SkPath &p) { return s.shape(p); };
+    m_shape = [s = std::move(scheme)](const SkPath& p) { return s.shape(p); };
   }
   Shaper() = default;
 
-  SkPath shape(const SkPath &p) const { return m_shape ? m_shape(p) : p; }
+  SkPath shape(const SkPath& p) const { return m_shape ? m_shape(p) : p; }
   float bleed() const { return m_bleed; }
-  bool operator==(const Shaper &o) const {
-    if (!m_equals || !o.m_equals)
-      return !m_equals && !o.m_equals;
+  bool operator==(const Shaper& o) const {
+    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
     return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
   }
 
-private:
+ private:
   float m_bleed = 0.0f;
-  std::function<SkPath(const SkPath &)> m_shape;
+  std::function<SkPath(const SkPath&)> m_shape;
   std::any m_held;
-  std::function<bool(const std::any &, const std::any &)> m_equals;
+  std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
 // ---------------------------------------------------------------------------
@@ -1671,11 +1653,11 @@ private:
  *  Paths are DATA: a path participates as an element's shape, as borrowed
  *  geometry, or as pure guide data in no tree. This is the third case. */
 class StrandPath {
-public:
+ public:
   enum class Source : uint8_t { Relative, Borrowed, Authored };
 
   StrandPath() = default;
-  StrandPath(Profile p) // NOLINT: implicit by design (.path = strand::self())
+  StrandPath(Profile p)  // NOLINT: implicit by design (.path = strand::self())
       : m_source(Source::Relative), m_profile(std::move(p)) {}
   static StrandPath borrowed(std::string key) {
     StrandPath s;
@@ -1691,20 +1673,20 @@ public:
   }
 
   Source source() const { return m_source; }
-  const Profile &profile() const { return m_profile; }
-  const std::string &key() const { return m_key; }
-  const SkPath &path() const { return m_path; }
+  const Profile& profile() const { return m_profile; }
+  const std::string& key() const { return m_key; }
+  const SkPath& path() const { return m_path; }
   /** How far off the boundary this strand can run — 0 for the absolute
    *  family, whose geometry is its own. */
   float reach() const {
     return m_source == Source::Relative ? m_profile.max() : 0.0f;
   }
-  bool operator==(const StrandPath &o) const {
+  bool operator==(const StrandPath& o) const {
     return m_source == o.m_source && m_profile == o.m_profile &&
            m_key == o.m_key && m_path == o.m_path;
   }
 
-private:
+ private:
   Source m_source = Source::Relative;
   Profile m_profile;
   std::string m_key;
@@ -1719,14 +1701,14 @@ inline StrandPath from(std::string_view key) {
 }
 /** Authored geometry, in the host element's local space. */
 inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
-} // namespace strand
+}  // namespace strand
 
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and exactly the band's frame: `along` is a
  *  fraction of total arc length, positive `across` is LEFT of travel
  *  (outside a clockwise path). A constant profile delegates to
  *  `lines::offsetAcross`, which means the same side. */
-SkPath profileOffset(const SkPath &spine, const Profile &profile);
+SkPath profileOffset(const SkPath& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get
@@ -1737,7 +1719,7 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile);
  *  Public because a varying-width MARK along a spine IS this region: a
  *  milled groove, or a ribbon, is this band filled. Sharing one geometry
  *  keeps the corner repair from being reimplemented per consumer. */
-SkPath bandRegion(const SkPath &spine, const Across &width,
+SkPath bandRegion(const SkPath& spine, const Across& width,
                   Formation formation = Formation::Centered);
 
 // ---------------------------------------------------------------------------
@@ -1765,7 +1747,7 @@ struct Crossing {
   /** Where the crossing falls along each strand, as fractions of that
    *  strand's arc length. */
   float alongA = 0.0f, alongB = 0.0f;
-  bool operator==(const Crossing &) const = default;
+  bool operator==(const Crossing&) const = default;
 };
 
 /** A crossing rule value: `Order decide(const Crossing &) const`, plus
@@ -1774,8 +1756,8 @@ struct Crossing {
  *  so it has to participate in reconciler equality or the node holding it
  *  can never prune. */
 template <typename D>
-concept CrossingScheme = std::equality_comparable<D> &&
-    requires(const D &d, const Crossing &c) {
+concept CrossingScheme =
+    std::equality_comparable<D> && requires(const D& d, const Crossing& c) {
       { d.decide(c) } -> std::convertible_to<Order>;
     };
 
@@ -1792,16 +1774,16 @@ concept CrossingScheme = std::equality_comparable<D> &&
  *  The default is LIST ORDER: later strands pass over earlier ones. That
  *  is what makes `layers` and `weave` formally one machine. */
 class CrossingRule {
-public:
+ public:
   CrossingRule() = default;
   template <CrossingScheme D>
-  CrossingRule(D scheme) // NOLINT: implicit by design (.crossing = MyRule{})
+  CrossingRule(D scheme)  // NOLINT: implicit by design (.crossing = MyRule{})
       : m_kind(Kind::Custom) {
     m_held = scheme;
-    m_equals = [](const std::any &x, const std::any &y) {
-      return std::any_cast<const D &>(x) == std::any_cast<const D &>(y);
+    m_equals = [](const std::any& x, const std::any& y) {
+      return std::any_cast<const D&>(x) == std::any_cast<const D&>(y);
     };
-    m_decide = [s = std::move(scheme)](const Crossing &c) {
+    m_decide = [s = std::move(scheme)](const Crossing& c) {
       return s.decide(c);
     };
   }
@@ -1830,8 +1812,8 @@ public:
    *  Pins compose onto the base rule and never stack as separate
    *  entries: there is one `.crossing` field, and this is how it takes
    *  exceptions. */
-  CrossingRule &except(size_t index, Order order) {
-    for (auto &pin : m_pins)
+  CrossingRule& except(size_t index, Order order) {
+    for (auto& pin : m_pins)
       if (pin.first == index) {
         pin.second = order;
         return *this;
@@ -1840,54 +1822,47 @@ public:
     return *this;
   }
 
-  Order decide(const Crossing &c) const {
-    for (const auto &pin : m_pins)
-      if (pin.first == c.index)
-        return pin.second;
+  Order decide(const Crossing& c) const {
+    for (const auto& pin : m_pins)
+      if (pin.first == c.index) return pin.second;
     switch (m_kind) {
-    case Kind::Sequence:
-      if (!m_pattern.empty())
-        return m_pattern[c.index % m_pattern.size()];
-      break;
-    case Kind::Pairs:
-      for (const auto &[over, under] : m_dominance) {
-        if (over == (int)c.a && under == (int)c.b)
-          return Order::Over;
-        if (over == (int)c.b && under == (int)c.a)
-          return Order::Under;
-      }
-      break;
-    case Kind::Custom:
-      if (m_decide)
-        return m_decide(c);
-      break;
-    case Kind::ListOrder:
-      break;
+      case Kind::Sequence:
+        if (!m_pattern.empty()) return m_pattern[c.index % m_pattern.size()];
+        break;
+      case Kind::Pairs:
+        for (const auto& [over, under] : m_dominance) {
+          if (over == (int)c.a && under == (int)c.b) return Order::Over;
+          if (over == (int)c.b && under == (int)c.a) return Order::Under;
+        }
+        break;
+      case Kind::Custom:
+        if (m_decide) return m_decide(c);
+        break;
+      case Kind::ListOrder:
+        break;
     }
     // List order: `b` is later in the list, so `a` is underneath.
     return Order::Under;
   }
 
-  bool operator==(const CrossingRule &o) const {
+  bool operator==(const CrossingRule& o) const {
     if (m_kind != o.m_kind || m_pattern != o.m_pattern ||
         m_dominance != o.m_dominance || m_pins != o.m_pins)
       return false;
-    if (m_kind != Kind::Custom)
-      return true;
-    if (!m_equals || !o.m_equals)
-      return !m_equals && !o.m_equals;
+    if (m_kind != Kind::Custom) return true;
+    if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
     return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
   }
 
-private:
+ private:
   enum class Kind : uint8_t { ListOrder, Sequence, Pairs, Custom };
   Kind m_kind = Kind::ListOrder;
   std::vector<Order> m_pattern;
   std::vector<std::pair<int, int>> m_dominance;
   std::vector<std::pair<size_t, Order>> m_pins;
-  std::function<Order(const Crossing &)> m_decide;
+  std::function<Order(const Crossing&)> m_decide;
   std::any m_held;
-  std::function<bool(const std::any &, const std::any &)> m_equals;
+  std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
 namespace crossing {
@@ -1906,14 +1881,14 @@ inline CrossingRule sequence(std::vector<Order> pattern) {
 inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
   return CrossingRule::pairs(std::move(dominance));
 }
-} // namespace crossing
+}  // namespace crossing
 
 /** Every crossing among a set of strand paths, numbered along the
  *  boundary (ascending by position on the lowest-indexed strand
  *  involved). Only PROPER crossings count: coincident strands and
  *  endpoint touches, such as a shared polygon vertex, are meetings rather
  *  than crossings, and reporting them would put a knot at every corner. */
-std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands);
+std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands);
 
 /** The region where two strands' MARKS actually overlap at one crossing:
  *  the intersection of the two paths stroked to their own reach, reduced to
@@ -1934,7 +1909,7 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands);
  *
  *  Falls back to a disc when the intersection is empty (degenerate or
  *  non-overlapping input). */
-SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
+SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
                      float reachB, SkPoint at, float maxRadius);
 
 // ---------------------------------------------------------------------------
@@ -1946,9 +1921,9 @@ struct Dim {
   float value = 0.0f;
 
   constexpr Dim() = default;
-  constexpr Dim(float px) // NOLINT: implicit by design
+  constexpr Dim(float px)  // NOLINT: implicit by design
       : unit(Unit::Px), value(px) {}
-  bool operator==(const Dim &) const = default;
+  bool operator==(const Dim&) const = default;
 };
 constexpr Dim pct(float v) {
   Dim d;
@@ -1966,11 +1941,16 @@ constexpr Dim operator""_px(long double v) { return Dim((float)v); }
 constexpr Dim operator""_px(unsigned long long v) { return Dim((float)v); }
 constexpr Dim operator""_pct(long double v) { return pct((float)v); }
 constexpr Dim operator""_pct(unsigned long long v) { return pct((float)v); }
-} // namespace literals
+}  // namespace literals
 
 enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };
 enum class Justify : uint8_t {
-  Start, Center, End, SpaceBetween, SpaceAround, SpaceEvenly
+  Start,
+  Center,
+  End,
+  SpaceBetween,
+  SpaceAround,
+  SpaceEvenly
 };
 
 /** One misprint pass: the node's own fill shape and text re-stamped at
@@ -1981,7 +1961,7 @@ enum class Justify : uint8_t {
 struct Echo {
   SkVector offset = {3, 3};
   SkColor4f color = {0, 0, 0, 1};
-  bool operator==(const Echo &) const = default;
+  bool operator==(const Echo&) const = default;
 };
 
 /** Cache override.
@@ -2038,13 +2018,13 @@ enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;
-  std::vector<float> childBaselines; // NaN = no baseline (non-text)
+  std::vector<float> childBaselines;  // NaN = no baseline (non-text)
 };
 
 /** A custom layout places children: one rect per child (position and
  *  size, container-relative). Runs as a bounded second layout pass. */
 template <typename L>
-concept LayoutScheme = requires(const L &l, const LayoutInput &in) {
+concept LayoutScheme = requires(const L& l, const LayoutInput& in) {
   { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
 };
 
@@ -2057,68 +2037,69 @@ concept ComponentProps = std::equality_comparable<P> && std::copyable<P>;
 class Element;
 
 template <typename F, typename P>
-concept ComponentFn = std::invocable<F, const P &> &&
-    std::convertible_to<std::invoke_result_t<F, const P &>, Element>;
+concept ComponentFn =
+    std::invocable<F, const P&> &&
+    std::convertible_to<std::invoke_result_t<F, const P&>, Element>;
 
 // ---------------------------------------------------------------------------
 // Element — a cheap value description
 
 class Element {
-public:
-  Element(); // empty box
+ public:
+  Element();  // empty box
 
   // ---- layout ----
-  Element &row();
-  Element &column();
+  Element& row();
+  Element& column();
   /** Flex-wrap: children flow onto new lines/columns when they
    *  overflow the main axis. */
-  Element &wrapLines(bool on = true);
-  Element &gap(float px);
-  Element &padding(float all);
-  Element &padding(float horizontal, float vertical);
-  Element &padding(float left, float top, float right, float bottom);
-  Element &margin(float all);
-  Element &margin(float horizontal, float vertical);
-  Element &margin(float left, float top, float right, float bottom);
+  Element& wrapLines(bool on = true);
+  Element& gap(float px);
+  Element& padding(float all);
+  Element& padding(float horizontal, float vertical);
+  Element& padding(float left, float top, float right, float bottom);
+  Element& margin(float all);
+  Element& margin(float horizontal, float vertical);
+  Element& margin(float left, float top, float right, float bottom);
   /** The flex BASIS, not a guarantee. `shrink` defaults to 1, faithful to
    *  Yoga and CSS, so a `width(150)` child of a row that overflows is
    *  150 px wide only until the row runs out of room — then it gives some
    *  back, and the result is silently narrower content rather than an
    *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
    *  The same holds for `height()` in a column. */
-  Element &width(Dim d);
-  Element &height(Dim d);
-  Element &minWidth(Dim d);
-  Element &maxWidth(Dim d);
-  Element &minHeight(Dim d);
-  Element &maxHeight(Dim d);
-  Element &aspect(float ratio);
-  Element &grow(float factor = 1.0f);
-  Element &shrink(float factor);
-  Element &basis(Dim d);
-  Element &alignItems(Align a);
-  Element &alignSelf(Align a);
-  Element &justify(Justify j);
-  Element &absolute();
-  Element &inset(float all);
-  Element &inset(float left, float top, float right, float bottom);
+  Element& width(Dim d);
+  Element& height(Dim d);
+  Element& minWidth(Dim d);
+  Element& maxWidth(Dim d);
+  Element& minHeight(Dim d);
+  Element& maxHeight(Dim d);
+  Element& aspect(float ratio);
+  Element& grow(float factor = 1.0f);
+  Element& shrink(float factor);
+  Element& basis(Dim d);
+  Element& alignItems(Align a);
+  Element& alignSelf(Align a);
+  Element& justify(Justify j);
+  Element& absolute();
+  Element& inset(float all);
+  Element& inset(float left, float top, float right, float bottom);
   /** Dim-valued insets: px, pct(), or autoDim() per side — autoDim()
    *  leaves that side unpinned (the CSS `auto`), so width/height (or the
    *  opposite inset) size the node instead of stretching it. */
-  Element &inset(Dim left, Dim top, Dim right, Dim bottom);
+  Element& inset(Dim left, Dim top, Dim right, Dim bottom);
   /** Pin ONE edge of an absolute node (implies absolute()): the
    *  corner-badge idiom — `.top(12).right(12)` pins a date block to the
    *  top-right without stretching it across the box. Unpinned sides stay
    *  auto. */
-  Element &left(Dim d);
-  Element &top(Dim d);
-  Element &right(Dim d);
-  Element &bottom(Dim d);
+  Element& left(Dim d);
+  Element& top(Dim d);
+  Element& right(Dim d);
+  Element& bottom(Dim d);
   /** Center this absolute node ON a parent-space point — the dominant
    *  placement in node-graph scenes (sockets on orbit positions, badges
    *  on markers). Resolved after measurement, so intrinsic-size nodes
    *  center correctly; implies absolute(). */
-  Element &centerAt(SkPoint p);
+  Element& centerAt(SkPoint p);
   /** Place an absolute node on a parent-space RECT — the peer of
    *  centerAt(), for when you already know the box.
    *
@@ -2140,15 +2121,15 @@ public:
    *  autoDim() sides — those are different intents and keep the longhand.
    *  `util::centred()` (Util.h) builds the rect for the centre-and-size
    *  case. */
-  Element &rect(const SkRect &r);
+  Element& rect(const SkRect& r);
   /** Pin an absolute node's top-left to a parent-space POINT, leaving the
    *  node to size itself from its content — `left(p.fX).top(p.fY)`. The
    *  half of the placement longhand that carries no box; same
    *  qualification as rect() above. */
-  Element &at(SkPoint topLeft);
+  Element& at(SkPoint topLeft);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
-  Element &corners(Corners c);
+  Element& corners(Corners c);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
    *  coordinates. Overrides corners() — the fill surface, clip(), every
    *  stroke pass and every outline-following decoration (PathFormat,
@@ -2163,14 +2144,14 @@ public:
    *  accepted as the escape hatch, but it never compares equal, so the
    *  node re-patches and re-records on every describe — memo() such a
    *  node, or hold the Shape value stable, to get pruning back. */
-  Element &shape(Shape path);
+  Element& shape(Shape path);
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
    *  `.inward()` take one side (the offset-path lineage). No effect on a
    *  node that is not a band(). */
-  Element &centered();
-  Element &outward();
-  Element &inward();
+  Element& centered();
+  Element& outward();
+  Element& inward();
   /** Clip fill, content, and children to the node's shape. Decorations
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
    *  glows keep their reach); hit-testing still bounds the subtree.
@@ -2183,7 +2164,7 @@ public:
    *  Kept as its own word because it is also the cheap path: a rounded box
    *  clips with `clipRRect`, where the general shape gate has to build a
    *  path and clip against that. */
-  Element &clip(bool on = true);
+  Element& clip(bool on = true);
 
   // ---- mask (the appearance-gating family) ----
   /** THE FAMILY VERB, taught form: gate everything this node paints.
@@ -2202,7 +2183,7 @@ public:
    *  Paint-only and bindable, like the transforms: animating a mask never
    *  relayouts, and hit-testing keeps the UNMASKED shape — a mask is a
    *  paint-phase reveal, not a layout change. */
-  Element &mask(Gate with);
+  Element& mask(Gate with);
   /** …and the granular form: gate SOME of what this node paints.
    *
    *      panel.overlay(hazardStripes, "hazard")
@@ -2224,7 +2205,7 @@ public:
    *  not. That check is deliberately read against the UNMASKED boundary,
    *  so an overlapping claim is a description-level mistake reported once,
    *  never one that blinks in and out partway through a transition. */
-  Element &mask(Parts what, Gate with);
+  Element& mask(Parts what, Gate with);
 
   // ---- paint ----
   /** A colour, a shader, a transition between colours, or a LIVE binding.
@@ -2243,13 +2224,15 @@ public:
    *  site: `fill(bind(&level).map(ramp))` does not compile, because the
    *  shaping chain maps floats to floats. Compute the Fill in the
    *  steppable, as above. */
-  Element &fill(Animatable<Fill> f);
+  Element& fill(Animatable<Fill> f);
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
-  Element &fill(Material m);
+  Element& fill(Material m);
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
-  Element &fill(SkColor4f color) { return fill(Animatable<Fill>{Fill::color(color)}); }
+  Element& fill(SkColor4f color) {
+    return fill(Animatable<Fill>{Fill::color(color)});
+  }
   /** How an image() leaf samples its source. Defaults to linear, which is
    *  right for photographs and wrong for every pixel grid: art, tilemaps,
    *  fonts baked as sprites, simulation buffers.
@@ -2258,7 +2241,7 @@ public:
    *
    *  `Material::image()` takes the same options for a sprite fill. No
    *  effect on non-image leaves, silently. */
-  Element &sampling(SkSamplingOptions options);
+  Element& sampling(SkSamplingOptions options);
   // ---- decoration layers ----
   // Backgrounds paint below content/children (in declaration order),
   // foregrounds above; fill() is the transitionable first background,
@@ -2279,7 +2262,7 @@ public:
    *
    *  Children are still tested: this excludes the node's own box, not its
    *  subtree. */
-  Element &hitTestable(bool enabled);
+  Element& hitTestable(bool enabled);
   /** A decoration painted OVER the fill and UNDER the content and
    *  children.
    *
@@ -2297,12 +2280,12 @@ public:
    *  `mask(parts::named(name), by::…)` can address it and nothing else.
    *  Same names, same law as `stroke(Spans, what, name)` — inspection and
    *  intra-element reference, never a query key. */
-  Element &overlay(Decoration d, std::string name = {});
+  Element& overlay(Decoration d, std::string name = {});
   /** A decoration painted BENEATH the fill (the CSS box-shadow
    *  ordering) — shadows, ground textures, anything the surface sits on
    *  top of. If you want it over the surface but under the children, that
    *  is `overlay()` above. `name` labels the mark for `parts::named()`. */
-  Element &background(Decoration d, std::string name = {});
+  Element& background(Decoration d, std::string name = {});
   /** THE BACKGROUND SLOT, span-qualified — `.stroke(where, what)`'s twin
    *  in the other z-half.
    *
@@ -2318,10 +2301,10 @@ public:
    *  have two of itself, so a background pass and a stroke pass claiming
    *  the same run is the same conflict as two stroke passes doing it, and
    *  `rest("name")` can name a pass in either half. */
-  Element &background(Spans where, Decoration what, std::string name = {});
+  Element& background(Spans where, Decoration what, std::string name = {});
   /** A decoration painted OVER the children. `name` labels the mark for
    *  `parts::named()`. */
-  Element &foreground(Decoration d, std::string name = {});
+  Element& foreground(Decoration d, std::string name = {});
   /** fill's peer: dress the node's whole BOUNDARY with a brush — a
    *  PathFormat, a layered brush stack, any decoration that strokes.
    *
@@ -2330,7 +2313,7 @@ public:
    *  `where` (below) is what turns a pass into a claim on part of the
    *  boundary; naming a `name` (here) is what lets a mask address this
    *  mark alone. */
-  Element &stroke(Decoration brush, std::string name = {});
+  Element& stroke(Decoration brush, std::string name = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
    *
    *      .stroke(spans::corners(18), stroke(2, ink))          // reticle
@@ -2376,28 +2359,28 @@ public:
    *  pass to `where ∩ upTo(t)`, which is how reticle brackets light up as
    *  a sweep reaches them. The ONE thing the pass form does that the mask
    *  spelling does not: it CLAIMS its run and joins the overlap check. */
-  Element &stroke(Spans where, Decoration what, std::string name = {});
+  Element& stroke(Spans where, Decoration what, std::string name = {});
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
    *  node in aqua gel / y2k chrome / any bundled treatment. Composable
    *  with fill() and further background()/foreground() calls. */
-  Element &style(LayerStyle s);
+  Element& style(LayerStyle s);
   /** Append a misprint echo (see Echo): the node's fill shape and text
    *  re-stamped offset+flat-colored beneath the real pass. Not applied to
    *  glyphFx text (kinetic draws its own buckets) or image/custom content. */
-  Element &echo(SkVector offset, SkColor4f color);
+  Element& echo(SkVector offset, SkColor4f color);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
-  Element &effect(Effect e);
+  Element& effect(Effect e);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints (CSS backdrop-filter). Incompatible with
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
-  Element &backdrop(Effect e);
-  Element &opacity(Animatable<float> o);
-  Element &blend(SkBlendMode mode);
-  Element &translateX(Animatable<float> v);
-  Element &translateY(Animatable<float> v);
+  Element& backdrop(Effect e);
+  Element& opacity(Animatable<float> o);
+  Element& blend(SkBlendMode mode);
+  Element& translateX(Animatable<float> v);
+  Element& translateY(Animatable<float> v);
   /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
    *  for the six rules). Paint-only like the lanes it outranks; the
    *  node's transform origin is the point that lands on the curve, and
@@ -2407,9 +2390,9 @@ public:
    *               .t = bind(&phase).target(0, 1),
    *               .lookAhead = 0.02f})   // auto-orient along the tangent
    */
-  Element &travel(MotionPath along);
-  Element &rotate(Animatable<float> degrees);
-  Element &scale(Animatable<float> factor);
+  Element& travel(MotionPath along);
+  Element& rotate(Animatable<float> degrees);
+  Element& scale(Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
    *  content picture replays under the new transform.
@@ -2422,8 +2405,8 @@ public:
    *  the OTHER axis. Set transformOrigin() to pin the growing edge —
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
-  Element &scaleX(Animatable<float> factor);
-  Element &scaleY(Animatable<float> factor);
+  Element& scaleX(Animatable<float> factor);
+  Element& scaleY(Animatable<float> factor);
   /** Shear, in degrees, about the transform origin. Paint-only like
    *  rotate/scale: animating a skew never relayouts, and content pictures
    *  replay under the new transform.
@@ -2432,46 +2415,55 @@ public:
    *  screen-space, y down: a POSITIVE skewX shifts points further down the
    *  node further right, so the shape's top leans LEFT — the italic
    *  forward lean is a NEGATIVE skewX. */
-  Element &skewX(Animatable<float> degrees);
-  Element &skewY(Animatable<float> degrees);
+  Element& skewX(Animatable<float> degrees);
+  Element& skewY(Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
   // Animatable variant on its own, and the resulting error is unreadable).
   // std::integral-constrained so FLOAT calls can never land here (a plain
   // int overload would capture them via the standard float→int conversion
   // and recurse); Animatable is constructed explicitly for the same reason.
-  template <std::integral T> Element &opacity(T v) {
+  template <std::integral T>
+  Element& opacity(T v) {
     return opacity(Animatable<float>((float)v));
   }
-  template <std::integral T> Element &translateX(T v) {
+  template <std::integral T>
+  Element& translateX(T v) {
     return translateX(Animatable<float>((float)v));
   }
-  template <std::integral T> Element &translateY(T v) {
+  template <std::integral T>
+  Element& translateY(T v) {
     return translateY(Animatable<float>((float)v));
   }
-  template <std::integral T> Element &rotate(T deg) {
+  template <std::integral T>
+  Element& rotate(T deg) {
     return rotate(Animatable<float>((float)deg));
   }
-  template <std::integral T> Element &scale(T f) {
+  template <std::integral T>
+  Element& scale(T f) {
     return scale(Animatable<float>((float)f));
   }
-  template <std::integral T> Element &scaleX(T f) {
+  template <std::integral T>
+  Element& scaleX(T f) {
     return scaleX(Animatable<float>((float)f));
   }
-  template <std::integral T> Element &scaleY(T f) {
+  template <std::integral T>
+  Element& scaleY(T f) {
     return scaleY(Animatable<float>((float)f));
   }
-  template <std::integral T> Element &skewX(T deg) {
+  template <std::integral T>
+  Element& skewX(T deg) {
     return skewX(Animatable<float>((float)deg));
   }
-  template <std::integral T> Element &skewY(T deg) {
+  template <std::integral T>
+  Element& skewY(T deg) {
     return skewY(Animatable<float>((float)deg));
   }
-  Element &transformOrigin(float fx, float fy);
+  Element& transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
    *  aren't a fraction of THIS node's box, e.g. zooming a window that
    *  lives inside a full-canvas overlay around its own center. */
-  Element &transformOriginPx(SkPoint p);
-  Element &zIndex(int z);
+  Element& transformOriginPx(SkPoint p);
+  Element& zIndex(int z);
 
   // ---- derive phase (inputs are resolved geometry) ----
   /** Text leaves only: flow this paragraph around the keyed node's
@@ -2479,31 +2471,31 @@ public:
    *  standoff. Resolved as a bounded second layout pass; a reference
    *  to self or a descendant is ignored (cycle guard). Call repeatedly
    *  to weave around several elements. */
-  Element &flowAround(std::string_view key, float margin = 0.0f);
+  Element& flowAround(std::string_view key, float margin = 0.0f);
 
   // ---- content ----
   /** Image leaves only: draw this sub-rect of the asset (atlas / sprite
    *  regions, in source pixels) instead of the whole image. Strictly
    *  constrained — neighboring atlas cells never bleed in. */
-  Element &region(SkRect sourceRect);
+  Element& region(SkRect sourceRect);
 
   /** Kinetic typography on a text() element: a per-glyph effect staggered
    *  across the glyphs and driven by a master progress (see GlyphFx). */
-  Element &glyphFx(GlyphFx fx);
+  Element& glyphFx(GlyphFx fx);
   /** VariationDrive (text leaves): drive a variable-font axis from a
    *  bound Output at DRAW time — paint-only volatility, no reshape, no
    *  relayout. The paint phase probes the node's fonts once per content:
    *  an advance-variant axis (wght on most fonts) is REFUSED with a debug
    *  warning and the text draws at its shaped coordinates — drive GRAD
    *  (the advance-invariant weight) or re-render discretely instead. */
-  Element &variationDrive(const char (&tag)[5],
-                          const choreograph::Output<float> *value);
+  Element& variationDrive(const char (&tag)[5],
+                          const choreograph::Output<float>* value);
 
   /** Text leaves only: how lines sit inside the node's width (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
    *  node is WIDER than its text (explicit width, grow, stack stretch);
    *  intrinsic-width text has nothing to align within. */
-  Element &textAlign(sigil::weave::TextAlignment a);
+  Element& textAlign(sigil::weave::TextAlignment a);
 
   /** Text leaves only: paint the GLYPHS with this material, mapped to
    *  TEXT-METRIC space — the material's unit square lands with x across
@@ -2516,7 +2508,7 @@ public:
    *  Supersedes the style's foreground paint. A live material re-resolves
    *  per frame. glyphFx wins when both are set, because kinetic text draws
    *  its own batched glyph buckets. */
-  Element &textFill(Material m);
+  Element& textFill(Material m);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.
@@ -2527,7 +2519,7 @@ public:
    *  Composes with `textFill()` — the stroke is a pass beneath whatever
    *  fills the letterforms — and with the style's own underlays and
    *  overlays, which it joins rather than replaces. */
-  Element &textStroke(float width, Fill fill);
+  Element& textStroke(float width, Fill fill);
   /** Text leaves only: lay the run out along a PATH instead of a line.
    *  See TextPath. Single-line runs; the node's own box still sizes the
    *  path, so give it the box the curve should be inscribed in
@@ -2536,7 +2528,7 @@ public:
    *  Interacts with the rest of the text surface the way you would hope:
    *  the style's underlays, overlays and decorations all still draw, and
    *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
-  Element &onPath(TextPath spec);
+  Element& onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----
   /** The author-owned identity: what the reconciler matches a child by
@@ -2548,8 +2540,8 @@ public:
    *  called "panel", and `renderSlot("hud")` then finds nothing and does
    *  nothing. It warns once, in Release too, because the visible symptom
    *  is an empty region rather than an error. */
-  Element &key(std::string_view k);
-  Element &cache(Cache c);
+  Element& key(std::string_view k);
+  Element& cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
    *  The bake rasterizes at `factor` times the device scale and the blit
    *  scales it back up with linear sampling.
@@ -2562,8 +2554,8 @@ public:
    *  resizing node) AND the content is soft enough to survive the
    *  resample. Sharp text and 1 px hairlines never belong under a reduced
    *  bake. */
-  Element &bakeScale(float factor);
-  Element &transition(Transition t); // node default for plain constants
+  Element& bakeScale(float factor);
+  Element& transition(Transition t);  // node default for plain constants
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order·each delay on all its animate() mount transitions, compounding
    *  through nested staggered containers. `from` picks the origin — Start
@@ -2571,37 +2563,36 @@ public:
    *  without reordering paint), Center (ripple outward). One call, no
    *  per-child delay arithmetic:
    *  `column().staggerChildren(33ms, Stagger::From::End).children(rows)`. */
-  Element &staggerChildren(std::chrono::milliseconds each,
+  Element& staggerChildren(std::chrono::milliseconds each,
                            Stagger::From from = Stagger::From::Start);
 
   // ---- composition ----
-  Element &child(Element e);
+  Element& child(Element e);
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
-  Element &children(R &&range) {
-    for (auto &&e : range)
-      child(std::move(e));
+  Element& children(R&& range) {
+    for (auto&& e : range) child(std::move(e));
     return *this;
   }
 
   /** @private reconciler access */
-  const std::shared_ptr<detail::ElementNode> &node() const {
+  const std::shared_ptr<detail::ElementNode>& node() const {
     return m_node.value;
   }
   explicit Element(std::shared_ptr<detail::ElementNode> n)
       : m_node(std::move(n)) {}
 
-private:
+ private:
   /** Register a decoration's declared derive borrows (see
    *  BorrowingDecoration). Every slot that takes a Decoration must call
    *  this: a borrow honoured in some slots and not others resolves to
    *  nothing in the others, and draws nothing, with no diagnostic. */
-  void claimBorrows(const Decoration &d);
+  void claimBorrows(const Decoration& d);
 
   /** The shared body of stroke(Spans,…) and background(Spans,…). `half` is
    *  a detail::StrokePass::Half, passed as an int so the exported header
    *  does not have to name an internal enum. */
-  Element &addSpanPass(Spans where, Decoration what, std::string name,
+  Element& addSpanPass(Spans where, Decoration what, std::string name,
                        int half);
 
   /** Bind the optional LOCAL label an unqualified mark slot took to the
@@ -2616,8 +2607,8 @@ private:
     explicit NodeHandle(std::shared_ptr<detail::ElementNode> node)
         : value(std::move(node)) {}
 
-    detail::ElementNode *operator->();
-    const detail::ElementNode *operator->() const;
+    detail::ElementNode* operator->();
+    const detail::ElementNode* operator->() const;
 
     std::shared_ptr<detail::ElementNode> value;
   };
@@ -2700,16 +2691,18 @@ Element custom(std::string_view key, PaintProgram program);
  *  itself is sized by its own dims/flex; children are measured by
  *  Yoga/SigilWeave, then positioned and sized by scheme.place() in a
  *  bounded second layout pass. */
-template <LayoutScheme L> Element layout(L scheme);
+template <LayoutScheme L>
+Element layout(L scheme);
 
 namespace detail {
 Element makeLayout(
-    std::function<std::vector<SkRect>(const LayoutInput &)> place);
-} // namespace detail
+    std::function<std::vector<SkRect>(const LayoutInput&)> place);
+}  // namespace detail
 
-template <LayoutScheme L> Element layout(L scheme) {
+template <LayoutScheme L>
+Element layout(L scheme) {
   return detail::makeLayout(
-      [s = std::move(scheme)](const LayoutInput &in) { return s.place(in); });
+      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); });
 }
 
 /** A named mount point whose content is supplied independently via
@@ -2736,7 +2729,7 @@ Element slot(std::string_view name);
  *  be much larger than its visible shape — under `sdf::` chrome, for
  *  instance — so the gap is how a wire stops at the glow instead of
  *  piercing it. */
-using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
+using Router = std::function<SkPath(const SkRect& from, const SkRect& to)>;
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
@@ -2749,7 +2742,7 @@ struct Anchor {
   std::string nodeKey;
   SkPoint norm = {0.5f, 0.5f};
   float gap = 0.0f;
-  bool operator==(const Anchor &) const = default;
+  bool operator==(const Anchor&) const = default;
 };
 
 /** Routes an ordered run of resolved anchor points into the rail's path —
@@ -2815,7 +2808,7 @@ Element band(Around spine, Across width);
  *  `TextPath::offset` all mean this same side. Anything placing content on
  *  a band reads it here, so the placement and the band's own geometry
  *  cannot disagree. */
-SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx);
+SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx);
 
 // ---------------------------------------------------------------------------
 // The DERIVE family, gathered under one word
@@ -2864,7 +2857,7 @@ inline Element flowAround(Element el, std::string_view key,
   el.flowAround(key, margin);
   return el;
 }
-} // namespace derive
+}  // namespace derive
 
 /** One-shot element render: reconciles, lays out, and records the
  *  paint into a picture. With an empty @p maxSize the tree takes its
@@ -2879,7 +2872,7 @@ inline Element flowAround(Element el, std::string_view key,
  *  fill(…))` bakes at CONTENT size and quietly ignores the 32. Wrap the
  *  sized tree in a plain `box().child(...)` and the dims are honoured,
  *  because they now belong to a child. */
-sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
+sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext& fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
 /** Slicing ONE baked picture into a run of tiles.
@@ -2916,14 +2909,14 @@ namespace tiles {
 
 /** Which way the run of tiles marches through the picture. */
 enum class Flow {
-  Down,  ///< a column strip: tile k is the k-th slice down
-  Across ///< a row strip: tile k is the k-th slice rightward
+  Down,   ///< a column strip: tile k is the k-th slice down
+  Across  ///< a row strip: tile k is the k-th slice rightward
 };
 
 /** Whether the tile is pre-flipped for a consumer that samples mirrored. */
 enum class Facing {
-  Forward, ///< the tile reads like the picture
-  Mirrored ///< flipped across the strip, for mirrored sampling
+  Forward,  ///< the tile reads like the picture
+  Mirrored  ///< flipped across the strip, for mirrored sampling
 };
 
 /** The canvas transform that brings tile @p index of a @p tile -sized run
@@ -2955,9 +2948,9 @@ SkMatrix window(SkISize tile, int index, Flow flow = Flow::Down,
  *  `drawPicture()` into a recorder stores a NESTED reference the
  *  bounding-box hierarchy cannot see into, leaving the tree empty and the
  *  replay cost unchanged. This flattens with `playback()` instead. */
-sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art);
+sk_sp<SkPicture> sliceable(const sk_sp<SkPicture>& art);
 
-} // namespace tiles
+}  // namespace tiles
 
 /** A face's vertical metrics at a given size, without laying anything out.
  *
@@ -2972,19 +2965,19 @@ sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art);
  *  do. All values are positive distances in px, with `ascent` measured
  *  above the baseline. */
 struct TextMetrics {
-  float ascent = 0;     ///< baseline to the top of the em box (positive)
-  float descent = 0;    ///< baseline to the bottom (positive)
-  float leading = 0;    ///< the face's recommended extra line gap
-  float capHeight = 0;  ///< baseline to the top of a flat capital
-  float xHeight = 0;    ///< baseline to the top of a lowercase x
-  float lineHeight = 0; ///< ascent + descent + leading
+  float ascent = 0;      ///< baseline to the top of the em box (positive)
+  float descent = 0;     ///< baseline to the bottom (positive)
+  float leading = 0;     ///< the face's recommended extra line gap
+  float capHeight = 0;   ///< baseline to the top of a flat capital
+  float xHeight = 0;     ///< baseline to the top of a lowercase x
+  float lineHeight = 0;  ///< ascent + descent + leading
   /** How far the line box's top sits above the cap top — the number that
    *  turns "place this at the reference's y" into a coordinate. */
   float capSlack() const { return ascent - capHeight; }
 };
 
-TextMetrics metrics(const sigil::weave::TextStyle &style,
-                    sigil::weave::FontContext &fonts);
+TextMetrics metrics(const sigil::weave::TextStyle& style,
+                    sigil::weave::FontContext& fonts);
 
 /** Shape ONE RUN without building an Element: per-glyph advances in px, in
  *  visual order, through the same shaping path a text() leaf takes, so
@@ -2999,8 +2992,8 @@ TextMetrics metrics(const sigil::weave::TextStyle &style,
  *  '\n' starts a new line and resets the positions after it, so pass a
  *  RUN and not a paragraph. */
 std::vector<float> measureRun(std::u8string_view utf8,
-                              const sigil::weave::TextStyle &style,
-                              sigil::weave::FontContext &fonts);
+                              const sigil::weave::TextStyle& style,
+                              sigil::weave::FontContext& fonts);
 
 /** One-shot intrinsic measurement: what size would this element take?
  *  Runs the same reconcile+layout as snapshot() and returns the root's
@@ -3008,7 +3001,7 @@ std::vector<float> measureRun(std::u8string_view utf8,
  *  content-fit chrome (marquees, tooltips, badges): measure the content,
  *  then describe the real tree with the answer. Same sampling rules as
  *  snapshot() — bindings at current values, no transitions. */
-SkSize measure(Element root, sigil::weave::FontContext &fonts,
+SkSize measure(Element root, sigil::weave::FontContext& fonts,
                SkSize maxSize = SkSize::MakeEmpty());
 
 // ---------------------------------------------------------------------------
@@ -3080,9 +3073,9 @@ namespace detail {
 /** One ambient binding, type-erased. `type` is a per-T address so no RTTI
  *  is needed and the type test is a pointer compare. */
 struct EnvEntry {
-  const void *type = nullptr;
+  const void* type = nullptr;
   std::shared_ptr<const void> value;
-  bool (*equal)(const void *, const void *) = nullptr;
+  bool (*equal)(const void*, const void*) = nullptr;
 };
 
 /** A captured ambient stack, innermost LAST. Empty is the overwhelmingly
@@ -3091,54 +3084,54 @@ using EnvSnapshot = std::vector<EnvEntry>;
 
 /** The live describe-time stack. Thread-local: compose is a guest and
  *  describes on whatever thread the host calls on. */
-EnvSnapshot &envStack();
+EnvSnapshot& envStack();
 
 /** Value equality over two captured stacks: same bindings, in the same
  *  order, each equal by its own `operator==`. Identical holders short-
  *  circuit. This is what makes a memo's environment part of its key. */
-bool envEqual(const EnvSnapshot &a, const EnvSnapshot &b);
+bool envEqual(const EnvSnapshot& a, const EnvSnapshot& b);
 
 /** Re-establishes a captured stack around a DEFERRED describe (the memo
  *  invoke). Swaps rather than pushes: a deferred call must see exactly
  *  what its author's scope had, not that stack plus whatever the current
  *  reconcile walk happens to sit inside. */
 class EnvRestore {
-public:
-  explicit EnvRestore(const EnvSnapshot &snapshot);
+ public:
+  explicit EnvRestore(const EnvSnapshot& snapshot);
   ~EnvRestore();
-  EnvRestore(const EnvRestore &) = delete;
-  EnvRestore &operator=(const EnvRestore &) = delete;
+  EnvRestore(const EnvRestore&) = delete;
+  EnvRestore& operator=(const EnvRestore&) = delete;
 
-private:
+ private:
   EnvSnapshot m_saved;
 };
 
-template <class T> const void *envTypeTag() {
+template <class T>
+const void* envTypeTag() {
   static const char tag = 0;
   return &tag;
 }
 
-} // namespace detail
+}  // namespace detail
 
 namespace env {
 
 /** Bind `value` for every component described while this object lives.
  *  RAII and LIFO; an inner `Provide<T>` shadows an outer one, and other
  *  types are unaffected. Not copyable or movable — it is a scope. */
-template <class T> class Provide {
-public:
+template <class T>
+class Provide {
+ public:
   explicit Provide(T value) {
     static_assert(std::is_copy_constructible_v<T>,
                   "an inherited value is a value");
     auto held = std::make_shared<const T>(std::move(value));
     m_self = held.get();
-    detail::envStack().push_back(
-        detail::EnvEntry{detail::envTypeTag<T>(),
-                         std::shared_ptr<const void>(std::move(held)),
-                         [](const void *a, const void *b) {
-                           return *static_cast<const T *>(a) ==
-                                  *static_cast<const T *>(b);
-                         }});
+    detail::envStack().push_back(detail::EnvEntry{
+        detail::envTypeTag<T>(), std::shared_ptr<const void>(std::move(held)),
+        [](const void* a, const void* b) {
+          return *static_cast<const T*>(a) == *static_cast<const T*>(b);
+        }});
     m_depth = detail::envStack().size();
   }
   /** Unbinds THIS scope's binding and no other. Destroying providers out
@@ -3148,58 +3141,64 @@ public:
    *  The misuse warns; the well-nested path stays a compare and a
    *  pop_back, allocation-free. */
   ~Provide() {
-    detail::EnvSnapshot &stack = detail::envStack();
+    detail::EnvSnapshot& stack = detail::envStack();
     if (stack.size() == m_depth && stack.back().value.get() == m_self) {
       stack.pop_back();
       return;
     }
-    SkDebugf("[compose] env::Provide destroyed out of order — scopes must "
-             "nest LIFO; removing only this scope's own binding\n");
+    SkDebugf(
+        "[compose] env::Provide destroyed out of order — scopes must "
+        "nest LIFO; removing only this scope's own binding\n");
     for (size_t i = stack.size(); i-- > 0;)
       if (stack[i].value.get() == m_self) {
         stack.erase(stack.begin() + (std::ptrdiff_t)i);
         return;
       }
   }
-  Provide(const Provide &) = delete;
-  Provide &operator=(const Provide &) = delete;
+  Provide(const Provide&) = delete;
+  Provide& operator=(const Provide&) = delete;
 
-private:
+ private:
   size_t m_depth = 0;
-  const void *m_self = nullptr; // identity of the entry this scope pushed
+  const void* m_self = nullptr;  // identity of the entry this scope pushed
 };
 
 /** The nearest enclosing binding of `T`, or nullptr when nothing bound
  *  one — which is a component's cue to use its own default, exactly like
  *  a React context's default value. Valid until the binding's scope ends
  *  (i.e. for the rest of the describe call that read it). */
-template <class T> const T *inherited() {
-  const detail::EnvSnapshot &stack = detail::envStack();
-  const void *tag = detail::envTypeTag<T>();
+template <class T>
+const T* inherited() {
+  const detail::EnvSnapshot& stack = detail::envStack();
+  const void* tag = detail::envTypeTag<T>();
   for (size_t i = stack.size(); i-- > 0;)
     if (stack[i].type == tag)
-      return static_cast<const T *>(stack[i].value.get());
+      return static_cast<const T*>(stack[i].value.get());
   return nullptr;
 }
 
 /** The inherited value, or `fallback` — the one-liner spelling for a
  *  component that has a sensible default of its own. */
-template <class T> T inheritedOr(T fallback) {
-  const T *found = inherited<T>();
+template <class T>
+T inheritedOr(T fallback) {
+  const T* found = inherited<T>();
   return found ? *found : std::move(fallback);
 }
 
 /** Is a binding of `T` in scope? For a component that must behave
  *  differently rather than just fall back to a default. */
-template <class T> bool bound() { return inherited<T>() != nullptr; }
+template <class T>
+bool bound() {
+  return inherited<T>() != nullptr;
+}
 
-} // namespace env
+}  // namespace env
 
 namespace detail {
 Element makeMemo(std::any props,
-                 std::function<bool(const std::any &, const std::any &)> equal,
-                 std::function<Element(const std::any &)> invoke);
-} // namespace detail
+                 std::function<bool(const std::any&, const std::any&)> equal,
+                 std::function<Element(const std::any&)> invoke);
+}  // namespace detail
 
 /** Deferred description: `fn` runs only when `props` changed (by
  *  operator==) since the last render on this position/key — AND the
@@ -3208,14 +3207,15 @@ Element makeMemo(std::any props,
  *  it first described under forever. The captured stack is re-established
  *  around the deferred call, so `env::inherited<T>()` inside `fn` reads
  *  what was bound where the memo was WRITTEN, not where it runs. */
-template <ComponentProps P, ComponentFn<P> F> Element memo(P props, F fn) {
+template <ComponentProps P, ComponentFn<P> F>
+Element memo(P props, F fn) {
   return detail::makeMemo(
       std::any(std::move(props)),
-      [](const std::any &a, const std::any &b) {
-        return std::any_cast<const P &>(a) == std::any_cast<const P &>(b);
+      [](const std::any& a, const std::any& b) {
+        return std::any_cast<const P&>(a) == std::any_cast<const P&>(b);
       },
-      [fn = std::move(fn)](const std::any &p) -> Element {
-        return fn(std::any_cast<const P &>(p));
+      [fn = std::move(fn)](const std::any& p) -> Element {
+        return fn(std::any_cast<const P&>(p));
       });
 }
 
@@ -3223,16 +3223,16 @@ template <ComponentProps P, ComponentFn<P> F> Element memo(P props, F fn) {
 // Composer — the retained side; a guest in the host's canvas
 
 class Composer {
-public:
+ public:
   /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
    *  composer. @p ticker drives transitions and, through its FrameClock
    *  when one is attached, PaintContext time; @p fontContext measures and
    *  shapes every text leaf. */
-  Composer(motion::Ticker &ticker, sigil::weave::FontContext &fontContext);
+  Composer(motion::Ticker& ticker, sigil::weave::FontContext& fontContext);
   ~Composer();
 
-  Composer(const Composer &) = delete;
-  Composer &operator=(const Composer &) = delete;
+  Composer(const Composer&) = delete;
+  Composer& operator=(const Composer&) = delete;
 
   /** Layout viewport in canvas-space px; percent dims resolve here.
    *  The root element always fills the viewport (its own width/height
@@ -3244,7 +3244,7 @@ public:
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
    *  freezes paint time at 0 — fine for static content and goldens. */
-  void setClock(const motion::FrameClock *clock);
+  void setClock(const motion::FrameClock* clock);
 
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
@@ -3277,9 +3277,9 @@ public:
    *  nothing else: two renders under different declarations are
    *  byte-identical. */
   enum class InputSpace : uint8_t {
-    EncodedSRGB, ///< display-encoded sRGB — the space compose composites in
-    LinearSRGB,  ///< linear-light sRGB — NOT compose's space; declaring warns
-    DisplayP3,   ///< display-encoded Display P3 — NOT compose's space; warns
+    EncodedSRGB,  ///< display-encoded sRGB — the space compose composites in
+    LinearSRGB,   ///< linear-light sRGB — NOT compose's space; declaring warns
+    DisplayP3,    ///< display-encoded Display P3 — NOT compose's space; warns
   };
   void declareInputSpace(InputSpace space);
   InputSpace declaredInputSpace() const;
@@ -3305,7 +3305,7 @@ public:
 
   /** Lays out if needed and paints at the canvas's current matrix/clip.
    *  Provably-static subtrees replay their auto-recorded pictures. */
-  void draw(SkCanvas &canvas);
+  void draw(SkCanvas& canvas);
 
   /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
    *  held live-material shaders) and marks the tree for a full repaint.
@@ -3320,8 +3320,8 @@ public:
   std::optional<SkRect> bounds(std::string_view key) const;
   /** Live SigilWeave layout of a keyed text node (valid until the next
    *  layout; for glyph choreography and queries). */
-  const sigil::weave::ParagraphLayout *
-  paragraphLayout(std::string_view key) const;
+  const sigil::weave::ParagraphLayout* paragraphLayout(
+      std::string_view key) const;
   /** Topmost key at a canvas-space point. Valid after a draw().
    *
    *  Paint-order aware (zIndex, then declaration order, topmost first),
@@ -3360,17 +3360,17 @@ public:
      *  cache work did that frame do". `texturesBaked` breaks out the
      *  pixel-bake subset. */
     size_t picturesRecorded = 0;
-    size_t texturesBaked = 0;   ///< of those, bakes rather than recordings
-    size_t nodesPainted = 0;    ///< instances painted live last draw()
+    size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
+    size_t nodesPainted = 0;   ///< instances painted live last draw()
     // Per-phase wall time, so a slow frame localizes at a glance. The paint
     // number is where per-pixel cost lives (live materials, re-records);
     // reconcile/layout/volatile are the retained machinery.
-    double reconcileMs = 0;     ///< render()/renderSlot() since previous draw()
-    double layoutMs = 0;        ///< ensureLayout() inside last draw()
-    double volatileMs = 0;      ///< computeVolatile() walk inside last draw()
-    double paintMs = 0;         ///< paint traversal inside last draw()
+    double reconcileMs = 0;  ///< render()/renderSlot() since previous draw()
+    double layoutMs = 0;     ///< ensureLayout() inside last draw()
+    double volatileMs = 0;   ///< computeVolatile() walk inside last draw()
+    double paintMs = 0;      ///< paint traversal inside last draw()
   };
-  const Stats &stats() const;
+  const Stats& stats() const;
 
   /** PER-NODE PAINT COST.
    *
@@ -3395,10 +3395,10 @@ public:
    *  named separately rather than collapsed into "cached", because they
    *  cost radically different amounts — see the note above. */
   enum class CacheState : uint8_t {
-    Live,     ///< painted from scratch
-    Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
-    Texture,  ///< blitted a raster bake — the author asked for it
-    Promoted, ///< blitted a raster bake the LIBRARY decided to make
+    Live,      ///< painted from scratch
+    Picture,   ///< replayed a recording — RE-RUNS every shader, every pixel
+    Texture,   ///< blitted a raster bake — the author asked for it
+    Promoted,  ///< blitted a raster bake the LIBRARY decided to make
     /** Blitted the node's OWN paint and drew its live children over it.
      *  Volatility is declared per node, so a static ground plane carrying
      *  one moving child shares the child's verdict and loses; this state
@@ -3420,15 +3420,16 @@ public:
    *  refusal value names a condition under which a bake would produce
    *  DIFFERENT PIXELS, which is the one thing promotion may never do. */
   enum class Promotion : uint8_t {
-    Cheap,      ///< under the cost threshold — promoting it would not pay
-    Warming,    ///< expensive, counting the consecutive frames before a bake
-    Promoted,   ///< baked by the library
-    AskedFor,   ///< Cache::Texture — the author's own bake, not a decision
-    OptedOut,   ///< Cache::Picture / Cache::None, or promotion switched off
-    Volatile,   ///< its content genuinely changes every frame
-    Composited, ///< opacity < 1 or a non-srcOver blend: a bake would round twice
-    Transformed,///< rotated, skewed or mirrored — a bake would resample
-    Filtered,   ///< layer/backdrop effect or clip on the node itself
+    Cheap,        ///< under the cost threshold — promoting it would not pay
+    Warming,      ///< expensive, counting the consecutive frames before a bake
+    Promoted,     ///< baked by the library
+    AskedFor,     ///< Cache::Texture — the author's own bake, not a decision
+    OptedOut,     ///< Cache::Picture / Cache::None, or promotion switched off
+    Volatile,     ///< its content genuinely changes every frame
+    Composited,   ///< opacity < 1 or a non-srcOver blend: a bake would round
+                  ///< twice
+    Transformed,  ///< rotated, skewed or mirrored — a bake would resample
+    Filtered,     ///< layer/backdrop effect or clip on the node itself
     /** Something in the subtree composites against what is already on the
      *  canvas — a non-srcOver blend or a backdrop filter, on this node or
      *  any descendant. A bake would resolve it against transparent black.
@@ -3436,7 +3437,7 @@ public:
      *  the author's own node to change, whereas this can be a blend three
      *  levels down that they will not find without being told. */
     ReadsBackdrop,
-    TooBig,     ///< beyond the per-bake area cap or the composer's bake budget
+    TooBig,  ///< beyond the per-bake area cap or the composer's bake budget
     /** The node's OWN paint is baked and its volatile children are painted
      *  live over the blit. Not a refusal — the outcome for a node whose
      *  static self was being re-rasterized every frame to redraw a moving
@@ -3467,12 +3468,12 @@ public:
     bool cached() const { return cacheState != CacheState::Live; }
   };
   /** One short phrase for a Promotion, for printing next to a cost. */
-  static const char *promotionReason(Promotion p);
+  static const char* promotionReason(Promotion p);
   void setProfiling(bool on);
   bool profiling() const;
   /** Rows from the last draw(), sorted by `selfMs` descending. Empty when
    *  profiling is off. */
-  const std::vector<NodeCost> &profile() const;
+  const std::vector<NodeCost>& profile() const;
 
   /** AUTOMATIC TEXTURE PROMOTION. On by default on CPU raster; OFF by
    *  default on a Graphite/GPU surface, because the cost model driving it
@@ -3538,12 +3539,11 @@ public:
   /** @private */
   struct Impl;
 
-private:
+ private:
   friend struct detail::Instance;
-  friend sk_sp<SkPicture> snapshot(Element, sigil::weave::FontContext &,
-                                   SkSize);
-  friend SkSize measure(Element, sigil::weave::FontContext &, SkSize);
+  friend sk_sp<SkPicture> snapshot(Element, sigil::weave::FontContext&, SkSize);
+  friend SkSize measure(Element, sigil::weave::FontContext&, SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

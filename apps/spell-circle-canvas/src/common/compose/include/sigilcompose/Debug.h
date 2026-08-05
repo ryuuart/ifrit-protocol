@@ -17,9 +17,6 @@
  * rasterizing helpers allocate a surface per call.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Console.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
@@ -37,14 +34,17 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Console.h"
+
 namespace sigil::compose::debug {
 
 /** What a point-sampled coverage test found. A correct exact cover has
  *  `uncovered == 0 && doubled == 0`. */
 struct Coverage {
-  int samples = 0;   ///< points tested inside `region`
-  int uncovered = 0; ///< in the region and in NO piece — a gap
-  int doubled = 0;   ///< in the region and in MORE THAN ONE — an overlap
+  int samples = 0;    ///< points tested inside `region`
+  int uncovered = 0;  ///< in the region and in NO piece — a gap
+  int doubled = 0;    ///< in the region and in MORE THAN ONE — an overlap
   /** Up to `witnesses` example points for each failure, so a caller can
    *  print or draw where it went wrong instead of just how often. */
   std::vector<SkPoint> uncoveredAt;
@@ -70,18 +70,16 @@ struct Coverage {
  *
  *  @p grid of 128 is 16384 samples, which resolves a defect about
  *  1/128 of the region across. */
-inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
+inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
                          int grid = 128, size_t witnesses = 8) {
   Coverage out;
-  if (region.isEmpty() || grid < 2)
-    return out;
+  if (region.isEmpty() || grid < 2) return out;
 
   // Bounds first: SkPath::contains is not cheap, and most pieces are
   // nowhere near most samples.
   std::vector<SkRect> bounds;
   bounds.reserve(pieces.size());
-  for (const SkPath &p : pieces)
-    bounds.push_back(p.getBounds());
+  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
 
   const float dx = region.width() / (float)grid;
   const float dy = region.height() / (float)grid;
@@ -91,10 +89,8 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
       const float x = region.left() + ((float)gx + 0.5f) * dx;
       int hits = 0;
       for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
-        if (!bounds[i].contains(x, y))
-          continue;
-        if (pieces[i].contains(x, y))
-          ++hits;
+        if (!bounds[i].contains(x, y)) continue;
+        if (pieces[i].contains(x, y)) ++hits;
       }
       ++out.samples;
       if (hits == 0) {
@@ -103,8 +99,7 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
           out.uncoveredAt.push_back({x, y});
       } else if (hits > 1) {
         ++out.doubled;
-        if (out.doubledAt.size() < witnesses)
-          out.doubledAt.push_back({x, y});
+        if (out.doubledAt.size() < witnesses) out.doubledAt.push_back({x, y});
       }
     }
   }
@@ -121,17 +116,15 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
  *  you can. A tiling made of polylines tested against a true circle reports
  *  the chord error between them as a ring of phantom gaps, which looks
  *  exactly like a real defect. */
-inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
+inline Coverage coverage(std::span<const SkPath> pieces, const SkPath& region,
                          int grid = 128, size_t witnesses = 8) {
   Coverage out;
   const SkRect box = region.getBounds();
-  if (box.isEmpty() || grid < 2)
-    return out;
+  if (box.isEmpty() || grid < 2) return out;
 
   std::vector<SkRect> bounds;
   bounds.reserve(pieces.size());
-  for (const SkPath &p : pieces)
-    bounds.push_back(p.getBounds());
+  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
 
   const float dx = box.width() / (float)grid;
   const float dy = box.height() / (float)grid;
@@ -140,13 +133,11 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
     for (int gx = 0; gx < grid; ++gx) {
       const float x = box.left() + ((float)gx + 0.5f) * dx;
       if (!region.contains(x, y))
-        continue; // outside the region entirely — not a gap
+        continue;  // outside the region entirely — not a gap
       int hits = 0;
       for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
-        if (!bounds[i].contains(x, y))
-          continue;
-        if (pieces[i].contains(x, y))
-          ++hits;
+        if (!bounds[i].contains(x, y)) continue;
+        if (pieces[i].contains(x, y)) ++hits;
       }
       ++out.samples;
       if (hits == 0) {
@@ -155,8 +146,7 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
           out.uncoveredAt.push_back({x, y});
       } else if (hits > 1) {
         ++out.doubled;
-        if (out.doubledAt.size() < witnesses)
-          out.doubledAt.push_back({x, y});
+        if (out.doubledAt.size() < witnesses) out.doubledAt.push_back({x, y});
       }
     }
   }
@@ -190,21 +180,17 @@ struct VertexDegrees {
    *  find out. */
   size_t components() const {
     std::vector<size_t> parent(points.size());
-    for (size_t i = 0; i < parent.size(); ++i)
-      parent[i] = i;
+    for (size_t i = 0; i < parent.size(); ++i) parent[i] = i;
     auto find = [&](size_t i) {
-      while (parent[i] != i)
-        i = parent[i] = parent[parent[i]];
+      while (parent[i] != i) i = parent[i] = parent[parent[i]];
       return i;
     };
-    for (const auto &e : edges) {
+    for (const auto& e : edges) {
       const size_t a = find(e.first), b = find(e.second);
-      if (a != b)
-        parent[a] = b;
+      if (a != b) parent[a] = b;
     }
     size_t roots = 0;
-    for (size_t i = 0; i < parent.size(); ++i)
-      roots += find(i) == i;
+    for (size_t i = 0; i < parent.size(); ++i) roots += find(i) == i;
     return roots;
   }
 
@@ -212,8 +198,7 @@ struct VertexDegrees {
   std::vector<size_t> outside(int lo, int hi) const {
     std::vector<size_t> bad;
     for (size_t i = 0; i < degree.size(); ++i)
-      if (degree[i] < lo || degree[i] > hi)
-        bad.push_back(i);
+      if (degree[i] < lo || degree[i] > hi) bad.push_back(i);
     return bad;
   }
 };
@@ -236,7 +221,7 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
   };
   size_t contourStart = 0;
   bool haveStart = false;
-  for (const SkPath &path : pieces) {
+  for (const SkPath& path : pieces) {
     SkPath::Iter iter(path, false);
     SkPoint pts[4];
     SkPoint first{0, 0}, last{0, 0};
@@ -244,42 +229,47 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
     for (SkPath::Verb verb = iter.next(pts); verb != SkPath::kDone_Verb;
          verb = iter.next(pts)) {
       switch (verb) {
-      case SkPath::kMove_Verb:
-        if (open) {
-          const size_t end = note(last);
-          if (haveStart)
-            out.edges.emplace_back(contourStart, end);
-        }
-        first = last = pts[0];
-        open = true;
-        contourStart = note(first);
-        haveStart = true;
-        break;
-      case SkPath::kLine_Verb: last = pts[1]; break;
-      case SkPath::kQuad_Verb:
-      case SkPath::kConic_Verb: last = pts[2]; break;
-      case SkPath::kCubic_Verb: last = pts[3]; break;
-      case SkPath::kClose_Verb:
-        // A closed contour has NO endpoints. Retract the point noted at
-        // its moveTo rather than leaving a phantom degree-1 vertex.
-        if (open && haveStart) {
-          if (--out.degree[contourStart] == 0 &&
-              contourStart + 1 == out.points.size()) {
-            out.points.pop_back();
-            out.degree.pop_back();
+        case SkPath::kMove_Verb:
+          if (open) {
+            const size_t end = note(last);
+            if (haveStart) out.edges.emplace_back(contourStart, end);
           }
-          ++out.closedContours;
-        }
-        open = false;
-        haveStart = false;
-        break;
-      default: break;
+          first = last = pts[0];
+          open = true;
+          contourStart = note(first);
+          haveStart = true;
+          break;
+        case SkPath::kLine_Verb:
+          last = pts[1];
+          break;
+        case SkPath::kQuad_Verb:
+        case SkPath::kConic_Verb:
+          last = pts[2];
+          break;
+        case SkPath::kCubic_Verb:
+          last = pts[3];
+          break;
+        case SkPath::kClose_Verb:
+          // A closed contour has NO endpoints. Retract the point noted at
+          // its moveTo rather than leaving a phantom degree-1 vertex.
+          if (open && haveStart) {
+            if (--out.degree[contourStart] == 0 &&
+                contourStart + 1 == out.points.size()) {
+              out.points.pop_back();
+              out.degree.pop_back();
+            }
+            ++out.closedContours;
+          }
+          open = false;
+          haveStart = false;
+          break;
+        default:
+          break;
       }
     }
     if (open) {
       const size_t end = note(last);
-      if (haveStart)
-        out.edges.emplace_back(contourStart, end);
+      if (haveStart) out.edges.emplace_back(contourStart, end);
     }
     haveStart = false;
   }
@@ -313,18 +303,16 @@ struct Raster {
   }
 };
 
-inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
+inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
                         SkISize size,
                         SkColorType colorType = kRGBA_F16_SkColorType,
                         SkColor4f background = {0, 0, 0, 0}) {
   Raster out;
-  if (size.isEmpty())
-    return out;
-  const SkImageInfo info = SkImageInfo::Make(
-      size.width(), size.height(), colorType, kPremul_SkAlphaType);
+  if (size.isEmpty()) return out;
+  const SkImageInfo info = SkImageInfo::Make(size.width(), size.height(),
+                                             colorType, kPremul_SkAlphaType);
   sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
-  if (!surface)
-    return out;
+  if (!surface) return out;
   surface->getCanvas()->clear(background);
   // snapshot() sizes by the root's CHILDREN and ignores the root's own
   // dimensions, so the wrapper carries EXPLICIT dims and an explicit
@@ -338,8 +326,7 @@ inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
                    fonts, {(float)size.width(), (float)size.height()}))
     surface->getCanvas()->drawPicture(picture);
   out.bitmap.allocPixels(info);
-  if (!surface->readPixels(out.bitmap.pixmap(), 0, 0))
-    out.bitmap.reset();
+  if (!surface->readPixels(out.bitmap.pixmap(), 0, 0)) out.bitmap.reset();
   return out;
 }
 
@@ -356,7 +343,7 @@ inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
  *  string, a set of them can fail a build — see `failures()`. */
 struct Check {
   std::string label;
-  std::string expected, actual; ///< already formatted, for printing
+  std::string expected, actual;  ///< already formatted, for printing
   bool pass = false;
 
   /** `  <label padded> <actual, right-aligned>   PASS`, or
@@ -395,7 +382,7 @@ inline std::string fmtDouble(double v) {
   std::snprintf(buf, sizeof buf, "%.6g", v);
   return buf;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Integer identity — the conservation check, where two counts must agree
  *  exactly.
@@ -440,7 +427,7 @@ inline Check check(std::string label, bool condition) {
  *  The two indices are parameters because `console::Style::palette` is an
  *  unnamed vector — nothing here knows which slot a given caller means by
  *  "pass" — so the defaults are only a convention, not a contract. */
-inline void report(console::LineRing &ring, const Check &c,
+inline void report(console::LineRing& ring, const Check& c,
                    size_t passPalette = 1, size_t failPalette = 2,
                    int labelWidth = 44, int valueWidth = 8) {
   const std::string text = c.line(labelWidth, valueWidth);
@@ -452,9 +439,8 @@ inline void report(console::LineRing &ring, const Check &c,
  *  what makes the claims mean something away from the screen. */
 inline int failures(std::span<const Check> checks) {
   int n = 0;
-  for (const Check &c : checks)
-    n += c.pass ? 0 : 1;
+  for (const Check& c : checks) n += c.pass ? 0 : 1;
   return n;
 }
 
-} // namespace sigil::compose::debug
+}  // namespace sigil::compose::debug

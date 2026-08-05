@@ -1,21 +1,19 @@
 #include "SketchHost.h"
 
-#include "SketchCrash.h"
-
-#include <sigilmotion/Ticker.h>
-
+#include <dlfcn.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
-
-#include <dlfcn.h>
+#include <sigilmotion/Ticker.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+
+#include "SketchCrash.h"
 
 namespace sigil::compose::sketch {
 
@@ -28,8 +26,8 @@ SketchHost::Options withDefaults(SketchHost::Options options) {
 }
 
 /** Runs a shell command, capturing stdout+stderr; returns exit code. */
-int run(const std::string &command, std::string &output) {
-  FILE *pipe = popen((command + " 2>&1").c_str(), "r");
+int run(const std::string& command, std::string& output) {
+  FILE* pipe = popen((command + " 2>&1").c_str(), "r");
   if (!pipe) {
     output = "failed to spawn: " + command;
     return -1;
@@ -50,12 +48,11 @@ int run(const std::string &command, std::string &output) {
 
 std::filesystem::file_time_type hostBinaryTime() {
   Dl_info info{};
-  if (dladdr(reinterpret_cast<void *>(&hostBinaryTime), &info) &&
+  if (dladdr(reinterpret_cast<void*>(&hostBinaryTime), &info) &&
       info.dli_fname) {
     std::error_code ec;
     auto t = std::filesystem::last_write_time(info.dli_fname, ec);
-    if (!ec)
-      return t;
+    if (!ec) return t;
   }
   return {};
 }
@@ -66,14 +63,11 @@ std::filesystem::file_time_type hostBinaryTime() {
  *  (Layouts/Lines/Brushes/Shapes/styles/patterns…) compile fresh into
  *  every dylib and stay self-contained — the host often does not even
  *  link them, so their mtimes must not wedge the guard. */
-bool abiBoundaryHeader(const std::filesystem::path &p) {
+bool abiBoundaryHeader(const std::filesystem::path& p) {
   const std::string s = p.generic_string();
-  if (s.find("include/sigilsketch/") != std::string::npos)
-    return true;
-  if (s.find("include/sigilweave/") != std::string::npos)
-    return true;
-  if (s.find("include/sigilmotion/") != std::string::npos)
-    return true;
+  if (s.find("include/sigilsketch/") != std::string::npos) return true;
+  if (s.find("include/sigilweave/") != std::string::npos) return true;
+  if (s.find("include/sigilmotion/") != std::string::npos) return true;
   if (s.find("include/sigilcompose/") != std::string::npos) {
     const std::string name = p.filename().string();
     return name == "Compose.h" || name == "Material.h";
@@ -83,7 +77,7 @@ bool abiBoundaryHeader(const std::filesystem::path &p) {
 
 /** First ABI-boundary repo header on the flags file's -I paths newer than
  *  @p hostTime (empty string when none). */
-std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
+std::string newerHeaderThanHost(const std::filesystem::path& flagsFile,
                                 std::filesystem::file_time_type hostTime) {
   std::ifstream flags(flagsFile);
   std::string token;
@@ -97,27 +91,24 @@ std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
       token = token.substr(1, token.size() - 2);
     // Repo headers only — vcpkg/system trees are immutable in practice
     // and huge to scan.
-    if (token.find("/src/") == std::string::npos)
-      continue;
+    if (token.find("/src/") == std::string::npos) continue;
     for (auto it = std::filesystem::recursive_directory_iterator(token, ec);
          !ec && it != std::filesystem::recursive_directory_iterator(); ++it) {
-      const std::filesystem::path &p = it->path();
-      if (p.extension() != ".h" && p.extension() != ".hpp")
-        continue;
-      if (!abiBoundaryHeader(p))
-        continue;
+      const std::filesystem::path& p = it->path();
+      if (p.extension() != ".h" && p.extension() != ".hpp") continue;
+      if (!abiBoundaryHeader(p)) continue;
       auto t = std::filesystem::last_write_time(p, ec);
-      if (!ec && t > hostTime)
-        return p.string();
+      if (!ec && t > hostTime) return p.string();
     }
   }
   return {};
 }
 
-} // namespace
+}  // namespace
 
-SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
-    : m_options(withDefaults(std::move(options))), m_fonts(fonts),
+SketchHost::SketchHost(Options options, sigil::weave::FontContext& fonts)
+    : m_options(withDefaults(std::move(options))),
+      m_fonts(fonts),
       m_assets(m_options.assetsDir) {
   m_buildDir = std::filesystem::temp_directory_path() /
                ("compose_sketch_" + std::to_string(getpid()));
@@ -125,8 +116,7 @@ SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
 }
 
 SketchHost::~SketchHost() {
-  if (m_compile.valid())
-    m_compile.wait();
+  if (m_compile.valid()) m_compile.wait();
   // Retained descriptions and animations may point into sketch-owned state.
   // Release consumers first; loaded dylibs intentionally remain mapped.
   m_composer.reset();
@@ -138,8 +128,7 @@ SketchHost::~SketchHost() {
 
 void SketchHost::startCompile() {
   std::error_code ec;
-  m_compiledMtime =
-      std::filesystem::last_write_time(m_options.sketchPath, ec);
+  m_compiledMtime = std::filesystem::last_write_time(m_options.sketchPath, ec);
   m_everCompiled = true;
   m_compileStart = std::chrono::steady_clock::now();
 
@@ -169,11 +158,10 @@ void SketchHost::startCompile() {
           "minutes, say so rather than working around it.\n\n"
           "If you OWN this checkout: rebuild the ComposeSketch target.";
       m_status = "stale host — waiting for a rebuild";
-      return; // keep the previous sketch alive, p5 style
+      return;  // keep the previous sketch alive, p5 style
     }
   }
-  m_status = "compiling build " + std::to_string(m_generation + 1) +
-             "…";
+  m_status = "compiling build " + std::to_string(m_generation + 1) + "…";
 
   const std::filesystem::path out =
       m_buildDir / ("sketch_" + std::to_string(++m_generation) + ".dylib");
@@ -190,26 +178,25 @@ void SketchHost::startCompile() {
                          [command = cmd.str(), out]() -> CompileResult {
                            CompileResult result;
                            result.library = out;
-                           result.ok =
-                               run(command, result.output) == 0;
+                           result.ok = run(command, result.output) == 0;
                            return result;
                          });
 }
 
-void SketchHost::adopt(const std::filesystem::path &library) {
-  void *handle = dlopen(library.c_str(), RTLD_NOW | RTLD_LOCAL);
+void SketchHost::adopt(const std::filesystem::path& library) {
+  void* handle = dlopen(library.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (!handle) {
     m_errorLog = dlerror();
     m_status = "load failed";
     return;
   }
-  auto abi =
-      reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
-  auto create = reinterpret_cast<Sketch *(*)()>(
-      dlsym(handle, "sigilSketchCreate"));
+  auto abi = reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
+  auto create =
+      reinterpret_cast<Sketch* (*)()>(dlsym(handle, "sigilSketchCreate"));
   if (!abi || !create || abi() != kAbiVersion) {
-    m_errorLog = "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
-                 "(after framework changes, restart the host)";
+    m_errorLog =
+        "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
+        "(after framework changes, restart the host)";
     m_status = "load failed";
     return;
   }
@@ -237,15 +224,14 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   }
   applyCanvasSpec();
   m_errorLog.clear();
-  const double seconds =
-      std::chrono::duration<double>(std::chrono::steady_clock::now() -
-                                    m_compileStart)
-          .count();
+  const double seconds = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now() - m_compileStart)
+                             .count();
   char line[128];
   std::snprintf(line, sizeof line, "live · build %d · compiled in %.1fs",
                 m_generation, seconds);
   m_status = line;
-  m_workMs.clear(); // fresh sketch, fresh numbers
+  m_workMs.clear();  // fresh sketch, fresh numbers
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
 }
 
@@ -272,8 +258,7 @@ void SketchHost::poll() {
     std::error_code ec;
     const auto mtime =
         std::filesystem::last_write_time(m_options.sketchPath, ec);
-    if (!ec && (!m_everCompiled || mtime != m_compiledMtime))
-      startCompile();
+    if (!ec && (!m_everCompiled || mtime != m_compiledMtime)) startCompile();
   }
 
   // Asset hot reload (twice a second is plenty for filesystem stats).
@@ -294,8 +279,12 @@ SketchContext SketchHost::makeContext() {
   // A prvalue return — SketchContext is non-copyable (a per-frame value;
   // capturing one in a steppable dangles), so guaranteed elision is the
   // only way it travels.
-  return SketchContext{*m_composer,       *m_ticker,     m_assets,
-                       m_canvasSpec.size, &m_canvasSpec, &m_fonts,
+  return SketchContext{*m_composer,
+                       *m_ticker,
+                       m_assets,
+                       m_canvasSpec.size,
+                       &m_canvasSpec,
+                       &m_fonts,
                        m_options.deterministic};
 }
 
@@ -306,47 +295,41 @@ void SketchHost::applyCanvasSpec() {
   }
 }
 
-bool SketchHost::capture(const std::filesystem::path &out,
-                         float scale) {
-  if (!m_composer)
-    return false;
+bool SketchHost::capture(const std::filesystem::path& out, float scale) {
+  if (!m_composer) return false;
   const SkSize size = m_canvasSpec.size;
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(
-      std::max(1, (int)(size.width() * scale)),
-      std::max(1, (int)(size.height() * scale)));
+  const SkImageInfo info =
+      SkImageInfo::MakeN32Premul(std::max(1, (int)(size.width() * scale)),
+                                 std::max(1, (int)(size.height() * scale)));
   sk_sp<SkSurface> surface = m_captureBackend.makeSurface
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
-  if (!surface)
-    return false;
-  SkCanvas &canvas = *surface->getCanvas();
+  if (!surface) return false;
+  SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(m_canvasSpec.background.toSkColor());
   canvas.scale(scale, scale);
   m_composer->draw(canvas);
   SkBitmap bitmap;
   bitmap.allocPixels(surface->imageInfo());
   if (m_captureBackend.readback) {
-    if (!m_captureBackend.readback(*surface, bitmap.pixmap()))
-      return false;
+    if (!m_captureBackend.readback(*surface, bitmap.pixmap())) return false;
   } else {
     surface->readPixels(bitmap.pixmap(), 0, 0);
   }
   std::error_code ec;
   std::filesystem::create_directories(out.parent_path(), ec);
   SkFILEWStream stream(out.string().c_str());
-  return stream.isValid() &&
-         SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
+  return stream.isValid() && SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
 }
 
-bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
-  if (!m_sketch)
-    return false;
+bool SketchHost::frame(SkCanvas& canvas, double fixedDt) {
+  if (!m_sketch) return false;
   const auto start = std::chrono::steady_clock::now();
   double dt;
-  if (fixedDt >= 0) { // deterministic stepping (headless capture)
+  if (fixedDt >= 0) {  // deterministic stepping (headless capture)
     m_syntheticNow += fixedDt;
     dt = m_clock.tick(m_syntheticNow);
-    if (dt <= 0.0) // first tick primes the clock and reports zero
+    if (dt <= 0.0)  // first tick primes the clock and reports zero
       dt = fixedDt;
   } else {
     dt = m_clock.tick();
@@ -358,7 +341,7 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
     PhaseMark mark(Phase::Update);
     m_sketch->update(m_clock.elapsed(), ctx);
   }
-  applyCanvasSpec(); // ctx.canvas() mid-run = p5's resizeCanvas
+  applyCanvasSpec();  // ctx.canvas() mid-run = p5's resizeCanvas
   const auto drawStart = std::chrono::steady_clock::now();
   {
     PhaseMark mark(Phase::Draw);
@@ -372,35 +355,29 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
       std::chrono::duration<double, std::milli>(drawStart - start).count();
   m_lastTiming.drawMs =
       std::chrono::duration<double, std::milli>(end - drawStart).count();
-  if (m_workMs.size() >= 120)
-    m_workMs.erase(m_workMs.begin());
+  if (m_workMs.size() >= 120) m_workMs.erase(m_workMs.begin());
   m_workMs.push_back(ms);
   return true;
 }
 
 double SketchHost::workMsAverage() const {
-  if (m_workMs.empty())
-    return 0.0;
+  if (m_workMs.empty()) return 0.0;
   double sum = 0.0;
-  for (double v : m_workMs)
-    sum += v;
+  for (double v : m_workMs) sum += v;
   return sum / (double)m_workMs.size();
 }
 
 double SketchHost::workMsP99() const {
-  if (m_workMs.empty())
-    return 0.0;
+  if (m_workMs.empty()) return 0.0;
   std::vector<double> sorted = m_workMs;
   std::sort(sorted.begin(), sorted.end());
   return sorted[(size_t)((double)(sorted.size() - 1) * 0.99)];
 }
 
 double SketchHost::presentedFps() const {
-  if (m_presentMs.size() < 2)
-    return 0.0;
+  if (m_presentMs.size() < 2) return 0.0;
   double sum = 0.0;
-  for (double v : m_presentMs)
-    sum += v;
+  for (double v : m_presentMs) sum += v;
   const double mean = sum / (double)m_presentMs.size();
   return mean > 0 ? 1000.0 / mean : 0.0;
 }
@@ -409,15 +386,13 @@ void SketchHost::markPresented() {
   const auto now = std::chrono::steady_clock::now();
   if (m_lastPresent.time_since_epoch().count() != 0) {
     const double ms =
-        std::chrono::duration<double, std::milli>(now - m_lastPresent)
-            .count();
-    if (ms < 1000.0) { // ignore stalls (window drags, sleeps)
-      if (m_presentMs.size() >= 60)
-        m_presentMs.erase(m_presentMs.begin());
+        std::chrono::duration<double, std::milli>(now - m_lastPresent).count();
+    if (ms < 1000.0) {  // ignore stalls (window drags, sleeps)
+      if (m_presentMs.size() >= 60) m_presentMs.erase(m_presentMs.begin());
       m_presentMs.push_back(ms);
     }
   }
   m_lastPresent = now;
 }
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch

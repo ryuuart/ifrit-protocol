@@ -1,12 +1,11 @@
 // Scene: overflow & ellipsis — CSS text-overflow semantics.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
+#include <include/core/SkPaint.h>
 #include <sigilweaveqt/SigilWeaveQt.h>
 
-#include <include/core/SkPaint.h>
-
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -27,12 +26,11 @@ QString overflowDefaultText() {
 }
 
 class OverflowScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
     m_body.ensure(params, overflowDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
@@ -65,8 +63,7 @@ public:
       options.alignment = params.alignment;
       options.lineBreakStrategy = params.lineBreakStrategy;
       options.lineMetrics.height = fontSize * 1.5f;
-      if (pass == 1)
-        options.overflow.ellipsis = u"…";
+      if (pass == 1) options.overflow.ellipsis = u"…";
       // 0 = unlimited; anything else exercises OverflowOptions::maxLines
       // (the CSS line-clamp path) on top of the breathing geometry.
       options.overflow.maxLines =
@@ -110,7 +107,7 @@ public:
     return {layoutMicroseconds, runCount, 0};
   }
 
-private:
+ private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
 };
@@ -128,8 +125,8 @@ SceneDescriptor makeOverflowDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeOverflowDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

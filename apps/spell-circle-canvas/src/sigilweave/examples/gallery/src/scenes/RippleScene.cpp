@@ -1,12 +1,12 @@
 // Scene: ripple pool (click to drop).
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkPaint.h>
 
 #include <algorithm>
 #include <cmath>
 #include <random>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -15,14 +15,14 @@ namespace gallery {
 namespace {
 
 class RippleScene final : public Scene {
-public:
+ public:
   void pointerPress(SkPoint position) override {
     m_pendingDrops.push_back(position);
   }
 
-  FrameStats render(SkCanvas *canvas, SkISize size, double /*elapsedSeconds*/,
-                    int frameNumber, const SceneParams & /*params*/,
-                    FontContext &fontContext) override {
+  FrameStats render(SkCanvas* canvas, SkISize size, double /*elapsedSeconds*/,
+                    int frameNumber, const SceneParams& /*params*/,
+                    FontContext& fontContext) override {
     if (m_paragraph.text().empty())
       m_paragraph = kit::mixedScriptFiller(700, 13.0f);
 
@@ -37,15 +37,15 @@ public:
                         m_randomEngine() %
                         std::max(1, static_cast<int>(canvasHeight) - 120))},
            frameNumber});
-    for (const SkPoint &pendingPosition : m_pendingDrops)
+    for (const SkPoint& pendingPosition : m_pendingDrops)
       m_drops.push_back({pendingPosition, frameNumber});
     m_pendingDrops.clear();
-    std::erase_if(m_drops, [&](const Drop &drop) {
+    std::erase_if(m_drops, [&](const Drop& drop) {
       return frameNumber - drop.birthFrameNumber > 280;
     });
 
     // Live edit mid-ripple: same-length swap, everything else cache-hot.
-    static const char8_t *swaps[] = {u8"letters", u8"glyphs ", u8"symbols",
+    static const char8_t* swaps[] = {u8"letters", u8"glyphs ", u8"symbols",
                                      u8"strokes"};
     if (frameNumber > 0 && frameNumber % 150 == 0) {
       const size_t textOffset = m_paragraph.text().find(u"letters");
@@ -69,11 +69,11 @@ public:
     m_batches.clear();
     forEachPlacedGlyph(
         layout, m_paragraph,
-        [&](const ShapedWord *shapedWord, SkGlyphID glyph, float glyphAdvance,
+        [&](const ShapedWord* shapedWord, SkGlyphID glyph, float glyphAdvance,
             SkColor color, SkPoint restingOrigin) {
           SkVector offset = {0, 0};
           float tilt = 0;
-          for (const Drop &drop : m_drops) {
+          for (const Drop& drop : m_drops) {
             const SkVector radialVector = restingOrigin - drop.center;
             const float distance = radialVector.length() + 1.0f;
             const float ringRadius =
@@ -108,7 +108,7 @@ public:
             static_cast<int>(layout.runs.size()), drawnGlyphCount};
   }
 
-private:
+ private:
   struct Drop {
     SkPoint center;
     int birthFrameNumber;
@@ -129,8 +129,8 @@ SceneDescriptor makeRippleDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeRippleDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

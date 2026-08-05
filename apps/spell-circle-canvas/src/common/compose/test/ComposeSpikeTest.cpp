@@ -6,16 +6,14 @@
 // the picture. If a text leaf mis-sizes, these tests say whether the seam
 // itself broke or only compose's use of it did.
 
+#include <gtest/gtest.h>
 #include <sigilweave/Flow.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/ParagraphLayout.h>
 #include <sigilweave/Style.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
 #include <yoga/Yoga.h>
-
-#include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
@@ -25,8 +23,8 @@ namespace {
 
 using namespace sigil::weave;
 
-FontContext &sharedContext() {
-  static auto *context = new FontContext(ports::systemFontManager());
+FontContext& sharedContext() {
+  static auto* context = new FontContext(ports::systemFontManager());
   return *context;
 }
 
@@ -58,8 +56,7 @@ struct TextLeaf {
 
   SkRect bounds() const {
     SkRect rect = SkRect::MakeEmpty();
-    for (const LineMetrics &line : lines)
-      rect.join(line.rect());
+    for (const LineMetrics& line : lines) rect.join(line.rect());
     return rect;
   }
 };
@@ -67,7 +64,7 @@ struct TextLeaf {
 /** Yoga measure callback → SigilWeave layout at the constraint width. */
 YGSize measureText(YGNodeConstRef node, float width, YGMeasureMode widthMode,
                    float /*height*/, YGMeasureMode /*heightMode*/) {
-  auto *leaf = static_cast<TextLeaf *>(YGNodeGetContext(node));
+  auto* leaf = static_cast<TextLeaf*>(YGNodeGetContext(node));
   const float constraint =
       widthMode == YGMeasureModeUndefined ? 100000.0f : width;
   leaf->layoutAt(constraint);
@@ -77,14 +74,13 @@ YGSize measureText(YGNodeConstRef node, float width, YGMeasureMode widthMode,
 
 /** Yoga baseline callback → the first line's baseline from SigilWeave. */
 float baselineOfText(YGNodeConstRef node, float /*width*/, float /*height*/) {
-  auto *leaf = static_cast<TextLeaf *>(YGNodeGetContext(node));
-  if (leaf->lines.empty())
-    return 0.0f;
-  const LineMetrics &first = leaf->lines.front();
+  auto* leaf = static_cast<TextLeaf*>(YGNodeGetContext(node));
+  if (leaf->lines.empty()) return 0.0f;
+  const LineMetrics& first = leaf->lines.front();
   return first.baseline - first.rect().top();
 }
 
-YGNodeRef makeTextNode(TextLeaf &leaf) {
+YGNodeRef makeTextNode(TextLeaf& leaf) {
   YGNodeRef node = YGNodeNew();
   YGNodeSetContext(node, &leaf);
   YGNodeSetMeasureFunc(node, measureText);
@@ -93,7 +89,7 @@ YGNodeRef makeTextNode(TextLeaf &leaf) {
   return node;
 }
 
-} // namespace
+}  // namespace
 
 // A leaf sized by its own measured text — the "box grows to fit the type"
 // behaviour, which only happens if the measure callback's return value
@@ -146,13 +142,11 @@ TEST(PosterSpike, ConstrainedWidthWrapsText) {
   YGNodeStyleSetWidth(narrowRoot, 160);
   YGNodeRef narrowText = makeTextNode(narrow);
   YGNodeInsertChild(narrowRoot, narrowText, 0);
-  YGNodeCalculateLayout(narrowRoot, YGUndefined, YGUndefined,
-                        YGDirectionLTR);
+  YGNodeCalculateLayout(narrowRoot, YGUndefined, YGUndefined, YGDirectionLTR);
 
   EXPECT_EQ(wide.lines.size(), 1u);
   EXPECT_GT(narrow.lines.size(), 2u);
-  EXPECT_GT(YGNodeLayoutGetHeight(narrowText),
-            YGNodeLayoutGetHeight(wideText));
+  EXPECT_GT(YGNodeLayoutGetHeight(narrowText), YGNodeLayoutGetHeight(wideText));
 
   YGNodeFreeRecursive(wideRoot);
   YGNodeFreeRecursive(narrowRoot);

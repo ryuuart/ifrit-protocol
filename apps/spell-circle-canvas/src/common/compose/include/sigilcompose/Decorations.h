@@ -29,13 +29,6 @@
  * geometry you built yourself — see `decorations::paintOn`.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Lines.h"    // insetOutline, cornerBrackets, cornerGaps
-#include "sigilcompose/Material.h" // Wash — the material-valued decoration
-#include "sigilcompose/GpuImage.h"
-
-#include <sigilimage/ImageAsset.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkClipOp.h>
 #include <include/core/SkContourMeasure.h>
@@ -44,9 +37,15 @@
 #include <include/core/SkPicture.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
+#include <sigilimage/ImageAsset.h>
 
 #include <cmath>
 #include <optional>
+
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/GpuImage.h"
+#include "sigilcompose/Lines.h"     // insetOutline, cornerBrackets, cornerGaps
+#include "sigilcompose/Material.h"  // Wash — the material-valued decoration
 
 namespace sigil::compose {
 
@@ -89,7 +88,7 @@ struct PathFormat {
    *  selected route, a live link, a cut line. Like `trimPhase`, it
    *  supersedes the constant and declares the decoration animated, so the
    *  node repaints every frame without needing a re-describe. */
-  const choreograph::Output<float> *dashPhaseBinding = nullptr;
+  const choreograph::Output<float>* dashPhaseBinding = nullptr;
 
   /** Stamp this path repeatedly along the contour (advance px apart),
    *  rotated to follow it — vines, chains, ornament runs. */
@@ -122,15 +121,15 @@ struct PathFormat {
    *  duplicating the same path is never needed for this. */
   float trimStart = 0.0f, trimEnd = 1.0f;
   float trimOffset = 0.0f;
-  const choreograph::Output<float> *trimPhase = nullptr; // replaces offset
+  const choreograph::Output<float>* trimPhase = nullptr;  // replaces offset
 
   /** Structural equality so a static stroked/dashed/stamped border prunes
    *  without memo (the custom SkPathEffect compares by pointer identity). */
-  bool operator==(const PathFormat &) const = default;
+  bool operator==(const PathFormat&) const = default;
 
   /** Stroke reach beyond the outline (recording cull grows by this). */
   float bleed() const {
-    return align == Align::Inner ? 0.0f
+    return align == Align::Inner   ? 0.0f
            : align == Align::Outer ? width
                                    : width * 0.5f;
   }
@@ -149,7 +148,7 @@ struct PathFormat {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
@@ -176,7 +175,7 @@ struct PathFormat {
     p.setPathEffect(std::move(chosen));
 
     // The decoration's own trim window (wrapping; the marching sliver).
-    const SkPath *drawn = &ctx.outline;
+    const SkPath* drawn = &ctx.outline;
     SkPath windowed;
     const float off = trimPhase ? trimPhase->value() : trimOffset;
     const float s0 = trimStart + off, e0 = trimEnd + off;
@@ -195,23 +194,21 @@ struct PathFormat {
           // A closed contour has a real seam, so joining both pieces avoids
           // doubled caps there. An open route has no seam: continuing without
           // a moveTo would invent a straight chord from its end to its start.
-          (void)contour->getSegment(0, e * len, &window,
-                                    !contour->isClosed());
+          (void)contour->getSegment(0, e * len, &window, !contour->isClosed());
         }
       }
       windowed = window.detach();
-      if (!windowed.isEmpty())
-        drawn = &windowed;
+      if (!windowed.isEmpty()) drawn = &windowed;
     } else if (span <= 0.0f) {
-      return; // empty window — nothing to stroke
+      return;  // empty window — nothing to stroke
     }
 
     if (aligned) {
       canvas.save();
-      canvas.clipPath(ctx.outline, align == Align::Inner
-                                       ? SkClipOp::kIntersect
-                                       : SkClipOp::kDifference,
-                      true);
+      canvas.clipPath(
+          ctx.outline,
+          align == Align::Inner ? SkClipOp::kIntersect : SkClipOp::kDifference,
+          true);
       canvas.drawPath(*drawn, p);
       canvas.restore();
     } else {
@@ -241,17 +238,15 @@ struct Slice {
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
    *  frame prunes without memo. The promotion cache is identity-free. */
-  bool operator==(const Slice &o) const {
+  bool operator==(const Slice& o) const {
     return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs &&
            filter == o.filter;
   }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (!asset || asset->frames().empty())
-      return;
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (!asset || asset->frames().empty()) return;
     sk_sp<SkImage> img = asset->frames().front().image;
-    if (!img)
-      return;
+    if (!img) return;
     const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
     gpuimg::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
                         filter);
@@ -263,7 +258,7 @@ struct PathSample {
   SkPoint position;
   SkVector tangent;
   float distance = 0.0f;
-  float fraction = 0.0f; // 0..1 within its contour
+  float fraction = 0.0f;  // 0..1 within its contour
 };
 
 /** Walk the outline at `spacing` px intervals; at every sample the
@@ -285,8 +280,7 @@ struct PathSample {
  *  element superseding `stamp` at that sample), then `draw` on top. */
 struct ContourWalk {
   float spacing = 16.0f;
-  std::function<void(SkCanvas &, const PathSample &, const PaintContext &)>
-      draw;
+  std::function<void(SkCanvas&, const PathSample&, const PaintContext&)> draw;
   bool animatedWalk = false;
 
   std::optional<Element> stamp;
@@ -311,34 +305,32 @@ struct ContourWalk {
    *  slots and evict the node's real brush bakes. A static walk pays the
    *  bakes once per describe; with `animatedWalk` it pays them every
    *  frame, which is the author's call to make. */
-  std::function<std::optional<Element>(const PathSample &, size_t)> stampAt;
+  std::function<std::optional<Element>(const PathSample&, size_t)> stampAt;
 
   bool isAnimated() const { return animatedWalk; }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if ((!draw && !stamp && !stampAt) || spacing <= 0)
-      return;
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if ((!draw && !stamp && !stampAt) || spacing <= 0) return;
 
     // Bake (or re-bake) the stamp element: once per description for
     // static stamps, once per paint for animated ones.
-    const void *stampNode = stamp ? stamp->node().get() : nullptr;
+    const void* stampNode = stamp ? stamp->node().get() : nullptr;
     if (stampCache->bakedFor != stampNode) {
       stampCache->picture.reset();
       stampCache->bakedFor = stampNode;
     }
     if (stamp && ctx.fonts && (!stampCache->picture || animatedWalk))
       stampCache->picture = snapshot(*stamp, *ctx.fonts);
-    const sk_sp<SkPicture> &stampPicture = stampCache->picture;
+    const sk_sp<SkPicture>& stampPicture = stampCache->picture;
 
     SkContourMeasureIter iter(ctx.outline, false);
-    size_t index = 0; // runs across contours — the sequence's position
+    size_t index = 0;  // runs across contours — the sequence's position
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float length = contour->length();
       for (float d = 0; d < length; d += spacing) {
         SkPoint pos;
         SkVector tan;
-        if (!contour->getPosTan(d, &pos, &tan))
-          continue;
+        if (!contour->getPosTan(d, &pos, &tan)) continue;
         PathSample sample{pos, tan, d, length > 0 ? d / length : 0};
         // This sample's OWN art (stampAt): baked per call, uncached — see
         // the field note. The shell box is needed because snapshot() sizes
@@ -347,7 +339,7 @@ struct ContourWalk {
         if (stampAt && ctx.fonts)
           if (std::optional<Element> e = stampAt(sample, index))
             own = snapshot(box().child(std::move(*e)), *ctx.fonts);
-        const sk_sp<SkPicture> &art = own ? own : stampPicture;
+        const sk_sp<SkPicture>& art = own ? own : stampPicture;
         canvas.save();
         canvas.translate(pos.x(), pos.y());
         canvas.rotate(std::atan2(tan.y(), tan.x()) * 180.0f / 3.14159265f);
@@ -358,8 +350,7 @@ struct ContourWalk {
           canvas.drawPicture(art);
           canvas.restore();
         }
-        if (draw)
-          draw(canvas, sample, ctx);
+        if (draw) draw(canvas, sample, ctx);
         canvas.restore();
         ++index;
       }
@@ -371,7 +362,7 @@ struct ContourWalk {
    *  (Public to keep ContourWalk an aggregate for designated init.) */
   struct StampCache {
     sk_sp<SkPicture> picture;
-    const void *bakedFor = nullptr;
+    const void* bakedFor = nullptr;
   };
   std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
 };
@@ -400,15 +391,14 @@ struct Wash {
    *  paints nothing at all. */
   float amount = 1.0f;
 
-  bool operator==(const Wash &o) const {
+  bool operator==(const Wash& o) const {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
   bool isAnimated() const { return material.isAnimated(); }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
-    if (a <= 0.0f)
-      return;
+    if (a <= 0.0f) return;
     const Fill fill = material.resolve(ctx);
     SkPaint p;
     p.setAntiAlias(true);
@@ -455,10 +445,10 @@ struct Border {
 
   /** What the rule does at the corners. */
   enum class Mode : uint8_t {
-    Continuous, ///< the whole outline — an ordinary stroke
-    Bracket,    ///< ONLY within `corner` px of each corner: the four L's
-    Gapped,     ///< everything EXCEPT within `corner` px: the open corner
-    Weighted,   ///< continuous, but `cornerWidth` near each corner
+    Continuous,  ///< the whole outline — an ordinary stroke
+    Bracket,     ///< ONLY within `corner` px of each corner: the four L's
+    Gapped,      ///< everything EXCEPT within `corner` px: the open corner
+    Weighted,    ///< continuous, but `cornerWidth` near each corner
   };
   Mode mode = Mode::Continuous;
   /** Arm length (Bracket), omission (Gapped), or the weighted run
@@ -486,11 +476,11 @@ struct Border {
 
   std::vector<SkScalar> dash;
   float dashPhase = 0.0f;
-  const choreograph::Output<float> *dashPhaseBinding = nullptr;
+  const choreograph::Output<float>* dashPhaseBinding = nullptr;
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
 
-  bool operator==(const Border &) const = default;
+  bool operator==(const Border&) const = default;
   bool isAnimated() const { return dashPhaseBinding != nullptr; }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
@@ -503,7 +493,7 @@ struct Border {
    *  which moves the mark rather than widening it. */
   float reach() const { return std::max(width, cornerWidth); }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     // `width` is the RUN's width, and Weighted mode has a second width for
     // the corners — so in that mode width == 0 means "corners only, no runs
     // between them", which is a real frame. The bail-out therefore tests
@@ -511,14 +501,12 @@ struct Border {
     // draw nothing at all.
     const float heaviest =
         mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
-    if (ctx.outline.isEmpty() || heaviest <= 0)
-      return;
+    if (ctx.outline.isEmpty() || heaviest <= 0) return;
     const SkPath base =
         inset != 0 ? lines::insetOutline(ctx.outline, inset) : ctx.outline;
 
-    auto strokeWith = [&](const SkPath &path, float w) {
-      if (path.isEmpty() || w <= 0)
-        return;
+    auto strokeWith = [&](const SkPath& path, float w) {
+      if (path.isEmpty() || w <= 0) return;
       SkPaint p;
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);
@@ -536,23 +524,23 @@ struct Border {
     };
 
     switch (mode) {
-    case Mode::Continuous:
-      strokeWith(base, width);
-      break;
-    case Mode::Bracket:
-      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg), width);
-      break;
-    case Mode::Gapped:
-      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
-      break;
-    case Mode::Weighted:
-      // Two passes over complementary windows: the runs BETWEEN corners at
-      // `width`, then the corners themselves at `cornerWidth` — a rule that
-      // thickens where it turns.
-      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
-      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg),
-                 cornerWidth > 0 ? cornerWidth : width);
-      break;
+      case Mode::Continuous:
+        strokeWith(base, width);
+        break;
+      case Mode::Bracket:
+        strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg), width);
+        break;
+      case Mode::Gapped:
+        strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
+        break;
+      case Mode::Weighted:
+        // Two passes over complementary windows: the runs BETWEEN corners at
+        // `width`, then the corners themselves at `cornerWidth` — a rule that
+        // thickens where it turns.
+        strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
+        strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg),
+                   cornerWidth > 0 ? cornerWidth : width);
+        break;
     }
   }
 };
@@ -601,8 +589,8 @@ inline Border weightedCorners(float width, float cornerWidth, Fill fill,
  *          decorations::border(0.8f, ink, 6)))
  */
 inline LayerStyle doubleBorder(Border outer, Border inner) {
-  return LayerStyle{{}, {Decoration(std::move(outer)),
-                         Decoration(std::move(inner))}};
+  return LayerStyle{
+      {}, {Decoration(std::move(outer)), Decoration(std::move(inner))}};
 }
 
 /** Paints a decoration against geometry you built yourself, inside a
@@ -621,12 +609,12 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
  *
  *  What live geometry inside `custom()` gives up is PRUNING, not the
  *  decoration vocabulary. */
-inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,
-                    const Decoration &decoration) {
+inline void paintOn(SkCanvas& canvas, const PaintContext& ctx, SkPath outline,
+                    const Decoration& decoration) {
   PaintContext local = ctx;
   local.outline = std::move(outline);
   decoration.paint(canvas, local);
 }
-} // namespace decorations
+}  // namespace decorations
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

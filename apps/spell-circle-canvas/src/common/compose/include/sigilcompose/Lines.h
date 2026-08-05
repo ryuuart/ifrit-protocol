@@ -23,19 +23,19 @@
  */
 
 #include "sigilcompose/Compose.h"
-#include "sigilcompose/Material.h" // Stop — the along-arc gradient ramp
-#include "sigilcompose/Shapes.h"   // detail::bisectTransition — one copy of
-                                   // the contour-scan refinement, shared
+#include "sigilcompose/Material.h"  // Stop — the along-arc gradient ramp
+#include "sigilcompose/Shapes.h"    // detail::bisectTransition — one copy of
+                                    // the contour-scan refinement, shared
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
-#include <include/core/SkStrokeRec.h> // dashed-parallel filterPath
-#include <include/pathops/SkPathOps.h>
+#include <include/core/SkStrokeRec.h>  // dashed-parallel filterPath
 #include <include/effects/Sk2DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
+#include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
 #include <cmath>
@@ -55,7 +55,7 @@ namespace sigil::compose::lines {
  *  The sine is sampled at λ/16; the zigzag emits triangular vertices at
  *  quarter-wave points. Shared by `lines::Line` and the kit's wave and
  *  zigzag shapers. */
-inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
+inline SkPath displace(const SkPath& src, float amplitude, float wavelength,
                        bool zigzag) {
   SkPathBuilder out;
   SkContourMeasureIter iter(src, false);
@@ -64,8 +64,7 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
     // Fit a whole number of waves: actual λ = len / round(len / λmax),
     // and never 0.
     const float lambdaMax = std::max(wavelength, 2.0f);
-    const float lambda =
-        len / std::max(1.0f, std::round(len / lambdaMax));
+    const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
     const float step = zigzag ? lambda * 0.25f : lambda * 0.0625f;
     bool first = true;
     int k = 0;
@@ -73,8 +72,7 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
       const float at = std::min(d, len);
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(at, &pos, &tan))
-        break;
+      if (!contour->getPosTan(at, &pos, &tan)) break;
       const SkVector n{-tan.y(), tan.x()};
       float disp;
       if (zigzag) {
@@ -85,8 +83,8 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
         disp = amplitude * std::sin(at * 6.2831853f / lambda);
       }
       if (at >= len)
-        disp = 0; // both kinds are zero-phase at the endpoints — float
-                  // step accumulation must not spike the final vertex
+        disp = 0;  // both kinds are zero-phase at the endpoints — float
+                   // step accumulation must not spike the final vertex
       const SkPoint p{pos.x() + n.x() * disp, pos.y() + n.y() * disp};
       if (first) {
         out.moveTo(p);
@@ -94,11 +92,10 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
       } else {
         out.lineTo(p);
       }
-      if (at >= len)
-        break;
+      if (at >= len) break;
     }
     if (contour->isClosed())
-      out.close(); // keep closedness — trim/caps logic keys off it
+      out.close();  // keep closedness — trim/caps logic keys off it
   }
   return out.detach();
 }
@@ -107,7 +104,7 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
  *  wavelength then drops to −amp for the next, with the verticals coming
  *  from doubled points at each step. Zero at both endpoints and snapped to
  *  fit, exactly like displace() — the boxy member of the same family. */
-inline SkPath displaceSquare(const SkPath &src, float amplitude,
+inline SkPath displaceSquare(const SkPath& src, float amplitude,
                              float wavelength) {
   SkPathBuilder out;
   SkContourMeasureIter iter(src, false);
@@ -118,8 +115,7 @@ inline SkPath displaceSquare(const SkPath &src, float amplitude,
     auto plot = [&](float d, float disp, bool first) {
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(std::min(d, len), &pos, &tan))
-        return;
+      if (!contour->getPosTan(std::min(d, len), &pos, &tan)) return;
       const SkPoint p{pos.x() - tan.y() * disp, pos.y() + tan.x() * disp};
       if (first)
         out.moveTo(p);
@@ -136,8 +132,7 @@ inline SkPath displaceSquare(const SkPath &src, float amplitude,
     }
     plot(len, cur, false);
     plot(len, 0, false);
-    if (contour->isClosed())
-      out.close();
+    if (contour->isClosed()) out.close();
   }
   return out.detach();
 }
@@ -165,21 +160,20 @@ inline void warnNoCornersFound(float sharpestDeg, float angleDeg) {
   static std::vector<int> seen;
   const int key = (int)std::lround(sharpestDeg);
   for (int k : seen)
-    if (k == key)
-      return;
-  if (seen.size() >= 16)
-    return;
+    if (k == key) return;
+  if (seen.size() >= 16) return;
   seen.push_back(key);
-  SkDebugf("lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
-           "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
-           "weightedCorners and spans::corners() will "
-           "draw nothing here, and spans::edges() (their complement) will "
-           "claim the WHOLE boundary instead of stopping short of "
-           "anything. A "
-           "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
-           "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
-           "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",
-           angleDeg, sharpestDeg, std::max(4.0f, sharpestDeg * 0.6f));
+  SkDebugf(
+      "lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
+      "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
+      "weightedCorners and spans::corners() will "
+      "draw nothing here, and spans::edges() (their complement) will "
+      "claim the WHOLE boundary instead of stopping short of "
+      "anything. A "
+      "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
+      "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
+      "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",
+      angleDeg, sharpestDeg, std::max(4.0f, sharpestDeg * 0.6f));
 }
 
 /** A resolved tangent break: WHERE the vertex is, and the two leg tangents
@@ -203,15 +197,14 @@ struct CornerHit {
  *  halvings take a 6 px step under 0.03 px, below what the rasterizer can
  *  resolve, and the two leg tangents fall out of the search, which is what
  *  makes an exact bisector available to corner art. */
-inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
+inline std::vector<CornerHit> findCorners(SkContourMeasure& contour,
                                           float angleDeg,
                                           float minSpacing = 3.0f,
                                           float step = 2.0f,
                                           bool warnWhenNone = true) {
   std::vector<CornerHit> corners;
   const float len = contour.length();
-  if (len <= 0)
-    return corners;
+  if (len <= 0) return corners;
   const float cosThresh = std::cos(angleDeg * 0.017453293f);
   const float stride = std::max(step, 0.25f);
   // The sharpest break actually present, so a scan that finds nothing can
@@ -222,8 +215,7 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
   for (float d = 0; d <= len; d += stride) {
     SkPoint pos;
     SkVector tan;
-    if (!contour.getPosTan(std::min(d, len), &pos, &tan))
-      continue;
+    if (!contour.getPosTan(std::min(d, len), &pos, &tan)) continue;
     if (!havePrev) {
       atStart = tan;
     } else {
@@ -240,7 +232,7 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
             std::max(0.0f, d - stride), std::min(d, len), [&](float mid) {
               SkVector mt;
               if (!contour.getPosTan(mid, nullptr, &mt))
-                return true; // unevaluable: keep the near side
+                return true;  // unevaluable: keep the near side
               if (inTan.x() * mt.x() + inTan.y() * mt.y() < cosThresh) {
                 outTan = mt;
                 return false;
@@ -260,21 +252,19 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
   if (contour.isClosed() && havePrev) {
     const float dot = prev.x() * atStart.x() + prev.y() * atStart.y();
     sharpestDot = std::min(sharpestDot, dot);
-    if (dot < cosThresh &&
-        (corners.empty() || corners.front().d > minSpacing))
+    if (dot < cosThresh && (corners.empty() || corners.front().d > minSpacing))
       corners.insert(corners.begin(), {0.0f, prev, atStart});
   }
   if (corners.empty() && warnWhenNone) {
     const float sharpestDeg =
         std::acos(std::clamp(sharpestDot, -1.0f, 1.0f)) * 57.29578f;
     // 4° is above the noise a smooth curve produces at this step size.
-    if (sharpestDeg >= 4.0f)
-      warnNoCornersFound(sharpestDeg, angleDeg);
+    if (sharpestDeg >= 4.0f) warnNoCornersFound(sharpestDeg, angleDeg);
   }
   return corners;
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** One-sided constant displacement along the normal — **positive is LEFT
  *  of travel**, which in screen space (y grows down) is OUTSIDE a
@@ -301,14 +291,12 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
  *  side the two legs overlap and `Simplify` removes the crossing. The
  *  result is exact for polygons and unchanged for smooth curves, which
  *  have no breaks for the scanner to find. */
-inline SkPath offsetAcross(const SkPath &src, float across,
-                           float step = 4.0f) {
+inline SkPath offsetAcross(const SkPath& src, float across, float step = 4.0f) {
   // ONE negation, here and nowhere else: the construction below works in
   // right-of-travel signs, and this is the single place the public
   // left-positive convention is converted to it.
   const float offset = -across;
-  if (offset == 0)
-    return src;
+  if (offset == 0) return src;
   // `step` is public authoring data (shapers::Offset forwards it directly).
   // Never let a zero/negative/non-finite value stall the sampling loop.
   const float stride = std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
@@ -326,7 +314,7 @@ inline SkPath offsetAcross(const SkPath &src, float across,
     struct Join {
       float d = 0;
       bool miter = false;
-      SkPoint pt{0, 0};   // miter: the single replacement point
+      SkPoint pt{0, 0};  // miter: the single replacement point
       SkPoint pIn{0, 0}, pOut{0, 0};
       SkPoint vertex{0, 0};
       float a0 = 0, sweep = 0;
@@ -335,13 +323,12 @@ inline SkPath offsetAcross(const SkPath &src, float across,
     std::vector<Join> joins;
     // 20° is well below any join a reader would call a corner and well
     // above the per-sample turn of a smooth curve at this stride.
-    for (const detail::CornerHit &hit :
+    for (const detail::CornerHit& hit :
          detail::findCorners(*contour, 20.0f, std::max(stride, 1.0f), stride,
                              /*warnWhenNone=*/false)) {
       Join j;
       j.d = hit.d;
-      if (!contour->getPosTan(hit.d, &j.vertex, nullptr))
-        continue;
+      if (!contour->getPosTan(hit.d, &j.vertex, nullptr)) continue;
       j.pIn = offsetOf(j.vertex, hit.in);
       j.pOut = offsetOf(j.vertex, hit.out);
       const float turn = hit.in.x() * hit.out.y() - hit.in.y() * hit.out.x();
@@ -351,8 +338,8 @@ inline SkPath offsetAcross(const SkPath &src, float across,
         // single point where they meet.
         const SkVector d{j.pOut.x() - j.pIn.x(), j.pOut.y() - j.pIn.y()};
         const float t = (d.x() * hit.out.y() - d.y() * hit.out.x()) / turn;
-        if (std::abs(t) <= radius * 4.0f) { // a near-reversal miters to
-          j.miter = true;                   // infinity — bevel instead
+        if (std::abs(t) <= radius * 4.0f) {  // a near-reversal miters to
+          j.miter = true;                    // infinity — bevel instead
           j.pt = {j.pIn.x() + hit.in.x() * t, j.pIn.y() + hit.in.y() * t};
         }
       } else if (turn * offset < 0.0f) {
@@ -381,15 +368,15 @@ inline SkPath offsetAcross(const SkPath &src, float across,
     for (float d = 0;; d += stride) {
       const float at = std::min(d, len);
       while (next < joins.size() && joins[next].d <= at) {
-        const Join &j = joins[next++];
+        const Join& j = joins[next++];
         if (j.miter) {
           push(j.pt);
         } else {
           push(j.pIn);
           if (j.arc) {
-            const SkRect oval = SkRect::MakeLTRB(
-                j.vertex.x() - radius, j.vertex.y() - radius,
-                j.vertex.x() + radius, j.vertex.y() + radius);
+            const SkRect oval =
+                SkRect::MakeLTRB(j.vertex.x() - radius, j.vertex.y() - radius,
+                                 j.vertex.x() + radius, j.vertex.y() + radius);
             out.arcTo(oval, j.a0 * 57.29578f, j.sweep * 57.29578f, false);
           }
           push(j.pOut);
@@ -397,13 +384,12 @@ inline SkPath offsetAcross(const SkPath &src, float across,
       }
       SkPoint pos;
       SkVector tan;
-      if (!contour->getPosTan(at, &pos, &tan))
-        break;
+      if (!contour->getPosTan(at, &pos, &tan)) break;
       // A mitered vertex absorbs the contour within `radius` of itself:
       // samples in that window offset to points PAST the crossing and
       // would stick out as a stub on the inside of every corner.
       bool swallowed = false;
-      for (const Join &j : joins)
+      for (const Join& j : joins)
         if (j.miter && ((at > j.d - radius && at < j.d + radius) ||
                         // On a closed contour d = 0 and d = len are the SAME
                         // vertex, so the seam's window has to wrap or the
@@ -413,13 +399,10 @@ inline SkPath offsetAcross(const SkPath &src, float across,
           swallowed = true;
           break;
         }
-      if (!swallowed)
-        push(offsetOf(pos, tan));
-      if (at >= len)
-        break;
+      if (!swallowed) push(offsetOf(pos, tan));
+      if (at >= len) break;
     }
-    if (contour->isClosed())
-      out.close();
+    if (contour->isClosed()) out.close();
   }
   // NOT Simplify(): this path is going to be STROKED, and Simplify computes
   // a FILL region — on an open contour that is degenerate, and it dropped
@@ -448,17 +431,14 @@ inline SkPath offsetAcross(const SkPath &src, float across,
  *
  *  Hairline is the rec to use. Returns the input unchanged when the
  *  pattern is empty or Skia declines. */
-inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,
+inline SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                            float phase) {
-  if (intervals.empty() || src.isEmpty())
-    return src;
+  if (intervals.empty() || src.isEmpty()) return src;
   sk_sp<SkPathEffect> fx = SkDashPathEffect::Make(intervals, phase);
-  if (!fx)
-    return src;
+  if (!fx) return src;
   SkPathBuilder dashed;
-  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle); // NOT kFill — see above
-  if (!fx->filterPath(&dashed, src, &rec))
-    return src;
+  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);  // NOT kFill — see above
+  if (!fx->filterPath(&dashed, src, &rec)) return src;
   return dashed.detach();
 }
 
@@ -470,9 +450,8 @@ inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,
  *  straddling it, so subtracting that ring shrinks the shape and unioning
  *  it grows the shape by the same amount. Returns the input unchanged if
  *  the boolean op fails. */
-inline SkPath insetOutline(const SkPath &outline, float px) {
-  if (px == 0 || outline.isEmpty())
-    return outline;
+inline SkPath insetOutline(const SkPath& outline, float px) {
+  if (px == 0 || outline.isEmpty()) return outline;
   SkPaint offset;
   offset.setStyle(SkPaint::kStroke_Style);
   offset.setStrokeWidth(std::abs(px) * 2.0f);
@@ -494,12 +473,12 @@ namespace detail {
  *  A gently ROUNDED corner deliberately yields nothing: there is no hard
  *  break, so there is no corner. That is the right answer and it surprises
  *  people, so it is stated here and at every call site. */
-inline std::vector<float> cornerDistances(SkContourMeasure &contour,
+inline std::vector<float> cornerDistances(SkContourMeasure& contour,
                                           float angleDeg,
                                           float minSpacing = 3.0f,
                                           float step = 2.0f) {
   std::vector<float> out;
-  for (const CornerHit &hit : findCorners(contour, angleDeg, minSpacing, step))
+  for (const CornerHit& hit : findCorners(contour, angleDeg, minSpacing, step))
     out.push_back(hit.d);
   return out;
 }
@@ -508,14 +487,13 @@ inline std::vector<float> cornerDistances(SkContourMeasure &contour,
  *  arc within @p radius px of every corner. Windows wrap the seam and merge
  *  where they overlap, so a tight chamfer whose two breaks are 11 px apart
  *  reads as ONE bracket rather than two colliding ones. */
-inline SkPath cornerWindows(const SkPath &src, float radius,
+inline SkPath cornerWindows(const SkPath& src, float radius,
                             bool keepNearCorners, float angleDeg) {
   SkPathBuilder out;
   SkContourMeasureIter iter(src, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
-    if (len <= 0)
-      continue;
+    if (len <= 0) continue;
     const bool closed = contour->isClosed();
     std::vector<float> corners = cornerDistances(*contour, angleDeg);
     if (!closed) {
@@ -528,8 +506,7 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
       // No hard break anywhere (a circle, a rounded rect): there is
       // nothing for a bracket to sit on, and a gapped rule is simply the
       // whole contour.
-      if (!keepNearCorners)
-        (void)contour->getSegment(0, len, &out, true);
+      if (!keepNearCorners) (void)contour->getSegment(0, len, &out, true);
       continue;
     }
     std::vector<std::pair<float, float>> near;
@@ -538,49 +515,45 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
       if (!closed) {
         a = std::max(a, 0.0f);
         b = std::min(b, len);
-        if (b > a)
-          near.push_back({a, b});
+        if (b > a) near.push_back({a, b});
         continue;
       }
       a = std::fmod(a, len);
-      if (a < 0)
-        a += len;
+      if (a < 0) a += len;
       b = std::fmod(b, len);
-      if (b < 0)
-        b += len;
+      if (b < 0) b += len;
       if (a <= b)
         near.push_back({a, b});
-      else { // the window straddles the seam
+      else {  // the window straddles the seam
         near.push_back({a, len});
         near.push_back({0, b});
       }
     }
     std::sort(near.begin(), near.end());
     std::vector<std::pair<float, float>> merged;
-    for (const auto &window : near) {
+    for (const auto& window : near) {
       if (!merged.empty() && window.first <= merged.back().second + 0.01f)
         merged.back().second = std::max(merged.back().second, window.second);
       else
         merged.push_back(window);
     }
     if (keepNearCorners) {
-      for (const auto &window : merged)
+      for (const auto& window : merged)
         (void)contour->getSegment(window.first, window.second, &out, true);
     } else {
       float cursor = 0;
-      for (const auto &window : merged) {
+      for (const auto& window : merged) {
         if (window.first > cursor)
           (void)contour->getSegment(cursor, window.first, &out, true);
         cursor = std::max(cursor, window.second);
       }
-      if (cursor < len)
-        (void)contour->getSegment(cursor, len, &out, true);
+      if (cursor < len) (void)contour->getSegment(cursor, len, &out, true);
     }
   }
   return out.detach();
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
  *  corner, so a rectangle becomes four L-shaped marks and nothing else —
@@ -592,7 +565,7 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
  *  CLAIMS runs on the element's real boundary and leaves the rest of it
  *  free, where this returns a path that replaces the shape. Reach for this
  *  when you want the geometry itself. */
-inline SkPath cornerBrackets(const SkPath &src, float arm,
+inline SkPath cornerBrackets(const SkPath& src, float arm,
                              float angleDeg = 30.0f) {
   return detail::cornerWindows(src, arm, true, angleDeg);
 }
@@ -603,8 +576,7 @@ inline SkPath cornerBrackets(const SkPath &src, float arm,
  *
  *  `spans::edges(gap)` is the same scan claimed on an element's own
  *  boundary; see cornerBrackets above for when to prefer which. */
-inline SkPath cornerGaps(const SkPath &src, float gap,
-                         float angleDeg = 30.0f) {
+inline SkPath cornerGaps(const SkPath& src, float gap, float angleDeg = 30.0f) {
   return detail::cornerWindows(src, gap, false, angleDeg);
 }
 
@@ -683,7 +655,7 @@ struct Line {
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
   /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
-  const choreograph::Output<float> *dashPhaseBinding = nullptr;
+  const choreograph::Output<float>* dashPhaseBinding = nullptr;
 
   /** Along-arc gradient: colour as a ramp over the run's arc fraction — an
    *  energy fade, an elevation-coloured trail. Drawn as up to 48 arc chunks
@@ -694,7 +666,7 @@ struct Line {
    *  pattern set, this list is IGNORED and the casings paint flat. */
   std::vector<Stop> alongStops;
 
-  bool operator==(const Line &) const = default;
+  bool operator==(const Line&) const = default;
 
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
@@ -711,9 +683,8 @@ struct Line {
            std::max({tickLength * 0.5f, capSize, 0.0f});
   }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (ctx.outline.isEmpty() || width <= 0)
-      return;
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (ctx.outline.isEmpty() || width <= 0) return;
 
     // 1. The body run: offset, then displaced into a wave, then trimmed
     //    back from under Arrow and Bar heads, which also stops dashes
@@ -735,9 +706,9 @@ struct Line {
           // Closed contours have no terminals — keep whole.
           (void)contour->getSegment(0, len, &trimmed, true);
         } else {
-          (void)contour->getSegment(
-              std::min(tailTrim, len * 0.4f),
-              len - std::min(headTrim, len * 0.4f), &trimmed, true);
+          (void)contour->getSegment(std::min(tailTrim, len * 0.4f),
+                                    len - std::min(headTrim, len * 0.4f),
+                                    &trimmed, true);
         }
       }
       body = trimmed.detach();
@@ -746,8 +717,8 @@ struct Line {
     SkPaint stroke;
     stroke.setAntiAlias(true);
     stroke.setStyle(SkPaint::kStroke_Style);
-    stroke.setStrokeJoin(join);               // round unless asked otherwise
-    stroke.setStrokeCap(SkPaint::kRound_Cap); // rails always end round
+    stroke.setStrokeJoin(join);                // round unless asked otherwise
+    stroke.setStrokeCap(SkPaint::kRound_Cap);  // rails always end round
     applyFill(stroke);
     if (!dashIntervals.empty())
       stroke.setPathEffect(SkDashPathEffect::Make(
@@ -762,19 +733,17 @@ struct Line {
       chunk.setStrokeCap(SkPaint::kRound_Cap);
       chunk.setStrokeJoin(SkPaint::kRound_Join);
       auto rampAt = [&](float t) {
-        if (t <= alongStops.front().pos)
-          return alongStops.front().color;
+        if (t <= alongStops.front().pos) return alongStops.front().color;
         for (size_t i = 1; i < alongStops.size(); ++i)
           if (t <= alongStops[i].pos) {
             const float span = alongStops[i].pos - alongStops[i - 1].pos;
             const float k =
                 span > 1e-6f ? (t - alongStops[i - 1].pos) / span : 1.0f;
-            const SkColor4f &a = alongStops[i - 1].color;
-            const SkColor4f &b2 = alongStops[i].color;
-            return SkColor4f{a.fR + (b2.fR - a.fR) * k,
-                             a.fG + (b2.fG - a.fG) * k,
-                             a.fB + (b2.fB - a.fB) * k,
-                             a.fA + (b2.fA - a.fA) * k};
+            const SkColor4f& a = alongStops[i - 1].color;
+            const SkColor4f& b2 = alongStops[i].color;
+            return SkColor4f{
+                a.fR + (b2.fR - a.fR) * k, a.fG + (b2.fG - a.fG) * k,
+                a.fB + (b2.fB - a.fB) * k, a.fA + (b2.fA - a.fA) * k};
           }
         return alongStops.back().color;
       };
@@ -793,56 +762,56 @@ struct Line {
       }
       // Ties/caps still run below; skip the flat body strokes.
     } else
-    // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction,
-    //    which gives exact parallel curves on bends; round joins plus
-    //    Simplify() remove the miter spikes and the self-intersection
-    //    knots a tight bend produces. Dashed rails are built per line
-    //    through offsetAcross instead, so every rail's pattern is measured
-    //    on one arc parameterization and the dashes stay in phase.
-    if (parallels <= 1) {
-      stroke.setStrokeWidth(width);
-      canvas.drawPath(body, stroke);
-    } else if (!dashIntervals.empty()) {
-      // Dash FIRST, offset EACH DASH after. Offsetting the continuous rail
-      // and dashing afterwards shears the phase on any curve, because the
-      // inner and outer rails have different arc lengths; dashing the
-      // centreline once and displacing the resulting segments keeps every
-      // rail in register. Note dashGeometry's stroke-rec requirement — the
-      // obvious fill rec silently yields a solid path.
-      const SkPath dashedBody = dashGeometry(
-          body, SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
-      SkPaint p = stroke;
-      p.setPathEffect(nullptr); // geometry already dashed
-      const int n = parallels;
-      for (int i = 0; i < n; ++i) {
-        const float o = gap * ((float)i - (float)(n - 1) * 0.5f);
-        p.setStrokeWidth(parallels % 2 && i == n / 2
-                             ? width * std::max(coreWidthFactor, 0.1f)
-                             : width);
-        canvas.drawPath(o == 0 ? dashedBody : offsetAcross(dashedBody, -o, 2.0f),
-                        p);
-      }
-    } else {
-      const int pairs = parallels / 2;
-      if (parallels % 2) {
-        stroke.setStrokeWidth(width * std::max(coreWidthFactor, 0.1f));
-        canvas.drawPath(body, stroke);
-      }
-      for (int i = 0; i < pairs; ++i) {
-        const float span = (parallels % 2) ? gap * 2.0f * (float)(i + 1)
-                                           : gap * (float)(2 * i + 1);
-        SkPaint spread;
-        spread.setStyle(SkPaint::kStroke_Style);
-        spread.setStrokeWidth(std::max(span, 0.5f));
-        spread.setStrokeJoin(join); // the offset contour inherits the join,
-        spread.setStrokeCap(SkPaint::kRound_Cap); // so miter rails jog sharp
-        SkPath loop = skpathutils::FillPathWithPaint(body, spread);
-        if (std::optional<SkPath> simple = Simplify(loop))
-          loop = std::move(*simple); // tight-bend self-intersection repair
+      // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction,
+      //    which gives exact parallel curves on bends; round joins plus
+      //    Simplify() remove the miter spikes and the self-intersection
+      //    knots a tight bend produces. Dashed rails are built per line
+      //    through offsetAcross instead, so every rail's pattern is measured
+      //    on one arc parameterization and the dashes stay in phase.
+      if (parallels <= 1) {
         stroke.setStrokeWidth(width);
-        canvas.drawPath(loop, stroke);
+        canvas.drawPath(body, stroke);
+      } else if (!dashIntervals.empty()) {
+        // Dash FIRST, offset EACH DASH after. Offsetting the continuous rail
+        // and dashing afterwards shears the phase on any curve, because the
+        // inner and outer rails have different arc lengths; dashing the
+        // centreline once and displacing the resulting segments keeps every
+        // rail in register. Note dashGeometry's stroke-rec requirement — the
+        // obvious fill rec silently yields a solid path.
+        const SkPath dashedBody = dashGeometry(
+            body, SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
+        SkPaint p = stroke;
+        p.setPathEffect(nullptr);  // geometry already dashed
+        const int n = parallels;
+        for (int i = 0; i < n; ++i) {
+          const float o = gap * ((float)i - (float)(n - 1) * 0.5f);
+          p.setStrokeWidth(parallels % 2 && i == n / 2
+                               ? width * std::max(coreWidthFactor, 0.1f)
+                               : width);
+          canvas.drawPath(
+              o == 0 ? dashedBody : offsetAcross(dashedBody, -o, 2.0f), p);
+        }
+      } else {
+        const int pairs = parallels / 2;
+        if (parallels % 2) {
+          stroke.setStrokeWidth(width * std::max(coreWidthFactor, 0.1f));
+          canvas.drawPath(body, stroke);
+        }
+        for (int i = 0; i < pairs; ++i) {
+          const float span = (parallels % 2) ? gap * 2.0f * (float)(i + 1)
+                                             : gap * (float)(2 * i + 1);
+          SkPaint spread;
+          spread.setStyle(SkPaint::kStroke_Style);
+          spread.setStrokeWidth(std::max(span, 0.5f));
+          spread.setStrokeJoin(join);  // the offset contour inherits the join,
+          spread.setStrokeCap(SkPaint::kRound_Cap);  // so miter rails jog sharp
+          SkPath loop = skpathutils::FillPathWithPaint(body, spread);
+          if (std::optional<SkPath> simple = Simplify(loop))
+            loop = std::move(*simple);  // tight-bend self-intersection repair
+          stroke.setStrokeWidth(width);
+          canvas.drawPath(loop, stroke);
+        }
       }
-    }
 
     // 3. Railway ties: perpendicular ticks sampled by arc length.
     if (tickSpacing > 0 && tickLength > 0) {
@@ -853,8 +822,7 @@ struct Line {
         for (float d = tickSpacing * 0.5f; d < len; d += tickSpacing) {
           SkPoint pos;
           SkVector tan;
-          if (!contour->getPosTan(d, &pos, &tan))
-            continue;
+          if (!contour->getPosTan(d, &pos, &tan)) continue;
           const SkVector n{-tan.y(), tan.x()};
           ties.moveTo(pos.x() - n.x() * tickLength * 0.5f,
                       pos.y() - n.y() * tickLength * 0.5f);
@@ -902,64 +870,66 @@ struct Line {
     }
   }
 
-private:
+ private:
   /** How much body to cut under a terminal (dashes stop under heads). */
   float trimFor(Cap cap) const {
     switch (cap) {
-    case Cap::Arrow: return capSize * 0.9f;
-    case Cap::Bar: return std::max(width, 2.0f) * 0.5f;
-    case Cap::Dot:
-    case Cap::None: break;
+      case Cap::Arrow:
+        return capSize * 0.9f;
+      case Cap::Bar:
+        return std::max(width, 2.0f) * 0.5f;
+      case Cap::Dot:
+      case Cap::None:
+        break;
     }
     return 0.0f;
   }
 
-  void applyFill(SkPaint &p) const {
+  void applyFill(SkPaint& p) const {
     if (fill.kind == Fill::Kind::Color)
       p.setColor4f(fill.colorValue, nullptr);
     else if (fill.kind == Fill::Kind::Shader)
       p.setShader(fill.shaderValue);
   }
 
-  void drawCap(SkCanvas &canvas, const SkPaint &head, Cap cap, SkPoint pos,
+  void drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
                SkVector tan) const {
     const float t = std::hypot(tan.x(), tan.y());
-    if (t < 1e-4f)
-      return;
+    if (t < 1e-4f) return;
     tan = {tan.x() / t, tan.y() / t};
     const SkVector n{-tan.y(), tan.x()};
     switch (cap) {
-    case Cap::Arrow: {
-      // Tip AT the endpoint; barbs capSize back at ±tan(30°)·capSize,
-      // which is the 60° apex.
-      const SkPoint base{pos.x() - tan.x() * capSize,
-                         pos.y() - tan.y() * capSize};
-      SkPathBuilder tri;
-      tri.moveTo(pos);
-      tri.lineTo(base.x() - n.x() * capSize * 0.577f,
-                 base.y() - n.y() * capSize * 0.577f);
-      tri.lineTo(base.x() + n.x() * capSize * 0.577f,
-                 base.y() + n.y() * capSize * 0.577f);
-      tri.close();
-      canvas.drawPath(tri.detach(), head);
-      break;
-    }
-    case Cap::Dot:
-      canvas.drawCircle(pos, capSize * 0.5f, head);
-      break;
-    case Cap::Bar: {
-      SkPaint bar = head;
-      bar.setStyle(SkPaint::kStroke_Style);
-      bar.setStrokeWidth(std::max(width, 2.0f));
-      canvas.drawLine({pos.x() - n.x() * capSize * 0.5f,
-                       pos.y() - n.y() * capSize * 0.5f},
-                      {pos.x() + n.x() * capSize * 0.5f,
-                       pos.y() + n.y() * capSize * 0.5f},
-                      bar);
-      break;
-    }
-    case Cap::None:
-      break;
+      case Cap::Arrow: {
+        // Tip AT the endpoint; barbs capSize back at ±tan(30°)·capSize,
+        // which is the 60° apex.
+        const SkPoint base{pos.x() - tan.x() * capSize,
+                           pos.y() - tan.y() * capSize};
+        SkPathBuilder tri;
+        tri.moveTo(pos);
+        tri.lineTo(base.x() - n.x() * capSize * 0.577f,
+                   base.y() - n.y() * capSize * 0.577f);
+        tri.lineTo(base.x() + n.x() * capSize * 0.577f,
+                   base.y() + n.y() * capSize * 0.577f);
+        tri.close();
+        canvas.drawPath(tri.detach(), head);
+        break;
+      }
+      case Cap::Dot:
+        canvas.drawCircle(pos, capSize * 0.5f, head);
+        break;
+      case Cap::Bar: {
+        SkPaint bar = head;
+        bar.setStyle(SkPaint::kStroke_Style);
+        bar.setStrokeWidth(std::max(width, 2.0f));
+        canvas.drawLine({pos.x() - n.x() * capSize * 0.5f,
+                         pos.y() - n.y() * capSize * 0.5f},
+                        {pos.x() + n.x() * capSize * 0.5f,
+                         pos.y() + n.y() * capSize * 0.5f},
+                        bar);
+        break;
+      }
+      case Cap::None:
+        break;
     }
   }
 };
@@ -1082,7 +1052,7 @@ struct Rail {
   SkPaint::Cap cap = SkPaint::kRound_Cap;
   SkPaint::Join join = SkPaint::kRound_Join;
 
-  bool operator==(const Rail &) const = default;
+  bool operator==(const Rail&) const = default;
 };
 
 /** The general parallel rule: an ordered set of `Rail`s sharing one route,
@@ -1107,13 +1077,13 @@ struct Rails {
   /** Shared phase, added to every rail's own `dashPhase`. Bind it and the
    *  whole set marches in register (PathFormat::dashPhaseBinding). */
   float dashPhase = 0.0f;
-  const choreograph::Output<float> *dashPhaseBinding = nullptr;
+  const choreograph::Output<float>* dashPhaseBinding = nullptr;
 
   /** Resample stride for the offset construction, px. 2 follows tight
    *  metro curves; loosen on long gentle routes. */
   float offsetStep = 2.0f;
 
-  bool operator==(const Rails &) const = default;
+  bool operator==(const Rails&) const = default;
 
   bool isAnimated() const { return dashPhaseBinding != nullptr; }
   float phase() const {
@@ -1122,7 +1092,7 @@ struct Rails {
 
   float bleed() const {
     float worst = 0.0f;
-    for (const Rail &r : rails)
+    for (const Rail& r : rails)
       worst = std::max(worst, std::abs(r.across) + r.width * 0.5f);
     return worst + waveAmplitude;
   }
@@ -1130,41 +1100,34 @@ struct Rails {
   /** Total centre-to-centre span of the set — the number a caller needs to
    *  reserve room, and the one `Line` never exposed. */
   float span() const {
-    if (rails.empty())
-      return 0.0f;
+    if (rails.empty()) return 0.0f;
     float lo = rails.front().across, hi = rails.front().across;
-    for (const Rail &r : rails) {
+    for (const Rail& r : rails) {
       lo = std::min(lo, r.across);
       hi = std::max(hi, r.across);
     }
     return hi - lo;
   }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (ctx.outline.isEmpty() || rails.empty())
-      return;
-    const SkPath body = waveAmplitude > 0
-                            ? displace(ctx.outline, waveAmplitude, waveLength,
-                                       zigzag)
-                            : ctx.outline;
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (ctx.outline.isEmpty() || rails.empty()) return;
+    const SkPath body = waveAmplitude > 0 ? displace(ctx.outline, waveAmplitude,
+                                                     waveLength, zigzag)
+                                          : ctx.outline;
     const float base = phase();
-    const float stride = std::isfinite(offsetStep)
-                             ? std::max(offsetStep, 0.5f)
-                             : 2.0f;
-    for (const Rail &rail : rails) {
-      if (rail.width <= 0)
-        continue;
+    const float stride =
+        std::isfinite(offsetStep) ? std::max(offsetStep, 0.5f) : 2.0f;
+    for (const Rail& rail : rails) {
+      if (rail.width <= 0) continue;
       // Dash the CENTRELINE (never this rail's own offset curve), so every
       // rail's pattern is measured in one arc parameterisation and the set
       // stays in register through any curvature.
       SkPath run =
           rail.dash.empty()
               ? body
-              : dashGeometry(body,
-                             SkSpan(rail.dash.data(), rail.dash.size()),
+              : dashGeometry(body, SkSpan(rail.dash.data(), rail.dash.size()),
                              base + rail.dashPhase);
-      if (rail.across != 0)
-        run = offsetAcross(run, rail.across, stride);
+      if (rail.across != 0) run = offsetAcross(run, rail.across, stride);
       SkPaint p;
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);
@@ -1250,8 +1213,8 @@ struct Hatch {
    *  `isAnimated()` true, which is what declares the node volatile and
    *  keeps a moiré, a tightening engraving or a rotating shade pass
    *  repainting. */
-  const choreograph::Output<float> *spacingBinding = nullptr;
-  const choreograph::Output<float> *angleBinding = nullptr;
+  const choreograph::Output<float>* spacingBinding = nullptr;
+  const choreograph::Output<float>* angleBinding = nullptr;
 
   bool isAnimated() const {
     return spacingBinding != nullptr || angleBinding != nullptr;
@@ -1259,19 +1222,20 @@ struct Hatch {
   float pitch() const {
     return spacingBinding ? spacingBinding->value() : spacing;
   }
-  float angle() const { return angleBinding ? angleBinding->value() : angleDeg; }
+  float angle() const {
+    return angleBinding ? angleBinding->value() : angleDeg;
+  }
 
-  bool operator==(const Hatch &o) const {
+  bool operator==(const Hatch& o) const {
     return strokeFill == o.strokeFill && spacing == o.spacing &&
            width == o.width && angleDeg == o.angleDeg && cross == o.cross &&
            spacingBinding == o.spacingBinding && angleBinding == o.angleBinding;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
     const float pitchPx = pitch();
     const float baseDeg = angle();
-    if (pitchPx <= 0.5f)
-      return;
+    if (pitchPx <= 0.5f) return;
     SkPaint p;
     p.setAntiAlias(true);
     if (strokeFill.kind == Fill::Kind::Color)
@@ -1287,8 +1251,7 @@ struct Hatch {
       c.drawPath(ctx.outline, p);
     };
     pass(baseDeg);
-    if (cross)
-      pass(baseDeg + 90.0f);
+    if (cross) pass(baseDeg + 90.0f);
     c.restore();
   }
 };
@@ -1339,19 +1302,17 @@ struct RadialHatch {
    *  away entirely. Spokes keep their own reach either way. */
   std::vector<float> radiiPx;
 
-  bool operator==(const RadialHatch &o) const {
+  bool operator==(const RadialHatch& o) const {
     return strokeFill == o.strokeFill && spokes == o.spokes &&
            rings == o.rings && width == o.width &&
            holeFraction == o.holeFraction && centre == o.centre &&
            rotateDeg == o.rotateDeg && radiiPx == o.radiiPx;
   }
 
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty()))
-      return;
+  void paint(SkCanvas& c, const PaintContext& ctx) const {
+    if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty())) return;
     const SkRect box = ctx.outline.getBounds();
-    if (box.isEmpty())
-      return;
+    if (box.isEmpty()) return;
     const SkPoint origin{box.left() + box.width() * centre.fX,
                          box.top() + box.height() * centre.fY};
     // Far enough to leave the outline from anywhere inside it.
@@ -1386,8 +1347,7 @@ struct RadialHatch {
     if (!radiiPx.empty()) {
       SkPathBuilder b;
       for (float r : radiiPx)
-        if (r > 0)
-          b.addCircle(origin.fX, origin.fY, r);
+        if (r > 0) b.addCircle(origin.fX, origin.fY, r);
       c.drawPath(b.detach(), p);
     } else if (rings > 0) {
       SkPathBuilder b;
@@ -1440,4 +1400,4 @@ inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
   return h;
 }
 
-} // namespace sigil::compose::lines
+}  // namespace sigil::compose::lines

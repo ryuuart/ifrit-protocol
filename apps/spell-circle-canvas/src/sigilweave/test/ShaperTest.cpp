@@ -4,29 +4,27 @@
  * correctness (Arabic, Devanagari, SMP, emoji clusters).
  */
 
-#include "TestSupport.h"
-
+#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
-
 #include <include/core/SkFontMgr.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <absl/container/flat_hash_set.h>
 
 #include <algorithm>
 #include <set>
 #include <string>
+
+#include "TestSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 // ── Shaping & caching ─────────────────────────────────────────────────────
 
 TEST(Shaper, ShapesLatinWord) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"Hello");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  const Word &word = paragraph.words()[0];
+  const Word& word = paragraph.words()[0];
   ASSERT_EQ(word.segments.size(), 1u);
   EXPECT_EQ(word.segments[0].shaped->glyphs.size(), 5u);
   EXPECT_GT(word.width, 0.0f);
@@ -34,7 +32,7 @@ TEST(Shaper, ShapesLatinWord) {
 }
 
 TEST(Shaper, CacheHitsOnIdenticalWords) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   fontContext.purgeShapeCache();
   fontContext.resetStats();
   Paragraph paragraph = makeParagraph(u8"tick tock tick tock tick");
@@ -45,7 +43,7 @@ TEST(Shaper, CacheHitsOnIdenticalWords) {
 }
 
 TEST(Shaper, EditReshapesOnlyTheEditedWord) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"the quick brown fox jumps over the lazy dog again and again");
   paragraph.ensureShaped(fontContext);
@@ -61,7 +59,7 @@ TEST(Shaper, EditReshapesOnlyTheEditedWord) {
 }
 
 TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph =
       makeParagraph(u8"colorful words change their paint only");
   paragraph.ensureShaped(fontContext);
@@ -73,13 +71,13 @@ TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
 }
 
 TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"alpha beta gamma delta epsilon");
   paragraph.ensureShaped(fontContext);
 
   fontContext.resetStats();
   TextStyle big = basicStyle(24.0f);
-  paragraph.setStyle(6, 10, big); // "beta"
+  paragraph.setStyle(6, 10, big);  // "beta"
   paragraph.ensureShaped(fontContext);
   // "beta"@24 is new; its neighbors keep their cached 16px shapes. The glue
   // after "beta" also re-shapes at the new size (2 calls max).
@@ -87,32 +85,32 @@ TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
 }
 
 TEST(Shaper, ClustersAreMonotone) {
-  FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"office"); // 'ffi' may ligate
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"office");  // 'ffi' may ligate
   paragraph.ensureShaped(fontContext);
-  const auto &clusters = paragraph.words()[0].segments[0].shaped->clusters;
+  const auto& clusters = paragraph.words()[0].segments[0].shaped->clusters;
   EXPECT_TRUE(std::is_sorted(clusters.begin(), clusters.end()));
 }
 
 TEST(Shaper, WordBlobIsSharedAcrossLayouts) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"stable");
   paragraph.ensureShaped(fontContext);
-  const ShapedWordRef &shaped = paragraph.words()[0].segments[0].shaped;
-  const SkTextBlob *first = wordBlob(*shaped).get();
+  const ShapedWordRef& shaped = paragraph.words()[0].segments[0].shaped;
+  const SkTextBlob* first = wordBlob(*shaped).get();
   ASSERT_NE(first, nullptr);
   EXPECT_EQ(wordBlob(*shaped).get(), first);
 }
 // ── Itemization ───────────────────────────────────────────────────────────
 
 TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"Skia は速い and 빠르다 也很快");
   paragraph.ensureShaped(fontContext);
   ASSERT_GT(paragraph.words().size(), 4u);
 
   bool sawIdeographic = false, sawLatin = false;
-  for (const Word &word : paragraph.words()) {
+  for (const Word& word : paragraph.words()) {
     if (word.ideographic)
       sawIdeographic = true;
     else if (word.width > 0)
@@ -123,22 +121,21 @@ TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
 }
 
 TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"日本語のテキスト");
   paragraph.ensureShaped(fontContext);
   // ICU line breaking splits ideographic text nearly per character; the
   // exact count depends on kinsoku rules, but it must be far more than one.
   EXPECT_GE(paragraph.words().size(), 4u);
-  for (const Word &word : paragraph.words())
-    EXPECT_TRUE(word.ideographic);
+  for (const Word& word : paragraph.words()) EXPECT_TRUE(word.ideographic);
 }
 
 TEST(Itemization, FallbackResolvesCjkGlyphs) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"abc漢字xyz");
   paragraph.ensureShaped(fontContext);
-  for (const Word &word : paragraph.words())
-    for (const WordSegment &seg : word.segments) {
+  for (const Word& word : paragraph.words())
+    for (const WordSegment& seg : word.segments) {
       ASSERT_TRUE(seg.shaped->typeface);
       for (uint16_t glyph : seg.shaped->glyphs)
         EXPECT_NE(glyph, 0) << "missing glyph (.notdef) leaked into layout";
@@ -151,7 +148,7 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
   sk_sp<SkTypeface> preferred =
       fontManager->matchFamilyStyle("Noto Serif JP", SkFontStyle());
-  constexpr SkUnichar kJapaneseHiragana = 0x3042; // あ
+  constexpr SkUnichar kJapaneseHiragana = 0x3042;  // あ
   if (!primary || !preferred || primary->unicharToGlyph(kJapaneseHiragana) ||
       !preferred->unicharToGlyph(kJapaneseHiragana))
     GTEST_SKIP() << "Noto Sans / Noto Serif JP fallback fixture unavailable";
@@ -159,8 +156,8 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
   int resolverCalls = 0;
   std::string observedLanguage;
   FontContext fontContext(std::move(fontManager), nullptr,
-                          [&](SkFontMgr &, const SkTypeface &,
-                              int32_t codePoint, std::string_view languageTag) {
+                          [&](SkFontMgr&, const SkTypeface&, int32_t codePoint,
+                              std::string_view languageTag) {
                             resolverCalls++;
                             observedLanguage = languageTag;
                             return codePoint == kJapaneseHiragana ? preferred
@@ -175,7 +172,7 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
   paragraph.ensureShaped(fontContext);
 
   ASSERT_FALSE(paragraph.words().empty());
-  const sk_sp<SkTypeface> &resolved =
+  const sk_sp<SkTypeface>& resolved =
       paragraph.words().front().segments.front().shaped->typeface;
   ASSERT_TRUE(resolved);
   EXPECT_EQ(resolved->uniqueID(), preferred->uniqueID());
@@ -191,7 +188,7 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
       fontManager->matchFamilyStyle("Noto Sans SC", SkFontStyle());
   sk_sp<SkTypeface> traditional =
       fontManager->matchFamilyStyle("Noto Sans TC", SkFontStyle());
-  constexpr SkUnichar kSharedHanCharacter = 0x4E2D; // 中
+  constexpr SkUnichar kSharedHanCharacter = 0x4E2D;  // 中
   if (!primary || !simplified || !traditional ||
       primary->unicharToGlyph(kSharedHanCharacter) ||
       !simplified->unicharToGlyph(kSharedHanCharacter) ||
@@ -201,7 +198,7 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
 
   int resolverCalls = 0;
   FontContext fontContext(std::move(fontManager), nullptr,
-                          [&](SkFontMgr &, const SkTypeface &, int32_t,
+                          [&](SkFontMgr&, const SkTypeface&, int32_t,
                               std::string_view languageTag) {
                             resolverCalls++;
                             return languageTag == "zh-Hant" ? traditional
@@ -229,31 +226,32 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
 }
 
 TEST(Itemization, HardBreakIsMandatory) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"first line\nsecond");
   paragraph.ensureShaped(fontContext);
   bool sawMandatory = false;
-  for (const Word &word : paragraph.words())
+  for (const Word& word : paragraph.words())
     sawMandatory |= word.mandatoryBreakAfter;
   EXPECT_TRUE(sawMandatory);
 }
 
 TEST(Itemization, RtlWordShapesRtl) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"שלום");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  const auto &clusters = paragraph.words()[0].segments[0].shaped->clusters;
+  const auto& clusters = paragraph.words()[0].segments[0].shaped->clusters;
   ASSERT_GE(clusters.size(), 2u);
   // RTL output is in visual order: cluster values run backwards.
   EXPECT_GT(clusters.front(), clusters.back());
 }
 TEST(Scripts, ArabicLamAlefLigates) {
-  FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"لا"); // lam + alef: mandatory ligature
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph =
+      makeParagraph(u8"لا");  // lam + alef: mandatory ligature
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  const ShapedWord &shapedWord = *paragraph.words()[0].segments[0].shaped;
+  const ShapedWord& shapedWord = *paragraph.words()[0].segments[0].shaped;
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Arabic font on this system";
   EXPECT_EQ(shapedWord.glyphs.size(), 1u)
@@ -261,37 +259,37 @@ TEST(Scripts, ArabicLamAlefLigates) {
 }
 
 TEST(Scripts, ArabicJoinsRtl) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"العربية تكتب من اليمين إلى اليسار");
   paragraph.ensureShaped(fontContext);
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Arabic font on this system";
   ASSERT_GE(paragraph.words().size(), 5u);
-  for (const Word &word : paragraph.words()) {
+  for (const Word& word : paragraph.words()) {
     EXPECT_EQ(word.bidiLevel & 1, 1) << "Arabic words must be RTL";
-    const auto &clusters = word.segments[0].shaped->clusters;
-    if (clusters.size() >= 2) // RTL visual order: clusters run backwards
+    const auto& clusters = word.segments[0].shaped->clusters;
+    if (clusters.size() >= 2)  // RTL visual order: clusters run backwards
       EXPECT_GT(clusters.front(), clusters.back());
   }
 }
 
 TEST(Scripts, DevanagariFormsConjunctClusters) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"नमस्ते दुनिया");
   paragraph.ensureShaped(fontContext);
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Devanagari font on this system";
   // "नमस्ते" is 6 UTF-16 units but the virama fuses स्+ते into one grapheme
   // cluster: distinct clusters must be fewer than code units.
-  const Word &namaste = paragraph.words()[0];
+  const Word& namaste = paragraph.words()[0];
   ASSERT_EQ(namaste.segments.size(), 1u);
-  const ShapedWord &shapedWord = *namaste.segments[0].shaped;
+  const ShapedWord& shapedWord = *namaste.segments[0].shaped;
   EXPECT_LT(uniqueClusterCount(shapedWord), 6u);
   EXPECT_GE(shapedWord.glyphs.size(), 3u);
 }
 
 TEST(Scripts, CuneiformSupplementaryPlane) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   // Four codepoints beyond the BMP (U+12000, U+12031, U+12038, U+1204D):
   // each is a surrogate pair, so correct cluster values step by 2 UTF-16
   // units. U+12031 is also featured by the hyper-scripts demo.
@@ -300,8 +298,8 @@ TEST(Scripts, CuneiformSupplementaryPlane) {
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Cuneiform font on this system";
   std::vector<uint32_t> clusters;
-  for (const Word &word : paragraph.words())
-    for (const WordSegment &segment : word.segments)
+  for (const Word& word : paragraph.words())
+    for (const WordSegment& segment : word.segments)
       for (uint32_t cluster : segment.shaped->clusters)
         clusters.push_back(cluster + word.textBegin);
   ASSERT_FALSE(clusters.empty());
@@ -310,13 +308,13 @@ TEST(Scripts, CuneiformSupplementaryPlane) {
 }
 
 TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   // Family emoji: 4 people joined by ZWJ = 11 UTF-16 units, ONE grapheme.
   Paragraph paragraph = makeParagraph(u8"👨‍👩‍👧‍👦");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
-  const ShapedWord &shapedWord = *paragraph.words()[0].segments[0].shaped;
+  const ShapedWord& shapedWord = *paragraph.words()[0].segments[0].shaped;
   ASSERT_FALSE(shapedWord.glyphs.empty());
   EXPECT_EQ(uniqueClusterCount(shapedWord), 1u)
       << "a ZWJ family sequence is a single grapheme cluster";
@@ -324,12 +322,12 @@ TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
 }
 
 TEST(Scripts, EmojiModifierAndFlagClusters) {
-  FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"👍🏽 🇺🇸"); // skin tone; regional pair
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
-  for (const Word &word : paragraph.words()) {
-    const ShapedWord &shapedWord = *word.segments[0].shaped;
+  for (const Word& word : paragraph.words()) {
+    const ShapedWord& shapedWord = *word.segments[0].shaped;
     EXPECT_EQ(uniqueClusterCount(shapedWord), 1u)
         << "modifier/flag sequences are single grapheme clusters";
   }
@@ -337,12 +335,12 @@ TEST(Scripts, EmojiModifierAndFlagClusters) {
 }
 
 TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
-  absl::flat_hash_set<const SkTypeface *> faces;
-  for (const Word &word : paragraph.words())
-    for (const WordSegment &segment : word.segments)
+  absl::flat_hash_set<const SkTypeface*> faces;
+  for (const Word& word : paragraph.words())
+    for (const WordSegment& segment : word.segments)
       faces.insert(segment.shaped->typeface.get());
   EXPECT_GE(faces.size(), 2u) << "emoji must resolve to its own typeface";
   EXPECT_TRUE(allGlyphsResolved(paragraph));
@@ -353,15 +351,14 @@ TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
 TEST(Shaper, PurgeAllCachesRefillsIdentically) {
   // A dedicated context: purging the shared one would slow sibling tests.
   FontContext fontContext(ports::systemFontManager());
-  const char8_t *text = u8"warm caches shape 漢字 and ascii alike";
+  const char8_t* text = u8"warm caches shape 漢字 and ascii alike";
 
   auto shapeFresh = [&] {
     Paragraph paragraph;
     paragraph.appendText(text, basicStyle());
     paragraph.ensureShaped(fontContext);
     std::vector<float> widths;
-    for (const Word &word : paragraph.words())
-      widths.push_back(word.width);
+    for (const Word& word : paragraph.words()) widths.push_back(word.width);
     return widths;
   };
 
@@ -408,7 +405,7 @@ TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
 // ── Variable-font axis ergonomics (ShapingStyle::variations) ─────────────
 
 TEST(Shaper, VariationsChangeShapingViaStyle) {
-  FontContext &fontContext = sharedContext();
+  FontContext& fontContext = sharedContext();
   sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
       "Noto Sans", SkFontStyle::Normal());
   if (!base || base->getVariationDesignPosition({}) < 1)
@@ -422,8 +419,7 @@ TEST(Shaper, VariationsChangeShapingViaStyle) {
     paragraph.appendText(u8"hamburgefonstiv", style);
     paragraph.ensureShaped(fontContext);
     float width = 0;
-    for (const Word &word : paragraph.words())
-      width += word.width;
+    for (const Word& word : paragraph.words()) width += word.width;
     return width;
   };
 
@@ -511,18 +507,18 @@ TEST(ShaperVariations, ScaleXCondensesAdvancesAndKeysTheCache) {
     paragraph.appendText(u8"MMMM", style);
     paragraph.ensureShaped(fontContext);
     float advance = 0;
-    for (const Word &word : paragraph.words())
-      for (const WordSegment &segment : word.segments)
+    for (const Word& word : paragraph.words())
+      for (const WordSegment& segment : word.segments)
         advance += segment.shaped->advance;
     return advance;
   };
   const float full = measure(1.0f);
   const float condensed = measure(0.82f);
   ASSERT_GT(full, 0);
-  EXPECT_NEAR(condensed / full, 0.82f, 0.02f); // advances condense
+  EXPECT_NEAR(condensed / full, 0.82f, 0.02f);  // advances condense
   // Distinct scaleX = distinct shape-cache identity (no cross-pollution).
   fontContext.resetStats();
   measure(1.0f);
   measure(0.82f);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u); // both warm, separately
+  EXPECT_EQ(fontContext.stats().shapeCalls, 0u);  // both warm, separately
 }

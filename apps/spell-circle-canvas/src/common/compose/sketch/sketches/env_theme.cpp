@@ -27,9 +27,8 @@
 // patches the nodes whose props moved. Bind the one property that scrubs
 // at 60 Hz, never the theme.
 
-#include <sigilsketch/Sketch.h>
-
 #include <sigilcompose/Console.h>
+#include <sigilsketch/Sketch.h>
 
 #include <string>
 
@@ -48,7 +47,7 @@ struct Palette {
   SkColor4f surface{0.16f, 0.17f, 0.21f, 1};
   SkColor4f ink{0.62f, 0.66f, 0.74f, 1};
   SkColor4f accent{0.45f, 0.48f, 0.56f, 1};
-  bool operator==(const Palette &) const = default;
+  bool operator==(const Palette&) const = default;
 };
 
 const Palette kOuter{"outer",
@@ -60,7 +59,7 @@ const Palette kInner{"inner (shadowing)",
                      {0.99f, 0.92f, 0.78f, 1},
                      {1.00f, 0.70f, 0.24f, 1}};
 
-constexpr int kLevels = 4; // containers between Provide and the read
+constexpr int kLevels = 4;  // containers between Provide and the read
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -78,7 +77,7 @@ const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
 // THE WHOLE POINT: handed nothing, reads the ambient binding, states its own
 // default when there is none.
 
-Element chip(const char *label) {
+Element chip(const char* label) {
   const Palette c = env::inheritedOr(Palette{});
   return box()
       .width(64)
@@ -107,10 +106,10 @@ Element handedNothing(int depth) {
 Element boundLine() {
   const bool have = env::bound<Palette>();
   const Palette c = env::inheritedOr(Palette{});
-  return text(toU8(have ? std::string("env::bound<Palette>() true \xc2\xb7 ") +
-                              c.name
-                        : std::string("env::bound<Palette>() FALSE")),
-              type(11, have ? c.accent : kDim));
+  return text(
+      toU8(have ? std::string("env::bound<Palette>() true \xc2\xb7 ") + c.name
+                : std::string("env::bound<Palette>() FALSE")),
+      type(11, have ? c.accent : kDim));
 }
 
 // -------------------------------------------------------------- the library
@@ -118,7 +117,7 @@ Element boundLine() {
 // type, so it is already an env key. `console::console(ring)` with no style
 // argument reads whatever is in scope.
 
-console::Style consoleStyle(const Palette &c) {
+console::Style consoleStyle(const Palette& c) {
   console::Style style;
   style.text = type(11, c.ink);
   style.palette = {type(11, c.accent), type(11, kDim)};
@@ -127,7 +126,7 @@ console::Style consoleStyle(const Palette &c) {
   return style;
 }
 
-Element panelColumn(const char *heading, const char *note, Element body) {
+Element panelColumn(const char* heading, const char* note, Element body) {
   return box()
       .width(340)
       .column()
@@ -138,7 +137,7 @@ Element panelColumn(const char *heading, const char *note, Element body) {
 }
 
 /** The body every column shares — same code, three environments. */
-Element themedBody(const console::LineRing &ring) {
+Element themedBody(const console::LineRing& ring) {
   return box()
       .width(340)
       .column()
@@ -152,12 +151,12 @@ Element themedBody(const console::LineRing &ring) {
       .child(console::console(ring));
 }
 
-} // namespace
+}  // namespace
 
 struct EnvTheme : sigil::compose::sketch::Sketch {
   console::LineRing ring{16};
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1140, 470);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
@@ -202,8 +201,8 @@ struct EnvTheme : sigil::compose::sketch::Sketch {
           .stroke(stroke(1.0f, Fill::color(kFrame)))
           .child(std::move(top))
           .child(std::move(inner))
-          .child(text(toU8("…and back OUT of the inner scope:"),
-                      type(10, kDim)))
+          .child(
+              text(toU8("…and back OUT of the inner scope:"), type(10, kDim)))
           .child(handedNothing(kLevels))
           .child(console::console(ring));
     }();
@@ -215,21 +214,22 @@ struct EnvTheme : sigil::compose::sketch::Sketch {
                         type(15, kInk))
                        .left(30)
                        .top(16))
-            .child(box()
-                       .row()
-                       .left(30)
-                       .top(52)
-                       .gap(24)
-                       .child(panelColumn("NO BINDING",
-                                     "inheritedOr() default \xe2\x80\x94 the "
-                                     "console's own, at its own size",
-                                     std::move(plain)))
-                       .child(panelColumn("OUTER SCOPE",
-                                     "one Provide, four levels up",
-                                     std::move(outer)))
-                       .child(panelColumn("SHADOWED",
-                                     "an inner Provide over the middle band",
-                                     std::move(shadowed))))
+            .child(
+                box()
+                    .row()
+                    .left(30)
+                    .top(52)
+                    .gap(24)
+                    .child(panelColumn("NO BINDING",
+                                       "inheritedOr() default \xe2\x80\x94 the "
+                                       "console's own, at its own size",
+                                       std::move(plain)))
+                    .child(panelColumn("OUTER SCOPE",
+                                       "one Provide, four levels up",
+                                       std::move(outer)))
+                    .child(panelColumn("SHADOWED",
+                                       "an inner Provide over the middle band",
+                                       std::move(shadowed))))
             .child(text(toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
                              "is no library-wide Theme \xc2\xb7 a callable "
                              "the KERNEL invokes sees no scope"),

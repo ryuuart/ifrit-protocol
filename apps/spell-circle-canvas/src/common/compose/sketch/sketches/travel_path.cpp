@@ -18,9 +18,8 @@
 // runtime re-resolves the five `t` lanes every frame. Nothing re-describes,
 // and travel() is paint-only — no track ever relayouts.
 
-#include <sigilsketch/Sketch.h>
-
 #include <sigilcompose/Shapes.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
@@ -29,9 +28,9 @@ using namespace sigil::compose::util;
 
 namespace {
 
-constexpr double kPeriod = 6.0; // seconds per lap of `phase`
-constexpr float kLook = 0.02f;  // lookAhead: the auto-orient chord
-constexpr float kLaps = 2.0f;   // track 4's .target(0, kLaps)
+constexpr double kPeriod = 6.0;  // seconds per lap of `phase`
+constexpr float kLook = 0.02f;   // lookAhead: the auto-orient chord
+constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -60,8 +59,8 @@ Element arrowMark() {
  *  silhouette, and handed to the mark as its motion path — because a
  *  MotionPath resolves against the PARENT's box, which is precisely the
  *  box whose outline you are looking at. */
-Element track(Shape curve, MotionPath along, Element mark,
-              const char *caption, const char *spelling) {
+Element track(Shape curve, MotionPath along, Element mark, const char* caption,
+              const char* spelling) {
   along.path = curve;
   mark.travel(std::move(along));
   return box()
@@ -78,15 +77,15 @@ Element track(Shape curve, MotionPath along, Element mark,
       .child(text(toU8(spelling), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct TravelPath : sigil::compose::sketch::Sketch {
   choreograph::Output<float> phase{0};
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1250, 350);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(kPeriod * 0.31); // mid-lap: every arrow is off its start
+    ctx.captureAt(kPeriod * 0.31);  // mid-lap: every arrow is off its start
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
@@ -124,9 +123,8 @@ struct TravelPath : sigil::compose::sketch::Sketch {
                     // 2 — lookAhead engages auto-orient: the angle of the
                     // chord ahead is ADDED to rotate() (which is 0 here).
                     .child(track(shapes::circle(),
-                                 {.t = &phase, .lookAhead = kLook},
-                                 arrowMark(), "2 \xc2\xb7 + lookAhead",
-                                 ".lookAhead = 0.02"))
+                                 {.t = &phase, .lookAhead = kLook}, arrowMark(),
+                                 "2 \xc2\xb7 + lookAhead", ".lookAhead = 0.02"))
 
                     // 3 — …and rotate() still composes on top of the bank.
                     // Same flight as 2; the arrow also spins as it goes.

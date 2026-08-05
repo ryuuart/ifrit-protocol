@@ -1,8 +1,7 @@
 #include "UdpReceiver.h"
 
-#include <asio.hpp>
-
 #include <array>
+#include <asio.hpp>
 #include <thread>
 #include <utility>
 
@@ -12,7 +11,7 @@ namespace {
 
 /** "ip:port", with v4-mapped IPv6 senders presented as plain IPv4 —
  *  ::ffff:127.0.0.1 reads as 127.0.0.1, like both apps always displayed. */
-std::string formatSource(const asio::ip::udp::endpoint &endpoint) {
+std::string formatSource(const asio::ip::udp::endpoint& endpoint) {
   asio::ip::address address = endpoint.address();
   if (address.is_v6()) {
     const asio::ip::address_v6 v6 = address.to_v6();
@@ -22,7 +21,7 @@ std::string formatSource(const asio::ip::udp::endpoint &endpoint) {
   return address.to_string() + ":" + std::to_string(endpoint.port());
 }
 
-} // namespace
+}  // namespace
 
 /** One bind's worth of state: context, socket, and the thread running the
  *  receive loop. Recreated wholesale per start() — cheaper to reason about
@@ -53,7 +52,7 @@ struct UdpReceiver::Session {
         asio::buffer(buffer), sender,
         [this](std::error_code error, std::size_t received) {
           if (error == asio::error::operation_aborted || !socket.is_open())
-            return; // teardown
+            return;  // teardown
           if (!error && handler)
             handler(std::vector<std::uint8_t>(buffer.data(),
                                               buffer.data() + received),
@@ -76,10 +75,9 @@ std::string UdpReceiver::start(std::uint16_t port, DatagramHandler handler) {
   session->handler = std::move(handler);
 
   std::error_code error;
-  asio::ip::udp::socket &socket = session->socket;
+  asio::ip::udp::socket& socket = session->socket;
   socket.open(asio::ip::udp::v6(), error);
-  if (error)
-    return "Socket creation failed — " + error.message();
+  if (error) return "Socket creation failed — " + error.message();
 
   // Dual-stack: accept IPv4 senders as v4-mapped addresses, like
   // QUdpSocket bound to QHostAddress::Any. Best effort — some stacks
@@ -104,4 +102,4 @@ void UdpReceiver::stop() { m_session.reset(); }
 
 bool UdpReceiver::listening() const { return m_session != nullptr; }
 
-} // namespace spellcircle
+}  // namespace spellcircle

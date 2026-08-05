@@ -32,10 +32,10 @@
 // resolution, so its noise stays pixel-sized instead of being magnified with
 // everything else.
 
-#include "GalleryCore.h"
-
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
+
+#include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
 #include <sigilcompose/Ocio.h>
 #endif
@@ -51,10 +51,10 @@ namespace ember_poster {
 
 // ---- stage geometry -------------------------------------------------------
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
-constexpr float kPanelW = 512, kPanelH = 640;      // the 4:5 poster panel
-constexpr float kPanelX = (kW - kPanelW) * 0.5f;   // letterbox width, 194
-constexpr float kPW = 810, kPH = 1012;             // sketch author space
-constexpr float kScale = kPanelW / kPW;            // paint-scale into panel
+constexpr float kPanelW = 512, kPanelH = 640;     // the 4:5 poster panel
+constexpr float kPanelX = (kW - kPanelW) * 0.5f;  // letterbox width, 194
+constexpr float kPW = 810, kPH = 1012;            // sketch author space
+constexpr float kScale = kPanelW / kPW;           // paint-scale into panel
 
 // ---- palette (authored flat; the OCIO view grades the composite) ----------
 constexpr SkColor4f kInk{0.043f, 0.031f, 0.075f, 1};
@@ -64,7 +64,7 @@ constexpr SkColor4f kEmber{0.960f, 0.475f, 0.180f, 1};
 constexpr SkColor4f kEmberHot{1.000f, 0.800f, 0.420f, 1};
 constexpr SkColor4f kBone{0.940f, 0.910f, 0.860f, 1};
 constexpr SkColor4f kAsh{0.600f, 0.575f, 0.640f, 1};
-constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1}; // letterbox
+constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1};  // letterbox
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
@@ -79,7 +79,7 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 // The breathing ring: pure SkSL over the node's box. uPulse is a live bound
 // uniform; uTime/uResolution arrive from PaintContext automatically.
 inline sk_sp<SkRuntimeEffect> ringEffect() {
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform float uPulse;
     uniform float uTime;
     uniform float2 uResolution;
@@ -104,8 +104,7 @@ inline sk_sp<SkRuntimeEffect> ringEffect() {
   )";
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx)
-      SkDebugf("ring shader: %s\n", err.c_str());
+    if (!fx) SkDebugf("ring shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
@@ -113,7 +112,7 @@ inline sk_sp<SkRuntimeEffect> ringEffect() {
 
 // Film grain, soft-lighted over the poster panel. uTime keeps it alive.
 inline sk_sp<SkRuntimeEffect> grainEffect() {
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform float uTime;
     half4 main(float2 p) {
       float n = fract(sin(dot(p + fract(uTime) * 61.7,
@@ -124,14 +123,13 @@ inline sk_sp<SkRuntimeEffect> grainEffect() {
   )";
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx)
-      SkDebugf("grain shader: %s\n", err.c_str());
+    if (!fx) SkDebugf("grain shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
 }
 
-} // namespace ember_poster
+}  // namespace ember_poster
 
 struct MotionPosterScene final : Scene {
   // Entrance choreography (drop + fade per line, Hold-staggered).
@@ -141,21 +139,23 @@ struct MotionPosterScene final : Scene {
   // Living elements.
   choreograph::Output<float> pulse{0}, spin{0};
 
-  const char *name() const override { return "motion poster"; }
+  const char* name() const override { return "motion poster"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     pulse = 0.0f;
     spin = 0.0f;
 
-    auto &tl = ticker.timeline();
-    auto enter = [&](choreograph::Output<float> &drop,
-                     choreograph::Output<float> &fade, float from,
+    auto& tl = ticker.timeline();
+    auto enter = [&](choreograph::Output<float>& drop,
+                     choreograph::Output<float>& fade, float from,
                      float delay) {
       drop = from;
       fade = 0.0f;
-      tl.apply(&drop).then<choreograph::Hold>(from, delay)
+      tl.apply(&drop)
+          .then<choreograph::Hold>(from, delay)
           .then<choreograph::RampTo>(0.0f, 0.9f, &choreograph::easeOutQuint);
-      tl.apply(&fade).then<choreograph::Hold>(0.0f, delay)
+      tl.apply(&fade)
+          .then<choreograph::Hold>(0.0f, delay)
           .then<choreograph::RampTo>(1.0f, 0.7f, &choreograph::easeOutQuad);
     };
     enter(dropTitle, fadeTitle, 54, 0.15f);
@@ -165,7 +165,7 @@ struct MotionPosterScene final : Scene {
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       pulse = (float)std::sin(t * 1.7);
-      spin = (float)(t * 5.5); // slow degrees/sec
+      spin = (float)(t * 5.5);  // slow degrees/sec
       return true;
     });
 
@@ -235,8 +235,7 @@ struct MotionPosterScene final : Scene {
 
     // The breathing ring: LIVE material — uPulse bound, uTime auto. The
     // material declares the volatility; no Cache::None, no custom().
-    Material ring =
-        Material::sksl(ep::ringEffect()).uniform("uPulse", &pulse);
+    Material ring = Material::sksl(ep::ringEffect()).uniform("uPulse", &pulse);
 
     // The star sigil: geometry from shapes::, paint from a sweep ramp,
     // motion from a bound rotate — transform-replay keeps it one recording.
@@ -255,12 +254,16 @@ struct MotionPosterScene final : Scene {
         .fill(ground)
         // halo + ring share the focus point
         .child(box().inset(0).fill(halo))
-        .child(box().width(560).height(560)
-                   .inset(focus.x() - 280, focus.y() - 280,
-                          W - focus.x() - 280, H - focus.y() - 280)
+        .child(box()
+                   .width(560)
+                   .height(560)
+                   .inset(focus.x() - 280, focus.y() - 280, W - focus.x() - 280,
+                          H - focus.y() - 280)
                    .fill(ring))
         // spinning star sigil at the ring's heart
-        .child(box().width(140).height(140)
+        .child(box()
+                   .width(140)
+                   .height(140)
                    .inset(focus.x() - 70, focus.y() - 70, W - focus.x() - 70,
                           H - focus.y() - 70)
                    .shape(shapes::rounded(shapes::star(9, 0.58f), 3))
@@ -269,8 +272,11 @@ struct MotionPosterScene final : Scene {
                    .opacity(0.92f))
         // the typographic block
         .child(
-            box().column().inset(64, 0, 64, 0).zIndex(2)
-                .child(box().grow(1)) // push type into the lower third
+            box()
+                .column()
+                .inset(64, 0, 64, 0)
+                .zIndex(2)
+                .child(box().grow(1))  // push type into the lower third
                 .child(text(toU8("EMBER GATE"), ep::type(108, ep::kBone, 2))
                            .key("title")
                            .translateY(&dropTitle)
@@ -281,24 +287,30 @@ struct MotionPosterScene final : Scene {
                            .translateY(&dropSub)
                            .opacity(&fadeSub)
                            .margin(0, 10, 0, 0))
-                .child(box().key("rules").height(26).margin(0, 26, 0, 0)
-                           .foreground(shapes::onEdges(shapes::Edge::Bottom,
-                                                       rule))
-                           .translateY(&dropInfo)
-                           .opacity(&fadeInfo))
-                .child(box().row().alignItems(Align::Baseline).gap(18)
-                           .margin(0, 14, 0, 88)
-                           .translateY(&dropInfo)
-                           .opacity(&fadeInfo)
-                           .child(text(toU8("XXI"),
-                                       ep::type(40, ep::kEmberHot)))
-                           .child(text(toU8("midsummer"),
-                                       ep::type(21, ep::kAsh, 3)))
-                           .child(box().grow(1))
-                           .child(text(toU8("the flooded causeway"),
-                                       ep::type(21, ep::kAsh, 1)))
-                           .child(text(toU8("\xc2\xa7 vol. 4"),
-                                       ep::type(21, ep::kEmber)))));
+                .child(
+                    box()
+                        .key("rules")
+                        .height(26)
+                        .margin(0, 26, 0, 0)
+                        .foreground(shapes::onEdges(shapes::Edge::Bottom, rule))
+                        .translateY(&dropInfo)
+                        .opacity(&fadeInfo))
+                .child(
+                    box()
+                        .row()
+                        .alignItems(Align::Baseline)
+                        .gap(18)
+                        .margin(0, 14, 0, 88)
+                        .translateY(&dropInfo)
+                        .opacity(&fadeInfo)
+                        .child(text(toU8("XXI"), ep::type(40, ep::kEmberHot)))
+                        .child(
+                            text(toU8("midsummer"), ep::type(21, ep::kAsh, 3)))
+                        .child(box().grow(1))
+                        .child(text(toU8("the flooded causeway"),
+                                    ep::type(21, ep::kAsh, 1)))
+                        .child(text(toU8("\xc2\xa7 vol. 4"),
+                                    ep::type(21, ep::kEmber)))));
   }
 
   Element describe() {
@@ -308,30 +320,38 @@ struct MotionPosterScene final : Scene {
         // the 4:5 poster panel, centered; the poster paints in sketch
         // space and the scale transform replays its pictures — no
         // re-authoring, no re-records.
-        .child(
-            box().inset(ep::kPanelX, 0, ep::kPanelX, 0)
-                .fill(Fill::color(ep::kInk))
-                .clip()
-                .child(poster().width(ep::kPW).height(ep::kPH)
-                           .left(0).top(0)
-                           .transformOrigin(0, 0)
-                           .scale(ep::kScale))
-                // living film grain at panel-native resolution (outside the
-                // scaled subtree, so the noise stays pixel-sized)
-                .child(box().inset(0).zIndex(3)
-                           .fill(Material::sksl(ep::grainEffect()))
-                           .blend(SkBlendMode::kSoftLight)))
+        .child(box()
+                   .inset(ep::kPanelX, 0, ep::kPanelX, 0)
+                   .fill(Fill::color(ep::kInk))
+                   .clip()
+                   .child(poster()
+                              .width(ep::kPW)
+                              .height(ep::kPH)
+                              .left(0)
+                              .top(0)
+                              .transformOrigin(0, 0)
+                              .scale(ep::kScale))
+                   // living film grain at panel-native resolution (outside the
+                   // scaled subtree, so the noise stays pixel-sized)
+                   .child(box()
+                              .inset(0)
+                              .zIndex(3)
+                              .fill(Material::sksl(ep::grainEffect()))
+                              .blend(SkBlendMode::kSoftLight)))
         // caption in the left letterbox panel, fading in with the info line
-        .child(box().column().gap(4).left(24).bottom(28)
-                   .opacity(&fadeInfo)
-                   .child(text(toU8("EMBER GATE"),
-                               ep::type(13, ep::kAsh, 2)))
-                   .child(text(toU8("material-era living poster"),
-                               ep::type(11,
-                                        {ep::kAsh.fR, ep::kAsh.fG,
-                                         ep::kAsh.fB, 0.7f},
-                                        1))));
+        .child(
+            box()
+                .column()
+                .gap(4)
+                .left(24)
+                .bottom(28)
+                .opacity(&fadeInfo)
+                .child(text(toU8("EMBER GATE"), ep::type(13, ep::kAsh, 2)))
+                .child(text(
+                    toU8("material-era living poster"),
+                    ep::type(11, {ep::kAsh.fR, ep::kAsh.fG, ep::kAsh.fB, 0.7f},
+                             1))));
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

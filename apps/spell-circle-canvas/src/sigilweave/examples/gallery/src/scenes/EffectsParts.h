@@ -6,9 +6,9 @@
 // between them with the scene's "mode" choice parameter. Only the effects
 // family includes this header — it is not a general factory registry.
 
-#include "../include/GalleryScenes.h"
-
 #include <memory>
+
+#include "../include/GalleryScenes.h"
 
 namespace gallery {
 
@@ -19,4 +19,4 @@ std::unique_ptr<Scene> makeLoudShadersPart();
 /// The fully-placed 2,000-word paragraph with toggleable paint passes.
 std::unique_ptr<Scene> makeStressPart();
 
-} // namespace gallery
+}  // namespace gallery

@@ -13,8 +13,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /** A single timestamped message entry shown in the activity feed. */
 @interface SCKFeedEntry : NSObject
-@property(nonatomic, readonly, copy) NSString *timestamp; ///< ISO with ms
-@property(nonatomic, readonly, copy) NSString *source;    ///< ip:port
+@property(nonatomic, readonly, copy) NSString *timestamp;  ///< ISO with ms
+@property(nonatomic, readonly, copy) NSString *source;     ///< ip:port
 @property(nonatomic, readonly, copy) NSString *message;
 @end
 

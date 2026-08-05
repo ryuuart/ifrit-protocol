@@ -1,11 +1,11 @@
 // Scene: Knuth-Plass vs greedy, hyphenation, last-line modes.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkPaint.h>
 
 #include <array>
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -28,12 +28,11 @@ QString knuthPlassDefaultText() {
 }
 
 class KnuthPlassScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
     m_body.ensure(params, knuthPlassDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
@@ -93,7 +92,7 @@ public:
     return {layoutMicroseconds, runCount, 0};
   }
 
-private:
+ private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
   std::array<ParagraphLayout, 2> m_layouts;
@@ -109,8 +108,8 @@ SceneDescriptor makeKnuthPlassDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeKnuthPlassDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

@@ -1,6 +1,7 @@
 #pragma once
-#include "CanvasSceneBackend.h"
 #include <memory>
+
+#include "CanvasSceneBackend.h"
 
 class QRhi;
 
@@ -11,4 +12,4 @@ class QRhi;
  * GPU context creation failed. Callers never need to know which case they're
  * in beyond an ordinary null check.
  */
-std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi *rhi);
+std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi* rhi);

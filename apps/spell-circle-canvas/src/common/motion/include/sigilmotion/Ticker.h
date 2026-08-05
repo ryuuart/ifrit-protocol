@@ -1,11 +1,11 @@
 #pragma once
 
-#include "sigilmotion/Animation.h"
-
 #include <choreograph/Choreograph.h>
 
 #include <functional>
 #include <vector>
+
+#include "sigilmotion/Animation.h"
 
 namespace sigil::motion {
 
@@ -28,12 +28,12 @@ namespace sigil::motion {
  * from that domain's thread.
  */
 class Ticker {
-public:
+ public:
   Ticker();
 
   /** The master timeline. Finished motions are removed automatically so
    *  active() naturally settles to false. */
-  choreograph::Timeline &timeline() { return m_timeline; }
+  choreograph::Timeline& timeline() { return m_timeline; }
 
   /**
    * Registers an additional steppable — `fn(dt)` returns whether it
@@ -84,8 +84,8 @@ public:
   };
 
   void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8,
-                choreograph::Output<float> *alphaOut = nullptr,
-                FixedStatus *statusOut = nullptr);
+                choreograph::Output<float>* alphaOut = nullptr,
+                FixedStatus* statusOut = nullptr);
 
   /**
    * A DERIVED OUTPUT: `dst` is recomputed every tick as `chain` applied
@@ -132,7 +132,7 @@ public:
    *
    * @return true if registered; false (with a warning) when refused.
    */
-  bool derive(choreograph::Output<float> *dst, const Bound &chain);
+  bool derive(choreograph::Output<float>* dst, const Bound& chain);
 
   /** Steps the timeline and steppables by `deltaSeconds`, then the
    *  derivations (see derive() for the two-phase contract); returns
@@ -159,11 +159,11 @@ public:
    */
   double elapsed() const { return m_elapsed; }
 
-private:
+ private:
   /** One derived Output: the destination cell and the shaping applied to
    *  its source each tick. Stepped in phase two — see derive(). */
   struct Derivation {
-    choreograph::Output<float> *dst = nullptr;
+    choreograph::Output<float>* dst = nullptr;
     BoundFloat map;
   };
 
@@ -173,4 +173,4 @@ private:
   double m_elapsed = 0.0;
 };
 
-} // namespace sigil::motion
+}  // namespace sigil::motion

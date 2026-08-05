@@ -33,18 +33,16 @@
  * <sigilcompose/Ocio.h>) and applies to the whole composite.
  */
 
-#include "sigilcompose/Compose.h"
-
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
-#include <include/core/SkShader.h> // sk_sp<SkShader> data member
+#include <include/core/SkShader.h>  // sk_sp<SkShader> data member
 #include <include/core/SkString.h>
 #include <include/core/SkTileMode.h>
-#include <include/effects/SkRuntimeEffect.h> // the unit-space ramps
+#include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
 
 #include <array>
 #include <memory>
@@ -53,6 +51,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#include "sigilcompose/Compose.h"
 
 class SkBitmap;
 class SkImage;
@@ -64,7 +64,7 @@ namespace sigil::compose {
 struct Stop {
   float pos = 0.0f;
   SkColor4f color = {0, 0, 0, 1};
-  bool operator==(const Stop &) const = default;
+  bool operator==(const Stop&) const = default;
 };
 
 /** The caller-owned raster behind `Material::buffer()`: draw into
@@ -78,16 +78,16 @@ struct Stop {
  *
  *  Not thread-safe, deliberately: one owner, one writer. */
 class PixelBuffer {
-public:
+ public:
   PixelBuffer(int width, int height);
   ~PixelBuffer();
-  PixelBuffer(const PixelBuffer &) = delete;
-  PixelBuffer &operator=(const PixelBuffer &) = delete;
+  PixelBuffer(const PixelBuffer&) = delete;
+  PixelBuffer& operator=(const PixelBuffer&) = delete;
 
   /** The pixels, yours to write. N32 premul. */
-  SkBitmap &bitmap();
+  SkBitmap& bitmap();
   /** A raster canvas over the same pixels — the convenient writer. */
-  SkCanvas &canvas();
+  SkCanvas& canvas();
   /** PUBLISH the edit: the next describe carries the new revision and
    *  the reconciler repaints the material's node exactly once. */
   void commit() { ++m_revision; }
@@ -95,8 +95,8 @@ public:
   /** The current snapshot (copied from the bitmap once per revision). */
   sk_sp<SkImage> image();
 
-private:
-  struct State; // SkBitmap + SkCanvas live out of line (heavy includes)
+ private:
+  struct State;  // SkBitmap + SkCanvas live out of line (heavy includes)
   std::unique_ptr<State> m_state;
   uint64_t m_revision = 0;
   uint64_t m_snapshotRevision = ~0ull;
@@ -121,22 +121,22 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
  *  per-frame `resolve()` form and null the context-free `asShader()`
  *  snapshot — the same split every child site makes — and a solid collapses
  *  to a colour shader either way. */
-sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx);
+sk_sp<SkShader> childShader(const Material& source, const PaintContext* ctx);
 
 /** Does @p effect declare @p name as a `uniform shader`? Assigning a child
  *  an effect does not declare aborts in a debug build, so both child()
  *  doors — Material's and Effect's — validate at STORE time and then warn
  *  and ignore: one typo in a live-reloaded sketch must not take the host
  *  process down. */
-bool declaresShaderChild(const sk_sp<SkRuntimeEffect> &effect,
+bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
                          std::string_view name);
-} // namespace detail
+}  // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to
  *  Element::fill(). */
 class Material {
-public:
-  Material() = default; // none (fully transparent — draws nothing)
+ public:
+  Material() = default;  // none (fully transparent — draws nothing)
 
   // ---- leaves --------------------------------------------------------------
   static Material solid(SkColor4f color);
@@ -171,7 +171,7 @@ public:
   static Material image(sk_sp<SkImage> image,
                         SkTileMode tx = SkTileMode::kClamp,
                         SkTileMode ty = SkTileMode::kClamp,
-                        const SkMatrix &local = SkMatrix::I(),
+                        const SkMatrix& local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
   /** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING: a caller-owned raster the
    *  material samples — a simulation, a decoded video frame, a paint
@@ -185,7 +185,7 @@ public:
   static Material buffer(std::shared_ptr<class PixelBuffer> source,
                          SkTileMode tx = SkTileMode::kClamp,
                          SkTileMode ty = SkTileMode::kClamp,
-                         const SkMatrix &local = SkMatrix::I(),
+                         const SkMatrix& local = SkMatrix::I(),
                          SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
    *  once; bind live uniforms with uniform(name, &output) below, and fill
@@ -197,8 +197,9 @@ public:
    *  reading them IS the volatility declaration); declaring only
    *  `uResolution` takes the cheaper GEOMETRY tier (resolved when the node
    *  records, cached between layouts — see geometryDependent()). */
-  static Material sksl(sk_sp<SkRuntimeEffect> effect,
-                       std::vector<std::pair<std::string, float>> constants = {});
+  static Material sksl(
+      sk_sp<SkRuntimeEffect> effect,
+      std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
   static Material shader(sk_sp<SkShader> shader);
 
@@ -268,8 +269,8 @@ public:
                            std::vector<Stop> stops) {
     // half-diagonal = sqrt(2)/2 of the side on a square; the ratio a
     // caller wants is radius-in-half-diagonals = radius01 / sqrt(2).
-    return detail::unitRamp(center01, {radius01 * 0.70710678f,
-                                       radius01 * 0.70710678f},
+    return detail::unitRamp(center01,
+                            {radius01 * 0.70710678f, radius01 * 0.70710678f},
                             std::move(stops), true);
   }
 
@@ -292,14 +293,14 @@ public:
    *  Reach for sksl() when you want animatable uniforms. Materials are
    *  VALUES: uniform() copies-on-write, so binding on a copy never affects
    *  the material it was copied from. */
-  Material &uniform(std::string name, float value);
+  Material& uniform(std::string name, float value);
   /** Constant float2 uniform (`uniform float2` in the SkSL) — offsets,
    *  margins, direction vectors. */
-  Material &uniform(std::string name, std::array<float, 2> value);
+  Material& uniform(std::string name, std::array<float, 2> value);
   /** Constant float4 uniform set from a color (straight, not premultiplied —
    *  what the SkSL declares as `uniform float4`). */
-  Material &uniform(std::string name, SkColor4f value);
-  Material &uniform(std::string name, const choreograph::Output<float> *output);
+  Material& uniform(std::string name, SkColor4f value);
+  Material& uniform(std::string name, const choreograph::Output<float>* output);
 
   /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material. The effect
    *  declares `uniform shader NAME;` and this fills it with another
@@ -333,7 +334,7 @@ public:
    *  typo — and
    *  on a non-sksl() material there is nothing to fill — no-op with a
    *  warning. Copy-on-write like every other recipe mutation. */
-  Material &child(std::string name, Material source);
+  Material& child(std::string name, Material source);
 
   /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%".
    *
@@ -346,7 +347,7 @@ public:
    *  Read ONLY by blend(). A material used directly as a fill ignores it,
    *  because there is no accumulation to mix back toward. Participates in
    *  equality like every recipe field. */
-  Material &amount(float a01);
+  Material& amount(float a01);
 
   /** RECORDING-CULL RESERVE: how far this material's node paints beyond
    *  its own box, in px, declared with the same word a decoration uses.
@@ -358,7 +359,7 @@ public:
    *  recording cull only: it moves no pixels itself, and the default 0
    *  changes nothing. Participates in equality, since a changed reserve
    *  has to force a re-record. */
-  Material &bleed(float px);
+  Material& bleed(float px);
   /** The declared reserve (0 unless bleed() was set). */
   float bleed() const { return m_bleed; }
 
@@ -405,7 +406,7 @@ public:
    *  moving world-space field (W is not among the floats the group memo
    *  compares), so it drops to live paint there — conservative, never
    *  stale. */
-  Material &worldSpace(bool on = true);
+  Material& worldSpace(bool on = true);
   /** Is THIS material flagged world-space (the layer-local flag)? */
   bool worldSpace() const { return m_worldSpace; }
   /** Does this material — or any blend() layer or child() below it —
@@ -433,8 +434,8 @@ public:
    *  The BINDING is recipe and participates in operator== by pointer
    *  identity, like a bound fill; the values it resolves to belong to the
    *  system and never enter the prune comparison. */
-  Material &offset(const choreograph::Output<float> *x,
-                   const choreograph::Output<float> *y);
+  Material& offset(const choreograph::Output<float>* x,
+                   const choreograph::Output<float>* y);
   /** Does THIS material carry a bound offset (the layer-local answer)? */
   bool hasBoundOffset() const { return m_boundOffset[0] || m_boundOffset[1]; }
   /** The pan as of NOW — one pointer dereference per axis, 0 for a null
@@ -458,7 +459,7 @@ public:
    *  reads as sliding. Meaningful only on an sksl() material whose effect
    *  declares uTime; warned and ignored otherwise, and 0 restores
    *  continuous time. */
-  Material &quantizeTime(float hz);
+  Material& quantizeTime(float hz);
 
   // ---- resolution ----------------------------------------------------------
   /** THE VOLATILITY DECLARATION — the same word every decoration scheme
@@ -490,7 +491,7 @@ public:
   /** The current-frame fill: for a live material, rebuilds the shader from the
    *  bound Outputs + the PaintContext (uTime/uResolution/uContentScale); for a
    *  static one, exactly toFill(). What the painter calls for a live fill. */
-  Fill resolve(const PaintContext &ctx) const;
+  Fill resolve(const PaintContext& ctx) const;
 
   /** STRUCTURAL value equality — the prune signature. Two materials
    *  compare equal when they were built from the same recipe: solids by
@@ -510,44 +511,44 @@ public:
    *  above it misses. Compile the effect once — a function-local static,
    *  or a cache keyed on whatever varies — and hold the resulting Material
    *  rather than re-minting it. */
-  bool operator==(const Material &o) const;
+  bool operator==(const Material& o) const;
 
-private:
-  struct Live;   // sksl recipe (effect + constants + Output bindings)
-  struct Recipe; // comparable build recipe (gradients/image/blend)
+ private:
+  struct Live;    // sksl recipe (effect + constants + Output bindings)
+  struct Recipe;  // comparable build recipe (gradients/image/blend)
   /** @p worldSpace routes root anchoring through this ONE build. Three
    *  things follow from it: the digest of varying inputs gains W's six
    *  floats, because a digest cannot detect a change in an input it was
    *  never fed; uResolution becomes the root canvas size; and the built
    *  shader is wrapped in W⁻¹ BEFORE the memo stores it, so a field that
    *  is holding still keeps a stable shader pointer. */
-  static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx,
+  static sk_sp<SkShader> build(const Live& live, const PaintContext* ctx,
                                bool worldSpace = false);
   /** Fold a Blend recipe's layers into one shader — `ctx` null is the
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */
-  sk_sp<SkShader> foldBlend(const PaintContext *ctx) const;
+  sk_sp<SkShader> foldBlend(const PaintContext* ctx) const;
   /** The image shader rebuilt with the bound pan's CURRENT values
    *  post-translated onto the recipe matrix — one construction shared by
    *  resolve() and asShader(), so a bound-offset material cannot look
    *  different depending on which asked. */
   sk_sp<SkShader> pannedImageShader() const;
-  void detachLive(); // copy-on-write before any recipe mutation
+  void detachLive();  // copy-on-write before any recipe mutation
 
   bool m_isSolid = false;
-  bool m_worldSpace = false; // root-frame anchoring (see worldSpace())
-  float m_amount = 1.0f;     // blend-layer strength (see amount())
-  float m_bleed = 0.0f;      // recording-cull reserve (see bleed())
+  bool m_worldSpace = false;  // root-frame anchoring (see worldSpace())
+  float m_amount = 1.0f;      // blend-layer strength (see amount())
+  float m_bleed = 0.0f;       // recording-cull reserve (see bleed())
   // The bound pan (x, y) — see offset(). Recipe, by pointer identity.
-  std::array<const choreograph::Output<float> *, 2> m_boundOffset{};
+  std::array<const choreograph::Output<float>*, 2> m_boundOffset{};
   SkColor4f m_solid = {0, 0, 0, 0};
-  sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
-                                // sksl a constants-only snapshot (live paint
-                                // ignores it and goes through resolve())
-  std::shared_ptr<Live> m_live; // sksl recipe; LIVE iff it has Output bindings
-  std::shared_ptr<const Recipe> m_recipe; // comparable recipe (null for
-                                          // solid/none/raw-shader/sksl —
-                                          // those compare by their own state)
+  sk_sp<SkShader> m_shader;      // static resolution: null for solid/none; for
+                                 // sksl a constants-only snapshot (live paint
+                                 // ignores it and goes through resolve())
+  std::shared_ptr<Live> m_live;  // sksl recipe; LIVE iff it has Output bindings
+  std::shared_ptr<const Recipe> m_recipe;  // comparable recipe (null for
+                                           // solid/none/raw-shader/sksl —
+                                           // those compare by their own state)
 
   /** FIELD PIN. `operator==` is hand-written, in another translation unit,
    *  and a material that compares equal when it is not lets its node prune
@@ -556,9 +557,9 @@ private:
    *  member and stops compiling the moment one is added or removed, which
    *  forces the comparator to be revisited. It lives inside the class
    *  because the state is private. */
-  static void fieldPin(Material &v) {
-    auto &[isSolid, worldSpace, amount, bleed, boundOffset, solid, shader,
-           live, recipe] = v;
+  static void fieldPin(Material& v) {
+    auto& [isSolid, worldSpace, amount, bleed, boundOffset, solid, shader, live,
+           recipe] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(isSolid, worldSpace, amount, bleed,
                                             boundOffset, solid, shader, live,
@@ -569,7 +570,6 @@ private:
   }
 };
 
-
 namespace detail {
 
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
@@ -579,13 +579,10 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
   // fixed maximum — is not available: such a loop faults here, and main()
   // has to stay a single function. Generating per count also means there
   // is no arbitrary ceiling on stops below the uniform budget.
-  if (stops.empty())
-    return Material::solid(SkColor4f{0, 0, 0, 0});
-  if (stops.size() == 1)
-    return Material::solid(stops.front().color);
-  constexpr size_t kMaxStops = 256; // uniform budget, not a design limit
-  if (stops.size() > kMaxStops)
-    stops.resize(kMaxStops);
+  if (stops.empty()) return Material::solid(SkColor4f{0, 0, 0, 0});
+  if (stops.size() == 1) return Material::solid(stops.front().color);
+  constexpr size_t kMaxStops = 256;  // uniform budget, not a design limit
+  if (stops.size() > kMaxStops) stops.resize(kMaxStops);
   const size_t n = stops.size();
 
   struct Cached {
@@ -594,7 +591,7 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
   };
   static std::vector<Cached> cache;
   sk_sp<SkRuntimeEffect> fx;
-  for (const Cached &c : cache)
+  for (const Cached& c : cache)
     if (c.count == n) {
       fx = c.effect;
       break;
@@ -631,7 +628,8 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
              ") / max(uS" + p1 + " - uS" + p0 + ", 1e-6), 0.0, 1.0));\n";
     }
     src += "  return half4(half3(col.rgb) * half(col.a), half(col.a));\n}\n";
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
+    auto [effect, error] =
+        SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
     if (!effect) {
       SkDebugf("sigilcompose unitRamp shader (%zu stops): %s\n", n,
                error.c_str());
@@ -651,6 +649,6 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
   return m;
 }
 
-} // namespace detail
+}  // namespace detail
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

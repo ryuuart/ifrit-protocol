@@ -20,9 +20,8 @@
 // shake is DECLARED as a bound property and the runtime resolves it every
 // frame. The graphs are static leaves; nothing here re-describes.
 
-#include <sigilsketch/Sketch.h>
-
 #include <include/core/SkPathBuilder.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
@@ -31,13 +30,13 @@ using namespace sigil::compose::util;
 
 namespace {
 
-constexpr float kAmount = 60.0f;   // px of shake, and the graph's rails
-constexpr float kFrequency = 3.0f; // cycles per second of `seconds`
+constexpr float kAmount = 60.0f;    // px of shake, and the graph's rails
+constexpr float kFrequency = 3.0f;  // cycles per second of `seconds`
 constexpr uint32_t kSeedX = 1;
-constexpr uint32_t kSeedY = 2;     // <- make this 1 to see the diagonal
+constexpr uint32_t kSeedY = 2;  // <- make this 1 to see the diagonal
 constexpr int kOctaves[3] = {1, 3, 6};
 constexpr float kFalloff = 0.5f;
-constexpr float kWindow = 2.0f; // seconds of `seconds` on the x axis
+constexpr float kWindow = 2.0f;  // seconds of `seconds` on the x axis
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -54,7 +53,7 @@ const SkColor4f kRail{0.85f, 0.30f, 0.36f, 0.75f};
 const SkColor4f kTrace{0.36f, 0.82f, 0.72f, 1};
 const SkColor4f kTraceB{1.00f, 0.72f, 0.28f, 1};
 
-void strokePath(SkCanvas &canvas, const SkPath &path, SkColor4f color,
+void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
                 float width) {
   SkPaint paint;
   paint.setAntiAlias(true);
@@ -68,7 +67,7 @@ void strokePath(SkCanvas &canvas, const SkPath &path, SkColor4f color,
  *  a two-axis shake actually walks. Shared seeds put x == y, so the locus
  *  IS the line y = x — the layer slides on a diagonal and never shakes. */
 Element locus(BoundFloat wx, BoundFloat wy, SkColor4f color) {
-  return custom([wx, wy, color](SkCanvas &canvas, const PaintContext &paint) {
+  return custom([wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
            const float w = paint.size.width(), h = paint.size.height();
            const float cx = w * 0.5f, cy = h * 0.5f;
            const float k = std::min(w, h) * 0.5f / (kAmount * 1.15f);
@@ -94,7 +93,7 @@ Element locus(BoundFloat wx, BoundFloat wy, SkColor4f color) {
 /** ONE LANE, GRAPHED: p on x, the wiggled value on y, with the +-amount
  *  rails. This is exactly what the runtime feeds a bound property. */
 Element graph(BoundFloat w, SkColor4f color) {
-  return custom([w, color](SkCanvas &canvas, const PaintContext &paint) {
+  return custom([w, color](SkCanvas& canvas, const PaintContext& paint) {
            const float pw = paint.size.width(), ph = paint.size.height();
            const float cy = ph * 0.5f;
            const float k = (ph * 0.5f - 6.0f) / kAmount;
@@ -117,9 +116,9 @@ Element graph(BoundFloat w, SkColor4f color) {
       .cache(Cache::None);
 }
 
-Element panel(float width, float height, const char *title, const char *sub,
+Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
-  inner.inset(0); // the plot fills its frame
+  inner.inset(0);  // the plot fills its frame
   return box()
       .width(width)
       .column()
@@ -132,12 +131,12 @@ Element panel(float width, float height, const char *title, const char *sub,
       .child(text(toU8(sub), type(11, kDim)));
 }
 
-} // namespace
+}  // namespace
 
 struct WiggleShake : sigil::compose::sketch::Sketch {
   choreograph::Output<float> seconds{0};
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1120, 680);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
@@ -181,26 +180,24 @@ struct WiggleShake : sigil::compose::sketch::Sketch {
                        .top(16))
 
             // ---- the failure, and the fix -------------------------------
-            .child(box()
-                       .row()
-                       .left(30)
-                       .top(50)
-                       .gap(26)
-                       .child(panel(250, 250, "SHARED SEED \xc2\xb7 broken",
-                                    "x and y both seed 1 \xe2\x86\x92 y = x",
-                                    locus(shakeX.value(), sameY.value(),
-                                          kTraceB)))
-                       .child(panel(250, 250, "SEEDS 1 / 2 \xc2\xb7 a shake",
-                                    "two independent lanes",
-                                    locus(shakeX.value(), shakeY.value(),
-                                          kTrace)))
-                       .child(panel(250, 250, "the same lanes, LIVE",
-                                    "amber = shared seed, teal = 1 / 2",
-                                    stack()
-                                        .child(chip(shakeX, sameY, kTraceB,
-                                                    70))
-                                        .child(chip(shakeX, shakeY, kTrace,
-                                                    154)))))
+            .child(
+                box()
+                    .row()
+                    .left(30)
+                    .top(50)
+                    .gap(26)
+                    .child(panel(250, 250, "SHARED SEED \xc2\xb7 broken",
+                                 "x and y both seed 1 \xe2\x86\x92 y = x",
+                                 locus(shakeX.value(), sameY.value(), kTraceB)))
+                    .child(panel(250, 250, "SEEDS 1 / 2 \xc2\xb7 a shake",
+                                 "two independent lanes",
+                                 locus(shakeX.value(), shakeY.value(), kTrace)))
+                    .child(
+                        panel(250, 250, "the same lanes, LIVE",
+                              "amber = shared seed, teal = 1 / 2",
+                              stack()
+                                  .child(chip(shakeX, sameY, kTraceB, 70))
+                                  .child(chip(shakeX, shakeY, kTrace, 154)))))
 
             // ---- octaves change TEXTURE, not the bound ------------------
             .child(box()

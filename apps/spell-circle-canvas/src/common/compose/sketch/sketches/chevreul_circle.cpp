@@ -102,12 +102,12 @@
 //       src/common/compose/sketch/sketches/chevreul_circle.cpp \
 //       --frame /tmp/chevreul_circle.png --at 12.6
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkPixmap.h>
+#include <include/core/SkSurface.h>
+#include <include/core/SkTypeface.h>
 #include <sigilcompose/Debug.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
@@ -117,20 +117,17 @@
 #include <sigilcompose/Ocio.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPixmap.h>
-#include <include/core/SkSurface.h>
-#include <include/core/SkTypeface.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/Paragraph.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdarg>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -166,74 +163,90 @@ constexpr SkColor4f kWhite = hex(0xFFFFFF);
 // measurement run, not retyped.
 
 constexpr int kSectors = 72;
-constexpr float kSectorDeg = 360.0f / (float)kSectors; // 5.0 exactly
-constexpr float kRougeDeg = 90.0f;  // BUILT here; the scan measures 93.2
-constexpr float kScanRouge = 93.2f; // measured on the 1864 scan
+constexpr float kSectorDeg = 360.0f / (float)kSectors;  // 5.0 exactly
+constexpr float kRougeDeg = 90.0f;   // BUILT here; the scan measures 93.2
+constexpr float kScanRouge = 93.2f;  // measured on the 1864 scan
 constexpr float kScanVert = 273.2f;
 
 const std::array<uint32_t, 72> kCorrectedHex = {{
-    0xA04256, 0xA44556, 0xA74655, 0xAA4B55, 0xAC4C50, 0xAF504F,
-    0xBB5C50, 0xC46652, 0xC8684D, 0xCF6B4B, 0xD26C47, 0xDB7649,
-    0xE27847, 0xE77F48, 0xE8874C, 0xE78B4E, 0xE69054, 0xE59557,
-    0xE29B5B, 0xE2A361, 0xE1AA64, 0xE1B065, 0xE0B763, 0xDFBD61,
-    0xDDC360, 0xD8C861, 0xD3C560, 0xCDC360, 0xC4BE5E, 0xC0BF61,
-    0xB6BA60, 0xABB45D, 0xA1B262, 0x93AA63, 0x8AA265, 0x87A168,
-    0x819B6C, 0x79966C, 0x6E8F6D, 0x668A6C, 0x62886A, 0x5E876D,
-    0x5B8670, 0x588272, 0x578379, 0x527E7A, 0x4F7E85, 0x497786,
-    0x467184, 0x4C7389, 0x456780, 0x3F5C7B, 0x3D5578, 0x425579,
-    0x3F496F, 0x444B71, 0x47486C, 0x4A4B6F, 0x4B486C, 0x494567,
-    0x4E4768, 0x524667, 0x544667, 0x584867, 0x584562, 0x594360,
-    0x654361, 0x6F3E5C, 0x7B3E5A, 0x7D405B, 0x853E5A, 0x9B3C53,
+    0xA04256, 0xA44556, 0xA74655, 0xAA4B55, 0xAC4C50, 0xAF504F, 0xBB5C50,
+    0xC46652, 0xC8684D, 0xCF6B4B, 0xD26C47, 0xDB7649, 0xE27847, 0xE77F48,
+    0xE8874C, 0xE78B4E, 0xE69054, 0xE59557, 0xE29B5B, 0xE2A361, 0xE1AA64,
+    0xE1B065, 0xE0B763, 0xDFBD61, 0xDDC360, 0xD8C861, 0xD3C560, 0xCDC360,
+    0xC4BE5E, 0xC0BF61, 0xB6BA60, 0xABB45D, 0xA1B262, 0x93AA63, 0x8AA265,
+    0x87A168, 0x819B6C, 0x79966C, 0x6E8F6D, 0x668A6C, 0x62886A, 0x5E876D,
+    0x5B8670, 0x588272, 0x578379, 0x527E7A, 0x4F7E85, 0x497786, 0x467184,
+    0x4C7389, 0x456780, 0x3F5C7B, 0x3D5578, 0x425579, 0x3F496F, 0x444B71,
+    0x47486C, 0x4A4B6F, 0x4B486C, 0x494567, 0x4E4768, 0x524667, 0x544667,
+    0x584867, 0x584562, 0x594360, 0x654361, 0x6F3E5C, 0x7B3E5A, 0x7D405B,
+    0x853E5A, 0x9B3C53,
 }};
 
 const std::array<uint32_t, 72> kScannedHex = {{
-    0x963B48, 0x9A3E48, 0x9D3F47, 0x9F4347, 0xA14443, 0xA44842,
-    0xAF5343, 0xB85C44, 0xBC5E40, 0xC2613E, 0xC5623B, 0xCE6B3D,
-    0xD46D3B, 0xD9733C, 0xDA7A3F, 0xD97E41, 0xD88346, 0xD78749,
-    0xD48D4C, 0xD49451, 0xD39A54, 0xD3A055, 0xD2A653, 0xD1AC51,
-    0xCFB150, 0xCBB651, 0xC6B350, 0xC0B150, 0xB8AD4F, 0xB4AE51,
-    0xABA950, 0xA0A44E, 0x97A252, 0x8A9A53, 0x819355, 0x7E9257,
-    0x798D5B, 0x71885B, 0x67825C, 0x5F7D5B, 0x5C7B59, 0x587A5C,
-    0x55795E, 0x527660, 0x517766, 0x4C7267, 0x4A7270, 0x446C71,
-    0x41666F, 0x476874, 0x405D6C, 0x3B5368, 0x394D65, 0x3D4D66,
-    0x3B425D, 0x3F435F, 0x42415B, 0x45435D, 0x46415B, 0x443E56,
-    0x494057, 0x4C3F56, 0x4E3F56, 0x524156, 0x523E52, 0x533C50,
-    0x5E3C51, 0x68384D, 0x73384B, 0x75394C, 0x7D384B, 0x913645,
+    0x963B48, 0x9A3E48, 0x9D3F47, 0x9F4347, 0xA14443, 0xA44842, 0xAF5343,
+    0xB85C44, 0xBC5E40, 0xC2613E, 0xC5623B, 0xCE6B3D, 0xD46D3B, 0xD9733C,
+    0xDA7A3F, 0xD97E41, 0xD88346, 0xD78749, 0xD48D4C, 0xD49451, 0xD39A54,
+    0xD3A055, 0xD2A653, 0xD1AC51, 0xCFB150, 0xCBB651, 0xC6B350, 0xC0B150,
+    0xB8AD4F, 0xB4AE51, 0xABA950, 0xA0A44E, 0x97A252, 0x8A9A53, 0x819355,
+    0x7E9257, 0x798D5B, 0x71885B, 0x67825C, 0x5F7D5B, 0x5C7B59, 0x587A5C,
+    0x55795E, 0x527660, 0x517766, 0x4C7267, 0x4A7270, 0x446C71, 0x41666F,
+    0x476874, 0x405D6C, 0x3B5368, 0x394D65, 0x3D4D66, 0x3B425D, 0x3F435F,
+    0x42415B, 0x45435D, 0x46415B, 0x443E56, 0x494057, 0x4C3F56, 0x4E3F56,
+    0x524156, 0x523E52, 0x533C50, 0x5E3C51, 0x68384D, 0x73384B, 0x75394C,
+    0x7D384B, 0x913645,
 }};
 
 // The twelve named scales, §162's order. The hyphenated ones are set on the
 // plate as two stacked lines, and are so here.
 struct ScaleName {
-  const char *line1;
-  const char *line2; // "" = one line
+  const char* line1;
+  const char* line2;  // "" = one line
 };
 const std::array<ScaleName, 12> kNames = {{
-    {"ROUGE", ""},   {"ROUGE", "ORANGÉ"}, {"ORANGÉ", ""},
-    {"ORANGÉ", "JAUNE"}, {"JAUNE", ""},   {"JAUNE", "VERT"},
-    {"VERT", ""},    {"VERT", "BLEU"},    {"BLEU", ""},
-    {"BLEU", "VIOLET"},  {"VIOLET", ""},  {"VIOLET", "ROUGE"},
+    {"ROUGE", ""},
+    {"ROUGE", "ORANGÉ"},
+    {"ORANGÉ", ""},
+    {"ORANGÉ", "JAUNE"},
+    {"JAUNE", ""},
+    {"JAUNE", "VERT"},
+    {"VERT", ""},
+    {"VERT", "BLEU"},
+    {"BLEU", ""},
+    {"BLEU", "VIOLET"},
+    {"VIOLET", ""},
+    {"VIOLET", "ROUGE"},
 }};
-const std::array<const char *, 12> kFlatNames = {{
-    "ROUGE", "ROUGE-ORANGÉ", "ORANGÉ", "ORANGÉ-JAUNE", "JAUNE", "JAUNE-VERT",
-    "VERT", "VERT-BLEU", "BLEU", "BLEU-VIOLET", "VIOLET", "VIOLET-ROUGE",
+const std::array<const char*, 12> kFlatNames = {{
+    "ROUGE",
+    "ROUGE-ORANGÉ",
+    "ORANGÉ",
+    "ORANGÉ-JAUNE",
+    "JAUNE",
+    "JAUNE-VERT",
+    "VERT",
+    "VERT-BLEU",
+    "BLEU",
+    "BLEU-VIOLET",
+    "VIOLET",
+    "VIOLET-ROUGE",
 }};
 
 // Newton's seven, placed on Chevreul's twelve names (§5.4). kIndigo is a
 // READING, not a citation.
 constexpr int kNRed = 0, kNOrange = 12, kNYellow = 24, kNGreen = 36,
               kNBlue = 48, kNIndigo = 54, kNViolet = 60;
-const std::array<int, 7> kNewton = {{kNRed, kNOrange, kNYellow, kNGreen,
-                                     kNBlue, kNIndigo, kNViolet}};
-const std::array<const char *, 7> kNewtonName = {
+const std::array<int, 7> kNewton = {
+    {kNRed, kNOrange, kNYellow, kNGreen, kNBlue, kNIndigo, kNViolet}};
+const std::array<const char*, 7> kNewtonName = {
     {"RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "INDIGO", "VIOLET"}};
 
 // §21–§37, transcribed complete, in Chevreul's own plate order 1–17.
 struct Observation {
-  int plate;      // Chevreul's plate number
-  int a, b;       // index into kNewton
-  const char *modA;
-  const char *modB;
-  int para;       // paragraph
+  int plate;  // Chevreul's plate number
+  int a, b;   // index into kNewton
+  const char* modA;
+  const char* modB;
+  int para;  // paragraph
 };
 const std::array<Observation, 17> kObs = {{
     {1, 1, 0, "inclines to yellow", "inclines to violet", 26},
@@ -268,7 +281,8 @@ inline float toLinear(float c) {
 }
 inline float toSrgb(float c) {
   c = std::clamp(c, 0.0f, 1.0f);
-  return c <= 0.0031308f ? c * 12.92f : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+  return c <= 0.0031308f ? c * 12.92f
+                         : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
 }
 inline SkColor4f lerpLinear(SkColor4f a, SkColor4f b, float t) {
   return {toSrgb(toLinear(a.fR) + (toLinear(b.fR) - toLinear(a.fR)) * t),
@@ -314,17 +328,15 @@ inline int sepSectors(int a, int b) {
  *  normal tone of ROUGE is 15 on the 1..20 scale. */
 inline SkColor4f quadrantCell(SkColor4f hue, int k /*1..10*/, int t /*1..20*/) {
   const SkColor4f broken = lerpLinear(hue, kBlack, (float)k / 10.0f);
-  if (t < 15)
-    return lerpLinear(broken, kWhite, (float)(15 - t) / 14.0f);
-  if (t > 15)
-    return lerpLinear(broken, kBlack, (float)(t - 15) / 5.0f);
+  if (t < 15) return lerpLinear(broken, kWhite, (float)(15 - t) / 14.0f);
+  if (t > 15) return lerpLinear(broken, kBlack, (float)(t - 15) / 5.0f);
   return broken;
 }
 
 /** Chevreul's own prediction (§18, §20), made numeric: nudge a colour
  *  toward the complement of its neighbour, in linear light. */
 inline SkColor4f predicted(SkColor4f self, int neighbourSector,
-                           const std::array<SkColor4f, 72> &wheel,
+                           const std::array<SkColor4f, 72>& wheel,
                            float amount = 0.22f) {
   return lerpLinear(self, wheel[(size_t)complementOf(neighbourSector)], amount);
 }
@@ -332,39 +344,37 @@ inline SkColor4f predicted(SkColor4f self, int neighbourSector,
 // ---------------------------------------------------------------------------
 // typography
 
-inline sk_sp<SkTypeface> face(const char *family, SkFontStyle style,
-                              const char *fallback) {
+inline sk_sp<SkTypeface> face(const char* family, SkFontStyle style,
+                              const char* fallback) {
   auto mgr = weave::ports::systemFontManager();
-  if (!mgr)
-    return nullptr;
+  if (!mgr) return nullptr;
   sk_sp<SkTypeface> t = mgr->matchFamilyStyle(family, style);
-  if (!t && fallback)
-    t = mgr->matchFamilyStyle(fallback, style);
-  if (!t)
-    t = mgr->matchFamilyStyle(nullptr, style);
+  if (!t && fallback) t = mgr->matchFamilyStyle(fallback, style);
+  if (!t) t = mgr->matchFamilyStyle(nullptr, style);
   return t;
 }
-inline const sk_sp<SkTypeface> &serif() {
+inline const sk_sp<SkTypeface>& serif() {
   static sk_sp<SkTypeface> f =
       face("Baskerville", SkFontStyle::Normal(), "Times New Roman");
   return f;
 }
-inline const sk_sp<SkTypeface> &serifIt() {
+inline const sk_sp<SkTypeface>& serifIt() {
   static sk_sp<SkTypeface> f =
       face("Baskerville", SkFontStyle::Italic(), "Times New Roman");
   return f;
 }
-inline const sk_sp<SkTypeface> &serifBold() {
+inline const sk_sp<SkTypeface>& serifBold() {
   static sk_sp<SkTypeface> f =
       face("Baskerville", SkFontStyle::Bold(), "Times New Roman");
   return f;
 }
-inline const sk_sp<SkTypeface> &mono() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal(), "Courier New");
+inline const sk_sp<SkTypeface>& mono() {
+  static sk_sp<SkTypeface> f =
+      face("Menlo", SkFontStyle::Normal(), "Courier New");
   return f;
 }
 
-inline weave::TextStyle ty(const sk_sp<SkTypeface> &tf, float size,
+inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            SkColor4f color, float track = 0) {
   weave::TextStyle s;
   s.shaping.typeface = tf;
@@ -387,8 +397,8 @@ inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
   return ty(mono(), sz, c, tr);
 }
 
-inline std::u8string U(const std::string &s) { return toU8(s); }
-inline std::string fmt(const char *f, ...) {
+inline std::u8string U(const std::string& s) { return toU8(s); }
+inline std::string fmt(const char* f, ...) {
   char buf[512];
   va_list ap;
   va_start(ap, f);
@@ -397,7 +407,9 @@ inline std::string fmt(const char *f, ...) {
   return std::string(buf);
 }
 inline std::string hexOf(SkColor4f c) {
-  auto q = [](float v) { return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f); };
+  auto q = [](float v) {
+    return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f);
+  };
   return fmt("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
 }
 
@@ -405,19 +417,22 @@ inline std::string hexOf(SkColor4f c) {
 inline Element at(float x, float y, float w, float h) {
   return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
 }
-inline Element label(const std::string &s, const weave::TextStyle &st, float x,
+inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.7f).child(text(U(s), st));
 }
-inline Element centred(const std::string &s, const weave::TextStyle &st,
+inline Element centred(const std::string& s, const weave::TextStyle& st,
                        float x, float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.7f)
-      .child(text(U(s), st).textAlign(weave::TextAlignment::kCenter).width(Dim(w)));
+      .child(text(U(s), st)
+                 .textAlign(weave::TextAlignment::kCenter)
+                 .width(Dim(w)));
 }
-inline Element rightAt(const std::string &s, const weave::TextStyle &st,
+inline Element rightAt(const std::string& s, const weave::TextStyle& st,
                        float x, float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.7f)
-      .child(text(U(s), st).textAlign(weave::TextAlignment::kEnd).width(Dim(w)));
+      .child(
+          text(U(s), st).textAlign(weave::TextAlignment::kEnd).width(Dim(w)));
 }
 
 /** The rim baseline: a circle wound COUNTER-CLOCKWISE and starting at
@@ -487,7 +502,8 @@ struct Verdict {
   float hueWorst = 0;
   int hueWorstAt = -1;
   // 8 — the diameters
-  float missOrigin = 0, missOriginMax = 0, missCentroid = 0, missCentroidMax = 0;
+  float missOrigin = 0, missOriginMax = 0, missCentroid = 0,
+        missCentroidMax = 0;
   float centA = 0, centB = 0, meanChroma = 0, missPercent = 0;
   // 9 — luminosity
   float yJaune = 0, yBleu = 0, yRouge = 0;
@@ -507,7 +523,7 @@ struct Verdict {
   std::string ocioSample = "—";
 };
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -521,13 +537,13 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   static constexpr float kInner = 0.34f;     // the paper medallion
   static constexpr float kRLimbIn = 296.0f;
   static constexpr float kRLimbOut = 328.0f;
-  static constexpr float kRSweepIn = 333.0f; // the continuous-sweep ring
+  static constexpr float kRSweepIn = 333.0f;  // the continuous-sweep ring
   static constexpr float kRSweepOut = 344.0f;
 
   // the staircases
   static constexpr float kBandW = 44.0f;
   static constexpr int kBandN = 20;
-  static constexpr float kStairX = 860.0f;   // 20 x 44 = 880, integer, exact
+  static constexpr float kStairX = 860.0f;  // 20 x 44 = 880, integer, exact
   static constexpr float kStairYA = 566.0f;
   static constexpr float kStairYB = 646.0f;
   static constexpr float kStairYC = 726.0f;
@@ -576,24 +592,26 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     }
   }
 
-  void verify(sketch::SketchContext &ctx) {
+  void verify(sketch::SketchContext& ctx) {
     // --- 1. the circle closes, two ways -----------------------------
     v.named = 12;
-    v.perNamed = 6; // one named + five numbered intermediates
+    v.perNamed = 6;  // one named + five numbered intermediates
     v.closes1 = v.named * v.perNamed;
-    v.closes2 = 3 + 3 * 23; // colorants.hypotheses.org's framing
-    derivation1 = fmt("120/2 = 60  ->  60/2 = 30  ->  30/5 = 6 deg;  "
-                      "360/6 = %d sectors of %.1f deg",
-                      360 / 6 * 1, kSectorDeg);
+    v.closes2 = 3 + 3 * 23;  // colorants.hypotheses.org's framing
+    derivation1 =
+        fmt("120/2 = 60  ->  60/2 = 30  ->  30/5 = 6 deg;  "
+            "360/6 = %d sectors of %.1f deg",
+            360 / 6 * 1, kSectorDeg);
     // (the arithmetic, spelled the way §161 builds it)
-    derivation1 = fmt("3 arcs of 120 -> 6 of 60 -> 12 of 30, each divided "
-                      "in 5: 12 + 60 = %d",
-                      v.closes1);
+    derivation1 =
+        fmt("3 arcs of 120 -> 6 of 60 -> 12 of 30, each divided "
+            "in 5: 12 + 60 = %d",
+            v.closes1);
 
     // --- 2. the system total (§163-§165) ----------------------------
-    const long plane = 72L * 20L;          // the circle's own plane
-    const long broken = 9L * 72L * 20L;    // nine radii broken by tenths
-    const long grey = 20L;                 // the tenth radius, normal grey
+    const long plane = 72L * 20L;        // the circle's own plane
+    const long broken = 9L * 72L * 20L;  // nine radii broken by tenths
+    const long grey = 20L;               // the tenth radius, normal grey
     v.total = plane + broken + grey;
     derivation2 = fmt("72 x 20 = %ld  +  9 x 72 x 20 = %ld  +  20 grey  =  %ld",
                       plane, broken, v.total);
@@ -602,14 +620,17 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     v.plateDelta = kScanVert - kScanRouge;
 
     // --- 4. §6's four statements against §161's +36 rule ------------
-    struct Claim { int a, b; const char *text; };
+    struct Claim {
+      int a, b;
+      const char* text;
+    };
     const std::array<Claim, 4> claims = {{
         {kNRed, kNGreen, "Red / Green"},
         {kNOrange, kNBlue, "Orange / Blue"},
         {18 /*ORANGE-JAUNE*/, 54 /*BLEU-VIOLET*/, "Orange-Yellow / Indigo"},
         {30 /*JAUNE-VERT*/, 60 /*VIOLET*/, "Greenish-Yellow / Violet"},
     }};
-    for (const Claim &c : claims) {
+    for (const Claim& c : claims) {
       const int want = complementOf(c.a);
       const int off = sepSectors(want, c.b);
       if (off == 0)
@@ -622,7 +643,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // --- 5. the seventeen are all of them ---------------------------
     std::array<std::array<bool, 7>, 7> inTable{};
-    for (const Observation &o : kObs) {
+    for (const Observation& o : kObs) {
       inTable[(size_t)o.a][(size_t)o.b] = true;
       inTable[(size_t)o.b][(size_t)o.a] = true;
     }
@@ -631,11 +652,11 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     auto mark = [&](int i, int j) {
       byProse[(size_t)i][(size_t)j] = byProse[(size_t)j][(size_t)i] = true;
     };
-    mark(0, 3); // §6  Red / Green
-    mark(1, 4); // §6  Orange / Blue
-    mark(2, 6); // §6  Greenish-Yellow / Violet
-    mark(2, 5); // §29-§36 "the complementary of Yellow (Indigo inclining
-                //          to violet)"
+    mark(0, 3);  // §6  Red / Green
+    mark(1, 4);  // §6  Orange / Blue
+    mark(2, 6);  // §6  Greenish-Yellow / Violet
+    mark(2, 5);  // §29-§36 "the complementary of Yellow (Indigo inclining
+                 //          to violet)"
     v.pairs21 = 0;
     v.byName = v.byStrict = v.byLoose = 0;
     v.nameSetMatches = true;
@@ -643,12 +664,9 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       for (int j = i + 1; j < 7; ++j) {
         ++v.pairs21;
         const int sep = sepSectors(kNewton[(size_t)i], kNewton[(size_t)j]);
-        if (!byProse[(size_t)i][(size_t)j])
-          ++v.byName;
-        if (sep != 36)
-          ++v.byStrict;
-        if (sep < 30)
-          ++v.byLoose;
+        if (!byProse[(size_t)i][(size_t)j]) ++v.byName;
+        if (sep != 36) ++v.byStrict;
+        if (sep < 30) ++v.byLoose;
         // the sharp version: the prose set must be EXACTLY the absent set
         if (byProse[(size_t)i][(size_t)j] == inTable[(size_t)i][(size_t)j])
           v.nameSetMatches = false;
@@ -657,7 +675,8 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // --- 6/7. the measured hues wind once, and not evenly -----------
     std::array<float, 72> hab{}, steps{};
     for (int n = 0; n < 72; ++n) {
-      float h = std::atan2(lab[(size_t)n].b, lab[(size_t)n].a) * 180.0f / 3.14159265f;
+      float h =
+          std::atan2(lab[(size_t)n].b, lab[(size_t)n].a) * 180.0f / 3.14159265f;
       if (h < 0) h += 360.0f;
       hab[(size_t)n] = h;
     }
@@ -669,7 +688,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       if (d > 180.0f) d -= 360.0f;
       steps[(size_t)n] = d;
       if (d > 0) ++v.huePositive;
-      if (d < v.hueWorst) { v.hueWorst = d; v.hueWorstAt = n; }
+      if (d < v.hueWorst) {
+        v.hueWorst = d;
+        v.hueWorstAt = n;
+      }
     }
     v.hueSum = 0;
     v.hueMin = 1e9f;
@@ -686,14 +708,18 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // --- 8. the diameters, against two candidate centres ------------
     v.centA = v.centB = 0;
-    for (const Lab &l : lab) { v.centA += l.a; v.centB += l.b; }
+    for (const Lab& l : lab) {
+      v.centA += l.a;
+      v.centB += l.b;
+    }
     v.centA /= 72.0f;
     v.centB /= 72.0f;
     v.meanChroma = 0;
-    for (const Lab &l : lab) v.meanChroma += std::hypot(l.a, l.b);
+    for (const Lab& l : lab) v.meanChroma += std::hypot(l.a, l.b);
     v.meanChroma /= 72.0f;
-    auto chordMiss = [&](float px, float py, float &mean, float &worst) {
-      mean = 0; worst = 0;
+    auto chordMiss = [&](float px, float py, float& mean, float& worst) {
+      mean = 0;
+      worst = 0;
       for (int n = 0; n < 36; ++n) {
         const Lab &A = lab[(size_t)n], &B = lab[(size_t)(n + 36)];
         const float dx = B.a - A.a, dy = B.b - A.b;
@@ -718,7 +744,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 12; ++i)
       if (i != 4 && luminance(corrected[(size_t)(i * 6)]) > v.yJaune)
         v.jauneHighest = false;
-    v.bleuDarker = v.yBleu < v.yRouge; // §160 says it should be
+    v.bleuDarker = v.yBleu < v.yRouge;  // §160 says it should be
 
     // --- 10. the staircase, read back off a raster surface ----------
     //     Done FIRST of the drawing checks and before anything else is
@@ -753,21 +779,22 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
             for (int x = x0 + 6; x < x0 + (int)kBandW - 6; x += 2)
               for (int y = 6; y < 26; y += 2) {
                 const SkColor got = pm.getColor(x, y);
-                dev = std::max({dev,
-                                std::abs((int)SkColorGetR(got) - (int)SkColorGetR(want)),
-                                std::abs((int)SkColorGetG(got) - (int)SkColorGetG(want)),
-                                std::abs((int)SkColorGetB(got) - (int)SkColorGetB(want))});
+                dev = std::max(
+                    {dev,
+                     std::abs((int)SkColorGetR(got) - (int)SkColorGetR(want)),
+                     std::abs((int)SkColorGetG(got) - (int)SkColorGetG(want)),
+                     std::abs((int)SkColorGetB(got) - (int)SkColorGetB(want))});
                 const double lum = SkColorGetG(got);
                 sum += lum;
                 sum2 += lum * lum;
                 ++cnt;
               }
             const double mean = cnt ? sum / cnt : 0.0;
-            const double var = cnt ? std::max(0.0, sum2 / cnt - mean * mean) : 0.0;
+            const double var =
+                cnt ? std::max(0.0, sum2 / cnt - mean * mean) : 0.0;
             v.bandSigmaMax = std::max(v.bandSigmaMax, (float)std::sqrt(var));
             v.bandMaxDev = std::max(v.bandMaxDev, dev);
-            if (dev == 0)
-              ++v.bandsExact;
+            if (dev == 0) ++v.bandsExact;
           }
         }
       }
@@ -784,10 +811,12 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       std::vector<SkPath> pieces;
       pieces.reserve(73);
       for (int n = 0; n < 72; ++n)
-        pieces.push_back(shapes::sector(sectorStart(n), kSectorDeg, kInner)(sz));
+        pieces.push_back(
+            shapes::sector(sectorStart(n), kSectorDeg, kInner)(sz));
       SkPathBuilder hub;
-      hub.addOval(SkRect::MakeXYWH(kRColour * (1 - kInner), kRColour * (1 - kInner),
-                                   2 * kRColour * kInner, 2 * kRColour * kInner));
+      hub.addOval(
+          SkRect::MakeXYWH(kRColour * (1 - kInner), kRColour * (1 - kInner),
+                           2 * kRColour * kInner, 2 * kRColour * kInner));
       pieces.push_back(hub.detach());
       SkPathBuilder region;
       region.addOval(SkRect::MakeWH(sz.width(), sz.height()));
@@ -825,8 +854,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
           const auto pos = quadPool->positions();
           const auto tints = quadPool->tints();
           for (size_t i = 0; i < pos.size(); ++i) {
-            const SkColor got =
-                pm.getColor((int)pos[i].fX, (int)pos[i].fY);
+            const SkColor got = pm.getColor((int)pos[i].fX, (int)pos[i].fY);
             const SkColor want = tints[i].toSkColor();
             const int dev = std::max(
                 {std::abs((int)SkColorGetR(got) - (int)SkColorGetR(want)),
@@ -834,8 +862,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                  std::abs((int)SkColorGetB(got) - (int)SkColorGetB(want))});
             ++v.tintCells;
             v.tintMaxDev = std::max(v.tintMaxDev, dev);
-            if (dev == 0)
-              ++v.tintExact;
+            if (dev == 0) ++v.tintExact;
           }
         }
       }
@@ -878,8 +905,8 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     quadAtlas = std::make_shared<instancing::Atlas>(2.0f);
     // ONE white cell. Every one of the 200 colours arrives as a tint, which
     // is precisely the fidelity question nobody had asked of this path.
-    quadFrame = quadAtlas->cell(box().fill(Fill::color(kWhite)),
-                                {kQCellW, kQCellH});
+    quadFrame =
+        quadAtlas->cell(box().fill(Fill::color(kWhite)), {kQCellW, kQCellH});
     quadPool = std::make_shared<instancing::Pool>();
     quadPool->resize(200);
     auto pos = quadPool->positions();
@@ -900,12 +927,12 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     auto ok = [](bool b) { return b ? "OK" : "FAIL"; };
     verifyLines.clear();
     verifyFail.clear();
-    auto add = [&](const std::string &s, bool fail) {
+    auto add = [&](const std::string& s, bool fail) {
       verifyLines.push_back(s);
       verifyFail.push_back(fail);
     };
-    add(fmt("CIRCLE CLOSES     %d named x %d = %d      3 + 3x23 = %d",
-            v.named, v.perNamed, v.closes1, v.closes2),
+    add(fmt("CIRCLE CLOSES     %d named x %d = %d      3 + 3x23 = %d", v.named,
+            v.perNamed, v.closes1, v.closes2),
         !(v.closes1 == 72 && v.closes2 == 72));
     add(fmt("SYSTEM TOTAL      72 x 20 x 10 + 20 grey = %ld", v.total),
         v.total != 14420);
@@ -951,14 +978,16 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     weave::ParagraphBuilder b(body);
     // SigilWeave breaks at SOFT HYPHENS only, so the discretionaries are
     // typed in the way a compositor would set them.
-    b.addText(u8"“In the case where the eye sees at the same time two "
-              u8"con­tigu­ous col­ours, they will appear as "
-              u8"dis­sim­i­lar as pos­si­ble, both "
-              u8"in their op­ti­cal com­po­si­tion "
-              u8"and in the height of their tone.”  ");
+    b.addText(
+        u8"“In the case where the eye sees at the same time two "
+        u8"con­tigu­ous col­ours, they will appear as "
+        u8"dis­sim­i­lar as pos­si­ble, both "
+        u8"in their op­ti­cal com­po­si­tion "
+        u8"and in the height of their tone.”  ");
     b.pushStyle(it(11, kInk2));
-    b.addText(u8"— M. E. Chevreul, §16, De la loi du contraste simultané des "
-              u8"couleurs, 1839; trans. Charles Martel.");
+    b.addText(
+        u8"— M. E. Chevreul, §16, De la loi du contraste simultané des "
+        u8"couleurs, 1839; trans. Charles Martel.");
     lawPara = std::make_shared<weave::Paragraph>(b.build());
   }
 
@@ -980,7 +1009,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  Element theWheel(sketch::SketchContext &ctx) {
+  Element theWheel(sketch::SketchContext& ctx) {
     Element g = box();
 
     // the panel's own shadow, attached FIRST so the fill paints over it
@@ -1013,7 +1042,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       g.child(disc(kC, kRColour)
                   .key("sector" + std::to_string(n))
                   .shape(shapes::sector(sectorStart(n) - 0.125f,
-                                          kSectorDeg + 0.25f, kInner))
+                                        kSectorDeg + 0.25f, kInner))
                   .fill(Fill::color(corrected[(size_t)n]))
                   .transformOrigin(0.5f, 0.5f)
                   .opacity(bind(&demo).window(lo, lo + 0.010f))
@@ -1072,7 +1101,13 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                 .stroke(stroke(1.0f, Fill::color(kRule))));
     {
       // the plate's own engraved caption, five lines, its own line breaks
-      struct Cap { const char *s; float size; float track; bool bold; float dy; };
+      struct Cap {
+        const char* s;
+        float size;
+        float track;
+        bool bold;
+        float dy;
+      };
       const std::array<Cap, 6> caps = {{
           {"1er", 11, 0, false, -66},
           {"CERCLE CHROMATIQUE", 13.5f, 0.7f, false, -46},
@@ -1082,7 +1117,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
           {"LES·COULEURS·FRANCHES.", 9.5f, 0.5f, false, 36},
       }};
       for (size_t i = 0; i < caps.size(); ++i) {
-        const Cap &c = caps[i];
+        const Cap& c = caps[i];
         g.child(centred(c.s,
                         c.bold ? sbd(c.size, kInk, c.track)
                                : sr(c.size, kInk, c.track),
@@ -1107,17 +1142,18 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // which is what compose::metrics() is for. Guessing it puts every one
     // of the seventy-two labels half a cap off centre.
     const float capName =
-        ctx.fonts ? sigil::compose::metrics(nameSt, *ctx.fonts).capHeight : 6.0f;
+        ctx.fonts ? sigil::compose::metrics(nameSt, *ctx.fonts).capHeight
+                  : 6.0f;
     const float capNum =
         ctx.fonts ? sigil::compose::metrics(numSt, *ctx.fonts).capHeight : 6.6f;
     for (int n = 0; n < 72; ++n) {
-      const float f = (float)n / 72.0f; // exact, by construction of rimBaseline
+      const float f =
+          (float)n / 72.0f;  // exact, by construction of rimBaseline
       const float lo = 0.20f + 0.0009f * (float)n;
       static const bool kNoLimb = std::getenv("CHEVREUL_NOLIMB") != nullptr;
-      auto run = [&](const std::string &s, const weave::TextStyle &st,
-                     float offset, const std::string &key) {
-        if (kNoLimb)
-          return;
+      auto run = [&](const std::string& s, const weave::TextStyle& st,
+                     float offset, const std::string& key) {
+        if (kNoLimb) return;
         // The BASELINE resolves against the text node's OWN laid-out box, so
         // the run has to be the disc-sized element itself; wrapping it in a
         // sized parent silently collapses all 72 labels onto one point.
@@ -1135,7 +1171,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                     .opacity(bind(&demo).window(lo, lo + 0.02f)));
       };
       if (n % 6 == 0) {
-        const ScaleName &nm = kNames[(size_t)(n / 6)];
+        const ScaleName& nm = kNames[(size_t)(n / 6)];
         if (nm.line2[0] == '\0') {
           run(nm.line1, nameSt, -capName * 0.5f, "nm" + std::to_string(n));
         } else {
@@ -1204,7 +1240,8 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     {
       const float x0 = 58, y0 = 762, w = 19, h = 21;
       Element ins = box();
-      ins.child(label("161 YEARS OF PAPER", mn(7.0f, kInk2, 0.5f), x0, y0 - 14, 200));
+      ins.child(
+          label("161 YEARS OF PAPER", mn(7.0f, kInk2, 0.5f), x0, y0 - 14, 200));
       for (int i = 0; i < 8; ++i) {
         const int n = i * 9;
         ins.child(at(x0 + (float)i * (w + 1), y0, w, h)
@@ -1246,16 +1283,17 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   // ------------------------------------------------------------------
   Element theQuadrant() {
     Element g = box();
-    g.child(label("CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY "
-                  "TONES = 200 CELLS",
-                  mn(9.0f, kInk, 0.6f), 56, 918, 760));
+    g.child(
+        label("CHEVREUL'S QUADRANT · §163–§165 · ROUGE, TEN RADII × TWENTY "
+              "TONES = 200 CELLS",
+              mn(9.0f, kInk, 0.6f), 56, 918, 760));
     const float gw = 10 * (kQCellW + kQGapX) - kQGapX;
     const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
 
     // column heads
-    const std::array<const char *, 10> heads = {
-        {"1/10", "2/10", "3/10", "4/10", "5/10", "6/10", "7/10", "8/10", "9/10",
-         "NOIR"}};
+    const std::array<const char*, 10> heads = {{"1/10", "2/10", "3/10", "4/10",
+                                                "5/10", "6/10", "7/10", "8/10",
+                                                "9/10", "NOIR"}};
     for (int k = 0; k < 10; ++k)
       g.child(centred(heads[(size_t)k], mn(6.5f, kInk2, 0.2f),
                       kQX + (float)k * (kQCellW + kQGapX), 936, kQCellW)
@@ -1291,42 +1329,46 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   Element theLabPlot() {
     const float x0 = 852, y0 = 136, S = 380;
     const float cx = x0 + S * 0.5f, cy = y0 + 24 + (S - 48) * 0.5f;
-    const float scale = (S - 96) * 0.5f / 60.0f; // a* b* -60..+60
+    const float scale = (S - 96) * 0.5f / 60.0f;  // a* b* -60..+60
     auto P = [&](float a, float b) {
       return SkPoint{cx + a * scale, cy - b * scale};
     };
     Element g = box();
     g.child(at(x0, y0, S, S)
                 .fill(Fill::color(kWell))
-                .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
+                .foreground(
+                    stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
     g.child(label("CIELAB a* b* · THE 72 MEASURED COLOURS · 36 DIAMETERS",
                   mn(8.5f, kInk, 0.5f), x0 + 10, y0 + 6, S - 20));
 
     // axes and ticks, drawn on hand-built geometry through the brush
     // vocabulary — decorations::paintOn is the seam for that.
-    g.child(at(x0, y0, S, S).fill(Fill::none()).child(
-        custom([=](SkCanvas &c, const PaintContext &pc) {
-          SkPathBuilder ax;
-          for (int t = -60; t <= 60; t += 20) {
-            const SkPoint a = P((float)t, -60), b = P((float)t, 60);
-            ax.moveTo(a.fX - x0, a.fY - y0);
-            ax.lineTo(b.fX - x0, b.fY - y0);
-            const SkPoint c0 = P(-60, (float)t), d0 = P(60, (float)t);
-            ax.moveTo(c0.fX - x0, c0.fY - y0);
-            ax.lineTo(d0.fX - x0, d0.fY - y0);
-          }
-          decorations::paintOn(c, pc, ax.detach(),
-                               stroke(0.5f, Fill::color(hex(0x8C8578, 0.35f))));
-          SkPathBuilder cross;
-          const SkPoint o = P(0, 0);
-          cross.moveTo(o.fX - x0 - 9, o.fY - y0);
-          cross.lineTo(o.fX - x0 + 9, o.fY - y0);
-          cross.moveTo(o.fX - x0, o.fY - y0 - 9);
-          cross.lineTo(o.fX - x0, o.fY - y0 + 9);
-          decorations::paintOn(c, pc, cross.detach(),
-                               stroke(1.2f, Fill::color(kInk)));
-        })
-            .inset(0)));
+    g.child(at(x0, y0, S, S)
+                .fill(Fill::none())
+                .child(custom([=](SkCanvas& c, const PaintContext& pc) {
+                         SkPathBuilder ax;
+                         for (int t = -60; t <= 60; t += 20) {
+                           const SkPoint a = P((float)t, -60),
+                                         b = P((float)t, 60);
+                           ax.moveTo(a.fX - x0, a.fY - y0);
+                           ax.lineTo(b.fX - x0, b.fY - y0);
+                           const SkPoint c0 = P(-60, (float)t),
+                                         d0 = P(60, (float)t);
+                           ax.moveTo(c0.fX - x0, c0.fY - y0);
+                           ax.lineTo(d0.fX - x0, d0.fY - y0);
+                         }
+                         decorations::paintOn(
+                             c, pc, ax.detach(),
+                             stroke(0.5f, Fill::color(hex(0x8C8578, 0.35f))));
+                         SkPathBuilder cross;
+                         const SkPoint o = P(0, 0);
+                         cross.moveTo(o.fX - x0 - 9, o.fY - y0);
+                         cross.lineTo(o.fX - x0 + 9, o.fY - y0);
+                         cross.moveTo(o.fX - x0, o.fY - y0 - 9);
+                         cross.lineTo(o.fX - x0, o.fY - y0 + 9);
+                         decorations::paintOn(c, pc, cross.detach(),
+                                              stroke(1.2f, Fill::color(kInk)));
+                       }).inset(0)));
 
     // the 36 chords, drawing in one at a time
     for (int n = 0; n < 36; ++n) {
@@ -1383,10 +1425,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   Element chordCounter() {
     const float x0 = 852, y0 = 136, S = 380;
     Element g = box();
-    g.child(label(counterText, mn(8.0f, kRed, 0.2f), x0 + 10, y0 + S - 32,
-                  S - 20));
-    g.child(label(fmt("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",
-                      v.centA, v.centB, v.meanChroma),
+    g.child(
+        label(counterText, mn(8.0f, kRed, 0.2f), x0 + 10, y0 + S - 32, S - 20));
+    g.child(label(fmt("centroid a* %.2f  b* %.2f   ·   mean C* %.1f", v.centA,
+                      v.centB, v.meanChroma),
                   mn(7.5f, kInk2, 0.2f), x0 + 10, y0 + S - 18, S - 20));
     return g;
   }
@@ -1397,12 +1439,13 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     Element g = box();
     g.child(at(x0, y0, W, H)
                 .fill(Fill::color(kWell))
-                .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
+                .foreground(
+                    stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
     g.child(label("LES DIX-SEPT OBSERVATIONS · §21–§37", mn(8.5f, kInk, 0.5f),
                   x0 + 10, y0 + 6, W - 20));
     const float rowH = 19.4f, top = y0 + 24;
     for (size_t i = 0; i < kObs.size(); ++i) {
-      const Observation &o = kObs[i];
+      const Observation& o = kObs[i];
       const float y = top + (float)i * rowH;
       const float lo = 0.645f + 0.0075f * (float)i;
       const SkColor4f ca = corrected[(size_t)kNewton[(size_t)o.a]];
@@ -1415,16 +1458,19 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       row.child(at(37, 1, 15, 15).fill(Fill::color(cb)));
       row.child(label("→", mn(8, kInk2), 56, 1, 14));
       // the predicted pair fades in AFTER its sources land
-      Element pred = box().key("pr" + std::to_string(i))
+      Element pred = box()
+                         .key("pr" + std::to_string(i))
                          .opacity(bind(&demo).window(lo + 0.003f, lo + 0.009f));
       pred.child(at(72, 1, 15, 15)
-                     .fill(Fill::color(predicted(ca, kNewton[(size_t)o.b], corrected))));
+                     .fill(Fill::color(
+                         predicted(ca, kNewton[(size_t)o.b], corrected))));
       pred.child(at(87, 1, 15, 15)
-                     .fill(Fill::color(predicted(cb, kNewton[(size_t)o.a], corrected))));
+                     .fill(Fill::color(
+                         predicted(cb, kNewton[(size_t)o.a], corrected))));
       row.child(std::move(pred));
-      row.child(label(fmt("%s · %s", kNewtonName[(size_t)o.a],
-                          kNewtonName[(size_t)o.b]),
-                      mn(7.0f, kInk, 0.2f), 108, 3, 108));
+      row.child(label(
+          fmt("%s · %s", kNewtonName[(size_t)o.a], kNewtonName[(size_t)o.b]),
+          mn(7.0f, kInk, 0.2f), 108, 3, 108));
       row.child(label(fmt("%s / %s", o.modA, o.modB), it(8.5f, kInk2), 218,
                       1.5f, 250));
       g.child(std::move(row));
@@ -1434,15 +1480,16 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                       v.pairs21, v.byName, v.byStrict, v.byLoose),
                   mn(8.0f, kRed, 0.2f), x0 + 10, y0 + H - 32, W - 20)
                 .opacity(bind(&demo).window(0.79f, 0.80f)));
-    g.child(label("indigo read as BLEU-VIOLET (54); greenish-yellow as "
-                  "JAUNE-VERT (30) — both readings, not citations",
-                  mn(6.5f, kInk2, 0.2f), x0 + 10, y0 + H - 18, W - 20));
+    g.child(
+        label("indigo read as BLEU-VIOLET (54); greenish-yellow as "
+              "JAUNE-VERT (30) — both readings, not citations",
+              mn(6.5f, kInk2, 0.2f), x0 + 10, y0 + H - 18, W - 20));
     return g;
   }
 
   // ------------------------------------------------------------------
-  Element aStaircase(const std::array<SkColor4f, 20> &ramp, float y, float h,
-                     const char *keyBase, bool withGap) {
+  Element aStaircase(const std::array<SkColor4f, 20>& ramp, float y, float h,
+                     const char* keyBase, bool withGap) {
     Element g = box();
     for (int b = 0; b < kBandN; ++b) {
       Element band = at(kStairX + (float)b * kBandW, y, kBandW, h)
@@ -1460,11 +1507,12 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
   Element theIllusion() {
     Element g = box();
-    g.child(label("THE CHEVREUL ILLUSION · TWENTY FLAT BANDS", mn(9, kInk, 0.6f),
-                  852, 552, 500));
-    g.child(rightAt("§164 read as equal REFLECTANCE   ·   the modern equal "
-                    "code-value ramp   ·   §164 under γ 2.2",
-                    mn(7.5f, kInk2, 0.3f), 1100, 553, 644));
+    g.child(label("THE CHEVREUL ILLUSION · TWENTY FLAT BANDS",
+                  mn(9, kInk, 0.6f), 852, 552, 500));
+    g.child(
+        rightAt("§164 read as equal REFLECTANCE   ·   the modern equal "
+                "code-value ramp   ·   §164 under γ 2.2",
+                mn(7.5f, kInk2, 0.3f), 1100, 553, 644));
 
     g.child(at(kStairX, kStairYA - 2, kBandW * kBandN, kStairH + 4)
                 .background(styles::dropShadow(hex(0x3A352D, 0.22f), {2, 2}, 5))
@@ -1499,14 +1547,14 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // every fourth band's hex, inked against its own band
     for (int b = 0; b < kBandN; b += 4)
-      g.child(centred(hexOf(gamme[(size_t)b]),
-                      mn(6.8f, b < 12 ? kInk : kWhite, 0),
-                      kStairX + (float)b * kBandW, kStairYA + kStairH - 12,
-                      kBandW));
+      g.child(centred(
+          hexOf(gamme[(size_t)b]), mn(6.8f, b < 12 ? kInk : kWhite, 0),
+          kStairX + (float)b * kBandW, kStairYA + kStairH - 12, kBandW));
 
-    g.child(label("“the light tone will appear lighter, and the deep tone "
-                  "deeper, commencing at the line of contact” — Introduction",
-                  it(9.5f, kInk), 852, 774, 600));
+    g.child(
+        label("“the light tone will appear lighter, and the deep tone "
+              "deeper, commencing at the line of contact” — Introduction",
+              it(9.5f, kInk), 852, 774, 600));
     g.child(rightAt(fmt("%d bands · per-band σ = %.2f · %d/%d hexes exact "
                         "byte for byte",
                         v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
@@ -1528,11 +1576,11 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // edge, so the container has to be a real box: a bare box() holding
     // absolutely-positioned children measures zero and the wipe hides the
     // whole subtree with no diagnostic at all. Hence the explicit rect.
-    Element lattice = at(gx, gy, 4 * cw, 3 * chh)
-                          .key("grounds")
-                          .mask(by::edge(90.0f, bind(&demo)
-                                                    .window(0.50f, 0.64f)
-                                                    .map(upHoldAwayBack())));
+    Element lattice =
+        at(gx, gy, 4 * cw, 3 * chh)
+            .key("grounds")
+            .mask(by::edge(
+                90.0f, bind(&demo).window(0.50f, 0.64f).map(upHoldAwayBack())));
     for (int i = 0; i < 12; ++i) {
       const int col = i % 4, row = i / 4;
       lattice.child(at((float)col * cw, (float)row * chh, cw - 3, chh - 3)
@@ -1543,11 +1591,12 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       const int col = i % 4, row = i / 4;
       g.child(at(gx + (float)col * cw + (cw - 3 - 30) * 0.5f,
                  gy + (float)row * chh + (chh - 3 - 30) * 0.5f, 30, 30)
-                  .fill(Fill::color(gamme[14]))); // Chevreul's grey tone 15
+                  .fill(Fill::color(gamme[14])));  // Chevreul's grey tone 15
     }
     const float ry = gy + 3 * chh + 6;
     for (int i = 0; i < 12; ++i)
-      g.child(at(gx + (float)i * 27.0f, ry, 24, 24).fill(Fill::color(gamme[14])));
+      g.child(
+          at(gx + (float)i * 27.0f, ry, 24, 24).fill(Fill::color(gamme[14])));
     g.child(label(fmt("all twelve patches are %s — Chevreul's grey, tone 15",
                       hexOf(gamme[14]).c_str()),
                   mn(8.0f, kRed, 0.2f), x0, ry + 28, W));
@@ -1577,9 +1626,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     const float ty0 = y0 + 96, lh = 13.2f;
     g.child(at(x0 - 8, ty0 - 8, W - 4, (float)verifyLines.size() * lh + 16)
                 .fill(Fill::color(kWell))
-                .foreground(stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-    g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(7.5f, kInk2, 0.5f), x0,
-                  ty0 - 22, W));
+                .foreground(
+                    stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
+    g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(7.5f, kInk2, 0.5f),
+                  x0, ty0 - 22, W));
     for (size_t i = 0; i < verifyLines.size(); ++i) {
       const float lo = 0.30f + 0.050f * (float)i;
       Element row = at(x0, ty0 + (float)i * lh, W - 20, lh)
@@ -1588,32 +1638,34 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       row.child(text(U(verifyLines[i]), mn(8.4f, kInk, 0.05f)));
       const bool fail = verifyFail[i];
       row.child(rightAt(i == 4 ? "" : (fail ? "FAIL" : "OK"),
-                        fail ? mn(8.4f, kRed, 0.6f) : mn(8.4f, kRed, 0.2f), 0, 0,
-                        W - 24));
+                        fail ? mn(8.4f, kRed, 0.6f) : mn(8.4f, kRed, 0.2f), 0,
+                        0, W - 24));
       g.child(std::move(row));
     }
-    g.child(label("§38: “do we know, at the present day, of two coloured "
-                  "bodies … Certainly not!”",
-                  it(8.5f, kInk2), x0, ty0 + (float)verifyLines.size() * lh + 12,
-                  W));
+    g.child(label(
+        "§38: “do we know, at the present day, of two coloured "
+        "bodies … Certainly not!”",
+        it(8.5f, kInk2), x0, ty0 + (float)verifyLines.size() * lh + 12, W));
     return g;
   }
 
   // ==================================================================
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     Element root = stack().width(Dim(kW)).height(Dim(kH));
 
     // the leaf: measured paper, its tooth, and the platemark
     root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));
     if (!std::getenv("CHEVREUL_NOGRAIN"))
-      root.child(at(0, 0, kW, kH)
-                     .fill(paperGrain)
-                     .blend(SkBlendMode::kMultiply)
-                     .opacity(0.085f)
-                     .cache(Cache::Texture)); // 1800x1200 of generated material
-    root.child(at(28, 28, kW - 56, kH - 56)
-                   .fill(Fill::none())
-                   .foreground(stroke(1.0f, Fill::color(hex(0x8C8578, 0.55f)))));
+      root.child(
+          at(0, 0, kW, kH)
+              .fill(paperGrain)
+              .blend(SkBlendMode::kMultiply)
+              .opacity(0.085f)
+              .cache(Cache::Texture));  // 1800x1200 of generated material
+    root.child(
+        at(28, 28, kW - 56, kH - 56)
+            .fill(Fill::none())
+            .foreground(stroke(1.0f, Fill::color(hex(0x8C8578, 0.55f)))));
 
     root.child(theHeader());
     root.child(theWheel(ctx));
@@ -1634,7 +1686,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   }
 
   // ==================================================================
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
     // The still has to name its moment: this is a 14 s loop (13 s reveal +
@@ -1689,8 +1741,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
         for (int k = 0; k < 10; ++k) {
           const float lo = 0.80f + 0.012f * (float)k;
           const float a = std::clamp((d - lo) / 0.010f, 0.0f, 1.0f);
-          for (int r = 0; r < 20; ++r)
-            tints[(size_t)(k * 20 + r)].fA = a;
+          for (int r = 0; r < 20; ++r) tints[(size_t)(k * 20 + r)].fA = a;
         }
       }
       return true;
@@ -1702,7 +1753,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
   int frames = 0;
 
-  void update(double, sketch::SketchContext &ctx) override {
+  void update(double, sketch::SketchContext& ctx) override {
     // Cost, measured rather than guessed: CHEVREUL_STATS=1 dumps the
     // composer's own per-phase timings for a few frames. The two numbers
     // this piece cares about are picturesLive (72 static flat fills plus
@@ -1712,14 +1763,14 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // is what prices the un-prunable nodes: TextPath has no operator== by
     // design, so the 78 limb runs re-record on every render(). Pair it with
     // CHEVREUL_NOLIMB=1 for the other half of the comparison.
-    if (std::getenv("CHEVREUL_REDESCRIBE"))
-      ctx.composer.render(describe(ctx));
+    if (std::getenv("CHEVREUL_REDESCRIBE")) ctx.composer.render(describe(ctx));
     if (++frames > 2 && frames < 7 && std::getenv("CHEVREUL_STATS")) {
-      const Composer::Stats &st = ctx.composer.stats();
-      SkDebugf("[chevreul] frame %d  instances %d  picturesLive %d  "
-               "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms\n",
-               frames, (int)st.instances, (int)st.picturesLive,
-               st.reconcileMs, st.layoutMs, st.volatileMs, st.paintMs);
+      const Composer::Stats& st = ctx.composer.stats();
+      SkDebugf(
+          "[chevreul] frame %d  instances %d  picturesLive %d  "
+          "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms\n",
+          frames, (int)st.instances, (int)st.picturesLive, st.reconcileMs,
+          st.layoutMs, st.volatileMs, st.paintMs);
     }
 
     // The counting numbers of beat 2. Animatable covers floats, colours and

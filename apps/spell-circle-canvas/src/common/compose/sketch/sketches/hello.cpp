@@ -8,9 +8,8 @@
 // ctx.assets.image("name.png") (a magenta checker shows until the file
 // exists; editing the file on disk hot-swaps it too).
 
-#include <sigilsketch/Sketch.h>
-
 #include <include/core/SkPathBuilder.h>
+#include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
@@ -27,7 +26,7 @@ sigil::weave::TextStyle type(float size, SkColor color) {
   return style;
 }
 
-} // namespace
+}  // namespace
 
 // The three ways things move here (retained-mode, not p5's redraw
 // loop):
@@ -44,8 +43,7 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
   int score = 0;
   double nextScoreAt = 0.0;
 
-  Element describe(sketch::SketchContext &ctx) {
-
+  Element describe(sketch::SketchContext& ctx) {
     auto card = [&](std::u8string label, SkColor4f color) {
       return box()
           .width(150)
@@ -80,7 +78,7 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
                    .clip()
                    .inset(90, 280, 690, 240))
         // A custom leaf riding the bound Output.
-        .child(custom([this](SkCanvas &canvas, const PaintContext &paint) {
+        .child(custom([this](SkCanvas& canvas, const PaintContext& paint) {
                  SkPaint brush;
                  brush.setAntiAlias(true);
                  const float w = paint.size.width();
@@ -110,7 +108,7 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
                    .inset(90, 560, 90, 40));
   }
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     // p5's createCanvas/background: declare the canvas you want —
     // the window letterboxes to it, headless captures honor it.
     ctx.canvas(1000, 700);
@@ -125,11 +123,10 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
     });
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // Data path: when state changes, describe again and let the
     // reconciler diff. Everything unchanged stays cached.
-    if (elapsed < nextScoreAt)
-      return;
+    if (elapsed < nextScoreAt) return;
     nextScoreAt = elapsed + 1.0;
     score += 25;
     ctx.composer.render(describe(ctx));

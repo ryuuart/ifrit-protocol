@@ -1,7 +1,6 @@
 #pragma once
 #include <QByteArray>
 #include <QObject>
-
 #include <memory>
 
 namespace spellcircle {
@@ -29,11 +28,11 @@ class NetworkManager : public QObject {
   Q_PROPERTY(bool listening READ listening NOTIFY listeningChanged)
   Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
 
-public:
+ public:
   static constexpr uint16_t kDefaultPort = 27015;
 
   explicit NetworkManager(uint16_t port = kDefaultPort,
-                          QObject *parent = nullptr);
+                          QObject* parent = nullptr);
   ~NetworkManager() override;
 
   /** Returns the configured UDP port. */
@@ -63,17 +62,17 @@ public:
   /** Writes the current network configuration to the JSON config file. */
   Q_INVOKABLE bool save() const;
 
-signals:
+ signals:
   /** Emitted for each verified SpellCircle datagram. @p source is "ip:port". */
-  void spellCircleReceived(const QString &source, const QByteArray &payload);
+  void spellCircleReceived(const QString& source, const QByteArray& payload);
 
   void portChanged();
   void listeningChanged();
   void statusTextChanged();
 
-private:
+ private:
   /** Runs on this object's thread: verifies and emits one datagram. */
-  void deliverDatagram(const QString &source, const QByteArray &payload);
+  void deliverDatagram(const QString& source, const QByteArray& payload);
   /** Returns the platform-specific persistent configuration path. */
   /** The per-user config path. Writable and reinstall-safe, unlike a path
    *  beside the executable, which on macOS sits inside the .app bundle. */
@@ -83,7 +82,7 @@ private:
    *  save(). */
   static QString legacyConfigFilePath();
   void setListening(bool listening);
-  void setStatusText(const QString &statusText);
+  void setStatusText(const QString& statusText);
 
   uint16_t m_port;
   bool m_listening = false;

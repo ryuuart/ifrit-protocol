@@ -38,9 +38,6 @@
  * than in a comment beside each copy.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Util.h"
-
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathTypes.h>
 #include <include/core/SkPoint.h>
@@ -50,12 +47,15 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Util.h"
+
 namespace sigil::compose::kit {
 
 /** Where a frame's 0° points. */
 enum class Zero {
-  East,  ///< 3 o'clock — Skia's own convention, and `shapes::arc`'s.
-  North, ///< 12 o'clock — the engraver's and the statistical plate's.
+  East,   ///< 3 o'clock — Skia's own convention, and `shapes::arc`'s.
+  North,  ///< 12 o'clock — the engraver's and the statistical plate's.
 };
 
 /** Which way a frame's angles increase, **as seen on screen**. Screen y is
@@ -89,7 +89,7 @@ struct Frame {
    *  every call site. */
   float originDeg = 0.0f;
 
-  bool operator==(const Frame &) const = default;
+  bool operator==(const Frame&) const = default;
 
   // ---- angles ------------------------------------------------------------
 
@@ -240,7 +240,7 @@ struct Grid {
    *  pitch and snapping to the device pixel are different values. */
   float snap = 0.0f;
 
-  bool operator==(const Grid &) const = default;
+  bool operator==(const Grid&) const = default;
 
   /** Rounds half away from zero, like `std::round`, but CONSTEXPR — which
    *  `std::round` is not before C++23. That is why it is hand-rolled: a
@@ -248,8 +248,7 @@ struct Grid {
    *  declared as so many artefact units), and a helper that cannot run at
    *  compile time cannot be used for those. */
   constexpr float snapped(float v) const {
-    if (!(snap > 0))
-      return v;
+    if (!(snap > 0)) return v;
     const float q = v / snap;
     return snap * (float)(long long)(q + (q < 0 ? -0.5f : 0.5f));
   }
@@ -263,24 +262,25 @@ struct Grid {
   constexpr float y(float units) const {
     return snapped(origin.fY + units * scale);
   }
-  constexpr SkPoint at(SkPoint units) const { return {x(units.fX), y(units.fY)}; }
+  constexpr SkPoint at(SkPoint units) const {
+    return {x(units.fX), y(units.fY)};
+  }
   SkRect rect(float ux, float uy, float uw, float uh) const {
     return SkRect::MakeXYWH(x(ux), y(uy), s(uw), s(uh));
   }
   /** The artefact-unit rect as canvas px, corner-by-corner — so a snapped
    *  grid keeps both edges on the grid rather than only the near one. */
-  SkRect rect(const SkRect &units) const {
+  SkRect rect(const SkRect& units) const {
     return SkRect::MakeLTRB(x(units.fLeft), y(units.fTop), x(units.fRight),
                             y(units.fBottom));
   }
   /** A polyline in artefact units → canvas px. One scale for both axes:
    *  for the anisotropic case build two Grids and read `x` from one and
    *  `y` from the other. */
-  std::vector<SkPoint> map(const std::vector<SkPoint> &units) const {
+  std::vector<SkPoint> map(const std::vector<SkPoint>& units) const {
     std::vector<SkPoint> out;
     out.reserve(units.size());
-    for (const SkPoint &p : units)
-      out.push_back(at(p));
+    for (const SkPoint& p : units) out.push_back(at(p));
     return out;
   }
   /** The affine matrix, for handing a whole SkPath through in one go. NOT
@@ -294,4 +294,4 @@ struct Grid {
   constexpr Grid scaled(float k) const { return {scale * k, origin, snap}; }
 };
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

@@ -1,13 +1,13 @@
 // Scene: inline placeholders — pills and figures woven into the flow.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -16,16 +16,15 @@ namespace gallery {
 namespace {
 
 class SlotsScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
     if (!m_serif) {
       m_serif = defaultSerif(fontContext);
       m_sansTypeface = fontContext.fontManager()->matchFamilyStyle(
           "Noto Sans", SkFontStyle());
-      if (!m_sansTypeface)
-        m_sansTypeface = fontContext.defaultTypeface();
+      if (!m_sansTypeface) m_sansTypeface = fontContext.defaultTypeface();
     }
     const float fontSize = params.fontSize;
     m_built.ensure({fontSize}, [&] { build(fontContext, fontSize); });
@@ -61,7 +60,7 @@ public:
     const SkFont pillFont = makeFont(m_sansTypeface, fontSize * 0.68f);
     SkFontMetrics pillMetrics;
     pillFont.getMetrics(&pillMetrics);
-    for (const ParagraphLayout::PlacedPlaceholder &placed :
+    for (const ParagraphLayout::PlacedPlaceholder& placed :
          layout.placeholderRects(m_paragraph)) {
       if (placed.index < static_cast<int>(m_pillTexts.size())) {
         SkPaint backgroundPaint;
@@ -69,7 +68,7 @@ public:
         backgroundPaint.setColor(placed.index == 0 ? kAccent : kBlue);
         canvas->drawRoundRect(placed.rect, placed.rect.height() * 0.5f,
                               placed.rect.height() * 0.5f, backgroundPaint);
-        Paragraph &label = m_pillLabelParagraphs.paragraphFor(
+        Paragraph& label = m_pillLabelParagraphs.paragraphFor(
             m_pillTexts[static_cast<size_t>(placed.index)], m_sansTypeface,
             fontSize * 0.68f);
         const float textWidth = label.naturalWidth(fontContext);
@@ -116,13 +115,13 @@ public:
             static_cast<int>(layout.runs.size()), 0};
   }
 
-private:
+ private:
   /// Rebuilds the paragraph and measures every inline pill label.
-  void build(FontContext &fontContext, float fontSize) {
+  void build(FontContext& fontContext, float fontSize) {
     m_pillTexts = {u8"LOW RISK", u8"42 ms", u8"β-channel", u8"cache-hot"};
     m_pillWidths.clear();
-    for (const char8_t *text : m_pillTexts) {
-      Paragraph &label = m_pillLabelParagraphs.paragraphFor(
+    for (const char8_t* text : m_pillTexts) {
+      Paragraph& label = m_pillLabelParagraphs.paragraphFor(
           text, m_sansTypeface, fontSize * 0.68f);
       m_pillWidths.push_back(label.naturalWidth(fontContext) + fontSize * 1.1f);
     }
@@ -167,7 +166,7 @@ private:
 
   Paragraph m_paragraph;
   SingleLineParagraphCache m_pillLabelParagraphs;
-  std::vector<const char8_t *> m_pillTexts;
+  std::vector<const char8_t*> m_pillTexts;
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;
   sk_sp<SkTypeface> m_sansTypeface;
@@ -183,8 +182,8 @@ SceneDescriptor makeSlotsDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeSlotsDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

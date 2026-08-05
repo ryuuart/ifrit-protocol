@@ -5,8 +5,8 @@
 
 namespace sigil::scry::bench {
 
-void *gpuDevice() { return nullptr; }
-void *gpuQueue() { return nullptr; }
-void *makeSolidTexture(int, int) { return nullptr; }
+void* gpuDevice() { return nullptr; }
+void* gpuQueue() { return nullptr; }
+void* makeSolidTexture(int, int) { return nullptr; }
 
-} // namespace sigil::scry::bench
+}  // namespace sigil::scry::bench

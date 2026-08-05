@@ -11,9 +11,7 @@ namespace sigil::shape {
 
 namespace {
 
-float segmentLength(SkPoint a, SkPoint b) {
-  return SkPoint::Distance(a, b);
-}
+float segmentLength(SkPoint a, SkPoint b) { return SkPoint::Distance(a, b); }
 
 // Flatness test: max distance of the control points from the chord.
 float controlDeviation(const SkPoint pts[], int count) {
@@ -51,20 +49,19 @@ SkPoint evalCubic(const SkPoint p[4], float t) {
 }
 
 template <typename Eval>
-void flattenCurve(std::vector<SkPoint> &out, const SkPoint pts[], int count,
+void flattenCurve(std::vector<SkPoint>& out, const SkPoint pts[], int count,
                   float tolerance, Eval eval) {
   // Subdivision count from deviation: a curve whose control polygon
   // deviates d from the chord flattens to ~sqrt(d / tol) * 4 segments.
   const float dev = controlDeviation(pts, count);
-  int segments = dev <= tolerance
-                     ? 1
-                     : (int)std::ceil(std::sqrt(dev / tolerance) * 4.0f);
+  int segments =
+      dev <= tolerance ? 1 : (int)std::ceil(std::sqrt(dev / tolerance) * 4.0f);
   segments = std::clamp(segments, 1, 256);
   for (int i = 1; i <= segments; ++i)
     out.push_back(eval(pts, (float)i / (float)segments));
 }
 
-} // namespace
+}  // namespace
 
 float Polyline::length() const {
   float total = 0;
@@ -76,8 +73,7 @@ float Polyline::length() const {
 }
 
 SkPoint Polyline::centroid() const {
-  if (points.empty())
-    return {0, 0};
+  if (points.empty()) return {0, 0};
   // Length-weighted centroid (vertex average biases toward dense spans).
   double x = 0, y = 0, w = 0;
   auto accumulate = [&](SkPoint a, SkPoint b) {
@@ -88,8 +84,7 @@ SkPoint Polyline::centroid() const {
   };
   for (size_t i = 1; i < points.size(); ++i)
     accumulate(points[i - 1], points[i]);
-  if (closed && points.size() > 1)
-    accumulate(points.back(), points.front());
+  if (closed && points.size() > 1) accumulate(points.back(), points.front());
   if (w < 1e-9) {
     return points.front();
   }
@@ -100,85 +95,78 @@ float Polyline::signedArea() const {
   double area = 0;
   const size_t n = points.size();
   for (size_t i = 0; i < n; ++i) {
-    const SkPoint &a = points[i];
-    const SkPoint &b = points[(i + 1) % n];
+    const SkPoint& a = points[i];
+    const SkPoint& b = points[(i + 1) % n];
     area += (double)a.fX * b.fY - (double)b.fX * a.fY;
   }
   return (float)(area * 0.5);
 }
 
-void Polyline::reverse() {
-  std::reverse(points.begin(), points.end());
-}
+void Polyline::reverse() { std::reverse(points.begin(), points.end()); }
 
-std::vector<Polyline> flatten(const SkPath &path, float tolerance) {
+std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
   std::vector<Polyline> contours;
   Polyline current;
   SkPath::Iter iter(path, false);
   SkPoint pts[4];
   for (;;) {
     const SkPath::Verb verb = iter.next(pts);
-    if (verb == SkPath::kDone_Verb)
-      break;
+    if (verb == SkPath::kDone_Verb) break;
     switch (verb) {
-    case SkPath::kMove_Verb:
-      if (current.points.size() > 1)
-        contours.push_back(std::move(current));
-      current = {};
-      current.points.push_back(pts[0]);
-      break;
-    case SkPath::kLine_Verb:
-      current.points.push_back(pts[1]);
-      break;
-    case SkPath::kQuad_Verb:
-      flattenCurve(current.points, pts, 3, tolerance, evalQuad);
-      break;
-    case SkPath::kConic_Verb: {
-      // Convert the conic to quads (2^1 = 2 of them is plenty at our
-      // tolerances), then flatten those.
-      SkPoint quads[1 + 2 * 2];
-      const int count = SkPath::ConvertConicToQuads(
-          pts[0], pts[1], pts[2], iter.conicWeight(), quads, 1);
-      for (int q = 0; q < count; ++q)
-        flattenCurve(current.points, quads + q * 2, 3, tolerance, evalQuad);
-      break;
-    }
-    case SkPath::kCubic_Verb:
-      flattenCurve(current.points, pts, 4, tolerance, evalCubic);
-      break;
-    case SkPath::kClose_Verb:
-      current.closed = true;
-      // Drop an explicit closing duplicate if the path emitted one.
-      if (current.points.size() > 1 &&
-          segmentLength(current.points.front(), current.points.back()) <
-              1e-4f)
-        current.points.pop_back();
-      break;
-    default:
-      break;
+      case SkPath::kMove_Verb:
+        if (current.points.size() > 1) contours.push_back(std::move(current));
+        current = {};
+        current.points.push_back(pts[0]);
+        break;
+      case SkPath::kLine_Verb:
+        current.points.push_back(pts[1]);
+        break;
+      case SkPath::kQuad_Verb:
+        flattenCurve(current.points, pts, 3, tolerance, evalQuad);
+        break;
+      case SkPath::kConic_Verb: {
+        // Convert the conic to quads (2^1 = 2 of them is plenty at our
+        // tolerances), then flatten those.
+        SkPoint quads[1 + 2 * 2];
+        const int count = SkPath::ConvertConicToQuads(
+            pts[0], pts[1], pts[2], iter.conicWeight(), quads, 1);
+        for (int q = 0; q < count; ++q)
+          flattenCurve(current.points, quads + q * 2, 3, tolerance, evalQuad);
+        break;
+      }
+      case SkPath::kCubic_Verb:
+        flattenCurve(current.points, pts, 4, tolerance, evalCubic);
+        break;
+      case SkPath::kClose_Verb:
+        current.closed = true;
+        // Drop an explicit closing duplicate if the path emitted one.
+        if (current.points.size() > 1 &&
+            segmentLength(current.points.front(), current.points.back()) <
+                1e-4f)
+          current.points.pop_back();
+        break;
+      default:
+        break;
     }
   }
-  if (current.points.size() > 1)
-    contours.push_back(std::move(current));
+  if (current.points.size() > 1) contours.push_back(std::move(current));
   return contours;
 }
 
 SkPoint Sampled::centroid() const {
-  if (points.empty())
-    return {0, 0};
+  if (points.empty()) return {0, 0};
   double x = 0, y = 0;
-  for (const SkPoint &p : points) {
+  for (const SkPoint& p : points) {
     x += p.fX;
     y += p.fY;
   }
   return {(float)(x / points.size()), (float)(y / points.size())};
 }
 
-Sampled resample(const Polyline &contour, int count) {
+Sampled resample(const Polyline& contour, int count) {
   Sampled out;
   out.closed = contour.closed;
-  if (contour.points.empty() || count <= 0)
-    return out;
+  if (contour.points.empty() || count <= 0) return out;
   out.points.reserve((size_t)count);
 
   // Cumulative arc length over the (possibly wrapped) segment list.
@@ -210,23 +198,21 @@ Sampled resample(const Polyline &contour, int count) {
     const float t = span < 1e-9f ? 0 : (target - cumulative[seg]) / span;
     const SkPoint a = contour.points[seg % n];
     const SkPoint b = contour.points[(seg + 1) % n];
-    out.points.push_back(
-        {a.fX + (b.fX - a.fX) * t, a.fY + (b.fY - a.fY) * t});
+    out.points.push_back({a.fX + (b.fX - a.fX) * t, a.fY + (b.fY - a.fY) * t});
   }
   return out;
 }
 
-std::vector<Sampled> resample(const SkPath &path, int count, float tolerance) {
+std::vector<Sampled> resample(const SkPath& path, int count, float tolerance) {
   std::vector<Sampled> out;
-  for (const Polyline &contour : flatten(path, tolerance))
+  for (const Polyline& contour : flatten(path, tolerance))
     out.push_back(resample(contour, count));
   return out;
 }
 
-Alignment bestAlignment(const Sampled &a, const Sampled &b) {
+Alignment bestAlignment(const Sampled& a, const Sampled& b) {
   Alignment best;
-  if (a.points.size() != b.points.size() || a.points.empty())
-    return best;
+  if (a.points.size() != b.points.size() || a.points.empty()) return best;
   const int n = (int)a.points.size();
   double bestCost = std::numeric_limits<double>::max();
   // O(n^2) over offsets x2 directions; n is a blend's sample count
@@ -235,8 +221,8 @@ Alignment bestAlignment(const Sampled &a, const Sampled &b) {
     for (int offset = 0; offset < n; ++offset) {
       double cost = 0;
       for (int i = 0; i < n && cost < bestCost; ++i) {
-        const int j = reversed ? (offset - i % n + 2 * n) % n
-                               : (offset + i) % n;
+        const int j =
+            reversed ? (offset - i % n + 2 * n) % n : (offset + i) % n;
         const SkVector d = a.points[(size_t)i] - b.points[(size_t)j];
         cost += (double)d.dot(d);
       }
@@ -250,31 +236,26 @@ Alignment bestAlignment(const Sampled &a, const Sampled &b) {
   return best;
 }
 
-Sampled applyAlignment(const Sampled &b, const Alignment &alignment) {
+Sampled applyAlignment(const Sampled& b, const Alignment& alignment) {
   Sampled out = b;
   const int n = (int)b.points.size();
-  if (n == 0)
-    return out;
+  if (n == 0) return out;
   for (int i = 0; i < n; ++i) {
-    const int j = alignment.reversed
-                      ? (alignment.offset - i % n + 2 * n) % n
-                      : (alignment.offset + i) % n;
+    const int j = alignment.reversed ? (alignment.offset - i % n + 2 * n) % n
+                                     : (alignment.offset + i) % n;
     out.points[(size_t)i] = b.points[(size_t)j];
   }
   return out;
 }
 
-SkPath toPath(const Sampled &samples, bool smooth) {
+SkPath toPath(const Sampled& samples, bool smooth) {
   SkPathBuilder builder;
   const size_t n = samples.points.size();
-  if (n < 2)
-    return builder.detach();
+  if (n < 2) return builder.detach();
   if (!smooth) {
     builder.moveTo(samples.points[0]);
-    for (size_t i = 1; i < n; ++i)
-      builder.lineTo(samples.points[i]);
-    if (samples.closed)
-      builder.close();
+    for (size_t i = 1; i < n; ++i) builder.lineTo(samples.points[i]);
+    if (samples.closed) builder.close();
     return builder.detach();
   }
   // Catmull-Rom through the samples, expressed as cubic Beziers.
@@ -293,19 +274,18 @@ SkPath toPath(const Sampled &samples, bool smooth) {
                         p2.fY - (p3.fY - p1.fY) / 6.0f};
     builder.cubicTo(c1, c2, p2);
   }
-  if (samples.closed)
-    builder.close();
+  if (samples.closed) builder.close();
   return builder.detach();
 }
 
-Sampled lerp(const Sampled &a, const Sampled &b, float t) {
+Sampled lerp(const Sampled& a, const Sampled& b, float t) {
   Sampled out;
   out.closed = a.closed;
   const size_t n = std::min(a.points.size(), b.points.size());
   out.points.reserve(n);
   for (size_t i = 0; i < n; ++i) {
-    const SkPoint &pa = a.points[i];
-    const SkPoint &pb = b.points[i];
+    const SkPoint& pa = a.points[i];
+    const SkPoint& pb = b.points[i];
     out.points.push_back(
         {pa.fX + (pb.fX - pa.fX) * t, pa.fY + (pb.fY - pa.fY) * t});
   }
@@ -313,4 +293,4 @@ Sampled lerp(const Sampled &a, const Sampled &b, float t) {
   return out;
 }
 
-} // namespace sigil::shape
+}  // namespace sigil::shape

@@ -51,7 +51,7 @@ struct Blob {
   std::vector<std::byte> bytes;
 
   std::string_view asText() const {
-    return {reinterpret_cast<const char *>(bytes.data()), bytes.size()};
+    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
   }
 };
 
@@ -60,7 +60,7 @@ struct ResourceInfo {
   enum class Kind { Data, Image };
   Kind kind = Kind::Data;
   std::uintmax_t byteSize = 0;
-  std::string format; // "png", "openexr", "psd", … (decoder's name)
+  std::string format;  // "png", "openexr", "psd", … (decoder's name)
 
   /** Image metadata (kind == Image); see sigil::image::ImageProbe. */
   sigil::image::ImageProbe image;
@@ -105,7 +105,7 @@ std::string networkCacheKey(std::string_view url);
  * are NOT cached: a missing file loads as soon as it appears.
  */
 class Hub {
-public:
+ public:
   Hub() = default;
 
   /** Maps every URI starting with `prefix` to files under `dir`
@@ -136,14 +136,14 @@ public:
   /** Decoded image (stills and animations); null on failure. Decodes
    *  on this first ask, from bytes a prior blob() ask already cached
    *  when they are present (no second read of the source). */
-  std::shared_ptr<const sigil::image::ImageAsset>
-  image(std::string_view uri, const ImageOptions &options = {});
+  std::shared_ptr<const sigil::image::ImageAsset> image(
+      std::string_view uri, const ImageOptions& options = {});
 
   /** The raw decoded color data — every channel the source carries
    *  (EXR layers included) as named float planes; null on failure.
    *  See sigil::image::ChannelData for Skia composition helpers. */
-  std::shared_ptr<const sigil::image::ChannelData>
-  channels(std::string_view uri);
+  std::shared_ptr<const sigil::image::ChannelData> channels(
+      std::string_view uri);
 
   /** Metadata without a full decode (dimensions, channels, layers,
    *  float-ness, animation frames); nullopt when unreadable.
@@ -159,7 +159,7 @@ public:
    *  changed. */
   bool poll();
 
-private:
+ private:
   /** One cached resource. blob, image, and channels are independent
    *  views, each populated the first time its accessor asks; asking
    *  for bytes never decodes, and decoding never drops bytes already
@@ -188,7 +188,7 @@ private:
     std::filesystem::file_time_type mtime{};
   };
 
-  bool reload(Entry &entry);
+  bool reload(Entry& entry);
 
   /** The map key for an ask: the URI alone for blob()/text()/
    *  channels() and default-options image(); with a layer or size
@@ -197,12 +197,12 @@ private:
    *  suffixes never collide with URI content. Keys are write-only:
    *  nothing parses one back (entries carry their own uri). */
   static std::string cacheKey(std::string_view uri,
-                              const ImageOptions *options);
+                              const ImageOptions* options);
 
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
-  std::filesystem::path m_netCacheDir; // empty = the default temp dir
+  std::filesystem::path m_netCacheDir;  // empty = the default temp dir
   NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
 };
 
-} // namespace sigil::loader
+}  // namespace sigil::loader

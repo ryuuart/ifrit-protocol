@@ -8,14 +8,14 @@
  * it costs a few lines rather than a capability.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Decorations.h"
-#include "sigilcompose/Shapes.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/effects/SkGradient.h>
+
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Decorations.h"
+#include "sigilcompose/Shapes.h"
 
 namespace sigil::compose::util {
 
@@ -29,22 +29,22 @@ inline Fill linearGradient(SkPoint from, SkPoint to,
                            std::vector<SkColor4f> colors,
                            std::vector<float> stops = {}) {
   SkPoint pts[2] = {from, to};
-  return Fill::shader(SkShaders::LinearGradient(
-      pts, SkGradient({{colors.data(), colors.size()},
-                       {stops.data(), stops.size()},
-                       SkTileMode::kClamp},
-                      {})));
+  return Fill::shader(
+      SkShaders::LinearGradient(pts, SkGradient({{colors.data(), colors.size()},
+                                                 {stops.data(), stops.size()},
+                                                 SkTileMode::kClamp},
+                                                {})));
 }
 
 inline Fill radialGradient(SkPoint center, float radius,
                            std::vector<SkColor4f> colors,
                            std::vector<float> stops = {}) {
-  return Fill::shader(SkShaders::RadialGradient(
-      center, radius,
-      SkGradient({{colors.data(), colors.size()},
-                  {stops.data(), stops.size()},
-                  SkTileMode::kClamp},
-                 {})));
+  return Fill::shader(
+      SkShaders::RadialGradient(center, radius,
+                                SkGradient({{colors.data(), colors.size()},
+                                            {stops.data(), stops.size()},
+                                            SkTileMode::kClamp},
+                                           {})));
 }
 
 /** A box of `radius` about `centre` — the polar-chart placement. Every
@@ -52,10 +52,7 @@ inline Fill radialGradient(SkPoint center, float radius,
  *  needs `width(2r).height(2r).centerAt(c)` spelled out at its call
  *  site. */
 inline Element disc(SkPoint centre, float radius) {
-  return box()
-      .width(Dim(radius * 2))
-      .height(Dim(radius * 2))
-      .centerAt(centre);
+  return box().width(Dim(radius * 2)).height(Dim(radius * 2)).centerAt(centre);
 }
 
 /** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
@@ -101,8 +98,8 @@ struct Shadow {
    *  animated (per-frame volatility) — the hover-lift shadow slides
    *  without re-describing. `maxBind` reserves cull reach for the bound
    *  range (bleed() can't read a future value). */
-  const choreograph::Output<float> *bindOffsetX = nullptr;
-  const choreograph::Output<float> *bindOffsetY = nullptr;
+  const choreograph::Output<float>* bindOffsetX = nullptr;
+  const choreograph::Output<float>* bindOffsetY = nullptr;
   float maxBind = 0.0f;
 
   /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
@@ -111,26 +108,24 @@ struct Shadow {
    *  through itself. */
   bool knockout = false;
 
-  bool operator==(const Shadow &) const = default;
+  bool operator==(const Shadow&) const = default;
   bool isAnimated() const { return bindOffsetX || bindOffsetY; }
   /** Paint reach beyond the node's bounds; the recording's cull rect grows
    *  by this. Under-report it and a big soft shadow is clipped at the
    *  node's picture-cache bounds, which is why the bound range has to be
    *  declared through `maxBind` — bleed() cannot read a future value. */
   float bleed() const {
-    return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) +
-           blur;
+    return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + blur;
   }
 
-  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
     if (blur > 0)
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
     canvas.save();
-    if (knockout)
-      canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
+    if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
     canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x(),
                      bindOffsetY ? bindOffsetY->value() : offset.y());
     canvas.drawPath(ctx.outline, p);
@@ -149,8 +144,7 @@ inline Shadow shadow(SkColor4f color, SkVector offset, float blur) {
  *  invisible. Binding translateX is paint-only volatility: the strip's
  *  recording replays every frame, nothing re-records. Keep `content`
  *  keyless (it mounts twice). */
-inline Element marquee(Element content,
-                       const choreograph::Output<float> *phase,
+inline Element marquee(Element content, const choreograph::Output<float>* phase,
                        float gap = 0.0f) {
   return box().clip(true).child(box()
                                     .row()
@@ -169,7 +163,7 @@ inline Element marquee(Element content,
  *  Measure once — `ctx.measure(strip).width()` — and pass it here; wrap
  *  the phase over [-(contentWidth + gap), 0]. */
 inline Element marquee(Element content, float contentWidth,
-                       const choreograph::Output<float> *phase,
+                       const choreograph::Output<float>* phase,
                        float gap = 0.0f) {
   auto pinned = [&] {
     return box().width(Dim(contentWidth)).shrink(0).child(content);
@@ -194,16 +188,16 @@ inline Element marquee(Element content, float contentWidth,
  *   bool more = stage.frame(canvas);      // tick + draw + needs-more
  */
 class Stage {
-public:
-  Stage(SkSize size, sigil::weave::FontContext &fonts)
+ public:
+  Stage(SkSize size, sigil::weave::FontContext& fonts)
       : m_composer(m_ticker, fonts) {
     m_composer.setClock(&m_clock);
     m_composer.setSize(size);
   }
 
-  motion::FrameClock &clock() { return m_clock; }
-  motion::Ticker &ticker() { return m_ticker; }
-  Composer &composer() { return m_composer; }
+  motion::FrameClock& clock() { return m_clock; }
+  motion::Ticker& ticker() { return m_ticker; }
+  Composer& composer() { return m_composer; }
 
   void render(Element root) { m_composer.render(std::move(root)); }
   void renderSlot(std::string_view name, Element content) {
@@ -212,17 +206,17 @@ public:
 
   /** Ticks real time, draws, and reports whether another frame is
    *  needed (event-driven redraw contract). */
-  bool frame(SkCanvas &canvas) {
+  bool frame(SkCanvas& canvas) {
     const double dt = m_clock.tick();
     const bool animating = m_ticker.tick(dt);
     m_composer.draw(canvas);
     return animating || m_composer.dirty() || m_ticker.active();
   }
 
-private:
+ private:
   motion::FrameClock m_clock;
   motion::Ticker m_ticker;
   Composer m_composer;
 };
 
-} // namespace sigil::compose::util
+}  // namespace sigil::compose::util

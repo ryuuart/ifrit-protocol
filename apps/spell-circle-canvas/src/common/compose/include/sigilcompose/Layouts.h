@@ -23,14 +23,14 @@
  * the single thing the design is not.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Shapes.h"
-
 #include <include/core/SkContourMeasure.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
+
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Shapes.h"
 
 namespace sigil::compose::layouts {
 
@@ -40,7 +40,7 @@ inline SkRect centeredAt(SkPoint center, SkSize size) {
                           center.y() - size.height() / 2, size.width(),
                           size.height());
 }
-} // namespace detail
+}  // namespace detail
 
 /** Children on a ring. Child i centers at startDeg + i·(sweepDeg/n), at
  *  `radiusFraction` of the container's half-extent — applied per axis, so
@@ -64,11 +64,10 @@ struct Radial {
    *  `radiusFraction`. Participates in equality like every field. */
   std::vector<float> radiusAt;
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     const size_t n = in.childSizes.size();
     std::vector<SkRect> rects(n);
-    if (n == 0)
-      return rects;
+    if (n == 0) return rects;
     const float cx = in.container.width() / 2;
     const float cy = in.container.height() / 2;
     auto frac = [&](size_t i) {
@@ -106,23 +105,21 @@ struct AlongPath {
   float startFraction = 0.0f;
   float endFraction = 1.0f;
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     const size_t n = in.childSizes.size();
     std::vector<SkRect> rects(n);
-    if (n == 0 || !path)
-      return rects;
+    if (n == 0 || !path) return rects;
     const SkPath resolved = path(in.container);
     SkContourMeasureIter iter(resolved, false);
     sk_sp<SkContourMeasure> contour = iter.next();
-    if (!contour)
-      return rects;
+    if (!contour) return rects;
     const float length = contour->length();
     const float d0 = length * startFraction;
     const float d1 = length * endFraction;
     // Closed stretches exclude the duplicate endpoint; open ones hit
     // both ends.
-    const bool loop = resolved.isLastContourClosed() &&
-                      startFraction == 0.0f && endFraction == 1.0f;
+    const bool loop = resolved.isLastContourClosed() && startFraction == 0.0f &&
+                      endFraction == 1.0f;
     const float step =
         n <= 1 ? 0.0f : (d1 - d0) / (loop ? (float)n : (float)(n - 1));
     for (size_t i = 0; i < n; ++i) {
@@ -158,11 +155,11 @@ struct ModularGrid {
 
   struct Span {
     int col = 0, row = 0, colSpan = 1, rowSpan = 1;
-    bool operator==(const Span &) const = default;
+    bool operator==(const Span&) const = default;
   };
-  std::vector<Span> spans; // per-child; missing entries auto-flow
+  std::vector<Span> spans;  // per-child; missing entries auto-flow
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     const int cols = std::max(columns, 1), rws = std::max(rows, 1);
     const float cw =
         (in.container.width() - gutter * (float)(cols - 1)) / (float)cols;
@@ -173,7 +170,7 @@ struct ModularGrid {
       Span s;
       if (i < spans.size()) {
         s = spans[i];
-      } else { // auto-flow the overflow, one module each
+      } else {  // auto-flow the overflow, one module each
         const size_t k = i - spans.size();
         s.col = (int)(k % (size_t)cols);
         s.row = (int)(k / (size_t)cols);
@@ -206,7 +203,7 @@ struct Diagonal {
    *  extent. */
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     const float k = std::tan(skewDeg * SK_FloatPI / 180.0f);
     std::vector<SkRect> rects(in.childSizes.size());
     float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
@@ -218,14 +215,12 @@ struct Diagonal {
       maxRight = std::max(maxRight, rects[i].right());
       y += in.childSizes[i].height() + gap;
     }
-    for (SkRect &r : rects)
-      r.offset(-minX, 0);
+    for (SkRect& r : rects) r.offset(-minX, 0);
     if (anchor == Anchor::End) {
       // Mirror horizontally: each row's RIGHT edge rides the shear line.
       const float extent =
           in.container.width() > 0 ? in.container.width() : maxRight - minX;
-      for (SkRect &r : rects)
-        r.offsetTo(extent - r.right(), r.top());
+      for (SkRect& r : rects) r.offsetTo(extent - r.right(), r.top());
     }
     return rects;
   }
@@ -241,10 +236,10 @@ struct BaselineGrid {
    *  and the placement is a pure function of the sizes, so the node caches
    *  like any other static layout. */
   float rhythm = 24.0f;
-  float offset = 0.0f; // grid phase
-  float gap = 0.0f;    // extra space between children before snapping
+  float offset = 0.0f;  // grid phase
+  float gap = 0.0f;     // extra space between children before snapping
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     std::vector<SkRect> rects(in.childSizes.size());
     const float step = std::max(rhythm, 1.0f);
     float flowY = 0.0f;
@@ -270,13 +265,12 @@ struct BaselineGrid {
  *  fully cacheable), never escaping the container. */
 struct Scatter {
   uint32_t seed = 1;
-  float jitter = 0.6f; // 0 = regular grid, 1 = up to half a cell off
+  float jitter = 0.6f;  // 0 = regular grid, 1 = up to half a cell off
 
-  std::vector<SkRect> place(const LayoutInput &in) const {
+  std::vector<SkRect> place(const LayoutInput& in) const {
     const size_t n = in.childSizes.size();
     std::vector<SkRect> rects(n);
-    if (n == 0)
-      return rects;
+    if (n == 0) return rects;
     const int cols = (int)std::ceil(std::sqrt((float)n));
     const int rows = (int)std::ceil((float)n / (float)cols);
     const float cw = in.container.width() / (float)cols;
@@ -284,11 +278,9 @@ struct Scatter {
     for (size_t i = 0; i < n; ++i) {
       const int cx = (int)i % cols, cy = (int)i / cols;
       const float jx =
-          shapes::detail::hashNoise(seed, (uint32_t)(i * 2)) * jitter * cw /
-          2;
-      const float jy =
-          shapes::detail::hashNoise(seed, (uint32_t)(i * 2 + 1)) * jitter *
-          ch / 2;
+          shapes::detail::hashNoise(seed, (uint32_t)(i * 2)) * jitter * cw / 2;
+      const float jy = shapes::detail::hashNoise(seed, (uint32_t)(i * 2 + 1)) *
+                       jitter * ch / 2;
       SkPoint center{cw * ((float)cx + 0.5f) + jx,
                      ch * ((float)cy + 0.5f) + jy};
       SkRect r = detail::centeredAt(center, in.childSizes[i]);
@@ -303,4 +295,4 @@ struct Scatter {
   }
 };
 
-} // namespace sigil::compose::layouts
+}  // namespace sigil::compose::layouts

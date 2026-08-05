@@ -36,14 +36,14 @@
  * when hits and clips should match the silhouette.
  */
 
-#include "sigilcompose/Material.h"
-
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
+
+#include "sigilcompose/Material.h"
 
 namespace sigil::compose::sdf {
 
@@ -54,7 +54,7 @@ struct Shape;
 inline Shape roundBox(float radius);
 inline Shape circle();
 inline Shape star(int points, float pointiness);
-inline Material material(const Shape &shape, const Style &style);
+inline Material material(const Shape& shape, const Style& style);
 
 /** A silhouette, sized by the node's box minus the style's reserved pad.
  *  Built only through the factories below: the per-kind parameters are the
@@ -63,17 +63,17 @@ inline Material material(const Shape &shape, const Style &style);
  *  is clamped into [2, points], so a raw triple is not a shape. Hence the
  *  private fields and the friend list. */
 struct Shape {
-private:
+ private:
   Kind kind = Kind::RoundBox;
-public:
 
-private:
-  float p0 = 0, p1 = 0, p2 = 0; // per-kind params (uniforms uP0..uP2)
+ public:
+ private:
+  float p0 = 0, p1 = 0, p2 = 0;  // per-kind params (uniforms uP0..uP2)
 
   friend Shape roundBox(float radius);
   friend Shape circle();
   friend Shape star(int points, float pointiness);
-  friend Material material(const Shape &shape, const Style &style);
+  friend Material material(const Shape& shape, const Style& style);
 };
 
 /** Rounded box inscribed in the node (radius in px, clamped to half-size). */
@@ -106,13 +106,13 @@ inline Shape star(int points, float pointiness) {
  *  Layer order (back to front): shadow, glow, fill, border. */
 struct Style {
   SkColor4f fill = {0, 0, 0, 0};
-  float borderWidth = 0;                  // centered on the edge (uBorderW)
-  SkColor4f borderColor = {1, 1, 1, 1};   // (uBorder)
-  float glowRadius = 0;                   // exp falloff, px (uGlowR)
-  SkColor4f glowColor = {1, 1, 1, 1};     // (uGlow)
-  SkVector shadowOffset = {0, 0};         // (uShadowOffX/Y)
-  float shadowBlur = 0;                   // (uShadowBlur)
-  SkColor4f shadowColor = {0, 0, 0, 0};   // alpha 0 = no shadow (uShadow)
+  float borderWidth = 0;                 // centered on the edge (uBorderW)
+  SkColor4f borderColor = {1, 1, 1, 1};  // (uBorder)
+  float glowRadius = 0;                  // exp falloff, px (uGlowR)
+  SkColor4f glowColor = {1, 1, 1, 1};    // (uGlow)
+  SkVector shadowOffset = {0, 0};        // (uShadowOffX/Y)
+  float shadowBlur = 0;                  // (uShadowBlur)
+  SkColor4f shadowColor = {0, 0, 0, 0};  // alpha 0 = no shadow (uShadow)
 };
 
 namespace detail {
@@ -146,7 +146,8 @@ inline constexpr char kSdCircle[] = R"(
 float sd(float2 p, float2 b) { return length(p) - min(b.x, b.y); }
 )";
 
-// IQ's exact-distance N-star (https://iquilezles.org/articles/distfunctions2d/).
+// IQ's exact-distance N-star
+// (https://iquilezles.org/articles/distfunctions2d/).
 inline constexpr char kSdStar[] = R"(
 float sd(float2 p, float2 b) {
   float r = min(b.x, b.y);
@@ -196,34 +197,33 @@ half4 main(float2 xy) {
 }
 )";
 
-inline sk_sp<SkRuntimeEffect> makeEffect(const char *sdFn) {
+inline sk_sp<SkRuntimeEffect> makeEffect(const char* sdFn) {
   const std::string src = std::string(kPrelude) + sdFn + kMain;
   auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-  if (!fx)
-    SkDebugf("sigilcompose sdf shader: %s\n", err.c_str());
+  if (!fx) SkDebugf("sigilcompose sdf shader: %s\n", err.c_str());
   return fx;
 }
 
 /** One compiled effect per kind, shared by every instance/style. */
-inline const sk_sp<SkRuntimeEffect> &effectFor(Kind kind) {
+inline const sk_sp<SkRuntimeEffect>& effectFor(Kind kind) {
   switch (kind) {
-  case Kind::RoundBox: {
-    static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdRoundBox);
-    return fx;
-  }
-  case Kind::Circle: {
-    static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdCircle);
-    return fx;
-  }
-  case Kind::Star:
-  default: {
-    static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdStar);
-    return fx;
-  }
+    case Kind::RoundBox: {
+      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdRoundBox);
+      return fx;
+    }
+    case Kind::Circle: {
+      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdCircle);
+      return fx;
+    }
+    case Kind::Star:
+    default: {
+      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdStar);
+      return fx;
+    }
   }
 }
 
-} // namespace detail
+}  // namespace detail
 
 /** The pad the style reserves inside the node's box: border half-width
  *  plus glow and shadow reach. Public so callers can size a node by its
@@ -236,14 +236,13 @@ inline const sk_sp<SkRuntimeEffect> &effectFor(Kind kind) {
  *  only guarantees the box does not crop it. Shrinking the pad does not
  *  tighten a glow, and growing the box without growing the content shrinks
  *  the visible interior to nothing — see `minBoxFor()`. */
-inline float pad(const Style &style) {
+inline float pad(const Style& style) {
   const float glowPad = style.glowRadius > 0 ? style.glowRadius * 3.2f : 0.0f;
-  const float shadowPad =
-      style.shadowColor.fA > 0
-          ? std::max(std::abs(style.shadowOffset.fX),
-                     std::abs(style.shadowOffset.fY)) +
-                style.shadowBlur * 1.5f
-          : 0.0f;
+  const float shadowPad = style.shadowColor.fA > 0
+                              ? std::max(std::abs(style.shadowOffset.fX),
+                                         std::abs(style.shadowOffset.fY)) +
+                                    style.shadowBlur * 1.5f
+                              : 0.0f;
   return style.borderWidth * 0.5f + std::max(glowPad, shadowPad) + 1.0f;
 }
 
@@ -252,7 +251,7 @@ inline float pad(const Style &style) {
  *  out of the box, so a box that is not big enough for it has no visible
  *  interior at all and the node renders as nothing but its outer
  *  treatments — a 20 px box with a 5 px glow is already there. */
-inline float minBoxFor(const Style &style, float contentPx) {
+inline float minBoxFor(const Style& style, float contentPx) {
   return contentPx + 2.0f * pad(style);
 }
 
@@ -266,10 +265,9 @@ inline float minBoxFor(const Style &style, float contentPx) {
  *  Returns an EMPTY material if the shader failed to compile (the error is
  *  logged once when the effect is first built). An empty material paints
  *  nothing, so a node whose only fill is this one disappears. */
-inline Material material(const Shape &shape, const Style &style) {
-  const sk_sp<SkRuntimeEffect> &fx = detail::effectFor(shape.kind);
-  if (!fx)
-    return {};
+inline Material material(const Shape& shape, const Style& style) {
+  const sk_sp<SkRuntimeEffect>& fx = detail::effectFor(shape.kind);
+  if (!fx) return {};
   const float padPx = pad(style);
   return Material::sksl(fx, {{"uPad", padPx},
                              {"uBorderW", style.borderWidth},
@@ -286,4 +284,4 @@ inline Material material(const Shape &shape, const Style &style) {
       .uniform("uShadow", style.shadowColor);
 }
 
-} // namespace sigil::compose::sdf
+}  // namespace sigil::compose::sdf

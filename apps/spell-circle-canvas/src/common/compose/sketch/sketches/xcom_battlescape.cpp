@@ -88,11 +88,11 @@
 //     consequently no colour on screen is outside the 256. That is `shd()`,
 //     nine lines down from here, and it is called at bake time on every cell.
 //  3. THE MOUSE PICKER CHEATS BY TEN PIXELS. Map::setSelectorPosition calls
-//     convertScreenToMap(mx, my + _spriteHeight/4, ...) — it biases the cursor a
-//     quarter of a sprite DOWN before inverting, so what you select is the tile
-//     whose COLUMN you are pointing at, not the diamond under the pointer. The
-//     exact inverse is in the same file and the game deliberately does not use
-//     it. Twenty-six years before "hit slop" had a name. The selector drawn
+//     convertScreenToMap(mx, my + _spriteHeight/4, ...) — it biases the cursor
+//     a quarter of a sprite DOWN before inverting, so what you select is the
+//     tile whose COLUMN you are pointing at, not the diamond under the pointer.
+//     The exact inverse is in the same file and the game deliberately does not
+//     use it. Twenty-six years before "hit slop" had a name. The selector drawn
 //     here is the HONEST one; the audit prints both answers so the divergence
 //     is on the record.
 //
@@ -176,8 +176,11 @@
 // observations, not in what this file computes.
 // =============================================================================
 
-#include <sigilsketch/Sketch.h>
-
+#include <include/core/SkBitmap.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Material.h>
@@ -187,14 +190,8 @@
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/PixelType.h>
-
+#include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <array>
@@ -223,7 +220,7 @@ constexpr float PX = 4.0f;
 constexpr kit::Grid kGrid{.scale = PX};
 constexpr float n(float v) { return kGrid.s(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
-constexpr float kPanelY = n(144), kPanelH = n(56); // 200 - iconsHeight
+constexpr float kPanelY = n(144), kPanelH = n(56);  // 200 - iconsHeight
 
 // ---------------------------------------------------------------------------
 // THE PALETTE. Sixteen blocks of sixteen, each block one hue ramping light ->
@@ -318,8 +315,8 @@ constexpr float kMapViewW = kCanvasW, kMapViewH = kPanelY;
 
 /** map (mx,my,mz) -> the TOP-LEFT of the 128x160 sprite cell. */
 inline SkPoint mapToScreen(int mx, int my, int mz) {
-  return {kOX + (float)(mx - my) * n(16), kOY + (float)(mx + my) * n(8) -
-                                              (float)mz * n(24)};
+  return {kOX + (float)(mx - my) * n(16),
+          kOY + (float)(mx + my) * n(8) - (float)mz * n(24)};
 }
 /** Pool positions are the cell's CENTRE, not its top-left — a stamp is placed
  *  by its middle, so every mapToScreen result has to be re-centred before it
@@ -332,17 +329,17 @@ inline SkPoint cellCentre(int mx, int my, int mz) {
 /** Camera::convertScreenToMap:438, transcribed. Integer division is C
  *  truncation toward zero, so negative screen positions land one tile off —
  *  that is the original behaviour and the reason for the Clamp to -1. */
-inline void screenToMap(float sxf, float syf, int offsetZ, int *mapX,
-                        int *mapY) {
+inline void screenToMap(float sxf, float syf, int offsetZ, int* mapX,
+                        int* mapY) {
   // Work in ORIGINAL pixels: the arithmetic below is the 1994 arithmetic.
   int screenX = (int)std::floor(sxf / PX);
   int screenY = (int)std::floor(syf / PX);
-  screenY += (-32 / 2) + offsetZ * ((40 + 32 / 4) / 2); // -16 + offsetZ*24
+  screenY += (-32 / 2) + offsetZ * ((40 + 32 / 4) / 2);  // -16 + offsetZ*24
   const int offX = (int)(kOX / PX), offY = (int)(kOY / PX);
   int my = -screenX + offX + 2 * screenY - 2 * offY;
-  int mx = screenY - offY - my / 4 - (32 / 4); // - 8
-  mx /= (32 / 4);                              // /= 8
-  my /= 32;                                    // /= 32
+  int mx = screenY - offY - my / 4 - (32 / 4);  // - 8
+  mx /= (32 / 4);                               // /= 8
+  my /= 32;                                     // /= 32
   *mapX = std::clamp(mx, -1, kMapSize);
   *mapY = std::clamp(my, -1, kMapSize);
 }
@@ -367,10 +364,9 @@ constexpr uint8_t kDigit[10][5] = {
 // on the canvas that is not in the table above.
 
 struct Ink {
-  SkCanvas &c;
+  SkCanvas& c;
   void rect(float x, float y, float w, float h, int idx) const {
-    if (idx == 0)
-      return;
+    if (idx == 0) return;
     SkPaint p;
     p.setAntiAlias(false);
     p.setColor4f(C(idx), nullptr);
@@ -378,7 +374,9 @@ struct Ink {
   }
   void px(float x, float y, int idx) const { rect(x, y, 1, 1, idx); }
   /** Run-length row: [x0, x0+w) at row y. */
-  void run(float x0, float y, float w, int idx) const { rect(x0, y, w, 1, idx); }
+  void run(float x0, float y, float w, int idx) const {
+    rect(x0, y, w, 1, idx);
+  }
 };
 
 /** A deterministic 32-bit hash. Tile dither, speckle placement, the terrain
@@ -402,9 +400,9 @@ inline uint32_t hash3(int a, int b, int c) {
 // row widths sum to 256 = 32*16/2, exactly the rhombus area, so the tiling is
 // gapless and overlap-free by construction.
 
-constexpr int kDiamondTop = 24; // rows 24..39 of the 32x40 cell
+constexpr int kDiamondTop = 24;  // rows 24..39 of the 32x40 cell
 
-inline void diamondRow(int r, int &x0, int &w) {
+inline void diamondRow(int r, int& x0, int& w) {
   w = 2 + 4 * std::min(r, 15 - r);
   x0 = (32 - w) / 2;
 }
@@ -427,14 +425,14 @@ struct Soldier {
 // WHOLE costs four at the top. So the selected unit sits on diagonal 12 and the
 // path preview is fourteen tiles rather than fifteen: a fifteenth marker would
 // land on diagonal 27, whose diamond starts at y = 592 and is under the panel.
-constexpr Soldier kSoldierA{8, 4};  // selected; Anders Holmgren
-constexpr Soldier kSoldierB{15, 7}; // second of the squad, eight tiles away —
-                                    // the two nine-step pools MEET rather than
-                                    // add (Tile::addLight keeps the maximum),
-                                    // and the join is a visible hard seam
-constexpr int kAlienX = 12, kAlienY = 9; // half-revealed at the light's edge
+constexpr Soldier kSoldierA{8, 4};   // selected; Anders Holmgren
+constexpr Soldier kSoldierB{15, 7};  // second of the squad, eight tiles away —
+                                     // the two nine-step pools MEET rather than
+                                     // add (Tile::addLight keeps the maximum),
+                                     // and the join is a visible hard seam
+constexpr int kAlienX = 12, kAlienY = 9;  // half-revealed at the light's edge
 constexpr int kGlobalShade = 8;
-constexpr int kPersonalLight = 15; // TileEngine::personalLightPower
+constexpr int kPersonalLight = 15;  // TileEngine::personalLightPower
 
 /** Tile::getShade() = max(0, 15 - maxLight), with the sun at
  *  power = 15 - globalShade and each living player unit carrying a personal
@@ -444,9 +442,9 @@ constexpr int kPersonalLight = 15; // TileEngine::personalLightPower
  *  soldier stands in a nine-step pool reaching ambient at EXACTLY eight tiles.
  *  Round(), not floor() — verification #3 is the off-by-one that catches it. */
 inline int tileShade(int mx, int my) {
-  int light = 15 - kGlobalShade; // the sun
+  int light = 15 - kGlobalShade;  // the sun
   const Soldier units[2] = {kSoldierA, kSoldierB};
-  for (const Soldier &u : units) {
+  for (const Soldier& u : units) {
     const float dx = (float)(mx - u.mx), dy = (float)(my - u.my);
     const int d = (int)std::lround(std::sqrt(dx * dx + dy * dy));
     light = std::max(light, kPersonalLight - d);
@@ -482,7 +480,7 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
   std::array<TileData, kMapSize * kMapSize> m{};
   for (int mx = 0; mx < kMapSize; ++mx)
     for (int my = 0; my < kMapSize; ++my) {
-      TileData &t = m[(size_t)(my * kMapSize + mx)];
+      TileData& t = m[(size_t)(my * kMapSize + mx)];
       const int sum = mx + my, diff = mx - my;
       const uint32_t h = hash3(mx, my, 7);
       // The discovered boundary. Each half is a MONOTONE function of the
@@ -498,8 +496,7 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
       t.floor = (diff >= dirtEdge && sum <= 22) ? kDirt : kGrass;
       // Hull plates, a wrecked section of the UFO — the one two-level
       // structure on the map, and therefore the only z = 1 content.
-      if (mx >= 12 && mx <= 13 && my >= 3 && my <= 4)
-        t.floor = kHull;
+      if (mx >= 12 && mx <= 13 && my >= 3 && my <= 4) t.floor = kHull;
       // Forest. Denser on grass than on the scorched dirt.
       const uint32_t r = (h >> 18) % 100u;
       if (t.floor == kGrass)
@@ -510,13 +507,13 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
         t.object = kHullWall;
     }
   // A dirt track, and the walked route is always discovered and always clear.
-  for (const SkIPoint &p : pathTiles()) {
-    TileData &t = m[(size_t)(p.y() * kMapSize + p.x())];
+  for (const SkIPoint& p : pathTiles()) {
+    TileData& t = m[(size_t)(p.y() * kMapSize + p.x())];
     t.seen = true;
     t.object = kNone;
   }
-  for (const Soldier &u : {kSoldierA, kSoldierB}) {
-    TileData &t = m[(size_t)(u.my * kMapSize + u.mx)];
+  for (const Soldier& u : {kSoldierA, kSoldierB}) {
+    TileData& t = m[(size_t)(u.my * kMapSize + u.mx)];
     t.seen = true;
     t.object = kNone;
   }
@@ -543,7 +540,7 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
  *  variant the dither repeats identically under the (+-16, +8) lattice and a
  *  coherent moire appears across the whole map — the flyweight's own failure
  *  mode, and one that only shows up in the picture, never in the arithmetic. */
-inline void paintFloor(SkCanvas &canvas, Floor kind, int shade, int variant) {
+inline void paintFloor(SkCanvas& canvas, Floor kind, int shade, int variant) {
   const Ink ink{canvas};
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
   if (kind == kDirt) {
@@ -570,7 +567,7 @@ inline void paintFloor(SkCanvas &canvas, Floor kind, int shade, int variant) {
       ink.px((float)x, (float)(kDiamondTop + r), shd(idx, shade));
     }
   }
-  if (kind == kHull) // plate seams
+  if (kind == kHull)  // plate seams
     for (int r = 3; r < 16; r += 6) {
       int x0, w;
       diamondRow(r, x0, w);
@@ -582,7 +579,7 @@ inline void paintFloor(SkCanvas &canvas, Floor kind, int shade, int variant) {
 /** The diamond's row span for a given column — the extrusion silhouette. A
  *  column x is inside row r iff min(r, 15-r) >= ceil((|x-15.5| - 0.5)/2), which
  *  falls straight out of the run-length rule above. */
-inline void diamondColumn(int x, int &rTop, int &rBot) {
+inline void diamondColumn(int x, int& rTop, int& rBot) {
   const float dx = std::abs((float)x - 15.5f);
   const int k = (int)std::ceil((dx - 0.5f) / 2.0f);
   rTop = std::clamp(k, 0, 7);
@@ -593,7 +590,7 @@ inline void diamondColumn(int x, int &rTop, int &rBot) {
  *  which is what makes the crash site the only two-level structure here — the
  *  wall face blits at z = 0 and the deck plate at z = 1, exactly the
  *  O_OBJECT / O_FLOOR split Map::drawTerrain walks. */
-inline void paintHullWall(SkCanvas &canvas, int shade) {
+inline void paintHullWall(SkCanvas& canvas, int shade) {
   const Ink ink{canvas};
   for (int x = 0; x < 32; ++x) {
     int rTop, rBot;
@@ -603,19 +600,17 @@ inline void paintHullWall(SkCanvas &canvas, int shade) {
       const uint32_t h = hash3(x, y, 55);
       const bool lit = x > 15;
       int step = (lit ? 6 : 9) + (int)(h % 2u);
-      if ((h % 23u) == 0u)
-        step += 3; // rivets and scoring
-      if (((y - y0) % 7) == 0)
-        step += 2; // hull plate seams, one per 7 rows
+      if ((h % 23u) == 0u) step += 3;      // rivets and scoring
+      if (((y - y0) % 7) == 0) step += 2;  // hull plate seams, one per 7 rows
       ink.px((float)x, (float)y, shd(blk(14, step), shade));
     }
-    ink.px((float)x, (float)y0, shd(blk(14, 4), shade)); // top lip
+    ink.px((float)x, (float)y0, shd(blk(14, 4), shade));  // top lip
   }
 }
-inline void paintHullDeck(SkCanvas &canvas, int shade) {
+inline void paintHullDeck(SkCanvas& canvas, int shade) {
   paintFloor(canvas, kHull, shade, 0);
   const Ink ink{canvas};
-  for (int r = 0; r < 16; ++r) { // a bright rim so the deck reads as raised
+  for (int r = 0; r < 16; ++r) {  // a bright rim so the deck reads as raised
     int x0, w;
     diamondRow(r, x0, w);
     ink.px((float)x0, (float)(kDiamondTop + r), shd(blk(14, 1), shade));
@@ -630,7 +625,7 @@ inline void paintHullDeck(SkCanvas &canvas, int shade) {
  *  last step past 15 — so the terminator on a dusk tree is literally
  *  PAL[15] #000000, not the ramp's darkest green. That is the overflow branch
  *  in shd(), and it is why X-COM's night terrain looks the way it does. */
-inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
+inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
                         int shade, int litStep, uint32_t seed) {
   const int r0 = (int)std::floor(cy - ry), r1 = (int)std::ceil(cy + ry);
   for (int r = r0; r <= r1; ++r) {
@@ -638,15 +633,14 @@ inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
     float hw = rx * std::sqrt(std::max(0.0f, 1.0f - t * t));
     hw += (float)((int)(hash3(r, (int)seed, 3) % 5u) - 2) * 0.5f;
     const int w = (int)std::lround(hw * 2.0f);
-    if (w <= 0)
-      continue;
+    if (w <= 0) continue;
     const int x0 = (int)std::lround(cx - (float)w * 0.5f);
     for (int x = x0; x < x0 + w; ++x) {
       const uint32_t h = hash3(x, r, (int)seed + 91);
       const bool flank = (float)x > cx + hw * 0.15f;
       int idx = blk(3, litStep + (flank ? 3 : 0) + (int)(h % 3u));
       if (!flank && (h % 89u) == 0u)
-        idx = blk(2, 2); // fruit — block 2 red, one pixel
+        idx = blk(2, 2);  // fruit — block 2 red, one pixel
       ink.px((float)x, (float)r, shd(idx, shade));
     }
   }
@@ -656,14 +650,14 @@ inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
  *  diamond's centre (row 32). 28 original px tall, which is what the reference
  *  measures. It has to fit in ONE cell: a tree drawn across two levels comes
  *  out around 48 px and reads as a column rather than as a tree. */
-inline void paintTree(SkCanvas &canvas, int shade) {
+inline void paintTree(SkCanvas& canvas, int shade) {
   const Ink ink{canvas};
   for (int r = 23; r <= 32; ++r)
     ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, shd(blk(10, 6), shade));
   ink.run(13.0f, 32.0f, 6.0f, shd(blk(10, 8), shade));
   paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, shade, 6, 5u);
 }
-inline void paintBush(SkCanvas &canvas, int shade) {
+inline void paintBush(SkCanvas& canvas, int shade) {
   const Ink ink{canvas};
   paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, shade, 7, 17u);
 }
@@ -672,7 +666,7 @@ inline void paintBush(SkCanvas &canvas, int shade) {
  *  authored in block 1 and the cell bakes with the block replaced — which is
  *  exactly what blitNShade(..., newBaseColor) does at runtime.
  *  dir: 0 = down-left (map +y), 1 = down-right (map +x). */
-inline void paintArrow(SkCanvas &canvas, int dir, int block1) {
+inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
   const Ink ink{canvas};
   const auto put = [&](int x, int y, int step) {
     ink.px((float)(dir == 0 ? x : 31 - x), (float)y,
@@ -682,21 +676,19 @@ inline void paintArrow(SkCanvas &canvas, int dir, int block1) {
   // reference, and the size is the point — a 32-px tile is only 32 px, so an
   // arrow much larger than this covers half the ground it is marking.
   for (int k = 0; k < 4; ++k)
-    for (int y = 8 - k; y <= 8 + k; ++y)
-      put(8 + k, y, k == 0 ? 0 : 2);
+    for (int y = 8 - k; y <= 8 + k; ++y) put(8 + k, y, k == 0 ? 0 : 2);
   for (int x = 12; x < 19; ++x)
-    for (int y = 6; y <= 10; ++y)
-      put(x, y, (y == 6 || y == 10) ? 4 : 1);
+    for (int y = 6; y <= 10; ++y) put(x, y, (y == 6 || y == 10) ? 4 : 1);
 }
 
 /** The 3D box selector — a 32x40 wireframe cube, one tile, block 2. Drawn at
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
  *  ten pixels down first (Map.cpp:1314), and printAudit reports both answers so
  *  the difference is visible. */
-inline void paintCursor(SkCanvas &canvas) {
+inline void paintCursor(SkCanvas& canvas) {
   const Ink ink{canvas};
   const int lit = blk(2, 0), dim = blk(2, 2);
-  const int lift = 12; // the box is half a level tall
+  const int lift = 12;  // the box is half a level tall
   for (int r = 0; r < 16; ++r) {
     int x0, w;
     diamondRow(r, x0, w);
@@ -720,7 +712,7 @@ inline void paintCursor(SkCanvas &canvas) {
 /** Two soldiers and one alien, as real Elements rather than pool instances —
  *  they need keys so hitTest can reach them (verification #2). Block 8 armour,
  *  block 11 face; the alien is block 12. */
-inline void paintUnit(SkCanvas &canvas, int shade, bool alien) {
+inline void paintUnit(SkCanvas& canvas, int shade, bool alien) {
   const Ink ink{canvas};
   const int body = alien ? blk(12, 2) : blk(8, 2);
   const int dark = alien ? blk(12, 7) : blk(8, 7);
@@ -741,7 +733,7 @@ inline void paintUnit(SkCanvas &canvas, int shade, bool alien) {
   ink.rect(17, 22, 3, 7, shd(body, shade));
   ink.rect(12, 29, 5, 2, shd(boot, shade));
   ink.rect(17, 29, 5, 2, shd(boot, shade));
-  if (!alien) { // the rifle, held across
+  if (!alien) {  // the rifle, held across
     ink.rect(9, 17, 12, 1, shd(blk(15, 2), shade));
     ink.rect(14, 18, 4, 2, shd(blk(15, 5), shade));
   }
@@ -751,7 +743,7 @@ inline void paintUnit(SkCanvas &canvas, int shade, bool alien) {
  *  positions, the only continuous-looking motion on the whole screen, and it
  *  is quantised. */
 constexpr int kArrowBob[8] = {0, 1, 2, 1, 0, 1, 2, 1};
-inline void paintBobArrow(SkCanvas &canvas, int frame) {
+inline void paintBobArrow(SkCanvas& canvas, int frame) {
   const Ink ink{canvas};
   const int dy = kArrowBob[frame & 7];
   for (int k = 0; k < 5; ++k)
@@ -773,8 +765,8 @@ struct PixelText {
   int w = 0, h = 0;
 };
 
-inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
-                           weave::FontContext &fonts, int litIdx, int dimIdx) {
+inline PixelText pixelText(const std::u8string& s, weave::TextStyle style,
+                           weave::FontContext& fonts, int litIdx, int dimIdx) {
   // The measure -> raster -> read-back -> crop-to-ink core is kit::coverage();
   // what belongs to this file is the TWO-LEVEL quantisation into palette
   // indices below, which is why the kit hands back coverage rather than a
@@ -786,8 +778,7 @@ inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
   // x = 0 no matter how large the pad is.
   style.paint.foreground.setColor(SK_ColorWHITE);
   const kit::Coverage cov = kit::coverage(s, fonts, style);
-  if (!cov.valid() || cov.ink.isEmpty())
-    return {};
+  if (!cov.valid() || cov.ink.isEmpty()) return {};
   const int cw = cov.ink.width(), chh = cov.ink.height();
   SkBitmap out;
   out.allocPixels(SkImageInfo::Make(cw, chh, kRGBA_8888_SkColorType,
@@ -799,8 +790,7 @@ inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
       // face, and the reason a 1-bit threshold() would not serve here.
       const float a = cov.alphaAt(cov.ink.fLeft + x, cov.ink.fTop + y);
       const uint8_t lv = a >= 0.55f ? 2 : (a >= 0.22f ? 1 : 0);
-      if (!lv)
-        continue;
+      if (!lv) continue;
       const uint32_t v = kPal[(unsigned)(lv == 2 ? litIdx : dimIdx) & 255u];
       // kRGBA_8888 unpremul: R, G, B, A in memory order.
       *out.getAddr32(x, y) = (0xFFu << 24) | ((v & 255u) << 16) |
@@ -813,9 +803,8 @@ inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
 /** The pixel-text element: an image fill at exactly 4x, nearest-sampled, on a
  *  box whose size is the ink. Material::image takes the sampling options, which
  *  is what keeps the 4x magnification from filtering. */
-inline Element pixelTextEl(const PixelText &t, float x, float y) {
-  if (!t.image)
-    return box().width(0).height(0);
+inline Element pixelTextEl(const PixelText& t, float x, float y) {
+  if (!t.image) return box().width(0).height(0);
   return box()
       .left(x)
       .top(y)
@@ -839,19 +828,18 @@ inline Element at(float x, float y, float w, float h) {
  *  radius antialiases, and every antialiased edge puts colours on the canvas
  *  that VGA never had. Lit edge 81-85, face 86-87, shadow 91-93 — read off the
  *  capture's flat runs, which are the part of it that survived rescaling. */
-inline void paintPlate(SkCanvas &canvas, int w, int h) {
+inline void paintPlate(SkCanvas& canvas, int w, int h) {
   const Ink ink{canvas};
   for (int r = 0; r < h; ++r) {
-    const int inset = (r == 0 || r == h - 1) ? 3 : ((r == 1 || r == h - 2) ? 1 : 0);
+    const int inset =
+        (r == 0 || r == h - 1) ? 3 : ((r == 1 || r == h - 2) ? 1 : 0);
     const int x0 = inset, run = w - 2 * inset;
     const bool top = r < h / 2;
     ink.run((float)x0, (float)r, (float)run, blk(5, top ? 6 : 8));
     if (r == 0 || r == 1)
       ink.run((float)x0, (float)r, (float)run, blk(5, 1 + r));
-    if (r == h - 1)
-      ink.run((float)x0, (float)r, (float)run, blk(5, 12));
-    if (r == h - 2)
-      ink.run((float)x0, (float)r, (float)run, blk(5, 11));
+    if (r == h - 1) ink.run((float)x0, (float)r, (float)run, blk(5, 12));
+    if (r == h - 2) ink.run((float)x0, (float)r, (float)run, blk(5, 11));
     ink.px((float)x0, (float)r, blk(5, r == 0 ? 1 : 3));
     ink.px((float)(x0 + run - 1), (float)r, blk(5, r == h - 1 ? 12 : 10));
   }
@@ -861,7 +849,7 @@ inline void paintPlate(SkCanvas &canvas, int w, int h) {
  *  Inventory/Center, NextSoldier/NextStop, ShowLayers/Help, EndTurn/Abort. The
  *  capture's glyphs match that mapping exactly, which is a small verification
  *  in itself. Ink is block 5 step 14 with a block 5 step 2 highlight below. */
-inline void paintButtonGlyph(SkCanvas &canvas, int id) {
+inline void paintButtonGlyph(SkCanvas& canvas, int id) {
   const Ink ink{canvas};
   const int d = blk(5, 14), l = blk(5, 2);
   const auto tri = [&](int cx, int cy, int size, bool up) {
@@ -883,58 +871,88 @@ inline void paintButtonGlyph(SkCanvas &canvas, int id) {
     ink.rect((float)(x + 4), (float)(y + 6), 1, 4, d);
   };
   switch (id) {
-  case 0: tri(10, 4, 4, true);  bars(17, 4, 4, 8); break;  // unit up
-  case 1: tri(10, 4, 4, false); bars(17, 4, 4, 8); break;  // unit down
-  case 2: tri(10, 4, 4, true);  bars(17, 4, 4, 6); ink.rect(24, 4, 2, 7, d); break;
-  case 3: tri(10, 4, 4, false); bars(17, 4, 4, 6); ink.rect(24, 4, 2, 7, d); break;
-  case 4: // show map: a small grid
-    for (int gy = 0; gy < 4; ++gy)
-      for (int gx = 0; gx < 7; ++gx)
-        ink.rect((float)(9 + gx * 2), (float)(4 + gy * 2), 1, 1,
-                 ((gx + gy) & 1) ? d : l);
-    break;
-  case 5: figure(11, 3); ink.rect(17, 9, 5, 1, d); break; // kneel
-  case 6: figure(13, 3); break;                            // inventory
-  case 7:                                                  // center reticle
-    ink.rect(12, 7, 9, 1, d);
-    ink.rect(16, 3, 1, 9, d);
-    ink.rect(13, 4, 1, 1, d); ink.rect(19, 4, 1, 1, d);
-    ink.rect(13, 10, 1, 1, d); ink.rect(19, 10, 1, 1, d);
-    break;
-  case 8: figure(9, 3); ink.rect(17, 7, 6, 1, d); ink.rect(21, 5, 1, 5, d);
-          figure(23, 3); break;                            // next soldier
-  case 9: figure(9, 3); ink.rect(17, 7, 6, 1, d); ink.rect(21, 5, 1, 5, d);
-          ink.rect(24, 3, 1, 9, d); break;                 // next / stop
-  case 10: // layers: three stacked plates, the top one lit
-    for (int k = 0; k < 3; ++k) {
-      const int y = 4 + k * 3;
-      ink.run(8.0f, (float)y, 10.0f, k == 0 ? l : d);
-      ink.run(9.0f, (float)(y + 1), 8.0f, d);
-    }
-    break;
-  case 11: // help: a question mark
-    ink.run(13.0f, 3.0f, 5.0f, d);
-    ink.rect(17, 4, 2, 2, d);
-    ink.rect(15, 6, 2, 2, d);
-    ink.rect(15, 9, 2, 2, d);
-    break;
-  case 12: // end turn: slashed circle
-    for (int k = 0; k < 9; ++k) {
-      const float t = ((float)k - 4.0f) / 4.5f;
-      const int hw = (int)std::lround(4.5f * std::sqrt(std::max(0.0f, 1 - t * t)));
-      ink.px((float)(16 - hw), (float)(3 + k), d);
-      ink.px((float)(16 + hw), (float)(3 + k), d);
-    }
-    for (int k = 0; k < 9; ++k)
-      ink.px((float)(12 + k), (float)(11 - k), d);
-    break;
-  default: // abort: a bird
-    for (int k = 0; k < 6; ++k) {
-      ink.run((float)(10 + k), (float)(8 - k / 2), (float)(3 - k / 3), d);
-      ink.run((float)(18 - k / 2 + k), (float)(8 - k / 2), (float)(3 - k / 3), d);
-    }
-    ink.rect(15, 7, 3, 2, d);
-    break;
+    case 0:
+      tri(10, 4, 4, true);
+      bars(17, 4, 4, 8);
+      break;  // unit up
+    case 1:
+      tri(10, 4, 4, false);
+      bars(17, 4, 4, 8);
+      break;  // unit down
+    case 2:
+      tri(10, 4, 4, true);
+      bars(17, 4, 4, 6);
+      ink.rect(24, 4, 2, 7, d);
+      break;
+    case 3:
+      tri(10, 4, 4, false);
+      bars(17, 4, 4, 6);
+      ink.rect(24, 4, 2, 7, d);
+      break;
+    case 4:  // show map: a small grid
+      for (int gy = 0; gy < 4; ++gy)
+        for (int gx = 0; gx < 7; ++gx)
+          ink.rect((float)(9 + gx * 2), (float)(4 + gy * 2), 1, 1,
+                   ((gx + gy) & 1) ? d : l);
+      break;
+    case 5:
+      figure(11, 3);
+      ink.rect(17, 9, 5, 1, d);
+      break;  // kneel
+    case 6:
+      figure(13, 3);
+      break;  // inventory
+    case 7:   // center reticle
+      ink.rect(12, 7, 9, 1, d);
+      ink.rect(16, 3, 1, 9, d);
+      ink.rect(13, 4, 1, 1, d);
+      ink.rect(19, 4, 1, 1, d);
+      ink.rect(13, 10, 1, 1, d);
+      ink.rect(19, 10, 1, 1, d);
+      break;
+    case 8:
+      figure(9, 3);
+      ink.rect(17, 7, 6, 1, d);
+      ink.rect(21, 5, 1, 5, d);
+      figure(23, 3);
+      break;  // next soldier
+    case 9:
+      figure(9, 3);
+      ink.rect(17, 7, 6, 1, d);
+      ink.rect(21, 5, 1, 5, d);
+      ink.rect(24, 3, 1, 9, d);
+      break;  // next / stop
+    case 10:  // layers: three stacked plates, the top one lit
+      for (int k = 0; k < 3; ++k) {
+        const int y = 4 + k * 3;
+        ink.run(8.0f, (float)y, 10.0f, k == 0 ? l : d);
+        ink.run(9.0f, (float)(y + 1), 8.0f, d);
+      }
+      break;
+    case 11:  // help: a question mark
+      ink.run(13.0f, 3.0f, 5.0f, d);
+      ink.rect(17, 4, 2, 2, d);
+      ink.rect(15, 6, 2, 2, d);
+      ink.rect(15, 9, 2, 2, d);
+      break;
+    case 12:  // end turn: slashed circle
+      for (int k = 0; k < 9; ++k) {
+        const float t = ((float)k - 4.0f) / 4.5f;
+        const int hw =
+            (int)std::lround(4.5f * std::sqrt(std::max(0.0f, 1 - t * t)));
+        ink.px((float)(16 - hw), (float)(3 + k), d);
+        ink.px((float)(16 + hw), (float)(3 + k), d);
+      }
+      for (int k = 0; k < 9; ++k) ink.px((float)(12 + k), (float)(11 - k), d);
+      break;
+    default:  // abort: a bird
+      for (int k = 0; k < 6; ++k) {
+        ink.run((float)(10 + k), (float)(8 - k / 2), (float)(3 - k / 3), d);
+        ink.run((float)(18 - k / 2 + k), (float)(8 - k / 2), (float)(3 - k / 3),
+                d);
+      }
+      ink.rect(15, 7, 3, 2, d);
+      break;
   }
 }
 
@@ -946,7 +964,7 @@ inline void paintButtonGlyph(SkCanvas &canvas, int id) {
  *  the gap between them is TRANSPARENT so the panel's blue lattice shows
  *  through. That gap is what makes it read as a gauge and not a rectangle. */
 inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
-                       const char *key) {
+                       const char* key) {
   const int outline = colorIdx + 4;
   // A transparent full-canvas shell, so the four rects keep SCREEN coordinates.
   // The KEY goes on the fill rect, never on the shell: a keyed full-bleed shell
@@ -977,7 +995,7 @@ inline Element recess(float x, float y, int firstIdx) {
   return g;
 }
 
-} // namespace xcom
+}  // namespace xcom
 
 using namespace xcom;
 
@@ -988,15 +1006,15 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   using Pool = instancing::Pool;
 
   // ---- the flyweight -------------------------------------------------------
-  std::shared_ptr<Atlas> tiles;      // 128x160 cells, (type x shade) + markers
-  std::shared_ptr<Atlas> fontAtlas;  // ONE 4x4 white cell, tinted per instance
-  std::shared_ptr<Pool> terrain;     // z0 floors + objects, z1 tree tops
-  std::shared_ptr<Pool> overlay;     // path arrows + the box selector
-  std::shared_ptr<Pool> mapGlyphs;   // fifteen bordered TU markers
-  std::shared_ptr<Pool> panelGlyphs; // stats, ammo, layer, spotted-unit tags
+  std::shared_ptr<Atlas> tiles;       // 128x160 cells, (type x shade) + markers
+  std::shared_ptr<Atlas> fontAtlas;   // ONE 4x4 white cell, tinted per instance
+  std::shared_ptr<Pool> terrain;      // z0 floors + objects, z1 tree tops
+  std::shared_ptr<Pool> overlay;      // path arrows + the box selector
+  std::shared_ptr<Pool> mapGlyphs;    // fifteen bordered TU markers
+  std::shared_ptr<Pool> panelGlyphs;  // stats, ammo, layer, spotted-unit tags
 
-  int cellFloor[3][2][9]{}; // [type][dither variant][shade]
-  int cellObj[4][9]{};      // [kNone unused | kBush | kTree | kHullWall]
+  int cellFloor[3][2][9]{};  // [type][dither variant][shade]
+  int cellObj[4][9]{};       // [kNone unused | kBush | kTree | kHullWall]
   int cellHullDeck[9]{};
   int cellArrow[2][3]{};
   int cellCursor = 0;
@@ -1012,15 +1030,15 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   // ---- panel data (soldiers.rul ranges; maxima recovered from the capture) --
   static constexpr int kMaxTU = 60, kMaxEnergy = 65, kMaxHealth = 36,
                        kMaxMorale = 100;
-  static constexpr int kFiring = 58; // chosen inside 40-70
-  static constexpr int kReserveTU = 15; // floor(60 * 25/100) — a Snap Shot
+  static constexpr int kFiring = 58;     // chosen inside 40-70
+  static constexpr int kReserveTU = 15;  // floor(60 * 25/100) — a Snap Shot
 
   // ---- pixel type ----------------------------------------------------------
   xcom::PixelText nameText, popupRow[3], popupAcc[3], popupTU[3];
 
   // ---- motion --------------------------------------------------------------
   int animFrame = 0;
-  int tagIndex = 32; // blinkVisibleUnitButtons walks 32..44
+  int tagIndex = 32;  // blinkVisibleUnitButtons walks 32..44
   int tagDir = 1;
   sigil::motion::Ticker::FixedStatus fixedStatus{};
 
@@ -1031,7 +1049,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     bool popup = false;
     bool fired = false;
     int tags = 3;
-    bool operator==(const Phase &) const = default;
+    bool operator==(const Phase&) const = default;
   } phase, lastPhase{-1};
 
   Pattern metalPattern, latticePattern;
@@ -1065,44 +1083,44 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
         for (int v = 0; v < 2; ++v) {
           const Floor kind = (Floor)f;
           cellFloor[f][v][shade] = tiles->cell(
-              custom([kind, shade, v](SkCanvas &c, const PaintContext &) {
+              custom([kind, shade, v](SkCanvas& c, const PaintContext&) {
                 paintFloor(c, kind, shade, v);
               }),
               cell);
         }
-      cellObj[kBush][shade] = tiles->cell(
-          custom([shade](SkCanvas &c, const PaintContext &) {
-            paintBush(c, shade);
-          }),
-          cell);
-      cellObj[kTree][shade] = tiles->cell(
-          custom([shade](SkCanvas &c, const PaintContext &) {
-            paintTree(c, shade);
-          }),
-          cell);
-      cellObj[kHullWall][shade] = tiles->cell(
-          custom([shade](SkCanvas &c, const PaintContext &) {
-            paintHullWall(c, shade);
-          }),
-          cell);
-      cellHullDeck[shade] = tiles->cell(
-          custom([shade](SkCanvas &c, const PaintContext &) {
-            paintHullDeck(c, shade);
-          }),
-          cell);
+      cellObj[kBush][shade] =
+          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
+                        paintBush(c, shade);
+                      }),
+                      cell);
+      cellObj[kTree][shade] =
+          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
+                        paintTree(c, shade);
+                      }),
+                      cell);
+      cellObj[kHullWall][shade] =
+          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
+                        paintHullWall(c, shade);
+                      }),
+                      cell);
+      cellHullDeck[shade] =
+          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
+                        paintHullDeck(c, shade);
+                      }),
+                      cell);
     }
-    const int kBlocks[3] = {4, 10, 3}; // Pathfinding green / yellow / red
+    const int kBlocks[3] = {4, 10, 3};  // Pathfinding green / yellow / red
     for (int d = 0; d < 2; ++d)
       for (int m = 0; m < 3; ++m) {
         const int b = kBlocks[m];
-        cellArrow[d][m] = tiles->cell(
-            custom([d, b](SkCanvas &c, const PaintContext &) {
-              paintArrow(c, d, b);
-            }),
-            cell);
+        cellArrow[d][m] =
+            tiles->cell(custom([d, b](SkCanvas& c, const PaintContext&) {
+                          paintArrow(c, d, b);
+                        }),
+                        cell);
       }
     cellCursor = tiles->cell(
-        custom([](SkCanvas &c, const PaintContext &) { paintCursor(c); }), cell);
+        custom([](SkCanvas& c, const PaintContext&) { paintCursor(c); }), cell);
     atlasCells = tiles->frameCount();
 
     fontAtlas = std::make_shared<Atlas>(1.0f);
@@ -1120,7 +1138,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   /** value at (x, y) in ORIGINAL px, colour = _color + 1 (NumberText::draw ends
    *  with offset(_color)). `bordered` adds the black surround the map markers
    *  carry. Returns the advance, 4 px per digit, no kerning, ever. */
-  int pushNumber(Pool &pool, int value, float x, float y, int colorIdx,
+  int pushNumber(Pool& pool, int value, float x, float y, int colorIdx,
                  bool bordered) {
     const int lit = colorIdx + 1;
     std::string digits = std::to_string(std::max(0, value));
@@ -1133,8 +1151,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
             for (int dr = -1; dr <= 1 && !nearLit; ++dr)
               for (int dc = -1; dc <= 1; ++dc) {
                 const int rr = r + dr, cc = c + dc;
-                if (rr < 0 || rr > 4 || cc < 0 || cc > 2)
-                  continue;
+                if (rr < 0 || rr > 4 || cc < 0 || cc > 2) continue;
                 if (xcom::kDigit[g][rr] & (4 >> cc)) {
                   if (dr == 0 && dc == 0)
                     self = true;
@@ -1179,12 +1196,11 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     for (int z = 0; z <= 1; ++z)
       for (int mx = 0; mx < kMapSize; ++mx)
         for (int my = 0; my < kMapSize; ++my) {
-          const TileData &t = map[(size_t)(my * kMapSize + mx)];
+          const TileData& t = map[(size_t)(my * kMapSize + mx)];
           if (!t.seen)
-            continue; // undiscovered tiles are not drawn; PAL[15] shows
+            continue;  // undiscovered tiles are not drawn; PAL[15] shows
           const SkPoint tl = mapToScreen(mx, my, z);
-          if (!visible(tl))
-            continue;
+          if (!visible(tl)) continue;
           const int sh = tileShade(mx, my);
           const SkPoint centre = cellCentre(mx, my, z);
           if (z == 0) {
@@ -1210,10 +1226,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     using namespace xcom;
     path = pathTiles();
     if (!longer)
-      path.resize(11); // the cursor jumps three tiles further out at t = 3.2 s
+      path.resize(11);  // the cursor jumps three tiles further out at t = 3.2 s
     pathTU.clear();
     pathBlock.clear();
-    int tus = 58; // the soldier's current TU, and the number in the recess
+    int tus = 58;  // the soldier's current TU, and the number in the recess
     for (size_t i = 0; i < path.size(); ++i) {
       // 4 TU for ordinary open ground (Pathfinding's own fallback value; the
       // real per-terrain costs are .MCD data and are in no repo), plus
@@ -1256,29 +1272,29 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     mapGlyphs->commit();
   }
 
-  void buildPanelGlyphs(const Phase &p) {
+  void buildPanelGlyphs(const Phase& p) {
     using namespace xcom;
     panelGlyphs->clear();
     const int tu = p.fired ? 43 : 58;
-    pushNumber(*panelGlyphs, tu, 136, 186, 64, false);        // numTUs
-    pushNumber(*panelGlyphs, 56, 154, 186, 16, false);        // numEnergy
-    pushNumber(*panelGlyphs, 36, 136, 194, 32, false);        // numHealth
-    pushNumber(*panelGlyphs, 100, 154, 194, 192, false);      // numMorale
+    pushNumber(*panelGlyphs, tu, 136, 186, 64, false);    // numTUs
+    pushNumber(*panelGlyphs, 56, 154, 186, 16, false);    // numEnergy
+    pushNumber(*panelGlyphs, 36, 136, 194, 32, false);    // numHealth
+    pushNumber(*panelGlyphs, 100, 154, 194, 192, false);  // numMorale
     // numLayers declares 15 in interfaces.rul, and offset(_color) would put the
     // lit pixel at 16 — amber. The capture's little `1` is BLACK, so it is
     // drawn here at 14 (lit 15). Noted rather than silently reconciled.
-    pushNumber(*panelGlyphs, 1, 232, 150, 14, false);          // numLayers
-    pushNumber(*panelGlyphs, p.fired ? 13 : 14, 280, 148, 2, false); // ammo R
+    pushNumber(*panelGlyphs, 1, 232, 150, 14, false);  // numLayers
+    pushNumber(*panelGlyphs, p.fired ? 13 : 14, 280, 148, 2, false);  // ammo R
     for (int i = 0; i < p.tags; ++i)
-      pushNumber(*panelGlyphs, i + 1, 306 + (i == 9 ? -2 : 0),
-                 132 - 13 * i, 16, false); // visibleUnits: 16
+      pushNumber(*panelGlyphs, i + 1, 306 + (i == 9 ? -2 : 0), 132 - 13 * i, 16,
+                 false);  // visibleUnits: 16
     panelGlyphs->commit();
   }
 
   // =========================================================================
   // DESCRIBE
 
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     using namespace xcom;
     Element root = box().width(kCanvasW).height(kCanvasH).fill(C(blk(0, 15)));
 
@@ -1288,22 +1304,22 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                    .child(instancing::instances(tiles, terrain)));
 
     // ---- z2 units and objects: REAL elements, so hitTest can reach them ----
-    for (const auto &[u, alien, key] :
+    for (const auto& [u, alien, key] :
          {std::tuple{kSoldierA, false, "unit-a"},
           std::tuple{kSoldierB, false, "unit-b"},
           std::tuple{Soldier{kAlienX, kAlienY}, true, "unit-alien"}}) {
       const SkPoint tl = mapToScreen(u.mx, u.my, 0);
       const int sh = tileShade(u.mx, u.my);
-      root.child(box()
-                     .left(tl.fX)
-                     .top(tl.fY)
-                     .width(kCellW)
-                     .height(kCellH)
-                     .key(key)
-                     .child(custom([sh, alien](SkCanvas &c,
-                                               const PaintContext &) {
-                       paintUnit(c, sh, alien);
-                     })));
+      root.child(
+          box()
+              .left(tl.fX)
+              .top(tl.fY)
+              .width(kCellW)
+              .height(kCellH)
+              .key(key)
+              .child(custom([sh, alien](SkCanvas& c, const PaintContext&) {
+                paintUnit(c, sh, alien);
+              })));
     }
     {
       const SkPoint tl = mapToScreen(kSoldierA.mx, kSoldierA.my, 0);
@@ -1313,7 +1329,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                      .top(tl.fY - n(4))
                      .width(kCellW)
                      .height(kCellH)
-                     .child(custom([frame](SkCanvas &c, const PaintContext &) {
+                     .child(custom([frame](SkCanvas& c, const PaintContext&) {
                        paintBobArrow(c, frame);
                      })));
     }
@@ -1336,17 +1352,16 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     }
 
     // ---- panel numbers, above the panel and above the tags ----------------
-    root.child(
-        at(0, 0, 320, 200).child(instancing::instances(fontAtlas, panelGlyphs)));
+    root.child(at(0, 0, 320, 200)
+                   .child(instancing::instances(fontAtlas, panelGlyphs)));
 
     // ---- z7 the fire-mode popup, snapped open, never tweened ---------------
-    if (phase.popup)
-      root.child(popupEl());
+    if (phase.popup) root.child(popupEl());
 
     return root;
   }
 
-  Element panel(sketch::SketchContext &) {
+  Element panel(sketch::SketchContext&) {
     using namespace xcom;
     // A full-canvas transparent shell, NOT a box at the panel's rect: every
     // widget below is positioned by its BattlescapeState constructor argument,
@@ -1367,10 +1382,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
         const int id = col * 2 + row;
         p.child(at(bx[col], 144 + 16 * row, 32, 16)
                     .key("btn" + std::to_string(id))
-                    .child(custom([](SkCanvas &c, const PaintContext &) {
+                    .child(custom([](SkCanvas& c, const PaintContext&) {
                              paintPlate(c, 32, 16);
                            }).inset(0))
-                    .child(custom([id](SkCanvas &c, const PaintContext &) {
+                    .child(custom([id](SkCanvas& c, const PaintContext&) {
                              paintButtonGlyph(c, id);
                            }).inset(0)));
       }
@@ -1378,22 +1393,22 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // The six reserve buttons. buttonReserveNone declares 67, the other three
     // and buttonZeroTUs declare 35 — block 4 step 3 against block 2 step 3.
     const auto reserveBtn = [&](float x, float y, float w, float h, int idx,
-                                const char *key) {
+                                const char* key) {
       p.child(at(x, y, w, h).fill(C(idx + 4)));
       p.child(at(x + 1, y + 1, w - 2, h - 2).fill(C(idx)).key(key));
     };
     reserveBtn(49, 177, 10, 23, 35, "zeroTUs");
-    reserveBtn(60, 177, 17, 11, 67, "resNone"); // the lit one, per the capture
+    reserveBtn(60, 177, 17, 11, 67, "resNone");  // the lit one, per the capture
     reserveBtn(78, 177, 17, 11, 35, "resSnap");
     reserveBtn(60, 189, 17, 11, 35, "resAimed");
     reserveBtn(78, 189, 17, 11, 35, "resAuto");
     reserveBtn(96, 177, 10, 23, 35, "resKneel");
     // Glyph strokes on the reserve buttons — a figure with a muzzle flash.
-    for (const auto &[x, y] : {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
-                               std::pair{60.0f, 189.0f},
-                               std::pair{78.0f, 189.0f}})
+    for (const auto& [x, y] :
+         {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
+          std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
       p.child(at(x + 3, y + 3, 11, 5)
-                  .child(custom([](SkCanvas &c, const PaintContext &) {
+                  .child(custom([](SkCanvas& c, const PaintContext&) {
                     const Ink ink{c};
                     ink.rect(0, 0, 2, 5, blk(0, 15));
                     ink.rect(2, 2, 5, 1, blk(0, 15));
@@ -1404,7 +1419,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // The rank badge, 26x23 — a gold plate, block 9 over block 10.
     p.child(at(107, 177, 26, 23)
                 .key("rank")
-                .child(custom([](SkCanvas &c, const PaintContext &) {
+                .child(custom([](SkCanvas& c, const PaintContext&) {
                   const Ink ink{c};
                   for (int r = 0; r < 23; ++r)
                     ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
@@ -1416,10 +1431,8 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                   }
                   // A chevron — STR_SQUADDIE.
                   for (int k = 0; k < 7; ++k) {
-                    ink.run((float)(13 - k - 1), (float)(6 + k), 3,
-                            blk(10, 8));
-                    ink.run((float)(13 + k - 1), (float)(6 + k), 3,
-                            blk(10, 8));
+                    ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
+                    ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
                   }
                   for (int k = 0; k < 7; ++k) {
                     ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
@@ -1437,7 +1450,8 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     p.child(pixelTextEl(nameText, n(135), n(176)));
 
     // Four number recesses: seven-row single-step ramps, one hue each. The TU
-    // one uses the GREEN block, not its own yellow-green. Measured, not derived.
+    // one uses the GREEN block, not its own yellow-green. Measured, not
+    // derived.
     p.child(recess(134, 185, blk(3, 7)));
     p.child(recess(152, 185, blk(1, 5)));
     p.child(recess(134, 193, blk(2, 5)));
@@ -1456,11 +1470,12 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     p.child(statBar(170, 197, 100, kMaxMorale, 192, "barMorale"));
 
     // Two hand wells, 32x48: interior index 15, bevel block 14 232/235.
-    for (const auto &[x, right] : {std::pair{8.0f, false}, std::pair{280.0f, true}}) {
+    for (const auto& [x, right] :
+         {std::pair{8.0f, false}, std::pair{280.0f, true}}) {
       const bool holdsRifle = right;
       p.child(at(x, 148, 32, 48)
                   .key(right ? "handR" : "handL")
-                  .child(custom([holdsRifle](SkCanvas &c, const PaintContext &) {
+                  .child(custom([holdsRifle](SkCanvas& c, const PaintContext&) {
                     const Ink ink{c};
                     for (int r = 0; r < 48; ++r)
                       ink.run(0, (float)r, 32, blk(0, 15));
@@ -1470,8 +1485,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                     }
                     ink.run(0, 0, 32, blk(14, 8));
                     ink.run(0, 47, 32, blk(14, 11));
-                    if (!holdsRifle)
-                      return;
+                    if (!holdsRifle) return;
                     // STR_RIFLE, a 32x48 BIGOB reconstruction.
                     ink.rect(14, 5, 4, 26, blk(15, 2));
                     ink.rect(15, 5, 2, 26, blk(15, 0));
@@ -1511,21 +1525,23 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   // =========================================================================
   // AUDIT — the verification protocol, printed once
 
-  void printAudit(sketch::SketchContext &ctx) {
+  void printAudit(sketch::SketchContext& ctx) {
     using namespace xcom;
     std::printf("\n=== X-COM BATTLESCAPE — verification ===\n");
-    std::printf("atlas: %d cells at %.0fx%.0f, oversample 1.0, kNearest; "
-                "sheet %.0fx%.0f = %.2f MB\n",
-                atlasCells, kCellW, kCellH, 2048.0f,
-                std::ceil((float)atlasCells / 16.0f) * kCellH,
-                2048.0f * std::ceil((float)atlasCells / 16.0f) * kCellH * 4.0f /
-                    1048576.0f);
-    std::printf("stamps: terrain z0 %d + z1 %d = %d, overlay %zu, map glyphs "
-                "%zu, panel glyphs %zu  (total %zu)\n",
-                terrainZ0, terrainZ1, terrainZ0 + terrainZ1, overlay->size(),
-                mapGlyphs->size(), panelGlyphs->size(),
-                terrain->size() + overlay->size() + mapGlyphs->size() +
-                    panelGlyphs->size());
+    std::printf(
+        "atlas: %d cells at %.0fx%.0f, oversample 1.0, kNearest; "
+        "sheet %.0fx%.0f = %.2f MB\n",
+        atlasCells, kCellW, kCellH, 2048.0f,
+        std::ceil((float)atlasCells / 16.0f) * kCellH,
+        2048.0f * std::ceil((float)atlasCells / 16.0f) * kCellH * 4.0f /
+            1048576.0f);
+    std::printf(
+        "stamps: terrain z0 %d + z1 %d = %d, overlay %zu, map glyphs "
+        "%zu, panel glyphs %zu  (total %zu)\n",
+        terrainZ0, terrainZ1, terrainZ0 + terrainZ1, overlay->size(),
+        mapGlyphs->size(), panelGlyphs->size(),
+        terrain->size() + overlay->size() + mapGlyphs->size() +
+            panelGlyphs->size());
 
     // #1 projection round-trip.
     uint32_t seed = 12345u;
@@ -1544,29 +1560,28 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       const SkPoint tl = mapToScreen(mx, my, 0);
       // The inverse answers with the tile whose COLUMN the point is in, which
       // is the 128-wide cell, and the y band is the 32-px screen diagonal.
-      if (sx < tl.fX || sx >= tl.fX + kCellW)
-        ++fails;
+      if (sx < tl.fX || sx >= tl.fX + kCellW) ++fails;
     }
-    std::printf("#1 projection round-trip: %d/200 failures (%d at the "
-                "Clamp(-1,size) boundary)\n",
-                fails, boundary);
+    std::printf(
+        "#1 projection round-trip: %d/200 failures (%d at the "
+        "Clamp(-1,size) boundary)\n",
+        fails, boundary);
 
-    { // panel widgets: bounds() -> hitTest() -> the same key, round-trip
+    {  // panel widgets: bounds() -> hitTest() -> the same key, round-trip
       int ok = 0, total = 0;
-      for (const char *k : {"map", "btn0", "btn13", "rank", "handR", "handL",
+      for (const char* k : {"map", "btn0", "btn13", "rank", "handR", "handL",
                             "resNone", "barTU", "barMorale", "zeroTUs"}) {
         ++total;
         const auto b = ctx.composer.bounds(k);
         const auto h = b ? ctx.composer.hitTest(b->center()) : std::nullopt;
-        if (h && *h == k)
-          ++ok;
+        if (h && *h == k) ++ok;
       }
       std::printf("#2a panel widgets bounds()->hitTest() round-trip: %d/%d\n",
                   ok, total);
     }
     // #2 hitTest against the same inverse.
     int agree = 0, checked = 0;
-    for (const auto &[key, mx, my] :
+    for (const auto& [key, mx, my] :
          {std::tuple{"unit-a", kSoldierA.mx, kSoldierA.my},
           std::tuple{"unit-b", kSoldierB.mx, kSoldierB.my},
           std::tuple{"unit-alien", kAlienX, kAlienY}}) {
@@ -1576,20 +1591,21 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       int qx = 0, qy = 0;
       screenToMap(probe.fX, probe.fY, 0, &qx, &qy);
       ++checked;
-      if (hit && *hit == key && qx == mx && qy == my)
-        ++agree;
+      if (hit && *hit == key && qx == mx && qy == my) ++agree;
       const auto bnd = ctx.composer.bounds(key);
-      std::printf("   hitTest(%s) -> %-12s  screenToMap -> (%d,%d) want (%d,%d)"
-                  "  bounds [%.0f %.0f %.0f %.0f] probe (%.0f,%.0f)\n",
-                  key, hit ? hit->c_str() : "(none)", qx, qy, mx, my,
-                  bnd ? bnd->left() : -1.0f, bnd ? bnd->top() : -1.0f,
-                  bnd ? bnd->width() : -1.0f, bnd ? bnd->height() : -1.0f,
-                  probe.fX, probe.fY);
+      std::printf(
+          "   hitTest(%s) -> %-12s  screenToMap -> (%d,%d) want (%d,%d)"
+          "  bounds [%.0f %.0f %.0f %.0f] probe (%.0f,%.0f)\n",
+          key, hit ? hit->c_str() : "(none)", qx, qy, mx, my,
+          bnd ? bnd->left() : -1.0f, bnd ? bnd->top() : -1.0f,
+          bnd ? bnd->width() : -1.0f, bnd ? bnd->height() : -1.0f, probe.fX,
+          probe.fY);
     }
-    std::printf("#2 hitTest agrees with the inverse: %d/%d  "
-                "(pool tiles are unreachable — instances() is one custom() "
-                "leaf, so hits land on the pool node, not a tile)\n",
-                agree, checked);
+    std::printf(
+        "#2 hitTest agrees with the inverse: %d/%d  "
+        "(pool tiles are unreachable — instances() is one custom() "
+        "leaf, so hits land on the pool node, not a tile)\n",
+        agree, checked);
 
     // #3 the light radius is exactly 8.
     std::printf("#3 shade walking -x from the selected soldier: ");
@@ -1607,19 +1623,19 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     {
       const int wantVal[4] = {phase.fired ? 43 : 58, 56, 36, 100};
       const int wantMax[4] = {kMaxTU, kMaxEnergy, kMaxHealth, kMaxMorale};
-      const char *nm[4] = {"TU", "Energy", "Health", "Morale"};
-      const char *keys[4] = {"barTU", "barEnergy", "barHealth", "barMorale"};
+      const char* nm[4] = {"TU", "Energy", "Health", "Morale"};
+      const char* keys[4] = {"barTU", "barEnergy", "barHealth", "barMorale"};
       for (int i = 0; i < 4; ++i) {
         const auto fill = ctx.composer.bounds(keys[i]);
         const auto line = ctx.composer.bounds(std::string(keys[i]) + "-max");
         const int value = fill ? (int)std::lround(fill->width() / PX) : -1;
         const int maxv = line ? (int)std::lround(line->width() / PX) - 1 : -1;
-        std::printf("#4 %-6s fill %4.0f px / 4 = %3d (want %3d)   outline "
-                    "%4.0f px / 4 - 1 = %3d (want %3d)%s\n",
-                    nm[i], fill ? fill->width() : -1.0f, value, wantVal[i],
-                    line ? line->width() : -1.0f, maxv, wantMax[i],
-                    value == wantVal[i] && maxv == wantMax[i] ? ""
-                                                              : "  MISMATCH");
+        std::printf(
+            "#4 %-6s fill %4.0f px / 4 = %3d (want %3d)   outline "
+            "%4.0f px / 4 - 1 = %3d (want %3d)%s\n",
+            nm[i], fill ? fill->width() : -1.0f, value, wantVal[i],
+            line ? line->width() : -1.0f, maxv, wantMax[i],
+            value == wantVal[i] && maxv == wantMax[i] ? "" : "  MISMATCH");
       }
     }
 
@@ -1628,16 +1644,17 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     const SkPoint probe{cur.fX + kCellW * 0.5f, cur.fY + n(30)};
     int hx = 0, hy = 0, bx = 0, by = 0;
     screenToMap(probe.fX, probe.fY, 0, &hx, &hy);
-    screenToMap(probe.fX, probe.fY + n(10), 0, &bx, &by); // spriteHeight/4
-    std::printf("   selector: honest inverse (%d,%d); Map::setSelectorPosition's "
-                "+10 px bias (%d,%d) — the game ships the biased one\n",
-                hx, hy, bx, by);
+    screenToMap(probe.fX, probe.fY + n(10), 0, &bx, &by);  // spriteHeight/4
+    std::printf(
+        "   selector: honest inverse (%d,%d); Map::setSelectorPosition's "
+        "+10 px bias (%d,%d) — the game ships the biased one\n",
+        hx, hy, bx, by);
     std::printf("=======================================\n\n");
   }
 
   // =========================================================================
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     using namespace xcom;
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(C(blk(0, 15)));
@@ -1657,9 +1674,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     buildTerrain();
 
     // The panel's brushed metal: a dithered scatter of block 5 indices 83-94,
-    // no gradient, no direction — measured off the capture. Baked once, nearest.
-    metalPattern = Pattern::tile(
-        {n(8), n(8)}, [](SkCanvas &c, SkSize, uint32_t) {
+    // no gradient, no direction — measured off the capture. Baked once,
+    // nearest.
+    metalPattern =
+        Pattern::tile({n(8), n(8)}, [](SkCanvas& c, SkSize, uint32_t) {
           const Ink ink{c};
           for (int y = 0; y < 8; ++y)
             for (int x = 0; x < 8; ++x) {
@@ -1681,12 +1699,11 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
 
     // Type. FONT_BIG substitute at 1x, quantised into block 8 by coverage.
     auto mgr = weave::ports::systemFontManager();
-    const auto face = [&](const char *fam, int weight) {
+    const auto face = [&](const char* fam, int weight) {
       sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
           fam, SkFontStyle(weight, SkFontStyle::kNormal_Width,
                            SkFontStyle::kUpright_Slant));
-      if (!f)
-        f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
+      if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
       return f;
     };
     weave::TextStyle big;
@@ -1694,28 +1711,28 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     big.shaping.fontSize = 12.0f;
     big.shaping.letterSpacing = 0.6f;
     if (ctx.fonts) {
-      nameText = pixelText(u8"Anders Holmgren", big, *ctx.fonts, blk(8, 0),
-                           blk(8, 5));
+      nameText =
+          pixelText(u8"Anders Holmgren", big, *ctx.fonts, blk(8, 0), blk(8, 5));
       // items.rul + BattleUnit::getFiringAccuracy / getActionTUs, recomputed:
       //   firing 58, maxTU 60, rifle two-handed with an empty left hand.
       //   Auto  58*35/100 = 20   TU floor(60*35/100) = 21
       //   Snap  58*60/100 = 34   TU floor(60*25/100) = 15
       //   Aimed 58*110/100 = 63  TU floor(60*80/100) = 48
-      const char *names[3] = {"Auto Shot", "Snap Shot", "Aimed Shot"};
+      const char* names[3] = {"Auto Shot", "Snap Shot", "Aimed Shot"};
       const int accPct[3] = {35, 60, 110};
       const int tuPct[3] = {35, 25, 80};
       for (int i = 0; i < 3; ++i) {
         const int acc = kFiring * accPct[i] / 100;
         const int tus = kMaxTU * tuPct[i] / 100;
-        popupRow[i] = pixelText(
-            std::u8string((const char8_t *)names[i]), big, *ctx.fonts,
-            blk(0, 1), blk(0, 5));
+        popupRow[i] = pixelText(std::u8string((const char8_t*)names[i]), big,
+                                *ctx.fonts, blk(0, 1), blk(0, 5));
         popupAcc[i] = pixelText(
-            std::u8string((const char8_t *)("Acc>" + std::to_string(acc) + "%")
-                              .c_str()),
+            std::u8string(
+                (const char8_t*)("Acc>" + std::to_string(acc) + "%").c_str()),
             big, *ctx.fonts, blk(0, 1), blk(0, 5));
         popupTU[i] = pixelText(
-            std::u8string((const char8_t *)("TU>" + std::to_string(tus)).c_str()),
+            std::u8string(
+                (const char8_t*)("TU>" + std::to_string(tus)).c_str()),
             big, *ctx.fonts, blk(0, 1), blk(0, 5));
       }
     }
@@ -1749,7 +1766,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext &ctx) override {
+  void update(double elapsed, sketch::SketchContext& ctx) override {
     // The verification runs BEFORE this frame's render(). bounds() and
     // hitTest() read the resolved Yoga layout, which the composer computes
     // inside draw(), so a query issued straight after a render() in the same
@@ -1771,8 +1788,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     p.popup = t >= 4.8 && t < 6.4;
     p.fired = t >= 6.4;
     p.tags = t >= 8.0 ? 4 : 3;
-    if (p == lastPhase)
-      return;
+    if (p == lastPhase) return;
     const bool pathChanged = p.longPath != lastPhase.longPath;
     const bool panelChanged =
         p.fired != lastPhase.fired || p.tags != lastPhase.tags;
@@ -1782,20 +1798,20 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       buildOverlay();
       buildMapGlyphs();
     }
-    if (panelChanged || lastPhase.frame < 0)
-      buildPanelGlyphs(p);
+    if (panelChanged || lastPhase.frame < 0) buildPanelGlyphs(p);
     lastPhase = p;
     ctx.composer.render(describe(ctx));
 
     if (auditPrinted && reportedFrames < 3) {
       ++reportedFrames;
-      const auto &s = ctx.composer.stats();
-      std::printf("stats @%.2fs: instances %zu  painted %zu  pictures %zu  "
-                  "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms"
-                  "%s\n",
-                  elapsed, s.instances, s.nodesPainted, s.picturesLive,
-                  s.reconcileMs, s.layoutMs, s.volatileMs, s.paintMs,
-                  fixedStatus.clamped ? "  [FIXED-STEP CLAMPED]" : "");
+      const auto& s = ctx.composer.stats();
+      std::printf(
+          "stats @%.2fs: instances %zu  painted %zu  pictures %zu  "
+          "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms"
+          "%s\n",
+          elapsed, s.instances, s.nodesPainted, s.picturesLive, s.reconcileMs,
+          s.layoutMs, s.volatileMs, s.paintMs,
+          fixedStatus.clamped ? "  [FIXED-STEP CLAMPED]" : "");
     }
   }
 };

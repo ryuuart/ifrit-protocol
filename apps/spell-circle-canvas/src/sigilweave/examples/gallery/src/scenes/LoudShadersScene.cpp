@@ -1,16 +1,15 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
-#include "EffectsParts.h"
-#include "SceneSupport.h"
-
+#include <include/core/SkBlendMode.h>
 #include <sigilweave/PaintShaders.h>
 #include <sigilweaveqt/SigilWeaveQt.h>
-
-#include <include/core/SkBlendMode.h>
 
 #include <algorithm>
 #include <array>
 #include <string>
+
+#include "EffectsParts.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -21,24 +20,23 @@ namespace {
 QString loudShadersDefaultText() { return QStringLiteral("SHADER"); }
 
 class LoudShadersPart final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
 
     const QString text =
         params.text.isEmpty() ? loudShadersDefaultText() : params.text;
-    const sk_sp<SkTypeface> &typeface =
+    const sk_sp<SkTypeface>& typeface =
         params.typeface ? params.typeface : m_serif;
     const float fontSize = std::clamp(params.fontSize * 3.4f, 46.0f, 200.0f);
 
     double layoutMicroseconds = 0;
     m_rebuild.ensure({text, typeface.get(), fontSize, size}, [&] {
-      m_paints[0] = PaintStyle(SK_ColorWHITE); // starNest shader set per frame
-      m_paints[1] = PaintStyle(SK_ColorWHITE); // clouds shader set per frame
-      m_paints[2] = PaintStyle(SK_ColorWHITE); // tunnel shader set per frame
+      m_paints[0] = PaintStyle(SK_ColorWHITE);  // starNest shader set per frame
+      m_paints[1] = PaintStyle(SK_ColorWHITE);  // clouds shader set per frame
+      m_paints[2] = PaintStyle(SK_ColorWHITE);  // tunnel shader set per frame
 
       // Screen-blended sparkle over a near-white fill barely moves the
       // result (screen saturates fast against an already-bright base) — a
@@ -55,7 +53,7 @@ public:
           std::max(80.0f, (static_cast<float>(size.height()) - top - 30.0f) /
                               static_cast<float>(m_paragraphs.size()));
       for (size_t row = 0; row < m_paragraphs.size(); ++row) {
-        Paragraph &paragraph = m_paragraphs[row];
+        Paragraph& paragraph = m_paragraphs[row];
         paragraph.clear();
         // Zero-copy: QString and Paragraph both store UTF-16.
         sigil::weave::qt::appendText(
@@ -115,19 +113,19 @@ public:
     return {layoutMicroseconds, runCount, 0};
   }
 
-private:
+ private:
   std::array<Paragraph, 4> m_paragraphs;
   std::array<ParagraphLayout, 4> m_layouts;
   std::array<PaintStyle, 4> m_paints;
   std::array<uint32_t, 4> m_textLengths{};
-  kit::RebuildGuard<QString, const SkTypeface *, float, SkISize> m_rebuild;
+  kit::RebuildGuard<QString, const SkTypeface*, float, SkISize> m_rebuild;
   sk_sp<SkTypeface> m_serif;
 };
 
-} // namespace
+}  // namespace
 
 std::unique_ptr<Scene> makeLoudShadersPart() {
   return std::make_unique<LoudShadersPart>();
 }
 
-} // namespace gallery
+}  // namespace gallery

@@ -1,19 +1,18 @@
 // Scene: ordered SkPaint glyph layers, presets, and animated custom paints.
-#include "EffectsParts.h"
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
-#include <sigilweave/PaintShaders.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
-
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilweave/PaintShaders.h>
+#include <sigilweaveqt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
+
+#include "EffectsParts.h"
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -41,16 +40,15 @@ constexpr std::array<std::u8string_view, 5> kParagraphClauses = {
 QString effectsDefaultText() { return QStringLiteral("Layered glyphs"); }
 
 class LayerShowcasePart final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
 
     const QString text =
         params.text.isEmpty() ? effectsDefaultText() : params.text;
-    const sk_sp<SkTypeface> &typeface =
+    const sk_sp<SkTypeface>& typeface =
         params.typeface ? params.typeface : m_serif;
     const float fontSize = std::clamp(params.fontSize * 2.5f, 30.0f, 68.0f);
     const float paragraphFontSize =
@@ -80,11 +78,11 @@ public:
 
           const kit::Stopwatch layoutTime;
           for (size_t row = 0; row < m_paragraphs.size(); ++row) {
-            Paragraph &paragraph = m_paragraphs[row];
+            Paragraph& paragraph = m_paragraphs[row];
             paragraph.clear();
             // Zero-copy: QString and Paragraph both store UTF-16.
-            sigil::weave::qt::appendText(paragraph, text,
-                                   makeStyle(fontSize, kInk, "", typeface));
+            sigil::weave::qt::appendText(
+                paragraph, text, makeStyle(fontSize, kInk, "", typeface));
             m_textLengths[row] = static_cast<uint32_t>(text.size());
             m_layouts[row] = layoutSingleLine(
                 fontContext, paragraph,
@@ -155,7 +153,8 @@ public:
         SkGradient(SkGradient::Colors({gradientColors, 3}, SkTileMode::kMirror),
                    SkGradient::Interpolation()));
     m_paints[4].overlays[1].paint.setShader(animatedGradient);
-    m_paragraphPaints[4].overlays[1].paint.setShader(std::move(animatedGradient));
+    m_paragraphPaints[4].overlays[1].paint.setShader(
+        std::move(animatedGradient));
 
     for (size_t row = 0; row < m_paragraphs.size(); ++row)
       m_paragraphs[row].setPaint(0, m_textLengths[row], m_paints[row]);
@@ -197,7 +196,7 @@ public:
     return {layoutMicroseconds, runCount, 0};
   }
 
-private:
+ private:
   void buildPaints(float fontSize) {
     m_paints[0] = PaintStyle(kInk);
 
@@ -205,17 +204,17 @@ private:
     m_paints[1].addUnderlay(PaintLayer::dropShadow(0x77000000, {4, 5}, 3.2f));
 
     m_paints[2] = PaintStyle(kBlue);
-    m_paints[2].addUnderlay(
-        PaintLayer::glow(0x8892C7FF, 6.0f, /*spread=*/2.0f, /*intensity=*/1.6f));
+    m_paints[2].addUnderlay(PaintLayer::glow(0x8892C7FF, 6.0f, /*spread=*/2.0f,
+                                             /*intensity=*/1.6f));
 
-    m_paints[3] = PaintStyle(SK_ColorWHITE); // water shader set per frame
+    m_paints[3] = PaintStyle(SK_ColorWHITE);  // water shader set per frame
     m_paints[3].addUnderlay(PaintLayer::outline(0xFF5A1E17, fontSize * 0.11f));
 
-    m_paints[4] = PaintStyle(SK_ColorWHITE); // mesh shader set per frame
+    m_paints[4] = PaintStyle(SK_ColorWHITE);  // mesh shader set per frame
     m_paints[4]
         .addUnderlay(PaintLayer::dropShadow(0x77000000, {5, 6}, 4.0f))
         .addUnderlay(PaintLayer::glow(0x6692C7FF, 7.0f, /*spread=*/1.5f,
-                                     /*intensity=*/1.5f))
+                                      /*intensity=*/1.5f))
         .addUnderlay(PaintLayer::outline(kInk, fontSize * 0.14f));
 
     SkPaint stars;
@@ -244,15 +243,15 @@ private:
     m_paragraphPaints[2].addUnderlay(PaintLayer::glow(
         0x8892C7FF, 3.0f, /*spread=*/0.8f, /*intensity=*/1.6f));
 
-    m_paragraphPaints[3] = PaintStyle(SK_ColorWHITE); // water shader per frame
+    m_paragraphPaints[3] = PaintStyle(SK_ColorWHITE);  // water shader per frame
     m_paragraphPaints[3].addUnderlay(
         PaintLayer::outline(0xFF5A1E17, paragraphFontSize * 0.09f));
 
-    m_paragraphPaints[4] = PaintStyle(SK_ColorWHITE); // mesh shader per frame
+    m_paragraphPaints[4] = PaintStyle(SK_ColorWHITE);  // mesh shader per frame
     m_paragraphPaints[4]
         .addUnderlay(PaintLayer::dropShadow(0x77000000, {2.0f, 2.5f}, 1.8f))
         .addUnderlay(PaintLayer::glow(0x6692C7FF, 3.5f, /*spread=*/0.6f,
-                                     /*intensity=*/1.5f))
+                                      /*intensity=*/1.5f))
         .addUnderlay(PaintLayer::outline(kInk, paragraphFontSize * 0.11f));
 
     SkPaint stars;
@@ -274,7 +273,7 @@ private:
   ParagraphLayout m_paragraphBlockLayout;
   std::array<PaintStyle, 5> m_paragraphPaints;
   std::array<CharRange, 5> m_paragraphSpans{};
-  kit::RebuildGuard<QString, const SkTypeface *, float, float, SkISize>
+  kit::RebuildGuard<QString, const SkTypeface*, float, float, SkISize>
       m_rebuild;
   sk_sp<SkTypeface> m_serif;
 };
@@ -283,30 +282,30 @@ private:
 /// part keeps its own cached paragraphs/layouts, so flipping modes is
 /// instant and returning to a mode picks up exactly where it left off.
 class EffectsScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int frameNumber, const SceneParams &params,
-                    FontContext &fontContext) override {
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int frameNumber, const SceneParams& params,
+                    FontContext& fontContext) override {
     const int mode =
         std::clamp(params.intValue(QStringLiteral("mode"), 0), 0, 2);
     if (!m_parts[static_cast<size_t>(mode)]) {
       switch (mode) {
-      case 1:
-        m_parts[1] = makeLoudShadersPart();
-        break;
-      case 2:
-        m_parts[2] = makeStressPart();
-        break;
-      default:
-        m_parts[0] = makeLayerShowcasePart();
-        break;
+        case 1:
+          m_parts[1] = makeLoudShadersPart();
+          break;
+        case 2:
+          m_parts[2] = makeStressPart();
+          break;
+        default:
+          m_parts[0] = makeLayerShowcasePart();
+          break;
       }
     }
     return m_parts[static_cast<size_t>(mode)]->render(
         canvas, size, elapsedSeconds, frameNumber, params, fontContext);
   }
 
-private:
+ private:
   std::array<std::unique_ptr<Scene>, 3> m_parts;
 };
 
@@ -316,8 +315,13 @@ SceneDescriptor makeEffectsDescriptor() {
   descriptor.defaultText = effectsDefaultText();
   descriptor.displayOrder = 80;
   descriptor.parameters = {
-      {QStringLiteral("mode"), QStringLiteral("Mode"),
-       SceneParameter::Type::kChoice, 0, 0, 2, {},
+      {QStringLiteral("mode"),
+       QStringLiteral("Mode"),
+       SceneParameter::Type::kChoice,
+       0,
+       0,
+       2,
+       {},
        {QStringLiteral("Layer showcase"), QStringLiteral("Loud shaders"),
         QStringLiteral("2,000-word stress")}},
       {QStringLiteral("glow"), QStringLiteral("Glow"),
@@ -335,13 +339,13 @@ SceneDescriptor makeEffectsDescriptor() {
   };
   // The convention showcase: this scene ships its own controls file, so the
   // sidebar loads it instead of auto-building generic delegates.
-  descriptor.controlsQml =
-      QUrl(QStringLiteral("qrc:/qt/qml/SigilWeave/Gallery/EffectsControls.qml"));
+  descriptor.controlsQml = QUrl(
+      QStringLiteral("qrc:/qt/qml/SigilWeave/Gallery/EffectsControls.qml"));
   descriptor.make = [] { return std::make_unique<EffectsScene>(); };
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 std::unique_ptr<Scene> makeLayerShowcasePart() {
   return std::make_unique<LayerShowcasePart>();
@@ -349,4 +353,4 @@ std::unique_ptr<Scene> makeLayerShowcasePart() {
 
 REGISTER_GALLERY_SCENE(makeEffectsDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

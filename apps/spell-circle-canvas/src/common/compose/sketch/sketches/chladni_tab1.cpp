@@ -97,10 +97,11 @@
 // is the argument being made: figures 1-3 drawn in sand, figure 4 in the
 // act of gathering into six arms, figures 5-12 still an even scatter.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilweave/FontContext.h>
-
+#include <include/core/SkContourMeasure.h>
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkTypeface.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Lines.h>
@@ -108,12 +109,8 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Frame.h>
-
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkTypeface.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -151,10 +148,10 @@ constexpr SkColor4f kFox = hex(0x9c7f57, 0.10f);
 // below converts by one constant.
 
 constexpr float kScale = 0.975f;
-constexpr float kW = 1600 * kScale; // 1560
-constexpr float kH = 2072 * kScale; // 2020
-constexpr float kR = 179.0f * kScale;       // every figure's radius: 174.5
-constexpr float kTip = 0.985f;              // the tips meet the rim, as drawn
+constexpr float kW = 1600 * kScale;    // 1560
+constexpr float kH = 2072 * kScale;    // 2020
+constexpr float kR = 179.0f * kScale;  // every figure's radius: 174.5
+constexpr float kTip = 0.985f;         // the tips meet the rim, as drawn
 constexpr float kDeg = 3.14159265358979f / 180.0f;
 
 // frame: outer rule (48,153)-(1517,1977) scan; the double rule's partner
@@ -183,12 +180,12 @@ enum class Kind { Star, Petals, Traced };
 
 struct FigSpec {
   int num;
-  float cx, cy;      // Hough-fitted centres, scan px (kept unrounded:
-  float points;      // the hand wander is the plate's, not mine)
-  float inner;       // measured innerRatio
+  float cx, cy;  // Hough-fitted centres, scan px (kept unrounded:
+  float points;  // the hand wander is the plate's, not mine)
+  float inner;   // measured innerRatio
   Kind kind;
-  int n;             // Chladni's nodal-line count
-  float semitones;   // above the fundamental; -1 = Chladni states none
+  int n;            // Chladni's nodal-line count
+  float semitones;  // above the fundamental; -1 = Chladni states none
   int grains;
 };
 
@@ -210,7 +207,7 @@ const std::array<FigSpec, 12> kFigures = {{
     {12, 1257, 1748, 14, 0.46f, Kind::Star, 7, 37.7f, 600},
 }};
 
-SkPoint centreOf(const FigSpec &f) { return {f.cx * kScale, f.cy * kScale}; }
+SkPoint centreOf(const FigSpec& f) { return {f.cx * kScale, f.cy * kScale}; }
 
 // ---------------------------------------------------------------------------
 // the compass construction for figures 7, 9, 10
@@ -221,36 +218,34 @@ SkPoint centreOf(const FigSpec &f) { return {f.cx * kScale, f.cy * kScale}; }
 // admits: a plain diameter.
 
 struct Linie {
-  float bearing;      // deg clockwise from 12 o'clock
-  float centreRadius; // 1 = on the rim
+  float bearing;       // deg clockwise from 12 o'clock
+  float centreRadius;  // 1 = on the rim
   float arcRadius;
   bool straight = false;
 };
 
 // fitted through three measured points per curve; residuals < 0.003 R
 const std::vector<Linie> kFig7 = {
-    {0, 0, 0, true},        // the vertical diameter
-    {297, 1.10f, 0.58f},    // left hook  (measured c=(-0.930,-0.447) r=0.540)
-    {63, 1.10f, 0.58f},     // right hook (measured c=( 1.095,-0.521) r=0.627;
-                            //   mirrored — the engraver's two hands differ)
-    {180, 1.50f, 1.068f},   // the arch below centre, crest at p
+    {0, 0, 0, true},       // the vertical diameter
+    {297, 1.10f, 0.58f},   // left hook  (measured c=(-0.930,-0.447) r=0.540)
+    {63, 1.10f, 0.58f},    // right hook (measured c=( 1.095,-0.521) r=0.627;
+                           //   mirrored — the engraver's two hands differ)
+    {180, 1.50f, 1.068f},  // the arch below centre, crest at p
 };
 const std::vector<Linie> kFig9 = {
-    {0, 0, 0, true},
-    {306.4f, 1.145f, 0.495f},
-    {53.6f, 1.145f, 0.495f},
-    {180, 2.07f, 2.00f},    // shallow arch crossing the diameter at p
-    {180, 1.52f, 1.00f},    // deeper arch crossing at q
+    {0, 0, 0, true},     {306.4f, 1.145f, 0.495f}, {53.6f, 1.145f, 0.495f},
+    {180, 2.07f, 2.00f},  // shallow arch crossing the diameter at p
+    {180, 1.52f, 1.00f},  // deeper arch crossing at q
 };
 const std::vector<Linie> kFig10 = {
     {306, 1.058f, 0.606f},  // no diameter at all: it has degenerated away
     {54, 1.058f, 0.606f},
-    {0, 1.933f, 1.613f},    // the r-s line: a BOWL, compass point above
+    {0, 1.933f, 1.613f},  // the r-s line: a BOWL, compass point above
     {180, 1.836f, 1.536f},
     {180, 1.540f, 0.850f},
 };
 
-const std::vector<Linie> &linienOf(int num) {
+const std::vector<Linie>& linienOf(int num) {
   return num == 7 ? kFig7 : (num == 9 ? kFig9 : kFig10);
 }
 
@@ -265,7 +260,9 @@ shapes::OutlineFn linieOutline(Linie l) {
   if (l.straight) {
     const SkPoint a = kUnit.at(l.bearing, 1.0f);
     return shapes::parametric(
-        [a](float t) { return SkPoint{a.fX * (1 - 2 * t), a.fY * (1 - 2 * t)}; },
+        [a](float t) {
+          return SkPoint{a.fX * (1 - 2 * t), a.fY * (1 - 2 * t)};
+        },
         0.0f, 1.0f, 2);
   }
   const SkPoint o = kUnit.at(l.bearing, l.centreRadius);
@@ -273,7 +270,7 @@ shapes::OutlineFn linieOutline(Linie l) {
   const float k = (1.0f + on * on - l.arcRadius * l.arcRadius) * 0.5f;
   const float d = on > 1e-4f ? k / on : 2.0f;
   const float h2 = 1.0f - d * d;
-  if (h2 <= 0.0f) // the compass never crosses the rim: nothing to draw
+  if (h2 <= 0.0f)  // the compass never crosses the rim: nothing to draw
     return shapes::parametric([](float) { return SkPoint{0, 0}; }, 0, 1, 2);
   const float h = std::sqrt(h2);
   const SkPoint u{o.fX / on, o.fY / on};
@@ -283,10 +280,8 @@ shapes::OutlineFn linieOutline(Linie l) {
   const float a0 = std::atan2(p0.fY - o.fY, p0.fX - o.fX);
   const float a1 = std::atan2(p1.fY - o.fY, p1.fX - o.fX);
   float sweep = a1 - a0;
-  while (sweep <= -SK_FloatPI)
-    sweep += 2 * SK_FloatPI;
-  while (sweep > SK_FloatPI)
-    sweep -= 2 * SK_FloatPI;
+  while (sweep <= -SK_FloatPI) sweep += 2 * SK_FloatPI;
+  while (sweep > SK_FloatPI) sweep -= 2 * SK_FloatPI;
   const float rho = l.arcRadius;
   auto at = [o, rho](float a) {
     return SkPoint{o.fX + rho * std::cos(a), o.fY + rho * std::sin(a)};
@@ -300,7 +295,7 @@ shapes::OutlineFn linieOutline(Linie l) {
 
 /** The same curve resolved into a box of side 2r — what the grain
  *  sampler walks with SkContourMeasure. */
-SkPath liniePath(const Linie &l, float r) {
+SkPath liniePath(const Linie& l, float r) {
   return linieOutline(l)(SkSize{2 * r, 2 * r});
 }
 
@@ -313,48 +308,56 @@ SkPath liniePath(const Linie &l, float r) {
 
 struct Label {
   float bearing;
-  float radius; // fraction of the rim
-  const char *glyph;
+  float radius;  // fraction of the rim
+  const char* glyph;
 };
 
 const std::vector<Label> kNoLabels;
 const std::vector<Label> kL1 = {
     {0, 1.14f, "n"}, {90, 1.16f, "m"}, {180, 1.15f, "p"}, {270, 1.16f, "q"}};
 const std::vector<Label> kL2 = {
-    {0, 1.14f, "g"},   {45, 1.15f, "p"},  {90, 1.16f, "q"},
-    {135, 1.15f, "n"}, {180, 1.15f, "t"}, {225, 1.15f, "m"},
-    {270, 1.16f, "r"}, {315, 1.15f, "f"}};
+    {0, 1.14f, "g"},   {45, 1.15f, "p"},  {90, 1.16f, "q"},  {135, 1.15f, "n"},
+    {180, 1.15f, "t"}, {225, 1.15f, "m"}, {270, 1.16f, "r"}, {315, 1.15f, "f"}};
 const std::vector<Label> kL4 = {
-    {0, 1.14f, "h"},   {30, 1.14f, "q"},  {60, 1.15f, "g"},
-    {90, 1.16f, "r"},  {120, 1.15f, "t"}, {150, 1.15f, "p"},
-    {180, 1.15f, "f"}, {210, 1.15f, "b"}, {240, 1.15f, "o"},
+    {0, 1.14f, "h"},          {30, 1.14f, "q"},  {60, 1.15f, "g"},
+    {90, 1.16f, "r"},         {120, 1.15f, "t"}, {150, 1.15f, "p"},
+    {180, 1.15f, "f"},        {210, 1.15f, "b"}, {240, 1.15f, "o"},
     {270, 1.16f, "\xcf\x91"}, {300, 1.15f, "n"}, {330, 1.14f, "m"}};
 const std::vector<Label> kL5 = {{0, 1.14f, "h"},   {90, 1.16f, "r"},
                                 {150, 1.15f, "p"}, {180, 1.15f, "f"},
                                 {240, 1.15f, "o"}, {300, 1.15f, "n"}};
 const std::vector<Label> kL7 = {{312, 1.15f, "n"},
                                 {48, 1.15f, "f"},
-                                {163, 0.34f, "p"}, // on the arch's crest
+                                {163, 0.34f, "p"},  // on the arch's crest
                                 {205, 1.12f, "s"},
                                 {158, 1.12f, "r"}};
-const std::vector<Label> kL9 = {{308, 1.15f, "k"},  {52, 1.15f, "n"},
-                                {235, 0.14f, "p"},  {193, 0.40f, "q"},
-                                {202, 1.13f, "o"},  {165, 1.11f, "m"}};
+const std::vector<Label> kL9 = {{308, 1.15f, "k"}, {52, 1.15f, "n"},
+                                {235, 0.14f, "p"}, {193, 0.40f, "q"},
+                                {202, 1.13f, "o"}, {165, 1.11f, "m"}};
 const std::vector<Label> kL10 = {{322, 1.16f, "t"}, {37, 1.15f, "n"},
                                  {325, 0.44f, "r"}, {35, 0.44f, "s"},
                                  {285, 1.12f, "k"}, {65, 1.13f, "l"}};
 
-const std::vector<Label> &labelsOf(int num) {
+const std::vector<Label>& labelsOf(int num) {
   switch (num) {
-  case 1: return kL1;
-  case 2: return kL2;
-  case 3: return kL2; // figs 2 and 3 share letters AND bearings — the
-  case 4: return kL4; //   pairing that proves 3 is 2 drawn as valleys
-  case 5: return kL5;
-  case 7: return kL7;
-  case 9: return kL9;
-  case 10: return kL10;
-  default: return kNoLabels;
+    case 1:
+      return kL1;
+    case 2:
+      return kL2;
+    case 3:
+      return kL2;  // figs 2 and 3 share letters AND bearings — the
+    case 4:
+      return kL4;  //   pairing that proves 3 is 2 drawn as valleys
+    case 5:
+      return kL5;
+    case 7:
+      return kL7;
+    case 9:
+      return kL9;
+    case 10:
+      return kL10;
+    default:
+      return kNoLabels;
   }
 }
 
@@ -397,12 +400,12 @@ constexpr float tTitle = 0.70f;
 constexpr float tNumeral = 1.00f;
 constexpr float tRim = 1.10f;
 constexpr float tScatter = 1.35f;
-constexpr float tBow0 = 1.75f;   // figure 1's bow stroke
-constexpr float tBowStep = 0.30f; // + per figure, in Chladni's pitch order
+constexpr float tBow0 = 1.75f;     // figure 1's bow stroke
+constexpr float tBowStep = 0.30f;  // + per figure, in Chladni's pitch order
 constexpr float tCredit = 7.60f;
 constexpr float tIdle = 7.30f;
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -447,7 +450,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     pool = std::make_shared<instancing::Pool>();
 
     for (size_t fi = 0; fi < kFigures.size(); ++fi) {
-      const FigSpec &f = kFigures[fi];
+      const FigSpec& f = kFigures[fi];
       const SkPoint c = centreOf(f);
       Rng rng(1787u + f.num * 61u);
 
@@ -464,12 +467,12 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
       std::vector<float> curveLen;
       float totalLen = 0;
       if (f.kind == Kind::Star) {
-        starPath = starOutline(f.points, f.inner)(
-            SkSize{2 * kR * kTip, 2 * kR * kTip});
+        starPath = starOutline(f.points,
+                               f.inner)(SkSize{2 * kR * kTip, 2 * kR * kTip});
       } else if (f.kind == Kind::Petals) {
         starPath = starOutline(f.points, f.inner)(SkSize{2 * kR, 2 * kR});
       } else {
-        for (const Linie &l : linienOf(f.num)) {
+        for (const Linie& l : linienOf(f.num)) {
           SkContourMeasureIter it(liniePath(l, kR), false);
           if (sk_sp<SkContourMeasure> m = it.next()) {
             curveLen.push_back(m->length());
@@ -493,8 +496,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           SkPoint p{0, 0};
           for (int tries = 0; tries < 400; ++tries) {
             p = {rng.range(0, 2 * half), rng.range(0, 2 * half)};
-            if (starPath.contains(p.fX, p.fY))
-              break;
+            if (starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
           grain.rotTo = rng.range(0, 2 * SK_FloatPI);
@@ -508,8 +510,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
             const float a = rng.range(0, 360.0f);
             const float rr = kR * (0.30f + 0.665f * std::sqrt(rng.next()));
             p = polar({kR, kR}, rr, a);
-            if (!starPath.contains(p.fX, p.fY))
-              break;
+            if (!starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - kR + p.fX, c.fY - kR + p.fY};
           // the fan: every stroke points radially out of the centre
@@ -545,15 +546,14 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     pool->resize(grains.size());
     auto frames = pool->frames();
-    for (size_t i = 0; i < grains.size(); ++i)
-      frames[i] = grains[i].frame;
+    for (size_t i = 0; i < grains.size(); ++i) frames[i] = grains[i].frame;
   }
 
   // ------------------------------------------------------------------
   // one cell of the plate
 
-  void figure(Element &root, size_t fi, sketch::SketchContext &) {
-    const FigSpec &f = kFigures[fi];
+  void figure(Element& root, size_t fi, sketch::SketchContext&) {
+    const FigSpec& f = kFigures[fi];
     const SkPoint c = centreOf(f);
     const std::string tag = "f" + std::to_string(f.num);
     const float rimDelay = tRim * 1000.0f + (float)fi * 26.0f;
@@ -614,7 +614,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                      .shape(starOutline(f.points, f.inner))
                      .fill(Fill::color(kPaper)));
     } else {
-      const std::vector<Linie> &lines = linienOf(f.num);
+      const std::vector<Linie>& lines = linienOf(f.num);
       for (size_t li = 0; li < lines.size(); ++li)
         root.child(disc(c, kR)
                        .key(tag + "l" + std::to_string(li))
@@ -653,9 +653,9 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                              ramp(tNumeral * 1000 + (float)fi * 22.0f, 360))));
 
     // ---- reference letters: upright, never rotated ----
-    const std::vector<Label> &labels = labelsOf(f.num);
+    const std::vector<Label>& labels = labelsOf(f.num);
     for (size_t li = 0; li < labels.size(); ++li) {
-      const Label &l = labels[li];
+      const Label& l = labels[li];
       root.child(
           text(toU8(l.glyph), type(faceLabel, 33, kInk))
               .key(tag + "lab" + std::to_string(li))
@@ -671,7 +671,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     auto root = stack().fill(Fill::color(kPaper));
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
@@ -695,23 +695,25 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     // What remains live is the sand pool (instancing Mode::Live), and it has
     // to: the grains ANIMATE in, which is the study's whole entrance, so
     // there is nothing to freeze.
-    root.child(stack().inset(0).fill(Fill::color(kPaper))
-                   .child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
-                       SkBlendMode::kSoftLight))
-                   .child(box().inset(0).fill(foxing.material()))
-                   .child(box()
-                              .left(0)
-                              .top(kH * 0.50f)
-                              .width(kW * 0.52f)
-                              .height(kH * 0.50f)
-                              .fill(foxingLL.material()))
-                   .child(box().inset(0).fill(radialGradient(
-                       {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-                       {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
-                        SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB,
-                                  0.26f}},
-                       {0.0f, 0.62f, 1.0f})))
-                   .cache(Cache::Texture));
+    root.child(
+        stack()
+            .inset(0)
+            .fill(Fill::color(kPaper))
+            .child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
+                SkBlendMode::kSoftLight))
+            .child(box().inset(0).fill(foxing.material()))
+            .child(box()
+                       .left(0)
+                       .top(kH * 0.50f)
+                       .width(kW * 0.52f)
+                       .height(kH * 0.50f)
+                       .fill(foxingLL.material()))
+            .child(box().inset(0).fill(radialGradient(
+                {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
+                {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
+                 SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
+                {0.0f, 0.62f, 1.0f})))
+            .cache(Cache::Texture));
 
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
@@ -742,8 +744,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                    .centerAt({1436 * kScale, 106 * kScale}));
 
     // ---- the twelve figures ----
-    for (size_t i = 0; i < kFigures.size(); ++i)
-      figure(root, i, ctx);
+    for (size_t i = 0; i < kFigures.size(); ++i) figure(root, i, ctx);
 
     // ---- the sand: every grain in one pool, one atlas stamp ----
     root.child(box().inset(0).child(
@@ -761,7 +762,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
     // The still has to name its moment: the settled plate, with all twelve
@@ -770,9 +771,8 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     // sand still migrating and the Capieux credit absent.
     ctx.captureAt(10.6);
 
-    auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager())
-        return nullptr;
+    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
+      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
       return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
     };
     // The plate's numerals are a modern face with hairline serifs; the
@@ -781,28 +781,24 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     faceNumeral = family("Didot", SkFontStyle::Normal());
     faceLabel = family("Didot", SkFontStyle::Italic());
     faceSwash = family("Apple Chancery", SkFontStyle::Normal());
-    if (!faceNumeral)
-      faceNumeral = family("Bodoni 72", SkFontStyle::Normal());
-    if (!faceLabel)
-      faceLabel = family("Baskerville", SkFontStyle::Italic());
+    if (!faceNumeral) faceNumeral = family("Bodoni 72", SkFontStyle::Normal());
+    if (!faceLabel) faceLabel = family("Baskerville", SkFontStyle::Italic());
     if (!faceSwash)
       faceSwash = family("Snell Roundhand", SkFontStyle::Normal());
-    if (!faceSwash)
-      faceSwash = faceLabel;
+    if (!faceSwash) faceSwash = faceLabel;
 
     paperMat = patterns::grain(0.013f, 4, 9.0f);
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
     foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {kFox});
     foxing.seed(17);
-    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
-                                 {hex(0x94764c, 0.09f)});
+    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f, {hex(0x94764c, 0.09f)});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
-    inkMat = Material::blend({{Material::solid(kInk), SkBlendMode::kSrc},
-                              {patterns::grain(0.09f, 3, 4.0f, 0.35f),
-                               SkBlendMode::kSoftLight}});
+    inkMat = Material::blend(
+        {{Material::solid(kInk), SkBlendMode::kSrc},
+         {patterns::grain(0.09f, 3, 4.0f, 0.35f), SkBlendMode::kSoftLight}});
 
     settleEase = ease::outBounce();
 
@@ -862,20 +858,17 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
       auto scl = pool->scales();
       auto tint = pool->tints();
       for (size_t i = 0; i < grains.size(); ++i) {
-        const Grain &g = grains[i];
+        const Grain& g = grains[i];
         float u = (t - g.t0) / g.dur;
         float appear = 0.0f;
-        if (t >= tScatter)
-          appear = std::min(1.0f, (t - tScatter) / 0.40f);
-        if (u < 0.0f)
-          u = 0.0f;
+        if (t >= tScatter) appear = std::min(1.0f, (t - tScatter) / 0.40f);
+        if (u < 0.0f) u = 0.0f;
         const bool moving = u > 0.0f && u < 1.0f;
         u = std::min(u, 1.0f);
         const float e = settleEase ? settleEase(u) : u;
         // sand does not slide, it hops: a decaying shiver across the walk,
         // plus a nudge whenever the bow is on this figure's rim
-        const float amp =
-            (1.0f - u) * (moving ? 5.6f : 1.5f) + bowShake[g.fig];
+        const float amp = (1.0f - u) * (moving ? 5.6f : 1.5f) + bowShake[g.fig];
         const float sx = std::sin(t * 21.0f + g.phase) * amp;
         const float sy = std::cos(t * 17.0f + g.phase * 1.7f) * amp * 0.8f;
         pos[i] = {g.from.fX + (g.to.fX - g.from.fX) * e + sx,
@@ -890,7 +883,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(ChladniTab1)

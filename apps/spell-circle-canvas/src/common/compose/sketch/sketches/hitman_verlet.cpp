@@ -178,17 +178,6 @@
 //       src/common/compose/sketch/sketches/hitman_verlet.cpp \
 //       --frame /tmp/hitman_verlet.png --at 3.35
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkFont.h>
@@ -196,6 +185,14 @@
 #include <include/core/SkFontTypes.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/Instances.h>
+#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Lines.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -242,7 +239,8 @@ SkColor4f errColor(float e, float alpha = 1.0f) {
     return {kRampCol[0].fR, kRampCol[0].fG, kRampCol[0].fB, alpha};
   for (int i = 1; i < 5; ++i) {
     if (e <= kRampStop[i]) {
-      const float u = (e - kRampStop[i - 1]) / (kRampStop[i] - kRampStop[i - 1]);
+      const float u =
+          (e - kRampStop[i - 1]) / (kRampStop[i] - kRampStop[i - 1]);
       const SkColor4f &a = kRampCol[i - 1], &b = kRampCol[i];
       return {a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
               a.fB + (b.fB - a.fB) * u, alpha};
@@ -255,14 +253,14 @@ SkColor4f errColor(float e, float alpha = 1.0f) {
 // The frame. The STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
 
 constexpr float kCanvasW = 1560, kCanvasH = 920;
-constexpr float kStage = 736;               // px, = the 1000-unit cube
-constexpr float kUnit = kStage / 1000.0f;   // 0.736 px per world unit
+constexpr float kStage = 736;              // px, = the 1000-unit cube
+constexpr float kUnit = kStage / 1000.0f;  // 0.736 px per world unit
 constexpr float kColW = 352;
 
 // The parameter table. Every rate here is per fixed simulation step.
 constexpr double kSimHz = 60.0;
-constexpr float kDrag = 0.99f;         // documented "1.99", per VERIFIED 2
-constexpr float kGravityStep = 0.757f; // a*dt^2, units/step^2 (derived)
+constexpr float kDrag = 0.99f;          // documented "1.99", per VERIFIED 2
+constexpr float kGravityStep = 0.757f;  // a*dt^2, units/step^2 (derived)
 constexpr float kFriction = 0.14f;
 constexpr float kCapsule = 14.0f;   // world units
 constexpr float kKneeMin = 100.0f;  // the documented inequality, my threshold
@@ -290,7 +288,7 @@ constexpr Norm kFo{0.1827f, 0.0000f};
 // The anchor: the paper's own restlength = 100 assigned to the thigh
 // (measured ratio 0.20569) fixes the whole figure.
 constexpr float kThighRatio = 0.20569f;
-constexpr float kFigureH = 100.0f / kThighRatio; // 486.17 world units
+constexpr float kFigureH = 100.0f / kThighRatio;  // 486.17 world units
 
 // The bump — the paper's Fig. 4 obstacle, drawn to scale.
 constexpr SkPoint kBumpA{470, 0}, kBumpB{560, 120}, kBumpC{650, 0};
@@ -306,7 +304,7 @@ inline float len(SkPoint a) { return std::sqrt(dot(a, a)); }
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char *family, SkFontStyle style) {
+sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
   auto mgr = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
   return f ? f : mgr->matchFamilyStyle(nullptr, style);
@@ -354,12 +352,12 @@ sigil::weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
 sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
   return type(uiFace(), size, c, track);
 }
-Element t(const char *s, sigil::weave::TextStyle st) {
+Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
 /** A sidebar panel shell. */
-Element panel(float height, const char *heading, int order) {
+Element panel(float height, const char* heading, int order) {
   return box()
       .column()
       .width(Dim(kColW))
@@ -390,19 +388,19 @@ Element stageInset(float x, float y, float w, float h, int order) {
       .corners({5})
       .fill(hex(0x101116, 0.88f))
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
-      .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                       .ease = ease::outBack(1.70158f),
-                       .delay = 900ms}))
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
+      .scale(animate(
+          from(0.94f).to(1.0f),
+          {.duration = 340ms, .ease = ease::outBack(1.70158f), .delay = 900ms}))
       .key(std::string("inset") + std::to_string(order));
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
 struct HitmanVerlet : sigil::compose::sketch::Sketch {
-
   // -------------------------------------------------------------------------
   // §4 — the mechanism
 
@@ -422,8 +420,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     std::vector<Ineq> ineqs;
     int iterations = 1;
     bool worldCollide = false;
-    float radius = 0;         // capsule radius, world units
-    bool stickContact = false;// also run the Sec.5 barycentric fix-up
+    float radius = 0;           // capsule radius, world units
+    bool stickContact = false;  // also run the Sec.5 barycentric fix-up
   };
 
   struct Contact {
@@ -432,13 +430,28 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   Body rig, cloth;
   std::array<Body, 4> plants;
-  std::array<Body, 3> chains; // the 1 / 4 / 10 A/B, in PANEL px
+  std::array<Body, 3> chains;  // the 1 / 4 / 10 A/B, in PANEL px
   std::vector<Contact> contacts;
 
   // Named rig indices (order = the enumeration below).
   enum RigIdx {
-    HEAD = 0, NECK, LSH, RSH, LEL, REL, LHA, RHA,
-    LWA, RWA, LHI, RHI, LKN, RKN, LFO, RFO, NRIG
+    HEAD = 0,
+    NECK,
+    LSH,
+    RSH,
+    LEL,
+    REL,
+    LHA,
+    RHA,
+    LWA,
+    RWA,
+    LHI,
+    RHI,
+    LKN,
+    RKN,
+    LFO,
+    RFO,
+    NRIG
   };
 
   // -------------------------------------------------------------------------
@@ -448,7 +461,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   uint64_t simSteps = 0;
   bool stepped = false;
   bool didHit = false, didBomb = false;
-  int phase = 0; // 0 SPAWN 1 HIT 2 BOMB 3 SETTLE 4 DRAG 5 RELEASE
+  int phase = 0;  // 0 SPAWN 1 HIT 2 BOMB 3 SETTLE 4 DRAG 5 RELEASE
   SkPoint dragTarget{0, 0}, dragFrom{0, 0};
   bool dragging = false;
   float chainPhase = 0;
@@ -460,8 +473,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   double customUs = 0, instUs = 0;
 
   // Bindings
-  ch::Output<float> alpha{0.0f};      // addFixed's render interpolant
-  ch::Output<float> blastPhase{0.0f}; // 1 at detonation, decaying
+  ch::Output<float> alpha{0.0f};       // addFixed's render interpolant
+  ch::Output<float> blastPhase{0.0f};  // 1 at detonation, decaying
   ch::Output<float> bodyFade{1.0f};
 
   // Instancing: the particle dots (the control case) and the sticks (the
@@ -475,7 +488,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   // =========================================================================
   // §4.2 — Verlet. There is no velocity anywhere in this function.
 
-  static void verlet(Body &b, SkPoint gravityStep) {
+  static void verlet(Body& b, SkPoint gravityStep) {
     for (size_t i = 0; i < b.x.size(); ++i) {
       if (b.invm[i] <= 0.0f) {
         b.xo[i] = b.x[i];
@@ -491,7 +504,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   // §4.3(b) — the stick, in the SHIPPED form: the square-root
   // approximation, which is the one listing the paper prints correctly.
-  static void satisfyStick(Body &b, const Stick &s) {
+  static void satisfyStick(Body& b, const Stick& s) {
     SkPoint d = b.x[s.b] - b.x[s.a];
     // f is NEGATIVE under tension and POSITIVE under compression: the sign
     // the exposition form lost (VERIFIED 1). Denominator >= r2 > 0, so no
@@ -499,37 +512,46 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const float f = s.r2 / (dot(d, d) + s.r2) - 0.5f;
     d = d * f;
     const float w1 = b.invm[s.a], w2 = b.invm[s.b], sum = w1 + w2;
-    if (sum <= 0.0f)
-      return;
+    if (sum <= 0.0f) return;
     b.x[s.a] = b.x[s.a] - d * (2.0f * w1 / sum);
     b.x[s.b] = b.x[s.b] + d * (2.0f * w2 / sum);
   }
 
   // §4.3(c) — the inequality constraint: enforced ONLY when too close.
-  static void satisfyIneq(Body &b, const Ineq &q) {
+  static void satisfyIneq(Body& b, const Ineq& q) {
     SkPoint d = b.x[q.b] - b.x[q.a];
     const float dd = dot(d, d);
-    if (dd >= q.minLen * q.minLen)
-      return;
+    if (dd >= q.minLen * q.minLen) return;
     const float r2 = q.minLen * q.minLen;
     const float f = r2 / (dd + r2) - 0.5f;
     d = d * f;
     const float w1 = b.invm[q.a], w2 = b.invm[q.b], sum = w1 + w2;
-    if (sum <= 0.0f)
-      return;
+    if (sum <= 0.0f) return;
     b.x[q.a] = b.x[q.a] - d * (2.0f * w1 / sum);
     b.x[q.b] = b.x[q.b] + d * (2.0f * w2 / sum);
   }
 
   // The world: the paper's cube plus one triangle. Returns the nearest
   // legal position for a point of radius `r`, or the point itself.
-  static bool projectWorld(SkPoint p, float r, SkPoint *q) {
+  static bool projectWorld(SkPoint p, float r, SkPoint* q) {
     SkPoint out = p;
     bool hit = false;
-    if (out.fY < r) { out.fY = r; hit = true; }
-    if (out.fX < r) { out.fX = r; hit = true; }
-    if (out.fX > 1000.0f - r) { out.fX = 1000.0f - r; hit = true; }
-    if (out.fY > 1000.0f - r) { out.fY = 1000.0f - r; hit = true; }
+    if (out.fY < r) {
+      out.fY = r;
+      hit = true;
+    }
+    if (out.fX < r) {
+      out.fX = r;
+      hit = true;
+    }
+    if (out.fX > 1000.0f - r) {
+      out.fX = 1000.0f - r;
+      hit = true;
+    }
+    if (out.fY > 1000.0f - r) {
+      out.fY = 1000.0f - r;
+      hit = true;
+    }
     // The bump, inflated by r: nearest point on the triangle.
     SkPoint onTri = nearestOnTriangle(out, kBumpA, kBumpB, kBumpC);
     SkPoint away = out - onTri;
@@ -537,8 +559,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const bool inside = pointInTriangle(out, kBumpA, kBumpB, kBumpC);
     if (inside || dist < r) {
       SkPoint n = dist > 1e-4f ? away * (1.0f / dist) : SkPoint{0, 1};
-      if (inside)
-        n = n * -1.0f;
+      if (inside) n = n * -1.0f;
       out = onTri + n * r;
       hit = true;
     }
@@ -549,8 +570,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   static SkPoint nearestOnSegment(SkPoint p, SkPoint a, SkPoint b) {
     const SkPoint ab = b - a;
     const float dd = dot(ab, ab);
-    if (dd < 1e-6f)
-      return a;
+    if (dd < 1e-6f) return a;
     const float t = std::clamp(dot(p - a, ab) / dd, 0.0f, 1.0f);
     return a + ab * t;
   }
@@ -569,50 +589,46 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const bool pos = s1 > 0 || s2 > 0 || s3 > 0;
     return !(neg && pos);
   }
-  static float cross2(SkPoint a, SkPoint b) { return a.fX * b.fY - a.fY * b.fX; }
+  static float cross2(SkPoint a, SkPoint b) {
+    return a.fX * b.fY - a.fY * b.fX;
+  }
 
   /** §4.3(a) — projection, with §7 friction. The penetration depth is
    *  measured BEFORE the projection, or friction has nothing to scale by. */
-  void collideWorld(Body &b, bool record) {
+  void collideWorld(Body& b, bool record) {
     for (size_t i = 0; i < b.x.size(); ++i) {
-      if (b.invm[i] <= 0.0f)
-        continue;
+      if (b.invm[i] <= 0.0f) continue;
       SkPoint q;
-      if (!projectWorld(b.x[i], b.radius, &q))
-        continue;
+      if (!projectWorld(b.x[i], b.radius, &q)) continue;
       const SkPoint delta = q - b.x[i];
       const float dp = len(delta);
-      if (dp < 1e-5f)
-        continue;
+      if (dp < 1e-5f) continue;
       const SkPoint n = delta * (1.0f / dp);
-      b.x[i] = q; // restitution ZERO: clamp, never reflect
+      b.x[i] = q;  // restitution ZERO: clamp, never reflect
       // §7 friction: reduce the TANGENTIAL velocity by k*dp, by moving x*.
       const SkPoint v = b.x[i] - b.xo[i];
       const SkPoint vt = v - n * dot(v, n);
       const float m = len(vt);
       if (m > 1e-6f) {
         const float reduce = std::min(m, kFriction * dp);
-        b.xo[i] = b.xo[i] + vt * (reduce / m); // never reverses: clamped
+        b.xo[i] = b.xo[i] + vt * (reduce / m);  // never reverses: clamped
       }
-      if (record && contacts.size() < 40)
-        contacts.push_back({q, n});
+      if (record && contacts.size() < 40) contacts.push_back({q, n});
     }
   }
 
   /** §5 — the capped cylinder against the world. The contact point lies ON
    *  the stick, so it is a barycentric blend and the correction
    *  distributes by the paper's own formula. Written as printed. */
-  void collideSticks(Body &b, bool record) {
-    for (const Stick &s : b.sticks) {
+  void collideSticks(Body& b, bool record) {
+    for (const Stick& s : b.sticks) {
       const float c1 = 0.5f, c2 = 0.5f;
       const SkPoint p = b.x[s.a] * c1 + b.x[s.b] * c2;
       SkPoint q;
-      if (!projectWorld(p, b.radius, &q))
-        continue;
+      if (!projectWorld(p, b.radius, &q)) continue;
       const SkPoint D = q - p;
       const float dd = dot(D, D);
-      if (dd < 1e-8f)
-        continue;
+      if (dd < 1e-8f) continue;
       const float lambda = dot(q - p, D) / ((c1 * c1 + c2 * c2) * dd);
       const float w1 = b.invm[s.a], w2 = b.invm[s.b];
       if (w1 > 0) b.x[s.a] = b.x[s.a] + D * (c1 * lambda);
@@ -626,21 +642,17 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
    *  loop, so a stick fix-up that shoves a particle back into the floor is
    *  projected out again on the next iteration. That interleaving IS the
    *  algorithm. */
-  void satisfy(Body &b, bool record) {
+  void satisfy(Body& b, bool record) {
     for (int it = 0; it < b.iterations; ++it) {
       const bool rec = record && it == b.iterations - 1;
       if (b.worldCollide) {
         collideWorld(b, rec);
-        if (b.stickContact)
-          collideSticks(b, rec);
+        if (b.stickContact) collideSticks(b, rec);
       }
-      for (const Stick &s : b.sticks)
-        satisfyStick(b, s);
-      for (const Ineq &q : b.ineqs)
-        satisfyIneq(b, q);
+      for (const Stick& s : b.sticks) satisfyStick(b, s);
+      for (const Ineq& q : b.ineqs) satisfyIneq(b, q);
       // §7 IK: keep setting the position INSIDE the loop.
-      if (&b == &rig && dragging)
-        b.x[LHA] = dragTarget;
+      if (&b == &rig && dragging) b.x[LHA] = dragTarget;
     }
   }
 
@@ -651,14 +663,14 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     return {origin.fX + n.x * side * kFigureH, origin.fY + n.y * kFigureH};
   }
 
-  void addStick(Body &b, int i, int j) {
+  void addStick(Body& b, int i, int j) {
     const float r = len(b.x[j] - b.x[i]);
     b.sticks.push_back({i, j, r, r * r});
   }
 
   void buildRig(SkPoint feet) {
     rig = Body{};
-    rig.iterations = 4; // documented range 1-10; 3-4 for rigid bodies
+    rig.iterations = 4;  // documented range 1-10; 3-4 for rigid bodies
     rig.worldCollide = true;
     rig.stickContact = true;
     rig.radius = kCapsule;
@@ -667,23 +679,33 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
              P(kEl, -1),  P(kEl, +1),  P(kHa, -1), P(kHa, +1),
              P(kWa, -1),  P(kWa, +1),  P(kHi, -1), P(kHi, +1),
              P(kKn, -1),  P(kKn, +1),  P(kFo, -1), P(kFo, +1)};
-    rig.xo = rig.x; // x* = x  ->  zero velocity at spawn
+    rig.xo = rig.x;  // x* = x  ->  zero velocity at spawn
     rig.invm.assign(NRIG, 1.0f);
     // The 24 sticks, in the paper's five groups (re-counted at 600 dpi).
-    addStick(rig, HEAD, NECK);                       // 1
-    addStick(rig, NECK, LSH); addStick(rig, NECK, RSH); // 2
-    addStick(rig, LSH, RSH);                         // 1  shoulder bar
-    addStick(rig, NECK, LWA); addStick(rig, NECK, RWA); // 2  long braces
-    addStick(rig, LSH, LWA);  addStick(rig, RSH, RWA);  // 2  side
-    addStick(rig, LSH, RWA);  addStick(rig, RSH, LWA);  // 2  crossed
-    addStick(rig, LWA, RWA);                         // 1  waist bar
-    addStick(rig, LWA, LHI);  addStick(rig, RWA, RHI);  // 2  side
-    addStick(rig, LWA, RHI);  addStick(rig, RWA, LHI);  // 2  crossed
-    addStick(rig, LHI, RHI);                         // 1  hip bar
-    addStick(rig, LSH, LEL);  addStick(rig, RSH, REL);  // 2
-    addStick(rig, LEL, LHA);  addStick(rig, REL, RHA);  // 2
-    addStick(rig, LHI, LKN);  addStick(rig, RHI, RKN);  // 2  THE ANCHOR
-    addStick(rig, LKN, LFO);  addStick(rig, RKN, RFO);  // 2
+    addStick(rig, HEAD, NECK);  // 1
+    addStick(rig, NECK, LSH);
+    addStick(rig, NECK, RSH);  // 2
+    addStick(rig, LSH, RSH);   // 1  shoulder bar
+    addStick(rig, NECK, LWA);
+    addStick(rig, NECK, RWA);  // 2  long braces
+    addStick(rig, LSH, LWA);
+    addStick(rig, RSH, RWA);  // 2  side
+    addStick(rig, LSH, RWA);
+    addStick(rig, RSH, LWA);  // 2  crossed
+    addStick(rig, LWA, RWA);  // 1  waist bar
+    addStick(rig, LWA, LHI);
+    addStick(rig, RWA, RHI);  // 2  side
+    addStick(rig, LWA, RHI);
+    addStick(rig, RWA, LHI);  // 2  crossed
+    addStick(rig, LHI, RHI);  // 1  hip bar
+    addStick(rig, LSH, LEL);
+    addStick(rig, RSH, REL);  // 2
+    addStick(rig, LEL, LHA);
+    addStick(rig, REL, RHA);  // 2
+    addStick(rig, LHI, LKN);
+    addStick(rig, RHI, RKN);  // 2  THE ANCHOR
+    addStick(rig, LKN, LFO);
+    addStick(rig, RKN, RFO);  // 2
     // The documented inequality: "between the two knees - making sure that
     // the legs never cross".
     rig.ineqs.push_back({LKN, RKN, kKneeMin});
@@ -691,7 +713,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   void buildCloth() {
     cloth = Body{};
-    cloth.iterations = 1; // documented
+    cloth.iterations = 1;  // documented
     // MEASURED, on ONE pin at ONE iteration (both documented): a 7x7 sheet
     // of 26-unit cells hangs 255 units on a 221-unit diagonal - 15% over -
     // with 61% peak constraint error. A 5x5 of 32-unit cells hangs 198 on
@@ -709,16 +731,14 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                            y0 - (float)r * sp});
     cloth.xo = cloth.x;
     cloth.invm.assign(cloth.x.size(), 1.0f);
-    cloth.invm[0] = 0.0f; // "Constrain one particle of the cloth to origo"
+    cloth.invm[0] = 0.0f;  // "Constrain one particle of the cloth to origo"
     for (int r = 0; r < R; ++r) {
       for (int c = 0; c < C; ++c) {
-        if (c + 1 < C)
-          addStick(cloth, idx(c, r), idx(c + 1, r));
+        if (c + 1 < C) addStick(cloth, idx(c, r), idx(c + 1, r));
         if (r + 1 < R) {
           addStick(cloth, idx(c, r), idx(c, r + 1));
           const int dc = (r & 1) ? c + 1 : c - 1;
-          if (dc >= 0 && dc < C)
-            addStick(cloth, idx(c, r), idx(dc, r + 1));
+          if (dc >= 0 && dc < C) addStick(cloth, idx(c, r), idx(dc, r + 1));
         }
       }
     }
@@ -735,9 +755,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   void buildPlants() {
     const float roots[4] = {664.0f, 736.0f, 808.0f, 880.0f};
     for (int p = 0; p < 4; ++p) {
-      Body &b = plants[(size_t)p];
+      Body& b = plants[(size_t)p];
       b = Body{};
-      b.iterations = 1; // documented — "exactly the right amount of bending"
+      b.iterations = 1;  // documented — "exactly the right amount of bending"
       b.worldCollide = true;
       b.radius = 3.0f;
       // A patch of cloth three wide and five tall, fully braced, base row
@@ -753,25 +773,22 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       auto id = [](int r, int c) { return r * C + c; };
       for (int r = 0; r < R; ++r)
         for (int c = 0; c < C; ++c)
-          b.x.push_back({roots[p] + lean * (float)r + (float)c * w,
-                         (float)r * sp});
+          b.x.push_back(
+              {roots[p] + lean * (float)r + (float)c * w, (float)r * sp});
       b.xo = b.x;
       b.invm.assign(b.x.size(), 1.0f);
       for (int c = 0; c < C; ++c)
-        b.invm[(size_t)id(0, c)] = 0.0f; // the base row is the root
+        b.invm[(size_t)id(0, c)] = 0.0f;  // the base row is the root
       for (int r = 0; r < R; ++r)
         for (int c = 0; c < C; ++c) {
-          if (c + 1 < C)
-            addStick(b, id(r, c), id(r, c + 1));
+          if (c + 1 < C) addStick(b, id(r, c), id(r, c + 1));
           if (r + 1 < R) {
             addStick(b, id(r, c), id(r + 1, c));
             // the documented support sticks, "between strategically chosen
             // couples of vertices sharing a neighbor" — both diagonals, so
             // every cell is a braced truss and the plant stands up
-            if (c + 1 < C)
-              addStick(b, id(r, c), id(r + 1, c + 1));
-            if (c > 0)
-              addStick(b, id(r, c), id(r + 1, c - 1));
+            if (c + 1 < C) addStick(b, id(r, c), id(r + 1, c + 1));
+            if (c > 0) addStick(b, id(r, c), id(r + 1, c - 1));
           }
         }
     }
@@ -785,7 +802,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const int iters[3] = {1, 4, 10};
     const float xs[3] = {60.0f, 162.0f, 264.0f};
     for (int k = 0; k < 3; ++k) {
-      Body &b = chains[(size_t)k];
+      Body& b = chains[(size_t)k];
       b = Body{};
       b.iterations = iters[k];
       constexpr int N = 12;
@@ -808,30 +825,28 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   // =========================================================================
   // §7 — motion control, documented as laws, reconstructed as numbers.
 
-  void applyBlast(Body &b, SkPoint c) {
+  void applyBlast(Body& b, SkPoint c) {
     for (size_t i = 0; i < b.x.size(); ++i) {
-      if (b.invm[i] <= 0.0f)
-        continue;
+      if (b.invm[i] <= 0.0f) continue;
       SkPoint d = b.x[i] - c;
       const float r = std::max(12.0f, len(d));
       // |dx| = K / r^2  ->  dx = K (x-c) / r^3
       SkPoint push = d * (kBlastK / (r * r * r));
       const float m = len(push);
-      if (m > 45.0f)
-        push = push * (45.0f / m);
-      b.x[i] = b.x[i] + push; // a POSITION displacement; verlet does the rest
+      if (m > 45.0f) push = push * (45.0f / m);
+      b.x[i] = b.x[i] + push;  // a POSITION displacement; verlet does the rest
     }
   }
 
-  float maxError(const Body &b) const {
+  float maxError(const Body& b) const {
     float e = 0;
-    for (const Stick &s : b.sticks)
+    for (const Stick& s : b.sticks)
       e = std::max(e, std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r);
     return e;
   }
-  void chainStats(const Body &b, float *mean, float *mx) const {
+  void chainStats(const Body& b, float* mean, float* mx) const {
     float sum = 0, m = 0;
-    for (const Stick &s : b.sticks) {
+    for (const Stick& s : b.sticks) {
       const float e = std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
       sum += e;
       m = std::max(m, e);
@@ -855,15 +870,14 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
     // Phase machine: the §7 motion-control events, on this study's schedule.
     if (!didHit && loopT >= 1.10) {
-      rig.x[RSH].fX -= kHitPush; // documented: displace ONE particle
+      rig.x[RSH].fX -= kHitPush;  // documented: displace ONE particle
       didHit = true;
     }
     if (!didBomb && loopT >= 2.60) {
       const SkPoint c = kBlast;
       applyBlast(rig, c);
       applyBlast(cloth, c);
-      for (Body &p : plants)
-        applyBlast(p, c);
+      for (Body& p : plants) applyBlast(p, c);
       didBomb = true;
       blastPhase = 1.0f;
     }
@@ -872,8 +886,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       dragFrom = rig.x[LHA];
       dragging = true;
     }
-    if (!wantDrag)
-      dragging = false;
+    if (!wantDrag) dragging = false;
     if (dragging) {
       const float u = std::clamp((float)((loopT - 6.20) / 3.20), 0.0f, 1.0f);
       const float e = ch::easeInOutCubic(u);
@@ -892,7 +905,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     satisfy(rig, true);
     verlet(cloth, g);
     satisfy(cloth, false);
-    for (Body &p : plants) {
+    for (Body& p : plants) {
       verlet(p, g);
       satisfy(p, false);
     }
@@ -917,7 +930,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     stageMaxErr = maxError(rig);
     contactCount = contacts.size();
     ++simSteps;
-    blastPhase = std::max(0.0f, blastPhase.value() - (float)(1.0 / kSimHz) / 0.34f);
+    blastPhase =
+        std::max(0.0f, blastPhase.value() - (float)(1.0 / kSimHz) / 0.34f);
     const float fadeU = (float)((loopT - 10.40) / 0.60);
     bodyFade = loopT >= 10.40 ? std::clamp(1.0f - fadeU, 0.0f, 1.0f) : 1.0f;
   }
@@ -930,11 +944,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
   /** The integrator's OWN interpolant: a verlet body's state IS (x*, x),
    *  so lerp(x*, x, alpha) is the position at t_prev + alpha*dt. Free. */
-  SkPoint drawnWorld(const Body &b, size_t i) const {
+  SkPoint drawnWorld(const Body& b, size_t i) const {
     const float a = alpha.value();
     return b.xo[i] + (b.x[i] - b.xo[i]) * a;
   }
-  SkPoint drawn(const Body &b, size_t i) const {
+  SkPoint drawn(const Body& b, size_t i) const {
     return toStage(drawnWorld(b, i));
   }
 
@@ -947,9 +961,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   /** Every edge of a body as ONE path: the cloth's edges and a plant's
    *  sticks each become a single stroke rather than one element per edge. */
-  SkPath bodyPath(const Body &b) const {
+  SkPath bodyPath(const Body& b) const {
     SkPathBuilder p;
-    for (const Stick &s : b.sticks) {
+    for (const Stick& s : b.sticks) {
       p.moveTo(drawn(b, (size_t)s.a));
       p.lineTo(drawn(b, (size_t)s.b));
     }
@@ -970,10 +984,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     return r.makeOutset(12, 12);
   }
   /** Fit-to-cell: the transform that maps rigBounds() into a w x h cell. */
-  void rigFit(float w, float h, float *scale, SkPoint *offset) const {
+  void rigFit(float w, float h, float* scale, SkPoint* offset) const {
     const SkRect b = rigBounds();
-    const float s = std::min(w / std::max(1.0f, b.width()),
-                             h / std::max(1.0f, b.height()));
+    const float s =
+        std::min(w / std::max(1.0f, b.width()), h / std::max(1.0f, b.height()));
     *scale = s;
     *offset = {(w - b.width() * s) * 0.5f - b.fLeft * s,
                (h - b.height() * s) * 0.5f - b.fTop * s};
@@ -983,7 +997,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
    *  vocabulary on geometry recomputed this frame (decorations::paintOn).
    *  Returns the microseconds spent, which the A/B strip prints beside the
    *  same sticks drawn through instances(). */
-  double paintRig(SkCanvas &c, const PaintContext &ctx, float scale,
+  double paintRig(SkCanvas& c, const PaintContext& ctx, float scale,
                   SkPoint offset, float fade, bool proxies) const {
     const auto t0 = std::chrono::steady_clock::now();
     auto at = [&](size_t i) {
@@ -995,7 +1009,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       //    describes, made visible. lines::Line strokes with ROUND caps,
       //    which is exactly a capsule.
       SkPathBuilder all;
-      for (const Stick &s : rig.sticks) {
+      for (const Stick& s : rig.sticks) {
         all.moveTo(at((size_t)s.a));
         all.lineTo(at((size_t)s.b));
       }
@@ -1005,16 +1019,15 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       decorations::paintOn(c, ctx, all.detach(), capsule);
     }
     // 2. The centrelines, coloured by LIVE constraint error.
-    for (const Stick &s : rig.sticks) {
-      const float e =
-          std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
+    for (const Stick& s : rig.sticks) {
+      const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       decorations::paintOn(
           c, ctx, segment(at((size_t)s.a), at((size_t)s.b)),
-          stroke(std::max(4.6f, 2.5f * scale),
-                 Fill::color(errColor(e, fade))));
+          stroke(std::max(4.6f, 2.5f * scale), Fill::color(errColor(e, fade))));
     }
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
-    PathFormat dotted = stroke(1.4f * scale, Fill::color(hex(0xC8402F, 0.75f * fade)));
+    PathFormat dotted =
+        stroke(1.4f * scale, Fill::color(hex(0xC8402F, 0.75f * fade)));
     dotted.dashIntervals = {2.5f, 3.5f};
     decorations::paintOn(c, ctx, segment(at(LKN), at(RKN)), dotted);
     const auto t1 = std::chrono::steady_clock::now();
@@ -1026,20 +1039,18 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   void writeDotPool() {
     dotPool->clear();
-    auto push = [&](const Body &b, int pinFrame) {
+    auto push = [&](const Body& b, int pinFrame) {
       for (size_t i = 0; i < b.x.size(); ++i)
         dotPool->add(drawn(b, i), b.invm[i] <= 0.0f ? pinFrame : cellDot);
     };
     push(rig, cellPin);
     push(cloth, cellPin);
-    for (const Body &p : plants)
-      push(p, cellPin);
+    for (const Body& p : plants) push(p, cellPin);
     // Fade the whole field with the body.
     const float f = bodyFade.value();
     if (f < 1.0f) {
       auto tints = dotPool->tints();
-      for (SkColor4f &t : tints)
-        t.fA = f;
+      for (SkColor4f& t : tints) t.fA = f;
     }
   }
 
@@ -1057,7 +1068,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     auto size = barPool->sizes();
     const float f = bodyFade.value();
     for (size_t i = 0; i < rig.sticks.size(); ++i) {
-      const Stick &s = rig.sticks[i];
+      const Stick& s = rig.sticks[i];
       SkPoint a = drawn(rig, (size_t)s.a), b = drawn(rig, (size_t)s.b);
       a = {origin.fX + a.fX * scale, origin.fY + a.fY * scale};
       b = {origin.fX + b.fX * scale, origin.fY + b.fY * scale};
@@ -1087,7 +1098,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                                                .delay = 240ms})),
                 stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.45f)),
                        PathFormat::Align::Inner))
-        .child(box() // the cube's top wall — real, just not interesting
+        .child(box()  // the cube's top wall — real, just not interesting
                    .left(Dim(0))
                    .top(Dim(0))
                    .width(Dim(kStage))
@@ -1109,7 +1120,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const float floorTop = kStage - kCapsule * kUnit;
     return box()
         .inset(0)
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 520ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 520ms}))
         .child(box()
                    .left(Dim(0))
                    .top(Dim(floorTop))
@@ -1155,7 +1167,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   /** The corpse, the cloth, the plants, the contacts — one custom leaf.
    *  custom() measures ZERO on the main axis, so both dims are explicit. */
   Element simulation() {
-    return custom([this](SkCanvas &c, const PaintContext &ctx) {
+    return custom([this](SkCanvas& c, const PaintContext& ctx) {
              const float f = bodyFade.value();
              // The cloth: one path for the triangle fill, one for the edges.
              {
@@ -1183,8 +1195,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
              stem.width = 2.0f;
              stem.fill = Fill::color(hex(0x8A8F9C, 0.70f));
              SkPathBuilder stems;
-             for (const Body &p : plants)
-               for (const Stick &st : p.sticks) {
+             for (const Body& p : plants)
+               for (const Stick& st : p.sticks) {
                  stems.moveTo(drawn(p, (size_t)st.a));
                  stems.lineTo(drawn(p, (size_t)st.b));
                }
@@ -1200,7 +1212,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
              mark.setStyle(SkPaint::kStroke_Style);
              mark.setStrokeWidth(1.3f);
              mark.setColor4f(hex(0xC8402F, 0.95f * f), nullptr);
-             for (const Contact &k : contacts) {
+             for (const Contact& k : contacts) {
                const SkPoint p = toStage(k.p);
                c.drawCircle(p.fX, p.fY, 3.5f, mark);
                c.drawLine(p.fX, p.fY, p.fX + k.n.fX * 14.0f,
@@ -1290,7 +1302,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .corners({5})
         .fill(hex(0x101116, 0.88f))
         .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 980ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 980ms}))
         .key("strip")
         .child(t("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs custom()",
                  ui(7.5f, kSteel, 0.9f))
@@ -1298,14 +1311,14 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .shrink(0))
         .child(box()
                    .grow(1)
-                   .child(box() // the instanced half
+                   .child(box()  // the instanced half
                               .left(Dim(0))
                               .top(Dim(0))
                               .width(Dim(150))
                               .height(Dim(76))
                               .child(instancing::instances(
                                   barAtlas, barPool, instancing::Mode::Live)))
-                   .child(custom([this](SkCanvas &c, const PaintContext &ctx) {
+                   .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
                             // The custom() half, fitted to the same cell.
                             float sc = 1;
                             SkPoint off{0, 0};
@@ -1328,11 +1341,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                                                       SkBlendMode::kSrcOver);
                             c.restore();
                             const auto s1 = std::chrono::steady_clock::now();
-                            instUs = instUs * 0.9 +
-                                     0.1 * std::chrono::duration<double,
-                                                                 std::micro>(
-                                               s1 - s0)
-                                               .count();
+                            instUs =
+                                instUs * 0.9 +
+                                0.1 * std::chrono::duration<double, std::micro>(
+                                          s1 - s0)
+                                          .count();
                           })
                               .left(Dim(0))
                               .top(Dim(0))
@@ -1349,7 +1362,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   Element errorLegend() {
-    auto swatch = [&](int i, const char *label) {
+    auto swatch = [&](int i, const char* label) {
       return box()
           .column()
           .gap(3)
@@ -1374,7 +1387,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .corners({4})
         .fill(hex(0x101116, 0.86f))
         .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1440ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1440ms}))
         .key("legend")
         .child(box()
                    .row()
@@ -1394,11 +1408,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element figPenetration() {
     // Fig. 4b/5b: the paper's own worked case, c1 = 0.75, c2 = 0.25.
     return stageInset(16, 16, 208, 148, 1)
-        .child(t("FIG. 4b/5b \xc2\xb7 \xc2\xa7" "5 PENETRATION",
+        .child(t("FIG. 4b/5b \xc2\xb7 \xc2\xa7"
+                 "5 PENETRATION",
                  ui(7.5f, kSteel, 1.2f))
                    .height(Dim(10))
                    .shrink(0))
-        .child(custom([](SkCanvas &c, const PaintContext &ctx) {
+        .child(custom([](SkCanvas& c, const PaintContext& ctx) {
                  SkPaint p;
                  p.setAntiAlias(true);
                  p.setStyle(SkPaint::kStroke_Style);
@@ -1441,20 +1456,24 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .shrink(0))
         .child(t("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25",
                  mono(7.0f, kBlue, 0.1f)))
-        .child(t("\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / ((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
+        .child(t("\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
+                 "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
                  mono(7.0f, kBlue, 0.1f)))
-        .child(t("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
-                 mono(7.0f, kBlue, 0.1f)))
+        .child(
+            t("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
+              mono(7.0f, kBlue, 0.1f)))
         .child(t("THE FIX-UP VIOLATES THE STICK. RELAX AGAIN.",
                  ui(6.5f, kTick, 0.6f)));
   }
 
   Element figFriction() {
     return stageInset(512, 16, 208, 148, 2)
-        .child(t("FIG. 10 \xc2\xb7 \xc2\xa7" "7 FRICTION", ui(7.5f, kSteel, 1.2f))
+        .child(t("FIG. 10 \xc2\xb7 \xc2\xa7"
+                 "7 FRICTION",
+                 ui(7.5f, kSteel, 1.2f))
                    .height(Dim(10))
                    .shrink(0))
-        .child(custom([](SkCanvas &c, const PaintContext &ctx) {
+        .child(custom([](SkCanvas& c, const PaintContext& ctx) {
                  SkPaint fillp;
                  fillp.setAntiAlias(true);
                  fillp.setColor4f(hex(0x2A2E38), nullptr);
@@ -1473,22 +1492,23 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                  p.setColor4f(hex(0x6FA8DC, 0.55f), nullptr);
                  c.drawRect(SkRect::MakeXYWH(58, 30, 34, 22), p);
                  p.setColor4f(kRed, nullptr);
-                 c.drawLine(75, 52, 75, 44, p); // d_p
+                 c.drawLine(75, 52, 75, 44, p);  // d_p
                  p.setColor4f(hex(0x6FA8DC), nullptr);
-                 c.drawLine(96, 40, 146, 40, p); // v_t before
+                 c.drawLine(96, 40, 146, 40, p);  // v_t before
                  c.drawLine(146, 40, 140, 36, p);
                  c.drawLine(146, 40, 140, 44, p);
                  p.setColor4f(hex(0xE8E6E1), nullptr);
-                 c.drawLine(96, 52, 124, 52, p); // v_t after
+                 c.drawLine(96, 52, 124, 52, p);  // v_t after
                  c.drawLine(124, 52, 118, 48, p);
                  c.drawLine(124, 52, 118, 56, p);
                  (void)ctx;
                })
                    .height(Dim(64))
                    .shrink(0))
-        .child(t("d_p MEASURED BEFORE THE PROJECTION,",
-                 mono(7.0f, kBlue, 0.1f)))
-        .child(t("v_t REDUCED BY k\xc2\xb7" "d_p BY MOVING x*.",
+        .child(
+            t("d_p MEASURED BEFORE THE PROJECTION,", mono(7.0f, kBlue, 0.1f)))
+        .child(t("v_t REDUCED BY k\xc2\xb7"
+                 "d_p BY MOVING x*.",
                  mono(7.0f, kBlue, 0.1f)))
         .child(t("NEVER LET v_t REVERSE \xe2\x80\x94 CLAMP TO ZERO.",
                  mono(7.0f, kBlue, 0.1f)))
@@ -1497,11 +1517,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   Element phaseStrip() {
-    const char *names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
+    const char* names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
     auto row = box().row().gap(9);
     for (int i = 0; i < 5; ++i)
-      row.child(t(names[i], ui(8.0f, i == phase ? kRed : hex(0x8A8F9C, 0.45f),
-                               1.7f)));
+      row.child(t(names[i],
+                  ui(8.0f, i == phase ? kRed : hex(0x8A8F9C, 0.45f), 1.7f)));
     return row;
   }
 
@@ -1513,18 +1533,16 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(worldBox())
         .child(stageChrome())
         .child(simulation())
-        .child(box()
-                   .inset(0)
-                   .child(instancing::instances(dotAtlas, dotPool,
-                                                instancing::Mode::Live)))
+        .child(box().inset(0).child(
+            instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)))
         .child(blastFlash())
-        .child(t("(0, 0)", mono(7.5f, kTick))
-                   .left(Dim(7))
-                   .top(Dim(kStage - 13)))
+        .child(
+            t("(0, 0)", mono(7.5f, kTick)).left(Dim(7)).top(Dim(kStage - 13)))
         .child(t("(1000, 1000)", mono(7.5f, kTick))
                    .left(Dim(kStage - 62))
                    .top(Dim(5)))
-        .child(t("\xc2\xa7" "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
+        .child(t("\xc2\xa7"
+                 "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
                  "PINNED \xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE "
                  "ITERATION COUNT",
                  ui(7.0f, kTick, 0.5f))
@@ -1532,7 +1550,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .top(Dim(412))
                    .width(Dim(268))
                    .textAlign(sigil::weave::TextAlignment::kEnd))
-        .child(t("\xc2\xa7" "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 "
+        .child(t("\xc2\xa7"
+                 "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 "
                  "ONE ITERATION \xc2\xb7 BASE ROW PINNED",
                  ui(7.0f, kTick, 0.5f))
                    .left(Dim(452))
@@ -1557,17 +1576,20 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                             "SQUARE BECAUSE THE WORLD IS A CUBE.",
                             ui(7.0f, kTick, 0.4f)))
                    .child(box().height(Dim(3)).shrink(0))
-                   .child(t("\xc2\xa7" "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = "
-                            "K / |x\xe2\x88\x92" "c|\xc2\xb2 \xc2\xb7 EVERY "
+                   .child(t("\xc2\xa7"
+                            "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = "
+                            "K / |x\xe2\x88\x92"
+                            "c|\xc2\xb2 \xc2\xb7 EVERY "
                             "PARTICLE, ONCE \xc2\xb7 THE INTEGRATOR MAKES IT "
                             "VELOCITY",
-                            ui(7.0f, hex(0xC8402F, 0.8f), 0.4f))));;
+                            ui(7.0f, hex(0xC8402F, 0.8f), 0.4f))));
+    ;
   }
 
   // =========================================================================
   // Sidebar — column A
 
-  Element codeLine(const char *s, SkColor4f c, bool caret = false) {
+  Element codeLine(const char* s, SkColor4f c, bool caret = false) {
     auto row = box().row().gap(4).height(Dim(12)).shrink(0);
     row.child(t(caret ? "\xe2\x97\x84" : " ", mono(7.0f, caret ? kRed : kInk))
                   .width(Dim(8))
@@ -1579,7 +1601,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element panelA1() {
     return panel(156, "A1 \xc2\xb7 VERLET \xe2\x80\x94 NO VELOCITY VARIABLE", 1)
         .gap(4)
-        .child(t("x' = 2x \xe2\x88\x92 x* + a\xc2\xb7\xce\x94t\xc2\xb2      x* = x",
+        .child(t("x' = 2x \xe2\x88\x92 x* + a\xc2\xb7\xce\x94t\xc2\xb2      x* "
+                 "= x",
                  monoB(12.0f, kBone, 0.2f))
                    .height(Dim(16))
                    .shrink(0))
@@ -1598,8 +1621,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   Element panelA2() {
-    return panel(288,
-                 "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN", 2)
+    return panel(288, "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN", 2)
         .child(codeLine("delta = x2-x1;", kBlue))
         .child(codeLine("deltalength = sqrt(delta*delta);", kBlue))
         .child(codeLine("diff = (deltalength-restlength)/deltalength;", kBlue))
@@ -1607,9 +1629,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(codeLine("x2 += delta*0.5*diff;", kRed, true))
         .child(box().height(Dim(2)).shrink(0))
         .child(t("r = 100, |x2\xe2\x88\x92x1| = 120 \xe2\x86\x92 diff = 1/6, "
-                 "delta\xc2\xb7" "0.5\xc2\xb7" "diff = (10, 0)",
+                 "delta\xc2\xb7"
+                 "0.5\xc2\xb7"
+                 "diff = (10, 0)",
                  mono(7.5f, kSteel, 0.1f)))
-        .child(t("AS PRINTED : x1 = (\xe2\x88\x92" "10,0)  x2 = (130,0)  "
+        .child(t("AS PRINTED : x1 = (\xe2\x88\x92"
+                 "10,0)  x2 = (130,0)  "
                  "\xe2\x86\x92 d = 140  DIVERGES",
                  mono(8.0f, kRed, 0.1f)))
         .child(t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
@@ -1637,25 +1662,25 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
           [approx](float u) {
             const float s = approx ? 0.5f - 1.0f / (1.0f + u * u)
                                    : 0.5f - 1.0f / (2.0f * u);
-            const float x = (u - 1.25f) / 0.75f;   // u in [0.5, 2] -> [-1,1]
-            const float y = -(s - (-0.1f)) / 0.45f; // s in [-0.55,0.35], flipped
+            const float x = (u - 1.25f) / 0.75f;  // u in [0.5, 2] -> [-1,1]
+            const float y =
+                -(s - (-0.1f)) / 0.45f;  // s in [-0.55,0.35], flipped
             return SkPoint{x, std::clamp(y, -1.0f, 1.0f)};
           },
           0.5f, 2.0f, 240);
     };
     auto plotCurve = [&](bool approx, SkColor4f c, float w) {
       PathFormat f = stroke(w, Fill::color(c));
-      if (!approx)
-        f.dashIntervals = {3.5f, 3.0f};
+      if (!approx) f.dashIntervals = {3.5f, 3.0f};
       return box()
           .inset(0)
           .shape(curve(approx))
           .stroke(spans::upTo(animate(to(1.0f), {.duration = 520ms,
-                                  .ease = ch::easeOutCubic,
-                                  .delay = 1400ms})), f)
-          ;
+                                                 .ease = ch::easeOutCubic,
+                                                 .delay = 1400ms})),
+                  f);
     };
-    auto bar = [&](int i, const char *label, float h) {
+    auto bar = [&](int i, const char* label, float h) {
       return box()
           .column()
           .gap(2)
@@ -1667,47 +1692,48 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                      .width(Dim(30))
                      .height(Dim(h))
                      .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
-                     .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
-                                       .ease = ease::outBack(1.70158f),
-                                       .delay = 1600ms}))
+                     .scaleY(animate(from(0.0f).to(1.0f),
+                                     {.duration = 220ms,
+                                      .ease = ease::outBack(1.70158f),
+                                      .delay = 1600ms}))
                      .transformOrigin(0.5f, 1.0f))
           .child(t(label, mono(7.0f, kSteel)));
     };
     return panel(244, "A3 \xc2\xb7 THE SQUARE-ROOT APPROXIMATION", 3)
         .child(codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue))
         .child(codeLine("x1 -= delta;   x2 += delta;", kBlue))
-        .child(box()
-                   .height(Dim(64))
-                   .shrink(0)
-                   .child(box() // s = 0
-                              .left(Dim(0))
-                              .top(Dim(39.1f))
-                              .width(Dim(324))
-                              .height(Dim(1))
-                              .fill(hex(0x2A2E38)))
-                   .child(box() // u = 1
-                              .left(Dim(108))
-                              .top(Dim(0))
-                              .width(Dim(1))
-                              .height(Dim(64))
-                              .fill(hex(0x2A2E38)))
-                   .child(plotCurve(false, kSteel, 1.4f))
-                   .child(plotCurve(true, kBlue, 1.8f))
-                   .child(t("s_exact", mono(7.0f, kSteel))
-                              .left(Dim(4))
-                              .top(Dim(2)))
-                   .child(t("s_approx", mono(7.0f, kBlue))
-                              .left(Dim(4))
-                              .top(Dim(13)))
-                   .child(t("u = d/r   0.5 \xe2\x86\x92 2.0", mono(7.0f, kTick))
-                              .left(Dim(244))
-                              .top(Dim(52))))
+        .child(
+            box()
+                .height(Dim(64))
+                .shrink(0)
+                .child(box()  // s = 0
+                           .left(Dim(0))
+                           .top(Dim(39.1f))
+                           .width(Dim(324))
+                           .height(Dim(1))
+                           .fill(hex(0x2A2E38)))
+                .child(box()  // u = 1
+                           .left(Dim(108))
+                           .top(Dim(0))
+                           .width(Dim(1))
+                           .height(Dim(64))
+                           .fill(hex(0x2A2E38)))
+                .child(plotCurve(false, kSteel, 1.4f))
+                .child(plotCurve(true, kBlue, 1.8f))
+                .child(
+                    t("s_exact", mono(7.0f, kSteel)).left(Dim(4)).top(Dim(2)))
+                .child(
+                    t("s_approx", mono(7.0f, kBlue)).left(Dim(4)).top(Dim(13)))
+                .child(t("u = d/r   0.5 \xe2\x86\x92 2.0", mono(7.0f, kTick))
+                           .left(Dim(244))
+                           .top(Dim(52))))
         .child(t("approx/exact:  0.60\xc3\x97 at u=0.5 \xc2\xb7 0.88 \xc2\xb7 "
                  "1.08 \xc2\xb7 1.15 \xc2\xb7 1.20\xc3\x97 at u=2.0",
                  mono(7.5f, kSteel, 0.1f)))
         .child(t("AGREES IN VALUE AND SLOPE AT u = 1. DENOMINATOR "
                  "d\xc2\xb2+r\xc2\xb2 \xe2\x89\xa5 r\xc2\xb2 > 0, SO IT "
-                 "CANNOT DIVIDE BY ZERO: \xc2\xa7" "7's SINGULARITY NOTE "
+                 "CANNOT DIVIDE BY ZERO: \xc2\xa7"
+                 "7's SINGULARITY NOTE "
                  "APPLIES ONLY TO THE EXACT FORM.",
                  ui(7.0f, kTick, 0.4f)))
         .child(box()
@@ -1721,7 +1747,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .child(bar(2, "90", 18))
                    .child(bar(3, "95", 19))
                    .child(bar(4, "97.5", 19.5f)))
-        .child(t("\xc2\xa7" "7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
+        .child(t("\xc2\xa7"
+                 "7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
                  ui(7.0f, kTick, 0.4f)));
   }
 
@@ -1730,7 +1757,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element panelB1() {
     return panel(236, "B1 \xc2\xb7 FIGURE 9: THE ANATOMY", 4)
         .gap(4)
-        .child(custom([this](SkCanvas &c, const PaintContext &ctx) {
+        .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
                  // The rest pose at 156 px tall, centred.
                  const float H = 104.0f;
                  const float cx = ctx.size.width() * 0.5f, base = 112.0f;
@@ -1743,7 +1770,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                      P(kWa, -1),  P(kWa, +1),  P(kHi, -1), P(kHi, +1),
                      P(kKn, -1),  P(kKn, +1),  P(kFo, -1), P(kFo, +1)};
                  SkPathBuilder b;
-                 for (const Stick &s : rig.sticks) {
+                 for (const Stick& s : rig.sticks) {
                    b.moveTo(p[(size_t)s.a]);
                    b.lineTo(p[(size_t)s.b]);
                  }
@@ -1761,14 +1788,13 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                  SkPaint dp;
                  dp.setAntiAlias(true);
                  dp.setColor4f(kBone, nullptr);
-                 for (const SkPoint &q : p)
-                   c.drawCircle(q.fX, q.fY, 2.6f, dp);
+                 for (const SkPoint& q : p) c.drawCircle(q.fX, q.fY, 2.6f, dp);
                  // four labels
                  SkFont f(monoFace(), 7.0f);
                  SkPaint tp;
                  tp.setAntiAlias(true);
                  tp.setColor4f(kTick, nullptr);
-                 auto lab = [&](const char *s, SkPoint at, float dx) {
+                 auto lab = [&](const char* s, SkPoint at, float dx) {
                    c.drawSimpleText(s, strlen(s), SkTextEncoding::kUTF8,
                                     at.fX + dx, at.fY + 2.5f, f, tp);
                  };
@@ -1782,16 +1808,22 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .shrink(0)
                    .cache(Cache::None))
         .child(t("16 PARTICLES \xc2\xb7 24 STICKS \xc2\xb7 1 INEQUALITY "
-                 "(KNEES, \xc2\xa7" "6)",
+                 "(KNEES, \xc2\xa7"
+                 "6)",
                  monoB(8.5f, kBone, 0.1f)))
-        .child(t("16\xc3\x97" "2 \xe2\x88\x92 24 = 8 PLANAR DOF   "
-                 "(16\xc3\x97" "3 \xe2\x88\x92 24 = 24 IN THE PAPER'S 3D)",
+        .child(t("16\xc3\x97"
+                 "2 \xe2\x88\x92 24 = 8 PLANAR DOF   "
+                 "(16\xc3\x97"
+                 "3 \xe2\x88\x92 24 = 24 IN THE PAPER'S 3D)",
                  mono(8.0f, kSteel, 0.1f)))
-        .child(t("COMPARE \xc2\xa7" "5's TETRAHEDRON: 4\xc3\x97" "3 \xe2\x88\x92 6 = 6",
+        .child(t("COMPARE \xc2\xa7"
+                 "5's TETRAHEDRON: 4\xc3\x97"
+                 "3 \xe2\x88\x92 6 = 6",
                  mono(8.0f, kSteel, 0.1f)))
         .child(t("RE-COUNTED AT 600 dpi: THRESHOLD, ERODE BY A DISC r = 8 px "
                  "\xe2\x80\x94 EVERY STICK AND EVERY BODY-TEXT STEM DIES AND "
-                 "EXACTLY 16 COMPONENTS OF 620\xe2\x80\x93" "657 px SURVIVE. "
+                 "EXACTLY 16 COMPONENTS OF 620\xe2\x80\x93"
+                 "657 px SURVIVE. "
                  "THE PAPER PUBLISHES NO COUNT.",
                  ui(7.0f, kTick, 0.4f)));
   }
@@ -1799,16 +1831,17 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element panelB2() {
     return panel(264, "B2 \xc2\xb7 RELAXATION: 1 \xc2\xb7 4 \xc2\xb7 10", 5)
         .gap(4)
-        .child(custom([this](SkCanvas &c, const PaintContext &ctx) {
+        .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
                  for (int k = 0; k < 3; ++k) {
-                   const Body &b = chains[(size_t)k];
-                   for (const Stick &s : b.sticks) {
+                   const Body& b = chains[(size_t)k];
+                   for (const Stick& s : b.sticks) {
                      const float e =
                          std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
                      const SkPoint a = drawnWorld(b, (size_t)s.a);
                      const SkPoint z = drawnWorld(b, (size_t)s.b);
-                     decorations::paintOn(c, ctx, segment(a, z),
-                                          stroke(2.2f, Fill::color(errColor(e))));
+                     decorations::paintOn(
+                         c, ctx, segment(a, z),
+                         stroke(2.2f, Fill::color(errColor(e))));
                    }
                    SkPaint dp;
                    dp.setAntiAlias(true);
@@ -1822,7 +1855,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                  SkPaint tp;
                  tp.setAntiAlias(true);
                  tp.setColor4f(kBone, nullptr);
-                 const char *labels[3] = {"1", "4", "10"};
+                 const char* labels[3] = {"1", "4", "10"};
                  const float xs[3] = {54, 156, 256};
                  for (int k = 0; k < 3; ++k)
                    c.drawSimpleText(labels[k], strlen(labels[k]),
@@ -1833,7 +1866,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .cache(Cache::None))
         .child(slot("chainStat").height(Dim(34)).shrink(0))
         .child(t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
-                 "KIND OF OBJECT SIMULATED.\" \xe2\x80\x94 \xc2\xa7" "7. "
+                 "KIND OF OBJECT SIMULATED.\" \xe2\x80\x94 \xc2\xa7"
+                 "7. "
                  "ORDER MATTERS AS MUCH AS COUNT: LISTED FROM THE PIN A CHAIN "
                  "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
                  "ARE LISTED FROM THE FREE END.",
@@ -1841,7 +1875,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   Element panelB3() {
-    auto restRow = [&](const char *name, const char *val, bool anchor) {
+    auto restRow = [&](const char* name, const char* val, bool anchor) {
       return box()
           .row()
           .height(Dim(11))
@@ -1881,9 +1915,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     GlyphFx fx;
     fx.effect = glyphfx::rise(22.0f);
     fx.stagger = {.eachMs = 24, .durationMs = 440};
-    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
-                                        .ease = ch::easeOutQuad,
-                                        .delay = 120ms});
+    fx.progress =
+        animate(from(0.0f).to(1.0f),
+                {.duration = 1100ms, .ease = ch::easeOutQuad, .delay = 120ms});
     return box()
         .column()
         .height(Dim(100))
@@ -1912,40 +1946,31 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   Element describe() {
-    return box()
-        .column()
-        .padding(32)
-        .gap(20)
-        .fill(kInk)
-        .child(header())
-        .child(box()
-                   .row()
-                   .gap(28)
-                   .grow(1)
-                   .child(stage())
-                   .child(box()
-                              .row()
-                              .gap(28)
-                              .width(Dim(732))
-                              .shrink(0)
-                              .child(box()
-                                         .column()
-                                         .gap(24)
-                                         .width(Dim(kColW))
-                                         .shrink(0)
-                                         .staggerChildren(85ms)
-                                         .child(panelA1())
-                                         .child(panelA2())
-                                         .child(panelA3()))
-                              .child(box()
-                                         .column()
-                                         .gap(24)
-                                         .width(Dim(kColW))
-                                         .shrink(0)
-                                         .staggerChildren(85ms)
-                                         .child(panelB1())
-                                         .child(panelB2())
-                                         .child(panelB3()))));
+    return box().column().padding(32).gap(20).fill(kInk).child(header()).child(
+        box().row().gap(28).grow(1).child(stage()).child(
+            box()
+                .row()
+                .gap(28)
+                .width(Dim(732))
+                .shrink(0)
+                .child(box()
+                           .column()
+                           .gap(24)
+                           .width(Dim(kColW))
+                           .shrink(0)
+                           .staggerChildren(85ms)
+                           .child(panelA1())
+                           .child(panelA2())
+                           .child(panelA3()))
+                .child(box()
+                           .column()
+                           .gap(24)
+                           .width(Dim(kColW))
+                           .shrink(0)
+                           .staggerChildren(85ms)
+                           .child(panelB1())
+                           .child(panelB2())
+                           .child(panelB3()))));
   }
 
   // -------------------------------------------------------------------------
@@ -1975,8 +2000,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     std::snprintf(buf, sizeof buf,
                   "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
                   "%llu  \xc2\xb7  \xce\xb1 %.2f",
-                  stageMaxErr * 100, contactCount,
-                  (unsigned long long)simSteps, (double)alpha.value());
+                  stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
+                  (double)alpha.value());
     return t(buf, monoB(8.0f, errColor(stageMaxErr), 0.1f));
   }
 
@@ -1991,7 +2016,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
     // This study brings its own canvas, background and capture instant
@@ -2016,8 +2041,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     buildChains();
 
     dotAtlas = std::make_shared<instancing::Atlas>(2.0f);
-    cellDot = dotAtlas->cell(
-        box().shape(shapes::circle()).fill(kBone), {5, 5});
+    cellDot = dotAtlas->cell(box().shape(shapes::circle()).fill(kBone), {5, 5});
     cellPin = dotAtlas->cell(
         box()
             .shape(shapes::circle())
@@ -2037,9 +2061,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     // asked for. Rounded corners on a bar tolerate that; caps do not.
     cellBar = barAtlas->cell(box().corners({4}).fill(kBone), {32, 8});
     barPool = std::make_shared<instancing::Pool>();
-    (void)barPool->sizes(); // materialise the lane
+    (void)barPool->sizes();  // materialise the lane
 
-    Composer &composer = ctx.composer;
+    Composer& composer = ctx.composer;
 
     // The clock. Verlet is only correct at a fixed Δt, and the alphaOut
     // parameter publishes the leftover fraction of a step: a verlet body's
@@ -2079,7 +2103,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     composer.renderSlot("benchStat", benchStatEl());
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(HitmanVerlet)

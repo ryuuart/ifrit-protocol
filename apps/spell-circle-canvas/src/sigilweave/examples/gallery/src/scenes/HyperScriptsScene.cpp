@@ -3,17 +3,16 @@
 // Arabic joining/calligraphy, Cuneiform, deep combining-mark stacks, Indic
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
-#include <sigilweaveqt/SigilWeaveQt.h>
-
 #include <include/core/SkPaint.h>
+#include <sigilweaveqt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <set>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -27,8 +26,8 @@ struct Coverage {
   std::set<uint32_t> typefaceIds;
 };
 
-void includeCoverage(const ParagraphLayout &layout, Coverage &coverage) {
-  for (const PositionedRun &run : layout.runs) {
+void includeCoverage(const ParagraphLayout& layout, Coverage& coverage) {
+  for (const PositionedRun& run : layout.runs) {
     if (run.shaped->typeface)
       coverage.typefaceIds.insert(run.shaped->typeface->uniqueID());
     for (uint16_t glyph : run.shaped->glyphs) {
@@ -40,18 +39,18 @@ void includeCoverage(const ParagraphLayout &layout, Coverage &coverage) {
 
 /// This scene's panel label: the kit caption in the wall's cyan-on-dark.
 template <typename TextView>
-void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext, TextView text,
+void drawSceneLabel(SkCanvas* canvas, FontContext& fontContext, TextView text,
                     SkPoint origin, float width, SkColor color = 0xFF86D7FF) {
-  kit::drawLabel(canvas, fontContext, text, origin,
-                 {.color = color, .width = width, .height = 28,
-                  .language = "en"});
+  kit::drawLabel(
+      canvas, fontContext, text, origin,
+      {.color = color, .width = width, .height = 28, .language = "en"});
 }
 
 class HyperScriptsScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
     const float baseSize = std::clamp(params.fontSize, 12.0f, 26.0f);
     m_built.ensure({baseSize, params.typeface.get()},
                    [&] { build(baseSize, params.typeface); });
@@ -123,9 +122,9 @@ public:
       const float fallbackOvershoot =
           panelIndex == 1 || panelIndex == 6 ? baseSize * 1.5f : 0.0f;
       const float textTop = panel.top() + 31 + fallbackOvershoot;
-      const SkRect textBox = SkRect::MakeXYWH(
-          panel.left() + 12, textTop, panel.width() - 24,
-          std::max(1.0f, panel.bottom() - textTop - 7));
+      const SkRect textBox =
+          SkRect::MakeXYWH(panel.left() + 12, textTop, panel.width() - 24,
+                           std::max(1.0f, panel.bottom() - textTop - 7));
       BlockFlow flow(textBox);
       ParagraphLayoutOptions options;
       options.alignment =
@@ -152,15 +151,14 @@ public:
     return {layoutMicroseconds, runCount, coverage.glyphCount};
   }
 
-private:
-  TextStyle sampleStyle(float size, SkColor color, const char *language,
-                        const sk_sp<SkTypeface> &typeface) const {
+ private:
+  TextStyle sampleStyle(float size, SkColor color, const char* language,
+                        const sk_sp<SkTypeface>& typeface) const {
     return makeStyle(size, color, language, typeface);
   }
 
-  void build(float baseSize, const sk_sp<SkTypeface> &typeface) {
-    for (Paragraph &paragraph : m_paragraphs)
-      paragraph.clear();
+  void build(float baseSize, const sk_sp<SkTypeface>& typeface) {
+    for (Paragraph& paragraph : m_paragraphs) paragraph.clear();
 
     m_paragraphs[0].appendText(
         u8"﷽  السَّلَامُ عَلَيْكُمْ",
@@ -217,7 +215,7 @@ private:
     m_lineHeights[6] = baseSize * 2.05f;
   }
 
-  static constexpr std::array<const char8_t *, 7> kLabels = {
+  static constexpr std::array<const char8_t*, 7> kLabels = {
       u8"ARABIC PRESENTATION FORM + JOINING + VOWEL MARKS",
       u8"CUNEIFORM · SUPPLEMENTARY PLANE · AKKADIAN",
       u8"COMBINING-MARK STORM · ONE BASE, MANY ATTACHMENTS",
@@ -229,7 +227,7 @@ private:
 
   std::array<Paragraph, 7> m_paragraphs;
   std::array<float, 7> m_lineHeights{};
-  kit::RebuildGuard<float, const SkTypeface *> m_built;
+  kit::RebuildGuard<float, const SkTypeface*> m_built;
 };
 
 SceneDescriptor makeHyperScriptsDescriptor() {
@@ -241,8 +239,8 @@ SceneDescriptor makeHyperScriptsDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

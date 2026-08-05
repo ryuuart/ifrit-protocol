@@ -10,9 +10,8 @@ void *gpuDevice() {
 }
 
 void *gpuQueue() {
-  static id<MTLCommandQueue> queue =
-      [(__bridge id<MTLDevice>)gpuDevice() newCommandQueue];
+  static id<MTLCommandQueue> queue = [(__bridge id<MTLDevice>)gpuDevice() newCommandQueue];
   return (__bridge void *)queue;
 }
 
-} // namespace sigil::compose::bench
+}  // namespace sigil::compose::bench

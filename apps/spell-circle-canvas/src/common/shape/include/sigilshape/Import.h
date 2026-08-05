@@ -32,9 +32,6 @@
  * concern, exactly as with the loader.
  */
 
-#include "sigilshape/Mesh.h"
-#include "sigilshape/Points.h"
-
 #include <cstddef>
 #include <filesystem>
 #include <functional>
@@ -43,6 +40,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "sigilshape/Mesh.h"
+#include "sigilshape/Points.h"
 
 namespace sigil::shape::import {
 
@@ -54,8 +54,8 @@ using Resolver =
 
 /** One draw unit of an imported model: a node/shape/material group. */
 struct Part {
-  std::string name;      ///< node, object or solid name ("" when unnamed)
-  Mesh mesh;             ///< model space — node transforms already baked
+  std::string name;  ///< node, object or solid name ("" when unnamed)
+  Mesh mesh;         ///< model space — node transforms already baked
   /** Material base/diffuse factor; white when the file names none. */
   glm::vec4 baseColor = {1, 1, 1, 1};
   /** Base-color texture reference as the file spells it ("" = none). */
@@ -102,7 +102,7 @@ struct Model {
 
   size_t vertexCount() const;
   size_t triangleCount() const;
-  void bounds(glm::vec3 *lo, glm::vec3 *hi) const;
+  void bounds(glm::vec3* lo, glm::vec3* hi) const;
 
   /** Everything as one mesh: parts appended, any non-white baseColor
    *  baked into the per-vertex color lane (Space's Lit mode and
@@ -121,7 +121,7 @@ struct Model {
 
 /** Alembic import knobs — which moment of the cache to bake. */
 struct AlembicOptions {
-  double time = 0; ///< seconds; the NEAREST stored sample is taken
+  double time = 0;  ///< seconds; the NEAREST stored sample is taken
 };
 
 /** Import an Alembic (Ogawa) archive from memory: every IPolyMesh
@@ -130,20 +130,20 @@ struct AlembicOptions {
  *  named lanes. Alembic archives are self-contained (no resolver, no
  *  textures). Nearest-sample only, no interpolation. nullopt on
  *  malformed bytes or HDF5-cored archives. */
-std::optional<Model> alembic(const void *bytes, size_t size,
-                             const AlembicOptions &options = {});
+std::optional<Model> alembic(const void* bytes, size_t size,
+                             const AlembicOptions& options = {});
 
 /** Import from memory. @p pathHint names the source ("duck.glb",
  *  a path, a URL path) — its extension picks the format; without a
  *  useful extension the bytes are sniffed (GLB magic, glTF JSON,
  *  Ogawa magic, binary STL's size arithmetic). Returns nullopt on
  *  unknown format or malformed content. */
-std::optional<Model> model(const void *bytes, size_t size,
+std::optional<Model> model(const void* bytes, size_t size,
                            std::string_view pathHint,
-                           const Resolver &resolve = {});
+                           const Resolver& resolve = {});
 
 /** Import a local file; external references resolve against its
  *  directory (the .gltf + .bin + textures layout just works). */
-std::optional<Model> model(const std::filesystem::path &file);
+std::optional<Model> model(const std::filesystem::path& file);
 
-} // namespace sigil::shape::import
+}  // namespace sigil::shape::import

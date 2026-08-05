@@ -26,9 +26,6 @@
  * shared state with no bake in it, so every render re-renders the tile.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Material.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
@@ -42,14 +39,17 @@
 #include <optional>
 #include <utility>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Material.h"
+
 namespace sigil::compose {
 
 /** Draw ONE tile into [0,0 .. size); `seed` is the pattern's current seed —
  *  same seed, same tile (determinism is what makes regeneration a choice). */
-using PatternProgram = std::function<void(SkCanvas &, SkSize, uint32_t seed)>;
+using PatternProgram = std::function<void(SkCanvas&, SkSize, uint32_t seed)>;
 
 class Pattern {
-public:
+ public:
   Pattern() = default;
 
   /** A generator tile (the procedural route). */
@@ -84,7 +84,7 @@ public:
    *
    *  This and `retile()` are the only copy-on-write points; the mapping
    *  setters never touch the shared state. */
-  Pattern &seed(uint32_t s) {
+  Pattern& seed(uint32_t s) {
     if (m_state && m_state->seed != s) {
       detachState();
       m_state->seed = s;
@@ -94,7 +94,7 @@ public:
   }
   /** Swap the element tile (element-tile patterns' regeneration).
    *  Copy-on-write for the same reason as seed(). */
-  Pattern &retile(Element tileTree) {
+  Pattern& retile(Element tileTree) {
     if (m_state) {
       detachState();
       tileTree.width(m_state->size.width()).height(m_state->size.height());
@@ -104,11 +104,11 @@ public:
     return *this;
   }
   /** Mapping only — no rebake; a rotated repeat stays seamless. */
-  Pattern &scale(float s) {
+  Pattern& scale(float s) {
     m_scale = s;
     return *this;
   }
-  Pattern &rotate(float degrees) {
+  Pattern& rotate(float degrees) {
     m_rotate = degrees;
     return *this;
   }
@@ -119,7 +119,7 @@ public:
    *
    *  Describe-time: this form moves only when the element is re-described.
    *  The BOUND overload below is the live sibling. */
-  Pattern &offset(SkPoint px) {
+  Pattern& offset(SkPoint px) {
     m_offset = px;
     return *this;
   }
@@ -132,8 +132,8 @@ public:
    *  content volatility while the values move; once they hold still the
    *  library's stability detection releases it back to the cached tier,
    *  and it re-declares volatile on the frame the pan resumes. */
-  Pattern &offset(const choreograph::Output<float> *x,
-                  const choreograph::Output<float> *y) {
+  Pattern& offset(const choreograph::Output<float>* x,
+                  const choreograph::Output<float>* y) {
     m_boundX = x;
     m_boundY = y;
     return *this;
@@ -141,7 +141,7 @@ public:
   /** How the baked tile samples. Defaults to linear, which is right for
    *  organic tiles and wrong for anything on a pixel grid — a woven
    *  cloth, a dither, a bitmap-font sheet all want nearest. */
-  Pattern &sampling(SkSamplingOptions options) {
+  Pattern& sampling(SkSamplingOptions options) {
     m_sampling = options;
     return *this;
   }
@@ -153,17 +153,17 @@ public:
   Material material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
-  Material material(sigil::weave::FontContext &fonts) const {
+  Material material(sigil::weave::FontContext& fonts) const {
     return bake(&fonts);
   }
 
-private:
+ private:
   struct State {
     SkSize size = {32, 32};
     PatternProgram draw;
     std::optional<Element> tree;
     uint32_t seed = 1;
-    sk_sp<SkImage> baked; // the memoized tile; reset regenerates
+    sk_sp<SkImage> baked;  // the memoized tile; reset regenerates
   };
 
   /** The copy-on-write step: a recipe shared with another Pattern is
@@ -175,28 +175,26 @@ private:
       m_state = std::make_shared<State>(*m_state);
   }
 
-  Material bake(sigil::weave::FontContext *fonts) const {
-    if (!m_state)
-      return {};
-    State &st = *m_state;
+  Material bake(sigil::weave::FontContext* fonts) const {
+    if (!m_state) return {};
+    State& st = *m_state;
     if (!st.baked) {
       const int w = std::max(1, (int)std::ceil(st.size.width()));
       const int h = std::max(1, (int)std::ceil(st.size.height()));
       sk_sp<SkSurface> surface =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-      if (!surface)
-        return {};
-      SkCanvas *canvas = surface->getCanvas();
+      if (!surface) return {};
+      SkCanvas* canvas = surface->getCanvas();
       canvas->clear(SK_ColorTRANSPARENT);
       if (st.tree) {
         if (!fonts) {
-          SkDebugf("Pattern::material(): an element tile needs the "
-                   "material(FontContext&) overload\n");
+          SkDebugf(
+              "Pattern::material(): an element tile needs the "
+              "material(FontContext&) overload\n");
           return {};
         }
         // Wrap so the intrinsic-size root adopts the tile's forced dims.
-        if (sk_sp<SkPicture> pic =
-                snapshot(box().child(*st.tree), *fonts))
+        if (sk_sp<SkPicture> pic = snapshot(box().child(*st.tree), *fonts))
           canvas->drawPicture(pic);
       } else if (st.draw) {
         st.draw(*canvas, {(float)w, (float)h}, st.seed);
@@ -209,8 +207,8 @@ private:
     Material m = Material::image(st.baked, SkTileMode::kRepeat,
                                  SkTileMode::kRepeat, local, m_sampling);
     if (m_boundX || m_boundY)
-      m.offset(m_boundX, m_boundY); // the live pan rides Material's
-                                    // bound-matrix channel
+      m.offset(m_boundX, m_boundY);  // the live pan rides Material's
+                                     // bound-matrix channel
     return m;
   }
 
@@ -218,9 +216,9 @@ private:
   float m_scale = 1.0f;
   float m_rotate = 0.0f;
   SkPoint m_offset = {0, 0};
-  const choreograph::Output<float> *m_boundX = nullptr;
-  const choreograph::Output<float> *m_boundY = nullptr;
+  const choreograph::Output<float>* m_boundX = nullptr;
+  const choreograph::Output<float>* m_boundY = nullptr;
   SkSamplingOptions m_sampling{SkFilterMode::kLinear};
 };
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

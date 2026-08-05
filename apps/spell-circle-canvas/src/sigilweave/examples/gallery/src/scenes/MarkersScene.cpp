@@ -1,12 +1,11 @@
 // Scene: query layer — regex markers that follow live edits.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
+#include <include/core/SkPaint.h>
 #include <sigilweave/Query.h>
 
-#include <include/core/SkPaint.h>
-
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -27,12 +26,11 @@ QString markersDefaultText() {
 }
 
 class MarkersScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int frameNumber, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int frameNumber, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
     if (m_body.ensure(params, markersDefaultText(), m_serif)) {
       // Scoped query: only search the window the box can actually place
       // (the frontier of the previous layout). Paste a novel and the regex
@@ -53,10 +51,10 @@ public:
     }
 
     // Scripted live edits: swap a word every ~2.5s; markers ride along.
-    static const char8_t *cycle[] = {u8"watches", u8"guards ", u8"studies",
+    static const char8_t* cycle[] = {u8"watches", u8"guards ", u8"studies",
                                      u8"shadows"};
     if (frameNumber > 0 && frameNumber % 150 == 0) {
-      for (const char8_t *word : cycle) {
+      for (const char8_t* word : cycle) {
         const size_t textOffset = m_body.paragraph.text().find(
             std::u16string(word, word + 7).c_str());
         if (textOffset != std::u16string::npos) {
@@ -77,19 +75,19 @@ public:
         0.72f};
     PaintStyle highlight(SkHSVToColor(hueSaturationValue));
     switch (params.intValue(QStringLiteral("decoration"), 1)) {
-    case 1:
-      highlight.addDecoration({}); // metric underline, ink-skipping
-      break;
-    case 2:
-      highlight.addDecoration({.kind = Decoration::Kind::kStrikethrough});
-      break;
-    case 3:
-      // Highlighter stroke behind the marked words (default translucent
-      // tint of the hue-cycling foreground), spanning word gaps.
-      highlight.addDecoration({.kind = Decoration::Kind::kHighlight});
-      break;
-    default:
-      break;
+      case 1:
+        highlight.addDecoration({});  // metric underline, ink-skipping
+        break;
+      case 2:
+        highlight.addDecoration({.kind = Decoration::Kind::kStrikethrough});
+        break;
+      case 3:
+        // Highlighter stroke behind the marked words (default translucent
+        // tint of the hue-cycling foreground), spanning word gaps.
+        highlight.addDecoration({.kind = Decoration::Kind::kHighlight});
+        break;
+      default:
+        break;
     }
     m_markers.applyPaint(m_body.paragraph, "caps", highlight);
 
@@ -149,14 +147,14 @@ public:
     return {layoutMicroseconds, static_cast<int>(m_layout.runs.size()), 0};
   }
 
-private:
+ private:
   BodyCache m_body;
   MarkerSet m_markers;
   sk_sp<SkTypeface> m_serif;
-  ParagraphLayout m_layout; // memoized across frames (see render)
+  ParagraphLayout m_layout;  // memoized across frames (see render)
   kit::LayoutGuard<SkISize, TextAlignment, LineBreakStrategy, float>
       m_layoutGuard;
-  uint32_t m_placedTextEnd = 0; // Text frontier of last layout (0 = unknown).
+  uint32_t m_placedTextEnd = 0;  // Text frontier of last layout (0 = unknown).
   bool m_queryWasScoped = false;
 };
 
@@ -166,8 +164,13 @@ SceneDescriptor makeMarkersDescriptor() {
   descriptor.defaultText = markersDefaultText();
   descriptor.displayOrder = 110;
   descriptor.parameters = {
-      {QStringLiteral("decoration"), QStringLiteral("Decoration"),
-       SceneParameter::Type::kChoice, 1, 0, 3, {},
+      {QStringLiteral("decoration"),
+       QStringLiteral("Decoration"),
+       SceneParameter::Type::kChoice,
+       1,
+       0,
+       3,
+       {},
        {QStringLiteral("None"), QStringLiteral("Underline"),
         QStringLiteral("Strikethrough"), QStringLiteral("Highlight")}},
   };
@@ -175,8 +178,8 @@ SceneDescriptor makeMarkersDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeMarkersDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

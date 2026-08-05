@@ -14,19 +14,16 @@
 // asserts nothing and exists so that a signature change breaks the build
 // instead of quietly invalidating the documentation.
 
-#include <sigilcompose/kit/Kit.h>
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
+#include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkBitmap.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-
-#include <gtest/gtest.h>
+#include <sigilcompose/kit/Kit.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 #include <utility>
@@ -37,16 +34,15 @@ namespace kit = sigil::compose::kit;
 
 namespace {
 
-sigil::weave::FontContext &fonts() {
-  static auto *context =
+sigil::weave::FontContext& fonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
 ::testing::AssertionResult near(SkPoint a, SkPoint b, float tol) {
   const float d = std::hypot(a.fX - b.fX, a.fY - b.fY);
-  if (d <= tol)
-    return ::testing::AssertionSuccess();
+  if (d <= tol) return ::testing::AssertionSuccess();
   return ::testing::AssertionFailure()
          << "(" << a.fX << ", " << a.fY << ") vs (" << b.fX << ", " << b.fY
          << ") — " << d << " px apart, tolerance " << tol;
@@ -58,7 +54,7 @@ struct Contours {
   std::vector<float> lengths;
   float total = 0;
 };
-Contours walk(const SkPath &path, bool closed = false) {
+Contours walk(const SkPath& path, bool closed = false) {
   Contours out;
   SkContourMeasureIter it(path, closed);
   while (sk_sp<SkContourMeasure> c = it.next()) {
@@ -74,7 +70,7 @@ Contours walk(const SkPath &path, bool closed = false) {
 /** The point at arc-length fraction @p f of the WHOLE path, walking every
  *  contour in order — the same coordinate TextPath lays glyphs along, so a
  *  multi-contour path is one continuous run to it. */
-SkPoint atFraction(const SkPath &path, float f) {
+SkPoint atFraction(const SkPath& path, float f) {
   const Contours c = walk(path);
   float want = f * c.total;
   SkContourMeasureIter it(path, false);
@@ -89,7 +85,7 @@ SkPoint atFraction(const SkPath &path, float f) {
   return {0, 0};
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 // Frame — the figure-local polar coordinate system.
@@ -110,17 +106,16 @@ TEST(KitFrame, NorthClockwiseMatchesTheHandRolledSpelling) {
 
   // The four cardinals, spelled out, because a sign flip here is the bug
   // this component exists to stop.
-  EXPECT_TRUE(near(f.at(0, 1), {100, 50}, 1e-4f));   // 12 o'clock
-  EXPECT_TRUE(near(f.at(90, 1), {150, 100}, 1e-4f)); // 3 o'clock
+  EXPECT_TRUE(near(f.at(0, 1), {100, 50}, 1e-4f));    // 12 o'clock
+  EXPECT_TRUE(near(f.at(90, 1), {150, 100}, 1e-4f));  // 3 o'clock
   EXPECT_TRUE(near(f.at(180, 1), {100, 150}, 1e-4f));
   EXPECT_TRUE(near(f.at(270, 1), {50, 100}, 1e-4f));
 }
 
 TEST(KitFrame, EastAndCounterClockwiseAreTheOtherConventions) {
-  const kit::Frame east{
-      .centre = {0, 0}, .radius = 1, .zero = kit::Zero::East};
+  const kit::Frame east{.centre = {0, 0}, .radius = 1, .zero = kit::Zero::East};
   EXPECT_TRUE(near(east.at(0, 1), {1, 0}, 1e-5f));
-  EXPECT_TRUE(near(east.at(90, 1), {0, 1}, 1e-5f)); // screen-clockwise
+  EXPECT_TRUE(near(east.at(90, 1), {0, 1}, 1e-5f));  // screen-clockwise
 
   const kit::Frame ccw{.centre = {0, 0},
                        .radius = 1,
@@ -166,24 +161,24 @@ TEST(KitFrame, TheBaselinesDirectionIsNotTheFramesSense) {
                        .zero = kit::Zero::North,
                        .sense = sense};
     for (auto dir : {SkPathDirection::kCW, SkPathDirection::kCCW}) {
-      const SkPath &path = dir == SkPathDirection::kCW ? cw : ccw;
+      const SkPath& path = dir == SkPathDirection::kCW ? cw : ccw;
       for (float th : {0.0f, 60.0f, 210.0f})
-        EXPECT_TRUE(near(atFraction(path, f.fraction(th, dir)), f.at(th, 1.0f),
-                         0.25f))
+        EXPECT_TRUE(
+            near(atFraction(path, f.fraction(th, dir)), f.at(th, 1.0f), 0.25f))
             << "sense=" << (sense == kit::Sense::CW ? "CW" : "CCW")
             << " baseline=" << (dir == SkPathDirection::kCW ? "CW" : "CCW")
             << " th=" << th;
       for (float frac : {0.1f, 0.6f})
-        EXPECT_NEAR(std::fmod(f.fraction(f.degOf(frac, dir), dir) - frac + 2.0f,
-                              1.0f),
-                    0.0f, 1e-3f);
+        EXPECT_NEAR(
+            std::fmod(f.fraction(f.degOf(frac, dir), dir) - frac + 2.0f, 1.0f),
+            0.0f, 1e-3f);
     }
   }
 }
 
 TEST(KitFrame, DegOfInvertsFraction) {
   const kit::Frame f{
-      .centre = {0, 0}, .radius = 1, .originDeg = -3.2f}; // a rotated scan
+      .centre = {0, 0}, .radius = 1, .originDeg = -3.2f};  // a rotated scan
   for (float th : {5.0f, 120.0f, 359.0f}) {
     const float back = f.degOf(f.fraction(th));
     EXPECT_NEAR(std::fmod(back - th + 720.0f, 360.0f), 0.0f, 1e-2f);
@@ -227,8 +222,8 @@ TEST(KitFrame, BoxIsTheSquareShapesInscribeIn) {
 
 TEST(KitGrid, LengthTakesNoOriginAndPositionDoes) {
   const kit::Grid g{.scale = 4.0f, .origin = {100, 50}};
-  EXPECT_FLOAT_EQ(g.s(10), 40);  // a WIDTH
-  EXPECT_FLOAT_EQ(g.x(10), 140); // a POSITION
+  EXPECT_FLOAT_EQ(g.s(10), 40);   // a WIDTH
+  EXPECT_FLOAT_EQ(g.x(10), 140);  // a POSITION
   EXPECT_FLOAT_EQ(g.y(10), 90);
   const SkRect r = g.rect(10, 10, 5, 5);
   EXPECT_FLOAT_EQ(r.fLeft, 140);
@@ -274,8 +269,7 @@ TEST(KitTicks, EmitsOneContourPerDivisionAndPlacesThemOnTheFrame) {
   const SkPath p = kit::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
   const Contours c = walk(p);
   EXPECT_EQ(c.pieces.size(), 12u);
-  for (float len : c.lengths)
-    EXPECT_NEAR(len, 10.0f, 1e-2f);
+  for (float len : c.lengths) EXPECT_NEAR(len, 10.0f, 1e-2f);
   // Mark 0 runs from at(0, .9) to at(0, 1).
   SkPoint start{0, 0};
   ASSERT_TRUE(c.pieces[0].getLastPt(&start));
@@ -314,7 +308,8 @@ TEST(KitTicks, ClassifyReachesThreeLengthClasses) {
   const Contours c = walk(p);
   ASSERT_EQ(c.lengths.size(), 9u);
   for (size_t i = 0; i < 9; ++i) {
-    const float want = ((i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f)) - 0.5f;
+    const float want =
+        ((i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f)) - 0.5f;
     EXPECT_NEAR(c.lengths[i], want * 100.0f, 1e-2f) << "mark " << i;
   }
 }
@@ -324,7 +319,7 @@ TEST(KitTicks, ClosedAddsTheEndMarkAndSweepScopesTheLadder) {
   const kit::Ticks quarter{
       .divisions = 9, .from = 0, .sweep = 90, .closed = true};
   const Contours c = walk(kit::ticks(f, quarter));
-  EXPECT_EQ(c.pieces.size(), 10u); // 9 divisions, 10 rules
+  EXPECT_EQ(c.pieces.size(), 10u);  // 9 divisions, 10 rules
   SkPoint last{0, 0};
   ASSERT_TRUE(c.pieces.back().getLastPt(&last));
   EXPECT_TRUE(near(last, f.at(90.0f, 1.0f), 1e-3f));
@@ -340,8 +335,7 @@ TEST(KitTicks, OutlineFormTakesHalfTheShorterSide) {
   const SkPath p = fn(SkSize{400, 100});
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 4u);
-  for (float len : c.lengths)
-    EXPECT_NEAR(len, 50.0f, 1e-2f);
+  for (float len : c.lengths) EXPECT_NEAR(len, 50.0f, 1e-2f);
 }
 
 TEST(KitTicks, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
@@ -415,13 +409,13 @@ TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
 namespace {
 sigil::weave::TextStyle pixelStyle(float size) {
   return sigil::compose::studio::type(
-      {.face = sigil::compose::studio::pickFace({"Menlo", "DejaVu Sans Mono",
-                                                 "Courier New"}),
+      {.face = sigil::compose::studio::pickFace(
+           {"Menlo", "DejaVu Sans Mono", "Courier New"}),
        .size = size,
        .color = {1, 1, 1, 1},
        .aliased = true});
 }
-} // namespace
+}  // namespace
 
 TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
   // Sizing the bake plane from measure() plus a small fixed margin ends the
@@ -430,7 +424,8 @@ TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
   // default pad the ink never reaches the right or bottom edge of the plane
   // — if it touches an edge, something was cut off.
   const auto style = pixelStyle(10.0f);
-  for (const char8_t *s : {u8"Centrifuge", u8"WAV", u8"research", u8"1234567890"}) {
+  for (const char8_t* s :
+       {u8"Centrifuge", u8"WAV", u8"research", u8"1234567890"}) {
     const kit::Coverage cov = kit::coverage(s, fonts(), style);
     ASSERT_TRUE(cov.valid());
     ASSERT_FALSE(cov.ink.isEmpty());
@@ -449,15 +444,14 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   // reach the edge at pad 0, and requires the SAME string to be clear of it
   // at the default pad.
   int overhangs = 0;
-  for (const char *family : {"Helvetica", "Times New Roman", "Zapfino",
+  for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
-    sk_sp<SkTypeface> face = sigil::compose::studio::pickFace(
-        {family}, SkFontStyle::Italic());
-    if (!face)
-      continue;
+    sk_sp<SkTypeface> face =
+        sigil::compose::studio::pickFace({family}, SkFontStyle::Italic());
+    if (!face) continue;
     const auto style = sigil::compose::studio::type(
         {.face = face, .size = 12.0f, .color = {1, 1, 1, 1}, .aliased = true});
-    for (const char8_t *s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
+    for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
           kit::coverage(s, fonts(), style, {.x = 0, .y = 0});
       if (!tight.valid() || tight.ink.isEmpty() ||
@@ -474,10 +468,10 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
         const kit::Coverage grown = kit::coverage(s, fonts(), style, pad);
         ASSERT_TRUE(grown.valid());
         ASSERT_FALSE(grown.ink.isEmpty());
-        EXPECT_GT(grown.ink.fLeft, 0) << family << " / " << (const char *)s;
+        EXPECT_GT(grown.ink.fLeft, 0) << family << " / " << (const char*)s;
         EXPECT_GT(grown.ink.fTop, 0);
         EXPECT_LT(grown.ink.fRight, grown.width())
-            << family << " / " << (const char *)s;
+            << family << " / " << (const char*)s;
         EXPECT_LT(grown.ink.fBottom, grown.height());
         // The clipped bake LOST ink; the grown one recovered it.
         EXPECT_GE(grown.ink.width(), tight.ink.width());
@@ -515,8 +509,8 @@ TEST(KitPixelType, TheMaskIsOneBit) {
   for (int y = 0; y < m.h; ++y)
     for (int x = 0; x < m.w; ++x) {
       const uint8_t v = *read.getAddr8(x, y);
-      ASSERT_TRUE(v == 0 || v == 255) << "grey " << (int)v << " at " << x << ","
-                                      << y;
+      ASSERT_TRUE(v == 0 || v == 255)
+          << "grey " << (int)v << " at " << x << "," << y;
     }
 }
 
@@ -534,7 +528,7 @@ TEST(KitPixelType, DigitsShareOneAdvanceSoAReadoutDoesNotShiver) {
 
 TEST(KitPixelType, SpaceHasAnAdvanceAndNoMask) {
   const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
-  const kit::Cell &sp = f.cell(' ');
+  const kit::Cell& sp = f.cell(' ');
   EXPECT_EQ(sp.mask, nullptr);
   EXPECT_GT(sp.advance, 0);
   EXPECT_GT(kit::widthOf(f, "a a"), kit::widthOf(f, "aa"));
@@ -545,7 +539,8 @@ TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 40));
   ASSERT_TRUE(s);
   const kit::Blit b{.track = 1.0f};
-  const float w = kit::blit(*s->getCanvas(), f, {4, 4}, "1234", {1, 1, 1, 1}, b);
+  const float w =
+      kit::blit(*s->getCanvas(), f, {4, 4}, "1234", {1, 1, 1, 1}, b);
   EXPECT_NEAR(w, kit::widthOf(f, "1234", b), 1e-3f);
 
   const kit::Blit snapped{.track = 1.0f, .snap = 4.0f};
@@ -557,7 +552,8 @@ TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
 TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {
   const kit::Mask m = kit::bakeRun(u8"88", fonts(), pixelStyle(10.0f));
   ASSERT_TRUE(m);
-  const SkSize sz = measure(box().child(kit::masked(m, {.scale = 2.0f})), fonts());
+  const SkSize sz =
+      measure(box().child(kit::masked(m, {.scale = 2.0f})), fonts());
   EXPECT_FLOAT_EQ(sz.width(), (float)m.w * 2.0f);
   EXPECT_FLOAT_EQ(sz.height(), (float)m.h * 2.0f);
 }
@@ -573,7 +569,7 @@ TEST(KitLegibility, HaloedAddsExactlyOneUnderlayAndLeavesTheInputAlone) {
       kit::haloed(base, {.colour = {1, 1, 1, 1}, .width = 2.2f});
   EXPECT_EQ(base.paint.underlays.size(), before) << "input was mutated";
   ASSERT_EQ(out.paint.underlays.size(), before + 1);
-  const SkPaint &p = out.paint.underlays.back().paint;
+  const SkPaint& p = out.paint.underlays.back().paint;
   EXPECT_EQ(p.getStyle(), SkPaint::kStroke_Style);
   EXPECT_FLOAT_EQ(p.getStrokeWidth(), 2.2f);
   EXPECT_EQ(p.getStrokeJoin(), SkPaint::kRound_Join);
@@ -592,9 +588,10 @@ TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
   sigil::weave::TextStyle st;
   st.shaping.fontSize = 12;
   const SkSize bare = measure(box().child(text(u8"NAVI", st)), fonts());
-  const SkSize plated = measure(
-      box().child(kit::scrim(text(u8"NAVI", st), {.paddingX = 3, .paddingY = 4})),
-      fonts());
+  const SkSize plated =
+      measure(box().child(kit::scrim(text(u8"NAVI", st),
+                                     {.paddingX = 3, .paddingY = 4})),
+              fonts());
   EXPECT_FLOAT_EQ(plated.width(), bare.width() + 6);
   EXPECT_FLOAT_EQ(plated.height(), bare.height() + 8);
 }
@@ -610,7 +607,8 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
   // that the halo colour appears only when a halo was asked for, and that
   // the ink survives it.
   auto render = [](bool halo) {
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
+    sk_sp<SkSurface> s =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
     s->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 128));
     SkFont font(sigil::compose::studio::pickFace({"Menlo", "Courier New"}),
                 20.0f);
@@ -701,7 +699,8 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   (void)kit::chords({.sides = 7}, frame);
 
   const auto style = pixelStyle(10.0f);
-  const kit::Coverage cov = kit::coverage(u8"8", fonts(), style, {.x = 8, .y = 4});
+  const kit::Coverage cov =
+      kit::coverage(u8"8", fonts(), style, {.x = 8, .y = 4});
   (void)cov.alphaAt(0, 0);
   const kit::Mask mask = kit::threshold(cov, 0.5f, true);
   (void)kit::bakeRun(u8"8", fonts(), style, {.x = 8, .y = 4}, 0.5f);
@@ -721,9 +720,9 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   kit::draw(*surface->getCanvas(), mask, {0, 0}, {});
 
   sigil::weave::TextStyle ts;
-  (void)kit::haloed(ts, {.colour = {1, 1, 1, 1},
-                         .width = 2.2f,
-                         .join = SkPaint::kRound_Join});
+  (void)kit::haloed(
+      ts,
+      {.colour = {1, 1, 1, 1}, .width = 2.2f, .join = SkPaint::kRound_Join});
   (void)kit::shaded(ts, {.colour = {0, 0, 0, 1}, .offset = {1, 1}});
   (void)kit::emboldened(ts, 0.6f, {0, 0, 0, 1});
   (void)kit::scrim(text(u8"x", ts), {.fill = Fill::color({0, 0, 0, 0.7f}),
@@ -733,8 +732,8 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   SkFont font(nullptr, 10.0f);
   SkPaint ink;
   kit::drawHaloed(*surface->getCanvas(), "x", {0, 0}, font, ink, {});
-  kit::drawHaloed(*surface->getCanvas(), "x", {0, 0}, font, SkColor4f{1, 1, 1, 1},
-                  {});
+  kit::drawHaloed(*surface->getCanvas(), "x", {0, 0}, font,
+                  SkColor4f{1, 1, 1, 1}, {});
   SUCCEED();
 }
 
@@ -794,11 +793,11 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
   const SkPath spine = b.detach();
 
   for (int n : {2, 3, 4}) {
-    const std::vector<brush::Strand> braid =
-        kit::strands::braid(n, 10, 60, brush::solid(2, Fill::color({1, 0, 0, 1})));
+    const std::vector<brush::Strand> braid = kit::strands::braid(
+        n, 10, 60, brush::solid(2, Fill::color({1, 0, 0, 1})));
     ASSERT_EQ(braid.size(), (size_t)n);
     std::vector<SkPath> paths;
-    for (const brush::Strand &s : braid)
+    for (const brush::Strand& s : braid)
       paths.push_back(profileOffset(spine, s.path.profile()));
     const std::vector<Crossing> crossings = discoverCrossings(paths);
     EXPECT_GT(crossings.size(), 0u)
@@ -820,8 +819,9 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
 TEST(ComposeKitStrokes, BraidSharesOneBrushAcrossItsStrands) {
   const Decoration ink = brush::solid(2, Fill::color({0, 1, 0, 1}));
   const std::vector<brush::Strand> braid = kit::strands::braid(3, 8, 40, ink);
-  for (const brush::Strand &s : braid) {
-    EXPECT_TRUE(s.brush == ink) << "braid() is sugar for n offsets of ONE brush";
+  for (const brush::Strand& s : braid) {
+    EXPECT_TRUE(s.brush == ink)
+        << "braid() is sugar for n offsets of ONE brush";
     EXPECT_EQ(s.path.source(), StrandPath::Source::Relative);
     EXPECT_NEAR(s.path.reach(), 8.0f, 1e-4f) << "reach is the amplitude";
   }
@@ -886,7 +886,7 @@ struct StrokeHost {
 Fill strokeRed() { return Fill::color({1, 0, 0, 1}); }
 Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // The shaper seam, exercised with KIT shaper values.
@@ -921,8 +921,7 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
     int inked = 0;
     for (int x = 0; x < 200; ++x)
       for (int y = 0; y < 200; ++y)
-        if (host.pixel(x, y) == SK_ColorRED)
-          ++inked;
+        if (host.pixel(x, y) == SK_ColorRED) ++inked;
     return inked;
   };
   const int shaped = draw(false), wrapper = draw(true);
@@ -973,20 +972,21 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
         brush::Strand{kit::profile::wave(amp, wavelength, 0.5f),
                       brush::solid(inkWidth, strokeGreen())}};
     // Same phases braid() would hand out for n = 2.
-    const std::vector<brush::Strand> viaBraid =
-        kit::strands::braid(2, amp, wavelength,
-                            brush::solid(inkWidth, strokeRed()));
+    const std::vector<brush::Strand> viaBraid = kit::strands::braid(
+        2, amp, wavelength, brush::solid(inkWidth, strokeRed()));
     EXPECT_EQ(viaBraid[0].path, strands[0].path);
     EXPECT_EQ(viaBraid[1].path, strands[1].path);
 
     host.composer.render(stack().child(
-        box().inset(0).shape([&](SkSize) { return spine; })
+        box()
+            .inset(0)
+            .shape([&](SkSize) { return spine; })
             .stroke(brush::weave(strands, crossing::alternate()))));
     host.frame();
 
     // The knots, in the same order the rule numbers them.
     std::vector<SkPath> paths;
-    for (const brush::Strand &st : strands)
+    for (const brush::Strand& st : strands)
       paths.push_back(profileOffset(spine, st.path.profile()));
     const std::vector<Crossing> knots = discoverCrossings(paths);
     EXPECT_GT(knots.size(), 20u) << "not enough knots to show the defect";
@@ -994,18 +994,16 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     // alternate() puts strand 0 (red) over at even ordinals, strand 1
     // (green) over at odd ones. Sample each knot and count disagreements.
     int wrong = 0, sampled = 0;
-    for (const Crossing &k : knots) {
+    for (const Crossing& k : knots) {
       const int px = (int)std::lround(k.at.fX);
       const int py = (int)std::lround(k.at.fY);
       // A knot bisected by the frame has no interior pixel to read — the
       // spine ends ON the last one, at x == width. Skip rather than count
       // the surface's out-of-bounds transparent black as a defect.
-      if (px < 1 || px > 998 || py < 1 || py > 238)
-        continue;
+      if (px < 1 || px > 998 || py < 1 || py > 238) continue;
       ++sampled;
       const SkColor want = (k.index % 2 == 0) ? SK_ColorRED : SK_ColorGREEN;
-      if (host.pixel(px, py) != want)
-        ++wrong;
+      if (host.pixel(px, py) != want) ++wrong;
     }
     EXPECT_GT(sampled, 20) << "too few knots landed inside the frame";
     return std::pair<int, size_t>{wrong, knots.size()};
@@ -1098,10 +1096,10 @@ TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
   under.fA = 0.15f;
   // (Named locals, not braced temporaries inline: an aggregate inside
   // EXPECT_* hands the macro its commas.)
-  const LayeredBrush wantData{{{1, data, 0, {}, 0, SkBlendMode::kSrcOver,
-                                false}}};
-  const LayeredBrush wantMain{{{2, main, 0, {}, 0, SkBlendMode::kSrcOver,
-                                false}}};
+  const LayeredBrush wantData{
+      {{1, data, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
+  const LayeredBrush wantMain{
+      {{2, main, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
   const LayeredBrush wantPower{
       {{8, under, 4}, {4, power, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
   EXPECT_TRUE(circuit(teal, 0) == wantData);
@@ -1145,7 +1143,8 @@ TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
   // caller writing `rope(1)` must get the same brush as `rope(1, 1.0f)`.
   // Nothing else in the suite would notice a changed default, since every
   // other case passes all the arguments explicitly.
-  EXPECT_TRUE(kit::brush::presets::rope(1) == kit::brush::presets::rope(1, 1.0f));
+  EXPECT_TRUE(kit::brush::presets::rope(1) ==
+              kit::brush::presets::rope(1, 1.0f));
   const SkColor4f teal{0.2f, 0.9f, 0.8f, 1};
   EXPECT_TRUE(kit::brush::presets::circuit(teal) ==
               kit::brush::presets::circuit(teal, 1));

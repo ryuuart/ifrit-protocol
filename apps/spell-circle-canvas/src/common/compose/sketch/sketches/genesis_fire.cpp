@@ -121,16 +121,6 @@
 //   the stage at kFrontCrossSeconds), the leftmost systems have finished
 //   generating and are burning out, and the rightmost have just ignited.
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkFont.h>
@@ -138,6 +128,13 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
+#include <sigilcompose/Instances.h>
+#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -189,7 +186,7 @@ constexpr int kRampN[14] = {1, 2, 3, 4, 5, 8, 12, 16, 20, 28, 40, 60, 85, 111};
 // declared in setup(); nothing here inherits a host default.
 
 constexpr float kCanvasW = 1440, kCanvasH = 864;
-constexpr float kStageW = 888, kStageH = 666; // 4:3 — the 500-line raster
+constexpr float kStageW = 888, kStageH = 666;  // 4:3 — the 500-line raster
 constexpr float kSideW = 448;
 
 constexpr float kLimbCx = 444.0f, kLimbCy = 1620.0f, kLimbR = 1150.0f;
@@ -207,13 +204,13 @@ constexpr double kSimHz = 24.0;
 constexpr double kSimStep = 1.0 / kSimHz;
 constexpr double kLoopSeconds = 10.0;
 
-constexpr float kSpread = 168.0f;   // px/s  (7.0 px/frame)
-constexpr float kSiteStep = 18.5f;  // px    (< R_gen, so systems overlap)
-constexpr float kX0 = -80.0f;       // impact point, off-frame left
-constexpr int kSiteCount = 53;      // covers -80 .. 882
-constexpr float kGenWindow = 52.8f; // frames (2.20 s)
-constexpr float kRGen = 26.0f;      // generation segment half-width, px
-constexpr float kPsiMax = 34.0f * 0.0174532925f; // ejection cone, rad
+constexpr float kSpread = 168.0f;    // px/s  (7.0 px/frame)
+constexpr float kSiteStep = 18.5f;   // px    (< R_gen, so systems overlap)
+constexpr float kX0 = -80.0f;        // impact point, off-frame left
+constexpr int kSiteCount = 53;       // covers -80 .. 882
+constexpr float kGenWindow = 52.8f;  // frames (2.20 s)
+constexpr float kRGen = 26.0f;       // generation segment half-width, px
+constexpr float kPsiMax = 34.0f * 0.0174532925f;  // ejection cone, rad
 
 // The birth rate is the one constant the census PINS. A limb view stacks
 // the ring in depth (Fig. 6 photographs ~200 systems at once; a vertical
@@ -226,29 +223,28 @@ constexpr int kDepth = 3;
 constexpr size_t kAbCount = 700;
 constexpr float kInitialMeanParts = 41.0f * (float)kDepth;
 constexpr float kDeltaMeanParts =
-    -kInitialMeanParts / kGenWindow; // rate hits 0 exactly at the window
+    -kInitialMeanParts / kGenWindow;  // rate hits 0 exactly at the window
 constexpr float kVarParts = 13.0f * (float)kDepth;
 
-constexpr float kMeanSpeed = 15.0f, kVarSpeed = 4.8f; // px/frame
-constexpr float kGravity = 1.02f;                     // px/frame^2
-constexpr float kMeanLife = 34.0f, kVarLife = 12.0f;  // FRAMES
-constexpr float kMeanSize = 4.0f, kVarSize = 1.6f;    // px diameter
-constexpr float kSizeRate = 0.05f; // px/frame — [R83 §2.3] size changes at
-                                   // a rate global to the system
+constexpr float kMeanSpeed = 15.0f, kVarSpeed = 4.8f;  // px/frame
+constexpr float kGravity = 1.02f;                      // px/frame^2
+constexpr float kMeanLife = 34.0f, kVarLife = 12.0f;   // FRAMES
+constexpr float kMeanSize = 4.0f, kVarSize = 1.6f;     // px diameter
+constexpr float kSizeRate = 0.05f;  // px/frame — [R83 §2.3] size changes at
+                                    // a rate global to the system
 constexpr float kColorVar = 0.35f;
 // Documented ORDERING ("green and blue dropped off quickly, and the red
 // followed at a slower rate"); the rates are reconstruction.
-constexpr float kDecR = kE0r / 34.0f, kDecG = kE0g / 12.0f,
-                kDecB = kE0b / 8.5f;
+constexpr float kDecR = kE0r / 34.0f, kDecG = kE0g / 12.0f, kDecB = kE0b / 8.5f;
 constexpr float kMinIntensity = 0.020f;
 
 // Derived timing, printed on the canvas.
-constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread; // 5.762 s
+constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char *family, SkFontStyle style) {
+sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
   auto mgr = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
   return f ? f : mgr->matchFamilyStyle(nullptr, style);
@@ -297,7 +293,7 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
   return type(uiFace(), size, c, track);
 }
 
-Element t(const char *s, sigil::weave::TextStyle st) {
+Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -334,11 +330,11 @@ Element panel(float height, int order) {
       .key(std::string("panel") + std::to_string(order));
 }
 
-Element panelHead(const char *s) {
+Element panelHead(const char* s) {
   return t(s, ui(9.5f, kSteel, 1.9f)).height(13).shrink(0);
 }
 
-} // namespace
+}  // namespace
 
 // ===========================================================================
 
@@ -355,9 +351,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   };
   struct Particle {
     SkPoint pos{0, 0}, vel{0, 0};
-    float r = 0, g = 0, b = 0;     // emission ([R83 §2.2]'s seven attributes)
-    float size = 0, grow = 0;      // diameter, px + its per-frame rate
-    float age = 0, life = 0;       // FRAMES
+    float r = 0, g = 0, b = 0;  // emission ([R83 §2.2]'s seven attributes)
+    float size = 0, grow = 0;   // diameter, px + its per-frame rate
+    float age = 0, life = 0;    // FRAMES
     uint16_t site = 0;
   };
 
@@ -377,19 +373,19 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   std::shared_ptr<instancing::Pool> planPool;
   struct PlanMark {
     SkPoint p;
-    float dist = 0; // from the impact point, in plan px
+    float dist = 0;  // from the impact point, in plan px
   };
   std::vector<PlanMark> planMarks;
 
   // --- clocks --------------------------------------------------------------
   double loopT = 0, elapsed = 0;
-  bool stepped = false; // set by the fixed-timestep steppable
+  bool stepped = false;  // set by the fixed-timestep steppable
   uint64_t simSteps = 0;
   uint32_t rng = 0x9E3779B9u;
 
   // --- ONE phase Output; bind() derives every consumer from it -------------
-  ch::Output<float> loopU{0.0f};   // loop fraction, [0,1)
-  ch::Output<float> liveFrac{0.0f}; // census bar, [0,1]
+  ch::Output<float> loopU{0.0f};     // loop fraction, [0,1)
+  ch::Output<float> liveFrac{0.0f};  // census bar, [0,1]
 
   // --- measured ------------------------------------------------------------
   size_t liveCount = 0;
@@ -411,7 +407,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // =========================================================================
   // One second-level system
 
-  void emitAt(std::vector<Particle> &into, const Site &s, uint16_t si,
+  void emitAt(std::vector<Particle>& into, const Site& s, uint16_t si,
               float speedScale, float sizeScale, float genScale) {
     Particle p;
     const float off = kRGen * genScale * rand11();
@@ -436,17 +432,17 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   /** Per-frame integration + the three documented extinction rules. */
-  void advance(std::vector<Particle> &v, const std::vector<Site> &ss,
+  void advance(std::vector<Particle>& v, const std::vector<Site>& ss,
                float gravity, bool killBelowSurface) {
     for (size_t i = 0; i < v.size();) {
-      Particle &p = v[i];
-      const Site &s = ss[p.site];
-      p.vel.fX -= s.n.fX * gravity; // acceleration -> parabolic arcs
+      Particle& p = v[i];
+      const Site& s = ss[p.site];
+      p.vel.fX -= s.n.fX * gravity;  // acceleration -> parabolic arcs
       p.vel.fY -= s.n.fY * gravity;
       p.pos.fX += p.vel.fX;
       p.pos.fY += p.vel.fY;
       p.age += 1.0f;
-      p.size += p.grow; // size change at a rate global to the system
+      p.size += p.grow;  // size change at a rate global to the system
       // colour change: LINEAR RATES, red slowest — [R83 §2.3, §3]
       p.r = std::max(0.0f, p.r - kDecR);
       p.g = std::max(0.0f, p.g - kDecG);
@@ -466,21 +462,19 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   void stepSim() {
     loopT += kSimStep;
-    if (loopT >= kLoopSeconds) { // the sequence had a cut; a hard reset reads
-      loopT -= kLoopSeconds;     // as one
+    if (loopT >= kLoopSeconds) {  // the sequence had a cut; a hard reset reads
+      loopT -= kLoopSeconds;      // as one
       parts.clear();
     }
     // Generation. THE WALL IS A STAGGER: site i ignites at
     // t_i = (x_i - X0) / SPREAD — distance from the point of impact.
     for (uint16_t i = 0; i < (uint16_t)sites.size(); ++i) {
       const float f = (float)(loopT - sites[i].t0) * (float)kSimHz;
-      if (f < 0.0f || f >= kGenWindow)
-        continue;
+      if (f < 0.0f || f >= kGenWindow) continue;
       const float rate = kInitialMeanParts + kDeltaMeanParts * f;
       const int n =
           (int)std::lround(std::max(0.0f, rate + rand11() * kVarParts));
-      for (int k = 0; k < n; ++k)
-        emitAt(parts, sites[i], i, 1.0f, 1.0f, 1.0f);
+      for (int k = 0; k < n; ++k) emitAt(parts, sites[i], i, 1.0f, 1.0f, 1.0f);
     }
     advance(parts, sites, kGravity, true);
 
@@ -499,12 +493,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // emitter sits 2 px above the cell's bottom edge, so the whole arc stays
   // inside the clip and the below-emitter cull (2 px under the emitter, in
   // advance()) lands exactly on the cell's edge.
-  static const std::vector<Site> &abSites() {
+  static const std::vector<Site>& abSites() {
     static const std::vector<Site> s = {
         Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
     return s;
   }
-  static const Site &abSite() { return abSites()[0]; }
+  static const Site& abSite() { return abSites()[0]; }
 
   // =========================================================================
   // The renderer that defines the look.
@@ -516,11 +510,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // antialias its own edges, so the falloff lives in the vertex colours).
   // kPlus on the paint is the whole colour model: light ADDS and CLAMPS.
 
-  void buildStreaks(const std::vector<Particle> &v,
-                    std::vector<sk_sp<SkVertices>> &out) {
+  void buildStreaks(const std::vector<Particle>& v,
+                    std::vector<sk_sp<SkVertices>>& out) {
     out.clear();
-    if (v.empty())
-      return;
+    if (v.empty()) return;
     // SkVertices indices are uint16, so one list holds 65,535 vertices ->
     // 8,191 streaks at eight each. Chunk the way drawSpriteAtlas does.
     constexpr size_t kChunk = 8000;
@@ -542,7 +535,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       col.reserve(cnt * 8);
       idx.reserve(cnt * 18);
       for (size_t i = 0; i < cnt; ++i) {
-        const Particle &p = v[base + i];
+        const Particle& p = v[base + i];
         const float speed = p.vel.length();
         const SkVector d = speed > 1e-4f
                                ? SkVector{p.vel.fX / speed, p.vel.fY / speed}
@@ -580,8 +573,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         col.push_back(kEdge);
         pos.push_back({tail.fX - nn.fX, tail.fY - nn.fY});
         col.push_back(kEdge);
-        for (int k = 0; k < 18; ++k)
-          idx.push_back((uint16_t)(v0 + kTri[k]));
+        for (int k = 0; k < 18; ++k) idx.push_back((uint16_t)(v0 + kTri[k]));
       }
       out.push_back(SkVertices::MakeCopy(
           SkVertices::kTriangles_VertexMode, (int)pos.size(), pos.data(),
@@ -589,18 +581,18 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     }
   }
 
-  static void drawField(SkCanvas &canvas,
-                        const std::vector<sk_sp<SkVertices>> &chunks) {
+  static void drawField(SkCanvas& canvas,
+                        const std::vector<sk_sp<SkVertices>>& chunks) {
     SkPaint p;
     p.setAntiAlias(true);
-    p.setBlendMode(SkBlendMode::kPlus); // light adds; the buffer clamps
-    for (const sk_sp<SkVertices> &v : chunks)
+    p.setBlendMode(SkBlendMode::kPlus);  // light adds; the buffer clamps
+    for (const sk_sp<SkVertices>& v : chunks)
       if (v)
-        canvas.drawVertices(v, SkBlendMode::kDst, p); // no shader -> vertex
-  }                                                   // colour is the source
+        canvas.drawVertices(v, SkBlendMode::kDst, p);  // no shader -> vertex
+  }  // colour is the source
 
   PaintProgram fieldProgram() {
-    return [this](SkCanvas &canvas, const PaintContext &) {
+    return [this](SkCanvas& canvas, const PaintContext&) {
       drawField(canvas, fieldChunks);
     };
   }
@@ -608,7 +600,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   /** The A/B bench's third cell: the same particles as the two instanced
    *  cells, through the streak quads above. */
   PaintProgram benchQuadProgram() {
-    return [this](SkCanvas &canvas, const PaintContext &) {
+    return [this](SkCanvas& canvas, const PaintContext&) {
       std::vector<sk_sp<SkVertices>> chunks;
       buildStreaks(abParts, chunks);
       drawField(canvas, chunks);
@@ -627,12 +619,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     auto fr = abPool->frames();
     for (size_t i = 0; i < kAbCount; ++i) {
       if (i < abParts.size()) {
-        const Particle &q = abParts[i];
+        const Particle& q = abParts[i];
         p[i] = q.pos;
         r[i] = std::atan2(q.vel.fY, q.vel.fX);
-        s[i] = std::max(0.25f, q.size / 2.3f); // ONE uniform float
-        tn[i] = {std::min(1.0f, q.r), std::min(1.0f, q.g),
-                 std::min(1.0f, q.b), 1.0f};
+        s[i] = std::max(0.25f, q.size / 2.3f);  // ONE uniform float
+        tn[i] = {std::min(1.0f, q.r), std::min(1.0f, q.g), std::min(1.0f, q.b),
+                 1.0f};
         fr[i] = 0;
       } else {
         p[i] = {-999, -999};
@@ -675,15 +667,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // Five magnitude cells: a soft disc each, 10/7/5/4/3 px logical.
     const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
     for (float s : sizes)
-      starAtlas->cell(box()
-                          .width(s)
-                          .height(s)
-                          .fill(Material::radialUnit(
-                              {0.5f, 0.5f}, 0.707f,
-                              {{0.0f, {1, 1, 1, 1}},
-                               {0.22f, {1, 1, 1, 0.78f}},
-                               {0.58f, {1, 1, 1, 0.14f}},
-                               {1.0f, {1, 1, 1, 0.0f}}})),
+      starAtlas->cell(box().width(s).height(s).fill(
+                          Material::radialUnit({0.5f, 0.5f}, 0.707f,
+                                               {{0.0f, {1, 1, 1, 1}},
+                                                {0.22f, {1, 1, 1, 0.78f}},
+                                                {0.58f, {1, 1, 1, 0.14f}},
+                                                {1.0f, {1, 1, 1, 0.0f}}})),
                       {s, s});
     // N(m) ~ 10^(0.6m): 1 / 5 / 19 / 76 / 319 = 420 stars.
     const int bin[5] = {1, 5, 19, 76, 319};
@@ -700,14 +689,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         for (int guard = 0; guard < 24; ++guard) {
           x = rand01() * kStageW;
           y = rand01() * (kStageH * 0.86f);
-          if (y < limbY(x) - 8.0f)
-            break;
+          if (y < limbY(x) - 8.0f) break;
         }
         int pick = (int)(rand01() * 100.0f), c = 0, acc = 0;
         for (; c < 6; ++c) {
           acc += bvWeight[c];
-          if (pick < acc)
-            break;
+          if (pick < acc) break;
         }
         SkColor4f col = bv[std::min(c, 5)];
         col.fA = 0.30f + 0.55f * rand01();
@@ -726,20 +713,18 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                         .stroke(stroke(0.7f, Fill::color(hex(0x2E3A46)),
                                        PathFormat::Align::Inner)),
                     {4, 4});
-    planAtlas->cell(box()
-                        .width(4.0f)
-                        .height(4.0f)
-                        .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
-                                                   {{0.0f, {1, 1, 1, 1}},
-                                                    {0.45f, {1, 1, 1, 0.8f}},
-                                                    {1.0f, {1, 1, 1, 0}}})),
+    planAtlas->cell(box().width(4.0f).height(4.0f).fill(
+                        Material::radialUnit({0.5f, 0.5f}, 0.707f,
+                                             {{0.0f, {1, 1, 1, 1}},
+                                              {0.45f, {1, 1, 1, 0.8f}},
+                                              {1.0f, {1, 1, 1, 0}}})),
                     {4, 4});
     // Seven rings from the impact point; marks per ring =
     // round(0.055 * 2*pi*r) — [R83 §3]'s circumference x density rule.
     // Random angular placement, also documented.
     planPool = std::make_shared<instancing::Pool>();
     planMarks.clear();
-    const SkPoint impact{34.0f, 106.0f}; // disc-local (disc centre 92,92)
+    const SkPoint impact{34.0f, 106.0f};  // disc-local (disc centre 92,92)
     rng = 0x51A7C0DEu;
     const float radii[7] = {14, 30, 46, 62, 78, 94, 110};
     for (float r : radii) {
@@ -759,14 +744,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // ONE baked aspect. The paper's shape goes from elongated at ejection to
     // stubby at apogee; an atlas cell is one size and a Pool scale is one
     // float, so this cell is the compromise the middle two panels show.
-    abAtlas->cell(box()
-                      .width(4.4f)
-                      .height(2.3f)
-                      .corners({1.0f})
-                      .fill(Material::radialUnit({0.5f, 0.5f}, 1.05f,
-                                                 {{0.0f, {1, 1, 1, 1}},
-                                                  {0.42f, {1, 1, 1, 0.9f}},
-                                                  {1.0f, {1, 1, 1, 0}}})),
+    abAtlas->cell(box().width(4.4f).height(2.3f).corners({1.0f}).fill(
+                      Material::radialUnit({0.5f, 0.5f}, 1.05f,
+                                           {{0.0f, {1, 1, 1, 1}},
+                                            {0.42f, {1, 1, 1, 0.9f}},
+                                            {1.0f, {1, 1, 1, 0}}})),
                   {4.8f, 2.6f});
     abPool = std::make_shared<instancing::Pool>();
     abPool->resize(kAbCount);
@@ -778,14 +760,14 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   Element starField() {
     return box()
         .inset(0)
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
-        .child(instancing::instances(starAtlas, starPool,
-                                     instancing::Mode::Data,
-                                     SkBlendMode::kPlus));
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
+        .child(instancing::instances(
+            starAtlas, starPool, instancing::Mode::Data, SkBlendMode::kPlus));
   }
 
   struct DipStar {
-    const char *name;
+    const char* name;
     float u, v, mag;
   };
 
@@ -804,29 +786,28 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     Element g = box().inset(0);
 
     // the asterism, drawn on
-    g.child(box()
-                .inset(0)
-                .shape([&, bx, by, bw, bh](SkSize) {
-                  SkPathBuilder b;
-                  auto P = [&](int i) {
-                    return SkPoint{bx + kStars[i].u * bw,
-                                   by + kStars[i].v * bh};
-                  };
-                  b.moveTo(P(0));
-                  b.lineTo(P(1));
-                  b.lineTo(P(2));
-                  b.lineTo(P(3));
-                  b.lineTo(P(4));
-                  b.lineTo(P(5));
-                  b.lineTo(P(6));
-                  b.lineTo(P(3));
-                  return b.detach();
-                })
-                .stroke(
-                    spans::upTo(animate(from(0.0f).to(1.0f),
+    g.child(
+        box()
+            .inset(0)
+            .shape([&, bx, by, bw, bh](SkSize) {
+              SkPathBuilder b;
+              auto P = [&](int i) {
+                return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
+              };
+              b.moveTo(P(0));
+              b.lineTo(P(1));
+              b.lineTo(P(2));
+              b.lineTo(P(3));
+              b.lineTo(P(4));
+              b.lineTo(P(5));
+              b.lineTo(P(6));
+              b.lineTo(P(3));
+              return b.detach();
+            })
+            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {.duration = 620ms, .delay = 1300ms})),
                     stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
-                .key("asterism"));
+            .key("asterism"));
 
     for (int i = 0; i < 8; ++i) {
       const SkPoint p = at(i);
@@ -851,12 +832,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     }
     // Smith's joke, verified in the header block.
     const SkPoint s = at(7);
-    g.child(box()
-                .left(s.fX + 4)
-                .top(s.fY + 6)
-                .width(1)
-                .height(16)
-                .fill(hex(0x4FB8D8, 0.5f)));
+    g.child(box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
+        hex(0x4FB8D8, 0.5f)));
     g.child(box()
                 .left(s.fX + 9)
                 .top(s.fY + 12)
@@ -882,8 +859,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
           SkBlendMode::kSrc},
          {patterns::grain(0.022f, 4, 7.0f, 0.5f, 1.0f),
           SkBlendMode::kSoftLight},
-         {patterns::speckle(170, 17, 0.9f, 3.4f,
-                            {hex(0x6A655B), hex(0x171512)})
+         {patterns::speckle(170, 17, 0.9f, 3.4f, {hex(0x6A655B), hex(0x171512)})
               .material(),
           SkBlendMode::kOverlay}});
 
@@ -892,10 +868,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .shape(limbOutline())
         .clip(true)
         .fill(std::move(ground))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
-        .translateY(animate(from(12.0f).to(0.0f), {.duration = 520ms,
-                              .ease = &ch::easeOutCubic,
-                              .delay = 420ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
+        .translateY(animate(
+            from(12.0f).to(0.0f),
+            {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
         // Duff's local light. ONE Output (loopU) shaped into px.
         .child(disc({0, 0}, 132)
                    .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
@@ -925,8 +902,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                 .blend(SkBlendMode::kPlus)
                 .opacity(bind(&loopU).map([](float v) {
                   const float t = v * 10.0f;
-                  if (t < 0.06f)
-                    return t / 0.06f;
+                  if (t < 0.06f) return t / 0.06f;
                   if (t < 0.45f) {
                     const float k = 1.0f - (t - 0.06f) / 0.39f;
                     return k * k;
@@ -937,15 +913,17 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                 .shape(shapes::circle())
                 .stroke(stroke(2.0f, Fill::color(hex(0xFFB070, 0.85f))))
                 .blend(SkBlendMode::kPlus)
-                .scale(bind(&loopU).map([](float v) {
-                        const float t = std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f);
-                        const float u = t - 1.0f;
-                        return 1.0f + u * u * u; // easeOutCubic
-                      }).clamp(0.001f, 1.0f))
+                .scale(bind(&loopU)
+                           .map([](float v) {
+                             const float t =
+                                 std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f);
+                             const float u = t - 1.0f;
+                             return 1.0f + u * u * u;  // easeOutCubic
+                           })
+                           .clamp(0.001f, 1.0f))
                 .opacity(bind(&loopU).map([](float v) {
                   const float t = v * 10.0f;
-                  if (t > 1.1f)
-                    return 0.0f;
+                  if (t > 1.1f) return 0.0f;
                   const float k = 1.0f - t / 1.1f;
                   return k * k;
                 })));
@@ -984,10 +962,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .corners({6})
         .fill(hex(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
         .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                                      .ease = ease::outBack(1.70158f),
-                                      .delay = 900ms}))
+                                              .ease = ease::outBack(1.70158f),
+                                              .delay = 900ms}))
         .child(std::move(inner))
         // the impact point itself
         .child(box()
@@ -1023,7 +1002,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   /** [R83 §3]'s motion-blur construction, magnified 3x. */
   PaintProgram blurCalloutProgram() {
-    return [](SkCanvas &canvas, const PaintContext &ctx) {
+    return [](SkCanvas& canvas, const PaintContext& ctx) {
       const float h = ctx.size.height();
       const float y = h * 0.42f;
       const float x0 = 16, x1 = 152;
@@ -1082,8 +1061,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .corners({6})
         .fill(hex(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 1150ms}))
-        .child(t("MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7" "3",
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 1150ms}))
+        .child(t("MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+                 "3",
                  ui(8.5f, kCyan, 1.7f))
                    .shrink(0))
         .child(custom(blurCalloutProgram()).height(44).shrink(0))
@@ -1107,9 +1088,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .bottom(14)
         .column()
         .gap(2)
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1250ms}))
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1250ms}))
         .child(slot("fieldStat"))
-        .child(t("888\xc3\x97" "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO "
+        .child(t("888\xc3\x97"
+                 "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO "
                  "RASTER THE DEMO WAS COMPUTED FOR",
                  mono(8.5f, kSteel, 0.5f))
                    .textAlign(sigil::weave::TextAlignment::kEnd))
@@ -1160,7 +1143,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // =========================================================================
   // Sidebar
 
-  Element eqn(const char *s) {
+  Element eqn(const char* s) {
     return t(s, mono(11.0f, kBone, 0.1f)).height(16).shrink(0);
   }
 
@@ -1173,29 +1156,32 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                    "(f \xe2\x88\x92 f\xe2\x82\x80)"))
         .child(eqn("InitialSpeed = MeanSpeed + Rand() \xc3\x97 VarSpeed"))
         .child(box().grow(1))
-        .child(t("Rand() \xe2\x86\x92 UNIFORM [\xe2\x88\x92" "1.0, +1.0] "
-                 "\xe2\x80\x94 REEVES 1983 \xc2\xa7" "2.1\xe2\x80\x93" "2.2",
+        .child(t("Rand() \xe2\x86\x92 UNIFORM [\xe2\x88\x92"
+                 "1.0, +1.0] "
+                 "\xe2\x80\x94 REEVES 1983 \xc2\xa7"
+                 "2.1\xe2\x80\x93"
+                 "2.2",
                  mono(7.5f, kSteelDim, 0.4f))
                    .shrink(0));
   }
 
-  Element censusCell(const char *s, float w, sigil::weave::TextStyle st) {
+  Element censusCell(const char* s, float w, sigil::weave::TextStyle st) {
     return t(s, std::move(st)).width(w).shrink(0);
   }
 
-  Element censusBar(float frac, SkColor4f c, const char *key) {
-    Element fill = box()
-                       .left(0)
-                       .top(0)
-                       .width(96)
-                       .height(7)
-                       .fill(c)
-                       .transformOrigin(0.0f, 0.5f)
-                       .scaleX(animate(from(0.0f).to(frac), {.duration = 420ms,
-                                         .ease = ease::outBack(1.2f),
-                                         .delay = 1200ms}));
-    if (key)
-      fill.scaleX(bind(&liveFrac).clamp(0.02f, 1.0f)).key(key);
+  Element censusBar(float frac, SkColor4f c, const char* key) {
+    Element fill =
+        box()
+            .left(0)
+            .top(0)
+            .width(96)
+            .height(7)
+            .fill(c)
+            .transformOrigin(0.0f, 0.5f)
+            .scaleX(animate(from(0.0f).to(frac), {.duration = 420ms,
+                                                  .ease = ease::outBack(1.2f),
+                                                  .delay = 1200ms}));
+    if (key) fill.scaleX(bind(&liveFrac).clamp(0.02f, 1.0f)).key(key);
     return box()
         .width(96)
         .height(7)
@@ -1204,8 +1190,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(std::move(fill));
   }
 
-  Element censusRow(const char *fig, const char *sys, const char *particles,
-                    const char *per, float frac, bool live) {
+  Element censusRow(const char* fig, const char* sys, const char* particles,
+                    const char* per, float frac, bool live) {
     const SkColor4f c = live ? kCyan : kBone;
     const SkColor4f cd = live ? kCyan : kSteel;
     return box()
@@ -1224,30 +1210,33 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   Element censusPanel() {
     return panel(192, 2)
         .gap(4)
-        .child(panelHead("PARTICLE CENSUS \xe2\x80\x94 REEVES 1983 \xc2\xa7" "3"))
-        .child(box()
-                   .row()
-                   .height(11)
-                   .shrink(0)
-                   .child(censusCell("FIG", 46, mono(7.5f, kSteelDim, 0.9f)))
-                   .child(censusCell("SYSTEMS", 62, mono(7.5f, kSteelDim, 0.9f)))
-                   .child(censusCell("PARTICLES", 108,
-                                     mono(7.5f, kSteelDim, 0.9f)))
-                   .child(censusCell("PER SYS", 76, mono(7.5f, kSteelDim, 0.9f)))
-                   .child(censusCell("LOG SCALE", 96,
-                                     mono(7.5f, kSteelDim, 0.9f))))
-        .child(box()
-                   .column()
-                   .gap(3)
-                   .shrink(0)
-                   .staggerChildren(70ms)
-                   .child(censusRow("4", "~21", "25,000", "1,190*", 0.273f,
-                                    false))
-                   .child(censusRow("5", "~200", "75,000", "375", 0.491f, false))
-                   .child(censusRow("6", "~200", "85,000", "425", 0.514f, false))
-                   .child(censusRow("7\xe2\x80\x93" "8", "~400", ">750,000",
-                                    ">1,875", 0.945f, false))
-                   .child(slot("censusLive")))
+        .child(panelHead("PARTICLE CENSUS \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+                         "3"))
+        .child(
+            box()
+                .row()
+                .height(11)
+                .shrink(0)
+                .child(censusCell("FIG", 46, mono(7.5f, kSteelDim, 0.9f)))
+                .child(censusCell("SYSTEMS", 62, mono(7.5f, kSteelDim, 0.9f)))
+                .child(
+                    censusCell("PARTICLES", 108, mono(7.5f, kSteelDim, 0.9f)))
+                .child(censusCell("PER SYS", 76, mono(7.5f, kSteelDim, 0.9f)))
+                .child(
+                    censusCell("LOG SCALE", 96, mono(7.5f, kSteelDim, 0.9f))))
+        .child(
+            box()
+                .column()
+                .gap(3)
+                .shrink(0)
+                .staggerChildren(70ms)
+                .child(censusRow("4", "~21", "25,000", "1,190*", 0.273f, false))
+                .child(censusRow("5", "~200", "75,000", "375", 0.491f, false))
+                .child(censusRow("6", "~200", "85,000", "425", 0.514f, false))
+                .child(censusRow("7\xe2\x80\x93"
+                                 "8",
+                                 "~400", ">750,000", ">1,875", 0.945f, false))
+                .child(slot("censusLive")))
         .child(box().grow(1))
         .child(t("* FIG. 4 IS \"ONE VERY LARGE PARTICLE SYSTEM AND ABOUT 20 "
                  "SMALLER ONES\" \xe2\x80\x94 THAT MEAN IS MEANINGLESS.",
@@ -1293,15 +1282,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     return panel(98, 3)
         .gap(3)
         .child(panelHead("COLOUR IS OVERLAP COUNT"))
-        .child(box()
-                   .row()
-                   .gap(2)
-                   .shrink(0)
-                   .staggerChildren(26ms)
-                   .children(std::move(swatches)))
+        .child(box().row().gap(2).shrink(0).staggerChildren(26ms).children(
+            std::move(swatches)))
         .child(box().row().gap(2).shrink(0).children(std::move(labels)))
         .child(box().grow(1))
-        .child(t("LIGHT ADDS AND CLAMPS (\xc2\xa7" "2.5) \xe2\x80\x94 RED "
+        .child(t("LIGHT ADDS AND CLAMPS (\xc2\xa7"
+                 "2.5) \xe2\x80\x94 RED "
                  "SATURATES AT n=5, GREEN AT n=20, BLUE AT n=111. "
                  "e\xe2\x82\x80 = (0.220, 0.050, 0.009) IS THE ONE "
                  "RECONSTRUCTED SEED.",
@@ -1309,7 +1295,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                    .shrink(0));
   }
 
-  Element benchCell(Element content, const char *caption, SkColor4f cc) {
+  Element benchCell(Element content, const char* caption, SkColor4f cc) {
     return box()
         .column()
         .gap(3)
@@ -1333,29 +1319,23 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     return panel(144, 4)
         .gap(4)
         .child(panelHead("RENDER MODEL \xe2\x80\x94 THREE PATHS, ONE POOL"))
-        .child(box()
-                   .row()
-                   .gap(15)
-                   .shrink(0)
-                   .child(benchCell(box().inset(0).child(
-                                        instancing::instances(
-                                            abAtlas, abPool,
-                                            instancing::Mode::Live,
-                                            SkBlendMode::kSrcOver)),
-                                    "instances() \xc2\xb7 kSrcOver",
-                                    hex(0x8A93A8)))
-                   .child(benchCell(box().inset(0).child(
-                                        instancing::instances(
-                                            abAtlas, abPool,
-                                            instancing::Mode::Live,
-                                            SkBlendMode::kPlus)),
-                                    "instances() \xc2\xb7 kPlus",
-                                    hex(0xFFB672)))
-                   .child(benchCell(custom(benchQuadProgram())
-                                        .inset(0)
-                                        .cache(Cache::None),
-                                    "custom() quads \xc2\xb7 kPlus",
-                                    hex(0xFFB672))))
+        .child(
+            box()
+                .row()
+                .gap(15)
+                .shrink(0)
+                .child(benchCell(box().inset(0).child(instancing::instances(
+                                     abAtlas, abPool, instancing::Mode::Live,
+                                     SkBlendMode::kSrcOver)),
+                                 "instances() \xc2\xb7 kSrcOver",
+                                 hex(0x8A93A8)))
+                .child(benchCell(box().inset(0).child(instancing::instances(
+                                     abAtlas, abPool, instancing::Mode::Live,
+                                     SkBlendMode::kPlus)),
+                                 "instances() \xc2\xb7 kPlus", hex(0xFFB672)))
+                .child(benchCell(
+                    custom(benchQuadProgram()).inset(0).cache(Cache::None),
+                    "custom() quads \xc2\xb7 kPlus", hex(0xFFB672))))
         .child(box().grow(1))
         .child(t("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY "
                  "IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE "
@@ -1368,7 +1348,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                    .shrink(0));
   }
 
-  Element prodLine(const char *s, SkColor4f c) {
+  Element prodLine(const char* s, SkColor4f c) {
     return t(s, mono(8.0f, c, 0.2f)).height(10).shrink(0);
   }
 
@@ -1404,9 +1384,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     GlyphFx fx;
     fx.effect = glyphfx::rise(22);
     fx.stagger = {.eachMs = 26, .durationMs = 460};
-    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 850ms,
-                            .ease = &ch::easeNone,
-                            .delay = 120ms});
+    fx.progress =
+        animate(from(0.0f).to(1.0f),
+                {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms});
     return box()
         .column()
         .height(102)
@@ -1434,28 +1414,19 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element describe() {
-    return box()
-        .column()
-        .padding(36)
-        .gap(24)
-        .fill(kInk)
-        .child(header())
-        .child(box()
-                   .row()
-                   .gap(32)
-                   .grow(1)
-                   .child(stage())
-                   .child(box()
-                              .column()
-                              .width(kSideW)
-                              .shrink(0)
-                              .gap(8)
-                              .staggerChildren(90ms)
-                              .child(generationPanel())
-                              .child(censusPanel())
-                              .child(rampPanel())
-                              .child(renderModelPanel())
-                              .child(productionPanel())));
+    return box().column().padding(36).gap(24).fill(kInk).child(header()).child(
+        box().row().gap(32).grow(1).child(stage()).child(
+            box()
+                .column()
+                .width(kSideW)
+                .shrink(0)
+                .gap(8)
+                .staggerChildren(90ms)
+                .child(generationPanel())
+                .child(censusPanel())
+                .child(rampPanel())
+                .child(renderModelPanel())
+                .child(productionPanel())));
   }
 
   /** The live census row. An Animatable carries no string, so a number that
@@ -1467,7 +1438,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   liveCount % 1000);
     std::snprintf(per_, sizeof per_, "%d",
                   (int)std::lround((double)liveCount / (33.0 * kDepth)));
-    std::snprintf(sys_, sizeof sys_, "33\xc3\x97" "%d", kDepth);
+    std::snprintf(sys_, sizeof sys_,
+                  "33\xc3\x97"
+                  "%d",
+                  kDepth);
     return box()
         .row()
         .height(14)
@@ -1502,9 +1476,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   // =========================================================================
 
-  bool deterministic_ = false; // --deterministic: pin self-measurements
+  bool deterministic_ = false;  // --deterministic: pin self-measurements
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     deterministic_ = ctx.deterministic;
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
@@ -1531,8 +1505,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       n = {n.fX / l, n.fY / l};
       // one mean-velocity draw per system, fixed for its whole life
       const float vs = 0.80f + 0.42f * rand01();
-      sites.push_back(Site{{x, y}, n, {-n.fY, n.fX},
-                           (x - kX0) / kSpread, vs});
+      sites.push_back(Site{{x, y}, n, {-n.fY, n.fX}, (x - kX0) / kSpread, vs});
     }
 
     seedStars();
@@ -1542,7 +1515,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     seedBench();
     rng = 0x9E3779B9u;
 
-    Composer &composer = ctx.composer;
+    Composer& composer = ctx.composer;
     // The clock. [R83] counts lifetimes in FRAMES and the frames in
     // question are film frames, so the whole simulation runs at a fixed
     // 24 Hz whatever rate the host draws at. addFixed's catch-up clamp
@@ -1587,7 +1560,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("fieldStat", fieldStat());
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(GenesisFire)

@@ -6,10 +6,9 @@
 // Feed/logging presentation stays in each application; this layer only
 // translates packet data into entities/components.
 
-#include <entt/entt.hpp>
-
 #include <cstddef>
 #include <cstdint>
+#include <entt/entt.hpp>
 #include <string>
 
 namespace spellcircle {
@@ -18,7 +17,7 @@ namespace spellcircle {
  *  position, as decoded from the packet. Scaling to native coordinates and
  *  all other positioning math is left to resolveScene(). */
 struct CircleComponent {
-  std::string name; // UTF-8
+  std::string name;  // UTF-8
   float centerX = 0.0f;
   float centerY = 0.0f;
   uint32_t radius = 0;
@@ -28,7 +27,7 @@ struct CircleComponent {
   // Decoded verbatim from the wire; resolveScene() converts it to the drawn
   // contour's own parameterisation for the renderer.
   float textStart = 0.0f;
-  float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
+  float active = 0.0f;  // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 
 /** Mirrors SpellCircle.fbs `Point` — a fractional position along a circle's
@@ -39,9 +38,9 @@ struct CircleComponent {
  *  as the same underlying Point table under multiple fields) gets one
  *  entity, shared via the entt::entity handles below. */
 struct PointComponent {
-  std::string value; // UTF-8
+  std::string value;  // UTF-8
   CircleComponent circle;
-  float position = 0.0f; // fraction [0, 1] clockwise from 12 o'clock
+  float position = 0.0f;  // fraction [0, 1] clockwise from 12 o'clock
 };
 
 /** Mirrors SpellCircle.fbs `Edge` — a connector between two Point entities,
@@ -56,9 +55,9 @@ struct EdgeComponent {
  *  entity, which may be shared with other Edges/Boxes (see PointComponent).
  */
 struct BoxComponent {
-  std::string value; // UTF-8
+  std::string value;  // UTF-8
   entt::entity point = entt::null;
-  float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
+  float active = 0.0f;  // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 
 /** Entity counts from the most recent decode, for feed/log presentation. */
@@ -73,16 +72,16 @@ struct SceneStats {
 /** Returns whether @p payload is a structurally valid FlatBuffers Scene.
  *  Callers must verify before decode() — decoding an unverified buffer is
  *  undefined behavior. */
-bool verifyScenePayload(const void *payload, size_t size);
+bool verifyScenePayload(const void* payload, size_t size);
 
 /**
  * The decoded scene: an entt::registry of Circle/Point/Edge/Box components
  * plus the author-space canvas dimensions from the packet's Scene table.
  */
 class SceneDocument {
-public:
+ public:
   /** Scene entities decoded from the most recently parsed packet. */
-  const entt::registry &registry() const { return m_registry; }
+  const entt::registry& registry() const { return m_registry; }
 
   /** Author-space canvas dimensions from the most recently parsed Scene
    *  (Scene.width/height); 0 means coordinates are already native. */
@@ -91,15 +90,15 @@ public:
 
   /** Replaces the current registry with entities parsed from @p payload,
    *  which must already have passed verifyScenePayload(). */
-  SceneStats decode(const void *payload, size_t size);
+  SceneStats decode(const void* payload, size_t size);
 
   /** Removes all scene entities and resets the author-space dimensions. */
   void clear();
 
-private:
+ private:
   entt::registry m_registry;
   float m_sceneWidth = 0.0f;
   float m_sceneHeight = 0.0f;
 };
 
-} // namespace spellcircle
+}  // namespace spellcircle

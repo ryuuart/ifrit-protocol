@@ -24,30 +24,30 @@ namespace sigil::compose::sketch {
  *  around every call INTO the guest; `sig_atomic_t` because the handler
  *  reads it. */
 enum class Phase : int {
-  Host = 0,   // not inside the sketch at all — a host bug
-  Setup,      // Sketch::setup()
-  Update,     // Sketch::update()
-  Draw,       // Composer::draw() — painting what the sketch described
-  Capture,    // readback + PNG encode
+  Host = 0,  // not inside the sketch at all — a host bug
+  Setup,     // Sketch::setup()
+  Update,    // Sketch::update()
+  Draw,      // Composer::draw() — painting what the sketch described
+  Capture,   // readback + PNG encode
 };
 
 /** Installs handlers for SIGSEGV/SIGBUS/SIGILL/SIGFPE/SIGABRT. Idempotent
  *  and safe to call before the host exists. */
-void installCrashReporter(const std::filesystem::path &sketchPath);
+void installCrashReporter(const std::filesystem::path& sketchPath);
 
 /** Scoped phase marker: `PhaseMark mark(Phase::Setup);` */
 class PhaseMark {
-public:
+ public:
   explicit PhaseMark(Phase phase);
   ~PhaseMark();
-  PhaseMark(const PhaseMark &) = delete;
-  PhaseMark &operator=(const PhaseMark &) = delete;
+  PhaseMark(const PhaseMark&) = delete;
+  PhaseMark& operator=(const PhaseMark&) = delete;
 
-private:
+ private:
   Phase m_previous;
 };
 
 /** The frame counter the reporter prints; bumped by SketchHost::frame. */
 void noteFrame(int index, double elapsedSeconds);
 
-} // namespace sigil::compose::sketch
+}  // namespace sigil::compose::sketch

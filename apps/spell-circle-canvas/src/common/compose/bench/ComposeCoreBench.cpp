@@ -4,25 +4,21 @@
 // weave_bench with the same style of size parameters. ComposeBench.cpp is
 // the companion file, holding whole-scene arms at a single fixed size.
 
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Compose.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Shapes.h>
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
+#include <benchmark/benchmark.h>
+#include <include/core/SkBBHFactory.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkBBHFactory.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-
+#include <sigilcompose/Brushes.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilweave/FontContext.h>
 #include <sigilweave/Paragraph.h>
-
-#include <benchmark/benchmark.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 #include <cstdint>
@@ -34,8 +30,8 @@ using namespace sigil::compose;
 
 namespace {
 
-sigil::weave::FontContext &coreFonts() {
-  static auto *context =
+sigil::weave::FontContext& coreFonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
@@ -53,7 +49,7 @@ struct CoreHost {
   void draw() { composer.draw(*surface->getCanvas()); }
 };
 
-void reportNodes(benchmark::State &state, int count) {
+void reportNodes(benchmark::State& state, int count) {
   state.counters["nodes"] = (double)count;
   state.SetItemsProcessed(state.iterations() * (int64_t)count);
 }
@@ -121,7 +117,7 @@ Element shapedGrid(int count, ShapeIdentity identity) {
 enum class MaskKind { Spans, Edge };
 
 Element maskedGrid(int count, MaskKind kind,
-                   choreograph::Output<float> *reveal) {
+                   choreograph::Output<float>* reveal) {
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 32;
   for (int id = 0; id < count; ++id) {
@@ -174,7 +170,7 @@ struct WaveWidth {
     return amplitude * (0.65f + 0.35f * std::sin(along * 8.0f * SK_FloatPI));
   }
   float max() const { return amplitude; }
-  bool operator==(const WaveWidth &) const = default;
+  bool operator==(const WaveWidth&) const = default;
 };
 
 Element profiledRibbonGrid(int count) {
@@ -248,7 +244,7 @@ Element groupScene(int count, Cache mode) {
 enum class AccentFill { Bound, Plain };
 
 Element slowThemedPanel(int count, AccentFill mode,
-                        const choreograph::Output<Fill> *bound,
+                        const choreograph::Output<Fill>* bound,
                         SkColor4f plain) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < count; ++id)
@@ -260,13 +256,13 @@ Element slowThemedPanel(int count, AccentFill mode,
                   .fill(cellFill(id, -1, 0))
                   .stroke(brush::solid(
                       1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f}))));
-  Element accent = box()
-                       .key("accent")
-                       .width(26)
-                       .height(26)
-                       .shape(shapes::star(7, 0.45f, 0.08f))
-                       .stroke(brush::solid(
-                           1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})));
+  Element accent =
+      box()
+          .key("accent")
+          .width(26)
+          .height(26)
+          .shape(shapes::star(7, 0.45f, 0.08f))
+          .stroke(brush::solid(1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})));
   if (mode == AccentFill::Bound)
     accent.fill(Animatable<Fill>(bound));
   else
@@ -282,7 +278,7 @@ Element slowThemedPanel(int count, AccentFill mode,
  *  and not only in wall time. */
 struct CacheTally {
   double recorded = 0, baked = 0, painted = 0, live = 0, tex = 0, frames = 0;
-  void add(const Composer::Stats &s) {
+  void add(const Composer::Stats& s) {
     recorded += (double)s.picturesRecorded;
     baked += (double)s.texturesBaked;
     painted += (double)s.nodesPainted;
@@ -290,7 +286,7 @@ struct CacheTally {
     tex += (double)s.texturesLive;
     frames += 1;
   }
-  void report(benchmark::State &state) const {
+  void report(benchmark::State& state) const {
     const double f = frames > 0 ? frames : 1;
     state.counters["rec/frame"] = recorded / f;
     state.counters["bake/frame"] = baked / f;
@@ -305,11 +301,11 @@ SkColor4f accentColor(int step) {
   return {0.20f + 0.70f * t, 0.55f - 0.30f * t, 0.85f - 0.40f * t, 1.0f};
 }
 
-} // namespace
+}  // namespace
 
 // ---- describe / reconcile -------------------------------------------------
 
-static void BM_Mount_Cold(benchmark::State &state) {
+static void BM_Mount_Cold(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
     sigil::motion::Ticker ticker;
@@ -326,7 +322,7 @@ BENCHMARK(BM_Mount_Cold)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Reconcile_Flex_Warm(benchmark::State &state) {
+static void BM_Reconcile_Flex_Warm(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(flexGrid(count));
@@ -342,7 +338,7 @@ BENCHMARK(BM_Reconcile_Flex_Warm)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Reconcile_Positioned_Warm(benchmark::State &state) {
+static void BM_Reconcile_Positioned_Warm(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(positionedGrid(count));
@@ -358,7 +354,7 @@ BENCHMARK(BM_Reconcile_Positioned_Warm)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Reconcile_OneChanged(benchmark::State &state) {
+static void BM_Reconcile_OneChanged(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(flexGrid(count));
@@ -375,7 +371,7 @@ BENCHMARK(BM_Reconcile_OneChanged)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Reconcile_KeyedReorder(benchmark::State &state) {
+static void BM_Reconcile_KeyedReorder(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(flexGrid(count));
@@ -395,7 +391,7 @@ BENCHMARK(BM_Reconcile_KeyedReorder)
 
 // ---- layout ---------------------------------------------------------------
 
-static void BM_Layout_Flex_ViewportToggle(benchmark::State &state) {
+static void BM_Layout_Flex_ViewportToggle(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(flexGrid(count));
@@ -414,7 +410,7 @@ BENCHMARK(BM_Layout_Flex_ViewportToggle)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Layout_Positioned_ViewportToggle(benchmark::State &state) {
+static void BM_Layout_Positioned_ViewportToggle(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(positionedGrid(count));
@@ -436,7 +432,7 @@ BENCHMARK(BM_Layout_Positioned_ViewportToggle)
 
 // ---- comparable values / queries -----------------------------------------
 
-static void BM_Reconcile_Shapes_Comparable(benchmark::State &state) {
+static void BM_Reconcile_Shapes_Comparable(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(shapedGrid(count, ShapeIdentity::Comparable));
@@ -452,7 +448,7 @@ BENCHMARK(BM_Reconcile_Shapes_Comparable)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Reconcile_Shapes_RawCallable(benchmark::State &state) {
+static void BM_Reconcile_Shapes_RawCallable(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(shapedGrid(count, ShapeIdentity::RawCallable));
@@ -468,7 +464,7 @@ BENCHMARK(BM_Reconcile_Shapes_RawCallable)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Query_Bounds(benchmark::State &state) {
+static void BM_Query_Bounds(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(positionedGrid(count));
@@ -492,7 +488,7 @@ BENCHMARK(BM_Query_Bounds)
 // so all of them run with Cache::None: the arms are meant to price the
 // per-frame resolve, and a recording would hide exactly that.
 
-static void BM_Draw_Mask_Spans_Live(benchmark::State &state) {
+static void BM_Draw_Mask_Spans_Live(benchmark::State& state) {
   const int count = (int)state.range(0);
   choreograph::Output<float> reveal{0.0f};
   CoreHost host(800, 800);
@@ -511,7 +507,7 @@ BENCHMARK(BM_Draw_Mask_Spans_Live)
     ->Arg(256)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_Mask_Edge_Live(benchmark::State &state) {
+static void BM_Draw_Mask_Edge_Live(benchmark::State& state) {
   const int count = (int)state.range(0);
   choreograph::Output<float> reveal{0.0f};
   CoreHost host(800, 800);
@@ -530,13 +526,12 @@ BENCHMARK(BM_Draw_Mask_Edge_Live)
     ->Arg(256)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_ProfiledRibbon_Live(benchmark::State &state) {
+static void BM_Draw_ProfiledRibbon_Live(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(800, 800);
   host.composer.render(profiledRibbonGrid(count));
   host.draw();
-  for ([[maybe_unused]] auto iteration : state)
-    host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_ProfiledRibbon_Live)
@@ -549,13 +544,12 @@ BENCHMARK(BM_Draw_ProfiledRibbon_Live)
  *  every segment pair on every live paint, so cost grows with the square of
  *  the strand count. The `pairs` counter reports that count directly, which
  *  is what the arm's timings should be divided by. */
-static void BM_Draw_BrushWeave_Live(benchmark::State &state) {
+static void BM_Draw_BrushWeave_Live(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(640, 640);
   host.composer.render(weaveScene(count));
   host.draw();
-  for ([[maybe_unused]] auto iteration : state)
-    host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["pairs"] = (double)(count * (count - 1) / 2);
   reportNodes(state, count);
 }
@@ -577,7 +571,7 @@ BENCHMARK(BM_Draw_BrushWeave_Live)
  *  what real scenes use; the high ones exist so the growth is visible and so
  *  a per-Instance span cache, if one is ever added, has something to be
  *  measured against. */
-Element spanStrokeGrid(int passCount, choreograph::Output<float> &phase) {
+Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 4;
   constexpr int kNodes = 16;
@@ -603,7 +597,7 @@ Element spanStrokeGrid(int passCount, choreograph::Output<float> &phase) {
   return root;
 }
 
-static void BM_Draw_StrokeSpans_Live(benchmark::State &state) {
+static void BM_Draw_StrokeSpans_Live(benchmark::State& state) {
   const int passes = (int)state.range(0);
   choreograph::Output<float> phase{0.0f};
   CoreHost host(640, 640);
@@ -641,30 +635,28 @@ BENCHMARK(BM_Draw_StrokeSpans_Live)
 
 struct BenchPalette {
   SkColor4f surface{0.20f, 0.40f, 0.60f, 1.0f};
-  bool operator==(const BenchPalette &) const = default;
+  bool operator==(const BenchPalette&) const = default;
 };
 
 struct MemoCellProps {
   int id = 0;
-  bool operator==(const MemoCellProps &) const = default;
+  bool operator==(const MemoCellProps&) const = default;
 };
 
-Element memoGridUnder(int count, const BenchPalette &palette) {
+Element memoGridUnder(int count, const BenchPalette& palette) {
   env::Provide<BenchPalette> theme(palette);
   auto root = box().row().wrapLines().gap(1);
   for (int id = 0; id < count; ++id)
-    root.child(memo(MemoCellProps{id},
-                    [](const MemoCellProps &props) {
-                      // Deliberately never reads env::inherited: this memo
-                      // has no reason to miss when the theme changes.
-                      return box().width(19).height(19).fill(
-                          cellFill(props.id, -1, 0));
-                    })
-                   .key("m" + std::to_string(id)));
+    root.child(memo(MemoCellProps{id}, [](const MemoCellProps& props) {
+                 // Deliberately never reads env::inherited: this memo
+                 // has no reason to miss when the theme changes.
+                 return box().width(19).height(19).fill(
+                     cellFill(props.id, -1, 0));
+               }).key("m" + std::to_string(id)));
   return root;
 }
 
-static void BM_Env_ThemeChange_MemosNeverRead(benchmark::State &state) {
+static void BM_Env_ThemeChange_MemosNeverRead(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(memoGridUnder(count, BenchPalette{}));
@@ -687,7 +679,7 @@ BENCHMARK(BM_Env_ThemeChange_MemosNeverRead)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Env_ThemeHeld_MemosNeverRead(benchmark::State &state) {
+static void BM_Env_ThemeHeld_MemosNeverRead(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host;
   host.composer.render(memoGridUnder(count, BenchPalette{}));
@@ -704,14 +696,13 @@ BENCHMARK(BM_Env_ThemeHeld_MemosNeverRead)
     ->Arg(2000)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_GroupCache_LivePictures(benchmark::State &state) {
+static void BM_Draw_GroupCache_LivePictures(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(640, 640);
   host.composer.setAutoTexturePromotion(false);
   host.composer.render(groupScene(count, Cache::Auto));
   host.draw();
-  for ([[maybe_unused]] auto iteration : state)
-    host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_GroupCache_LivePictures)
@@ -741,7 +732,7 @@ Element marqueeStrip(float acrossPx, float alongPx) {
     style.paint.foreground.setColor(color.toSkColor());
     auto paragraph = std::make_shared<sigil::weave::Paragraph>();
     paragraph->appendText(
-        std::u8string_view((const char8_t *)text.c_str(), text.size()), style);
+        std::u8string_view((const char8_t*)text.c_str(), text.size()), style);
     sigil::weave::ParagraphLayoutOptions centered;
     centered.alignment = sigil::weave::TextAlignment::kCenter;
     return sigil::compose::text(paragraph, centered);
@@ -755,21 +746,26 @@ Element marqueeStrip(float acrossPx, float alongPx) {
                       Fill::color({0.455f, 0.878f, 0.745f, 0.95f})))
                   .child(box().right(10).top(0).bottom(0).width(4).fill(
                       Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
-  const int sectors = (int)(alongPx / 930.0f); // the marquee's own density
+  const int sectors = (int)(alongPx / 930.0f);  // the marquee's own density
   for (int s = 0; s < sectors; ++s) {
     root.child(box().grow());
     root.child(label("— " + std::to_string(s + 1) + " —", 64.0f,
                      {0.62f, 0.69f, 0.79f, 1.0f}));
-    root.child(label("nothing here tiles and nothing repeats: each sector "
-                     "is a different neighborhood of the same element tree, "
-                     "numbered as it passes.",
-                     44.0f, {0.93f, 0.96f, 1.0f, 1.0f}));
+    root.child(
+        label("nothing here tiles and nothing repeats: each sector "
+              "is a different neighborhood of the same element tree, "
+              "numbered as it passes.",
+              44.0f, {0.93f, 0.96f, 1.0f, 1.0f}));
     auto row = box().row().gap(6).alignItems(Align::End).height(170);
     for (int i = 0; i < 44; ++i) {
       const float beat =
           0.5f + 0.35f * std::sin((float)i * 0.29f + (float)s * 1.7f);
-      row.child(box().width(6).height(28.0f + 134.0f * beat).corners({3}).fill(
-          Fill::color({0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat})));
+      row.child(box()
+                    .width(6)
+                    .height(28.0f + 134.0f * beat)
+                    .corners({3})
+                    .fill(Fill::color(
+                        {0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat})));
     }
     root.child(std::move(row));
   }
@@ -788,29 +784,28 @@ StripBake bakeStrip(int tiles, int acrossPx, int tileAlongPx) {
   out.tiles = tiles;
   out.acrossPx = acrossPx;
   out.alongPx = tileAlongPx;
-  out.art = snapshot(marqueeStrip((float)acrossPx,
-                                  (float)(tiles * tileAlongPx)),
-                     coreFonts());
+  out.art = snapshot(
+      marqueeStrip((float)acrossPx, (float)(tiles * tileAlongPx)), coreFonts());
   return out;
 }
 
 // One tile of the strip, drawn the way the marquee draws it: mirrored
 // across the band so the wall's u-mapping restores unmirrored glyphs, then
 // stepped to this tile's window.
-void drawTileWindow(SkCanvas *canvas, const StripBake &bake, int k) {
+void drawTileWindow(SkCanvas* canvas, const StripBake& bake, int k) {
   canvas->translate((float)bake.acrossPx, 0);
   canvas->scale(-1, 1);
   canvas->translate(0, -(float)(k * bake.alongPx));
 }
 
-sk_sp<SkSurface> tileSurface(const StripBake &bake) {
+sk_sp<SkSurface> tileSurface(const StripBake& bake) {
   return SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(bake.acrossPx, bake.alongPx));
 }
 
 /** What the bake itself costs — the number the tiling saving has to be
  *  read against, since both happen once. */
-static void BM_Bake_TiledStrip_Snapshot(benchmark::State &state) {
+static void BM_Bake_TiledStrip_Snapshot(benchmark::State& state) {
   const int tiles = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(
@@ -823,12 +818,12 @@ BENCHMARK(BM_Bake_TiledStrip_Snapshot)
     ->Arg(40)
     ->Unit(benchmark::kMillisecond);
 
-static void BM_Bake_TiledStrip_FullReplay(benchmark::State &state) {
+static void BM_Bake_TiledStrip_FullReplay(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   sk_sp<SkSurface> surface = tileSurface(bake);
   for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
-      SkCanvas *canvas = surface->getCanvas();
+      SkCanvas* canvas = surface->getCanvas();
       SkAutoCanvasRestore restore(canvas, true);
       canvas->clear(SK_ColorTRANSPARENT);
       drawTileWindow(canvas, bake, k);
@@ -849,7 +844,7 @@ BENCHMARK(BM_Bake_TiledStrip_FullReplay)
  *  visits only the ops whose bounds meet that tile. This is the cheapest
  *  mechanism a "windowed bake" could actually be: one extra argument to
  *  `beginRecording`. */
-sk_sp<SkPicture> withRTree(const sk_sp<SkPicture> &art) {
+sk_sp<SkPicture> withRTree(const sk_sp<SkPicture>& art) {
   SkRTreeFactory rtree;
   SkPictureRecorder recorder;
   // playback(), not drawPicture(): drawPicture on a recording canvas stores
@@ -858,13 +853,13 @@ sk_sp<SkPicture> withRTree(const sk_sp<SkPicture> &art) {
   return recorder.finishRecordingAsPicture();
 }
 
-static void BM_Bake_TiledStrip_RTreeReplay(benchmark::State &state) {
+static void BM_Bake_TiledStrip_RTreeReplay(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   const sk_sp<SkPicture> art = withRTree(bake.art);
   sk_sp<SkSurface> surface = tileSurface(bake);
   for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
-      SkCanvas *canvas = surface->getCanvas();
+      SkCanvas* canvas = surface->getCanvas();
       SkAutoCanvasRestore restore(canvas, true);
       canvas->clear(SK_ColorTRANSPARENT);
       drawTileWindow(canvas, bake, k);
@@ -883,7 +878,7 @@ BENCHMARK(BM_Bake_TiledStrip_RTreeReplay)
 
 /** What the R-tree recipe COSTS, so it can be told whether it pays: the
  *  re-record plus the tree build, once. */
-static void BM_Bake_TiledStrip_RTreeBuild(benchmark::State &state) {
+static void BM_Bake_TiledStrip_RTreeBuild(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(withRTree(bake.art));
@@ -898,24 +893,24 @@ BENCHMARK(BM_Bake_TiledStrip_RTreeBuild)
 /** The FLOOR: each tile's ops extracted into their own picture ONCE,
  *  outside the timed loop, so the timed work is only what that tile
  *  actually draws. No region bake can beat this. */
-static void BM_Bake_TiledStrip_PerTilePicture(benchmark::State &state) {
+static void BM_Bake_TiledStrip_PerTilePicture(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   const sk_sp<SkPicture> art = withRTree(bake.art);
   std::vector<sk_sp<SkPicture>> windows;
   double ops = 0;
   for (int k = 0; k < bake.tiles; ++k) {
     SkPictureRecorder recorder;
-    SkCanvas *rec =
+    SkCanvas* rec =
         recorder.beginRecording(SkRect::MakeIWH(bake.acrossPx, bake.alongPx));
     drawTileWindow(rec, bake, k);
-    art->playback(rec); // R-tree culls against the recorder's cull rect
+    art->playback(rec);  // R-tree culls against the recorder's cull rect
     windows.push_back(recorder.finishRecordingAsPicture());
     ops += (double)windows.back()->approximateOpCount(true);
   }
   sk_sp<SkSurface> surface = tileSurface(bake);
   for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
-      SkCanvas *canvas = surface->getCanvas();
+      SkCanvas* canvas = surface->getCanvas();
       canvas->clear(SK_ColorTRANSPARENT);
       canvas->drawPicture(windows[(size_t)k]);
     }
@@ -932,7 +927,7 @@ BENCHMARK(BM_Bake_TiledStrip_PerTilePicture)
 
 /** How much of a tile's cost is the raster itself: same tile count, same
  *  surfaces, but nothing replayed. The floor under BOTH arms above. */
-static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State &state) {
+static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   sk_sp<SkSurface> surface = tileSurface(bake);
   for ([[maybe_unused]] auto iteration : state) {
@@ -948,19 +943,18 @@ BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)
     ->Arg(40)
     ->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_GroupCache_Blit(benchmark::State &state) {
+static void BM_Draw_GroupCache_Blit(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(640, 640);
   host.composer.setAutoTexturePromotion(false);
   host.composer.render(groupScene(count, Cache::Group));
-  host.draw(); // establish the subtree-value memo
-  host.draw(); // settle and take the one group bake
+  host.draw();  // establish the subtree-value memo
+  host.draw();  // settle and take the one group bake
   if (host.composer.stats().texturesLive == 0) {
     state.SkipWithError("Cache::Group did not reach the blit state");
     return;
   }
-  for ([[maybe_unused]] auto iteration : state)
-    host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["textures"] = (double)host.composer.stats().texturesLive;
   reportNodes(state, count);
 }
@@ -977,18 +971,18 @@ BENCHMARK(BM_Draw_GroupCache_Blit)
 // therefore paid purely for declaring a binding on a node that is provably
 // holding still.
 
-static void BM_Draw_StillAccent_Bound(benchmark::State &state) {
+static void BM_Draw_StillAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
   choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
   CoreHost host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
   for (int warm = 0; warm < 16; ++warm)
-    host.draw(); // past kScalarSettleFrames and any promotion warmup
+    host.draw();  // past kScalarSettleFrames and any promotion warmup
   if (getenv("COMPOSE_BENCH_WHY")) {
     host.composer.setProfiling(true);
     host.draw();
-    for (const auto &row : host.composer.profile())
+    for (const auto& row : host.composer.profile())
       if (row.depth <= 3)
         printf("  [why] %-28s self=%7.3f ms cache=%d promotion=%d\n",
                row.label.c_str(), row.selfMs, (int)row.cacheState,
@@ -1009,17 +1003,16 @@ BENCHMARK(BM_Draw_StillAccent_Bound)
     ->Arg(512)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_StillAccent_Plain(benchmark::State &state) {
+static void BM_Draw_StillAccent_Plain(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
-  for (int warm = 0; warm < 16; ++warm)
-    host.draw();
+  for (int warm = 0; warm < 16; ++warm) host.draw();
   if (getenv("COMPOSE_BENCH_WHY")) {
     host.composer.setProfiling(true);
     host.draw();
-    for (const auto &row : host.composer.profile())
+    for (const auto& row : host.composer.profile())
       if (row.depth <= 3)
         printf("  [why] %-28s self=%7.3f ms cache=%d promotion=%d\n",
                row.label.c_str(), row.selfMs, (int)row.cacheState,
@@ -1049,14 +1042,13 @@ BENCHMARK(BM_Draw_StillAccent_Plain)
 
 constexpr int kSlowPeriod = 180;
 
-static void BM_Draw_SlowAccent_Bound(benchmark::State &state) {
+static void BM_Draw_SlowAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
   choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
   CoreHost host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
-  for (int warm = 0; warm < 16; ++warm)
-    host.draw();
+  for (int warm = 0; warm < 16; ++warm) host.draw();
   CacheTally tally;
   int frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -1074,19 +1066,18 @@ BENCHMARK(BM_Draw_SlowAccent_Bound)
     ->Arg(512)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_SlowAccent_Plain(benchmark::State &state) {
+static void BM_Draw_SlowAccent_Plain(benchmark::State& state) {
   const int count = (int)state.range(0);
   CoreHost host(900, 900);
   host.composer.render(
       slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
-  for (int warm = 0; warm < 16; ++warm)
-    host.draw();
+  for (int warm = 0; warm < 16; ++warm) host.draw();
   CacheTally tally;
   int frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
     if (++frame % kSlowPeriod == 0)
-      host.composer.render(slowThemedPanel(
-          count, AccentFill::Plain, nullptr, accentColor(frame / kSlowPeriod)));
+      host.composer.render(slowThemedPanel(count, AccentFill::Plain, nullptr,
+                                           accentColor(frame / kSlowPeriod)));
     host.draw();
     tally.add(host.composer.stats());
   }

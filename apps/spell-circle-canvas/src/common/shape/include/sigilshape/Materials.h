@@ -40,7 +40,7 @@ namespace sigil::shape::materials {
 /** An equirect environment (u = azimuth, v = 0 at zenith) with cached
  *  roughness blurs. Copyable handle; blur cache shared. */
 class Environment {
-public:
+ public:
   Environment() = default;
 
   /** Neutral photo-studio bake: graded sky, floor bounce, three
@@ -57,7 +57,7 @@ public:
    *  higher = progressively blurred copies (bucketed, cached). */
   sk_sp<SkImage> image(float roughness = 0) const;
 
-private:
+ private:
   sk_sp<SkImage> m_base;
   std::shared_ptr<std::map<int, sk_sp<SkImage>>> m_blurs;
 };
@@ -66,33 +66,33 @@ private:
  *  covers @p bounds (device px); pixels outside the shape encode flat
  *  (0,0,1). @p bevelPx is the shoulder width; @p heightScale steepens
  *  the bevel (1 = bevel as deep as wide). */
-sk_sp<SkImage> bevelNormals(const SkPath &path, SkIRect bounds,
-                            float bevelPx, float heightScale = 1);
+sk_sp<SkImage> bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
+                            float heightScale = 1);
 
 struct GoldParams {
-  SkColor4f tint = {1.0f, 0.78f, 0.34f, 1}; ///< gold F0
+  SkColor4f tint = {1.0f, 0.78f, 0.34f, 1};  ///< gold F0
   float roughness = 0.25f;
-  float crinkle = 0.35f;      ///< foil wrinkle strength (0 = polished)
-  float crinkleScale = 0.05f; ///< wrinkle frequency (cycles per px)
-  float sparkle = 0.5f;       ///< glint pops on wrinkle highlights
-  float ambient = 0.18f;      ///< floor so shadow sides stay golden
+  float crinkle = 0.35f;       ///< foil wrinkle strength (0 = polished)
+  float crinkleScale = 0.05f;  ///< wrinkle frequency (cycles per px)
+  float sparkle = 0.5f;        ///< glint pops on wrinkle highlights
+  float ambient = 0.18f;       ///< floor so shadow sides stay golden
 };
 
 struct ChromeParams {
-  SkColor4f tint = {0.92f, 0.95f, 1.0f, 1}; ///< cool steel bias
+  SkColor4f tint = {0.92f, 0.95f, 1.0f, 1};  ///< cool steel bias
   float roughness = 0.0f;
-  float contrast = 1.6f; ///< env contrast curve (chrome pops at ~1.6)
-  float brushed = 0.0f;  ///< horizontal anisotropic streak, 0..1
-  float fresnel = 0.6f;  ///< edge-vs-face reflectivity spread
+  float contrast = 1.6f;  ///< env contrast curve (chrome pops at ~1.6)
+  float brushed = 0.0f;   ///< horizontal anisotropic streak, 0..1
+  float fresnel = 0.6f;   ///< edge-vs-face reflectivity spread
   /** Env gain before the contrast curve. Procedural bakes are already
    *  display-bright (leave at 1); real HDRIs of dim studios want 2-3. */
   float exposure = 1.0f;
 };
 
 struct GlassParams {
-  SkColor4f tint = {0.82f, 0.93f, 0.96f, 1}; ///< transmission color
-  float refractPx = 18;    ///< max backdrop displacement at the bevel
-  float reflect = 0.55f;   ///< fresnel reflection strength
+  SkColor4f tint = {0.82f, 0.93f, 0.96f, 1};  ///< transmission color
+  float refractPx = 18;   ///< max backdrop displacement at the bevel
+  float reflect = 0.55f;  ///< fresnel reflection strength
   float roughness = 0.05f;
   float edgeGlow = 0.35f;  ///< bright rim where the surface turns away
   float opacity = 1;
@@ -101,25 +101,24 @@ struct GlassParams {
 /** Material shaders over a normal map + environment. @p origin is the
  *  device position of the normal map's (0,0) so shader xy and normals
  *  align. */
-sk_sp<SkShader> gold(sk_sp<SkImage> normals, const Environment &env,
-                     SkPoint origin, const GoldParams &params = {});
-sk_sp<SkShader> chrome(sk_sp<SkImage> normals, const Environment &env,
-                       SkPoint origin, const ChromeParams &params = {});
+sk_sp<SkShader> gold(sk_sp<SkImage> normals, const Environment& env,
+                     SkPoint origin, const GoldParams& params = {});
+sk_sp<SkShader> chrome(sk_sp<SkImage> normals, const Environment& env,
+                       SkPoint origin, const ChromeParams& params = {});
 /** Glass additionally samples @p backdrop — an image of what sits
  *  behind the shape, in the same device coordinates. */
-sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment &env,
+sk_sp<SkShader> glass(sk_sp<SkImage> normals, const Environment& env,
                       sk_sp<SkImage> backdrop, SkPoint origin,
-                      const GlassParams &params = {});
+                      const GlassParams& params = {});
 
 /** One-call pipeline: bevelNormals over the path's bounds, material
  *  shader, clip to path, fill. */
-void drawGold(SkCanvas &canvas, const SkPath &path, const Environment &env,
-              float bevelPx = 6, const GoldParams &params = {});
-void drawChrome(SkCanvas &canvas, const SkPath &path,
-                const Environment &env, float bevelPx = 6,
-                const ChromeParams &params = {});
-void drawGlass(SkCanvas &canvas, const SkPath &path, const Environment &env,
+void drawGold(SkCanvas& canvas, const SkPath& path, const Environment& env,
+              float bevelPx = 6, const GoldParams& params = {});
+void drawChrome(SkCanvas& canvas, const SkPath& path, const Environment& env,
+                float bevelPx = 6, const ChromeParams& params = {});
+void drawGlass(SkCanvas& canvas, const SkPath& path, const Environment& env,
                sk_sp<SkImage> backdrop, float bevelPx = 10,
-               const GlassParams &params = {});
+               const GlassParams& params = {});
 
-} // namespace sigil::shape::materials
+}  // namespace sigil::shape::materials

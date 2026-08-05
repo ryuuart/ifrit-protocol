@@ -1,14 +1,13 @@
 #include "SceneRenderer.h"
 
-#include <sigilweave/SigilWeave.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
+#include <sigilweave/SigilWeave.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cmath>
@@ -20,16 +19,16 @@ namespace {
 
 // Components store UTF-8 std::strings; the paragraph cache accepts them as
 // u8string_view without copying or transcoding.
-std::u8string_view u8view(const std::string &text) {
-  return {reinterpret_cast<const char8_t *>(text.data()), text.size()};
+std::u8string_view u8view(const std::string& text) {
+  return {reinterpret_cast<const char8_t*>(text.data()), text.size()};
 }
 
-} // namespace
+}  // namespace
 
 SceneRenderer::SceneRenderer() = default;
 SceneRenderer::~SceneRenderer() = default;
 
-sigil::weave::FontContext &SceneRenderer::fontContext() {
+sigil::weave::FontContext& SceneRenderer::fontContext() {
   // Created on first use, on the calling thread (its owner) — all label and
   // paragraph text below goes through it.
   if (!m_textContext)
@@ -38,12 +37,11 @@ sigil::weave::FontContext &SceneRenderer::fontContext() {
   return *m_textContext;
 }
 
-void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
-                         const SceneStyle &style) {
-  if (!skCanvas)
-    return;
+void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
+                         const SceneStyle& style) {
+  if (!skCanvas) return;
 
-  sigil::weave::FontContext &textContext = fontContext();
+  sigil::weave::FontContext& textContext = fontContext();
 
   const SkColor accentColor = style.accentColor;
 
@@ -52,8 +50,7 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   // typeface falls back to the context default so labels never silently
   // draw nothing.
   sk_sp<SkTypeface> typeface = style.typeface;
-  if (!typeface)
-    typeface = textContext.defaultTypeface();
+  if (!typeface) typeface = textContext.defaultTypeface();
   SkFont font(typeface, style.fontSize);
   font.setSubpixel(true);
   font.setEdging(SkFont::Edging::kAntiAlias);
@@ -67,9 +64,9 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   edgePaint.setStyle(SkPaint::kStroke_Style);
   edgePaint.setStrokeWidth(style.strokeWidth);
   edgePaint.setColor(accentColor);
-  for (const auto &edge : scene.edges) {
-    skCanvas->drawLine(edge.first.x, edge.first.y, edge.second.x,
-                       edge.second.y, edgePaint);
+  for (const auto& edge : scene.edges) {
+    skCanvas->drawLine(edge.first.x, edge.first.y, edge.second.x, edge.second.y,
+                       edgePaint);
   }
 
   // ── Circles ──────────────────────────────────────────────────────────────
@@ -84,12 +81,11 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   circleFillPaint.setAntiAlias(true);
   circleFillPaint.setStyle(SkPaint::kFill_Style);
   circleFillPaint.setColor(accentColor);
-  for (const auto &circle : scene.circles) {
+  for (const auto& circle : scene.circles) {
     // A radius-0 circle is an invisible anchor (see isAnchorOnlyCircle in
     // SceneGeometry.cpp) used only to position points/boxes/edges — nothing
     // to draw for it.
-    if (circle.radius <= 0.0f)
-      continue;
+    if (circle.radius <= 0.0f) continue;
 
     const float radius = circle.radius;
     const float centerX = circle.center.x;
@@ -107,18 +103,19 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
       // compensated and centre-anchored on textStart (see
       // spellcircle::makeRingLabelInterval). Rings are origin-centred and
       // cached, so a canvas translate puts the label on the actual circle.
-      const sigil::weave::LineInterval interval = makeRingLabelInterval(
-          m_ringLabelGeometry, fontMetrics, radius + style.labelOffset,
-          circle.textStart);
+      const sigil::weave::LineInterval interval =
+          makeRingLabelInterval(m_ringLabelGeometry, fontMetrics,
+                                radius + style.labelOffset, circle.textStart);
       if (interval.contour) {
-        sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
+        sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
             u8view(circle.name), typeface, style.fontSize);
         sigil::weave::LineSetFlow flow;
         flow.lines().push_back({interval});
         sigil::weave::ParagraphLayoutOptions labelOptions;
         labelOptions.alignment = sigil::weave::TextAlignment::kCenter;
         sigil::weave::ParagraphLayout labelLayout =
-            sigil::weave::layoutParagraph(textContext, label, flow, labelOptions);
+            sigil::weave::layoutParagraph(textContext, label, flow,
+                                          labelOptions);
         sigil::weave::PaintStyle accentPaint(accentColor);
         skCanvas->save();
         skCanvas->translate(centerX, centerY);
@@ -132,12 +129,12 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   // Positioned the same way as a box (anchor pushed outward by boxDistance
   // along the ray from the canvas center), but a point isn't a box: just
   // the text, no rect/stroke/fill around it.
-  for (const auto &pointLabel : scene.pointLabels) {
+  for (const auto& pointLabel : scene.pointLabels) {
     const float centerX =
         pointLabel.anchor.x + pointLabel.direction.x * style.pointDistance;
     const float centerY =
         pointLabel.anchor.y + pointLabel.direction.y * style.pointDistance;
-    sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
+    sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
         u8view(pointLabel.value), typeface, style.fontSize);
     const float textWidth = label.naturalWidth(textContext);
     sigil::weave::ParagraphLayout labelLayout = sigil::weave::layoutSingleLine(
@@ -161,8 +158,8 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   boxStrokePaint.setStyle(SkPaint::kStroke_Style);
   boxStrokePaint.setStrokeWidth(style.strokeWidth);
   boxStrokePaint.setColor(accentColor);
-  for (const auto &box : scene.boxes) {
-    sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
+  for (const auto& box : scene.boxes) {
+    sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
         u8view(box.value), typeface, style.fontSize);
     const float textWidth = label.naturalWidth(textContext);
     const float resolvedBoxWidth =
@@ -220,4 +217,4 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   }
 }
 
-} // namespace spellcircle
+}  // namespace spellcircle

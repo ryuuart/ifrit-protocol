@@ -1,3 +1,15 @@
+#include <Alembic/Abc/All.h>
+#include <Alembic/AbcCoreOgawa/All.h>
+#include <Alembic/AbcGeom/All.h>
+#include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
+
+#include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "sigilshape/Blend.h"
 #include "sigilshape/Curves.h"
 #include "sigilshape/Easel.h"
@@ -11,21 +23,6 @@
 #include "sigilshape/Save.h"
 #include "sigilshape/Space.h"
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
-
-#include <Alembic/Abc/All.h>
-#include <Alembic/AbcCoreOgawa/All.h>
-#include <Alembic/AbcGeom/All.h>
-
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <gtest/gtest.h>
-
-#include <cmath>
-
 using namespace sigil::shape;
 
 namespace {
@@ -34,7 +31,7 @@ SkPath rect(float x, float y, float w, float h) {
   return SkPath::Rect(SkRect::MakeXYWH(x, y, w, h));
 }
 
-} // namespace
+}  // namespace
 
 // --- Geometry -------------------------------------------------------------
 
@@ -54,7 +51,7 @@ TEST(Geometry, FlattenCircleHitsTolerance) {
   // radius; the tolerance argument bounds how far the straight chords
   // BETWEEN them may sag inside the arc. That sag is also why the polyline
   // perimeter comes in slightly under the true circumference.
-  for (const SkPoint &p : contours[0].points) {
+  for (const SkPoint& p : contours[0].points) {
     const float r = std::sqrt(p.fX * p.fX + p.fY * p.fY);
     EXPECT_NEAR(r, 100.0f, 0.5f);
   }
@@ -113,7 +110,7 @@ TEST(Blend, EndpointsMatchKeysExactly) {
   blend::Options options;
   options.steps = 3;
   const std::vector<blend::Step> steps = blend::make(from, to, options);
-  ASSERT_EQ(steps.size(), 5u); // 2 keys + 3 intermediates
+  ASSERT_EQ(steps.size(), 5u);  // 2 keys + 3 intermediates
   EXPECT_EQ(steps.front().t, 0.0f);
   EXPECT_EQ(steps.back().t, 1.0f);
   // Endpoint colors are the key colors (OKLab is identity at t=0/1).
@@ -128,8 +125,7 @@ TEST(Blend, EndpointsMatchKeysExactly) {
 TEST(Blend, SmoothColorScalesWithColorDistance) {
   blend::Key white{SkPath::Circle(0, 0, 10), {1, 1, 1, 1}};
   blend::Key black{SkPath::Circle(100, 0, 10), {0, 0, 0, 1}};
-  blend::Key nearWhite{SkPath::Circle(100, 0, 10),
-                       {0.95f, 0.95f, 0.95f, 1}};
+  blend::Key nearWhite{SkPath::Circle(100, 0, 10), {0.95f, 0.95f, 0.95f, 1}};
   blend::Options options;
   options.spacing = blend::Spacing::SmoothColor;
   const size_t far = blend::make(white, black, options).size();
@@ -154,8 +150,8 @@ TEST(Blend, DistanceSpacingCountsSpineLength) {
 }
 
 TEST(Blend, OklabMidGrayIsPerceptual) {
-  const SkColor4f mid = blend::detail::lerpOklab(
-      {0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
+  const SkColor4f mid =
+      blend::detail::lerpOklab({0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
   // OKLab L is cube-root lightness: its black-white midpoint is linear
   // luminance 0.125 = sRGB ~0.389 — well below a naive sRGB lerp's 0.5
   // and far below a linear-light lerp's 0.735.
@@ -167,9 +163,9 @@ TEST(Blend, OklabMidGrayIsPerceptual) {
 TEST(Blend, SpinePlacesStepsAlongPath) {
   SkPathBuilder spine;
   spine.moveTo({0, 0});
-  spine.lineTo({0, 400}); // vertical spine
+  spine.lineTo({0, 400});  // vertical spine
   blend::Key from{SkPath::Circle(0, 0, 10), {1, 0, 0, 1}};
-  blend::Key to{SkPath::Circle(0, 0, 10), {0, 1, 0, 1}}; // same spot
+  blend::Key to{SkPath::Circle(0, 0, 10), {0, 1, 0, 1}};  // same spot
   blend::Options options;
   options.steps = 3;
   options.spine = spine.detach();
@@ -177,13 +173,12 @@ TEST(Blend, SpinePlacesStepsAlongPath) {
   ASSERT_EQ(steps.size(), 5u);
   // Steps should march down the vertical spine.
   float lastY = -1;
-  for (const blend::Step &step : steps) {
+  for (const blend::Step& step : steps) {
     const float y = step.path.computeTightBounds().centerY();
     EXPECT_GT(y, lastY);
     lastY = y;
   }
-  EXPECT_NEAR(steps.back().path.computeTightBounds().centerY(), 400.0f,
-              2.0f);
+  EXPECT_NEAR(steps.back().path.computeTightBounds().centerY(), 400.0f, 2.0f);
 }
 
 // --- Mesh -----------------------------------------------------------------
@@ -201,8 +196,7 @@ TEST(Mesh, ExtrudeRectMakesABox) {
   // 2 caps (2 tris each) + 4 walls (2 tris each) = 12 triangles.
   EXPECT_EQ(m.triangleCount(), 12u);
   // All normals unit length.
-  for (const glm::vec3 &n : m.normals)
-    EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
+  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
 }
 
 TEST(Mesh, ExtrudeAnnulusKeepsHole) {
@@ -219,9 +213,9 @@ TEST(Mesh, ExtrudeAnnulusKeepsHole) {
   // always under-measures.
   double area = 0;
   for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
-    const glm::vec3 &a = m.positions[m.indices[t]];
-    const glm::vec3 &b = m.positions[m.indices[t + 1]];
-    const glm::vec3 &c = m.positions[m.indices[t + 2]];
+    const glm::vec3& a = m.positions[m.indices[t]];
+    const glm::vec3& b = m.positions[m.indices[t + 1]];
+    const glm::vec3& c = m.positions[m.indices[t + 2]];
     if (a.z > 4.9f && b.z > 4.9f && c.z > 4.9f) {
       const glm::vec3 ab = b - a, ac = c - a;
       area += 0.5 * std::abs((double)ab.x * ac.y - (double)ab.y * ac.x);
@@ -232,11 +226,10 @@ TEST(Mesh, ExtrudeAnnulusKeepsHole) {
 }
 
 TEST(Mesh, GridUvAndIndicesCoherent) {
-  Mesh m = mesh::grid(4, 3, [](float u, float v) -> glm::vec3 {
-    return {u * 10, v * 10, 0};
-  });
+  Mesh m = mesh::grid(
+      4, 3, [](float u, float v) -> glm::vec3 { return {u * 10, v * 10, 0}; });
   EXPECT_EQ(m.vertexCount(), 12u);
-  EXPECT_EQ(m.triangleCount(), 12u); // 3x2 cells * 2
+  EXPECT_EQ(m.triangleCount(), 12u);  // 3x2 cells * 2
   // UV origin is TOP-left, matching how images are addressed, while the
   // generator's v parameter runs bottom-up across the sheet. The two are
   // therefore opposite: v = 0 in the generator lands at uv.y = 1. Get this
@@ -244,8 +237,7 @@ TEST(Mesh, GridUvAndIndicesCoherent) {
   EXPECT_EQ(m.uvs.front().x, 0.0f);
   EXPECT_EQ(m.uvs.front().y, 1.0f);
   EXPECT_EQ(m.uvs.back().y, 0.0f);
-  for (uint32_t i : m.indices)
-    EXPECT_LT(i, m.vertexCount());
+  for (uint32_t i : m.indices) EXPECT_LT(i, m.vertexCount());
 }
 
 TEST(Mesh, TorusNormalsPointOutward) {
@@ -256,8 +248,7 @@ TEST(Mesh, TorusNormalsPointOutward) {
   // inside out.
   const glm::vec3 n0 = m.normals.front();
   EXPECT_GT(std::abs(n0.x), 0.7f);
-  for (const glm::vec3 &n : m.normals)
-    EXPECT_NEAR(glm::length(n), 1.0f, 1e-3f);
+  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-3f);
 }
 
 TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {
@@ -266,8 +257,7 @@ TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {
   glm::vec3 lo, hi;
   m.bounds(&lo, &hi);
   EXPECT_NEAR((lo.x + hi.x) * 0.5f, 5.0f, 1e-4f);
-  for (const glm::vec3 &n : m.normals)
-    EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
+  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
 }
 
 TEST(Mesh, TransformRotatesNormalsForward) {
@@ -277,9 +267,8 @@ TEST(Mesh, TransformRotatesNormalsForward) {
   // degree turn about z would come out at {0,-1,0} instead of {0,1,0}.
   Mesh m = mesh::quad(10, 10);
   m.normals.assign(m.vertexCount(), {1, 0, 0});
-  m.transform(
-      glm::rotate(glm::mat4(1.0f), (float)M_PI * 0.5f, {0, 0, 1}));
-  for (const glm::vec3 &n : m.normals) {
+  m.transform(glm::rotate(glm::mat4(1.0f), (float)M_PI * 0.5f, {0, 0, 1}));
+  for (const glm::vec3& n : m.normals) {
     EXPECT_NEAR(n.x, 0.0f, 1e-4f);
     EXPECT_NEAR(n.y, 1.0f, 1e-4f);
     EXPECT_NEAR(n.z, 0.0f, 1e-4f);
@@ -289,7 +278,7 @@ TEST(Mesh, TransformRotatesNormalsForward) {
   Mesh s = mesh::quad(10, 10);
   s.normals.assign(s.vertexCount(), {1, 0, 0});
   s.transform(glm::scale(glm::mat4(1.0f), {2, 1, 1}));
-  for (const glm::vec3 &n : s.normals) {
+  for (const glm::vec3& n : s.normals) {
     EXPECT_NEAR(n.x, 1.0f, 1e-4f);
     EXPECT_NEAR(n.y, 0.0f, 1e-4f);
     EXPECT_NEAR(n.z, 0.0f, 1e-4f);
@@ -307,7 +296,7 @@ TEST(Mesh, AppendKeepsNormalAndUvLanesSizedToPositions) {
   // The mismatch is easy to author by accident: points::instance copies
   // only the lanes the stamp actually has, so a stamp of bare positions and
   // indices instances into a mesh with no normals and no uvs at all.
-  Mesh stamp; // a bare triangle: no normals, no uvs
+  Mesh stamp;  // a bare triangle: no normals, no uvs
   stamp.positions = {{-2, -2, 0}, {2, -2, 0}, {0, 2, 0}};
   stamp.indices = {0, 1, 2};
   const Cloud cloud = points::ring({0, 0, 0}, 50, 4);
@@ -368,13 +357,13 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   a.normals.assign(4, glm::vec3{0, 0, 1});
   a.uvs.assign(4, glm::vec2{0.25f, 0.5f});
 
-  Mesh b; // 4 vertices / 2 triangles, but every lane one entry short
+  Mesh b;  // 4 vertices / 2 triangles, but every lane one entry short
   b.positions = {{0, 0, 10}, {10, 0, 10}, {10, 10, 10}, {0, 10, 10}};
   b.indices = {0, 1, 2, 0, 2, 3};
   b.colors = {{0, 1, 0, 1}, {0, 1, 0, 1}, {0, 1, 0, 1}};
   b.normals = {{1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
   b.uvs = {{1, 1}, {1, 1}, {1, 1}};
-  b.prims["heat"] = {{5, 0, 0, 0}}; // 1 entry for 2 triangles
+  b.prims["heat"] = {{5, 0, 0, 0}};  // 1 entry for 2 triangles
 
   a.append(b);
   ASSERT_EQ(a.positions.size(), 8u);
@@ -388,17 +377,17 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   EXPECT_EQ(a.colors[0], (glm::vec4{1, 0, 0, 1}));
   EXPECT_EQ(a.colors[4], (glm::vec4{0, 1, 0, 1}));
   EXPECT_EQ(a.colors[7], (glm::vec4{1, 1, 1, 1})) << "pad stays white";
-  EXPECT_NEAR(a.normals[7].z, 1.0f, 1e-6f); // +Z, never a zero normal
+  EXPECT_NEAR(a.normals[7].z, 1.0f, 1e-6f);  // +Z, never a zero normal
   EXPECT_NEAR(a.uvs[7].x, 0.0f, 1e-6f);
   EXPECT_NEAR(a.uvs[7].y, 0.0f, 1e-6f);
   // Prim lanes are counted per TRIANGLE rather than per vertex, and are
   // padded the same way, by the convention their lane name implies.
   ASSERT_EQ(a.triangleCount(), 4u);
-  const std::vector<glm::vec4> *heat = a.primIf("heat");
+  const std::vector<glm::vec4>* heat = a.primIf("heat");
   ASSERT_TRUE(heat);
   ASSERT_EQ(heat->size(), 4u) << "short incoming prim lane";
-  EXPECT_FLOAT_EQ((*heat)[2].x, 5.0f); // theirs
-  EXPECT_FLOAT_EQ((*heat)[3].x, 0.0f); // padded by name
+  EXPECT_FLOAT_EQ((*heat)[2].x, 5.0f);  // theirs
+  EXPECT_FLOAT_EQ((*heat)[3].x, 0.0f);  // padded by name
 
   // Mirror case: the short lane belongs to the receiving mesh. It is padded
   // up to the old element count first, so the incoming values still land at
@@ -406,7 +395,7 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   Mesh shortSide;
   shortSide.positions = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}};
   shortSide.indices = {0, 1, 2};
-  shortSide.colors = {{0, 0, 1, 1}}; // 1 entry for 3 vertices
+  shortSide.colors = {{0, 0, 1, 1}};  // 1 entry for 3 vertices
   Mesh full;
   full.positions = {{5, 0, 0}, {6, 0, 0}, {6, 1, 0}};
   full.indices = {0, 1, 2};
@@ -441,13 +430,12 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   // the world up vector and the side vector degenerates.
   const glm::vec3 at = {40, -25, 60};
   const glm::vec3 eyes[] = {
-      {0, 200, 1150},   // an ordinary camera, well in front
-      {-820, 260, -320},
-      {40, -25, 61},    // almost on top of the panel
-      {40, 900, 60},    // directly ABOVE: dir ≈ +up, degenerate side
-      {40, -900, 60},   // directly below: dir ≈ -up
+      {0, 200, 1150},                    // an ordinary camera, well in front
+      {-820, 260, -320}, {40, -25, 61},  // almost on top of the panel
+      {40, 900, 60},   // directly ABOVE: dir ≈ +up, degenerate side
+      {40, -900, 60},  // directly below: dir ≈ -up
   };
-  for (const glm::vec3 &eye : eyes) {
+  for (const glm::vec3& eye : eyes) {
     const glm::mat4 m = space::faceCamera(eye, at);
     // Translation is the anchor.
     EXPECT_NEAR(m[3][0], at.x, 1e-5f);
@@ -488,8 +476,7 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   const glm::mat4 m = space::faceCamera(eye, at);
   ASSERT_EQ(stamped.positions.size(), quad.positions.size());
   for (size_t i = 0; i < quad.positions.size(); ++i) {
-    const glm::vec3 viaMatrix =
-        glm::vec3(m * glm::vec4(quad.positions[i], 1));
+    const glm::vec3 viaMatrix = glm::vec3(m * glm::vec4(quad.positions[i], 1));
     EXPECT_NEAR(glm::length(viaMatrix - stamped.positions[i]), 0.0f, 1e-4f)
         << "vertex " << i;
   }
@@ -543,8 +530,8 @@ TEST(Space, NormalsModeEncodesDeviceSpaceYDown) {
   sk_sp<SkSurface> tilted =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
   tilted->getCanvas()->clear(SK_ColorBLACK);
-  const glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f),
-                                      glm::vec3{1, 0, 0});
+  const glm::mat4 model =
+      glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f), glm::vec3{1, 0, 0});
   space::drawMesh(*tilted->getCanvas(), sigil::shape::mesh::quad(100, 100),
                   model, camera, {200, 150}, style);
   SkBitmap tiltedBm;
@@ -566,8 +553,7 @@ TEST(Materials, EffectsCompileAndShade) {
   EXPECT_TRUE(materials::chrome(normals, env, {0, 0}));
   sk_sp<SkImage> backdrop;
   {
-    sk_sp<SkSurface> s =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(80, 80));
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(80, 80));
     s->getCanvas()->clear(SK_ColorCYAN);
     backdrop = s->makeImageSnapshot();
   }
@@ -579,8 +565,8 @@ TEST(Materials, DrawChromeShadesInsideShapeOnly) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
   const materials::Environment env = materials::Environment::studio(128);
-  materials::drawChrome(*surface->getCanvas(),
-                        SkPath::Circle(60, 60, 40), env, 8);
+  materials::drawChrome(*surface->getCanvas(), SkPath::Circle(60, 60, 40), env,
+                        8);
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
@@ -639,9 +625,8 @@ TEST(Ops, PathfinderBooleans) {
   // them.
   const SkPath xr = ops::exclude(a, b);
   EXPECT_NEAR(xr.computeTightBounds().width(), 150, 1e-3);
-  EXPECT_FALSE(xr.contains(75, 50)); // the overlap is punched out
-  EXPECT_TRUE(ops::unite({a, b, rect(140, 0, 100, 100)})
-                  .contains(200, 50));
+  EXPECT_FALSE(xr.contains(75, 50));  // the overlap is punched out
+  EXPECT_TRUE(ops::unite({a, b, rect(140, 0, 100, 100)}).contains(200, 50));
 }
 
 // Offset distance is a radius, not a diameter: a positive amount grows the
@@ -666,13 +651,12 @@ TEST(Ops, DistortsKeepBoundsSane) {
   EXPECT_LT(std::abs(roughened.centerX() - 100), 4);
   EXPECT_LT(roughened.width(), 120 + 2 * 6 + 2);
   const SkPath twirled = ops::Twirl{90}.apply(base);
-  EXPECT_LT(
-      std::abs(twirled.computeTightBounds().centerX() - 100), 4);
+  EXPECT_LT(std::abs(twirled.computeTightBounds().centerX() - 100), 4);
   const SkRect bloated =
       ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
-  EXPECT_GT(bloated.width(), 118); // bloat pushes outward, never inward
-  const SkPath chained = ops::chain(
-      {ops::offsetBy(6), ops::Zigzag{4, 20}})(base);
+  EXPECT_GT(bloated.width(), 118);  // bloat pushes outward, never inward
+  const SkPath chained =
+      ops::chain({ops::offsetBy(6), ops::Zigzag{4, 20}})(base);
   EXPECT_FALSE(chained.isEmpty());
 }
 
@@ -716,14 +700,13 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
   knot.closed = true;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    knot.points.push_back({std::cos(a) * 100,
-                           std::sin(a * 2) * 40,
-                           std::sin(a) * 100});
+    knot.points.push_back(
+        {std::cos(a) * 100, std::sin(a * 2) * 40, std::sin(a) * 100});
   }
   const std::vector<Frame3> rail = curves::frames(knot, 64);
   ASSERT_EQ(rail.size(), 64u);
   for (size_t i = 0; i < rail.size(); ++i) {
-    const Frame3 &f = rail[i];
+    const Frame3& f = rail[i];
     EXPECT_NEAR(glm::length(f.tangent), 1, 1e-3);
     EXPECT_NEAR(glm::length(f.normal), 1, 1e-3);
     EXPECT_NEAR(glm::dot(f.tangent, f.normal), 0, 1e-3);
@@ -731,8 +714,7 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
     // normal is the previous one rotated as little as the tangent allows.
     // A frame built independently per sample (from a fixed up vector, say)
     // would flip near vertical tangents and twist any swept surface.
-    if (i > 0)
-      EXPECT_GT(glm::dot(f.normal, rail[i - 1].normal), 0.5f);
+    if (i > 0) EXPECT_GT(glm::dot(f.normal, rail[i - 1].normal), 0.5f);
   }
 }
 
@@ -742,13 +724,12 @@ TEST(Curves, TubeAndRibbonAreWellFormed) {
   const Mesh t = curves::tube(arc, {.radius = 8, .segments = 24, .sides = 8});
   EXPECT_GT(t.triangleCount(), 0u);
   EXPECT_EQ(t.normals.size(), t.vertexCount());
-  for (const glm::vec3 &n : t.normals)
-    EXPECT_NEAR(glm::length(n), 1, 1e-3);
+  for (const glm::vec3& n : t.normals) EXPECT_NEAR(glm::length(n), 1, 1e-3);
   // A ribbon is a strip: `segments` cross-sections of two vertices each,
   // and two triangles per gap between consecutive sections.
   const Mesh r = curves::ribbon(arc, {.width = 20, .segments = 24});
-  EXPECT_EQ(r.vertexCount(), 48u);     // 24 * 2
-  EXPECT_EQ(r.triangleCount(), 46u);   // (24 - 1) * 2
+  EXPECT_EQ(r.vertexCount(), 48u);    // 24 * 2
+  EXPECT_EQ(r.triangleCount(), 46u);  // (24 - 1) * 2
 }
 
 // curves::project() flattens a 3D spline to a 2D SkPath through the same
@@ -787,24 +768,24 @@ TEST(Points, GeneratorsWriteLanes) {
   EXPECT_EQ(circle.size(), 8u);
   // A ring is laid out in the plane perpendicular to its axis, and the
   // default axis is +y, so an unaxised ring lives in the xz plane at y = 0.
-  for (const glm::vec3 &p : circle.positions) {
+  for (const glm::vec3& p : circle.positions) {
     EXPECT_NEAR(glm::length(p), 50, 1e-2);
     EXPECT_NEAR(p.y, 0, 1e-3);
   }
 
   Cloud box = points::scatterBox({0, 0, 0}, {10, 10, 10}, 100, 3);
   EXPECT_EQ(box.size(), 100u);
-  for (const glm::vec3 &p : box.positions) {
+  for (const glm::vec3& p : box.positions) {
     EXPECT_GE(p.x, 0);
     EXPECT_LE(p.x, 10);
   }
 }
 
 TEST(Points, OnMeshLandsOnSurface) {
-  const Mesh quad = mesh::quad(100, 100); // z = 0 plane
+  const Mesh quad = mesh::quad(100, 100);  // z = 0 plane
   Cloud cloud = points::onMesh(quad, 64, 5);
   ASSERT_EQ(cloud.size(), 64u);
-  for (const glm::vec3 &p : cloud.positions) {
+  for (const glm::vec3& p : cloud.positions) {
     EXPECT_NEAR(p.z, 0, 1e-4);
     EXPECT_LE(std::abs(p.x), 50.01f);
   }
@@ -814,9 +795,9 @@ TEST(Points, OnMeshLandsOnSurface) {
 
 TEST(Points, InstanceStampsWithLanes) {
   Cloud cloud = points::ring({0, 0, 0}, 80, 6);
-  std::vector<float> &size = cloud.scalar("size", 1);
+  std::vector<float>& size = cloud.scalar("size", 1);
   size[0] = 2;
-  std::vector<glm::vec4> &tint = cloud.color("tint");
+  std::vector<glm::vec4>& tint = cloud.color("tint");
   tint[0] = {1, 0, 0, 1};
   const Mesh stamp = mesh::quad(10, 10);
   points::InstanceOptions options;
@@ -853,23 +834,23 @@ TEST(Points, AppendPadsLanesWithConventionalDefaults) {
   b.color("Tex", {0.5f, 0.5f, 0.5f, 0.5f});
   a.append(b);
   ASSERT_EQ(a.size(), 4u);
-  const std::vector<float> *size = a.scalarIf("size");
+  const std::vector<float>* size = a.scalarIf("size");
   ASSERT_TRUE(size);
   ASSERT_EQ(size->size(), 4u);
-  EXPECT_FLOAT_EQ((*size)[0], 1.0f); // a's side: scale 1, visible
+  EXPECT_FLOAT_EQ((*size)[0], 1.0f);  // a's side: scale 1, visible
   EXPECT_FLOAT_EQ((*size)[1], 1.0f);
-  EXPECT_FLOAT_EQ((*size)[2], 2.0f); // b's actual values
+  EXPECT_FLOAT_EQ((*size)[2], 2.0f);  // b's actual values
   EXPECT_FLOAT_EQ((*size)[3], 2.0f);
-  const std::vector<glm::vec4> *tex = a.colorIf("Tex");
+  const std::vector<glm::vec4>* tex = a.colorIf("Tex");
   ASSERT_TRUE(tex);
   ASSERT_EQ(tex->size(), 4u);
-  for (size_t i = 0; i < 2; ++i) { // a's side: identity uv window
+  for (size_t i = 0; i < 2; ++i) {  // a's side: identity uv window
     EXPECT_FLOAT_EQ((*tex)[i].x, 0.0f);
     EXPECT_FLOAT_EQ((*tex)[i].y, 0.0f);
     EXPECT_FLOAT_EQ((*tex)[i].z, 1.0f);
     EXPECT_FLOAT_EQ((*tex)[i].w, 1.0f);
   }
-  EXPECT_FLOAT_EQ((*tex)[2].x, 0.5f); // b's actual window
+  EXPECT_FLOAT_EQ((*tex)[2].x, 0.5f);  // b's actual window
 }
 
 TEST(Points, BillboardsCoverPixels) {
@@ -882,8 +863,8 @@ TEST(Points, BillboardsCoverPixels) {
   points::BillboardStyle style;
   style.size = 24;
   style.tint = {0, 1, 0, 1};
-  points::drawBillboards(*surface->getCanvas(), cloud, camera,
-                         {200, 150}, style);
+  points::drawBillboards(*surface->getCanvas(), cloud, camera, {200, 150},
+                         style);
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
@@ -893,8 +874,7 @@ TEST(Points, BillboardsCoverPixels) {
   int lit = 0;
   for (int y = 0; y < 150; ++y)
     for (int x = 0; x < 200; ++x)
-      if (SkColorGetG(bm.getColor(x, y)) > 30)
-        ++lit;
+      if (SkColorGetG(bm.getColor(x, y)) > 30) ++lit;
   EXPECT_GT(lit, 200);
 }
 
@@ -909,7 +889,7 @@ TEST(Easel, ShapeRecipeCooksNonDestructively) {
   const SkPath once = recipe.path();
   const SkPath twice = recipe.path();
   EXPECT_EQ(once.countPoints(), twice.countPoints());
-  EXPECT_GT(once.computeTightBounds().width(), 115); // grew by ~offset
+  EXPECT_GT(once.computeTightBounds().width(), 115);  // grew by ~offset
   // Extending a copy must not reach back into the original recipe.
   easel::Shape copy = recipe;
   copy.twirl(90);
@@ -926,13 +906,12 @@ TEST(Easel, BlendReadsLikeIllustrator) {
           .cook();
   // steps(n) counts INTERMEDIATES, as it does in a drawing program's blend
   // dialog: the two keys are always present on top of it.
-  EXPECT_EQ(steps.size(), 9u); // 2 keys + 7
+  EXPECT_EQ(steps.size(), 9u);  // 2 keys + 7
   EXPECT_NEAR(steps.back().path.computeTightBounds().centerX(), 400, 2);
 }
 
 TEST(Easel, WireAndParticlesCook) {
-  const easel::Wire arc =
-      easel::wire({{-100, 0, 0}, {0, 80, 0}, {100, 0, 0}});
+  const easel::Wire arc = easel::wire({{-100, 0, 0}, {0, 80, 0}, {100, 0, 0}});
   EXPECT_GT(arc.tube(8).triangleCount(), 0u);
   EXPECT_EQ(arc.beads(12).size(), 12u);
 
@@ -956,20 +935,18 @@ using import::Model;
 using import::Part;
 
 std::vector<std::byte> toBytes(std::string_view text) {
-  const auto *begin = reinterpret_cast<const std::byte *>(text.data());
+  const auto* begin = reinterpret_cast<const std::byte*>(text.data());
   return {begin, begin + text.size()};
 }
 
-std::string base64(const std::vector<std::byte> &bytes) {
-  static const char *alphabet =
+std::string base64(const std::vector<std::byte>& bytes) {
+  static const char* alphabet =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   std::string out;
   for (size_t i = 0; i < bytes.size(); i += 3) {
     uint32_t chunk = (uint32_t)bytes[i] << 16;
-    if (i + 1 < bytes.size())
-      chunk |= (uint32_t)bytes[i + 1] << 8;
-    if (i + 2 < bytes.size())
-      chunk |= (uint32_t)bytes[i + 2];
+    if (i + 1 < bytes.size()) chunk |= (uint32_t)bytes[i + 1] << 8;
+    if (i + 2 < bytes.size()) chunk |= (uint32_t)bytes[i + 2];
     out.push_back(alphabet[(chunk >> 18) & 63]);
     out.push_back(alphabet[(chunk >> 12) & 63]);
     out.push_back(i + 1 < bytes.size() ? alphabet[(chunk >> 6) & 63] : '=');
@@ -979,8 +956,8 @@ std::string base64(const std::vector<std::byte> &bytes) {
 }
 
 template <typename T>
-void appendRaw(std::vector<std::byte> &out, const T &value) {
-  const auto *begin = reinterpret_cast<const std::byte *>(&value);
+void appendRaw(std::vector<std::byte>& out, const T& value) {
+  const auto* begin = reinterpret_cast<const std::byte*>(&value);
   out.insert(out.end(), begin, begin + sizeof(T));
 }
 
@@ -988,10 +965,8 @@ void appendRaw(std::vector<std::byte> &out, const T &value) {
 std::vector<std::byte> triangleBufferBytes() {
   std::vector<std::byte> bin;
   const float positions[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
-  for (float f : positions)
-    appendRaw(bin, f);
-  for (uint16_t i : {uint16_t(0), uint16_t(1), uint16_t(2)})
-    appendRaw(bin, i);
+  for (float f : positions) appendRaw(bin, f);
+  for (uint16_t i : {uint16_t(0), uint16_t(1), uint16_t(2)}) appendRaw(bin, i);
   return bin;
 }
 
@@ -999,10 +974,9 @@ std::vector<std::byte> triangleBufferBytes() {
  *  triangle. The node transform is deliberately non-identity so tests can
  *  tell whether it was applied. @p bufferUri empty writes no uri member,
  *  which is how a GLB's embedded buffer is spelled. */
-std::string triangleGltfJson(const std::string &bufferUri) {
+std::string triangleGltfJson(const std::string& bufferUri) {
   std::string buffer = "{\"byteLength\": 42";
-  if (!bufferUri.empty())
-    buffer += ", \"uri\": \"" + bufferUri + "\"";
+  if (!bufferUri.empty()) buffer += ", \"uri\": \"" + bufferUri + "\"";
   buffer += "}";
   return R"({
   "asset": {"version": "2.0"},
@@ -1028,26 +1002,23 @@ std::string triangleGltfJson(const std::string &bufferUri) {
 
 std::vector<std::byte> glbBytes() {
   std::string json = triangleGltfJson("");
-  while (json.size() % 4)
-    json.push_back(' ');
+  while (json.size() % 4) json.push_back(' ');
   std::vector<std::byte> bin = triangleBufferBytes();
-  while (bin.size() % 4)
-    bin.push_back(std::byte{0});
+  while (bin.size() % 4) bin.push_back(std::byte{0});
   std::vector<std::byte> out;
-  appendRaw(out, (uint32_t)0x46546C67); // "glTF"
+  appendRaw(out, (uint32_t)0x46546C67);  // "glTF"
   appendRaw(out, (uint32_t)2);
   appendRaw(out, (uint32_t)(12 + 8 + json.size() + 8 + bin.size()));
   appendRaw(out, (uint32_t)json.size());
-  appendRaw(out, (uint32_t)0x4E4F534A); // "JSON"
-  for (char c : json)
-    out.push_back((std::byte)c);
+  appendRaw(out, (uint32_t)0x4E4F534A);  // "JSON"
+  for (char c : json) out.push_back((std::byte)c);
   appendRaw(out, (uint32_t)bin.size());
-  appendRaw(out, (uint32_t)0x004E4942); // "BIN"
+  appendRaw(out, (uint32_t)0x004E4942);  // "BIN"
   out.insert(out.end(), bin.begin(), bin.end());
   return out;
 }
 
-constexpr const char *kCubeObj = R"(mtllib cube.mtl
+constexpr const char* kCubeObj = R"(mtllib cube.mtl
 o Cube
 v -1 -1 -1
 v 1 -1 -1
@@ -1066,26 +1037,25 @@ f 3 7 8 4
 f 4 8 5 1
 )";
 
-constexpr const char *kCubeMtl = R"(newmtl scarlet
+constexpr const char* kCubeMtl = R"(newmtl scarlet
 Kd 1 0 0
 )";
 
-} // namespace
+}  // namespace
 
 TEST(Import, ObjCubeWithMaterialThroughResolver) {
   std::vector<std::string> asked;
   const import::Resolver resolve =
       [&](std::string_view uri) -> std::optional<std::vector<std::byte>> {
     asked.emplace_back(uri);
-    if (uri == "cube.mtl")
-      return toBytes(kCubeMtl);
+    if (uri == "cube.mtl") return toBytes(kCubeMtl);
     return std::nullopt;
   };
   const std::string obj = kCubeObj;
   auto model = import::model(obj.data(), obj.size(), "cube.obj", resolve);
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 1u);
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   EXPECT_EQ(part.name, "Cube");
   // Corners shared by several faces collapse to one vertex where their
   // (position, uv, normal) agree, so a cube stays 8 vertices instead of 24,
@@ -1109,12 +1079,11 @@ TEST(Import, ObjCubeWithMaterialThroughResolver) {
 
 TEST(Import, GltfEmbeddedBase64Buffer) {
   const std::string json = triangleGltfJson(
-      "data:application/octet-stream;base64," +
-      base64(triangleBufferBytes()));
+      "data:application/octet-stream;base64," + base64(triangleBufferBytes()));
   auto model = import::model(json.data(), json.size(), "tri.gltf");
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 1u);
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   EXPECT_EQ(part.name, "tri");
   EXPECT_EQ(part.mesh.vertexCount(), 3u);
   EXPECT_EQ(part.mesh.triangleCount(), 1u);
@@ -1133,17 +1102,14 @@ TEST(Import, GltfExternalBufferThroughResolver) {
   const std::string json = triangleGltfJson("tri.bin");
   const import::Resolver resolve =
       [](std::string_view uri) -> std::optional<std::vector<std::byte>> {
-    if (uri == "tri.bin")
-      return triangleBufferBytes();
+    if (uri == "tri.bin") return triangleBufferBytes();
     return std::nullopt;
   };
-  auto model = import::model(json.data(), json.size(), "tri.gltf",
-                             resolve);
+  auto model = import::model(json.data(), json.size(), "tri.gltf", resolve);
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->triangleCount(), 1u);
   // Without the resolver the external buffer is unreachable.
-  EXPECT_FALSE(
-      import::model(json.data(), json.size(), "tri.gltf").has_value());
+  EXPECT_FALSE(import::model(json.data(), json.size(), "tri.gltf").has_value());
 }
 
 TEST(Import, GlbBinaryContainerAndSniffing) {
@@ -1169,9 +1135,8 @@ TEST(Import, StlBinaryAndAscii) {
       {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0},
       {0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0},
   };
-  for (const float *f : {tri[0], tri[1]}) {
-    for (int i = 0; i < 12; ++i)
-      appendRaw(stl, f[i]);
+  for (const float* f : {tri[0], tri[1]}) {
+    for (int i = 0; i < 12; ++i) appendRaw(stl, f[i]);
     appendRaw(stl, (uint16_t)0);
   }
   auto model = import::model(stl.data(), stl.size(), "part.stl");
@@ -1180,8 +1145,7 @@ TEST(Import, StlBinaryAndAscii) {
   // STL has no shared-vertex concept, so nothing is welded: every facet
   // keeps its own three vertices and the mesh stays flat shaded.
   EXPECT_EQ(model->vertexCount(), 6u);
-  EXPECT_NEAR(glm::length(model->parts.front().mesh.normals.front()), 1,
-              1e-4);
+  EXPECT_NEAR(glm::length(model->parts.front().mesh.normals.front()), 1, 1e-4);
 
   const std::string ascii = R"(solid tetra piece
 facet normal 0 0 1
@@ -1232,19 +1196,19 @@ TEST(Import, MergedCloudConcatenatesLanesAcrossParts) {
   model.parts = {a, b};
   const Cloud merged = model.mergedCloud();
   ASSERT_EQ(merged.size(), 8u);
-  const std::vector<float> *energy = merged.scalarIf("energy");
+  const std::vector<float>* energy = merged.scalarIf("energy");
   ASSERT_TRUE(energy);
   ASSERT_EQ(energy->size(), 8u);
   EXPECT_FLOAT_EQ((*energy)[0], 1.0f);
   EXPECT_FLOAT_EQ((*energy)[3], 4.0f);
-  EXPECT_FLOAT_EQ((*energy)[4], 0.0f); // b's side pads scalar 0
+  EXPECT_FLOAT_EQ((*energy)[4], 0.0f);  // b's side pads scalar 0
   EXPECT_FLOAT_EQ((*energy)[7], 0.0f);
-  const std::vector<glm::vec4> *heat = merged.colorIf("heat");
+  const std::vector<glm::vec4>* heat = merged.colorIf("heat");
   ASSERT_TRUE(heat);
   ASSERT_EQ(heat->size(), 8u);
-  EXPECT_FLOAT_EQ((*heat)[0].r, 1.0f); // a's side pads white
+  EXPECT_FLOAT_EQ((*heat)[0].r, 1.0f);  // a's side pads white
   EXPECT_FLOAT_EQ((*heat)[0].g, 1.0f);
-  EXPECT_FLOAT_EQ((*heat)[4].r, 1.0f); // b's red from offset 4
+  EXPECT_FLOAT_EQ((*heat)[4].r, 1.0f);  // b's red from offset 4
   EXPECT_FLOAT_EQ((*heat)[4].g, 0.0f);
 }
 
@@ -1263,7 +1227,7 @@ TEST(Import, FitTransformCentersAndScales) {
   // per-axis fit would have stretched the 4x2 quad to 100x100.
   EXPECT_NEAR(hi.x - lo.x, 100, 1e-3);
   EXPECT_NEAR(hi.y - lo.y, 50, 1e-3);
-  EXPECT_NEAR(lo.x + hi.x, 0, 1e-3);   // centered
+  EXPECT_NEAR(lo.x + hi.x, 0, 1e-3);  // centered
   EXPECT_NEAR(lo.y + hi.y, 0, 1e-3);
 }
 
@@ -1293,7 +1257,7 @@ TEST(Import, GltfCustomAttributesBecomeLanes) {
 })";
   auto model = import::model(json.data(), json.size(), "pts.gltf");
   ASSERT_TRUE(model.has_value());
-  const import::Part &part = model->parts.front();
+  const import::Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 3u);
   const auto energy = part.scalarLanes.find("ENERGY");
   ASSERT_NE(energy, part.scalarLanes.end());
@@ -1314,15 +1278,11 @@ TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
   // so reading .z of a VEC2 custom always gives 0, not garbage.
   std::vector<std::byte> bin;
   const float positions[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
-  for (float f : positions)
-    appendRaw(bin, f);
+  for (float f : positions) appendRaw(bin, f);
   const float uv2[6] = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
-  for (float f : uv2)
-    appendRaw(bin, f);
-  const float wgt[12] = {1, 0, 0, 0.5f, 0, 1, 0, 0.25f,
-                         0, 0, 1, 0.125f};
-  for (float f : wgt)
-    appendRaw(bin, f);
+  for (float f : uv2) appendRaw(bin, f);
+  const float wgt[12] = {1, 0, 0, 0.5f, 0, 1, 0, 0.25f, 0, 0, 1, 0.125f};
+  for (float f : wgt) appendRaw(bin, f);
   const std::string json = R"({
   "asset": {"version": "2.0"},
   "scenes": [{"nodes": [0]}], "scene": 0,
@@ -1344,13 +1304,13 @@ TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
 })";
   auto model = import::model(json.data(), json.size(), "pts.gltf");
   ASSERT_TRUE(model.has_value());
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   const auto uv = part.colorLanes.find("UV2");
   ASSERT_NE(uv, part.colorLanes.end());
   ASSERT_EQ(uv->second.size(), 3u);
   EXPECT_FLOAT_EQ(uv->second[1].x, 0.3f);
   EXPECT_FLOAT_EQ(uv->second[1].y, 0.4f);
-  EXPECT_FLOAT_EQ(uv->second[1].z, 0.0f); // zero-padded z/w
+  EXPECT_FLOAT_EQ(uv->second[1].z, 0.0f);  // zero-padded z/w
   EXPECT_FLOAT_EQ(uv->second[1].w, 0.0f);
   const auto wgtLane = part.colorLanes.find("WGT");
   ASSERT_NE(wgtLane, part.colorLanes.end());
@@ -1373,7 +1333,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   // number. Only the colour properties are normalized, uchar 0..255 to
   // 0..1. A file with no face element imports as a point cloud with no
   // indices rather than being rejected.
-  const char *ascii =
+  const char* ascii =
       "ply\n"
       "format ascii 1.0\n"
       "comment a houdini-ish scatter\n"
@@ -1392,12 +1352,12 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
       "10 10 0 3.5 255 255 255\n";
   auto model = import::model(ascii, std::strlen(ascii), "scatter.ply");
   ASSERT_TRUE(model.has_value());
-  const import::Part &part = model->parts.front();
+  const import::Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 4u);
-  EXPECT_TRUE(part.mesh.indices.empty()); // no faces declared, none invented
+  EXPECT_TRUE(part.mesh.indices.empty());  // no faces declared, none invented
   EXPECT_FLOAT_EQ(part.mesh.positions[1].x, 10);
   ASSERT_EQ(part.mesh.colors.size(), 4u);
-  EXPECT_NEAR(part.mesh.colors[0].r, 1, 1e-2f); // uchar normalized
+  EXPECT_NEAR(part.mesh.colors[0].r, 1, 1e-2f);  // uchar normalized
   EXPECT_NEAR(part.mesh.colors[2].b, 1, 1e-2f);
   const auto intensity = part.scalarLanes.find("intensity");
   ASSERT_NE(intensity, part.scalarLanes.end());
@@ -1408,8 +1368,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   const Cloud cloud = part.asCloud();
   points::InstanceOptions options;
   options.scaleLane = "intensity";
-  const Mesh stamped =
-      points::instance(cloud, mesh::quad(2, 2), options);
+  const Mesh stamped = points::instance(cloud, mesh::quad(2, 2), options);
   EXPECT_EQ(stamped.vertexCount(), 4u * 4u);
   glm::vec3 lo, hi;
   stamped.bounds(&lo, &hi);
@@ -1420,11 +1379,11 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   // The binary_little_endian body encodes the same rows: properties in
   // declaration order, and a face list as a uchar count then int32 indices.
   std::vector<std::byte> bin;
-  const auto push = [&](const void *p, size_t n) {
-    const auto *b = static_cast<const std::byte *>(p);
+  const auto push = [&](const void* p, size_t n) {
+    const auto* b = static_cast<const std::byte*>(p);
     bin.insert(bin.end(), b, b + n);
   };
-  const char *header =
+  const char* header =
       "ply\n"
       "format binary_little_endian 1.0\n"
       "element vertex 3\n"
@@ -1436,7 +1395,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
       "property list uchar int vertex_indices\n"
       "end_header\n";
   push(header, std::strlen(header));
-  const float verts[] = {0, 0, 0, 7,  4, 0, 0, 8,  0, 4, 0, 9};
+  const float verts[] = {0, 0, 0, 7, 4, 0, 0, 8, 0, 4, 0, 9};
   push(verts, sizeof(verts));
   const uint8_t faceCount = 3;
   const int32_t face[] = {0, 1, 2};
@@ -1444,7 +1403,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   push(face, sizeof(face));
   auto binModel = import::model(bin.data(), bin.size(), "tri.ply");
   ASSERT_TRUE(binModel.has_value());
-  const import::Part &tri = binModel->parts.front();
+  const import::Part& tri = binModel->parts.front();
   EXPECT_EQ(tri.mesh.triangleCount(), 1u);
   EXPECT_FLOAT_EQ(tri.scalarLanes.at("intensity")[2], 9.0f);
   ASSERT_EQ(tri.mesh.normals.size(), 3u);
@@ -1454,7 +1413,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
 TEST(Import, PlyRejectsHostileCountsAndIndices) {
   // (a) A face naming a vertex past the count is dropped whole — the
   // vertices still import, and computeNormals never indexes OOB.
-  const char *badFace =
+  const char* badFace =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1470,37 +1429,35 @@ TEST(Import, PlyRejectsHostileCountsAndIndices) {
 
   // (b) A vertex count no data could back is rejected before any
   // resize acts on it.
-  const char *hugeCount =
+  const char* hugeCount =
       "ply\nformat ascii 1.0\n"
       "element vertex 4000000000\n"
       "property float x\nproperty float y\nproperty float z\n"
       "end_header\n"
       "0 0 0\n";
   EXPECT_FALSE(
-      import::model(hugeCount, std::strlen(hugeCount), "huge.ply")
-          .has_value());
+      import::model(hugeCount, std::strlen(hugeCount), "huge.ply").has_value());
 
   // (c) A binary list count promising more bytes than remain fails
   // the row read instead of walking off the buffer.
   std::vector<std::byte> truncated;
-  const char *binHeader =
+  const char* binHeader =
       "ply\nformat binary_little_endian 1.0\n"
       "element vertex 1\n"
       "property float x\nproperty float y\nproperty float z\n"
       "element face 1\n"
       "property list uchar int vertex_indices\n"
       "end_header\n";
-  const auto pushBytes = [&](const void *p, size_t n) {
-    const auto *b = static_cast<const std::byte *>(p);
+  const auto pushBytes = [&](const void* p, size_t n) {
+    const auto* b = static_cast<const std::byte*>(p);
     truncated.insert(truncated.end(), b, b + n);
   };
   pushBytes(binHeader, std::strlen(binHeader));
   const float vertex[3] = {0, 0, 0};
   pushBytes(vertex, sizeof(vertex));
-  const uint8_t promised = 200; // 800 bytes of indices; none follow
+  const uint8_t promised = 200;  // 800 bytes of indices; none follow
   pushBytes(&promised, 1);
-  EXPECT_FALSE(import::model(truncated.data(), truncated.size(),
-                             "trunc.ply")
+  EXPECT_FALSE(import::model(truncated.data(), truncated.size(), "trunc.ply")
                    .has_value());
 }
 
@@ -1510,7 +1467,7 @@ TEST(Import, LoneTStaysAScalarLane) {
   // library's own point clouds use for the parameter along a curve, so
   // folding a lone "t" into uv.y would silently eat that lane on every file
   // this library writes.
-  const char *ascii =
+  const char* ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1519,15 +1476,14 @@ TEST(Import, LoneTStaysAScalarLane) {
       "0 0 0 0.25\n1 0 0 0.5\n0 1 0 0.75\n";
   auto model = import::model(ascii, std::strlen(ascii), "lone_t.ply");
   ASSERT_TRUE(model.has_value());
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   const auto t = part.scalarLanes.find("t");
   ASSERT_NE(t, part.scalarLanes.end());
   ASSERT_EQ(t->second.size(), 3u);
   EXPECT_FLOAT_EQ(t->second[1], 0.5f);
   // The uv lane is still sized to the vertices, and still all zeroes: the
   // lone "t" went nowhere near it.
-  for (const glm::vec2 &uv : part.mesh.uvs)
-    EXPECT_FLOAT_EQ(uv.y, 0.0f);
+  for (const glm::vec2& uv : part.mesh.uvs) EXPECT_FLOAT_EQ(uv.y, 0.0f);
   const Cloud cloud = part.asCloud();
   ASSERT_TRUE(cloud.scalarIf("t"));
   EXPECT_FLOAT_EQ((*cloud.scalarIf("t"))[2], 0.75f);
@@ -1554,7 +1510,7 @@ TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
   // incomplete triple stays as its raw scalar properties rather than
   // becoming a vector with an invented component, while an _r/_g/_b with no
   // _a folds with alpha 1, which is opaque.
-  const char *ascii =
+  const char* ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 2\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1566,7 +1522,7 @@ TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
       "1 0 0 3 4 1 0 0.5\n";
   auto model = import::model(ascii, std::strlen(ascii), "fold.ply");
   ASSERT_TRUE(model.has_value());
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   EXPECT_EQ(part.vectorLanes.count("foo"), 0u);
   ASSERT_EQ(part.scalarLanes.count("foo_x"), 1u);
   ASSERT_EQ(part.scalarLanes.count("foo_y"), 1u);
@@ -1589,25 +1545,24 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
   // they are written as face properties and read back into Mesh::prims
   // under the same names. Names are not special-cased — an arbitrary
   // "Charge" travels exactly like the conventional "Color".
-  Mesh quad = mesh::quad(10, 6); // 4 vertices, 2 triangles
+  Mesh quad = mesh::quad(10, 6);  // 4 vertices, 2 triangles
   ASSERT_EQ(quad.triangleCount(), 2u);
   quad.prim("Color") = {{1, 0, 0, 1}, {0, 0.5f, 1, 0.25f}};
-  quad.prim("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f},
-                         {1e-5f, 3, 0, 1}};
+  quad.prim("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f}, {1e-5f, 3, 0, 1}};
 
   for (const bool binary : {false, true}) {
     const std::string bytes = save::ply(quad, {.binary = binary});
     ASSERT_FALSE(bytes.empty());
     auto model = import::model(bytes.data(), bytes.size(), "prim.ply");
     ASSERT_TRUE(model.has_value());
-    const import::Part &part = model->parts.front();
-    const Mesh &back = part.mesh;
+    const import::Part& part = model->parts.front();
+    const Mesh& back = part.mesh;
     ASSERT_EQ(back.triangleCount(), 2u);
 
-    const std::vector<glm::vec4> *color = back.primIf("Color");
+    const std::vector<glm::vec4>* color = back.primIf("Color");
     ASSERT_NE(color, nullptr) << "binary=" << binary;
     ASSERT_EQ(color->size(), 2u);
-    const std::vector<glm::vec4> *charge = back.primIf("Charge");
+    const std::vector<glm::vec4>* charge = back.primIf("Charge");
     ASSERT_NE(charge, nullptr) << "binary=" << binary;
     ASSERT_EQ(charge->size(), 2u);
     // The ascii writer prints with %g, which keeps six significant digits,
@@ -1647,7 +1602,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   // every value after the first n-gon is read against the wrong triangle. A
   // quad and a pentagon give 5 triangles from 2 face rows; a triangles-only
   // fixture could not tell the two sizings apart.
-  const char *ascii =
+  const char* ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 6\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1662,9 +1617,9 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
       "5 1 2 3 4 5 0 0.25 0.5 0.75 -1.5\n";
   auto model = import::model(ascii, std::strlen(ascii), "fan.ply");
   ASSERT_TRUE(model.has_value());
-  const Mesh &mesh = model->parts.front().mesh;
-  ASSERT_EQ(mesh.triangleCount(), 5u); // 2 from the quad, 3 from the pent
-  const std::vector<glm::vec4> *color = mesh.primIf("Color");
+  const Mesh& mesh = model->parts.front().mesh;
+  ASSERT_EQ(mesh.triangleCount(), 5u);  // 2 from the quad, 3 from the pent
+  const std::vector<glm::vec4>* color = mesh.primIf("Color");
   ASSERT_NE(color, nullptr);
   ASSERT_EQ(color->size(), 5u);
   for (size_t t = 0; t < 2; ++t) {
@@ -1679,7 +1634,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   }
   // Prim lanes are always four-component, so a single per-face scalar
   // property widens into .x with the other three left at zero.
-  const std::vector<glm::vec4> *density = mesh.primIf("density");
+  const std::vector<glm::vec4>* density = mesh.primIf("density");
   ASSERT_NE(density, nullptr);
   ASSERT_EQ(density->size(), 5u);
   EXPECT_FLOAT_EQ((*density)[1].x, 2.5f);
@@ -1691,11 +1646,11 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   // list count, then that many int32 indices, then the face's remaining
   // properties as raw floats.
   std::vector<std::byte> bin;
-  const auto push = [&](const void *p, size_t n) {
-    const auto *b = static_cast<const std::byte *>(p);
+  const auto push = [&](const void* p, size_t n) {
+    const auto* b = static_cast<const std::byte*>(p);
     bin.insert(bin.end(), b, b + n);
   };
-  const char *header =
+  const char* header =
       "ply\nformat binary_little_endian 1.0\n"
       "element vertex 6\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1706,8 +1661,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
       "property float density\n"
       "end_header\n";
   push(header, std::strlen(header));
-  const float verts[] = {0, 0, 0, 1, 0, 0, 1, 1, 0,
-                         0, 1, 0, 2, 1, 0, 2, 0, 0};
+  const float verts[] = {0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 1, 0, 2, 0, 0};
   push(verts, sizeof(verts));
   const uint8_t quadCount = 4;
   const int32_t quadIdx[] = {0, 1, 2, 3};
@@ -1723,7 +1677,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   push(pentAttrs, sizeof(pentAttrs));
   auto binModel = import::model(bin.data(), bin.size(), "fan.ply");
   ASSERT_TRUE(binModel.has_value());
-  const Mesh &binMesh = binModel->parts.front().mesh;
+  const Mesh& binMesh = binModel->parts.front().mesh;
   ASSERT_EQ(binMesh.triangleCount(), 5u);
   ASSERT_NE(binMesh.primIf("Color"), nullptr);
   ASSERT_EQ(binMesh.primIf("Color")->size(), 5u);
@@ -1740,7 +1694,7 @@ TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
   // (b) Face properties may be declared BEFORE the index list. The whole
   // row is read before it is interpreted, so the triangle count a lane
   // replicates across does not depend on where the list sits.
-  const char *ascii =
+  const char* ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 4\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1755,20 +1709,20 @@ TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
       "0 255 255 4 4 0 1 2 3\n";
   auto model = import::model(ascii, std::strlen(ascii), "meshlab.ply");
   ASSERT_TRUE(model.has_value());
-  const Mesh &mesh = model->parts.front().mesh;
-  ASSERT_EQ(mesh.triangleCount(), 3u); // 1 triangle + a fanned quad
-  const std::vector<glm::vec4> *color = mesh.primIf("Color");
+  const Mesh& mesh = model->parts.front().mesh;
+  ASSERT_EQ(mesh.triangleCount(), 3u);  // 1 triangle + a fanned quad
+  const std::vector<glm::vec4>* color = mesh.primIf("Color");
   ASSERT_NE(color, nullptr);
   ASSERT_EQ(color->size(), 3u);
-  EXPECT_NEAR((*color)[0].x, 1.0f, 1e-3f); // uchar normalized
+  EXPECT_NEAR((*color)[0].x, 1.0f, 1e-3f);  // uchar normalized
   EXPECT_NEAR((*color)[0].y, 0.0f, 1e-3f);
-  EXPECT_FLOAT_EQ((*color)[0].w, 1.0f); // no alpha channel -> 1
+  EXPECT_FLOAT_EQ((*color)[0].w, 1.0f);  // no alpha channel -> 1
   EXPECT_NEAR((*color)[1].z, 1.0f, 1e-3f);
   EXPECT_NEAR((*color)[2].y, 1.0f, 1e-3f);
-  const std::vector<glm::vec4> *heat = mesh.primIf("heat");
+  const std::vector<glm::vec4>* heat = mesh.primIf("heat");
   ASSERT_NE(heat, nullptr);
   ASSERT_EQ(heat->size(), 3u);
-  EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f); // raw: only colour names normalize
+  EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f);  // raw: only colour names normalize
   EXPECT_FLOAT_EQ((*heat)[1].x, 4.0f);
   EXPECT_FLOAT_EQ((*heat)[2].x, 4.0f);
 }
@@ -1777,7 +1731,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
   // (a) A face naming a vertex past the count is dropped whole, and
   // its per-face values go with it: the lane stays sized to
   // triangleCount() rather than carrying a phantom entry.
-  const char *dropped =
+  const char* dropped =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1791,7 +1745,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "3 0 1 2 0.5 0.25 0.125 1\n";
   auto model = import::model(dropped, std::strlen(dropped), "drop.ply");
   ASSERT_TRUE(model.has_value());
-  const Mesh &mesh = model->parts.front().mesh;
+  const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 1u);
   ASSERT_NE(mesh.primIf("Color"), nullptr);
   ASSERT_EQ(mesh.primIf("Color")->size(), 1u);
@@ -1800,7 +1754,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
 
   // (b) A face count no data could back is rejected before anything is
   // sized from it — the prim path never resizes on a declared count.
-  const char *hugeFaces =
+  const char* hugeFaces =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1812,12 +1766,11 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 1 1 1 1\n";
   EXPECT_FALSE(
-      import::model(hugeFaces, std::strlen(hugeFaces), "huge.ply")
-          .has_value());
+      import::model(hugeFaces, std::strlen(hugeFaces), "huge.ply").has_value());
 
   // (c) A header promising more face rows than the body delivers fails
   // the read instead of publishing a short lane.
-  const char *shortBody =
+  const char* shortBody =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1828,14 +1781,13 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "end_header\n"
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 1 1 1 1\n";
-  EXPECT_FALSE(
-      import::model(shortBody, std::strlen(shortBody), "short.ply")
-          .has_value());
+  EXPECT_FALSE(import::model(shortBody, std::strlen(shortBody), "short.ply")
+                   .has_value());
 
   // (d) A duplicate face property claims its lane once: the second
   // declaration is read and discarded rather than appending a second
   // time and desyncing the lane off triangleCount().
-  const char *duplicate =
+  const char* duplicate =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
       "property float x\nproperty float y\nproperty float z\n"
@@ -1845,10 +1797,9 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "end_header\n"
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 6 7\n";
-  auto dupModel =
-      import::model(duplicate, std::strlen(duplicate), "dup.ply");
+  auto dupModel = import::model(duplicate, std::strlen(duplicate), "dup.ply");
   ASSERT_TRUE(dupModel.has_value());
-  const Mesh &dupMesh = dupModel->parts.front().mesh;
+  const Mesh& dupMesh = dupModel->parts.front().mesh;
   ASSERT_EQ(dupMesh.triangleCount(), 1u);
   ASSERT_NE(dupMesh.primIf("heat"), nullptr);
   ASSERT_EQ(dupMesh.primIf("heat")->size(), 1u);
@@ -1882,26 +1833,25 @@ std::string alembicArchiveBytes() {
     xs.setTranslation(Abc::V3d(10, 0, 0));
     root.getSchema().set(xs);
 
-    AbcGeom::OPolyMesh meshObj(root, "tri"); // static, under the xform
+    AbcGeom::OPolyMesh meshObj(root, "tri");  // static, under the xform
     const std::vector<Imath::V3f> pos = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
-    const std::vector<int32_t> indices = {0, 2, 1}; // Alembic: clockwise
+    const std::vector<int32_t> indices = {0, 2, 1};  // Alembic: clockwise
     const std::vector<int32_t> counts = {3};
     meshObj.getSchema().set(AbcGeom::OPolyMeshSchema::Sample(
         Abc::P3fArraySample(pos), Abc::Int32ArraySample(indices),
         Abc::Int32ArraySample(counts)));
     AbcGeom::OFloatGeomParam energy(meshObj.getSchema().getArbGeomParams(),
-                                    "energy", false, AbcGeom::kVertexScope,
-                                    1);
+                                    "energy", false, AbcGeom::kVertexScope, 1);
     const std::vector<float> values = {0.25f, 0.5f, 0.75f};
-    energy.set(AbcGeom::OFloatGeomParam::Sample(
-        Abc::FloatArraySample(values), AbcGeom::kVertexScope));
+    energy.set(AbcGeom::OFloatGeomParam::Sample(Abc::FloatArraySample(values),
+                                                AbcGeom::kVertexScope));
 
     // Two triangles sharing the 0-2 diagonal of a unit square: 4 points and
     // 6 corners, written twice with identical topology and different uv
     // scopes so the dedup can be observed from both sides.
     const std::vector<Imath::V3f> qpos = {
         {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
-    const std::vector<int32_t> qidx = {0, 2, 1, 0, 3, 2}; // clockwise
+    const std::vector<int32_t> qidx = {0, 2, 1, 0, 3, 2};  // clockwise
     const std::vector<int32_t> qcounts = {3, 3};
     // FACEVARYING: one uv per corner. Corners 1 and 5 are the same
     // point with different uvs; corners 0 and 3 are the same point with
@@ -1925,7 +1875,7 @@ std::string alembicArchiveBytes() {
         AbcGeom::OV2fGeomParam::Sample(Abc::V2fArraySample(wuv),
                                        AbcGeom::kVertexScope)));
 
-    AbcGeom::OPoints pointsObj(archive.getTop(), "cloud", ts); // animated
+    AbcGeom::OPoints pointsObj(archive.getTop(), "cloud", ts);  // animated
     const std::vector<uint64_t> ids = {0, 1};
     const std::vector<Imath::V3f> frame0 = {{0, 0, 0}, {1, 0, 0}};
     pointsObj.getSchema().set(AbcGeom::OPointsSchema::Sample(
@@ -1933,13 +1883,13 @@ std::string alembicArchiveBytes() {
     const std::vector<Imath::V3f> frame1 = {{0, 1, 0}, {1, 1, 0}};
     pointsObj.getSchema().set(
         AbcGeom::OPointsSchema::Sample(Abc::P3fArraySample(frame1)));
-  } // The OArchive destructor is what finalizes the Ogawa stream, so the
-    // scope must close before .str() is read — an earlier read returns a
-    // truncated, unreadable archive.
+  }  // The OArchive destructor is what finalizes the Ogawa stream, so the
+     // scope must close before .str() is read — an earlier read returns a
+     // truncated, unreadable archive.
   return std::move(out).str();
 }
 
-} // namespace
+}  // namespace
 
 TEST(Import, AlembicMeshPointsAndLanes) {
   const std::string bytes = alembicArchiveBytes();
@@ -1948,15 +1898,14 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   // leading Ogawa magic is what routes the bytes to the Alembic reader.
   auto model = import::model(bytes.data(), bytes.size(), "download");
   ASSERT_TRUE(model.has_value());
-  ASSERT_EQ(model->parts.size(), 4u); // tri, uvquad, uvweld, cloud
-  const auto find = [&](std::string_view name) -> const Part * {
-    for (const Part &part : model->parts)
-      if (part.name == name)
-        return &part;
+  ASSERT_EQ(model->parts.size(), 4u);  // tri, uvquad, uvweld, cloud
+  const auto find = [&](std::string_view name) -> const Part* {
+    for (const Part& part : model->parts)
+      if (part.name == name) return &part;
     return nullptr;
   };
-  const Part *tri = find("tri");
-  const Part *cloud = find("cloud");
+  const Part* tri = find("tri");
+  const Part* cloud = find("cloud");
   ASSERT_NE(tri, nullptr);
   ASSERT_NE(cloud, nullptr);
 
@@ -1983,8 +1932,8 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   ASSERT_EQ(energy->second.size(), 3u);
   for (size_t i = 0; i < 3; ++i) {
     const glm::vec3 local = tri->mesh.positions[i] - glm::vec3{10, 0, 0};
-    EXPECT_NEAR(energy->second[i],
-                0.25f + 0.25f * local.x + 0.5f * local.y, 1e-6f);
+    EXPECT_NEAR(energy->second[i], 0.25f + 0.25f * local.x + 0.5f * local.y,
+                1e-6f);
   }
   EXPECT_EQ(tri->asCloud().scalars.count("energy"), 1u);
 
@@ -2005,8 +1954,7 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   // must not escape into a caller that is merely opening an untrusted file.
   const char garbage[] = "not an alembic archive at all";
   EXPECT_FALSE(import::alembic(garbage, sizeof(garbage)).has_value());
-  EXPECT_FALSE(
-      import::alembic(bytes.data(), bytes.size() / 2).has_value());
+  EXPECT_FALSE(import::alembic(bytes.data(), bytes.size() / 2).has_value());
 }
 
 TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
@@ -2022,18 +1970,16 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
   const std::string bytes = alembicArchiveBytes();
   auto model = import::alembic(bytes.data(), bytes.size());
   ASSERT_TRUE(model.has_value());
-  const auto part = [&](std::string_view name) -> const Part * {
-    for (const Part &p : model->parts)
-      if (p.name == name)
-        return &p;
+  const auto part = [&](std::string_view name) -> const Part* {
+    for (const Part& p : model->parts)
+      if (p.name == name) return &p;
     return nullptr;
   };
   // uvs indexed by POSITION — insertion order is a detail of the walk.
-  const auto uvsAt = [](const Mesh &m, glm::vec3 p) {
+  const auto uvsAt = [](const Mesh& m, glm::vec3 p) {
     std::vector<glm::vec2> found;
     for (size_t i = 0; i < m.positions.size(); ++i)
-      if (glm::length(m.positions[i] - p) < 1e-6f)
-        found.push_back(m.uvs[i]);
+      if (glm::length(m.positions[i] - p) < 1e-6f) found.push_back(m.uvs[i]);
     std::sort(found.begin(), found.end(),
               [](glm::vec2 a, glm::vec2 b) { return a.x < b.x; });
     return found;
@@ -2044,60 +1990,57 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
   // own vertex — 6 corners give 6 vertices even where two of them happen to
   // carry an identical uv. Nothing downstream depends on the merge, so the
   // reader does not pay for comparing values.
-  const Part *quad = part("uvquad");
+  const Part* quad = part("uvquad");
   ASSERT_NE(quad, nullptr);
-  const Mesh &fv = quad->mesh;
+  const Mesh& fv = quad->mesh;
   ASSERT_EQ(fv.positions.size(), 6u);
   ASSERT_EQ(fv.uvs.size(), 6u);
   EXPECT_EQ(fv.triangleCount(), 2u);
   // The flip in one value: the file's uv (0,0) on the origin corner arrives
   // as (0,1). No reader that passed v through unchanged could produce that.
   const std::vector<glm::vec2> atOrigin = uvsAt(fv, {0, 0, 0});
-  ASSERT_EQ(atOrigin.size(), 2u); // corners 0 and 3, NOT welded
-  for (const glm::vec2 &uv : atOrigin) {
+  ASSERT_EQ(atOrigin.size(), 2u);  // corners 0 and 3, NOT welded
+  for (const glm::vec2& uv : atOrigin) {
     EXPECT_FLOAT_EQ(uv.x, 0.0f);
     EXPECT_FLOAT_EQ(uv.y, 1.0f);
   }
-  EXPECT_FLOAT_EQ(uvsAt(fv, {0, 1, 0}).at(0).y, 0.0f); // file v=1 -> 0
+  EXPECT_FLOAT_EQ(uvsAt(fv, {0, 1, 0}).at(0).y, 0.0f);  // file v=1 -> 0
   // The shared point at (1,1,0) carried two different uvs; both survive,
   // both flipped.
   const std::vector<glm::vec2> shared = uvsAt(fv, {1, 1, 0});
   ASSERT_EQ(shared.size(), 2u);
   EXPECT_FLOAT_EQ(shared[0].x, 0.25f);
-  EXPECT_FLOAT_EQ(shared[0].y, 0.25f); // file (0.25, 0.75)
+  EXPECT_FLOAT_EQ(shared[0].y, 0.25f);  // file (0.25, 0.75)
   EXPECT_FLOAT_EQ(shared[1].x, 1.0f);
-  EXPECT_FLOAT_EQ(shared[1].y, 0.0f); // file (1, 1)
+  EXPECT_FLOAT_EQ(shared[1].y, 0.0f);  // file (1, 1)
 
   // --- VERTEX scope: the uv source IS the point, so every corner of a
   // point keys the same and the six corners weld back down to four
   // vertices. Identical topology to the facevarying case, identical flip —
   // only the scope differs.
-  const Part *weld = part("uvweld");
+  const Part* weld = part("uvweld");
   ASSERT_NE(weld, nullptr);
-  const Mesh &vw = weld->mesh;
-  ASSERT_EQ(vw.positions.size(), 4u); // the merge the facevarying case
-  ASSERT_EQ(vw.uvs.size(), 4u);       // cannot make
+  const Mesh& vw = weld->mesh;
+  ASSERT_EQ(vw.positions.size(), 4u);  // the merge the facevarying case
+  ASSERT_EQ(vw.uvs.size(), 4u);        // cannot make
   EXPECT_EQ(vw.triangleCount(), 2u);
   const std::vector<glm::vec2> weldOrigin = uvsAt(vw, {0, 0, 0});
   ASSERT_EQ(weldOrigin.size(), 1u);
   EXPECT_FLOAT_EQ(weldOrigin[0].x, 0.0f);
-  EXPECT_FLOAT_EQ(weldOrigin[0].y, 1.0f); // file (0,0) -> (0,1)
+  EXPECT_FLOAT_EQ(weldOrigin[0].y, 1.0f);  // file (0,0) -> (0,1)
   const std::vector<glm::vec2> weldShared = uvsAt(vw, {1, 1, 0});
   ASSERT_EQ(weldShared.size(), 1u);
   EXPECT_FLOAT_EQ(weldShared[0].x, 1.0f);
-  EXPECT_FLOAT_EQ(weldShared[0].y, 0.0f); // file (1,1) -> (1,0)
+  EXPECT_FLOAT_EQ(weldShared[0].y, 0.0f);  // file (1,1) -> (1,0)
 }
 
 TEST(Import, AlembicTimeSampleSelection) {
   const std::string bytes = alembicArchiveBytes();
   const auto cloudY = [&](double time) -> float {
-    auto model =
-        import::alembic(bytes.data(), bytes.size(), {.time = time});
-    if (!model)
-      return -1.0f;
-    for (const Part &part : model->parts)
-      if (part.name == "cloud")
-        return part.mesh.positions.at(0).y;
+    auto model = import::alembic(bytes.data(), bytes.size(), {.time = time});
+    if (!model) return -1.0f;
+    for (const Part& part : model->parts)
+      if (part.name == "cloud") return part.mesh.positions.at(0).y;
     return -1.0f;
   };
   // A requested time selects the NEAREST stored sample, not the one before
@@ -2120,16 +2063,13 @@ TEST(Save, PlyRoundTripsCloudLanes) {
   cloud.positions = {{0, 0, 0}, {4, 0, 0}, {0, 4, 0}, {4, 4, 2}};
   cloud.scalar("energy") = {0.5f, 1.5f, 2.5f, 3.5f};
   cloud.vector("dir") = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 0}};
-  cloud.vector("normal") =
-      {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
+  cloud.vector("normal") = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
   cloud.color("glow") = {{0.25f, 0.5f, 0.75f, 1.0f},
                          {1, 0, 0, 0.5f},
                          {0, 1, 0, 0.25f},
                          {0, 0, 1, 0.125f}};
-  cloud.color("tint") = {{1, 0, 0, 1},
-                         {0, 1, 0, 1},
-                         {0, 0, 1, 1},
-                         {1, 1, 1, 0.5f}};
+  cloud.color("tint") = {
+      {1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}, {1, 1, 1, 0.5f}};
 
   const std::string bytes = save::ply(cloud);
   auto model = import::model(bytes.data(), bytes.size(), "trip.ply");
@@ -2139,14 +2079,14 @@ TEST(Save, PlyRoundTripsCloudLanes) {
   EXPECT_NEAR(back.positions[3].z, 2, 1e-4f);
   ASSERT_TRUE(back.scalarIf("energy"));
   EXPECT_FLOAT_EQ((*back.scalarIf("energy"))[2], 2.5f);
-  ASSERT_TRUE(back.vectorIf("dir")); // folded back from dir_x/_y/_z
+  ASSERT_TRUE(back.vectorIf("dir"));  // folded back from dir_x/_y/_z
   EXPECT_FLOAT_EQ((*back.vectorIf("dir"))[1].y, 1);
-  ASSERT_TRUE(back.vectorIf("normal")); // via nx/ny/nz
+  ASSERT_TRUE(back.vectorIf("normal"));  // via nx/ny/nz
   EXPECT_FLOAT_EQ((*back.vectorIf("normal"))[0].z, 1);
-  ASSERT_TRUE(back.colorIf("glow")); // folded from glow_r/_g/_b/_a
+  ASSERT_TRUE(back.colorIf("glow"));  // folded from glow_r/_g/_b/_a
   EXPECT_NEAR((*back.colorIf("glow"))[0].y, 0.5f, 1e-4f);
   EXPECT_NEAR((*back.colorIf("glow"))[3].w, 0.125f, 1e-4f);
-  ASSERT_TRUE(back.colorIf("tint")); // uchar red/green/blue/alpha
+  ASSERT_TRUE(back.colorIf("tint"));  // uchar red/green/blue/alpha
   EXPECT_NEAR((*back.colorIf("tint"))[1].y, 1, 1.5f / 255.0f);
   EXPECT_NEAR((*back.colorIf("tint"))[3].w, 0.5f, 1.5f / 255.0f);
 }
@@ -2157,7 +2097,7 @@ TEST(Save, PlyRoundTripsMeshWithFaces) {
   const std::string bytes = save::ply(quad);
   auto model = import::model(bytes.data(), bytes.size(), "quad.ply");
   ASSERT_TRUE(model.has_value());
-  const Mesh &back = model->parts.front().mesh;
+  const Mesh& back = model->parts.front().mesh;
   ASSERT_EQ(back.vertexCount(), 4u);
   EXPECT_EQ(back.triangleCount(), 2u);
   glm::vec3 lo, hi;
@@ -2182,9 +2122,8 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
   cloud.scalar("energy") = {0.5f, 1.0f / 3.0f, 2.5f};
   cloud.vector("dir") = {{1, 0, 0}, {0.1f, 0.2f, 0.3f}, {0, 0, 1}};
   cloud.vector("normal") = {{0, 0, 1}, {0, 1, 0}, {1, 0, 0}};
-  cloud.color("glow") = {{0.25f, 0.5f, 0.75f, 1.0f},
-                         {1.0f / 3.0f, 0, 0, 0.5f},
-                         {0, 1, 0, 0.125f}};
+  cloud.color("glow") = {
+      {0.25f, 0.5f, 0.75f, 1.0f}, {1.0f / 3.0f, 0, 0, 0.5f}, {0, 1, 0, 0.125f}};
   cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 1}, {1, 1, 1, 0.5f}};
 
   const std::string bytes = save::ply(cloud, {.binary = true});
@@ -2197,14 +2136,14 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
       EXPECT_FLOAT_EQ(back.positions[i][c], cloud.positions[i][c]);
   ASSERT_TRUE(back.scalarIf("energy"));
   EXPECT_FLOAT_EQ((*back.scalarIf("energy"))[1], 1.0f / 3.0f);
-  ASSERT_TRUE(back.vectorIf("dir")); // folded back from dir_x/_y/_z
+  ASSERT_TRUE(back.vectorIf("dir"));  // folded back from dir_x/_y/_z
   EXPECT_FLOAT_EQ((*back.vectorIf("dir"))[1].z, 0.3f);
-  ASSERT_TRUE(back.vectorIf("normal")); // via nx/ny/nz
+  ASSERT_TRUE(back.vectorIf("normal"));  // via nx/ny/nz
   EXPECT_FLOAT_EQ((*back.vectorIf("normal"))[1].y, 1.0f);
-  ASSERT_TRUE(back.colorIf("glow")); // folded from glow_r/_g/_b/_a
+  ASSERT_TRUE(back.colorIf("glow"));  // folded from glow_r/_g/_b/_a
   EXPECT_FLOAT_EQ((*back.colorIf("glow"))[1].x, 1.0f / 3.0f);
   EXPECT_FLOAT_EQ((*back.colorIf("glow"))[2].w, 0.125f);
-  ASSERT_TRUE(back.colorIf("tint")); // uchar red/green/blue/alpha
+  ASSERT_TRUE(back.colorIf("tint"));  // uchar red/green/blue/alpha
   EXPECT_NEAR((*back.colorIf("tint"))[2].w, 0.5f, 1.5f / 255.0f);
 
   // Faces are written in the binary encoding too: a list count as one raw
@@ -2216,7 +2155,7 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
   auto meshModel =
       import::model(meshBytes.data(), meshBytes.size(), "quad.ply");
   ASSERT_TRUE(meshModel.has_value());
-  const Mesh &tri = meshModel->parts.front().mesh;
+  const Mesh& tri = meshModel->parts.front().mesh;
   ASSERT_EQ(tri.vertexCount(), 4u);
   EXPECT_EQ(tri.triangleCount(), 2u);
   glm::vec3 lo, hi;
@@ -2237,11 +2176,11 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   cloud.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
   cloud.scalar("energy") = {1, 2, 3};
   cloud.scalars["stub"] = {7};                    // wrong length
-  cloud.vectors["off"] = {{1, 2, 3}, {4, 5, 6}}; // wrong length
+  cloud.vectors["off"] = {{1, 2, 3}, {4, 5, 6}};  // wrong length
   const std::string bytes = save::ply(cloud);
   auto model = import::model(bytes.data(), bytes.size(), "skip.ply");
   ASSERT_TRUE(model.has_value());
-  const Part &part = model->parts.front();
+  const Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 3u);
   ASSERT_EQ(part.scalarLanes.count("energy"), 1u);
   EXPECT_FLOAT_EQ(part.scalarLanes.at("energy")[2], 3.0f);
@@ -2255,8 +2194,7 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   EXPECT_TRUE(save::ply(Cloud{}).empty());
   EXPECT_TRUE(save::ply(Mesh{}).empty());
   const std::filesystem::path file =
-      std::filesystem::temp_directory_path() /
-      "sigilshape_empty_decline.ply";
+      std::filesystem::temp_directory_path() / "sigilshape_empty_decline.ply";
   EXPECT_FALSE(save::ply(file, Cloud{}));
   EXPECT_FALSE(save::ply(file, Mesh{}));
 }
@@ -2270,23 +2208,19 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   pop::SplineScatter scatter;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    scatter.loop.push_back(
-        {200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+    scatter.loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
   }
   scatter.count = 500;
   scatter.head = 1;
   scatter.span = 1;
   scatter.radius = 12;
-  pop::Chain chain = {scatter,
-                      pop::Vary{pop::Lane::Scale, 1.0f, 0.4f, 3},
-                      pop::Ramp{pop::Lane::Color,
-                                {1, 0, 0, 1},
-                                {0, 0, 1, 1}}};
+  pop::Chain chain = {scatter, pop::Vary{pop::Lane::Scale, 1.0f, 0.4f, 3},
+                      pop::Ramp{pop::Lane::Color, {1, 0, 0, 1}, {0, 0, 1, 1}}};
   const Mesh stamp = mesh::quad(6, 6);
   const Mesh model = popops::cookMesh(chain, stamp);
   EXPECT_EQ(model.vertexCount(), 500u * stamp.vertexCount());
   EXPECT_EQ(model.triangleCount(), 500u * stamp.triangleCount());
-  ASSERT_EQ(model.colors.size(), model.vertexCount()); // tint baked
+  ASSERT_EQ(model.colors.size(), model.vertexCount());  // tint baked
   const Mesh again = popops::cookMesh(chain, stamp);
   ASSERT_EQ(again.positions.size(), model.positions.size());
   EXPECT_EQ(again.positions[123].x, model.positions[123].x);
@@ -2302,8 +2236,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   pop::SplineScatter scatter;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    scatter.loop.push_back(
-        {300.0f * std::cos(a), 0, 300.0f * std::sin(a)});
+    scatter.loop.push_back({300.0f * std::cos(a), 0, 300.0f * std::sin(a)});
   }
   scatter.count = 96;
   scatter.head = 1;
@@ -2324,8 +2257,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
       popops::cookRibbon(chain, 60, {.closed = true, .segments = 160});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
-  chain.push_back(
-      pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
+  chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
   const Mesh lifted = popops::cookTube(chain, 12, 10, {.closed = true});
   glm::vec3 lo2, hi2;
   lifted.bounds(&lo2, &hi2);
@@ -2341,23 +2273,18 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
   // The builder spelling is one expression: an entry verb, the operators,
   // and a terminal verb that cooks. Every parameter has a default, so a
   // chain can be written without naming any of them.
-  const Mesh wobble =
-      pop::on(loop).count(64).noise(30).tube(10, 8, true);
+  const Mesh wobble = pop::on(loop).count(64).noise(30).tube(10, 8, true);
   EXPECT_GT(wobble.triangleCount(), 500u);
 
   // The builder holds nothing the chain does not: it converts to a
   // pop::Chain whose operators are still ordinary values, so a chain built
   // fluently can still be taken apart and edited afterwards.
-  pop::Chain c = pop::on(loop)
-                     .count(10)
-                     .spread(5)
-                     .vary(0.4f)
-                     .fade({1, 0, 0, 1}, {0, 0, 1, 1});
-  EXPECT_EQ(c.size(), 3u); // scatter + vary + ramp
+  pop::Chain c = pop::on(loop).count(10).spread(5).vary(0.4f).fade(
+      {1, 0, 0, 1}, {0, 0, 1, 1});
+  EXPECT_EQ(c.size(), 3u);  // scatter + vary + ramp
   std::get<pop::SplineScatter>(c.front()).count = 20;
   EXPECT_EQ(popops::cook(c).size(), 20u);
 }
-
 
 // Smooth must undo what noise did to the local shape of the path, measured
 // as the summed discrete second difference along the points — the quantity
@@ -2370,21 +2297,19 @@ TEST(Pop, SmoothHealsNoiseKinks) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
   }
-  const auto jaggedness = [](const Cloud &cloud) {
+  const auto jaggedness = [](const Cloud& cloud) {
     double sum = 0;
     for (size_t i = 1; i + 1 < cloud.size(); ++i)
-      sum += glm::length(cloud.positions[i - 1] -
-                         cloud.positions[i] * 2.0f +
+      sum += glm::length(cloud.positions[i - 1] - cloud.positions[i] * 2.0f +
                          cloud.positions[i + 1]);
     return sum;
   };
-  const double rough = jaggedness(
-      popops::cook(pop::on(loop).count(80).noise(30).chain()));
-  const double healed = jaggedness(popops::cook(
-      pop::on(loop).count(80).noise(30).smooth(0.6f, 3).chain()));
+  const double rough =
+      jaggedness(popops::cook(pop::on(loop).count(80).noise(30).chain()));
+  const double healed = jaggedness(
+      popops::cook(pop::on(loop).count(80).noise(30).smooth(0.6f, 3).chain()));
   EXPECT_LT(healed, rough * 0.5) << rough << " -> " << healed;
 }
-
 
 TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   std::vector<glm::vec3> loop;
@@ -2415,7 +2340,6 @@ TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   EXPECT_GT(hi.y - lo.y, 20.0f);
 }
 
-
 TEST(Pop, ChainsComposeIntoEachOther) {
   // A chain is accepted anywhere a path is: chain A's cooked points become
   // chain B's path, so operators compose without a separate combinator.
@@ -2424,23 +2348,20 @@ TEST(Pop, ChainsComposeIntoEachOther) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({220.0f * std::cos(a), 0, 220.0f * std::sin(a)});
   }
-  const pop::Chain spine =
-      pop::on(loop).count(48).noise(26).smooth(0.5f);
+  const pop::Chain spine = pop::on(loop).count(48).noise(26).smooth(0.5f);
   const Cloud beads = pop::on(spine).count(300).spread(6).cloud();
   EXPECT_EQ(beads.size(), 300u);
   // The beads inherit A's off-plane noise, which proves they were scattered
   // along the composed path and not along the flat circle it started from.
   float yMin = 1e9f, yMax = -1e9f;
-  for (const glm::vec3 &p : beads.positions) {
+  for (const glm::vec3& p : beads.positions) {
     yMin = std::min(yMin, p.y);
     yMax = std::max(yMax, p.y);
   }
   EXPECT_GT(yMax - yMin, 12.0f);
   // And any sink still applies to the composition.
-  EXPECT_GT(pop::on(spine).count(80).tube(6, 8, true).triangleCount(),
-            500u);
+  EXPECT_GT(pop::on(spine).count(80).tube(6, 8, true).triangleCount(), 500u);
 }
-
 
 TEST(Pop, ChainsSeedFromFormedModels) {
   // A formed Mesh is also a valid seed: scattering ON a cooked surface and
@@ -2460,9 +2381,8 @@ TEST(Pop, ChainsSeedFromFormedModels) {
   asPoints.positions = dust.positions;
   asPoints.bounds(&dLo, &dHi);
   EXPECT_GE(dLo.x, mLo.x - 1);
-  EXPECT_LE(dHi.x, mHi.x + 1); // dust lives on the cable
-  EXPECT_GT(pop::on(cable, 300).stamps(mesh::quad(4, 4)).triangleCount(),
-            500u);
+  EXPECT_LE(dHi.x, mHi.x + 1);  // dust lives on the cable
+  EXPECT_GT(pop::on(cable, 300).stamps(mesh::quad(4, 4)).triangleCount(), 500u);
 }
 
 TEST(Curves, BannerHangsGravityUpright) {
@@ -2471,11 +2391,9 @@ TEST(Curves, BannerHangsGravityUpright) {
   for (int i = 0; i < 12; ++i) {
     const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
     loop.points.push_back(
-        {300.0f * std::cos(a), 40.0f * std::sin(2 * a),
-         300.0f * std::sin(a)});
+        {300.0f * std::cos(a), 40.0f * std::sin(2 * a), 300.0f * std::sin(a)});
   }
-  const Mesh band =
-      curves::banner(loop, {.width = 50, .sections = 120});
+  const Mesh band = curves::banner(loop, {.width = 50, .sections = 120});
   ASSERT_EQ(band.vertexCount(), 240u);
   // A banner hangs: its width is held vertical in world space rather than
   // rolling with the curve's frame, which is what keeps text on it upright
@@ -2502,7 +2420,7 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
   asPoints.positions = dust.positions;
   asPoints.bounds(&lo, &hi);
   EXPECT_GE(lo.x, -1.01f);
-  EXPECT_LE(hi.x, 1.01f); // points live on the unit cube
+  EXPECT_LE(hi.x, 1.01f);  // points live on the unit cube
 
   // ...and use the imported model AS the stamp along a chain.
   std::vector<glm::vec3> loop;
@@ -2510,8 +2428,7 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({80.0f * std::cos(a), 0, 80.0f * std::sin(a)});
   }
-  const Mesh cubes =
-      pop::on(loop).count(24).vary(0.4f).stamps(cube);
+  const Mesh cubes = pop::on(loop).count(24).vary(0.4f).stamps(cube);
   EXPECT_EQ(cubes.triangleCount(), 24u * cube.triangleCount());
 }
 
@@ -2532,14 +2449,14 @@ TEST(Pop, NamedAttributesFlowAndExport) {
           .op(pop::Jitter{"energy", 0.25f, 5})
           .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const Cloud cooked = popops::cook(chain);
-  const std::vector<glm::vec4> *energy = cooked.colorIf("energy");
+  const std::vector<glm::vec4>* energy = cooked.colorIf("energy");
   ASSERT_TRUE(energy) << "customs must export under their own name";
   float lo = 1e9f, hi = -1e9f;
-  for (const glm::vec4 &e : *energy) {
+  for (const glm::vec4& e : *energy) {
     lo = std::min(lo, e.r);
     hi = std::max(hi, e.r);
   }
-  EXPECT_GT(hi, lo + 0.1f); // jittered, not constant
+  EXPECT_GT(hi, lo + 0.1f);  // jittered, not constant
   // Jitter is bounded by its amplitude, so the lane stays in
   // 0.5 +/- 0.25 before the Math op doubles it into 0.5 .. 1.5.
   EXPECT_GT(lo, 0.4f);
@@ -2568,10 +2485,9 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
         pop::on(loop)
             .count(4)
             .set(pop::Lane::P, {0, y, 0, 0})
-            .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100,
-                    100);
+            .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100, 100);
     const Cloud cooked = popops::cook(chain);
-    const std::vector<glm::vec4> *tint = cooked.colorIf("tint");
+    const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
     EXPECT_TRUE(tint);
     return tint ? (*tint)[0] : glm::vec4{0, 0, 0, 0};
   };
@@ -2602,10 +2518,9 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
       pop::on(loop)
           .count(16)
           .set("energy", {0.25f, 0, 0, 0})
-          .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1,
-                  "heat");
+          .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1, "heat");
   const Cloud cooked = popops::cook(custom);
-  const std::vector<glm::vec4> *heat = cooked.colorIf("heat");
+  const std::vector<glm::vec4>* heat = cooked.colorIf("heat");
   ASSERT_TRUE(heat) << "a lookup must create the lane it writes";
   EXPECT_NEAR((*heat)[0].r, 12.5f, 1e-4f);
 }
@@ -2618,15 +2533,13 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    loop.push_back({180.0f * std::cos(a), 40.0f * std::sin(3 * a),
-                    180.0f * std::sin(a)});
+    loop.push_back(
+        {180.0f * std::cos(a), 40.0f * std::sin(3 * a), 180.0f * std::sin(a)});
   }
   const auto describe = [&](bool sorted, bool descending) {
     pop::Builder b = pop::on(loop);
-    b.count(200).seed(3).spread(20).vary(0.4f).fade({0, 0, 0, 1},
-                                                    {1, 1, 1, 1});
-    if (sorted)
-      b.order({0, 1, 0}, descending);
+    b.count(200).seed(3).spread(20).vary(0.4f).fade({0, 0, 0, 1}, {1, 1, 1, 1});
+    if (sorted) b.order({0, 1, 0}, descending);
     return (pop::Chain)b;
   };
 
@@ -2640,21 +2553,20 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
     EXPECT_LE(rising.positions[i - 1].y, rising.positions[i].y);
   size_t moved = 0;
   for (size_t i = 0; i < plain.size(); ++i)
-    if (plain.positions[i] != rising.positions[i])
-      ++moved;
+    if (plain.positions[i] != rising.positions[i]) ++moved;
   EXPECT_GT(moved, 100u) << "the sort must actually reorder";
 
   // 2. Coherence: each sorted point's t/size/tint are the ones its
   // ORIGINAL position carried. Found by matching position, so the
   // check knows nothing about the permutation itself.
-  const std::vector<float> *plainT = plain.scalarIf("t");
-  const std::vector<float> *risingT = rising.scalarIf("t");
-  const std::vector<float> *plainSize = plain.scalarIf("size");
-  const std::vector<float> *risingSize = rising.scalarIf("size");
-  const std::vector<glm::vec4> *plainTint = plain.colorIf("tint");
-  const std::vector<glm::vec4> *risingTint = rising.colorIf("tint");
-  ASSERT_TRUE(plainT && risingT && plainSize && risingSize &&
-              plainTint && risingTint);
+  const std::vector<float>* plainT = plain.scalarIf("t");
+  const std::vector<float>* risingT = rising.scalarIf("t");
+  const std::vector<float>* plainSize = plain.scalarIf("size");
+  const std::vector<float>* risingSize = rising.scalarIf("size");
+  const std::vector<glm::vec4>* plainTint = plain.colorIf("tint");
+  const std::vector<glm::vec4>* risingTint = rising.colorIf("tint");
+  ASSERT_TRUE(plainT && risingT && plainSize && risingSize && plainTint &&
+              risingTint);
   size_t matched = 0;
   for (size_t i = 0; i < rising.size(); ++i)
     for (size_t j = 0; j < plain.size(); ++j)
@@ -2673,8 +2585,7 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
   const Cloud falling = popops::cook(describe(true, true));
   ASSERT_EQ(falling.size(), rising.size());
   for (size_t i = 0; i < falling.size(); ++i)
-    EXPECT_EQ(falling.positions[i],
-              rising.positions[rising.size() - 1 - i]);
+    EXPECT_EQ(falling.positions[i], rising.positions[rising.size() - 1 - i]);
 
   // 4. Point order IS the swept path, so sorting the same points forms a
   // genuinely different tube. Sorting is therefore an authoring operation
@@ -2707,24 +2618,22 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
                                         .count(6)
                                         .set("h", {0, 0, 0, 0})
                                         .op(pop::Jitter{"h", 0.5f, 0}));
-  const std::vector<glm::vec4> *h = cooked.colorIf("h");
+  const std::vector<glm::vec4>* h = cooked.colorIf("h");
   ASSERT_TRUE(h);
   ASSERT_EQ(h->size(), 6u);
-  const float popGolden[6] = {0.231199384f,  -0.441547632f,
-                              -0.184789419f, 0.0919363499f,
-                              0.274898827f,  0.0884094238f};
+  const float popGolden[6] = {0.231199384f,  -0.441547632f, -0.184789419f,
+                              0.0919363499f, 0.274898827f,  0.0884094238f};
   for (size_t i = 0; i < 6; ++i)
     EXPECT_NEAR((*h)[i].x, popGolden[i], 1e-7f) << "pop hash lane " << i;
 
   // ...and a scatter into the unit box is the raw 0..1 stream in order,
   // three draws per point.
-  const Cloud box =
-      points::scatterBox({0, 0, 0}, {1, 1, 1}, 4, /*seed=*/7);
+  const Cloud box = points::scatterBox({0, 0, 0}, {1, 1, 1}, 4, /*seed=*/7);
   ASSERT_EQ(box.positions.size(), 4u);
-  const float pointsGolden[12] = {
-      0.985658824f, 0.420034766f,  0.98710376f,  0.480089128f,
-      0.151413783f, 0.589045703f,  0.263890147f, 0.0428663865f,
-      0.913271964f, 0.0273712128f, 0.317990124f, 0.787527025f};
+  const float pointsGolden[12] = {0.985658824f,  0.420034766f,  0.98710376f,
+                                  0.480089128f,  0.151413783f,  0.589045703f,
+                                  0.263890147f,  0.0428663865f, 0.913271964f,
+                                  0.0273712128f, 0.317990124f,  0.787527025f};
   for (size_t i = 0; i < 4; ++i) {
     EXPECT_NEAR(box.positions[i].x, pointsGolden[i * 3], 1e-7f);
     EXPECT_NEAR(box.positions[i].y, pointsGolden[i * 3 + 1], 1e-7f);
@@ -2760,11 +2669,9 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
     cellsSeen[(uMin > 0.25f ? 1 : 0) + (vMin > 0.25f ? 2 : 0)]++;
   }
   // Every one of the 40 points fell into one of the four cells.
-  EXPECT_GT(cellsSeen[0] + cellsSeen[1] + cellsSeen[2] + cellsSeen[3],
-            39);
+  EXPECT_GT(cellsSeen[0] + cellsSeen[1] + cellsSeen[2] + cellsSeen[3], 39);
   int distinct = 0;
-  for (int c : cellsSeen)
-    distinct += c > 0 ? 1 : 0;
+  for (int c : cellsSeen) distinct += c > 0 ? 1 : 0;
   EXPECT_GE(distinct, 3) << "the hash should spread across cells";
 }
 
@@ -2787,7 +2694,7 @@ Mesh splitQuad() {
   return m;
 }
 
-} // namespace
+}  // namespace
 
 TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
   Mesh a = splitQuad();
@@ -2816,7 +2723,7 @@ TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
   c.prim("heat", {0, 0, 0, 0})[0] = {5, 0, 0, 0};
   a.append(c);
   ASSERT_EQ(a.triangleCount(), 6u);
-  const std::vector<glm::vec4> *heat = a.primIf("heat");
+  const std::vector<glm::vec4>* heat = a.primIf("heat");
   ASSERT_EQ(heat->size(), 6u);
   EXPECT_FLOAT_EQ((*heat)[1].x, 9.0f);  // ours survived
   EXPECT_FLOAT_EQ((*heat)[2].x, 0.0f);  // padded
@@ -2854,15 +2761,15 @@ TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
 
 TEST(Space, PrimColorLaneTintsTrianglesFlat) {
   Mesh m = splitQuad();
-  m.prim("Color")[0] = {1, 0, 0, 1}; // lower-right half
-  m.prim("Color")[1] = {0, 0, 1, 1}; // upper-left half
+  m.prim("Color")[0] = {1, 0, 0, 1};  // lower-right half
+  m.prim("Color")[1] = {0, 0, 1, 1};  // upper-left half
 
   space::Camera camera;
   camera.eye = {0, 0, 300};
   space::MeshStyle style;
   style.baseColor = {1, 1, 1, 1};
 
-  const auto render = [&](const space::MeshStyle &s) {
+  const auto render = [&](const space::MeshStyle& s) {
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
     surface->getCanvas()->clear(SK_ColorBLACK);
@@ -2926,14 +2833,14 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   const size_t perStamp = stamp.triangleCount();
   ASSERT_EQ(model.triangleCount(), (size_t)kPoints * perStamp);
 
-  const std::vector<glm::vec4> *color = model.primIf("Color");
-  const std::vector<glm::vec4> *id = model.primIf("Id");
-  const std::vector<glm::vec4> *size = model.primIf("size");
+  const std::vector<glm::vec4>* color = model.primIf("Color");
+  const std::vector<glm::vec4>* id = model.primIf("Id");
+  const std::vector<glm::vec4>* size = model.primIf("size");
   ASSERT_TRUE(color && id && size);
   ASSERT_EQ(color->size(), model.triangleCount());
 
-  const std::vector<glm::vec4> *tint = cooked.colorIf("tint");
-  const std::vector<float> *sizes = cooked.scalarIf("size");
+  const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
+  const std::vector<float>* sizes = cooked.scalarIf("size");
   ASSERT_TRUE(tint && sizes);
   for (size_t p = 0; p < (size_t)kPoints; ++p)
     for (size_t k = 0; k < perStamp; ++k) {

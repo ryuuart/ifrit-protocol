@@ -20,21 +20,20 @@
 // canvas, warms it to --at so materials/atlases/picture caches are hot,
 // then times --bench-frames real frames end to end.
 
-#include "ComposeSketchView.h"
-#include "SketchCrash.h"
-#include "SketchHost.h"
-
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
+
+#include "ComposeSketchView.h"
+#include "SketchCrash.h"
+#include "SketchHost.h"
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -51,7 +50,7 @@
 
 namespace {
 
-std::filesystem::path executableDir(const char *argv0) {
+std::filesystem::path executableDir(const char* argv0) {
 #ifdef __APPLE__
   char buffer[4096];
   uint32_t size = sizeof buffer;
@@ -63,26 +62,26 @@ std::filesystem::path executableDir(const char *argv0) {
   return ec ? std::filesystem::current_path() : canonical.parent_path();
 }
 
-sigil::weave::FontContext &fonts() {
-  static auto *context =
+sigil::weave::FontContext& fonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
 struct CaptureOptions {
   std::string out;
-  double at = 1.5;    // seconds of fixed-step warmup before capture
-  float scale = 1.0f; // multiplier over the sketch's canvas size
-  int frames = 1;     // >1 captures a numbered sequence
-  double fps = 60.0;  // fixed-step rate
-  bool bench = false; // --bench: measure, don't write
+  double at = 1.5;     // seconds of fixed-step warmup before capture
+  float scale = 1.0f;  // multiplier over the sketch's canvas size
+  int frames = 1;      // >1 captures a numbered sequence
+  double fps = 60.0;   // fixed-step rate
+  bool bench = false;  // --bench: measure, don't write
   int benchFrames = 120;
 };
 
 /** The 60 FPS gate, in milliseconds per frame. */
 constexpr double kFrameBudgetMs = 16.6;
 
-std::string numberedPath(const std::string &path, int index) {
+std::string numberedPath(const std::string& path, int index) {
   const size_t dot = path.rfind('.');
   char suffix[16];
   std::snprintf(suffix, sizeof suffix, "_%04d", index);
@@ -92,12 +91,11 @@ std::string numberedPath(const std::string &path, int index) {
 }
 
 /** Blocks until the first build lands (or fails); false = never got live. */
-bool awaitFirstBuild(sigil::compose::sketch::SketchHost &host) {
+bool awaitFirstBuild(sigil::compose::sketch::SketchHost& host) {
   using namespace std::chrono_literals;
   for (int i = 0; i < 1200; ++i) {
     host.poll();
-    if (host.live() || !host.errorLog().empty())
-      break;
+    if (host.live() || !host.errorLog().empty()) break;
     std::this_thread::sleep_for(50ms);
   }
   if (!host.live()) {
@@ -109,8 +107,7 @@ bool awaitFirstBuild(sigil::compose::sketch::SketchHost &host) {
 }
 
 double percentile(std::vector<double> sorted, double q) {
-  if (sorted.empty())
-    return 0.0;
+  if (sorted.empty()) return 0.0;
   const size_t i = (size_t)std::llround(q * (double)(sorted.size() - 1));
   return sorted[std::min(i, sorted.size() - 1)];
 }
@@ -127,11 +124,10 @@ double percentile(std::vector<double> sorted, double q) {
  *
  * Always exits 0. The verdict is reported on stdout, not in the exit status,
  * so a slow sketch does not abort a pipeline that is benching several. */
-int runBench(sigil::compose::sketch::SketchHost &host,
-             const CaptureOptions &options,
-             const std::filesystem::path &sketchPath) {
-  if (!awaitFirstBuild(host))
-    return 1;
+int runBench(sigil::compose::sketch::SketchHost& host,
+             const CaptureOptions& options,
+             const std::filesystem::path& sketchPath) {
+  if (!awaitFirstBuild(host)) return 1;
 
   const SkSize canvas = host.canvasSize();
   const float scale = options.scale;
@@ -146,7 +142,7 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                  height);
     return 1;
   }
-  SkCanvas &sk = *surface->getCanvas();
+  SkCanvas& sk = *surface->getCanvas();
   const SkColor background = host.background().toSkColor();
 
   // Forces the pixels to exist. On raster this is already true when
@@ -170,19 +166,19 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   };
 
   const int warmup = std::max(1, (int)std::lround(options.at / dt));
-  for (int i = 0; i < warmup; ++i)
-    step();
+  for (int i = 0; i < warmup; ++i) step();
 
   // One profiled frame BEFORE the timed run, so a FAIL can name the node
   // instead of only the phase. Profiling costs a little, so it does not
   // ride along with the measured frames.
   std::vector<sigil::compose::Composer::NodeCost> hotNodes;
-  if (sigil::compose::Composer *composer = host.composer()) {
+  if (sigil::compose::Composer* composer = host.composer()) {
     composer->setProfiling(true);
     step();
-    const auto &rows = composer->profile();
-    hotNodes.assign(rows.begin(),
-                 rows.begin() + (std::ptrdiff_t)std::min<size_t>(6, rows.size()));
+    const auto& rows = composer->profile();
+    hotNodes.assign(
+        rows.begin(),
+        rows.begin() + (std::ptrdiff_t)std::min<size_t>(6, rows.size()));
     composer->setProfiling(false);
   }
 
@@ -195,23 +191,21 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                           std::chrono::steady_clock::now() - begin)
                           .count();
     frames.push_back(ms);
-    const auto &split = host.lastFrameTiming();
+    const auto& split = host.lastFrameTiming();
     updates.push_back(split.updateMs);
     draws.push_back(split.drawMs);
-    if (const sigil::compose::Composer *composer = host.composer()) {
-      const auto &stats = composer->stats();
+    if (const sigil::compose::Composer* composer = host.composer()) {
+      const auto& stats = composer->stats();
       paints.push_back(stats.paintMs);
       layouts.push_back(stats.layoutMs);
       reconciles.push_back(stats.reconcileMs);
     }
   }
 
-  const auto mean = [](const std::vector<double> &v) {
-    if (v.empty())
-      return 0.0;
+  const auto mean = [](const std::vector<double>& v) {
+    if (v.empty()) return 0.0;
     double sum = 0;
-    for (double x : v)
-      sum += x;
+    for (double x : v) sum += x;
     return sum / (double)v.size();
   };
   std::vector<double> sorted = frames;
@@ -223,53 +217,56 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   const bool pass = p99 < kFrameBudgetMs;
 
   // One machine-readable line, prefixed "BENCH " so collectors can grep it.
-  std::printf("BENCH %s %dx%d frames=%d p50=%.2fms p99=%.2fms mean=%.2fms "
-              "max=%.2fms fps50=%.1f VERDICT=%s\n",
-              sketchPath.stem().string().c_str(), width, height,
-              (int)frames.size(), p50, p99, avg, worst,
-              p50 > 0 ? 1000.0 / p50 : 0.0, pass ? "PASS" : "FAIL");
+  std::printf(
+      "BENCH %s %dx%d frames=%d p50=%.2fms p99=%.2fms mean=%.2fms "
+      "max=%.2fms fps50=%.1f VERDICT=%s\n",
+      sketchPath.stem().string().c_str(), width, height, (int)frames.size(),
+      p50, p99, avg, worst, p50 > 0 ? 1000.0 / p50 : 0.0,
+      pass ? "PASS" : "FAIL");
   // …and the human one: which phase dominates is the first question asked
   // of any of these runs.
-  std::printf("  phases (mean ms): update %.2f [reconcile %.2f] · draw %.2f "
-              "[layout %.2f · paint %.2f]\n",
-              mean(updates), mean(reconciles), mean(draws), mean(layouts),
-              mean(paints));
-  if (const sigil::compose::Composer *composer = host.composer()) {
-    const auto &stats = composer->stats();
+  std::printf(
+      "  phases (mean ms): update %.2f [reconcile %.2f] · draw %.2f "
+      "[layout %.2f · paint %.2f]\n",
+      mean(updates), mean(reconciles), mean(draws), mean(layouts),
+      mean(paints));
+  if (const sigil::compose::Composer* composer = host.composer()) {
+    const auto& stats = composer->stats();
     // Labelled "cache writes", not "pictures recorded": picturesRecorded
     // counts pixel bakes too, so the recording count is the difference
     // against texturesBaked — which is the split printed here.
-    std::printf("  last frame: %zu nodes painted, %zu cache writes (%zu "
-                "recordings, %zu bakes), %zu pictures live, %zu textures "
-                "live, %zu instances\n",
-                stats.nodesPainted, stats.picturesRecorded,
-                stats.picturesRecorded - stats.texturesBaked,
-                stats.texturesBaked, stats.picturesLive, stats.texturesLive,
-                stats.instances);
+    std::printf(
+        "  last frame: %zu nodes painted, %zu cache writes (%zu "
+        "recordings, %zu bakes), %zu pictures live, %zu textures "
+        "live, %zu instances\n",
+        stats.nodesPainted, stats.picturesRecorded,
+        stats.picturesRecorded - stats.texturesBaked, stats.texturesBaked,
+        stats.picturesLive, stats.texturesLive, stats.instances);
   }
   if (!hotNodes.empty()) {
     std::printf("  most expensive nodes (self ms, excluding children):\n");
-    for (const auto &row : hotNodes) {
-      const char *state = "live";
+    for (const auto& row : hotNodes) {
+      const char* state = "live";
       switch (row.cacheState) {
-      case sigil::compose::Composer::CacheState::Live:
-        state = "live paint";
-        break;
-      case sigil::compose::Composer::CacheState::Picture:
-        state = "[PICTURE — a replay still re-runs every shader, every pixel]";
-        break;
-      case sigil::compose::Composer::CacheState::Texture:
-        state = "[texture — you asked for it]";
-        break;
-      case sigil::compose::Composer::CacheState::Promoted:
-        state = "[TEXTURE, promoted by the library — not by you]";
-        break;
-      case sigil::compose::Composer::CacheState::SplitOwn:
-        state = "[OWN PAINT baked, live children over the blit]";
-        break;
-      case sigil::compose::Composer::CacheState::Group:
-        state = "[group — subtree baked whole while its bindings hold still]";
-        break;
+        case sigil::compose::Composer::CacheState::Live:
+          state = "live paint";
+          break;
+        case sigil::compose::Composer::CacheState::Picture:
+          state =
+              "[PICTURE — a replay still re-runs every shader, every pixel]";
+          break;
+        case sigil::compose::Composer::CacheState::Texture:
+          state = "[texture — you asked for it]";
+          break;
+        case sigil::compose::Composer::CacheState::Promoted:
+          state = "[TEXTURE, promoted by the library — not by you]";
+          break;
+        case sigil::compose::Composer::CacheState::SplitOwn:
+          state = "[OWN PAINT baked, live children over the blit]";
+          break;
+        case sigil::compose::Composer::CacheState::Group:
+          state = "[group — subtree baked whole while its bindings hold still]";
+          break;
       }
       std::printf("    %8.2f ms  %-40s %s\n", row.selfMs, row.label.c_str(),
                   state);
@@ -286,9 +283,8 @@ int runBench(sigil::compose::sketch::SketchHost &host,
         // behind it costs an author a whole iteration each time, and a node
         // has more than one reason more often than not.
         using Prom = sigil::compose::Composer::Promotion;
-        for (Prom also :
-             {Prom::Volatile, Prom::Composited, Prom::Transformed,
-              Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig})
+        for (Prom also : {Prom::Volatile, Prom::Composited, Prom::Transformed,
+                          Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig})
           if (also != row.promotion && row.refused(also))
             std::printf("                    …and: %s\n",
                         sigil::compose::Composer::promotionReason(also));
@@ -296,18 +292,20 @@ int runBench(sigil::compose::sketch::SketchHost &host,
     }
   }
   if (pass) {
-    std::printf("  PASS — p99 %.2f ms is inside the %.1f ms budget "
-                "(%.0f FPS gate)\n",
-                p99, kFrameBudgetMs, 1000.0 / kFrameBudgetMs);
+    std::printf(
+        "  PASS — p99 %.2f ms is inside the %.1f ms budget "
+        "(%.0f FPS gate)\n",
+        p99, kFrameBudgetMs, 1000.0 / kFrameBudgetMs);
   } else {
     const bool paintBound = mean(draws) >= mean(updates);
-    std::printf("\n"
-                "  ####################################################\n"
-                "  ##  FAIL — p99 %.2f ms EXCEEDS the %.1f ms budget.\n"
-                "  ##  This sketch does NOT hold 60 FPS at %dx%d.\n"
-                "  ##  %s dominates.\n",
-                p99, kFrameBudgetMs, width, height,
-                paintBound ? "PAINT (draw)" : "DESCRIBE/RECONCILE (update)");
+    std::printf(
+        "\n"
+        "  ####################################################\n"
+        "  ##  FAIL — p99 %.2f ms EXCEEDS the %.1f ms budget.\n"
+        "  ##  This sketch does NOT hold 60 FPS at %dx%d.\n"
+        "  ##  %s dominates.\n",
+        p99, kFrameBudgetMs, width, height,
+        paintBound ? "PAINT (draw)" : "DESCRIBE/RECONCILE (update)");
     if (paintBound) {
       // The distinction that is easiest to get wrong, stated where it is
       // read. `picturesRecorded == 0` looks like "fully cached" and is not: a
@@ -336,35 +334,34 @@ int runBench(sigil::compose::sketch::SketchHost &host,
           host.composer() ? host.composer()->stats().nodesPainted : 0u,
           host.composer() ? host.composer()->stats().texturesLive : 0u);
     } else {
-      std::printf("  ##  You are rebuilding the tree every frame. Describe\n"
-                  "  ##  once in setup() and bind choreograph::Outputs, or\n"
-                  "  ##  memo() the subtrees whose props did not change.\n");
+      std::printf(
+          "  ##  You are rebuilding the tree every frame. Describe\n"
+          "  ##  once in setup() and bind choreograph::Outputs, or\n"
+          "  ##  memo() the subtrees whose props did not change.\n");
     }
-    std::printf("  ##  If it cannot be fixed from the sketch, it is a\n"
-                "  ##  library problem — record it with this number.\n"
-                "  ####################################################\n");
+    std::printf(
+        "  ##  If it cannot be fixed from the sketch, it is a\n"
+        "  ##  library problem — record it with this number.\n"
+        "  ####################################################\n");
   }
   std::fflush(stdout);
   return 0;
 }
 
-int runHeadless(sigil::compose::sketch::SketchHost &host,
-                const CaptureOptions &options) {
-  if (!awaitFirstBuild(host))
-    return 1;
+int runHeadless(sigil::compose::sketch::SketchHost& host,
+                const CaptureOptions& options) {
+  if (!awaitFirstBuild(host)) return 1;
   // Step the clock to --at with fixed dt (a tiny scratch surface: the
   // real pixels come from capture()).
   const double dt = 1.0 / options.fps;
   sk_sp<SkSurface> scratch =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
   const int warmup = std::max(1, (int)std::lround(options.at / dt));
-  for (int i = 0; i < warmup; ++i)
-    host.frame(*scratch->getCanvas(), dt);
+  for (int i = 0; i < warmup; ++i) host.frame(*scratch->getCanvas(), dt);
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path =
-        options.frames > 1 ? numberedPath(options.out, index + 1)
-                           : options.out;
+        options.frames > 1 ? numberedPath(options.out, index + 1) : options.out;
     {
       sigil::compose::sketch::PhaseMark mark(
           sigil::compose::sketch::Phase::Capture);
@@ -374,20 +371,19 @@ int runHeadless(sigil::compose::sketch::SketchHost &host,
       }
     }
     if (index + 1 < options.frames)
-      host.frame(*scratch->getCanvas(), dt); // advance between frames
+      host.frame(*scratch->getCanvas(), dt);  // advance between frames
   }
-  std::printf("wrote %s (%d frame%s at %.3gx, build %d, "
-              "work %.2f ms avg / %.2f p99)\n",
-              options.out.c_str(), options.frames,
-              options.frames == 1 ? "" : "s", options.scale,
-              host.generation(), host.workMsAverage(),
-              host.workMsP99());
+  std::printf(
+      "wrote %s (%d frame%s at %.3gx, build %d, "
+      "work %.2f ms avg / %.2f p99)\n",
+      options.out.c_str(), options.frames, options.frames == 1 ? "" : "s",
+      options.scale, host.generation(), host.workMsAverage(), host.workMsP99());
   return 0;
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   std::filesystem::path sketchPath;
   std::filesystem::path assetsDir;
   CaptureOptions capture;
@@ -459,10 +455,8 @@ int main(int argc, char *argv[]) {
   sigil::compose::sketch::installCrashReporter(options.sketchPath);
   sigil::compose::sketch::SketchHost host(std::move(options), fonts());
 
-  if (capture.bench)
-    return runBench(host, capture, host.sketchPath());
-  if (!capture.out.empty())
-    return runHeadless(host, capture);
+  if (capture.bench) return runBench(host, capture, host.sketchPath());
+  if (!capture.out.empty()) return runHeadless(host, capture);
 
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");

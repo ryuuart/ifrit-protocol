@@ -32,4 +32,4 @@ bool kitLinked() {
   return true;
 }
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

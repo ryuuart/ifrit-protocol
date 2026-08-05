@@ -26,9 +26,9 @@
  * sampling and band.
  */
 
-#include "sigilcompose/Compose.h"
-
 #include <string_view>
+
+#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::ocio {
 
@@ -61,4 +61,4 @@ Effect convert(std::string_view config, std::string_view src,
  */
 Effect exponent(float gamma, int lutSize = 33);
 
-} // namespace sigil::compose::ocio
+}  // namespace sigil::compose::ocio

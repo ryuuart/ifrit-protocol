@@ -3,22 +3,18 @@
 // draw cost, and what memoization and automatic picture caching save
 // against the same scene without them.
 
+#include <benchmark/benchmark.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkString.h>
+#include <include/core/SkSurface.h>
+#include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Util.h>
-
-#include <include/core/SkString.h>
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
-
-#include <benchmark/benchmark.h>
 
 #include <random>
 #include <string>
@@ -30,8 +26,8 @@ using namespace std::chrono_literals;
 
 namespace {
 
-sigil::weave::FontContext &fonts() {
-  static auto *context =
+sigil::weave::FontContext& fonts() {
+  static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
@@ -39,22 +35,26 @@ sigil::weave::FontContext &fonts() {
 struct Row {
   std::string name;
   int score = 0;
-  bool operator==(const Row &) const = default;
+  bool operator==(const Row&) const = default;
 };
 
-Element scoreRow(const Row &row) {
+Element scoreRow(const Row& row) {
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 14.0f;
-  return box().row().gap(12).padding(8).corners({6})
+  return box()
+      .row()
+      .gap(12)
+      .padding(8)
+      .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
-      .child(text(sigil::compose::util::toU8(std::to_string(row.score)), style));
+      .child(
+          text(sigil::compose::util::toU8(std::to_string(row.score)), style));
 }
 
-Element scoreboard(const std::vector<Row> &rows) {
+Element scoreboard(const std::vector<Row>& rows) {
   auto list = box().column().gap(4).padding(16);
-  for (const Row &row : rows)
-    list.child(memo(row, scoreRow).key(row.name));
+  for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
   return list;
 }
 
@@ -76,23 +76,22 @@ struct Host {
   }
 };
 
-} // namespace
+}  // namespace
 
 /** Full describe + reconcile of 100 memo'd rows, nothing changed —
  *  the steady-state data-refresh cost (all memo hits). */
-static void BM_Render_100Rows_Unchanged(benchmark::State &state) {
+static void BM_Render_100Rows_Unchanged(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   host.composer.render(scoreboard(rows));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.render(scoreboard(rows));
+  for (auto _ : state) host.composer.render(scoreboard(rows));
   state.counters["memoHits"] = (double)host.composer.stats().memoHits;
 }
 BENCHMARK(BM_Render_100Rows_Unchanged);
 
 /** One row's data changed: one memo miss re-describes + patches. */
-static void BM_Render_100Rows_OneChanged(benchmark::State &state) {
+static void BM_Render_100Rows_OneChanged(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   host.composer.render(scoreboard(rows));
@@ -109,23 +108,28 @@ BENCHMARK(BM_Render_100Rows_OneChanged);
  *  built without memo, so what is being exercised is the structural prune's
  *  ability to see through value decorations (Shadow, PathFormat) and declare
  *  two describes equal. */
-static Element decoratedRow(const Row &row) {
+static Element decoratedRow(const Row& row) {
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 14.0f;
-  return box().row().gap(12).padding(8).corners({6})
+  return box()
+      .row()
+      .gap(12)
+      .padding(8)
+      .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
       .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
-      .foreground(
-          sigil::compose::util::stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
+      .foreground(sigil::compose::util::stroke(
+          1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
       .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
       .child(
           text(sigil::compose::util::toU8(std::to_string(row.score)), style));
 }
 
-static Element decoratedBoard(const std::vector<Row> &rows) {
+static Element decoratedBoard(const std::vector<Row>& rows) {
   auto list = box().column().gap(4).padding(16);
-  for (const Row &row : rows)
-    list.child(decoratedRow(row).key(row.name)); // no memo — prune must cover it
+  for (const Row& row : rows)
+    list.child(
+        decoratedRow(row).key(row.name));  // no memo — prune must cover it
   return list;
 }
 
@@ -135,13 +139,12 @@ static Element decoratedBoard(const std::vector<Row> &rows) {
  *  here is dominated by describing the tree (there is no memo, so the rows
  *  are rebuilt either way), which is why the saving shows up on the draw
  *  side rather than in this arm's wall time. */
-static void BM_Render_100DecoratedRows_Unchanged(benchmark::State &state) {
+static void BM_Render_100DecoratedRows_Unchanged(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   host.composer.render(decoratedBoard(rows));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.render(decoratedBoard(rows));
+  for (auto _ : state) host.composer.render(decoratedBoard(rows));
   state.counters["patchedNodes"] = (double)host.composer.stats().patchedNodes;
 }
 BENCHMARK(BM_Render_100DecoratedRows_Unchanged);
@@ -153,7 +156,7 @@ BENCHMARK(BM_Render_100DecoratedRows_Unchanged);
  *  false, the draw is skipped entirely, and the blurred shadow is never
  *  rasterized again. The draws% counter reports how often the guard let a
  *  draw through; the remaining wall time is describe cost alone. */
-static void BM_Frame_100DecoratedRows_Static(benchmark::State &state) {
+static void BM_Frame_100DecoratedRows_Static(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   host.composer.render(decoratedBoard(rows));
@@ -161,7 +164,7 @@ static void BM_Frame_100DecoratedRows_Static(benchmark::State &state) {
   double draws = 0, frames = 0;
   for (auto _ : state) {
     host.composer.render(decoratedBoard(rows));
-    if (host.composer.dirty()) { // host skips clean frames
+    if (host.composer.dirty()) {  // host skips clean frames
       host.composer.draw(*host.surface->getCanvas());
       ++draws;
     }
@@ -172,7 +175,7 @@ static void BM_Frame_100DecoratedRows_Static(benchmark::State &state) {
 BENCHMARK(BM_Frame_100DecoratedRows_Static);
 
 /** Cold describe + mount of the full 100-row tree (worst case). */
-static void BM_Render_100Rows_Cold(benchmark::State &state) {
+static void BM_Render_100Rows_Cold(benchmark::State& state) {
   auto rows = makeRows(100);
   for (auto _ : state) {
     Host host;
@@ -184,26 +187,23 @@ static void BM_Render_100Rows_Cold(benchmark::State &state) {
 BENCHMARK(BM_Render_100Rows_Cold);
 
 /** Drawing the fully static scoreboard: automatic picture replay. */
-static void BM_Draw_100Rows_Cached(benchmark::State &state) {
+static void BM_Draw_100Rows_Cached(benchmark::State& state) {
   Host host;
   host.composer.render(scoreboard(makeRows(100)));
-  host.composer.draw(*host.surface->getCanvas()); // record
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
-  state.counters["picturesLive"] =
-      (double)host.composer.stats().picturesLive;
-  state.counters["nodesPainted"] =
-      (double)host.composer.stats().nodesPainted;
+  host.composer.draw(*host.surface->getCanvas());  // record
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
+  state.counters["picturesLive"] = (double)host.composer.stats().picturesLive;
+  state.counters["nodesPainted"] = (double)host.composer.stats().nodesPainted;
 }
 BENCHMARK(BM_Draw_100Rows_Cached);
 
 /** The same tree forced volatile by one bound root transform — live
  *  stacking paint of every node, the no-cache ceiling. */
-static void BM_Draw_100Rows_Volatile(benchmark::State &state) {
+static void BM_Draw_100Rows_Volatile(benchmark::State& state) {
   Host host;
   choreograph::Output<float> x = 0.0f;
   auto list = box().translateX(&x).column().gap(4).padding(16);
-  for (const Row &row : makeRows(100))
+  for (const Row& row : makeRows(100))
     list.child(memo(row, scoreRow).key(row.name));
   host.composer.render(std::move(list));
   host.composer.draw(*host.surface->getCanvas());
@@ -211,13 +211,12 @@ static void BM_Draw_100Rows_Volatile(benchmark::State &state) {
     x = x.value() + 0.25f;
     host.composer.draw(*host.surface->getCanvas());
   }
-  state.counters["nodesPainted"] =
-      (double)host.composer.stats().nodesPainted;
+  state.counters["nodesPainted"] = (double)host.composer.stats().nodesPainted;
 }
 BENCHMARK(BM_Draw_100Rows_Volatile);
 
 /** Text-heavy relayout: width change re-measures every paragraph. */
-static void BM_Layout_100Rows_WidthChange(benchmark::State &state) {
+static void BM_Layout_100Rows_WidthChange(benchmark::State& state) {
   Host host;
   host.composer.render(scoreboard(makeRows(100)));
   host.composer.draw(*host.surface->getCanvas());
@@ -232,7 +231,7 @@ BENCHMARK(BM_Layout_100Rows_WidthChange);
 
 /** A transition step: ticker + one animating node repainting over a
  *  static cached background of 99 rows. */
-static void BM_Frame_OneTransitionActive(benchmark::State &state) {
+static void BM_Frame_OneTransitionActive(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   host.composer.render(scoreboard(rows));
@@ -240,10 +239,9 @@ static void BM_Frame_OneTransitionActive(benchmark::State &state) {
   int flip = 0;
   for (auto _ : state) {
     state.PauseTiming();
-    rows[10].score = ++flip; // re-describe row 10 with a transition
+    rows[10].score = ++flip;  // re-describe row 10 with a transition
     auto list = box().column().gap(4).padding(16).transition({16000ms});
-    for (const Row &row : rows)
-      list.child(memo(row, scoreRow).key(row.name));
+    for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
     host.composer.render(std::move(list));
     state.ResumeTiming();
     host.ticker.tick(1.0 / 120.0);
@@ -251,7 +249,6 @@ static void BM_Frame_OneTransitionActive(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Frame_OneTransitionActive);
-
 
 /** Dense text block, picture replay per draw: the raster re-raster
  *  cost that Cache::Texture exists to eliminate. */
@@ -261,30 +258,26 @@ static Element denseBlock(Cache mode) {
   std::u8string para;
   for (int i = 0; i < 60; ++i)
     para += u8"the quick brown fox jumps over the lazy dog ";
-  auto block = box().padding(12).width(780).cache(mode)
-                   .fill(Fill::color({0.1f, 0.1f, 0.12f, 1}));
-  for (int i = 0; i < 6; ++i)
-    block.child(text(para, style));
+  auto block = box().padding(12).width(780).cache(mode).fill(
+      Fill::color({0.1f, 0.1f, 0.12f, 1}));
+  for (int i = 0; i < 6; ++i) block.child(text(para, style));
   return block;
 }
 
-static void BM_Draw_DenseText_PictureReplay(benchmark::State &state) {
+static void BM_Draw_DenseText_PictureReplay(benchmark::State& state) {
   Host host(800, 2400);
   host.composer.render(denseBlock(Cache::Picture));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_DenseText_PictureReplay);
 
-static void BM_Draw_DenseText_TextureBlit(benchmark::State &state) {
+static void BM_Draw_DenseText_TextureBlit(benchmark::State& state) {
   Host host(800, 2400);
   host.composer.render(denseBlock(Cache::Texture));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
-  state.counters["texturesLive"] =
-      (double)host.composer.stats().texturesLive;
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
+  state.counters["texturesLive"] = (double)host.composer.stats().texturesLive;
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit);
 
@@ -302,7 +295,7 @@ BENCHMARK(BM_Draw_DenseText_TextureBlit);
  *  BM_Draw_DenseText_TextureBlit_Graphite first. The gap between them is the
  *  ceiling on anything Slug could recover. Registering the name keeps this
  *  arm ordered next to its siblings if that gap ever grows. */
-static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
+static void BM_Draw_DenseText_SlugReplay(benchmark::State& state) {
   state.SkipWithMessage(
       "not implemented: with ordered recordings, dense-text picture replay "
       "already runs close to the texture-blit floor, so the win available "
@@ -313,24 +306,18 @@ static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_DenseText_SlugReplay);
 
-
-
-
 /** The sparse case: the 100-row list texture-cached whole — blitting
  *  its mostly-empty full area vs replaying only the rows. */
-static void BM_Draw_100Rows_TextureBlit(benchmark::State &state) {
+static void BM_Draw_100Rows_TextureBlit(benchmark::State& state) {
   Host host;
   auto rows = makeRows(100);
   auto list = box().column().gap(4).padding(16).cache(Cache::Texture);
-  for (const Row &row : rows)
-    list.child(memo(row, scoreRow).key(row.name));
+  for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
   host.composer.render(std::move(list));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_100Rows_TextureBlit);
-
 
 /** A blur-effected headline: picture replay re-runs the filter every
  *  draw; Cache::Texture bakes it — the effects payoff. */
@@ -338,29 +325,28 @@ static Element bloomBlock(Cache mode) {
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 64.0f;
   style.paint.foreground.setColor(0xff7ee8ff);
-  return box().padding(24).cache(mode)
+  return box()
+      .padding(24)
+      .cache(mode)
       .effect(Effect::filter(SkImageFilters::Blur(12, 12, nullptr)))
       .child(text(u8"BLOOM PIPELINE", style));
 }
 
-static void BM_Draw_Bloom_PictureReplay(benchmark::State &state) {
+static void BM_Draw_Bloom_PictureReplay(benchmark::State& state) {
   Host host(900, 300);
   host.composer.render(bloomBlock(Cache::Picture));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_Bloom_PictureReplay);
 
-static void BM_Draw_Bloom_TextureBaked(benchmark::State &state) {
+static void BM_Draw_Bloom_TextureBaked(benchmark::State& state) {
   Host host(900, 300);
   host.composer.render(bloomBlock(Cache::Texture));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked);
-
 
 // ---- A blur whose SIGMA VARIES across the node, three ways ----------------
 //
@@ -389,7 +375,7 @@ BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 namespace {
 
-constexpr int kVaryPanelRaster = 96; // the naive kernel is O(σ²) on the CPU
+constexpr int kVaryPanelRaster = 96;  // the naive kernel is O(σ²) on the CPU
 constexpr int kVaryPanelGpu = 256;
 
 /** Hard 8px stripes in node-local space — detail for the blur to destroy. */
@@ -418,9 +404,8 @@ Material sigmaRamp() {
  *  compiler. */
 sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
   static std::vector<std::pair<int, sk_sp<SkRuntimeEffect>>> cache;
-  for (const auto &[r, fx] : cache)
-    if (r == radius)
-      return fx;
+  for (const auto& [r, fx] : cache)
+    if (r == radius) return fx;
   const std::string r = std::to_string(radius);
   auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
       ("uniform shader content;"
@@ -431,8 +416,12 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
        "  float inv = -0.5 / (sigma * sigma);"
        "  half4 sum = half4(0);"
        "  float wsum = 0.0;"
-       "  for (int dy = -" + r + "; dy <= " + r + "; ++dy) {"
-       "    for (int dx = -" + r + "; dx <= " + r + "; ++dx) {"
+       "  for (int dy = -" +
+       r + "; dy <= " + r +
+       "; ++dy) {"
+       "    for (int dx = -" +
+       r + "; dx <= " + r +
+       "; ++dx) {"
        "      float w = exp(float(dx * dx + dy * dy) * inv);"
        "      sum += content.eval(p + float2(float(dx), float(dy))) * half(w);"
        "      wsum += w;"
@@ -448,8 +437,11 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
 }
 
 Element varyingPanel(int side, Effect e) {
-  return box().width((float)side).height((float)side).fill(stripeTarget()).effect(
-      std::move(e));
+  return box()
+      .width((float)side)
+      .height((float)side)
+      .fill(stripeTarget())
+      .effect(std::move(e));
 }
 
 Effect pyramidArm(float sigma) { return Effect::blur(sigmaRamp(), sigma); }
@@ -465,47 +457,44 @@ Effect naiveArm(float sigma) {
 /** One draw per iteration on a raster surface, effect re-resolved each
  *  time (Cache::None keeps the filter out of a picture so the arms measure
  *  the FILTER, not the replay). */
-void rasterVaryingArm(benchmark::State &state, Effect e, int side) {
+void rasterVaryingArm(benchmark::State& state, Effect e, int side) {
   Host host(side, side);
   host.composer.render(varyingPanel(side, std::move(e)).cache(Cache::None));
-  host.composer.draw(*host.surface->getCanvas()); // warm the SkSL compile
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  host.composer.draw(*host.surface->getCanvas());  // warm the SkSL compile
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 
-} // namespace
+}  // namespace
 
-static void BM_Draw_VaryingBlur_Pyramid_s6(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Pyramid_s6(benchmark::State& state) {
   rasterVaryingArm(state, pyramidArm(6), kVaryPanelRaster);
 }
 BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s6)->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_VaryingBlur_Naive_s6(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Naive_s6(benchmark::State& state) {
   rasterVaryingArm(state, naiveArm(6), kVaryPanelRaster);
 }
 BENCHMARK(BM_Draw_VaryingBlur_Naive_s6)
     ->Unit(benchmark::kMillisecond)
     ->Iterations(3);
 
-static void BM_Draw_VaryingBlur_Pyramid_s24(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Pyramid_s24(benchmark::State& state) {
   rasterVaryingArm(state, pyramidArm(24), kVaryPanelRaster);
 }
 BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s24)->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_VaryingBlur_Naive_s24(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Naive_s24(benchmark::State& state) {
   rasterVaryingArm(state, naiveArm(24), kVaryPanelRaster);
 }
 BENCHMARK(BM_Draw_VaryingBlur_Naive_s24)
     ->Unit(benchmark::kMillisecond)
     ->Iterations(1);
 
-static void BM_Draw_VaryingBlur_ConstantMax_s24(benchmark::State &state) {
-  rasterVaryingArm(state,
-                   Effect::filter(SkImageFilters::Blur(24, 24, nullptr)),
+static void BM_Draw_VaryingBlur_ConstantMax_s24(benchmark::State& state) {
+  rasterVaryingArm(state, Effect::filter(SkImageFilters::Blur(24, 24, nullptr)),
                    kVaryPanelRaster);
 }
 BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24)->Unit(benchmark::kMillisecond);
-
 
 #ifdef COMPOSE_BENCH_GRAPHITE
 // ---- The same arms against a Graphite Metal surface ----
@@ -513,37 +502,36 @@ BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24)->Unit(benchmark::kMillisecond);
 // depends on the target. These arms repeat the raster measurements above
 // with a GPU surface underneath so the two can be compared directly.
 
-#include "ComposeBenchGpu.h"
-#include "SkiaGraphiteContext.h"
-
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 
+#include "ComposeBenchGpu.h"
+#include "SkiaGraphiteContext.h"
+
 namespace {
 
-SkiaGraphiteContext *graphite() {
+SkiaGraphiteContext* graphite() {
   static std::unique_ptr<SkiaGraphiteContext> ctx =
       SkiaGraphiteContext::createMetal(sigil::compose::bench::gpuDevice(),
                                        sigil::compose::bench::gpuQueue());
   return ctx.get();
 }
 
-void submitGraphite(SkiaGraphiteContext &graphiteContext) {
+void submitGraphite(SkiaGraphiteContext& graphiteContext) {
   auto recording = graphiteContext.recorder()->snap();
-  if (!recording)
-    return;
+  if (!recording) return;
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
   graphiteContext.context()->insertRecording(info);
   graphiteContext.context()->submit();
 }
 
-} // namespace
+}  // namespace
 
-static void BM_Draw_100Rows_Cached_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_100Rows_Cached_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -577,9 +565,8 @@ makeInstanceScene(size_t count) {
   using namespace sigil::compose::instancing;
   auto atlas = std::make_shared<Atlas>();
   for (int i = 0; i < 4; ++i)
-    atlas->cell(box()
-                    .corners({6})
-                    .fill(Fill::color({0.2f + 0.2f * (float)i, 0.5f, 0.8f, 1})),
+    atlas->cell(box().corners({6}).fill(
+                    Fill::color({0.2f + 0.2f * (float)i, 0.5f, 0.8f, 1})),
                 {24, 24});
   auto pool = std::make_shared<Pool>();
   uint32_t rng = 12345;
@@ -588,36 +575,33 @@ makeInstanceScene(size_t count) {
     return (float)(rng >> 8) / (float)(1u << 24);
   };
   for (size_t i = 0; i < count; ++i)
-    pool->add({next() * 800.0f, next() * 2400.0f}, (int)(i % 4),
-              next() * 6.28f, 0.5f + next());
+    pool->add({next() * 800.0f, next() * 2400.0f}, (int)(i % 4), next() * 6.28f,
+              0.5f + next());
   return {atlas, pool};
 }
 
-} // namespace
+}  // namespace
 
 /** 10k pool, Live mode: full per-frame stamp cost (array build + one
  *  drawAtlas) on CPU raster. */
-static void BM_Draw_Instances10k_Live(benchmark::State &state) {
+static void BM_Draw_Instances10k_Live(benchmark::State& state) {
   using namespace sigil::compose::instancing;
   Host host;
   auto [atlas, pool] = makeInstanceScene(10000);
-  host.composer.render(
-      box().child(instances(atlas, pool, Mode::Live)));
+  host.composer.render(box().child(instances(atlas, pool, Mode::Live)));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_Instances10k_Live);
 
 /** Same pool, Data mode, untouched: the cached-picture replay price. */
-static void BM_Draw_Instances10k_DataCached(benchmark::State &state) {
+static void BM_Draw_Instances10k_DataCached(benchmark::State& state) {
   using namespace sigil::compose::instancing;
   Host host;
   auto [atlas, pool] = makeInstanceScene(10000);
   host.composer.render(box().child(instances(atlas, pool)));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_Instances10k_DataCached);
 
@@ -629,48 +613,51 @@ BENCHMARK(BM_Draw_Instances10k_DataCached);
 /** SkVertices art warp along a ~1500 px S-curve at 6 px stations
  *  (~500 strip verts), repainted per frame (Cache::None) — the honest
  *  worst case; a settled artline caches like any decoration. */
-static void BM_Draw_ArtWarp_Live(benchmark::State &state) {
+static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
   Host host(900, 640);
-  brush::Art vine = brush::artAlong(
-      box().width(48).height(16).corners({8})
-          .fill(Fill::color({0.5f, 0.8f, 0.5f, 1})),
-      14, 6);
-  host.composer.render(box().child(
-      box().absolute().inset(20, 20, 20, 20)
-          .shape([](SkSize s) {
-            SkPathBuilder b;
-            b.moveTo(0, s.height() / 2);
-            b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
-                      s.width(), s.height() / 2);
-            return b.detach();
-          })
-          .foreground(vine)
-          .cache(Cache::None)));
+  brush::Art vine =
+      brush::artAlong(box().width(48).height(16).corners({8}).fill(
+                          Fill::color({0.5f, 0.8f, 0.5f, 1})),
+                      14, 6);
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20, 20, 20, 20)
+                                       .shape([](SkSize s) {
+                                         SkPathBuilder b;
+                                         b.moveTo(0, s.height() / 2);
+                                         b.cubicTo(s.width() * 0.3f, 0,
+                                                   s.width() * 0.5f, s.height(),
+                                                   s.width(), s.height() / 2);
+                                         return b.detach();
+                                       })
+                                       .foreground(vine)
+                                       .cache(Cache::None)));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_ArtWarp_Live);
 
 /** Sk2D lattice hatch filling a 400x400 blob per frame. */
-static void BM_Draw_Hatch_Live(benchmark::State &state) {
+static void BM_Draw_Hatch_Live(benchmark::State& state) {
   Host host(900, 640);
   host.composer.render(box().child(
-      box().width(400).height(400).centerAt({450, 320})
+      box()
+          .width(400)
+          .height(400)
+          .centerAt({450, 320})
           .shape(shapes::blob(5, 0.2f))
           .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
           .cache(Cache::None)));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_Hatch_Live);
 
 /** The design claim: instanced masses are a GPU play. Same 10k pool,
  *  Live mode, Graphite target, per-frame submit. */
-static void BM_Draw_Instances10k_Live_Graphite(benchmark::State &state) {
+static void BM_Draw_Instances10k_Live_Graphite(benchmark::State& state) {
   using namespace sigil::compose::instancing;
-  SkiaGraphiteContext *graphiteContext = graphite();
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -683,8 +670,7 @@ static void BM_Draw_Instances10k_Live_Graphite(benchmark::State &state) {
   }
   Host host;
   auto [atlas, pool] = makeInstanceScene(10000);
-  host.composer.render(
-      box().child(instances(atlas, pool, Mode::Live)));
+  host.composer.render(box().child(instances(atlas, pool, Mode::Live)));
   host.composer.draw(*surface->getCanvas());
   submitGraphite(*graphiteContext);
   for (auto _ : state) {
@@ -694,8 +680,8 @@ static void BM_Draw_Instances10k_Live_Graphite(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Instances10k_Live_Graphite);
 
-static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -717,8 +703,8 @@ static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Bloom_PictureReplay_Graphite);
 
-static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -755,10 +741,9 @@ namespace {
  *  submit times only the CPU handing work over, which can rank the most
  *  expensive shader as the cheapest — its queue simply never drains inside
  *  the timed region. Any arm comparing shader cost must use this. */
-void submitGraphiteSynced(SkiaGraphiteContext &graphiteContext) {
+void submitGraphiteSynced(SkiaGraphiteContext& graphiteContext) {
   auto recording = graphiteContext.recorder()->snap();
-  if (!recording)
-    return;
+  if (!recording) return;
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
   graphiteContext.context()->insertRecording(info);
@@ -767,8 +752,8 @@ void submitGraphiteSynced(SkiaGraphiteContext &graphiteContext) {
   graphiteContext.context()->submit(submitInfo);
 }
 
-void graphiteVaryingArm(benchmark::State &state, Effect e) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+void graphiteVaryingArm(benchmark::State& state, Effect e) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -783,7 +768,7 @@ void graphiteVaryingArm(benchmark::State &state, Effect e) {
   Host host(kVaryPanelGpu, kVaryPanelGpu);
   host.composer.render(
       varyingPanel(kVaryPanelGpu, std::move(e)).cache(Cache::None));
-  host.composer.draw(*surface->getCanvas()); // warm the pipeline compile
+  host.composer.draw(*surface->getCanvas());  // warm the pipeline compile
   submitGraphiteSynced(*graphiteContext);
   for (auto _ : state) {
     host.composer.draw(*surface->getCanvas());
@@ -791,35 +776,35 @@ void graphiteVaryingArm(benchmark::State &state, Effect e) {
   }
 }
 
-} // namespace
+}  // namespace
 
-static void BM_Draw_VaryingBlur_Pyramid_s6_Graphite(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Pyramid_s6_Graphite(benchmark::State& state) {
   graphiteVaryingArm(state, pyramidArm(6));
 }
 BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s6_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_VaryingBlur_Naive_s6_Graphite(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Naive_s6_Graphite(benchmark::State& state) {
   graphiteVaryingArm(state, naiveArm(6));
 }
-BENCHMARK(BM_Draw_VaryingBlur_Naive_s6_Graphite)
-    ->Unit(benchmark::kMillisecond);
+BENCHMARK(BM_Draw_VaryingBlur_Naive_s6_Graphite)->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_VaryingBlur_Pyramid_s24_Graphite(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Pyramid_s24_Graphite(benchmark::State& state) {
   graphiteVaryingArm(state, pyramidArm(24));
 }
 BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s24_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-static void BM_Draw_VaryingBlur_Naive_s24_Graphite(benchmark::State &state) {
+static void BM_Draw_VaryingBlur_Naive_s24_Graphite(benchmark::State& state) {
   graphiteVaryingArm(state, naiveArm(24));
 }
 BENCHMARK(BM_Draw_VaryingBlur_Naive_s24_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-static void
-BM_Draw_VaryingBlur_ConstantMax_s24_Graphite(benchmark::State &state) {
-  graphiteVaryingArm(state, Effect::filter(SkImageFilters::Blur(24, 24, nullptr)));
+static void BM_Draw_VaryingBlur_ConstantMax_s24_Graphite(
+    benchmark::State& state) {
+  graphiteVaryingArm(state,
+                     Effect::filter(SkImageFilters::Blur(24, 24, nullptr)));
 }
 BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24_Graphite)
     ->Unit(benchmark::kMillisecond);
@@ -838,8 +823,8 @@ BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24_Graphite)
 // so the arms are directly comparable; the only differences are the target
 // surface and the per-iteration snap + insert + submit.
 
-static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -871,8 +856,8 @@ BENCHMARK(BM_Draw_DenseText_PictureReplay_Graphite);
  *  and again with SIGILSKIA_GLYPH_ATLAS_BYTES set to something smaller
  *  (the environment knob makeContextOptions reads); the difference between
  *  the two runs is the eviction cost. */
-static void BM_Draw_KineticText_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -892,9 +877,8 @@ static void BM_Draw_KineticText_Graphite(benchmark::State &state) {
     GlyphFx fx;
     fx.effect = glyphfx::rise(24);
     fx.progress = &progress;
-    block.child(
-        text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-            .glyphFx(std::move(fx)));
+    block.child(text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+                    .glyphFx(std::move(fx)));
   }
   host.composer.render(block);
   host.composer.draw(*surface->getCanvas());
@@ -902,7 +886,7 @@ static void BM_Draw_KineticText_Graphite(benchmark::State &state) {
   float t = 0;
   for (auto _ : state) {
     t += 1.0f / 60.0f;
-    progress = std::fmod(t, 1.0f); // the reveal loops forever
+    progress = std::fmod(t, 1.0f);  // the reveal loops forever
     host.composer.draw(*surface->getCanvas());
     submitGraphite(*graphiteContext);
   }
@@ -912,8 +896,8 @@ BENCHMARK(BM_Draw_KineticText_Graphite);
 /** The bake, on the same target: the pixels the atlas work is being
  *  compared against. Without this arm the picture-replay number has no
  *  floor to be read against on the GPU path. */
-static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State &state) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State& state) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -932,12 +916,11 @@ static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State &state) {
     host.composer.draw(*surface->getCanvas());
     submitGraphite(*graphiteContext);
   }
-  state.counters["texturesLive"] =
-      (double)host.composer.stats().texturesLive;
+  state.counters["texturesLive"] = (double)host.composer.stats().texturesLive;
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
 
-#endif // COMPOSE_BENCH_GRAPHITE
+#endif  // COMPOSE_BENCH_GRAPHITE
 
 // ---- "UI as particles": the scale answer ----------------------------------
 // Millions of visual items are ONE element, not a million elements: an
@@ -946,9 +929,9 @@ BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
 // batching everything into one SkCanvas::drawAtlas call — the same
 // GlyphRSXformBatches pattern sigil::weave::Choreograph uses for glyphs.
 
-#include <entt/entt.hpp>
-
 #include <include/core/SkRSXform.h>
+
+#include <entt/entt.hpp>
 
 namespace {
 
@@ -958,8 +941,12 @@ struct Particle {
   std::vector<SkRSXform> xforms;
   std::vector<SkRect> texRects;
 
-  struct Pos { float x, y; };
-  struct Vel { float dx, dy; };
+  struct Pos {
+    float x, y;
+  };
+  struct Vel {
+    float dx, dy;
+  };
 
   explicit Particle(size_t count) {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
@@ -982,17 +969,23 @@ struct Particle {
   }
 
   void step(float dt) {
-    registry.view<Pos, const Vel>().each([dt](Pos &p, const Vel &v) {
+    registry.view<Pos, const Vel>().each([dt](Pos& p, const Vel& v) {
       p.x += v.dx * dt;
       p.y += v.dy * dt;
-      if (p.x < 0) p.x += 800; else if (p.x > 800) p.x -= 800;
-      if (p.y < 0) p.y += 800; else if (p.y > 800) p.y -= 800;
+      if (p.x < 0)
+        p.x += 800;
+      else if (p.x > 800)
+        p.x -= 800;
+      if (p.y < 0)
+        p.y += 800;
+      else if (p.y > 800)
+        p.y -= 800;
     });
   }
 
-  void draw(SkCanvas &c) {
+  void draw(SkCanvas& c) {
     xforms.clear();
-    registry.view<const Pos>().each([this](const Pos &p) {
+    registry.view<const Pos>().each([this](const Pos& p) {
       xforms.push_back(SkRSXform::Make(1, 0, p.x, p.y));
     });
     c.drawAtlas(sprite.get(), SkSpan(xforms.data(), xforms.size()),
@@ -1002,43 +995,47 @@ struct Particle {
   }
 };
 
-} // namespace
+}  // namespace
 
 /** Full frame at N particles: EnTT SoA step + one drawAtlas leaf. */
-static void BM_Particles_EnttAtlasLeaf(benchmark::State &state) {
+static void BM_Particles_EnttAtlasLeaf(benchmark::State& state) {
   const size_t count = (size_t)state.range(0);
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
-  host.composer.render(box().child(
-      custom([particles](SkCanvas &c, const PaintContext &) {
-        particles->draw(c);
-      }).inset(0).cache(Cache::None)));
+  host.composer.render(
+      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
+                    particles->draw(c);
+                  })
+                      .inset(0)
+                      .cache(Cache::None)));
   host.composer.draw(*host.surface->getCanvas());
   for (auto _ : state) {
     particles->step(1.0f / 120.0f);
     host.composer.draw(*host.surface->getCanvas());
   }
-  state.counters["perParticleNs"] =
-      benchmark::Counter((double)count, benchmark::Counter::kIsIterationInvariantRate |
-                                            benchmark::Counter::kInvert);
+  state.counters["perParticleNs"] = benchmark::Counter(
+      (double)count, benchmark::Counter::kIsIterationInvariantRate |
+                         benchmark::Counter::kInvert);
 }
 BENCHMARK(BM_Particles_EnttAtlasLeaf)->Arg(10000)->Arg(100000)->Arg(1000000);
 
 /** The anti-pattern for contrast: per-particle draw calls. */
-static void BM_Particles_DrawCircleLoop(benchmark::State &state) {
+static void BM_Particles_DrawCircleLoop(benchmark::State& state) {
   const size_t count = (size_t)state.range(0);
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
-  host.composer.render(box().child(
-      custom([particles](SkCanvas &c, const PaintContext &) {
-        SkPaint p;
-        p.setAntiAlias(true);
-        p.setColor(0xff7ee8ff);
-        particles->registry.view<const Particle::Pos>().each(
-            [&](const Particle::Pos &pos) {
-              c.drawCircle(pos.x, pos.y, 3.5f, p);
-            });
-      }).inset(0).cache(Cache::None)));
+  host.composer.render(
+      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
+                    SkPaint p;
+                    p.setAntiAlias(true);
+                    p.setColor(0xff7ee8ff);
+                    particles->registry.view<const Particle::Pos>().each(
+                        [&](const Particle::Pos& pos) {
+                          c.drawCircle(pos.x, pos.y, 3.5f, p);
+                        });
+                  })
+                      .inset(0)
+                      .cache(Cache::None)));
   host.composer.draw(*host.surface->getCanvas());
   for (auto _ : state) {
     particles->step(1.0f / 120.0f);
@@ -1050,9 +1047,9 @@ BENCHMARK(BM_Particles_DrawCircleLoop)->Arg(10000);
 #ifdef COMPOSE_BENCH_GRAPHITE
 /** The same particle frame against a Graphite Metal target: drawAtlas
  *  becomes an instanced GPU batch; the CPU cost is building RSXforms. */
-static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State &state) {
+static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
   const size_t count = (size_t)state.range(0);
-  SkiaGraphiteContext *graphiteContext = graphite();
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -1066,7 +1063,7 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State &state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().child(custom([particles](SkCanvas &c, const PaintContext &) {
+      box().child(custom([particles](SkCanvas& c, const PaintContext&) {
                     particles->draw(c);
                   })
                       .inset(0)
@@ -1093,15 +1090,13 @@ BENCHMARK_MAIN();
 // register themselves the same way as the ones above; BENCHMARK_MAIN() only
 // runs the registry, so appearing after it makes no difference.
 
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Layouts.h>
-#include <sigilcompose/Shapes.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkStream.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
-
+#include <sigilcompose/Decorations.h>
+#include <sigilcompose/Layouts.h>
+#include <sigilcompose/Shapes.h>
 #include <sigilimage/ImageAsset.h>
 
 namespace {
@@ -1123,28 +1118,29 @@ std::shared_ptr<sigil::image::ImageAsset> benchAtlas() {
 
 struct ChunkProps {
   std::vector<int> ids;
-  bool operator==(const ChunkProps &) const = default;
+  bool operator==(const ChunkProps&) const = default;
 };
 
-Element benchChunk(const ChunkProps &p) {
+Element benchChunk(const ChunkProps& p) {
   constexpr float kTile = 16.0f;
   auto tiles = box().width(10 * kTile).height(10 * kTile);
   for (int i = 0; i < (int)p.ids.size(); ++i)
-    tiles.child(image(benchAtlas())
-                    .region(SkRect::MakeXYWH(
-                        (float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
-                    .absolute()
-                    .inset((float)(i % 10) * kTile, (float)(i / 10) * kTile,
-                           0, 0)
-                    .width(kTile).height(kTile));
+    tiles.child(
+        image(benchAtlas())
+            .region(
+                SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
+            .absolute()
+            .inset((float)(i % 10) * kTile, (float)(i / 10) * kTile, 0, 0)
+            .width(kTile)
+            .height(kTile));
   return tiles;
 }
 
-} // namespace
+}  // namespace
 
 /** 6x4 chunks of 10x10 region tiles (2400 tiles): steady-state redraw,
  *  everything picture-cached (the tile-map baseline). */
-static void BM_Draw_TileGrid_Region_Cached(benchmark::State &state) {
+static void BM_Draw_TileGrid_Region_Cached(benchmark::State& state) {
   Host host(960, 640);
   std::vector<ChunkProps> chunks(24);
   for (int c = 0; c < 24; ++c)
@@ -1153,8 +1149,8 @@ static void BM_Draw_TileGrid_Region_Cached(benchmark::State &state) {
   auto describe = [&] {
     auto grid = box().row().wrapLines().width(6 * 160.0f);
     for (int c = 0; c < 24; ++c)
-      grid.child(memo(chunks[(size_t)c], benchChunk)
-                     .key("c" + std::to_string(c)));
+      grid.child(
+          memo(chunks[(size_t)c], benchChunk).key("c" + std::to_string(c)));
     return box().child(grid);
   };
   host.composer.render(describe());
@@ -1169,7 +1165,7 @@ BENCHMARK(BM_Draw_TileGrid_Region_Cached);
 /** Same grid, one chunk's data mutated per iteration. The pair with the arm
  *  above isolates incremental cost: the changed chunk's memo misses and its
  *  recording is rebuilt, while the other 23 replay untouched. */
-static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State &state) {
+static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State& state) {
   Host host(960, 640);
   std::vector<ChunkProps> chunks(24);
   for (int c = 0; c < 24; ++c)
@@ -1178,8 +1174,8 @@ static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State &state) {
   auto describe = [&] {
     auto grid = box().row().wrapLines().width(6 * 160.0f);
     for (int c = 0; c < 24; ++c)
-      grid.child(memo(chunks[(size_t)c], benchChunk)
-                     .key("c" + std::to_string(c)));
+      grid.child(
+          memo(chunks[(size_t)c], benchChunk).key("c" + std::to_string(c)));
     return box().child(grid);
   };
   host.composer.render(describe());
@@ -1197,9 +1193,9 @@ BENCHMARK(BM_Draw_TileGrid_Region_OneChunkChanged);
  *  atlas procedurally: a single draw, but the tiles have no individual
  *  identity, so nothing can be keyed, hit-tested or animated per tile. That
  *  is the trade this arm prices against the two region-tile arms above. */
-static void BM_Draw_TileGrid_SkSLFill(benchmark::State &state) {
+static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
   Host host(960, 640);
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform shader atlas;
     half4 main(float2 xy) {
       float2 tile = floor(xy / 16.0);
@@ -1212,18 +1208,19 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State &state) {
     state.SkipWithError(err.c_str());
     return;
   }
-  const auto &frame = benchAtlas()->frames().front();
+  const auto& frame = benchAtlas()->frames().front();
   sk_sp<SkShader> atlasShader = frame.image->makeShader(
       SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions());
   SkRuntimeShaderBuilder builder(effect);
   builder.child("atlas") = atlasShader;
   sk_sp<SkShader> field = builder.makeShader();
 
-  host.composer.render(box().child(
-      box().width(960).height(640).fill(Fill::shader(field))
-          .cache(Cache::None)));
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  host.composer.render(box().child(box()
+                                       .width(960)
+                                       .height(640)
+                                       .fill(Fill::shader(field))
+                                       .cache(Cache::None)));
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
@@ -1231,30 +1228,37 @@ BENCHMARK(BM_Draw_TileGrid_SkSLFill);
  *  24 px around a card's outline. The stamp is an Element, so it is
  *  described and recorded once and then replayed at each station rather
  *  than rebuilt per station. */
-static void BM_Draw_StampBorder_Cached(benchmark::State &state) {
+static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
   Host host(800, 600);
   ContourWalk vine;
   vine.spacing = 24.0f;
-  vine.stamp = box().width(14).height(14)
+  vine.stamp = box()
+                   .width(14)
+                   .height(14)
                    .shape(shapes::star(4, 0.45f))
                    .fill(Fill::color({1, 0.7f, 0.4f, 1}));
-  host.composer.render(box().child(
-      box().width(400).height(280).inset(100, 100, 300, 220).absolute()
-          .corners({20}).fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
-          .foreground(vine)));
+  host.composer.render(box().child(box()
+                                       .width(400)
+                                       .height(280)
+                                       .inset(100, 100, 300, 220)
+                                       .absolute()
+                                       .corners({20})
+                                       .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
+                                       .foreground(vine)));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_StampBorder_Cached);
 
 /** hitTest through a 3-level tree with shaped and rotated nodes. */
-static void BM_HitTest_ShapedTree(benchmark::State &state) {
+static void BM_HitTest_ShapedTree(benchmark::State& state) {
   Host host(900, 640);
   auto scatter = layout(layouts::Scatter{.seed = 3}).inset(0);
   for (int i = 0; i < 50; ++i)
-    scatter.child(box().key("blob" + std::to_string(i))
-                      .width(60).height(60)
+    scatter.child(box()
+                      .key("blob" + std::to_string(i))
+                      .width(60)
+                      .height(60)
                       .shape(shapes::blob((uint32_t)i, 0.3f, 7))
                       .rotate((float)i * 7.0f)
                       .fill(Fill::color({0.5f, 0.3f, 0.4f, 1})));
@@ -1273,39 +1277,45 @@ BENCHMARK(BM_HitTest_ShapedTree);
  *  its own paint needs no isolation layer; the alternative is a
  *  device-sized saveLayer per leaf, so this arm is where that path's
  *  absence shows up. */
-static void BM_Draw_BlendField_100Blobs(benchmark::State &state) {
+static void BM_Draw_BlendField_100Blobs(benchmark::State& state) {
   Host host(900, 640);
-  auto scatter = layout(layouts::Scatter{.seed = 9, .jitter = 0.8f})
-                     .inset(0);
+  auto scatter = layout(layouts::Scatter{.seed = 9, .jitter = 0.8f}).inset(0);
   for (int i = 0; i < 100; ++i)
-    scatter.child(box().width(70).height(60)
+    scatter.child(box()
+                      .width(70)
+                      .height(60)
                       .shape(shapes::blob((uint32_t)(i + 1), 0.3f, 6))
                       .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
                       .blend(SkBlendMode::kPlus));
   host.composer.render(box().child(scatter));
   host.composer.draw(*host.surface->getCanvas());
-  for (auto _ : state)
-    host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_BlendField_100Blobs);
 
 /** A transform-bound ornament (rotating star with a stamped border):
  *  paint-only volatility — content picture replays under the animated
  *  matrix instead of re-walking the border every frame. */
-static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State &state) {
+static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
   choreograph::Output<float> spin{0.0f};
   ContourWalk vine;
   vine.spacing = 24.0f;
-  vine.stamp = box().width(14).height(14)
+  vine.stamp = box()
+                   .width(14)
+                   .height(14)
                    .shape(shapes::star(4, 0.45f))
                    .fill(Fill::color({1, 0.7f, 0.4f, 1}));
-  host.composer.render(box().child(
-      box().width(300).height(300).inset(250, 150, 250, 150).absolute()
-          .shape(shapes::rounded(shapes::star(7, 0.6f), 10))
-          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-          .rotate(&spin)
-          .foreground(vine)));
+  host.composer.render(
+      box().child(box()
+                      .width(300)
+                      .height(300)
+                      .inset(250, 150, 250, 150)
+                      .absolute()
+                      .shape(shapes::rounded(shapes::star(7, 0.6f), 10))
+                      .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+                      .rotate(&spin)
+                      .foreground(vine)));
   host.composer.draw(*host.surface->getCanvas());
   float angle = 0;
   for (auto _ : state) {
@@ -1350,18 +1360,17 @@ enum class PerspArm { Identity, AffineTilt, Perspective };
  *  perspective factor left out. */
 SkM44 perspArmMatrix(PerspArm arm) {
   if (arm == PerspArm::Identity)
-    return SkM44(); // identity — the arms stay structurally identical
-  SkM44 persp; // identity
+    return SkM44();  // identity — the arms stay structurally identical
+  SkM44 persp;       // identity
   persp.setRC(3, 2, -1.0f / 2400.0f);
-  const SkM44 rotX =
-      SkM44::Rotate({1, 0, 0}, 25.0f * SK_ScalarPI / 180.0f);
+  const SkM44 rotX = SkM44::Rotate({1, 0, 0}, 25.0f * SK_ScalarPI / 180.0f);
   return SkM44::Translate(400, 1200) *
          (arm == PerspArm::Perspective ? persp * rotX : rotX) *
          SkM44::Translate(-400, -1200);
 }
 
-void graphitePerspectiveArm(benchmark::State &state, PerspArm arm) {
-  SkiaGraphiteContext *graphiteContext = graphite();
+void graphitePerspectiveArm(benchmark::State& state, PerspArm arm) {
+  SkiaGraphiteContext* graphiteContext = graphite();
   if (!graphiteContext) {
     state.SkipWithError("Graphite Metal context is unavailable");
     return;
@@ -1375,7 +1384,7 @@ void graphitePerspectiveArm(benchmark::State &state, PerspArm arm) {
   Host host(800, 2400);
   host.composer.render(denseBlock(Cache::None));
   const SkM44 m = perspArmMatrix(arm);
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   // Warm the pipeline compile (and the glyph atlas) under the arm's own
   // matrix, synced like the measured frames.
   canvas->save();
@@ -1392,26 +1401,26 @@ void graphitePerspectiveArm(benchmark::State &state, PerspArm arm) {
   }
 }
 
-} // namespace
+}  // namespace
 
-static void BM_Draw_DenseText_Persp_Identity_Graphite(benchmark::State &state) {
+static void BM_Draw_DenseText_Persp_Identity_Graphite(benchmark::State& state) {
   graphitePerspectiveArm(state, PerspArm::Identity);
 }
 BENCHMARK(BM_Draw_DenseText_Persp_Identity_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-static void
-BM_Draw_DenseText_Persp_AffineTilt_Graphite(benchmark::State &state) {
+static void BM_Draw_DenseText_Persp_AffineTilt_Graphite(
+    benchmark::State& state) {
   graphitePerspectiveArm(state, PerspArm::AffineTilt);
 }
 BENCHMARK(BM_Draw_DenseText_Persp_AffineTilt_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-static void
-BM_Draw_DenseText_Persp_Perspective_Graphite(benchmark::State &state) {
+static void BM_Draw_DenseText_Persp_Perspective_Graphite(
+    benchmark::State& state) {
   graphitePerspectiveArm(state, PerspArm::Perspective);
 }
 BENCHMARK(BM_Draw_DenseText_Persp_Perspective_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-#endif // COMPOSE_BENCH_GRAPHITE
+#endif  // COMPOSE_BENCH_GRAPHITE

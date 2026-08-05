@@ -20,15 +20,15 @@ inline constexpr SkColor kAccent = 0xFFC63D2F;
 inline constexpr SkColor kBlue = 0xFF2B5AA7;
 inline constexpr SkColor kShape = 0x33808A99;
 inline constexpr SkColor kPaper = 0xFFFAF7F0;
-} // namespace palette
+}  // namespace palette
 
 /** Builds ~`wordCount` words of mixed Latin/CJK/Hangul filler in alternating
  *  color chunks (multiple spans, cross-script fallback, CJK line-break
  *  opportunities). Deterministic: the same arguments always produce the
  *  same paragraph, so timings and screenshots stay comparable. */
-[[nodiscard]] sigil::weave::Paragraph
-mixedScriptFiller(int wordCount, float fontSize,
-                  std::array<SkColor, 3> chunkColors = {
-                      palette::kInk, palette::kBlue, palette::kAccent});
+[[nodiscard]] sigil::weave::Paragraph mixedScriptFiller(
+    int wordCount, float fontSize,
+    std::array<SkColor, 3> chunkColors = {palette::kInk, palette::kBlue,
+                                          palette::kAccent});
 
-} // namespace sigil::weave::kit
+}  // namespace sigil::weave::kit

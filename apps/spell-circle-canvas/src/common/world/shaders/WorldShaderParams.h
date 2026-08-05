@@ -17,27 +17,27 @@ namespace sigil::world::shaderparams {
 #endif
 
 struct SweepParamsData {
-  SIGIL_FLOAT4(window); // x head, y span, z width, w sections
-  SIGIL_FLOAT4(loop);   // x point count, y tangent epsilon
+  SIGIL_FLOAT4(window);  // x head, y span, z width, w sections
+  SIGIL_FLOAT4(loop);    // x point count, y tangent epsilon
 };
 
 struct FlockParamsData {
-  SIGIL_FLOAT4(windowA); // x head, y span, z radius, w count
-  SIGIL_FLOAT4(windowB); // x scale, y noise amp, z noise freq, w seed
+  SIGIL_FLOAT4(windowA);  // x head, y span, z radius, w count
+  SIGIL_FLOAT4(windowB);  // x scale, y noise amp, z noise freq, w seed
   SIGIL_FLOAT4(tintTail);
   SIGIL_FLOAT4(tintHead);
-  SIGIL_FLOAT4(loop);    // x point count, y tangent epsilon
+  SIGIL_FLOAT4(loop);  // x point count, y tangent epsilon
 };
 
 struct PopParamsData {
   SIGIL_FLOAT4(a);
   SIGIL_FLOAT4(b);
   SIGIL_FLOAT4(c);
-  SIGIL_FLOAT4(d); // x count, y lane slot, z loop point count, w eps
+  SIGIL_FLOAT4(d);  // x count, y lane slot, z loop point count, w eps
 };
 
 #ifdef __cplusplus
-} // namespace sigil::world::shaderparams
+}  // namespace sigil::world::shaderparams
 static_assert(sizeof(sigil::world::shaderparams::SweepParamsData) == 32,
               "cbuffer packing is 16-byte rows");
 static_assert(sizeof(sigil::world::shaderparams::FlockParamsData) == 80,
@@ -47,4 +47,4 @@ static_assert(sizeof(sigil::world::shaderparams::PopParamsData) == 64,
 #endif
 
 #undef SIGIL_FLOAT4
-#endif // SIGIL_WORLD_SHADER_PARAMS_H
+#endif  // SIGIL_WORLD_SHADER_PARAMS_H

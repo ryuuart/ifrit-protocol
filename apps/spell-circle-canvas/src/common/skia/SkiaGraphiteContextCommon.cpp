@@ -4,20 +4,18 @@
 // defining create() for the QRhi backend it serves and returning null for
 // every other backend.
 
-#include "SkiaGraphiteContext.h"
-
-#include <include/core/SkBitmap.h>
-
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
 #include <gpu/graphite/Image.h>
 #include <gpu/graphite/ImageProvider.h>
 #include <gpu/graphite/Recorder.h>
-
-#include <cstdlib>
+#include <include/core/SkBitmap.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <unordered_map>
+
+#include "SkiaGraphiteContext.h"
 
 namespace {
 
@@ -32,14 +30,13 @@ namespace {
  *  a handful of long-lived generated atlases; a host churning thousands of
  *  distinct images would want a real eviction policy instead. */
 class CachingImageProvider final : public skgpu::graphite::ImageProvider {
-public:
-  sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder *recorder,
-                              const SkImage *image,
+ public:
+  sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder* recorder,
+                              const SkImage* image,
                               SkImage::RequiredProperties required) override {
     const uint64_t key = (static_cast<uint64_t>(image->uniqueID()) << 1) |
                          (required.fMipmapped ? 1u : 0u);
-    if (auto it = m_cache.find(key); it != m_cache.end())
-      return it->second;
+    if (auto it = m_cache.find(key); it != m_cache.end()) return it->second;
     sk_sp<SkImage> texture =
         SkImages::TextureFromImage(recorder, image, required);
     if (!texture && image->colorType() == kRGBA_F32_SkColorType) {
@@ -56,20 +53,19 @@ public:
             SkImages::TextureFromImage(recorder, f16.asImage().get(), required);
       }
     }
-    if (!texture)
-      return nullptr;
+    if (!texture) return nullptr;
     if (m_cache.size() >= kMaxEntries)
-      m_cache.clear(); // stale uniqueIDs accumulate as images are replaced
+      m_cache.clear();  // stale uniqueIDs accumulate as images are replaced
     m_cache.emplace(key, texture);
     return texture;
   }
 
-private:
+ private:
   static constexpr size_t kMaxEntries = 256;
   std::unordered_map<uint64_t, sk_sp<SkImage>> m_cache;
 };
 
-} // namespace
+}  // namespace
 
 skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
   skgpu::graphite::ContextOptions options;
@@ -78,7 +74,7 @@ skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
   // non-positive values are ignored, so an unset or malformed variable
   // leaves Skia's own default in place and default behaviour never
   // depends on the environment.
-  if (const char *bytes = std::getenv("SIGILSKIA_GLYPH_ATLAS_BYTES"))
+  if (const char* bytes = std::getenv("SIGILSKIA_GLYPH_ATLAS_BYTES"))
     if (const long parsed = std::strtol(bytes, nullptr, 10); parsed > 0)
       options.fGlyphCacheTextureMaximumBytes = (size_t)parsed;
   return options;

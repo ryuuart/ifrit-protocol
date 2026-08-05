@@ -53,10 +53,6 @@
  *    image path that takes a sampling parameter.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Debug.h"
-#include "sigilcompose/Studio.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
@@ -69,6 +65,10 @@
 #include <string>
 #include <string_view>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/Debug.h"
+#include "sigilcompose/Studio.h"
+
 namespace sigil::compose::kit {
 
 /** Slack around the measured run, in px **on each side**. See trap 1: the
@@ -77,7 +77,7 @@ namespace sigil::compose::kit {
 struct Pad {
   int x = 8;
   int y = 4;
-  bool operator==(const Pad &) const = default;
+  bool operator==(const Pad&) const = default;
 };
 
 /** How many times `coverage()` doubles the pad before giving up. Four
@@ -123,8 +123,9 @@ struct Coverage {
  *  `snapshot()` sizes by the root's CHILDREN, so the wrapper must carry
  *  explicit dimensions or an absolutely-placed child resolves against
  *  nothing. */
-inline Coverage coverage(std::u8string_view run, sigil::weave::FontContext &fonts,
-                         const sigil::weave::TextStyle &style, Pad pad = {}) {
+inline Coverage coverage(std::u8string_view run,
+                         sigil::weave::FontContext& fonts,
+                         const sigil::weave::TextStyle& style, Pad pad = {}) {
   Coverage out;
   const std::u8string text8(run);
   const SkSize sz = measure(box().child(text(text8, style)), fonts);
@@ -144,8 +145,7 @@ inline Coverage coverage(std::u8string_view run, sigil::weave::FontContext &font
             .padding((float)std::max(0, pad.x), (float)std::max(0, pad.y))
             .child(text(text8, style)),
         fonts, {w, h});
-    if (!r.valid())
-      return out;
+    if (!r.valid()) return out;
     out.plane = std::move(r.bitmap);
     int x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (int y = 0; y < h; ++y)
@@ -158,9 +158,9 @@ inline Coverage coverage(std::u8string_view run, sigil::weave::FontContext &font
         }
     out.ink = x1 < 0 ? SkIRect::MakeEmpty()
                      : SkIRect::MakeLTRB(x0, y0, x1 + 1, y1 + 1);
-    const bool clipped = !out.ink.isEmpty() &&
-                         (out.ink.fLeft == 0 || out.ink.fTop == 0 ||
-                          out.ink.fRight == w || out.ink.fBottom == h);
+    const bool clipped =
+        !out.ink.isEmpty() && (out.ink.fLeft == 0 || out.ink.fTop == 0 ||
+                               out.ink.fRight == w || out.ink.fBottom == h);
     if (!clipped || attempt >= kPadRetries || (pad.x <= 0 && pad.y <= 0))
       return out;
     pad.x = std::max(1, pad.x * 2);
@@ -189,13 +189,12 @@ struct Mask {
  *  shaping**, where the coverage is already binary — see trap 2. It
  *  becomes a real control only when the run was deliberately shaped
  *  antialiased and is being quantised afterwards. */
-inline Mask threshold(const Coverage &cov, float threshold = 0.5f,
+inline Mask threshold(const Coverage& cov, float threshold = 0.5f,
                       bool cropToInk = true) {
   Mask m;
-  if (!cov.valid() || cov.ink.isEmpty())
-    return m;
-  const SkIRect r = cropToInk ? cov.ink
-                              : SkIRect::MakeWH(cov.width(), cov.height());
+  if (!cov.valid() || cov.ink.isEmpty()) return m;
+  const SkIRect r =
+      cropToInk ? cov.ink : SkIRect::MakeWH(cov.width(), cov.height());
   SkBitmap a8;
   a8.allocPixels(SkImageInfo::MakeA8(r.width(), r.height()));
   a8.eraseColor(SK_ColorTRANSPARENT);
@@ -214,8 +213,8 @@ inline Mask threshold(const Coverage &cov, float threshold = 0.5f,
 }
 
 /** The whole bake in one call: shape, rasterise, threshold, crop. */
-inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext &fonts,
-                    const sigil::weave::TextStyle &style, Pad pad = {},
+inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
+                    const sigil::weave::TextStyle& style, Pad pad = {},
                     float thresholdAt = 0.5f) {
   return threshold(coverage(run, fonts, style, pad), thresholdAt);
 }
@@ -239,10 +238,9 @@ struct Present {
  *  An A8 image drawn through `drawImageRect` modulates the PAINT's colour,
  *  which is the reason to blit rather than fill: the mask carries only
  *  coverage, so one bake serves every tint the drawing needs. */
-inline void draw(SkCanvas &canvas, const Mask &m, SkPoint at,
-                 const Present &p = {}) {
-  if (!m.image)
-    return;
+inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
+                 const Present& p = {}) {
+  if (!m.image) return;
   const SkRect dst = SkRect::MakeXYWH(at.fX, at.fY, (float)m.w * p.scale,
                                       (float)m.h * p.scale);
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
@@ -268,10 +266,9 @@ inline void draw(SkCanvas &canvas, const Mask &m, SkPoint at,
  *  program runs every frame it is visible — cheap here (one
  *  `drawImageRect`) but not free. A static run that never changes colour
  *  is better as `.cache(Cache::Texture)` on its parent. */
-inline Element masked(const Mask &m, const Present &p = {}) {
-  if (!m.image)
-    return box().width(0).height(0);
-  return custom([m, p](SkCanvas &canvas, const PaintContext &) {
+inline Element masked(const Mask& m, const Present& p = {}) {
+  if (!m.image) return box().width(0).height(0);
+  return custom([m, p](SkCanvas& canvas, const PaintContext&) {
            draw(canvas, m, {0, 0}, p);
          })
       .width((float)m.w * p.scale)
@@ -297,7 +294,7 @@ struct PixFont {
   /** The widest DIGIT advance, shared by all ten — see trap 3. */
   int digitAdvance = 0;
 
-  const Cell &cell(char c) const {
+  const Cell& cell(char c) const {
     const int i = (int)(unsigned char)c - 32;
     static const Cell empty{};
     return (i < 0 || i >= 96) ? empty : cells[(size_t)i];
@@ -311,8 +308,8 @@ struct PixFont {
  *  so the crop-to-ink step would otherwise reduce it to nothing and every
  *  word would run together. @p spaceRatio is its advance as a fraction of
  *  the font size, scaled by the style's horizontal condense. */
-inline PixFont bakeFont(sigil::weave::FontContext &fonts,
-                        const sigil::weave::TextStyle &style, Pad pad = {3, 3},
+inline PixFont bakeFont(sigil::weave::FontContext& fonts,
+                        const sigil::weave::TextStyle& style, Pad pad = {3, 3},
                         float thresholdAt = 0.5f, float spaceRatio = 0.34f) {
   PixFont f;
   const float size = style.shaping.fontSize;
@@ -328,7 +325,7 @@ inline PixFont bakeFont(sigil::weave::FontContext &fonts,
     const std::u8string one(1, (char8_t)c);
     const Coverage cov = coverage(one, fonts, style, pad);
     const Mask m = threshold(cov, thresholdAt);
-    Cell &cell = f.cells[(size_t)i];
+    Cell& cell = f.cells[(size_t)i];
     cell.mask = m.image;
     cell.w = m.w;
     cell.h = m.h;
@@ -359,15 +356,14 @@ namespace detail {
 inline float snapTo(float v, float grid) {
   return grid > 0 ? std::round(v / grid) * grid : v;
 }
-} // namespace detail
+}  // namespace detail
 
 /** Advance width of @p s without drawing it. */
-inline float widthOf(const PixFont &f, std::string_view s, const Blit &b = {}) {
+inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
   float w = 0;
   for (char raw : s) {
     const int i = (int)(unsigned char)raw - 32;
-    if (i < 0 || i >= 96)
-      continue;
+    if (i < 0 || i >= 96) continue;
     const bool digit = raw >= '0' && raw <= '9';
     w += (float)(digit && b.tabularDigits ? f.digitAdvance
                                           : f.cells[(size_t)i].advance) +
@@ -381,8 +377,8 @@ inline float widthOf(const PixFont &f, std::string_view s, const Blit &b = {}) {
  *  Immediate-mode, for inside a `custom()` leaf — which is the whole point:
  *  a live readout reads its bound `Output` here and draws the number, with
  *  nothing re-described and nothing reconciled. */
-inline float blit(SkCanvas &canvas, const PixFont &f, SkPoint at,
-                  std::string_view s, SkColor4f colour, const Blit &b = {}) {
+inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
+                  std::string_view s, SkColor4f colour, const Blit& b = {}) {
   SkPaint p;
   p.setAntiAlias(false);
   p.setColor4f(colour, nullptr);
@@ -392,14 +388,13 @@ inline float blit(SkCanvas &canvas, const PixFont &f, SkPoint at,
   const float y = detail::snapTo(at.fY, b.snap);
   for (char raw : s) {
     const int i = (int)(unsigned char)raw - 32;
-    if (i < 0 || i >= 96)
-      continue;
-    const Cell &cell = f.cells[(size_t)i];
+    if (i < 0 || i >= 96) continue;
+    const Cell& cell = f.cells[(size_t)i];
     const bool digit = raw >= '0' && raw <= '9';
     if (cell.mask)
-      canvas.drawImageRect(
-          cell.mask, SkRect::MakeXYWH(x, y, (float)cell.w, (float)cell.h),
-          nearest, &p);
+      canvas.drawImageRect(cell.mask,
+                           SkRect::MakeXYWH(x, y, (float)cell.w, (float)cell.h),
+                           nearest, &p);
     x = detail::snapTo(
         x + (float)(digit && b.tabularDigits ? f.digitAdvance : cell.advance) +
             b.track,
@@ -408,4 +403,4 @@ inline float blit(SkCanvas &canvas, const PixFont &f, SkPoint at,
   return x - x0;
 }
 
-} // namespace sigil::compose::kit
+}  // namespace sigil::compose::kit

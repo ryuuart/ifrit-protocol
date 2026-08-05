@@ -1,11 +1,11 @@
-#include "ParagraphLayoutInternal.h"
-#include "sigilweave/ParagraphLayout.h"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <span>
 #include <vector>
+
+#include "ParagraphLayoutInternal.h"
+#include "sigilweave/ParagraphLayout.h"
 
 namespace sigil::weave {
 namespace detail {
@@ -21,13 +21,13 @@ constexpr float kLinePenalty = 10.0f;
 constexpr float kMaxBadness = 1e7f;
 
 struct Node {
-  uint32_t breakAt = 0;  // line starts at word `breakAt`
-  uint32_t interval = 0; // interval index the *next* line will occupy
+  uint32_t breakAt = 0;   // line starts at word `breakAt`
+  uint32_t interval = 0;  // interval index the *next* line will occupy
   float demerits = 0;
-  int32_t previousNode = -1; // arena index of the predecessor node
+  int32_t previousNode = -1;  // arena index of the predecessor node
 };
 
-} // namespace
+}  // namespace
 
 // Classic Knuth-Plass optimal line breaking over word boxes and glue, with
 // per-line (per-interval) widths from the flow geometry. Two robustness
@@ -45,14 +45,13 @@ struct Node {
 // vastly overflows its flow costs what *fits*, not its total length —
 // otherwise every relayout of a huge paragraph in a small box would break
 // thousands of lines only for placement to discard them.
-ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
-                                 IntervalSequence &intervalSequence,
-                                 const ParagraphLayoutOptions &options) {
+ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
+                                 IntervalSequence& intervalSequence,
+                                 const ParagraphLayoutOptions& options) {
   ParagraphLayout result;
-  const std::vector<Word> &words = paragraph.words();
+  const std::vector<Word>& words = paragraph.words();
   const uint32_t wordCount = static_cast<uint32_t>(words.size());
-  if (wordCount == 0)
-    return result;
+  if (wordCount == 0) return result;
   if (!intervalSequence.intervalAt(0)) {
     result.firstUnplacedWord = 0;
     return result;
@@ -108,10 +107,9 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   // Tab gaps interior to a candidate line [lineStart, lineEnd): gap indices
   // in [lineStart, lineEnd - 1) — the break-side gap is never on the line.
   auto tabGapsInLine = [&](uint32_t lineStart, uint32_t lineEnd) {
-    const auto first = std::lower_bound(tabGapIndices.begin(),
-                                        tabGapIndices.end(), lineStart);
-    const auto last =
-        std::lower_bound(first, tabGapIndices.end(), lineEnd - 1);
+    const auto first =
+        std::lower_bound(tabGapIndices.begin(), tabGapIndices.end(), lineStart);
+    const auto last = std::lower_bound(first, tabGapIndices.end(), lineEnd - 1);
     return std::span<const uint32_t>(first, last);
   };
 
@@ -178,8 +176,8 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   // could be placed), reports whether the lifeline ever had to force an
   // overfull line, and — when the geometry ran out before the text did —
   // the first word that no longer fit.
-  auto runPass = [&](bool useEmergencyStretch, bool &forcedOverfull,
-                     uint32_t &firstUnplacedWord) -> int32_t {
+  auto runPass = [&](bool useEmergencyStretch, bool& forcedOverfull,
+                     uint32_t& firstUnplacedWord) -> int32_t {
     forcedOverfull = false;
     firstUnplacedWord = ~0u;
     arena.clear();
@@ -212,8 +210,8 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
 
       for (size_t activeIndex = 0; activeIndex < active.size(); ++activeIndex) {
         const int32_t nodeIndex = active[activeIndex];
-        const Node &node = arena[nodeIndex];
-        const FlatInterval *lineInterval =
+        const Node& node = arena[nodeIndex];
+        const FlatInterval* lineInterval =
             intervalSequence.intervalAt(node.interval);
         if (!lineInterval) {
           // No geometry left for this path's next line: it ends here.
@@ -263,7 +261,7 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
 
         const bool overfull = ratio < -1.0f;
         const float clampedRatio =
-            std::min(std::abs(ratio), 500.0f); // pre-clamp: ratio³
+            std::min(std::abs(ratio), 500.0f);  // pre-clamp: ratio³
         const float badness = std::min(
             100.0f * clampedRatio * clampedRatio * clampedRatio, kMaxBadness);
         const bool feasible =
@@ -298,8 +296,7 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
         }
 
         // A node whose line is already over-shrunk only gets worse; retire.
-        if (!overfull && !forcedBreak)
-          nextActive.push_back(nodeIndex);
+        if (!overfull && !forcedBreak) nextActive.push_back(nodeIndex);
       }
 
       if (forcedBreak) {
@@ -352,8 +349,7 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
 
       if (nextActive.empty() && bestForcedDemerits < kInfDemerits) {
         // No feasible breaks anywhere: force the least-bad one.
-        if (bestForcedOverfull)
-          forcedOverfull = true;
+        if (bestForcedOverfull) forcedOverfull = true;
         arena.push_back(bestForced);
         nextActive.push_back(static_cast<int32_t>(arena.size() - 1));
       }
@@ -393,10 +389,9 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
     result.firstUnplacedWord = 0;
     return result;
   }
-  if (firstUnplacedWord != ~0u)
-    result.firstUnplacedWord = firstUnplacedWord;
+  if (firstUnplacedWord != ~0u) result.firstUnplacedWord = firstUnplacedWord;
 
-  std::vector<uint32_t> breaks; // ascending word indices, ending at wordCount
+  std::vector<uint32_t> breaks;  // ascending word indices, ending at wordCount
   for (int32_t nodeIndex = best; nodeIndex > 0;
        nodeIndex = arena[nodeIndex].previousNode)
     breaks.push_back(arena[nodeIndex].breakAt);
@@ -407,7 +402,7 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   int lastLineUsed = -1;
   for (size_t lineIndex = 0; lineIndex < breaks.size(); ++lineIndex) {
     const uint32_t lastWordIndex = breaks[lineIndex];
-    const FlatInterval *flatInterval = intervalSequence.intervalAt(lineIndex);
+    const FlatInterval* flatInterval = intervalSequence.intervalAt(lineIndex);
     if (!flatInterval) {
       result.firstUnplacedWord =
           std::min(result.firstUnplacedWord, firstWordIndex);
@@ -426,5 +421,5 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   return result;
 }
 
-} // namespace detail
-} // namespace sigil::weave
+}  // namespace detail
+}  // namespace sigil::weave

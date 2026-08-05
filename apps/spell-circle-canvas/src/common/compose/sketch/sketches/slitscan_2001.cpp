@@ -182,21 +182,6 @@
 //   agree only while f << u, which fails hard at the near end.
 // =============================================================================
 
-
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Pattern.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/kit/Legibility.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -213,6 +198,17 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Decorations.h>
+#include <sigilcompose/Instances.h>
+#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Lines.h>
+#include <sigilcompose/Material.h>
+#include <sigilcompose/Pattern.h>
+#include <sigilcompose/Patterns.h>
+#include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Legibility.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -265,7 +261,7 @@ constexpr int kKDisplay = kK * kOversample;
 // from the vanishing point, which is 15 ft from the lens, and ends at
 // 600 px, which is one and a half inches.
 constexpr float kUFar = 5.0f;
-constexpr float kUNear = kUFar * kR; // 600 px
+constexpr float kUNear = kUFar * kR;  // 600 px
 
 // The atlas cell IS the twelve-foot panel, at one scale.
 constexpr float kCellPxPerIn = 10.25f;
@@ -291,21 +287,24 @@ constexpr SkColor4f kCold{0.918f, 0.949f, 1.0f, 1};       // #EAF2FF
 constexpr SkColor4f kRed{0.769f, 0.220f, 0.180f, 1};      // #C4382E
 constexpr SkColor4f kSolid{0.106f, 0.090f, 0.078f, 1};    // #1B1714
 constexpr SkColor4f kTick{0.361f, 0.329f, 0.294f, 1};     // #5C544B
-constexpr SkColor4f kBlack{0, 0, 0, 1};        // "the room was painted
-                                               //  totally black" [C85]
+constexpr SkColor4f kBlack{0, 0, 0, 1};  // "the room was painted
+                                         //  totally black" [C85]
 constexpr SkColor4f kWhite{1, 1, 1, 1};
 
 // The gels. RECONSTRUCTED from the process -- saturated subtractive filters
 // on black, ADDED -- never eyedropped from a transfer of a 1968 print.
-constexpr SkColor4f kGelRed{1.0f, 0.180f, 0.122f, 1};     // #FF2E1F
-constexpr SkColor4f kGelAmber{1.0f, 0.541f, 0.039f, 1};   // #FF8A0A
-constexpr SkColor4f kGelStraw{1.0f, 0.890f, 0.302f, 1};   // #FFE34D
-constexpr SkColor4f kGelGreen{0.231f, 0.878f, 0.541f, 1}; // #3BE08A
-constexpr SkColor4f kGelCyan{0.145f, 0.714f, 1.0f, 1};    // #25B6FF
-constexpr SkColor4f kGelViolet{0.478f, 0.298f, 1.0f, 1};  // #7A4CFF
-constexpr SkColor4f kGelMag{1.0f, 0.247f, 0.627f, 1};     // #FF3FA0
+constexpr SkColor4f kGelRed{1.0f, 0.180f, 0.122f, 1};      // #FF2E1F
+constexpr SkColor4f kGelAmber{1.0f, 0.541f, 0.039f, 1};    // #FF8A0A
+constexpr SkColor4f kGelStraw{1.0f, 0.890f, 0.302f, 1};    // #FFE34D
+constexpr SkColor4f kGelGreen{0.231f, 0.878f, 0.541f, 1};  // #3BE08A
+constexpr SkColor4f kGelCyan{0.145f, 0.714f, 1.0f, 1};     // #25B6FF
+constexpr SkColor4f kGelViolet{0.478f, 0.298f, 1.0f, 1};   // #7A4CFF
+constexpr SkColor4f kGelMag{1.0f, 0.247f, 0.627f, 1};      // #FF3FA0
 
-inline SkColor4f al(SkColor4f c, float a) { c.fA = a; return c; }
+inline SkColor4f al(SkColor4f c, float a) {
+  c.fA = a;
+  return c;
+}
 
 // ---------------------------------------------------------------------------
 // Layout, exact: 32 + 96 + 20 + 780 + 32 = 960; 1056 + 28 + 412 = 1496;
@@ -316,14 +315,14 @@ constexpr float kPad = 32, kHeaderH = 96, kBodyH = 780;
 constexpr float kLeftW = 1056, kSideW = 412;
 constexpr float kFilmW = 1056, kFilmH = 480;
 constexpr float kRigW = 1056, kRigH = 276;
-constexpr float kRigPxPerIn = 3.0f;   // the rig strip's ONE scale
-constexpr float kElevW = 596;         // 8 + 540 (focus reach) + 48 of air
-constexpr float kPanelStripW = 432;   // 144 in at 3.0 px/in, exact
+constexpr float kRigPxPerIn = 3.0f;  // the rig strip's ONE scale
+constexpr float kElevW = 596;        // 8 + 540 (focus reach) + 48 of air
+constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char *family, SkFontStyle style) {
+sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
   auto mgr = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
   return f ? f : mgr->matchFamilyStyle(nullptr, style);
@@ -374,11 +373,11 @@ sigil::weave::TextStyle quo(float s, SkColor4f c) {
   return st;
 }
 
-Element t(const std::string &s, sigil::weave::TextStyle st) {
+Element t(const std::string& s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
-std::string fmt(const char *f, ...) {
+std::string fmt(const char* f, ...) {
   char buf[640];
   va_list ap;
   va_start(ap, f);
@@ -401,7 +400,7 @@ Element rule(float w, SkColor4f c, float h = 1.0f) {
 
 sk_sp<SkRuntimeEffect> transferCurve() {
   static sk_sp<SkRuntimeEffect> fx = [] {
-    const char *src = R"(
+    const char* src = R"(
 uniform shader content;
 uniform float k;
 half4 main(float2 xy) {
@@ -416,8 +415,7 @@ half4 main(float2 xy) {
 }
 )";
     auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e)
-      std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
+    if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
     return e;
   }();
   return fx;
@@ -437,41 +435,38 @@ half4 main(float2 xy) {
 
 struct Strip {
   sk_sp<SkImage> image;
-  std::vector<uint8_t> lum; // 0/255, row-major -- fuel for verification E
+  std::vector<uint8_t> lum;  // 0/255, row-major -- fuel for verification E
   int w = 0, h = 0;
 };
 
-Strip bakeStrip(Element tree, sigil::weave::FontContext &fonts, int W, int H,
+Strip bakeStrip(Element tree, sigil::weave::FontContext& fonts, int W, int H,
                 float thresh, int stripeX) {
   Strip out;
   out.w = W;
   out.h = H;
   sk_sp<SkPicture> pic = snapshot(box().child(std::move(tree)), fonts);
   SkBitmap bm;
-  if (!bm.tryAllocN32Pixels(W, H))
-    return out;
+  if (!bm.tryAllocN32Pixels(W, H)) return out;
   {
     SkCanvas c(bm);
     c.clear(SK_ColorBLACK);
-    if (pic)
-      c.drawPicture(pic);
+    if (pic) c.drawPicture(pic);
   }
   out.lum.assign((size_t)W * (size_t)H, 0);
   for (int y = 0; y < H; ++y)
     for (int x = 0; x < W; ++x) {
       const SkColor s = bm.getColor(x, y);
-      const float l = (0.2126f * (float)SkColorGetR(s) +
-                       0.7152f * (float)SkColorGetG(s) +
-                       0.0722f * (float)SkColorGetB(s)) /
-                      255.0f;
+      const float l =
+          (0.2126f * (float)SkColorGetR(s) + 0.7152f * (float)SkColorGetG(s) +
+           0.0722f * (float)SkColorGetB(s)) /
+          255.0f;
       bool on = l > thresh;
       // [GE]'s "white stripe artifact" -- one 3 px full-height run at a
       // fixed x, present in BOTH shots that share this strip. He found the
       // same defect in Shot 27 and Shot 29 and concluded the same physical
       // artwork was reused with different filtering. Not explained in the
       // picture; explained in the caption.
-      if (stripeX >= 0 && x >= stripeX && x < stripeX + 7)
-        on = true;
+      if (stripeX >= 0 && x >= stripeX && x < stripeX + 7) on = true;
       out.lum[(size_t)y * (size_t)W + (size_t)x] = on ? 255 : 0;
       *bm.getAddr32(x, y) = on ? SkPreMultiplyARGB(255, 255, 255, 255) : 0u;
     }
@@ -536,7 +531,7 @@ Element artArch() {
 
 /** Circuit print + posterised botanical. Shared by SH 27 and SH 29 [GE],
  *  and it carries the white-stripe defect. */
-Element artCircuit(Pattern &grid, Pattern &spek) {
+Element artCircuit(Pattern& grid, Pattern& spek) {
   Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
   g.child(box().inset(0).fill(grid.material()));
   g.child(box().inset(0).fill(spek.material()));
@@ -564,12 +559,12 @@ struct WallSpec {
   float uFar = kUFar;
   float gain = 1.0f;
   float artLeft = 0.0f;
-  float artDrift = 0.0f; // the panel also slides DURING the exposure [NO]
+  float artDrift = 0.0f;  // the panel also slides DURING the exposure [NO]
   int cell = 0;
-  float upTo = -1.0f;    // suppress stamps past this fraction (the monitor)
+  float upTo = -1.0f;  // suppress stamps past this fraction (the monitor)
   bool artwork = true;
   int K = kKDisplay;
-  bool logSpaced = true; // false = uniform in z, the S4 counter-example
+  bool logSpaced = true;  // false = uniform in z, the S4 counter-example
 };
 
 /** The whole picture is these lines of arithmetic:
@@ -583,7 +578,7 @@ struct WallSpec {
  *  equal-weight stamps integrate to a FLAT wall -- the one place the physics
  *  is easy to get backwards. The weight must be the camera travel each stamp
  *  stands for. Nothing paints the 1/rho falloff; it is the sum. */
-void buildWall(instancing::Pool &p, const WallSpec &s) {
+void buildWall(instancing::Pool& p, const WallSpec& s) {
   const int K = std::max(2, s.K);
   p.resize((size_t)K);
   auto pos = p.positions();
@@ -613,11 +608,11 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     } else {
       const float z = kZ0In - (kZ0In - kZ1In) * f;
       u = s.uFar * kZ0In / z;
-      w = s.gain * uniformW; // equal weight: the travel IS constant
+      w = s.gain * uniformW;  // equal weight: the travel IS constant
     }
     const float scale = u / kScaleDen;
-    const float wpx = kSlitWIn * kCellPxPerIn * scale; // on-screen width
-    const float uc = u * (1.0f + 0.5f / kX0OverW);     // CENTRE, not edge
+    const float wpx = kSlitWIn * kCellPxPerIn * scale;  // on-screen width
+    const float uc = u * (1.0f + 0.5f / kX0OverW);      // CENTRE, not edge
     pos[j] = {s.vp.fX + cs * uc, s.vp.fY + sn * uc};
     rot[j] = phi;
     sc[j] = scale;
@@ -636,8 +631,7 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     }
     sz[j] = {sx, 1.0f};
     ti[j] = {s.gel.fR, s.gel.fG, s.gel.fB, std::clamp(w, 0.0f, 1.0f)};
-    if (s.upTo >= 0.0f && f > s.upTo)
-      ti[j].fA = 0.0f;
+    if (s.upTo >= 0.0f && f > s.upTo) ti[j].fA = 0.0f;
     // Pool::texWindows() -- ONE bake of the twelve-foot panel, addressed at
     // a different sub-rect per stamp, so the artwork crawl is continuous.
     // The alternative is pre-registering a cell per crawl position, which
@@ -645,13 +639,13 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     // Atlas::cell() drops the whole baked sheet when you re-register.
     const float left =
         s.artwork ? std::fmod(s.artLeft + s.artDrift * f + 8.0f, 1.0f) : 0.0f;
-    win[j] = SkRect::MakeXYWH(std::min(left, 1.0f - kWinFrac), 0.0f, kWinFrac,
-                              1.0f);
+    win[j] =
+        SkRect::MakeXYWH(std::min(left, 1.0f - kWinFrac), 0.0f, kWinFrac, 1.0f);
   }
   p.commit();
 }
 
-} // namespace slit
+}  // namespace slit
 
 // ===========================================================================
 
@@ -679,7 +673,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   float fitP = 0, fitR2 = 0, fitResid = 0, fitP95 = 0;
   std::array<float, 120> profX{}, profY{};  // the measured profile
   int profN = 0;
-  float fitPMin = 0, fitResidMin = 0; // the same fit at K = K_min
+  float fitPMin = 0, fitResidMin = 0;  // the same fit at K = K_min
   int fitRays = 0, fitPts = 0;
   float rtMaxErr = -1, rtCorr = 0, rtMismatch = 0;
   int rtCols = 0;
@@ -692,11 +686,11 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   bool deterministic_ = false;
 
   struct Shot {
-    const char *name;
+    const char* name;
     SkColor4f gelA, gelB;
     float phi0, dPhi;
     int cell;
-    const char *art;
+    const char* art;
   };
   /** 96 film frames = 4.0 s at 24 fps. The shot index is derived from the
    *  FRAME COUNTER, never from the wall clock: `addFixed` runs an exact
@@ -707,7 +701,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
    *  would depend on how fast the host happened to be drawing. */
   static int shotFor(long long frame) { return (int)((frame / 96) & 3); }
 
-  static const Shot &shotAt(int i) {
+  static const Shot& shotAt(int i) {
     using namespace slit;
     static const Shot k[4] = {
         {"SEQ 29 · SH 04", kGelStraw, kGelCyan, 0.0f, 0.35f, 0,
@@ -724,9 +718,9 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
 
   // The corridor banks; it does not sit still. Within +-96 x +-44 px.
   SkPoint vp() const {
-    return {slit::kFilmW * 0.5f + 96.0f * (float)std::sin(elapsed * 0.41),
-            slit::kFilmH * 0.5f +
-                44.0f * (float)std::sin(elapsed * 0.67 + 1.1)};
+    return {
+        slit::kFilmW * 0.5f + 96.0f * (float)std::sin(elapsed * 0.41),
+        slit::kFilmH * 0.5f + 44.0f * (float)std::sin(elapsed * 0.67 + 1.1)};
   }
   static float displayGain() { return 30.0f; }
   static float transferK() { return 1.35f; }
@@ -734,7 +728,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   // ------------------------------------------------------------- the walls
   void rebuildWalls() {
     using namespace slit;
-    const Shot &s = shotAt(shot);
+    const Shot& s = shotAt(shot);
     const SkPoint c = vp();
     WallSpec A;
     A.vp = c;
@@ -749,7 +743,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     A.artDrift = 18.0f * kWinFrac;
     A.cell = s.cell;
     WallSpec B = A;
-    B.phiDeg = A.phiDeg + 180.0f; // "two seemingly infinite planes" [T68]
+    B.phiDeg = A.phiDeg + 180.0f;  // "two seemingly infinite planes" [T68]
     B.gel = s.gelB;
     B.artLeft = std::fmod(artOffset + 0.37f, 1.0f);
     B.artDrift = -18.0f * kWinFrac;
@@ -794,7 +788,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     std::array<int, 120> cnt{};
   };
 
-  Fit fitAtK(sigil::weave::FontContext &fonts, int K) {
+  Fit fitAtK(sigil::weave::FontContext& fonts, int K) {
     using namespace slit;
     Fit out;
     auto pa = std::make_shared<instancing::Pool>();
@@ -811,15 +805,14 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     buildWall(*pa, A);
     buildWall(*pb, B);
 
-    Element accum = box()
-                        .width(Dim(kFilmW))
-                        .height(Dim(kFilmH))
-                        .child(instancing::instances(flatAtlas, pa,
-                                                     instancing::Mode::Data,
-                                                     SkBlendMode::kPlus))
-                        .child(instancing::instances(flatAtlas, pb,
-                                                     instancing::Mode::Data,
-                                                     SkBlendMode::kPlus));
+    Element accum =
+        box()
+            .width(Dim(kFilmW))
+            .height(Dim(kFilmH))
+            .child(instancing::instances(flatAtlas, pa, instancing::Mode::Data,
+                                         SkBlendMode::kPlus))
+            .child(instancing::instances(flatAtlas, pb, instancing::Mode::Data,
+                                         SkBlendMode::kPlus));
     // snapshot() sizes the picture by the root's CHILDREN, not by the
     // root's own width/height -- hence the shell box. Passed directly, the
     // accumulation's children are instancing leaves, which measure zero on
@@ -827,22 +820,19 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     sk_sp<SkPicture> pic = snapshot(box().child(std::move(accum)), fonts);
     sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::Make(
         (int)kFilmW, (int)kFilmH, kRGBA_F16_SkColorType, kPremul_SkAlphaType));
-    if (!pic || !surf)
-      return out;
+    if (!pic || !surf) return out;
     surf->getCanvas()->clear(SK_ColorTRANSPARENT);
     surf->getCanvas()->drawPicture(pic);
 
     const int W = (int)kFilmW, H = (int)kFilmH;
-    const SkImageInfo dst = SkImageInfo::Make(W, H, kRGBA_F32_SkColorType,
-                                              kUnpremul_SkAlphaType);
+    const SkImageInfo dst =
+        SkImageInfo::Make(W, H, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType);
     std::vector<float> px((size_t)W * (size_t)H * 4);
-    if (!surf->readPixels(dst, px.data(), (size_t)W * 16, 0, 0))
-      return out;
+    if (!surf->readPixels(dst, px.data(), (size_t)W * 16, 0, 0)) return out;
     auto lumAt = [&](float x, float y) -> float {
       const int xi = (int)std::lround(x), yi = (int)std::lround(y);
-      if (xi < 0 || yi < 0 || xi >= W || yi >= H)
-        return -1;
-      const float *p = &px[((size_t)yi * (size_t)W + (size_t)xi) * 4];
+      if (xi < 0 || yi < 0 || xi >= W || yi >= H) return -1;
+      const float* p = &px[((size_t)yi * (size_t)W + (size_t)xi) * 4];
       return (0.2126f * p[0] + 0.7152f * p[1] + 0.0722f * p[2]) * p[3];
     };
 
@@ -868,11 +858,13 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
             ly.push_back(std::log((double)v));
           }
         }
-        if (lx.size() < 40)
-          continue;
+        if (lx.size() < 40) continue;
         const size_t n = lx.size();
         double mx = 0, my = 0;
-        for (size_t i = 0; i < n; ++i) { mx += lx[i]; my += ly[i]; }
+        for (size_t i = 0; i < n; ++i) {
+          mx += lx[i];
+          my += ly[i];
+        }
         mx /= (double)n;
         my /= (double)n;
         double sxy = 0, sxx = 0, syy = 0;
@@ -906,18 +898,24 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
       out.r2 = (float)(sr2 / (double)out.rays);
       std::sort(resid.begin(), resid.end());
       out.worst = resid.empty() ? 0 : resid.back();
-      out.p95 = resid.empty() ? 0 : resid[(size_t)(0.95 * (double)resid.size())];
+      out.p95 =
+          resid.empty() ? 0 : resid[(size_t)(0.95 * (double)resid.size())];
     }
     return out;
   }
 
-  void measureExposure(sigil::weave::FontContext &fonts) {
+  void measureExposure(sigil::weave::FontContext& fonts) {
     const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
     const Fit big = fitAtK(fonts, slit::kKDisplay);
     const Fit small = fitAtK(fonts, slit::kK);
-    fitP = big.p; fitR2 = big.r2; fitResid = big.worst; fitP95 = big.p95;
-    fitRays = big.rays; fitPts = big.pts;
-    fitPMin = small.p; fitResidMin = small.worst;
+    fitP = big.p;
+    fitR2 = big.r2;
+    fitResid = big.worst;
+    fitP95 = big.p95;
+    fitRays = big.rays;
+    fitPts = big.pts;
+    fitPMin = small.p;
+    fitResidMin = small.worst;
     // Normalise the measured profile onto the same axes the analytic C/u
     // uses: an exact 1/u law is then the box diagonal, and every departure
     // -- including the +-1-stamp quantisation ripple -- is a visible wiggle.
@@ -932,10 +930,9 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         ++anchorN;
       }
     if (anchorN)
-      anchor /= (double)anchorN; // zero-mean against the analytic diagonal
+      anchor /= (double)anchorN;  // zero-mean against the analytic diagonal
     for (int i = 0; i < 120; ++i) {
-      if (!big.cnt[(size_t)i])
-        continue;
+      if (!big.cnt[(size_t)i]) continue;
       const double le = big.sum[(size_t)i] / (double)big.cnt[(size_t)i];
       profX[(size_t)profN] = (float)((double)i / 119.0);
       profY[(size_t)profN] = (float)((anchor - le) / span);
@@ -954,15 +951,14 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   // window's baked size -- 6 x 492 px, 1:1 on both axes. At any other radius
   // the residual would be measuring nearest-neighbour resampling phase; at
   // this one it measures TRANSPORT, which is the claim under test.
-  void roundTrip(sigil::weave::FontContext &fonts) {
+  void roundTrip(sigil::weave::FontContext& fonts) {
     using namespace slit;
     const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
-    const Strip &S = strips[0];
-    if (!S.image || S.lum.empty())
-      return;
+    const Strip& S = strips[0];
+    if (!S.image || S.lum.empty()) return;
     constexpr int kFrames = 96;
-    const int cw = (int)std::lround(kSlitWIn * kCellPxPerIn); // 6
-    const int chh = (int)std::lround(kCellH);                 // 492
+    const int cw = (int)std::lround(kSlitWIn * kCellPxPerIn);  // 6
+    const int chh = (int)std::lround(kCellH);                  // 492
     const int boxW = cw + 16, boxH = chh + 8;
     const float cx = (float)boxW * 0.5f, cy = (float)boxH * 0.5f;
 
@@ -985,22 +981,21 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
       const float left = aStart + (float)f * kWinFrac;
       pool->positions()[0] = {cx, cy};
       pool->rotations()[0] = 0;
-      pool->scales()[0] = 1.0f; // u* = X0*ppi  =>  s = 1
+      pool->scales()[0] = 1.0f;  // u* = X0*ppi  =>  s = 1
       pool->tints()[0] = {1, 1, 1, 1};
       pool->frames()[0] = 0;
       pool->sizes()[0] = {1, 1};
       pool->texWindows()[0] = SkRect::MakeXYWH(left, 0, kWinFrac, 1.0f);
       pool->commit();
 
-      Element acc = box()
-                        .width(Dim((float)boxW))
-                        .height(Dim((float)boxH))
-                        .child(instancing::instances(one, pool,
-                                                     instancing::Mode::Data));
+      Element acc =
+          box()
+              .width(Dim((float)boxW))
+              .height(Dim((float)boxH))
+              .child(instancing::instances(one, pool, instancing::Mode::Data));
       sk_sp<SkPicture> pic = snapshot(box().child(std::move(acc)), fonts);
       SkBitmap bm;
-      if (!pic || !bm.tryAllocN32Pixels(boxW, boxH))
-        return;
+      if (!pic || !bm.tryAllocN32Pixels(boxW, boxH)) return;
       {
         SkCanvas c(bm);
         c.clear(SK_ColorBLACK);
@@ -1018,15 +1013,17 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
               (int)(((float)y + 0.5f) / (float)chh * (float)S.h), 0, S.h - 1);
           const float wv =
               (float)S.lum[(size_t)sy * (size_t)S.w + (size_t)sx] / 255.0f;
-          sg += g; sw += wv; sgg += g * g; sww += wv * wv; sgw += g * wv;
+          sg += g;
+          sw += wv;
+          sgg += g * g;
+          sww += wv * wv;
+          sgw += g * wv;
           worst = std::max(worst, std::fabs(g - wv));
-          if (std::fabs(g - wv) > 0.5f)
-            ++bad;
+          if (std::fabs(g - wv) > 0.5f) ++bad;
           ++n;
         }
     }
-    if (!n)
-      return;
+    if (!n) return;
     const double mg = sg / (double)n, mw = sw / (double)n;
     const double cgg = sgg / (double)n - mg * mg;
     const double cww = sww / (double)n - mw * mw;
@@ -1076,7 +1073,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   // ---------------------------------------------------------- the film frame
   Element filmFrame() {
     using namespace slit;
-    const Shot &s = shotAt(shot);
+    const Shot& s = shotAt(shot);
 
     // THE ACCUMULATION. Two exposures, kPlus, one atlas stamp each.
     auto raw = [this] {
@@ -1094,14 +1091,14 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     // added -- so it is still the accumulation, not a painted glow.
     Element halation =
         raw()
-            .effect(Effect::shader(transferCurve(),
-                                   {{"k", transferK() * 0.55f}})
-                        .then(Effect::filter(
-                            SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
+            .effect(
+                Effect::shader(transferCurve(), {{"k", transferK() * 0.55f}})
+                    .then(Effect::filter(
+                        SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
             .blend(SkBlendMode::kPlus)
             .opacity(0.55f);
 
-    auto hud = [&](const std::string &str, float l, float tp, float r, float b,
+    auto hud = [&](const std::string& str, float l, float tp, float r, float b,
                    SkColor4f col) {
       Element e = t(str, mono(8, col, 0.6f)).absolute();
       if (l >= 0) e.left(Dim(l));
@@ -1111,7 +1108,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
       return e;
     };
 
-    const double machineSec = (double)filmNo * 120.0; // 2880 : 1
+    const double machineSec = (double)filmNo * 120.0;  // 2880 : 1
     const long long mh = (long long)(machineSec / 3600.0);
     const long long mm = (long long)std::fmod(machineSec / 60.0, 60.0);
 
@@ -1123,8 +1120,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .clip()
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .key("film")
-        .mask(by::edge(
-            0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms})))
+        .mask(by::edge(0.0f, animate(from(0.0f).to(1.0f),
+                                     {520ms, ch::easeOutCubic, 240ms})))
         .child(std::move(accumulation))
         .child(std::move(halation))
         // The shutter bar -- the ONLY thing in the plate driven by
@@ -1137,8 +1134,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .fill(al(kCold, 0.4f))
                    .mask(by::edge(0.0f, bind(&frameAlpha))))
         .child(hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)))
-        .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
-                       filmNo, kKDisplay),
+        .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS", filmNo,
+                       kKDisplay),
                    -1, 10, 10, -1, al(kTick, 0.9f)))
         .child(hud(fmt("MACHINE TIME %lld h %02lld m  @ 2880 : 1%s", mh, mm,
                        everClamped ? "  *" : ""),
@@ -1156,9 +1153,9 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------- the rig
-  void drawRig(SkCanvas &c, const PaintContext &ctx);
-  void drawArtworkPanel(SkCanvas &c, const PaintContext &ctx);
-  void drawMeasuredPoints(SkCanvas &c, const PaintContext &ctx);
+  void drawRig(SkCanvas& c, const PaintContext& ctx);
+  void drawArtworkPanel(SkCanvas& c, const PaintContext& ctx);
+  void drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx);
 
   Element rigStrip() {
     using namespace slit;
@@ -1167,7 +1164,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .height(Dim(kRigH))
         .shrink(0)
         .key("rig")
-        .child(custom([this](SkCanvas &c, const PaintContext &p) {
+        .child(custom([this](SkCanvas& c, const PaintContext& p) {
                  drawRig(c, p);
                })
                    .left(Dim(0))
@@ -1176,7 +1173,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .height(Dim(kRigH))
                    .clip()
                    .cache(Cache::None))
-        .child(custom([this](SkCanvas &c, const PaintContext &p) {
+        .child(custom([this](SkCanvas& c, const PaintContext& p) {
                  drawArtworkPanel(c, p);
                })
                    .left(Dim(kRigW - kPanelStripW))
@@ -1223,11 +1220,11 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
    *  otherwise squash a text leaf below its measured height and the run
    *  silently overlaps its neighbour. This is the height-axis form of the
    *  same rule that lets a fixed width() flex child still shrink. */
-  Element pl(const std::string &str, sigil::weave::TextStyle st) {
+  Element pl(const std::string& str, sigil::weave::TextStyle st) {
     return slit::t(str, std::move(st)).shrink(0);
   }
 
-  Element panelShell(const char *heading, int order) {
+  Element panelShell(const char* heading, int order) {
     using namespace slit;
     return box()
         .column()
@@ -1249,33 +1246,36 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   Element s1Quote() {
     using namespace slit;
     Element p = panelShell("THE MACHINE, IN ITS OWN WORDS", 0);
-    p.child(pl("“… this device could produce two seemingly infinite planes "
-              "of exposure while holding depth-of-field from a distance of "
-              "fifteen feet to one and one-half inches from the lens at an "
-              "aperture of F/1.8 with exposures of approximately one minute "
-              "per frame using a standard 65mm Mitchell camera.”",
-               quo(9.1f, kType)));
+    p.child(
+        pl("“… this device could produce two seemingly infinite planes "
+           "of exposure while holding depth-of-field from a distance of "
+           "fifteen feet to one and one-half inches from the lens at an "
+           "aperture of F/1.8 with exposures of approximately one minute "
+           "per frame using a standard 65mm Mitchell camera.”",
+           quo(9.1f, kType)));
     p.child(box()
                 .row()
                 .gap(5)
                 .shrink(0)
                 .child(pl("▸", ui(9, kRed)).width(7))
                 .child(pl("“holding depth-of-field” IS THE PHRASE THAT "
-                         "CANNOT BE TRUE — SEE BELOW",
-                         mono(7.1f, kRed))
+                          "CANNOT BE TRUE — SEE BELOW",
+                          mono(7.1f, kRed))
                            .grow(1)));
-    p.child(pl("“… we moved the camera along fourteen feet of track toward "
-               "the slit — a full fourteen feet for each exposure. It took "
-               "about forty-five seconds to a minute per exposure, and each "
-               "frame was made up of two exposures.” [C85]",
-               quo(8.4f, al(kType, 0.82f))));
+    p.child(
+        pl("“… we moved the camera along fourteen feet of track toward "
+           "the slit — a full fourteen feet for each exposure. It took "
+           "about forty-five seconds to a minute per exposure, and each "
+           "frame was made up of two exposures.” [C85]",
+           quo(8.4f, al(kType, 0.82f))));
     p.child(rule(390, kRule));
-    p.child(pl("[T68] Am. Cinematographer 49(6):416–420, 451–453, Jun 1968 · "
-               "[C85] Cinefex 85, Apr 2001, at one remove through two "
-               "agreeing carriers · [FS] The Film Stage · [NO] Oseman · "
-               "[MB] MagicBeans · [GE] Ercolano · [AP] Age of Plastic · "
-               "[WP] Wikipedia.",
-               mono(6.5f, kTick)));
+    p.child(
+        pl("[T68] Am. Cinematographer 49(6):416–420, 451–453, Jun 1968 · "
+           "[C85] Cinefex 85, Apr 2001, at one remove through two "
+           "agreeing carriers · [FS] The Film Stage · [NO] Oseman · "
+           "[MB] MagicBeans · [GE] Ercolano · [AP] Age of Plastic · "
+           "[WP] Wikipedia.",
+           mono(6.5f, kTick)));
     return p;
   }
 
@@ -1283,27 +1283,32 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     using namespace slit;
     Element p = panelShell("120 : 1, AND A LENS", 1);
     p.child(pl("z0 = 15 ft = 180.0 in   z1 = 1.5 in   z0/z1 = 120.0 : 1",
-              mono(7.9f, al(kCold, 0.95f))));
-    p.child(pl("DOF @ 1.5 in, f/1.8, 28.64 mm, c 0.05 = 0.0791 mm   ⇒   "
-               "CLAIMED BRACKET 4533.9 mm / ACTUAL DOF = 5.7 × 10⁴",
-               mono(7.1f, kRed)));
+               mono(7.9f, al(kCold, 0.95f))));
+    p.child(
+        pl("DOF @ 1.5 in, f/1.8, 28.64 mm, c 0.05 = 0.0791 mm   ⇒   "
+           "CLAIMED BRACKET 4533.9 mm / ACTUAL DOF = 5.7 × 10⁴",
+           mono(7.1f, kRed)));
     p.child(pl("READ THE 15 ft AS A HYPERFOCAL NEAR LIMIT, f²/(Nc)+f = 2×4572:",
                mono(6.9f, kType2)));
     p.child(pl("c .025→20.26   .050→28.64   .075→35.07   .100→40.48 mm",
                mono(7.8f, kAmber)));
-    p.child(pl("28 mm T2.8 IS ON PANAVISION’S SUPER PANAVISION 70 LIST AND IN "
-               "2001’S OWN CONTINUITY REPORTS [AP] — THE LENS EXISTS. (f/1.8 "
-               "IS FASTER THAN ANY OF THEM; 1.5 in NEEDS 87 mm OF BELLOWS.)",
-               mono(6.5f, al(kCold, 0.78f))));
-    p.child(pl("[C85]’S 14 ft TRACK ⇒ NEAR END 12 in, NOT 1½ in — THE TWO "
-               "PUBLISHED FIGURES DISAGREE BY 10.5 in, 6.2500% OF THE TRACK.",
-               mono(6.5f, kType2)));
-    p.child(pl("THE NUMBER IN THE SENTENCE IS NOT A DEPTH OF FIELD. "
-              "IT IS A LENS.",
-               uiB(10.5f, kType, 0.2f)));
-    p.child(pl("AND [T68]’S OWN CAPTION SAYS SO: “SELSYN-DRIVEN FOLLOW-FOCUS "
-               "MECHANISM”. WHAT IT HELD WAS FOCUS, SERVOED TO THE TRACK.",
-               mono(6.5f, kAmber)));
+    p.child(
+        pl("28 mm T2.8 IS ON PANAVISION’S SUPER PANAVISION 70 LIST AND IN "
+           "2001’S OWN CONTINUITY REPORTS [AP] — THE LENS EXISTS. (f/1.8 "
+           "IS FASTER THAN ANY OF THEM; 1.5 in NEEDS 87 mm OF BELLOWS.)",
+           mono(6.5f, al(kCold, 0.78f))));
+    p.child(
+        pl("[C85]’S 14 ft TRACK ⇒ NEAR END 12 in, NOT 1½ in — THE TWO "
+           "PUBLISHED FIGURES DISAGREE BY 10.5 in, 6.2500% OF THE TRACK.",
+           mono(6.5f, kType2)));
+    p.child(
+        pl("THE NUMBER IN THE SENTENCE IS NOT A DEPTH OF FIELD. "
+           "IT IS A LENS.",
+           uiB(10.5f, kType, 0.2f)));
+    p.child(
+        pl("AND [T68]’S OWN CAPTION SAYS SO: “SELSYN-DRIVEN FOLLOW-FOCUS "
+           "MECHANISM”. WHAT IT HELD WAS FOCUS, SERVOED TO THE TRACK.",
+           mono(6.5f, kAmber)));
     return p;
   }
 
@@ -1329,30 +1334,32 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                                        to(1.0f),
                                        {520ms, ch::easeOutCubic, 1500ms})),
                                    stroke(1.6f, Fill::color(kAmber))))
-                .child(custom([this](SkCanvas &c, const PaintContext &p2) {
+                .child(custom([this](SkCanvas& c, const PaintContext& p2) {
                          drawMeasuredPoints(c, p2);
                        })
                            .inset(4)
                            .cache(Cache::None)));
     p.child(slot("fit").height(Dim(21)).shrink(0));
-    p.child(pl("DWELL AT FILM RADIUS u IS f·w/(V·u), AND IRRADIANCE FROM AN "
-               "EXTENDED SOURCE IS DISTANCE-INVARIANT AT FIXED APERTURE — SO "
-               "EXPOSURE ∝ 1/u. NOTHING PAINTS IT; IT IS THE SUM OF 1624 "
-               "STAMPS PER WALL WEIGHTED BY THE CAMERA TRAVEL EACH STANDS "
-               "FOR, MEASURED BACK OUT OF AN F16 RASTER OF THE ACCUMULATION "
-               "SUBTREE ALONE. Debug.h IS ENTIRELY PATH-LEVEL.",
-               mono(6.5f, kType2)));
-    p.child(pl("WHAT THE FILM SHOWS IS DENSITY. WHAT THE MACHINE MADE IS "
-               "EXPOSURE. THE 1/ρ LAW IS IN THE SECOND; THE CURVE BETWEEN "
-               "THEM IS RECONSTRUCTED.",
-               mono(6.5f, kAmber)));
+    p.child(
+        pl("DWELL AT FILM RADIUS u IS f·w/(V·u), AND IRRADIANCE FROM AN "
+           "EXTENDED SOURCE IS DISTANCE-INVARIANT AT FIXED APERTURE — SO "
+           "EXPOSURE ∝ 1/u. NOTHING PAINTS IT; IT IS THE SUM OF 1624 "
+           "STAMPS PER WALL WEIGHTED BY THE CAMERA TRAVEL EACH STANDS "
+           "FOR, MEASURED BACK OUT OF AN F16 RASTER OF THE ACCUMULATION "
+           "SUBTREE ALONE. Debug.h IS ENTIRELY PATH-LEVEL.",
+           mono(6.5f, kType2)));
+    p.child(
+        pl("WHAT THE FILM SHOWS IS DENSITY. WHAT THE MACHINE MADE IS "
+           "EXPOSURE. THE 1/ρ LAW IS IN THE SECOND; THE CURVE BETWEEN "
+           "THEM IS RECONSTRUCTED.",
+           mono(6.5f, kAmber)));
     return p;
   }
 
   Element s4Sampling() {
     using namespace slit;
     Element p = panelShell("SAMPLING: 406 IS NOT ARBITRARY", 3);
-    const char *rowName[2] = {"uniform in  z", "uniform in ln z"};
+    const char* rowName[2] = {"uniform in  z", "uniform in ln z"};
     for (int r = 0; r < 2; ++r) {
       Element row = box().row().gap(5).alignItems(Align::Center);
       row.child(pl(rowName[r], mono(7.0f, kType2)).width(80));
@@ -1382,24 +1389,29 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                 .child(pl("K = 12", mono(6.6f, kTick)).width(98))
                 .child(pl("K = 48", mono(6.6f, kTick)).width(98))
                 .child(pl("K = 406", mono(6.6f, kTick)).width(98)));
-    p.child(pl("EACH STRIP IS ONE REAL WALL, STAMPED BY THE SAME CODE AS "
-               "THE FRAME: FILM RADIUS 0 → 600 px, LEFT TO RIGHT, LINEAR.",
-               mono(6.5f, kTick)));
+    p.child(
+        pl("EACH STRIP IS ONE REAL WALL, STAMPED BY THE SAME CODE AS "
+           "THE FRAME: FILM RADIUS 0 → 600 px, LEFT TO RIGHT, LINEAR.",
+           mono(6.5f, kTick)));
     p.child(rule(390, kRule));
-    p.child(pl("Δ(ln u) ≤ ln(1 + w/X0)   K_min = 1 + ln 120 / ln(1+1/84) = "
-               "405.6 → 406",
-               mono(7.1f, al(kCold, 0.9f))));
-    p.child(pl("THE BRIEF SAID 402 — IT LINEARISED THE LOGARITHM (4.7875 × "
-               "84); AT K = 400 THE STAMPS NO LONGER QUITE TOUCH.",
-               mono(6.5f, kAmber)));
+    p.child(
+        pl("Δ(ln u) ≤ ln(1 + w/X0)   K_min = 1 + ln 120 / ln(1+1/84) = "
+           "405.6 → 406",
+           mono(7.1f, al(kCold, 0.9f))));
+    p.child(
+        pl("THE BRIEF SAID 402 — IT LINEARISED THE LOGARITHM (4.7875 × "
+           "84); AT K = 400 THE STAMPS NO LONGER QUITE TOUCH.",
+           mono(6.5f, kAmber)));
     p.child(slot("ripple").height(Dim(19)).shrink(0));
-    p.child(pl("X0/w IS THE ONLY NUMBER THAT SETS THIS, AND X0 = 49.2 in PUTS "
-               "THE SLIT 4 ft OFF AXIS — OUTSIDE A 6 ft PLATE. THE WEAKEST "
-               "JOINT IN THIS RECONSTRUCTION, PRINTED RATHER THAN HIDDEN.",
-               mono(6.5f, kType2)));
-    p.child(pl("EQUAL-WEIGHT LOG STAMPS ARE BAND-FREE AND FLAT — WHICH IS "
-               "WRONG. THE WEIGHT MUST BE THE CAMERA TRAVEL: ω ∝ z.",
-               mono(6.5f, kRed)));
+    p.child(
+        pl("X0/w IS THE ONLY NUMBER THAT SETS THIS, AND X0 = 49.2 in PUTS "
+           "THE SLIT 4 ft OFF AXIS — OUTSIDE A 6 ft PLATE. THE WEAKEST "
+           "JOINT IN THIS RECONSTRUCTION, PRINTED RATHER THAN HIDDEN.",
+           mono(6.5f, kType2)));
+    p.child(
+        pl("EQUAL-WEIGHT LOG STAMPS ARE BAND-FREE AND FLAT — WHICH IS "
+           "WRONG. THE WEIGHT MUST BE THE CAMERA TRAVEL: ω ∝ z.",
+           mono(6.5f, kRed)));
     return p;
   }
 
@@ -1461,8 +1473,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     return box()
         .column()
         .gap(1)
-        .child(t(fmt("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f",
-                     fitP, fitR2),
+        .child(t(fmt("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f", fitP,
+                     fitR2),
                  monoB(8.2f, al(kCold, 0.95f))))
         .child(t(fmt("RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
                      "(%d rays, %d pts)",
@@ -1485,7 +1497,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   }
 
   // ---------------------------------------------------------------- describe
-  Element describe(sketch::SketchContext &ctx) {
+  Element describe(sketch::SketchContext& ctx) {
     using namespace slit;
     return box()
         .column()
@@ -1509,8 +1521,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .child(sidebar()));
   }
 
-  void setup(sketch::SketchContext &ctx) override;
-  void update(double e, sketch::SketchContext &ctx) override;
+  void setup(sketch::SketchContext& ctx) override;
+  void update(double e, sketch::SketchContext& ctx) override;
 };
 
 // ===========================================================================
@@ -1521,13 +1533,13 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
 // decorations::paintOn(), which is how the whole vocabulary reaches
 // hand-built geometry.
 
-void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
+void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
   using namespace slit;
   const float S = kRigPxPerIn;
-  const float plateX = 548.0f;         // the slit; z = 0 for focus
+  const float plateX = 548.0f;  // the slit; z = 0 for focus
   const float trackY = 194.0f;
   const float plateCY = 116.0f;
-  const float plateH = kPlateIn * S;   // 216 px
+  const float plateH = kPlateIn * S;  // 216 px
   const float benchT = 232.0f, benchB = 244.0f;
 
   SkPaint p;
@@ -1539,9 +1551,9 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   const SkPath benchPath = benchB2.detach();
   p.setColor4f(kSolid);
   c.drawPath(benchPath, p);
-  decorations::paintOn(c, ctx, benchPath,
-                       lines::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f,
-                                    45.0f));
+  decorations::paintOn(
+      c, ctx, benchPath,
+      lines::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(1.0f);
   p.setColor4f(al(kAmber, 0.55f));
@@ -1551,8 +1563,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   // THE TRACK: 14 ft = 168 in = 504 px [C85], from z = 180 in down to
   // z = 12 in -- which is where note 2 becomes a picture. A double rule,
   // with the worm gear as a micro-pitch lattice along it [NO].
-  const float trackL = plateX - kZ0In * S;             // z = 180 in, x = 8
-  const float trackR = trackL + kTrackIn * S;          // z = 12 in,  x = 512
+  const float trackL = plateX - kZ0In * S;     // z = 180 in, x = 8
+  const float trackR = trackL + kTrackIn * S;  // z = 12 in,  x = 512
   p.setColor4f(kAmber);
   c.drawRect(SkRect::MakeLTRB(trackL, trackY - 1, trackR, trackY), p);
   c.drawRect(SkRect::MakeLTRB(trackL, trackY + 5, trackR, trackY + 6), p);
@@ -1576,7 +1588,7 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   p.setColor4f(kAmber);
   c.drawRect(plate, p);
   p.setStyle(SkPaint::kFill_Style);
-  const float slitH = kSlitHIn * S; // 4 ft of the 6 ft plate [NO] vs [C85]
+  const float slitH = kSlitHIn * S;  // 4 ft of the 6 ft plate [NO] vs [C85]
   p.setColor4f(al(kCold, 0.26f));
   c.drawRect(SkRect::MakeLTRB(-5.0f, -slitH * 0.5f, 5.0f, slitH * 0.5f), p);
   p.setColor4f(kCold);
@@ -1615,8 +1627,7 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
       const float tw =
           f7.measureText(lab.c_str(), lab.size(), SkTextEncoding::kUTF8);
       const float left = x - tw * 0.5f;
-      if (left < lastRight + 3.0f || left + tw > plateX - 2.0f)
-        continue;
+      if (left < lastRight + 3.0f || left + tw > plateX - 2.0f) continue;
       c.drawString(lab.c_str(), left, trackY - 11, f7, qt);
       lastRight = left + tw;
     }
@@ -1643,8 +1654,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   p.setColor4f(kAmber);
   c.drawRect(body, p);
   p.setStyle(SkPaint::kFill_Style);
-  c.drawCircle(camX - 17, trackY - 38, 7, p);                     // the mag
-  c.drawRect(SkRect::MakeXYWH(camX + 12, trackY - 24, 10, 11), p); // lens
+  c.drawCircle(camX - 17, trackY - 38, 7, p);                       // the mag
+  c.drawRect(SkRect::MakeXYWH(camX + 12, trackY - 24, 10, 11), p);  // lens
   p.setColor4f(al(kAmber, 0.85f));
   c.drawRect(SkRect::MakeXYWH(camX - 28, trackY - 6, 38, 5), p);  // carriage
 
@@ -1661,7 +1672,7 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   SkPaint tp;
   tp.setAntiAlias(true);
 
-  auto leader = [&](float ax, float bx, float y, const char *label,
+  auto leader = [&](float ax, float bx, float y, const char* label,
                     SkColor4f col) {
     SkPaint q;
     q.setAntiAlias(true);
@@ -1683,8 +1694,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   };
   leader(trackL, plateX, trackY + 20.0f,
          "15 ft = 180 in = 540 px  FOCUS REACH [T68]", kAmber);
-  leader(trackL, trackR, trackY + 34.0f,
-         "14 ft = 168 in = 504 px  TRACK [C85]", kAmber);
+  leader(trackL, trackR, trackY + 34.0f, "14 ft = 168 in = 504 px  TRACK [C85]",
+         kAmber);
 
   // The 1.5 in near focus: 4.5 px, dimensioned anyway. The whole erratum of
   // note 2 is visible as a dimension you can barely see -- and as the
@@ -1710,8 +1721,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     // inside a paint program and cannot reach weave::PaintStyle::addUnderlay
     // — which is the reason the kit ships a canvas spelling at all.
     const kit::Halo halo{.colour = kPanelBg, .width = 2.2f};
-    const char *r1 = "1½ in = 4.5 px [T68] — AND [C85]’s TRACK";
-    const char *r2 = "STOPS 12 in SHORT: THE RED DASHES.";
+    const char* r1 = "1½ in = 4.5 px [T68] — AND [C85]’s TRACK";
+    const char* r2 = "STOPS 12 in SHORT: THE RED DASHES.";
     tp.setColor4f(kRed);
     // The BLOCK form: every halo, then every ink. Haloing line by line
     // instead, the second line's knockout eats the first line's descenders.
@@ -1736,7 +1747,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     c.drawString("ONE SECOND OF THE STAR GATE COST", 304, 110, f8, q);
     c.drawString("36 TO 96 MINUTES OF MACHINE TIME.", 304, 122, f8, q);
     q.setColor4f(kTick);
-    c.drawString("SIX MONTHS OF SLIT-SCAN WORK [C85], OF WHICH", 304, 140, f8, q);
+    c.drawString("SIX MONTHS OF SLIT-SCAN WORK [C85], OF WHICH", 304, 140, f8,
+                 q);
     c.drawString("ABOUT A QUARTER REACHED THE FILM [FS].", 304, 152, f8, q);
   }
 
@@ -1751,21 +1763,22 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   c.drawString("SLIT · X0 = 49.2 in OFF AXIS, w = 0.586 in, 82 : 1", 292, 32,
                f75, tp);
   tp.setColor4f(kTick);
-  c.drawString("ONE SCALE: 3.0 px = 1 INCH.  180 in = 540 px · 168 in = 504 px "
-               "· 72 in = 216 px · 144 in = 432 px  ·  THE z TICKS ARE EIGHT",
-               6, 258, f75, tp);
-  c.drawString("EQUAL STEPS IN ln z, WHICH ARE EIGHT EQUAL STEPS IN THE FILM "
-               "FRAME  ·  WORM-GEAR DOLLY [NO] · SELSYN FOLLOW-FOCUS [T68]",
-               6, 270, f75, tp);
+  c.drawString(
+      "ONE SCALE: 3.0 px = 1 INCH.  180 in = 540 px · 168 in = 504 px "
+      "· 72 in = 216 px · 144 in = 432 px  ·  THE z TICKS ARE EIGHT",
+      6, 258, f75, tp);
+  c.drawString(
+      "EQUAL STEPS IN ln z, WHICH ARE EIGHT EQUAL STEPS IN THE FILM "
+      "FRAME  ·  WORM-GEAR DOLLY [NO] · SELSYN FOLLOW-FOCUS [T68]",
+      6, 270, f75, tp);
 }
 
 // The artwork panel, face on, at the same 3.0 px = 1 inch.
-void SlitScan2001::drawArtworkPanel(SkCanvas &c, const PaintContext &ctx) {
+void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   using namespace slit;
-  const Shot &s = shotAt(shot);
-  const Strip &S = strips[(size_t)s.cell];
-  if (!S.image)
-    return;
+  const Shot& s = shotAt(shot);
+  const Strip& S = strips[(size_t)s.cell];
+  if (!S.image) return;
   const float pw = kPanelIn * kRigPxPerIn;  // 432 px, exact
   const float ph = kSlitHIn * kRigPxPerIn;  // 144 px -- 3:1, undistorted
   const float top = 40.0f;
@@ -1814,16 +1827,19 @@ void SlitScan2001::drawArtworkPanel(SkCanvas &c, const PaintContext &ctx) {
   c.drawString("THE 12-FOOT PANEL, FACE ON, AT 3.0 px = 1 INCH", 0, top - 12,
                f76, tp);
   tp.setColor4f(kTick);
-  c.drawString("12′ MECHANISED BACKLIT GLASS PANEL · TRANSPARENCIES + "
-               "CELLULOID GELS · HIGH-CONTRAST",
-               0, top + ph + 26, f76, tp);
-  c.drawString("NEGATIVES OF OP-ART, ARCHITECTURAL DRAWINGS, CIRCUIT "
-               "PRINTS [C85]",
-               0, top + ph + 37, f76, tp);
+  c.drawString(
+      "12′ MECHANISED BACKLIT GLASS PANEL · TRANSPARENCIES + "
+      "CELLULOID GELS · HIGH-CONTRAST",
+      0, top + ph + 26, f76, tp);
+  c.drawString(
+      "NEGATIVES OF OP-ART, ARCHITECTURAL DRAWINGS, CIRCUIT "
+      "PRINTS [C85]",
+      0, top + ph + 37, f76, tp);
   tp.setColor4f(al(kAmber, 0.95f));
-  c.drawString("ADVANCE 0.586 in/FRAME = EXACTLY ONE SLIT WIDTH — PINNED BY "
-               "[GE]’S UNWRAP,",
-               0, top + ph + 55, f76, tp);
+  c.drawString(
+      "ADVANCE 0.586 in/FRAME = EXACTLY ONE SLIT WIDTH — PINNED BY "
+      "[GE]’S UNWRAP,",
+      0, top + ph + 55, f76, tp);
   c.drawString("NOT CHOSEN: MORE WOULD GAP, LESS WOULD REPEAT.", 0,
                top + ph + 66, f76, tp);
   tp.setColor4f(al(kCold, 0.8f));
@@ -1834,19 +1850,19 @@ void SlitScan2001::drawArtworkPanel(SkCanvas &c, const PaintContext &ctx) {
                0, top + ph + 84, f76, tp);
   if (s.cell == 2) {
     tp.setColor4f(kRed);
-    c.drawString("THIS STRIP CARRIES [GE]’S WHITE-STRIPE DEFECT — FOUND IN "
-                 "BOTH SH 27 AND SH 29",
-                 0, top + ph + 14, f76, tp);
+    c.drawString(
+        "THIS STRIP CARRIES [GE]’S WHITE-STRIPE DEFECT — FOUND IN "
+        "BOTH SH 27 AND SH 29",
+        0, top + ph + 14, f76, tp);
   }
 }
 
 // The measured 1/rho profile against the analytic C/u, on log-log axes.
 // The frame is normalised so an exact 1/u law is the box diagonal, which
 // makes any departure from p = 1 a visible bow rather than a number.
-void SlitScan2001::drawMeasuredPoints(SkCanvas &c, const PaintContext &ctx) {
+void SlitScan2001::drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx) {
   using namespace slit;
-  if (profN <= 0)
-    return;
+  if (profN <= 0) return;
   const float W = ctx.size.width(), H = ctx.size.height();
   SkPaint p;
   p.setAntiAlias(true);
@@ -1873,7 +1889,7 @@ void SlitScan2001::drawMeasuredPoints(SkCanvas &c, const PaintContext &ctx) {
 
 // ===========================================================================
 
-void SlitScan2001::setup(sketch::SketchContext &ctx) {
+void SlitScan2001::setup(sketch::SketchContext& ctx) {
   deterministic_ = ctx.deterministic;
   using namespace slit;
   ctx.canvas(kCanvasW, kCanvasH);
@@ -1892,8 +1908,8 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
         bakeStrip(artOpArt(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);
     strips[1] =
         bakeStrip(artArch(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);
-    strips[2] = bakeStrip(artCircuit(gridPat, spekPat), *ctx.fonts,
-                          (int)kCellW, (int)kCellH, 0.42f, 903);
+    strips[2] = bakeStrip(artCircuit(gridPat, spekPat), *ctx.fonts, (int)kCellW,
+                          (int)kCellH, 0.42f, 903);
   }
   bakeMs = ((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0;
 
@@ -1901,9 +1917,9 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
   // nothing else. The crawl across a strip is addressed per stamp through
   // Pool::texWindows(), so it costs no extra cells and no re-bake.
   atlas = std::make_shared<instancing::Atlas>(1.0f);
-  atlas->filter(SkFilterMode::kNearest); // 1-bit artwork
+  atlas->filter(SkFilterMode::kNearest);  // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
-    const Strip &S = strips[(size_t)i];
+    const Strip& S = strips[(size_t)i];
     atlas->cell(box().fill(Material::image(
                     S.image, SkTileMode::kClamp, SkTileMode::kClamp,
                     SkMatrix::Scale(kCellW / (float)std::max(S.w, 1),
@@ -1937,7 +1953,7 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
       WallSpec w;
       w.vp = {0.0f, 10.0f};
       w.gel = kCold;
-      w.uFar = 98.0f / kR; // uNear lands exactly at the strip's right edge
+      w.uFar = 98.0f / kR;  // uNear lands exactly at the strip's right edge
       w.gain = 46.0f;
       w.artwork = false;
       w.K = Ks[k];
@@ -1994,10 +2010,11 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
     // A layout self-check, because a flex column silently overlaps its
     // children rather than complaining when they do not fit.
     const float total = a1.height() + a2.height() + a3.height() + a4.height();
-    std::fprintf(stderr,
-                 "[slitscan] sidebar %.0f + %.0f + %.0f + %.0f = %.0f / %.0f%s\n",
-                 a1.height(), a2.height(), a3.height(), a4.height(), total,
-                 kBodyH, total > kBodyH ? "   *** OVER BUDGET ***" : "");
+    std::fprintf(
+        stderr,
+        "[slitscan] sidebar %.0f + %.0f + %.0f + %.0f = %.0f / %.0f%s\n",
+        a1.height(), a2.height(), a3.height(), a4.height(), total, kBodyH,
+        total > kBodyH ? "   *** OVER BUDGET ***" : "");
   }
   ctx.composer.render(describe(ctx));
   ctx.composer.renderSlot("readout", readoutEl());
@@ -2006,9 +2023,8 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
   ctx.composer.renderSlot("ripple", rippleEl());
 }
 
-void SlitScan2001::update(double e, sketch::SketchContext &ctx) {
-  if (fixedStatus.clamped)
-    everClamped = true;
+void SlitScan2001::update(double e, sketch::SketchContext& ctx) {
+  if (fixedStatus.clamped) everClamped = true;
   // Shot cuts are HARD, and they land on a FILM FRAME (every 96th), not on
   // a wall-clock boundary. The film cuts.
   (void)e;

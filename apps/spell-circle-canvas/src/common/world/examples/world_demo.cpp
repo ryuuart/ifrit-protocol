@@ -14,33 +14,23 @@
 // than in a live-coding sketch because that host has no GPU device. See
 // the block at the bottom of main().
 
-#include "sigilworld/Animation.h"
-#include "sigilworld/Components.h"
-#include "sigilworld/Easel.h"
-#include "sigilworld/Scene.h"
-#include "sigilworld/World.h"
-
-#include <sigilimage/ImageAsset.h>
-#include <sigilloader/Loader.h>
-#include <sigilshape/Curves.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Points.h>
-#include <sigilshape/Save.h>
-
-#include <sigilcompose/Compose.h>
-#include <sigilmotion/Ticker.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweavekit/SigilWeaveKit.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkSurface.h>
-
-#include <glm/gtc/matrix_transform.hpp>
+#include <sigilcompose/Compose.h>
+#include <sigilimage/ImageAsset.h>
+#include <sigilloader/Loader.h>
+#include <sigilmotion/Ticker.h>
+#include <sigilshape/Curves.h>
+#include <sigilshape/Mesh.h>
+#include <sigilshape/Points.h>
+#include <sigilshape/Save.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <algorithm>
 #include <chrono>
@@ -49,8 +39,15 @@
 #include <cstdlib>
 #include <filesystem>
 #include <functional>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iterator>
 #include <vector>
+
+#include "sigilworld/Animation.h"
+#include "sigilworld/Components.h"
+#include "sigilworld/Easel.h"
+#include "sigilworld/Scene.h"
+#include "sigilworld/World.h"
 
 using namespace sigil;
 
@@ -60,22 +57,22 @@ namespace {
 sk_sp<SkImage> uiCard(int w, int h, SkColor4f accent, float gaugeFrac) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas *c = surface->getCanvas();
+  SkCanvas* c = surface->getCanvas();
   c->clear(SkColorSetARGB(235, 12, 16, 30));
   SkPaint p;
   p.setAntiAlias(true);
 
   p.setColor4f({accent.fR, accent.fG, accent.fB, 0.95f});
-  c->drawRRect(SkRRect::MakeRectXY(
-                   SkRect::MakeXYWH(18, 18, (float)w - 36, 16), 8, 8),
-               p);
+  c->drawRRect(
+      SkRRect::MakeRectXY(SkRect::MakeXYWH(18, 18, (float)w - 36, 16), 8, 8),
+      p);
   p.setColor4f({1, 1, 1, 0.22f});
   for (int i = 0; i < 5; ++i)
-    c->drawRRect(SkRRect::MakeRectXY(
-                     SkRect::MakeXYWH(18, 56 + (float)i * 24,
-                                      (float)(w - 70 - i * 36), 9),
-                     4.5f, 4.5f),
-                 p);
+    c->drawRRect(
+        SkRRect::MakeRectXY(SkRect::MakeXYWH(18, 56 + (float)i * 24,
+                                             (float)(w - 70 - i * 36), 9),
+                            4.5f, 4.5f),
+        p);
 
   SkPaint arc;
   arc.setAntiAlias(true);
@@ -127,11 +124,11 @@ sk_sp<SkImage> uiCard(int w, int h, SkColor4f accent, float gaugeFrac) {
 // boundary texels, so the seams are invisible.
 struct StripArt {
   std::vector<sk_sp<SkImage>> tiles;
-  float acrossPx = 0; ///< column width = the band's texel width
+  float acrossPx = 0;  ///< column width = the band's texel width
   float totalAlongPx = 0;
 };
 
-StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
+StripArt yarnStrip(sigil::weave::FontContext& fonts, int tileCount,
                    int tileAlongPx, int acrossPx) {
   namespace sc = sigil::compose;
   namespace weave = sigil::weave;
@@ -140,15 +137,14 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
   const SkColor kDim = SkColorSetARGB(255, 158, 176, 202);
   const float total = (float)tileCount * (float)tileAlongPx;
 
-  const auto para = [](const char8_t *string, float size, SkColor color) {
+  const auto para = [](const char8_t* string, float size, SkColor color) {
     auto p = std::make_shared<weave::Paragraph>();
     p->appendText(string, weave::kit::makeStyle(size, color));
     return p;
   };
   weave::ParagraphLayoutOptions centered;
   centered.alignment = weave::TextAlignment::kCenter;
-  const auto label = [&](std::u8string string, float size,
-                         SkColor color) {
+  const auto label = [&](std::u8string string, float size, SkColor color) {
     auto p = std::make_shared<weave::Paragraph>();
     p->appendText(std::move(string), weave::kit::makeStyle(size, color));
     return sc::text(p, centered);
@@ -156,7 +152,9 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
 
   // Sector graphics, parameterized so no two stretches render alike.
   const auto ruler = [&](int s) {
-    sc::Element row = sc::box().row().gap(8.0f + (float)(s % 3) * 3.0f)
+    sc::Element row = sc::box()
+                          .row()
+                          .gap(8.0f + (float)(s % 3) * 3.0f)
                           .alignItems(sc::Align::Center)
                           .alignSelf(sc::Align::Center)
                           .height(150);
@@ -166,12 +164,14 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
                     .width(i % major == 0 ? 5.0f : 3.0f)
                     .height(i % major == 0 ? 140.0f : 60.0f)
                     .fill(sc::Fill::color(
-                        {0.58f, 0.66f, 0.77f,
-                         i % major == 0 ? 0.95f : 0.5f})));
+                        {0.58f, 0.66f, 0.77f, i % major == 0 ? 0.95f : 0.5f})));
     return row;
   };
   const auto wave = [&](int s) {
-    sc::Element row = sc::box().row().gap(5).alignItems(sc::Align::End)
+    sc::Element row = sc::box()
+                          .row()
+                          .gap(5)
+                          .alignItems(sc::Align::End)
                           .alignSelf(sc::Align::Center)
                           .height(170);
     for (int i = 0; i < 44; ++i) {
@@ -185,41 +185,41 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
                     .width(6)
                     .height(28 + 134 * beat)
                     .corners({3})
-                    .fill(sc::Fill::color({0.455f, 0.878f, 0.745f,
-                                           0.45f + 0.55f * beat})));
+                    .fill(sc::Fill::color(
+                        {0.455f, 0.878f, 0.745f, 0.45f + 0.55f * beat})));
     }
     return row;
   };
   const auto swatches = [&](int s) {
-    sc::Element row =
-        sc::box().row().gap(13).alignSelf(sc::Align::Center);
+    sc::Element row = sc::box().row().gap(13).alignSelf(sc::Align::Center);
     for (int i = 0; i < 12; ++i) {
       const float f = (float)((i + s * 5) % 12) / 11.0f;
-      row.child(sc::box().width(24).height(24).corners({12}).fill(
-          sc::Fill::color(
+      row.child(
+          sc::box().width(24).height(24).corners({12}).fill(sc::Fill::color(
               {0.4f + 0.45f * f, 0.878f, 0.745f, 0.35f + 0.65f * f})));
     }
     return row;
   };
   const auto dots = [&](int s) {
-    sc::Element row = sc::box().row().gap(15).alignItems(sc::Align::Center)
+    sc::Element row = sc::box()
+                          .row()
+                          .gap(15)
+                          .alignItems(sc::Align::Center)
                           .alignSelf(sc::Align::Center)
                           .height(60);
     for (int i = 0; i < 14; ++i) {
-      const float f =
-          0.5f + 0.5f * std::sin((float)(i + s * 3) * 0.55f);
+      const float f = 0.5f + 0.5f * std::sin((float)(i + s * 3) * 0.55f);
       row.child(
           sc::box()
               .width(10 + 22 * f)
               .height(10 + 22 * f)
               .corners({(10 + 22 * f) * 0.5f})
-              .fill(sc::Fill::color(
-                  {0.72f, 0.82f, 0.95f, 0.3f + 0.7f * f})));
+              .fill(sc::Fill::color({0.72f, 0.82f, 0.95f, 0.3f + 0.7f * f})));
     }
     return row;
   };
 
-  const char8_t *pool[10] = {
+  const char8_t* pool[10] = {
       u8"a paragraph can behave like yarn: one description wound seven "
       "times around the stage while its plane turns twice, painted end "
       "to end.",
@@ -265,16 +265,23 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
     root.child(sc::box().grow());
     char numeral[8];
     std::snprintf(numeral, sizeof(numeral), "%02d", s + 1);
-    root.child(label(std::u8string(u8"— ") +
-                         (const char8_t *)numeral + u8" —",
+    root.child(label(std::u8string(u8"— ") + (const char8_t*)numeral + u8" —",
                      64, kDim));
-    root.child(label(pool[s % 10], 44,
-                     s % 10 == 4 || s % 10 == 9 ? kDim : kInk));
+    root.child(
+        label(pool[s % 10], 44, s % 10 == 4 || s % 10 == 9 ? kDim : kInk));
     switch (s % 4) {
-    case 0: root.child(ruler(s)); break;
-    case 1: root.child(wave(s)); break;
-    case 2: root.child(swatches(s)); break;
-    default: root.child(dots(s)); break;
+      case 0:
+        root.child(ruler(s));
+        break;
+      case 1:
+        root.child(wave(s));
+        break;
+      case 2:
+        root.child(swatches(s));
+        break;
+      default:
+        root.child(dots(s));
+        break;
     }
   }
   root.child(sc::box().grow());
@@ -290,9 +297,9 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
   out.acrossPx = (float)acrossPx;
   out.totalAlongPx = total;
   for (int k = 0; k < tileCount; ++k) {
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul(acrossPx, tileAlongPx));
-    SkCanvas *canvas = surface->getCanvas();
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(acrossPx, tileAlongPx));
+    SkCanvas* canvas = surface->getCanvas();
     canvas->clear(SK_ColorTRANSPARENT);
     // Step down the column to tile k, mirrored across it because the
     // ribbon wall's own u mapping mirrors back. The transform comes from
@@ -313,15 +320,14 @@ float wrap01(float t) { return t - std::floor(t); }
 /** Place the dart at @p head on the loop, with the revolved mesh's +y
  *  nose aimed down the flight tangent and its up axis matching the
  *  ribbon's. */
-glm::mat4 dartTransform(const sigil::shape::Spline3 &loop, float head) {
+glm::mat4 dartTransform(const sigil::shape::Spline3& loop, float head) {
   const glm::vec3 p = loop.position(wrap01(head));
   const glm::vec3 ahead = loop.position(wrap01(head + 0.004f));
   const glm::vec3 behind = loop.position(wrap01(head - 0.004f));
   glm::vec3 t = ahead - behind;
   const float len = glm::length(t);
   t = len > 1e-6f ? t * (1.0f / len) : glm::vec3{1, 0, 0};
-  glm::vec3 n =
-      glm::vec3{0, 0, 1} - t * glm::dot(t, glm::vec3{0, 0, 1});
+  glm::vec3 n = glm::vec3{0, 0, 1} - t * glm::dot(t, glm::vec3{0, 0, 1});
   const float nLen = glm::length(n);
   n = nLen > 1e-6f ? n * (1.0f / nLen) : glm::vec3{0, 1, 0};
   const glm::vec3 b = glm::cross(t, n);
@@ -347,11 +353,10 @@ SkPath starPath(int points, float outer, float inner) {
   return b.detach();
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv) {
-  const std::filesystem::path outDir =
-      argc > 1 ? argv[1] : "world_demo_out";
+int main(int argc, char** argv) {
+  const std::filesystem::path outDir = argc > 1 ? argv[1] : "world_demo_out";
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
@@ -375,8 +380,7 @@ int main(int argc, char **argv) {
     floor.metallic = 0.85f;
     floor.roughness = 0.4f;
     shape::Mesh slab = shape::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
-    w->addSurface(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}),
-                  floor);
+    w->addSurface(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}), floor);
   }
 
   // Three self-lit UI cards, arranged on an arc facing the viewer.
@@ -409,10 +413,8 @@ int main(int argc, char **argv) {
     gold.baseColor = {1.0f, 0.78f, 0.34f, 1};
     gold.metallic = 1;
     gold.roughness = 0.3f;
-    shape::Mesh star =
-        shape::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
-    w->addSurface(star, shape::space::place({-560, 280, -220}, 36, -10),
-                  gold);
+    shape::Mesh star = shape::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
+    w->addSurface(star, shape::space::place({-560, 280, -220}, 36, -10), gold);
 
     world::Material chrome;
     chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
@@ -463,10 +465,8 @@ int main(int argc, char **argv) {
   world::scene::Scene stream(*w);
   std::function<world::scene::Scene::Stats(glm::vec3)> faceStream;
   shape::Spline3 arc;
-  arc.points = {{-820, 260, -320},
-                {-300, 420, 60},
-                {260, 300, 220},
-                {820, 430, -260}};
+  arc.points = {
+      {-820, 260, -320}, {-300, 420, 60}, {260, 300, 220}, {820, 430, -260}};
   {
     const shape::Cloud stations = shape::points::onSpline(arc, 9);
 
@@ -478,16 +478,15 @@ int main(int argc, char **argv) {
     // The wire carries a baked colour lane, cool at the start and warm
     // by the end. A tube's rings are generated in order along the curve,
     // so ramping by vertex index ramps along the curve.
-    shape::Mesh wire = shape::curves::tube(
-        arc, {.radius = 7, .segments = 180, .sides = 10});
+    shape::Mesh wire =
+        shape::curves::tube(arc, {.radius = 7, .segments = 180, .sides = 10});
     wire.colors.resize(wire.positions.size());
     for (size_t i = 0; i < wire.positions.size(); ++i) {
-      const float f =
-          wire.positions.size() > 1
-              ? (float)i / (float)(wire.positions.size() - 1)
-              : 0.0f;
-      wire.colors[i] = {0.75f + 0.25f * f, 0.9f - 0.35f * f,
-                        1.0f - 0.25f * f, 1};
+      const float f = wire.positions.size() > 1
+                          ? (float)i / (float)(wire.positions.size() - 1)
+                          : 0.0f;
+      wire.colors[i] = {0.75f + 0.25f * f, 0.9f - 0.35f * f, 1.0f - 0.25f * f,
+                        1};
     }
     world::Material cardMat;
     cardMat.unlit = true;
@@ -499,8 +498,7 @@ int main(int argc, char **argv) {
     // identity-stable through the Scene's per-size quad cache. Together
     // that makes re-facing the stream cost one setTransform per card and
     // nothing else.
-    auto wireMesh =
-        std::make_shared<const shape::Mesh>(std::move(wire));
+    auto wireMesh = std::make_shared<const shape::Mesh>(std::move(wire));
     faceStream = [&stream, wireMesh, wireMat, cardMat,
                   positions = stations.positions](glm::vec3 eye) {
       world::scene::Node root = world::scene::group().key("stream");
@@ -509,8 +507,7 @@ int main(int argc, char **argv) {
         root.child(world::scene::panel(cardMat.texture, 170, 112)
                        .material(cardMat)
                        .key("card" + std::to_string(i))
-                       .transform(shape::space::faceCamera(
-                           eye, positions[i])));
+                       .transform(shape::space::faceCamera(eye, positions[i])));
       return stream.render(root);
     };
     // A first describe, so the surfaces exist before any shot runs; the
@@ -527,18 +524,17 @@ int main(int argc, char **argv) {
     shape::Cloud sparks = shape::points::onSpline(arc, 3000);
     shape::points::jitter(sparks, 30, 11);
     shape::points::displaceNoise(sparks, 70, 0.006f, 12);
-    const std::vector<float> &t = sparks.scalar("t");
-    std::vector<glm::vec4> &tint = sparks.color("tint");
-    std::vector<float> &size = sparks.scalar("size", 1);
+    const std::vector<float>& t = sparks.scalar("t");
+    std::vector<glm::vec4>& tint = sparks.color("tint");
+    std::vector<float>& size = sparks.scalar("size", 1);
     for (size_t i = 0; i < sparks.size(); ++i) {
       const float f = t[i];
-      tint[i] = {0.45f + 0.55f * f, 0.95f - 0.55f * f,
-                 1.0f - 0.05f * f, 1};
+      tint[i] = {0.45f + 0.55f * f, 0.95f - 0.55f * f, 1.0f - 0.05f * f, 1};
       size[i] = 0.55f + 0.75f * (0.5f + 0.5f * std::sin(f * 61.0f));
     }
     world::Material sparkMat;
     sparkMat.unlit = true;
-    sparkMat.baseColor = {1, 1, 1, 0.85f}; // alpha < 1: the blended pass
+    sparkMat.baseColor = {1, 1, 1, 0.85f};  // alpha < 1: the blended pass
     world::InstanceLanes sparkLanes;
     sparkLanes.tintLane = "tint";
     sparkLanes.scaleLane = "size";
@@ -546,8 +542,7 @@ int main(int argc, char **argv) {
     world::easel::Stage dressing = world::easel::stage(*w);
     dressing.light({-520, 60, -80}, {1.0f, 0.25f, 0.85f, 1}, 7, 760)
         .light({540, 80, -50}, {0.2f, 0.85f, 1.0f, 1}, 7, 760)
-        .swarm(std::move(sparks), shape::mesh::quad(6, 6), sparkMat,
-               sparkLanes)
+        .swarm(std::move(sparks), shape::mesh::quad(6, 6), sparkMat, sparkLanes)
         .key("sparks");
     const world::scene::Scene::Stats stats = dressing.commit();
     std::printf("easel dressing: %d added\n", stats.added);
@@ -558,24 +553,24 @@ int main(int argc, char **argv) {
   // length. One surface per GPU tile, and each frame every arc re-sweeps
   // one step forward so the whole canvas marches around the winding
   // behind the chrome dart.
-  std::vector<uint32_t> stripIds; // one surface per strip tile
+  std::vector<uint32_t> stripIds;  // one surface per strip tile
   uint32_t dartId = 0, cometId = 0, guideId = 0;
   const float kCometSpan = 0.34f;
   world::World::pop::Chain guideChain;
   shape::Spline3 flightLoop;
-  float bandWidth = 300;            // recomputed from the strip's density
-  const int kTiles = 10;            // GPU tiles the vector strip slices to
-  const int kSectionsPerTile = 200; // ribbon cross-sections per arc
-  const float kFlagHome = 0.91f;    // puts the strip's start on a front
-                                    // pass in the still shots
+  float bandWidth = 300;             // recomputed from the strip's density
+  const int kTiles = 10;             // GPU tiles the vector strip slices to
+  const int kSectionsPerTile = 200;  // ribbon cross-sections per arc
+  const float kFlagHome = 0.91f;     // puts the strip's start on a front
+                                     // pass in the still shots
   {
     flightLoop.closed = true;
     const int kKnots = 96;
     // Coprime, so successive wraps land beside each other instead of
     // retracing the same great circle.
-    const float kWraps = 7;   // latitude oscillations
-    const float kPrecess = 2; // turns of the winding plane
-    const float kTilt = 1.0f; // latitude amplitude, radians
+    const float kWraps = 7;    // latitude oscillations
+    const float kPrecess = 2;  // turns of the winding plane
+    const float kTilt = 1.0f;  // latitude amplitude, radians
     const glm::vec3 shell = {1250, 620, 950};
     const glm::vec3 center = {0, 380, 0};
     for (int i = 0; i < kKnots; ++i) {
@@ -592,12 +587,10 @@ int main(int argc, char **argv) {
     {
       shape::Cloud rail = shape::points::onSpline(flightLoop, 1024);
       for (size_t i = 1; i < rail.size(); ++i)
-        loopLen +=
-            glm::length(rail.positions[i] - rail.positions[i - 1]);
+        loopLen += glm::length(rail.positions[i] - rail.positions[i - 1]);
     }
 
-    sigil::weave::FontContext fonts(
-        sigil::weave::ports::systemFontManager());
+    sigil::weave::FontContext fonts(sigil::weave::ports::systemFontManager());
 
     // The band's world width is DERIVED from the strip's pixel density
     // rather than chosen, which keeps the texels square: the strip's
@@ -614,7 +607,7 @@ int main(int argc, char **argv) {
       world::Material segment;
       segment.unlit = true;
       segment.texture = strip.tiles[(size_t)k];
-      segment.baseColor = {1, 1, 1, 0.98f}; // alpha < 1: the blended pass
+      segment.baseColor = {1, 1, 1, 0.98f};  // alpha < 1: the blended pass
       world::World::SweepDesc arc;
       arc.loop = flightLoop.points;
       arc.width = bandWidth;
@@ -631,8 +624,7 @@ int main(int argc, char **argv) {
     const std::vector<glm::vec2> dartProfile = {
         {0, 95}, {26, 30}, {34, -20}, {18, -52}, {0, -60}};
     dartId = w->addSurface(shape::mesh::revolve(dartProfile),
-                           dartTransform(flightLoop, kFlagHome),
-                           chromeDart);
+                           dartTransform(flightLoop, kFlagHome), chromeDart);
 
     // The comet, COMPOSED ON DEVICE: a small guide chain rides the
     // ribbon's window, and the comet chain rides the guide — its
@@ -646,11 +638,10 @@ int main(int argc, char **argv) {
                      .smooth(0.5f, 2);
     world::Material guideMat;
     guideMat.unlit = true;
-    guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f}; // faint beads
-    guideId = w->addPoints(shape::mesh::quad(4, 4), guideChain,
-                           guideMat);
+    guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f};  // faint beads
+    guideId = w->addPoints(shape::mesh::quad(4, 4), guideChain, guideMat);
     const world::World::pop::Chain cometChain =
-        shape::pop::on(std::vector<glm::vec3>{}) // loop comes from the guide
+        shape::pop::on(std::vector<glm::vec3>{})  // loop comes from the guide
             .count(300000)
             // Just short of the whole guide, to skip the segment that
             // closes the loop back on itself.
@@ -658,22 +649,24 @@ int main(int argc, char **argv) {
             .spread(48)
             .noise(20, 0.004f)
             .vary(0.5f)
-            .fade({1.0f, 0.45f, 0.85f, 0.0f}, // tail
-                  {0.65f, 0.95f, 1.0f, 0.5f}); // head
+            .fade({1.0f, 0.45f, 0.85f, 0.0f},   // tail
+                  {0.65f, 0.95f, 1.0f, 0.5f});  // head
     world::Material sparkle;
     sparkle.unlit = true;
-    sparkle.baseColor = {1, 1, 1, 0.8f}; // blended
-    cometId = w->addPointsOn(guideId, shape::mesh::quad(2.6f, 2.6f),
-                             cometChain, sparkle);
-    std::printf("comet: %d GPU particles riding a %d-point guide "
-                "chain, composed on device\n",
-                std::get<shape::pop::SplineScatter>(cometChain[0]).count,
-                std::get<shape::pop::SplineScatter>(guideChain[0]).count);
+    sparkle.baseColor = {1, 1, 1, 0.8f};  // blended
+    cometId = w->addPointsOn(guideId, shape::mesh::quad(2.6f, 2.6f), cometChain,
+                             sparkle);
+    std::printf(
+        "comet: %d GPU particles riding a %d-point guide "
+        "chain, composed on device\n",
+        std::get<shape::pop::SplineScatter>(cometChain[0]).count,
+        std::get<shape::pop::SplineScatter>(guideChain[0]).count);
 
-    std::printf("yarn: %.0f wu wound, band %.0f wu wide, %d tiles of "
-                "%dx%d (%.0fk px of unique canvas)\n",
-                loopLen, bandWidth, kTiles, strip.tiles[0]->width(),
-                strip.tiles[0]->height(), strip.totalAlongPx / 1000);
+    std::printf(
+        "yarn: %.0f wu wound, band %.0f wu wide, %d tiles of "
+        "%dx%d (%.0fk px of unique canvas)\n",
+        loopLen, bandWidth, kTiles, strip.tiles[0]->width(),
+        strip.tiles[0]->height(), strip.totalAlongPx / 1000);
   }
 
   world::Lighting lighting;
@@ -684,7 +677,7 @@ int main(int argc, char **argv) {
   w->setLighting(lighting);
 
   struct Shot {
-    const char *name;
+    const char* name;
     shape::space::Camera camera;
   };
   Shot shots[6];
@@ -715,7 +708,7 @@ int main(int argc, char **argv) {
 
   const int total = (int)std::size(shots);
   int written = 0;
-  for (const Shot &shot : shots) {
+  for (const Shot& shot : shots) {
     // Re-face the stream's billboards toward THIS shot's eye. It must
     // reconcile as transform-only: the cards move, the wire is kept, and
     // nothing is added or removed.
@@ -745,13 +738,12 @@ int main(int argc, char **argv) {
     const shape::Cloud comet = w->readPoints(cometId);
     const auto file = outDir / "comet_points.ply";
     if (shape::save::ply(file, comet, {.binary = true}))
-      std::printf("comet_points.ply: %zu GPU-cooked points exported "
-                  "(binary_little_endian, %.1f MB), "
-                  "%zu scalar / %zu vector / %zu color lanes\n",
-                  comet.size(),
-                  (double)std::filesystem::file_size(file) / 1e6,
-                  comet.scalars.size(), comet.vectors.size(),
-                  comet.colors.size());
+      std::printf(
+          "comet_points.ply: %zu GPU-cooked points exported "
+          "(binary_little_endian, %.1f MB), "
+          "%zu scalar / %zu vector / %zu color lanes\n",
+          comet.size(), (double)std::filesystem::file_size(file) / 1e6,
+          comet.scalars.size(), comet.vectors.size(), comet.colors.size());
   }
 
   // --- the flight, and its timings ----------------------------------------
@@ -764,13 +756,11 @@ int main(int argc, char **argv) {
     w->setCamera(shots[5].camera);
     // One full circumnavigation per 2400 frames.
     const auto animate = [&](int frame) {
-      const float shift =
-          wrap01(kFlagHome + (float)frame / 2400.0f);
+      const float shift = wrap01(kFlagHome + (float)frame / 2400.0f);
       for (int k = 0; k < kTiles; ++k)
-        w->setSweepWindow(
-            stripIds[(size_t)k],
-            wrap01(shift + (float)(k + 1) / (float)kTiles),
-            1.0f / (float)kTiles);
+        w->setSweepWindow(stripIds[(size_t)k],
+                          wrap01(shift + (float)(k + 1) / (float)kTiles),
+                          1.0f / (float)kTiles);
       w->setTransform(dartId, dartTransform(flightLoop, shift));
       // Two floats on the GUIDE only; the comet re-cooks by cascade.
       w->setPointsWindow(guideId, shift, kCometSpan);
@@ -796,27 +786,23 @@ int main(int argc, char **argv) {
     const auto synced = std::chrono::steady_clock::now();
 
     const double renderMs =
-        std::chrono::duration<double, std::milli>(flushed - start)
-            .count() /
+        std::chrono::duration<double, std::milli>(flushed - start).count() /
         kTimed;
     const double syncedMs =
-        std::chrono::duration<double, std::milli>(synced - flushed)
-            .count() /
+        std::chrono::duration<double, std::milli>(synced - flushed).count() /
         kSynced;
-    std::printf("flight: %.2f ms/frame submitted+flushed (%.0f fps), "
-                "%.2f ms/frame with GPU readback (%.0f fps) — the re-sweeps "
-                "run as compute on the GPU\n",
-                renderMs, 1000.0 / renderMs, syncedMs,
-                1000.0 / syncedMs);
+    std::printf(
+        "flight: %.2f ms/frame submitted+flushed (%.0f fps), "
+        "%.2f ms/frame with GPU readback (%.0f fps) — the re-sweeps "
+        "run as compute on the GPU\n",
+        renderMs, 1000.0 / renderMs, syncedMs, 1000.0 / syncedMs);
 
     int flightWritten = 0;
     for (int i = 0; i < 6; ++i) {
-      animate(i * 400); // six evenly spaced stations around one lap
+      animate(i * 400);  // six evenly spaced stations around one lap
       char name[40];
-      std::snprintf(name, sizeof(name), "world_marquee_flight_%d.png",
-                    i);
-      if (w->render() && w->savePng(outDir / name))
-        ++flightWritten;
+      std::snprintf(name, sizeof(name), "world_marquee_flight_%d.png", i);
+      if (w->render() && w->savePng(outDir / name)) ++flightWritten;
     }
     std::printf("flight frames: %d/6\n", flightWritten);
 
@@ -825,11 +811,10 @@ int main(int argc, char **argv) {
     const int animFrames = argc > 3 ? std::atoi(argv[3]) : 0;
     int animWritten = 0;
     for (int i = 0; i < animFrames; ++i) {
-      animate(i * 4); // four loop-steps per frame: one lap in 600
+      animate(i * 4);  // four loop-steps per frame: one lap in 600
       char name[40];
       std::snprintf(name, sizeof(name), "world_anim_%04d.png", i);
-      if (w->render() && w->savePng(outDir / name))
-        ++animWritten;
+      if (w->render() && w->savePng(outDir / name)) ++animWritten;
     }
     if (animFrames > 0)
       std::printf("anim frames: %d/%d\n", animWritten, animFrames);
@@ -858,7 +843,7 @@ int main(int argc, char **argv) {
   // disk, so an active camera cannot reframe a shot already taken. This
   // PNG is deliberately outside the `written`/`total` count.
   {
-    entt::registry &registry = w->registry();
+    entt::registry& registry = w->registry();
     const entt::entity cam = registry.create();
     registry.emplace<world::CameraComponent>(cam);
 
@@ -867,29 +852,26 @@ int main(int argc, char **argv) {
     // the tangent only frames anything if the curve goes somewhere.
     shape::Spline3 flight;
     flight.closed = true;
-    flight.points = {{1650, 520, 1450},   {320, 150, 780},
-                     {-1080, 360, 340},   {-1500, 880, -1050},
-                     {180, 1020, -760},   {1700, 700, -260}};
+    flight.points = {{1650, 520, 1450},   {320, 150, 780},   {-1080, 360, 340},
+                     {-1500, 880, -1050}, {180, 1020, -760}, {1700, 700, -260}};
 
     // The caller owns the clock; world has none.
     motion::Ticker ticker;
     choreograph::Output<float> along{0.0f};
     ticker.timeline().apply(&along).then<choreograph::RampTo>(1.0f, 8.0f);
 
-    world::AnimatedCamera &lens =
-        registry.emplace<world::AnimatedCamera>(cam);
+    world::AnimatedCamera& lens = registry.emplace<world::AnimatedCamera>(cam);
     lens.fovYDeg = 54.0f;
-    world::CameraPath &path = lens.path.emplace();
+    world::CameraPath& path = lens.path.emplace();
     path.path = flight;
     path.t = world::bind(&along)
-                 .map(&choreograph::easeInOutQuad) // eased flight…
-                 .target(0.0f, 1.0f);              // …one lap of the loop
-    path.lookAhead = 0.05f;                        // aim down the tangent
+                 .map(&choreograph::easeInOutQuad)  // eased flight…
+                 .target(0.0f, 1.0f);               // …one lap of the loop
+    path.lookAhead = 0.05f;                         // aim down the tangent
     lens.rollDeg = world::wiggle(&along, 3.5f, 24.0f, 5, 2);
 
-    const int kCameraFrame = 140; // part-way into the eased lap
-    for (int i = 0; i < kCameraFrame; ++i)
-      ticker.tick(1.0 / 60.0);
+    const int kCameraFrame = 140;  // part-way into the eased lap
+    for (int i = 0; i < kCameraFrame; ++i) ticker.tick(1.0 / 60.0);
     // Resolve the lanes first so the flown eye can be read back, then
     // face the stream's billboards at it — the same per-frame
     // re-describe a live loop would run. render()'s own resolve then
@@ -897,11 +879,12 @@ int main(int argc, char **argv) {
     world::resolveAnimation(*w);
     faceStream(registry.get<world::CameraComponent>(cam).camera.eye);
     if (w->render() && w->savePng(outDir / "world_camera_flight.png")) {
-      const shape::space::Camera &c =
+      const shape::space::Camera& c =
           registry.get<world::CameraComponent>(cam).camera;
-      std::printf("camera flight: t=%.3f -> eye (%.0f %.0f %.0f) aimed down "
-                  "the tangent, roll wiggled +-3.5 deg at 24 Hz\n",
-                  along.value(), c.eye.x, c.eye.y, c.eye.z);
+      std::printf(
+          "camera flight: t=%.3f -> eye (%.0f %.0f %.0f) aimed down "
+          "the tangent, roll wiggled +-3.5 deg at 24 Hz\n",
+          along.value(), c.eye.x, c.eye.y, c.eye.z);
     } else {
       std::fprintf(stderr, "write failed: world_camera_flight.png\n");
     }

@@ -35,9 +35,6 @@
  * gated rather than always on.
  */
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/GpuImage.h"
-
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -54,6 +51,9 @@
 #include <span>
 #include <vector>
 
+#include "sigilcompose/Compose.h"
+#include "sigilcompose/GpuImage.h"
+
 namespace sigil::compose::instancing {
 
 // ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ namespace sigil::compose::instancing {
  *  copied in from elsewhere usually carry an origin, and the difference is
  *  half a cell in each axis. */
 class Pool {
-public:
+ public:
   /** Appends one instance; returns its index. */
   size_t add(SkPoint position, int frame = 0, float rotateRadians = 0.0f,
              float scale = 1.0f, SkColor4f tint = {1, 1, 1, 1}) {
@@ -82,10 +82,8 @@ public:
     // length comparison against the position lane, so a lane allowed to lag
     // here would silently switch itself off — or, after a clear() and
     // re-fill, line up again and apply a previous generation's values.
-    if (!m_sizes.empty())
-      m_sizes.push_back({1.0f, 1.0f});
-    if (!m_alphas.empty())
-      m_alphas.push_back(1.0f);
+    if (!m_sizes.empty()) m_sizes.push_back({1.0f, 1.0f});
+    if (!m_alphas.empty()) m_alphas.push_back(1.0f);
     if (!m_texWindows.empty())
       m_texWindows.push_back(SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
@@ -108,10 +106,8 @@ public:
     m_scales.resize(n, 1.0f);
     m_tints.resize(n, {1, 1, 1, 1});
     m_frames.resize(n, 0);
-    if (!m_sizes.empty())
-      m_sizes.resize(n, {1.0f, 1.0f});
-    if (!m_alphas.empty())
-      m_alphas.resize(n, 1.0f);
+    if (!m_sizes.empty()) m_sizes.resize(n, {1.0f, 1.0f});
+    if (!m_alphas.empty()) m_alphas.resize(n, 1.0f);
     if (!m_texWindows.empty())
       m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
@@ -195,15 +191,15 @@ public:
   void commit() { ++m_revision; }
   uint64_t revision() const { return m_revision; }
 
-private:
+ private:
   std::vector<SkPoint> m_positions;
   std::vector<float> m_rotations;
   std::vector<float> m_scales;
   std::vector<SkColor4f> m_tints;
   std::vector<int> m_frames;
-  std::vector<SkSize> m_sizes;  // empty unless sizes() was asked for
-  std::vector<float> m_alphas;  // empty unless alphas() was asked for
-  std::vector<SkRect> m_texWindows; // empty unless texWindows() was asked for
+  std::vector<SkSize> m_sizes;       // empty unless sizes() was asked for
+  std::vector<float> m_alphas;       // empty unless alphas() was asked for
+  std::vector<SkRect> m_texWindows;  // empty unless texWindows() was asked for
   uint64_t m_revision = 0;
 };
 
@@ -217,12 +213,12 @@ private:
  *  cell after the bake drops the sheet and the next stamp bakes it again,
  *  so cells are cheap to add at setup and expensive to add per frame. */
 class Atlas {
-public:
+ public:
   /** How stamps sample the baked sheet. Linear is right for soft sprites
    *  and wrong for a pixel grid — a tilemap, a bitmap font sheet, any
    *  deliberately blocky art — where it softens every edge; pass
    *  kNearest for those. */
-  Atlas &filter(SkFilterMode mode) {
+  Atlas& filter(SkFilterMode mode) {
     m_filter = mode;
     return *this;
   }
@@ -254,25 +250,23 @@ public:
    *  and select with `Pool::texWindows()` instead: that costs one bake, not
    *  `count` of them. */
   int variants(int count, SkSize logicalSize,
-               const std::function<Element(int)> &make) {
+               const std::function<Element(int)>& make) {
     int first = -1;
     for (int v = 0; v < count; ++v) {
       const int idx = cell(make(v), logicalSize);
-      if (v == 0)
-        first = idx;
+      if (v == 0) first = idx;
     }
     return first;
   }
   /** The general form: each variant brings its own logical size — one
    *  recipe, several geometries. */
   int variants(int count,
-               const std::function<std::pair<Element, SkSize>(int)> &make) {
+               const std::function<std::pair<Element, SkSize>(int)>& make) {
     int first = -1;
     for (int v = 0; v < count; ++v) {
       auto [tree, size] = make(v);
       const int idx = cell(std::move(tree), size);
-      if (v == 0)
-        first = idx;
+      if (v == 0) first = idx;
     }
     return first;
   }
@@ -283,20 +277,17 @@ public:
   float oversample() const { return m_oversample; }
 
   /** The baked sheet (null until first ensureBaked with fonts). */
-  const sk_sp<SkImage> &image() const { return m_sheet; }
+  const sk_sp<SkImage>& image() const { return m_sheet; }
   /** Baked tex rect of @p frame in sheet pixels. */
   SkRect frameTex(int frame) const {
-    return valid(frame) && m_sheet ? m_tex[(size_t)frame]
-                                   : SkRect::MakeEmpty();
+    return valid(frame) && m_sheet ? m_tex[(size_t)frame] : SkRect::MakeEmpty();
   }
 
   /** Bakes the sheet if needed. Shelf-packs cells left-to-right, wrapping
    *  at kMaxSheetWidth. Returns false when there is nothing to bake. */
-  bool ensureBaked(sigil::weave::FontContext &fonts) {
-    if (m_sheet)
-      return true;
-    if (m_cells.empty())
-      return false;
+  bool ensureBaked(sigil::weave::FontContext& fonts) {
+    if (m_sheet) return true;
+    if (m_cells.empty()) return false;
     // Shelf pack in baked pixels.
     m_tex.assign(m_cells.size(), SkRect::MakeEmpty());
     float penX = 0, penY = 0, shelfH = 0, sheetW = 0;
@@ -317,18 +308,15 @@ public:
     const int sheetHi = std::max(1, (int)std::ceil(penY + shelfH));
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(sheetWi, sheetHi));
-    if (!surface)
-      return false;
-    SkCanvas &canvas = *surface->getCanvas();
+    if (!surface) return false;
+    SkCanvas& canvas = *surface->getCanvas();
     canvas.clear(SK_ColorTRANSPARENT);
     for (size_t i = 0; i < m_cells.size(); ++i) {
       // snapshot() sizes by the ROOT'S CHILDREN and ignores the root's own
       // dimensions — the cell tree already carries forced dims, so wrapping
       // it in a plain shell gives the picture exactly the cell's size.
-      sk_sp<SkPicture> picture =
-          snapshot(box().child(m_cells[i].tree), fonts);
-      if (!picture)
-        continue;
+      sk_sp<SkPicture> picture = snapshot(box().child(m_cells[i].tree), fonts);
+      if (!picture) continue;
       canvas.save();
       canvas.translate(m_tex[i].left(), m_tex[i].top());
       canvas.scale(m_oversample, m_oversample);
@@ -339,7 +327,7 @@ public:
     return m_sheet != nullptr;
   }
 
-private:
+ private:
   SkFilterMode m_filter = SkFilterMode::kLinear;
   struct Cell {
     Element tree;
@@ -351,10 +339,10 @@ private:
   static constexpr float kMaxSheetWidth = 2048.0f;
   float m_oversample;
   std::vector<Cell> m_cells;
-  std::vector<SkRect> m_tex; // baked-pixel rects, parallel to m_cells
+  std::vector<SkRect> m_tex;  // baked-pixel rects, parallel to m_cells
   sk_sp<SkImage> m_sheet;
 
-public:
+ public:
   /** The GPU promotion of the baked sheet. A raster sheet handed straight
    *  to a native atlas draw does not appear on every backend, so the stamp
    *  goes through `gpuimg::` and this cache holds whatever that promotion
@@ -369,10 +357,9 @@ namespace detail {
 
 inline constexpr size_t kCullThreshold = 2048;
 
-inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
-                  const Pool &pool, SkBlendMode blend) {
-  if (!ctx.fonts || pool.size() == 0 || !atlas.ensureBaked(*ctx.fonts))
-    return;
+inline void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
+                  const Pool& pool, SkBlendMode blend) {
+  if (!ctx.fonts || pool.size() == 0 || !atlas.ensureBaked(*ctx.fonts)) return;
   const float inv = 1.0f / atlas.oversample();
   const bool cull = pool.size() >= kCullThreshold;
   const SkRect clip = cull ? canvas.getLocalClipBounds() : SkRect::MakeEmpty();
@@ -399,30 +386,26 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   const auto scales = pool.scales();
   const auto tints = pool.tints();
   const auto frames = pool.frames();
-  const auto poolSizes = pool.sizes(); // empty unless the lane exists
+  const auto poolSizes = pool.sizes();  // empty unless the lane exists
   const auto poolWindows = pool.texWindows();
   const bool windowed = poolWindows.size() == positions.size();
   const bool nonUniform = poolSizes.size() == positions.size();
-  if (nonUniform)
-    sizes.reserve(pool.size());
+  if (nonUniform) sizes.reserve(pool.size());
   const int frameCount = atlas.frameCount();
   for (size_t i = 0; i < positions.size(); ++i) {
     const int frame = std::clamp(frames[i], 0, frameCount - 1);
     SkRect cellTex = atlas.frameTex(frame);
-    if (cellTex.isEmpty())
-      continue;
+    if (cellTex.isEmpty()) continue;
     if (windowed) {
-      const SkRect &w = poolWindows[i];
+      const SkRect& w = poolWindows[i];
       cellTex = SkRect::MakeXYWH(cellTex.left() + w.left() * cellTex.width(),
                                  cellTex.top() + w.top() * cellTex.height(),
                                  w.width() * cellTex.width(),
                                  w.height() * cellTex.height());
-      if (cellTex.isEmpty())
-        continue;
+      if (cellTex.isEmpty()) continue;
     }
     const float scale = scales[i] * inv;
-    const SkSize sizeMul =
-        nonUniform ? poolSizes[i] : SkSize{1.0f, 1.0f};
+    const SkSize sizeMul = nonUniform ? poolSizes[i] : SkSize{1.0f, 1.0f};
     if (cull) {
       const float widest =
           std::max(std::abs(sizeMul.width()), std::abs(sizeMul.height()));
@@ -438,28 +421,25 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
         scale, rotations[i], positions[i].fX, positions[i].fY,
         cellTex.width() * 0.5f, cellTex.height() * 0.5f));
     tex.push_back(cellTex);
-    if (nonUniform)
-      sizes.push_back(sizeMul);
+    if (nonUniform) sizes.push_back(sizeMul);
     SkColor4f t = tints[i];
     if (pool.hasAlphas())
-      t.fA *= pool.alphas()[i]; // the fade lane composes with the tint
+      t.fA *= pool.alphas()[i];  // the fade lane composes with the tint
     const SkColor tint = t.toSkColor();
     tinted |= tint != SK_ColorWHITE;
     colors.push_back(tint);
   }
-  if (xforms.empty())
-    return;
+  if (xforms.empty()) return;
   // All-white tints modulate to identity, so the colors lane is dropped
   // entirely when nothing is tinted — the common case for UI sprites.
   // drawSpriteAtlas is used rather than a native atlas draw because it
   // decomposes to one drawVertices on every backend: the native call draws
   // nothing on some of them, including when a picture recorded elsewhere
   // replays there.
-  gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
-                          xforms.data(), tex.data(),
-                          tinted ? colors.data() : nullptr, xforms.size(),
-                          SkSamplingOptions(atlas.filter()), blend,
-                          nonUniform ? sizes.data() : nullptr);
+  gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(), xforms.data(),
+                          tex.data(), tinted ? colors.data() : nullptr,
+                          xforms.size(), SkSamplingOptions(atlas.filter()),
+                          blend, nonUniform ? sizes.data() : nullptr);
 }
 
 struct DataProps {
@@ -467,10 +447,10 @@ struct DataProps {
   std::shared_ptr<const Pool> pool;
   uint64_t revision = 0;
   SkBlendMode blend = SkBlendMode::kSrcOver;
-  bool operator==(const DataProps &) const = default; // ptr identity + rev
+  bool operator==(const DataProps&) const = default;  // ptr identity + rev
 };
 
-} // namespace detail
+}  // namespace detail
 
 // ---------------------------------------------------------------------------
 // The component
@@ -497,7 +477,7 @@ enum class Mode {
  *
  *  Alpha does not exempt an instance: a fully faded stamp still picks, the
  *  same way a transparent Element still hit-tests. */
-inline std::optional<size_t> pick(const Pool &pool, const Atlas &atlas,
+inline std::optional<size_t> pick(const Pool& pool, const Atlas& atlas,
                                   SkPoint point) {
   const auto positions = pool.positions();
   const auto rotations = pool.rotations();
@@ -508,20 +488,17 @@ inline std::optional<size_t> pick(const Pool &pool, const Atlas &atlas,
   const bool nonUniform = sizes.size() == positions.size();
   const bool windowed = windows.size() == positions.size();
   const int frameCount = atlas.frameCount();
-  if (frameCount == 0)
-    return std::nullopt;
+  if (frameCount == 0) return std::nullopt;
   for (size_t n = positions.size(); n-- > 0;) {
     const int frame = std::clamp(frames[n], 0, frameCount - 1);
     SkSize half = atlas.frameSize(frame);
-    if (half.isEmpty())
-      continue;
+    if (half.isEmpty()) continue;
     if (windowed)
       half = {half.width() * windows[n].width(),
               half.height() * windows[n].height()};
     const SkSize mul = nonUniform ? sizes[n] : SkSize{1.0f, 1.0f};
     const float sx = scales[n] * mul.width(), sy = scales[n] * mul.height();
-    if (sx == 0.0f || sy == 0.0f)
-      continue;
+    if (sx == 0.0f || sy == 0.0f) continue;
     // Inverse of the stamp's RSXform: translate to the anchor (the quad
     // centre), un-rotate, un-scale, test against the half-extents.
     const float dx = point.fX - positions[n].fX;
@@ -552,8 +529,8 @@ inline Element instances(std::shared_ptr<Atlas> atlas,
                          Mode mode = Mode::Data,
                          SkBlendMode blend = SkBlendMode::kSrcOver) {
   if (mode == Mode::Live) {
-    return custom([atlas = std::move(atlas), pool = std::move(pool),
-                   blend](SkCanvas &canvas, const PaintContext &ctx) {
+    return custom([atlas = std::move(atlas), pool = std::move(pool), blend](
+                      SkCanvas& canvas, const PaintContext& ctx) {
              detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()
@@ -561,9 +538,9 @@ inline Element instances(std::shared_ptr<Atlas> atlas,
         .cache(Cache::None);
   }
   detail::DataProps props{atlas, pool, pool->revision(), blend};
-  return memo(std::move(props), [](const detail::DataProps &p) {
+  return memo(std::move(props), [](const detail::DataProps& p) {
     return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](
-                      SkCanvas &canvas, const PaintContext &ctx) {
+                      SkCanvas& canvas, const PaintContext& ctx) {
              detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()
@@ -577,7 +554,7 @@ inline Element instances(std::shared_ptr<Atlas> atlas,
 namespace place {
 
 /** Row-major grid of cell-sized slots from @p origin. */
-inline void grid(Pool &pool, size_t count, int columns, SkSize cell,
+inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
                  SkPoint origin = {0, 0}, SkSize gap = {0, 0}) {
   pool.resize(count);
   auto positions = pool.positions();
@@ -593,18 +570,16 @@ inline void grid(Pool &pool, size_t count, int columns, SkSize cell,
 }
 
 /** Evenly spaced ring; @p faceOut rotates each instance along its spoke. */
-inline void ring(Pool &pool, size_t count, SkPoint center, float radius,
+inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
                  float startRadians = 0.0f, bool faceOut = false) {
   pool.resize(count);
   auto positions = pool.positions();
   auto rotations = pool.rotations();
   for (size_t i = 0; i < count; ++i) {
-    const float a =
-        startRadians + (float)i * 2.0f * (float)M_PI / (float)count;
+    const float a = startRadians + (float)i * 2.0f * (float)M_PI / (float)count;
     positions[i] = {center.fX + std::cos(a) * radius,
                     center.fY + std::sin(a) * radius};
-    if (faceOut)
-      rotations[i] = a + (float)M_PI / 2.0f;
+    if (faceOut) rotations[i] = a + (float)M_PI / 2.0f;
   }
   pool.commit();
 }
@@ -619,7 +594,7 @@ inline void ring(Pool &pool, size_t count, SkPoint center, float radius,
  *  opacity arguments actually say something; `frame` is written only when
  *  it is non-negative. So a pool filled by hand and then arranged by this
  *  keeps its tints and frames. */
-inline void repeat(Pool &pool, size_t count, SkPoint start, SkPoint translate,
+inline void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
                    float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
                    float opacityFrom = 1.0f, float opacityTo = 1.0f,
                    int frame = -1) {
@@ -642,12 +617,11 @@ inline void repeat(Pool &pool, size_t count, SkPoint start, SkPoint translate,
   }
   if (frame >= 0) {
     auto frames = pool.frames();
-    for (size_t i = 0; i < count; ++i)
-      frames[i] = frame;
+    for (size_t i = 0; i < count; ++i) frames[i] = frame;
   }
   pool.commit();
 }
 
-} // namespace place
+}  // namespace place
 
-} // namespace sigil::compose::instancing
+}  // namespace sigil::compose::instancing

@@ -6,14 +6,12 @@
 // public API — ruby, kenten, marker highlights and the letter choreography
 // are all "build on top" patterns, not library features.
 
-#include <sigilweave/SigilWeave.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSize.h>
+#include <sigilweave/SigilWeave.h>
 
 #include <QString>
 #include <QVariantMap>
-
 #include <memory>
 #include <vector>
 
@@ -21,8 +19,8 @@ namespace gallery {
 
 /** Live control state pushed down from the QML panel. */
 struct SceneParams {
-  QString text;               // body text; empty → scene default
-  sk_sp<SkTypeface> typeface; // null → scene default
+  QString text;                // body text; empty → scene default
+  sk_sp<SkTypeface> typeface;  // null → scene default
   float fontSize = 17.0f;
   sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kJustify;
   sigil::weave::LineBreakStrategy lineBreakStrategy =
@@ -34,18 +32,18 @@ struct SceneParams {
   QVariantMap values;
 
   /** Returns the bool parameter `id`, or `fallback` when absent. */
-  [[nodiscard]] bool boolValue(const QString &id, bool fallback) const {
+  [[nodiscard]] bool boolValue(const QString& id, bool fallback) const {
     const auto value = values.constFind(id);
     return value == values.constEnd() ? fallback : value->toBool();
   }
   /** Returns the float parameter `id`, or `fallback` when absent. */
-  [[nodiscard]] float floatValue(const QString &id, float fallback) const {
+  [[nodiscard]] float floatValue(const QString& id, float fallback) const {
     const auto value = values.constFind(id);
     return value == values.constEnd() ? fallback
                                       : static_cast<float>(value->toDouble());
   }
   /** Returns the int (or choice-index) parameter `id`, or `fallback`. */
-  [[nodiscard]] int intValue(const QString &id, int fallback) const {
+  [[nodiscard]] int intValue(const QString& id, int fallback) const {
     const auto value = values.constFind(id);
     return value == values.constEnd() ? fallback : value->toInt();
   }
@@ -63,19 +61,19 @@ struct FrameStats {
 /// controls QML) lives in the SceneDescriptor it registers via
 /// REGISTER_GALLERY_SCENE (SceneRegistry.h).
 class Scene {
-public:
+ public:
   virtual ~Scene() = default;
 
   /** Renders one scene frame and returns its timing and content statistics.
    *  `elapsedSeconds` starts when this scene becomes active; `frameNumber`
    *  increments once per rendered frame and freezes while paused. */
-  virtual FrameStats render(SkCanvas *canvas, SkISize size,
+  virtual FrameStats render(SkCanvas* canvas, SkISize size,
                             double elapsedSeconds, int frameNumber,
-                            const SceneParams &params,
-                            sigil::weave::FontContext &fontContext) = 0;
+                            const SceneParams& params,
+                            sigil::weave::FontContext& fontContext) = 0;
 
   /** Handles a pointer press in scene coordinates. */
   virtual void pointerPress(SkPoint position) { static_cast<void>(position); }
 };
 
-} // namespace gallery
+}  // namespace gallery

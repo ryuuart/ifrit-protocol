@@ -1,8 +1,8 @@
-#include "ComposeTestSupport.h"
-
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/Console.h>
+
+#include "ComposeTestSupport.h"
 
 TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
   // Lines are keyed by their sequence id, not their position in the visible
@@ -12,8 +12,8 @@ TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
   // append and re-patch the whole window.
   console::LineRing ring;
   for (int i = 0; i < 30; ++i)
-    ring.append(sigil::compose::util::toU8("boot sequence line " +
-                                           std::to_string(i)));
+    ring.append(
+        sigil::compose::util::toU8("boot sequence line " + std::to_string(i)));
   console::Style st;
   st.text = styleAt(12);
   st.visibleLines = 10;
@@ -22,10 +22,10 @@ TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
     return box().padding(6).child(console::console(ring, st));
   };
   host.composer.render(describe());
-  host.frame(); // records the visible window
+  host.frame();  // records the visible window
   ring.append(sigil::compose::util::toU8("intrusion detected"));
   host.composer.render(describe());
-  EXPECT_EQ(host.composer.stats().patchedNodes, 1u); // the new tail only
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);  // the new tail only
   host.frame();
   // Ancestor chain re-records + the tail's own picture; the nine surviving
   // lines replay their cached pictures untouched.
@@ -48,13 +48,13 @@ TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
   const uint32_t dark = SkColorGetR(host.pixel(30, 30));
   EXPECT_GT(dark, 30u);  // ≈ 56 (LUT-quantized)
   EXPECT_LT(dark, 80u);
-  host.composer.setView({}); // pass-through again
+  host.composer.setView({});  // pass-through again
   host.frame();
   const uint32_t plain = SkColorGetR(host.pixel(30, 30));
-  EXPECT_GT(plain, 118u); // ≈ 128
+  EXPECT_GT(plain, 118u);  // ≈ 128
   EXPECT_LT(plain, 138u);
 }
-#endif // SIGILCOMPOSE_ENABLE_OCIO
+#endif  // SIGILCOMPOSE_ENABLE_OCIO
 
 TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
@@ -62,15 +62,14 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   // uniform(), constant and bound alike.
   Material m = Material::sksl(ukEffect(), {{"uTypo", 1.0f}});
   choreograph::Output<float> o{1.0f};
-  m.uniform("uAlsoMissing", &o); // dropped → still not live
+  m.uniform("uAlsoMissing", &o);  // dropped → still not live
   EXPECT_FALSE(m.isAnimated());
   Host host;
   host.composer.render(box().child(
       box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
-  host.frame(); // paints with uK at its SkSL default (0) — and does not crash
+  host.frame();  // paints with uK at its SkSL default (0) — and does not crash
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }
-
 
 TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
   const std::u8string body =
@@ -80,11 +79,14 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
 
   auto tree = [&](bool flow) {
     auto t = text(body, whiteStyle(18)).key("body");
-    if (flow)
-      t.flowAround("frame", 6);
+    if (flow) t.flowAround("frame", 6);
     return stack()
-        .child(box().key("frame").width(150).height(140)
-                   .inset(200, 10, 10, 210).absolute()
+        .child(box()
+                   .key("frame")
+                   .width(150)
+                   .height(140)
+                   .inset(200, 10, 10, 210)
+                   .absolute()
                    .fill(Fill::color({0, 0.4f, 0, 1})))
         .child(box().inset(0).child(std::move(t)).zIndex(1));
   };
@@ -111,9 +113,8 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
 TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
   Host host;
   host.composer.render(box().child(
-      text(u8"self reference", whiteStyle(16)).key("self")
-          .flowAround("self")));
-  host.frame(); // must not hang or exclude itself into nothing
+      text(u8"self reference", whiteStyle(16)).key("self").flowAround("self")));
+  host.frame();  // must not hang or exclude itself into nothing
   EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
 }
 
@@ -125,10 +126,19 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
 
   auto tree = [&](float bLeft) {
     return stack()
-        .child(box().key("a").width(20).height(20)
-                   .inset(10, 10, 170, 170).absolute().fill(red()))
-        .child(box().key("b").width(20).height(20)
-                   .inset(bLeft, 160, 180 - bLeft, 20).absolute()
+        .child(box()
+                   .key("a")
+                   .width(20)
+                   .height(20)
+                   .inset(10, 10, 170, 170)
+                   .absolute()
+                   .fill(red()))
+        .child(box()
+                   .key("b")
+                   .width(20)
+                   .height(20)
+                   .inset(bLeft, 160, 180 - bLeft, 20)
+                   .absolute()
                    .fill(green()))
         .child(connector("a", "b").inset(0).foreground(wire).zIndex(-1));
   };
@@ -138,10 +148,10 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
   // Vertical wire at x=20 between the stacked boxes.
   EXPECT_EQ(host.pixel(20, 100), SK_ColorYELLOW);
 
-  host.composer.render(tree(160.0f)); // move b to the right
+  host.composer.render(tree(160.0f));  // move b to the right
   host.frame();
-  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);   // old route gone
-  EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);    // new diagonal route
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);  // old route gone
+  EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);   // new diagonal route
 }
 
 TEST(Shape, CustomOutlineShapesFillAndClip) {
@@ -158,11 +168,11 @@ TEST(Shape, CustomOutlineShapesFillAndClip) {
     return b.detach();
   };
   host.composer.render(
-      box().width(100).height(100).clip().shape(diamond).fill(red())
-          .child(box().inset(0).absolute().fill(green())));
+      box().width(100).height(100).clip().shape(diamond).fill(red()).child(
+          box().inset(0).absolute().fill(green())));
   host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN); // clipped child inside
-  EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);   // box corner outside shape
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN);  // clipped child inside
+  EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);    // box corner outside shape
 }
 
 TEST(Shape, RoundedOutlineCutsSharpCorners) {
@@ -178,7 +188,9 @@ TEST(Shape, RoundedOutlineCutsSharpCorners) {
   };
   // Nested (the root always fills the viewport); radius 20 pulls the
   // 100x100 diamond's top vertex from y=0 down to y≈7.
-  host.composer.render(box().child(box().width(100).height(100)
+  host.composer.render(box().child(box()
+                                       .width(100)
+                                       .height(100)
                                        .shape(shapes::rounded(diamond, 20))
                                        .fill(red())));
   host.frame();
@@ -186,9 +198,8 @@ TEST(Shape, RoundedOutlineCutsSharpCorners) {
   EXPECT_EQ(host.pixel(50, 3), SK_ColorBLACK);  // sharp tip rounded away
   EXPECT_EQ(host.pixel(50, 12), SK_ColorRED);   // rounded apex below y≈7
 
-  host.composer.render(box().child(box().width(100).height(100)
-                                       .shape(shapes::star(5))
-                                       .fill(red())));
+  host.composer.render(box().child(
+      box().width(100).height(100).shape(shapes::star(5)).fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);    // star body
   EXPECT_NE(host.pixel(50, 3), SK_ColorBLACK);   // sharp top point present
@@ -202,22 +213,22 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
   sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(
-      stack().child(text(u8"WWWW", style).absolute()
-                        .inset(10, 10, 10, 120)));
+      stack().child(text(u8"WWWW", style).absolute().inset(10, 10, 10, 120)));
   host.frame();
   int lit = 0;
   for (int x = 10; x < 190; x += 4)
     for (int y = 10; y < 70; y += 4)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        lit++;
-  EXPECT_GT(lit, 20); // glyph coverage, not empty
+      if (host.pixel(x, y) != SK_ColorBLACK) lit++;
+  EXPECT_GT(lit, 20);  // glyph coverage, not empty
 }
 
 TEST(TextLayout, AlignItemsCentersTextLeaf) {
   Host host;
   sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(box().width(200).height(60)
+  host.composer.render(box()
+                           .width(200)
+                           .height(60)
                            .alignItems(Align::Center)
                            .child(text(u8"W", style)));
   host.frame();
@@ -225,12 +236,10 @@ TEST(TextLayout, AlignItemsCentersTextLeaf) {
   int litLeft = 0, litMiddle = 0;
   for (int x = 0; x < 50; x += 2)
     for (int y = 0; y < 60; y += 2)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        litLeft++;
+      if (host.pixel(x, y) != SK_ColorBLACK) litLeft++;
   for (int x = 75; x < 125; x += 2)
     for (int y = 0; y < 60; y += 2)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        litMiddle++;
+      if (host.pixel(x, y) != SK_ColorBLACK) litMiddle++;
   EXPECT_EQ(litLeft, 0);    // nothing hugging the start edge
   EXPECT_GT(litMiddle, 5);  // the glyph sits in the middle
 }
@@ -240,23 +249,26 @@ TEST(ComposeCaching, TextureBakeScaleQuantized) {
   // zoom) must not re-bake Cache::Texture nodes every frame: the bake
   // scale quantizes up to a coarse step.
   Host host;
-  host.composer.render(
-      box().width(60).height(60).cache(Cache::Texture).fill(red())
-          .child(box().width(20).height(20).fill(green())));
+  host.composer.render(box()
+                           .width(60)
+                           .height(60)
+                           .cache(Cache::Texture)
+                           .fill(red())
+                           .child(box().width(20).height(20).fill(green())));
   auto drawAt = [&](float s) {
-    SkCanvas &canvas = *host.surface->getCanvas();
+    SkCanvas& canvas = *host.surface->getCanvas();
     canvas.save();
     canvas.scale(s, s);
     host.composer.draw(canvas);
     canvas.restore();
   };
   drawAt(1.6f);
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u); // first bake
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);  // first bake
   drawAt(1.7f);
   drawAt(1.9f);
-  drawAt(2.0f); // still within the 2.0 step: the bake is reused
+  drawAt(2.0f);  // still within the 2.0 step: the bake is reused
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  drawAt(2.2f); // crossed into the 3.0 step: one re-bake
+  drawAt(2.2f);  // crossed into the 3.0 step: one re-bake
   EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
 }
 
@@ -281,19 +293,21 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   Host host(300, 300);
   choreograph::Output<float> slide{0.0f};
   host.composer.render(
-      box().cache(Cache::None).child(
-          box()
-              .cache(Cache::None)
-              .absolute()
-              .translateX(&slide)
-              .child(box()
-                         .width(60)
-                         .height(60)
-                         .cache(Cache::Texture)
-                         .fill(red())
-                         .child(box().width(20).height(20).fill(green())))));
+      box()
+          .cache(Cache::None)
+          .child(box()
+                     .cache(Cache::None)
+                     .absolute()
+                     .translateX(&slide)
+                     .child(box()
+                                .width(60)
+                                .height(60)
+                                .cache(Cache::Texture)
+                                .fill(red())
+                                .child(box().width(20).height(20).fill(
+                                    green())))));
   host.frame();
-  EXPECT_GE(host.composer.stats().picturesRecorded, 1u); // the first bake
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);  // the first bake
   // The still -> moving transition costs exactly one re-bake, because the
   // held image is in the wrong space for the path now being taken. That is
   // inherent to having two bake spaces and is not what this test guards.
@@ -302,7 +316,7 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   // From here the guarantee is absolute: a moving node reuses ONE local
   // bake and blits it through its transform, however far it travels.
   for (int i = 2; i <= 5; ++i) {
-    slide = (float)i * 7.0f; // whole-pixel slides: the rect really moves
+    slide = (float)i * 7.0f;  // whole-pixel slides: the rect really moves
     host.frame();
     EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
         << "frame " << i
@@ -318,27 +332,31 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
 TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
   Host host;
   host.composer.render(
-      box().child(box().row().wrapLines().width(200)
+      box().child(box()
+                      .row()
+                      .wrapLines()
+                      .width(200)
                       .child(box().width(80).height(40).fill(red()))
                       .child(box().width(80).height(40).fill(green()))
                       .child(box().width(80).height(40).fill(blue()))));
   host.frame();
   EXPECT_EQ(host.pixel(40, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(120, 20), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(40, 60), SK_ColorBLUE); // wrapped to the next line
+  EXPECT_EQ(host.pixel(40, 60), SK_ColorBLUE);  // wrapped to the next line
 }
 
 TEST(ComposeLayout, PerEdgePaddingAndMargin) {
   Host host;
-  host.composer.render(
-      box().child(box().padding(10, 20, 30, 40).key("outer")
-                      .child(box().margin(5, 6, 7, 8).width(50).height(50)
-                                 .key("inner"))));
+  host.composer.render(box().child(
+      box()
+          .padding(10, 20, 30, 40)
+          .key("outer")
+          .child(box().margin(5, 6, 7, 8).width(50).height(50).key("inner"))));
   host.frame();
   auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner.has_value());
-  EXPECT_FLOAT_EQ(inner->left(), 10 + 5); // padding.left + margin.left
-  EXPECT_FLOAT_EQ(inner->top(), 20 + 6);  // padding.top + margin.top
+  EXPECT_FLOAT_EQ(inner->left(), 10 + 5);  // padding.left + margin.left
+  EXPECT_FLOAT_EQ(inner->top(), 20 + 6);   // padding.top + margin.top
 }
 
 TEST(Shape, PerCornerRadiiIndependent) {
@@ -347,15 +365,15 @@ TEST(Shape, PerCornerRadiiIndependent) {
   host.composer.render(box().child(
       box().width(100).height(100).corners({0, 40, 0, 0}).fill(red())));
   host.frame();
-  EXPECT_EQ(host.pixel(2, 2), SK_ColorRED);    // sharp TL corner filled
-  EXPECT_EQ(host.pixel(97, 2), SK_ColorBLACK); // rounded TR corner empty
+  EXPECT_EQ(host.pixel(2, 2), SK_ColorRED);     // sharp TL corner filled
+  EXPECT_EQ(host.pixel(97, 2), SK_ColorBLACK);  // rounded TR corner empty
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
 }
 
 TEST(ComposeLayout, DimLiteralsResolvePercent) {
   Host host;
-  host.composer.render(box().child(
-      box().width(50_pct).height(25_pct).fill(red()).key("half")));
+  host.composer.render(
+      box().child(box().width(50_pct).height(25_pct).fill(red()).key("half")));
   host.frame();
   auto rect = host.composer.bounds("half");
   ASSERT_TRUE(rect.has_value());
@@ -363,18 +381,19 @@ TEST(ComposeLayout, DimLiteralsResolvePercent) {
   EXPECT_FLOAT_EQ(rect->height(), 50.0f);  // 25% of 200px
 }
 
-
 TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   Host host;
   auto atlas = twoCellAtlas();
-  host.composer.render(
-      box().row()
-          .child(image(atlas).region(SkRect::MakeXYWH(16, 0, 16, 16))
-                     .width(50).height(50))
-          .child(image(atlas).width(50).height(50)));
+  host.composer.render(box()
+                           .row()
+                           .child(image(atlas)
+                                      .region(SkRect::MakeXYWH(16, 0, 16, 16))
+                                      .width(50)
+                                      .height(50))
+                           .child(image(atlas).width(50).height(50)));
   host.frame();
-  EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN); // region: right cell only
-  EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);   // whole atlas: left half
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);  // region: right cell only
+  EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
 }
 
 TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
@@ -387,27 +406,28 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   para->appendText(std::u8string(u8"BIG"), big);
   para->appendText(std::u8string(u8" and small"), small);
 
-  host.composer.render(box().padding(10).child(
-      text(para).key("spans")));
+  host.composer.render(box().padding(10).child(text(para).key("spans")));
   host.frame();
-  const auto *layout = host.composer.paragraphLayout("spans");
+  const auto* layout = host.composer.paragraphLayout("spans");
   ASSERT_NE(layout, nullptr);
   int lit = 0;
   for (int x = 10; x < 390; x += 3)
     for (int y = 10; y < 70; y += 3)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        lit++;
-  EXPECT_GT(lit, 15); // both spans shaped and painted
+      if (host.pixel(x, y) != SK_ColorBLACK) lit++;
+  EXPECT_GT(lit, 15);  // both spans shaped and painted
 }
 
 TEST(ComposePaint, ContentScaleReportsHostScale) {
   Host host;
   float seen = 0.0f;
-  host.composer.render(box().child(
-      custom([&seen](SkCanvas &, const PaintContext &ctx) {
-        seen = ctx.contentScale;
-      }).width(50).height(50).cache(Cache::None)));
-  SkCanvas &canvas = *host.surface->getCanvas();
+  host.composer.render(
+      box().child(custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                    seen = ctx.contentScale;
+                  })
+                      .width(50)
+                      .height(50)
+                      .cache(Cache::None)));
+  SkCanvas& canvas = *host.surface->getCanvas();
   canvas.save();
   canvas.scale(2.0f, 2.0f);
   host.composer.draw(canvas);
@@ -424,15 +444,19 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
   Host host;
   bool seen = false;
   host.composer.render(
-      box().child(box().width(40).height(40).fill(red()).opacity(
+      box()
+          .child(box().width(40).height(40).fill(red()).opacity(
               animate(from(0.0f).to(1.0f), {400ms})))
-          .child(custom([&seen](SkCanvas &, const PaintContext &ctx) {
+          .child(custom([&seen](SkCanvas&, const PaintContext& ctx) {
                    seen = ctx.animating;
-                 }).width(10).height(10).cache(Cache::None)));
+                 })
+                     .width(10)
+                     .height(10)
+                     .cache(Cache::None)));
   host.frame(0.016);
   EXPECT_TRUE(seen) << "an entrance is running: the ticker is active";
   for (int i = 0; i < 40; ++i)
-    host.frame(0.016); // 640 ms — well past the 400 ms entrance
+    host.frame(0.016);  // 640 ms — well past the 400 ms entrance
   EXPECT_FALSE(seen) << "and false again once nothing is moving";
 }
 
@@ -442,62 +466,67 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
 TEST(Shape, PolygonAndSquircleSilhouettes) {
   Host host;
   host.composer.render(
-      box().row()
-          .child(box().width(90).height(90)
-                     .shape(shapes::polygon(6)).fill(red()))
-          .child(box().width(90).height(90)
-                     .shape(shapes::squircle(4)).fill(green())));
+      box()
+          .row()
+          .child(
+              box().width(90).height(90).shape(shapes::polygon(6)).fill(red()))
+          .child(box()
+                     .width(90)
+                     .height(90)
+                     .shape(shapes::squircle(4))
+                     .fill(green())));
   host.frame();
-  EXPECT_EQ(host.pixel(45, 45), SK_ColorRED);   // hexagon body
-  EXPECT_EQ(host.pixel(2, 2), SK_ColorBLACK);   // hexagon corner cut
-  EXPECT_EQ(host.pixel(135, 45), SK_ColorGREEN); // squircle body
-  EXPECT_EQ(host.pixel(92, 2), SK_ColorBLACK);   // squircle corner soft
-  EXPECT_EQ(host.pixel(135, 3), SK_ColorGREEN);  // but edge midpoints full
+  EXPECT_EQ(host.pixel(45, 45), SK_ColorRED);     // hexagon body
+  EXPECT_EQ(host.pixel(2, 2), SK_ColorBLACK);     // hexagon corner cut
+  EXPECT_EQ(host.pixel(135, 45), SK_ColorGREEN);  // squircle body
+  EXPECT_EQ(host.pixel(92, 2), SK_ColorBLACK);    // squircle corner soft
+  EXPECT_EQ(host.pixel(135, 3), SK_ColorGREEN);   // but edge midpoints full
 }
 
 TEST(Shape, BlobIsDeterministicOrganicAndBounded) {
   auto probe = [](uint32_t seed) {
     Host host;
-    host.composer.render(box().child(
-        box().width(120).height(120).shape(shapes::blob(seed, 0.3f, 9))
-            .fill(red())));
+    host.composer.render(box().child(box()
+                                         .width(120)
+                                         .height(120)
+                                         .shape(shapes::blob(seed, 0.3f, 9))
+                                         .fill(red())));
     host.frame();
     std::vector<SkColor> px;
     for (int y = 0; y < 130; y += 4)
-      for (int x = 0; x < 130; x += 4)
-        px.push_back(host.pixel(x, y));
+      for (int x = 0; x < 130; x += 4) px.push_back(host.pixel(x, y));
     return px;
   };
   std::vector<SkColor> a1 = probe(7), a2 = probe(7), b = probe(8);
-  EXPECT_EQ(a1, a2); // same seed → identical pixels (cacheable chaos)
-  EXPECT_NE(a1, b);  // different seed → different blob
+  EXPECT_EQ(a1, a2);  // same seed → identical pixels (cacheable chaos)
+  EXPECT_NE(a1, b);   // different seed → different blob
 
   Host host;
-  host.composer.render(box().child(
-      box().width(120).height(120).shape(shapes::blob(7, 0.3f, 9))
-          .fill(red())));
+  host.composer.render(box().child(box()
+                                       .width(120)
+                                       .height(120)
+                                       .shape(shapes::blob(7, 0.3f, 9))
+                                       .fill(red())));
   host.frame();
-  EXPECT_EQ(host.pixel(60, 60), SK_ColorRED); // center always covered
+  EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);  // center always covered
   int outside = 0;
   for (int x = 121; x < 200; x += 4)
     for (int y = 0; y < 200; y += 4)
-      if (host.pixel(x, y) != SK_ColorBLACK)
-        outside++;
-  EXPECT_EQ(outside, 0); // never escapes its layout box
+      if (host.pixel(x, y) != SK_ColorBLACK) outside++;
+  EXPECT_EQ(outside, 0);  // never escapes its layout box
 }
 
 TEST(ComposeDecorations, EdgeSliceStrokesSelectedEdgesOnly) {
   Host host;
-  host.composer.render(box().child(
-      box().width(100).height(100).fill(blue())
-          .foreground(shapes::onEdges(
-              shapes::Edge::Top | shapes::Edge::Left,
-              util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+  host.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).foreground(
+          shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                          util::stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
-  EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE); // top edge stroked
-  EXPECT_EQ(host.pixel(1, 50), SK_ColorWHITE); // left edge stroked
-  EXPECT_EQ(host.pixel(98, 50), SK_ColorBLUE); // right edge bare
-  EXPECT_EQ(host.pixel(50, 98), SK_ColorBLUE); // bottom edge bare
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top edge stroked
+  EXPECT_EQ(host.pixel(1, 50), SK_ColorWHITE);  // left edge stroked
+  EXPECT_EQ(host.pixel(98, 50), SK_ColorBLUE);  // right edge bare
+  EXPECT_EQ(host.pixel(50, 98), SK_ColorBLUE);  // bottom edge bare
 }
 
 TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
@@ -506,9 +535,9 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   // top-left arc but none of the left flank.
   Host host;
   host.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue())
-          .foreground(shapes::onEdges(
-              shapes::Edge::Top, util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+      box().width(100).height(100).corners({30}).fill(blue()).foreground(
+          shapes::onEdges(shapes::Edge::Top,
+                          util::stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top run center
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);   // left flank untouched
@@ -529,15 +558,17 @@ TEST(ComposeShapeValues, AStockGeneratorShapePrunes) {
   // nothing reports it.
   Host host;
   auto tree = [] {
-    return box().child(box().width(100).height(100)
+    return box().child(box()
+                           .width(100)
+                           .height(100)
                            .shape(shapes::star(5, 0.5f, 0.12f))
                            .fill(red()));
   };
   host.composer.render(tree());
   host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED); // the star is really there
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);  // the star is really there
 
-  host.composer.render(tree()); // brand-new Elements, identical values
+  host.composer.render(tree());  // brand-new Elements, identical values
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   EXPECT_FALSE(host.composer.dirty());
   host.frame();
@@ -549,14 +580,13 @@ TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
   // different parameter is a different value, patches, and redraws.
   Host host;
   auto tree = [](int sides) {
-    return box().child(box().width(100).height(100)
-                           .shape(shapes::polygon(sides))
-                           .fill(red()));
+    return box().child(
+        box().width(100).height(100).shape(shapes::polygon(sides)).fill(red()));
   };
-  host.composer.render(tree(4)); // diamond: box corners empty
+  host.composer.render(tree(4));  // diamond: box corners empty
   host.frame();
   EXPECT_EQ(host.pixel(6, 6), SK_ColorBLACK);
-  host.composer.render(tree(40)); // ~circle: still empty corners, more ink
+  host.composer.render(tree(40));  // ~circle: still empty corners, more ink
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   host.frame();
   // A 40-gon covers (25, 12); a diamond does not.
@@ -570,7 +600,9 @@ TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
   // changed. An author who needs the prune wraps the node in memo().
   Host host;
   auto tree = [] {
-    return box().child(box().width(100).height(100)
+    return box().child(box()
+                           .width(100)
+                           .height(100)
                            .shape([](SkSize s) {
                              SkPathBuilder b;
                              b.addOval(SkRect::MakeWH(s.width(), s.height()));
@@ -663,8 +695,13 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
   Host host(240, 240);
   auto ring = [](float at) {
     return text(u8"HHHHHHHHHH", whiteStyle(22))
-        .width(240).height(240).absolute().left(0).top(0)
-        .onPath({.path = shapes::arc(180.0f, 359.9f), .at = at,
+        .width(240)
+        .height(240)
+        .absolute()
+        .left(0)
+        .top(0)
+        .onPath({.path = shapes::arc(180.0f, 359.9f),
+                 .at = at,
                  .align = TextPath::Align::Center});
   };
   host.composer.render(box().child(ring(0.25f)));
@@ -689,7 +726,9 @@ TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
   Host host;
   auto tree = [] {
     return box().child(band(shapes::circle(), across(8.0f))
-                           .width(100).height(100).fill(red()));
+                           .width(100)
+                           .height(100)
+                           .fill(red()));
   };
   host.composer.render(tree());
   host.frame();
@@ -706,13 +745,15 @@ TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
   // entirely cached.
   Host host;
   auto tree = [] {
-    return box().child(box().width(120).height(120)
+    return box().child(box()
+                           .width(120)
+                           .height(120)
                            .shape(shapes::circle())
                            .fill(red())
                            .cache(Cache::Texture));
   };
   host.composer.render(tree());
-  host.frame(); // records + bakes once
+  host.frame();  // records + bakes once
   for (int i = 0; i < 3; ++i) {
     host.composer.render(tree());
     host.frame();
@@ -726,14 +767,16 @@ TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
 // Element stamps + snapshot().
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
-  sk_sp<SkPicture> pic = snapshot(
-      box().row().gap(4)
-          .child(box().width(20).height(12).fill(red()))
-          .child(box().width(20).height(12).fill(green())),
-      fonts());
+  sk_sp<SkPicture> pic =
+      snapshot(box()
+                   .row()
+                   .gap(4)
+                   .child(box().width(20).height(12).fill(red()))
+                   .child(box().width(20).height(12).fill(green())),
+               fonts());
   ASSERT_NE(pic, nullptr);
-  EXPECT_FLOAT_EQ(pic->cullRect().width(), 44.0f);  // 20 + 4 + 20
-  EXPECT_FLOAT_EQ(pic->cullRect().height(), 12.0f); // content height
+  EXPECT_FLOAT_EQ(pic->cullRect().width(), 44.0f);   // 20 + 4 + 20
+  EXPECT_FLOAT_EQ(pic->cullRect().height(), 12.0f);  // content height
 }
 
 // ---------------------------------------------------------------------------
@@ -753,7 +796,7 @@ constexpr int kTileCount = 3;
 // single sample point tell a flip from no flip.
 constexpr float kMark = 3.0f;
 constexpr float kMarkSize = 6.0f;
-constexpr int kProbe = 5;      ///< inside the mark
+constexpr int kProbe = 5;  ///< inside the mark
 constexpr int kFarX = kTileW - kProbe;
 constexpr int kFarY = kTileH - kProbe;
 
@@ -783,25 +826,25 @@ sk_sp<SkPicture> markedStrip(tiles::Flow flow) {
   return snapshot(box().child(std::move(strip)), fonts());
 }
 
-sk_sp<SkSurface> renderTile(const sk_sp<SkPicture> &pic, int index,
+sk_sp<SkSurface> renderTile(const sk_sp<SkPicture>& pic, int index,
                             tiles::Flow flow, tiles::Facing facing) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kTileW, kTileH));
-  SkCanvas *canvas = surface->getCanvas();
+  SkCanvas* canvas = surface->getCanvas();
   canvas->clear(SK_ColorBLACK);
   canvas->concat(tiles::window({kTileW, kTileH}, index, flow, facing));
   canvas->drawPicture(pic);
   return surface;
 }
 
-SkColor tilePixel(SkSurface &surface, int x, int y) {
+SkColor tilePixel(SkSurface& surface, int x, int y) {
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   surface.readPixels(bm.pixmap(), x, y);
   return bm.getColor(0, 0);
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposeStripTiles, ForwardWindowSlicesInOrderAndDoesNotMirror) {
   const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
@@ -881,8 +924,7 @@ TEST(ComposeStripTiles, SliceableFlattensTheOpsAndChangesNoPixel) {
   // The trap this verb exists for: drawPicture() into the recorder would
   // store ONE nested op the hierarchy cannot index into. Counting
   // non-nested ops is what tells the two apart.
-  EXPECT_EQ(sliced->approximateOpCount(false),
-            strip->approximateOpCount(false))
+  EXPECT_EQ(sliced->approximateOpCount(false), strip->approximateOpCount(false))
       << "sliceable() nested the picture instead of flattening it";
   EXPECT_GT(sliced->approximateOpCount(false), 3);
   for (int k = 0; k < kTileCount; ++k) {
@@ -904,26 +946,32 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
 
   ContourWalk vine;
   vine.spacing = 25.0f;
-  vine.stamp = custom([](SkCanvas &c, const PaintContext &ctx) {
-                 ++stampDescribes;
-                 SkPaint p;
-                 p.setColor(SK_ColorYELLOW);
-                 c.drawRect(SkRect::MakeWH(ctx.size.width(),
-                                           ctx.size.height()), p);
-               }).width(12).height(12);
+  vine.stamp =
+      custom([](SkCanvas& c, const PaintContext& ctx) {
+        ++stampDescribes;
+        SkPaint p;
+        p.setColor(SK_ColorYELLOW);
+        c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+      })
+          .width(12)
+          .height(12);
 
-  host.composer.render(box().child(
-      box().width(100).height(100).inset(50, 50, 50, 50).absolute()
-          .fill(blue()).foreground(vine)));
+  host.composer.render(box().child(box()
+                                       .width(100)
+                                       .height(100)
+                                       .inset(50, 50, 50, 50)
+                                       .absolute()
+                                       .fill(blue())
+                                       .foreground(vine)));
   host.frame();
   host.frame();
-  EXPECT_EQ(stampDescribes, 1); // baked once, replayed at every sample
+  EXPECT_EQ(stampDescribes, 1);  // baked once, replayed at every sample
 
   // Stamps are centered on the outline: the top-left corner sample
   // lands half outside the box.
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorYELLOW);  // corner sample center
-  EXPECT_EQ(host.pixel(100, 46), SK_ColorYELLOW); // top edge, above box
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);  // interior untouched
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorYELLOW);   // corner sample center
+  EXPECT_EQ(host.pixel(100, 46), SK_ColorYELLOW);  // top edge, above box
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);   // interior untouched
 }
 
 TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
@@ -934,7 +982,7 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   Host host;
   ContourWalk dots;
   dots.spacing = 6.0f;
-  dots.draw = [](SkCanvas &c, const PathSample &, const PaintContext &) {
+  dots.draw = [](SkCanvas& c, const PathSample&, const PaintContext&) {
     SkPaint p;
     p.setColor(SK_ColorCYAN);
     c.drawRect(SkRect::MakeXYWH(-1, -1, 2, 2), p);
@@ -944,9 +992,12 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   outer.spacing = 40.0f;
   outer.stamp = box().width(16).height(16).fill(red()).foreground(dots);
 
-  host.composer.render(box().child(
-      box().width(120).height(120).inset(40, 40, 40, 40).absolute()
-          .foreground(outer)));
+  host.composer.render(box().child(box()
+                                       .width(120)
+                                       .height(120)
+                                       .inset(40, 40, 40, 40)
+                                       .absolute()
+                                       .foreground(outer)));
   host.frame();
   int redPx = 0, cyanPx = 0;
   for (int x = 0; x < 200; x += 2)
@@ -957,8 +1008,8 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
       else if (c == SK_ColorCYAN)
         cyanPx++;
     }
-  EXPECT_GT(redPx, 20);  // stamps landed
-  EXPECT_GT(cyanPx, 10); // and their own walked borders too
+  EXPECT_GT(redPx, 20);   // stamps landed
+  EXPECT_GT(cyanPx, 10);  // and their own walked borders too
 }
 
 TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
@@ -969,16 +1020,19 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
   auto nestedTicker = std::make_shared<sigil::motion::Ticker>();
   auto nested = std::make_shared<Composer>(*nestedTicker, fonts());
   nested->setSize({60, 60});
-  nested->render(box().padding(10).fill(green())
-                     .child(box().grow(1).fill(red())));
+  nested->render(
+      box().padding(10).fill(green()).child(box().grow(1).fill(red())));
 
   host.composer.render(box().child(
-      custom([nested, nestedTicker](SkCanvas &c, const PaintContext &) {
+      custom([nested, nestedTicker](SkCanvas& c, const PaintContext&) {
         nested->draw(c);
-      }).width(60).height(60).cache(Cache::None)));
+      })
+          .width(60)
+          .height(60)
+          .cache(Cache::None)));
   host.frame();
-  EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN); // nested padding ring
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED); // nested content
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN);  // nested padding ring
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);  // nested content
 }
 
 // ---------------------------------------------------------------------------
@@ -989,10 +1043,19 @@ TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   host.composer.render(
       stack()
           .child(box().key("under").inset(0).fill(red()))
-          .child(box().key("over").width(60).height(60)
-                     .inset(20, 20, 120, 120).absolute().fill(green()))
-          .child(box().width(30).height(30).inset(150, 150, 20, 20)
-                     .absolute().fill(blue()))); // keyless → falls to root
+          .child(box()
+                     .key("over")
+                     .width(60)
+                     .height(60)
+                     .inset(20, 20, 120, 120)
+                     .absolute()
+                     .fill(green()))
+          .child(box()
+                     .width(30)
+                     .height(30)
+                     .inset(150, 150, 20, 20)
+                     .absolute()
+                     .fill(blue())));  // keyless → falls to root
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "over");
   EXPECT_EQ(host.composer.hitTest({120, 120}).value_or(""), "under");
@@ -1006,12 +1069,21 @@ TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
 
 TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
   Host host;
-  host.composer.render(
-      box().child(box().key("star").width(100).height(100)
-                      .shape(shapes::star(5)).fill(red()))
-          .child(box().key("spun").width(80).height(20)
-                     .inset(60, 140, 60, 40).absolute()
-                     .rotate(90.0f).fill(green())));
+  host.composer.render(box()
+                           .child(box()
+                                      .key("star")
+                                      .width(100)
+                                      .height(100)
+                                      .shape(shapes::star(5))
+                                      .fill(red()))
+                           .child(box()
+                                      .key("spun")
+                                      .width(80)
+                                      .height(20)
+                                      .inset(60, 140, 60, 40)
+                                      .absolute()
+                                      .rotate(90.0f)
+                                      .fill(green())));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "star");
   // Between the star's arms: inside the box, outside the silhouette.
@@ -1020,8 +1092,8 @@ TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
   // The 80x20 bar at (60,140) rotated 90° about its center paints as a
   // 20x80 bar centered at (100,150): x∈[90,110], y∈[110,190].
   EXPECT_EQ(host.composer.hitTest({100, 115}).value_or(""), "spun");
-  EXPECT_FALSE(host.composer.hitTest({70, 150}).has_value()); // unrotated
-                                                              // footprint
+  EXPECT_FALSE(host.composer.hitTest({70, 150}).has_value());  // unrotated
+                                                               // footprint
 }
 
 #include <sigilcompose/Routers.h>
@@ -1034,21 +1106,32 @@ TEST(ComposeDerive, OrthogonalRouterRunsManhattan) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(
-      stack()
-          .child(box().key("a").width(20).height(20)
-                     .inset(10, 10, 170, 170).absolute().fill(red()))
-          .child(box().key("b").width(20).height(20)
-                     .inset(160, 160, 20, 20).absolute().fill(green()))
-          .child(connector("a", "b", routers::orthogonal())
-                     .inset(0).foreground(wire).zIndex(-1)));
+  host.composer.render(stack()
+                           .child(box()
+                                      .key("a")
+                                      .width(20)
+                                      .height(20)
+                                      .inset(10, 10, 170, 170)
+                                      .absolute()
+                                      .fill(red()))
+                           .child(box()
+                                      .key("b")
+                                      .width(20)
+                                      .height(20)
+                                      .inset(160, 160, 20, 20)
+                                      .absolute()
+                                      .fill(green()))
+                           .child(connector("a", "b", routers::orthogonal())
+                                      .inset(0)
+                                      .foreground(wire)
+                                      .zIndex(-1)));
   host.frame();
   // Centers (20,20) and (170,170); midX = 95: H leg at y=20, V leg at
   // x=95, H leg at y=170.
-  EXPECT_EQ(host.pixel(60, 20), SK_ColorYELLOW);   // first horizontal leg
-  EXPECT_EQ(host.pixel(95, 100), SK_ColorYELLOW);  // vertical run
-  EXPECT_EQ(host.pixel(130, 170), SK_ColorYELLOW); // final horizontal leg
-  EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);   // nowhere near diagonal
+  EXPECT_EQ(host.pixel(60, 20), SK_ColorYELLOW);    // first horizontal leg
+  EXPECT_EQ(host.pixel(95, 100), SK_ColorYELLOW);   // vertical run
+  EXPECT_EQ(host.pixel(130, 170), SK_ColorYELLOW);  // final horizontal leg
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);    // nowhere near diagonal
 }
 
 TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
@@ -1056,20 +1139,31 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
   PathFormat wire;
   wire.width = 4;
   wire.strokeFill = Fill::color({1, 1, 0, 1});
-  host.composer.render(
-      stack()
-          .child(box().key("a").width(10).height(10)
-                     .inset(20, 95, 170, 95).absolute().fill(red()))
-          .child(box().key("b").width(10).height(10)
-                     .inset(170, 95, 20, 95).absolute().fill(green()))
-          .child(connector("a", "b", routers::arc(0.3f))
-                     .inset(0).foreground(wire).zIndex(-1)));
+  host.composer.render(stack()
+                           .child(box()
+                                      .key("a")
+                                      .width(10)
+                                      .height(10)
+                                      .inset(20, 95, 170, 95)
+                                      .absolute()
+                                      .fill(red()))
+                           .child(box()
+                                      .key("b")
+                                      .width(10)
+                                      .height(10)
+                                      .inset(170, 95, 20, 95)
+                                      .absolute()
+                                      .fill(green()))
+                           .child(connector("a", "b", routers::arc(0.3f))
+                                      .inset(0)
+                                      .foreground(wire)
+                                      .zIndex(-1)));
   host.frame();
   // Horizontal chord from (25,100) to (175,100), bulge 0.3×150 = 45 px
   // toward +normal (downward-left convention: normal of (+x,0) is
   // (0,+y) → the bow lands at y ≈ 145).
-  EXPECT_EQ(host.pixel(100, 145), SK_ColorYELLOW); // bowed midpoint
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // chord midpoint empty
+  EXPECT_EQ(host.pixel(100, 145), SK_ColorYELLOW);  // bowed midpoint
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);   // chord midpoint empty
 }
 
 TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
@@ -1083,12 +1177,22 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
     wire.width = 4;
     wire.strokeFill = Fill::color({1, 1, 0, 1});
     return stack()
-        .child(box().key("a").width(20).height(20)
-                   .inset(10, 90, 170, 90).absolute().fill(red()))
-        .child(box().key("b").width(20).height(20)
-                   .inset(170, 90, 10, 90).absolute().fill(green()))
-        .child(connector("a", "b", {}, gap)
-                   .inset(0).foreground(wire).zIndex(1));
+        .child(box()
+                   .key("a")
+                   .width(20)
+                   .height(20)
+                   .inset(10, 90, 170, 90)
+                   .absolute()
+                   .fill(red()))
+        .child(box()
+                   .key("b")
+                   .width(20)
+                   .height(20)
+                   .inset(170, 90, 10, 90)
+                   .absolute()
+                   .fill(green()))
+        .child(
+            connector("a", "b", {}, gap).inset(0).foreground(wire).zIndex(1));
   };
   // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
   // and paints OVER both terminal boxes. Without this arm, "the gapped wire
@@ -1115,7 +1219,7 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
       << "the wire ends before its gap says to";
   EXPECT_EQ(gapped.pixel(160, 100), SK_ColorBLACK)
       << "the wire overran its gap";
-  EXPECT_EQ(gapped.pixel(100, 100), SK_ColorYELLOW); // the run survives
+  EXPECT_EQ(gapped.pixel(100, 100), SK_ColorYELLOW);  // the run survives
 }
 
 #include <sigilcompose/Layouts.h>
@@ -1127,14 +1231,16 @@ TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
   Host host;
   std::vector<Element> dots;
   for (int i = 0; i < 4; ++i)
-    dots.push_back(box().width(10).height(10).fill(red())
-                       .key("d" + std::to_string(i)));
-  host.composer.render(box().child(
-      layout(layouts::Radial{.radiusFraction = 0.8f})
-          .width(200).height(200).children(dots)));
+    dots.push_back(
+        box().width(10).height(10).fill(red()).key("d" + std::to_string(i)));
+  host.composer.render(
+      box().child(layout(layouts::Radial{.radiusFraction = 0.8f})
+                      .width(200)
+                      .height(200)
+                      .children(dots)));
   host.frame();
   // Radius 80 from center (100,100), starting up, clockwise quarters.
-  auto center = [&](const char *k) {
+  auto center = [&](const char* k) {
     auto r = host.composer.bounds(k);
     return SkPoint{r->centerX(), r->centerY()};
   };
@@ -1150,11 +1256,13 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   Host host;
   std::vector<Element> beads;
   for (int i = 0; i < 10; ++i)
-    beads.push_back(box().width(6).height(6).fill(green())
-                        .key("b" + std::to_string(i)));
-  host.composer.render(box().child(
-      layout(layouts::AlongPath{.path = shapes::star(5)})
-          .width(180).height(180).children(beads)));
+    beads.push_back(
+        box().width(6).height(6).fill(green()).key("b" + std::to_string(i)));
+  host.composer.render(
+      box().child(layout(layouts::AlongPath{.path = shapes::star(5)})
+                      .width(180)
+                      .height(180)
+                      .children(beads)));
   host.frame();
   // First bead sits on the star's top point (contour start).
   auto b0 = host.composer.bounds("b0");
@@ -1179,17 +1287,22 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   // backwards, so a point that is inside the leaning card but outside its
   // unsheared box still hits it.
   Host host;
-  host.composer.render(box().child(
-      box().key("card").width(40).height(40).inset(60, 60, 100, 100)
-          .absolute().fill(red()).skewX(-12.0f)));
+  host.composer.render(box().child(box()
+                                       .key("card")
+                                       .width(40)
+                                       .height(40)
+                                       .inset(60, 60, 100, 100)
+                                       .absolute()
+                                       .fill(red())
+                                       .skewX(-12.0f)));
   host.frame();
-  EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);  // top leaned right
-  EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK); // vacated top-left
-  EXPECT_EQ(host.pixel(58, 97), SK_ColorRED);   // bottom leaned left
-  EXPECT_EQ(host.pixel(98, 97), SK_ColorBLACK); // vacated bottom-right
+  EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);   // top leaned right
+  EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK);  // vacated top-left
+  EXPECT_EQ(host.pixel(58, 97), SK_ColorRED);    // bottom leaned left
+  EXPECT_EQ(host.pixel(98, 97), SK_ColorBLACK);  // vacated bottom-right
   auto hit = host.composer.hitTest({101, 64});
   ASSERT_TRUE(hit.has_value());
-  EXPECT_EQ(*hit, "card"); // transform-aware hit through the shear
+  EXPECT_EQ(*hit, "card");  // transform-aware hit through the shear
   EXPECT_FALSE(host.composer.hitTest({61, 64}).has_value());
 }
 
@@ -1200,18 +1313,23 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   // The sign is easy to state backwards, so the runtime's answer is
   // pinned here in pixels.
   Host host;
-  host.composer.render(box().child(
-      box().key("card").width(40).height(40).inset(60, 60, 100, 100)
-          .absolute().fill(red()).skewX(30.0f)));
+  host.composer.render(box().child(box()
+                                       .key("card")
+                                       .width(40)
+                                       .height(40)
+                                       .inset(60, 60, 100, 100)
+                                       .absolute()
+                                       .fill(red())
+                                       .skewX(30.0f)));
   host.frame();
   // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
   // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the
   // top row spans about [50.8, 90.8]; at y = 97 (17 below) the shift is
   // +9.8, spanning about [69.8, 109.8].
-  EXPECT_EQ(host.pixel(54, 64), SK_ColorRED);   // top edge left of the box
-  EXPECT_EQ(host.pixel(97, 64), SK_ColorBLACK); // vacated top-right
-  EXPECT_EQ(host.pixel(106, 97), SK_ColorRED);  // bottom edge leaned right
-  EXPECT_EQ(host.pixel(63, 97), SK_ColorBLACK); // vacated bottom-left
+  EXPECT_EQ(host.pixel(54, 64), SK_ColorRED);    // top edge left of the box
+  EXPECT_EQ(host.pixel(97, 64), SK_ColorBLACK);  // vacated top-right
+  EXPECT_EQ(host.pixel(106, 97), SK_ColorRED);   // bottom edge leaned right
+  EXPECT_EQ(host.pixel(63, 97), SK_ColorBLACK);  // vacated bottom-left
   // And hit-testing walks the same shear: the leaned top-left corner is
   // inside the card, the vacated top-right is not.
   auto hit = host.composer.hitTest({54, 64});
@@ -1220,7 +1338,8 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   EXPECT_FALSE(host.composer.hitTest({97, 64}).has_value());
 }
 
-// ---- kinetic typography ------------------------------------------------------
+// ---- kinetic typography
+// ------------------------------------------------------
 
 #include <sigilcompose/Kinetic.h>
 
@@ -1235,8 +1354,7 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
     fx.stagger = {.eachMs = 40, .durationMs = 200};
     fx.progress = std::move(progress);
     return box().padding(10).child(
-        text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k")
-            .glyphFx(std::move(fx)));
+        text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k").glyphFx(std::move(fx)));
   };
   host.composer.render(tree(0.0f));
   host.frame();
@@ -1245,16 +1363,15 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   const SkIRect leftEdge = SkIRect::MakeLTRB(
       (int)b->left(), (int)b->top(), (int)b->left() + 24, (int)b->bottom());
   const SkIRect rightEdge = SkIRect::MakeLTRB(
-      (int)b->right() - 24, (int)b->top(), (int)b->right(),
-      (int)b->bottom());
-  EXPECT_FALSE(anyWhiteIn(host, leftEdge)); // progress 0: nothing revealed
+      (int)b->right() - 24, (int)b->top(), (int)b->right(), (int)b->bottom());
+  EXPECT_FALSE(anyWhiteIn(host, leftEdge));  // progress 0: nothing revealed
   host.composer.render(tree(0.45f));
   host.frame();
-  EXPECT_TRUE(anyWhiteIn(host, leftEdge));   // head fully in
-  EXPECT_FALSE(anyWhiteIn(host, rightEdge)); // tail not started
+  EXPECT_TRUE(anyWhiteIn(host, leftEdge));    // head fully in
+  EXPECT_FALSE(anyWhiteIn(host, rightEdge));  // tail not started
   host.composer.render(tree(1.0f));
   host.frame();
-  EXPECT_TRUE(anyWhiteIn(host, rightEdge)); // everything landed
+  EXPECT_TRUE(anyWhiteIn(host, rightEdge));  // everything landed
 }
 
 TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
@@ -1271,16 +1388,16 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   };
   host.composer.render(tree(0.001f));
   host.frame();
-  host.composer.render(tree(animate(to(1.0f), {400ms, &choreograph::easeNone})));
-  host.frame(0.2); // mid-ramp
-  EXPECT_GT(host.composer.stats().nodesPainted, 0u); // live while animating
-  host.frame(0.3); // settle
+  host.composer.render(
+      tree(animate(to(1.0f), {400ms, &choreograph::easeNone})));
+  host.frame(0.2);                                    // mid-ramp
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
+  host.frame(0.3);                                    // settle
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(),
-                                                 (int)b->top(),
-                                                 (int)b->right(),
-                                                 (int)b->bottom())));
+  EXPECT_TRUE(
+      anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
+                                         (int)b->right(), (int)b->bottom())));
 }
 
 TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
@@ -1307,14 +1424,13 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());
-  const SkIRect tail =
-      SkIRect::MakeLTRB((int)b->right() - 24, (int)b->top(), (int)b->right(),
-                        (int)b->bottom());
+  const SkIRect tail = SkIRect::MakeLTRB((int)b->right() - 24, (int)b->top(),
+                                         (int)b->right(), (int)b->bottom());
   ASSERT_FALSE(anyWhiteIn(host, tail))
       << "the tail was already revealed at progress 0, so the check below "
          "cannot tell a live reveal from a frozen one";
 
-  progress = 1.0f; // ONE describe, and the value moves underneath it
+  progress = 1.0f;  // ONE describe, and the value moves underneath it
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, tail))
       << "the tail never appeared: the node replayed the recording it made at "
@@ -1328,23 +1444,23 @@ TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
   // combination most likely to leave the text laid out at zero size and
   // therefore invisible.
   Host host;
-  host.composer.render(
-      stack().child(
-          box().column().absolute().inset(10, 10, 10, 10).child(
-              layout(layouts::BaselineGrid{.rhythm = 24})
-                  .width(pct(100))
-                  .child(text(u8"probe", whiteStyle(28)).key("p")))));
+  host.composer.render(stack().child(
+      box()
+          .column()
+          .absolute()
+          .inset(10, 10, 10, 10)
+          .child(layout(layouts::BaselineGrid{.rhythm = 24})
+                     .width(pct(100))
+                     .child(text(u8"probe", whiteStyle(28)).key("p")))));
   host.frame();
   auto b = host.composer.bounds("p");
   ASSERT_TRUE(b.has_value());
-  EXPECT_GT(b->width(), 5.0f) << "placed rect " << b->left() << ","
-                              << b->top() << " " << b->width() << "x"
-                              << b->height();
+  EXPECT_GT(b->width(), 5.0f) << "placed rect " << b->left() << "," << b->top()
+                              << " " << b->width() << "x" << b->height();
   EXPECT_GT(b->height(), 5.0f);
-  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(),
-                                                 (int)b->top(),
-                                                 (int)b->right(),
-                                                 (int)b->bottom())))
+  EXPECT_TRUE(
+      anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(), (int)b->top(),
+                                         (int)b->right(), (int)b->bottom())))
       << "placed rect " << b->left() << "," << b->top() << " " << b->width()
       << "x" << b->height();
 }
@@ -1358,25 +1474,26 @@ TEST(ComposeLayouts, ModularGridSpansAndAutoFlow) {
   grid.rows = 4;
   grid.gutter = 8;
   grid.spans = {{0, 0, 2, 1}, {3, 0, 1, 3}};
-  host.composer.render(box().child(
-      layout(grid).width(pct(100)).grow(1)
-          .child(box().key("a").fill(red()))
-          .child(box().key("b").fill(blue()))
-          .child(box().key("c").fill(green()))
-          .child(box().key("d").fill(red()))));
+  host.composer.render(box().child(layout(grid)
+                                       .width(pct(100))
+                                       .grow(1)
+                                       .child(box().key("a").fill(red()))
+                                       .child(box().key("b").fill(blue()))
+                                       .child(box().key("c").fill(green()))
+                                       .child(box().key("d").fill(red()))));
   host.frame();
   auto a = host.composer.bounds("a");
   auto b = host.composer.bounds("b");
   auto c = host.composer.bounds("c");
   auto d = host.composer.bounds("d");
   ASSERT_TRUE(a && b && c && d);
-  EXPECT_NEAR(a->width(), 44 * 2 + 8, 0.01f); // 2-module span + gutter
+  EXPECT_NEAR(a->width(), 44 * 2 + 8, 0.01f);  // 2-module span + gutter
   EXPECT_NEAR(a->left(), 0, 0.01f);
-  EXPECT_NEAR(b->left(), (44 + 8) * 3, 0.01f); // 4th column
-  EXPECT_NEAR(b->height(), 44 * 3 + 16, 0.01f); // 3 rows + 2 gutters
-  EXPECT_NEAR(c->left(), 0, 0.01f); // auto-flow starts at (0,0)… of the flow
+  EXPECT_NEAR(b->left(), (44 + 8) * 3, 0.01f);   // 4th column
+  EXPECT_NEAR(b->height(), 44 * 3 + 16, 0.01f);  // 3 rows + 2 gutters
+  EXPECT_NEAR(c->left(), 0, 0.01f);  // auto-flow starts at (0,0)… of the flow
   EXPECT_NEAR(c->width(), 44, 0.01f);
-  EXPECT_NEAR(d->left(), 44 + 8, 0.01f); // next module across
+  EXPECT_NEAR(d->left(), 44 + 8, 0.01f);  // next module across
 }
 
 TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
@@ -1385,7 +1502,8 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   Host host;
   host.composer.render(box().child(
       layout(layouts::BaselineGrid{.rhythm = 20})
-          .width(pct(100)).grow(1)
+          .width(pct(100))
+          .grow(1)
           .child(box().key("a").width(40).height(15).fill(red()))
           .child(box().key("b").width(40).height(27).fill(blue()))));
   host.frame();
@@ -1399,15 +1517,16 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // 200 grid line, (200 - top) equals the baseline offset — strictly LESS
   // than the child's height (bottom-anchoring would make them equal).
   // Font-metric independent.
-  host.composer.render(box().child(
-      layout(layouts::BaselineGrid{.rhythm = 200})
-          .width(pct(100)).grow(1)
-          .child(text(u8"Xylograph", styleAt(40)).key("t"))));
+  host.composer.render(
+      box().child(layout(layouts::BaselineGrid{.rhythm = 200})
+                      .width(pct(100))
+                      .grow(1)
+                      .child(text(u8"Xylograph", styleAt(40)).key("t"))));
   host.frame();
   auto t = host.composer.bounds("t");
   ASSERT_TRUE(t.has_value());
-  EXPECT_GT(200.0f - t->top(), 10.0f);                 // sane baseline
-  EXPECT_LT(200.0f - t->top(), t->height() - 0.5f);    // baseline, not bottom
+  EXPECT_GT(200.0f - t->top(), 10.0f);               // sane baseline
+  EXPECT_LT(200.0f - t->top(), t->height() - 0.5f);  // baseline, not bottom
 }
 
 TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
@@ -1415,11 +1534,12 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
     Host host;
     std::vector<Element> bits;
     for (int i = 0; i < 9; ++i)
-      bits.push_back(box().width(12).height(12).fill(blue())
-                         .key("s" + std::to_string(i)));
-    host.composer.render(box().child(
-        layout(layouts::Scatter{.seed = seed}).width(200).height(200)
-            .children(bits)));
+      bits.push_back(
+          box().width(12).height(12).fill(blue()).key("s" + std::to_string(i)));
+    host.composer.render(box().child(layout(layouts::Scatter{.seed = seed})
+                                         .width(200)
+                                         .height(200)
+                                         .children(bits)));
     host.frame();
     std::vector<SkPoint> out;
     for (int i = 0; i < 9; ++i) {
@@ -1433,8 +1553,8 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
     return out;
   };
   auto a1 = centers(5), a2 = centers(5), b = centers(6);
-  EXPECT_EQ(a1, a2); // same seed → same scatter
-  EXPECT_NE(a1, b);  // new seed → new chaos
+  EXPECT_EQ(a1, a2);  // same seed → same scatter
+  EXPECT_NE(a1, b);   // new seed → new chaos
 }
 
 // ---------------------------------------------------------------------------
@@ -1457,30 +1577,31 @@ std::shared_ptr<sigil::image::ImageAsset> fourTileAtlas() {
 }
 
 struct ChunkProps {
-  std::vector<int> tiles; // 4x4 tile ids
+  std::vector<int> tiles;  // 4x4 tile ids
   int chunkX = 0, chunkY = 0;
-  bool operator==(const ChunkProps &) const = default;
+  bool operator==(const ChunkProps&) const = default;
 };
 
 constexpr float kTilePx = 12.0f;
 
-Element tileChunk(const ChunkProps &p) {
+Element tileChunk(const ChunkProps& p) {
   static auto atlas = fourTileAtlas();
   auto chunk = box().width(4 * kTilePx).height(4 * kTilePx);
   for (int i = 0; i < (int)p.tiles.size(); ++i) {
     const int id = p.tiles[(size_t)i];
     const float sx = (float)(id % 2) * 8, sy = (float)(id / 2) * 8;
-    chunk.child(image(atlas)
-                    .region(SkRect::MakeXYWH(sx, sy, 8, 8))
-                    .absolute()
-                    .inset((float)(i % 4) * kTilePx, (float)(i / 4) * kTilePx,
-                           0, 0)
-                    .width(kTilePx).height(kTilePx));
+    chunk.child(
+        image(atlas)
+            .region(SkRect::MakeXYWH(sx, sy, 8, 8))
+            .absolute()
+            .inset((float)(i % 4) * kTilePx, (float)(i / 4) * kTilePx, 0, 0)
+            .width(kTilePx)
+            .height(kTilePx));
   }
   return chunk;
 }
 
-} // namespace
+}  // namespace
 
 TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
   Host host;
@@ -1489,21 +1610,20 @@ TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
   for (int c = 0; c < 4; ++c) {
     chunks[(size_t)c].chunkX = c % 2;
     chunks[(size_t)c].chunkY = c / 2;
-    for (int i = 0; i < 16; ++i)
-      chunks[(size_t)c].tiles.push_back((i + c) % 4);
+    for (int i = 0; i < 16; ++i) chunks[(size_t)c].tiles.push_back((i + c) % 4);
   }
   auto maze = [&] {
     auto grid = box().row().wrapLines().width(2 * 4 * kTilePx);
     for (int c = 0; c < 4; ++c)
-      grid.child(memo(chunks[(size_t)c], tileChunk)
-                     .key("chunk" + std::to_string(c)));
+      grid.child(
+          memo(chunks[(size_t)c], tileChunk).key("chunk" + std::to_string(c)));
     return box().child(grid);
   };
 
   host.composer.render(maze());
   host.frame();
   const size_t coldRecords = host.composer.stats().picturesRecorded;
-  EXPECT_GE(coldRecords, 4u); // every chunk baked (plus ancestors)
+  EXPECT_GE(coldRecords, 4u);  // every chunk baked (plus ancestors)
 
   // Pixel sanity: chunk 0 tile 0 is id 0 (red); chunk 1 tile 0 is id 1
   // (green) at x = 48.
@@ -1512,17 +1632,17 @@ TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
 
   host.composer.render(maze());
   host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u); // all memo-warm
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);  // all memo-warm
 
-  chunks[0].tiles[0] = 3; // mutate ONE tile in ONE chunk
+  chunks[0].tiles[0] = 3;  // mutate ONE tile in ONE chunk
   host.composer.render(maze());
   host.frame();
   // Only chunk 0 and its ancestor chain re-record; the other three
   // chunks' pictures replay untouched.
   EXPECT_LE(host.composer.stats().picturesRecorded, 3u);
   EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
-  EXPECT_EQ(host.pixel(5, 5), SK_ColorYELLOW); // the mutated tile
-  EXPECT_EQ(host.pixel(53, 5), SK_ColorGREEN); // neighbors intact
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorYELLOW);  // the mutated tile
+  EXPECT_EQ(host.pixel(53, 5), SK_ColorGREEN);  // neighbors intact
 }
 
 TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
@@ -1532,7 +1652,10 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
   // from value-comparable props re-render for free.
   Host host;
   auto tree = [] {
-    return box().row().gap(8).padding(12)
+    return box()
+        .row()
+        .gap(8)
+        .padding(12)
         .child(box().width(40).height(40).corners({6}).fill(red()))
         .child(text(u8"static", styleAt(18)).key("t"))
         .child(box().grow(1).fill(blue()).opacity(0.9f));
@@ -1540,9 +1663,9 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
   host.composer.render(tree());
   host.frame();
 
-  host.composer.render(tree()); // brand-new Elements, identical values
+  host.composer.render(tree());  // brand-new Elements, identical values
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
-  EXPECT_FALSE(host.composer.dirty()); // hosts may skip the redraw
+  EXPECT_FALSE(host.composer.dirty());  // hosts may skip the redraw
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
@@ -1612,13 +1735,10 @@ TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
   // And through the property slot: the node paints AT that determinate
   // value rather than at a number nobody chose.
   Host host;
-  host.composer.render(box().child(box()
-                                       .width(80)
-                                       .height(80)
-                                       .fill(red())
-                                       .opacity(animate(through({})))));
+  host.composer.render(box().child(
+      box().width(80).height(80).fill(red()).opacity(animate(through({})))));
   host.frame();
-  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK); // opacity 0, not garbage
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
 
 TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
@@ -1626,8 +1746,7 @@ TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
   // normally has to be told `<float>`. This overload exists so it does not.
   // Compiling with no explicit template argument IS the test — the
   // assertions below only confirm it deduced the right thing.
-  const Transitioned<float> t =
-      animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
+  const Transitioned<float> t = animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
   ASSERT_EQ(t.waypoints.size(), 2u);
   EXPECT_EQ(t.waypoints.front().second, 0.0f);
   EXPECT_EQ(t.waypoints.back().second, 1.0f);
@@ -1640,25 +1759,21 @@ TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
 TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
-    return box().child(box()
-                           .width(80)
-                           .height(80)
-                           .fill(red())
-                           .opacity(animate(from(0.0f).to(1.0f),
-                                            {200ms, &choreograph::easeNone})));
+    return box().child(box().width(80).height(80).fill(red()).opacity(
+        animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone})));
   };
   host.composer.render(tree());
   host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK); // enters invisible
-  host.frame(0.1);                              // half the linear ramp
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK);  // enters invisible
+  host.frame(0.1);                               // half the linear ramp
   const SkColor mid = host.pixel(40, 40);
   EXPECT_GT(SkColorGetR(mid), 90u);
   EXPECT_LT(SkColorGetR(mid), 165u);
   EXPECT_EQ(SkColorGetG(mid), 0u);
-  host.frame(0.2); // settled
+  host.frame(0.2);  // settled
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 
-  host.composer.render(tree()); // identical re-describe prunes clean
+  host.composer.render(tree());  // identical re-describe prunes clean
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
@@ -1666,12 +1781,11 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
 
 TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   Host host;
-  host.composer.render(box().child(
-      box().width(80).height(80).fill(Animatable<Fill>(
-          animate(from(Fill::color({1, 1, 1, 1})).to(red()),
-                  {200ms, &choreograph::easeNone})))));
+  host.composer.render(box().child(box().width(80).height(80).fill(
+      Animatable<Fill>(animate(from(Fill::color({1, 1, 1, 1})).to(red()),
+                               {200ms, &choreograph::easeNone})))));
   host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE); // the declared "from"
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
@@ -1703,32 +1817,31 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
       wrapCount += inWrap;
       missing += inUnion && !inWrap;
     }
-  EXPECT_GT(unionCount, 50);     // the pieces really painted
-  EXPECT_LE(missing, 4);         // wrap covers the union (AA slack)
+  EXPECT_GT(unionCount, 50);  // the pieces really painted
+  EXPECT_LE(missing, 4);      // wrap covers the union (AA slack)
   EXPECT_NEAR(wrapCount, unionCount, unionCount / 5.0 + 8);
 }
 
 TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   Host host;
   choreograph::Output<float> phase{0.0f};
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(50, 50, 50, 50)
-                                       .mask(by::spans(spans::wrap(0.0f, 0.25f)
-                                                           .offset(&phase)))
-                                       .foreground(util::stroke(6, green()))));
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .inset(50, 50, 50, 50)
+                      .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
+                      .foreground(util::stroke(6, green()))));
   host.frame();
   std::vector<SkIPoint> lit0;
   for (int y = 40; y < 160; y += 2)
     for (int x = 40; x < 160; x += 2)
-      if (host.pixel(x, y) == SK_ColorGREEN)
-        lit0.push_back({x, y});
+      if (host.pixel(x, y) == SK_ColorGREEN) lit0.push_back({x, y});
   ASSERT_GT(lit0.size(), 10u);
 
-  phase = 0.5f; // march half the cycle — no render()
+  phase = 0.5f;  // march half the cycle — no render()
   host.frame();
   int still = 0;
-  for (const SkIPoint &p : lit0)
+  for (const SkIPoint& p : lit0)
     still += host.pixel(p.x(), p.y()) == SK_ColorGREEN;
   // The window moved to the far side: (almost) none of the old pixels stay.
   EXPECT_LT((float)still, 0.2f * (float)lit0.size());
@@ -1739,16 +1852,16 @@ namespace {
 /** A red 40x40 rect at x=150 recorded into a picture whose cull rect is
  *  the 100x100 box it escapes; replayed onto a 300x200 white surface.
  *  Returns the pixel the escaped rect would paint. */
-sk_sp<SkPicture> escapingPicture(const SkRect &cull, SkBBHFactory *bbh) {
+sk_sp<SkPicture> escapingPicture(const SkRect& cull, SkBBHFactory* bbh) {
   SkPictureRecorder rec;
-  SkCanvas *c = rec.beginRecording(cull, bbh);
+  SkCanvas* c = rec.beginRecording(cull, bbh);
   SkPaint p;
   p.setColor(SK_ColorRED);
   c->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
   return rec.finishRecordingAsPicture();
 }
 
-SkColor replayPixel(const sk_sp<SkPicture> &pic, int x, int y) {
+SkColor replayPixel(const sk_sp<SkPicture>& pic, int x, int y) {
   auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
   surf->getCanvas()->clear(SK_ColorWHITE);
   surf->getCanvas()->drawPicture(pic);
@@ -1758,7 +1871,7 @@ SkColor replayPixel(const sk_sp<SkPicture> &pic, int x, int y) {
   return bm.getColor(0, 0);
 }
 
-} // namespace
+}  // namespace
 
 /** What a picture's cull rect actually does, established by experiment
  *  rather than assumed — because the intuitive reading ("ops outside the
@@ -1793,8 +1906,7 @@ TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
     p.setColor(SK_ColorRED);
     rec.beginRecording(SkRect::MakeXYWH(1000, 1000, 100, 100))
         ->drawRect(SkRect::MakeXYWH(20, 20, 40, 40), p);
-    EXPECT_EQ(replayPixel(rec.finishRecordingAsPicture(), 30, 30),
-              SK_ColorRED);
+    EXPECT_EQ(replayPixel(rec.finishRecordingAsPicture(), 30, 30), SK_ColorRED);
   }
 
   // (5) WITH a bbh the cull rect finally bites — still recorded, dropped
@@ -1829,16 +1941,13 @@ TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   // A child translated beyond its parent's box must not be quick-rejected
   // by the parent's recording cull (the recordBounds fix).
   Host host(300, 200);
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .fill(blue())
-          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).child(
+          box().width(40).height(40).fill(red()).translateX(150.0f))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
-  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED); // fully outside parent's box
-  host.frame();                                // cached replay path
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);  // fully outside parent's box
+  host.frame();                                 // cached replay path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
 
@@ -1847,16 +1956,12 @@ TEST(ComposeCache, OverflowingChildSurvivesGroupOpacityLayer) {
   // BOUNDED by recordBounds, and saveLayer bounds are a real clip. Drop
   // the child union from recordBounds and the overflowing child is gone.
   Host host(300, 200);
-  host.composer.render(box().child(
-      box()
-          .width(100)
-          .height(100)
-          .fill(blue())
-          .opacity(0.5f)
-          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).opacity(0.5f).child(
+          box().width(40).height(40).fill(red()).translateX(150.0f))));
   host.frame();
-  EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);  // sanity: the parent
-  EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u); // the escaped child
+  EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);   // sanity: the parent
+  EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u);  // the escaped child
 }
 
 TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
@@ -1874,10 +1979,9 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
-  host.frame(); // cached blit path
+  host.frame();  // cached blit path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
-
 
 TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   // `radiusAt` gives each child its own ring radius, so one Radial can draw
@@ -1887,14 +1991,15 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   Host host;
   std::vector<Element> dots;
   for (int i = 0; i < 4; ++i)
-    dots.push_back(box().width(10).height(10).fill(red())
-                       .key("r" + std::to_string(i)));
+    dots.push_back(
+        box().width(10).height(10).fill(red()).key("r" + std::to_string(i)));
   host.composer.render(box().child(
-      layout(layouts::Radial{.radiusFraction = 0.8f,
-                             .radiusAt = {0.4f, 0.8f}})
-          .width(200).height(200).children(dots)));
+      layout(layouts::Radial{.radiusFraction = 0.8f, .radiusAt = {0.4f, 0.8f}})
+          .width(200)
+          .height(200)
+          .children(dots)));
   host.frame();
-  auto center = [&](const char *k) {
+  auto center = [&](const char* k) {
     auto r = host.composer.bounds(k);
     return SkPoint{r->centerX(), r->centerY()};
   };

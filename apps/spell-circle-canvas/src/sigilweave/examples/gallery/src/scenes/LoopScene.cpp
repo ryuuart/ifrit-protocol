@@ -1,13 +1,13 @@
 // Scene: infinite loop marquee on a closed figure-eight.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
 #include <numbers>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -16,24 +16,24 @@ namespace gallery {
 namespace {
 
 QString loopDefaultText() {
-  return QStringLiteral("and the words go round 終わらない文字の環 끝나지 "
-                        "않는 글의 고리 文字環繞不息 round and round again "
-                        "— ")
+  return QStringLiteral(
+             "and the words go round 終わらない文字の環 끝나지 "
+             "않는 글의 고리 文字環繞不息 round and round again "
+             "— ")
       .repeated(4);
 }
 
 class LoopScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams &params,
-                    FontContext &fontContext) override {
-    if (!m_serif)
-      m_serif = defaultSerif(fontContext);
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& params,
+                    FontContext& fontContext) override {
+    if (!m_serif) m_serif = defaultSerif(fontContext);
     m_body.ensure(params, loopDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
-    const Rail &rail = m_rail.ensure({size}, [&] {
+    const Rail& rail = m_rail.ensure({size}, [&] {
       SkPathBuilder pathBuilder;
       const SkPoint center = {canvasWidth * 0.5f, canvasHeight * 0.5f};
       const int steps = 400;
@@ -56,8 +56,7 @@ public:
       built.contour = contourIterator.next();
       return built;
     });
-    if (!rail.contour)
-      return {};
+    if (!rail.contour) return {};
     const float loopLength = rail.contour->length();
 
     LineSetFlow flow;
@@ -85,7 +84,7 @@ public:
             static_cast<int>(layout.runs.size()), 0};
   }
 
-private:
+ private:
   /// The marquee rail: figure-eight path plus its contour measure, derived
   /// together from the canvas size.
   struct Rail {
@@ -106,8 +105,8 @@ SceneDescriptor makeLoopDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeLoopDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

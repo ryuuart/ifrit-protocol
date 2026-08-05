@@ -1,14 +1,15 @@
 #include "SpellCircle.h"
+
 #include "SpellCircleRenderer.h"
 
-SpellCircle::SpellCircle(QQuickItem *parent) : QCanvasPainterItem(parent) {}
+SpellCircle::SpellCircle(QQuickItem* parent) : QCanvasPainterItem(parent) {}
 
-QCanvasPainterItemRenderer *SpellCircle::createItemRenderer() const {
+QCanvasPainterItemRenderer* SpellCircle::createItemRenderer() const {
   return new SpellCircleRenderer;
 }
 
-void SpellCircle::setModel(QObject *object) {
-  SpellCircleModel *model = qobject_cast<SpellCircleModel *>(object);
+void SpellCircle::setModel(QObject* object) {
+  SpellCircleModel* model = qobject_cast<SpellCircleModel*>(object);
   if (m_model == model) {
     return;
   }
@@ -23,8 +24,8 @@ void SpellCircle::setModel(QObject *object) {
   update();
 }
 
-void SpellCircle::setConfig(QObject *object) {
-  GraphicsConfig *config = qobject_cast<GraphicsConfig *>(object);
+void SpellCircle::setConfig(QObject* object) {
+  GraphicsConfig* config = qobject_cast<GraphicsConfig*>(object);
   if (m_config == config) {
     return;
   }

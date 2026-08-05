@@ -14,10 +14,6 @@
  * per-glyph draws.
  */
 
-#include "Paragraph.h"
-#include "ParagraphLayout.h"
-#include "Shaper.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
@@ -29,13 +25,17 @@
 #include <utility>
 #include <vector>
 
+#include "Paragraph.h"
+#include "ParagraphLayout.h"
+#include "Shaper.h"
+
 namespace sigil::weave {
 
 /** Callable accepted by forEachPlacedGlyph(): `fn(const ShapedWord *,
  * SkGlyphID, float advance, SkColor, SkPoint rest)`.
  */
 template <typename Visitor>
-concept PlacedGlyphVisitor = std::invocable<Visitor &, const ShapedWord *,
+concept PlacedGlyphVisitor = std::invocable<Visitor&, const ShapedWord*,
                                             SkGlyphID, float, SkColor, SkPoint>;
 
 /** Visits every placed glyph of `layout` with its shaped source, glyph ID,
@@ -46,19 +46,18 @@ concept PlacedGlyphVisitor = std::invocable<Visitor &, const ShapedWord *,
  * per-frame relayout.
  */
 template <PlacedGlyphVisitor Visitor>
-inline void forEachPlacedGlyph(const ParagraphLayout &layout,
-                               const Paragraph &paragraph, Visitor &&visitor) {
+inline void forEachPlacedGlyph(const ParagraphLayout& layout,
+                               const Paragraph& paragraph, Visitor&& visitor) {
   static thread_local std::vector<uint32_t> segmentCounters;
   segmentCounters.assign(paragraph.words().size(), 0);
-  for (const PositionedRun &run : layout.runs) {
-    const Word &word = paragraph.words()[run.wordIndex];
-    if (word.segments.empty())
-      continue; // placeholder slots have no glyphs
-    const WordSegment &segment =
+  for (const PositionedRun& run : layout.runs) {
+    const Word& word = paragraph.words()[run.wordIndex];
+    if (word.segments.empty()) continue;  // placeholder slots have no glyphs
+    const WordSegment& segment =
         word.segments[segmentCounters[run.wordIndex]++ % word.segments.size()];
     const SkColor color =
         paragraph.spans()[segment.styleIndex].style.paint.foreground.getColor();
-    const ShapedWord *shapedWord = segment.shaped.get();
+    const ShapedWord* shapedWord = segment.shaped.get();
     for (size_t glyphIndex = 0; glyphIndex < shapedWord->glyphs.size();
          ++glyphIndex)
       visitor(shapedWord, shapedWord->glyphs[glyphIndex],
@@ -73,7 +72,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout &layout,
  * backend. The GPU backend doesn't need this, but it doesn't hurt there
  * either.
  */
-inline void quantizeAngle(float angle, float &cosine, float &sine) {
+inline void quantizeAngle(float angle, float& cosine, float& sine) {
   constexpr int kSteps = 64;
   constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
   static const auto angleTable = [] {
@@ -86,8 +85,7 @@ inline void quantizeAngle(float angle, float &cosine, float &sine) {
   }();
   int stepIndex =
       static_cast<int>(std::lround(angle / kTwoPi * kSteps)) % kSteps;
-  if (stepIndex < 0)
-    stepIndex += kSteps;
+  if (stepIndex < 0) stepIndex += kSteps;
   cosine = angleTable[static_cast<size_t>(stepIndex)].first;
   sine = angleTable[static_cast<size_t>(stepIndex)].second;
 }
@@ -99,18 +97,17 @@ struct GlyphRSXformBatches {
   /// One (font source, color) bucket: parallel glyph/transform arrays that
   /// feed a single drawGlyphsRSXform call.
   struct Batch {
-    const ShapedWord *font = nullptr;  ///< bucket key: supplies the SkFont
-    SkColor color = 0;                 ///< bucket key: flat draw color
-    std::vector<SkGlyphID> glyphs;     ///< parallel to `transforms`
-    std::vector<SkRSXform> transforms; ///< per-glyph scale/rotate/translate
+    const ShapedWord* font = nullptr;   ///< bucket key: supplies the SkFont
+    SkColor color = 0;                  ///< bucket key: flat draw color
+    std::vector<SkGlyphID> glyphs;      ///< parallel to `transforms`
+    std::vector<SkRSXform> transforms;  ///< per-glyph scale/rotate/translate
   };
-  std::vector<Batch> batches; ///< one entry per distinct (font, color) pair
+  std::vector<Batch> batches;  ///< one entry per distinct (font, color) pair
 
   /** Returns the batch for a shaped font source and color. */
-  [[nodiscard]] Batch &batchForStyle(const ShapedWord *font, SkColor color) {
-    for (Batch &batch : batches)
-      if (batch.font == font && batch.color == color)
-        return batch;
+  [[nodiscard]] Batch& batchForStyle(const ShapedWord* font, SkColor color) {
+    for (Batch& batch : batches)
+      if (batch.font == font && batch.color == color) return batch;
     batches.push_back({font, color, {}, {}});
     return batches.back();
   }
@@ -119,10 +116,10 @@ struct GlyphRSXformBatches {
    * rotated by (`cosine`, `sine`) — the placement convention the effects
    * use.
    */
-  void addGlyph(const ShapedWord *font, SkColor color, SkGlyphID glyph,
+  void addGlyph(const ShapedWord* font, SkColor color, SkGlyphID glyph,
                 float halfAdvance, SkPoint centerPosition, float cosine = 1,
                 float sine = 0) {
-    Batch &batch = batchForStyle(font, color);
+    Batch& batch = batchForStyle(font, color);
     batch.glyphs.push_back(glyph);
     batch.transforms.push_back({cosine, sine,
                                 centerPosition.x() - cosine * halfAdvance,
@@ -131,20 +128,19 @@ struct GlyphRSXformBatches {
 
   /** Clears glyph data while retaining batch allocations for the next frame. */
   void clear() {
-    for (Batch &batch : batches) {
+    for (Batch& batch : batches) {
       batch.glyphs.clear();
       batch.transforms.clear();
     }
   }
 
   /** Draws every batch and returns the number of glyphs drawn. */
-  int draw(SkCanvas *canvas) const {
+  int draw(SkCanvas* canvas) const {
     SkPaint paint;
     paint.setAntiAlias(true);
     int total = 0;
-    for (const Batch &batch : batches) {
-      if (batch.glyphs.empty())
-        continue;
+    for (const Batch& batch : batches) {
+      if (batch.glyphs.empty()) continue;
       total += static_cast<int>(batch.glyphs.size());
       paint.setColor(batch.color);
       SkFont font = makeFont(batch.font->typeface, batch.font->fontSize,
@@ -163,4 +159,4 @@ struct GlyphRSXformBatches {
   }
 };
 
-} // namespace sigil::weave
+}  // namespace sigil::weave

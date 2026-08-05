@@ -8,19 +8,16 @@
 // ring path shared by more than one scene. Scene-specific state lives in
 // each scene's own file.
 
-#include "../include/GalleryScenes.h"
-
-#include <sigilweavekit/SigilWeaveKit.h>
-
-#include <sigilweave/SigilWeave.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
+#include <sigilweave/SigilWeave.h>
+#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <QString>
-
 #include <chrono>
 #include <string_view>
+
+#include "../include/GalleryScenes.h"
 
 namespace gallery {
 
@@ -47,23 +44,23 @@ struct BodyCache {
 
   /// Rebuilds the paragraph when its text, typeface, or size has changed.
   /// Returns true when rebuilding occurred.
-  bool ensure(const SceneParams &params, const QString &fallbackText,
-              const sk_sp<SkTypeface> &fallbackTypeface);
+  bool ensure(const SceneParams& params, const QString& fallbackText,
+              const sk_sp<SkTypeface>& fallbackTypeface);
 
-private:
-  kit::RebuildGuard<QString, const SkTypeface *, float> m_guard;
+ private:
+  kit::RebuildGuard<QString, const SkTypeface*, float> m_guard;
 };
 
 /// Resolves the preferred body serif, falling back to the context default.
-sk_sp<SkTypeface> defaultSerif(sigil::weave::FontContext &fontContext);
+sk_sp<SkTypeface> defaultSerif(sigil::weave::FontContext& fontContext);
 
 /// Draws a small single-line explanatory caption in the gallery's blue.
-void drawCaption(SkCanvas *canvas, sigil::weave::FontContext &fontContext,
+void drawCaption(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
                  std::u8string_view text, SkPoint baselineOrigin,
                  float width = 520);
 
 /// UTF-16 captions (QString via sigil::weave::qt::toU16) cross in zero-copy.
-void drawCaption(SkCanvas *canvas, sigil::weave::FontContext &fontContext,
+void drawCaption(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
                  std::u16string_view text, SkPoint baselineOrigin,
                  float width = 520);
 
@@ -74,4 +71,4 @@ void drawCaption(SkCanvas *canvas, sigil::weave::FontContext &fontContext,
 // layout adapts to the changing silhouette as it morphs.
 SkPath spikyRingPath(float elapsedSeconds, float radius);
 
-} // namespace gallery
+}  // namespace gallery

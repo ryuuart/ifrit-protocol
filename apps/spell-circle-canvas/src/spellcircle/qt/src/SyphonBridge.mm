@@ -1,27 +1,24 @@
 #import <Metal/Metal.h>
 #import <Syphon/SyphonMetalServer.h>
 
-#include "SyphonBridge.h"
 #include <rhi/qrhi.h>
 #include <rhi/qrhi_platform.h>
+#include "SyphonBridge.h"
 
 struct SyphonBridgePrivate {
   SyphonMetalServer *server = nil;
 };
 
 SyphonBridge::SyphonBridge(std::string name)
-    : m_name(std::move(name)),
-      m_private(std::make_unique<SyphonBridgePrivate>()) {}
+    : m_name(std::move(name)), m_private(std::make_unique<SyphonBridgePrivate>()) {}
 
 SyphonBridge::~SyphonBridge() { stop(); }
 
 void SyphonBridge::start(QRhi *rhi) {
-  if (!rhi || rhi->backend() != QRhi::Metal)
-    return;
-  stop(); // restarting: never orphan a previous server
+  if (!rhi || rhi->backend() != QRhi::Metal) return;
+  stop();  // restarting: never orphan a previous server
 
-  const auto *nativeHandles =
-      static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
+  const auto *nativeHandles = static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
   // QRhi declares MTLDevice as opaque; __bridge recasts it without changing
   // ARC ownership.
   id<MTLDevice> device = (__bridge id<MTLDevice>)nativeHandles->dev;
@@ -31,20 +28,16 @@ void SyphonBridge::start(QRhi *rhi) {
                                                       options:nil];
 }
 
-void SyphonBridge::publishFrame(QRhiTexture *texture,
-                                QRhiCommandBuffer *commandBuffer, int width,
+void SyphonBridge::publishFrame(QRhiTexture *texture, QRhiCommandBuffer *commandBuffer, int width,
                                 int height) {
-  if (!m_private->server || !m_private->server.hasClients)
-    return;
+  if (!m_private->server || !m_private->server.hasClients) return;
 
   auto nativeTex = texture->nativeTexture();
   // Qt packs the id<MTLTexture> pointer into a quint64 on Metal.
-  id<MTLTexture> metalTexture =
-      (__bridge id<MTLTexture>)reinterpret_cast<void *>(nativeTex.object);
+  id<MTLTexture> metalTexture = (__bridge id<MTLTexture>)reinterpret_cast<void *>(nativeTex.object);
 
   const auto *commandBufferHandles =
-      static_cast<const QRhiMetalCommandBufferNativeHandles *>(
-          commandBuffer->nativeHandles());
+      static_cast<const QRhiMetalCommandBufferNativeHandles *>(commandBuffer->nativeHandles());
   id<MTLCommandBuffer> metalCommandBuffer =
       (__bridge id<MTLCommandBuffer>)commandBufferHandles->commandBuffer;
 

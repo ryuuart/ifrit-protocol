@@ -32,20 +32,17 @@
 //       src/common/compose/sketch/sketches/psx_doom_fire.cpp \
 //       --frame /tmp/psx_doom_fire.png --at 6.0
 
-#include <sigilsketch/Sketch.h>
-
-#include <sigilcompose/Console.h>
-#include <sigilcompose/Kinetic.h>
-#include <sigilcompose/Material.h>
-
-#include <sigilweave/ports/SystemFontManager.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/Console.h>
+#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Material.h>
+#include <sigilsketch/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -88,9 +85,9 @@ constexpr SkColor4f kAmber = hex(0xFFB000);
 
 // Geometry. The buffer dimensions are the source's; everything else is
 // this study's layout, sized so the blit stays an integer scale.
-constexpr int kFireW = 320;   // FIRE_WIDTH
-constexpr int kFireH = 168;   // FIRE_HEIGHT
-constexpr int kBlit = 3;      // exact integer nearest-neighbour scale
+constexpr int kFireW = 320;  // FIRE_WIDTH
+constexpr int kFireH = 168;  // FIRE_HEIGHT
+constexpr int kBlit = 3;     // exact integer nearest-neighbour scale
 constexpr float kPanelW = kFireW * kBlit;  // 960
 constexpr float kPanelH = kFireH * kBlit;  // 504
 constexpr int kSwatch = 24;                // 37*24 + 36*2 = 960 exactly
@@ -104,7 +101,7 @@ constexpr double kSimStep = 1.0 / kSimHz;
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char *family, SkFontStyle style) {
+sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
   auto mgr = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
   return f ? f : mgr->matchFamilyStyle(nullptr, style);
@@ -167,40 +164,40 @@ Element chip(Element content, float alpha = 0.72f) {
   return c.child(std::move(content));
 }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 
 struct PsxDoomFire : sigil::compose::sketch::Sketch {
   // --- the automaton's state: one buffer, mutated in place ---
   std::vector<uint8_t> heat;
-  std::array<uint32_t, 37> lut{};   // heat → premultiplied RGBA8888 word
-  SkBitmap bitmap;                  // 320×168, rewritten once per sim tick
-  sk_sp<SkImage> frame;             // what custom() blits every render frame
-  std::array<float, kFireH> rowMean{}; // mean heat per row — the decay curve
-  uint32_t rng = 0x9E3779B9u;       // xorshift32 state, reseeded in setup()
+  std::array<uint32_t, 37> lut{};  // heat → premultiplied RGBA8888 word
+  SkBitmap bitmap;                 // 320×168, rewritten once per sim tick
+  sk_sp<SkImage> frame;            // what custom() blits every render frame
+  std::array<float, kFireH> rowMean{};  // mean heat per row — the decay curve
+  uint32_t rng = 0x9E3779B9u;           // xorshift32 state, reseeded in setup()
 
   // --- clocks ---
-  double accumulator = 0.0;         // the fixed-timestep bank
-  uint64_t simSteps = 0;            // sim ticks since setup
+  double accumulator = 0.0;  // the fixed-timestep bank
+  uint64_t simSteps = 0;     // sim ticks since setup
   uint64_t drawFrames = 0;
   double elapsed = 0.0;
   double drawHz = 60.0;
 
   // --- bound outputs ---
-  ch::Output<float> pulse{0.0f};    // swatch-36 energy strobe (τ ≈ 20 ms)
-  ch::Output<float> blink{1.0f};    // console cursor square wave
+  ch::Output<float> pulse{0.0f};  // swatch-36 energy strobe (τ ≈ 20 ms)
+  ch::Output<float> blink{1.0f};  // console cursor square wave
 
   // --- console ---
   console::LineRing ring{64};
   size_t bootLine = 0;
-  double nextBoot = 0.20;           // first boot line lands at 200 ms
+  double nextBoot = 0.20;  // first boot line lands at 200 ms
   bool bootDone = false;
 
   // =========================================================================
   // The algorithm, verbatim.
 
-  float rand01() { // xorshift32
+  float rand01() {  // xorshift32
     rng ^= rng << 13;
     rng ^= rng >> 17;
     rng ^= rng << 5;
@@ -210,13 +207,13 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   void seed() {
     heat.assign((size_t)kFireW * kFireH, 0);
     for (int x = 0; x < kFireW; ++x)
-      heat[(size_t)(kFireH - 1) * kFireW + x] = 36; // bottom row = max, once
+      heat[(size_t)(kFireH - 1) * kFireW + x] = 36;  // bottom row = max, once
   }
 
   void spreadFire(int src) {
     const uint8_t pixel = heat[(size_t)src];
     if (pixel == 0) {
-      heat[(size_t)(src - kFireW)] = 0; // no lateral drift when already cold
+      heat[(size_t)(src - kFireW)] = 0;  // no lateral drift when already cold
       return;
     }
     // round(random()*3) — NOT uniform: P(0)=P(3)=1/6, P(1)=P(2)=1/3.
@@ -238,17 +235,15 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     // source before it is overwritten. Descending (or double buffering)
     // changes the flame's shape.
     for (int x = 0; x < kFireW; ++x)
-      for (int y = 1; y < kFireH; ++y)
-        spreadFire(y * kFireW + x);
+      for (int y = 1; y < kFireH; ++y) spreadFire(y * kFireW + x);
   }
 
   /** heat[] → SkBitmap through the hard 37-entry LUT. No interpolation:
    *  the banding is the technique. Index 0 writes alpha 0 (the PSX
    *  "black pixels need to be transparent to show DOOM logo" key). */
   void rasterize() {
-    uint32_t *px = (uint32_t *)bitmap.getPixels();
-    if (!px)
-      return;
+    uint32_t* px = (uint32_t*)bitmap.getPixels();
+    if (!px) return;
     for (int y = 0; y < kFireH; ++y) {
       uint32_t sum = 0;
       const size_t base = (size_t)y * kFireW;
@@ -259,23 +254,21 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       }
       rowMean[(size_t)y] = (float)sum / (float)kFireW;
     }
-    frame = bitmap.asImage(); // mutable bitmap → copy; safe to keep drawing
+    frame = bitmap.asImage();  // mutable bitmap → copy; safe to keep drawing
   }
 
   // =========================================================================
   // Paint programs (the escape hatch: content, not just paint, is volatile)
 
   PaintProgram fireProgram() {
-    return [this](SkCanvas &canvas, const PaintContext &ctx) {
-      if (!frame)
-        return;
+    return [this](SkCanvas& canvas, const PaintContext& ctx) {
+      if (!frame) return;
       // The whole per-frame cost: ONE nearest-neighbour blit. No sim work
       // happens here — that is what decouples 27 Hz from the render rate.
-      canvas.drawImageRect(
-          frame, SkRect::MakeIWH(kFireW, kFireH),
-          SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
-          SkSamplingOptions(SkFilterMode::kNearest), nullptr,
-          SkCanvas::kStrict_SrcRectConstraint);
+      canvas.drawImageRect(frame, SkRect::MakeIWH(kFireW, kFireH),
+                           SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                           SkSamplingOptions(SkFilterMode::kNearest), nullptr,
+                           SkCanvas::kStrict_SrcRectConstraint);
     };
   }
 
@@ -285,13 +278,13 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
    *  speak the same 37 colors. Accumulated in rasterize() on the SIM clock;
    *  this program only draws rects. */
   PaintProgram profileProgram() {
-    return [this](SkCanvas &canvas, const PaintContext &ctx) {
+    return [this](SkCanvas& canvas, const PaintContext& ctx) {
       const float w = ctx.size.width(), h = ctx.size.height();
       const float step = w / (float)kFireH;
       SkPaint bar;
       bar.setAntiAlias(false);
       for (int i = 0; i < kFireH; ++i) {
-        const float m = rowMean[(size_t)(kFireH - 1 - i)]; // bottom → top
+        const float m = rowMean[(size_t)(kFireH - 1 - i)];  // bottom → top
         const int idx = std::clamp((int)std::lround(m), 0, 36);
         const float bh = std::max(1.0f, (m / 36.0f) * h);
         bar.setColor4f(idx == 0 ? hex(0x24242A) : hex(kPalette[idx]), nullptr);
@@ -310,12 +303,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
    *  different crop and a bigger integer zoom, with the cell lattice drawn
    *  on top so it reads as a byte array rather than a second flame. */
   PaintProgram inspectorProgram() {
-    return [this](SkCanvas &canvas, const PaintContext &ctx) {
-      if (!frame)
-        return;
-      const SkRect src = SkRect::MakeXYWH((float)kCropX, (float)kCropY,
-                                          (float)kInspectCells,
-                                          (float)kInspectRows);
+    return [this](SkCanvas& canvas, const PaintContext& ctx) {
+      if (!frame) return;
+      const SkRect src =
+          SkRect::MakeXYWH((float)kCropX, (float)kCropY, (float)kInspectCells,
+                           (float)kInspectRows);
       const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
       canvas.drawImageRect(frame, src, dst,
                            SkSamplingOptions(SkFilterMode::kNearest), nullptr,
@@ -348,11 +340,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   Element title() {
     GlyphFx fx;
     fx.effect = glyphfx::rise(24);
-    fx.stagger = {.eachMs = 28, .durationMs = 480}; // Kinetic.h cadence
+    fx.stagger = {.eachMs = 28, .durationMs = 480};  // Kinetic.h cadence
     // Master progress spans durationMs + eachMs·(N-1) of virtual time.
-    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 872ms,
-                            .ease = &ch::easeNone,
-                            .delay = 120ms});
+    fx.progress =
+        animate(from(0.0f).to(1.0f),
+                {.duration = 872ms, .ease = &ch::easeNone, .delay = 120ms});
     return text(toU8("DOOM FIRE, 1995"), type(heavyFace(), 50, kBone, -0.6f))
         .key("title")
         .glyphFx(std::move(fx));
@@ -361,8 +353,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so
    *  the letterforms hold their edge where a flame tongue crosses them. */
   sigil::weave::TextStyle doomType() {
-    sigil::weave::TextStyle s =
-        type(heavyFace(), 186, hex(0xC23A1C), 34.0f);
+    sigil::weave::TextStyle s = type(heavyFace(), 186, hex(0xC23A1C), 34.0f);
     s.paint.addUnderlay(sigil::weave::PaintLayer::outline(
         hex(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
     return s;
@@ -376,13 +367,14 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                      "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
                      "\xc2\xb7 DoomFirePSX/flames.html"),
                 ui(11.5f, kSteel, 0.2f))
-        .opacity(animate(from(0.0f).to(1.0f), {.duration = 320ms, .delay = 200ms}));
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 320ms, .delay = 200ms}));
   }
 
   Element header() {
     return box()
         .column()
-        .shrink(0) // the body row is grow(1); never let it steal header px
+        .shrink(0)  // the body row is grow(1); never let it steal header px
         .gap(5)
         .child(eyebrow())
         .child(title())
@@ -509,30 +501,28 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     std::vector<Element> swatches;
     swatches.reserve(37);
     for (int i = 0; i < 37; ++i) {
-      Element sw = box()
-                       .width(kSwatch)
-                       .height(34)
-                       .shrink(0)
-                       .fill(Material::solid(hex(kPalette[i])))
-                       .transformOrigin(0.5f, 1.0f)
-                       .scale(animate(from(0.0f).to(1.0f), {.duration = 220ms,
-                                        .ease = &easeOutBack}));
-      if (i == 0) // the transparent one — show the key, not the color
+      Element sw =
+          box()
+              .width(kSwatch)
+              .height(34)
+              .shrink(0)
+              .fill(Material::solid(hex(kPalette[i])))
+              .transformOrigin(0.5f, 1.0f)
+              .scale(animate(from(0.0f).to(1.0f),
+                             {.duration = 220ms, .ease = &easeOutBack}));
+      if (i == 0)  // the transparent one — show the key, not the color
         sw.fill(Material::solid(hex(0x070707)))
-            .stroke(stroke(1.0f, Fill::color(kKeyline),
-                           PathFormat::Align::Inner));
-      if (i == 36) // the energy strobe — one pulse per simulation tick
+            .stroke(
+                stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
+      if (i == 36)  // the energy strobe — one pulse per simulation tick
         sw.opacity(&pulse);
       swatches.push_back(std::move(sw));
     }
     return box()
         .column()
         .gap(6)
-        .child(box()
-                   .row()
-                   .gap(2)
-                   .staggerChildren(12ms)
-                   .children(std::move(swatches)))
+        .child(box().row().gap(2).staggerChildren(12ms).children(
+            std::move(swatches)))
         .child(box()
                    .row()
                    .child(text(toU8("\xe2\x86\x91 IDX 0 \xc2\xb7 ALPHA 0 "
@@ -608,7 +598,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(slot("stats"));
   }
 
-  Element statRow(const char *label, std::string value, SkColor4f color) {
+  Element statRow(const char* label, std::string value, SkColor4f color) {
     return box()
         .row()
         .child(text(toU8(label), mono(10.5f, kSteel, 0.8f)))
@@ -680,8 +670,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   // the whole tree.
   Element readout() {
     char buf[64];
-    std::snprintf(buf, sizeof buf, "STEP %06llu",
-                  (unsigned long long)simSteps);
+    std::snprintf(buf, sizeof buf, "STEP %06llu", (unsigned long long)simSteps);
     return box()
         .row()
         .gap(8)
@@ -703,13 +692,13 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(statRow("SIM RATE", rate, kAmber))
         .child(statRow("DRAW RATE", draw, kBone))
         .child(statRow("DRAW / SIM", ratio, kSteel))
-        .child(statRow("CELLS / STEP",
-                       std::to_string(kFireW * (kFireH - 1)), kSteel));
+        .child(statRow("CELLS / STEP", std::to_string(kFireW * (kFireH - 1)),
+                       kSteel));
   }
 
   // =========================================================================
 
-  void setup(sketch::SketchContext &ctx) override {
+  void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1360, 760);
     ctx.background(kInk);
 
@@ -730,8 +719,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       const uint32_t rgb = kPalette[i];
       const uint32_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF,
                      b = rgb & 0xFF;
-      lut[(size_t)i] = i == 0 ? 0u
-                              : (r | (g << 8) | (b << 16) | (0xFFu << 24));
+      lut[(size_t)i] = i == 0 ? 0u : (r | (g << 8) | (b << 16) | (0xFFu << 24));
     }
 
     bitmap.allocPixels(SkImageInfo::Make(kFireW, kFireH, kRGBA_8888_SkColorType,
@@ -747,12 +735,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     // NOTE: SketchContext is a per-call VALUE the host rebuilds every frame —
     // capturing it by reference would dangle. Capture the Composer, which is
     // host-owned and stable across the sketch's life.
-    Composer &composer = ctx.composer;
+    Composer& composer = ctx.composer;
     ctx.ticker.add([this, &composer](double dt) {
       elapsed += dt;
       ++drawFrames;
-      if (dt > 0.0)
-        drawHz = drawHz * 0.9 + (1.0 / dt) * 0.1;
+      if (dt > 0.0) drawHz = drawHz * 0.9 + (1.0 / dt) * 0.1;
 
       accumulator += dt;
       bool stepped = false;
@@ -774,13 +761,12 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       // Energy strobe: exponential decay with a 20 ms time constant, reset
       // to 1 on every simulation tick.
       float p = pulse.value() * (float)std::exp(-dt / 0.02);
-      if (stepped)
-        p = 1.0f;
+      if (stepped) p = 1.0f;
       pulse = 0.22f + 0.78f * std::clamp(p, 0.0f, 1.0f);
 
       // Console boot: append on the DATA path (one mount per line, O(1)
       // reconciliation — the seq-id keys keep every retained line's cache).
-      static const char *kBoot[] = {
+      static const char* kBoot[] = {
           "> FIRE_WIDTH   = 320",
           "> FIRE_HEIGHT  = 168",
           "> TICK         = 27 Hz (fixed)",
@@ -796,15 +782,14 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         const size_t indented = kBoot[bootLine][2] == ' ' ? 0 : SIZE_MAX;
         ring.append(toU8(kBoot[bootLine]), indented);
         ++bootLine;
-        nextBoot += 0.11; // 110 ms between lines — a stagger, as data
+        nextBoot += 0.11;  // 110 ms between lines — a stagger, as data
         composer.render(describe());
-        if (bootLine == kBootCount)
-          bootDone = true;
+        if (bootLine == kBootCount) bootDone = true;
       }
       // Cursor: square wave, 500 on / 500 off, once the boot lines land.
-      blink = !bootDone ? 1.0f
-                        : (std::fmod(elapsed - nextBoot, 1.0) < 0.5 ? 1.0f
-                                                                    : 0.0f);
+      blink = !bootDone
+                  ? 1.0f
+                  : (std::fmod(elapsed - nextBoot, 1.0) < 0.5 ? 1.0f : 0.0f);
       return true;
     });
 
@@ -813,7 +798,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     ctx.composer.renderSlot("stats", stats());
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(PsxDoomFire)

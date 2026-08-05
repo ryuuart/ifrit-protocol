@@ -15,6 +15,6 @@ void disable();
 // non-renderable; Qt responds by removing that QQuickWindow from its render
 // thread, which also stops offscreen Syphon publishing tied to that thread.
 // Returns false if the native Cocoa window could not be configured.
-bool keepRenderingWhileOccluded(QWindow *window);
+bool keepRenderingWhileOccluded(QWindow* window);
 
-} // namespace AppNap
+}  // namespace AppNap

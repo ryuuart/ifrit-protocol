@@ -1,4 +1,7 @@
 #include "GraphicsConfig.h"
+
+#include <spdlog/spdlog.h>
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -7,52 +10,46 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
-#include <spdlog/spdlog.h>
 
 void BoxStyleConfig::setWidth(qreal width) {
-  if (qFuzzyCompare(m_width, width))
-    return;
+  if (qFuzzyCompare(m_width, width)) return;
   m_width = width;
   emit changed();
 }
 
 void BoxStyleConfig::setHeight(qreal height) {
-  if (qFuzzyCompare(m_height, height))
-    return;
+  if (qFuzzyCompare(m_height, height)) return;
   m_height = height;
   emit changed();
 }
 
 void BoxStyleConfig::setPadding(qreal padding) {
-  if (qFuzzyCompare(m_padding, padding))
-    return;
+  if (qFuzzyCompare(m_padding, padding)) return;
   m_padding = padding;
   emit changed();
 }
 
 void BoxStyleConfig::setDistance(qreal distance) {
-  if (qFuzzyCompare(m_distance, distance))
-    return;
+  if (qFuzzyCompare(m_distance, distance)) return;
   m_distance = distance;
   emit changed();
 }
 
 void CanvasSizeConfig::setWidth(int width) {
-  if (m_width == width)
-    return;
+  if (m_width == width) return;
   m_width = width;
   emit changed();
 }
 
 void CanvasSizeConfig::setHeight(int height) {
-  if (m_height == height)
-    return;
+  if (m_height == height) return;
   m_height = height;
   emit changed();
 }
 
-GraphicsConfig::GraphicsConfig(QObject *parent)
-    : QObject(parent), m_box(new BoxStyleConfig(this)),
+GraphicsConfig::GraphicsConfig(QObject* parent)
+    : QObject(parent),
+      m_box(new BoxStyleConfig(this)),
       m_canvas(new CanvasSizeConfig(this)) {
   m_font.setBold(true);
   m_font.setPointSize(36);
@@ -65,49 +62,43 @@ GraphicsConfig::GraphicsConfig(QObject *parent)
   load();
 }
 
-void GraphicsConfig::setColor(const QColor &color) {
-  if (m_color == color)
-    return;
+void GraphicsConfig::setColor(const QColor& color) {
+  if (m_color == color) return;
   m_color = color;
   emit colorChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setStrokeWidth(qreal strokeWidth) {
-  if (qFuzzyCompare(m_strokeWidth, strokeWidth))
-    return;
+  if (qFuzzyCompare(m_strokeWidth, strokeWidth)) return;
   m_strokeWidth = strokeWidth;
   emit strokeWidthChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setScale(qreal scale) {
-  if (qFuzzyCompare(m_scale, scale))
-    return;
+  if (qFuzzyCompare(m_scale, scale)) return;
   m_scale = scale;
   emit scaleChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setLabelOffset(qreal labelOffset) {
-  if (qFuzzyCompare(m_labelOffset, labelOffset))
-    return;
+  if (qFuzzyCompare(m_labelOffset, labelOffset)) return;
   m_labelOffset = labelOffset;
   emit labelOffsetChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setPointDistance(qreal pointDistance) {
-  if (qFuzzyCompare(m_pointDistance, pointDistance))
-    return;
+  if (qFuzzyCompare(m_pointDistance, pointDistance)) return;
   m_pointDistance = pointDistance;
   emit pointDistanceChanged();
   bumpGeneration();
 }
 
-void GraphicsConfig::setFont(const QFont &font) {
-  if (m_font == font)
-    return;
+void GraphicsConfig::setFont(const QFont& font) {
+  if (m_font == font) return;
   m_font = font;
   emit fontChanged();
   bumpGeneration();
@@ -134,8 +125,7 @@ bool GraphicsConfig::load() {
     // first save() writes the per-user location, which wins from then on —
     // settings stored next to the binary migrate on the next save.
     const QString legacyPath = legacyConfigFilePath();
-    if (QFile::exists(legacyPath))
-      path = legacyPath;
+    if (QFile::exists(legacyPath)) path = legacyPath;
   }
 
   QFile file(path);

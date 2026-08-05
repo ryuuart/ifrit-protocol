@@ -34,7 +34,7 @@ class WebEngine;
  * first use. Holding a WebView keeps its WebEngine alive.
  */
 class WebView {
-public:
+ public:
   /**
    * A published page snapshot — everything about the latest repaint in
    * one value (the acquire-latest-frame shape of Android's ImageReader
@@ -56,7 +56,7 @@ public:
    */
   struct Frame {
     sk_sp<SkImage> image;
-    void *nativeTexture = nullptr;
+    void* nativeTexture = nullptr;
     int width = 0;
     int height = 0;
     SkIRect dirtyBounds = SkIRect::MakeEmpty();
@@ -99,7 +99,7 @@ public:
    *  Frame carries metadata and (CPU engines) the raster image; GPU
    *  consumers treat it as a signal and acquire via frame(recorder) on
    *  their own render thread. */
-  void setFrameCallback(std::function<void(const Frame &)> callback);
+  void setFrameCallback(std::function<void(const Frame&)> callback);
 
   /**
    * Acquires the latest published frame. Falsy until the first repaint.
@@ -112,7 +112,7 @@ public:
    *
    * Call from the thread that owns @p recorder.
    */
-  Frame frame(skgpu::graphite::Recorder *recorder = nullptr) const;
+  Frame frame(skgpu::graphite::Recorder* recorder = nullptr) const;
 
   /** Cheap poll: version of the latest published frame (CPU or GPU).
    *  Redraw consumers skip work while this hasn't moved. */
@@ -121,8 +121,8 @@ public:
   /** Draws the latest published frame scaled into @p dst. On GPU engines
    *  @p canvas must be Graphite-backed (its recorder wraps the frame
    *  texture). No-op before the first repaint. */
-  void draw(SkCanvas &canvas, const SkRect &dst,
-            const SkSamplingOptions &sampling = SkSamplingOptions(
+  void draw(SkCanvas& canvas, const SkRect& dst,
+            const SkSamplingOptions& sampling = SkSamplingOptions(
                 SkFilterMode::kLinear, SkMipmapMode::kNone)) const;
 
   /**
@@ -131,7 +131,7 @@ public:
    * between renderFrame() calls, or inside a frame callback — and only
    * until the next renderFrame()/resize. Returns false when unavailable.
    */
-  bool peekPixels(SkPixmap *pixmap) const;
+  bool peekPixels(SkPixmap* pixmap) const;
 
   /** Mouse input, in view pixels. `button` is the button held during the
    *  move, or the button pressed/released. */
@@ -144,7 +144,7 @@ public:
 
   class Impl;
 
-private:
+ private:
   WebView(std::shared_ptr<WebEngine> engine, std::shared_ptr<Impl> impl);
 
   std::shared_ptr<WebEngine> m_engine;
@@ -153,4 +153,4 @@ private:
   friend class WebEngine;
 };
 
-} // namespace sigil::scry
+}  // namespace sigil::scry

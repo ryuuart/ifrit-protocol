@@ -4,14 +4,6 @@
 // of the node's own paint with live children over it, a whole-subtree bake
 // held by a value memo, and Cache::Texture raster bakes.
 
-#include "ComposeRuntime.h"
-
-#include <sigilimage/ImageAsset.h>
-
-#include <sigilweave/Choreograph.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Shaper.h> // makeFont — textFill's cap-height metrics
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
@@ -26,11 +18,17 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
+#include <sigilimage/ImageAsset.h>
+#include <sigilweave/Choreograph.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
-#include <cstring>
 #include <chrono>
 #include <cmath>
+#include <cstring>
+
+#include "ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -41,33 +39,33 @@ using namespace detail;
 
 namespace {
 
-inline const Material *liveMaterialOf(const ElementNode &n) {
+inline const Material* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
-inline const Material *metricFillOf(const ElementNode &n) {
+inline const Material* metricFillOf(const ElementNode& n) {
   return n.textData && n.textData->metricFill ? &*n.textData->metricFill
                                               : nullptr;
 }
-inline const GlyphFx *glyphFxOf(const ElementNode &n) {
+inline const GlyphFx* glyphFxOf(const ElementNode& n) {
   return n.textData && n.textData->glyphFx ? &*n.textData->glyphFx : nullptr;
 }
-inline const sigil::image::ImageAsset *imageAssetOf(const ElementNode &n) {
+inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
 }
-inline const Effect *layerEffectOf(const ElementNode &n) {
+inline const Effect* layerEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->layerEffect ? &*n.fxData->layerEffect : nullptr;
 }
-inline const Effect *backdropEffectOf(const ElementNode &n) {
+inline const Effect* backdropEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect
                                               : nullptr;
 }
-inline const std::vector<Echo> &echoesOf(const ElementNode &n) {
+inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
   static const std::vector<Echo> kNoEchoes;
   return n.fxData ? n.fxData->echoes : kNoEchoes;
 }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // VariationDrive — the paint-side gate + per-frame coordinate
@@ -79,19 +77,16 @@ namespace {
  *  driven axis) and refuses advance-variant axes with a one-time warning —
  *  the shaped positions must stay the truth. Returns a pointer to
  *  thread-local state consumed by the immediately following drawBatched. */
-const sigil::weave::ParagraphLayout::LiveVariations *
-liveDriveImpl(Instance &inst, const ElementNode &node,
-              sigil::weave::FontContext &fonts) {
-  const TextData *text = node.textData ? &*node.textData : nullptr;
-  if (!text || !text->driveValue)
-    return nullptr;
+const sigil::weave::ParagraphLayout::LiveVariations* liveDriveImpl(
+    Instance& inst, const ElementNode& node, sigil::weave::FontContext& fonts) {
+  const TextData* text = node.textData ? &*node.textData : nullptr;
+  if (!text || !text->driveValue) return nullptr;
   if (inst.driveProbe < 0) {
     char tag[5] = {text->driveTag[0], text->driveTag[1], text->driveTag[2],
                    text->driveTag[3], 0};
     bool invariant = false, sawTypeface = false;
-    for (const sigil::weave::PositionedRun &run : inst.textLayout.runs) {
-      if (!run.shaped || !run.shaped->typeface)
-        continue;
+    for (const sigil::weave::PositionedRun& run : inst.textLayout.runs) {
+      if (!run.shaped || !run.shaped->typeface) continue;
       sawTypeface = true;
       if (!fonts.axisIsAdvanceInvariant(run.shaped->typeface, tag)) {
         invariant = false;
@@ -101,14 +96,14 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
     }
     inst.driveProbe = (sawTypeface && invariant) ? 1 : 0;
     if (inst.driveProbe == 0)
-      SkDebugf("sigilcompose variationDrive: axis \"%s\" is absent or "
-               "moves advances on this font — drive refused (text draws at "
-               "its shaped coordinates; GRAD is the advance-invariant "
-               "weight, or re-render discretely)\n",
-               tag);
+      SkDebugf(
+          "sigilcompose variationDrive: axis \"%s\" is absent or "
+          "moves advances on this font — drive refused (text draws at "
+          "its shaped coordinates; GRAD is the advance-invariant "
+          "weight, or re-render discretely)\n",
+          tag);
   }
-  if (inst.driveProbe != 1)
-    return nullptr;
+  if (inst.driveProbe != 1) return nullptr;
   static thread_local sigil::weave::FontVariation coordinate;
   static thread_local sigil::weave::ParagraphLayout::LiveVariations live;
   std::memcpy(coordinate.tag, text->driveTag, 4);
@@ -141,10 +136,10 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
  *  Cost is one traversal of the subtree per frame, reading a handful of
  *  floats per node — set against the entire paint of that subtree, which is
  *  what it decides whether to skip. */
-void collectGroupScalars(const Instance &inst, bool root,
-                         std::vector<float> &out) {
-  const ElementNode &node = *inst.desc;
-  const auto push = [&](Instance::Slot slot, const Animatable<float> &v) {
+void collectGroupScalars(const Instance& inst, bool root,
+                         std::vector<float>& out) {
+  const ElementNode& node = *inst.desc;
+  const auto push = [&](Instance::Slot slot, const Animatable<float>& v) {
     if (v.binding() ||
         (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
       out.push_back(inst.resolveFloat(slot, v));
@@ -160,10 +155,9 @@ void collectGroupScalars(const Instance &inst, bool root,
   // fixed permutation of the gathered values computes the identical
   // verdict; what would break the memo is an order that varies between
   // frames for the same tree.
-  for (const SlotSpec &spec : kSlotSpecs) {
-    if (root && spec.role != SlotRole::Content)
-      continue;
-    if (const Animatable<float> *v = slotValueOf(spec, node))
+  for (const SlotSpec& spec : kSlotSpecs) {
+    if (root && spec.role != SlotRole::Content) continue;
+    if (const Animatable<float>* v = slotValueOf(spec, node))
       push(spec.slot, *v);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE
@@ -171,16 +165,16 @@ void collectGroupScalars(const Instance &inst, bool root,
   // connecting or disconnecting.
   if (node.hasMasks()) {
     size_t slot = 0;
-    for (const Mask &m : node.fxData->masks) {
-      const auto pushGate = [&](const Animatable<float> &v) {
-        const AnimatedFloat *a =
+    for (const Mask& m : node.fxData->masks) {
+      const auto pushGate = [&](const Animatable<float>& v) {
+        const AnimatedFloat* a =
             slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
         if (v.binding() || (a && a->value.isConnected()))
           out.push_back(inst.resolveFloatAt(a, v));
         ++slot;
       };
       if (m.with.kind == Gate::Kind::Spans)
-        for (const Spans::Term &t : m.with.where.terms) {
+        for (const Spans::Term& t : m.with.where.terms) {
           pushGate(t.begin);
           pushGate(t.end);
           pushGate(t.offset);
@@ -194,11 +188,11 @@ void collectGroupScalars(const Instance &inst, bool root,
   if (inst.anims[Instance::kFillLerp] &&
       inst.anims[Instance::kFillLerp]->value.isConnected())
     out.push_back(inst.anims[Instance::kFillLerp]->value.value());
-  for (const auto &child : inst.children)
+  for (const auto& child : inst.children)
     collectGroupScalars(*child, false, out);
 }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Stroke passes: resolving each pass's claim, and saying so when two
@@ -206,9 +200,8 @@ void collectGroupScalars(const Instance &inst, bool root,
 
 namespace {
 
-std::string passLabel(const detail::StrokePass &pass, size_t index) {
-  if (!pass.name.empty())
-    return "\"" + pass.name + "\"";
+std::string passLabel(const detail::StrokePass& pass, size_t index) {
+  if (!pass.name.empty()) return "\"" + pass.name + "\"";
   return "#" + std::to_string(index);
 }
 
@@ -216,36 +209,34 @@ std::string passLabel(const detail::StrokePass &pass, size_t index) {
  *  no sensible rendering, so it is said out loud once per shape of the
  *  problem. Layering two marks on ONE run is a composite brush, and the
  *  message says so — that is the only place an author learns it. */
-void warnOverlappingClaims(const std::string &a, const std::string &b,
+void warnOverlappingClaims(const std::string& a, const std::string& b,
                            Span shared) {
   static std::vector<std::string> seen;
   const std::string key = a + "|" + b;
-  for (const std::string &k : seen)
-    if (k == key)
-      return;
-  if (seen.size() >= 16)
-    return;
+  for (const std::string& k : seen)
+    if (k == key) return;
+  if (seen.size() >= 16) return;
   seen.push_back(key);
-  SkDebugf("compose: span passes %s and %s both claim %.3f–%.3f of the "
-           "same boundary. One boundary, one mark: spans partition it, they "
-           "do not stack — and the law reads across BOTH z-halves, so a "
-           "background(spans, ...) pass and a stroke(spans, ...) pass "
-           "collide the same way two strokes do. To layer two marks on one "
-           "run, make them ONE pass with a composite brush "
-           "(Brush{}.layer(a).layer(b), or a LayeredBrush); to keep them apart, "
-           "give the second pass a disjoint span (or spans::rest()).\n",
-           a.c_str(), b.c_str(), shared.begin, shared.end);
+  SkDebugf(
+      "compose: span passes %s and %s both claim %.3f–%.3f of the "
+      "same boundary. One boundary, one mark: spans partition it, they "
+      "do not stack — and the law reads across BOTH z-halves, so a "
+      "background(spans, ...) pass and a stroke(spans, ...) pass "
+      "collide the same way two strokes do. To layer two marks on one "
+      "run, make them ONE pass with a composite brush "
+      "(Brush{}.layer(a).layer(b), or a LayeredBrush); to keep them apart, "
+      "give the second pass a disjoint span (or spans::rest()).\n",
+      a.c_str(), b.c_str(), shared.begin, shared.end);
 }
 
-} // namespace
+}  // namespace
 
-std::vector<std::vector<Span>>
-detail::Instance::resolveSpans(const SkPath &outline) const {
+std::vector<std::vector<Span>> detail::Instance::resolveSpans(
+    const SkPath& outline) const {
   std::vector<std::vector<Span>> out;
-  const ElementNode &node = *desc;
-  if (!node.hasStrokePasses())
-    return out;
-  const std::vector<StrokePass> &passes = node.strokeData->passes;
+  const ElementNode& node = *desc;
+  if (!node.hasStrokePasses()) return out;
+  const std::vector<StrokePass>& passes = node.strokeData->passes;
   out.resize(passes.size());
 
   // Every animatable endpoint, resolved for this frame, in the order the
@@ -253,14 +244,14 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   std::vector<float> values;
   values.reserve(spanAnims.size());
   size_t slot = 0;
-  auto push = [&](const Animatable<float> &v) {
-    const AnimatedFloat *a =
+  auto push = [&](const Animatable<float>& v) {
+    const AnimatedFloat* a =
         slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));
     ++slot;
   };
-  for (const StrokePass &pass : passes)
-    for (const Spans::Term &term : pass.where.terms) {
+  for (const StrokePass& pass : passes)
+    for (const Spans::Term& term : pass.where.terms) {
       push(term.begin);
       push(term.end);
       push(term.offset);
@@ -272,9 +263,9 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
 
   size_t valueBase = 0;
   for (size_t i = 0; i < passes.size(); ++i) {
-    std::vector<float> mine(values.begin() + (long)valueBase,
-                            values.begin() +
-                                (long)(valueBase + passes[i].where.valueCount()));
+    std::vector<float> mine(
+        values.begin() + (long)valueBase,
+        values.begin() + (long)(valueBase + passes[i].where.valueCount()));
     valueBase += passes[i].where.valueCount();
     in.values = &mine;
     out[i] = passes[i].where.resolve(in);
@@ -284,13 +275,11 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   // against. Bare rest() takes everything the other CLAIMING passes left;
   // rest("name") is one named pass's complement and may overlay.
   for (size_t i = 0; i < passes.size(); ++i) {
-    if (!passes[i].where.hasRest())
-      continue;
+    if (!passes[i].where.hasRest()) continue;
     std::vector<Span> against;
     bool named = false;
-    for (const Spans::Term &term : passes[i].where.terms) {
-      if (term.rule != Spans::Rule::Rest || term.key.empty())
-        continue;
+    for (const Spans::Term& term : passes[i].where.terms) {
+      if (term.rule != Spans::Rule::Rest || term.key.empty()) continue;
       named = true;
       for (size_t j = 0; j < passes.size(); ++j)
         if (passes[j].name == term.key)
@@ -311,11 +300,9 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   // stroke never gets here — it is an ordinary foreground — so overlaying
   // marks on a whole boundary is never diagnosed as a claim collision.
   for (size_t i = 0; i < passes.size(); ++i) {
-    if (passes[i].where.hasRest())
-      continue;
+    if (passes[i].where.hasRest()) continue;
     for (size_t j = i + 1; j < passes.size(); ++j) {
-      if (passes[j].where.hasRest())
-        continue;
+      if (passes[j].where.hasRest()) continue;
       if (std::optional<Span> shared = spansOverlap(out[i], out[j]))
         warnOverlappingClaims(passLabel(passes[i], i), passLabel(passes[j], j),
                               *shared);
@@ -326,19 +313,18 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
 
 std::vector<float> detail::Instance::resolveGateValues() const {
   std::vector<float> values;
-  const ElementNode &node = *desc;
-  if (!node.hasMasks())
-    return values;
+  const ElementNode& node = *desc;
+  if (!node.hasMasks()) return values;
   size_t slot = 0;
-  const auto push = [&](const Animatable<float> &v) {
-    const AnimatedFloat *a =
+  const auto push = [&](const Animatable<float>& v) {
+    const AnimatedFloat* a =
         slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));
     ++slot;
   };
-  for (const Mask &m : node.fxData->masks) {
+  for (const Mask& m : node.fxData->masks) {
     if (m.with.kind == Gate::Kind::Spans)
-      for (const Spans::Term &t : m.with.where.terms) {
+      for (const Spans::Term& t : m.with.where.terms) {
         push(t.begin);
         push(t.end);
         push(t.offset);
@@ -350,9 +336,9 @@ std::vector<float> detail::Instance::resolveGateValues() const {
 }
 
 Fill detail::Instance::resolveBoundFill() const {
-  const ElementNode &node = *desc;
+  const ElementNode& node = *desc;
   if (node.paint.fill)
-    if (const choreograph::Output<Fill> *binding = node.paint.fill->binding())
+    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
       return binding->value();
   return {};
 }
@@ -364,9 +350,8 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
   // unbound, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const Material *m = liveMaterialOf(*desc);
-  if (!m || !m->hasBoundOffset())
-    return {};
+  const Material* m = liveMaterialOf(*desc);
+  if (!m || !m->hasBoundOffset()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};
 }
@@ -399,22 +384,20 @@ namespace {
  *  optimisation: a fully settled reveal must draw exactly the path it would
  *  have drawn with no mask on it at all, bit for bit, or adding a mask that
  *  is currently showing everything moves pixels. */
-bool claimsEverything(const std::vector<Span> &show) {
-  return show.size() == 1 && show[0].begin <= 1e-6f && show[0].end >= 1.0f - 1e-6f;
+bool claimsEverything(const std::vector<Span>& show) {
+  return show.size() == 1 && show[0].begin <= 1e-6f &&
+         show[0].end >= 1.0f - 1e-6f;
 }
 
 /** Apply a resolved SHOW set to a boundary. `cut`, when asked for, says
  *  the geometry actually changed — which only the SURFACE needs, because
  *  only the surface has a cheap rrect to fall out of. Decorations always
  *  draw a path. */
-SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
-                   bool *cut = nullptr) {
-  if (claimsEverything(show))
-    return src;
-  if (cut)
-    *cut = true;
-  if (show.empty())
-    return SkPath();
+SkPath gateOutline(const SkPath& src, const std::vector<Span>& show,
+                   bool* cut = nullptr) {
+  if (claimsEverything(show)) return src;
+  if (cut) *cut = true;
+  if (show.empty()) return SkPath();
   return detail::spanPath(src, show);
 }
 
@@ -437,7 +420,7 @@ SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
 /** Rec. 601 luma of a resolved COLOUR, as a coverage alpha. `Fill`'s colour
  *  is unpremultiplied, so the premultiplied reading is written out:
  *  `a · dot(rgb, k)`. */
-SkColor4f lumaCoverageColor(const SkColor4f &c) {
+SkColor4f lumaCoverageColor(const SkColor4f& c) {
   const float y = 0.299f * c.fR + 0.587f * c.fG + 0.114f * c.fB;
   return {0, 0, 0, std::clamp(c.fA * y, 0.0f, 1.0f)};
 }
@@ -447,7 +430,7 @@ SkColor4f lumaCoverageColor(const SkColor4f &c) {
  *  result `(0,0,0,Y')` is a valid premultiplied colour because the
  *  coefficients sum to 1, so `Y' <= a` always. */
 sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
-  static const SkRuntimeEffect *effect = [] {
+  static const SkRuntimeEffect* effect = [] {
     auto result = SkRuntimeEffect::MakeForShader(SkString(R"(
 uniform shader src;
 half4 main(float2 p) {
@@ -458,13 +441,12 @@ half4 main(float2 p) {
 )"));
     return result.effect.release();
   }();
-  if (!effect || !src)
-    return src;
+  if (!effect || !src) return src;
   SkRuntimeEffect::ChildPtr child(std::move(src));
   return effect->makeShader(nullptr, {&child, 1});
 }
 
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Volatility & caching
@@ -480,41 +462,40 @@ half4 main(float2 p) {
 // result is bit-identical to the paint-side accumulation. The settle
 // compare depends on that: an ulp of drift reads as motion, and the node
 // never releases.
-SkMatrix Composer::Impl::worldMatrixOf(Instance &inst) {
-  std::vector<Instance *> chain;
-  for (Instance *i = &inst; i; i = i->parent)
-    chain.push_back(i);
+SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
+  std::vector<Instance*> chain;
+  for (Instance* i = &inst; i; i = i->parent) chain.push_back(i);
   SkMatrix m = SkMatrix::I();
   for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
-    Instance &node = **it;
+    Instance& node = **it;
     const SkRect rect = instanceRect(node);
     m.preTranslate(rect.left(), rect.top());
-    m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint,
-                                         rect.width(), rect.height()));
+    m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint, rect.width(),
+                                         rect.height()));
   }
   return m;
 }
 
 namespace {
-std::array<float, 6> worldSix(const SkMatrix &w) {
+std::array<float, 6> worldSix(const SkMatrix& w) {
   return {w.getScaleX(), w.getSkewX(),  w.getTranslateX(),
           w.getSkewY(),  w.getScaleY(), w.getTranslateY()};
 }
-} // namespace
+}  // namespace
 
-std::array<float, 6> Composer::Impl::worldScalarsOf(Instance &inst) {
+std::array<float, 6> Composer::Impl::worldScalarsOf(Instance& inst) {
   if (!inst.hasWorldSpaceMaterial)
-    return {}; // all-zero, matching the paint-side guard
+    return {};  // all-zero, matching the paint-side guard
   return worldSix(worldMatrixOf(inst));
 }
 
 void Composer::Impl::scanReleasedScalars() {
   if (volatileDirty || releasedScalars.empty())
-    return; // a pending recompute rebuilds the list (pointers may be stale)
-  for (Instance *inst : releasedScalars) {
+    return;  // a pending recompute rebuilds the list (pointers may be stale)
+  for (Instance* inst : releasedScalars) {
     Instance::ContentScalars now;
     now.gates = inst->resolveGateValues();
-    if (const GlyphFx *g = glyphFxOf(*inst->desc))
+    if (const GlyphFx* g = glyphFxOf(*inst->desc))
       now.glyph = inst->resolveFloat(Instance::kGlyphProgress, g->progress);
     // The node→root matrix: a released world-space node whose externally
     // driven transform resumes must re-declare THE FRAME it resumes, before
@@ -528,20 +509,19 @@ void Composer::Impl::scanReleasedScalars() {
     // before its parked phase replays.
     now.pattern = inst->resolvePatternOffset();
     if (!(now == inst->settledScalars)) {
-      inst->settleFrames = 0; // the hold is over: warm up from scratch
+      inst->settleFrames = 0;  // the hold is over: warm up from scratch
       inst->settledScalars = std::move(now);
       inst->markPaintDirtyUp();
-      volatileDirty = true; // re-walk this frame, before anything paints
+      volatileDirty = true;  // re-walk this frame, before anything paints
     }
   }
 }
 
-bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
-  const ElementNode &node = *inst.desc;
+bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
+  const ElementNode& node = *inst.desc;
 
-  auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float> &v) {
-    if (v.binding())
-      return true;
+  auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float>& v) {
+    if (v.binding()) return true;
     return inst.anims[slot] && inst.anims[slot]->value.isConnected();
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
@@ -550,14 +530,13 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // compare a bounded per-node list of values and have nowhere to put an
   // open-ended pass list's endpoints.
   const bool spanVolatile = [&] {
-    if (!node.hasStrokePasses())
-      return false;
+    if (!node.hasStrokePasses()) return false;
     size_t slot = 0;
     bool live = false;
-    for (const StrokePass &pass : node.strokeData->passes) {
+    for (const StrokePass& pass : node.strokeData->passes) {
       live |= pass.what.isAnimated();
-      for (const Spans::Term &term : pass.where.terms)
-        for (const Animatable<float> *v :
+      for (const Spans::Term& term : pass.where.terms)
+        for (const Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
           if (v->binding())
             live = true;
@@ -577,31 +556,30 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   bool maskScalarLive = false, maskOpaque = false;
   if (node.hasMasks()) {
     size_t slot = 0;
-    const auto live = [&](const Animatable<float> &v) {
-      const AnimatedFloat *a =
+    const auto live = [&](const Animatable<float>& v) {
+      const AnimatedFloat* a =
           slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected()))
-        maskScalarLive = true;
+      if (v.binding() || (a && a->value.isConnected())) maskScalarLive = true;
       ++slot;
     };
-    for (const Mask &m : node.fxData->masks) {
+    for (const Mask& m : node.fxData->masks) {
       switch (m.with.kind) {
-      case Gate::Kind::Spans:
-        for (const Spans::Term &t : m.with.where.terms) {
-          live(t.begin);
-          live(t.end);
-          live(t.offset);
-        }
-        break;
-      case Gate::Kind::Edge:
-        live(m.with.fraction);
-        break;
-      case Gate::Kind::Shape:
-        break;
-      case Gate::Kind::Coverage:
-        if (m.with.coverage && m.with.coverage->isAnimated())
-          maskOpaque = true;
-        break;
+        case Gate::Kind::Spans:
+          for (const Spans::Term& t : m.with.where.terms) {
+            live(t.begin);
+            live(t.end);
+            live(t.offset);
+          }
+          break;
+        case Gate::Kind::Edge:
+          live(m.with.fraction);
+          break;
+        case Gate::Kind::Shape:
+          break;
+        case Gate::Kind::Coverage:
+          if (m.with.coverage && m.with.coverage->isAnimated())
+            maskOpaque = true;
+          break;
       }
     }
   }
@@ -624,22 +602,21 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   bool ownPaint = false;
   bool moving = false;
   bool scalarContent = false;
-  for (const SlotSpec &spec : kSlotSpecs) {
-    const Animatable<float> *v = slotValueOf(spec, node);
-    if (!v)
-      continue; // this node does not carry the block that holds the slot
+  for (const SlotSpec& spec : kSlotSpecs) {
+    const Animatable<float>* v = slotValueOf(spec, node);
+    if (!v) continue;  // this node does not carry the block that holds the slot
     switch (spec.role) {
-    case SlotRole::Opacity:
-      ownPaint |= boundOrRunning(spec.slot, *v);
-      break;
-    case SlotRole::Geometric:
-      moving |= boundOrRunning(spec.slot, *v);
-      break;
-    case SlotRole::Content:
-      scalarContent |= boundOrRunning(spec.slot, *v);
-      break;
-    case SlotRole::Bespoke:
-      break; // unreachable: slotValueOf answers nullptr for a Bespoke row
+      case SlotRole::Opacity:
+        ownPaint |= boundOrRunning(spec.slot, *v);
+        break;
+      case SlotRole::Geometric:
+        moving |= boundOrRunning(spec.slot, *v);
+        break;
+      case SlotRole::Content:
+        scalarContent |= boundOrRunning(spec.slot, *v);
+        break;
+      case SlotRole::Bespoke:
+        break;  // unreachable: slotValueOf answers nullptr for a Bespoke row
     }
   }
   inst.transformLive = moving;
@@ -664,7 +641,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
                         inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
-  const Material *nodeLiveMat = liveMaterialOf(node);
+  const Material* nodeLiveMat = liveMaterialOf(node);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as
@@ -679,18 +656,15 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
   const bool liveMat = liveMatAnimated && !patternPan;
-  const Material *mfLive = metricFillOf(node);
-  const bool metricLive = mfLive && mfLive->isAnimated(); // chrome type
+  const Material* mfLive = metricFillOf(node);
+  const bool metricLive = mfLive && mfLive->isAnimated();  // chrome type
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
     bool live = false;
-    for (const Decoration &d : node.backgrounds)
-      live |= d.isAnimated();
-    for (const Decoration &d : node.foregrounds)
-      live |= d.isAnimated();
+    for (const Decoration& d : node.backgrounds) live |= d.isAnimated();
+    for (const Decoration& d : node.foregrounds) live |= d.isAnimated();
     if (node.fxData)
-      for (const Decoration &d : node.fxData->overlays)
-        live |= d.isAnimated();
+      for (const Decoration& d : node.fxData->overlays) live |= d.isAnimated();
     return live;
   }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
@@ -708,7 +682,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // filled with every SlotRole::Content slot up in the table walk; the MASK
   // GATES join here, because their count is a property of the description
   // and no fixed slot can hold them.
-  scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
+  scalarContent |= maskScalarLive;  // a moving gate re-cuts or re-clips
   // A world-space material under a CONNECTED transform — this node's own or
   // any ancestor's, threaded down this recursion as movingAbove — has its
   // node→root matrix changing off the describe clock, and that matrix is
@@ -755,16 +729,16 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   if (scalarContent && inst.settleFrames >= Instance::kScalarSettleFrames) {
     Instance::ContentScalars now;
     now.gates = inst.resolveGateValues();
-    if (const GlyphFx *g = glyphFxOf(node))
+    if (const GlyphFx* g = glyphFxOf(node))
       now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
-    now.world = worldScalarsOf(inst);   // a held world matrix releases too
-    now.fill = inst.resolveBoundFill(); // …and a held bound fill
-    now.pattern = inst.resolvePatternOffset(); // …and a held bound pan
+    now.world = worldScalarsOf(inst);    // a held world matrix releases too
+    now.fill = inst.resolveBoundFill();  // …and a held bound fill
+    now.pattern = inst.resolvePatternOffset();  // …and a held bound pan
     if (now == inst.settledScalars) {
-      scalarContent = false; // released — provably holding still
+      scalarContent = false;  // released — provably holding still
       releasedScalars.push_back(&inst);
     } else {
-      inst.settleFrames = 0; // moved between walks: warm up again
+      inst.settleFrames = 0;  // moved between walks: warm up again
       inst.settledScalars = std::move(now);
     }
   }
@@ -783,9 +757,9 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // memo, named once, while `boundFill` and `liveMat` are handled per
   // consumer below (the fill rides the memoized scalar lane, the live
   // material has its own memo). No consumer re-enumerates.
-  const bool sharedOpaque = metricLive || cacheNone || decorLive ||
-                            imageLive || driveLive || spanVolatile ||
-                            maskOpaque || liveEffect;
+  const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
+                            driveLive || spanVolatile || maskOpaque ||
+                            liveEffect;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's
@@ -814,7 +788,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
   bool childrenGroupSafe = true;
-  for (auto &child : inst.children) {
+  for (auto& child : inst.children) {
     // A connected transform HERE moves every descendant's world matrix.
     childrenVolatile |= computeVolatile(*child, movingAbove || moving);
     childReadsBackdrop |= child->subtreeReadsBackdrop;
@@ -856,22 +830,24 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   inst.groupRootOK = node.cacheMode == Cache::Group && !opaqueToTheMemo &&
                      !worldUnderMotion && childrenGroupSafe &&
                      backdropEffectOf(node) == nullptr;
-  if (node.cacheMode == Cache::Group && !inst.groupRootOK && !inst.groupWarned) {
+  if (node.cacheMode == Cache::Group && !inst.groupRootOK &&
+      !inst.groupWarned) {
     inst.groupWarned = true;
     // Loud, because the alternative is an author seeing a node they
     // explicitly asked to bake reported as live paint, with no way to learn
     // that one descendant several levels down declined it for them.
-    SkDebugf("sigilcompose Cache::Group: \"%s\" cannot bake — %s. A group is "
-             "held by comparing FLOATS, so live materials (uTime or a bound "
-             "uniform), animated decorations, animated images, bound fill(), "
-             "variable-font drives, Cache::None leaves and non-srcOver "
-             "blends below the root all refuse it.\n",
-             node.key.empty() ? "(anon)" : node.key.c_str(),
-             opaqueToTheMemo      ? "the group node itself carries volatility "
-                                    "the memo cannot see"
-             : !childrenGroupSafe ? "something in its subtree carries "
-                                    "volatility the memo cannot see"
-                                  : "it carries a backdrop filter");
+    SkDebugf(
+        "sigilcompose Cache::Group: \"%s\" cannot bake — %s. A group is "
+        "held by comparing FLOATS, so live materials (uTime or a bound "
+        "uniform), animated decorations, animated images, bound fill(), "
+        "variable-font drives, Cache::None leaves and non-srcOver "
+        "blends below the root all refuse it.\n",
+        node.key.empty() ? "(anon)" : node.key.c_str(),
+        opaqueToTheMemo      ? "the group node itself carries volatility "
+                               "the memo cannot see"
+        : !childrenGroupSafe ? "something in its subtree carries "
+                               "volatility the memo cannot see"
+                             : "it carries a backdrop filter");
   }
 
   // subtreeVolatile gates the node's own caches: blocked by content volatility
@@ -883,7 +859,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // static and only its children move.
   inst.ownContentVolatile = ownContent;
   if (ownContent)
-    inst.ownImage.reset(); // a volatile own paint can never hold a bake
+    inst.ownImage.reset();  // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
   // stable and re-records only when the shader actually changes. Stated as
@@ -901,7 +877,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
     if (!memoized)
-      inst.paintDirty = true; // cacheability changed → re-record/drop
+      inst.paintDirty = true;  // cacheability changed → re-record/drop
   }
   if (inst.subtreeVolatile && !memoized) {
     inst.picture.reset();
@@ -912,8 +888,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
     // reset: a group root never replays one, and leaving a stale recording
     // reachable is how the fall-through path would blit last frame's pixels
     // on the frame the memo just said not to.
-    if (!inst.groupRootOK)
-      inst.textureImage.reset();
+    if (!inst.groupRootOK) inst.textureImage.reset();
   }
   return ownPaint || blocked;
 }
@@ -921,7 +896,8 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
 // ---------------------------------------------------------------------------
 // Silhouette
 
-const SkPath &Composer::Impl::resolveOutline(Instance &inst, SkSize size) const {
+const SkPath& Composer::Impl::resolveOutline(Instance& inst,
+                                             SkSize size) const {
   if (inst.outlineCacheDesc != inst.desc.get() ||
       inst.outlineCacheSize != size) {
     inst.outlineCache = inst.desc->shapeFn(size);
@@ -942,10 +918,9 @@ const SkPath &Composer::Impl::resolveOutline(Instance &inst, SkSize size) const 
  *  Every contour is walked in order. Glyphs past the end of the path are
  *  dropped rather than piled on the last point — running off the end of a
  *  ring should look like running off the end of a ring. */
-void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
-                                     const TextPath &spec, SkSize size) {
-  if (!spec.path)
-    return;
+void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
+                                     const TextPath& spec, SkSize size) {
+  if (!spec.path) return;
   const SkPath baseline = spec.path(size);
   // ALL the contours, walked in order as one baseline. Walking only the
   // first would silently drop text: a curve clipped to the frame comes back
@@ -955,24 +930,19 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   contours.clear();
   for (SkContourMeasureIter iter(baseline, false);;) {
     sk_sp<SkContourMeasure> c = iter.next();
-    if (!c)
-      break;
-    if (c->length() > 0)
-      contours.push_back(std::move(c));
+    if (!c) break;
+    if (c->length() > 0) contours.push_back(std::move(c));
   }
-  if (contours.empty())
-    return;
+  if (contours.empty()) return;
   float length = 0;
-  for (const auto &c : contours)
-    length += c->length();
+  for (const auto& c : contours) length += c->length();
   // One arc-length coordinate over the whole chain.
-  auto posTan = [&](float d, SkPoint *pos, SkVector *tan) {
-    for (const auto &c : contours) {
-      if (d <= c->length())
-        return c->getPosTan(d, pos, tan);
+  auto posTan = [&](float d, SkPoint* pos, SkVector* tan) {
+    for (const auto& c : contours) {
+      if (d <= c->length()) return c->getPosTan(d, pos, tan);
       d -= c->length();
     }
-    const auto &last = contours.back();
+    const auto& last = contours.back();
     return last->getPosTan(last->length(), pos, tan);
   };
 
@@ -981,10 +951,8 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   float runWidth = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord *, SkGlyphID, float advance, SkColor,
-          SkPoint rest) {
-        runWidth = std::max(runWidth, rest.x() + advance);
-      });
+      [&](const sigil::weave::ShapedWord*, SkGlyphID, float advance, SkColor,
+          SkPoint rest) { runWidth = std::max(runWidth, rest.x() + advance); });
 
   float start = spec.at * length;
   if (spec.align == TextPath::Align::Center)
@@ -1007,8 +975,7 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
     SkPoint head, tail;
     SkVector ignored;
     if (posTan(0, &head, &ignored) && posTan(length, &tail, &ignored))
-      closed = SkPoint::Distance(head, tail) <=
-               std::max(1.0f, length * 0.002f);
+      closed = SkPoint::Distance(head, tail) <= std::max(1.0f, length * 0.002f);
   }
 
   // autoFlip is a decision about the RUN, not about each glyph. Turning
@@ -1033,12 +1000,10 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
     int upsideDown = 0, upright = 0;
     for (int i = 0; i < kVotes; ++i) {
       float at = start + runWidth * ((float)i + 0.5f) / (float)kVotes;
-      if (closed)
-        at = std::fmod(std::fmod(at, length) + length, length);
+      if (closed) at = std::fmod(std::fmod(at, length) + length, length);
       SkPoint pos;
       SkVector tan;
-      if (!posTan(std::clamp(at, 0.0f, length), &pos, &tan))
-        continue;
+      if (!posTan(std::clamp(at, 0.0f, length), &pos, &tan)) continue;
       if (tan.x() < 0)
         ++upsideDown;
       else if (tan.x() > 0)
@@ -1056,7 +1021,7 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   batches.clear();
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord *font, SkGlyphID glyph, float advance,
+      [&](const sigil::weave::ShapedWord* font, SkGlyphID glyph, float advance,
           SkColor color, SkPoint rest) {
         // The glyph rides its own CENTRE along the path, so a wide glyph
         // on a tight curve leans about its middle rather than its left
@@ -1069,11 +1034,9 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
           return;
         SkPoint pos;
         SkVector tangent;
-        if (!posTan(d, &pos, &tangent))
-          return;
+        if (!posTan(d, &pos, &tangent)) return;
         const float mag = std::hypot(tangent.x(), tangent.y());
-        if (mag <= 1e-6f)
-          return;
+        if (mag <= 1e-6f) return;
         float dirX = tangent.x() / mag, dirY = tangent.y() / mag;
         if (flipRun) {
           dirX = -dirX;
@@ -1118,20 +1081,19 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   batches.draw(&canvas);
 }
 
-void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
-                                      const GlyphFx &fx) {
+void Composer::Impl::paintKineticText(Instance& inst, SkCanvas& canvas,
+                                      const GlyphFx& fx) {
   const float master = std::clamp(
       inst.resolveFloat(Instance::kGlyphProgress, fx.progress), 0.0f, 1.0f);
 
   size_t count = 0;
   sigil::weave::forEachPlacedGlyph(inst.textLayout, *inst.paragraph,
-                                   [&](auto &&...) { ++count; });
-  if (count == 0)
-    return;
+                                   [&](auto&&...) { ++count; });
+  if (count == 0) return;
 
   float each = std::max(fx.stagger.eachMs, 0.0f);
   if (fx.stagger.amountMs > 0 && count > 1)
-    each = fx.stagger.amountMs / (float)(count - 1); // GSAP amount mode
+    each = fx.stagger.amountMs / (float)(count - 1);  // GSAP amount mode
   const float duration = std::max(fx.stagger.durationMs, 1.0f);
   const float total = duration + each * (float)(count - 1);
 
@@ -1141,26 +1103,25 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
   size_t i = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord *font, SkGlyphID glyph, float advance,
+      [&](const sigil::weave::ShapedWord* font, SkGlyphID glyph, float advance,
           SkColor color, SkPoint rest) {
         float order = (float)i;
         switch (fx.stagger.from) {
-        case Stagger::From::End:
-          order = (float)(count - 1 - i);
-          break;
-        case Stagger::From::Center:
-          order = std::abs((float)i - (float)(count - 1) * 0.5f) * 2.0f;
-          break;
-        case Stagger::From::Start:
-          break;
+          case Stagger::From::End:
+            order = (float)(count - 1 - i);
+            break;
+          case Stagger::From::Center:
+            order = std::abs((float)i - (float)(count - 1) * 0.5f) * 2.0f;
+            break;
+          case Stagger::From::Start:
+            break;
         }
-        const float t = std::clamp(
-            (master * total - order * each) / duration, 0.0f, 1.0f);
-        const GlyphMod mod = fx.effect(
-            GlyphInfo{i, count, rest, advance, font->fontSize}, t);
+        const float t =
+            std::clamp((master * total - order * each) / duration, 0.0f, 1.0f);
+        const GlyphMod mod =
+            fx.effect(GlyphInfo{i, count, rest, advance, font->fontSize}, t);
         ++i;
-        if (mod.alpha <= 0.003f || mod.scale <= 0.001f)
-          return;
+        if (mod.alpha <= 0.003f || mod.scale <= 0.001f) return;
         // Quantize alpha so fades don't mint a batch bucket per glyph.
         const float alpha =
             std::round(std::clamp(mod.alpha, 0.0f, 1.0f) * 32.0f) / 32.0f;
@@ -1168,14 +1129,13 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
             color, (U8CPU)((float)SkColorGetA(color) * alpha + 0.5f));
         float cosv = 1.0f, sinv = 0.0f;
         if (mod.rotateDeg != 0)
-          sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv,
-                                      sinv);
+          sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv, sinv);
         cosv *= mod.scale;
         sinv *= mod.scale;
-        batches.addGlyph(font, tinted, glyph, advance * 0.5f,
-                         {rest.x() + mod.dx + advance * 0.5f,
-                          rest.y() + mod.dy},
-                         cosv, sinv);
+        batches.addGlyph(
+            font, tinted, glyph, advance * 0.5f,
+            {rest.x() + mod.dx + advance * 0.5f, rest.y() + mod.dy}, cosv,
+            sinv);
       });
   batches.draw(&canvas);
 }
@@ -1189,30 +1149,30 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
  *  band width profiles, material reserves), then joined with the geometry a
  *  layout rect does not bound at all: a routed connector/rail path and a
  *  borrowed band spine, each outset by its own reach. */
-SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
-  const ElementNode &node = *inst.desc;
+SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
+  const ElementNode& node = *inst.desc;
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
   float bleed = 0;
-  for (const Decoration &d : node.backgrounds)
+  for (const Decoration& d : node.backgrounds)
     bleed = std::max(bleed, d.bleed());
-  for (const Decoration &d : node.foregrounds)
+  for (const Decoration& d : node.foregrounds)
     bleed = std::max(bleed, d.bleed());
   if (node.fxData)
-    for (const Decoration &d : node.fxData->overlays)
+    for (const Decoration& d : node.fxData->overlays)
       bleed = std::max(bleed, d.bleed());
   if (node.strokeData)
-    for (const detail::StrokePass &pass : node.strokeData->passes)
+    for (const detail::StrokePass& pass : node.strokeData->passes)
       bleed = std::max(bleed, pass.what.bleed());
   // A band reaches profile.max() px off its spine, and a width profile is
   // REQUIRED to be able to report that number — which is the whole reason
   // `max()` is part of that interface. A width function that cannot state
   // its own maximum can only be clipped silently.
-  if (const Across *band = node.bandWidth())
+  if (const Across* band = node.bandWidth())
     bleed = std::max(bleed, band->profile.max());
-  for (const Echo &e : echoesOf(node))
-    bleed = std::max(
-        bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
+  for (const Echo& e : echoesOf(node))
+    bleed =
+        std::max(bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
   // A Material can declare a reserve too: a fill whose own outline escapes
   // the node's box is truncated at the cached picture or texture bounds
   // otherwise, exactly as an under-reported decoration bleed is. Both
@@ -1223,8 +1183,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
     if (node.materialData->recipe)
       bleed = std::max(bleed, node.materialData->recipe->bleed());
   }
-  if (bleed > 0)
-    local.outset(bleed, bleed);
+  if (bleed > 0) local.outset(bleed, bleed);
   // Routed elements paint their derive-resolved PATH, which is not bounded
   // by the layout rect (a connector's box is one thing, its wire another) —
   // the cull must hold the route plus its stroke reach.
@@ -1240,7 +1199,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   // a BORROWED spine (band(around(key))) can sit anywhere relative to this
   // node's own box, so the cull has to hold the spine itself — exactly the
   // routed case one paragraph up, and for the same reason.
-  if (const Across *band = node.bandWidth()) {
+  if (const Across* band = node.bandWidth()) {
     const SkPath spine =
         node.deriveData->bandSpine
             ? node.deriveData->bandSpine({rect.width(), rect.height()})
@@ -1265,20 +1224,18 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
 // node slides to the same fraction of the new curve rather than jumping to
 // a different phase of its schedule.
 
-std::optional<std::pair<SkPoint, float>>
-Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
-  const ElementNode &node = *inst.desc;
-  if (!node.motionData || !(bool)node.motionData->path)
-    return std::nullopt;
-  const MotionPath &spec = *node.motionData;
+std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
+    Instance& inst, const SkSize& frame) {
+  const ElementNode& node = *inst.desc;
+  if (!node.motionData || !(bool)node.motionData->path) return std::nullopt;
+  const MotionPath& spec = *node.motionData;
 
   // The table, cached against the two inputs that determine it: the Shape
   // VALUE and the size it was resolved at. No dirty flag — a comparable
   // scheme keeps its table across describes, a raw callable re-measures
   // (which is the escape hatch's documented cost, here as everywhere).
-  if (!inst.motion)
-    inst.motion = std::make_unique<Instance::MotionCache>();
-  Instance::MotionCache &cache = *inst.motion;
+  if (!inst.motion) inst.motion = std::make_unique<Instance::MotionCache>();
+  Instance::MotionCache& cache = *inst.motion;
   if (!(cache.shape == spec.path) || cache.size.width() != frame.width() ||
       cache.size.height() != frame.height()) {
     cache.shape = spec.path;
@@ -1291,24 +1248,21 @@ Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
     SkContourMeasureIter iter(resolved, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float len = contour->length();
-      if (!(len > 0))
-        continue;
+      if (!(len > 0)) continue;
       cache.closed = cache.closed && contour->isClosed();
       cache.starts.push_back(cache.total);
       cache.total += len;
       cache.contours.push_back(std::move(contour));
     }
-    if (cache.contours.empty())
-      cache.closed = false;
+    if (cache.contours.empty()) cache.closed = false;
   }
   if (!(cache.total > 0))
-    return std::nullopt; // no measurable length ⇒ not engaged
+    return std::nullopt;  // no measurable length ⇒ not engaged
 
   // WRAP on a closed curve, CLAMP on an open one.
   const auto walk = [&](float u) {
     float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
-    if (cache.closed && w < 0.0f)
-      w += 1.0f;
+    if (cache.closed && w < 0.0f) w += 1.0f;
     const float want = w * cache.total;
     size_t i = cache.contours.size() - 1;
     for (size_t c = 0; c + 1 < cache.contours.size(); ++c)
@@ -1331,16 +1285,15 @@ Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
     SkVector chord = walk(t + spec.lookAhead) - here;
     // At the end of an OPEN curve the forward chord collapses; hold the
     // last good one rather than reading atan2(0, 0).
-    if (chord.length() <= 1e-6f)
-      chord = here - walk(t - spec.lookAhead);
+    if (chord.length() <= 1e-6f) chord = here - walk(t - spec.lookAhead);
     if (chord.length() > 1e-6f)
       orient = std::atan2(chord.y(), chord.x()) * 180.0f / SK_FloatPI;
   }
   return std::make_pair(here, orient);
 }
 
-Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance &inst) {
-  const ElementNode &node = *inst.desc;
+Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
+  const ElementNode& node = *inst.desc;
   NodeTransform out;
   out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
@@ -1400,15 +1353,14 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance &inst) {
  *  value, and a RUNNING transform makes the subtree volatile, so nothing
  *  records at all. A clipped node contributes only its own box, because its
  *  children cannot escape it. */
-SkRect Composer::Impl::recordBounds(Instance &inst) {
-  const ElementNode &node = *inst.desc;
+SkRect Composer::Impl::recordBounds(Instance& inst) {
+  const ElementNode& node = *inst.desc;
   SkRect local = ownPaintBounds(inst);
-  if (node.clipContent)
-    return local;
-  for (auto &child : inst.children) {
-    const ElementNode &cn = *child->desc;
+  if (node.clipContent) return local;
+  for (auto& child : inst.children) {
+    const ElementNode& cn = *child->desc;
     const SkRect crect = instanceRect(*child);
-    SkRect cb = recordBounds(*child); // child-local
+    SkRect cb = recordBounds(*child);  // child-local
     const NodeTransform tf = transformOf(*child);
     // The matrix comes from NodeTransform::matrix(), gate included, and not
     // from a copy of that build written here. One resolver, three consumers
@@ -1429,10 +1381,10 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
 // ---------------------------------------------------------------------------
 // The stacking painter
 
-void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
+void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   float contentScale, SkBlendMode leafBlend,
                                   float leafOpacity, Phase phase) {
-  const ElementNode &node = *inst.desc;
+  const ElementNode& node = *inst.desc;
   // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that
   // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
@@ -1448,14 +1400,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
   // The node's shape: routed connector/rail path, custom outline(), or the
   // corner-rounded box.
-  const bool routed = node.deriveData &&
-                      (!node.deriveData->connectFrom.empty() ||
-                       !node.deriveData->railAnchors.empty());
-  const Across *bandWidth = node.bandWidth();
+  const bool routed =
+      node.deriveData && (!node.deriveData->connectFrom.empty() ||
+                          !node.deriveData->railAnchors.empty());
+  const Across* bandWidth = node.bandWidth();
   const bool customShape = (node.shapeFn || bandWidth) && !routed;
   SkPath outlinePath;
   if (routed) {
-    outlinePath = inst.connectorPath; // derive phase routed it
+    outlinePath = inst.connectorPath;  // derive phase routed it
   } else if (bandWidth) {
     // A BAND's shape is derived: the region its spine sweeps at the
     // profile's width, on the declared side. The spine is guide data
@@ -1464,8 +1416,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
         node.deriveData->bandSpine
             ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
             : inst.bandSpine;
-    outlinePath = detail::bandRegion(spine, *bandWidth,
-                                     node.deriveData->bandFormation);
+    outlinePath =
+        detail::bandRegion(spine, *bandWidth, node.deriveData->bandFormation);
   } else if (customShape) {
     outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});
   } else {
@@ -1492,7 +1444,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // below: an overlap between two span passes is a description-level
   // mistake, and it must not be a mistake that blinks in and out between
   // 0.3 and 0.7 of a transition because a gate was shrinking one of them.
-  const std::vector<Mask> *masks =
+  const std::vector<Mask>* masks =
       node.hasMasks() ? &node.fxData->masks : nullptr;
   const std::vector<float> gateValues =
       masks ? inst.resolveGateValues() : std::vector<float>{};
@@ -1506,7 +1458,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     gateIn.outline = &outlinePath;
     gateIn.fitRects = &inst.spanFitRects;
     size_t valueBase = 0;
-    for (const Mask &m : *masks) {
+    for (const Mask& m : *masks) {
       const size_t count = m.with.valueCount();
       if (m.with.kind != Gate::Kind::Spans) {
         valueBase += count;
@@ -1522,16 +1474,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           normalizeSpans(m.with.where.resolve(gateIn));
       // THE INTERSECTION LAW: stacked masks both have to pass, so a second
       // gate over the same target narrows the first, never widens it.
-      const auto narrow = [&](std::optional<std::vector<Span>> &slot) {
+      const auto narrow = [&](std::optional<std::vector<Span>>& slot) {
         slot = slot ? intersectSpans(*slot, show) : show;
       };
-      if (m.what.selects(Parts::kSurface))
-        narrow(surfaceShow);
-      if (m.what.selects(Parts::kMarks))
-        narrow(marksShow);
-      for (const std::string &label : m.what.names) {
+      if (m.what.selects(Parts::kSurface)) narrow(surfaceShow);
+      if (m.what.selects(Parts::kMarks)) narrow(marksShow);
+      for (const std::string& label : m.what.names) {
         auto it = std::find_if(namedShow.begin(), namedShow.end(),
-                               [&](const auto &e) { return e.first == label; });
+                               [&](const auto& e) { return e.first == label; });
         if (it == namedShow.end())
           namedShow.emplace_back(label, show);
         else
@@ -1562,25 +1512,24 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // Built BEFORE the effect's saveLayer because an effect's child Material
   // resolves against it — the node's box, the node's clock, exactly what
   // Material::child hands a fill's children.
-  const PaintContext paintCtx{{bounds.width(), bounds.height()},
-                              std::move(marksPath),
-                              elapsed(),
-                              contentScale,
-                              ticker.active(),
-                              &fonts,
-                              inst.borrowedPaths.empty()
-                                  ? nullptr
-                                  : &inst.borrowedPaths,
-                              &inst.stampCache,
-                              curToRoot,       // node→root, as paint() stacked it
-                              rootLayoutSize}; // …and the canvas it maps into
+  const PaintContext paintCtx{
+      {bounds.width(), bounds.height()},
+      std::move(marksPath),
+      elapsed(),
+      contentScale,
+      ticker.active(),
+      &fonts,
+      inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
+      &inst.stampCache,
+      curToRoot,        // node→root, as paint() stacked it
+      rootLayoutSize};  // …and the canvas it maps into
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
   // effect (bound uniforms, a live child material) resolves here per paint,
   // and computeVolatile has declared such a node volatile, so this
   // recording is never cached stale.
-  const Effect *layerFx = layerEffectOf(node);
+  const Effect* layerFx = layerEffectOf(node);
   const sk_sp<SkImageFilter> layerFilter =
       layerFx ? layerFx->resolvedImageFilter(&paintCtx) : nullptr;
   const bool hasEffect = (bool)layerFilter;
@@ -1607,14 +1556,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // groups overlap, so the hoisted form is also the only one whose edge is
   // the clip's own.
   struct PlaneGate {
-    const Mask *mask = nullptr;
-    float fraction = 1.0f; // Edge
+    const Mask* mask = nullptr;
+    float fraction = 1.0f;  // Edge
   };
   std::vector<PlaneGate> plane;
   bool granularPlane = false;
   if (masks) {
     size_t valueBase = 0;
-    for (const Mask &m : *masks) {
+    for (const Mask& m : *masks) {
       if (m.with.kind != Gate::Kind::Spans) {
         PlaneGate g;
         g.mask = &m;
@@ -1655,47 +1604,39 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   std::vector<SkPaint> coverStack;
   const auto enterGates = [&](bool wholeNode, Parts::Bits cls,
                               std::string_view label) -> int {
-    if (plane.empty())
-      return -1;
+    if (plane.empty()) return -1;
     int base = -1;
-    const auto hit = [&](const Mask &m) {
-      if (m.what.isEverything() != wholeNode)
-        return false;
-      if (wholeNode)
-        return true;
+    const auto hit = [&](const Mask& m) {
+      if (m.what.isEverything() != wholeNode) return false;
+      if (wholeNode) return true;
       return cls == Parts::kMarks ? m.what.selectsMark(label)
                                   : m.what.selects(cls);
     };
-    for (const PlaneGate &g : plane) {
-      const Mask &m = *g.mask;
-      if (!hit(m) || m.with.kind == Gate::Kind::Coverage)
-        continue;
-      if (base < 0)
-        base = canvas.getSaveCount();
+    for (const PlaneGate& g : plane) {
+      const Mask& m = *g.mask;
+      if (!hit(m) || m.with.kind == Gate::Kind::Coverage) continue;
+      if (base < 0) base = canvas.getSaveCount();
       if (m.with.kind == Gate::Kind::Edge) {
         // A container of absolutely-positioned children measures ZERO, and
         // a half-plane built from an empty box is empty — so clipping to it
         // would hide the entire subtree even at a full reveal. A reveal at 1
         // must never hide anything, and an empty box has no axis to reveal
         // along in the first place.
-        if (bounds.isEmpty())
-          continue;
+        if (bounds.isEmpty()) continue;
         canvas.save();
         canvas.clipPath(edgeRegion(m.with.angleDeg, g.fraction), true);
-      } else { // Shape — and its complement, the missing clipOut()
+      } else {  // Shape — and its complement, the missing clipOut()
         canvas.save();
-        canvas.clipPath(m.with.region.resolve(fullOutline),
-                        m.with.outside ? SkClipOp::kDifference
-                                       : SkClipOp::kIntersect,
-                        true);
+        canvas.clipPath(
+            m.with.region.resolve(fullOutline),
+            m.with.outside ? SkClipOp::kDifference : SkClipOp::kIntersect,
+            true);
       }
     }
-    for (const PlaneGate &g : plane) {
-      const Mask &m = *g.mask;
-      if (!hit(m) || m.with.kind != Gate::Kind::Coverage)
-        continue;
-      if (base < 0)
-        base = canvas.getSaveCount();
+    for (const PlaneGate& g : plane) {
+      const Mask& m = *g.mask;
+      if (!hit(m) || m.with.kind != Gate::Kind::Coverage) continue;
+      if (base < 0) base = canvas.getSaveCount();
       const SkRect layerBox = recordBounds(inst);
       canvas.saveLayer(&layerBox, nullptr);
       SkPaint cover;
@@ -1705,7 +1646,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       cover.setBlendMode(m.with.outside ? SkBlendMode::kDstOut
                                         : SkBlendMode::kDstIn);
       if (m.with.coverage) {
-        const Material &mat = *m.with.coverage;
+        const Material& mat = *m.with.coverage;
         const Fill f = (mat.isAnimated() || mat.geometryDependent())
                            ? mat.resolve(paintCtx)
                            : mat.toFill();
@@ -1714,10 +1655,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           cover.setShader(luma ? lumaCoverageShader(f.shaderValue)
                                : f.shaderValue);
         else if (f.kind == Fill::Kind::Color)
-          cover.setColor4f(luma ? lumaCoverageColor(f.colorValue) : f.colorValue,
-                           nullptr);
+          cover.setColor4f(
+              luma ? lumaCoverageColor(f.colorValue) : f.colorValue, nullptr);
         else
-          cover.setColor4f({0, 0, 0, 0}, nullptr); // Fill::none() shows nothing
+          cover.setColor4f({0, 0, 0, 0},
+                           nullptr);  // Fill::none() shows nothing
       }
       coverStack.push_back(std::move(cover));
     }
@@ -1729,8 +1671,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       coverStack.pop_back();
       canvas.restore();
     }
-    if (base >= 0)
-      canvas.restoreToCount(base);
+    if (base >= 0) canvas.restoreToCount(base);
   };
   // The whole-node hoist, in wipe()'s old position.
   const size_t hoistCover = coverStack.size();
@@ -1748,30 +1689,23 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // the clock.
   std::optional<std::vector<std::vector<Span>>> spanClaims;
   auto paintSpanHalf = [&](detail::StrokePass::Half half) {
-    if (!node.hasStrokePasses())
-      return;
-    if (!spanClaims)
-      spanClaims = inst.resolveSpans(fullOutline);
-    const std::vector<detail::StrokePass> &passes = node.strokeData->passes;
+    if (!node.hasStrokePasses()) return;
+    if (!spanClaims) spanClaims = inst.resolveSpans(fullOutline);
+    const std::vector<detail::StrokePass>& passes = node.strokeData->passes;
     for (size_t i = 0; i < passes.size() && i < spanClaims->size(); ++i) {
-      if (passes[i].half != half || (*spanClaims)[i].empty())
-        continue;
+      if (passes[i].half != half || (*spanClaims)[i].empty()) continue;
       // …and the gate intersects the claim, which is the whole of
       // `.stroke(spans::corners(18), brk).mask(parts::marks(), upTo(t))`:
       // reticle brackets that light up as a sweep reaches them.
       std::vector<Span> run = (*spanClaims)[i];
-      if (marksShow)
-        run = intersectSpans(run, *marksShow);
+      if (marksShow) run = intersectSpans(run, *marksShow);
       if (!passes[i].name.empty())
-        for (const auto &[label, show] : namedShow)
-          if (label == passes[i].name)
-            run = intersectSpans(run, show);
-      if (run.empty())
-        continue;
+        for (const auto& [label, show] : namedShow)
+          if (label == passes[i].name) run = intersectSpans(run, show);
+      if (run.empty()) continue;
       const size_t cover = coverStack.size();
-      const int saves = granularPlane
-                            ? enterGates(false, Parts::kMarks, passes[i].name)
-                            : -1;
+      const int saves =
+          granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
       const PaintContext passCtx{
           paintCtx.size,
           detail::spanPath(fullOutline, run),
@@ -1780,30 +1714,29 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           paintCtx.animating,
           paintCtx.fonts,
           paintCtx.borrowed,
-          nullptr, // stamps: deliberately not shared with a span pass
+          nullptr,  // stamps: deliberately not shared with a span pass
           paintCtx.toRoot,
           paintCtx.rootSize};
       passes[i].what.paint(canvas, passCtx);
-      if (granularPlane)
-        leaveGates(saves, cover);
+      if (granularPlane) leaveGates(saves, cover);
     }
   };
 
   /** Paint one unqualified mark, under whatever gates address it by name.
    *  The common case — no named mask, no granular plane gate — is the
    *  decoration's own paint call and nothing else. */
-  const auto paintMark = [&](const Decoration &d, detail::MarkSlot slot,
+  const auto paintMark = [&](const Decoration& d, detail::MarkSlot slot,
                              size_t index) {
     std::string_view label;
     if (node.fxData)
-      for (const detail::MarkLabel &l : node.fxData->markNames)
+      for (const detail::MarkLabel& l : node.fxData->markNames)
         if (l.slot == slot && l.index == index) {
           label = l.name;
           break;
         }
-    const std::vector<Span> *refine = nullptr;
+    const std::vector<Span>* refine = nullptr;
     if (!label.empty())
-      for (const auto &[name, show] : namedShow)
+      for (const auto& [name, show] : namedShow)
         if (name == label) {
           refine = &show;
           break;
@@ -1813,8 +1746,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
         granularPlane ? enterGates(false, Parts::kMarks, label) : -1;
     if (refine) {
       std::vector<Span> run = *refine;
-      if (marksShow)
-        run = intersectSpans(run, *marksShow);
+      if (marksShow) run = intersectSpans(run, *marksShow);
       const PaintContext markCtx{paintCtx.size,
                                  gateOutline(fullOutline, run),
                                  paintCtx.elapsedSeconds,
@@ -1822,15 +1754,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                  paintCtx.animating,
                                  paintCtx.fonts,
                                  paintCtx.borrowed,
-                                 nullptr, // stamps: not shared with a mark
+                                 nullptr,  // stamps: not shared with a mark
                                  paintCtx.toRoot,
                                  paintCtx.rootSize};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);
     }
-    if (granularPlane)
-      leaveGates(saves, cover);
+    if (granularPlane) leaveGates(saves, cover);
   };
 
   // Background decorations paint beneath the fill (the CSS box-shadow
@@ -1869,13 +1800,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     // wrappers above are recomputed rather than skipped — they are cheap,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
-  } else if (const Material *live = liveMaterialOf(node)) {
-    resolvedFill = inst.hasPendingLiveFill
-                       ? inst.pendingLiveFill
-                       : live->resolve(paintCtx);
+  } else if (const Material* live = liveMaterialOf(node)) {
+    resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
+                                           : live->resolve(paintCtx);
   } else if (node.paint.fill) {
     Fill fill;
-    if (const choreograph::Output<Fill> *binding = node.paint.fill->binding())
+    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
       fill = binding->value();
     else if (inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
@@ -1883,10 +1813,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       const float t = inst.anims[Instance::kFillLerp]->value.value();
       fill = inst.fillTo;
       for (int i = 0; i < 4; ++i)
-        fill.colorValue.vec()[i] =
-            inst.fillFrom.colorValue.vec()[i] +
-            (inst.fillTo.colorValue.vec()[i] -
-             inst.fillFrom.colorValue.vec()[i]) * t;
+        fill.colorValue.vec()[i] = inst.fillFrom.colorValue.vec()[i] +
+                                   (inst.fillTo.colorValue.vec()[i] -
+                                    inst.fillFrom.colorValue.vec()[i]) *
+                                       t;
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProp<Fill> resolved =
@@ -1905,7 +1835,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // Misprint echoes of the FILL SHAPE, under the real pass (bottom first).
   if (!echoesOf(node).empty() && resolvedFill &&
       resolvedFill->kind != Fill::Kind::None) {
-    for (const Echo &e : echoesOf(node)) {
+    for (const Echo& e : echoesOf(node)) {
       SkPaint stamp;
       stamp.setAntiAlias(true);
       stamp.setColor4f(e.color, nullptr);
@@ -1920,7 +1850,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   }
 
   if (resolvedFill && resolvedFill->kind != Fill::Kind::None) {
-    const Fill &fill = *resolvedFill;
+    const Fill& fill = *resolvedFill;
     SkPaint paint;
     paint.setAntiAlias(true);
     if (fill.kind == Fill::Kind::Color)
@@ -1930,15 +1860,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     // Leaf fast path: paint() proved a layer is unnecessary and routed the
     // node's blend/opacity straight onto the fill.
     paint.setBlendMode(leafBlend);
-    if (leafOpacity < 1.0f)
-      paint.setAlphaf(paint.getAlphaf() * leafOpacity);
+    if (leafOpacity < 1.0f) paint.setAlphaf(paint.getAlphaf() * leafOpacity);
     if (customShape || trimmed)
       canvas.drawPath(surfacePath, paint);
     else
       canvas.drawRRect(rrect, paint);
   }
-  if (granularPlane && emitOwn)
-    leaveGates(surfaceSaves, surfaceCover);
+  if (granularPlane && emitOwn) leaveGates(surfaceSaves, surfaceCover);
 
   // Overlays: over the fill, under the content and children. The slot a
   // textured button needs so its own hazard stripe does not grey out its
@@ -1951,188 +1879,183 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   const size_t contentCover = coverStack.size();
   const int contentSaves =
       granularPlane && emitOwn ? enterGates(false, Parts::kContent, {}) : -1;
-  if (emitOwn)
-  switch (node.kind) {
-  case Kind::Text:
-    if (inst.paragraph) {
-      // Yoga skips the measure callback when both dimensions are fully
-      // determined (absolute + all four insets); lay out on demand at the
-      // resolved width so such text still paints. Aligned text (center/
-      // end/justify) additionally must be laid out at its FINAL width —
-      // lines place within the flow width, so a measure-time constraint
-      // that differs from the resolved box would push them off target.
-      const bool onPathRun = node.textData && node.textData->onPath;
-      if (inst.measuredRev != inst.contentRev ||
-          (!onPathRun && node.textData &&
-           node.textData->layoutOptions.alignment !=
-               sigil::weave::TextAlignment::kStart &&
-           inst.measuredForWidth != bounds.width()))
-        layoutText(inst, bounds.width());
-      // Misprint echoes of the TEXT, under the real pass (kinetic text
-      // draws its own buckets — echoes skip it by contract).
-      const GlyphFx *glyphs = glyphFxOf(node);
-      if (!echoesOf(node).empty() && !(glyphs && glyphs->effect)) {
-        for (const Echo &e : echoesOf(node)) {
-          sigil::weave::PaintStyle stamp;
-          stamp.foreground.setColor4f(e.color, nullptr);
-          canvas.save();
-          canvas.translate(e.offset.fX, e.offset.fY);
-          inst.textLayout.drawBatched(&canvas, *inst.paragraph, &stamp);
-          canvas.restore();
-        }
-      }
-      const TextPath *onPath =
-          onPathRun ? &*node.textData->onPath : nullptr;
-      if (glyphs && glyphs->effect) {
-        paintKineticText(inst, canvas, *glyphs);
-      } else if (onPath) {
-        paintTextOnPath(inst, canvas, *onPath,
-                        {bounds.width(), bounds.height()});
-      } else if (const Material *metricMat = metricFillOf(node);
-                 metricMat ||
-                 (node.textData && node.textData->hasTextStroke)) {
-        // Chrome type: the material's unit square mapped to the text's
-        // metric band — x across the widest line, y from the first line's
-        // cap top (real cap height when the face reports one) to the last
-        // line's baseline.
-        //
-        // The override replaces the whole PaintStyle for every run, so it
-        // starts as a COPY of the paragraph's own style and swaps only the
-        // foreground — textFill supersedes the fill, not the underlays,
-        // overlays and decorations around it (a chrome wordmark keeps its
-        // cast shadow and dark keyline).
-        sigil::weave::PaintStyle metric =
-            inst.paragraph->spans().empty()
-                ? sigil::weave::PaintStyle{}
-                : inst.paragraph->spans().front().style.paint;
-        metric.foreground.setShader(nullptr);
-        bool havePaint = false;
-        // textStroke(): a stroke pass on the glyphs, UNDER the fill. It
-        // joins the style's own underlays rather than replacing them, so
-        // an engraved face keeps its cast shadow.
-        if (node.textData && node.textData->hasTextStroke) {
-          sigil::weave::PaintLayer outline;
-          outline.paint.setAntiAlias(true);
-          outline.paint.setStyle(SkPaint::kStroke_Style);
-          outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
-          outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-          const Fill &sf = node.textData->textStrokeFill;
-          if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
-            outline.paint.setShader(sf.shaderValue);
-          else
-            outline.paint.setColor4f(sf.kind == Fill::Kind::Color
-                                         ? sf.colorValue
-                                         : SkColor4f{0, 0, 0, 1},
-                                     nullptr);
-          metric.addUnderlay(outline);
-          havePaint = true;
-        }
-        if (!metricMat) {
-          inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                      havePaint ? &metric : nullptr,
-                                      liveDriveImpl(inst, node, fonts));
-          break;
-        }
-        // Geometry-dependent materials resolve against a UNIT box here,
-        // not the node's. The local matrix below already maps the
-        // shader's [0,1]² onto the metric band, so uResolution baked from
-        // the node's layout size would divide a second time: a
-        // `linearUnit` ramp came out at t ≈ 0.003 and every glyph painted
-        // the first stop, flat and silently. Material.h advertises
-        // textFill and the Unit ramps as the same trick, and this is what
-        // makes that true.
-        PaintContext metricCtx = paintCtx;
-        metricCtx.size = {1.0f, 1.0f};
-        const Fill f =
-            (metricMat->isAnimated() || metricMat->geometryDependent())
-                ? metricMat->resolve(metricCtx)
-                : metricMat->toFill();
-        if (f.kind == Fill::Kind::Shader && f.shaderValue &&
-            !inst.lines.empty()) {
-          const sigil::weave::ShapedWord *firstFont = nullptr;
-          sigil::weave::forEachPlacedGlyph(
-              inst.textLayout, *inst.paragraph,
-              [&](const sigil::weave::ShapedWord *font, SkGlyphID, float,
-                  SkColor, SkPoint) {
-                if (!firstFont)
-                  firstFont = font;
-              });
-          float capH = 0;
-          if (firstFont && firstFont->typeface) {
-            SkFontMetrics fm;
-            sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
-                .getMetrics(&fm);
-            capH = fm.fCapHeight;
+  if (emitOwn) switch (node.kind) {
+      case Kind::Text:
+        if (inst.paragraph) {
+          // Yoga skips the measure callback when both dimensions are fully
+          // determined (absolute + all four insets); lay out on demand at the
+          // resolved width so such text still paints. Aligned text (center/
+          // end/justify) additionally must be laid out at its FINAL width —
+          // lines place within the flow width, so a measure-time constraint
+          // that differs from the resolved box would push them off target.
+          const bool onPathRun = node.textData && node.textData->onPath;
+          if (inst.measuredRev != inst.contentRev ||
+              (!onPathRun && node.textData &&
+               node.textData->layoutOptions.alignment !=
+                   sigil::weave::TextAlignment::kStart &&
+               inst.measuredForWidth != bounds.width()))
+            layoutText(inst, bounds.width());
+          // Misprint echoes of the TEXT, under the real pass (kinetic text
+          // draws its own buckets — echoes skip it by contract).
+          const GlyphFx* glyphs = glyphFxOf(node);
+          if (!echoesOf(node).empty() && !(glyphs && glyphs->effect)) {
+            for (const Echo& e : echoesOf(node)) {
+              sigil::weave::PaintStyle stamp;
+              stamp.foreground.setColor4f(e.color, nullptr);
+              canvas.save();
+              canvas.translate(e.offset.fX, e.offset.fY);
+              inst.textLayout.drawBatched(&canvas, *inst.paragraph, &stamp);
+              canvas.restore();
+            }
           }
-          const sigil::weave::LineMetrics &first = inst.lines.front();
-          if (capH <= 0)
-            capH = first.ascent; // face reports none — the ascent band
-          float left = first.left, right = first.right;
-          for (const sigil::weave::LineMetrics &line : inst.lines) {
-            left = std::min(left, line.left);
-            right = std::max(right, line.right);
+          const TextPath* onPath =
+              onPathRun ? &*node.textData->onPath : nullptr;
+          if (glyphs && glyphs->effect) {
+            paintKineticText(inst, canvas, *glyphs);
+          } else if (onPath) {
+            paintTextOnPath(inst, canvas, *onPath,
+                            {bounds.width(), bounds.height()});
+          } else if (const Material* metricMat = metricFillOf(node);
+                     metricMat ||
+                     (node.textData && node.textData->hasTextStroke)) {
+            // Chrome type: the material's unit square mapped to the text's
+            // metric band — x across the widest line, y from the first line's
+            // cap top (real cap height when the face reports one) to the last
+            // line's baseline.
+            //
+            // The override replaces the whole PaintStyle for every run, so it
+            // starts as a COPY of the paragraph's own style and swaps only the
+            // foreground — textFill supersedes the fill, not the underlays,
+            // overlays and decorations around it (a chrome wordmark keeps its
+            // cast shadow and dark keyline).
+            sigil::weave::PaintStyle metric =
+                inst.paragraph->spans().empty()
+                    ? sigil::weave::PaintStyle{}
+                    : inst.paragraph->spans().front().style.paint;
+            metric.foreground.setShader(nullptr);
+            bool havePaint = false;
+            // textStroke(): a stroke pass on the glyphs, UNDER the fill. It
+            // joins the style's own underlays rather than replacing them, so
+            // an engraved face keeps its cast shadow.
+            if (node.textData && node.textData->hasTextStroke) {
+              sigil::weave::PaintLayer outline;
+              outline.paint.setAntiAlias(true);
+              outline.paint.setStyle(SkPaint::kStroke_Style);
+              outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
+              outline.paint.setStrokeJoin(SkPaint::kRound_Join);
+              const Fill& sf = node.textData->textStrokeFill;
+              if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
+                outline.paint.setShader(sf.shaderValue);
+              else
+                outline.paint.setColor4f(sf.kind == Fill::Kind::Color
+                                             ? sf.colorValue
+                                             : SkColor4f{0, 0, 0, 1},
+                                         nullptr);
+              metric.addUnderlay(outline);
+              havePaint = true;
+            }
+            if (!metricMat) {
+              inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                          havePaint ? &metric : nullptr,
+                                          liveDriveImpl(inst, node, fonts));
+              break;
+            }
+            // Geometry-dependent materials resolve against a UNIT box here,
+            // not the node's. The local matrix below already maps the
+            // shader's [0,1]² onto the metric band, so uResolution baked from
+            // the node's layout size would divide a second time: a
+            // `linearUnit` ramp came out at t ≈ 0.003 and every glyph painted
+            // the first stop, flat and silently. Material.h advertises
+            // textFill and the Unit ramps as the same trick, and this is what
+            // makes that true.
+            PaintContext metricCtx = paintCtx;
+            metricCtx.size = {1.0f, 1.0f};
+            const Fill f =
+                (metricMat->isAnimated() || metricMat->geometryDependent())
+                    ? metricMat->resolve(metricCtx)
+                    : metricMat->toFill();
+            if (f.kind == Fill::Kind::Shader && f.shaderValue &&
+                !inst.lines.empty()) {
+              const sigil::weave::ShapedWord* firstFont = nullptr;
+              sigil::weave::forEachPlacedGlyph(
+                  inst.textLayout, *inst.paragraph,
+                  [&](const sigil::weave::ShapedWord* font, SkGlyphID, float,
+                      SkColor, SkPoint) {
+                    if (!firstFont) firstFont = font;
+                  });
+              float capH = 0;
+              if (firstFont && firstFont->typeface) {
+                SkFontMetrics fm;
+                sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
+                    .getMetrics(&fm);
+                capH = fm.fCapHeight;
+              }
+              const sigil::weave::LineMetrics& first = inst.lines.front();
+              if (capH <= 0)
+                capH = first.ascent;  // face reports none — the ascent band
+              float left = first.left, right = first.right;
+              for (const sigil::weave::LineMetrics& line : inst.lines) {
+                left = std::min(left, line.left);
+                right = std::max(right, line.right);
+              }
+              const float top = first.baseline - capH;
+              const float bottom = inst.lines.back().baseline;
+              SkMatrix map = SkMatrix::Translate(left, top);
+              map.preScale(std::max(right - left, 1.0f),
+                           std::max(bottom - top, 1.0f));
+              metric.foreground.setShader(
+                  f.shaderValue->makeWithLocalMatrix(map));
+              havePaint = true;
+            } else if (f.kind == Fill::Kind::Color) {
+              metric.foreground.setColor4f(f.colorValue, nullptr);
+              havePaint = true;
+            }
+            inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                        havePaint ? &metric : nullptr,
+                                        liveDriveImpl(inst, node, fonts));
+          } else {
+            inst.textLayout.drawBatched(&canvas, *inst.paragraph, nullptr,
+                                        liveDriveImpl(inst, node, fonts));
           }
-          const float top = first.baseline - capH;
-          const float bottom = inst.lines.back().baseline;
-          SkMatrix map = SkMatrix::Translate(left, top);
-          map.preScale(std::max(right - left, 1.0f),
-                       std::max(bottom - top, 1.0f));
-          metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
-          havePaint = true;
-        } else if (f.kind == Fill::Kind::Color) {
-          metric.foreground.setColor4f(f.colorValue, nullptr);
-          havePaint = true;
         }
-        inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                    havePaint ? &metric : nullptr,
-                                    liveDriveImpl(inst, node, fonts));
-      } else {
-        inst.textLayout.drawBatched(&canvas, *inst.paragraph, nullptr,
-                                    liveDriveImpl(inst, node, fonts));
-      }
+        break;
+      case Kind::Image:
+        if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
+          const auto& frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
+          if (frame.image) {
+            const SkSamplingOptions sampling = node.imageData->sampling;
+            if (node.imageData->region)
+              canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
+                                   sampling, nullptr,
+                                   SkCanvas::kStrict_SrcRectConstraint);
+            else
+              canvas.drawImageRect(frame.image, bounds, sampling);
+          }
+        }
+        break;
+      case Kind::Custom:
+        if (node.customData && node.customData->program)
+          node.customData->program(canvas, paintCtx);
+        break;
+      case Kind::Box:
+      case Kind::Stack:
+      case Kind::Slot:
+        break;
     }
-    break;
-  case Kind::Image:
-    if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
-      const auto &frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
-      if (frame.image) {
-        const SkSamplingOptions sampling = node.imageData->sampling;
-        if (node.imageData->region)
-          canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
-                               sampling, nullptr,
-                               SkCanvas::kStrict_SrcRectConstraint);
-        else
-          canvas.drawImageRect(frame.image, bounds, sampling);
-      }
-    }
-    break;
-  case Kind::Custom:
-    if (node.customData && node.customData->program)
-      node.customData->program(canvas, paintCtx);
-    break;
-  case Kind::Box:
-  case Kind::Stack:
-  case Kind::Slot:
-    break;
-  }
 
-  if (granularPlane && emitOwn)
-    leaveGates(contentSaves, contentCover);
+  if (granularPlane && emitOwn) leaveGates(contentSaves, contentCover);
 
   // Children in stacking order (each clean static child replays its own nested
   // picture — ancestor re-records don't repaint clean subtrees).
   const size_t kidsCover = coverStack.size();
-  const int kidsSaves =
-      granularPlane && emitChildren ? enterGates(false, Parts::kChildren, {})
-                                    : -1;
+  const int kidsSaves = granularPlane && emitChildren
+                            ? enterGates(false, Parts::kChildren, {})
+                            : -1;
   if (emitChildren)
-    for (size_t index : inst.paintOrder)
-      paint(*inst.children[index], canvas);
-  if (granularPlane && emitChildren)
-    leaveGates(kidsSaves, kidsCover);
+    for (size_t index : inst.paintOrder) paint(*inst.children[index], canvas);
+  if (granularPlane && emitChildren) leaveGates(kidsSaves, kidsCover);
 
-  if (node.clipContent)
-    canvas.restore(); // decorations below stay unclipped
+  if (node.clipContent) canvas.restore();  // decorations below stay unclipped
 
   // FOREGROUNDS PAINT AFTER THE CHILDREN, so they belong to the children
   // half and can never be in an own-paint bake. The own half is the
@@ -2147,13 +2070,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // the sub-geometry it CLAIMED, so a brush that knows nothing about
   // spans (a PathFormat, a Brush, a brush::Pattern) dresses part of a
   // boundary with no new vocabulary.
-  if (emitChildren)
-    paintSpanHalf(detail::StrokePass::Half::Foreground);
+  if (emitChildren) paintSpanHalf(detail::StrokePass::Half::Foreground);
 
   leaveGates(hoistSaves, hoistCover);
 
-  if (hasEffect)
-    canvas.restore();
+  if (hasEffect) canvas.restore();
 }
 
 namespace {
@@ -2180,49 +2101,55 @@ constexpr float kStableKeep = 0.3f;
 /** A readable, ACTIONABLE identity for a profile row: the author's own
  *  key() when there is one (that is what they will search for), else the
  *  node kind and its painted size, which is usually enough to find it. */
-std::string profileLabel(const detail::Instance &inst, const SkRect &rect) {
-  const detail::ElementNode &node = *inst.desc;
-  const char *kind = "box";
+std::string profileLabel(const detail::Instance& inst, const SkRect& rect) {
+  const detail::ElementNode& node = *inst.desc;
+  const char* kind = "box";
   switch (node.kind) {
-  case detail::Kind::Box: kind = "box"; break;
-  case detail::Kind::Text: kind = "text"; break;
-  case detail::Kind::Image: kind = "image"; break;
-  case detail::Kind::Custom: kind = "custom"; break;
-  default: break;
+    case detail::Kind::Box:
+      kind = "box";
+      break;
+    case detail::Kind::Text:
+      kind = "text";
+      break;
+    case detail::Kind::Image:
+      kind = "image";
+      break;
+    case detail::Kind::Custom:
+      kind = "custom";
+      break;
+    default:
+      break;
   }
   char buf[96];
   std::snprintf(buf, sizeof buf, "%s %.0fx%.0f", kind, rect.width(),
                 rect.height());
-  if (!node.key.empty())
-    return node.key + " (" + buf + ")";
+  if (!node.key.empty()) return node.key + " (" + buf + ")";
   return buf;
 }
 
 /** Scoped per-node timer. RAII because paint() has several early returns
  *  and a half-written row would be worse than no row at all. */
 struct ProfileScope {
-  Composer::Impl *impl = nullptr;
+  Composer::Impl* impl = nullptr;
   size_t row = SIZE_MAX;
   double savedChildren = 0;
   std::chrono::steady_clock::time_point start;
 
-  ProfileScope(Composer::Impl *i, const detail::Instance &inst,
-               const SkRect &rect)
+  ProfileScope(Composer::Impl* i, const detail::Instance& inst,
+               const SkRect& rect)
       : impl(i) {
-    if (!impl->profileEnabled)
-      return;
+    if (!impl->profileEnabled) return;
     row = impl->profileRows.size();
-    impl->profileRows.push_back(
-        Composer::NodeCost{profileLabel(inst, rect), 0, 0, impl->profDepth,
-                           Composer::CacheState::Live});
+    impl->profileRows.push_back(Composer::NodeCost{profileLabel(inst, rect), 0,
+                                                   0, impl->profDepth,
+                                                   Composer::CacheState::Live});
     savedChildren = impl->profChildMs;
     impl->profChildMs = 0;
     ++impl->profDepth;
     start = std::chrono::steady_clock::now();
   }
   ~ProfileScope() {
-    if (row == SIZE_MAX)
-      return;
+    if (row == SIZE_MAX) return;
     const double total = std::chrono::duration<double, std::milli>(
                              std::chrono::steady_clock::now() - start)
                              .count();
@@ -2234,17 +2161,16 @@ struct ProfileScope {
   }
 };
 
-} // namespace
+}  // namespace
 
-void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
-  const ElementNode &node = *inst.desc;
+void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
+  const ElementNode& node = *inst.desc;
   const SkRect rect = instanceRect(inst);
   ProfileScope profileScope(this, inst, rect);
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
-  if (opacity <= 0.0f)
-    return;
+  if (opacity <= 0.0f) return;
 
   // (Size-change invalidation for recordings — including geometry-dependent
   // materials' baked uResolution — happens in ensureLayout's
@@ -2268,19 +2194,18 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // NOT canvas.getTotalMatrix(): that includes the HOST's transform and any
   // bake-layer offset, and this matrix must stop at the composer root. RAII
   // because paint() returns from several places.
-  if (!inst.parent)
-    rootLayoutSize = SkSize{rect.width(), rect.height()};
+  if (!inst.parent) rootLayoutSize = SkSize{rect.width(), rect.height()};
   struct ToRootScope {
-    SkMatrix *slot;
+    SkMatrix* slot;
     SkMatrix saved;
-    explicit ToRootScope(SkMatrix *s) : slot(s), saved(*s) {}
+    explicit ToRootScope(SkMatrix* s) : slot(s), saved(*s) {}
     ~ToRootScope() { *slot = saved; }
   } toRootScope(&curToRoot);
   curToRoot.preTranslate(rect.left(), rect.top());
   curToRoot.preConcat(
       tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
 
-  const Effect *backdropFx = backdropEffectOf(node);
+  const Effect* backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
   if (backdropFx) {
     // A backdrop effect's child materials resolve against the node's box
@@ -2296,7 +2221,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                                    &fonts,
                                    nullptr,
                                    &inst.stampCache,
-                                   curToRoot, // this node→root
+                                   curToRoot,  // this node→root
                                    rootLayoutSize};
     backdropFilter = backdropFx->resolvedImageFilter(&backdropCtx);
   }
@@ -2308,15 +2233,16 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // element, not the element's overflow).
     canvas.save();
     if (node.shapeFn)
-      canvas.clipPath(resolveOutline(inst, {rect.width(), rect.height()}), true);
+      canvas.clipPath(resolveOutline(inst, {rect.width(), rect.height()}),
+                      true);
     else
       canvas.clipRRect(cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
                                     node.corners),
                        true);
     SkCanvas::SaveLayerRec rec(nullptr, nullptr, backdropFilter.get(), 0);
     canvas.saveLayer(rec);
-    canvas.restore(); // composite the filtered backdrop through the clip
-    canvas.restore(); // release the clip — content is NOT bounded by it
+    canvas.restore();  // composite the filtered backdrop through the clip
+    canvas.restore();  // release the clip — content is NOT bounded by it
   }
 
   // The live-material resolve probe: when the node's only volatility is its
@@ -2334,7 +2260,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                        &fonts,
                        nullptr,
                        nullptr,
-                       curToRoot, // so the memo digest sees this move
+                       curToRoot,  // so the memo digest sees this move
                        rootLayoutSize};
     inst.pendingLiveFill = liveMaterialOf(node)->resolve(probe);
     inst.hasPendingLiveFill = true;
@@ -2358,7 +2284,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // Every mask gate's animated numbers, as a bounded per-node list, so a
     // masked node can take this memo at all.
     scalarsNow.gates = inst.resolveGateValues();
-    if (const GlyphFx *g = glyphFxOf(node))
+    if (const GlyphFx* g = glyphFxOf(node))
       scalarsNow.glyph =
           inst.resolveFloat(Instance::kGlyphProgress, g->progress);
     // The node→root matrix as of THIS paint — curToRoot is exactly it here,
@@ -2401,8 +2327,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool cacheHolds = !inst.subtreeVolatile || memoized;
   // …and "are they still the RIGHT pixels?" — the two memos answer for
   // their own input and abstain on the other.
-  const bool memoStale = (inst.liveMatOnly && !liveStable) ||
-                         (inst.scalarMemo && !scalarsStable);
+  const bool memoStale =
+      (inst.liveMatOnly && !liveStable) || (inst.scalarMemo && !scalarsStable);
 
   // Fill-only leaves route blend/opacity straight onto the fill paint instead
   // of a (device-clip-sized!) saveLayer — a field of plus-blended shapes costs
@@ -2419,10 +2345,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       node.foregrounds.empty() && !node.hasStrokePasses() &&
       (!node.fxData ||
        (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
-      !layerEffectOf(node) &&
-      !backdropEffectOf(node) &&
-      !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
-      node.cacheMode != Cache::Group; // (same reason: bakes isolate)
+      !layerEffectOf(node) && !backdropEffectOf(node) && !node.clipContent &&
+      !opacityLive && node.cacheMode != Cache::Texture &&
+      node.cacheMode != Cache::Group;  // (same reason: bakes isolate)
   // A texture-cached node composites exactly ONE draw — its blit — so its
   // blend and opacity can ride that draw's paint instead of a
   // device-clip-sized saveLayer. Cheaper, and slightly more exact: no
@@ -2454,7 +2379,6 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
   const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
 
-
   // Automatic caching at topmost provably-static subtrees: pictures by
   // default, a rasterized image under Cache::Texture (the raster-target pixel
   // win — replaying a picture re-rasterizes, blitting doesn't).
@@ -2463,13 +2387,12 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // live paints. Nested lines overlap (inclusive of children); any
   // unparsable value means 4ms.
   static const double kProfMs = [] {
-    const char *env = getenv("COMPOSE_PROF");
-    if (!env)
-      return -1.0;
+    const char* env = getenv("COMPOSE_PROF");
+    if (!env) return -1.0;
     const double v = atof(env);
     return v > 0.0 ? v : 4.0;
   }();
-  const auto profDraw = [&](const char *what, auto &&draw) {
+  const auto profDraw = [&](const char* what, auto&& draw) {
     if (kProfMs < 0.0) {
       draw();
       return;
@@ -2488,8 +2411,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // ---- automatic texture promotion -----------------------------------
   // Eligibility is deliberately narrow. Everything here is a condition
   // under which a device-aligned bake is provably the same pixels as the
-  // replay; anything else keeps replaying. See Composer::setAutoTexturePromotion.
-  const SkMatrix &totalM = canvas.getTotalMatrix();
+  // replay; anything else keeps replaying. See
+  // Composer::setAutoTexturePromotion.
+  const SkMatrix& totalM = canvas.getTotalMatrix();
   // Upright, unmirrored, unrotated and unskewed. It is tempting to drop
   // this: a device-space bake concatenates the full matrix into the layer
   // and blits with the matrix reset at an integer offset, so it cannot
@@ -2522,7 +2446,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // node that reaches none of them never pays for it at all.
   SkRect localPaintBounds = SkRect::MakeEmpty();
   bool localBoundsDone = false;
-  const auto localBoundsOf = [&]() -> const SkRect & {
+  const auto localBoundsOf = [&]() -> const SkRect& {
     if (!localBoundsDone) {
       localBoundsDone = true;
       localPaintBounds = recordBounds(inst);
@@ -2557,34 +2481,26 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // cannot disagree.
   using Prom = Composer::Promotion;
   uint16_t refusals = 0;
-  const auto flag = [&](Prom p) {
-    refusals |= (uint16_t)(1u << (unsigned)p);
-  };
+  const auto flag = [&](Prom p) { refusals |= (uint16_t)(1u << (unsigned)p); };
   // autoPromoteEffective, not autoPromote: the backend-aware default (off on
   // GPU unless the host asked) is applied in draw(). See ComposeRuntime.h.
-  const bool optedOut =
-      !autoPromoteEffective || node.cacheMode != Cache::Auto;
-  if (optedOut)
-    flag(Prom::OptedOut);
-  if (!contentStable)
-    flag(Prom::Volatile);
+  const bool optedOut = !autoPromoteEffective || node.cacheMode != Cache::Auto;
+  if (optedOut) flag(Prom::OptedOut);
+  if (!contentStable) flag(Prom::Volatile);
   if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
     flag(Prom::Composited);
-  if (layerEffectOf(node) || node.clipContent)
-    flag(Prom::Filtered);
-  if (inst.subtreeReadsBackdrop) // incl. this node's own backdrop()
+  if (layerEffectOf(node) || node.clipContent) flag(Prom::Filtered);
+  if (inst.subtreeReadsBackdrop)  // incl. this node's own backdrop()
     flag(Prom::ReadsBackdrop);
   if (rect.width() < 0.5f || rect.height() < 0.5f)
-    flag(Prom::TooBig); // degenerate, not large — same "cannot bake" bucket
-  if (!upright)
-    flag(Prom::Transformed);
+    flag(Prom::TooBig);  // degenerate, not large — same "cannot bake" bucket
+  if (!upright) flag(Prom::Transformed);
 
   // The PRIMARY verdict: the first refusal in the order an author should
   // address them (their own switches first, then content, then geometry).
   static constexpr Prom kRefusalOrder[] = {
-      Prom::OptedOut,  Prom::Volatile,      Prom::Composited,
-      Prom::Transformed, Prom::Filtered,    Prom::ReadsBackdrop,
-      Prom::TooBig};
+      Prom::OptedOut, Prom::Volatile,      Prom::Composited, Prom::Transformed,
+      Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig};
   Prom why = Prom::Cheap;
   for (Prom p : kRefusalOrder)
     if (refusals & (uint16_t)(1u << (unsigned)p)) {
@@ -2601,8 +2517,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // coordinates of another — wrong size, wrong place.
   const bool promotable =
       why == Prom::Cheap && !liveOnly && recordingDepth == 0;
-  if (!promotable)
-    inst.autoTexture = false;
+  if (!promotable) inst.autoTexture = false;
   const auto note = [&](Prom p) {
     if (profileScope.row != SIZE_MAX) {
       profileRows[profileScope.row].promotion = p;
@@ -2618,11 +2533,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // EMA so one scheduling hiccup neither promotes nor un-promotes.
     inst.replayMs = inst.replayMs * 0.6f + (float)cost * 0.4f;
     if (promotable && inst.replayMs > kPromoteMs) {
-      if (inst.hotFrames < 255)
-        ++inst.hotFrames;
+      if (inst.hotFrames < 255) ++inst.hotFrames;
       if (inst.hotFrames >= kPromoteFrames) {
         inst.autoTexture = true;
-        inst.paintDirty = true; // force the first bake
+        inst.paintDirty = true;  // force the first bake
       } else {
         note(Prom::Warming);
       }
@@ -2648,30 +2562,30 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     const bool affordable =
         inst.textureImage ||
         std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
-    if (device.width() > 0 && device.height() > 0 &&
-        area <= 16 * 1024 * 1024 && affordable) {
+    if (device.width() > 0 && device.height() > 0 && area <= 16 * 1024 * 1024 &&
+        affordable) {
       // Re-bake when the recording is stale, when the device rect moved or
       // resized (which is how a transform-SCALE change arrives here), or —
       // the temporal case — when the live material has actually ticked and
       // the baked shader is no longer the one this frame resolves to.
-      if (!inst.textureImage || inst.paintDirty ||
-          memoStale || inst.textureBakeRect != SkRect::Make(device)) {
+      if (!inst.textureImage || inst.paintDirty || memoStale ||
+          inst.textureBakeRect != SkRect::Make(device)) {
         sk_sp<SkSurface> layer = canvas.makeSurface(
             SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (!layer)
           layer = SkSurfaces::Raster(
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
-          SkCanvas *lc = layer->getCanvas();
+          SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
-          lc->concat(totalM); // identical device geometry, offset by ints
+          lc->concat(totalM);  // identical device geometry, offset by ints
           paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = SkRect::Make(device);
-          inst.bakedLiveShader =
-              inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue
-                                      : nullptr;
+          inst.bakedLiveShader = inst.hasPendingLiveFill
+                                     ? inst.pendingLiveFill.shaderValue
+                                     : nullptr;
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
@@ -2689,13 +2603,12 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         canvas.drawImage(inst.textureImage, (float)device.left(),
                          (float)device.top(), SkSamplingOptions());
         canvas.restore();
-        if (needsLayer)
-          canvas.restore();
+        if (needsLayer) canvas.restore();
         canvas.restore();
         return;
       }
     }
-    inst.autoTexture = false; // could not bake — fall through to the picture
+    inst.autoTexture = false;  // could not bake — fall through to the picture
     note(Prom::TooBig);
   }
 
@@ -2758,7 +2671,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // would leave an expensive plane unpromoted under a cheap one.
   const bool splitCandidate =
       !optedOut && !liveOnly && inst.subtreeVolatile &&
-      !inst.ownContentVolatile && // the CHILDREN are what block this node
+      !inst.ownContentVolatile &&  // the CHILDREN are what block this node
       !inst.children.empty() && !inst.ownReadsBackdrop &&
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
       leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
@@ -2771,8 +2684,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       // Leaving it out would hold the split to a weaker standard than the
       // promoter beside it.
       upright;
-  if (!splitCandidate)
-    inst.splitBake = false;
+  if (!splitCandidate) inst.splitBake = false;
   if (splitCandidate) {
     // ownPaintBounds, NOT recordBounds. recordBounds unions the children
     // in, so it moves every frame a child moves — and a bake rect that
@@ -2806,9 +2718,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           layer = SkSurfaces::Raster(
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
-          SkCanvas *lc = layer->getCanvas();
+          SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
-          lc->concat(totalM); // identical device geometry, offset by ints
+          lc->concat(totalM);  // identical device geometry, offset by ints
           paintContent(inst, *lc, hostScale, leafBlend, leafOpacity,
                        Phase::OwnOnly);
           inst.ownImage = layer->makeImageSnapshot();
@@ -2820,8 +2732,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           // must not hold the promotion on the strength of a measurement
           // taken while it was still cheap. Three consecutive re-bakes and
           // it goes live and has to earn it again over the full warmup.
-          if (inst.ownRebakes < 255)
-            ++inst.ownRebakes;
+          if (inst.ownRebakes < 255) ++inst.ownRebakes;
           if (inst.ownRebakes > 3) {
             inst.splitBake = false;
             inst.ownHotFrames = 0;
@@ -2861,11 +2772,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                                .count();
       inst.ownPaintMs = inst.ownPaintMs * 0.6f + (float)ownMs * 0.4f;
       if (inst.ownPaintMs > kPromoteMs) {
-        if (inst.ownHotFrames < 255)
-          ++inst.ownHotFrames;
+        if (inst.ownHotFrames < 255) ++inst.ownHotFrames;
         if (inst.ownHotFrames >= kPromoteFrames) {
           inst.splitBake = true;
-          inst.ownPaintDirty = true; // force the first bake
+          inst.ownPaintDirty = true;  // force the first bake
         } else {
           note(Prom::Warming);
         }
@@ -2880,8 +2790,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                  Phase::ChildrenOnly);
     stats.nodesPainted++;
     inst.paintDirty = false;
-    if (needsLayer)
-      canvas.restore();
+    if (needsLayer) canvas.restore();
     canvas.restore();
     return;
   }
@@ -2950,8 +2859,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // including inside the saveLayer an opacity/blend group opens.
     SkIRect device = deviceRectOf();
     const SkIRect clip = canvas.getDeviceClipBounds();
-    if (!device.intersect(clip))
-      device = SkIRect::MakeEmpty();
+    if (!device.intersect(clip)) device = SkIRect::MakeEmpty();
     const bool rectStable =
         !inst.deviceRectSeen || device == inst.lastDeviceRect;
     inst.lastDeviceRect = device;
@@ -2960,8 +2868,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // THE DROP. Not "re-bake": a group whose bindings are ticking is
     // ticking for a while, and re-baking each of those frames would pay the
     // bake on top of the paint. Hold the pixels only while they are right.
-    if (!settled || inst.paintDirty)
-      inst.textureImage.reset();
+    if (!settled || inst.paintDirty) inst.textureImage.reset();
 
     const int64_t area = (int64_t)device.width() * device.height();
     const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
@@ -2969,8 +2876,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         inst.textureImage ||
         std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
     if (settled && !inst.paintDirty && !inst.transformLive && rectStable &&
-        !totalM.hasPerspective() && device.width() > 0 &&
-        device.height() > 0 && area <= 16 * 1024 * 1024 && affordable) {
+        !totalM.hasPerspective() && device.width() > 0 && device.height() > 0 &&
+        area <= 16 * 1024 * 1024 && affordable) {
       const SkRect want = SkRect::Make(device);
       if (!inst.textureImage || !inst.textureDeviceSpace ||
           inst.textureBakeRect != want) {
@@ -2980,9 +2887,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           layer = SkSurfaces::Raster(
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
-          SkCanvas *lc = layer->getCanvas();
+          SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
-          lc->concat(totalM); // identical device geometry, offset by ints
+          lc->concat(totalM);  // identical device geometry, offset by ints
           // No leaf blend and no leaf opacity: bakes isolate, and the node's
           // own blend/opacity are applied by the saveLayer wrapping the blit
           // — which is why leafDirectBlend excludes Cache::Group.
@@ -3005,8 +2912,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       if (inst.textureImage) {
         promotedBytes += bytes;
         if (profileScope.row != SIZE_MAX) {
-          profileRows[profileScope.row].cacheState = Composer::CacheState::Group;
-          profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+          profileRows[profileScope.row].cacheState =
+              Composer::CacheState::Group;
+          profileRows[profileScope.row].promotion =
+              Composer::Promotion::AskedFor;
         }
         canvas.save();
         canvas.resetMatrix();
@@ -3015,8 +2924,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                            (float)device.top(), SkSamplingOptions());
         });
         canvas.restore();
-        if (needsLayer)
-          canvas.restore();
+        if (needsLayer) canvas.restore();
         canvas.restore();
         return;
       }
@@ -3086,17 +2994,17 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           layer = SkSurfaces::Raster(
               SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
         if (layer) {
-          SkCanvas *lc = layer->getCanvas();
+          SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
-          lc->concat(totalM); // identical device geometry, offset by ints
-          paintContent(inst, *lc, hostScale); // no leaf blend: bakes isolate
+          lc->concat(totalM);  // identical device geometry, offset by ints
+          paintContent(inst, *lc, hostScale);  // no leaf blend: bakes isolate
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = bakeRect;
           inst.textureScale = maxScaleOf(totalM, localBounds);
-          inst.bakedLiveShader =
-              inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue
-                                      : nullptr;
+          inst.bakedLiveShader = inst.hasPendingLiveFill
+                                     ? inst.pendingLiveFill.shaderValue
+                                     : nullptr;
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
@@ -3107,7 +3015,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         if (profileScope.row != SIZE_MAX) {
           profileRows[profileScope.row].cacheState =
               Composer::CacheState::Texture;
-          profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+          profileRows[profileScope.row].promotion =
+              Composer::Promotion::AskedFor;
         }
         // Identity CTM is global canvas space even inside a saveLayer (the
         // layer device carries its own origin), so an opacity/blend bake
@@ -3130,8 +3039,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           }
         });
         canvas.restore();
-        if (needsLayer)
-          canvas.restore();
+        if (needsLayer) canvas.restore();
         canvas.restore();
         return;
       }
@@ -3150,10 +3058,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // blurry bake rather than a wasted one.
     const float raw = std::clamp(maxScaleOf(total, localBounds), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
-                                           1.5f, 2.0f, 3.0f, 4.0f};
+                                           1.5f,  2.0f, 3.0f,  4.0f};
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];
     for (float step : kBakeSteps)
-      if (step >= raw) { scale = step; break; }
+      if (step >= raw) {
+        scale = step;
+        break;
+      }
     // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
     // pixels and the blit below linear-upscales through the same dst rect.
     scale = std::max(0.1f, scale * node.bakeScale);
@@ -3162,8 +3073,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // cull).
     const SkRect bake = localBounds;
     if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
-        inst.textureDeviceSpace || memoStale ||
-        inst.textureBakeRect != bake) {
+        inst.textureDeviceSpace || memoStale || inst.textureBakeRect != bake) {
       const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
       const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
       sk_sp<SkSurface> layer =
@@ -3172,8 +3082,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
       layer->getCanvas()->scale(scale, scale);
       layer->getCanvas()->translate(-bake.left(), -bake.top());
-      paintContent(inst, *layer->getCanvas(), scale); // no leaf blend:
-      inst.textureImage = layer->makeImageSnapshot(); // bakes isolate
+      paintContent(inst, *layer->getCanvas(), scale);  // no leaf blend:
+      inst.textureImage = layer->makeImageSnapshot();  // bakes isolate
       inst.textureScale = scale;
       inst.textureDeviceSpace = false;
       inst.textureBakeRect = bake;
@@ -3198,7 +3108,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         (float)inst.textureImage->height() / inst.textureScale);
     profDraw("blit", [&] {
       if (deferBlendToBlit) {
-        SkPaint blit; // same rule as the device blit above
+        SkPaint blit;  // same rule as the device blit above
         blit.setAlphaf(opacity);
         blit.setBlendMode(node.paint.blendMode);
         canvas.drawImageRect(inst.textureImage, dst,
@@ -3232,8 +3142,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // (Childless Image leaves deliberately absent: one drawImageRect is
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
-    if (!inst.picture || inst.paintDirty ||
-        memoStale || inst.bakedLeafOpacity != leafOpacity ||
+    if (!inst.picture || inst.paintDirty || memoStale ||
+        inst.bakedLeafOpacity != leafOpacity ||
         inst.bakedLeafBlend != leafBlend) {
       // The same rect the layers and bakes use. Its job HERE is only to be
       // an honest bounds advertisement (SkPicture::cullRect) — this path
@@ -3241,7 +3151,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       // or at playback; see the note on ownPaintBounds for the measurement.
       const SkRect cull = recordBounds(inst);
       SkPictureRecorder recorder;
-      SkCanvas *rec = recorder.beginRecording(cull);
+      SkCanvas* rec = recorder.beginRecording(cull);
       // A picture can be replayed under a DIFFERENT matrix than it was
       // recorded at (an ancestor with a live transform keeps its picture
       // and replays it under the motion). Anything inside must therefore
@@ -3251,8 +3161,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
       --recordingDepth;
       inst.picture = recorder.finishRecordingAsPicture();
-      inst.bakedLeafOpacity = leafOpacity; // a settled transition re-bakes
-      inst.bakedLeafBlend = leafBlend;     // (the recording froze them in)
+      inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
+      inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
       inst.bakedLiveShader =
           inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
       inst.bakedScalars = scalarsNow;
@@ -3294,9 +3204,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     inst.paintDirty = false;
   }
 
-  if (needsLayer)
-    canvas.restore();
+  if (needsLayer) canvas.restore();
   canvas.restore();
 }
 
-} // namespace sigil::compose
+}  // namespace sigil::compose

@@ -12,8 +12,7 @@ double FrameClock::tick(double nowSeconds) {
   }
   double delta = nowSeconds - m_lastNow;
   m_lastNow = nowSeconds;
-  if (m_paused)
-    return 0.0;
+  if (m_paused) return 0.0;
   delta = std::clamp(delta, 0.0, m_options.maxDelta) * m_timeScale;
   m_elapsed += delta;
   return delta;
@@ -27,4 +26,4 @@ double FrameClock::tick() {
 
 void FrameClock::setPaused(bool paused) { m_paused = paused; }
 
-} // namespace sigil::motion
+}  // namespace sigil::motion

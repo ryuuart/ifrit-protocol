@@ -8,15 +8,14 @@
 // The animated layers (spinning medallions, draw-on scrollwork, shimmer)
 // stay in ScenesFlourish.h; those are the live scene's job, not a card's.
 
-#include "GalleryCore.h"
-#include "OrnamentKit.h"
-
-#include <sigilcompose/Shapes.h>
-
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/Shapes.h>
 
 #include <string>
 #include <vector>
+
+#include "GalleryCore.h"
+#include "OrnamentKit.h"
 
 namespace compose_gallery {
 
@@ -36,17 +35,16 @@ struct FlourishStyle {
 inline SkColor toSk(SkColor4f c) { return c.toSkColor(); }
 
 /** An OrnamentKit Palette view of the style — for SwirlCorners etc. */
-inline Palette toOrnamentPalette(const FlourishStyle &s) {
+inline Palette toOrnamentPalette(const FlourishStyle& s) {
   return {s.parchment, s.ink, s.bronze, s.leaf, s.goldBright};
 }
 
 /** Muted-grain parchment. Skia fractal noise is COLORED, so we drop it to
  *  grayscale (kLuminosity over a mid tone) before the soft-light pass —
  *  the grain without OrnamentKit::parchmentFill's rainbow speckle. */
-inline Fill flourishParchment(const FlourishStyle &s, float freq = 0.04f) {
+inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
   sk_sp<SkShader> noise = SkShaders::MakeFractalNoise(freq, freq, 3, 7.0f);
-  if (!noise)
-    return Fill::color(s.parchment);
+  if (!noise) return Fill::color(s.parchment);
   sk_sp<SkShader> muted = SkShaders::Blend(
       SkBlendMode::kLuminosity,
       SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
@@ -71,19 +69,19 @@ inline shapes::OutlineFn leafOutline() {
   };
 }
 
-inline Element acanthusLeaf(const FlourishStyle &s, float w = 28.0f,
+inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
                             float h = 20.0f) {
-  ContourWalk veins; // recursion level 2: the stamp walks its own contour
+  ContourWalk veins;  // recursion level 2: the stamp walks its own contour
   veins.spacing = 4.0f;
   const SkColor4f bead = s.goldBright;
-  veins.draw = [bead](SkCanvas &c, const PathSample &, const PaintContext &) {
+  veins.draw = [bead](SkCanvas& c, const PathSample&, const PaintContext&) {
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(bead, nullptr);
     c.drawCircle(0, 0, 0.7f, p);
   };
   const SkColor4f rib = s.goldBright;
-  Decoration midrib{PaintProgram([rib](SkCanvas &c, const PaintContext &ctx) {
+  Decoration midrib{PaintProgram([rib](SkCanvas& c, const PaintContext& ctx) {
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
@@ -104,7 +102,7 @@ inline Element acanthusLeaf(const FlourishStyle &s, float w = 28.0f,
 }
 
 /** The acanthus vine as a contour-walked element stamp (bakes once). */
-inline ContourWalk flourishVine(const FlourishStyle &s, float spacing = 18.0f,
+inline ContourWalk flourishVine(const FlourishStyle& s, float spacing = 18.0f,
                                 float lw = 26.0f, float lh = 18.0f) {
   ContourWalk vine;
   vine.spacing = spacing;
@@ -143,7 +141,7 @@ inline PathFormat giltDash(SkColor4f color, float width = 1.2f) {
 // the scene and the particle field build on. Returns a chainable box in
 // column layout; the caller adds a title and paragraphs.
 
-inline Element flourishCard(const FlourishStyle &s, float w, float h,
+inline Element flourishCard(const FlourishStyle& s, float w, float h,
                             float radius = 14.0f) {
   const Palette pal = toOrnamentPalette(s);
   return box()
@@ -161,4 +159,4 @@ inline Element flourishCard(const FlourishStyle &s, float w, float h,
       .gap(6);
 }
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

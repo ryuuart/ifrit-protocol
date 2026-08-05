@@ -1,14 +1,13 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
-#include "SceneRegistry.h"
-#include "SceneSupport.h"
-
-#include <sigilweave/Query.h>
-
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
+#include <sigilweave/Query.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "SceneRegistry.h"
+#include "SceneSupport.h"
 
 using namespace sigil::weave;
 
@@ -17,10 +16,10 @@ namespace gallery {
 namespace {
 
 class VerticalScene final : public Scene {
-public:
-  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
-                    int /*frameNumber*/, const SceneParams & /*params*/,
-                    FontContext &fontContext) override {
+ public:
+  FrameStats render(SkCanvas* canvas, SkISize size, double elapsedSeconds,
+                    int /*frameNumber*/, const SceneParams& /*params*/,
+                    FontContext& fontContext) override {
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
     const float fontSize =
@@ -28,8 +27,7 @@ public:
     if (!m_mincho) {
       m_mincho = fontContext.fontManager()->matchFamilyStyle(
           "Hiragino Mincho ProN", SkFontStyle());
-      if (!m_mincho)
-        m_mincho = fontContext.defaultTypeface();
+      if (!m_mincho) m_mincho = fontContext.defaultTypeface();
     }
     m_paragraphsBuilt.ensure({fontSize}, [&] {
       m_fontSize = fontSize;
@@ -80,11 +78,10 @@ public:
             0};
   }
 
-private:
+ private:
   /// Creates a Japanese style with the requested vertical glyph behavior.
-  TextStyle
-  japaneseStyle(float fontSize,
-                VerticalForm verticalForm = VerticalForm::kAuto) const {
+  TextStyle japaneseStyle(
+      float fontSize, VerticalForm verticalForm = VerticalForm::kAuto) const {
     TextStyle style = makeStyle(fontSize, kInk, "ja", m_mincho);
     style.shaping.verticalForm = verticalForm;
     return style;
@@ -115,20 +112,19 @@ private:
   }
 
   /// Places a ruby annotation alongside the first matching vertical range.
-  void rubyVertical(SkCanvas *canvas, FontContext &fontContext,
-                    const ParagraphLayout &layout, std::u16string_view baseText,
-                    const char8_t *rubyText) {
+  void rubyVertical(SkCanvas* canvas, FontContext& fontContext,
+                    const ParagraphLayout& layout, std::u16string_view baseText,
+                    const char8_t* rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(m_verticalParagraph, baseText);
-    if (matches.empty())
-      return;
+    if (matches.empty()) return;
     bool valid = false;
     int line = 0;
     SkPoint origin = {0, 0};
     float rangeBegin = 0;
     float rangeEnd = 0;
-    for (const PositionedRun &run : layout.runs) {
-      const Word &word = m_verticalParagraph.words()[run.wordIndex];
+    for (const PositionedRun& run : layout.runs) {
+      const Word& word = m_verticalParagraph.words()[run.wordIndex];
       if (word.textEnd <= matches[0].start ||
           word.textBegin >= matches[0].end || run.transformed)
         continue;
@@ -144,8 +140,7 @@ private:
         rangeEnd = std::max(rangeEnd, offset + word.width);
       }
     }
-    if (!valid)
-      return;
+    if (!valid) return;
     Paragraph ruby;
     ruby.appendText(rubyText, japaneseStyle(m_fontSize * 0.5f));
     ruby.setWritingMode(WritingMode::kVerticalRL);
@@ -160,24 +155,23 @@ private:
   }
 
   /// Draws emphasis dots beside matching glyphs in the vertical paragraph.
-  void kentenVertical(SkCanvas *canvas, const ParagraphLayout &layout,
+  void kentenVertical(SkCanvas* canvas, const ParagraphLayout& layout,
                       std::u16string_view emphasis, float alpha) {
     const std::vector<CharRange> matches =
         findAllOccurrences(m_verticalParagraph, emphasis);
-    if (matches.empty())
-      return;
+    if (matches.empty()) return;
     SkPaint dot;
     dot.setAntiAlias(true);
     dot.setColor(kAccent);
     dot.setAlphaf(alpha);
-    for (const PositionedRun &run : layout.runs) {
-      const Word &word = m_verticalParagraph.words()[run.wordIndex];
+    for (const PositionedRun& run : layout.runs) {
+      const Word& word = m_verticalParagraph.words()[run.wordIndex];
       if (word.textEnd <= matches[0].start ||
           word.textBegin >= matches[0].end || run.transformed ||
           !run.shaped->vertical)
         continue;
       float penAdvance = 0;
-      const ShapedWord &shapedWord = *run.shaped;
+      const ShapedWord& shapedWord = *run.shaped;
       for (size_t glyphIndex = 0; glyphIndex < shapedWord.advances.size();
            ++glyphIndex) {
         const uint32_t textOffset =
@@ -193,19 +187,18 @@ private:
   }
 
   /// Places a ruby annotation above the first matching horizontal range.
-  void rubyHorizontal(SkCanvas *canvas, FontContext &fontContext,
-                      const ParagraphLayout &layout,
-                      std::u16string_view baseText, const char8_t *rubyText) {
+  void rubyHorizontal(SkCanvas* canvas, FontContext& fontContext,
+                      const ParagraphLayout& layout,
+                      std::u16string_view baseText, const char8_t* rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(m_horizontalParagraph, baseText);
-    if (matches.empty())
-      return;
+    if (matches.empty()) return;
     float rangeLeft = 0;
     float rangeRight = 0;
     float baseline = 0;
     bool valid = false;
-    for (const PositionedRun &run : layout.runs) {
-      const Word &word = m_horizontalParagraph.words()[run.wordIndex];
+    for (const PositionedRun& run : layout.runs) {
+      const Word& word = m_horizontalParagraph.words()[run.wordIndex];
       if (word.textEnd <= matches[0].start || word.textBegin >= matches[0].end)
         continue;
       if (!valid) {
@@ -217,8 +210,7 @@ private:
         rangeRight = std::max(rangeRight, run.origin.x() + word.width);
       }
     }
-    if (!valid)
-      return;
+    if (!valid) return;
     Paragraph ruby;
     ruby.appendText(rubyText, japaneseStyle(m_fontSize * 0.4f));
     const float width = ruby.naturalWidth(fontContext);
@@ -235,7 +227,7 @@ private:
   Paragraph m_horizontalParagraph;
   kit::RebuildGuard<float> m_paragraphsBuilt;
   sk_sp<SkTypeface> m_mincho;
-  float m_fontSize = 0; // display size the ruby/kenten helpers scale from
+  float m_fontSize = 0;  // display size the ruby/kenten helpers scale from
 };
 
 SceneDescriptor makeVerticalDescriptor() {
@@ -247,8 +239,8 @@ SceneDescriptor makeVerticalDescriptor() {
   return descriptor;
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_GALLERY_SCENE(makeVerticalDescriptor())
 
-} // namespace gallery
+}  // namespace gallery

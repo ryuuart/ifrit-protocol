@@ -26,16 +26,15 @@
 //
 // The window-open animation replays on every activation of the scene.
 
-#include "GalleryCore.h"
-
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/LayerStyles.h>
+#include <sigilcompose/Material.h>
 
 #include <cmath>
+
+#include "GalleryCore.h"
 
 namespace compose_gallery {
 
@@ -49,7 +48,7 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 // keeps proportions credible against the original, the taskbar keeps its
 // 40px band.
 constexpr float kWX = 150, kWY = 84, kWW = 600, kWH = 440;
-constexpr float kCaption = 30; // caption band height
+constexpr float kCaption = 30;  // caption band height
 // Client hole (window-local): glass border 9px, caption above.
 constexpr float kCL = 9, kCT = kCaption + 1, kCR = 9, kCB = 9;
 constexpr float kTaskbarH = 40;
@@ -71,7 +70,7 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 // bands, fine filaments + speckle stars (high-frequency detail so the
 // tight sigma=3 glass blur actually READS through the frame).
 inline sk_sp<SkRuntimeEffect> auroraEffect() {
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform float uTime;
     uniform float2 uResolution;
     half4 main(float2 p) {
@@ -114,8 +113,7 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
   )";
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx)
-      SkDebugf("aurora shader: %s\n", err.c_str());
+    if (!fx) SkDebugf("aurora shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
@@ -162,18 +160,16 @@ inline Material glassTint(float w, float h) {
 // Radial white corner glow, a.35->0 over ~30px, centered on a top corner.
 inline Material cornerGlow(SkPoint center) {
   return Material::radial(center, 34,
-                          {{0.0f, {1, 1, 1, 0.35f}},
-                           {1.0f, {1, 1, 1, 0.0f}}});
+                          {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}});
 }
 
 // The bloom that filled the close button on hover.
 inline Material closeBloom(float w, float h) {
-  return Material::radial(
-      {w * 0.5f, h * 0.42f}, w * 0.60f,
-      {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
-       {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
-       {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
-       {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
+  return Material::radial({w * 0.5f, h * 0.42f}, w * 0.60f,
+                          {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
+                           {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
+                           {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
+                           {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
 }
 
 // The DWM window shadow: a rounded-box SDF falloff painted INSIDE its
@@ -182,7 +178,7 @@ inline Material closeBloom(float w, float h) {
 // (the smoothstep knockout below) or the backdrop blur samples its own
 // black core and the whole pane goes murky.
 inline sk_sp<SkRuntimeEffect> windowShadowEffect() {
-  static const char *kSkSL = R"(
+  static const char* kSkSL = R"(
     uniform float2 uResolution;
     uniform float4 uMargins; // l, t, r, b
     half4 main(float2 p) {
@@ -200,8 +196,7 @@ inline sk_sp<SkRuntimeEffect> windowShadowEffect() {
   )";
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx)
-      SkDebugf("window shadow shader: %s\n", err.c_str());
+    if (!fx) SkDebugf("window shadow shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
@@ -216,15 +211,15 @@ inline Material buttonBase(float h) {
                            {1.00f, {1, 1, 1, 0.12f}}});
 }
 
-} // namespace aero_desktop
+}  // namespace aero_desktop
 
 struct AeroDesktopScene final : Scene {
-  choreograph::Output<float> bloom{0};   // close-button hover bloom fade-in
-  choreograph::Output<float> orbGlow{0}; // start-orb ambient breathing
+  choreograph::Output<float> bloom{0};    // close-button hover bloom fade-in
+  choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
 
-  const char *name() const override { return "aero desktop"; }
+  const char* name() const override { return "aero desktop"; }
 
-  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+  void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace ch = choreograph;
     bloom = 0.0f;
     orbGlow = 0.0f;
@@ -250,12 +245,14 @@ struct AeroDesktopScene final : Scene {
 
   // ---- caption buttons -----------------------------------------------
   Element buttonGlyphMinimize() {
-    return box().inset(10, 12, 10, 4)
+    return box()
+        .inset(10, 12, 10, 4)
         .fill(Fill::color({1, 1, 1, 0.95f}))
         .corners({0.5f});
   }
   Element buttonGlyphMaximize() {
-    return box().inset(9, 5, 9, 5)
+    return box()
+        .inset(9, 5, 9, 5)
         .stroke(stroke(1.2f, Fill::color({1, 1, 1, 0.95f})));
   }
   Element buttonGlyphClose(float w, float h) {
@@ -267,9 +264,7 @@ struct AeroDesktopScene final : Scene {
           .corners({1})
           .rotate(deg);
     };
-    return stack().inset(0)
-        .child(bar(45))
-        .child(bar(-45));
+    return stack().inset(0).child(bar(45)).child(bar(-45));
   }
 
   Element captionButton(float w, float h, Corners c, Element glyph,
@@ -277,18 +272,21 @@ struct AeroDesktopScene final : Scene {
     namespace ad = aero_desktop;
     // Inner-aligned edge: the full 1px lands inside the clip (a Center
     // stroke under clip() kept only its inner half).
-    auto b = box().width(w).height(h).corners(c).clip()
-        .fill(ad::buttonBase(h))
-        .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
-                       PathFormat::Align::Inner));
+    auto b = box()
+                 .width(w)
+                 .height(h)
+                 .corners(c)
+                 .clip()
+                 .fill(ad::buttonBase(h))
+                 .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
+                                PathFormat::Align::Inner));
     // NOTE: the hovered close-button bloom is drawn by closeBloomOverlay()
     // in describe() -- its &bloom opacity bind here would keep the entire
     // window texture plane volatile. `hovered` stays in the signature as
     // the state marker the real control had.
     (void)hovered;
     // faint inner top light
-    b.child(box().inset(1, 1, 1, h - 2)
-                .fill(Fill::color({1, 1, 1, 0.22f})));
+    b.child(box().inset(1, 1, 1, h - 2).fill(Fill::color({1, 1, 1, 0.22f})));
     b.child(std::move(glyph));
     return b;
   }
@@ -296,13 +294,16 @@ struct AeroDesktopScene final : Scene {
   Element captionButtons() {
     const float bh = 19;
     const float wMin = 29, wMax = 27, wClose = 47;
-    auto seam = [&] { // 1px dark seam between the glass buttons
+    auto seam = [&] {  // 1px dark seam between the glass buttons
       return box().width(1).height(bh).fill(Fill::color({0, 0, 0, 0.35f}));
     };
     // Pinned, not stretched: top/right only -- the row shrink-wraps.
-    return box().row().top(1).right(8)
-        .child(captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize(),
-                             false))
+    return box()
+        .row()
+        .top(1)
+        .right(8)
+        .child(
+            captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize(), false))
         .child(seam())
         .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize(), false))
         .child(seam())
@@ -316,13 +317,14 @@ struct AeroDesktopScene final : Scene {
     // Aero drew caption text as black glyphs over a white blurred backplate.
     // textGlow re-emits the glyph layer blurred beneath itself, so chaining a
     // tight pass and a wide one gives the dense core with a soft falloff.
-    return box().inset(36, 8, 130, ad::kWH - ad::kCaption)
-        .child(text(toU8("Aurora Borealis \xe2\x80\x94 Aero Glass"),
-                    ad::type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
-                   .inset(0, 0, 0, 0)
-                   .effect(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
-                               .then(styles::textGlow({1, 1, 1, 0.50f},
-                                                      4.5f))));
+    return box()
+        .inset(36, 8, 130, ad::kWH - ad::kCaption)
+        .child(
+            text(toU8("Aurora Borealis \xe2\x80\x94 Aero Glass"),
+                 ad::type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
+                .inset(0, 0, 0, 0)
+                .effect(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
+                            .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f))));
   }
 
   // ---- the client area (white, so the glass frame reads) --------------
@@ -332,45 +334,49 @@ struct AeroDesktopScene final : Scene {
       return ad::type(size, {g, g, g, a});
     };
     const float clientH = ad::kWH - ad::kCT - ad::kCB;
-    return box().inset(ad::kCL, ad::kCT, ad::kCR, ad::kCB)
+    return box()
+        .inset(ad::kCL, ad::kCT, ad::kCR, ad::kCB)
         .fill(Fill::color({1, 1, 1, 1}))
         .clip()
         // toolbar strip
-        .child(box().inset(0, 0, 0, clientH - 34)
-                   .fill(Material::linear(
-                       {0, 0}, {0, 34},
-                       {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
-                        {1.0f, {0.867f, 0.906f, 0.949f, 1}}})))
-        .child(box().inset(0, 34, 0, clientH - 35)
+        .child(
+            box()
+                .inset(0, 0, 0, clientH - 34)
+                .fill(Material::linear({0, 0}, {0, 34},
+                                       {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
+                                        {1.0f, {0.867f, 0.906f, 0.949f, 1}}})))
+        .child(box()
+                   .inset(0, 34, 0, clientH - 35)
                    .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})))
         .child(text(toU8("Organize \xe2\x96\xbe      "
                          "Share with \xe2\x96\xbe      Burn"),
                     gray(12, 0.28f))
                    .inset(14, 9, 0, 0))
         // left navigation pane
-        .child(box().inset(0, 35, 0, 0).width(150)
+        .child(box()
+                   .inset(0, 35, 0, 0)
+                   .width(150)
                    .fill(Fill::color({0.965f, 0.973f, 0.984f, 1})))
-        .child(box().inset(150, 35, 0, 0).width(1)
+        .child(box()
+                   .inset(150, 35, 0, 0)
+                   .width(1)
                    .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})))
         .child(text(toU8("\xe2\x98\x85 Favorites"), gray(12, 0.25f))
                    .inset(12, 48, 0, 0))
-        .child(text(toU8("Desktop"), gray(12, 0.42f))
-                   .inset(30, 70, 0, 0))
-        .child(text(toU8("Downloads"), gray(12, 0.42f))
-                   .inset(30, 90, 0, 0))
+        .child(text(toU8("Desktop"), gray(12, 0.42f)).inset(30, 70, 0, 0))
+        .child(text(toU8("Downloads"), gray(12, 0.42f)).inset(30, 90, 0, 0))
         .child(text(toU8("\xe2\x96\xa3 Libraries"), gray(12, 0.25f))
                    .inset(12, 118, 0, 0))
-        .child(text(toU8("Documents"), gray(12, 0.42f))
-                   .inset(30, 140, 0, 0))
-        .child(text(toU8("Pictures"), gray(12, 0.42f))
-                   .inset(30, 160, 0, 0))
+        .child(text(toU8("Documents"), gray(12, 0.42f)).inset(30, 140, 0, 0))
+        .child(text(toU8("Pictures"), gray(12, 0.42f)).inset(30, 160, 0, 0))
         // main pane: a selected row + file rows
-        .child(box().inset(162, 50, 12, 0).height(22)
+        .child(box()
+                   .inset(162, 50, 12, 0)
+                   .height(22)
                    .corners({2})
-                   .fill(Material::linear(
-                       {0, 0}, {0, 22},
-                       {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
-                        {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
+                   .fill(Material::linear({0, 0}, {0, 22},
+                                          {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
+                                           {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
                    .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))))
         .child(text(toU8("aurora_over_tromso.jpg"), gray(12, 0.15f))
                    .inset(172, 54, 0, 0))
@@ -378,8 +384,7 @@ struct AeroDesktopScene final : Scene {
                    .inset(172, 82, 0, 0))
         .child(text(toU8("blurdeviation_30.reg"), gray(12, 0.35f))
                    .inset(172, 106, 0, 0))
-        .child(text(toU8("sky_74B8FC_balances_8_43_49.theme"),
-                    gray(12, 0.35f))
+        .child(text(toU8("sky_74B8FC_balances_8_43_49.theme"), gray(12, 0.35f))
                    .inset(172, 130, 0, 0));
   }
 
@@ -390,7 +395,10 @@ struct AeroDesktopScene final : Scene {
     // The clipped glass pane: backdrop blur + colorization, children in
     // window-local coordinates.
     auto glass =
-        box().inset(0).corners({6, 6, 0, 0}).clip()
+        box()
+            .inset(0)
+            .corners({6, 6, 0, 0})
+            .clip()
             // The DWM pass blurs what's behind the pane -- and behind it
             // is only the wallpaper, static between its 10 Hz steps. A
             // live backdrop() samples the destination, which keeps this
@@ -404,43 +412,45 @@ struct AeroDesktopScene final : Scene {
             // would apply outside the texture and re-blur every replay);
             // half raster scale — it's about to be blurred anyway.
             .child(box()
-                       .inset(-ad::kWX, -ad::kWY,
-                              -(ad::kW - ad::kWX - ad::kWW),
+                       .inset(-ad::kWX, -ad::kWY, -(ad::kW - ad::kWX - ad::kWW),
                               -(ad::kH - ad::kWY - ad::kWH))
-                       .cache(Cache::Texture).bakeScale(0.5f)
-                       .child(box().inset(0)
+                       .cache(Cache::Texture)
+                       .bakeScale(0.5f)
+                       .child(box()
+                                  .inset(0)
                                   .fill(Material::sksl(ad::auroraEffect())
                                             .uniform("uTime", 0.75f))
                                   .effect(Effect::filter(
                                       SkImageFilters::Blur(3, 3, nullptr)))))
             // ...then the colorization tint stack over it
-            .child(box().inset(0)
-                       .fill(ad::glassTint(ad::kWW, ad::kWH)))
+            .child(box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)))
             // top-corner radial glows
-            .child(box().inset(0, 0, ad::kWW - 70, ad::kWH - 46)
+            .child(box()
+                       .inset(0, 0, ad::kWW - 70, ad::kWH - 46)
                        .fill(ad::cornerGlow({0, 0})))
-            .child(box().inset(ad::kWW - 70, 0, 0, ad::kWH - 46)
+            .child(box()
+                       .inset(ad::kWW - 70, 0, 0, ad::kWH - 46)
                        .fill(ad::cornerGlow({70, 0})))
             // client hole rings on ONE box: 1px black a.35 outside its
             // outline, 1px white a.45 inside it (stroke align does the
             // -2/-1 inset bookkeeping)
-            .child(box()
-                       .inset(ad::kCL - 1, ad::kCT - 1, ad::kCR - 1,
-                              ad::kCB - 1)
-                       .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}),
-                                      PathFormat::Align::Outer))
-                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}),
-                                      PathFormat::Align::Inner)))
+            .child(
+                box()
+                    .inset(ad::kCL - 1, ad::kCT - 1, ad::kCR - 1, ad::kCB - 1)
+                    .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}),
+                                   PathFormat::Align::Outer))
+                    .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}),
+                                   PathFormat::Align::Inner)))
             .child(clientArea())
             // window icon
-            .child(box()
-                       .inset(14, 8, ad::kWW - 30, ad::kWH - 24)
-                       .corners({3})
-                       .fill(Material::linear(
-                           {0, 0}, {0, 16},
-                           {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
-                            {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
-                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))))
+            .child(
+                box()
+                    .inset(14, 8, ad::kWW - 30, ad::kWH - 24)
+                    .corners({3})
+                    .fill(Material::linear({0, 0}, {0, 16},
+                                           {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
+                                            {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
+                    .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))))
             .child(captionText())
             .child(captionButtons());
 
@@ -448,20 +458,20 @@ struct AeroDesktopScene final : Scene {
     // outline: black a.65 silhouette Outer, white a.55 glass edge Inner.
     // (clip() clips foreground decorations too, so the Outer stroke must
     // live on this wrapper, not on the clipped glass node.)
-    auto frame =
-        box()
-            .inset(ad::kWX, ad::kWY, ad::kW - ad::kWX - ad::kWW,
-                   ad::kH - ad::kWY - ad::kWH)
-            .corners({6, 6, 0, 0})
-            .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}),
-                           PathFormat::Align::Outer))
-            .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}),
-                           PathFormat::Align::Inner))
-            .child(std::move(glass));
+    auto frame = box()
+                     .inset(ad::kWX, ad::kWY, ad::kW - ad::kWX - ad::kWW,
+                            ad::kH - ad::kWY - ad::kWH)
+                     .corners({6, 6, 0, 0})
+                     .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}),
+                                    PathFormat::Align::Outer))
+                     .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}),
+                                    PathFormat::Align::Inner))
+                     .child(std::move(glass));
 
     // The Win7 window-open zoom: shadow + frame scale up from 96% while
     // fading in -- mount transitions, so a re-describe prunes clean.
-    return stack().inset(0)
+    return stack()
+        .inset(0)
         .transformOrigin((ad::kWX + ad::kWW * 0.5f) / ad::kW,
                          (ad::kWY + ad::kWH * 0.5f) / ad::kH)
         .scale(animate(from(0.96f).to(1.0f), {220ms}))
@@ -471,10 +481,9 @@ struct AeroDesktopScene final : Scene {
                    .inset(ad::kWX - 34, ad::kWY - 30,
                           ad::kW - ad::kWX - ad::kWW - 34,
                           ad::kH - ad::kWY - ad::kWH - 40)
-                   .cache(Cache::Texture) // static SDF shadow: bake once
+                   .cache(Cache::Texture)  // static SDF shadow: bake once
                    .fill(Material::sksl(ad::windowShadowEffect())
-                             .uniform("uMargins",
-                                      SkColor4f{34, 30, 34, 40})))
+                             .uniform("uMargins", SkColor4f{34, 30, 34, 40})))
         .child(std::move(frame));
   }
 
@@ -486,45 +495,55 @@ struct AeroDesktopScene final : Scene {
     // orbHalo(), placed by describe() outside the taskbar plane. Its opacity
     // is bound to &orbGlow, and a binding anywhere in this subtree would mark
     // the whole taskbar volatile and stop it caching as one texture.
-    return box().inset(14, 3, 0, 0).width(d).height(d)
+    return box()
+        .inset(14, 3, 0, 0)
+        .width(d)
+        .height(d)
         .child(
-            box().inset(0).corners({d / 2}).clip()
+            box()
+                .inset(0)
+                .corners({d / 2})
+                .clip()
                 // the orb's radial base
                 .fill(Material::radial(
                     {d * 0.5f, d * 0.42f}, d * 0.62f,
-                    {{0.00f, {0.086f, 0.227f, 0.373f, 1}},   // #163A5F
-                     {0.70f, {0.043f, 0.137f, 0.251f, 1}},   // #0B2340
-                     {1.00f, {0.016f, 0.063f, 0.118f, 1}}})) // #04101E
+                    {{0.00f, {0.086f, 0.227f, 0.373f, 1}},    // #163A5F
+                     {0.70f, {0.043f, 0.137f, 0.251f, 1}},    // #0B2340
+                     {1.00f, {0.016f, 0.063f, 0.118f, 1}}}))  // #04101E
                 // rim strokes
                 .stroke(stroke(1.2f, Fill::color({0.55f, 0.78f, 1.0f, 0.55f})))
                 // the four-pane flag, gently rotated
-                .child(box()
-                           .inset(d / 2 - 8, d / 2 - 7, 0, 0)
-                           .width(16).height(14).rotate(-8.0f)
-                           .child(box().inset(0, 0, 8.5f, 7.5f)
-                                      .corners({1.5f})
-                                      .fill(Fill::color(
-                                          {0.91f, 0.31f, 0.22f, 1})))
-                           .child(box().inset(8.5f, 0, 0, 7.5f)
-                                      .corners({1.5f})
-                                      .fill(Fill::color(
-                                          {0.50f, 0.76f, 0.24f, 1})))
-                           .child(box().inset(0, 7.5f, 8.5f, 0)
-                                      .corners({1.5f})
-                                      .fill(Fill::color(
-                                          {0.22f, 0.63f, 0.87f, 1})))
-                           .child(box().inset(8.5f, 7.5f, 0, 0)
-                                      .corners({1.5f})
-                                      .fill(Fill::color(
-                                          {0.98f, 0.74f, 0.10f, 1}))))
+                .child(
+                    box()
+                        .inset(d / 2 - 8, d / 2 - 7, 0, 0)
+                        .width(16)
+                        .height(14)
+                        .rotate(-8.0f)
+                        .child(box()
+                                   .inset(0, 0, 8.5f, 7.5f)
+                                   .corners({1.5f})
+                                   .fill(Fill::color({0.91f, 0.31f, 0.22f, 1})))
+                        .child(box()
+                                   .inset(8.5f, 0, 0, 7.5f)
+                                   .corners({1.5f})
+                                   .fill(Fill::color({0.50f, 0.76f, 0.24f, 1})))
+                        .child(box()
+                                   .inset(0, 7.5f, 8.5f, 0)
+                                   .corners({1.5f})
+                                   .fill(Fill::color({0.22f, 0.63f, 0.87f, 1})))
+                        .child(
+                            box()
+                                .inset(8.5f, 7.5f, 0, 0)
+                                .corners({1.5f})
+                                .fill(Fill::color({0.98f, 0.74f, 0.10f, 1}))))
                 // top lens
-                .child(box().inset(4, 1.5f, 4, d * 0.52f)
-                           .corners({d * 0.36f, d * 0.36f, d * 0.20f,
-                                     d * 0.20f})
-                           .fill(Material::linear(
-                               {0, 0}, {0, d * 0.46f},
-                               {{0.0f, {1, 1, 1, 0.55f}},
-                                {1.0f, {1, 1, 1, 0.04f}}}))));
+                .child(
+                    box()
+                        .inset(4, 1.5f, 4, d * 0.52f)
+                        .corners({d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
+                        .fill(Material::linear({0, 0}, {0, d * 0.46f},
+                                               {{0.0f, {1, 1, 1, 0.55f}},
+                                                {1.0f, {1, 1, 1, 0.04f}}}))));
   }
 
   /** The close-button hover bloom, hoisted ABOVE the baked window plane
@@ -538,7 +557,9 @@ struct AeroDesktopScene final : Scene {
     const float bh = 19, wClose = 47;
     return box()
         .inset(ad::kWX + ad::kWW - 8 - wClose, ad::kWY + 1, 0, 0)
-        .width(wClose).height(bh).corners({0, 0, 4, 0})
+        .width(wClose)
+        .height(bh)
+        .corners({0, 0, 4, 0})
         .fill(ad::closeBloom(wClose, bh))
         .opacity(&bloom)
         .child(buttonGlyphClose(wClose, bh));
@@ -553,10 +574,11 @@ struct AeroDesktopScene final : Scene {
   Element orbHalo() {
     namespace ad = aero_desktop;
     const float d = 34, pad = 8;
-    const float r = d / 2 + pad; // 25
+    const float r = d / 2 + pad;  // 25
     return box()
         .inset(14 - pad, ad::kH - ad::kTaskbarH + 3 - pad, 0, 0)
-        .width(2 * r).height(2 * r)
+        .width(2 * r)
+        .height(2 * r)
         .fill(Material::radial({r, r}, r,
                                {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
                                 {0.60f, {0.35f, 0.75f, 1.0f, 0}},
@@ -568,99 +590,121 @@ struct AeroDesktopScene final : Scene {
   Element taskbar() {
     namespace ad = aero_desktop;
     const float th = ad::kTaskbarH;
-    return box().inset(0, ad::kH - th, 0, 0).clip()
+    return box()
+        .inset(0, ad::kH - th, 0, 0)
+        .clip()
         // same fake-backdrop trade as the window glass: blur a frozen
         // canvas-aligned aurora copy instead of a live destination
         // readback, so the whole strip can bake to one texture
-        .child(box().inset(0, -(ad::kH - th), 0, 0)
-                   .cache(Cache::Texture).bakeScale(0.5f)
-                   .child(box().inset(0)
+        .child(box()
+                   .inset(0, -(ad::kH - th), 0, 0)
+                   .cache(Cache::Texture)
+                   .bakeScale(0.5f)
+                   .child(box()
+                              .inset(0)
                               .fill(Material::sksl(ad::auroraEffect())
                                         .uniform("uTime", 0.75f))
                               .effect(Effect::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))))
-        .child(box().inset(0)
-                   .fill(Material::blend({
-                       {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
-                        SkBlendMode::kSrcOver},
-                       {Material::solid(
-                            {ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
-                        SkBlendMode::kSrcOver},
-                       {Material::linear({0, 0}, {0, th},
-                                         {{0.00f, {1, 1, 1, 0.22f}},
-                                          {0.08f, {1, 1, 1, 0.05f}},
-                                          {0.55f, {1, 1, 1, 0.00f}},
-                                          {1.00f, {0, 0, 0, 0.18f}}}),
-                        SkBlendMode::kSrcOver},
-                   })))
+        .child(box().inset(0).fill(Material::blend({
+            {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
+             SkBlendMode::kSrcOver},
+            {Material::solid({ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
+             SkBlendMode::kSrcOver},
+            {Material::linear({0, 0}, {0, th},
+                              {{0.00f, {1, 1, 1, 0.22f}},
+                               {0.08f, {1, 1, 1, 0.05f}},
+                               {0.55f, {1, 1, 1, 0.00f}},
+                               {1.00f, {0, 0, 0, 0.18f}}}),
+             SkBlendMode::kSrcOver},
+        })))
         // 1px light top edge over a dark seam
-        .child(box().inset(0, 0, 0, th - 1)
-                   .fill(Fill::color({1, 1, 1, 0.30f})))
+        .child(box().inset(0, 0, 0, th - 1).fill(Fill::color({1, 1, 1, 0.30f})))
         .child(startOrb())
         // one running-app glass button
-        .child(box().inset(62, 4, 0, 4).width(54)
+        .child(box()
+                   .inset(62, 4, 0, 4)
+                   .width(54)
                    .corners({3})
                    .fill(Material::linear({0, 0}, {0, th - 8},
                                           {{0.0f, {1, 1, 1, 0.26f}},
                                            {0.5f, {1, 1, 1, 0.08f}},
                                            {1.0f, {1, 1, 1, 0.16f}}}))
                    .stroke(stroke(1, Fill::color({1, 1, 1, 0.35f})))
-                   .child(box().inset(19, 9, 0, 0)
-                              .width(16).height(13).corners({2})
+                   .child(box()
+                              .inset(19, 9, 0, 0)
+                              .width(16)
+                              .height(13)
+                              .corners({2})
                               .fill(Material::linear(
                                   {0, 0}, {0, 13},
                                   {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
                                    {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
-                              .stroke(stroke(1, Fill::color(
-                                  {0.55f, 0.40f, 0.10f, 0.8f})))))
+                              .stroke(stroke(1, Fill::color({0.55f, 0.40f,
+                                                             0.10f, 0.8f})))))
         // tray clock, pinned to the right edge (right-aligned for free)
         .child(text(toU8("4:20 PM"), ad::type(12, {1, 1, 1, 0.92f}))
-                   .top(13).right(10))
+                   .top(13)
+                   .right(10))
         .child(text(toU8("7/20/2026"), ad::type(10, {1, 1, 1, 0.65f}))
-                   .top(27).right(10));
+                   .top(27)
+                   .right(10));
   }
 
   // Desktop icons: white label over a soft dark shadow (the Win7 look).
-  Element desktopIcon(float x, float y, Element glyph, const char *label) {
+  Element desktopIcon(float x, float y, Element glyph, const char* label) {
     namespace ad = aero_desktop;
     auto lbl = [&](SkColor4f c) {
-      return box().inset(0, 52, 0, 0).row()
+      return box()
+          .inset(0, 52, 0, 0)
+          .row()
           .justify(Justify::Center)
           .child(text(toU8(label), ad::type(11.5f, c)));
     };
-    return box().inset(x, y, 0, 0).width(92).height(72)
+    return box()
+        .inset(x, y, 0, 0)
+        .width(92)
+        .height(72)
         .child(box().inset(24, 2, 24, 26).child(std::move(glyph)))
         .child(lbl({0, 0, 0, 0.85f})
-                   .effect(Effect::filter(SkImageFilters::Blur(1.6f, 1.6f,
-                                                               nullptr))))
+                   .effect(Effect::filter(
+                       SkImageFilters::Blur(1.6f, 1.6f, nullptr))))
         .child(lbl({1, 1, 1, 0.95f}));
   }
 
   Element folderGlyph() {
-    return stack().inset(0)
-        .child(box().inset(2, 6, 4, 8).corners({2, 2, 3, 3})
+    return stack()
+        .inset(0)
+        .child(box()
+                   .inset(2, 6, 4, 8)
+                   .corners({2, 2, 3, 3})
                    .fill(Material::linear({0, 0}, {0, 30},
                                           {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
                                            {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
-                   .stroke(stroke(1, Fill::color(
-                       {0.45f, 0.32f, 0.08f, 0.7f}))))
-        .child(box().inset(2, 2, 22, 34).corners({2, 2, 0, 0})
+                   .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))))
+        .child(box()
+                   .inset(2, 2, 22, 34)
+                   .corners({2, 2, 0, 0})
                    .fill(Fill::color({0.93f, 0.74f, 0.34f, 1})));
   }
 
   Element binGlyph() {
-    return stack().inset(0)
-        .child(box().inset(8, 10, 8, 4).corners({3, 3, 6, 6})
-                   .fill(Material::linear(
-                       {0, 0}, {28, 0},
-                       {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
-                        {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
-                        {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
-                   .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))))
-        .child(box().inset(5, 6, 5, 32).corners({2})
+    return stack()
+        .inset(0)
+        .child(
+            box()
+                .inset(8, 10, 8, 4)
+                .corners({3, 3, 6, 6})
+                .fill(Material::linear({0, 0}, {28, 0},
+                                       {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
+                                        {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
+                                        {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
+                .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))))
+        .child(box()
+                   .inset(5, 6, 5, 32)
+                   .corners({2})
                    .fill(Fill::color({0.60f, 0.76f, 0.90f, 0.7f}))
-                   .stroke(stroke(1, Fill::color(
-                       {0.90f, 0.96f, 1.0f, 0.8f}))));
+                   .stroke(stroke(1, Fill::color({0.90f, 0.96f, 1.0f, 0.8f}))));
   }
 
   Element describe() {
@@ -671,9 +715,11 @@ struct AeroDesktopScene final : Scene {
         // engaged and 900x640 of SkSL re-rastered every frame. As a
         // liveMatOnly plane it re-bakes on the 10 Hz step and BLITS
         // between steps.
-        .child(box().inset(0).cache(Cache::Texture)
-                   .fill(Material::sksl(ad::auroraEffect())
-                             .quantizeTime(10.0f)))
+        .child(
+            box()
+                .inset(0)
+                .cache(Cache::Texture)
+                .fill(Material::sksl(ad::auroraEffect()).quantizeTime(10.0f)))
         .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
         .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
         // Each chrome region is its own texture PLANE: the backdrop blur
@@ -681,14 +727,12 @@ struct AeroDesktopScene final : Scene {
         // wallpaper that's exactly correct) and steady-state frames blit.
         // Rebakes happen when their content actually changes (hover
         // states, the 8 Hz orb step, the clock minute).
-        .child(box().inset(0).cache(Cache::Texture)
-                   .child(window()))
-        .child(box().inset(0).cache(Cache::Texture)
-                   .child(taskbar()))
+        .child(box().inset(0).cache(Cache::Texture).child(window()))
+        .child(box().inset(0).cache(Cache::Texture).child(taskbar()))
         // live overlays: the only animated nodes in the settled scene
         .child(closeBloomOverlay())
         .child(orbHalo());
   }
 };
 
-} // namespace compose_gallery
+}  // namespace compose_gallery

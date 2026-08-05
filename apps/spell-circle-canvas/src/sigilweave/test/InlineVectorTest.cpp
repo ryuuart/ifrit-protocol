@@ -4,9 +4,8 @@
  * semantics, and element lifetime accounting.
  */
 
-#include <sigilweave/InlineVector.h>
-
 #include <gtest/gtest.h>
+#include <sigilweave/InlineVector.h>
 
 #include <memory>
 #include <string>
@@ -25,20 +24,20 @@ struct Tracked {
   explicit Tracked(std::string trackedValue) : value(std::move(trackedValue)) {
     ++liveCount;
   }
-  Tracked(const Tracked &other) : value(other.value) { ++liveCount; }
-  Tracked(Tracked &&other) noexcept : value(std::move(other.value)) {
+  Tracked(const Tracked& other) : value(other.value) { ++liveCount; }
+  Tracked(Tracked&& other) noexcept : value(std::move(other.value)) {
     ++liveCount;
   }
-  Tracked &operator=(const Tracked &) = default;
-  Tracked &operator=(Tracked &&) = default;
+  Tracked& operator=(const Tracked&) = default;
+  Tracked& operator=(Tracked&&) = default;
   ~Tracked() { --liveCount; }
 
-  bool operator==(const Tracked &other) const { return value == other.value; }
+  bool operator==(const Tracked& other) const { return value == other.value; }
 };
 
 int Tracked::liveCount = 0;
 
-} // namespace
+}  // namespace
 
 TEST(InlineVector, StaysInlineUpToCapacity) {
   InlineVector<int, 2> values;
@@ -69,7 +68,7 @@ TEST(InlineVector, GrowsPastInlineCapacityAndPreservesElements) {
 TEST(InlineVector, CopyIsDeepAndIndependent) {
   InlineVector<Tracked, 1> source;
   source.emplace_back("a");
-  source.emplace_back("b"); // forces heap storage
+  source.emplace_back("b");  // forces heap storage
 
   InlineVector<Tracked, 1> copy(source);
   ASSERT_EQ(copy.size(), 2u);
@@ -87,7 +86,7 @@ TEST(InlineVector, MoveStealsHeapAndEmptiesSource) {
   InlineVector<Tracked, 1> source;
   for (int index = 0; index < 5; ++index)
     source.emplace_back(std::to_string(index));
-  const Tracked *heapData = source.data();
+  const Tracked* heapData = source.data();
 
   InlineVector<Tracked, 1> moved(std::move(source));
   EXPECT_EQ(moved.size(), 5u);
@@ -125,7 +124,7 @@ TEST(InlineVector, DestructionReleasesEveryElement) {
 TEST(InlineVector, HoldsMoveOnlyElements) {
   InlineVector<std::unique_ptr<int>, 1> values;
   values.push_back(std::make_unique<int>(7));
-  values.emplace_back(std::make_unique<int>(9)); // grows to heap
+  values.emplace_back(std::make_unique<int>(9));  // grows to heap
   ASSERT_EQ(values.size(), 2u);
   EXPECT_EQ(*values[0], 7);
   EXPECT_EQ(*values[1], 9);
@@ -141,10 +140,8 @@ TEST(InlineVector, EqualityComparesElementwise) {
   EXPECT_FALSE(left == right);
   right.push_back(1);
   EXPECT_EQ(left, right);
-  for (int value : {2, 3, 4})
-    left.push_back(value);
-  for (int value : {2, 3, 4})
-    right.push_back(value);
+  for (int value : {2, 3, 4}) left.push_back(value);
+  for (int value : {2, 3, 4}) right.push_back(value);
   EXPECT_EQ(left, right) << "inline/heap boundary must not affect equality";
   right.back() = 5;
   EXPECT_FALSE(left == right);

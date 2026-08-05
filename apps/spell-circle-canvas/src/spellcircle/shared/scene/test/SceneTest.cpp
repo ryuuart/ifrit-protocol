@@ -6,15 +6,7 @@
 // observes SceneRenderer through a recording canvas that captures rectangle
 // draws instead of rasterizing pixels.
 
-#include "SceneGeometry.h"
-#include "SceneLabels.h"
-#include "SceneModel.h"
-#include "SceneRenderer.h"
-
-#include "SpellCircle_generated.h"
-
 #include <gtest/gtest.h>
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
@@ -29,12 +21,19 @@
 #include <string_view>
 #include <vector>
 
+#include "SceneGeometry.h"
+#include "SceneLabels.h"
+#include "SceneModel.h"
+#include "SceneRenderer.h"
+#include "SpellCircle_generated.h"
+
 namespace {
 
 using spellcircle::SceneDocument;
 
-std::vector<uint8_t> finishScene(flatbuffers::FlatBufferBuilder &fbb,
-                                 flatbuffers::Offset<SpellCircle::Scene> scene) {
+std::vector<uint8_t> finishScene(
+    flatbuffers::FlatBufferBuilder& fbb,
+    flatbuffers::Offset<SpellCircle::Scene> scene) {
   SpellCircle::FinishSceneBuffer(fbb, scene);
   return {fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize()};
 }
@@ -42,7 +41,7 @@ std::vector<uint8_t> finishScene(flatbuffers::FlatBufferBuilder &fbb,
 /** One box whose anchor point rides a radius-0 circle at (anchorX, anchorY),
  *  so the box's anchor resolves to exactly that coordinate. */
 std::vector<uint8_t> sceneWithBox(float anchorX, float anchorY,
-                                  const std::string &label) {
+                                  const std::string& label) {
   flatbuffers::FlatBufferBuilder fbb;
   const SpellCircle::Vec2 pos(anchorX, anchorY);
   const auto circle = SpellCircle::CreateCircleDirect(fbb, &pos, nullptr,
@@ -54,7 +53,7 @@ std::vector<uint8_t> sceneWithBox(float anchorX, float anchorY,
       fbb, SpellCircle::CreateSceneDirect(fbb, nullptr, nullptr, &boxes));
 }
 
-SceneDocument decodeScene(const std::vector<uint8_t> &bytes) {
+SceneDocument decodeScene(const std::vector<uint8_t>& bytes) {
   EXPECT_TRUE(spellcircle::verifyScenePayload(bytes.data(), bytes.size()));
   SceneDocument document;
   document.decode(bytes.data(), bytes.size());
@@ -66,18 +65,18 @@ SceneDocument decodeScene(const std::vector<uint8_t> &bytes) {
  *  shared bounds, so the recorded rects are the boxes' resolved geometry;
  *  all other primitives fall through to the base no-op canvas. */
 class RectRecordingCanvas : public SkCanvas {
-public:
+ public:
   RectRecordingCanvas(int width, int height) : SkCanvas(width, height) {}
 
   std::vector<SkRect> rects;
 
-protected:
-  void onDrawRect(const SkRect &rect, const SkPaint &) override {
+ protected:
+  void onDrawRect(const SkRect& rect, const SkPaint&) override {
     rects.push_back(rect);
   }
 };
 
-} // namespace
+}  // namespace
 
 // ── SceneModel ─────────────────────────────────────────────────────────────
 
@@ -106,11 +105,10 @@ TEST(SceneModel, SharedPointTablesDecodeToOneEntity) {
   const spellcircle::SceneStats stats =
       document.decode(bytes.data(), bytes.size());
 
-  EXPECT_EQ(stats.circles, 0); // circles embedded in points are not top-level
+  EXPECT_EQ(stats.circles, 0);  // circles embedded in points are not top-level
   EXPECT_EQ(stats.edges, 1);
   EXPECT_EQ(stats.boxes, 1);
-  EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(),
-            2u);
+  EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 2u);
 }
 
 // ── SceneGeometry ──────────────────────────────────────────────────────────
@@ -138,19 +136,19 @@ TEST(SceneGeometry, PointFractionsMeasureClockwiseFromTwelveOClock) {
 
   ASSERT_EQ(resolved.pointLabels.size(), 2u);
   const auto labelNamed =
-      [&](std::string_view value) -> const spellcircle::ResolvedBox * {
+      [&](std::string_view value) -> const spellcircle::ResolvedBox* {
     const auto found =
         std::find_if(resolved.pointLabels.begin(), resolved.pointLabels.end(),
-                     [&](const auto &label) { return label.value == value; });
+                     [&](const auto& label) { return label.value == value; });
     return found != resolved.pointLabels.end() ? &*found : nullptr;
   };
 
-  const auto *top = labelNamed("north");
+  const auto* top = labelNamed("north");
   ASSERT_NE(top, nullptr);
   EXPECT_NEAR(top->anchor.x, 500.0f, 0.01f);
   EXPECT_NEAR(top->anchor.y, 100.0f, 0.01f);
 
-  const auto *right = labelNamed("east");
+  const auto* right = labelNamed("east");
   ASSERT_NE(right, nullptr);
   EXPECT_NEAR(right->anchor.x, 900.0f, 0.01f);
   EXPECT_NEAR(right->anchor.y, 500.0f, 0.01f);
@@ -180,16 +178,16 @@ TEST(SceneGeometry, TextStartSharesThePointOriginAndResolvesToTheContour) {
 
   ASSERT_EQ(resolved.circles.size(), 2u);
   const auto circleNamed =
-      [&](std::string_view name) -> const spellcircle::ResolvedCircle * {
+      [&](std::string_view name) -> const spellcircle::ResolvedCircle* {
     const auto found =
         std::find_if(resolved.circles.begin(), resolved.circles.end(),
-                     [&](const auto &c) { return c.name == name; });
+                     [&](const auto& c) { return c.name == name; });
     return found != resolved.circles.end() ? &*found : nullptr;
   };
-  const auto *topCircle = circleNamed("top");
+  const auto* topCircle = circleNamed("top");
   ASSERT_NE(topCircle, nullptr);
   EXPECT_NEAR(topCircle->textStart, 0.75f, 1e-6f);
-  const auto *eastCircle = circleNamed("east");
+  const auto* eastCircle = circleNamed("east");
   ASSERT_NE(eastCircle, nullptr);
   EXPECT_NEAR(eastCircle->textStart, 0.0f, 1e-6f);
 
@@ -219,9 +217,9 @@ TEST(SceneGeometry, RadiiScaleWithTheHorizontalAxisOnly) {
       spellcircle::resolveScene(document, 1000.0f, 1000.0f);
 
   ASSERT_EQ(resolved.circles.size(), 1u);
-  EXPECT_NEAR(resolved.circles[0].center.x, 200.0f, 0.01f); // x2 horizontally
-  EXPECT_NEAR(resolved.circles[0].center.y, 400.0f, 0.01f); // x4 vertically
-  EXPECT_NEAR(resolved.circles[0].radius, 100.0f, 0.01f);   // x2, horizontal
+  EXPECT_NEAR(resolved.circles[0].center.x, 200.0f, 0.01f);  // x2 horizontally
+  EXPECT_NEAR(resolved.circles[0].center.y, 400.0f, 0.01f);  // x4 vertically
+  EXPECT_NEAR(resolved.circles[0].radius, 100.0f, 0.01f);    // x2, horizontal
 }
 
 // ── SceneRenderer: box placement ───────────────────────────────────────────
@@ -254,7 +252,7 @@ TEST(SceneRendererBox, GapIndependentOfLabelLength) {
   spellcircle::SceneStyle style;
   spellcircle::SceneRenderer renderer;
 
-  const auto boxRectFor = [&](const std::string &label) {
+  const auto boxRectFor = [&](const std::string& label) {
     const SceneDocument document =
         decodeScene(sceneWithBox(800.0f, 500.0f, label));
     const spellcircle::ResolvedScene resolved =
@@ -286,7 +284,7 @@ TEST(SceneRendererBox, GapHoldsAlongDiagonalRay) {
       spellcircle::resolveScene(document, 1000.0f, 1000.0f);
   ASSERT_EQ(resolved.boxes.size(), 1u);
   const spellcircle::Vec2 direction = resolved.boxes[0].direction;
-  ASSERT_NEAR(direction.x, direction.y, 1e-4f); // 45 degrees outward
+  ASSERT_NEAR(direction.x, direction.y, 1e-4f);  // 45 degrees outward
 
   spellcircle::SceneStyle style;
   style.boxDistance = 40.0f;
@@ -299,11 +297,11 @@ TEST(SceneRendererBox, GapHoldsAlongDiagonalRay) {
   const auto projection = [&](float x, float y) {
     return direction.x * (x - 800.0f) + direction.y * (y - 800.0f);
   };
-  const float nearestCorner = std::min(
-      std::min(projection(rect.left(), rect.top()),
-               projection(rect.right(), rect.top())),
-      std::min(projection(rect.left(), rect.bottom()),
-               projection(rect.right(), rect.bottom())));
+  const float nearestCorner =
+      std::min(std::min(projection(rect.left(), rect.top()),
+                        projection(rect.right(), rect.top())),
+               std::min(projection(rect.left(), rect.bottom()),
+                        projection(rect.right(), rect.bottom())));
   EXPECT_NEAR(nearestCorner, style.boxDistance, 0.05f);
 }
 
