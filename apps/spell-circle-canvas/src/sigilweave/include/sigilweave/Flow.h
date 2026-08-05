@@ -118,9 +118,10 @@ public:
 
     /// kPath: any SkPath — multiple contours, curves, winding or even-odd
     /// fill (holes and concavities stay available to text). The path is
-    /// flattened once and cached by its generation ID, so animate it by
-    /// setting `pathOffset` (free) rather than rebuilding the SkPath every
-    /// frame (a re-flatten per frame — still cheap, but not free).
+    /// flattened to polygons once and cached by its generation ID, so
+    /// translating it through `pathOffset` reuses that flattening; assigning
+    /// a rebuilt SkPath changes the generation ID and re-flattens on the next
+    /// layout pass.
     SkPath path;
     SkPoint pathOffset = {0, 0}; ///< translation applied to `path` per pass
 
@@ -151,7 +152,8 @@ public:
   const SkRect &bounds() const { return m_bounds; }
 
   /** Drops exclusion-created slivers (intervals narrower than
-   * `minimumWidth`) that would otherwise appear between shapes.
+   * `minimumWidth`, in px) that would otherwise appear between shapes.
+   * Defaults to 8 px.
    */
   void setMinIntervalWidth(float minimumWidth) {
     m_minIntervalWidth = minimumWidth;
@@ -192,7 +194,9 @@ private:
 };
 
 /// Fully explicit geometry: the caller supplies every line's intervals —
-/// arbitrary positions, directions, and counts (the Pretext demos).
+/// arbitrary positions, directions, and counts. Use it when the text should
+/// land on shapes the block geometries cannot express: scattered labels,
+/// hand-placed captions, one interval per animated slot.
 class LineSetFlow : public FlowGeometry {
 public:
   /** Creates an initially empty explicit geometry. */

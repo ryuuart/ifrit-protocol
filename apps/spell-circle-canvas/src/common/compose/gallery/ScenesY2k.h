@@ -1,24 +1,25 @@
 #pragma once
-// The Y2K web-era chrome card (REFERENCES.md sections 2 + 3 - Y2K web /
-// graphic design 1998-2005 and the Photoshop layer-style presets), ported
-// from sketch/sketches/y2k_study.cpp round 2: the preset API exercise.
+// A Y2K web-era chrome card: the aqua gels, chrome wordmarks and plastic
+// bevels of roughly 1998-2005 web and graphic design, which is the era the
+// Photoshop layer-style presets in LayerStyles.h were built to reproduce.
+// The scene exists to exercise those presets against hand-built equivalents.
 //
-//   pill rack ....... styles::aquaGel(tint) on bare pills (blue/red/green
-//                     recolors of one preset)
-//   A/B card ........ section-2-verbatim hand-built pill NEXT TO the
-//                     aquaGel() preset at identical geometry
+//   pill rack ....... styles::aquaGel(tint) on bare pills — blue, red and
+//                     green recolours of the one preset
+//   A/B card ........ a hand-built pill matching the period's construction,
+//                     placed NEXT TO the aquaGel() preset at identical
+//                     geometry, so the preset can be judged against it
 //   title bar ....... styles::y2kChrome() on the bar box
-//   wordmark ........ styles::y2kChrome() PLATE + sunsetChromeText() type,
-//                     so the horizon runs THROUGH the capitals; the plate's
-//                     specular sliver + starburst glints garnish it
-//   tagline ......... styles::textGlow chained .then() - the double
-//                     frutiger-aero glow
+//   wordmark ........ a styles::y2kChrome() PLATE with sunsetChromeText()
+//                     type over it, so the chrome horizon runs THROUGH the
+//                     capitals; the plate's specular sliver and starburst
+//                     glints garnish it
+//   tagline ......... two styles::textGlow passes chained with .then()
 //   aqua orb ........ styles::aquaGel() on a circle
-//   1998 button ..... plastic bevel: flat web-safe fill + BevelEmboss +
-//                     1px black keyline (no preset covers this one)
-//   status bar ...... util::marquee, LIVE here: measured content width,
-//                     ticker-driven wrapping phase (the sketch could not
-//                     reach a FontContext and froze the phase)
+//   1998 button ..... a plastic bevel built by hand — flat web-safe fill,
+//                     BevelEmboss, 1px black keyline. No preset covers it.
+//   status bar ...... util::marquee, driven live: the content width is
+//                     measured and the wrapping phase comes from the ticker
 
 #include "GalleryCore.h"
 
@@ -314,11 +315,12 @@ struct Y2kChromeScene final : Scene {
                           return s;
                         }())
                        // The wordmark is CHROME, not white type on chrome.
-                       // Flat-white capitals left the plate's horizon
-                       // sliver as the only bright line at that height, so
-                       // it read as a rule struck through the word; the §2
-                       // unit-space ramp puts the horizon inside the
-                       // letterforms, where a chrome wordmark keeps it.
+                       // With flat-white capitals the plate's horizon sliver
+                       // is the only bright line at that height and reads as
+                       // a rule struck through the word. Filling the type
+                       // with the same unit-space chrome ramp puts the
+                       // horizon inside the letterforms, which is where a
+                       // period chrome wordmark carries it.
                        .textFill(styles::sunsetChromeText()));
 
     Element wordmark =
@@ -326,9 +328,10 @@ struct Y2kChromeScene final : Scene {
             .translateY(animate(from(14.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
             .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(plate)
-            // (the preset's own sliver rides the plate BEHIND the type now —
-            // the duplicate over-type sliver was the strikethrough)
-            // starburst glints riding the horizon + one cap top
+            // The preset's specular sliver rides the plate BEHIND the type.
+            // Do not add a second sliver over the type: two bright lines at
+            // the same height read as a strikethrough.
+            // Starburst glints riding the horizon, plus one on a cap top.
             .child(box().inset(22, horizonY - 12, 0, 0)
                        .child(yc::glint(24, 0)))
             .child(box().inset(0, horizonY - 9, 26, 0)

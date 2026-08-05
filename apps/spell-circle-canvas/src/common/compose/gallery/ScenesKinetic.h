@@ -1,18 +1,21 @@
 #pragma once
-// The kinetic-typography card (REFERENCES.md §8 — the community grammar),
-// ported from sketch/sketches/kinetic_study.cpp: the whole card enters via
-// animate(from().to()) MOUNT choreography — one dominant move (the hero
-// MaskedRise), amount-mode stagger budgets (≤ 1.2s), Transition::delay
-// sequencing, a draw-on rule hosting a wrap-trim comet, a CharPop subline under
-// a double textGlow, a WaveFloat loop, and a measured util::marquee ticker.
+// A kinetic-typography card, written in the vocabulary motion designers
+// actually use for title sequences and lyric videos: one dominant move that
+// the eye follows, everything else supporting it, and stagger budgeted as a
+// total duration rather than a per-glyph delay.
 //
-// This file is the PORTING EXEMPLAR for study→scene conversions:
-//  - constants/helpers live in a scene-private nested namespace
-//  - SketchContext dissolves: canvas() → the registry's kSceneSize
-//    (adapt layout constants), background() → the root's fill,
-//    ctx.composer/ticker → the setup() parameters, sketch-local
-//    FontContexts → the gallery's fonts()
-//  - loop clocks re-zero in setup() (scenes re-activate)
+// The whole card is MOUNT choreography — animate(from().to()) values that run
+// once when the node mounts — assembled from:
+//  - a masked rise on the hero lines, the dominant move
+//  - amount-mode stagger, so adding glyphs shortens each glyph's delay
+//    instead of lengthening the whole entrance
+//  - Transition delays to sequence the elements against each other
+//  - a rule that draws itself on, with a wrapping comet riding it
+//  - a per-character pop on the subline, under a double text glow
+//  - a looping sine float, and a marquee ticker along the bottom edge
+//
+// Loop phases are Outputs driven from a ticker lambda and re-zeroed in
+// setup(), because a scene can be activated more than once.
 
 #include "GalleryCore.h"
 
@@ -50,10 +53,10 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr float kHeroSize = 112;
 constexpr float kTickerH = 48;
-constexpr float kTickerSpeed = 90;   // px/s — the 50-120 circulating band
+constexpr float kTickerSpeed = 90;   // px/s — readable-crawl range is 50-120
 constexpr float kTickerGap = 56;     // between the two marquee copies
-constexpr float kWavePeriod = 1.6f;  // the WaveFloat community constant
-constexpr float kCometPeriod = 2.8f; // the marching-rule lap time
+constexpr float kWavePeriod = 1.6f;  // seconds per sine float cycle
+constexpr float kCometPeriod = 2.8f; // seconds per comet lap of the rule
 constexpr float kRuleW = 380;
 
 } // namespace kinetic_card
@@ -134,7 +137,8 @@ struct KineticCardScene final : Scene {
     popFx.progress = animate(from(0.0f).to(1.0f), {1120ms, &ch::easeNone, 450ms});
 
     GlyphFx waveFx;
-    waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f); // §8: 0.10em, 0.5 rad
+    // Amplitude in em, phase offset per glyph in radians.
+  waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f);
     waveFx.stagger = {.eachMs = 0, .durationMs = 450}; // one master phase
     waveFx.progress = &wavePhase;
 
@@ -205,8 +209,8 @@ struct KineticCardScene final : Scene {
                            .child(text(toU8("SIGIL \xe2\x80\x94 MOTION STUDY"),
                                        kc::type(15, kc::kAsh, 3)))
                            .child(box().grow(1))
-                           .child(text(toU8("REFERENCES \xc2\xa7"
-                                            "8 \xe2\x80\x94 ENTRANCES"),
+                           .child(text(toU8("ENTRANCES \xe2\x80\x94 RISE "
+                                            "\xc2\xb7 POP \xc2\xb7 WAVE"),
                                        kc::type(15, kc::kAccent, 3))))
                 .child(box().grow(1))
                 .child(heroLine("KINETIC", "hero1", 100))

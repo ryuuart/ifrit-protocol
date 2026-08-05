@@ -1,8 +1,9 @@
-// shapeworks_lab.cpp — SIGILSHAPE, LIVE: the new library's three moves
+// shapeworks_lab.cpp — SIGILSHAPE, LIVE: three of the library's moves
 // =============================================================================
-// A lab, not a study: the reference is src/common/shape itself, landed
-// 2026-07-27. Everything here is hot-editable — change a blend key, a
-// material parameter, a camera angle, save, and the canvas follows.
+// A lab, not a study: there is no external artwork behind this one. What it
+// exercises is src/common/shape itself, and everything here is
+// hot-editable — change a blend key, a material parameter, a camera angle,
+// save, and the canvas follows.
 //
 //   LEFT    the Illustrator blend tool. One star morphs into a circle
 //           whose target rotates with the clock; the correspondence
@@ -17,10 +18,12 @@
 //           per frame for free. Glass refracts a checker baked at
 //           setup — backdrop and badge share this leaf's local space.
 //
-// The lab leans on custom() + Cache::None (the immediate-mode floor)
-// because everything moves; a production scene would cache the
-// materials row. shape:: is Skia-only and knows nothing about compose —
-// this file is the adapter, ~40 lines of it.
+// Every panel is a custom() leaf with Cache::None: drawing straight to the
+// canvas, re-recorded each frame, because everything here moves. A real
+// scene would cache the materials row, whose shaders never change once
+// setup() has built them. shape:: draws through Skia and knows nothing
+// about compose, so the custom() leaves are the entire adapter between
+// them.
 
 #include <sigilsketch/Sketch.h>
 

@@ -58,18 +58,18 @@
 //     dye-transfer print was located.
 //   * The chrome palette, the panel geometry, and every millisecond in
 //     the timing tables. No public EDL of the sequence survives.
-//   * The DAMPING term in §4's math. The brief's derivation has none;
+//   * The DAMPING term. A pure Lissajous-plus-rotation has none, but
 //     every real harmonograph and every real pendulum damps, and
-//     Whitney's pen hung from a ceiling on a physical string, so a small
-//     exp(-λt) envelope is added per card. It is what makes the figure
-//     spiral INWARD rather than retrace one closed rosette — i.e. what
+//     Whitney's pen hung from a ceiling on a physical string — so a small
+//     exp(-λt) envelope is applied per card. It is what makes the figure
+//     spiral INWARD rather than retrace one closed rosette, i.e. what
 //     makes it look like the film. Called out because it is an addition.
-//   * Amplitudes are the brief's R table scaled by 0.88. The rotated
-//     composition reaches R·√2 from centre, not R — the raw table plus
-//     filament()'s glow overflows a 596px-tall panel.
-//   * T = 12π, not the brief's 6π. Three pendulum periods draws a clean
-//     wireframe rosette — a plotted function. Six, under the damping
-//     envelope, is where it turns into ink.
+//   * Amplitudes carry a 0.88 fit scale. The rotated composition reaches
+//     R·√2 from centre rather than R, and at full R that plus
+//     filament()'s glow overflows a 596 px-tall panel.
+//   * T = 12π, six pendulum periods. Three draws a clean wireframe
+//     rosette — a plotted function. Six, under the damping envelope, is
+//     where it turns into ink.
 //   * The credit line is set in CLARENDON, not the gothic. Typotheque
 //     says the body credits are "solid black capitals of the SAME
 //     typeface" as the titles, so News Gothic's stand-in is confined to
@@ -97,7 +97,7 @@
 // a motor does not ease); spun forever by one shared rotate(&spin).
 //
 // ---------------------------------------------------------------------
-// WHERE THE LIBRARY MADE THIS AWKWARD (the honest list)
+// WHERE THE LIBRARY MADE THIS AWKWARD
 // ---------------------------------------------------------------------
 //  1. No shapes::parametric()/lissajous(). Shapes.h generates closed
 //     SHAPES; nothing evaluates a caller's t → (x, y). The curve is a
@@ -115,14 +115,6 @@
 //     hollow display caps and glyphFx are mutually exclusive. "VERTIGO"
 //     rebuilds pop() one tier up: seven letter nodes under
 //     staggerChildren(30ms). Element::onPath() has the same limitation.
-//
-// Two more turned up in Element::onPath() and were fixed the same night
-// (8498b1d), so the ring captions below now read the straightforward way
-// rather than around a workaround: autoFlip used to turn each glyph over
-// IN PLACE, which mirrors the run ("TECHNICOLOR" came out "ROLOCINHCET"),
-// and a centred run at at = 0 dropped every glyph at a negative distance,
-// eating half the caption on a ring where fraction 0 and 1 are the same
-// point.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -210,10 +202,9 @@ struct Card {
 };
 
 constexpr float kFit = 0.88f; // R·√2 + glow must clear kPanelH/2
-// The brief specifies T = 6π (3 pendulum periods). At three periods the
-// figure reads as a clean wireframe rosette — a plotted function. Whitney's
-// cards are dense nested ink; six periods under the damping envelope is
-// where it turns over. Deviation from the brief, deliberate.
+// Six pendulum periods. At three the figure reads as a clean wireframe
+// rosette — a plotted function. Whitney's cards are dense nested ink, and
+// six periods under the damping envelope is where it turns over.
 constexpr float kT = 12.0f * kPi;
 constexpr int kSamples = 2000;
 
@@ -321,7 +312,7 @@ std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, SkColor4f color, float width) {
-  return disc(kEye, r) // util::disc — was four lines of box() arithmetic
+  return disc(kEye, r)
       .corners({r})
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(color)));
@@ -343,7 +334,7 @@ Element plate(float height) {
 // ===========================================================================
 
 struct VertigoTitles : sigil::compose::sketch::Sketch {
-  // --- the perpetual loop's live cells (14 scalars, all hand-stepped) ---
+  // --- the perpetual loop's live cells (17 scalars, all hand-stepped) ---
   ch::Output<float> spin{0};
   std::array<ch::Output<float>, 4> growth{};   // trim end   — the pen
   std::array<ch::Output<float>, 4> penTip{};   // trim start — growth − ε
@@ -390,14 +381,15 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
   // ------------------------------------------------------------------
   Element screenPanel() {
-    // perf-pass NOTE: the whole screen panel is a saveLayer (rounded clip +
-    // the kColor "stain" descendant that blends with the canvas force one)
-    // re-compositing 900x596 every frame — ~85 ms on the CPU raster backend,
-    // the residual after the paperGrain fold below. A `.cache(Cache::Texture)`
-    // here is REFUSED (0 bakes: the library will not bake a subtree that
-    // blends with the canvas) and only adds overhead, so it is deliberately
-    // NOT cached. That composite is a genuine per-frame floor on raster;
-    // vertigo is CPU-FAIL (~101 ms) / GPU-PASS (3.8 ms) for that reason.
+    // The whole screen panel is a saveLayer: the rounded clip and the
+    // kColor "stain" descendant — which blends against what is already on
+    // the canvas — each force one, so the full panel is re-composited every
+    // frame. Asking for `.cache(Cache::Texture)` here does nothing but add
+    // overhead: a subtree that blends with the canvas cannot be baked in
+    // isolation, so the bake is refused and the composite happens anyway.
+    // It is deliberately left uncached. This is the per-frame floor for the
+    // sketch, and it is why the CPU raster backend struggles with it while
+    // the GPU one does not.
     auto panel = box()
                      .width(kPanelW)
                      .height(kPanelH)
@@ -434,7 +426,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // paintKineticText() collapses every glyph to (font, color, RSXform)
     // and drops the style's SkPaint entirely, so kinetic text is always a
     // solid fill — the hollow register and per-glyph motion are mutually
-    // exclusive in the library today. pop() is therefore rebuilt one tier
+    // exclusive. pop() is therefore rebuilt one tier
     // up: seven letter nodes in a row, staggerChildren() cascading their
     // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the same
     // curve glyphfx::pop() applies internally.
@@ -483,10 +475,9 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                     .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
                     .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300))));
 
-    // the instrument-dial legend, set on the limbus itself with the
-    // brand-new Element::onPath() — one text leaf where hand-placing
-    // curved lettering would have been one leaf and one measure() per
-    // glyph.
+    // the instrument-dial legend, set on the limbus itself with
+    // Element::onPath() — one text leaf where hand-placing curved
+    // lettering would have been one leaf and one measure() per glyph.
     panel.child(
         text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
@@ -504,9 +495,9 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             .key("ring-bottom")
             .inset(0)
             // Same clockwise baseline as the top caption, half a turn
-            // round, flipped so it reads right way up — which is the
-            // straightforward spelling, and only became the straight-
-            // forward spelling once autoFlip stopped mirroring the run.
+            // round. autoFlip turns the whole run over so it reads right
+            // way up on the underside of the ring; glyph order and glyph
+            // orientation both follow, so the text is not mirrored.
             .onPath({.path = circlePath(272.0f),
                      .at = 0.75f,
                      .align = TextPath::Align::Center,
@@ -720,10 +711,11 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                               .child(rigPlate())));
 
     // ---- the whole sheet under one very faint tooth ---------------
-    // perf-pass: full-canvas procedural paperGrain overlay, STATIC, but
-    // 126 ms/frame of live eval on the CPU raster backend (opacity+overlay
-    // refuses an auto-bake). Bake once — GPU was already 3.8ms, provably
-    // static so the cache STICKS.
+    // A full-canvas procedural grain shader. It never changes, but the
+    // opacity + overlay blend on this node keeps it from being auto-baked,
+    // so without the explicit Cache::Texture the shader is re-evaluated
+    // over every pixel of the canvas on every frame. Nothing here is
+    // animated, so the baked texture stays valid for the whole run.
     root.child(box()
                    .inset(0)
                    .fill(paperGrain)
@@ -781,7 +773,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     filmGrain = patterns::grain(0.62f, 3, 4.0f, 0.34f, 1.0f);
     paperGrain = patterns::grain(0.42f, 2, 11.0f, 0.28f, 1.0f);
 
-    // ---- the perpetual loop: 14 hand-stepped scalars ---------------
+    // ---- the perpetual loop: 17 hand-stepped scalars ---------------
     // spin never syncs to the 16 s card cycle (lcm(16,20) = 80 s), the
     // way a motor keeps running across cuts the editor made without it.
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
@@ -801,7 +793,9 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         cardA[i] = op;
         growth[i] = g;
         // shadow state the sketch keeps in sync BY HAND — there is no
-        // "this Output, minus 0.008" Animatable form (see the gaps note).
+        // "this Output, minus a constant" Animatable form, so a value
+        // derived from another one has to be its own Output, re-stepped
+        // here every tick.
         penTip[i] = std::max(0.0f, g - 0.008f);
         penA[i] = op * std::clamp((1.0f - g) / 0.06f, 0.0f, 1.0f) *
                   std::clamp(g / 0.02f, 0.0f, 1.0f);

@@ -13,7 +13,8 @@
 #    Metal handles and forward to SpellCircleSkia; elsewhere they are the
 #    Vulkan bring-up TUs themselves (a Windows draft — run with
 #    QSG_RHI_BACKEND=vulkan there; under any other QRhi backend the factory
-#    returns null and the renderer falls back to QCanvasPainter).
+#    returns null and the canvas renders no scene content — there is no
+#    non-Skia drawing path).
 #
 # Only added when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON (see
 # src/CMakeLists.txt and the top-level CMakeLists.txt).

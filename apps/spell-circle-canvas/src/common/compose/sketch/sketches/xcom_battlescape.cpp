@@ -43,11 +43,11 @@
 //    and PAL[255] 030306. Transcribed as dumped; flagged here rather than
 //    quietly rounded.)
 //  * Reference capture: openxcom.org 1.0 gallery 07_pathpreview.png, nearest-
-//    downsampled to 320x200. CAVEAT the researcher established and this file
-//    inherits: the 640x400 original is NOT a lossless 2x — 63% of its 2x2
-//    blocks are non-uniform, so it went through a scaling filter. Flat runs
-//    survive (which is why the palette check holds); EDGES DO NOT. Every piece
-//    of geometry here therefore comes from source, never from measurement.
+//    downsampled to 320x200. CAVEAT: the 640x400 original is NOT a lossless
+//    2x — most of its 2x2 blocks are non-uniform, so it went through a scaling
+//    filter. Flat runs survive (which is why the palette check holds); EDGES
+//    DO NOT. Every piece of geometry here therefore comes from source, never
+//    from measuring the capture.
 //
 // DOCUMENTED (not invented): the 320x200 screen and the 56-px panel; the
 //   projection and its inverse; the shading algebra; the lighting propagation
@@ -67,17 +67,18 @@
 //   shade (8, inside the documented 0-15; shipped deployments use 5 and 15).
 //
 // -----------------------------------------------------------------------------
-// THREE THINGS THAT SURPRISED THE RESEARCH, AND THEY BELONG IN THE HEADER
+// THREE THINGS THE SOURCE SAYS THAT A SCREENSHOT DOES NOT
 //
 //  1. THE SOLDIER'S MAXIMUM STATS ARE DRAWN BUT NEVER WRITTEN. Bar::draw makes
 //     the OUTLINE max+1 pixels long and the FILL `value` pixels long, at
 //     setScale(1.0) — one pixel per point. Nothing on the Battlescape prints a
 //     soldier's maximum TU, energy or health as a number; the only place those
 //     numbers exist on screen is the LENGTH OF A ONE-PIXEL LINE. Measuring the
-//     reference recovered TU 60, Stamina 65, Health 36, and all three fall
-//     inside soldiers.rul's shipped ranges. A 1994 gauge encodes two quantities
-//     in one 3-pixel strip and expects you to read both. Verification #4 below
-//     re-runs that measurement against THIS render's own pixels.
+//     reference that way recovers TU 60, Stamina 65, Health 36, all three
+//     inside soldiers.rul's ranges, and those are the maxima used here. A 1994
+//     gauge encodes two quantities in one 3-pixel strip and expects you to
+//     read both. Verification #4 below re-runs that measurement against THIS
+//     render's own resolved bar geometry.
 //  2. THERE IS NO MULTIPLICATION ANYWHERE IN X-COM'S RENDERER. Lighting is
 //     newShade = (src & 15) + shade; dest = newShade > 15 ? 15 : (src & 0xF0) |
 //     newShade — arithmetic on a palette index, and when it overflows the pixel
@@ -108,56 +109,58 @@
 // table. Every edge lands on a multiple of PX = 4. Verification #5 is the test.
 //
 // -----------------------------------------------------------------------------
-// VERIFICATION — printed to stdout at setup, re-run against the PNG afterwards
+// VERIFICATION — what printAudit() asserts, and what a pass looks like
 //
-//   #1 projection round-trip     200 random screen points, screenToMap then
-//                                mapToScreen: 0/200 failures, 0 at the
-//                                Clamp(-1, size) boundary.
-//   #2 hitTest vs the inverse    3/3 keyed units, and 10/10 panel widgets on a
-//                                bounds() -> hitTest() -> same key round-trip.
-//                                Pool instances are NOT reachable — see below.
-//   #3 the light radius is 8     walking -x from the selected soldier the shade
-//                                reads 0,1,2,3,4,5,6,7,8,8,8,8 — first constant
-//                                at exactly the 8th tile. Off by one means
-//                                floor() where addLight uses Round().
-//   #4 the bars read back        measured on the WRITTEN PNG, not on the
-//                                geometry: TU fill 58 px / outline 61 -> max 60;
-//                                Energy 56 / 66 -> 65; Health 36 / 37 -> 36;
-//                                Morale 100 / 101 -> 100. 4/4. The same
-//                                measurement that recovered the reference's
-//                                stats, run against this render's own pixels.
-//   #5 the colour census         PIL over the written PNG: 115 distinct colours
-//                                in the frame and 115 of 115 in the 256-entry
-//                                palette. Map region 71/71, panel 76/76. ZERO
-//                                off-palette pixels, so there is no
-//                                antialiasing and no generator left unquantised
-//                                anywhere in the frame.
-//   #6 the 4-px lattice          nearest 4x down then 4x up is byte-identical
-//                                to the capture: 0 mismatching pixels out of
-//                                1,024,000, so every edge is on the 1994 grid.
+//   #1 projection round-trip     200 pseudo-random screen points through
+//                                screenToMap then mapToScreen: every point
+//                                must land inside the 128-wide cell the
+//                                inverse names, or be clamped at the
+//                                Clamp(-1, size) boundary and skipped.
+//   #2 hitTest vs the inverse    each keyed unit, and each panel widget, must
+//                                survive a bounds() -> hitTest() -> same key
+//                                round-trip. Pool instances are NOT reachable
+//                                — see below.
+//   #3 the light radius is 8     walking -x from the selected soldier the
+//                                shade must read 0,1,2,3,4,5,6,7 and then stay
+//                                at 8, first constant at exactly the 8th tile.
+//                                Off by one means floor() where addLight uses
+//                                Round().
+//   #4 the bars read back        the same measurement that recovers the
+//                                reference's stats — fill length / PX is the
+//                                value, outline length / PX - 1 is the
+//                                maximum — applied to the RESOLVED rects the
+//                                four bars drew (bounds() on the keyed fill
+//                                and outline rows), so a bar drawn at the
+//                                wrong length prints a MISMATCH.
+//   #5 the colour census         every distinct colour in the written PNG must
+//                                be one of the 256 table entries. Any
+//                                off-palette pixel means antialiasing, or a
+//                                generator left unquantised, somewhere.
+//   #6 the 4-px lattice          nearest 4x down then 4x up must be
+//                                byte-identical to the frame, which is true
+//                                only if every edge is on the 1994 grid.
 //
-// The census caught the only leak, and it was invisible: Pool::tints()
-// MULTIPLIES, so the font atlas's mask cell has to be pure white. Filling it
-// with the palette's own white — PAL[1] #FCFCFC, the obvious choice — scaled
-// every tinted glyph by 252/255 and put seven off-palette colours on screen,
-// each exactly two units below its palette entry. No amount of looking would
-// have found that.
+// #5 is the check that earns its keep, because the failure it catches is
+// invisible: Pool::tints() MULTIPLIES, so the font atlas's mask cell has to be
+// pure white. Fill it with the palette's own white — PAL[1] #FCFCFC, the
+// obvious choice — and every tinted glyph is scaled by 252/255, which puts
+// off-palette colours on screen exactly two units below their palette entry.
 //
 // -----------------------------------------------------------------------------
-// WHAT IT COST, IN CELLS AND IN NODES
+// WHAT THE FIXED PALETTE COSTS, IN CELLS
 //
 // `tints()` cannot shade a tile — a 16-step ramp is not a scalar multiple of
 // its top entry (block 3 at shade 8 needs R 0.17 / G 0.54 / B 0.42, and the
-// best single scalar renders red 2.4x too bright), so the faithful flyweight is
-// `frames = types x shades`. Six tile types, two dither variants for the three
-// floors, nine shade levels, plus six recoloured arrows and a cursor:
-// **97 cells, a 2048 x 1120 sheet, 8.75 MB**, where a palette LUT in the
-// shader would have been ONE cell and a uniform.
+// best single scalar renders red far too red), so the faithful flyweight is
+// `frames = types x shades`. Three floors x two dither variants, plus bush,
+// tree, hull wall and hull deck, all at nine shade levels, plus six recoloured
+// arrows and a cursor: 97 cells at 128x160, sixteen to a sheet row, where a
+// palette LUT in the shader would have been ONE cell and a uniform.
 //
-// What that buys: **~1,200 sprites in four leaves.** The whole frame is 155
-// retained nodes and 16 cached pictures; paintMs is 0.02, layoutMs and
-// reconcileMs round to zero. The same scene as real Elements would be ~1,200
-// Yoga nodes with zero layout in any of them — ROADMAP §2's separated ask.
+// What it buys is the whole map in four instanced leaves. Described as
+// ordinary Elements the same scene would be well over a thousand nodes, every
+// one of them laid out by Yoga to produce a position the projection already
+// knows.
 //
 // -----------------------------------------------------------------------------
 // ONE THING THE RECONSTRUCTION COULD NOT RESOLVE, STATED PLAINLY
@@ -169,8 +172,8 @@
 // observations is wrong and the original save would settle it. This file draws
 // the capture's button state (None lit) and computes the marker colours against
 // an explicit kReserveTU = 15 — floor(60 * 25/100), a Snap Shot — so the yellow
-// run is derived rather than drawn. The inconsistency is the report's, not the
-// render's.
+// run is derived rather than drawn. The contradiction is in the two
+// observations, not in what this file computes.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -213,10 +216,10 @@ namespace xcom {
 // SCALE. One constant. Original 320x200 px -> canvas px; nothing else scales.
 
 constexpr float PX = 4.0f;
-// The unit map as a value. Scale-only here, but the same type carries an
-// origin (astral_tome) and a snap (vagrant_story_target, which holds two at
-// once) — and it stays constexpr, which every hand-rolled unit map in the
-// corpus needed and which is why kit::Grid rounds without std::round.
+// The unit map as a value. Only the scale is used here; the type also carries
+// an origin and a snap. It is constexpr, which is why it rounds by hand
+// instead of calling std::round — that would make n() unusable in the
+// constant expressions below.
 constexpr kit::Grid kGrid{.scale = PX};
 constexpr float n(float v) { return kGrid.s(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
@@ -304,10 +307,10 @@ constexpr int replaceBlock(int src, int shade, int block1) {
 // cell is 128 x 160. Framing constants chosen so map tile (9,9,0)'s cell centre
 // lands on the viewport centre (640, 288): OX = 576, OY = -368.
 
-// The map is 26 x 26, not the 20 x 20 the framing was solved for: at 20 the
-// visible band's CORNERS fall outside the array (mx-my = 10 with mx+my = 29
-// wants mx = 19.5) and the render comes back with a black sawtooth along the
-// bottom-left. A full-bleed 320x144 viewport at this framing needs 26.
+// The map has to be 26 x 26 for this framing to fill the viewport. The visible
+// band's CORNERS need tiles the array must actually contain — mx-my = 10 with
+// mx+my = 29 wants mx = 19.5 — so a 20 x 20 array leaves a black sawtooth
+// along the bottom-left edge. A full-bleed 320x144 viewport needs 26.
 constexpr float kOX = 576.0f, kOY = -368.0f;
 constexpr int kMapSize = 26;
 constexpr float kCellW = n(32), kCellH = n(40);
@@ -318,8 +321,9 @@ inline SkPoint mapToScreen(int mx, int my, int mz) {
   return {kOX + (float)(mx - my) * n(16), kOY + (float)(mx + my) * n(8) -
                                               (float)mz * n(24)};
 }
-/** Pool positions are the cell's CENTRE, not its top-left (Instances.h says so
- *  in place::grid's arithmetic and nowhere else — and it costs an iteration). */
+/** Pool positions are the cell's CENTRE, not its top-left — a stamp is placed
+ *  by its middle, so every mapToScreen result has to be re-centred before it
+ *  goes into a Pool. */
 inline SkPoint cellCentre(int mx, int my, int mz) {
   const SkPoint p = mapToScreen(mx, my, mz);
   return {p.fX + kCellW * 0.5f, p.fY + kCellH * 0.5f};
@@ -420,9 +424,9 @@ struct Soldier {
 };
 // Placement is constrained by the projection, not by taste: the viewport shows
 // screen diagonals mx+my in [7, 26] — twenty of them — and a soldier drawn
-// WHOLE costs four at the top. So the selected unit sits on diagonal 12 and
-// §10's fifteen-tile preview becomes fourteen; a fifteenth marker lands at
-// diagonal 27, whose diamond starts at y = 592 and is under the panel.
+// WHOLE costs four at the top. So the selected unit sits on diagonal 12 and the
+// path preview is fourteen tiles rather than fifteen: a fifteenth marker would
+// land on diagonal 27, whose diamond starts at y = 592 and is under the panel.
 constexpr Soldier kSoldierA{8, 4};  // selected; Anders Holmgren
 constexpr Soldier kSoldierB{15, 7}; // second of the squad, eight tiles away —
                                     // the two nine-step pools MEET rather than
@@ -528,17 +532,17 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
 // (type, shade): the flyweight is `frames = types x shades`, because a 16-step
 // palette ramp is NOT a scalar multiple of its top entry and Pool::tints()
 // therefore cannot shade a tile (block 3 at shade 8 needs per-channel
-// multipliers R 0.17 / G 0.54 / B 0.42; the best single scalar renders red 2.4x
-// too bright). See the report.
+// multipliers R 0.17 / G 0.54 / B 0.42, and no single scalar comes close —
+// matching green leaves red far too bright).
 
 /** Floor: the diamond, dithered two palette steps apart with a scatter of a
  *  third. X-COM's terrain has no smooth shading inside a tile — two steps in a
  *  dither is the entire vocabulary; there is no gradient anywhere.
  *
- *  TWO VARIANTS per (type, shade), keyed off (mx+my) parity. A single variant
- *  produced a coherent diamond moire across the whole map, because a shared
- *  cell repeats identically under the (+-16, +8) lattice — the flyweight's own
- *  failure mode, visible on the first render and invisible in the arithmetic. */
+ *  TWO VARIANTS per (type, shade), keyed off (mx+my) parity. With a single
+ *  variant the dither repeats identically under the (+-16, +8) lattice and a
+ *  coherent moire appears across the whole map — the flyweight's own failure
+ *  mode, and one that only shows up in the picture, never in the arithmetic. */
 inline void paintFloor(SkCanvas &canvas, Floor kind, int shade, int variant) {
   const Ink ink{canvas};
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
@@ -624,8 +628,8 @@ inline void paintHullDeck(SkCanvas &canvas, int shade) {
  *  pixels so nothing lands off the grid. The lit steps and the shaded flank are
  *  three apart on ONE hue ramp, which at ambient (shade 8) pushes the flank's
  *  last step past 15 — so the terminator on a dusk tree is literally
- *  PAL[15] #000000, not the ramp's darkest green. That is consequence #2 of the
- *  shading algebra, and it is why X-COM's night terrain looks the way it does. */
+ *  PAL[15] #000000, not the ramp's darkest green. That is the overflow branch
+ *  in shd(), and it is why X-COM's night terrain looks the way it does. */
 inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
                         int shade, int litStep, uint32_t seed) {
   const int r0 = (int)std::floor(cy - ry), r1 = (int)std::ceil(cy + ry);
@@ -650,8 +654,8 @@ inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
 
 /** One cell per tree: canopy rows 4..24, trunk 22..32, standing on the
  *  diamond's centre (row 32). 28 original px tall, which is what the reference
- *  measures — an earlier two-cell tree spanning both levels came out 48 px and
- *  read as a column, not a tree. */
+ *  measures. It has to fit in ONE cell: a tree drawn across two levels comes
+ *  out around 48 px and reads as a column rather than as a tree. */
 inline void paintTree(SkCanvas &canvas, int shade) {
   const Ink ink{canvas};
   for (int r = 23; r <= 32; ++r)
@@ -675,8 +679,8 @@ inline void paintArrow(SkCanvas &canvas, int dir, int block1) {
            replaceBlock(blk(0, step), 0, block1));
   };
   // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off the
-  // reference — the first pass drew a 16 x 11 arrow and at 320x200 it covered
-  // half a tile.
+  // reference, and the size is the point — a 32-px tile is only 32 px, so an
+  // arrow much larger than this covers half the ground it is marking.
   for (int k = 0; k < 4; ++k)
     for (int y = 8 - k; y <= 8 + k; ++y)
       put(8 + k, y, k == 0 ? 0 : 2);
@@ -687,7 +691,8 @@ inline void paintArrow(SkCanvas &canvas, int dir, int block1) {
 
 /** The 3D box selector — a 32x40 wireframe cube, one tile, block 2. Drawn at
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
- *  ten pixels down first (Map.cpp:1314) and the audit prints both. */
+ *  ten pixels down first (Map.cpp:1314), and printAudit reports both answers so
+ *  the difference is visible. */
 inline void paintCursor(SkCanvas &canvas) {
   const Ink ink{canvas};
   const int lit = blk(2, 0), dim = blk(2, 2);
@@ -756,12 +761,12 @@ inline void paintBobArrow(SkCanvas &canvas, int frame) {
 
 // ---------------------------------------------------------------------------
 // PIXEL TYPE. FONT_BIG and FONT_SMALL are .DAT glyph bitmaps and are not in any
-// repo; SigilWeave has no bitmap-font path (ROADMAP §9). So the substitute face
-// is shaped at 1x — the 1994 pixel — rendered into a raster the size of its own
-// ink, and every pixel QUANTISED into a palette ramp by coverage: two steps,
-// the way an 8-bit artist would have anti-aliased a face by hand. Then it is
-// presented at 4x with kNearest. The result is a bitmap font again, on the
-// grid, in the palette, and the census stays clean.
+// repo, and there is no bitmap-font path to load them into. So the substitute
+// face is shaped at 1x — the 1994 pixel — rendered into a raster the size of
+// its own ink, and every pixel QUANTISED into a palette ramp by coverage: two
+// steps, the way an 8-bit artist would have antialiased a face by hand. Then
+// it is presented at 4x with kNearest. The result is a bitmap font again, on
+// the grid, in the palette, and the colour census stays clean.
 
 struct PixelText {
   sk_sp<SkImage> image;
@@ -770,17 +775,15 @@ struct PixelText {
 
 inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
                            weave::FontContext &fonts, int litIdx, int dimIdx) {
-  // The measure -> raster -> read-back -> crop-to-ink core is
-  // kit::coverage(); this study's own part is the TWO-LEVEL quantisation
-  // into palette indices, which is why the kit hands back coverage rather
-  // than a finished 1-bit mask. Three studies wrote that core by hand and
-  // this one is the third.
+  // The measure -> raster -> read-back -> crop-to-ink core is kit::coverage();
+  // what belongs to this file is the TWO-LEVEL quantisation into palette
+  // indices below, which is why the kit hands back coverage rather than a
+  // finished 1-bit mask.
   //
-  // The kit also fixes something this version had wrong and could not see:
-  // the +2 pad was applied to the RIGHT and BOTTOM only, so a glyph with a
-  // negative left side-bearing clipped at x = 0 with no pad value able to
-  // reach it. kit::coverage insets the run on every side and grows the pad
-  // until no ink touches an edge.
+  // The padding around the raster has to grow on EVERY side, which is what
+  // kit::coverage does: a glyph with a negative left side-bearing puts ink at
+  // negative x, so a pad applied only to the right and bottom clips it at
+  // x = 0 no matter how large the pad is.
   style.paint.foreground.setColor(SK_ColorWHITE);
   const kit::Coverage cov = kit::coverage(s, fonts, style);
   if (!cov.valid() || cov.ink.isEmpty())
@@ -808,8 +811,8 @@ inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
 }
 
 /** The pixel-text element: an image fill at exactly 4x, nearest-sampled, on a
- *  box whose size is the ink. Material::image is the one blessed image path
- *  that always took a sampling parameter. */
+ *  box whose size is the ink. Material::image takes the sampling options, which
+ *  is what keeps the 4x magnification from filtering. */
 inline Element pixelTextEl(const PixelText &t, float x, float y) {
   if (!t.image)
     return box().width(0).height(0);
@@ -833,9 +836,9 @@ inline Element at(float x, float y, float w, float h) {
 }
 
 /** A 32x16 button plate: rounded by RUN LENGTH, not by a corner radius. A
- *  radius antialiases and puts colours on the canvas that VGA never had, which
- *  §12 predicted and the first render confirmed. Lit edge 81-85, face 86-87,
- *  shadow 91-93 — measured off the capture's flat runs. */
+ *  radius antialiases, and every antialiased edge puts colours on the canvas
+ *  that VGA never had. Lit edge 81-85, face 86-87, shadow 91-93 — read off the
+ *  capture's flat runs, which are the part of it that survived rescaling. */
 inline void paintPlate(SkCanvas &canvas, int w, int h) {
   const Ink ink{canvas};
   for (int r = 0; r < h; ++r) {
@@ -902,11 +905,9 @@ inline void paintButtonGlyph(SkCanvas &canvas, int id) {
           figure(23, 3); break;                            // next soldier
   case 9: figure(9, 3); ink.rect(17, 7, 6, 1, d); ink.rect(21, 5, 1, 5, d);
           ink.rect(24, 3, 1, 9, d); break;                 // next / stop
-  case 10:                                                 // layers
+  case 10: // layers: three stacked plates, the top one lit
     for (int k = 0; k < 3; ++k) {
       const int y = 4 + k * 3;
-      for (int q = 0; q < 5; ++q)
-        ink.run((float)(11 - q), (float)(y + q > y + 2 ? y : y), 0, d);
       ink.run(8.0f, (float)y, 10.0f, k == 0 ? l : d);
       ink.run(9.0f, (float)(y + 1), 8.0f, d);
     }
@@ -949,10 +950,15 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
   const int outline = colorIdx + 4;
   // A transparent full-canvas shell, so the four rects keep SCREEN coordinates.
   // The KEY goes on the fill rect, never on the shell: a keyed full-bleed shell
-  // with no fill still answers hitTest, and four of them stacked over the frame
-  // made every probe return `barMorale`. There is no pointer-events: none.
+  // answers hitTest whether or not it has a fill, so four keyed shells stacked
+  // over the whole frame would make every probe return the topmost one. There
+  // is no way to opt an element out of hit testing.
+  // The top outline row carries "<key>-max" so the audit can measure the
+  // DRAWN outline length the same way it measures the drawn fill.
   Element g = box().inset(0);
-  g.child(at(x, y, (float)(maxValue + 1), 1).fill(C(outline)));
+  g.child(at(x, y, (float)(maxValue + 1), 1)
+              .fill(C(outline))
+              .key(std::string(key) + "-max"));
   g.child(at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline)));
   g.child(at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline)));
   if (value > 0)
@@ -1038,21 +1044,19 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   void bakeAtlas() {
     using namespace xcom;
     tiles = std::make_shared<Atlas>(1.0f);
-    // Atlas::filter — the last of the five hardcoded kLinear paths, and the
-    // case detail::stamp's literal was written against.
+    // Atlas::filter, and it is the palette's guard rail.
     //
-    // MEASURED, because the prediction deserved a number. At oversample 1.0
-    // with every stamp on an integer pixel, kLinear and kNearest produce
-    // BYTE-IDENTICAL output: 0 differing pixels of 1,024,000. The linear sample
-    // lands on the texel centre and the filter is a no-op — so the workaround
-    // the brief proposed is not a mitigation, it is exact.
+    // At oversample 1.0 with every stamp on an integer pixel, kLinear and
+    // kNearest agree exactly: the linear sample lands on the texel centre and
+    // the filter is a no-op. So on this frame, as framed, the setting changes
+    // nothing.
     //
-    // Shift every stamp by HALF A PIXEL and the same frame goes from 115
-    // colours / 0 off-palette to **1,038 colours and 76,044 off-palette
-    // pixels** — 7.4% of the frame — while kNearest stays at 115 / 0. That is
-    // the size of the knob: worth nothing on a static integer-aligned map, and
-    // worth the whole reconstruction the moment a camera pans by a fraction or
-    // a stamp is scaled.
+    // Shift every stamp by HALF A PIXEL and kLinear blends adjacent texels,
+    // which invents colours between palette entries — thousands of them,
+    // across a large fraction of the frame — while kNearest still emits only
+    // table entries. The setting is therefore worth nothing on a static
+    // integer-aligned map and worth the entire reconstruction the moment a
+    // camera pans by a fraction or a stamp is scaled.
     tiles->filter(SkFilterMode::kNearest);
     const SkSize cell{kCellW, kCellH};
 
@@ -1106,9 +1110,9 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // The font cell is a MASK, not a colour: Pool::tints() MULTIPLIES, so the
     // cell has to be pure white. Filling it with the palette's own white —
     // PAL[1] #FCFCFC, the obvious choice — scales every tinted glyph by
-    // 252/255 and put SEVEN off-palette colours in the frame, each exactly two
-    // units below its palette entry. The colour census caught all seven; no
-    // amount of looking would have.
+    // 252/255, which lands each one two units below its palette entry: a
+    // handful of off-palette colours that are invisible to the eye and caught
+    // only by the colour census.
     cellFontPx = fontAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {PX, PX});
   }
 
@@ -1346,9 +1350,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     using namespace xcom;
     // A full-canvas transparent shell, NOT a box at the panel's rect: every
     // widget below is positioned by its BattlescapeState constructor argument,
-    // which is a screen coordinate, and Yoga resolves an absolute child against
-    // its parent. Nesting them inside a box at (0,144) shifted the entire panel
-    // off the bottom of the frame on the first render.
+    // which is a SCREEN coordinate, and Yoga resolves an absolute child
+    // against its parent. Nested inside a box at (0,144) every one of those
+    // coordinates would be offset a second time and the panel would leave the
+    // bottom of the frame.
     Element p = box().inset(0);
     // The metal body: a dithered block-5 field, no gradient, no direction.
     p.child(at(0, 144, 320, 56).fill(metalPattern.material()));
@@ -1438,8 +1443,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     p.child(recess(134, 193, blk(2, 5)));
     p.child(recess(152, 193, blk(12, 5)));
 
-    // The lattice behind the bars: 5 px x 2 px. patterns::gridLines takes a
-    // pitch per axis now, and this is its first user.
+    // The lattice behind the bars: a 5 px x 2 px pitch, one pitch per axis.
     p.child(at(176, 185, 136, 15).fill(C(blk(0, 15))));
     p.child(at(176, 185, 136, 15).fill(latticePattern.material()));
 
@@ -1584,7 +1588,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     }
     std::printf("#2 hitTest agrees with the inverse: %d/%d  "
                 "(pool tiles are unreachable — instances() is one custom() "
-                "leaf; see the report)\n",
+                "leaf, so hits land on the pool node, not a tile)\n",
                 agree, checked);
 
     // #3 the light radius is exactly 8.
@@ -1594,15 +1598,30 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                   k == 11 ? "" : ",");
     std::printf("  (first constant at tile 8 == correct)\n");
 
-    // #4 the bars read back, from the geometry that drew them.
-    const int vals[4] = {58, 56, 36, 100};
-    const int maxs[4] = {kMaxTU, kMaxEnergy, kMaxHealth, kMaxMorale};
-    const char *nm[4] = {"TU", "Energy", "Health", "Morale"};
-    for (int i = 0; i < 4; ++i)
-      std::printf("#4 %-6s fill %3d px / 4 = %3d (drawn %3d)   outline %3d "
-                  "px / 4 - 1 = %3d (max %3d)\n",
-                  nm[i], (int)(vals[i] * PX), vals[i], vals[i],
-                  (int)((maxs[i] + 1) * PX), maxs[i], maxs[i]);
+    // #4 the bars read back — from the RESOLVED geometry, the same
+    // measurement that recovered the maxima off the reference capture:
+    // fill length / PX is the value, outline length / PX - 1 is the maximum.
+    // bounds() reads the keyed rects statBar actually drew, so a bar drawn at
+    // the wrong length changes this output, and the expected TU follows
+    // phase.fired — the value the panel is drawing, not a fixed 58.
+    {
+      const int wantVal[4] = {phase.fired ? 43 : 58, 56, 36, 100};
+      const int wantMax[4] = {kMaxTU, kMaxEnergy, kMaxHealth, kMaxMorale};
+      const char *nm[4] = {"TU", "Energy", "Health", "Morale"};
+      const char *keys[4] = {"barTU", "barEnergy", "barHealth", "barMorale"};
+      for (int i = 0; i < 4; ++i) {
+        const auto fill = ctx.composer.bounds(keys[i]);
+        const auto line = ctx.composer.bounds(std::string(keys[i]) + "-max");
+        const int value = fill ? (int)std::lround(fill->width() / PX) : -1;
+        const int maxv = line ? (int)std::lround(line->width() / PX) - 1 : -1;
+        std::printf("#4 %-6s fill %4.0f px / 4 = %3d (want %3d)   outline "
+                    "%4.0f px / 4 - 1 = %3d (want %3d)%s\n",
+                    nm[i], fill ? fill->width() : -1.0f, value, wantVal[i],
+                    line ? line->width() : -1.0f, maxv, wantMax[i],
+                    value == wantVal[i] && maxv == wantMax[i] ? ""
+                                                              : "  MISMATCH");
+      }
+    }
 
     // The selector's ten-pixel fudge, both answers.
     const SkPoint cur = mapToScreen(path.back().x(), path.back().y(), 0);
@@ -1622,10 +1641,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     using namespace xcom;
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(C(blk(0, 15)));
-    // §31 named-state beat: 9.6 s state cycle; the canonical still is the
-    // 14-tile path preview [3.2, 4.8) with TU 58 intact — the openxcom
-    // reference screen. 4.0 s is its midpoint (the old 6.0 default landed
-    // inside the fire-mode popup covering the battlescape).
+    // The still is captured inside the 9.6 s state cycle below, at the phase
+    // that matches the reference screen: the 14-tile path preview with TU 58
+    // intact, which runs [3.2, 4.8). 4.0 s is its midpoint. Later phases open
+    // the fire-mode popup, which covers most of the battlescape.
     ctx.captureAt(4.0);
 
     bakeAtlas();
@@ -1655,8 +1674,8 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
         });
     metalPattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
     // patterns::gridLines(spacingX, spacingY, width, colour) — the 5 x 2 pitch,
-    // exactly. One colour, so the capture's 136/137 verticals and 138
-    // horizontals collapse to one step; filed in the report.
+    // exactly. It takes ONE colour, so the capture's 136/137 verticals and its
+    // 138 horizontals collapse to a single palette step here.
     latticePattern = patterns::gridLines(n(5), n(2), PX, C(137));
     latticePattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
 
@@ -1731,11 +1750,12 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   }
 
   void update(double elapsed, sketch::SketchContext &ctx) override {
-    // The audit runs BEFORE this frame's render(): bounds()/hitTest() read the
-    // resolved Yoga layout, which the composer computes inside draw(), so a
-    // query issued straight after a render() in the same update sees a dirtied
-    // tree and every rect comes back nan. Costing an iteration is generous —
-    // there is no way to ask the composer to lay out without painting.
+    // The verification runs BEFORE this frame's render(). bounds() and
+    // hitTest() read the resolved Yoga layout, which the composer computes
+    // inside draw(), so a query issued straight after a render() in the same
+    // update sees a dirtied tree and every rect comes back nan. There is no
+    // way to ask the composer to lay out without painting, so the queries have
+    // to be one frame behind the description they are asking about.
     if (!auditPrinted && elapsed > 0.25) {
       auditPrinted = true;
       printAudit(ctx);

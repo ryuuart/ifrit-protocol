@@ -38,12 +38,10 @@ SkPath unitBox() {
 
 } // namespace
 
-// RENAMED 2026-07-28 (audit): the OutlineIsGone half asserted nothing — a
-// deleted word is a compile-time fact and this test only ever exercised the
-// surviving one.
 TEST(ComposeShapeRename, ShapeOverridesTheBox) {
-  // `outline()` was deleted in R3; `shape()` is the one spelling, and what
-  // it does is override the node's rect with a generated path.
+  // `shape()` replaces the node's rect with a generated path — for fill,
+  // for stroking, and for hit testing. The rect it was given is not
+  // intersected with the shape, it is discarded.
   Host host(200, 200);
   Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
   e.shape(shapes::circle());
@@ -56,10 +54,9 @@ TEST(ComposeShapeRename, ShapeOverridesTheBox) {
 
 TEST(ComposeSpans, CornersAndEdgesPartitionTheBoundary) {
   // The claim algebra, read directly: corners() and edges() are one scan
-  // seen two ways, so together they cover the boundary exactly once. This
-  // is the four-way duplicate the audit filed (decorations::brackets /
-  // gappedRule / lines::cornerBrackets / cornerGaps) answered as one
-  // vocabulary.
+  // seen two ways, so together they cover the boundary exactly once and
+  // overlap nowhere. That partition is what lets bracket marks and gapped
+  // rules be two calls on one vocabulary rather than separate primitives.
   const SkPath boundary = unitBox();
   SpanInput in;
   in.outline = &boundary;
@@ -104,9 +101,10 @@ TEST(ComposeSpans, CornerPassMarksOnlyTheCorners) {
 }
 
 TEST(ComposeSpans, PassesAppendAndRestFillsTheGaps) {
-  // Two calls, no arithmetic: the corners get one mark and everything
-  // else gets the other. This is thaumonomicon's innerRule() (a ten-line
-  // "rect minus corners" path generator) as two lines.
+  // Two calls, no arithmetic: the corners get one mark and everything else
+  // gets the other. Written by hand this is a path generator that has to
+  // subtract the corner windows from the rect, and it stops being correct
+  // as soon as the silhouette is not a rect.
   Host host(200, 200);
   host.composer.render(
       stack().child(box()
@@ -140,8 +138,9 @@ TEST(ComposeSpans, OverlappingClaimsAreSaidOutLoud) {
 }
 
 TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
-  // §27 alias-first: the whole-boundary form does not claim, so the
-  // corpus's stacked strokes (a halo under a keyline) stay legal.
+  // The whole-boundary form of stroke() makes no CLAIM on the boundary, so
+  // stacking two of them — a halo under a keyline — stays legal and silent.
+  // Only span-qualified passes take part in the no-overlap law.
   ::testing::internal::CaptureStderr();
   {
     Host host(200, 200);
@@ -157,14 +156,12 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
 }
 
 TEST(ComposeSpans, ReorderedTermsPruneBecauseResolveNeverReadsOrder) {
-  // §33-f: `corners(8) | at(0, 4)` and `at(0, 4) | corners(8)` claim the
-  // SAME runs — resolve() unions its terms and never reads their order —
-  // but equality used to walk the term lists index by index, so a
-  // describe that reorders terms produced a spurious patch. Never a wrong
-  // picture; only a lost prune. Equality is order-insensitive now (a
-  // multiset match over the same term comparison), so the reorder PRUNES.
-  // (Control for the fix itself: revert Spans::operator== to the indexed
-  // walk and the patchedNodes == 0 below fails.)
+  // `corners(8) | at(0, 4)` and `at(0, 4) | corners(8)` claim the SAME runs,
+  // because resolve() unions its terms and never reads their order. So
+  // Spans equality has to be order-insensitive — a multiset match over the
+  // same per-term comparison — or a describe that happens to build the union
+  // the other way round produces a spurious patch. Never a wrong picture,
+  // only a lost prune, which is why nothing else would report it.
   const auto tree = [](Spans where) {
     return stack().child(box()
                              .key("m")
@@ -247,22 +244,17 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
 }
 
 TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
-  // The derive pass, applied to a boundary: the pass claims exactly the
-  // run the keyed element covers (the flowAround pattern).
+  // The derive pass applied to a boundary: the stroke claims exactly the run
+  // a keyed element covers, so a rule opens a gap around a label without the
+  // author computing where the label is.
   //
-  // §33-i, RESOLVED 2026-08-04: this test used to call frame() TWICE
-  // before its first assertion, with a note that nobody knew whether that
-  // was correct derive timing or a user-visible one-frame lag. It is
-  // NEITHER — the extra frame was never load-bearing. The derive pass
-  // runs INSIDE ensureLayout's convergence rounds (Layout.cpp), which
-  // draw() executes BEFORE paint in the SAME frame, so the fit rects a
-  // stroke pass sizes its gap from are resolved by the first paint that
-  // could read them — and ensureLayout was already shaped that way at the
-  // commit that introduced this test (77f0d8d). Both halves are pinned
-  // below with ONE frame each: the first paint after describe, and — the
-  // half a harness quirk could not excuse — the first paint after a
-  // CONTENT CHANGE (the keyed element moves; a one-frame lag would show
-  // the gap at the label's old position).
+  // ONE frame per assertion, deliberately. The derive pass runs inside
+  // ensureLayout's convergence rounds, which draw() executes BEFORE paint in
+  // the same frame, so the fit rects are resolved by the first paint that
+  // could read them — there is no one-frame lag to absorb. Allowing a second
+  // frame would hide exactly that lag if it appeared. The second half below
+  // is the stronger one: after the label MOVES, the very next paint must
+  // show the gap at its new position.
   Host host(200, 200);
   auto scene = [](SkRect label) {
     return stack()
@@ -338,9 +330,10 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
 }
 
 TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
-  // A single moveTo/lineTo chain across every contour, closed once, fills
-  // the gap between them with a chord — two concentric ring spines came out
-  // as a filled disc. The rails are zipped and closed PER CONTOUR.
+  // The rails must be zipped and closed PER CONTOUR. Build one moveTo/lineTo
+  // chain across every contour and close it once, and the gap between
+  // contours is bridged by a chord — two concentric ring spines come out as
+  // a filled disc, which looks deliberate rather than broken.
   Host host(400, 400);
   host.composer.render(stack().child(
       band([](SkSize s) {
@@ -362,14 +355,15 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
       << "the middle was filled";
 }
 
-// RENAMED 2026-07-28 (audit): one radius cannot show linearity. This is a
-// wall-clock ceiling against the measured 700 ms quadratic regression —
-// which is what the body says and now what the name says.
 TEST(ComposeBand, ConstructionStaysUnderTheQuadraticCeiling) {
-  // sampleRail asked bandPointAt per sample, and bandPointAt re-measures the
-  // whole path every call — quadratic. Measured at 700 ms for an r=550 ring.
-  // The guard is a wall-clock ceiling, deliberately loose enough to survive a
-  // contended machine and tight enough that the quadratic form cannot pass.
+  // Band construction must not re-measure the spine per sample. Asking
+  // bandPointAt for each sample does exactly that, and bandPointAt walks the
+  // whole path every call, so construction becomes quadratic in the spine's
+  // length — invisible on a small band and ruinous on a large ring.
+  //
+  // A single radius cannot demonstrate a growth RATE, so this is a wall-clock
+  // ceiling instead: loose enough to survive a contended machine, tight
+  // enough that the quadratic form cannot fit under it at this radius.
   auto ring = [](float r) {
     return [r](SkSize s) {
       SkPathBuilder b;
@@ -388,8 +382,8 @@ TEST(ComposeBand, ConstructionStaysUnderTheQuadraticCeiling) {
         .count();
   };
   const double big = build(550.0f);
-  EXPECT_LT(big, 250.0) << "r=550 band took " << big << " ms — the quadratic "
-                           "construction measured 700 ms here";
+  EXPECT_LT(big, 250.0) << "r=550 band took " << big << " ms — sampling must not be "
+                           "quadratic in the spine length";
 }
 
 TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
@@ -400,10 +394,10 @@ TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
   EXPECT_EQ(bandPointAt(spine, 0.0f, 0), SkPoint::Make(0, 50));
   EXPECT_EQ(bandPointAt(spine, 0.5f, 0), SkPoint::Make(50, 50));
   EXPECT_EQ(bandPointAt(spine, 1.0f, 0), SkPoint::Make(100, 50));
-  // across is px on the normal, positive to the LEFT of travel: y is
-  // down, so travelling +x, positive across goes UP the screen. That is
-  // the same side lines::offsetAcross means — one convention since R3 —
-  // asserted here precisely so the two signs cannot drift apart again.
+  // across is pixels along the normal, positive to the LEFT of travel. With
+  // y down, travelling +x, a positive across therefore goes UP the screen.
+  // lines::offsetAcross means the same side — there is one convention — and
+  // it is asserted here so the two signs cannot drift apart.
   EXPECT_EQ(bandPointAt(spine, 0.5f, 10), SkPoint::Make(50, 40));
   EXPECT_EQ(bandPointAt(spine, 0.5f, -10), SkPoint::Make(50, 60));
 }
@@ -466,9 +460,9 @@ TEST(ComposeCrossings, CoincidentStrandsNeverCross) {
 }
 
 TEST(ComposeCrossings, SharedCornersAreMeetingsNotCrossings) {
-  // A rectangle's own corners are two edges touching at an endpoint. A
-  // discovery pass that counted them would put a knot at every corner of
-  // every frame in the corpus.
+  // Two edges touching at a shared endpoint is a MEETING, not a crossing.
+  // A discovery pass that counted them would put a knot at every corner of
+  // every rectangular frame ever drawn.
   SkPathBuilder a;
   a.addRect(SkRect::MakeWH(80, 60));
   SkPathBuilder c;
@@ -642,33 +636,32 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
 }
 
 // ---------------------------------------------------------------------------
-// 33-h's crossing cache (closed 2026-08-04): discovery is memoized on the
-// RESOLVED strand paths — the function's entire input — held on the Weave
-// value by shared_ptr (the Scatter/Pattern member-cache precedent). The
-// three pins: staleness through each door into the key, and byte identity.
-// `crossingCache->computes` is the instrument — it counts DISCOVERIES, not
-// paints, so a steady frame that repaints (Cache::None) must not move it.
+// The crossing cache: discovery is memoized on the RESOLVED strand paths,
+// which are the function's entire input, and held on the Weave value behind
+// a shared_ptr so copies share it. Three things must hold — staleness
+// through each of the two doors into the key, and byte identity between the
+// cold and cached paints.
+//
+// `crossingCache->computes` counts DISCOVERIES, not paints. That is what
+// makes these cases readable: with Cache::None the node repaints every
+// frame, so a steady frame that does not move the counter proves a hit.
 
 TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
-  // THE STALENESS PIN, authored door. One warm cache (a copy shares its
-  // original's), then a strand's path is edited. THREE strands, not two,
-  // on purpose: with a lone crossing the knot's territory is unbounded
-  // (no neighbour), and a stale repair clipped only by the CURRENT tubes
-  // still covers the new meeting — a single-crossing pin cannot see
-  // staleness in pixels. Two knots bound each other's territory, so the
-  // stale answer visibly mis-paints.
+  // Staleness through the AUTHORED door: warm the cache, then edit a
+  // strand's path on a copy that shares it.
   //
-  // Red runs y=100; green verticals at x=60 and x=140. alternate() puts
-  // red over at knot 0 (x=60) and leaves green over at knot 1 (x=140).
-  // The edit moves the first vertical to x=180: knot 0 is now (140,100)
-  // — red over there — and (180,100) keeps green. A stale answer still
-  // calls (140,100) knot 1 (green, unrepaired) and aims its red repair
-  // at (60,100), where its 40 px territory reaches nothing.
+  // THREE strands, not two, and that is load-bearing. With a lone crossing
+  // the knot's territory has no neighbour to bound it, so a stale repair —
+  // clipped only by the CURRENT tubes — still happens to cover the new
+  // meeting, and the staleness is invisible in pixels. Two knots bound each
+  // other's territory, so a stale answer mis-paints somewhere readable.
   //
-  // THE CONTROL WAS RUN 2026-08-04: with the key comparison deliberately
-  // removed from Weave::paint (`valid` alone, geometry ignored), this pin
-  // fails exactly as predicted — (140,100) reads GREEN (stale crossings)
-  // and computes stays 1.
+  // Red runs y=100; green verticals at x=60 and x=140. alternate() puts red
+  // over at knot 0 (x=60) and leaves green over at knot 1 (x=140). Moving
+  // the first vertical to x=180 makes (140,100) the new knot 0 — red over —
+  // while (180,100) keeps green. A stale cache still numbers (140,100) as
+  // knot 1 and aims its red repair at (60,100), where nothing is left to
+  // repair.
   brush::Weave w = brush::weave(
       {brush::Strand{strand::path(diagonal({0, 100}, {200, 100})),
                      brush::solid(9, red())},
@@ -702,9 +695,9 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
 }
 
 TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
-  // THE STALENESS PIN, outline door. A relative strand resolves against
+  // Staleness through the OUTLINE door. A relative strand resolves against
   // ctx.outline, so the SAME weave value over a changed shape must
-  // rediscover — the key is the resolved paths, not the value's fields.
+  // rediscover: the key is the resolved paths, not the value's own fields.
   // A self-strand ring crossed by an authored line, red always on top;
   // when the ring grows, the knots move outward along the line, and only
   // a fresh discovery repairs them at the new radius. The line runs
@@ -743,10 +736,9 @@ TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
 }
 
 TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
-  // THE BYTE-IDENTITY PIN: the cache changes WHEN discovery runs, never
-  // what is drawn. Frame 1 discovers (cold), frame 2 hits, and a fresh
-  // equal value discovers again from cold — all three surfaces must be
-  // byte-equal.
+  // The cache may change WHEN discovery runs and never what is drawn.
+  // Frame 1 discovers cold, frame 2 hits, and a fresh equal value discovers
+  // cold again — all three surfaces must be byte-equal.
   auto bytes = [](Host &host) {
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(host.surface->width(),
@@ -784,23 +776,22 @@ TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
       << "cold and cached must be one picture, byte for byte";
 }
 
-// RENAMED 2026-07-28 (audit): the Inner half is conceded untested in this
-// test's own closing comment (every arm is Align::Center, because an open
-// rail has no inside) — Inner is covered by
-// ReachReportsTheMarkWhereBleedReportsNothing below. The dead align
-// parameter went with the name.
 TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
-  // The disc this replaced under-covered at a SHALLOW angle: the two marks
-  // overlap in a long lens whose extent goes as reach/sin(theta), so a disc
-  // sized for the perpendicular case left the under-strand showing straight
-  // across the over-strand.
+  // A crossing repair sized as a disc under-covers at SHALLOW angles: two
+  // marks overlap in a lens whose extent grows as reach/sin(theta), so a
+  // radius chosen for the perpendicular case leaves the under-strand showing
+  // straight across the over-strand. The repair has to follow the lens.
   //
   // Checked by sampling ALONG the over-strand through the meeting: every
   // sample must be the over-strand's colour.
   //
-  // The two strands are one segment rotated by +/- half the crossing angle
-  // about the centre — NOT a shared dx with dy = dx*tan(angle), which sends
-  // the coordinates to infinity at 90 degrees (it hung the first draft).
+  // The two strands are one segment rotated by ± half the crossing angle
+  // about the centre. Building them instead from a shared dx with
+  // dy = dx·tan(angle) sends the coordinates to infinity at 90 degrees.
+  //
+  // Align::Inner is not exercised here and cannot be: an OPEN strand has no
+  // inside. It is covered by ReachReportsTheMarkWhereBleedReportsNothing
+  // below, on closed strands.
   auto interruptions = [](float degrees) {
     Host host(400, 400);
     const float half = degrees * 0.5f * 3.14159265f / 180.0f;
@@ -829,19 +820,18 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
     return wrong;
   };
   EXPECT_EQ(interruptions(90.0f), 0)
-      << "even the perpendicular case exceeded the old derived radius";
+      << "even the perpendicular case exceeded the radius bound";
   EXPECT_EQ(interruptions(45.0f), 0);
   EXPECT_EQ(interruptions(12.5f), 0)
       << "12.5 degrees: the disc's measured failure";
-  // (Align::Inner is checked separately, below: it is meaningless on an OPEN
-  // strand — an open rail has no inside — so this geometry cannot show it,
-  // and the parameter that pretended it could is gone.)
 }
 
 TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
-  // The f-caveat, directly: bleed() is the CULL's number and an Align::Inner
-  // stroke escapes the node by nothing while painting a mark `width` wide.
-  // A repair region derived from bleed() was therefore nonsense for it.
+  // bleed() and reach() are different numbers and a crossing repair needs
+  // the second one. bleed() answers "how far outside the node does this
+  // escape", which for an Align::Inner stroke is zero, while the MARK it
+  // paints is still `width` wide. Sizing a repair from bleed() gives a
+  // zero-sized repair for every inner stroke.
   const Decoration inner = util::stroke(9, red(), PathFormat::Align::Inner);
   EXPECT_EQ(inner.bleed(), 0.0f) << "unchanged: it escapes nothing";
   EXPECT_EQ(inner.reach(), 9.0f) << "…but the mark is 9px wide";
@@ -928,14 +918,10 @@ TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
   EXPECT_EQ(host.pixel(100, 120), SK_ColorBLACK) << "nothing else moved";
 }
 
-// TRIMMED + RENAMED 2026-07-28 (audit): three of the four static_asserts
-// compared a type to ITSELF — R3's rename sweep turned the brushes::-identity
-// pins into tautologies when it deleted the second spelling. The one that
-// still says something (brush::Solid IS PathFormat, the §27 no-behaviour-
-// change claim) stays, with the value equality under it.
 TEST(ComposeBrushKinds, SolidIsPathFormatUnderItsTaughtName) {
-  // Naming alignment only — no behaviour change, and the legacy spelling
-  // is the SAME type (§27).
+  // brush::Solid is not a wrapper or a subclass — it is an alias for
+  // PathFormat, so the two names build one value and a decoration built
+  // through either compares equal to the other.
   static_assert(std::is_same_v<brush::Solid, PathFormat>);
   const brush::Solid a = brush::solid(2, red());
   const PathFormat b = util::stroke(2, red());
@@ -943,14 +929,14 @@ TEST(ComposeBrushKinds, SolidIsPathFormatUnderItsTaughtName) {
 }
 
 TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
-  // A CYCLE has no far end: two knots at along 0.02 and 0.98 sit 4% apart,
-  // not 96%. Treating the fractions as linear made crossings that straddle
-  // the seam read as maximally distant, which vanished the territory bound
-  // and let the two lenses merge — both knots of two overlapping rings then
-  // came out in ONE colour.
+  // A CYCLE has no far end: two knots at along 0.02 and 0.98 are 4% apart,
+  // not 96%. Measure the distance between them linearly and crossings that
+  // straddle the seam read as maximally distant, which removes the bound on
+  // each knot's territory and lets the two repair lenses merge — both knots
+  // of two overlapping rings then come out in ONE colour.
   //
-  // The reviewer's repro, exactly: r=100 at (200,200) crossed by r=13 at
-  // (288,200). Both strands closed, and BOTH neighbours across their seams.
+  // The geometry here is chosen so BOTH knots are neighbours across their
+  // own strand's seam: a large ring crossed by a small one near its edge.
   auto circle = [](float cx, float cy, float r) {
     SkPathBuilder p;
     p.addCircle(cx, cy, r);
@@ -998,12 +984,11 @@ TEST(ComposeComposites, CompositesNest) {
 }
 
 // ---------------------------------------------------------------------------
-// PHASE R1 — the ruled spellings, landed additively (ROADMAP §33)
-//
-// Every test here is a pair: the new spelling must describe EXACTLY what the
-// old one described, because R2 ports the corpus onto these words and R3
-// deletes the old ones. A difference found here is a difference that would
-// ship as a silent picture change.
+// The authoring spellings, each checked against the mechanism it is sugar
+// for. These say what a word MEANS — animate(to()) ramps where a bare value
+// snaps, from().to() is a mount entrance, a bound source/target pair is two
+// explicit stages — because the words are close enough that a wrong one
+// produces a plausible picture rather than an error.
 
 #include <sigilcompose/Instances.h>
 
@@ -1011,9 +996,10 @@ TEST(ComposeComposites, CompositesNest) {
 // ---- 1. animate(to(v), spec) ----------------------------------------------
 
 TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
-  // Read the property MID-RAMP, where a snap and a ramp differ. The second
-  // arm describes the same value with no animate() at all, which must
-  // snap — that is the contrast the deleted with() arm used to provide.
+  // Read the property MID-RAMP, which is the only place a snap and a ramp
+  // differ — both agree at the endpoints. The second arm describes the same
+  // value with no animate() at all and must snap, which is what makes the
+  // first arm's reading meaningful.
   auto run = [](bool plain) {
     Host host(200, 200);
     auto describe = [&](float opacity) {
@@ -1041,8 +1027,8 @@ TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
 }
 
 TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
-  // The doc's whole distinction, as pixels: to() mounts holding its value;
-  // from().to() plays a path on first appearance.
+  // The whole distinction between the two, as pixels: to() mounts already
+  // holding its value, and from().to() plays a path on first appearance.
   auto mountedOpacity = [](bool withEntrance) {
     Host host(200, 200);
     Element inner = box().width(100).height(100).fill(red());
@@ -1062,9 +1048,8 @@ TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
 
 namespace {
 
-/** A scheme that declares volatility in THE word — R3 deleted the other
- *  four (animated / animates / isLive / "volatile"), so there is exactly
- *  one spelling left to duck-type. */
+/** A scheme that declares its volatility with the one recognised word.
+ *  There is exactly one spelling the concept duck-types on. */
 struct SaysAnimated {
   bool live = true;
   bool isAnimated() const { return live; }
@@ -1075,10 +1060,10 @@ struct SaysAnimated {
   }
   bool operator==(const SaysAnimated &) const = default;
 };
-/** The same scheme spelling the R1/R2 word. It must NOT satisfy the
- *  concept any more: a scheme that still says `animates()` is silently
- *  static, and a static-by-accident live decoration is the exact defect
- *  the one-word ruling exists to prevent. */
+/** The same scheme spelling a NEAR-MISS of that word. It must not satisfy
+ *  the concept: duck typing means a scheme spelling it wrongly is read as
+ *  static, its node is cached, and it stops animating with no diagnostic —
+ *  which is why exactly one spelling is recognised and this case exists. */
 struct SaysTheDeadWord {
   bool live = true;
   bool animates() const { return live; }
@@ -1091,10 +1076,10 @@ struct SaysTheDeadWord {
 TEST(ComposeR3Volatility, OneWordDeclaresVolatilityAndTheOthersAreGone) {
   static_assert(AnimatedDecoration<SaysAnimated>);
   static_assert(!AnimatedDecoration<SaysTheDeadWord>,
-                "the R1/R2 word must not be heard after R3");
+                "only isAnimated() declares volatility");
   EXPECT_TRUE(Decoration(SaysAnimated{true}).isAnimated());
   EXPECT_FALSE(Decoration(SaysAnimated{false}).isAnimated());
-  // And the dead word declares nothing: it wraps, it paints, it is static.
+  // A near-miss spelling declares nothing: it wraps, it paints, it is static.
   EXPECT_FALSE(Decoration(SaysTheDeadWord{true}).isAnimated());
 }
 
@@ -1107,8 +1092,8 @@ TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
   PathFormat pf;
   EXPECT_FALSE(pf.isAnimated());
 
-  // Material: the fifth spelling folded in — isLive() is gone and the
-  // material answers the same question as every scheme, in the same word.
+  // A Material answers the same question in the same word as every other
+  // scheme, so a consumer never has to know which kind it is holding.
   const Material stat = Material::solid({1, 0, 0, 1});
   EXPECT_FALSE(stat.isAnimated());
 }
@@ -1119,7 +1104,9 @@ TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
   choreograph::Output<float> hp;
   hp = 25.0f;
   const BoundFloat named = bind(&hp).source(0, 100).target(-70, 170).value();
-  // The stages spelled out by hand — what from()/to() (deleted in R3) did.
+  // target(lo, hi) is sugar: the same mapping written as an explicit scale
+  // and offset must agree with it everywhere, including outside the source
+  // range, since neither form clamps.
   const BoundFloat manual = bind(&hp).source(0, 100).scale(240).offset(-70).value();
   for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
     EXPECT_FLOAT_EQ(named.apply(v), manual.apply(v)) << "at " << v;
@@ -1155,12 +1142,6 @@ TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
 
 // ---- 5. Ribbon on the profile seam ----------------------------------------
 
-// (`ProfileIsComparableAndBoundsItsOwnReach` was deleted by the 2026-07-28
-//  audit ruling: comparability, non-equality and bleed() are all remade,
-//  with more around them, in ComposeWidthProfile.
-//  TheLastNeverPruneRibbonsCanPruneNow and ComposeBand.
-//  ProfilesAreComparableAndReflexive.)
-
 TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   Host host(200, 200);
   brush::Ribbon r;
@@ -1182,17 +1163,17 @@ TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   EXPECT_EQ(host.pixel(90, 70), SK_ColorBLACK) << "20px off it, outside";
 }
 
-// ---- the widthFn → Profile migration --------------------------------------
+// ---- varying ribbon width as a Profile value -------------------------------
 //
-// `widthFn`/`widthMax` are DELETED. The migration was approved knowing it
-// moves pixels — a profiled ribbon is `bandRegion()` (rails through
-// `profileOffset`, real corner joins on a constant law) and the deleted
-// lane sampled the contour and zipped two point lists — so the gate was a
-// designer reading before/after plates, not byte identity. What is pinned
-// HERE is everything the eye cannot check: that away from corners the two
-// constructions agree to the pixel, that the px key holds a law still
-// under a reveal, and that the comparability the old pair could never have
-// is real.
+// A ribbon's width can come from `widthStart`/`widthEnd`, which sample the
+// contour and zip two point lists, or from a Profile law, which builds rails
+// through `profileOffset` and takes real corner joins. The two are different
+// constructions, so they are not expected to be byte identical at corners.
+//
+// What is checked here is everything an eye reading two plates cannot: that
+// away from corners the two agree to the pixel, that a px-keyed law holds
+// its position under a reveal, and that a Profile-carrying ribbon is
+// genuinely comparable.
 
 namespace {
 /** The linear taper, spelled as a law on the profile seam. It is exactly
@@ -1205,10 +1186,9 @@ struct TaperLaw {
   bool operator==(const TaperLaw &) const = default;
 };
 
-/** A law keyed in PX of arc length — the bridge the four ported corpus
- *  sites take. A single 12 px-wide pulse `at` px from the spine's start,
- *  over a 4 px floor: its POSITION is the whole assertion, because under a
- *  reveal a fraction-keyed law would drag it along. */
+/** A law keyed in PX of arc length. A single 12 px-wide pulse `at` px from
+ *  the spine's start, over a 4 px floor: its POSITION is the whole
+ *  assertion, because under a reveal a fraction-keyed law drags it along. */
 struct PulseAtPx {
   float at = 40.0f, wide = 12.0f, tall = 24.0f, floorPx = 4.0f;
   static constexpr bool alongIsPx = true;
@@ -1219,9 +1199,9 @@ struct PulseAtPx {
   bool operator==(const PulseAtPx &) const = default;
 };
 
-/** The same pulse keyed in FRACTION of the spine — the spelling the doc
- *  warns against, kept here so the test can show the two diverge under a
- *  reveal and agree without one. */
+/** The same pulse keyed in FRACTION of the spine. Kept as the contrast: the
+ *  two agree with no reveal and diverge under one, which is the only way to
+ *  show that the px key does something. */
 struct PulseAtFraction {
   float at = 0.4f, wide = 0.12f, tall = 24.0f, floorPx = 4.0f;
   float across(float along) const {
@@ -1269,13 +1249,11 @@ float centreAt(Host &host, int x) {
 } // namespace
 
 TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
-  // AWAY FROM CORNERS the profile lane and the deleted sample-and-zip lane
-  // draw the same band, and this quantifies "the same": the taper
-  // widthStart=30 → widthEnd=10 is the identical law spelled both ways, so
-  // any difference here is construction, not intent.
-  //
-  // The zip lane still exists — it is what widthStart/widthEnd have always
-  // used — so the comparison is live rather than historical.
+  // AWAY FROM CORNERS the profile construction and the sample-and-zip
+  // construction must draw the same band. The taper widthStart=30 →
+  // widthEnd=10 is one law spelled both ways, so any difference on a
+  // corner-free spine is construction rather than intent — and the spine
+  // used here is a straight line for exactly that reason.
   auto measure = [](bool profiled) {
     Host host(200, 200);
     brush::Ribbon r;
@@ -1308,16 +1286,16 @@ TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
 }
 
 TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
-  // THE BRIDGE, and the reason it is not a per-site adapter. A decoration
-  // under a reveal is handed the REVEALED contour, so `along` as a
-  // fraction is a fraction of what has been drawn SO FAR. Convert with the
-  // length the author measured and it is still wrong — the length being
-  // sampled is not the length authored. Only the paint-time consumer knows
-  // it, so the seam converts: `alongIsPx` makes `across` take arc-length px
+  // Why `alongIsPx` belongs on the seam and not in each caller. A decoration
+  // under a reveal is handed the REVEALED contour, so `along` as a fraction
+  // is a fraction of what has been drawn SO FAR. An author cannot correct
+  // for that by dividing by a length they measured, because the length being
+  // sampled is not the length they authored — only the paint-time consumer
+  // knows it. Declaring `alongIsPx` makes `across` take arc-length pixels
   // from the spine's start, which does not move.
   //
-  // A pulse 40 px along a 160 px run is the assertion, because its
-  // POSITION is what slides.
+  // A pulse is the right probe because its POSITION is what slides; a taper
+  // would look plausible either way.
   auto pulseX = [](bool pxKeyed, float reveal) {
     Host host(200, 200);
     brush::Ribbon r;
@@ -1350,10 +1328,10 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
     return std::pair<int, int>{best, bestT};
   };
 
-  // Fully revealed, the two spellings are the SAME PICTURE: 40 px of a
-  // 160 px run is 0.25 — the fraction law's pulse sits at 0.4, so they are
-  // deliberately different laws, and what matters is each one's own
-  // behaviour as the reveal grows.
+  // The two laws are deliberately NOT the same law — 40 px of a 160 px run
+  // is 0.25 while the fraction law's pulse sits at 0.4 — so what is compared
+  // is each one against ITSELF as the reveal grows, not one against the
+  // other.
   const auto pxFull = pulseX(true, 1.0f);
   const auto pxHalf = pulseX(true, 0.55f);
   ASSERT_GT(pxFull.second, 0);
@@ -1373,11 +1351,10 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
 }
 
 TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
-  // THE COMPARABILITY WIN, pinned. `Ribbon::operator==` used to end
-  // `&& !widthFn && !o.widthFn`, so a varying-width ribbon was unequal to
-  // ITSELF and its whole band re-recorded on every describe. Every one of
-  // the four px-keyed corpus laws is a plain struct now, so two identical
-  // descriptions compare equal and the node prunes.
+  // A varying-width ribbon must be comparable. Carry the width as a callable
+  // and the ribbon is unequal to ITSELF, so its whole band re-records on
+  // every describe; carry it as a Profile over a plain struct law and two
+  // identical descriptions compare equal and the node prunes.
   brush::Ribbon a;
   a.fill = Fill::color({1, 0, 0, 1});
   a.width = Profile(PulseAtPx{});
@@ -1405,12 +1382,10 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
   EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 160.0f), 24.0f);
 
   // And the prune OBSERVED, not inferred: an identical re-describe of a
-  // profiled ribbon must not re-record its picture. When this pin was
-  // written, `.shape()` was an incomparable callable that forced a
-  // re-patch (§3), so the strongest available claim was "no MORE
-  // recordings than the first draw". Shapes are comparable values now,
-  // so the honest pin is the absolute one: an identical re-describe
-  // records NOTHING.
+  // profiled ribbon must record NOTHING. This is the absolute form rather
+  // than "no more than the first draw", which is only available because
+  // `.shape()` is itself a comparable value — an incomparable outline here
+  // would force a re-patch and weaken the claim to nothing.
   {
     Host host;
     auto tree = [] {
@@ -1444,13 +1419,11 @@ struct NanAtMidLaw {
 } // namespace
 
 TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
-  // §33-m / astral_tome: Skia draws NONE of a path that contains one
-  // non-finite vertex, so a law returning NaN at a single sample deleted
-  // its WHOLE band — bloom and body silently absent for the sketch's
-  // entire life — and nothing said why. The guard in profileOffset turns
-  // the bad sample into a LOCAL pinch to the spine; the rest of the band
-  // draws. (Control: revert the one-line guard and `nan` below goes to
-  // zero everywhere — the band vanishes outright.)
+  // Skia draws NONE of a path containing a single non-finite vertex, so a
+  // width law that returns NaN at one sample would delete the entire band —
+  // silently, with no error and nothing on screen to explain it. The guard in
+  // profileOffset turns a bad sample into a LOCAL pinch to the spine so the
+  // rest of the band still draws, which fails visibly and locally instead.
   const auto bandOf = [](bool poisoned) {
     Host host(200, 200);
     brush::Ribbon r;
@@ -1485,11 +1458,11 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
          "full-width value?";
 }
 
-// ---- the brush:: fold, now a deletion -------------------------------------
+// ---- one namespace, one name per brush kind -------------------------------
 
 TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
-  // R3 deleted `namespace brushes` outright and the *Brush suffixes with
-  // it: every kind answers to exactly one name, under `brush::`.
+  // Every brush kind answers to exactly one name, under `brush::`, with no
+  // suffix and no second namespace.
   const brush::Ribbon taught = brush::taper(10, 2, red());
   EXPECT_FLOAT_EQ(taught.widthStart, 10.0f);
   // The taught constructor is the PROFILE one.
@@ -1530,9 +1503,10 @@ TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
 TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
   auto draw = [](bool freeVerb) {
     Host host(300, 200);
-    // whiteStyle, not styleAt: the default foreground is BLACK on this
-    // host's black ground, so both arms used to compare two blank grids
-    // (the liveness bound below is what caught it).
+    // whiteStyle, not styleAt: the default foreground is BLACK and so is the
+    // host's ground, so with the default style both arms would compare two
+    // blank grids and agree perfectly. The liveness bound at the end is the
+    // second guard against that.
     Element para = text(u8"one two three four five six seven eight nine ten "
                         u8"eleven twelve thirteen fourteen",
                         whiteStyle(16));
@@ -1557,14 +1531,14 @@ TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
   EXPECT_GT(inkedCount(freeVerb), 20u) << "the paragraph actually drew";
 }
 
-// ---- 7. the wrapping span (N7) ---------------------------------------------
+// ---- the wrapping span -----------------------------------------------------
 //
-// THE PARITY GATE. `spans::wrap` exists so that wrap mode — the last thing
-// the deleted `trim()` could do that spans could not — has a span spelling.
-// The tests are parity tests, not "does it draw something": the legacy arm
-// was trim() until R4 deleted it, and is now the node-level gate that
-// replaced it — `mask(by::spans(...))`, whose geometry is trim's geometry.
-// The pixel expectations below were pinned against trim itself.
+// `spans::wrap` is a window that may cross the contour seam. These are
+// PARITY tests rather than "does it draw something": each compares the
+// pass door (`stroke(spans, …)`) against the node door
+// (`mask(by::spans(…))`), which are two spellings of one geometry, and each
+// also bounds the ink away from "nothing" and "everything" so that two
+// agreeing blank frames cannot pass.
 
 TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
   auto draw = [](bool useLegacyTrim) {
@@ -1592,9 +1566,9 @@ TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   // round, compared at eight phases — two of which straddle the seam, and
   // one of which sits exactly ON it.
   //
-  // trim spells the window as (start, end, OFFSET); spans spell it as
-  // arithmetic on the two ENDPOINTS of one Output, which is why no third
-  // parameter is owed.
+  // The node gate spells the window as (start, end, OFFSET); the pass door
+  // spells it as arithmetic on the two ENDPOINTS of one Output, which is why
+  // it owes no third parameter.
   constexpr float kWindow = 0.25f;
   choreograph::Output<float> phase;
 
@@ -1676,9 +1650,10 @@ TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
 }
 
 TEST(ComposeR1Wrap, WrapIsItsOwnTermAndRangeStillClamps) {
-  // The design judgement, pinned: range() did NOT learn to wrap, because
-  // range(0.9, 0.1) already means something (§27), and the reader of a
-  // claim conflict needs the call site to say "cyclic".
+  // wrap() is a separate term rather than a mode of range(), because
+  // range(0.9, 0.1) already has a meaning — a reversed pair normalised into
+  // one run — and because a reader looking at a claim conflict needs the
+  // call site itself to say whether the window is cyclic.
   const SkPath boundary = unitBox();
   SpanInput in;
   in.outline = &boundary;
@@ -1709,8 +1684,10 @@ TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
 // ---- 8. cornerAlign is a required argument --------------------------------
 
 TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
-  // The §27 break, enforced by the type system rather than by a warning:
-  // there is no way to describe corner art with no stated alignment.
+  // Corner alignment has no defensible default — bisector and outgoing are
+  // both right for different marks — so it is required by the type system
+  // rather than defaulted and warned about. There is no way to describe
+  // corner art without stating it.
   static_assert(!std::is_default_constructible_v<brush::CornerArt>);
   static_assert(!std::is_constructible_v<brush::CornerArt, Element>);
   static_assert(std::is_constructible_v<brush::CornerArt, Element,
@@ -1728,19 +1705,18 @@ TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
   EXPECT_TRUE(a == b);
 }
 
-// ---- THE TRIM PARITY TABLE -------------------------------------------------
+// ---- the span/gate parity table --------------------------------------------
 //
-// Expressiveness parity was the gate for deleting Element::trim: every
-// capability of it had to have a spelling, or trim could not go. Each row
-// below is one capability. The rows were verified against trim() itself
-// while it existed; R4 deleted it and the "legacy" arm of each row is now
-// the node-level gate that inherited its geometry, `mask(by::spans(...))`.
-// The rows therefore keep working as the SUGAR LAW's pixel proof: the pass
-// door and the node door describe one run.
+// One capability per row, each drawn twice: through the pass door
+// (`stroke(spans, …)`) and through the node gate (`mask(by::spans(…))`).
+// The two are one geometry expressed two ways, so every row is a pixel proof
+// that the sugar and the gate describe the same run — and each row also
+// bounds its own ink, because two identically blank frames would otherwise
+// satisfy the comparison.
 
 TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
-  // Row: trim(start, end) with a NON-ZERO start — upTo() was only ever the
-  // start == 0 case.
+  // A window with a NON-ZERO start. upTo() only ever covers the start == 0
+  // case, so this row is where a start offset would go wrong unnoticed.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
@@ -1760,8 +1736,8 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
 }
 
 TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
-  // Row: clamped behaviour — fractions outside [0,1] pin rather than
-  // wrap. normalizeSpans clamps the same way.
+  // Clamped behaviour: fractions outside [0,1] PIN rather than wrap, and
+  // normalizeSpans clamps the same way on both doors.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
@@ -1776,8 +1752,9 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
   };
   const std::vector<SkColor> pinned = draw(false);
   EXPECT_EQ(pinned, draw(true));
-  // STRENGTHENED 2026-07-28 (audit): two agreeing arms cannot tell a pin
-  // from a wrap, and two BLANK arms agree perfectly.
+  // Agreement between the two arms cannot by itself tell a pin from a wrap,
+  // and two BLANK arms agree perfectly — so the assertions below name
+  // specific pixels rather than only comparing the arms.
   EXPECT_GT(inkedCount(pinned), 5u) << "the window painted at all";
   // The discriminator, at named pixels: fraction 0 is the rect's start
   // corner, so the CLAMPED window [0, 0.6] runs out partway round and the
@@ -1799,7 +1776,7 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
 }
 
 TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
-  // Row: plain bound endpoints, both modes' shared case.
+  // Plain bound endpoints — the case both modes share.
   choreograph::Output<float> begin, end;
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().child(
@@ -1823,9 +1800,10 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
 }
 
 TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
-  // Row: trim's third argument. A CONSTANT offset is addition at the call
-  // site; a BOUND offset over constant ends is `bind(&off).offset(k)` on
-  // each end. Both checked against trim carrying the offset itself.
+  // The gate's third argument. A CONSTANT offset is just addition at the
+  // call site; a BOUND offset over constant ends is `bind(&off).offset(k)`
+  // on each end. Both are checked against the gate carrying the offset
+  // itself, which is what makes them spellings rather than approximations.
   choreograph::Output<float> off;
   Host constTrim(200, 200), constSpan(200, 200);
   constTrim.composer.render(stack().child(
@@ -1857,7 +1835,8 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
 }
 
 TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
-  // Row: composer-manufactured endpoints under Clamp.
+  // Composer-manufactured endpoints under Clamp: both doors must ramp the
+  // same window on the same frames.
   auto host = [](bool useLegacyTrim) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
@@ -1885,11 +1864,11 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
 }
 
 TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
-  // Row: a node gate reveals EVERY outline-following decoration of the
-  // node at once. A span claims ONE pass — and two claiming the same run is
-  // the LOUD error, whose message names the fix. So the N-decoration
-  // reveal is spelled as one pass with a COMPOSITE brush, which is a
-  // spelling, not a gap.
+  // A node gate reveals EVERY outline-following decoration at once, while a
+  // span claims exactly ONE pass — and two passes claiming the same run is
+  // the loud error. So revealing several marks together is spelled as one
+  // pass carrying a COMPOSITE brush. That is a different spelling, not a
+  // missing capability.
   Host host(200, 200);
   host.composer.render(stack().child(revealBox().stroke(
       spans::upTo(0.4f),
@@ -1900,18 +1879,14 @@ TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
 }
 
 // ---------------------------------------------------------------------------
-// PHASE R2 — the two closable parity gaps, and R1's pinned obligations
-//
-// R1 left the parity table with two open rows and a review list of untested
-// branches. Both rows close here, additively, and every pinned branch gets a
-// test: parity is the condition for the R3 deletion, so a row that closes
-// without a test has not closed.
+// The harder parity rows: a third live term, background-half passes, seams,
+// and wrap under the overlap law.
 
 TEST(ComposeR2Offset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
-  // THE ROW: the deleted `trim(&start, &end, &offset)` summed TWO
-  // independently-driven values into each endpoint. A bound endpoint holds ONE source pointer, so
-  // endpoint arithmetic cannot spell it — `Spans::offset()` is the third
-  // live term, and this is the test that says the sum is the same sum.
+  // A bound endpoint holds ONE source pointer, so endpoint arithmetic alone
+  // cannot express two independently driven values summed into one endpoint
+  // — a window that both scrubs and marches. `Spans::offset()` is that third
+  // live term, and this checks the sum is the same sum on both doors.
   choreograph::Output<float> begin, end, off;
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().child(
@@ -1970,9 +1945,10 @@ TEST(ComposeR2Offset, TheSummedEndpointWrapsLikeTrimDoes) {
 }
 
 TEST(ComposeR2Offset, TheOffsetIsAComparableEndpointLikeTheOthers) {
-  // It participates in equality exactly as begin/end do — without this a
-  // claim that only SLIDES would prune to its first frame, which is the bug
-  // R1 fixed for Wrap's endpoints and would have re-introduced here.
+  // The offset participates in equality exactly as begin/end do. Without it
+  // a claim that only SLIDES compares equal frame to frame, prunes, and
+  // freezes at its first position — the marching reveal simply stops, with
+  // nothing to indicate why.
   EXPECT_TRUE(spans::range(0.1f, 0.4f).offset(0.2f) ==
               spans::range(0.1f, 0.4f).offset(0.2f));
   EXPECT_FALSE(spans::range(0.1f, 0.4f).offset(0.2f) ==
@@ -1995,9 +1971,9 @@ TEST(ComposeR2Offset, TheOffsetIsAComparableEndpointLikeTheOthers) {
 }
 
 TEST(ComposeR2Background, TrimmedBackgroundFollowerHasASpanSpelling) {
-  // THE OTHER ROW: a node gate reveals BACKGROUND-slot followers too, and
-  // a span pass could only ever paint above the children. The twin slot
-  // closes it — same claim, same brush, same z-half.
+  // A node gate reveals BACKGROUND-slot followers too, so a span pass needs
+  // a background twin: without one, every span-claimed mark is forced above
+  // the children. Same claim, same brush, opposite z-half.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
@@ -2072,20 +2048,17 @@ TEST(ComposeR2Background, RestReadsAcrossTheHalvesToo) {
 }
 
 TEST(ComposeR2Seam, AWholeContourClaimKeepsItsCornerJoin) {
-  // R1's one real bug, pinned at the pixel it lived in. getSegment returns
-  // an OPEN run whose ends merely coincide, so a whole-contour claim used to
-  // put two butt caps at the seam vertex instead of a miter join — a notch,
-  // two pixels wide, at ONE corner of every rectangle, invisible until a
-  // wide additive brush walks over it. The corpus has no spans:: sites, so
-  // the byte-compares could not reach this branch: only a test can.
+  // A claim covering the WHOLE contour must be re-closed. SkContourMeasure's
+  // getSegment returns an OPEN run whose ends merely coincide, so stroking it
+  // as-is puts two butt caps at the seam vertex where a miter join belongs —
+  // a notch two pixels wide, at ONE corner, invisible until a wide additive
+  // brush walks over it.
   //
-  // THE SEAM IS THE BOTTOM-LEFT CORNER. `addRRect` starts at index 3 and
-  // runs up the left edge, so fraction 0 sits at (left, bottom) — and the
-  // corner that loses its join is the one AT the seam, not the top-left.
-  // Sampling the wrong corner makes this test vacuous: every other corner
-  // is mid-run and joins correctly whether or not the contour was closed,
-  // so the assertions pass with the close() reverted. Verified by doing
-  // exactly that before restoring it.
+  // THE SEAM IS THE BOTTOM-LEFT CORNER: `addRRect` starts at index 3 and runs
+  // up the left edge, so fraction 0 sits at (left, bottom). Sampling any
+  // other corner makes this test vacuous — every other corner is mid-run and
+  // joins correctly whether or not the contour was closed, so the assertions
+  // would pass with the close() removed.
   auto corner = [](int form) {
     Host host(200, 200);
     Element e = revealBox();
@@ -2178,10 +2151,11 @@ TEST(ComposeR2Wrap, RestIsTheComplementOfBothOfWrapsRuns) {
 }
 
 TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
-  // The fourth pinned obligation. spanVolatile reads the PASS BRUSH's
-  // isAnimated(), and the only arm of that never exercised was a live
-  // Material: a stroke whose colour comes from a uTime shader must repaint
-  // every frame with no re-describe, exactly like a bound endpoint does.
+  // spanVolatile reads the PASS BRUSH's isAnimated(), which means a live
+  // MATERIAL on a span pass must declare itself just as a bound endpoint
+  // does: a stroke whose colour comes from a uTime shader has to repaint
+  // every frame with no re-describe anywhere. The static arm is the other
+  // half — declaring volatility unconditionally would be equally wrong.
   auto paintedPerFrame = [](bool live) {
     Host host(200, 200);
     PathFormat mark = util::stroke(8, red());

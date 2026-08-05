@@ -19,7 +19,8 @@
  * the EnTT way: animate transforms in a view, tag entities with your
  * own components, drive gameplay state alongside rendering state —
  * surface ids returned by addSurface() are entt entity values, usable
- * with the registry directly (via World::entity()).
+ * with the registry directly (convert with the free function
+ * sigil::world::entity() at the bottom of this header).
  *
  * Lights and cameras are entities too: attach a LightComponent to any
  * entity (or use World::addLight) and render() gathers up to

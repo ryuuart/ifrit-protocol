@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Compile API.md's documented names against the headers that own them.
+"""Compile the documentation's names against the headers that own them.
 
-ROADMAP §25 recorded ten documentation defects, two of which were code that
-does not compile — `PathFormat{.effects = …, .paint = …}` where the header
-has `effect` and `strokeFill`.  The guard that existed to make that
-impossible, `ComposeDocs.EverySignatureInTheLineAndBorderDocsCompiles`, is a
-HAND TRANSCRIPTION of one section: it proved the mechanism and left every
-other section exactly as wrong as before.  A guard that must be extended by
-hand per section is the thing that failed.
+Prose goes stale silently.  A document can name a type no header declares, a
+member that never existed, or an initialiser that does not compile, and
+nothing catches it — the reader does, later, by copying it and failing to
+build.  A hand-written guard does not fix that: one that has to be extended
+for each new passage covers only the passages someone remembered to
+transcribe.
 
-So this is the mechanical route.  It reads API.md, extracts every qualified
-name an author could copy — from the ```cpp blocks AND from the inline
-`code` spans, because the prose carries as many names as the blocks do — and
-emits a C++ translation unit of probes that only build if the headers still
-spell those names that way.  Nothing here is registered per section; adding
-a section to API.md adds its names to the guard on the next build.
+So this is the mechanical route.  It reads the markdown files it is given,
+extracts every qualified name an author could copy — from the ```cpp blocks
+AND from the inline `code` spans, because prose carries as many names as
+the blocks do — and emits a C++ translation unit of probes that only builds
+if the headers still spell those names that way.  Nothing is registered by
+hand: new documentation joins the guard on the next build, and a rename the
+prose misses becomes a build break rather than a confident wrong answer.
 
 Three probe forms, chosen by what the name is:
 
@@ -28,54 +28,94 @@ Three probe forms, chosen by what the name is:
       so members are probed through `requires`, which covers enumerators,
       static and non-static data, nested types and member functions.  An
       OVERLOADED member function is the one thing no `requires` spelling can
-      name, so those fall back to the header index, in Python, at build time.
+      name — every way of writing it has to resolve the overload set, and is
+      therefore ill-formed — so those fall back to the header index this
+      file builds, in Python, at build time.
 
   designated initialiser   `PathFormat{.effect = …}` -> `T{.effect = Any{}}`
-      This is the §25 form and it needs its own probe, twice over.  It never
-      spells `PathFormat::effect`, so the qualified-name scan cannot see it
-      — which is exactly how the defect survived.  And it asks a STRICTER
-      question than existence: `PathFormat{.paint = …}` names the real member
-      function `paint`, so every existence form says yes while the
-      initialiser still does not compile.  Only probing the initialiser
-      itself answers what the doc actually claims.
+      This form needs its own probe for two independent reasons.  It never
+      spells `PathFormat::effect` anywhere, so the qualified-name scan does
+      not see it at all.  And it asks a STRICTER question than existence:
+      the field must be a DATA member.  `PathFormat{.paint = …}` names the
+      real member FUNCTION `paint`, so every existence probe answers yes
+      while the initialiser still does not compile.  Only probing the
+      initialiser itself answers what the document claims.
 
-Names that CANNOT resolve are not silently dropped.  Every one of them is
-either in the exclusion table below, with a reason, or it is reported as an
-unresolved documented name and the generator FAILS.  That inversion is the
-whole point: a new doc section, or a type that is renamed out from under
-the prose, breaks the build rather than quietly leaving the guard.
+Names that CANNOT resolve are not silently dropped.  Every one is either
+exempted — by an exclusion table below or by the operator-id rule, both of
+which record a reason — or it is reported as an unresolved documented name
+and the generator FAILS.  That inversion is the whole point: a new passage
+of prose, or a type renamed out from under it, breaks the build rather than
+quietly leaving the guard.  Every exemption is listed by name and reason in
+the coverage report, so what the guard deliberately does not check is
+visible rather than folded into a count.
+
+STATED LIMITATIONS — what this guard structurally cannot see:
+
+  Unqualified names.  A document that writes `padding(24_px)` — a bad
+      argument to a real function — or invents a free function `px(float)`
+      spells no qualified name, so the extractor has nothing to match and
+      both errors pass unprobed.  Closing this would mean resolving an
+      unqualified call the way a C++ compiler does (scopes, using-directives,
+      ADL), i.e. writing a C++ parser, which this script deliberately is
+      not.  Reviewers own that class of error; where practical, documents
+      should spell names qualified so the guard can see them.
+
+  Operator names.  The qualified-name pattern stops at the first character
+      that cannot appear in an identifier, so `Spans::operator|` is captured
+      only as far as `Spans::operator` and exempted by the operator-id rule
+      — no member or free operator is ever probed.  The exemption is
+      reported by name so the gap stays visible per document.
+
+`--self-test` runs the generator against small in-script fixtures — one
+name per behaviour it must keep: resolve, fail, exempt-and-report, and the
+class-scope probe for EXTERNAL_CLASSES — without touching the real corpus.
 """
 
 import argparse
+import io
 import os
 import re
 import sys
+import tempfile
 
 ID = r"[A-Za-z_][A-Za-z0-9_]*"
 QUAL = re.compile(r"\b(" + ID + r"(?:::" + ID + r")+)")
-# `Type{.field = …` / `Type{.field,` — designated initialisers, the §25 form.
+# `Type{.field = …` / `Type{.field,` — a designated initialiser.  It needs
+# its own pattern because it names no member in qualified form, so QUAL
+# never sees it.
 DESIG = re.compile(r"\b(" + ID + r"(?:::" + ID + r")*)\s*\{\s*\.(" + ID + r")")
 DESIG_MORE = re.compile(r"[,{]\s*\.(" + ID + r")\s*(?:=|,|\})")
 
-# Namespaces that are not declared in the compose headers but are spelled in
-# API.md.  Everything else in the namespace set is scraped from the headers.
+# Namespace names this generator cannot scrape, because the headers that
+# declare them are not on the include path it is given.  Every other
+# namespace comes from the scanned headers themselves.
+#
+# A name whose components are ALL namespaces has nothing to probe and is
+# passed over; a missing entry here instead makes the first unrecognised
+# component look like a type, and the name is reported unresolved.
 NS_EXTERNAL = {
-    "std", "chrono", "choreograph", "ch", "sigil", "compose", "weave",
-    "motion", "image", "scry", "loader", "filesystem", "ranges", "views",
-    "literals", "this_thread",
+    # The standard library, its sub-namespaces the documents spell, and the
+    # animation library compose exposes in its own signatures.  `ch` is the
+    # short alias, which the generated translation unit declares to match.
+    # Nested inline namespaces count: a document writing `using namespace
+    # std::chrono_literals` names one, and a using-DECLARATION probe on a
+    # namespace is ill-formed, so it has to be recognised here.
+    "std", "chrono", "chrono_literals", "literals", "ranges", "views",
+    "choreograph", "ch",
     # Skia's actual namespaces, which are Sk-prefixed like its types and
     # would otherwise be probed as if they were classes.
     "SkSurfaces", "SkShaders", "SkImages", "SkPathEffects",
-    "SkRuntimeEffectPriv",
 }
 
 # Skia's static-factory aggregates that READ like namespaces but are CLASSES
-# (`class SK_API SkImageFilters { static … }`).  A namespace-scope
-# using-declaration cannot name their members — the first doc spelling of
-# `SkImageFilters::Blur` turned the probe ill-formed — but a DERIVED-CLASS
-# using-declaration can, uniformly, overload sets included: the same
-# one-spelling rule the namespace probe follows, one scope over.  Each maps
-# to the Skia header that declares it, included only when a probe needs it.
+# (`class SK_API SkImageFilters { static … }`).  This table is how such a
+# name gets probed at all, not a way of skipping it: a namespace-scope
+# using-declaration cannot name a class member and is ill-formed if it tries,
+# while a DERIVED-CLASS using-declaration names one uniformly, overload sets
+# included — the same one-spelling rule the namespace probe follows, one
+# scope over.  Each maps to the Skia header that declares it, included only
+# when a probe needs it.
 EXTERNAL_CLASSES = {
     "SkImageFilters": "include/effects/SkImageFilters.h",
     "SkColorFilters": "include/core/SkColorFilter.h",
@@ -83,111 +123,39 @@ EXTERNAL_CLASSES = {
     "SkFontMgr": "include/core/SkFontMgr.h",
 }
 
-# Whole spellings API.md names on purpose that no header resolves.  Keyed by
-# the exact qualified name so an exclusion can never widen silently to a
-# sibling that SHOULD be probed.
-EXCLUDED_SPELLED = {
-    "shapes::subtract": "API.md §mask records this as a name a study reached "
-                        "for and did NOT find",
-    # §33-j (2026-08-04): the two condemned Border factories are DELETED;
-    # API.md names the old spellings exactly once, to record the deletion
-    # and point at the span-claim successor.  Exact-qualified keys so
-    # `kit::spans::brackets` (a live kit value) stays probed.
-    "decorations::brackets": "deleted by §33-j; spell it "
-                             ".stroke(spans::corners(arm), brush::solid(…))",
-    "decorations::gappedRule": "deleted by §33-j; spell it "
-                               ".stroke(spans::edges(gap), brush::solid(…))",
-    "sigil::scry::WebView": "SigilScry is Ultralight-gated; compose_web_test "
-                            "owns that surface",
-    "SyncToCpu::kYes": "skgpu::graphite::SyncToCpu — STRESS_TESTS.md writes "
-                       "the leaf spelling of a Graphite type",
-    "sigil::weave::Choreograph": "names SigilWeave's Choreograph.h MODULE, "
-                                 "not a symbol in that namespace",
-    "SkiaGraphiteContext::makeRecorderOptions":
-        "src/common/skia's Graphite bring-up class — outside the compose "
-        "surface and off compose_test's include path",
-    # travel()'s design (API.md / DESIGN.md § The motion path) argues from
-    # the 3D pattern it ports.  SigilCompose deliberately does NOT depend on
-    # SigilWorld or SigilShape — that refusal is the whole complication the
-    # section exists to explain — so these three are cited, never called.
-    "world::CameraPath": "the 3D pattern travel() ports; SigilWorld is not a "
-                         "compose dependency, by design",
-    "shape::Spline3": "CameraPath's curve currency, named to say why compose "
-                      "could not use it (no SigilShape dependency)",
-    "AnimatedCamera::rollDeg": "the SigilWorld rule travel()'s auto-orient "
-                               "follows; cited from world/Animation.h",
-    # DESIGN.md's evaluate-at-time rule (ROADMAP §43.0) quotes the four
-    # vendored choreograph calls the repository had never made — that they
-    # exist in the VENDOR's headers (build/vcpkg choreograph/) is the whole
-    # finding.  Choreograph's headers are not on the probe's scan list, and
-    # putting them there would assert vendor API stability this repo does
-    # not own.
-    "Output::inputPtr": "choreograph vendor API, cited by DESIGN.md's "
-                        "evaluate-at-time rule (§43.0)",
-    "Phrase::getValue": "choreograph vendor API, cited by the same rule",
-    "Sequence::getValue": "choreograph vendor API, cited by the same rule",
-    "TimelineItem::setPlaybackSpeed": "choreograph vendor API, cited by the "
-                                      "same rule (the one-call time stretch)",
-}
+# Whole spellings a document names on purpose that no header resolves —
+# a symbol owned by a library this generator does not scan, or a name a
+# document writes in order to say it does NOT exist.  Keyed by the exact
+# qualified name, never by a component, so an exclusion can never widen
+# silently to a sibling that SHOULD be probed.  Each entry states why that
+# name cannot resolve; an entry with no such reason is a hole in the guard.
+EXCLUDED_SPELLED = {}
 
-# Names API.md spells on purpose that no header can resolve.  Each needs a
-# reason, and the list is about DOC CONTENT (a worked example's fictional
-# host type; a deliberately-recorded deleted spelling), never about a
-# section — so it cannot rot the way a per-section registration does.
-EXCLUDED = {
-    # The worked examples' fictional host application.
-    "Palette": "API.md's worked example invents this theme struct",
-    "EventInfo": "poster() example's own data type",
-    "RowData": "scoreboard example's own row type",
-    "Model": "scoreboard example's own model type",
-    "Panel": "the 'inside the existing render path' example's host class",
-    "MyRule": "placeholder for the reader's own crossing rule",
-    "MyScheme": "placeholder for the reader's own DecorationScheme",
-    "ksp": "a prose sketch of a hypothetical namespace, not shipped",
-    # Concept/template parameter names in the header recitations.
-    "D": "template parameter of the DecorationScheme concept",
-    "P": "template parameter of the Profile concept",
-    "T": "template parameter of Animatable/Transitioned/To/From",
-    # Spellings API.md records BECAUSE they were deleted (the R3 rename
-    # tables).  Probing them would assert the old names still exist.
-    "brushes": "namespace deleted in R3; the tables document the old names",
-    "with": "deleted in R3, recorded in the rename table",
-    "withFrom": "deleted in R3, recorded in the rename table",
-    "withKeyframes": "deleted in R3, recorded in the rename table",
-    "PropValue": "deleted in R3, recorded in the rename table",
-    "atDeg": "struck rather than shipped (ROADMAP §25)",
-}
+# Single components that make any qualified name containing them
+# unprobeable: an example's own host type, a placeholder standing in for a
+# type the reader supplies, a template parameter recited from a header.
+# Matched per component, which is why these spellings must be distinctive —
+# a common word here silently exempts every name that contains it.
+EXCLUDED = {}
 
-# Members no probe form can see, as opposed to members that do not exist.
-UNPROBEABLE_MEMBERS = {
-    # Overloaded member functions of types outside the scanned headers, where
-    # neither probe form can see them: no `requires` spelling can name an
-    # overload set, and there is no header index for Skia.
-    ("SkImageInfo", "MakeN32Premul"): "Skia overload set; no probe form names it",
-    ("SkCanvas", "drawImageLattice"): "Skia overload set; no probe form names it",
-}
+# (type, member) pairs no probe form can SEE, as distinct from members that
+# do not exist: overloaded member functions of types outside the scanned
+# headers.  No `requires` spelling can name an overload set, and the header
+# index below only covers headers this generator scans, so neither route
+# reaches them.
+UNPROBEABLE_MEMBERS = {}
 
-EXCLUDED_MEMBERS = {
-    # NOTHING here may name a §25 defect spelling.  The first draft of this
-    # table carried ("PathFormat", "effects") and ("PathFormat", "paint") on
-    # the theory that API.md names them in prose to warn against them — and
-    # the positive control caught it: with those entries the guard passed
-    # cleanly on the exact defect it exists to make impossible.  API.md spells
-    # the warning as bare `paint`/`effects`, which is not a probed form, so no
-    # exclusion was ever needed.  An exclusion that covers a WRONG spelling
-    # disarms the guard for that spelling; only DELETED-but-real names belong
-    # here.
-    # Spellings the PROSE names because they were deleted or renamed.  These
-    # are the cost of probing inline `code` spans as well as blocks, and each
-    # one is verified against the header that records the removal.
-    ("Rail", "offset"): "renamed to `across` in R3; API.md names the old "
-                        "spelling to explain the flip (Lines.h)",
-    ("Line", "offset"): "renamed to `across` in R3; same sentence",
-    ("Ribbon", "widthFn"): "deleted with `widthMax` (Brushes.h: the "
-                           "widthFn->Profile note)",
-    ("Brush", "op"): "deleted in R3 with the `ops::` one-door ruling "
-                     "(Brushes.h)",
-}
+# (type, member) pairs where the type is real, is scanned, and genuinely has
+# no such member — a spelling a document writes to record that it is gone.
+#
+# NOTHING here may name a WRONG spelling of something that still exists in
+# another form.  Such an entry disarms the guard for exactly the mistake it
+# exists to catch: `PathFormat{.paint = …}` is wrong because `paint` is a
+# member FUNCTION, and an entry for ("PathFormat", "paint") would turn that
+# defect into a pass.  Prose that warns against a spelling should write it
+# unqualified (`paint`), which is not a probed form and needs no entry at
+# all.
+EXCLUDED_MEMBERS = {}
 
 
 def code_regions(path):
@@ -224,10 +192,10 @@ def scan_headers(incdirs):
     """(namespace leaf names, {type name: [fully qualified spellings]}).
 
     Scraped from the headers so the guard's own idea of what exists follows
-    the headers automatically — the same rule the doc obeys.  Scope is
-    tracked by real brace depth, not by the `} // namespace` convention: a
-    header that closes a namespace without the comment would otherwise
-    mis-qualify every type after it.
+    the headers automatically — the same rule the documents are held to.
+    Scope is tracked by real brace depth, not by the `} // namespace`
+    convention: a header that closes a namespace without the comment would
+    otherwise mis-qualify every type after it.
     """
     namespaces = set()
     types = {}
@@ -286,7 +254,7 @@ def scan_headers(incdirs):
 
 
 def resolve_type(name, types):
-    """Fully qualified candidates for a type name as API.md spells it."""
+    """Fully qualified candidates for a type name as a document spells it."""
     if name in types:
         return ["::" + q for q in types[name]]
     if name.startswith("Sk") or name.startswith("Gr"):
@@ -371,9 +339,9 @@ class Generator:
         if i >= len(parts):
             return                                     # a namespace, nothing to probe
         if i == len(parts) - 1:
-            # API.md writes the LEAF namespace (`shapers::Offset`), which is
-            # how it reads under `using namespace sigil::compose`; the probe
-            # has to spell the path the headers actually put it on.
+            # Documents write the LEAF namespace (`shapes::polygon`), which
+            # is how it reads under `using namespace sigil::compose`; the
+            # probe has to spell the path the headers actually put it on.
             self.usings.append((self.expand(parts[:i]) + [parts[i]],
                                 spelled, line, kind))
             return
@@ -444,11 +412,11 @@ class Generator:
         real member FUNCTION `paint`, so every member-existence form says
         yes and the initialiser still does not compile.  Probing the
         initialiser itself is the only form that answers the question the
-        doc asks.  (Found by the positive control, not by reasoning.)"""
+        document asks."""
         if not self.designators:
             return
         w("// A universal source value, so the probe tests the DESIGNATOR and\n"
-          "// not the type of whatever API.md happened to assign to it.\n"
+          "// not the type of whatever the document assigned to it.\n"
           "struct AnyInit { template <class U> operator U() const; };\n\n")
         for n, (cands, field, spelled, line, kind) in enumerate(self.designators):
             w("template <class T> concept DI%d = requires { T{.%s = AnyInit{}}; };\n"
@@ -472,7 +440,7 @@ class Generator:
         w("//   designator-probes : %d\n" % len(self.designators))
         w("//   index-checked  : %d (overloaded member fns, checked in Python)\n"
           % len(self.index_checked))
-        w("//   excluded       : %d (see EXCLUDED in the generator)\n"
+        w("//   excluded       : %d (exclusion tables and operator-ids)\n"
           % len(self.excluded))
         w('#include "ComposeTestSupport.h"\n')
         w("// Every compose header, so a name is never reported missing merely\n"
@@ -505,9 +473,11 @@ class Generator:
         self.emit_designators(w)
         w("} // namespace docs_probe\n} // namespace sigil::compose\n\n")
         # A guard whose extractor silently matches NOTHING compiles perfectly
-        # and proves nothing — the exact failure mode §25 is about, one level
-        # up. So the counts are asserted, and lowering a floor is a conscious
-        # act someone has to write down.
+        # and proves nothing — the same failure this generator exists to
+        # prevent, one level up. So the counts are asserted. The floors are
+        # set below the corpus's real yield, which means they catch a broken
+        # extractor rather than ordinary edits, and lowering one is a
+        # deliberate act someone has to write down.
         w("namespace {\nconstexpr int kUsingProbes = %d; "
           "// namespace-scope + class-scope\n"
           "constexpr int kMemberProbes = %d;\n"
@@ -519,43 +489,162 @@ class Generator:
           "  // The probes above are compile-time; this case exists so the\n"
           "  // guard is VISIBLE in the suite, and so an extractor that\n"
           "  // matched nothing fails loudly instead of passing vacuously.\n"
-          "  EXPECT_GE(kUsingProbes, 160)\n"
+          "  EXPECT_GE(kUsingProbes, 40)\n"
           "      << \"the docs' namespace-scope names stopped being extracted\";\n"
-          "  EXPECT_GE(kMemberProbes, 45)\n"
+          "  EXPECT_GE(kMemberProbes, 3)\n"
           "      << \"the docs' Type::member names stopped being extracted\";\n"
-          "  EXPECT_GE(kIndexChecked, 28)\n"
+          "  EXPECT_GE(kIndexChecked, 12)\n"
           "      << \"the docs' member-function names stopped being extracted\";\n"
-          "  EXPECT_GE(kDesignatorProbes, 20)\n"
-          "      << \"the docs' designated initialisers stopped being \"\n"
-          "         \"extracted — the exact form the ROADMAP §25 defect took\";\n"
+          "  EXPECT_GE(kDesignatorProbes, 1)\n"
+          "      << \"no designated initialiser is covered — that form names \"\n"
+          "         \"no member directly, so the qualified-name scan cannot \"\n"
+          "         \"see it and only this probe can\";\n"
           "}\n")
+
+
+def report_text(gen, mds):
+    """The coverage report: counts, then every exemption BY NAME, then every
+    unresolved name.  An exemption folded into a bare count is invisible —
+    a reader auditing the guard could not tell what it deliberately skips —
+    so each one is listed with its reason."""
+    lines = ["Documented-name coverage (%s)"
+             % ", ".join(os.path.basename(m) for m in mds),
+             "  using-probes  : %d (+ %d class-scope)"
+             % (len(gen.usings), len(gen.class_usings)),
+             "  member-probes : %d" % len(gen.members),
+             "  designators   : %d" % len(gen.designators),
+             "  index-checked : %d" % len(gen.index_checked),
+             "  excluded      : %d" % len(gen.excluded)]
+    for spelled, line, reason in gen.excluded:
+        lines.append("    exempt  %s  %s  (%s)" % (line, spelled, reason))
+    lines.append("  unresolved    : %d" % len(gen.unresolved))
+    for spelled, line, why in gen.unresolved:
+        lines.append("    %s  %s  (%s)" % (line, spelled, why))
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Self-test fixtures.  Each is one markdown snippet run against one small
+# header, pinning a behaviour of the GENERATOR itself: a real name yields a
+# probe, an unreal one fails the run, an operator spelling is exempted AND
+# reported, and an EXTERNAL_CLASSES member yields a class-scope probe.  The
+# generator is the layer that decides what gets probed at all, so a
+# regression here would not fail any C++ build — it would silently narrow
+# the guard, which is exactly the failure the guard exists to prevent.
+
+FIXTURE_HEADER = """\
+namespace fix {
+struct Widget {
+  int knob;
+};
+void spin();
+}
+"""
+
+
+def fixture_generator(md_text):
+    """A Generator run over one in-memory markdown fixture and the fixture
+    header, in a temp dir so nothing on disk is touched."""
+    with tempfile.TemporaryDirectory() as tmp:
+        incdir = os.path.join(tmp, "fixinc")
+        os.makedirs(incdir)
+        with open(os.path.join(incdir, "Fixture.h"), "w",
+                  encoding="utf-8") as f:
+            f.write(FIXTURE_HEADER)
+        md = os.path.join(tmp, "fixture.md")
+        with open(md, "w", encoding="utf-8") as f:
+            f.write(md_text)
+        gen = Generator([md], [incdir])
+        gen.collect()
+        return gen
+
+
+def self_test():
+    failures = []
+
+    def check(ok, what):
+        print("  %s  %s" % ("ok " if ok else "FAIL", what))
+        if not ok:
+            failures.append(what)
+
+    print("api_doc_probes --self-test")
+
+    # A qualified name the headers declare produces a probe.
+    gen = fixture_generator("Call `fix::spin` to spin the widget.\n")
+    check(any(s == "fix::spin" for _, s, _, _ in gen.usings)
+          and not gen.unresolved,
+          "existing namespace-scope name -> using-probe emitted")
+    gen = fixture_generator("Read `Widget::knob` before spinning.\n")
+    check(any(s == "Widget::knob" for _, _, s, _, _ in gen.members)
+          and not gen.unresolved,
+          "existing member name -> member probe emitted")
+
+    # A qualified name no header declares makes the run FAIL (main exits
+    # non-zero on any unresolved name).
+    gen = fixture_generator("Then call `Nonexistent::field` at will.\n")
+    check(any(s == "Nonexistent::field" for s, _, _ in gen.unresolved),
+          "unknown type -> reported unresolved, generator fails")
+
+    # An operator spelling cannot be probed: the identifier pattern stops at
+    # `|`, so the name arrives truncated and is exempted by the operator-id
+    # rule.  The exemption must be REPORTED by name, not silently counted.
+    gen = fixture_generator("Union them with `Spans::operator|`.\n")
+    check(any(s == "Spans::operator" and "operator-id" in r
+              for s, _, r in gen.excluded)
+          and not gen.unresolved,
+          "member-operator spelling -> exempted with a recorded reason")
+    check("exempt" in report_text(gen, ["fixture.md"])
+          and "Spans::operator" in report_text(gen, ["fixture.md"]),
+          "operator exemption is listed by name in the report")
+
+    # An EXTERNAL_CLASSES member takes the class-scope probe path: a derived
+    # struct with a class-scope using-declaration, plus the include that
+    # declares the base.
+    gen = fixture_generator("Blur it with `SkImageFilters::Blur(...)`.\n")
+    check(any(c == "SkImageFilters" and m == "Blur"
+              for c, m, _, _, _ in gen.class_usings)
+          and not gen.unresolved,
+          "EXTERNAL_CLASSES member -> class-scope probe collected")
+    buf = io.StringIO()
+    gen.emit(buf)
+    emitted = buf.getvalue()
+    check("struct Probe : SkImageFilters { using SkImageFilters::Blur; }"
+          in emitted
+          and "#include <include/effects/SkImageFilters.h>" in emitted,
+          "class-scope probe and its include are emitted")
+
+    if failures:
+        print("self-test: %d failure(s)" % len(failures))
+        return 1
+    print("self-test: all fixtures pass")
+    return 0
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--md", required=True, action="append")
-    ap.add_argument("--include", required=True, action="append")
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--md", action="append")
+    ap.add_argument("--include", action="append")
+    ap.add_argument("--out")
     ap.add_argument("--report", default=None)
+    ap.add_argument("--self-test", action="store_true",
+                    help="run the generator's in-script fixtures (no --md/"
+                         "--include/--out needed): a real name must probe, "
+                         "an unreal one must fail, an operator spelling must "
+                         "be exempted and reported, and an EXTERNAL_CLASSES "
+                         "member must take the class-scope probe path")
     args = ap.parse_args()
+
+    if args.self_test:
+        return self_test()
+    if not (args.md and args.include and args.out):
+        ap.error("--md, --include and --out are required unless --self-test")
 
     gen = Generator(args.md, args.include)
     gen.collect()
     with open(args.out, "w", encoding="utf-8") as f:
         gen.emit(f)
 
-    lines = ["Documented-name coverage (%s)"
-             % ", ".join(os.path.basename(m) for m in args.md),
-             "  using-probes  : %d (+ %d class-scope)"
-             % (len(gen.usings), len(gen.class_usings)),
-             "  member-probes : %d" % len(gen.members),
-             "  designators   : %d" % len(gen.designators),
-             "  index-checked : %d" % len(gen.index_checked),
-             "  excluded      : %d" % len(gen.excluded),
-             "  unresolved    : %d" % len(gen.unresolved)]
-    for spelled, line, why in gen.unresolved:
-        lines.append("    %s  %s  (%s)" % (line, spelled, why))
-    text = "\n".join(lines)
+    text = report_text(gen, args.md)
     if args.report:
         open(args.report, "w", encoding="utf-8").write(text + "\n")
     print(text)

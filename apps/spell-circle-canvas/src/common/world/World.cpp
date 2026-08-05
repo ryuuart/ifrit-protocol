@@ -18,7 +18,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace {
-/** The slangc-built kernel for @p entry; null when absent. */
+/** The compiled compute kernel for @p entry; null when absent. */
 const unsigned char *findSpirv(const char *entry, size_t *size) {
   for (const auto &blob : kWorldPopSpirv)
     if (std::strcmp(blob.name, entry) == 0) {
@@ -27,6 +27,26 @@ const unsigned char *findSpirv(const char *entry, size_t *size) {
     }
   *size = 0;
   return nullptr;
+}
+} // namespace
+#endif
+
+#ifndef SIGILWORLD_POP_SPIRV
+#include <include/core/SkTypes.h> // SkDebugf — the missing-kernels diagnostic
+
+namespace {
+/** Announces once per process that the compute generators cannot run.
+ *  Every generator entry point fails the same way, so one line covers
+ *  all of them. */
+void warnComputeKernelsUnavailable() {
+  static bool warned = false;
+  if (warned)
+    return;
+  warned = true;
+  SkDebugf("[world] compute kernels unavailable: this build was configured "
+           "without slangc, so no SPIR-V compute shaders were embedded. "
+           "addSweep, addFlock, addPoints and addPointsOn return 0; surface "
+           "rendering is unaffected.\n");
 }
 } // namespace
 #endif
@@ -50,11 +70,13 @@ namespace dg = Diligent;
 namespace {
 
 // ---------------------------------------------------------------------------
-// Matrix upload convention — chosen to dodge glslang's HLSL row_major
-// quirks entirely: shaders use column-vector math (mul(M, v)) with
-// DEFAULT cbuffer packing, which reads column-major memory; glm's
-// native storage IS column-major, so uploads are raw dumps with no
-// transposes anywhere.
+// MATRIX UPLOAD CONVENTION. The shaders use column-vector math —
+// mul(M, v) — with default cbuffer packing, which reads column-major
+// memory. glm stores column-major natively, so every matrix upload is a
+// raw memcpy and there is no transpose anywhere in this file. Keep it
+// that way: introducing one transpose means rechecking all of them, and
+// the HLSL row_major annotations that would otherwise be needed are
+// unevenly supported across shader translators.
 
 struct Mat4 {
   float m[16];
@@ -66,10 +88,12 @@ Mat4 colMajor(const glm::mat4 &src) {
   return out;
 }
 
-/** Perspective (RH, y-up eye space, depth 0..1) as a column-vector
- *  matrix. No Vulkan clip-y flip here: Diligent's Vulkan backend
- *  normalizes to the GL/D3D convention (negative viewport internally),
- *  so +y up in clip space is already correct. */
+/** Perspective projection as a column-vector matrix: RIGHT-HANDED, y-up
+ *  eye space, depth mapped to 0..1.
+ *
+ *  There is deliberately NO Vulkan clip-y flip. The backend normalizes to
+ *  the GL/D3D convention internally, so +y up in clip space is already
+ *  correct and adding a flip here would render the scene upside down. */
 glm::mat4 perspectiveVk(float fovYDeg, float aspect, float zNear,
                         float zFar) {
   const float f = 1.0f / std::tan(fovYDeg * (float)M_PI / 360.0f);
@@ -115,7 +139,7 @@ cbuffer DrawConstants
     float4 g_BaseColor;
     float4 g_Emissive;    // rgb emissive, a unused
     float4 g_MatParams;   // x metallic, y roughness, z emissiveStrength, w unlit
-    float4 g_UvScaleOffset; // xy uv scale, zw uv offset (marquee scroll)
+    float4 g_UvScaleOffset; // xy uv scale, zw uv offset
 };
 
 Texture2D    g_Texture;
@@ -181,17 +205,16 @@ void VSInstanced(in VSInstIn IN, out PSIn OUT)
     OUT.Tint = IN.Color * IN.Tint;
 }
 
-// The EXACT inverse of the hardware sRGB decode.
+// The EXACT inverse of the hardware sRGB decode, and it must stay exact.
 //
-// Panel textures are created TEX_FORMAT_RGBA8_UNORM_SRGB, so the sampler
-// linearizes with the piecewise IEC 61966-2-1 curve. The render target is
-// plain RGBA8_UNORM, so the encode is ours to spell — and it has to be
-// the same curve, or an unlit pass-through panel does not pass through.
-// pow(c, 1/2.2) is NOT that curve; it shifted compose-authored texels by
-// up to 9/255 through the dark-to-mid range (measured by
-// World.UnlitSrgbTexelSurvivesTheRoundTrip). Constants match
-// shape/Blend.cpp's linearToSrgb() exactly. step(c, k) is 1 where
-// k >= c, i.e. where c <= k — the same inclusive branch point.
+// Panel textures are created RGBA8_UNORM_SRGB, so the sampler linearizes
+// with the piecewise standard sRGB curve. The render target is plain
+// RGBA8_UNORM, so the encode is ours to write — and it has to be that
+// same piecewise curve, or an unlit panel is not the byte-for-byte
+// pass-through it is supposed to be. pow(c, 1/2.2) is NOT that curve: it
+// is visibly off through the dark-to-mid range, where the linear toe
+// lives. step(c, k) is 1 where k >= c, i.e. where c <= k, which is the
+// inclusive branch point the standard specifies.
 float3 LinearToSrgb(float3 c)
 {
     c = clamp(c, 0.0, 1.0);
@@ -208,17 +231,23 @@ float4 PSMain(in PSIn IN) : SV_TARGET
 
     if (g_MatParams.w > 0.5)
     {
-        // Unlit screens: skip lighting/tonemap but still re-encode the
-        // linearized sRGB sample for the UNORM target. With the exact
-        // inverse curve this branch is a true pass-through: an
-        // untinted texel lands in the readback as its own byte.
+        // Unlit screens: skip lighting and tonemapping, but still
+        // re-encode the linearized sample for the UNORM target — the
+        // same curve the lit branch ends with, so there is one transfer
+        // function for the whole target. With the exact inverse curve
+        // this branch is a true pass-through: an untinted texel lands in
+        // the readback as its own byte.
         float3 unlit = base.rgb + g_Emissive.rgb * g_MatParams.z;
         return float4(LinearToSrgb(unlit), base.a);
     }
 
     float3 N = normalize(IN.Normal);
     float3 V = normalize(g_CamPos.xyz - IN.World);
-    if (dot(N, V) < 0.0)  // two-sided panels shade on both faces
+    // Culling is off, so every surface is two-sided. Flip a backfacing
+    // normal rather than dropping the fragment: winding does not decide
+    // visibility here, and a single-sided panel would go black from
+    // behind.
+    if (dot(N, V) < 0.0)
         N = -N;
 
     float  metallic = g_MatParams.x;
@@ -244,9 +273,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float3 sun    = g_SunColor.rgb * g_SunDir.w;
     float3 direct = (albedo / 3.1415926 + D * F * Vis) * sun * ndl;
 
-    // Registry lights: the same GGX lobe per light, point lights with a
-    // windowed falloff — (1 - (d/range)^2)^2 — so intensity stays in
-    // the sun's 1..5 ballpark instead of inverse-square thousands.
+    // Registry lights: the same GGX lobe per light, with point lights on
+    // a windowed falloff — (1 - (d/range)^2)^2 — rather than a physical
+    // inverse square. That keeps authored intensities in the same small
+    // range as the sun's instead of running to thousands.
     int lightCount = (int)(g_Params.y + 0.5);
     for (int i = 0; i < lightCount; ++i)
     {
@@ -288,8 +318,8 @@ float4 PSMain(in PSIn IN) : SV_TARGET
 
     float3 color = direct + ambient + g_Emissive.rgb * g_MatParams.z;
 
-    // Filmic-ish tonemap, then the same sRGB encode as the unlit
-    // branch — one transfer function for the whole target.
+    // Tonemap, then the same sRGB encode the unlit branch uses — one
+    // transfer function for the whole target.
     color = color / (color + 1.0);
     return float4(LinearToSrgb(color), base.a);
 }
@@ -333,9 +363,10 @@ struct InstanceAttribs {
   float tex[4]; // uv window: xy offset, zw scale (identity default)
 };
 
-// Orientation basis for a point's direction: shape::detail::basisFor,
-// the SAME function points::instance() stamps with — a Cloud renders
-// identically merged or instanced by construction, not by copy.
+// Orientation basis for a point's direction. This is the same function
+// the CPU-side instancing uses, shared rather than reimplemented, so a
+// Cloud renders identically whether its stamps were merged into one mesh
+// or drawn as GPU instances.
 using shape::detail::basisFor;
 
 std::vector<InstanceAttribs> buildInstances(const shape::Cloud &cloud,
@@ -415,9 +446,9 @@ struct GpuInstancedGeometry {
 };
 
 /** addSweep()'s private state: the loop resident on the GPU and the
- *  compute SRB that lets CSMain rewrite the surface's vertex buffer
- *  in place. `dirty` batches window moves into one dispatch at the
- *  next render(). */
+ *  compute binding that lets the sweep kernel rewrite the surface's
+ *  vertex buffer in place. `dirty` batches any number of window moves
+ *  into one dispatch at the next render(). */
 struct SweepComponent {
   dg::RefCntAutoPtr<dg::IBuffer> points;
   dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
@@ -427,15 +458,16 @@ struct SweepComponent {
   bool dirty = true;
 };
 
-// The param blocks come from shaders/WorldShaderParams.h — the SAME
-// definition the kernels compile; drift is impossible by construction.
+// The parameter blocks come from shaders/WorldShaderParams.h, which is
+// the same header the kernels compile against — so the C++ and shader
+// views of these structs cannot drift apart.
 using SweepParams = shaderparams::SweepParamsData;
 
 
 
-/** addFlock()'s private state — the flock sibling of SweepComponent:
- *  the loop on the GPU plus the compute SRB that packs the instanced
- *  stream in place. */
+/** addFlock()'s private state, the flock counterpart of SweepComponent:
+ *  the loop on the GPU plus the compute binding that packs the instanced
+ *  draw stream in place. */
 struct FlockComponent {
   dg::RefCntAutoPtr<dg::IBuffer> points;
   dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
@@ -453,19 +485,21 @@ using FlockParams = shaderparams::FlockParamsData;
 
 
 
-/** addPoints()'s private state: the pop chain (a value — the
- *  nondestructive description), the GPU attribute lanes it cooks
- *  into, and one compute SRB per op (SRBs are PSO-specific, and dead
- *  resource elimination makes per-op layouts differ). */
+/** addPoints()'s private state: the chain (a value — the
+ *  nondestructive description), the GPU attribute lanes it cooks into,
+ *  and one shader resource binding per operator. The bindings cannot be
+ *  shared: they are pipeline-specific, and dead-resource elimination
+ *  makes each operator's layout differ. */
 struct PopComponent {
   World::pop::Chain chain;
   dg::RefCntAutoPtr<dg::IBuffer> loop;
-  /** The lane ARENA: slotCount lanes of count float4s each —
-   *  builtins in fixed slots 0-5, custom names above (customNames[i]
-   *  owns slot 6+i). One buffer, one element type: the GPU twin of
-   *  shape::popops' named Attrs store. */
+  /** The lane ARENA: slotCount lanes of count float4s each — builtins in
+   *  fixed slots 0..kBuiltinSlots-1, custom names above them, where
+   *  customNames[i] owns slot kBuiltinSlots+i. One buffer, one element
+   *  type: the GPU counterpart of the CPU executor's named attribute
+   *  store. */
   dg::RefCntAutoPtr<dg::IBuffer> lanes;
-  dg::RefCntAutoPtr<dg::IBuffer> scratch; // Relax ping-pong
+  dg::RefCntAutoPtr<dg::IBuffer> scratch; // Relax reads/writes alternately
   /** Every Lookup op's stop table, concatenated in chain order; each
    *  dispatch gets its own (offset, count). Always non-null — a
    *  chain with no Lookup still binds a one-element placeholder. */
@@ -510,7 +544,8 @@ std::vector<std::string> popCustomNames(const World::pop::Chain &chain) {
           else if constexpr (std::is_same_v<T, World::pop::Set>)
             note(o.attr);
           else if constexpr (std::is_same_v<T, World::pop::Lookup>) {
-            // Both ends: a lookup may read a custom and write another.
+            // Both ends: a lookup may read one custom lane and write
+            // another, and each needs its own slot.
             note(o.from);
             note(o.to);
           }
@@ -562,8 +597,9 @@ struct World::Impl {
                    dg::IBuffer *instanceBuffer);
   dg::RefCntAutoPtr<dg::ITexture> whiteTexture;
 
-  /** Surfaces are entities; ids handed to callers are entity values.
-   *  Entity 0 is reserved at init so a valid surface id is never 0. */
+  /** Surfaces are entities, and the ids handed to callers are entity
+   *  values. Entity 0 is reserved at init so that a valid surface id is
+   *  never 0 and callers can read 0 as failure. */
   entt::registry registry;
   bool rendered = false;
 
@@ -602,7 +638,8 @@ bool World::Impl::init(std::string *error) {
   }
   device.Attach(rawDevice);
   context.Attach(rawContext);
-  // Reserve entity 0: callers read a 0 surface id as failure.
+  // Burn entity 0 so no real surface can ever have id 0, which every
+  // caller reads as failure.
   (void)registry.create();
   return createTargets(error) && createPipelines(error);
 }
@@ -710,7 +747,10 @@ bool World::Impl::createPipelines(std::string *error) {
   gp.DSVFormat = TEX_FORMAT_D32_FLOAT;
   gp.SmplDesc.Count = (Uint8)sampleCount;
   gp.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-  gp.RasterizerDesc.CullMode = CULL_MODE_NONE; // two-sided panels
+  // No culling anywhere: every surface is two-sided and the pixel shader
+  // flips a backfacing normal, so triangle winding never decides
+  // visibility.
+  gp.RasterizerDesc.CullMode = CULL_MODE_NONE;
   gp.DepthStencilDesc.DepthEnable = True;
   gp.DepthStencilDesc.DepthWriteEnable = True;
 
@@ -743,6 +783,10 @@ bool World::Impl::createPipelines(std::string *error) {
   psoCI.PSODesc.ResourceLayout.Variables = variables;
   psoCI.PSODesc.ResourceLayout.NumVariables = 1;
 
+  // One immutable sampler for every pipeline. CLAMP on both axes is the
+  // only addressing mode surfaces get: a Material's uv window that runs
+  // off the texture smears edge texels rather than tiling, and there is
+  // no way for a caller to ask for repeat.
   SamplerDesc samplerDesc;
   samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
   samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
@@ -755,8 +799,9 @@ bool World::Impl::createPipelines(std::string *error) {
   psoCI.PSODesc.ResourceLayout.ImmutableSamplers = samplers;
   psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
 
-  // The four-PSO family: {plain, instanced} x {opaque, blended}. Same
-  // PS and resource layout everywhere, so one SRB shape serves all.
+  // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
+  // shader and resource layout are identical across all four, so one
+  // shader-resource-binding shape serves every surface.
   auto makePso = [&](const char *name, bool instanced, bool blend,
                      dg::RefCntAutoPtr<IPipelineState> &out) {
     psoCI.PSODesc.Name = name;
@@ -795,7 +840,8 @@ bool World::Impl::createPipelines(std::string *error) {
     }
   }
 
-  // 1x1 white fallback so untextured materials sample identity.
+  // A 1x1 white texture, bound wherever a material carries no image, so
+  // the shader's texture multiply is an identity rather than a branch.
   {
     TextureDesc desc;
     desc.Name = "sigilworld white";
@@ -818,6 +864,9 @@ World::Impl::uploadTexture(const sk_sp<SkImage> &image) {
   using namespace dg;
   if (!image)
     return whiteTexture;
+  // Every source flattens to 8-bit unpremultiplied RGBA here, so a float
+  // or HDR image loses its range at this point. No mipmaps are built
+  // either — the sampler's mip filter has nothing to choose between.
   const int w = image->width(), h = image->height();
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::Make(w, h, kRGBA_8888_SkColorType,
@@ -830,7 +879,9 @@ World::Impl::uploadTexture(const sk_sp<SkImage> &image) {
   desc.Type = RESOURCE_DIM_TEX_2D;
   desc.Width = (Uint32)w;
   desc.Height = (Uint32)h;
-  // UI content is authored sRGB; the sRGB view linearizes on sample.
+  // Panel content is authored in sRGB, so an sRGB view linearizes it on
+  // sample and the shader can work in linear throughout. The pixel
+  // shader's own encode is the exact inverse of this decode.
   desc.Format = TEX_FORMAT_RGBA8_UNORM_SRGB;
   desc.BindFlags = BIND_SHADER_RESOURCE;
   desc.MipLevels = 1;
@@ -904,8 +955,8 @@ bool World::Impl::createMeshBuffers(
   using namespace dg;
   const std::vector<Vertex> vertices = packVertices(mesh);
 
-  // DEFAULT (not IMMUTABLE) so setSurfaceMesh() can UpdateBuffer in
-  // place — the same trade the instance buffer makes.
+  // DEFAULT rather than IMMUTABLE usage, so setSurfaceMesh() can update
+  // these buffers in place when the topology is unchanged.
   BufferDesc vbDesc;
   vbDesc.Name = "sigilworld vertices";
   vbDesc.Usage = USAGE_DEFAULT;
@@ -931,7 +982,8 @@ dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createInstanceBuffer(
   RefCntAutoPtr<IBuffer> buffer;
   if (instances.empty())
     return buffer;
-  // DEFAULT so setInstances() can UpdateBuffer in place.
+  // DEFAULT usage, so setInstances() can update it in place when the
+  // instance count is unchanged.
   BufferDesc desc;
   desc.Name = "sigilworld instances";
   desc.Usage = USAGE_DEFAULT;
@@ -948,7 +1000,11 @@ bool World::Impl::ensureSweepPipeline() {
     return true;
 
 #ifndef SIGILWORLD_POP_SPIRV
-  return false; // the compute generators ship as slangc-built SPIRV
+  // The compute generators exist only as SPIR-V compiled at build time;
+  // they have no fallback shader. The graphics path still works — this
+  // door fails to create and the caller returns 0.
+  warnComputeKernelsUnavailable();
+  return false;
 #else
   ShaderCreateInfo shaderCI;
   size_t byteCodeSize = 0;
@@ -1002,7 +1058,11 @@ bool World::Impl::ensureFlockPipeline() {
     return true;
 
 #ifndef SIGILWORLD_POP_SPIRV
-  return false; // the compute generators ship as slangc-built SPIRV
+  // The compute generators exist only as SPIR-V compiled at build time;
+  // they have no fallback shader. The graphics path still works — this
+  // door fails to create and the caller returns 0.
+  warnComputeKernelsUnavailable();
+  return false;
 #else
   ShaderCreateInfo shaderCI;
   size_t byteCodeSize = 0;
@@ -1076,8 +1136,8 @@ World::Impl::createLoopBuffer(const std::vector<glm::vec3> &loop) {
 
 namespace {
 
-/** Every compute entry, in PSO order; the copy-back and pack sinks
- *  ride last because they belong to no op. */
+/** Every compute entry point, in pipeline order. The copy-back and pack
+ *  sinks come last because they belong to no operator. */
 constexpr const char *kPopEntries[] = {
     "CSSplineScatter", "CSJitter",   "CSNoise",  "CSRamp",
     "CSVary",          "CSLookAt",   "CSMath",   "CSRelax",
@@ -1087,17 +1147,22 @@ constexpr const char *kPopEntries[] = {
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
 
-/** No compute kernel: the op is CPU-only, and every door into the GPU
- *  executor declines a chain holding it (never drops it). */
+/** No compute kernel: the operator runs on the CPU only, and every door
+ *  into the GPU executor DECLINES a chain holding it rather than
+ *  dropping the operator and cooking something subtly wrong. */
 constexpr size_t kPopNoKernel = (size_t)-1;
-/** Op variant index -> kPopEntries index, ONE ROW PER ALTERNATIVE and
- *  index-aligned with pop::Op. This used to be arithmetic
- *  (`i <= 7 ? i : i - 1`) encoding a single hole, which was already
- *  wrong for anything past index 10 — it would have landed on the
- *  copy-back entry, silently cooking the wrong kernel. A table cannot
- *  be wrong by a fencepost, and the static_assert below makes
- *  APPENDING an op without deciding its row a BUILD failure rather
- *  than a runtime mystery. */
+/** Operator variant index -> kPopEntries index. ONE ROW PER ALTERNATIVE,
+ *  index-aligned with pop::Op.
+ *
+ *  The variant order is effectively ABI: this table is indexed by it, so
+ *  inserting an alternative anywhere but the end silently repoints every
+ *  later operator at another operator's kernel. Append only.
+ *
+ *  A table rather than arithmetic over the index, because arithmetic
+ *  cannot express more than one hole without being wrong by a fencepost
+ *  somewhere. The static_assert below turns appending an operator
+ *  without deciding its row into a build failure instead of a runtime
+ *  mystery. */
 constexpr size_t kPopOpPso[] = {
     0,             // 0  SplineScatter
     1,             // 1  Jitter
@@ -1107,24 +1172,29 @@ constexpr size_t kPopOpPso[] = {
     5,             // 5  LookAt
     6,             // 6  Math
     7,             // 7  Relax
-    kPopNoKernel,  // 8  MeshScatter — CPU-only (seeds from a Mesh)
+    kPopNoKernel,  // 8  MeshScatter — CPU only: seeds from a Mesh
     8,             // 9  Set
     9,             // 10 Atlas
-    kPopNoKernel,  // 11 Promote     — CPU-only (primitive class)
+    kPopNoKernel,  // 11 Promote     — CPU only: writes the primitive
+                   //                  class, which this executor has no
+                   //                  arena for
     10,            // 12 Lookup
-    kPopNoKernel,  // 13 Sort        — CPU-only (permutation class)
+    kPopNoKernel,  // 13 Sort        — CPU only: a permutation of the
+                   //                  whole point set is not a per-point
+                   //                  map, so no kernel can express it
 };
 static_assert(std::size(kPopOpPso) ==
                   std::variant_size_v<World::pop::Op>,
               "every pop::Op alternative needs a row here — appending "
-              "one without a ruling would land it on another op's "
+              "appending one anywhere but the end would land it on another op's "
               "kernel");
 size_t popPsoIndex(size_t variantIndex) {
   return variantIndex < std::size(kPopOpPso) ? kPopOpPso[variantIndex]
                                              : kPopNoKernel;
 }
-/** The graceful boundary, in one place: the mapping table IS the
- *  validation table, so the two can never drift apart. */
+/** The boundary check reads the SAME table the dispatcher maps through,
+ *  so what the executor declines and what it can actually run cannot
+ *  drift apart. */
 bool popOpRunsOnGpu(const World::pop::Op &op) {
   return popPsoIndex(op.index()) != kPopNoKernel;
 }
@@ -1134,9 +1204,10 @@ bool popChainRunsOnGpu(const World::pop::Chain &chain) {
       return false;
   return true;
 }
-/** Every Lookup op's stop table, concatenated in chain order — the
- *  layout g_Table is uploaded with and the (offset, count) the cook
- *  pass hands each dispatch. */
+/** Every Lookup op's stop table, concatenated in chain order. This is
+ *  the layout g_Table is uploaded with, and the cook pass walks the
+ *  chain in this same order so each Lookup dispatch gets the offset its
+ *  own stops landed at. */
 std::vector<glm::vec4> popTable(const World::pop::Chain &chain) {
   std::vector<glm::vec4> stops;
   for (const World::pop::Op &op : chain)
@@ -1150,7 +1221,11 @@ std::vector<glm::vec4> popTable(const World::pop::Chain &chain) {
 
 bool World::Impl::ensurePopPipelines() {
 #ifndef SIGILWORLD_POP_SPIRV
-  return false; // the compute generators ship as slangc-built SPIRV
+  // The compute generators exist only as SPIR-V compiled at build time;
+  // they have no fallback shader. The graphics path still works — this
+  // door fails to create and the caller returns 0.
+  warnComputeKernelsUnavailable();
+  return false;
 #else
   using namespace dg;
   if (!popPsos.empty())
@@ -1211,7 +1286,7 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
   using namespace dg;
   points.srbs.clear();
   if (!points.table)
-    return false; // CSLookup's SRB binds it live; never null
+    return false; // the lookup binding needs it; a null view is not legal
   dg::IBuffer *loopBuffer = points.loop;
   if (!loopBuffer && registry.valid(points.upstream) &&
       registry.all_of<PopComponent>(points.upstream))
@@ -1239,12 +1314,13 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
   };
   for (const pop::Op &op : points.chain) {
     const size_t psoIndex = popPsoIndex(op.index());
-    // Defence in depth behind the validation doors: a CPU-only op that
-    // ever reached here gets NO binding rather than another op's.
+    // Defence in depth behind the public doors' validation: an operator
+    // with no kernel gets NO binding here rather than another
+    // operator's.
     if (psoIndex == kPopNoKernel || !bindOne(psoIndex))
       return false;
   }
-  // The Relax copy-back rides second from last; the pack sink last.
+  // The Relax copy-back is second from last; the pack sink is last.
   return bindOne(kPopCopyBackIndex) && bindOne(kPopPackIndex);
 }
 
@@ -1326,8 +1402,9 @@ uint32_t World::addInstanced(const shape::Mesh &stamp,
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
-  // Whole-flock transform starts at identity — setTransform moves the
-  // flock as one.
+  // One transform for the whole flock, starting at identity: the points
+  // carry their own placement, and setTransform moves all of them
+  // together.
   impl.registry.emplace<TransformComponent>(id, glm::mat4(1.0f));
   impl.registry.emplace<MaterialComponent>(id, material);
   return (uint32_t)id;
@@ -1416,7 +1493,8 @@ uint32_t World::addSweep(const SweepDesc &desc,
   // The loop, resident on the GPU: one float4 per control point.
   sweep.points = impl.createLoopBuffer(desc.loop);
 
-  // The vertex buffer CSMain rewrites: structured UAV + vertex bind.
+  // The vertex buffer the sweep kernel rewrites: bound both as a
+  // structured unordered-access view and as a vertex buffer.
   GpuGeometry geometry;
   BufferDesc vbDesc;
   vbDesc.Name = "sigilworld sweep vertices";
@@ -1525,7 +1603,8 @@ uint32_t World::addFlock(const shape::Mesh &stamp,
                               geometry.indexBuffer))
     return 0;
 
-  // The instanced stream the CS packs: UAV + vertex bind, 64B stride.
+  // The instanced stream the compute kernel packs: bound both as an
+  // unordered-access view and as a per-instance vertex buffer.
   BufferDesc ibDesc;
   ibDesc.Name = "sigilworld flock instances";
   ibDesc.Usage = USAGE_DEFAULT;
@@ -1581,17 +1660,14 @@ void World::setFlockWindow(uint32_t id, float head, float span) {
 
 namespace {
 
-/** A pop chain's point count comes from its generator head. */
+/** A chain's point count comes from its generator head. Answers 0 for a
+ *  chain this executor declines, which every caller reads as failure. */
 int popChainCount(const World::pop::Chain &chain) {
   if (chain.empty())
     return 0;
-  // Custom attribute names get arena slots. Three op kinds stay
-  // CPU-cooked (shape::popops) and are declined here rather than
-  // silently dropped — mesh seeding; Promote, because the GPU executor
-  // cooks the POINT class into lane arenas and has no primitive class
-  // to promote onto (its sink is instanced stamps, not a Mesh value);
-  // and Sort, because a permutation is not a per-point map. The
-  // kPopOpPso table is the single source of that ruling.
+  // Declined, not silently stripped: dropping an operator would cook
+  // geometry that looks plausible and is wrong. kPopOpPso says which
+  // operators have no kernel and why.
   if (!popChainRunsOnGpu(chain))
     return 0;
   if (const auto *scatter =
@@ -1604,14 +1680,15 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice *device,
                                                 int count, int slots,
                                                 const char *name) {
   using namespace dg;
-  // Zero-filled: custom lanes start {0,0,0,0}, matching the CPU
-  // store's default; builtins are initialized by the scatter kernel.
+  // Zero-filled so custom lanes start at {0,0,0,0}, matching the CPU
+  // executor's default for an untouched attribute; the builtin lanes are
+  // initialized by the generator kernel before anything reads them.
   const std::vector<float> zeros((size_t)count * (size_t)slots * 4, 0.0f);
   BufferDesc desc;
   desc.Name = name;
   desc.Usage = USAGE_DEFAULT;
-  // SHADER_RESOURCE too: a downstream chain reads this arena's P
-  // slot as its loop (the device-resident composing entry).
+  // SHADER_RESOURCE as well as UAV, because a downstream chain built
+  // with addPointsOn reads this arena's position slot as its own loop.
   desc.BindFlags = BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE;
   desc.Mode = BUFFER_MODE_STRUCTURED;
   desc.ElementByteStride = 4 * sizeof(float);
@@ -1622,11 +1699,12 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice *device,
   return buffer;
 }
 
-/** The Lookup stop tables, concatenated. Immutable — the stops are
- *  chain VALUES, so a table edit is a re-describe (setPoints sees a
- *  different table and takes the structural path). A chain with no
- *  Lookup still gets one placeholder element: CSLookup's SRB binds
- *  g_Table live, and a null buffer view is not a thing. */
+/** The Lookup stop tables, concatenated. IMMUTABLE, because the stops
+ *  are part of the chain value: editing them is a re-describe, and
+ *  setPoints takes the structural path when it sees a different table
+ *  even if every operator kind still lines up. A chain with no Lookup
+ *  still gets a one-element placeholder, since the binding is not
+ *  optional and a null buffer view is not legal. */
 dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
     dg::IRenderDevice *device, const std::vector<glm::vec4> &stops) {
   using namespace dg;
@@ -1733,8 +1811,8 @@ uint32_t World::addPointsOn(uint32_t upstream,
   if (!scatter || scatter->count < 1 || stamp.positions.empty() ||
       stamp.indices.empty())
     return 0;
-  // Same graceful boundary popChainCount draws, off the same table:
-  // CPU-only op kinds are declined outright, never dropped.
+  // The same boundary popChainCount draws, off the same table: an
+  // operator with no kernel is declined outright, never dropped.
   if (!popChainRunsOnGpu(chain))
     return 0;
   if (!impl.ensurePopPipelines())
@@ -1824,11 +1902,12 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
   GpuInstancedGeometry &geometry =
       impl.registry.get<GpuInstancedGeometry>(e);
 
-  // Same op kinds and count: a parameter edit — keep buffers and
-  // SRBs, just re-cook. Anything structural rebuilds lanes/bindings.
-  // Lookup's stop table rides an IMMUTABLE buffer, so a table edit is
-  // structural even when the op kinds line up — same reasoning the
-  // loop-content check below applies to the generator's control points.
+  // Same operator kinds and count: a parameter edit, so keep the
+  // buffers and bindings and just re-cook. Anything structural rebuilds
+  // the lanes and rebinds. A lookup table edit counts as structural even
+  // when the operator kinds line up, because the table rides an
+  // immutable buffer — the same reason the loop-content check below
+  // treats moved control points as structural.
   const std::vector<glm::vec4> table = popTable(chain);
   const bool sameShape =
       count == points.count && chain.size() == points.chain.size() &&
@@ -1838,11 +1917,12 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
                  [](const pop::Op &a, const pop::Op &b) {
                    return a.index() == b.index();
                  });
-  // The loop rides its own immutable buffer, uploaded at add time; a
-  // re-describe with MOVED control points must recreate it or the
-  // kernels keep cooking the old loop. Compared before the chain is
-  // overwritten. addPointsOn surfaces carry an empty loop (their
-  // generator reads the upstream arena) and never take this path.
+  // The loop rides its own immutable buffer, uploaded when the surface
+  // was added, so a re-describe with MOVED control points must recreate
+  // it or the kernels go on cooking the old loop. Compared before the
+  // chain is overwritten. A surface created with addPointsOn carries an
+  // empty loop — its generator reads the upstream arena instead — and so
+  // never takes this path.
   const auto *scatter = std::get_if<pop::SplineScatter>(&chain.front());
   const auto *stored =
       points.chain.empty()
@@ -1880,13 +1960,15 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
                               &geometry.instanceBuffer);
     if (!points.lanes || !points.scratch || !points.table ||
         !geometry.instanceBuffer) {
-      points.count = 0; // null lanes must not reach readPoints' copy
+      // Allocation failed partway. Zero the count so readPoints() cannot
+      // later size a copy against lanes that do not exist.
+      points.count = 0;
       return;
     }
     impl.bindPopSrbs(points, geometry.instanceBuffer);
   } else if (loopChanged) {
-    // The loop binds into every per-op SRB as g_Points, so a fresh
-    // buffer needs a re-bind even on the param-only path.
+    // The loop binds into every per-operator binding, so a fresh buffer
+    // needs a rebind even on the parameter-only path.
     impl.bindPopSrbs(points, geometry.instanceBuffer);
   }
   points.dirty = true;
@@ -2001,21 +2083,22 @@ bool World::render() {
   if (!impl.context)
     return false;
 
-  // Declared motion, before anything reads a component: resolve every
-  // animated lane into the TransformComponent / MaterialComponent /
-  // LightComponent / CameraComponent / generator window it drives
-  // (Animation.h) — the camera lanes land here too, so the pick below
-  // reads this frame's dolly. A frame
-  // with no Animated* component walks five empty views and writes
-  // nothing — the imperative setters are untouched by this. NOTE: no
-  // clock is stepped here, by design; the caller owns the Ticker, so a
-  // headless render stays a pure function of the Outputs' values.
+  // Declared motion first, before anything reads a component: resolve
+  // every animated lane into the Transform / Material / Light / Camera
+  // component or generator window it drives (Animation.h). The camera
+  // lanes land here too, so the camera pick further down reads this
+  // frame's values. A frame with no Animated* component walks five empty
+  // views and writes nothing, leaving the imperative setters untouched.
+  //
+  // NO CLOCK is stepped here, deliberately: the caller owns the ticker,
+  // which is what keeps a render a pure function of what the Outputs
+  // hold and makes the same frame index reproduce byte for byte.
   resolveAnimation(*this);
 
   // GPU sweeps first: rewrite every dirty sweep surface's vertices in
-  // place (the POP-style generator pass), then draw them like any
-  // surface — SetVertexBuffers' TRANSITION mode inserts the
-  // UAV -> vertex barrier.
+  // place, then draw them like any other surface. Binding the vertex
+  // buffers in TRANSITION mode inserts the unordered-access to vertex
+  // barrier, so no explicit barrier is needed between the two.
   {
     auto sweeps = impl.registry.view<SweepComponent>();
     bool bound = false;
@@ -2035,7 +2118,9 @@ bool World::render() {
         params->window[2] = sweep.width;
         params->window[3] = (float)sweep.sections;
         params->loop[0] = (float)sweep.pointCount;
-        params->loop[1] = 0.002f; // the rig's tangent epsilon
+        // Parameter step the kernel uses for its centred-difference
+        // tangent; must match the flock and point kernels' value below.
+        params->loop[1] = 0.002f;
         params->loop[2] = 0;
         params->loop[3] = 0;
       }
@@ -2087,12 +2172,13 @@ bool World::render() {
     }
   }
   {
-    // Pop chains: one dispatch per operator, UAV barriers between
-    // (each op reads lanes the previous one wrote), the pack sink
-    // last.
+    // Point chains: one dispatch per operator with a barrier between
+    // each, because every operator reads lanes the previous one wrote.
+    // The pack sink runs last and fills the instanced draw stream.
     auto popView = impl.registry.view<PopComponent>();
-    // Dependency-ordered: an entity's upstream cooks first, and a
-    // cooked upstream re-cooks its dependents (their input changed).
+    // Dependency-ordered: an entity's upstream cooks first, and a cooked
+    // upstream forces its dependents to re-cook, their input having
+    // changed.
     std::vector<entt::entity> cooked;
     std::function<void(entt::entity)> cookOne;
     cookOne = [&](entt::entity e) {
@@ -2106,7 +2192,10 @@ bool World::render() {
             impl.registry.get<PopComponent>(points.upstream);
         if (up.dirty)
           cookOne(points.upstream);
-        points.loopCount = up.count; // stays fresh across setPoints
+        // Refreshed every cook, so a setPoints() on the upstream that
+        // changed its point count cannot leave this one reading a stale
+        // length.
+        points.loopCount = up.count;
       }
       if ((!points.dirty && !upstreamCooked &&
            std::find(cooked.begin(), cooked.end(), points.upstream) ==
@@ -2146,8 +2235,8 @@ bool World::render() {
         params.d[3] = 0.002f;
         return params;
       };
-      // Walks the chain in the SAME order popTable() concatenated in,
-      // so each Lookup dispatch gets the offset its stops landed at.
+      // Walks the chain in the SAME order popTable() concatenated in, so
+      // each Lookup dispatch gets the offset its own stops landed at.
       int tableCursor = 0;
       for (size_t i = 0; i < points.chain.size(); ++i) {
         PopParams params = base();
@@ -2262,8 +2351,10 @@ bool World::render() {
   impl.context->ClearDepthStencil(dsv, CLEAR_DEPTH_FLAG, 1.0f, 0,
                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-  // Camera precedence: an ACTIVE CameraComponent entity overrides
-  // setCamera; with none, the fallback camera drives the frame.
+  // Camera precedence: an entity with an ACTIVE CameraComponent
+  // outranks setCamera(), whenever either was set. With none active the
+  // fallback camera drives the frame; with several, the first the
+  // registry iterates wins.
   shape::space::Camera cam = impl.camera;
   for (auto [e, camComponent] :
        impl.registry.view<CameraComponent>().each()) {
@@ -2311,7 +2402,8 @@ bool World::render() {
     constants->params[0] = impl.lighting.ambient;
     constants->params[1] = constants->params[2] = constants->params[3] = 0;
 
-    // Registry lights, first kLightBudget the view yields.
+    // Registry lights: the first kLightBudget the view yields, in
+    // registry iteration order. Any beyond that are silently ignored.
     int lightCount = 0;
     for (auto [e, light] : impl.registry.view<LightComponent>().each()) {
       if (lightCount >= kLightBudget)
@@ -2338,10 +2430,12 @@ bool World::render() {
     constants->params[1] = (float)lightCount;
   }
 
-  // Gather from the registry: opaque then blended (back-to-front by
-  // view depth). The alpha test reads the LIVE MaterialComponent, so
-  // mutating alpha through registry() re-routes the pass correctly.
-  // Instanced flocks route by their material alpha as a whole.
+  // Gather from the registry: opaque first, then blended, sorted back to
+  // front by view depth. The alpha test reads the LIVE
+  // MaterialComponent, so mutating alpha through registry() re-routes
+  // the surface between passes on the next frame. An instanced surface
+  // routes as a whole and counts as ONE sorted item, so its instances
+  // are not sorted against each other.
   struct DrawItem {
     const GpuGeometry *geometry = nullptr;
     const GpuInstancedGeometry *instanced = nullptr;
@@ -2436,9 +2530,9 @@ bool World::render() {
   drawList(opaque, impl.opaquePso, impl.opaqueInstancedPso);
   drawList(blended, impl.blendPso, impl.blendInstancedPso);
 
-  // A zero-draw frame never begins a render pass, so the Vulkan
-  // backend keeps the clears deferred until the next flush — flush
-  // BEFORE the resolve or it republishes the previous frame.
+  // A frame with no draws never begins a render pass, so the backend
+  // leaves the clears deferred. Flush here, BEFORE the resolve below, or
+  // the resolve publishes the previous frame's contents.
   if (opaque.empty() && blended.empty())
     impl.context->Flush();
 

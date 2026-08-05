@@ -11,6 +11,7 @@
 #include <include/core/SkRect.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string_view>
 
 namespace spellcircle {
@@ -168,12 +169,20 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
         std::max(textWidth + style.boxPadding * 2.0f, style.boxWidth);
     const float resolvedBoxHeight = style.boxHeight;
 
-    // The box's center sits on the ray from the canvas center through the
-    // point, pushed outward by boxDistance beyond the point — nothing more.
-    // Edge-dependent anchoring (snapping the box's near edge to the point)
-    // was rejected: it makes the box jump as the ray crosses 45° diagonals.
-    const float boxCenterX = box.anchor.x + box.direction.x * style.boxDistance;
-    const float boxCenterY = box.anchor.y + box.direction.y * style.boxDistance;
+    // The box hangs off the ray from the canvas center through the point,
+    // with its near face boxDistance beyond the point — the configured value
+    // is the visible gap between point and box, so it stays constant however
+    // wide the label makes the box. Projecting the half-extents onto the ray
+    // (|d.x|·w/2 + |d.y|·h/2) turns that face constraint into a center
+    // offset that varies continuously with direction; snapping a whole edge
+    // to the point instead would make the box jump as the ray crosses a 45°
+    // diagonal.
+    const float halfExtentAlongRay =
+        std::abs(box.direction.x) * resolvedBoxWidth * 0.5f +
+        std::abs(box.direction.y) * resolvedBoxHeight * 0.5f;
+    const float centerDistance = style.boxDistance + halfExtentAlongRay;
+    const float boxCenterX = box.anchor.x + box.direction.x * centerDistance;
+    const float boxCenterY = box.anchor.y + box.direction.y * centerDistance;
     const float boxX = boxCenterX - resolvedBoxWidth / 2.0f;
     const float boxY = boxCenterY - resolvedBoxHeight / 2.0f;
 

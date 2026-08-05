@@ -2,14 +2,25 @@
 
 /** @file
  * SigilCompose layout schemes — free-form placement over the kernel's
- * LayoutScheme seam (layout(scheme)), for compositions that aren't
- * rows and columns: rings, paths, seeded scatter. Children keep their
- * measured sizes; the scheme only decides where they sit. Everything
- * here is ~20 lines of user-writable code — shipped because rings and
- * paths are this codebase's native idiom (spell circles, ring labels).
+ * LayoutScheme seam (`layout(scheme)`), for compositions that are not rows
+ * and columns. Six schemes live here: `Radial` (a ring or fan), `AlongPath`
+ * (arc-length placement on any contour), `ModularGrid` (columns × rows of
+ * modules), `Diagonal` (a sheared stack), `BaselineGrid` (a vertical type
+ * rhythm) and `Scatter` (seeded jitter).
  *
  *   layout(layouts::Radial{.radiusFraction = 0.8f})
  *       .children(glyphs | std::views::transform(rune));
+ *
+ * A scheme returns one rect per child from the container size and the
+ * children's measured sizes — except `ModularGrid`, which sizes children to
+ * their cell span. Placement is pure arithmetic over `LayoutInput`, so the
+ * result is deterministic and the node caches like any other static content.
+ *
+ * A scheme belongs here when the placement is a FUNCTION an author would
+ * otherwise write out — a ring, a modular grid, a baseline rhythm. It does
+ * not belong here when the placement IS the design decision: a generator
+ * that produces arrangements "in the family" of a hand-chosen one produces
+ * the single thing the design is not.
  */
 
 #include "sigilcompose/Compose.h"
@@ -31,20 +42,26 @@ inline SkRect centeredAt(SkPoint center, SkSize size) {
 }
 } // namespace detail
 
-/** Children on a ring — the spell-circle idiom. Child i centers at
- *  startDeg + i·(sweepDeg/n), at radiusFraction of the container's
- *  half-extent (per axis: an oblong container gives an ellipse). A
- *  partial sweep makes fans and arcs. */
+/** Children on a ring. Child i centers at startDeg + i·(sweepDeg/n), at
+ *  `radiusFraction` of the container's half-extent — applied per axis, so
+ *  an oblong container gives an ellipse rather than a circle. A partial
+ *  sweep makes fans and arcs.
+ *
+ *  Angles are degrees, clockwise on screen (y grows downward), and the
+ *  default −90 puts the first child at twelve o'clock.
+ *
+ *  A FULL-TURN sweep excludes the endpoint — n children divide the circle
+ *  into n equal steps, and the last does not land on top of the first. A
+ *  PARTIAL sweep includes both ends, so the first child sits at startDeg
+ *  and the last at startDeg + sweepDeg. */
 struct Radial {
   float radiusFraction = 0.8f;
   float startDeg = -90.0f;
   float sweepDeg = 360.0f;
-  /** Per-child radius (§14): a fraction per index, overriding
-   *  `radiusFraction` where present — the data-driven ring the header
-   *  claims as native (an orbit diagram's bands, a skill wheel's tiers)
-   *  needed one radius PER CHILD and had one for all. Shorter than the
-   *  child list: the tail falls back to `radiusFraction`. Participates
-   *  in equality like every field. */
+  /** Per-child radius: a fraction per index, overriding `radiusFraction`
+   *  where present — an orbit diagram's bands, a skill wheel's tiers. May
+   *  be shorter than the child list; the tail falls back to
+   *  `radiusFraction`. Participates in equality like every field. */
   std::vector<float> radiusAt;
 
   std::vector<SkRect> place(const LayoutInput &in) const {
@@ -73,9 +90,17 @@ struct Radial {
 };
 
 /** Children along an arbitrary contour by arc length. The path is a
- *  generator over the container size — any shapes:: outline or your
- *  own — and children center on evenly spaced samples of the
- *  [startFraction, endFraction] stretch of its first contour. */
+ *  generator over the container size — any shapes:: outline or your own —
+ *  and children center on evenly spaced samples of the
+ *  [startFraction, endFraction] stretch of it.
+ *
+ *  ONLY THE FIRST CONTOUR IS USED. A generator returning several subpaths
+ *  places children on the first one and silently ignores the rest; give
+ *  each contour its own layout node if you want children on all of them.
+ *
+ *  A closed contour walked end to end excludes the duplicate endpoint, so
+ *  the last child does not land on the first. Any other stretch, and any
+ *  open contour, includes both ends. */
 struct AlongPath {
   std::function<SkPath(SkSize)> path;
   float startFraction = 0.0f;
@@ -109,13 +134,23 @@ struct AlongPath {
   }
 };
 
-/** The Müller-Brockmann MODULAR grid (Grid Systems in Graphic Design):
- *  columns × rows of modules separated by gutters; each child occupies a
- *  cell SPAN (col, row, colSpan, rowSpan) — spans are given per child in
- *  declaration order, and children beyond the span list auto-flow one cell
- *  each, left→right, top→bottom. Children are SIZED to their span (the
- *  grid disciplines the composition; content answers to the module). Pair
- *  with BaselineGrid inside text cells for the full Swiss discipline. */
+/** The modular grid: columns × rows of equal modules separated by gutters,
+ *  each child occupying a cell SPAN (col, row, colSpan, rowSpan). Spans are
+ *  given per child in declaration order, and children beyond the span list
+ *  auto-flow one cell each, left→right then top→bottom. Children are SIZED
+ *  to their span rather than to their content. Pair with BaselineGrid
+ *  inside text cells to put the type on a shared vertical rhythm.
+ *
+ *  TWO SHARP EDGES, both silent:
+ *
+ *  - Auto-flow counts from cell 0, not from the end of the explicit spans.
+ *    Give spans for the first three children of eight and the fourth child
+ *    starts again at (0, 0), landing on top of whatever was explicitly
+ *    placed there. Either span every child or span none of them.
+ *  - `col` and `row` are NOT clamped to the grid. A value at or past
+ *    `columns`/`rows`, or a negative one, places the child outside the
+ *    container, where it is drawn or clipped according to the parent's own
+ *    settings rather than reported as an error. */
 struct ModularGrid {
   int columns = 4;
   int rows = 6;
@@ -154,13 +189,14 @@ struct ModularGrid {
   }
 };
 
-/** The ATLUS diagonal (REFERENCES.md §1): children stack downward while
- *  marching along the slanted axis — each child's x tracks the same shear
- *  line skewX(skewDeg) leans its verticals to, so a column of skewed cards
- *  reads as ONE oblique battery, not a staircase of accidents. Negative
- *  skewDeg (the P3R ≈ −12°) marches rows leftward as they descend; the
- *  whole run is normalized so nothing lands at negative x. Pair with
- *  `.skewX(skewDeg)` on the children themselves. */
+/** The sheared stack: children stack downward while marching along a
+ *  slanted axis. Each child's x tracks the same shear line that
+ *  `skewX(skewDeg)` leans a node's verticals to, so a column of skewed
+ *  cards reads as one oblique block rather than a staircase. Negative
+ *  skewDeg marches rows leftward as they descend; the whole run is
+ *  normalized so nothing lands at negative x. Pair with `.skewX(skewDeg)`
+ *  on the children themselves, or the boxes stay upright while their
+ *  positions slant. */
 struct Diagonal {
   float skewDeg = -12.0f;
   float gap = 8.0f;
@@ -195,32 +231,15 @@ struct Diagonal {
   }
 };
 
-/* `StickerSlot` / `stickerScatter` lived here and are DELETED.
- *
- * They are the corpus's worked example of the wrong abstraction, and the
- * record is worth more than the code was. The generator encoded one
- * reference plate's scatter — decaying rotations with the last item
- * flipped positive, x-jitter, overlapping pitch, shuffled z — as six
- * parameters. It had ZERO users. The one scene that wants a sticker
- * ladder refused it in writing and kept its hand-authored
- * {-25,-15,-20,-15,...,+8}, because the value of that ladder is that
- * somebody CHOSE it; a generator that produces ladders "in that family"
- * produces the one thing the design is not. Its own doc comment conceded
- * as much, and shipped anyway.
- *
- * The general rule it earns: a scheme belongs here when the placement is
- * a FUNCTION the author would otherwise write out (a radial ring, a
- * modular grid, a baseline rhythm), and does not when the placement IS
- * the design decision. See ROADMAP.md and archive/EXTRACT.md. */
-
 struct BaselineGrid {
-  /** The editorial baseline rhythm (Müller-Brockmann): children stack
-   *  vertically at x = 0, and each is shifted DOWN so its anchor — the
-   *  first TEXT baseline when the child has one, its bottom edge otherwise
-   *  — lands exactly on the next grid line (multiples of `rhythm`, phased
-   *  by `offset`). A deterministic post-Yoga quantization: mixed type sizes
-   *  share one vertical rhythm, images/rules bottom-align to it, and the
-   *  result is cache-stable like any other layout. */
+  /** The editorial baseline rhythm: children stack vertically at x = 0,
+   *  and each is shifted DOWN so its anchor — the first TEXT baseline when
+   *  the child has one, its bottom edge otherwise — lands exactly on the
+   *  next grid line (multiples of `rhythm`, phased by `offset`). A
+   *  deterministic quantization applied after Yoga has measured: mixed type
+   *  sizes share one vertical rhythm, images and rules bottom-align to it,
+   *  and the placement is a pure function of the sizes, so the node caches
+   *  like any other static layout. */
   float rhythm = 24.0f;
   float offset = 0.0f; // grid phase
   float gap = 0.0f;    // extra space between children before snapping

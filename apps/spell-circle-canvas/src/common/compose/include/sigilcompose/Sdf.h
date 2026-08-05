@@ -1,39 +1,39 @@
 #pragma once
 
 /** @file
- * SigilCompose SDF materials — shape + border + glow + soft shadow in ONE
- * shader pass (REVIEW.md §4.3; Inigo Quilez's 2D SDF operators). An
+ * SigilCompose SDF materials — shape, border, glow and soft shadow in ONE
+ * shader pass, over Inigo Quilez's 2D signed-distance operators. An
  * extension over the public Material API: `sdf::material(shape, style)`
- * returns an ordinary Material for `.fill()`, so it caches, prunes, and
- * animates by the kernel's standard rules:
+ * returns an ordinary Material for `.fill()`, so it caches, prunes and
+ * animates by the library's standard rules:
  *
- *  - the effect reads `uResolution`, so the material is GEOMETRY-DEPENDENT:
- *    it resolves when its node records, stays picture-cached between
- *    layouts, and re-records on size change — static SDF chrome costs one
- *    recording, not per-frame paint;
- *  - every style parameter is a named uniform — bind one to a ch::Output
- *    (`.uniform("uBorderW", &width)` / `"uGlowR"` / `"uP0"`…) and the
- *    material goes live: ALIVE borders and breathing glows are bound
- *    scalars, not repaint loops;
- *  - ONE compiled effect per shape KIND (parameters are uniforms), so a
- *    thousand differently-styled cells share three shaders total — no
- *    permutation explosion (the UE material lesson).
+ *  - the effect reads `uResolution`, so the material is GEOMETRY-DEPENDENT.
+ *    It resolves when its node records, stays picture-cached between
+ *    layouts, and re-records on a size change — static SDF chrome costs
+ *    one recording rather than per-frame paint;
+ *  - every style parameter is a named uniform, so binding one to a
+ *    ch::Output (`.uniform("uBorderW", &width)`, `"uGlowR"`, `"uP0"`…)
+ *    makes the material live. A pulsing border or a breathing glow is a
+ *    bound scalar, not a repaint loop;
+ *  - ONE compiled effect per shape KIND — the parameters are uniforms — so
+ *    however many differently-styled nodes there are, this file compiles
+ *    three shaders and no more.
  *
- * Distances are computed in aspect-corrected PIXEL space (never UV), so
- * borders stay even on stretched nodes — the verified SDF pitfall. Sharp
- * star tips at very small sizes want MSDF (median-of-3); this analytic
- * evaluation is exact at any zoom and needs no atlas.
+ * Distances are computed in aspect-corrected PIXEL space, never UV, so
+ * borders stay even on a stretched node. The evaluation is analytic and
+ * therefore exact at any zoom, with no glyph atlas; very small sharp star
+ * tips are the case where an MSDF atlas would still do better.
  *
  * Known tradeoff: the anti-alias half-width is 0.75 LOCAL px, so a
- * recording replayed under a scaled host softens edges slightly (the
- * kernel's recordings are best-effort on host scale by contract).
- * Declaring uContentScale would track zoom exactly but makes a material
- * LIVE (per-frame paint) — this header deliberately chooses cacheability;
- * re-records on layout change re-crisp the edges.
+ * recording replayed under a scaled host softens edges slightly. Declaring
+ * a content-scale uniform would track zoom exactly, at the price of making
+ * every material LIVE and painting per frame; this header chooses
+ * cacheability, and a re-record on the next layout change re-crisps the
+ * edges.
  *
- * The SDF paints the node's LOOK; hit-testing and clipping still use the
- * node's geometry — pair with `.shape(shapes::star(...))` when hits/clips
- * should match the silhouette.
+ * The SDF paints the node's LOOK only. Hit-testing and clipping still use
+ * the node's own geometry, so pair it with `.shape(shapes::star(...))`
+ * when hits and clips should match the silhouette.
  */
 
 #include "sigilcompose/Material.h"
@@ -56,12 +56,12 @@ inline Shape circle();
 inline Shape star(int points, float pointiness);
 inline Material material(const Shape &shape, const Style &style);
 
-/** A silhouette, sized by the node's box (minus the style's reserved pad).
- *  Built through the factories below — the per-kind parameters are the
- *  shader's uP0..uP2 slots, which mean something different in each kind
- *  and are only valid as the factory packs them (star's `pointiness` is
- *  clamped into [2, points]; a raw triple is not a shape). The factories
- *  were already the only spelling in the corpus (audit M7). */
+/** A silhouette, sized by the node's box minus the style's reserved pad.
+ *  Built only through the factories below: the per-kind parameters are the
+ *  shader's uP0..uP2 slots, they mean something different in each kind,
+ *  and they are valid only as the factory packs them — star's `pointiness`
+ *  is clamped into [2, points], so a raw triple is not a shape. Hence the
+ *  private fields and the friend list. */
 struct Shape {
 private:
   Kind kind = Kind::RoundBox;
@@ -91,9 +91,8 @@ inline Shape circle() {
   return s;
 }
 
-/** N-pointed star (IQ sdStar). `pointiness` is IQ's m ∈ [2, points]:
- *  m = points is the regular polygon, values toward 2 sharpen the arms —
- *  the multi-pointed chaotic-star primitive, exact at any zoom. */
+/** N-pointed star. `pointiness` is m ∈ [2, points]: m = points is the
+ *  regular polygon, and values toward 2 sharpen the arms. */
 inline Shape star(int points, float pointiness) {
   const float n = (float)std::max(points, 3);
   Shape s;
@@ -226,13 +225,17 @@ inline const sk_sp<SkRuntimeEffect> &effectFor(Kind kind) {
 
 } // namespace detail
 
-/** The pad the style reserves inside the node's box (border half-width +
- *  glow/shadow reach). PUBLIC so callers can size a node by its VISIBLE
- *  silhouette: box dimension = visible diameter + 2·sdf::pad(style)
- *  (the poe-study ask — never hand-copy the formula). Note: pad affects
- *  LAYOUT RESERVE only, never the rendered glow's falloff — the visible
- *  spread is governed by exp(-d/glowRadius); a bigger pad just guarantees
- *  the box never crops it. */
+/** The pad the style reserves inside the node's box: border half-width
+ *  plus glow and shadow reach. Public so callers can size a node by its
+ *  VISIBLE silhouette — box dimension = visible diameter + 2·sdf::pad(
+ *  style) — rather than restating the formula at a call site that then
+ *  drifts from this one.
+ *
+ *  PAD IS LAYOUT RESERVE, NOT APPEARANCE. It never changes the rendered
+ *  glow's falloff, which is governed by exp(-d/glowRadius); a larger pad
+ *  only guarantees the box does not crop it. Shrinking the pad does not
+ *  tighten a glow, and growing the box without growing the content shrinks
+ *  the visible interior to nothing — see `minBoxFor()`. */
 inline float pad(const Style &style) {
   const float glowPad = style.glowRadius > 0 ? style.glowRadius * 3.2f : 0.0f;
   const float shadowPad =
@@ -245,17 +248,24 @@ inline float pad(const Style &style) {
 }
 
 /** The box dimension that leaves @p contentPx of VISIBLE interior after
- *  the style's pad on both sides — size nodes with this instead of
- *  discovering that a 20px box with a 5px glow has zero interior (the
- *  transit study's invisible stations). */
+ *  the style's pad on both sides. Size nodes with this: the pad is taken
+ *  out of the box, so a box that is not big enough for it has no visible
+ *  interior at all and the node renders as nothing but its outer
+ *  treatments — a 20 px box with a 5 px glow is already there. */
 inline float minBoxFor(const Style &style, float contentPx) {
   return contentPx + 2.0f * pad(style);
 }
 
-/** The SDF material: shape + style, one shader pass. The style's outer
+/** The SDF material: shape plus style, one shader pass. The style's outer
  *  treatments (border half-width, glow falloff, shadow reach) reserve a pad
  *  inside the node's box so nothing clips; bindable uniforms animate within
- *  that reserve (bind a glow up to the style's glowRadius, not past it). */
+ *  that reserve, so bind a glow up to the style's glowRadius and not past
+ *  it — the pad was computed from the style, and a bound value that
+ *  exceeds it clips.
+ *
+ *  Returns an EMPTY material if the shader failed to compile (the error is
+ *  logged once when the effect is first built). An empty material paints
+ *  nothing, so a node whose only fill is this one disappears. */
 inline Material material(const Shape &shape, const Style &style) {
   const sk_sp<SkRuntimeEffect> &fx = detail::effectFor(shape.kind);
   if (!fx)

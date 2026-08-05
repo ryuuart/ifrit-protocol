@@ -38,12 +38,12 @@
 //     resources/assets/astralsorcery/lang/en_US.lang
 //
 // -----------------------------------------------------------------------------
-// FIVE CORRECTIONS TO MY OWN BRIEF, ALL FROM THE CODE
+// FIVE THINGS THE SOURCE SETTLES
 //
-//  1. THE CHART IS NOT STRETCHED. THE CELL IS.  The brief's headline finding
-//     was that a 31x31 square star grid goes into an 80x110 cell and every
-//     constellation on this page is therefore squeezed 1.375x vertically. It
-//     is not. GuiJournalConstellationCluster:238 reads
+//  1. THE CHART IS NOT STRETCHED. THE CELL IS.  The natural reading is that a
+//     31x31 square star grid drawn into an 80x110 cell squeezes every
+//     constellation on this page 1.375x vertically. It does not.
+//     GuiJournalConstellationCluster:238 reads
 //
 //         RenderConstellation.renderConstellationIntoGUI(display,
 //                 0, 0, 0,
@@ -56,12 +56,12 @@
 //     The detail page (GuiJournalConstellationDetails:566) renders 150 x 150,
 //     also square. NOTHING in this mod stretches a constellation.
 //
-//     What IS true, and is the better finding, is that THE CHART OVERFLOWS ITS
-//     OWN CELL. 95 > 80, so a chart whose stars reach grid x = 27 lands at
+//     What IS true is that THE CHART OVERFLOWS ITS OWN CELL. 95 > 80, so a
+//     chart whose stars reach grid x = 27 lands at
 //     GUI x = 82.7 + one ulength of quad = 85.8, five px past the 80-wide hit
 //     box that decides whether you clicked it. The four cells are pitched 80
-//     apart with 95-wide charts in them: they interleave by 15 px on top of
-//     the zero gutter the brief expected. Both are drawn here — the cell plate
+//     apart with 95-wide charts in them: they interleave by 15 px, with no
+//     gutter between neighbours at all. Both are drawn here — the cell plate
 //     is the 80 x 110 hit box, the chart is the 95 x 95 render, and the
 //     difference is visible as furniture rather than asserted in a caption.
 //
@@ -72,13 +72,13 @@
 //     sits 7.5 GUI px (22.5 canvas px) LEFT of the chart above it. Same
 //     constant, same class, second consequence.
 //
-//  3. THE PIVOT BUG IS REAL AND IT IS WORSE THAN THE BRIEF SAID.  :222 is
+//  3. THE HOVER PIVOT IS WRONG ON BOTH AXES.  :222 is
 //         GlStateManager.translate(offsetX + (width / 2), offsetY + (width / 2), …)
 //     — width/2 on BOTH axes. Against the 110-tall hit box that is 15 px above
-//     centre, which is the brief's reading; against the 95 x 95 chart actually
-//     being scaled it is 7.5 px above AND 7.5 px left of centre. So a hovered
-//     chart grows down and to the RIGHT, not just down. Shipped, un-fixed, at
-//     the source's own 1.1 scale (:225 — the brief said 1.05).
+//     centre; against the 95 x 95 chart actually being scaled it is 7.5 px
+//     above AND 7.5 px left of centre. So a hovered chart grows down and to
+//     the RIGHT, not just down. It ships that way, at the source's own 1.1
+//     hover scale (:225).
 //
 //  4. IT IS NOT ADDITIVE.  The double pass is real — renderConstellationIntoGUI
 //     :243 is `for (int j = 0; j < 2; j++)` around the whole connection set —
@@ -104,8 +104,8 @@
 //     and never drawn. So "major tier page 1" is a screen state the 1.12.2
 //     build cannot produce; page 1 is simply the first four you have seen,
 //     which on a full save is discidia / armara / vicio / aevitas because that
-//     is registration order (RegistryConstellations:296-350). The brief's four
-//     survive; its reason does not. Sixteen seen at four to a page is FOUR
+//     is registration order (RegistryConstellations:296-350).
+//     Sixteen seen at four to a page is FOUR
 //     pages, so this is page 1 of 4 and page 2 opens with evorsio — which is
 //     why the "next" arrow is drawn (:173, `size() >= nextIndex + 1`) and
 //     "prev" is not (:151, `cIndex > 0`). Both are on the canvas, and the
@@ -154,15 +154,16 @@
 // consumed in draw order: 2*C connection calls (pass 0 then pass 1), then S
 // star calls. Periods are 2*pi*d ticks at 20 Hz = 3.77 s (d=12) to 6.60 s
 // (d=21). Only TEN divisors exist, so this canvas needs exactly TEN live
-// Outputs to twinkle 31 stars and 62 connection passes — which is the perf
-// story below, and it is the source's structure, not a shortcut.
+// Outputs to twinkle 31 stars and 62 connection passes — that is the source's
+// own structure, not a shortcut, and it is what the binding layout below
+// follows.
 //
 // -----------------------------------------------------------------------------
 // LINE VOCABULARY — read off the sprite, not invented
 //
-// The brief called Astral Sorcery's connection "a flat constant-width quad
-// drawn twice" and sent me to the Bayer/Bode engraved register for something
-// better. Half of that turned out to be unnecessary: connectionperks.png is
+// A connection looks like a flat constant-width quad drawn twice, which would
+// invite borrowing the engraved register of a Bayer or Bode star atlas to give
+// it any structure. It does not need borrowing: connectionperks.png is
 // 64 x 64, white, and its ALPHA is a vertical profile —
 //
 //   v      0    8   16   24   28   30   32   34   36   44   52   60   63
@@ -177,8 +178,8 @@
 // What IS the departure, and is labelled as such on the plate:
 //   * two DOTTED FLANK RAILS at +/-7.5 px, one phase-shifted half a period
 //     against the other, so the two rows of dots interleave down the link.
-//     Per-rail offset, width, fill, dash AND dashPhase in one value — the
-//     whole point of Rails and the reason nothing before it could do this.
+//     Per-rail offset, width, fill, dash AND dashPhase in one value, which is
+//     the whole point of Rails and what no other stroke value can express.
 //   * a brush::Ribbon body under the rails whose width Profile takes the band to
 //     40% at both endpoints, so a link reads as drawn FROM star TO star. The
 //     mod's quad cannot taper; a printed chart always does.
@@ -190,62 +191,39 @@
 //   * the cell plates are spans::corners claims + a gapped Border on the top
 //     edge only (shapes::onEdges(Edge::Top, …)); the mod draws no cell border
 //     at all, so the plate is entirely the study's apparatus and is drawn on
-//     the 80 x 110 HIT box so you can see the chart overflow it. (§33-j
-//     ported the corner marks off the deleted decorations::brackets.)
+//     the 80 x 110 HIT box so you can see the chart overflow it.
 //   * the spread frame is doubleBorder + weightedCorners over a chamfered
 //     inner, and the 31-tick declination ladder runs the key cell's flanks.
 //
 // -----------------------------------------------------------------------------
-// THE ANISOTROPY REPORT — the predicted break, measured, and it is real
-//                          (just not on this artefact)
+// STROKE WIDTH IS MEASURED IN LOCAL SPACE, AND A CHART PAYS FOR THAT
 //
-// The brief predicted brush::Ribbon would compute its normal in the parent's
-// transformed space and horizontal links would come out THINNER than vertical
-// ones under the 1.375x cell. There is no 1.375x cell (correction 1), so the
-// question moved to a scratch probe — eight identical 12 px bands, four plain
-// and four under `.scaleY(1.375f)`, two of each pair Ribbon and two Rails:
+// brush::Ribbon (Brushes.h) samples ctx.outline, takes the normal
+// n = (-tan.y, tan.x), and emits an explicit filled band of vertices. All of
+// that happens in the NODE'S LOCAL SPACE; the element transform is applied to
+// the finished band. So under a non-uniform scale — say scaleY(k):
+//     a HORIZONTAL run has a VERTICAL normal   -> its band comes out k * w
+//     a VERTICAL   run has a HORIZONTAL normal -> its band stays at w
+// It is the NORMAL that is stretched, not the tangent, so horizontal runs come
+// out THICKER. lines::Rails shares the property — offsetAcross and the rail
+// widths are local-space too — so the whole rail vocabulary is anisotropic
+// under a non-uniform parent scale.
 //
-//     run2/probe/ribbon_aniso.{cpp,png}
+// Nothing on this canvas hits it, because the sketch does what the mod does:
+// positions are computed into final space by hand (u = v = 95/31) and every
+// glyph is placed with centerAt() on a computed point, so no element here
+// carries a non-uniform scale. The source has the same reason — Render:259
+// normalises the cross product BEFORE multiplying by linebreadth, which makes
+// that width device-space by construction.
 //
-//   Ribbon::paint (Brushes.h:1041-1088) samples ctx.outline, takes
-//   n = (-tan.y, tan.x) and emits an explicit filled band of vertices. All of
-//   that is in the NODE'S LOCAL SPACE; the element transform is applied to the
-//   finished band. So under scaleY(k):
-//       a HORIZONTAL run has a VERTICAL normal   -> band scales to k * w
-//       a VERTICAL   run has a HORIZONTAL normal -> band stays at w
-//
-//   MEASURED off the probe PNG (longest lit run across the band, k = 1.375,
-//   w = 12):
-//                        plain      scaleY(1.375)
-//       Ribbon  horiz     12 px        17 px        (12 x 1.375 = 16.5 + AA)
-//       Ribbon  vert      12 px        12 px
-//       Rails   horiz     12 px        17 px
-//       Rails   vert      12 px        12 px
-//
-//   So: CONFIRMED as a real behaviour, REFUTED as stated. Horizontal runs come
-//   out THICKER, not thinner — the prediction has the right mechanism and the
-//   wrong sign, because it is the NORMAL that gets stretched, not the tangent.
-//   lines::Rails behaves identically (offsetAcross and the stroke width are both
-//   local-space), so the whole rail vocabulary shares the property.
-//
-// This sketch does not hit it, because it does what the mod does: positions are
-// computed into final space by hand (u = v = 95/31) and every glyph is placed
-// with centerAt() on a computed point, so no element on this canvas carries a
-// non-uniform scale. The source is doing the same thing for the same reason —
-// Render:259 normalises the cross product BEFORE multiplying by linebreadth,
-// which is a device-space width by construction.
-//
-// The natural API, and the gap filed: `Ribbon::widthSpace = Local | Device`
-// (and the same on Rail::width / Line::width), because the moment a chart is
-// placed under a non-uniform scale — which any anisotropic cell does — a
-// stroke vocabulary that measures in local space is measuring the wrong thing,
-// and there is no way to say so short of un-scaling the container and
-// pre-transforming every point yourself. Which is what this sketch does.
-// Skia already has the concept: a hairline is device-space by definition, and
-// SkPaint has no other way to spell it, so the seam belongs at ours.
+// There is no way to ask a stroke for a device-space width, so a chart placed
+// inside an anisotropic cell has to un-scale the container and pre-transform
+// every point itself, which is what this file does. Skia has the same shape of
+// concept and the same limit: a hairline is device-space by definition, and
+// SkPaint can spell nothing else.
 //
 // -----------------------------------------------------------------------------
-// THE PERF STORY — ten Outputs, and a saveLayer the size of a star
+// TEN OUTPUTS, AND A saveLayer THE SIZE OF A STAR
 //
 // 31 stars and 62 connection passes all twinkle independently, which reads like
 // 93 live bindings. It is not, and the reason is in the source: brightness is a
@@ -254,33 +232,28 @@
 // every link pass binds to the one for ITS divisor. The plate, the field, the
 // frame and the marginalia are two Cache::Texture bakes.
 //
-// The first cut then did the obvious thing with those ten Outputs: TWENTY
-// GROUPS — ten full-canvas boxes holding the links, ten holding the stars, one
-// .opacity(bind(&bright[d])) each, static geometry inside picture-caching once
-// and replaying under a live alpha. That is the documented "paint-only
-// volatility keeps the node's own content picture" contract and it is correct.
-// It measured p50 16.51 / p99 18.38 ms — a FAIL — and --bench named the twenty
-// groups as the six worst nodes, ~1.1 ms each, "box 1200x750".
+// WHERE those ten bindings sit is the whole cost of the page:
 //
 //     A BOUND OPACITY IS A saveLayer OVER THE NODE'S BOX.
 //
-// Twenty of them at 1200 x 750 is 18 megapixels of layer allocated, cleared and
-// composited every frame, for content occupying maybe 2% of it. Moving the
-// binding off the groups and onto each primitive's own TIGHT box — the link's
-// segment bbox, the star's 84 px halo square — is the same ten Outputs, the
-// same draw order, the same pixels, and takes the layer budget to about a
-// megapixel:
+// The obvious arrangement is twenty groups — ten full-canvas boxes holding the
+// links, ten holding the stars, one .opacity(bind(&bright[d])) each, static
+// geometry inside picture-caching once and replaying under a live alpha. That
+// is exactly the "paint-only volatility keeps the node's own content picture"
+// contract, and it is correct; it also allocates, clears and composites twenty
+// full-canvas layers every frame for content covering a couple of percent of
+// each. Moving the binding off the groups and onto each primitive's own TIGHT
+// box — the link's segment bbox, the star's halo square — is the same ten
+// Outputs, the same draw order and the same pixels, with the per-frame layer
+// area cut by more than an order of magnitude.
 //
-//     p50 16.51 / p99 18.38 ms   FAIL   20 groups, layer = the canvas
-//     p50  7.57 / p99  7.99 ms   PASS   93 primitives, layer = the sprite
-//
-// The star elements had to be rebuilt for it: `starEl` was an .inset(0) group
-// with centerAt() children, which is a full-canvas box however small its
-// contents are. Grouping by divisor is otherwise safe here for a reason worth
-// stating — within a constellation every link is the same colour and both
-// passes are the same colour, and alpha-over of equal colours is
-// order-independent in coverage (1-(1-a)(1-b) is symmetric) — but grouping is
-// not what pays for itself; box size is.
+// The star elements are built for that: an .inset(0) group with centerAt()
+// children is a FULL-CANVAS box however small its contents are, so starEl()
+// sizes and places its own box instead. Grouping by divisor would otherwise be
+// safe here, for a reason worth stating — within a constellation every link is
+// the same colour and both passes are the same colour, and alpha-over of equal
+// colours is order-independent in coverage, since 1-(1-a)(1-b) is symmetric —
+// but grouping is not what pays for itself; box size is.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -335,8 +308,8 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;  // Cluster:59 — the HIT box
 constexpr float kUlen = kRenderBox / (float)kGrid;   // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;      // Cluster:240
 
-using studio::hex;   // the same four lines as twenty-three other files
-using studio::mul;
+using studio::hex;   // 0xRRGGBB -> SkColor4f
+using studio::mul;   // scale RGB by k, optionally replacing alpha
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
 // Palette, sampled out of the mod's own PNGs (see the header).
@@ -464,19 +437,16 @@ inline int degreeOf(const Con &c, int index1) {
  *  the laws that do sit under a reveal; this one does not need it.)
  *
  *  `max()` is `peak` exactly: sin(pi/2) = 1 at the midpoint, so the law
- *  tops out at 0.40 + 0.60 = 1.0 of it. That is the number the old
- *  `widthMax` had to be told and the seam now derives.
+ *  tops out at 0.40 + 0.60 = 1.0 of it.
  *
- *  THE max(k, 0) IS NOT DEFENSIVE PADDING — it is a bug fix, and the bug
- *  is why this band was INVISIBLE for the sketch's whole life. `3.14159265f`
- *  rounds UP to 3.1415927, so `sin(pi * 1.0f)` is -8.74e-08, NEGATIVE, and
- *  `sqrt` of it is NaN. Every construction samples the law at exactly
+ *  THE max(k, 0) IS LOAD-BEARING, not defensive padding. `3.14159265f`
+ *  rounds UP to 3.1415927, so `sin(pi * 1.0f)` is -8.74e-08 — NEGATIVE —
+ *  and `sqrt` of that is NaN. Every construction samples the law at exactly
  *  along = 1 (the zip walk's last sample is at `d == len`; the rail walk's
- *  is at `k == steps`), so one NaN vertex entered the band path — and a
- *  path with a non-finite point does not draw AT ALL. The bloom and the
- *  body were being silently dropped, leaving only the rails. Found by the
- *  widthFn→Profile port, because the port moved the sample positions and
- *  two links started drawing while the rest did not. */
+ *  is at `k == steps`), so without the clamp one NaN vertex enters the band
+ *  path, and a path with a non-finite point does not draw AT ALL. The
+ *  failure mode is silent: the bloom and the body vanish entirely and only
+ *  the rails remain. */
 struct LinkTaper {
   float peak = 1.0f;
   float across(float along) const {
@@ -633,34 +603,17 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         // same width, same fill, same dash, HALF A PERIOD apart, so the two
         // rows of dots interleave down the link the way a plate's register
         // marks do. Nothing before Rails could spell this.
-        // NOTE the 2.2 px "on" interval. The first cut asked for round DOTS
-        // with .dash = {0.01f, 11.0f} and nothing appeared on the flanks.
-        //
-        // CORRECTED 2026-07-22, AND THE OLD REASON WAS NEVER TRUE. This
-        // comment used to say the OFFSET was the casualty: that a 0.01-long
-        // contour has no usable tangent, so offsetAcross displaced the dashes
-        // by nothing and both flanks drew inside the band. Measured at these
-        // exact numbers — offset +-11.4, width 1.4, centreline y = 100 — the
-        // 0.01 dash lands on y = 88 and y = 111. That IS the full offset, to
-        // the pixel. The shipped 2.2 dash lands on the SAME TWO ROWS, and on a
-        // curve the 0.01 dash puts ink at 68.6 and 91.4 about an apex of 80,
-        // which is again +-11.4. offsetAcross (Lines.h:148) samples getPosTan at
-        // two distances and displaces both along the normal; a 0.01 dash is a
-        // real segment with a well-defined tangent and nothing in that loop
-        // degenerates.
-        //
-        // What changed with the longer dash was INK, not position. A 0.01
-        // contour under a 1.4 px round cap is a disc whose peak coverage never
-        // reaches 1 — measured peak 191 against 2.2's 255, and half the lit
-        // pixels — laid over a band already carrying two brighter rails. It
-        // was FAINT, not displaced. Widening the SAME 0.01 dash to w = 4.0
-        // reaches 255 on those same rows, which isolates the cause.
-        //
-        // So the remedy is more ink: a wider rail, or an "on" interval long
-        // enough to build full coverage. 2.2 px is the latter. This matters
-        // beyond one sketch, because lines::dottedCore ships
-        // .dash = {0.01f, dotGap} as its DEFAULT (Lines.h:1048) — the old
-        // comment was indicting a stock helper for a defect it does not have.
+        // NOTE the 2.2 px "on" interval, and do not shorten it to chase
+        // rounder dots. A near-zero dash such as {0.01f, 11.0f} is placed
+        // CORRECTLY — offsetAcross samples getPosTan at two distances and
+        // displaces both along the normal, and a 0.01-long segment still has
+        // a well-defined tangent — but it carries almost no ink: under a
+        // 1.4 px round cap its peak coverage never reaches 1, and here it
+        // lands over a band already carrying two brighter rails, so it simply
+        // disappears. The remedy is more ink, either a wider rail or an "on"
+        // interval long enough to build full coverage; 2.2 px is the latter.
+        // Worth knowing when reading lines::dottedCore, whose default dash is
+        // exactly that near-zero kind.
         {.across = -half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),
@@ -718,11 +671,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
     const float side = r * 3.4f;
 
-    // A TIGHT box. The first cut of this hung every star off a full-canvas
-    // group and let a shared .opacity() carry the twinkle; a bound opacity is
-    // a saveLayer over the node's box, so twenty of those was twenty
-    // 1200x750 layers a frame and 18.4 ms of an 16.6 ms budget. The layer has
-    // to be the size of the thing that twinkles. See the perf story.
+    // A TIGHT box, and it must stay one. The twinkle rides an .opacity()
+    // binding, a bound opacity is a saveLayer over the node's box, and this
+    // page has ninety-odd of them. Hanging the stars off a shared full-canvas
+    // group instead would allocate a canvas-sized layer per group per frame;
+    // the layer has to be the size of the thing that twinkles.
     Element grp = box()
                       .width(side)
                       .height(side)
@@ -759,11 +712,9 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  precisely so the 95-wide chart can be seen overflowing it. */
   Element cellPlate(int i, bool key) const {
     const SkPoint o = at::kOffsets[(size_t)i];
-    // §33-j (2026-08-04): decorations::brackets is DELETED; the corner
-    // marks are the grammar's spelling now — a span claim on the plate's
-    // real boundary. The top-edge rule keeps shapes::onEdges (a spans::
-    // family has no box-edge vocabulary), over the surviving Border value
-    // the deleted factory built — byte-identical construction.
+    // The corner marks are a span claim on the plate's own boundary. The
+    // top-edge rule cannot be spelled that way — the spans:: family has no
+    // box-edge vocabulary — so it stays a Border under shapes::onEdges.
     Element e = box()
                     .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), at::g(at::kCellW), at::g(at::kCellH)))
                     .key(std::string("cell") + std::to_string(i))
@@ -892,12 +843,9 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       const auto &s = c.stars[(size_t)(si - 1)];
       const std::string t = std::to_string(s.first) + "," + std::to_string(s.second);
       // SCRIMMED, like every other annotation that has to sit on the field.
-      // These went out plain and the plate's own rule caught up with them: a
-      // coordinate is pinned +9,-15 from its star, which is exactly where an
-      // edge leaving up-and-right goes, so DISCIDIA's "3,6" and "23,27" each
-      // had a 12 px link through their x-height. scrimLabel() is this file's
-      // answer to that and was already carrying "pivot 40,40" and
-      // "centre 47.5"; the coordinates just never got it.
+      // A coordinate is pinned +9,-16 from its star, which is exactly where
+      // an edge leaving up-and-right goes, so without the sill a link runs
+      // straight through the x-height of the label it belongs to.
       g2.child(scrimLabel(t, at::gx(o.fX) + p.fX + 9.0f,
                           at::gy(o.fY) + p.fY - 16.0f, 10.0f,
                           at::mul(at::hex(c.color), 1.25f, 0.86f), 0.6f));
@@ -1052,7 +1000,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(x, y, w, h))
                 .key("sprof")
-                // §33-j: the grammar's corner claim (was decorations::brackets)
                 .stroke(spans::corners(12.0f), brush::solid(1.0f, Fill::color(dim)))
                 .background(at::prog([=](SkCanvas &c, const PaintContext &) {
                   SkPaint band;
@@ -1113,7 +1060,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       m.child(box()
                   .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k, at::kCellW * k, at::kCellH * k))
                   .key(std::string("ok") + std::to_string(i))
-                  // §33-j: the grammar's corner claim
                   .stroke(spans::corners(9.0f),
                           brush::solid(0.9f,
                                        Fill::color(at::hex(
@@ -1196,11 +1142,9 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(at::gx(15) + 5, 5, at::g(at::kGuiW - 30) - 10, at::kCanvasH - 10))
                 .key("plateframe")
                 .shape(shapes::chamfered(26.0f, shapes::Corner::All))
-                // §33-j: doubleBorder's inner rule keeps the surviving
-                // Border value the deleted gappedRule factory built (a
-                // LayerStyle slot takes decorations, not span passes, and
-                // the 7 px inset has no stroke-pass spelling) —
-                // byte-identical construction.
+                // The inner rule is a Border rather than a span pass: a
+                // LayerStyle slot takes decorations, not stroke passes, and
+                // an inset rule has no stroke-pass spelling.
                 .style(decorations::doubleBorder(
                     decorations::weightedCorners(
                         1.0f, 3.2f, Fill::color(at::mul(at::kGilt, 1.0f, 0.55f)),
@@ -1291,9 +1235,8 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(at::gx(15), 0, at::g(at::kGuiW - 30), at::kCanvasH))
                 .key("reg")
-                // §33-j: registration marks keep the surviving Border value
-                // (the 4 px inset has no stroke-pass spelling) —
-                // byte-identical construction.
+                // A Border again, for the inset: a stroke pass rides the
+                // node's own outline and cannot be pulled in 4 px.
                 .foreground(Border{.width = 1.4f,
                                    .fill = Fill::color(
                                        at::mul(at::kGilt, 1.0f, 0.4f)),
@@ -1353,9 +1296,9 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // THE TWINKLE. Ten divisors is the whole of it (12 + rand.nextInt(10)),
     // so ten ch::Output<float> drive 31 stars and 62 connection passes — but
     // the BINDING goes on each primitive's own tight box, not on ten shared
-    // full-canvas groups. A bound opacity is a saveLayer over the node's box;
-    // grouping put twenty 1200x750 layers in every frame and cost 18.4 ms.
-    // Same ten Outputs, same draw order, layers the size of a star.
+    // full-canvas groups. A bound opacity is a saveLayer over the node's box,
+    // so grouping would put twenty canvas-sized layers in every frame for the
+    // same ten Outputs, the same draw order and the same pixels.
     // The draw-on: each chart is its own container so staggerChildren can
     // cascade the four in offsetMap order — the zig-zag reveals as a zig-zag —
     // and the links inside a chart cascade again at 25 ms. Containers with no

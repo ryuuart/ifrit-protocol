@@ -75,7 +75,13 @@ private:
   /** Runs on this object's thread: verifies and emits one datagram. */
   void deliverDatagram(const QString &source, const QByteArray &payload);
   /** Returns the platform-specific persistent configuration path. */
+  /** The per-user config path. Writable and reinstall-safe, unlike a path
+   *  beside the executable, which on macOS sits inside the .app bundle. */
   static QString configFilePath();
+  /** The old beside-the-executable path, read by load() only when the
+   *  per-user file does not exist yet — settings migrate on the next
+   *  save(). */
+  static QString legacyConfigFilePath();
   void setListening(bool listening);
   void setStatusText(const QString &statusText);
 

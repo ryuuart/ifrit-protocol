@@ -6,7 +6,7 @@
 // (upper beam) and the kamoi (door-track beam) of a room, lit from the far
 // side.
 //
-// REFERENCES (from the research brief; every number below is theirs)
+// REFERENCES (every dimension and angle below comes from one of these)
 //  - japanese-modern.co.jp/en/column/kumiko-zaiku — the two-tier taxonomy:
 //    kumiko-zaiku = JIGUMI (base framework) + HA ("leaves", the nested
 //    decorative infill). Asuka period origin (~600–700 CE, Buddhist temple
@@ -42,22 +42,23 @@
 //     * the arm from a 45° corner therefore leaves at atan(r/(s−r)) =
 //       atan(√2−1) = 22.5° — and its partner in the other half at 67.5°;
 //     * the diagonal bisects what is left, so each 90° corner is divided
-//       22.5 + 45 + 22.5 = 90 — the brief's "three-way bisection", i.e. why
-//       only three jigs exist;
+//       22.5 + 45 + 22.5 = 90 — the three-way bisection, i.e. why only
+//       three jigs exist;
 //     * 1 diagonal + 2 arms off the right-angle corners + 4 arms off the 45°
 //       corners = 7 pieces per cell, the documented count.
 //   Cut angles fall out of the same geometry: a 22.5° arm seats against the
 //   jigumi face it is shallow to, so its end face is cut 67.5° off its own
-//   axis, and the 67.5° arm's is cut 22.5° — the brief's filler cuts. The
-//   arms off the 90° corners run down the corner bisector, so they are cut
-//   45°/45° — the brief's locking cuts. (The brief attaches those two labels
-//   to the opposite counts; the geometry, angles and piece total are as
-//   documented, the naming here follows the cuts.)
+//   axis, and the 67.5° arm's is cut 22.5°. The arms off the 90° corners run
+//   down the corner bisector, so they are cut 45°/45°.
+//   The role names here follow the sources' cutting ORDER — 1 diagonal, then
+//   2 "fillers", then 4 "locking pieces" — so kRoleFiller is the pair off the
+//   right-angle corners and kRoleLock the four off the 45° corners. Read the
+//   cut angles off the geometry above, not off those two names.
 //
 //   Diagonals alternate direction on a checkerboard of (col+row) parity, which
 //   is what puts a 4-fold rotation centre on every jigumi vertex — wallpaper
-//   group p4m, as the brief specifies. The visible consequence: alternating
-//   16-ray and 8-ray stars, every ray a multiple of 22.5°.
+//   group p4m. The visible consequence: alternating 16-ray and 8-ray stars,
+//   every ray a multiple of 22.5°.
 //
 // EVERY PIECE IS A BOARD, NOT A LINE: each strip is an element with a mitred
 // quad outline(), an SkSL timber material (cross-section shading + longitudinal
@@ -66,7 +67,7 @@
 // the tenon nubs where the jigumi seats into the register are generated from
 // the crossing/termination graph and fade in on the seating beat.
 //
-// MOTION is the documented assembly order (frame → register → jigumi verticals
+// MOTION is the real assembly order (frame → register → jigumi verticals
 // → jigumi horizontals → per-cell diagonal → fillers → locking pieces →
 // joint-seating → the far room's lamp), driven off one clock through per-piece
 // delays computed from (role, row, col). The build runs 0 → 3.4 s and holds to
@@ -75,9 +76,9 @@
 //
 // COUNTS at the shipped pitch: 60 cells × 7 ha = 420 leaf pieces, 11 + 7
 // jigumi members, 36 register pieces, 4 mitred frame members, 36 tenon heads
-// = 514 boards, plus 113 half-lap seam marks derived from the crossing graph.
+// = 514 boards, plus the half-lap seam marks derived from the crossing graph.
 // Each board is a real element with its own material, bevel, keyline and pair
-// of bound Outputs; the whole panel draws in ~0.3 ms.
+// of bound Outputs.
 //
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/kumiko_asanoha.cpp \
@@ -107,14 +108,14 @@ using namespace std::chrono_literals;
 namespace {
 
 // ---------------------------------------------------------------------------
-// Palette (brief §4 — wood-tone matches, not a colorimeter reading)
+// Palette — wood-tone matches by eye, not a colorimeter reading
 
 constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
   return {(float)((hex >> 16) & 0xff) / 255.0f,
           (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
 }
 
-// The brief's hinoki #E9D3A0 is the colour of the stock in daylight. This
+// Hinoki #E9D3A0 is the colour of the stock in daylight. This
 // panel is BACKLIT: the wood faces away from the lamp, so the body sits a
 // couple of stops under it and only the arris reaches the daylight value —
 // otherwise cream wood and cream light have no separation and the fretwork
@@ -131,7 +132,7 @@ const SkColor4f kSeam = rgb(0x4A3620, 0.55f);
 const SkColor4f kCaption = rgb(0xD8C9A8, 0.60f);
 
 // ---------------------------------------------------------------------------
-// Composition (brief §7). The field is FIXED; the pitch is the free constant —
+// Composition. The field is FIXED; the pitch is the free constant —
 // change kCell alone and cols/rows re-derive, so the lattice just gets denser.
 
 constexpr float kW = 1400, kH = 1000;
@@ -153,13 +154,16 @@ constexpr float kBorder = 45;     // kumiko-buchi frame
 const SkRect kRegOuter = kField.makeOutset(kBand, kBand);
 const SkRect kFrameOuter = kRegOuter.makeOutset(kBorder, kBorder);
 
-// Stock face widths (12.7 mm deep × 3.2 mm face; 3.2/22 ≈ 0.145 of pitch).
+// Stock face widths, as fractions of the pitch so they re-derive with kCell.
+// Real stock is 12.7 mm deep × 3.2 mm face, which on a 22 mm pitch is ≈0.145;
+// the jigumi here is drawn a little under that and the ha narrower again,
+// because the infill is thinner stock than the framework it seats into.
 const float kJigumiW = std::max(6.0f, 0.125f * kCell);
 const float kHaW = std::max(5.0f, 0.096f * kCell);
 const float kRegW = kJigumiW * 0.80f;
 
 // ---------------------------------------------------------------------------
-// Timeline (brief §9). One clock, per-piece delays computed from role/row/col.
+// Timeline. One clock, per-piece delays computed from role/row/col.
 
 constexpr double kPeriod = 6.4;
 constexpr double kTFrame = 0.00, kDFrame = 0.55;
@@ -235,8 +239,9 @@ sk_sp<SkRuntimeEffect> timberEffect() {
 // value) so a soft-light pass reads as light on the timber rather than as a
 // hue shift. This is `patterns::grain()` with its fBm loop UNROLLED — the
 // stock generator's `for (int o = 0; o < 8; ++o) { if (o >= uOctaves) break; }`
-// segfaults the raster paint the moment its material is drawn; three explicit
-// octaves are the same field and survive. (Reported; see LIBRARY GAPS.)
+// segfaults the raster paint the moment its material is drawn. Three explicit
+// octaves are the same field and survive, so do not "simplify" this back into
+// a loop until the generator itself is fixed.
 sk_sp<SkRuntimeEffect> toothEffect() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
@@ -296,9 +301,10 @@ const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.38f};
 const Timber kKeyakiShade{rgb(0x33200F), rgb(0x54341B), rgb(0x140C05), 0.045f,
                           0.42f};
 
-// Materials are held (the Pattern/Material identity contract) and shared by
-// (timber, span, flip, seed-bucket) so hundreds of pieces cost ~a hundred
-// shaders, not one each.
+// Materials are held so their identity is stable across re-describes, and
+// shared by (timber, span, flip, seed-bucket): the seed is bucketed to 24
+// values, so a panel of hundreds of boards compiles a bounded number of
+// shaders rather than one per board.
 class TimberBank {
 public:
   Material get(const Timber &t, float span, bool flip, uint32_t seed,
@@ -388,7 +394,7 @@ struct Panel {
     float w;
   };
   std::vector<Seam> seams;
-  std::vector<Strip> nubs; // §10 terminations into the register groove
+  std::vector<Strip> nubs; // terminations seating into the register groove
 
   uint32_t seedCounter = 1;
 
@@ -474,8 +480,8 @@ struct Panel {
   }
 
   // --- the structural jigumi, running the whole opening -------------------
-  // Brief §10: never a strip sliced mid-length. Every jigumi member runs
-  // groove to groove and carries a tenon head where it seats.
+  // In real work a jigumi member is never a strip sliced mid-length: every
+  // one runs groove to groove and carries a tenon head where it seats.
   void buildJigumi() {
     const SkRect &o = kRegOuter;
     for (int i = 0; i <= kCols; ++i) {
@@ -495,7 +501,7 @@ struct Panel {
   }
 
   // A tenon head so a terminated strip reads as SEATED into a milled groove
-  // rather than sliced by a rectangle (brief §10) — one per termination.
+  // rather than sliced off by a rectangle — one per termination.
   void addNub(SkPoint at, SkVector along) {
     const SkVector n = perp(norm(along));
     const float half = kJigumiW * 0.80f;
@@ -743,42 +749,41 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
     add(group, kRoleJigumiH);
     add(group, kRoleJigumiV);
     add(group, kRoleRegister);
-    // ONE LINE, and it is the whole perf story of this study — so the
-    // investigation that produced it stays.
+    // ONE LINE, and it is what makes a lattice of this size affordable, so
+    // the reasoning behind it stays.
     //
-    // kumiko was the study slow on BOTH backends (189 ms CPU / 112 ms GPU).
-    // Each strip is a wood-grain SkSL fill plus a BevelEmboss, every strip is
-    // ROTATED to its jig angle, and every strip carries a bound opacity and
-    // scale for the entrance. That binding is what made it uncacheable: the
-    // strips are Volatile forever — the Output never disconnects — so nothing
-    // in the library would hold pixels for them, and a picture replay re-runs
-    // every shader over every pixel, every frame.
+    // Every strip is a wood-grain SkSL fill plus a BevelEmboss, rotated to
+    // its own jig angle, carrying a bound opacity and a bound scale for the
+    // entrance. Those bindings keep each strip volatile forever — the Output
+    // never disconnects — so no per-node cache will ever hold pixels for it,
+    // and replaying the picture re-runs every shader over every pixel on
+    // every frame.
     //
-    // Three sketch-level bakes were tried and none was both correct and
-    // effective. (a) Per-strip .cache(Cache::Texture) BAKES but is not
-    // pixel-safe: a bake ISOLATES, so each bevel arris and the compositing
-    // where strips abut resolve differently baked-than-live — 34% of pixels
-    // moved, peak 0.57. (b) A container-level .cache(Cache::Texture) here is
-    // a NO-OP (0 bakes: Texture bakes a node's OWN paint and a fill-less
-    // container has none); a transparent fill and .effect(Effect{}) to force
-    // a stacking context both still gave 0 bakes. (c) Making the strips
-    // static drops CPU only to ~30 ms, shifts 4% of settled pixels, and
-    // loses the staggered assembly, which is the study.
+    // Two narrower bakes do NOT work here, and both are worth knowing about
+    // before trying them again:
+    //   * Per-strip .cache(Cache::Texture) does bake, but a bake ISOLATES.
+    //     Each bevel arris, and the compositing where two strips abut,
+    //     resolves differently baked than live, so the panel visibly changes.
+    //   * A container-level .cache(Cache::Texture) on this box is a no-op:
+    //     Texture bakes a node's OWN paint, and a fill-less container has
+    //     none. Giving it a transparent fill or forcing a stacking context
+    //     does not change that.
     //
-    // `Cache::Group` is (a) done at the right granularity. The whole lattice
-    // composites ONCE into one unrotated device-space layer — the rotations,
-    // the arrises and the abutments all resolve inside that bake at full
-    // precision — and the layer is held only while every bound opacity and
-    // scale below it is holding the value it held last frame. The entrance
-    // plays live, exactly as before; the settled panel is one blit.
+    // Cache::Group is the same idea at the right granularity. The whole
+    // lattice composites ONCE into a single unrotated device-space layer, so
+    // the rotations, arrises and abutments all resolve inside that bake at
+    // full precision, and the layer is held only while every bound opacity
+    // and scale beneath it still reads what it read last frame. The staggered
+    // entrance therefore plays live and the settled panel costs one blit.
     return group;
   }
 
   Element frame() {
-    // The same argument as lattice(), on four members instead of 523: the
-    // mitred keyaki boards carry the same bound entrance, so they were the
-    // next two cost centres on the profile once the lattice stopped being
-    // one (9.55 and 6.91 ms of picture replay on 1081x45 and 721x45 boards).
+    // The same argument as lattice(), on four members instead of hundreds.
+    // The mitred keyaki boards carry the same bound entrance, so they are
+    // volatile forever too — and they are the largest single boards on the
+    // canvas, so replaying their timber shader per frame costs more than
+    // their count suggests.
     auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
@@ -786,8 +791,8 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
     return group;
   }
 
-  // The joint pass (brief §9 step 5): every half-lap seam mark and every
-  // tenon nub arrives on one beat — the craftsman's final seating tap.
+  // The joint pass: every half-lap seam mark and every tenon nub arrives on
+  // one beat — the craftsman's final seating tap.
   Element joinery() {
     auto seams = panel.seams;
     auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
@@ -833,9 +838,10 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .clip(true)
         .opacity(&glow)
         .background(styles::OuterGlow{rgb(0xF4E3B8, 0.34f), 70, 6})
-        // Brief §7: a hot core fading out across the opening. The brief's
-        // 520 px outer radius leaves the field's corners black at this
-        // canvas; 585 keeps the outermost cells legible.
+        // A hot core fading out across the opening. The outer radius is
+        // sized to the opening's diagonal, not to its half-width: a 520 px
+        // stop leaves the field's corner cells black at this canvas size,
+        // and 585 keeps the outermost cells legible.
         .child(box().inset(0, 0, 0, 0).fill(Material::radial(
             {open.width() * 0.5f, open.height() * 0.5f}, 585,
             {{0.00f, rgb(0xFDEDC4, 0.95f)},
@@ -880,7 +886,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .child(backlight())
         .child(lattice())
         .child(joinery())
-        // Backlight bleed (brief §8): the lamp's halo added OVER the
+        // Backlight bleed: the lamp's halo added OVER the
         // fretwork, so the light visibly wraps the pieces it is behind
         // instead of stopping dead at their silhouettes.
         .child(box()
@@ -899,7 +905,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
                         {1.00f, rgb(0x000000, 0.00f)}})))
         .child(frame())
         // The mitred frame's keyline draws itself on around the perimeter —
-        // one continuous reveal (brief §9 step 1).
+        // one continuous reveal, the first beat of the assembly.
         .child(box()
                    .left(mid.left())
                    .top(mid.top())
@@ -929,10 +935,12 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
-    // §31 robustness nudge: the same completed backlit ranma the old 6.0
-    // default showed (before/after shots verified byte-identical) — but
-    // mid-hold with 0.82 s / 2.2 s margins instead of 0.4 s before the
-    // 6.4 s teardown/reassembly. Pure margin against the loop boundary.
+    // This sketch brings its own canvas size and unlit background rather
+    // than inheriting a default, and photographs itself mid-hold: the panel
+    // is complete and lit from kTGlow + kDGlow onwards, and the loop tears
+    // down and reassembles at kPeriod. 4.2 s sits well clear of both edges,
+    // so a small timing change on either side cannot catch the plate
+    // half-built.
     ctx.captureAt(4.2);
 
     panel = Panel{};

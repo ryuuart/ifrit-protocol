@@ -42,6 +42,18 @@ struct TempDir {
   }
 };
 
+/** A size x size solid PNG, for tests that need a real decodable
+ *  image whose dimensions identify which file (or which version of a
+ *  file) a decode came from. */
+void writePng(const fs::path &path, int size, SkColor color) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
+  bitmap.eraseColor(color);
+  SkFILEWStream stream(path.string().c_str());
+  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
+  stream.flush();
+}
+
 } // namespace
 
 TEST(LoaderHub, MountsResolveLongestPrefix) {
@@ -91,6 +103,94 @@ TEST(LoaderHub, PollReloadsChangedText) {
                           std::chrono::seconds(2));
   EXPECT_TRUE(hub.poll());
   EXPECT_EQ(hub.text("res://live.txt"), "two");
+}
+
+// blob(), image(), and channels() are independent views of one
+// resource: asking for one must not null a later ask for another.
+TEST(LoaderHub, BlobThenImageThenChannelsAllAnswer) {
+  TempDir dir;
+  writePng(dir.path / "logo.png", 1, SK_ColorRED);
+  Hub hub;
+  hub.mount("res://", dir.path);
+  ASSERT_NE(hub.blob("res://logo.png"), nullptr);
+  auto image = hub.image("res://logo.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 1);
+  ASSERT_NE(hub.channels("res://logo.png"), nullptr);
+  // The earlier views are still served, not evicted by the later asks.
+  EXPECT_NE(hub.blob("res://logo.png"), nullptr);
+  EXPECT_NE(hub.image("res://logo.png"), nullptr);
+}
+
+TEST(LoaderHub, ImageThenBlobBothAnswer) {
+  TempDir dir;
+  writePng(dir.path / "logo.png", 1, SK_ColorRED);
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto image = hub.image("res://logo.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 1);
+  auto bytes = hub.blob("res://logo.png");
+  ASSERT_NE(bytes, nullptr);
+  EXPECT_GT(bytes->bytes.size(), 0u);
+  EXPECT_NE(hub.image("res://logo.png"), nullptr);
+}
+
+// blob() never decodes: bytes no image codec accepts still load, and
+// the failed image() ask that follows does not disturb them. This is
+// the observable face of "asking for bytes costs no decode" — a blob
+// ask cannot depend on decodability in any way.
+TEST(LoaderHub, BlobAloneDoesNotDecode) {
+  TempDir dir;
+  dir.write("fake.png", "not an image at all");
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto bytes = hub.blob("res://fake.png");
+  ASSERT_NE(bytes, nullptr);
+  EXPECT_EQ(hub.image("res://fake.png"), nullptr);
+  EXPECT_NE(hub.blob("res://fake.png"), nullptr);
+}
+
+// image() after blob() decodes the bytes the entry already holds:
+// with the file deleted in between, the cached bytes are the only
+// possible source, and no second read of the source happens.
+TEST(LoaderHub, ImageDecodesOnDemandFromCachedBytes) {
+  TempDir dir;
+  writePng(dir.path / "logo.png", 1, SK_ColorRED);
+  Hub hub;
+  hub.mount("res://", dir.path);
+  ASSERT_NE(hub.blob("res://logo.png"), nullptr);
+  fs::remove(dir.path / "logo.png");
+  auto image = hub.image("res://logo.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 1);
+}
+
+// A '#' in a filename is URI content, not cache-key syntax. The decoy
+// file at the name a '#'-truncating parse would produce is the trap:
+// poll() must stat and reload the real file, never the decoy.
+TEST(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
+  TempDir dir;
+  writePng(dir.path / "tile", 2, SK_ColorGREEN);     // decoy
+  writePng(dir.path / "tile#3.png", 1, SK_ColorRED); // the resource
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto image = hub.image("res://tile#3.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 1);
+  // Nothing changed: no spurious erase, no reload against the decoy.
+  EXPECT_FALSE(hub.poll());
+  ASSERT_NE(hub.image("res://tile#3.png"), nullptr);
+  EXPECT_EQ(hub.image("res://tile#3.png")->width(), 1);
+  // Touch the real file: poll() reloads that same file.
+  writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
+  fs::last_write_time(dir.path / "tile#3.png",
+                      fs::file_time_type::clock::now() +
+                          std::chrono::seconds(2));
+  EXPECT_TRUE(hub.poll());
+  auto reloaded = hub.image("res://tile#3.png");
+  ASSERT_NE(reloaded, nullptr);
+  EXPECT_EQ(reloaded->width(), 2);
 }
 
 TEST(LoaderHub, ProbeReportsPlainData) {

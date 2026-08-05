@@ -2,11 +2,8 @@
 
 /** @file
  * SigilShape save — geometry OUT to the interchange world, the return
- * leg of Import.h. PLY is the carrier (ascii by default — debuggable —
- * with a binary_little_endian option via PlyOptions: bit-exact floats
- * and smaller files — 1.8x on the 300k comet dump, approaching 3x when
- * ascii tokens run full precision; and the one format where arbitrary
- * per-vertex attributes are first-class):
+ * leg of Import.h. PLY is the carrier, being the one widely read format
+ * where arbitrary per-vertex attributes are first-class:
  *
  *  - a Cloud writes positions plus EVERY lane — "normal" as nx/ny/nz,
  *    "uv" as s/t, "tint" as uchar red/green/blue/alpha (so Blender
@@ -18,7 +15,13 @@
  *  - a Mesh writes vertices (positions/normals/uvs/colors) plus its
  *    triangles.
  *
- * The loudest use: World::readPoints() a GPU-cooked pop surface and
+ * Ascii is the default because the result is readable and diffable.
+ * Choose binary (PlyOptions) when the file has to round-trip or has to
+ * be small: rows become raw little-endian bytes, so floats survive
+ * exactly instead of through a decimal spelling, the file carries no
+ * token text, and neither writer nor reader formats or parses numbers.
+ *
+ * A typical use: World::readPoints() a GPU-cooked pop surface and
  * save::ply() it — compute-shader geometry, attributes and all,
  * opened in Houdini or Blender.
  */

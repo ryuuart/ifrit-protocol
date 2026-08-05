@@ -96,9 +96,11 @@ private:
 };
 
 // ---- ElementNode blocks: rare/kind-specific fields live out-of-line so a
-// plain box costs a fraction of the monolith (2752 B → see sizeof test) and
-// each phase's inputs are visible in the type. HOT fields every kind touches
-// (layout/paint/corners/decorations/children) stay inline.
+// plain box costs a fraction of what one flat struct would, and each phase's
+// inputs are visible in the type. HOT fields every kind touches
+// (layout/paint/corners/decorations/children) stay inline. Composer.cpp
+// caps sizeof(ElementNode) with a static assertion, which is the rule that
+// keeps a rare field from being added inline.
 
 struct TextData {
   // Element::textStroke(): a stroke pass on the GLYPHS, under the fill.
@@ -129,17 +131,17 @@ struct TextData {
 struct ImageData {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::optional<SkRect> region; // atlas sub-rect, source px
-  // Element::sampling(). Every blessed image path hardcoded kLinear, so
-  // pixel art, tilemaps and simulation buffers drawn through image() were
-  // silently blurred and the only escape was Material::image()'s own
-  // sampling parameter — discoverable by diffing two signatures.
+  // Element::sampling(). Linear by default; the reason this is settable per
+  // node is that pixel art, tilemaps and simulation buffers need nearest,
+  // and drawing them through a linear filter blurs them with no diagnostic.
   SkSamplingOptions sampling{SkFilterMode::kLinear};
 };
 
 struct CustomData {
   PaintProgram program;
-  // custom(key, program): the program's declared identity (§14). Empty =
-  // unkeyed = conservatively unequal, as ever.
+  // custom(key, program): the program's declared identity. A callable
+  // cannot be compared, so an empty key means the node is conservatively
+  // unequal to every other and never prunes.
   std::string key;
 };
 
@@ -180,14 +182,14 @@ struct DeriveData {
 
 /** One span-qualified pass — Element::stroke(where, what, name) or
  *  Element::background(where, what, name). The unqualified whole-boundary
- *  forms stay ordinary foregrounds/backgrounds — they overlay and never
- *  claim, so old scenes cannot become overlap errors (the §27 alias-first
- *  law).
+ *  forms stay ordinary foregrounds/backgrounds: they overlay and never
+ *  CLAIM part of the boundary, so they can never trip the no-overlap
+ *  diagnostic below.
  *
- *  ONE ledger, two z-halves. `half` says only WHERE the pass paints;
- *  claims, the no-overlap law, append order and rest() read the whole
- *  list, because they are statements about ONE boundary and a boundary
- *  does not have two of itself. */
+ *  ONE list of passes, two z-halves. `half` says only WHERE the pass
+ *  paints; claims, the no-overlap law, append order and rest() all read the
+ *  whole list, because they are statements about ONE boundary and a
+ *  boundary does not have two of itself. */
 struct StrokePass {
   enum class Half : uint8_t {
     Background, ///< with the backgrounds, below the fill and the children
@@ -229,19 +231,18 @@ struct FxData {
   // Element::overlay(): decorations painted OVER the fill and UNDER the
   // content and children. Lives in this block rather than beside
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
-  // rare-fields rule Composer.cpp's static_assert enforces.
+  // rare-fields rule Composer.cpp's static assertion enforces.
   std::vector<Decoration> overlays;
   // Element::mask(): the appearance-gating family, in declaration order.
   // Masks whose selections overlap INTERSECT on the overlap, and each
   // carries its own animation slots (Instance::maskAnims), so three masks
   // on one node may run at three different rates.
   //
-  // Both of this block's departed tenants — trim()'s arc window and
-  // wipe()'s half-plane — are members of this list now: a trim is
-  // `{parts::all(), by::spans(...)}` and a wipe is `{parts::all(),
-  // by::edge(...)}`. That is why the masks live HERE rather than in a new
-  // block: the family replaced two fixed field groups with one vector, and
-  // ElementNode did not grow a pointer for it.
+  // One vector covers what would otherwise be several fixed field groups:
+  // an arc window is `{parts::all(), by::spans(...)}` and a half-plane
+  // reveal is `{parts::all(), by::edge(...)}`. That is why the masks live
+  // in this existing block rather than in a new one — ElementNode does not
+  // grow a pointer for them.
   std::vector<Mask> masks;
   // Local labels for the UNqualified marks (see MarkLabel).
   std::vector<MarkLabel> markNames;
@@ -277,7 +278,8 @@ struct ElementNode {
   PaintProps paint;
   Corners corners;
   Shape shapeFn; // custom silhouette; overrides corners. A comparable
-                 // scheme prunes; a raw callable stays conservative (§3).
+                 // scheme prunes; a raw callable never compares equal, so
+                 // its node re-patches on every describe.
   bool clipContent = false;
   // Element::hitTestable(false): the node and its own box are skipped by
   // hitTest, though its CHILDREN are still tested. A keyed full-bleed
@@ -302,9 +304,9 @@ struct ElementNode {
   Box<StrokeData> strokeData; // span-qualified stroke passes (rare)
   Box<MemoData> memoData;     // present ⇔ this is a memo shell
   // Element::travel(): the node's position IS a curve. A block rather than
-  // a PaintProps field because a Shape plus an Animatable is ~120 B on
-  // every node in the tree for a property a handful of them use, and
-  // Composer.cpp's static_assert is the rule that says so.
+  // a PaintProps field because a Shape plus an Animatable would cost that
+  // much on EVERY node in the tree for a property a handful of them use,
+  // which is what Composer.cpp's size assertion exists to prevent.
   Box<MotionPath> motionData;
 
   std::vector<Element> children;
@@ -329,18 +331,13 @@ struct ElementNode {
 // `markPaintDirtyUp()` never runs, a stale picture replays, and
 // `applyTransitions()` — which only runs inside the `own` branch — never
 // ramps an `animate()` on that property. Nothing errors. No test fails.
-// It happened twice on one feature: `scaleX`/`scaleY` were missing from
-// `propsEqual` from the day they landed until e37d58d, and
-// `recordBounds()`'s transform gate carried the same omission until it
-// was routed through `pivoted()` (Paint.cpp) — pinned since by the
-// field-pin TU's PerAxisScaleReachesTheParentsChildBoundsUnion.
+// A per-axis scale omitted from `propsEqual` and from `recordBounds()`'s
+// transform gate is the shape this takes in practice: the property works
+// on first paint and then quietly stops responding.
 //
-// THE MECHANISM. `kPopOpPso[]` (world/) is index-aligned per variant
-// alternative under `static_assert(std::size(...) ==
-// std::variant_size_v<pop::Op>)`, so appending an op without ruling on its
-// row does not compile. The equivalent for a STRUCT's fields is a
-// structured binding: it names every direct non-static data member, and the
-// count is a hard error the moment the struct changes —
+// THE MECHANISM. A structured binding names every direct non-static data
+// member of a struct, and the count is a hard error the moment the struct
+// changes —
 //
 //     error: type 'PaintProps' decomposes into 16 elements,
 //            but only 15 names were provided
@@ -370,9 +367,10 @@ struct ElementNode {
 //
 // CLASSES WITH PRIVATE STATE (Material, Effect, Region, Animatable, Shape,
 // Decoration, Profile) are NOT pinned here — a structured binding needs
-// access. Their hand-written comparators sit in the same header or TU as
-// their members, which is a far shorter distance than PaintProps (here) to
-// propsEqual (Reconcile.cpp); see the ROADMAP entry for the argument.
+// access to the members. Their hand-written comparators sit in the same
+// header or translation unit as their members, so a field and its
+// comparison are read together; PaintProps (here) and propsEqual
+// (Reconcile.cpp) are the pair that can drift apart unseen.
 
 inline auto fields(PaintProps &v) {
   auto &[fill, opacity, blendMode, translateX, translateY, rotate, scale,
@@ -494,10 +492,11 @@ inline constexpr std::size_t kFieldCount =
 
 /** THE STRUCTURAL PRUNE (Reconcile.cpp). Declared here — rather than kept
  *  in Reconcile.cpp's anonymous namespace — so the field-participation
- *  controls can call the comparator DIRECTLY. Inferring it from
- *  `stats().patchedNodes` needs a re-describe of the SAME node (keyed
- *  siblings never prune into one another), which is exactly the trap that
- *  made nine pins pass their own positive control this session. */
+ *  tests can call the comparator DIRECTLY. Inferring a prune from
+ *  `stats().patchedNodes` instead requires re-describing the SAME node,
+ *  because keyed siblings never prune into one another; a test that
+ *  compares two different nodes will report a difference whatever the
+ *  comparator does, and so passes even when the field is unread. */
 bool propsEqual(const ElementNode &a, const ElementNode &b);
 /** The shaped-binding half of the same comparator (see its doc comment). */
 bool boundMapEqual(const BoundFloat &a, const BoundFloat &b);

@@ -30,8 +30,9 @@ public:
     const float fontSize = params.fontSize;
     m_built.ensure({fontSize}, [&] { build(fontContext, fontSize); });
 
-    // Pulse the first pill — resizing an inline object relayouts the whole
-    // paragraph live, and reshapes exactly zero words.
+    // Pulse the first pill. Resizing an inline object relayouts the whole
+    // paragraph live without reshaping a word: the placeholder's size feeds
+    // line breaking and placement only, so the shaped-word cache stays warm.
     m_paragraph.setPlaceholder(
         0, {m_pillWidths[0] *
                 (1.0f + 0.4f * (0.5f + 0.5f * static_cast<float>(std::sin(
@@ -152,9 +153,9 @@ private:
         u8". Even a small figure can sit inline without leaving the "
         "paragraph ",
         body);
-    // Sized to the line: lines don't grow per-box yet (see README
-    // limitations), so a slot taller than the leading would overlap the
-    // previous line.
+    // Kept within the line height on purpose: a line box does not grow to
+    // fit the placeholders on it, so a slot taller than the leading would
+    // overlap the line above.
     m_paragraph.appendPlaceholder(
         {fontSize * 7.0f, fontSize * 1.8f, fontSize * 0.3f}, body);
     m_paragraph.appendText(

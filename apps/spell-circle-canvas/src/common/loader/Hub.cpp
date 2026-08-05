@@ -190,12 +190,18 @@ void Hub::setNetworkPolicy(NetworkPolicy policy) {
 std::string Hub::cacheKey(std::string_view uri,
                           const ImageOptions *options) {
   std::string key(uri);
+  // Each option component rides behind a '\0' separator. No URI that
+  // names a real resource can contain that byte, so an option suffix
+  // can never alias another URI's key. Nothing ever parses a key back
+  // apart — the entry stores its own uri.
   if (options && !options->layer.empty()) {
-    key += "#layer=";
+    key += '\0';
+    key += "layer=";
     key += options->layer;
   }
   if (options && (options->width || options->height)) {
-    key += "#size=";
+    key += '\0';
+    key += "size=";
     key += std::to_string(options->width);
     key += "x";
     key += std::to_string(options->height);
@@ -205,16 +211,21 @@ std::string Hub::cacheKey(std::string_view uri,
 
 std::shared_ptr<const Blob> Hub::blob(std::string_view uri) {
   const std::string key = cacheKey(uri, nullptr);
-  if (auto it = m_entries.find(key); it != m_entries.end())
+  auto it = m_entries.find(key);
+  if (it != m_entries.end() && it->second.blob)
     return it->second.blob;
   FetchResult fetched =
       fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
   if (!fetched.blob)
     return nullptr; // not cached: heals as soon as the file appears
-  Entry entry;
-  entry.blob = std::move(fetched.blob);
-  entry.mtime = fetched.mtime;
-  return m_entries.emplace(key, std::move(entry)).first->second.blob;
+  if (it == m_entries.end()) {
+    it = m_entries.emplace(key, Entry{}).first;
+    it->second.uri = std::string(uri);
+    it->second.path = std::move(fetched.path);
+    it->second.mtime = fetched.mtime;
+  }
+  it->second.blob = std::move(fetched.blob);
+  return it->second.blob;
 }
 
 std::optional<std::string> Hub::text(std::string_view uri) {
@@ -227,45 +238,74 @@ std::optional<std::string> Hub::text(std::string_view uri) {
 std::shared_ptr<const sigil::image::ImageAsset>
 Hub::image(std::string_view uri, const ImageOptions &options) {
   const std::string key = cacheKey(uri, &options);
-  if (auto it = m_entries.find(key); it != m_entries.end())
+  auto it = m_entries.find(key);
+  if (it != m_entries.end() && it->second.image)
     return it->second.image;
-  FetchResult fetched =
-      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
-  if (!fetched.blob)
-    return nullptr;
-  auto decoded = sigil::image::decodeImage(fetched.blob->bytes.data(),
-                                           fetched.blob->bytes.size(),
-                                           options, fetched.path);
+  // Bytes already cached by a blob() ask are decoded as they are —
+  // one read serves every view of the entry; otherwise fetch fresh.
+  std::shared_ptr<const Blob> bytes;
+  std::filesystem::path path;
+  FetchResult fetched;
+  if (it != m_entries.end() && it->second.blob) {
+    bytes = it->second.blob;
+    path = it->second.path;
+  } else {
+    fetched = fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
+    if (!fetched.blob)
+      return nullptr;
+    bytes = fetched.blob;
+    path = fetched.path;
+  }
+  auto decoded = sigil::image::decodeImage(
+      bytes->bytes.data(), bytes->bytes.size(), options, path);
   if (!decoded)
     return nullptr;
-  Entry entry;
-  entry.image = std::make_shared<sigil::image::ImageAsset>(
+  if (it == m_entries.end()) {
+    it = m_entries.emplace(key, Entry{}).first;
+    it->second.uri = std::string(uri);
+    it->second.path = std::move(path);
+    it->second.mtime = fetched.mtime;
+  }
+  // The encoded bytes are not kept unless blob() asked for them, so
+  // an image-only workload never holds them alive beside the pixels.
+  it->second.image = std::make_shared<sigil::image::ImageAsset>(
       std::move(*decoded));
-  entry.imageOptions = options;
-  entry.mtime = fetched.mtime;
-  return m_entries.emplace(key, std::move(entry)).first->second.image;
+  it->second.imageOptions = options;
+  return it->second.image;
 }
 
 std::shared_ptr<const sigil::image::ChannelData>
 Hub::channels(std::string_view uri) {
-  const std::string key = std::string(uri) + "#channels";
-  if (auto it = m_entries.find(key); it != m_entries.end())
+  const std::string key = cacheKey(uri, nullptr);
+  auto it = m_entries.find(key);
+  if (it != m_entries.end() && it->second.channels)
     return it->second.channels;
-  FetchResult fetched =
-      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
-  if (!fetched.blob)
-    return nullptr;
+  std::shared_ptr<const Blob> bytes;
+  std::filesystem::path path;
+  FetchResult fetched;
+  if (it != m_entries.end() && it->second.blob) {
+    bytes = it->second.blob;
+    path = it->second.path;
+  } else {
+    fetched = fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
+    if (!fetched.blob)
+      return nullptr;
+    bytes = fetched.blob;
+    path = fetched.path;
+  }
   auto decoded = sigil::image::decodeChannels(
-      fetched.blob->bytes.data(), fetched.blob->bytes.size(),
-      fetched.path);
+      bytes->bytes.data(), bytes->bytes.size(), path);
   if (!decoded)
     return nullptr;
-  Entry entry;
-  entry.channels = std::make_shared<sigil::image::ChannelData>(
+  if (it == m_entries.end()) {
+    it = m_entries.emplace(key, Entry{}).first;
+    it->second.uri = std::string(uri);
+    it->second.path = std::move(path);
+    it->second.mtime = fetched.mtime;
+  }
+  it->second.channels = std::make_shared<sigil::image::ChannelData>(
       std::move(*decoded));
-  entry.mtime = fetched.mtime;
-  return m_entries.emplace(key, std::move(entry))
-      .first->second.channels;
+  return it->second.channels;
 }
 
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
@@ -289,45 +329,53 @@ std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
   return info;
 }
 
-bool Hub::reload(const std::string &key, Entry &entry) {
-  // The key embeds the uri (and options); recover the uri part.
-  const size_t hash = key.find('#');
-  const std::string uri = key.substr(0, hash);
-  const std::filesystem::path path = localPath(*this, uri);
+/** Re-reads entry.uri from disk and re-decodes every populated view
+ *  from that one read. Nothing is committed until every decode has
+ *  succeeded, so a half-written file cannot leave the views
+ *  disagreeing with each other. */
+bool Hub::reload(Entry &entry) {
+  const std::filesystem::path path = localPath(*this, entry.uri);
   auto bytes = readFile(path);
   if (!bytes)
     return false;
+  std::shared_ptr<const sigil::image::ImageAsset> image;
   if (entry.image) {
     auto decoded = sigil::image::decodeImage(
         bytes->bytes.data(), bytes->bytes.size(), entry.imageOptions,
         path);
     if (!decoded)
       return false;
-    entry.image = std::make_shared<sigil::image::ImageAsset>(
+    image = std::make_shared<sigil::image::ImageAsset>(
         std::move(*decoded));
-  } else if (entry.channels) {
+  }
+  std::shared_ptr<const sigil::image::ChannelData> channels;
+  if (entry.channels) {
     auto decoded = sigil::image::decodeChannels(
         bytes->bytes.data(), bytes->bytes.size(), path);
     if (!decoded)
       return false;
-    entry.channels = std::make_shared<sigil::image::ChannelData>(
+    channels = std::make_shared<sigil::image::ChannelData>(
         std::move(*decoded));
-  } else {
-    entry.blob = std::move(bytes);
   }
+  if (entry.image)
+    entry.image = std::move(image);
+  if (entry.channels)
+    entry.channels = std::move(channels);
+  if (entry.blob)
+    entry.blob = std::move(bytes);
+  entry.path = path;
   return true;
 }
 
 bool Hub::poll() {
   bool changed = false;
   for (auto it = m_entries.begin(); it != m_entries.end();) {
-    const std::string uri =
-        it->first.substr(0, it->first.find('#'));
-    if (isNetworkUri(uri)) {
+    Entry &entry = it->second;
+    if (isNetworkUri(entry.uri)) {
       ++it; // no mtime to watch: network entries stay as fetched
       continue;
     }
-    const std::filesystem::path path = localPath(*this, uri);
+    const std::filesystem::path path = localPath(*this, entry.uri);
     std::error_code ec;
     const auto mtime = std::filesystem::last_write_time(path, ec);
     if (ec) {
@@ -335,8 +383,8 @@ bool Hub::poll() {
       changed = true;
       continue;
     }
-    if (mtime != it->second.mtime && reload(it->first, it->second)) {
-      it->second.mtime = mtime;
+    if (mtime != entry.mtime && reload(entry)) {
+      entry.mtime = mtime;
       changed = true;
     }
     ++it;

@@ -1,10 +1,13 @@
 #pragma once
-// The Persona 3 Reload pause-menu card (REFERENCES.md sec.1,
-// recreation-verified), ported from sketch/sketches/p3r_study.cpp:
-//  - sticker SCATTER: nine rows, and every offset, rotation, colour and
-//    z_index is lifted from Ultipuk/persona_3_reload_pause_menu's
-//    main_menu_pause_ui.tscn rather than invented -- see the kRows
-//    comment for the conversion. Rows overlap; that is the design.
+// The Persona 3 Reload pause menu, rebuilt.
+//
+// The numbers here are not invented. Every sticker offset, rotation, colour
+// and z-order is read out of Ultipuk/persona_3_reload_pause_menu's
+// main_menu_pause_ui.tscn — a public Godot recreation of the menu — and
+// converted; see the kRows comment for the conversion. Rows overlap in the
+// original, and they overlap here.
+//
+//  - sticker SCATTER: nine rows, laid out from that table.
 //  - the date stamp (day numeral + weekday/block + location under a
 //    fading rule) and the party rail (four skewed parallelogram cards
 //    with HP/SP bars, entering on a 60ms stagger from the right).
@@ -28,9 +31,10 @@
 //    order); the two-triangle cursor spawns at +0.4s and lands with a
 //    damped diagonal overshoot along (1,-1): +40 -> -20 -> +10 -> 0.
 //
-// 960x640 -> 900x640: x positions compressed by 0.9375 (scatter origin
-// 96 -> 90, menu x 64 -> 60, numeral x 480 -> 450, right anchors 46/44
-// -> 43/41); type sizes, wedge geometry, and all y positions unchanged.
+// The layout was authored on a 960-wide canvas and this one is 900 wide, so
+// x positions are compressed by 0.9375 while type sizes, wedge geometry and
+// every y position are left alone. Keep that split if you move anything:
+// scaling the type or the wedges with the width is what breaks the look.
 
 #include "GalleryCore.h"
 
@@ -59,7 +63,7 @@ namespace persona_menu {
 constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 
-// REFERENCES.md sec.1 palette, recreation-verified, verbatim.
+// The menu's palette, taken verbatim from the recreation.
 constexpr SkColor4f kGround{0.0039f, 0.3725f, 0.8000f, 1};   // #015FCC
 constexpr SkColor4f kGroundDark{0.0118f, 0.1216f, 0.3922f, 1}; // #031F64
 constexpr SkColor4f kCyanA{0.0863f, 0.8118f, 0.9843f, 1};    // #16CFFB
@@ -138,9 +142,9 @@ inline std::function<SkPath(SkSize)> sliverWedge() {
   };
 }
 
-/** Heavy condensed ITALIC -- the FOT-Rodin stand-in (sec.1: 84px, x0.82
- *  condensed, italic; Avenir Next Condensed Heavy Italic is the closest
- *  face macOS ships). */
+/** Heavy condensed ITALIC, standing in for FOT-Rodin, which the original
+ *  sets at 84px, 0.82 condensed and italic. Avenir Next Condensed Heavy
+ *  Italic is the closest face macOS ships. */
 inline sk_sp<SkTypeface> menuFace(bool italic = true) {
   auto mgr = sigil::weave::ports::systemFontManager();
   const auto slant =
@@ -159,8 +163,9 @@ inline sk_sp<SkTypeface> menuFace(bool italic = true) {
   return f;
 }
 
-/** Menu voice: heavy condensed italic, negative tracking; optional 2px
- *  #5D6A88 ring underlay (sec.1 shadows: the chrome-text outline ring). */
+/** Menu voice: heavy condensed italic, negative tracking, with an optional
+ *  2px #5D6A88 ring underlay — the outline ring the original's text
+ *  shadows produce. */
 inline sigil::weave::TextStyle menuType(float size, SkColor4f fill,
                                         float ringW, bool italic = true) {
   static sk_sp<SkTypeface> faceI = menuFace(true);
@@ -168,12 +173,12 @@ inline sigil::weave::TextStyle menuType(float size, SkColor4f fill,
   sigil::weave::TextStyle s;
   s.shaping.typeface = italic ? faceI : faceU;
   s.shaping.fontSize = size;
-  s.shaping.letterSpacing = -0.08f * size; // sec.1 tracking ~= -0.14em
-                                           // (Rodin); Avenir Cond is
-                                           // tighter already
-  s.shaping.scaleX = 0.94f; // condense() the last stretch to the Rodin
-                            // proportion (sec.1 x0.82 vs regular; Avenir
-                            // Condensed already carries most of it)
+  // The original tracks around -0.14em on Rodin; Avenir Condensed is
+  // already tighter, so it needs less taken out.
+  s.shaping.letterSpacing = -0.08f * size;
+  // Condense the last of the way to Rodin's proportion (0.82 against its
+  // regular width); Avenir Condensed already carries most of that.
+  s.shaping.scaleX = 0.94f;
   s.paint.foreground.setColor(fill.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   if (ringW > 0)
@@ -192,7 +197,8 @@ inline sigil::weave::TextStyle smallType(float size, SkColor4f c,
   return s;
 }
 
-/** The caustic layer (sec.1 sea-of-souls): two value-noise fields offset
+/** The caustic layer of the sea-of-souls backdrop: two value-noise fields
+ *  offset
  *  by .5 UV, alpha = step(cut, |p1-p2|), vertically masked into the sea
  *  band. uTime is bound to a HOST-QUANTIZED output (floor(t*6)/6) -- the
  *  water steps at 6 Hz, "we imagine the interpolation ourselves". */
@@ -253,7 +259,9 @@ struct PersonaMenuScene final : Scene {
     ticker.add([this, t = 0.0](double dt) mutable {
       namespace ch = choreograph;
       t += dt;
-      // sec.1 CRITICAL TEXTURE: caustics step time at 6 Hz.
+      // The caustics step time at 6 Hz rather than running smoothly. This
+      // is not an optimization — the stepping IS the texture, and a
+      // continuous version does not look like the original.
       qTime = (float)quantizeTime(t, 6.0);
       // Idle heartbeat: wedge 1 -> 1.05 (100ms) -> 1 (50ms) every 600ms.
       const double ph = std::fmod(t, 0.6);
@@ -289,10 +297,10 @@ struct PersonaMenuScene final : Scene {
     composer.render(describe());
   }
 
-  /** BOTH verified caustic layers in one pass, with a 4-tap soften that
-   *  stands in for the recipe's sigma-1.4 blur — one live material, one
-   *  texture bake per 6 Hz step (the memo turns the other frames into
-   *  blits). */
+  /** Both caustic layers in one pass, with a 4-tap soften standing in for
+   *  the reference's sigma-1.4 blur. One live material and one texture bake
+   *  per 6 Hz step: because the time input holds between steps, the memo
+   *  turns every intermediate frame into a blit. */
   Material dualCaustic() {
     namespace nn = persona_menu;
     static const sk_sp<SkRuntimeEffect> fx = [] {
@@ -364,7 +372,8 @@ struct PersonaMenuScene final : Scene {
     return m;
   }
 
-  /** sec.1 sea-of-souls, approximated in the verified layer order. */
+  /** The sea-of-souls backdrop, approximated but built in the original's
+   *  layer order — the order is what produces the colour. */
   Element backdrop() {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
@@ -423,7 +432,8 @@ struct PersonaMenuScene final : Scene {
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
-   *  #5D6A88 ring (sec.1 shadows), its OWN rotation/jitter/z from the
+   *  #5D6A88 ring standing in for the original's text shadows, its OWN
+   *  rotation, jitter and z from the
    *  ladder, entering with the fade + -30px drop. */
   Element plainRow(int i) {
     namespace nn = persona_menu;
@@ -446,7 +456,7 @@ struct PersonaMenuScene final : Scene {
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
   }
 
-  /** The selected sticker (sec.1 selection): black label at 1.5x on a
+  /** The selected sticker: black label at 1.5x on a
    *  WHITE sliver wedge (+8 deg, heartbeat-scaled) over a PINK back-wedge,
    *  the RED misprint echo offset (3,-6) clipped INSIDE the wedge
    *  (counter-rotated so the echo tracks the label, not the wedge
@@ -478,9 +488,10 @@ struct PersonaMenuScene final : Scene {
                   .shape(nn::sliverWedge()).rotate(8)
                   .fill(Material::solid(nn::kPink)));
     // white wedge -- clips the red echo; idle heartbeat on scale.
-    // Echo top carries +5px: the wedge's +8 deg spin about ITS center
-    // walks the echo ~5px up; the compensation restores the verified
-    // (3,-6).
+    // The echo's top carries an extra +5px. The wedge rotates +8 deg about
+    // its OWN centre, which walks the echo up by about that much, so the
+    // offset has to be pre-compensated for the misprint to land at its
+    // intended (3,-6).
     row.child(box().left(0).top(-6).width(wW).height(wH)
                   .shape(nn::sliverWedge()).rotate(8).clip(true)
                   .fill(Material::solid(nn::kPaper))
@@ -509,9 +520,9 @@ struct PersonaMenuScene final : Scene {
         .zIndex(7).rotate(-16)
         .translateX(&curDx).translateY(&curDy)
         .opacity(animate(from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
-        // sec.1 calls this additive; at 36px over the navy sea kPlus
-        // washes the red rim out entirely, so the scene keeps it plain
-        // red.
+        // The original draws this additively. At this size over the navy
+        // sea, kPlus washes the red rim out completely, so it stays a plain
+        // red fill.
         .child(box().inset(0)
                    .shape(shapes::polygon(3, 92))
                    .fill(Material::solid(nn::kRedC))
@@ -636,14 +647,14 @@ struct PersonaMenuScene final : Scene {
     return stack()
         .fill(nn::kGroundDark)
         .child(backdrop())
-        // ---- giant rotated index numeral, behind the menu (sec.1) ----
+        // ---- giant rotated index numeral, behind the menu ----
         .child(text(toU8("04"),
                     [] {
                       auto s = nn::menuType(220, nn::kNumeral, 0, false);
-                      // sec.1 says -0.2em (FOT-Rodin). Avenir's digit shapes
-                      // merge sooner than Rodin's: x0.88 condensation + -0.05em
-                      // is the deepest overlap that keeps "04" reading as two
-                      // digits.
+                      // The original tracks this at -0.2em on FOT-Rodin.
+                      // Avenir's digit shapes merge sooner than Rodin's, so
+                      // 0.88 condensation with -0.05em is the deepest overlap
+                      // that still reads as two digits.
                       s.shaping.scaleX = 0.88f;
                       s.shaping.letterSpacing = -0.05f * 220;
                       return s;
@@ -708,7 +719,7 @@ struct PersonaMenuScene final : Scene {
                                          .height(2)
                                          .fill(SkColor4f{1, 1, 1, 0.8f})
                                          .margin(8, 0, 0, 0))))
-        // ---- button prompts, bottom-right (sec.1 chrome) ----
+        // ---- button prompts, bottom-right ----
         .child(
             box()
                 .key("prompts")

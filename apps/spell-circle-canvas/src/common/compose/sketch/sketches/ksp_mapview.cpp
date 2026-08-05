@@ -13,11 +13,11 @@
 //  · ref-images/ksp-flightview-navball.jpg — same set, Flight View, with an
 //    active manoeuvre node's burn readout beside the ball.
 //
-// WHAT THE REFERENCE SAID THAT THE WRITE-UP DID NOT:
-//  1. The info-card VALUES are orange and the LABELS are dark. The brief had
-//     it as dark-on-white rows with orange section headers only. Look at
-//     "Sphere of influence  Kerbin" — "Kerbin" is #DC6F2A. Every value is.
-//     That inversion is most of what makes the card read as KSP.
+// WHAT ONLY THE REFERENCE PIXELS SETTLE:
+//  1. The info-card VALUES are orange and the LABELS are dark — not
+//     dark-on-white rows with orange section headers. Look at "Sphere of
+//     influence  Kerbin" — "Kerbin" is #DC6F2A. Every value is. That
+//     inversion is most of what makes the card read as KSP.
 //  2. The right-edge toolbar buttons are ROUNDED SQUARES (~44 px), not
 //     circles, and they sit hard against the screen edge with the card
 //     tucked left of them.
@@ -36,14 +36,13 @@
 //     documented six-axis colour convention, and is drawn from geometry.
 //
 // GEOMETRY IS REAL. Every orbit here is a conic r = p/(1 + e·cos ν) with
-// Kerbin at the FOCUS (not the centre — the brief's centred squircle is the
-// one thing a KSP player would notice instantly), sampled in true anomaly.
-// The manoeuvre node sits at ν = −130° on the current orbit; prograde is the
-// analytic tangent dP/dν there, radial-out is r̂, and the flight-path angle
-// between them comes out at ≈113.8° — so normal/antinormal drop into the two
-// wide gaps at ±57° and nothing collides. No stylised 60° fan was needed:
-// the brief's predicted 12–20° collision is an artefact of picking a node
-// near an apsis, not a property of ellipses.
+// Kerbin at the FOCUS, not at the centre — a centred ellipse is the one
+// thing a KSP player would notice instantly — sampled in true anomaly. The
+// manoeuvre node sits at ν = −130° on the current orbit; prograde is the
+// analytic tangent dP/dν there, radial-out is r̂, and the angle between the
+// two comes out at ≈113.8°. Bisecting the wide side of that puts normal and
+// antinormal into gaps of ≈57°, so the six axes space themselves off the
+// real geometry and no stylised even fan is needed.
 //
 // The navball is a real orthographic sphere: one SkSL pass inverts the
 // projection per pixel (z = +√(1−r²) picks the FRONT hemisphere, so the back
@@ -55,24 +54,25 @@
 // pixels; the rest are the documented colour conventions for the six
 // manoeuvre axes (green prograde / purple normal / blue radial).
 //
-// FOUR THINGS THE RENDER TAUGHT THAT NO AMOUNT OF READING WOULD HAVE:
+// FOUR LIBRARY CONSTRAINTS THIS SCENE IS SHAPED AROUND:
 //  · `Material::radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so
 //    a planet terminator authored at 1.28 puts the dark end of its ramp
 //    entirely OUTSIDE the disc and the shading silently disappears. 1.02
 //    is where the ramp finishes at the far limb of an inscribed circle.
-//  · `patterns::grain` composited over a NEAR-TRANSPARENT base does not
-//    modulate it — it composites as its own luminance. The first nebula
-//    came back a white cloud. Grain belongs on opaque surfaces (it is on
-//    the altimeter plate here) and the milky way is mottle: eighteen small
-//    soft blobs beat one big one, at any alpha.
-//  · A `foreground()` hatch paints above the node's CHILDREN, so the stage
-//    tab's hazard stripe greyed out its own digit. Moving the hatch to
-//    `background()` hides it under the fill instead; the fix is a sibling —
-//    striped plate, then the digit, as two children of a stack().
+//  · `patterns::grain` over a NEAR-TRANSPARENT base does not modulate it —
+//    it composites as its own luminance, so a grained nebula comes out a
+//    white cloud. Grain belongs on opaque surfaces (it is on the altimeter
+//    plate here), and the milky way is built as mottle instead: many small
+//    soft blobs, which read as texture where one big one reads as fog, at
+//    any alpha.
+//  · A `foreground()` hatch paints above the node's CHILDREN, so a hazard
+//    stripe declared on the stage tab would grey out the tab's own digit,
+//    and `background()` would hide the hatch under the node's fill. The
+//    striped plate and the digit are therefore SIBLINGS in a stack().
 //  · A hyperbola sampled out to its asymptote drops off-canvas points and
 //    therefore splits into several contours, and `onPath` only uses the
-//    FIRST one — so the escape label rendered nothing until the ν window
-//    was hand-fitted to the part that crosses the frame.
+//    FIRST one — so the escape label's ν window is fitted by hand to the
+//    part that crosses the frame, or the label renders nothing at all.
 
 #include <sigilsketch/Sketch.h>
 
@@ -337,7 +337,7 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
  *  head whose TIP is at the box's right edge, drawn pointing +x so the arm's
  *  rotate() is its bearing. Shapes.h has polygon/star/blob/squircle/arc/
  *  sector/parallelogram and no directional pointer of any kind, so every one
- *  of the six arms is this hand-rolled path (see the gaps list). */
+ *  of the six arms is this hand-rolled path. */
 inline std::function<SkPath(SkSize)> paddle(float shaftW, float headW,
                                             float headL) {
   return [shaftW, headW, headL](SkSize s) {
@@ -430,7 +430,7 @@ inline std::function<SkPath(SkSize)> chevron() {
 // re-describing. Marching ants on three orbit lines every frame is exactly
 // what the declared-volatility rule exists to avoid, so this is the library's
 // own extension seam used as designed: a value DecorationScheme with a bound
-// Output and isAnimated() == true. It should not have to live in a sketch.
+// Output and isAnimated() == true, which redraws without re-describing.
 
 struct MarchingDots {
   float width = 1.0f;
@@ -604,12 +604,12 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     g.child(box().inset(0).fill(Material::radialUnit(
         {0.42f, 0.45f}, 1.15f, {{0.0f, kSpace}, {1.0f, kSpaceEdge}})));
 
-    // The milky-way band the reference frame is dominated by: three soft
-    // blob-shaped ramps on a diagonal, all at single-digit alpha. The first
-    // cut ran patterns::grain over this at kOverlay and it came back a
-    // white cloud — grain over a near-transparent base composites as its
-    // own luminance, not as a modulation of the base. Grain moved to the
-    // opaque panels below, which is where it reads as material anyway.
+    // The milky-way band the reference frame is dominated by: soft
+    // blob-shaped ramps on a diagonal, all at single-digit alpha. No grain
+    // anywhere near it — over a near-transparent base, grain composites as
+    // its own luminance rather than modulating the base, which turns the
+    // whole band into a white cloud. Grain lives on the opaque panels
+    // below, which is where it reads as material anyway.
     auto wisp = [&](uint32_t seed, float x, float y, float w, float h,
                     SkColor4f c, float a, float rot) {
       return place(box()
@@ -646,8 +646,8 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     g.child(wisp(31u, 680, 380, 600, 440, kNebula, 0.06f, 22));
     (void)H;
 
-    // ~240 stars as ONE atlas stamp, hashed (not a lattice), twinkling by
-    // per-instance tint alpha mutated from the ticker.
+    // The whole starfield as ONE atlas stamp, hashed (not a lattice),
+    // twinkling by per-instance tint alpha mutated from the ticker.
     g.child(place(box().child(instancing::instances(starAtlas, starPool,
                                                     instancing::Mode::Live)),
                   0, 0, W, H));
@@ -698,9 +698,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                 // continents float on a flat blue coin.
                 .child(box()
                            .inset(0)
-                           // radiusUnit is a fraction of the HALF-DIAGONAL:
-                           // 1.28 put the dark end of the ramp outside the
-                           // disc entirely and the terminator vanished.
+                           // radiusUnit is a fraction of the HALF-DIAGONAL,
+                           // so 1.02 is what finishes the ramp at the limb
+                           // of the inscribed disc: past ~1.28 the dark end
+                           // falls outside it and the terminator vanishes.
                            .fill(Material::radialUnit(
                                {0.34f, 0.28f}, 1.02f,
                                {{0.0f, C(0xFFFFFF, 0.0f)},
@@ -808,8 +809,9 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  /** Map marker: diamond + label, the Ap/Pe/AN/DN family. */
-  /** `lift` is the label's offset from the diamond. It is a parameter and not
+  /** Map marker: diamond + label, the Ap/Pe/AN/DN family.
+   *
+   *  `lift` is the label's offset from the diamond. It is a parameter and not
    *  a constant because the Ap/Pe arc label rides the orbit on the OUTSIDE at
    *  offset +8, and a node whose label also sits above its diamond prints
    *  straight through that run — "Ap 213,904DN m". Nodes that land in the arc
@@ -841,9 +843,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
     const float aPro = std::atan2(pro.fY, pro.fX) * 57.29578f;
     const float aRad = std::atan2(rad.fY, rad.fX) * 57.29578f;
-    // Flight-path angle: on a conic, radial and normal only coincide at the
-    // apsides. Here the separation comes out ≈110.5°, which leaves two wide
-    // gaps for the out-of-plane glyphs — no stylised fan needed.
+    // Prograde and radial-out are ≈113.8° apart at this node, so `sep` —
+    // measured from prograde round to radial-out in screen-angle order — is
+    // the explement, ≈246.2°. Bisecting THAT is what drops the out-of-plane
+    // glyphs into the wide side rather than on top of an in-plane arm; no
+    // stylised fan needed.
     float sep = aRad - aPro;
     while (sep < 0) sep += 360;
     while (sep >= 360) sep -= 360;
@@ -1186,8 +1190,8 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
     // Moving needles. The Outputs stay in their OWN units — throttle and
     // g-force are both 0..1 — and bind() maps each onto its tape's arc at
-    // the property. Before bind() landed this needed a second Output per
-    // gauge carrying degrees, updated in the tick loop.
+    // the property, so no second Output carrying degrees has to be kept in
+    // step with the first from the tick loop.
     g.child(at(box()
                    .shape(shapes::sector(-3.0f, 6.0f, 0.80f))
                    .fill(Material::solid(C(0xF2F4F5)))
@@ -1307,8 +1311,8 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                  .justify(Justify::Center)
                                  .fill(Material::solid(kStageTab))
                                  .child(t("×", bold(10, C(0xFFFFFF))))),
-                  // clear of SAS, which ends at kBall.fX + kBezelR - 6: at
-                  // +92 the chip printed over the toggle's right shoulder.
+                  // must clear SAS, whose right edge is at
+                  // kBall.fX + kBezelR - 6
                   kBall.fX + kBezelR + 6, kBall.fY - kBezelR - 2, 92, 20));
     // bezel index notch, top
     g.child(at(box()
@@ -1808,7 +1812,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     ctx.canvas(1200, 800);
     ctx.background(kSpace);
 
-    // Starfield: one soft-dot cell, ~240 hashed instances.
+    // Starfield: one soft-dot cell, 360 hashed instances.
     starAtlas = std::make_shared<instancing::Atlas>(2.0f);
     const int dot = starAtlas->cell(
         box().fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,

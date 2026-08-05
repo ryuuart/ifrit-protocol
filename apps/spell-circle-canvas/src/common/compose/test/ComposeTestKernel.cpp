@@ -124,10 +124,10 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
 }
 
 TEST(ComposeCaching, RelayoutInvalidatesStaleRecordings) {
-  // The syncLayoutRects pass: setSize alone (no prop change, no re-render)
-  // resizes a pct-width child whose geometry was baked into cached
-  // recordings — the old bounds must not replay. Pre-fix, cached ancestors
-  // replayed the stale bake after any relayout not caused by a patch.
+  // setSize alone — no prop change, no re-render — resizes a pct-width child
+  // whose geometry is already baked into cached recordings. Invalidation
+  // driven only by patching never sees this, so relayout has to compare the
+  // new rects against the baked ones and drop what moved.
   Host host;
   host.composer.render(
       box().child(box().width(pct(50)).height(40).fill(red())));
@@ -314,15 +314,15 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
 }
 
 TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
-  // §14: ContourWalk sampled the tangent and rotated to it, then replayed
-  // ONE stamp. stampAt(sample, index) is the sequence form — ruler ticks
-  // with numbers, ribbon menus, chained ornament: per-index art, nullopt
-  // falling back to the shared `stamp`. The callable is incomparable and
-  // ContourWalk stays conservatively unequal as it always was (it has no
-  // operator== — the raw `draw` callable decided that long ago). The
-  // bakes are per call, per record, UNCACHED: each returned Element is a
-  // fresh node, so the §16 instance-side StampCache has nothing stable
-  // to key them on.
+  // `stamp` replays ONE piece of art at every sample. stampAt(sample, index)
+  // is the sequence form — ruler ticks carrying numbers, chained ornament —
+  // returning per-index art, with nullopt falling back to the shared
+  // `stamp`.
+  //
+  // Two costs come with it, both inherent. ContourWalk carries a raw
+  // callable, so it has no operator== and its node never prunes. And the art
+  // is re-baked per call: each returned Element is a fresh node, so the
+  // instance-side stamp cache has no stable key to hold it by.
   Host host;
   static int asked;
   asked = 0;
@@ -456,11 +456,10 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
 }
 
 TEST(ComposeEffects, TextureBakesEffectOnce) {
-  // STRENGTHENED 2026-07-28 (audit): the word ONCE used to be asserted by
-  // nothing — a live texturesLive count and a non-black pixel pass equally
-  // well if the node re-bakes every single frame. `texturesBaked` is the
-  // per-draw pixel-bake count (Stats), so the claim is now literal: one on
-  // the frame that bakes, zero on every frame after it.
+  // ONCE is asserted literally, through `texturesBaked` — the per-draw
+  // pixel-bake count: one on the frame that bakes, zero on every frame
+  // after. A live texture count and a non-black pixel would look identical
+  // on a node that re-bakes every single frame.
   //
   // profiledUnder(), not a plain parent: under a cacheable parent the second
   // frame replays the PARENT's picture and never visits this node at all, so
@@ -773,8 +772,9 @@ TEST(ComposeMaterial, LinearGradientFillPaints) {
 }
 
 TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
-  // §10c: the offset-focus radial. Displacing a plain radial()'s CENTRE
-  // slides the whole ramp — falloff and highlight are one knob. conical()
+  // The offset-focus radial. Displacing a plain radial()'s CENTRE slides the
+  // whole ramp, so falloff and highlight are one knob and a lit sphere is
+  // impossible to spell. conical()
   // (SkShaders::TwoPointConicalGradient) keeps the outer circle put and
   // moves only the focus, which is the sphere-shading primitive.
   const auto sphere = [](SkPoint focus) {
@@ -811,12 +811,14 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
 }
 
 TEST(ComposeMaterial, SweepWarnsWhenTheWindowLeavesTheCircle) {
-  // §10j: Skia's sweep CLAMPS outside [startDeg, endDeg]. sweep(c, stops,
-  // 90, 450) — the obvious hue-wheel-starting-at-red — silently painted a
-  // quarter of the ring in the first stop's flat colour. The factory says
-  // so now, once. Control first (a legal window must stay silent), then
-  // the trap arm — the warning is once-per-process, so this test is the
-  // one place that triggers it.
+  // Skia's sweep CLAMPS outside [startDeg, endDeg] rather than wrapping, so
+  // a window wider than the circle — sweep(c, stops, 90, 450), the obvious
+  // way to spell a hue wheel starting at red — paints part of the ring in
+  // the first stop's flat colour with no error. The factory warns instead.
+  //
+  // Control first (a legal window must stay silent), then the trap arm. The
+  // warning fires once per process, so this must be the only place that
+  // triggers it and the order within the test matters.
   const std::vector<Stop> stops{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   ::testing::internal::CaptureStderr();
   (void)Material::sweep({50, 50}, stops, 0.0f, 360.0f);
@@ -847,19 +849,19 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   EXPECT_NE(log.find("nothing"), std::string::npos) << log;
 }
 
-#include <cstring> // memcmp — the §10e no-conversion control
+#include <cstring> // memcmp — for the no-conversion control at the bottom
 
 TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
-  // §10e's minimal form: "I deliberately declared my colour space" and
-  // "nobody thought about colour at all" must stop producing identical
-  // trees — as a QUESTION the library asks, never as a conversion stage.
-  // §41's ruling stands: compose composites in encoded sRGB, a
-  // colour-managed surface is a BREAKING change, so the entire response
-  // to a mismatch is one precise warning. Everything below is one test
-  // because the warning is once-per-process (the house contract) and the
-  // ordering therefore matters: controls first, the trap arm second, and
-  // the no-conversion pixel control last, where its own mismatched
-  // declarations are already silenced.
+  // declareInputSpace lets "I deliberately declared my colour space" and
+  // "nobody thought about colour at all" stop being the same tree. It is a
+  // QUESTION the library asks, never a conversion stage: compositing happens
+  // in encoded sRGB, so the whole response to a mismatched declaration is
+  // one precise warning and not a single changed pixel.
+  //
+  // All of it is one test because the warning fires once per process, which
+  // makes the order load-bearing: truthful controls first, the trap arm
+  // second, and the no-conversion pixel comparison last, where its own
+  // mismatched declarations are already silenced.
   //
   // Control 1: the default and an explicit truthful declaration are
   // silent — they match reality, and a warning here would teach authors
@@ -915,8 +917,8 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
   const SkBitmap b = plate(Composer::InputSpace::LinearSRGB);
   ASSERT_EQ(a.computeByteSize(), b.computeByteSize());
   EXPECT_EQ(0, std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()))
-      << "the declaration must not touch a pixel — §41 forbids a "
-         "conversion stage";
+      << "the declaration must not touch a pixel: it performs no "
+         "conversion";
 }
 
 TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
@@ -989,8 +991,9 @@ TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
 
 TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   // Materials are VALUES: binding a uniform on a copy must not contaminate
-  // the base or sibling copies (the audit's aliasing defect — a shared HUD
-  // base material bound to two different Outputs).
+  // the base or its sibling copies. The shape that catches this is a shared
+  // base material bound to two different Outputs — with aliasing, both
+  // copies read whichever binding was applied last.
   Material base = Material::sksl(ukEffect());
   choreograph::Output<float> low{0.2f}, high{1.0f};
   Material a = base;
@@ -1014,9 +1017,10 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
 }
 
 TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
-  // Fill setters are last-wins in BOTH directions: a plain fill() after a
-  // live-material fill() must take effect (the audit's stale-liveMaterial
-  // defect — pre-fix the later fill was silently ignored).
+  // Fill setters are last-wins in BOTH directions. The easy half to get
+  // wrong is a plain fill() following a live-material fill(): if the live
+  // material is held in a separate slot that paint consults first, the later
+  // plain fill is silently ignored.
   choreograph::Output<float> k{1.0f};
   Host host;
   host.composer.render(box().child(
@@ -1030,10 +1034,10 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
 }
 
 TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
-  // A blend inherits its layers' volatility tier (the review's deferred-
-  // flatten fix): a live layer makes the whole blend LIVE, so it re-resolves
-  // per frame and TRACKS the bound Output — no stale build-time snapshot
-  // (pre-fix the eager flatten baked SkSL defaults, uK=0 forever).
+  // A blend inherits its layers' volatility tier: a live layer makes the
+  // whole blend LIVE, so it re-resolves per frame and TRACKS the bound
+  // Output. Flattening the stack eagerly at build time instead would bake
+  // the shader's default uniform values in permanently.
   choreograph::Output<float> k{0.8f};
   Material m = Material::blend({
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
@@ -1054,11 +1058,12 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
 }
 
 TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
-  // §35.1. A blend has NO m_live of its own — it inherits liveness through
-  // m_recipe->layers — so asShader()'s live path (`build(*m_live, nullptr)`)
-  // dereferenced a null pointer for it. The reachable shape is a blend
-  // nested in another blend's layer list, because blend() calls asShader()
-  // on every layer: CONSTRUCTING `outer` below is what crashed.
+  // A blend carries no live-uniform block of its own — it INHERITS liveness
+  // from its layers — so any code path that reaches for that block directly
+  // has nothing to dereference. The shape that reaches it is a blend nested
+  // inside another blend's layer list, because blend() folds every layer to
+  // a shader as it is constructed: building `outer` below is the moment it
+  // happens, before anything is painted.
   choreograph::Output<float> k{0.8f};
   Material inner = Material::blend({
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
@@ -1192,10 +1197,10 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
 }
 
 TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
-  // The §8.1 payoff: re-describing the SAME material recipe prunes even
-  // though every describe builds a fresh SkShader — gradients and blend
-  // stacks compare by recipe, not by pointer. Pre-fix this tree re-patched
-  // and re-recorded on every render().
+  // Re-describing the SAME material recipe prunes even though every describe
+  // builds a fresh SkShader: gradients and blend stacks compare by RECIPE,
+  // not by shader pointer. Compare by pointer and a tree like this one
+  // re-patches and re-records on every render() with nothing to show for it.
   Host host;
   auto tree = [] {
     return box()
@@ -1235,15 +1240,17 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
 }
 
-// ---- the child slot: a SECOND source (ROADMAP §10f) ------------------------
+// ---- the child slot: a SECOND source ---------------------------------------
 //
-// `Material::sksl()` had no child slot, so a material could read exactly one
-// image and every two-source rule — an index texture through a palette LUT,
-// a mask channel, a second gradient — had to leave the library. The slot is
-// `child(name, Material)` against a declared `uniform shader`, and the
-// driving case below is the paletted one: X-COM shades by index arithmetic
-// (`(src & 0xF0) | min(15, (src & 0x0F) + shade)`) with no multiplication in
-// the renderer at all, which is expressible over a LUT and not otherwise.
+// Without a child slot a material can read exactly one image, so every
+// two-source rule — an index texture through a palette LUT, a mask channel,
+// a second gradient — has to be done outside the library. The slot is
+// `child(name, Material)` bound against a declared `uniform shader`.
+//
+// The paletted case below is the one that cannot be expressed any other way:
+// index-arithmetic shading, `(src & 0xF0) | min(15, (src & 0x0F) + shade)`,
+// with no multiplication anywhere — a rule over a lookup table rather than
+// over colour.
 
 namespace {
 
@@ -1363,9 +1370,10 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
 }
 
 TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
-  // THE CACHE CONDITION. A child read at paint time that did not
-  // participate in reconciler equality would leave a pruned node sampling
-  // the OLD palette forever (DESIGN.md's rule, stated for exactly this).
+  // THE CACHE CONDITION. Anything read at paint time must participate in
+  // reconciler equality. A child that does not leaves a pruned node sampling
+  // the OLD palette forever, with no diagnostic and a picture that looks
+  // deliberate.
   const Material a = Material::sksl(paletteEffect())
                          .child("uPalette", paletteSource(rampPalette()));
   const Material b = Material::sksl(paletteEffect())
@@ -1581,9 +1589,9 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
 }
 
 TEST(ComposeRail, ReRoutesOnRouterOnlyChange) {
-  // Review fix: a rail whose DESCRIPTION changes (router swap) must
-  // re-derive even though no station moved — the derive guards key resolved
-  // geometry, not the description.
+  // A rail whose DESCRIPTION changes — here a router swap — must re-derive
+  // even though no station moved. The derive guard keys on resolved
+  // geometry, so the description change has to reach it separately.
   Host host;
   auto scene = [](RailRouter router) {
     return stack()
@@ -1621,7 +1629,8 @@ TEST(ComposeRail, ReRoutesOnAnchorNormChange) {
 }
 
 TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
-  // Review fix: an unmounted station takes its rail with it — no ghost path.
+  // An unmounted station takes its rail with it. A route whose anchor is
+  // gone resolves to nothing and must draw nothing, not keep its last path.
   Host host;
   auto scene = [](bool withB) {
     auto s = stack().child(station("a", 10, 40));
@@ -1639,8 +1648,9 @@ TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
 }
 
 TEST(ComposeRail, HitsNearPathOnlyNotItsLayoutBox) {
-  // Review fix: rails are Kind::Custom over inset(0) — hitTest must hit
-  // near the routed PATH, not eclipse the whole canvas with the layout box.
+  // A rail's layout box is inset(0) — the whole canvas — so hit testing it
+  // by box would swallow every hit in the frame. It must hit near the routed
+  // PATH instead.
   Host host;
   host.composer.render(
       stack()
@@ -1670,8 +1680,9 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
           .mask(by::spans(spans::upTo(0.2f)))
           .foreground(sigil::compose::util::stroke(4, green()))));
   host.frame();
-  // Perimeter order (measured): left → top → right → bottom. First 20% ≈
-  // the left edge.
+  // Perimeter order for this outline: left → top → right → bottom, so the
+  // first 20% is about the left edge. That order is a property of how the
+  // path is built, which is why the assertions name specific edges.
   EXPECT_EQ(host.pixel(1, 50), SK_ColorGREEN);  // left edge revealed
   EXPECT_EQ(host.pixel(50, 1), SK_ColorBLACK);  // top edge bare
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK); // bottom edge bare
@@ -1720,9 +1731,10 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
 #include <sigilcompose/Sdf.h>
 
 TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
-  // Review fix (kernel-wide shadow): describing a PLAIN value after a
-  // transition must actually land — the lingering ramp used to shadow the
-  // description forever.
+  // Describing a PLAIN value after a transition must land immediately. A
+  // running ramp resolves ahead of the described value, so unless the snap
+  // disconnects it the ramp shadows the description for as long as it lives
+  // — and a settled ramp holds its target forever.
   Host host;
   auto at = [](Animatable<float> x) {
     return box().child(box().key("m").width(50).height(50).fill(red())
@@ -1750,9 +1762,9 @@ TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
 }
 
 TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
-  // Review fix: blend() containing a geometry-dependent (SDF) layer defers
-  // its flatten to resolve time — the eager snapshot baked uResolution=(0,0)
-  // and rendered a degenerate speck.
+  // A blend containing a geometry-dependent (SDF) layer must defer its
+  // flatten to resolve time, when the node's size is known. Flattening at
+  // build time bakes a zero resolution and renders a degenerate speck.
   Material m = Material::blend({
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
       {sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1}}),
@@ -1843,11 +1855,11 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
 }
 
 TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
-  // §14: sdf::pad() is reserved INSIDE the node's box, so a 60x60 box
-  // with glowRadius 20 (pad = 65) renders a ~1px speck and used to say
-  // NOTHING — sdf::minBoxFor() was the answer and no call site pointed
-  // at it. The numbers meet at resolve (uPad vs uResolution), and that
-  // is where the warning now lives.
+  // sdf::pad() is reserved INSIDE the node's box, so a small box with a
+  // large glow radius leaves almost no room for the shape and renders a
+  // speck. sdf::minBoxFor() gives the size that would fit, but an author who
+  // does not already know it exists has no way to find it — so the warning
+  // fires where the two numbers first meet, at resolve, and names it.
   const sdf::Style style{.fill = {1, 0, 0, 1},
                          .glowRadius = 20,
                          .glowColor = {1, 1, 1, 1}};
@@ -1916,11 +1928,11 @@ TEST(ComposePattern, HeldPatternPrunesReseedRegenerates) {
 }
 
 TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
-  // A Pattern is a VALUE — scale/rotate/offset/sampling are all per-object
-  // — but seed() and retile() edited the SHARED recipe, so re-rolling a
-  // copy dropped the original's bake and regenerated every element still
-  // drawing the old tile (audit E5). Copy-on-write, Material::uniform's
-  // answer to the same aliasing.
+  // A Pattern is a VALUE — scale, rotate, offset and sampling are all
+  // per-object. seed() and retile() touch the shared recipe, so they must
+  // copy on write: editing it in place would drop the original's bake and
+  // regenerate every element still drawing the old tile. Same aliasing
+  // hazard, and same answer, as binding a uniform on a copied Material.
   Pattern base = patterns::speckle(64, 40, 1, 3, {{1, 1, 1, 1}});
   base.seed(11);
   auto plate = [&] {
@@ -1962,9 +1974,11 @@ TEST(ComposePattern, ElementTreeAsTile) {
 #include <sigilcompose/Brushes.h>
 
 TEST(ComposePattern, Girih8IsTheRealStarAndCross) {
-  // REFERENCES.md §4: Hankin PIC on 4.8.8 at θ=45 — khatam star at the tile
-  // center (star color), cross ground at the tile edge midpoint's flanks,
-  // strap ribbon on the khatam chord.
+  // The construction is Hankin's polygons-in-contact method on a 4.8.8
+  // tiling at θ=45: a khatam star at the tile centre in the star colour, the
+  // cross ground at the flanks of each edge midpoint, and the strap ribbon
+  // running along the khatam chord. The pixel probes below name those three
+  // places, so a pattern that merely looks ornamental will not pass.
   patterns::GirihPalette pal = patterns::fezPalette();
   Pattern zellige = patterns::girih8(24, pal);
   const float s = 24 * (1 + 1.41421356f); // tile spacing ≈ 57.9
@@ -1985,8 +1999,9 @@ TEST(ComposePattern, Girih8IsTheRealStarAndCross) {
 }
 
 TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
-  // REFERENCES.md §5: the Ori filament — white-hot core, additive glow
-  // envelope falling off around it — as a value brush on a rail.
+  // A filament mark: white-hot core with an additive glow envelope falling
+  // off around it, built as a value brush on a rail rather than as a stack
+  // of hand-placed nodes.
   Host host;
   host.composer.render(
       stack()
@@ -2042,10 +2057,11 @@ TEST(ComposeStyles, OverlayAndStrokeSugar) {
 }
 
 TEST(ComposeStyles, BevelBandsEdgesWhenNested) {
-  // The y2k-study bug: with blur, the old inverse-fill inner shadow FLOODED
-  // the whole shape when the node sat at a non-origin offset inside a
-  // cached tree (the origin-anchored test passed while real layouts broke).
-  // The stroked-band implementation must band edges regardless of nesting.
+  // A bevel must band the node's EDGES wherever the node sits. Implemented
+  // as a blurred inverse fill it floods the whole shape once the node is at
+  // a non-origin offset inside a cached tree — and a fixture anchored at the
+  // origin cannot see that, which is why this one is deliberately nested and
+  // offset.
   Host host;
   host.composer.render(box().padding(30).child(box().padding(10).child(
       box().width(60).height(60)
@@ -2063,9 +2079,9 @@ TEST(ComposeStyles, BevelBandsEdgesWhenNested) {
 }
 
 TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
-  // The aero-study bug: a blurred shadow larger than its node was truncated
-  // at the picture-cache bounds. Decorations now declare bleed() and the
-  // recording cull grows to hold them.
+  // A blurred shadow reaches well past its node, so the recording cull has
+  // to grow by the decoration's declared bleed(). Otherwise the shadow draws
+  // on the first frame and is truncated by every cached replay after it.
   Host host;
   host.composer.render(box().padding(40).child(
       box().width(60).height(40)
@@ -2079,14 +2095,15 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
 }
 
 TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
-  // §14: a DecorationScheme can declare bleed() so the recording cull
-  // grows; a Material could not, so a fill on an outline that escapes
-  // the box (shape() overflow is legal) truncated at the cached bounds
-  // and the arithmetic fell to the caller. Material::bleed(px) declares
-  // the same number on the same word — pinned on BOTH carriers: the
-  // static recipe and the live/geometry slot. Cache::Texture makes the
-  // truncation hard (the bake surface is exactly recordBounds), so a
-  // surviving overflow proves the cull grew.
+  // A decoration declares how far it escapes the node with bleed(), and a
+  // Material needs the same word: a fill on a shape() that overflows the box
+  // — which is legal — is otherwise truncated at the cached bounds, leaving
+  // the caller to pad the node by hand.
+  //
+  // Both carriers are checked, the static recipe and the live slot.
+  // Cache::Texture makes the truncation hard rather than merely likely: the
+  // bake surface is exactly recordBounds, so anything outside it cannot
+  // survive by accident.
   auto overflowShape = [](SkSize s) {
     // A disc centered on the box, poking 20px beyond every edge.
     SkPathBuilder b;
@@ -2100,7 +2117,7 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
             .shape(overflowShape)
             .fill(Material::solid({1, 0, 0, 1}).bleed(24))));
     host.frame();
-    host.frame(); // the cached replay is where truncation used to bite
+    host.frame(); // the cached replay is where a small cull would bite
     // Node spans y∈[40,80); 14px below is inside the disc's overflow.
     EXPECT_EQ(host.pixel(70, 94), SK_ColorRED);
   }
@@ -2141,13 +2158,13 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
 // ---- console(): the streaming log ------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Effect live uniforms (§11): Material's uniform(name, &output) contract,
-// on the effect seam.
+// Effect live uniforms: the same uniform(name, &output) contract Material
+// offers, on the effect seam.
 
 TEST(ComposeEffects, ALiveUniformAnimatesWithoutRedescribe) {
-  // §11: Effect::shader took constants only, so animating a ripple phase
-  // or a bloom threshold required a full re-describe per frame. A bound
-  // uniform now resolves per paint and declares the node volatile —
+  // With constant uniforms only, animating a ripple phase or a bloom
+  // threshold costs a full re-describe every frame. A bound uniform resolves
+  // per paint and declares the node volatile —
   // exactly the live-material contract.
   auto [effect, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform shader content;"
@@ -2172,10 +2189,11 @@ TEST(ComposeEffects, ALiveUniformAnimatesWithoutRedescribe) {
 }
 
 TEST(ComposeEffects, AStaticShaderEffectPrunesByRecipe) {
-  // The other half of the seam: a STATIC shader effect compares by recipe
-  // (runtime-effect pointer + constant uniforms), so a fixture that holds
-  // ONE SkRuntimeEffect and re-describes prunes — the sharedHeavyEffect
-  // pattern, which used to re-patch on the filter pointer every frame.
+  // The other half of the seam: a STATIC shader effect compares by RECIPE —
+  // the runtime-effect pointer plus its constant uniforms — so a caller that
+  // holds one SkRuntimeEffect and re-describes around it prunes. Comparing
+  // the built filter pointer instead would re-patch every frame, since a
+  // fresh filter is built each time.
   auto [effect, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform shader content;"
                "uniform float uK;"
@@ -2231,13 +2249,13 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
 }
 
 // ---------------------------------------------------------------------------
-// Effect::directionalBlur (§43.7's separate filing): the one spelling for
-// the four hand-built anisotropic-Blur sites, from existing filters only.
+// Effect::directionalBlur — one spelling for an anisotropic blur at any
+// angle, built entirely from filters Skia already has.
 
 TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
-  // The reuse ruling: at an axis-aligned angle directionalBlur IS the
-  // SkImageFilters::Blur call the four sites hand-wrote — same factory,
-  // same arguments — which is what made their ports bit-identical.
+  // At an axis-aligned angle directionalBlur must BE the plain
+  // SkImageFilters::Blur call it replaces — same factory, same arguments —
+  // so a caller who already wrote the Blur by hand gets identical pixels.
   // Compared pixel-for-pixel over the whole plate.
   auto plate = [](Host &host, Effect e) {
     host.composer.render(box().child(
@@ -2257,10 +2275,10 @@ TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
 }
 
 TEST(ComposeEffects, ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt) {
-  // The other half of the ruling: any other angle is the rotate → Blur →
-  // unrotate sandwich §43.7 named — three existing DAG nodes, no new
-  // SkSL. A 45° streak on a centred square throws ink down-right along
-  // the smear axis and none the same distance across it.
+  // Any other angle is a rotate → Blur → unrotate sandwich — three filter
+  // nodes Skia already provides, no new SkSL. A 45° streak on a centred
+  // square throws ink down-right along the smear axis and none the same
+  // distance across it, which is what the two probes below read.
   Host host;
   host.composer.render(box().child(
       box().width(40).height(40).inset(80, 80, 80, 80).absolute()
@@ -2296,11 +2314,11 @@ TEST(ComposeEffects, AStaticDirectionalBlurPrunesByRecipe) {
 }
 
 TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
-  // Live parameters ride the EXISTING uniform channel (§11): the
-  // recipe's named parameters accept a bound Output and the sandwich
-  // rebuilds per paint — an animated smear angle needs no new mechanism
-  // and no re-describe (lain_navi faked exactly this with five gradient
-  // ramps because the animated spelling did not exist).
+  // Live parameters ride the same uniform channel a Material uses: the
+  // recipe's named parameters accept a bound Output, and the rotate/blur/
+  // unrotate sandwich is rebuilt per paint. So an animated smear angle needs
+  // no new mechanism and no re-describe — which is the difference between
+  // animating it and faking it with a stack of pre-baked gradients.
   choreograph::Output<float> angle{0.0f};
   Host host;
   host.composer.render(box().child(
@@ -2321,9 +2339,10 @@ TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
 }
 
 TEST(ComposeEffects, AnUnknownDirectionalBlurUniformIsIgnoredNotLive) {
-  // Material's guardrail on the same seam: a name that is not
-  // "sigma"/"angle"/"across" warns and is IGNORED — it must not bind,
-  // and it must not silently declare the node volatile.
+  // The same guardrail Material applies: a name that is not
+  // "sigma"/"angle"/"across" warns and is IGNORED. Two things must follow —
+  // it does not bind, and it does not silently declare the node volatile,
+  // which would repaint every frame forever over a typo.
   choreograph::Output<float> v{1.0f};
   const Effect typo = Effect::directionalBlur(10, 0).uniform("sgima", &v);
   EXPECT_FALSE(typo.isAnimated());
@@ -2333,8 +2352,9 @@ TEST(ComposeEffects, AnUnknownDirectionalBlurUniformIsIgnoredNotLive) {
 }
 
 // ---------------------------------------------------------------------------
-// §19 — the SPATIALLY-VARYING parameter channel: Effect::child(name,
-// Material) and Effect::blur(sigmaMap, maxSigma).
+// The SPATIALLY-VARYING parameter channel: Effect::child(name, Material)
+// and Effect::blur(sigmaMap, maxSigma) — an effect parameter that is a
+// function of position rather than a single number.
 
 namespace {
 
@@ -2388,10 +2408,9 @@ void stripePlate(Host &host, Effect e) {
 } // namespace
 
 TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
-  // THE PIXEL PIN for §19: sharp at one edge, soft at the other, from ONE
-  // effect on ONE node — a picture no constant sigma can produce, which is
-  // what the entry's two citations (a depth-of-field falloff, a lens edge)
-  // asked for and had no spelling for.
+  // Sharp at one edge, soft at the other, from ONE effect on ONE node — a
+  // picture no constant sigma can produce, and the reason the channel
+  // exists at all (a depth-of-field falloff, a lens edge).
   Host varying;
   stripePlate(varying, Effect::blur(focalRamp(), 16));
   const int y = 100;                      // the node's vertical middle
@@ -2419,10 +2438,10 @@ TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
 }
 
 TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
-  // The carrier ruling's first half (§19 Q1): a Material prunes where a
-  // raw callable never could. And the map is IN the equality — a child
-  // read live that did not participate would leave a pruned node sampling
-  // last frame's parameter forever (§10f's rule, same words).
+  // Carrying the sigma map as a Material rather than a callable is what
+  // makes the effect comparable at all. The map has to be IN the equality
+  // too: a parameter read live but excluded from the comparison leaves a
+  // pruned node sampling last frame's map forever.
   Host host;
   auto tree = [&](float maxSigma, Material map) {
     return box().child(box().width(60).height(60).fill(green()).effect(
@@ -2448,9 +2467,10 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
 }
 
 TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
-  // TIER INHERITANCE (§19 Q4, the §41 frozen-matte failure class): a live
-  // parameter must lift the EFFECT to live, or a bake samples the map once
-  // and freezes it. The recursion is Material::isAnimated()'s own.
+  // Liveness has to be INHERITED: a live parameter must lift the whole
+  // effect to live, or a bake samples the map once and the effect freezes
+  // at that sample while everything around it keeps moving. The recursion
+  // is Material::isAnimated()'s own.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uK;"
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
@@ -2474,8 +2494,8 @@ TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
 }
 
 TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
-  // The range rides the SAME uniform channel directionalBlur established
-  // (§11) — no second mechanism for "animate the blur".
+  // The range rides the SAME uniform channel as every other live parameter,
+  // so there is exactly one way to animate a blur rather than one per knob.
   choreograph::Output<float> range{0.0f};
   Host host;
   stripePlate(host, Effect::blur(focalRamp(), 0).uniform("maxSigma", &range));
@@ -2487,11 +2507,10 @@ TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
 }
 
 TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
-  // The general door (§19 Q2): Effect::shader fills exactly ONE child —
-  // "content", the node's own layer — and a second declared
-  // `uniform shader` was left unbound with no way to fill it. child()
-  // fills it with a Material, resolved against THIS node's box, so
-  // unit-space authoring works here as it does on a fill.
+  // Effect::shader fills exactly ONE child — "content", the node's own
+  // layer — so a second declared `uniform shader` has nothing to bind it.
+  // child() fills it with a Material, resolved against THIS node's box, so
+  // unit-space authoring works here exactly as it does on a fill.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform shader content;"
                "uniform shader param;"
@@ -2516,11 +2535,10 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
   EXPECT_GT(SkColorGetG(host.pixel(155, 100)), 200u);
   EXPECT_NEAR((int)SkColorGetG(host.pixel(100, 100)), 128, 40);
 
-  // …AND A STATIC CHILD REACHES THE SNAPSHOT. Found by review, not by the
-  // arm above: a unit ramp is geometry-tier, so the paint path re-resolves
-  // it and any store-time mistake is invisible. A solid never needs a
-  // context, so it is only in the filter if child() rebuilt the snapshot —
-  // half a green layer, everywhere.
+  // …AND A STATIC CHILD REACHES THE SNAPSHOT, which the arm above cannot
+  // show: a unit ramp is geometry-tier, so the paint path re-resolves it and
+  // a mistake at store time is invisible. A solid never needs a context, so
+  // it appears in the filter only if child() actually rebuilt the snapshot.
   Host flat;
   flat.composer.render(box().child(
       box().width(120).height(120).inset(40, 40, 40, 40).absolute()
@@ -2585,8 +2603,37 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
   EXPECT_TRUE(reaimed.isAnimated());
 }
 
+TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
+  // The two drops the recipe-name guardrails do not reach: a filter() has
+  // no uniform to receive a binding at all, and a null Output has nothing
+  // to read at paint. Both must warn like the blur paths do — an author
+  // animating a filter() uniform otherwise gets neither motion nor
+  // diagnostic. Control first: a valid binding on a shader() stays silent.
+  choreograph::Output<float> k{0.5f};
+  ::testing::internal::CaptureStderr();
+  (void)Effect::shader(ukEffect()).uniform("uK", &k);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a valid binding must not warn";
+  // (a) uniform() on a filter(): warned and ignored, and still not live.
+  ::testing::internal::CaptureStderr();
+  Effect plain = Effect::filter(SkImageFilters::Blur(4, 4, nullptr));
+  plain.uniform("uK", &k);
+  const std::string filterLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(filterLog.find("Effect::uniform"), std::string::npos) << filterLog;
+  EXPECT_NE(filterLog.find("uK"), std::string::npos) << filterLog;
+  EXPECT_FALSE(plain.isAnimated());
+  // (b) a null value pointer, on an effect that could have bound it.
+  ::testing::internal::CaptureStderr();
+  Effect nulled = Effect::shader(ukEffect());
+  nulled.uniform("uK", nullptr);
+  const std::string nullLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(nullLog.find("Effect::uniform"), std::string::npos) << nullLog;
+  EXPECT_NE(nullLog.find("uK"), std::string::npos) << nullLog;
+  EXPECT_FALSE(nulled.isAnimated());
+}
+
 // ---------------------------------------------------------------------------
-// Material::amount() (§5): a blend layer's strength.
+// Material::amount(): a blend layer's strength.
 
 TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
   // "Soft-light this noise at 30%" had no expression — the only route was
@@ -2621,18 +2668,19 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
 
 
 // ---------------------------------------------------------------------------
-// §18: a texture-cached node's blend rides its blit, not a saveLayer.
+// A texture-cached node's blend rides its blit, not a saveLayer.
 
 TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
-  // The measured case: Cache::Texture + a non-srcOver blend used to
-  // allocate a device-clip-sized saveLayer to composite ONE blit
-  // (3.45 → 0.24 ms on the node that filed §18). The blend now rides the
-  // blit's paint. Semantics pinned against the ground truth: compositing
-  // one image through a layer and drawing it with the paint directly are
-  // the same operation minus an intermediate — so the deferred plate must
-  // match a hand-built layer composite to within the honest 8-bit
-  // residual (§30's standard: peak ≤ 2), and kPlus over the red base
-  // must actually ACCUMULATE.
+  // Cache::Texture plus a non-srcOver blend must not allocate a
+  // device-clip-sized saveLayer just to composite ONE blit — the blend
+  // belongs on the blit's own paint.
+  //
+  // That is safe because compositing an image through a layer and drawing
+  // it with the same paint directly are one operation minus an
+  // intermediate, so the deferred plate must match a hand-built layer
+  // composite to within the 8-bit rounding residual. And kPlus over the
+  // red base must actually ACCUMULATE, or the blend was dropped rather
+  // than moved.
   auto plate = [](bool texture) {
     Host host;
     host.composer.render(
@@ -2675,7 +2723,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
 }
 
 // ---------------------------------------------------------------------------
-// Material::buffer (§4): content that changes without re-describing.
+// Material::buffer: content that changes without re-describing.
 
 TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   // The Instances pruning rule, on pixels: identical re-describes prune
@@ -2716,9 +2764,10 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
 }
 
 TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
-  // §14: custom() re-recorded every render() — an incomparable callable.
-  // custom(key, program) declares identity (the keyed-parametric
-  // contract); the unkeyed form stays the escape hatch.
+  // An unkeyed custom() carries an incomparable callable, so its node
+  // re-records on every render(). custom(key, program) lets the author
+  // declare identity instead — one key names one program — while the
+  // unkeyed form stays the conservative escape hatch.
   static int runs;
   runs = 0;
   auto tree = [](const char *key, float shade) {
@@ -2753,8 +2802,9 @@ TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
 }
 
 TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
-  // §14: stripes() is single-colour and un-phased; a coloured sett was a
-  // hand-written PatternProgram every time.
+  // stripes() is single-colour and cannot be phased, so a multi-colour
+  // repeating band — and any animated slide of one — would otherwise be a
+  // hand-written pattern program each time.
   auto sample = [](float phase, int x) {
     Host host;
     host.composer.render(box().child(
@@ -2776,7 +2826,7 @@ TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
 }
 
 // ---------------------------------------------------------------------------
-// env — the inherited value (ROADMAP §10g)
+// env — the inherited value
 //
 // The property under test is not "a value arrives"; it is that the value
 // arrives WITHOUT COSTING THE PRUNE. Read during describe, an inherited
@@ -2940,6 +2990,34 @@ TEST(ComposeEnv, InnerProvideShadowsAndUnwinds) {
   EXPECT_FALSE(env::bound<EnvOther>());
 }
 
+TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
+  // LIFO nesting is the contract, and violating it must be detected in
+  // every build: a destructor that popped the top unconditionally would
+  // remove a SIBLING's binding when scopes die out of order, corrupting an
+  // environment the sibling still believes it provides. Heap providers
+  // force the wrong order deliberately.
+  auto outer = std::make_unique<env::Provide<EnvPalette>>(
+      EnvPalette{{1, 0, 0, 1}, {}});
+  auto inner = std::make_unique<env::Provide<EnvPalette>>(
+      EnvPalette{{0, 0, 1, 1}, {}});
+  ::testing::internal::CaptureStderr();
+  outer.reset(); // destroyed FIRST, from under the inner scope
+  EXPECT_NE(::testing::internal::GetCapturedStderr().find("env::Provide"),
+            std::string::npos)
+      << "the misuse must be loud";
+  // The surviving scope's binding still resolves — the misused destructor
+  // removed its own entry, not the top of the stack.
+  const EnvPalette *survivor = env::inherited<EnvPalette>();
+  ASSERT_NE(survivor, nullptr);
+  EXPECT_TRUE(survivor->surface == SkColor4f({0, 0, 1, 1}));
+  // The inner scope's own destruction is now below its recorded depth, so
+  // it too takes the identity path; the stack still fully unwinds.
+  ::testing::internal::CaptureStderr();
+  inner.reset();
+  (void)::testing::internal::GetCapturedStderr();
+  EXPECT_FALSE(env::bound<EnvPalette>());
+}
+
 TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   // The entry's actual complaint: `console::` had to be handed its colours
   // by whoever composed it. The env key is console::Style — the component's
@@ -2973,8 +3051,8 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
 }
 
 // ---------------------------------------------------------------------------
-// wiggle() and the reconciler — the prune pin for the noise stage added to
-// BoundFloat on 2026-07-29 (SigilMotion, Animation.h).
+// wiggle() and the reconciler — the prune behaviour of BoundFloat's noise
+// stage.
 
 TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
   // THE TRAP, pinned. `boundMapEqual()` in Reconcile.cpp compares BoundFloat
@@ -3095,10 +3173,10 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
 }
 
 // ---------------------------------------------------------------------------
-// travel(): the motion path (2026-07-29)
+// travel(): the motion path.
 //
-// The 2D port of world::CameraPath. Every ruling in MotionPath's doc comment
-// is pinned here, each with the positive control that made it fail.
+// Every claim MotionPath's doc comment makes is checked here, each paired
+// with the control that would fail if the claim were reversed.
 
 namespace {
 
@@ -3487,10 +3565,10 @@ TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
 }
 
 TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
-  // Found by the travel() equality audit, not by travel(): scaleX/scaleY
-  // were never added to propsEqual when they landed, so two descriptions
-  // differing only in a per-axis scale compared EQUAL — the patch pruned,
-  // the node was never marked paint-dirty, and the old picture replayed.
+  // Per-axis scale has to reach propsEqual like every other paint field.
+  // Left out, two descriptions differing only in scaleX compare EQUAL: the
+  // patch prunes, the node is never marked paint-dirty, and the old picture
+  // replays at the old scale — a wrong picture with no failure anywhere.
   Host host(200, 200);
   const auto bar = [](float sx) {
     return box().child(box()
@@ -3531,9 +3609,14 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
 }
 
 // ===========================================================================
-// §19 — Material::worldSpace(): the material's coordinates are the COMPOSER
-// ROOT's frame instead of the node's. Pins 1–8; the 9th pin is the field
-// pin itself (Material.h: the structured binding counts 8 members).
+// Material::worldSpace(): the material's coordinates come from the COMPOSER
+// ROOT's frame instead of the node's, so a light or a texture field stays
+// anchored to the canvas while the objects lit by it move.
+//
+// The cases below cover every way a node can move relative to that field —
+// described transforms, bound transforms, layout, relayout — because each
+// reaches invalidation by a different route. The compile-time field pin on
+// Material's own members is the other half of this coverage.
 namespace {
 SkPoint brightestPixel(Host &host) {
   SkBitmap bm;
@@ -3593,14 +3676,14 @@ Element rotatedInstrument(float rotationDeg, bool flagged) {
 }
 } // namespace
 
-// PIN 8 (§10c escape 1, concrete; the step-0 reproduction as a pin): a
-// rotated node samples the world field THROUGH its rotation, so the
-// highlight sits still in canvas space while the object turns. The control
-// is the reproduction itself: unflagged + hand-converted, the highlight
-// turned with the rete — measured (69,69) → (96,57), 29.5 px, before the
-// mechanism existed. This pin also exercises the reconcile-time
-// staleWorldSpaceBelow walk: the rotation is a DESCRIBED transform on the
-// ancestor, so the pruning panel's recording must be staled by hand.
+// A rotated node samples the world field THROUGH its rotation, so the
+// highlight sits still in canvas space while the object turns. Without the
+// flag the highlight rotates with the object, which is the control below.
+//
+// This also exercises the reconcile-time staleWorldSpaceBelow walk: the
+// rotation is a DESCRIBED transform on an ancestor, and the panel below it
+// prunes, so its recording has to be staled explicitly — nothing about the
+// panel's own description changed.
 TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
   Host host;
   host.composer.render(rotatedInstrument(0, true));
@@ -3615,8 +3698,9 @@ TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
   const SkPoint at40 = brightestPixel(host);
   EXPECT_LT(SkPoint::Distance(at0, at40), 3.0f)
       << "the highlight turned with the object — world anchoring failed";
-  // Control: the hand-converted unflagged ramp turns with the rete (the
-  // defect this feature exists for stays reproducible).
+  // Control: the same instrument WITHOUT the flag, whose light turns with
+  // the object. Without this arm the assertion above would also pass on a
+  // fixture where the rotation never reached the light at all.
   Host c0, c40;
   c0.composer.render(rotatedInstrument(0, false));
   c40.composer.render(rotatedInstrument(40, false));
@@ -3626,10 +3710,10 @@ TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
       << "the unflagged control no longer reproduces the defect";
 }
 
-// PIN 1: a field continuous ACROSS separately-laid-out nodes — the entry's
-// own wording. Two flex siblings share one worldSpace ramp; the shared
-// edge is pixel-continuous. Control: unflagged, each node restarts the
-// ramp and the edge jumps.
+// A field continuous ACROSS separately-laid-out nodes: two flex siblings
+// share one worldSpace ramp and the edge between them is pixel-continuous.
+// Unflagged, each node restarts the ramp in its own space and the edge
+// jumps, which is the control.
 TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
   const auto scene = [](bool flagged) {
     Material ramp = Material::linear(
@@ -3659,10 +3743,11 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
       << "the unflagged control is continuous — the pin lost its contrast";
 }
 
-// PIN 2: alignment through the layout offset — a fixture node at (40,40)
-// samples the field where it SITS; the control is the identity-toRoot
-// resolve (the documented outside-a-composer degradation), which anchors
-// node-locally and therefore shifts the falloff by exactly the offset.
+// Alignment through the layout offset: a node at (40,40) samples the field
+// where it SITS. The control is a resolve with an identity root matrix —
+// the documented degradation when a material is resolved outside a composer
+// — which anchors node-locally and shifts the falloff by exactly the
+// offset.
 TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   Host host;
   host.composer.render(
@@ -3695,10 +3780,10 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
       << "identity toRoot must degrade to node-local, deterministically";
 }
 
-// PIN 3: LAYOUT moves the node — the field stays put in canvas space. The
-// node's own props PRUNE (only a sibling spacer changes), so the
-// invalidation is syncLayoutRects' §19 extension and nothing else; the
-// control run reverts that extension and this fails.
+// LAYOUT moves the node while the field stays put in canvas space. The
+// node's own props PRUNE here — only a sibling spacer changes — so the
+// invalidation can only come from the layout-rect sync noticing the node's
+// world matrix moved. No other phase sees this.
 TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
   const auto scene = [](float spacer) {
     Material light =
@@ -3724,9 +3809,10 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
       << "the field moved with the layout — the recording kept its old W";
 }
 
-// PIN 4: an ANCESTOR's layout move re-anchors a descendant whose own
-// parent-relative rect never changed — the movedAbove threading. The
-// control run drops the threading (passes `false` down) and this fails.
+// An ANCESTOR's layout move must re-anchor a descendant whose own
+// parent-relative rect never changed. The descendant has no local evidence
+// that it moved at all, so "an ancestor above you moved" has to be threaded
+// down the walk.
 TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
   const auto scene = [](float spacerH) {
     Material light =
@@ -3751,12 +3837,12 @@ TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
       << "the ancestor moved and the descendant kept its old anchoring";
 }
 
-// PIN 5: a BOUND transform drives the ancestor and the field stays
-// anchored per frame — the volatility lift (worldUnderMotion joins the
-// memoized scalar lane), then §20's release once the motion settles, then
-// the per-draw scan the frame it resumes. Control: drop the lift
-// (`scalarContent |= worldUnderMotion`) and the parent's recording replays
-// the old anchoring under the live rotation — the wrong picture.
+// A BOUND transform drives the ancestor and the field stays anchored on
+// every frame. Three stages are exercised in order: the volatility lift
+// while the motion runs, the release once it settles, and the per-draw scan
+// on the frame it resumes. Without the lift the parent's recording replays
+// the old anchoring under the live rotation, which is a wrong picture rather
+// than a stale one.
 TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
   ch::Output<float> rot{0};
   Host host;
@@ -3788,7 +3874,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
         << "at bound rotation " << angle
         << " the field turned with the object";
   }
-  // Hold past the §20 settle bar (8 paints) so the volatility releases…
+  // Hold still long enough for the released-scalar path to take over…
   for (int i = 0; i < 12; ++i)
     host.frame(1.0 / 60.0);
   EXPECT_LT(SkPoint::Distance(anchored, brightestPixel(host)), 3.0f);
@@ -3800,9 +3886,9 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
       << "the frame the released rotation resumed served stale anchoring";
 }
 
-// PIN 6: the flag is RECIPE. An identical re-describe with the flag
-// prunes (patchedNodes == 0); a flag flip patches. Control: drop
-// m_worldSpace from Material::operator== and the flip half fails.
+// The worldSpace flag is part of the RECIPE: an identical re-describe with
+// it set prunes, and flipping it patches. Leave it out of Material equality
+// and a node that stops being world-space keeps the old anchoring forever.
 TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
   const std::vector<Stop> stops{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   EXPECT_TRUE(Material::linear({0, 0}, {200, 0}, stops).worldSpace() ==
@@ -3826,14 +3912,14 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
       << "a flag flip pruned — the node would keep the old anchoring";
 }
 
-// PIN 7 (§10f): W joins the varying-input digest. A LIVE world-space sksl
-// material whose bound inputs hold still while the node MOVES must rebuild
-// — a digest cannot see an input it was never fed, and without W the
-// frame after the move serves the pre-move shader. The move is a
-// setSize() RELAYOUT against a grow() spacer — no re-describe, so the
-// SAME Live recipe (and its memo) survives the move; a re-described live
-// material would mint a fresh memo and hide the hole. Control: drop
-// `digestToRoot(...)` from Material::build and this fails.
+// The node's world matrix joins the resolve digest. A LIVE world-space
+// material whose bound inputs hold still while the NODE moves must still
+// rebuild its shader — a digest cannot notice an input it was never fed, so
+// omitting the matrix serves the pre-move shader on the frame after a move.
+//
+// The move here is a setSize() RELAYOUT against a grow() spacer, with no
+// re-describe, so the same live recipe and its memo survive it. Re-describing
+// the material would mint a fresh memo and hide the hole entirely.
 TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
   auto [fx, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uDrive;"

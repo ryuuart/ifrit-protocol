@@ -57,25 +57,23 @@
 // eye's rings in a single SIMD gradient.
 //
 // -----------------------------------------------------------------------------
-// WHAT THE MEASUREMENT CORRECTED — FIVE IN THE BRIEF, ONE IN ME
+// WHAT MEASURING THE FRAMES SETTLED
 //
 //  1. THE WINDOW IS NOT 16 PX OUT OF SQUARE, IT IS SHEARED, AND THE TWO BARS
-//     SHEAR OPPOSITE WAYS. The brief reports the chrome bar's left end at
-//     x=84 against a body at x=100 — one number for one offset. Per row, the
+//     SHEAR OPPOSITE WAYS. The easy reading is one number for one offset —
+//     the chrome bar's left end at x=84 against a body at x=100. Per row, the
 //     top bar's left end runs x=79 at y=22 to x=94 at y=50 and its right end
 //     919 to 936: the whole bar is a PARALLELOGRAM leaning right at
 //     dx/dy = +0.54. The bottom bar leans the other way, 94 at y=667 down to
 //     83 at y=691, dx/dy = -0.46. Stating it as a 16 px overhang loses the
 //     mechanism; it is one tube, and the bars are at different heights on it.
-//  2. THE SHARPNESS FALLOFF IS 5.5x, NOT 4.5x — AND THE BRIEF'S "SAME
-//     COLOUR, MORE BLUR" IS EXACTLY RIGHT, WHICH I GOT WRONG FIRST AND HAD TO
-//     TAKE BACK. Measured mean|dI/dx| over x 134..900 per line:
+//  2. THE SHARPNESS FALLOFF IS 5.5x AND IT IS PURE BLUR — SAME COLOUR, MORE
+//     SIGMA, NO AMPLITUDE TERM. Measured mean|dI/dx| over x 134..900 per line:
 //     1.63 2.07 2.51 1.49 2.63 1.53 3.13 2.77 **7.88** 3.48 3.54 2.58 2.23
-//     1.77 1.42, so 5.54x peak-to-floor with the band at y 384..408 (the
-//     brief's 4.5x is a floor it did not reach).
+//     1.77 1.42, so 5.54x peak-to-floor with the band at y 384..408.
 //
-//     Then I claimed the amplitude falls too, because the p50 of each line's
-//     band goes #152954 at the top against #3EADB8 in focus. THAT IS A
+//     The p50 of each line's band suggests the amplitude falls too — #152954
+//     at the top against #3EADB8 in focus. THAT IS A
 //     COVERAGE STATISTIC, NOT A BRIGHTNESS. Blurring a line spreads fixed ink
 //     over more pixels, so its p50 drops with no change in how bright the ink
 //     is. The statistic that answers the question is the per-line PEAK, and
@@ -86,24 +84,24 @@
 //     and gradient ~ peak/(w + 2s); with w = 2 px, sigma 0.30 -> 1.6 predicts
 //     0.52x in peak and 5.5x in gradient. Both measurements fall out of ONE
 //     sigma ramp and no amplitude term at all. So: fifteen lines, one colour,
-//     sigma linear in distance from the band. Every version of this sketch
-//     that dimmed the far lines looked wrong in a way I could see and could
-//     not name until I measured the peak instead of the median.
+//     sigma linear in distance from the band. Dimming the far lines instead
+//     looks wrong in a way that is hard to name until the peak is measured
+//     rather than the median.
 //  3. THE SCANLINE PERIOD IS 4.42 PX, NOT 5. FFT of the row mean over a
 //     text-free band (x 600..900, y 100..330), cubic-detrended: 4.42 px,
 //     amplitude 8.05 luma p95-p5. The composite's is 9.82 px at 27 luma.
-//     Ratio 2.22, so the brief's "the difference is how much of the tube
-//     each shot sees" is right; I hold the console's 4.42 because the
+//     Ratio 2.22 — the difference between the two shots is how much of the
+//     tube each one sees. This file holds the console's 4.42, because the
 //     console is the anchor.
 //  4. A DARK OUTLINE IS UNREACHABLE UNDER THE ADDITIVE LAW, AND UNNEEDED.
-//     The brief asks for `make me feel alright?` in white with a 2 px dark
-//     outline. Nothing subtracts in a kPlus stack. It is also unnecessary:
+//     `make me feel alright?` in white with a 2 px dark outline cannot be
+//     built here: nothing subtracts in a kPlus stack. It is also unnecessary:
 //     that arc crosses plate whose 2nd-pct floor is 5.5, already the floor,
 //     so the "outline" in the frame is the ABSENCE of the glyph's own light.
 //     Built as a bright core with a tight halo and no dark pass at all.
 //  5. THE TEXT ADVANCE IS 13.15 PX, NOT 13.6. The in-focus line's ink spans
-//     x 129..905 = 776 px, and the line is 60 characters, not 56 — the brief
-//     counted `.frame  $fp,40,$31    # vars= 8, ...` short. 776/59 = 13.15.
+//     x 129..905 = 776 px, and the line is 60 characters, not 56 — miscount
+//     `.frame  $fp,40,$31    # vars= 8, ...` and you get 13.6. 776/59 = 13.15.
 //     Line pitch 37.5 CONFIRMED exactly (autocorrelation of the row-gradient
 //     over the text block peaks at 37 and 75).
 //  6. THE WIREFRAME IS A HYPERBOLOID AND IT SOLVES. Two anchor points off
@@ -116,35 +114,36 @@
 //     are then not decoration, they are the ruling of the surface.
 //
 // -----------------------------------------------------------------------------
-// AND ONE CORRECTION TO MY OWN ASSIGNMENT, WHICH THE RESEARCHER MADE FIRST
+// WHAT MAKES IT LOOK HAND-MADE IS NOT A WOBBLE
 //
-// LAIN'S LINES ARE NOT WOBBLY. `shapers::Jitter` is the wrong instinct and I did
-// not use it. Hairline cross-sections in both frames are smooth single-lobe
+// LAIN'S LINES ARE NOT WOBBLY. `shapers::Jitter` is the wrong instinct and is
+// not used here. Hairline cross-sections in both frames are smooth single-lobe
 // profiles, 2 px, no tremor — mechanically clean. What reads as hand-made is
 // PLACEMENT (nothing is aligned to anything, no element is centred, no
 // spacing repeats, four strata run off the edge) and OPTICS (everything is
 // defocused by a DIFFERENT amount). This interface carries NO FURNITURE —
 // no ticks, arrows, brackets, leader lines, registration marks or plate
-// numbers. Standing order 3 is answered by the dotted ellipses, by the
-// generatrices that stop short of the rims, and by the additive stack, not
-// by decorating. Adding a bracket would make it a Winamp skin.
+// numbers. Whatever urge there is to add some is answered by the dotted
+// ellipses, by the generatrices that stop short of the rims, and by the
+// additive stack, not by decorating. Adding a bracket would make it a
+// Winamp skin.
 //
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
 //   Material::radialUnit (20 stops)   the pedestal AND the eye's rings, one
-//                                     SIMD gradient — an SkSL equivalent is
-//                                     ~7x slower for the same picture
+//                                     SIMD gradient — an SkSL equivalent runs
+//                                     a shader per pixel for the same picture
 //   Material::linearUnit              each chrome bar's INVERSE bevel, its
 //                                     six stops read off the bar's own rows
 //   shapes::parametric                every ellipse: the rims, the waist and
 //                                     the tilted orbit, as real curves
-//   LayeredBrush{blend = kPlus}       THE ADDITIVE TRICK. See PERF: kPlus on
-//                                     a NODE is a saveLayer, kPlus on a
-//                                     stroke PASS is a path draw
+//   LayeredBrush{blend = kPlus}       THE ADDITIVE TRICK. kPlus on a NODE
+//                                     allocates a saveLayer; kPlus on a
+//                                     stroke PASS is just a path draw
 //   TextStyle::paint maskFilter       the focal plane: per-line blur sigma
 //                                     on the glyph MASK, which Skia caches —
 //                                     15 sigmas x 2 passes (core + phosphor
-//                                     halo), zero layers (see the GAP)
+//                                     halo), and no layer at all
 //   TextPath{orient = Tangent}        `make me feel alright?` on the orbit's
 //                                     lower-left arc
 //   PathFormat dash + round cap       the broken ellipses (1.6 on 4.4)
@@ -154,100 +153,81 @@
 //                                     the other or the baked back stack
 //   Cache::Texture                    the plate, the pedestal, the eye, the
 //                                     bars, the panel, the streaks and the
-//                                     tube — thirteen bakes, NO bakeScale
-//                                     anywhere (see PERF: the dial is a trap
-//                                     on a CPU raster host)
+//                                     tube — thirteen bakes, and NO bakeScale
+//                                     anywhere (see THE COST RULES below)
 //   ctx.measure()                     the mono size is SOLVED so the advance
 //                                     lands on the measured 13.15 px
 //
 // -----------------------------------------------------------------------------
-// PERF — 41.6 ms -> 3.64 ms, and three of the five steps were surprises
+// THE COST RULES THIS SCREEN IS BUILT AROUND
 //
-//   41.6  the honest build of the brief: nine strata, each a node carrying
-//         .blend(kPlus) and .effect(Effect::filter(Blur)). Nine bounded
-//         saveLayers and nine blurs of a 0.73 MP canvas per frame.
-//   12.4  the blurs deleted from the layers and rebuilt where the light
-//         actually is: per-line SkMaskFilter on the text paint (Skia caches
-//         blurred glyph masks) and blurSigma on the stroke passes.
-//   11.1  kPlus moved OFF the nodes and ONTO the paints. Paint.cpp's
-//         `leafDirectBlend` already routes a fill-only leaf's blend straight
-//         onto the fill paint — but a node with ANY decoration is excluded,
-//         so every stroked ellipse was still allocating a layer. LayeredBrush
-//         carries a per-pass SkBlendMode, so the additive law costs path
-//         draws: 9 layers -> 0.
-//    8.7  `plate` was 3.45 ms of a 11.07 ms frame as a "texture", which is
-//         nonsense for a blit until you read the exclusion: Cache::Texture is
-//         excluded from leafDirectBlend, so a BAKED node carrying .blend(kPlus)
-//         allocates a bounded 1016x720 saveLayer every frame and blits into
-//         it. The plate is the BOTTOM of the stack and has nothing under it to
-//         add to, so the ground folds into its shader and it composites
-//         kSrcOver: 3.45 -> 0.24 ms, and no layer.
-//    3.8  **bakeScale(0.5) REMOVED FROM EVERY NODE THAT HAD IT.** This is
-//         the one I did not expect and it is worth stating plainly, because
-//         API.md recommends the dial for exactly the content I was using it on
-//         ("planes whose content is soft anyway"): a reduced bake is cheap to
-//         MAKE and then every BLIT of it is an upscaling resample, forever. On
-//         this host that is mean 11.07 ms -> 4.31 ms for six nodes, of which
-//         the full-canvas plate alone was 3.0 ms. bakeScale pays only when the
-//         bake is re-taken often; for a static bake blitted 60 times a second
-//         it is a pure loss. The doc should say so.
-//    3.64 / p99 6.37, after the last one: the scanline creep's bound
-//         translateY moved OFF the Texture-cached node and onto a wrapper
-//         box. With the binding on the baked node itself, every whole-pixel
-//         step of the creep RE-BAKES the 1016x744 SkSL layer — p99 3.64 ->
-//         33.4 ms, three spikes in five seconds, one per creep step, while p50
-//         never moved. A p50 that looks fine and a p99 seven times worse is
-//         exactly the failure --bench exists to catch.
+// The naive build of an additive stack is nine strata, each a node carrying
+// .blend(kPlus) and .effect(Effect::filter(Blur)): nine bounded saveLayers
+// and nine full-canvas blurs, every frame. Five rules take it apart, and each
+// one is a property of the library rather than a number about this host.
 //
-//   p50 3.64 ms / p99 6.37 ms / mean 3.84 at 1016x720 over 300 frames — the
-//   whole additive stack plus a thirty-draw text block with per-line blur is
-//   4 ms, and no node in it reaches half a millisecond. Every stratum of the
-//   additive stack is a path or glyph draw; the only saveLayers in the frame
-//   are the Texture-cached nodes that genuinely must add (pedestal, eye, two
-//   bars, panel, five streaks), each bounded to its own box.
+//  * PUT THE BLUR WHERE THE LIGHT IS, NOT ON THE LAYER. A per-line
+//    SkMaskFilter on the text paint blurs glyph masks, which Skia caches per
+//    (font, sigma); blurSigma on a stroke pass blurs that pass. Neither
+//    allocates a layer, and a node-level filter blurs the whole layer whether
+//    or not most of it is empty.
+//  * kPlus BELONGS ON THE PAINT, NOT ON THE NODE. A fill-only leaf's blend is
+//    routed straight onto its fill paint, but a node with ANY decoration is
+//    excluded from that and allocates a layer instead. LayeredBrush carries a
+//    per-pass SkBlendMode, so the additive law costs path draws rather than
+//    layers.
+//  * A BAKED NODE THAT ALSO BLENDS STILL ALLOCATES. Cache::Texture is excluded
+//    from the direct-blend path, so a baked node carrying .blend(kPlus) opens
+//    a bounded saveLayer every frame and blits into it. `plate` is the BOTTOM
+//    of the stack with nothing beneath it to add to, so the ground colour is
+//    folded into its own shader and it composites kSrcOver — a plain blit.
+//  * NO bakeScale ANYWHERE. A reduced bake is cheap to MAKE, and then every
+//    BLIT of it is an upscaling resample, forever. It pays only where the bake
+//    is re-taken often; for a static bake blitted at frame rate it is a pure
+//    loss, and "the content is soft anyway" is not a reason to take it.
+//  * THE BINDING GOES ON THE SMALLEST NODE THAT MOVES. The scanline creep's
+//    bound translateY sits on a wrapper box that owns no paint, not on the
+//    Texture-cached node beneath it, so the transform can never be a reason to
+//    re-take the bake. See the note at that node for why this is a habit here
+//    rather than a workaround.
 //
 // -----------------------------------------------------------------------------
-// LIBRARY GAP — a blur whose radius varies with position
+// WHAT THE LIBRARY CANNOT EXPRESS HERE — a blur whose radius varies with
+// position
 //
 // The screen's defining feature is a 5.5x sharpness gradient INSIDE ONE
 // BLOCK OF TEXT, and `effect()` applies exactly one filter to a node's whole
-// layer. Route (b) of the brief — one `Effect::shader` whose SkSL samples the
-// layer with a y-dependent kernel — IS reachable, and I checked rather than
-// assumed: Compose.h documents that "the layer arrives as the child shader
-// named content", so a runtime effect can absolutely read its own rendered
-// layer at arbitrary offsets. What it cannot do is vary the TAP COUNT: SkSL
-// has no cheap dynamic loop bound, so a 3-sigma separable kernel must be sized
-// for the worst sigma in the node (21 taps at 1.6 px over a 824x562 layer) and
-// paid at every pixel including the sharp band. Route (a), fifteen keyed
+// layer. One `Effect::shader` whose SkSL samples the layer with a y-dependent
+// kernel IS reachable — the layer arrives as the child shader named `content`,
+// so a runtime effect can read its own rendered layer at arbitrary offsets.
+// What it cannot do is vary the TAP COUNT: SkSL has no cheap dynamic loop
+// bound, so a 3-sigma separable kernel must be sized for the worst sigma in
+// the node (21 taps at the widest sigma here) and paid at every pixel,
+// including the pixels in the sharp band. The other route, fifteen keyed
 // one-line nodes each with its own filter, is fifteen saveLayers.
 //
-// What I did instead costs no layer at all: the sigma rides on the TEXT PAINT
-// as an SkMaskFilter, per line, and Skia caches blurred glyph masks per
-// (font, sigma). Fifteen sigmas over thirty draws (core plus phosphor halo),
-// all cache hits after the first frame, and the block does not appear in
-// --bench's six most expensive nodes at all.
+// What this file does instead costs no layer at all: the sigma rides on the
+// TEXT PAINT as an SkMaskFilter, per line, and Skia caches blurred glyph masks
+// per (font, sigma). Fifteen sigmas over thirty draws (core plus phosphor
+// halo), all cache hits after the first frame.
 //
-// But that escape exists only because the varying thing is TEXT. A varying
-// blur over the wireframe or the plate has no equivalent, and this is the SAME
-// SHAPE of gap as cine-01's `Material::worldSpace` citation: EFFECTS AND
-// MATERIALS BOTH LACK A SPATIALLY-VARYING PARAMETER CHANNEL. Two independent
-// citations, two unrelated domains, two consecutive briefs. What the API wants
-// is a filter whose scalar parameter is a function of node-local position —
-// resolved once into a two- or three-level pyramid and blended by that
-// function, which is how a real defocus is done and is O(1) in the sigma range
-// rather than O(sigma).
+// That escape exists only because the varying thing is TEXT. A varying blur
+// over the wireframe or the plate has no equivalent: neither effects nor
+// materials take a spatially-varying parameter channel. What would serve is a
+// filter whose scalar parameter is a function of node-local position, resolved
+// once into a two- or three-level pyramid and blended by that function — how a
+// real defocus is done, and constant in the sigma range rather than linear.
 //
-// Three smaller ones, all worked around in this file:
+// Three smaller limits, all worked around in this file:
 //
 //  * `LayeredBrush` declares no `bleed()`, so a blurred additive stack is
-//    culled at its node's own bounds. Already reported by the MAGI study;
-//    still true. Wrapped in an eight-line scheme that declares reach.
+//    culled at its node's own bounds. Wrapped here in an eight-line scheme
+//    that declares the reach the blur actually needs.
 //  * A Texture-cached node whose DECORATION paints kPlus must also carry
 //    `.blend(kPlus)` on the node, or the bake composites kSrcOver and paints
-//    its blurred stroke straight over the plate. The eye came back as two
-//    black lozenges. Paint.cpp knows this and says it in a comment; nothing in
-//    API.md does.
-//  * `bakeScale` has no warning about the blit. See PERF.
+//    its blurred stroke straight over the plate — the eye comes back as two
+//    black lozenges.
+//  * `bakeScale` carries no warning that it makes every blit a resample.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -318,8 +298,9 @@ inline SkColor4f dim(SkColor4f c, float k) { return studio::mul(c, k); }
 // that way on purpose: a colour with an alpha would have to darken something
 // to read, and nothing in this interface darkens anything.
 
-const SkColor4f kGround = hex(0x060719);      // the plate's own p10. #0F1023 is
-                                              // its p50 — see the note in setup()
+const SkColor4f kGround = hex(0x060719);      // the plate's own p10; #0F1023,
+                                              // its p50, is what the CONTRIB-
+                                              // UTIONS above are taken against
 const SkColor4f kProse = hex(0x1B2138);       // Japanese glyph peaks, +46+54+77
 const SkColor4f kPanel = hex(0x101F27);       // the lightened panel, +16+31+39
 const SkColor4f kBodyMid = hex(0x475F86);     // pedestal centre  (#334D83)
@@ -474,8 +455,8 @@ inline SkPoint onRim(float rad, float z, float ang) {
 }
 
 /** The ruling: N straight generatrices from the bottom rim to the top rim,
- *  each TRIMMED 7% short at both ends. The gaps are the brief's, and they are
- *  the one place this interface admits it was placed by a hand. */
+ *  each TRIMMED 7% short at both ends. Those gaps are in the frame, and they
+ *  are the one place this interface admits it was placed by a hand. */
 inline SkPath generatrices(float phiDeg, int n) {
   const float phi = phiDeg * 0.01745329f;
   SkPathBuilder b;
@@ -532,9 +513,9 @@ inline sk_sp<SkTypeface> face(std::initializer_list<const char *> families,
 }
 
 inline const sk_sp<SkTypeface> &monoFace() {
-  // "light-weight mono" — the brief's Latin-only substitute, since the console
-  // block is pure ASCII. ExtraLight (200) is the closest match to the frame's
-  // hairline stems.
+  // A light-weight Latin mono stands in for the frame's face; the console
+  // block is pure ASCII, so nothing wider is needed. ExtraLight (200) is the
+  // closest match to the frame's hairline stems.
   static sk_sp<SkTypeface> f =
       face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono",
             "Menlo", "Courier New"},
@@ -573,12 +554,12 @@ inline const sk_sp<SkTypeface> &markerFace() {
 
 /** THE ONE TEXT STYLE IN THE FILE, and it is the focal plane.
  *
- *  `blend` goes on the PAINT, not the node: a node-level kPlus is a bounded
- *  saveLayer per stratum (nine of them, 12 ms), a paint-level one is free.
+ *  `blend` goes on the PAINT, not the node: a node-level kPlus opens a bounded
+ *  saveLayer for every stratum, a paint-level one opens none.
  *  `sigma` goes on the glyph MASK, not on a layer filter: Skia caches blurred
  *  glyph masks per (font, sigma), so fifteen sigmas over fifteen lines cost
  *  fifteen cached mask draws and zero layers. That is the whole answer to the
- *  gap in the header. */
+ *  varying-blur problem described in the header. */
 inline weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
                             SkColor4f c, float sigma = 0.0f,
                             float track = 0.0f) {
@@ -786,36 +767,27 @@ inline sk_sp<SkRuntimeEffect> plateEffect() {
 
 /** An additive stroke pass. THE load-bearing call of the whole sketch: kPlus
  *  lives on the pass, so a stratum of strokes is path draws and not a layer.
- *  `blurSigma` is an SkMaskFilter on the stroke mask, bounded by the shape —
- *  the same trick the MAGI study measured at 4 ms against 62. */
+ *  `blurSigma` is an SkMaskFilter on the stroke mask, bounded by the shape,
+ *  so the blur costs a cached mask rather than a full-layer filter. */
 inline LayeredBrush add(float width, SkColor4f c, float sigma = 0.0f,
                         std::vector<SkScalar> dash = {}) {
   return LayeredBrush{
       {{width, c, sigma, std::move(dash), 0, SkBlendMode::kPlus, true}}};
 }
 
-/** THE `Reach` WRAPPER THAT USED TO SIT HERE IS GONE, AND SO IS THE GAP.
+/** A NOTE ON REACH, because the obvious hand-rolled version is a trap.
  *
- *  This file, and the MAGI study before it, shipped an eight-line value scheme
- *  whose only job was to hold a `LayeredBrush` and declare a `bleed()` for it,
- *  because `LayeredBrush` did not have one: a blurred additive stack was
- *  therefore culled at its node's own bounds the moment the subtree recorded.
+ *  A blurred additive stroke paints outside its node's own bounds, so the
+ *  node must declare how far. `LayeredBrush::bleed()` computes that per layer
+ *  as `width / 2 + 3σ` and takes the max, which is what the strokes here
+ *  need, so every call site hands the brush straight to `foreground()` and
+ *  nothing declares a reach by hand.
  *
- *  `LayeredBrush::bleed()` shipped (Brushes.h:76) — per layer, `width / 2 +
- *  3σ`, taking the max, which is exactly what both studies asked for — so the
- *  wrapper and its `reach()` helper are deleted, and all five call sites hand
- *  the brush straight to `foreground()`.
- *
- *  The hand-set numbers they were passing are worth a line, because none of
- *  them was right. A σ = 0 additive stroke needs `width / 2` and nothing
- *  else, so the ruling's 4, the rims' 5 and the rails' 8 were padding over
- *  envelopes of 0.75, w/2 and 3.4; and the eye furniture asked for 38 where
- *  its two blurred layers need 51. Four over, one under.
- *
- *  And the plate renders IDENTICALLY either way — 0 differing pixels over the
- *  whole 1016x720 frame, checked. Which is the useful thing to know: on this
- *  sketch nothing was ever actually being culled, so the eight lines were
- *  buying nothing even before the library grew the method. */
+ *  Hand-set reach numbers are the trap: a σ = 0 additive stroke needs
+ *  `width / 2` and nothing more, while a stroke with two blurred layers needs
+ *  far more than the width suggests. Guessed values here came out both too
+ *  large and too small, and neither error is visible until a blurred stroke
+ *  reaches past its box and is clipped. */
 
 } // namespace lain
 
@@ -983,7 +955,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
       // core's own crispness
       // in-flow sharp CORE sizes the box; the bloom rides over it as an
       // absolute overlay (a stack() measures to nothing here and shoots the
-      // run out of its own centre — the MAGI study's own note, reused)
+      // run out of its own centre)
       g.child(box()
                   .centerAt(p.centre)
                   .key("ph" + std::to_string(i))
@@ -1007,7 +979,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // S0 — the photographic plate, and the ONLY node in the stack that does
     // not add. It is the BOTTOM: the #060719 ground is folded into its shader
     // and it composites kSrcOver, which is what keeps it off the every-frame
-    // saveLayer that Cache::Texture + .blend() forces (PERF, step 4).
+    // saveLayer that Cache::Texture plus .blend() would force.
     root.child(box()
                    .inset(0)
                    .fill(Material::sksl(plateEffect()))
@@ -1059,16 +1031,16 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the eye's remaining topology — eyelids, four satellites, the stem.
     // Enormously blurred: on the plate it is barely above the pedestal.
     //
-    // THE ONE COMPOSITING TRAP IN THE FILE, and it cost a render to find. A
-    // node whose DECORATION paints kPlus must ALSO carry `.blend(kPlus)` if it
-    // is Texture-cached: the bake happens onto transparent black (where kPlus
-    // is a no-op and the pass lands correctly), but the BLIT then composites
-    // kSrcOver and paints the dark blurred stroke straight over the plate.
-    // The first render came back with two black lozenges where the eyelids
-    // are. Paint.cpp says exactly this in one line — "texture bakes (blending
-    // must hit the real destination, not the bake's transparent surface)" —
-    // and it excludes Texture from `leafDirectBlend` for the same reason.
-    // Bounded to the eye's own box so the bake is 0.05 MP, not 0.73.
+    // THE ONE COMPOSITING TRAP IN THE FILE. A node whose DECORATION paints
+    // kPlus must ALSO carry `.blend(kPlus)` if it is Texture-cached: the bake
+    // happens onto transparent black, where kPlus is a no-op and the pass
+    // lands correctly, but the BLIT then composites kSrcOver and paints the
+    // dark blurred stroke straight over the plate. Drop the node-level blend
+    // and the eyelids come back as two black lozenges. Blending has to hit
+    // the real destination rather than the bake's transparent surface, which
+    // is also why Texture is excluded from the direct-blend path.
+    // Bounded to the eye's own box, so the bake covers the eye and not the
+    // whole canvas.
     root.child(box()
                    .rect(SkRect::MakeXYWH(370, 150, 376, 400))
                    .shape([](SkSize s) {
@@ -1157,11 +1129,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // shapes — three bands of different length at different heights, blurred
     // hard along x only.
     //
-    // Effect::directionalBlur(sigma, 0) now spells the blur these ramps
-    // faked (the §43.7 filing named this site as the WANT). NOT ported:
-    // a real blur is a different picture than five hand-shaped gradient
-    // ramps — the ledger discipline keeps the plate as authored. A new
-    // streak would write .effect(Effect::directionalBlur(sigma, 0)).
+    // These five bands fake a horizontal blur with hand-shaped gradient
+    // ramps. Effect::directionalBlur(sigma, 0) now spells the same intent
+    // directly, and a NEW streak should be written that way. These are not
+    // converted: a real blur is a different picture than five authored ramps,
+    // and this plate is kept as authored.
     {
       auto g = box().inset(0).key("magenta");
       const float bands[5][4] = {{474, 508, 128, 0.95f},
@@ -1186,25 +1158,13 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     root.child(slot("phrases"));
 
     // ---- the tube -----------------------------------------------------------
-    // The creep rides a wrapper rather than the baked node. This was originally
-    // written up as a library bug — .translateY(&creep) on the Texture-cached
-    // node measured p99 33.4 ms, three spikes in five seconds, one per creep
-    // step — and it DOES NOT REPRODUCE at f706f5d. Re-measured both ways, 480
-    // frames, four creep steps:
-    //
-    //     creep on the baked node   p50 3.84  p99 6.52  max 7.31
-    //     creep on this wrapper     p50 3.72  p99 6.39  max 7.42
-    //
-    // Statistically identical, and a re-bake of a 1016x744 SkSL layer costs
-    // ~30 ms — it cannot hide under a 7.31 ms maximum. Either the promotion
-    // work landed in that window fixed it incidentally, or "one spike per creep
-    // step" was three events read as a period. Both are consistent with the
-    // evidence and neither can be shown from here.
-    //
-    // The wrapper stays because it is free and it is the right habit — a cached
-    // node's transform belongs on a parent that owns no paint. But it is a
-    // habit, not a workaround for a demonstrated defect, and the next study to
-    // read this should not believe otherwise.
+    // The creep rides this wrapper rather than the baked node beneath it.
+    // Putting .translateY(&creep) directly on the Texture-cached node draws
+    // the same picture at the same cost today, so this is not working around
+    // a demonstrated defect — read it as a habit with a reason: a cached
+    // node's transform belongs on a parent that owns no paint, so that a
+    // moving transform can never become an input to the bake. The next study
+    // reading this should not assume there is a bug behind it.
     root.child(box()
                    .inset(0)
                    .translateY(&creep)
@@ -1226,9 +1186,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     using namespace lain;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
-    // §31 named-state beat: both cycles are phased for 2.5 s — the plate's
-    // verbatim `.frame $fp,40,$31` line (anchor of the published sharpness
-    // numbers) sits at the focal plane and "no double minds" is at full
+    // This sketch brings its own canvas size — the source frames' 1016x720,
+    // so a capture diffs against them directly — and its own ground colour.
+    // Both cycles are phased for the 2.5 s still: the frame's verbatim
+    // `.frame $fp,40,$31` line, which every sharpness measurement above is
+    // anchored on, sits at the focal plane, and "no double minds" is at full
     // bloom.
     ctx.captureAt(2.5);
 
@@ -1251,7 +1213,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       // whole-pixel creep: a fractional translate turns a cached blit into a
-      // resample (measured elsewhere at 7.7 ms against 0.6)
+      // resample, so the creep steps in whole pixels and never lands between
       creep = (float)((int)std::floor(t * 0.5) % 6);
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.05 ? 0.055f : 0.0f;

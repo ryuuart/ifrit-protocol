@@ -24,8 +24,8 @@
 //   fixed 30 deg wedge, only a square-root radius makes AREA
 //   proportional to the number of dead.
 //
-// TWO THINGS THE PLATE DOES THAT THE BRIEF GOT WRONG, corrected here
-// from the scan itself:
+// TWO THINGS THE PLATE DOES THAT REPRODUCTIONS USUALLY GET WRONG,
+// settled here off the scan itself:
 //   1. Month labels are NOT on a common label ring. Each one hugs its
 //      OWN wedge's rim (APRIL 1854 sits ~160 px from the hub, JANUARY
 //      1855 sits ~570 px out), with a floor so the tiny spring months
@@ -34,8 +34,8 @@
 //   2. The lower-half labels are NOT flipped. The engraver used one
 //      convention — glyph-up points radially OUTWARD, everywhere — so
 //      DECEMBER, JANUARY, FEBRUARY and the left wheel's "1856" all come
-//      out genuinely upside down. The brief treats "1856" as a unique
-//      quirk; it is simply the rule, applied consistently.
+//      out genuinely upside down. The left wheel's "1856" is often read
+//      as a unique quirk; it is simply that rule, applied consistently.
 //   Also: the two campaign annotations (BULGARIA, CRIMEA) are set
 //   RADIALLY along their spoke, not tangentially like the months.
 //
@@ -215,10 +215,10 @@ Element discBox(SkPoint c, float r) {
 
 /** A straight spoke from the box centre out to radiusFraction. One tick of
  *  a one-division ladder: kit::ticks resolves the centre and radius from
- *  the node's own laid-out box, which is what this hand-rolled version was
- *  doing with `min(cx, cy)`. The spokes stay one node EACH — each carries
- *  its own trim reveal off its own delay, and a single-path ladder would
- *  own that animation and lose it. */
+ *  the node's own laid-out box, so the caller never computes them. The
+ *  spokes stay one node EACH — each carries its own trim reveal off its own
+ *  delay, and a single multi-tick path would own one animation for all
+ *  twelve and lose the stagger. */
 std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
   return kit::ticks({.divisions = 1,
                      .from = bearing,
@@ -401,20 +401,20 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                 .transformOrigin(0.5f, 0.5f)
                 .scale(animate(from(0.002f).to(1.0f),
                                ramp(delay, 620.0f, ch::easeOutExpo)))
-                // perf-pass: each band's litho fill (Material::blend of
-                // wash+speckle+grain+blot) is a static picture that replays
-                // every shader every frame (~0.8ms x ~24 bands ~= 19ms floor
-                // after the paper fold). Content is static; only the entrance
-                // SCALE animates, and the cache captures LOCAL content so the
-                // transform rides the blit — no re-bake at settle (verified 0
-                // steady-state writes). CPU with paper fold + this: 448 -> 4.6
-                // ms p50 / 6.6 p99, a full PASS. Pixel cost is the SCALED-cache
-                // deal, not the 1-LSB opacity deal: at settle 0.55% of pixels
-                // differ (max_delta 7, 52 px > 4) — sector-edge AA from the
-                // texture blit plus a sub-pixel shift of the litho stipple
-                // (noise baked in node-local space). Imperceptible on a data
-                // plate; if pixel-exactness is required, drop THIS cache and
-                // the paper fold alone lands 19.5 ms (FAIL, but 0-diff).
+                // Each band's litho fill is a Material::blend of four
+                // shaders (wash + speckle + blot + grain) over an area that
+                // never changes. Uncached, every one of those shaders re-runs
+                // on every frame for all ~24 bands. The content is static —
+                // only the entrance SCALE animates — and the cache captures
+                // NODE-LOCAL content, so the transform rides the blit and the
+                // texture is baked once.
+                //
+                // The trade is resampling: the scale transform now samples a
+                // baked texture rather than re-rasterising, so sector edges
+                // are texture-filtered and the stipple (noise generated in
+                // node-local space) shifts by a fraction of a pixel. On a
+                // data plate that is invisible; if pixel-exact sector edges
+                // matter more than the shader cost, drop this cache.
                 .cache(Cache::Texture));
       }
 
@@ -450,16 +450,18 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     auto root = stack().fill(Fill::color(kPaper));
 
     // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
-    // perf-pass: this paper base is static and CPU-heavy — a procedural
-    // fractal (paperMat) under a full-canvas softLight COMPOSITE, plus a
-    // speckle foxing material and a vignette. Fold the three static layers
-    // into ONE opaque box whose own fill is kPaper (the exact backdrop the
-    // softLight blended against as separate root children) and cache it once:
-    // the softLight resolves at BAKE time and the frame blits one opaque
-    // srcOver texture. Boundary sits here because everything below is this
-    // static base; the wedges/titles above animate and stay outside.
-    // GPU was already 3.5ms; the group is provably static so the cache STICKS
-    // (0 steady-state writes). Pixels verified at settle.
+    // The paper base is three static but expensive layers: a procedural
+    // fractal under a full-canvas softLight composite, a speckle foxing
+    // material, and a vignette. They are wrapped in ONE opaque box whose own
+    // fill is kPaper — the exact backdrop the softLight would otherwise
+    // blend against as separate root children, so folding them changes no
+    // pixels — and cached together. The softLight then resolves once at bake
+    // time and each frame blits a single opaque texture instead of running
+    // three shaders across the whole canvas.
+    //
+    // The group boundary sits exactly here: everything inside is the static
+    // base, and the wedges and titles above it animate, so they stay outside
+    // where the cache cannot be invalidated by them.
     root.child(stack().inset(0).fill(Fill::color(kPaper))
                    .child(box().inset(0).fill(paperMat).opacity(0.17f).blend(
                        SkBlendMode::kSoftLight))
@@ -677,10 +679,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
-    // §31 entrance-into-hold beat: the header's settled mark — the first
-    // clean instant after the needle sweeps fade (13.55); the plate is
-    // permanent from there. (The old 6.0 default showed the legend entirely
-    // unwritten, dashed leader mid-draw.)
+    // The still frame this sketch photographs itself at: the first clean
+    // instant after the second needle sweep has faded out (tNeedleEnd plus
+    // its 0.45 s fade), by which point every entrance has finished and the
+    // plate holds unchanged. Capturing earlier catches the legend half
+    // written and the dashed leader mid-draw.
     ctx.captureAt(13.6);
 
     auto family = [&](const char *name, SkFontStyle style) -> sk_sp<SkTypeface> {

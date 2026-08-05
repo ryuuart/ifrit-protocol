@@ -1,37 +1,38 @@
 #pragma once
 
 /** @file
- * SigilCompose instances — the flyweight repeat layer (REVIEW.md §6.1):
- * a template ATLAS baked once from element trees + a user-owned SoA POOL
- * + ONE drawAtlas stamp per frame. Node-graph nodes, inventory cells,
- * confetti, tick arrays, radial menus — "thousands of things" as a leaf,
- * never N Yoga subtrees.
+ * SigilCompose instances — thousands of repeated sprites as ONE leaf: an
+ * ATLAS baked once from element trees, a user-owned struct-of-arrays POOL,
+ * and one atlas draw per frame. Node-graph ports, inventory cells, confetti,
+ * tick arrays, radial menus — things that would otherwise be N Yoga
+ * subtrees.
  *
- * The contract, same discipline as Pattern/Console:
- *  - The ATLAS is a recipe: register cells (element trees at a fixed
- *    logical size), and the sheet bakes ONCE on first stamp, oversampled
- *    so raster textures never magnify. Hold it where you hold assets.
- *  - The POOL is yours: plain struct-of-arrays (position / rotation /
- *    uniform scale / tint / frame). Mutate it directly or copy in from an
- *    EnTT view — the ECS stays on YOUR side of the seam.
- *  - Stamping is ONE `gpuimg::drawSpriteAtlas` call (RSXform semantics,
- *    decomposed on every backend — GpuImage.h): rotation + uniform scale
- *    + translation, plus two opt-in lanes — `sizes()` for per-instance
- *    NON-UNIFORM scale and `texWindows()` for a per-sprite UV window.
- *    Skew stays per-node content — use real elements for that.
+ * The three parts:
+ *  - The ATLAS is a recipe: register cells (element trees at a fixed logical
+ *    size) and the sheet bakes ONCE on first stamp, oversampled so stamps at
+ *    scales up to `oversample` never magnify baked pixels. Hold it wherever
+ *    you hold assets; it outlives any one describe.
+ *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
+ *    scale / tint / frame). Mutate it directly, from a ticker, or by copying
+ *    out of an ECS — no registry type crosses this seam.
+ *  - Stamping is one `gpuimg::drawSpriteAtlas` call with RSXform semantics:
+ *    rotation, uniform scale and translation, plus two opt-in lanes —
+ *    `sizes()` for per-instance NON-UNIFORM scale and `texWindows()` for a
+ *    per-sprite UV window. Skew is not expressible; use real elements.
  *
- * Two modes, matching the kernel's two write paths:
- *  - Mode::Data (default): the element carries the pool's revision;
- *    mutate → commit() → render(). An uncommitted pool prunes and its
- *    cached picture replays; a committed one repaints once.
- *  - Mode::Live: a Cache::None leaf that reads the pool every frame —
- *    the particle path (mutate from a ticker steppable; nothing else to
- *    declare). Measured at 10k Live sprites in 0.18 ms on Graphite —
- *    ~18 ns/sprite, ~200× over raster replay (STRESS_TESTS.md).
+ * Two modes, matching the library's two write paths:
+ *  - Mode::Data (default): the element carries the pool's revision, so the
+ *    sequence is mutate → commit() → render(). **Skipping commit() fails
+ *    silently**: the description compares equal, the node prunes, and the
+ *    cached picture of the old pool replays with no diagnostic.
+ *  - Mode::Live: an uncached leaf that reads the pool every frame — the
+ *    particle path. Mutate from a ticker and keep the host redrawing;
+ *    there is nothing to commit.
  *
- * Past kCullThreshold instances, stamping culls against the local clip
- * (data-level, arithmetic) before building the draw arrays — the
- * bookkeeping only pays for itself at scale, so it is gated.
+ * Past kCullThreshold instances the stamp culls each sprite against the
+ * local clip arithmetically before building the draw arrays. The
+ * bookkeeping costs more than it saves on small pools, which is why it is
+ * gated rather than always on.
  */
 
 #include "sigilcompose/Compose.h"
@@ -58,15 +59,14 @@ namespace sigil::compose::instancing {
 // ---------------------------------------------------------------------------
 // Pool — the user-owned SoA store
 
-/** Struct-of-arrays per-instance data. The scene owns and mutates this
- *  (directly, from a ticker steppable, or copied out of an EnTT view);
- *  the element only reads it. After external mutation in Mode::Data,
- *  call commit() so the next render() sees a changed revision.
+/** Per-instance data as parallel arrays. The caller owns and mutates this
+ *  — directly, from a ticker, or by copying out of an ECS view; the
+ *  element only reads it. After mutating in Mode::Data, call commit() so
+ *  the next render() sees a changed revision.
  *
- *  A position is the CELL'S CENTRE, not its top-left. `place::grid` says
- *  so in its arithmetic and nowhere else did, so every hand-populated
- *  pool — and every port out of an ECS, where a transform is usually an
- *  origin — had to discover it by reading the generator's source. */
+ *  **A position is the CELL'S CENTRE, not its top-left.** Transforms
+ *  copied in from elsewhere usually carry an origin, and the difference is
+ *  half a cell in each axis. */
 class Pool {
 public:
   /** Appends one instance; returns its index. */
@@ -77,8 +77,15 @@ public:
     m_scales.push_back(scale);
     m_tints.push_back(tint);
     m_frames.push_back(frame);
+    // The opt-in lanes ride along when present, each at its neutral value
+    // (unit scale, whole-cell window, fully opaque). Every has*() test is a
+    // length comparison against the position lane, so a lane allowed to lag
+    // here would silently switch itself off — or, after a clear() and
+    // re-fill, line up again and apply a previous generation's values.
     if (!m_sizes.empty())
       m_sizes.push_back({1.0f, 1.0f});
+    if (!m_alphas.empty())
+      m_alphas.push_back(1.0f);
     if (!m_texWindows.empty())
       m_texWindows.push_back(SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
@@ -91,6 +98,7 @@ public:
     m_tints.clear();
     m_frames.clear();
     m_sizes.clear();
+    m_alphas.clear();
     m_texWindows.clear();
     ++m_revision;
   }
@@ -102,46 +110,36 @@ public:
     m_frames.resize(n, 0);
     if (!m_sizes.empty())
       m_sizes.resize(n, {1.0f, 1.0f});
+    if (!m_alphas.empty())
+      m_alphas.resize(n, 1.0f);
     if (!m_texWindows.empty())
       m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
   }
   size_t size() const { return m_positions.size(); }
 
-  // Bulk mutation views (the EnTT copy-in path). Mutating through these
-  // does NOT bump the revision — commit() when done (Mode::Data only).
+  // Bulk mutation views, for filling the pool in one pass. Mutating
+  // through these does NOT bump the revision — call commit() when done, or
+  // a Mode::Data element prunes and replays the previous picture.
   std::span<SkPoint> positions() { return m_positions; }
   std::span<float> rotations() { return m_rotations; }
   std::span<float> scales() { return m_scales; }
-  /** Per-instance tint — and a tint MULTIPLIES the atlas cell's colours,
-   *  which is a trap for exact-palette work (§2): a cell filled with a
-   *  palette's own white (#FCFCFC) scales every tinted channel by
-   *  252/255, putting off-palette colours on screen that are exactly two
-   *  units low — invisible to the eye, caught only by a colour census.
-   *  For exact palette swaps, bake atlas VARIANTS (one cell per palette)
-   *  and select by frame; tint only what may legitimately scale. */
+  /** Per-instance tint. A tint MULTIPLIES the atlas cell's colours, which
+   *  makes it wrong for exact-palette work: a cell painted in a palette's
+   *  own near-white and tinted with another near-white lands a couple of
+   *  units below both, off the palette, invisibly. For exact palette
+   *  swaps bake atlas VARIANTS — one cell per palette — and select by
+   *  frame; tint only what may legitimately be scaled. */
   std::span<SkColor4f> tints() { return m_tints; }
   std::span<int> frames() { return m_frames; }
-  /** Per-instance NON-UNIFORM scale, as an (x, y) multiplier on top of
-   *  `scales()`. Opt-in: the lane does not exist until you ask for it, so
-   *  a pool that never needs it costs nothing and keeps the pure-RSXform
-   *  draw path.
+  /** Per-instance UV WINDOW inside the sprite's cell, as fractions of that
+   *  cell ({0,0,1,1} is the whole thing). Opt-in like `sizes()`: the lane
+   *  does not exist until asked for, and a pool that never asks costs
+   *  nothing.
    *
-   *  `SkRSXform` carries (scos, ssin) and one scale by construction, so
-   *  this is the one instance attribute the atlas draw could not express.
-   *  Reeves' 1982 `streaked spherical` particle — a quad 0.5·|v| long by
-   *  `size` wide, swinging ~2.4:1 at ejection to under 1:1 at apogee — is
-   *  the canonical case, and every study that met it hand-built the
-   *  vertex buffer `drawSpriteAtlas` already builds internally. */
-  /** Per-instance UV WINDOW inside the named cell, as fractions of that
-   *  cell ({0,0,1,1} is the whole thing). Opt-in like `sizes()`.
-   *
-   *  The per-sprite texture rect existed all the way down —
-   *  `drawSpriteAtlas` reads `tex[i]` per sprite — and the only narrowing
-   *  was that a `Pool` could name a cell INDEX and never a RECT. So a
-   *  strip of artwork crawling behind a slit, a sprite scrolling within
-   *  its cell, or several variants baked side by side in one cell were
-   *  all out of reach for want of a lane, not for want of a draw path. */
+   *  This is what expresses artwork crawling behind a slit, a sprite
+   *  scrolling within its own cell, or several variants packed side by
+   *  side in one cell and selected by rect rather than by frame index. */
   std::span<SkRect> texWindows() {
     if (m_texWindows.size() != m_positions.size())
       m_texWindows.resize(m_positions.size(), SkRect::MakeWH(1.0f, 1.0f));
@@ -151,6 +149,13 @@ public:
     return m_texWindows.size() == m_positions.size();
   }
 
+  /** Per-instance NON-UNIFORM scale, as an (x, y) multiplier on top of
+   *  `scales()`. Opt-in like `texWindows()`, and for a reason: an
+   *  `SkRSXform` carries a rotation and ONE scale by construction, so a
+   *  pool without this lane stamps through the plain atlas path, and a
+   *  pool with it takes the wider one. It is what expresses a sprite
+   *  stretched along its own motion — a streak whose length tracks speed
+   *  while its width does not. */
   std::span<SkSize> sizes() {
     if (m_sizes.size() != m_positions.size())
       m_sizes.resize(m_positions.size(), {1.0f, 1.0f});
@@ -158,12 +163,10 @@ public:
   }
   bool hasSizes() const { return m_sizes.size() == m_positions.size(); }
 
-  /** Per-instance OPACITY, opt-in like sizes() — multiplied into the
-   *  tint's alpha at stamp time (§2: `tints()` was the only opacity
-   *  lane, so fading a subset meant rewriting RGBA every frame when
-   *  only alpha moved). Composes with the tint: authored colour stays
-   *  authored, fades ride one float lane. `place::repeat`'s opacity
-   *  lerp writes THIS lane now, not the tint it used to clobber. */
+  /** Per-instance OPACITY, opt-in like sizes(), multiplied into the tint's
+   *  alpha at stamp time. It composes with the tint rather than replacing
+   *  it, so an authored colour stays authored and a fade rewrites one
+   *  float per instance instead of four. */
   std::span<float> alphas() {
     if (m_alphas.size() != m_positions.size())
       m_alphas.resize(m_positions.size(), 1.0f);
@@ -183,13 +186,12 @@ public:
   /** PUBLISH the bulk edit: the next describe carries a new revision, so
    *  the reconciler repaints the leaf exactly once.
    *
-   *  Named for what it does to the reader — the spans handed out above are
-   *  a staging area, and this is the line that makes the frame's writes
-   *  visible. `touch()` — deleted in R3 — named the mechanism (a counter
-   *  got bumped). The rename was TASTE, not a bug fix: the audit found 14
-   *  corpus sites and zero stale-lane renders (GRAMMAR_AUDIT M6,
-   *  re-audited 2026-07-27), and the designer called it anyway (ROADMAP
-   *  §33 ruling 9). */
+   *  The spans handed out above are a staging area — writing through them
+   *  changes nothing the element can see. In Mode::Data this call is what
+   *  makes those writes visible, and omitting it is silent: the props
+   *  compare equal, the node prunes, and the previous picture replays as
+   *  though the pool had not moved. `add()`, `resize()` and `clear()`
+   *  publish themselves; only span writes need this. */
   void commit() { ++m_revision; }
   uint64_t revision() const { return m_revision; }
 
@@ -209,17 +211,17 @@ private:
 // Atlas — flyweight cells baked once from element trees
 
 /** A sprite sheet of element-tree cells. Cells register up front at a
- *  LOGICAL size; the sheet bakes lazily on first stamp (fonts come from
- *  the paint context), oversampled so stamps at scale ≤ oversample never
- *  magnify raster pixels. Re-registering cells after the bake drops it —
- *  the next stamp re-bakes (Pattern's regeneration discipline). */
+ *  LOGICAL size; the sheet bakes lazily on the first stamp, which is where
+ *  the font context becomes available, and is oversampled so stamps at any
+ *  scale up to `oversample` never magnify baked pixels. Registering another
+ *  cell after the bake drops the sheet and the next stamp bakes it again,
+ *  so cells are cheap to add at setup and expensive to add per frame. */
 class Atlas {
 public:
   /** How stamps sample the baked sheet. Linear is right for soft sprites
-   *  and wrong for a pixel grid — a tilemap, a bitmap font sheet, an
-   *  8-bit era reconstruction — which is a large share of what
-   *  instancing is actually used for. The last of the five hardcoded
-   *  `kLinear` paths (ROADMAP §13). */
+   *  and wrong for a pixel grid — a tilemap, a bitmap font sheet, any
+   *  deliberately blocky art — where it softens every edge; pass
+   *  kNearest for those. */
   Atlas &filter(SkFilterMode mode) {
     m_filter = mode;
     return *this;
@@ -230,7 +232,9 @@ public:
       : m_oversample(std::max(0.5f, oversample)) {}
 
   /** Registers one cell; returns its frame index for Pool::frames(). The
-   *  tree is forced to exactly the logical size (Pattern's tile rule). */
+   *  tree is forced to exactly the logical size — a cell has to be a
+   *  known rectangle for the sheet to pack it and for the stamp to place
+   *  it, so intrinsic sizing is not an option here. */
   int cell(Element tree, SkSize logicalSize) {
     tree.width(logicalSize.width()).height(logicalSize.height());
     m_cells.push_back({std::move(tree), logicalSize});
@@ -238,18 +242,17 @@ public:
     return (int)m_cells.size() - 1;
   }
 
-  /** VARIANTS (§2): several BAKES of one recipe, addressed as
-   *  (cell, variant) — `make(v)` is called for v ∈ [0, count) and each
-   *  result registered as its own frame; the return is the FIRST frame
-   *  index, so variant v of the set is frame `first + v` in
-   *  Pool::frames(). This is the faithful flyweight for the cases more
-   *  Pool columns cannot reach because the variant is a RE-RENDER, not a
-   *  transform of baked pixels: X-COM's types × shades (a per-channel
-   *  ramp `tints()` provably cannot express — the study measured red
-   *  2.4× too bright under the best single scalar), KSP's gizmo arms at
-   *  two lengths, the astrolabe's re-stroked rings. Hand-packing
-   *  variants into one cell and windowing with `Pool::texWindows()`
-   *  remains the spelling when the variants ARE crops of one drawing. */
+  /** VARIANTS: several BAKES of one recipe. `make(v)` is called for
+   *  v ∈ [0, count) and each result is registered as its own frame; the
+   *  return is the FIRST frame index, so variant v is frame `first + v` in
+   *  Pool::frames().
+   *
+   *  Reach for this when a variant is a RE-RENDER rather than a transform
+   *  of baked pixels — a differently stroked ring, a palette whose channels
+   *  do not move together, anything a single tint multiply cannot reach.
+   *  When the variants ARE crops of one drawing, pack them into one cell
+   *  and select with `Pool::texWindows()` instead: that costs one bake, not
+   *  `count` of them. */
   int variants(int count, SkSize logicalSize,
                const std::function<Element(int)> &make) {
     int first = -1;
@@ -260,8 +263,8 @@ public:
     }
     return first;
   }
-  /** The general form: each variant brings its own logical size (KSP's
-   *  two arm lengths — one recipe, two geometries). */
+  /** The general form: each variant brings its own logical size — one
+   *  recipe, several geometries. */
   int variants(int count,
                const std::function<std::pair<Element, SkSize>(int)> &make) {
     int first = -1;
@@ -319,9 +322,9 @@ public:
     SkCanvas &canvas = *surface->getCanvas();
     canvas.clear(SK_ColorTRANSPARENT);
     for (size_t i = 0; i < m_cells.size(); ++i) {
-      // snapshot() sizes by the ROOT'S CHILDREN, not the root's own dims —
-      // the cell tree carries forced dims, so a plain shell adopts them
-      // (Pattern's bake rule).
+      // snapshot() sizes by the ROOT'S CHILDREN and ignores the root's own
+      // dimensions — the cell tree already carries forced dims, so wrapping
+      // it in a plain shell gives the picture exactly the cell's size.
       sk_sp<SkPicture> picture =
           snapshot(box().child(m_cells[i].tree), fonts);
       if (!picture)
@@ -352,8 +355,10 @@ private:
   sk_sp<SkImage> m_sheet;
 
 public:
-  /** drawAtlas takes the sheet DIRECTLY — Graphite hosts must stamp the
-   *  promoted texture (see GpuImage.h). detail::stamp uses this. */
+  /** The GPU promotion of the baked sheet. A raster sheet handed straight
+   *  to a native atlas draw does not appear on every backend, so the stamp
+   *  goes through `gpuimg::` and this cache holds whatever that promotion
+   *  produced. Used by detail::stamp; not part of the atlas's identity. */
   gpuimg::Promoted gpuCache;
 };
 
@@ -372,8 +377,10 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   const bool cull = pool.size() >= kCullThreshold;
   const SkRect clip = cull ? canvas.getLocalClipBounds() : SkRect::MakeEmpty();
 
-  // Scratch reuse: Live pools stamp every frame — three fresh vectors per
-  // frame is measurable at scale (the ui_particles port's friction report).
+  // Scratch reuse: a Live pool stamps every frame, so these buffers are
+  // kept and refilled rather than allocated per stamp. thread_local
+  // because a canvas may be painted from any one thread at a time, and
+  // sharing one static across threads would interleave the fills.
   static thread_local std::vector<SkRSXform> xforms;
   static thread_local std::vector<SkRect> tex;
   static thread_local std::vector<SkColor> colors;
@@ -442,11 +449,12 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   }
   if (xforms.empty())
     return;
-  // All-white tints modulate to identity — skip the colors lane entirely
-  // (the untinted path is the common one for UI sprites). drawSpriteAtlas
-  // is the backend-portable form: always ONE decomposed drawVertices, on
-  // every backend — Graphite's native drawAtlas is an empty stub, and a
-  // picture recorded on raster must replay there (GpuImage.h).
+  // All-white tints modulate to identity, so the colors lane is dropped
+  // entirely when nothing is tinted — the common case for UI sprites.
+  // drawSpriteAtlas is used rather than a native atlas draw because it
+  // decomposes to one drawVertices on every backend: the native call draws
+  // nothing on some of them, including when a picture recorded elsewhere
+  // replays there.
   gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
                           xforms.data(), tex.data(),
                           tinted ? colors.data() : nullptr, xforms.size(),
@@ -468,25 +476,27 @@ struct DataProps {
 // The component
 
 enum class Mode {
-  /** Cached: mutate → commit() → render(); uncommitted pools prune. */
+  /** Cached: mutate → commit() → render(). A pool mutated without
+   *  commit() prunes and replays the old picture. */
   Data,
-  /** Cache::None: the leaf reads the pool every frame (particles —
-   *  mutate from a ticker steppable, keep the host redrawing). */
+  /** Uncached: the leaf reads the pool every frame (particles — mutate
+   *  from a ticker and keep the host redrawing). */
   Live,
 };
 
-/** PICK a stamped instance (§2): the index of the topmost instance whose
- *  drawn quad contains @p point (in the same local pixels the pool's
- *  positions are in), or nullopt. `hitTest` cannot see inside the
- *  instancing leaf — the whole pool is one custom() draw — so picking a
- *  stamped cell used to mean writing your own inverse projection beside
- *  the one that placed it; confirmed at a second call site by the X-COM
- *  study, which escaped only because its reference publishes its own
- *  inverse. This IS that inverse, against the same lanes the stamp
- *  reads: position/rotation/scale, the sizes() and texWindows() lanes
- *  when present, and the frame's logical size. Iterates topmost-first
- *  (later instances draw on top). Alpha does not exempt an instance —
- *  a faded stamp still picks, like a translucent Element. */
+/** PICK a stamped instance: the index of the topmost instance whose drawn
+ *  quad contains @p point, in the same local pixels the pool's positions
+ *  are in, or nullopt.
+ *
+ *  The library's own `hitTest` cannot see inside this leaf — the whole pool
+ *  is one custom draw with no nodes in it — so this is the only way to ask
+ *  which sprite is under a point. It inverts exactly what the stamp
+ *  applied: position, rotation and scale, the `sizes()` and `texWindows()`
+ *  lanes when present, and the frame's logical size. It iterates
+ *  topmost-first, since later instances draw over earlier ones.
+ *
+ *  Alpha does not exempt an instance: a fully faded stamp still picks, the
+ *  same way a transparent Element still hit-tests. */
 inline std::optional<size_t> pick(const Pool &pool, const Atlas &atlas,
                                   SkPoint point) {
   const auto positions = pool.positions();
@@ -526,19 +536,17 @@ inline std::optional<size_t> pick(const Pool &pool, const Atlas &atlas,
   return std::nullopt;
 }
 
-/** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset
- *  0) — wrap it in a sized or positioned box, and pool positions are that
- *  parent's local pixels. (A memo shell cannot carry layout props — the
- *  wrapper IS the placement API.)
+/** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset 0),
+ *  so wrap it in a sized or positioned box and the pool's positions are
+ *  that box's local pixels. The wrapper is the only placement API: this
+ *  element cannot carry layout props of its own, because in Mode::Data it
+ *  is produced inside a memo.
  *
- *  @p blend is PER SPRITE, and that distinction is the whole point:
- *  `Element::blend()` on this leaf would flatten the field into a layer
- *  and composite it once, so overlapping particles could never accumulate.
- *  Reeves' 1982 wall of fire — the first particle system — is additive
- *  end to end; its palette is not a palette but an overlap count, red
- *  saturating at 5 particles, green at 20, blue at 111. kSrcOver cannot
- *  express any of that, and until now nothing in the chain from
- *  instances() to drawSpriteAtlas carried a blend mode at all. */
+ *  @p blend is PER SPRITE, and the distinction matters: `Element::blend()`
+ *  on this leaf would flatten the whole field into one layer and composite
+ *  that once, so overlapping sprites could never accumulate. Additive
+ *  particle work depends on the accumulation — brightness there IS the
+ *  overlap count — and only a per-sprite mode gives it. */
 inline Element instances(std::shared_ptr<Atlas> atlas,
                          std::shared_ptr<const Pool> pool,
                          Mode mode = Mode::Data,
@@ -601,19 +609,16 @@ inline void ring(Pool &pool, size_t count, SkPoint center, float radius,
   pool.commit();
 }
 
-/** The skottie Repeater law: per-copy linear translate + linear rotate,
- *  EXPONENTIAL scale (pow(scaleStep, i)), start→end opacity lerp on the
- *  ALPHA lane.
+/** A repeated copy chain: per-copy LINEAR translate and rotate, and
+ *  EXPONENTIAL scale (pow(scaleStep, i)), with an optional start→end
+ *  opacity ramp.
  *
- *  LANE HYGIENE (§2, fixed 2026-07-27): this used to write
- *  `tints[i].fA` unconditionally — clobbering an authored tint alpha
- *  even at the default opacity — and could not set `frame`, so every
- *  mixed-frame call site re-walked the lanes by hand. The opacity lerp
- *  rides the dedicated `alphas()` lane now (composing with authored
- *  tints instead of overwriting them), it is written only when the
- *  opacity parameters say something, and `frame` writes the frame lane
- *  only when asked (>= 0). A generator writes the lanes its parameters
- *  use, and no others. */
+ *  Every generator here writes only the lanes its parameters speak to, and
+ *  no others. The opacity ramp touches the `alphas()` lane — composing with
+ *  an authored tint rather than overwriting it — and only when the two
+ *  opacity arguments actually say something; `frame` is written only when
+ *  it is non-negative. So a pool filled by hand and then arranged by this
+ *  keeps its tints and frames. */
 inline void repeat(Pool &pool, size_t count, SkPoint start, SkPoint translate,
                    float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
                    float opacityFrom = 1.0f, float opacityTo = 1.0f,

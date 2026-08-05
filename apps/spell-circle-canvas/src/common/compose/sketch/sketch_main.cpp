@@ -125,8 +125,8 @@ double percentile(std::vector<double> sorted, double q) {
  * bakes, brush snapshot()s, font atlases and glyph rasterization, and
  * folding those into the sample would measure the wrong thing.
  *
- * Always exits 0 — the verdict is data for the ledger, and a nonzero exit
- * breaks the agent loops that call this in a pipeline. */
+ * Always exits 0. The verdict is reported on stdout, not in the exit status,
+ * so a slow sketch does not abort a pipeline that is benching several. */
 int runBench(sigil::compose::sketch::SketchHost &host,
              const CaptureOptions &options,
              const std::filesystem::path &sketchPath) {
@@ -222,22 +222,23 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   const double worst = sorted.empty() ? 0.0 : sorted.back();
   const bool pass = p99 < kFrameBudgetMs;
 
-  // One machine-readable line (the ledger greps for "BENCH ").
+  // One machine-readable line, prefixed "BENCH " so collectors can grep it.
   std::printf("BENCH %s %dx%d frames=%d p50=%.2fms p99=%.2fms mean=%.2fms "
               "max=%.2fms fps50=%.1f VERDICT=%s\n",
               sketchPath.stem().string().c_str(), width, height,
               (int)frames.size(), p50, p99, avg, worst,
               p50 > 0 ? 1000.0 / p50 : 0.0, pass ? "PASS" : "FAIL");
-  // …and the human one: what dominates is the ledger's first question.
+  // …and the human one: which phase dominates is the first question asked
+  // of any of these runs.
   std::printf("  phases (mean ms): update %.2f [reconcile %.2f] · draw %.2f "
               "[layout %.2f · paint %.2f]\n",
               mean(updates), mean(reconciles), mean(draws), mean(layouts),
               mean(paints));
   if (const sigil::compose::Composer *composer = host.composer()) {
     const auto &stats = composer->stats();
-    // "cache writes", not "pictures recorded": the counter has always
-    // included pixel bakes, so the old label contradicted the number
-    // beside it and contradicted the banner below that explains it.
+    // Labelled "cache writes", not "pictures recorded": picturesRecorded
+    // counts pixel bakes too, so the recording count is the difference
+    // against texturesBaked — which is the split printed here.
     std::printf("  last frame: %zu nodes painted, %zu cache writes (%zu "
                 "recordings, %zu bakes), %zu pictures live, %zu textures "
                 "live, %zu instances\n",
@@ -272,9 +273,10 @@ int runBench(sigil::compose::sketch::SketchHost &host,
       }
       std::printf("    %8.2f ms  %-40s %s\n", row.selfMs, row.label.c_str(),
                   state);
-      // WHY it is not a bake. "live paint, 663 ms" with nothing beside it
-      // is how sixteen studies shipped over the gate: every refusal is
-      // individually correct and individually invisible.
+      // WHY it is not a bake. An expensive node reported as "live paint"
+      // with nothing beside it gives an author no next move: each refusal
+      // to bake is individually correct and individually invisible, so the
+      // reason has to be printed where the cost is.
       if (row.cacheState == sigil::compose::Composer::CacheState::Live &&
           row.selfMs >= 1.0) {
         std::printf("              not baked: %s\n",
@@ -307,8 +309,8 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                 p99, kFrameBudgetMs, width, height,
                 paintBound ? "PAINT (draw)" : "DESCRIBE/RECONCILE (update)");
     if (paintBound) {
-      // The distinction the corpus got wrong, stated where it is read.
-      // `picturesRecorded == 0` looks like "fully cached" and is not: a
+      // The distinction that is easiest to get wrong, stated where it is
+      // read. `picturesRecorded == 0` looks like "fully cached" and is not: a
       // picture records the DRAW CALLS, so replaying it re-runs every SkSL
       // shader over every pixel, every frame. Only Cache::Texture keeps
       // the PIXELS. (Note: debug::coverage is a geometric path-tiling
@@ -338,8 +340,8 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                   "  ##  once in setup() and bind choreograph::Outputs, or\n"
                   "  ##  memo() the subtrees whose props did not change.\n");
     }
-    std::printf("  ##  If it cannot be fixed, it goes in ROADMAP.md —\n"
-                "  ##  the ledger of walls — with this number.\n"
+    std::printf("  ##  If it cannot be fixed from the sketch, it is a\n"
+                "  ##  library problem — record it with this number.\n"
                 "  ####################################################\n");
   }
   std::fflush(stdout);
@@ -436,11 +438,10 @@ int main(int argc, char *argv[]) {
 
   sigil::compose::sketch::SketchHost::Options options;
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A --frame capture exists to
-  // be looked at or DIFFED, and a study that draws its own bake time into
-  // its own plate differs from itself between two runs — so every corpus
-  // sweep reports it as changed by a patch that changed nothing. Making
-  // the flag opt-in meant remembering it, and the whole point of the
-  // finding is that nobody remembers (three sweeps were run without it).
+  // be looked at or DIFFED, and a sketch that draws its own bake time into
+  // its own plate differs from itself between two runs — so a pixel sweep
+  // reports it as changed by a patch that changed nothing. Defaulting the
+  // flag on is what makes that safe without anyone having to remember it.
   // The live host keeps its real numbers, which is where you actually
   // want to watch them; --no-deterministic restores them in a capture.
   options.deterministic =
@@ -453,8 +454,8 @@ int main(int argc, char *argv[]) {
                  options.flagsFile.string().c_str());
     return 2;
   }
-  // Before the guest can ever run: a fault inside it used to be exit 139
-  // and total silence.
+  // Installed before the guest can ever run: without it, a fault inside a
+  // sketch is a bare exit 139 with nothing printed.
   sigil::compose::sketch::installCrashReporter(options.sketchPath);
   sigil::compose::sketch::SketchHost host(std::move(options), fonts());
 

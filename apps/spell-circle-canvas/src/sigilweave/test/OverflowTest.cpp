@@ -320,6 +320,34 @@ TEST(TabStops, KnuthPlassAlignsColumns) {
   EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"yz"), 300.0f);
 }
 
+TEST(TabStops, GreedyAndKnuthPlassResolveTabsToTheSameColumns) {
+  FontContext &fontContext = sharedContext();
+  // Both breakers resolve tab stops through the same placement path, so
+  // the same tabbed paragraph must put every post-tab run at the same x
+  // under either strategy — explicit stops and the repeating interval
+  // alike.
+  Paragraph greedyParagraph = makeParagraph(u8"a\tbb\tccc\td");
+  Paragraph kpParagraph = makeParagraph(u8"a\tbb\tccc\td");
+  BlockFlow greedyFlow(SkRect::MakeWH(800, 60));
+  BlockFlow kpFlow(SkRect::MakeWH(800, 60));
+  ParagraphLayoutOptions options;
+  options.tabStops.positions = {60.0f};
+  options.tabStops.interval = 90.0f;
+  ParagraphLayout greedy =
+      layoutParagraph(fontContext, greedyParagraph, greedyFlow, options);
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  ParagraphLayout knuthPlass =
+      layoutParagraph(fontContext, kpParagraph, kpFlow, options);
+  ASSERT_EQ(greedy.lineCount, 1);
+  ASSERT_EQ(knuthPlass.lineCount, 1);
+  for (const char16_t *column : {u"bb", u"ccc", u"d"}) {
+    const float greedyX = runOriginFor(greedyParagraph, greedy, column);
+    ASSERT_GT(greedyX, 0.0f) << "column run not found";
+    EXPECT_FLOAT_EQ(greedyX, runOriginFor(kpParagraph, knuthPlass, column))
+        << "post-tab column diverges between breakers";
+  }
+}
+
 TEST(TabStops, KnuthPlassBreaksAtTabResolvedWidths) {
   FontContext &fontContext = sharedContext();
   // At its shaped space-equivalent width "head tail" fits the 200px

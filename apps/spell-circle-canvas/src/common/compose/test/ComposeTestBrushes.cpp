@@ -1,12 +1,15 @@
 #include "ComposeTestSupport.h"
 
 // ---------------------------------------------------------------------------
-// The corner vocabulary — bracket claims, open-corner rules, weighted
-// corners, insets. §33-j (2026-08-04): `decorations::brackets`/`gappedRule`
-// are DELETED; the bracket and open-corner pictures are pinned here through
-// the surviving spelling — a span CLAIM on the node's real boundary
-// (`.stroke(spans::corners/edges(arm), brush::solid(w, fill))`) — and the
-// Border modes stay covered through border()/weightedCorners/doubleBorder.
+// The corner vocabulary — bracket marks, open-corner rules, weighted
+// corners, insets.
+//
+// Brackets and gapped rules are not decoration kinds of their own. Both are
+// a span CLAIM on the node's real boundary — `.stroke(spans::corners(arm),
+// …)` and `.stroke(spans::edges(arm), …)` — which is why they follow
+// whatever silhouette the node has instead of assuming a rectangle. The
+// Border modes are the separate family, covered through border(),
+// weightedCorners() and doubleBorder().
 
 namespace {
 Fill white() { return Fill::color({1, 1, 1, 1}); }
@@ -17,8 +20,8 @@ Element panel(Decoration dec) {
   return box().child(
       box().width(100).height(100).fill(blue()).foreground(std::move(dec)));
 }
-/** The same panel with a span-qualified pass — the §33-j spelling of the
- *  corner vocabulary. */
+/** The same panel with a span-qualified stroke pass, which is how the
+ *  corner vocabulary is spelled. */
 Element spanPanel(Spans where, Decoration dec) {
   return box().child(box().width(100).height(100).fill(blue()).stroke(
       std::move(where), std::move(dec)));
@@ -43,9 +46,10 @@ Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
 } // namespace
 
 TEST(ComposeBorders, BracketsPaintOnlyNearTheCorners) {
-  // Four L-shaped marks and nothing else. Before this the corpus spelled a
-  // reticle as four absolutely-placed Elements, which cost four nodes and
-  // stopped following the shape the moment it was not a rectangle.
+  // Four L-shaped marks and nothing else — one node, one pass. The
+  // alternative an author reaches for is four absolutely-placed Elements,
+  // which costs four nodes and stops tracking the silhouette the moment it
+  // is not a rectangle.
   Host host;
   host.composer.render(spanPanel(spans::corners(20), brush::solid(6, white())));
   host.frame();
@@ -88,9 +92,10 @@ TEST(ComposeBorders, BracketsFollowAChamferedSilhouette) {
 }
 
 TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
-  // The documented surprise, asserted so it stays true: brackets need a
-  // hard tangent break. A rounded rect has none, so a bracket set paints
-  // NOTHING and a gapped rule runs the whole way round.
+  // The surprise worth pinning: corner spans are found at hard tangent
+  // breaks, and a rounded rect has none. So a bracket set on one paints
+  // NOTHING at all, and a gapped rule runs the whole way round without a
+  // single gap. Neither reports an error.
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).corners({30}).fill(blue()).stroke(
@@ -287,7 +292,8 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
 }
 
 // ---------------------------------------------------------------------------
-// Skia seams wired in (REVIEW.md §14): sketchy jitter, SVG outlines, Perlin.
+// Skia capabilities surfaced as compose values: sketchy jitter, SVG path
+// data as an outline, and Perlin noise as a fill.
 
 TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
   Host host, plain;
@@ -343,7 +349,7 @@ TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
 }
 
 // ---------------------------------------------------------------------------
-// Round-3 friction batch: echo misprints, stagger origin, quantized time.
+// Echo misprints, stagger origin, quantized time.
 
 TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
   Host host;
@@ -361,11 +367,10 @@ TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
 }
 
 TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
-  // ROADMAP §14 filed "echo() takes a single stamp — registration doubling
-  // on a light display face wants one each side of the glyph run, not one
-  // behind it". NEVER REAL: Echo is stored in a VECTOR and echo() appends,
-  // so one call each side is the whole feature. The symptom was real (the
-  // author wanted two); the mechanism was a guess.
+  // echo() APPENDS — the node holds a vector of stamps, not one — so
+  // registration doubling (a stamp each side of a glyph run rather than one
+  // behind it) is two calls, not a missing feature. This pins that, and the
+  // ordering: stamps paint in declaration order beneath the real pass.
   Host host;
   host.composer.render(box().child(box()
                                        .absolute()
@@ -447,8 +452,9 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
 }
 
 TEST(ComposeMotion, KeyframesPlayTheMountPath) {
-  // The P3R cursor overshoot: +40 → −20 → 0. Mid-path the box sits LEFT
-  // of rest — a single from→to ramp could never cross it.
+  // A cursor overshoot: +40 → −20 → 0. Mid-path the box sits LEFT of rest,
+  // which is the point — a single from→to ramp can never cross its own
+  // resting value, so this shape only exists if waypoints really play.
   Host host;
   host.composer.render(box().child(
       box()
@@ -507,7 +513,8 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
 }
 
 // ---------------------------------------------------------------------------
-// Review-workflow findings (self-verified after the fleet hit usage limits).
+// Reconcile and motion cases where the failure is a value that LINGERS from
+// the previous describe rather than one that is computed wrongly.
 
 TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
   // Patch reuses the yoga node: dims/aspect/insets REMOVED from the
@@ -539,9 +546,11 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
 }
 
 TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
-  // Mid-entrance, changing an UNRELATED prop must leave the running
-  // motion alone — before the fix, transitionFloat rebuilt the ramp and
-  // RE-HELD its delay from the current value.
+  // Mid-entrance, changing an UNRELATED prop must leave the running motion
+  // alone. If a patch rebuilds the ramp, it also re-serves the transition's
+  // delay from wherever the value happens to be, so the entrance stalls at
+  // the fraction it had reached and then starts over — visible only as
+  // slightly-wrong timing, never as an error.
   Host host;
   auto tree = [](Fill f) {
     return box().child(box().width(80).height(80).fill(f).opacity(
@@ -560,11 +569,15 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
 }
 
 // ---------------------------------------------------------------------------
-// Adversarial-review confirmations (workflow wf_15ac5a8b): the P1 batch.
+// Cases where the wrong answer looks plausible: a stale motion that lands on
+// a believable value, a cache whose cull is a little too small, a mask that
+// invents geometry.
 
 TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
-  // #18: retargeting a slot to its CURRENT value must disconnect a motion
-  // headed elsewhere — or the hold expires and fades to the stale target.
+  // Retargeting a slot to its CURRENT value must DISCONNECT a motion headed
+  // elsewhere, not merely leave it unstarted. If it does not, the delay hold
+  // expires later and the value fades to the target nobody asked for any
+  // more — arbitrarily long after the describe that cancelled it.
   Host host;
   auto tree = [](float op) {
     return box().child(box()
@@ -586,8 +599,10 @@ TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
 }
 
 TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
-  // #33: the routed path is not bounded by the connector's layout rect —
-  // the parent's recording cull must hold the wire.
+  // A connector's routed path is NOT bounded by the connector node's layout
+  // rect — it reaches across to the endpoints it joins. The parent's
+  // recording cull has to account for that, or the wire is drawn on the
+  // first frame and clipped away by every cached replay after it.
   Host host;
   host.composer.render(
       box()
@@ -601,7 +616,9 @@ TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
 }
 
 TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
-  // #32: Cache::Texture used to bake at exact node size.
+  // A texture bake must cover the node's PAINT bounds, not its box: a
+  // decoration that bleeds outside the box (here a shadow offset well past
+  // it) is silently cropped away by a bake sized to the node.
   Host host;
   host.composer.render(box().child(
       box()
@@ -615,7 +632,10 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
 }
 
 TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
-  // #31: stitching an OPEN contour's wrap window invented a chord.
+  // A wrapped span window on an OPEN contour is genuinely two pieces: its
+  // head and its tail are at opposite ends of the path and are not adjacent.
+  // Joining them into one run draws a chord across the middle that exists in
+  // no path the author supplied.
   Host host;
   host.composer.render(box().child(
       box()
@@ -636,16 +656,18 @@ TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
 }
 
 TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
-  // The twin of the test above, and §34's open remainder: on a CLOSED
-  // contour the two halves of a wrapped window ARE adjacent, so spanPath
-  // must stitch them into ONE run. The deleted WrapSeamIsOneContour
-  // asserted this on a path it stitched itself with SkContourMeasure; this
-  // one reads the RENDER.
+  // The twin of the test above: on a CLOSED contour the two halves of a
+  // wrapped window ARE adjacent, so spanPath must stitch them into ONE run.
   //
-  // The seam is parked on a corner, which is what makes the law visible in
-  // pixels: one run puts a MITER JOIN there and the outer corner square is
-  // covered; two runs put two butt caps there and that square is empty —
-  // the "visible notch" spanPath's comment names.
+  // Read the RENDER, not a path the test stitched for itself. A test that
+  // rebuilds the window with SkContourMeasure and asserts on the result
+  // proves something about its own arithmetic and nothing about what the
+  // renderer drew.
+  //
+  // The seam is parked on a corner, which is what makes the difference
+  // visible in pixels at all: one run puts a MITER JOIN there and the outer
+  // corner square is covered; two runs put two butt caps there and that
+  // square is empty — the visible notch.
   Host host;
   host.composer.render(box().child(
       box()
@@ -672,8 +694,11 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
 }
 
 TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
-  // #9: a settled opacity transition must not leave the full-opacity
-  // recording baked with leafDirectBlend.
+  // When an opacity transition settles, the leaf's recording must be re-baked:
+  // the recording made while opacity was 1 folded the fill straight into the
+  // draw, and replaying it under the settled 0.4 would show the leaf at full
+  // strength. The second frame() draws only from caches, which is where a
+  // missed re-bake shows up.
   Host host;
   auto tree = [](Animatable<float> op) {
     return box().child(box()
@@ -693,16 +718,15 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
 }
 
 // ---------------------------------------------------------------------------
-// §15 — the SPLIT bake. Volatility is declared per NODE, so a static ground
-// plane carrying one moving child shares the child's verdict and loses: the
-// plane is re-rasterized every frame in order to redraw the child on top of
-// it (34.12 ms and 14.29 ms of self time on two 888x666 nodes of
-// genesis_fire, both reporting "its content changes every frame" about a
-// child). The split bakes the node's OWN paint and draws the live children
-// over the blit.
+// The SPLIT bake. Volatility is a verdict on a NODE, so a large static
+// ground plane carrying one moving child inherits the child's verdict: the
+// plane is re-rasterized every frame purely so the child can be redrawn over
+// it, and it reports "its content changes every frame" about a child that is
+// not its own paint at all. The split bakes the node's OWN paint and draws
+// the live children over the blit.
 
 namespace {
-/** THE §15 FIXTURE, and every part of it is load-bearing.
+/** THE SPLIT-BAKE FIXTURE, and every part of it is load-bearing.
  *
  *  The own paint deliberately OVERLAPS ITSELF — a background stroke under a
  *  runtime shader under an overlay stroke, plus a foreground stroke — so
@@ -717,10 +741,11 @@ namespace {
  *  children, so a bake that swallowed them would draw them UNDER the child
  *  and this test would see it.
  *
- *  The child rides a bound Output, which is what makes the node volatile
- *  and is the shape the corpus actually has (§15's citation is a disc bound
- *  to a loop). `clipped` and `childBlend` are the two conditions the spec
- *  got wrong and the ones promotion refuses. */
+ *  The child rides a bound Output, which is what makes the node volatile and
+ *  is the ordinary shape of the problem: a small element driven by a loop
+ *  over a large static backdrop. `clipped` and `childBlend` are
+ *  parameterised because both are conditions whole-subtree promotion refuses
+ *  outright, and the split must accept them. */
 choreograph::Output<float> gSplitSweep{0.0f};
 
 
@@ -808,10 +833,11 @@ TEST(ComposeCache, SplitsAnExpensiveOwnPaintFromItsMovingChild) {
 }
 
 TEST(ComposeCache, SplitBakeIsPixelIdenticalAcrossTheChildsMotion) {
-  // THE constraint, and the argument it replaces. Promotion's claim is "an
-  // integer device translation cannot change rasterisation". The split's is
-  // strictly stronger, because the bake replaces only PART of what the node
-  // paints and the children are drawn over the blit afterwards:
+  // The exactness constraint, which is strictly stronger than whole-subtree
+  // promotion's. Promotion only has to argue that an integer device
+  // translation cannot change rasterisation. The split replaces PART of what
+  // a node paints and then draws the children over the blit, so it has to
+  // argue about compositing:
   //
   //   painting the own layer into a transparent device-aligned surface,
   //   blitting it, then painting the children over the result must produce
@@ -842,19 +868,19 @@ TEST(ComposeCache, ABlendingChildIsFineUnderTheSplitAndFatalUnderPromotion) {
 }
 
 TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
-  // §15's spec said to exclude clipContent alongside layer effects, because
-  // all three "wrap both halves". Only the layer effect has to be: a filter
-  // applies to the UNION of own paint and children, and filtering the own
-  // half alone is a different picture. A clip is opened and closed INSIDE
-  // each phase — the phase flag skips only the content — so both halves get
-  // the identical clip in identical device geometry.
+  // clipContent looks like it belongs beside layer effects in the split's
+  // exclusion list — both appear to "wrap both halves" — but only the layer
+  // effect actually does. A filter applies to the UNION of own paint and
+  // children, so filtering the own half alone is a different picture. A clip
+  // is opened and closed INSIDE each phase (the phase flag skips only the
+  // content), so both halves get the identical clip in identical device
+  // geometry.
   //
-  // That is not a nicety. §15's own citation node, genesis_fire's
-  // regolith(), carries .clip(true) because it clips its disc to a limb
-  // outline — which is exactly WHY the disc is a child rather than a
-  // sibling. Excluding clips would have shipped a feature that refuses the
-  // one example it was written for, and every other test here would still
-  // have passed.
+  // Getting this wrong is not a minor over-refusal. A clip is very often
+  // exactly WHY a moving element is a child of the plane rather than its
+  // sibling — the plane clips it to a silhouette — so excluding clips would
+  // refuse the split precisely where it is most wanted, and every other case
+  // in this section would still pass.
   Host host(200, 200);
   host.composer.setProfiling(true);
   for (int i = 0; i < 24; ++i) {
@@ -865,8 +891,7 @@ TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
   const Composer::NodeCost *row = requireRow(host.composer, "plane");
   ASSERT_NE(row, nullptr);
   EXPECT_EQ(row->cacheState, Composer::CacheState::SplitOwn)
-      << "a clipped node was refused the split, which is the shape the "
-         "citation study actually has";
+      << "a clipped node was refused the split bake";
   EXPECT_EQ(worstSplitDivergence(true, SkBlendMode::kMultiply), 0u)
       << "the clip was not reproduced identically in both phases";
 }
@@ -920,49 +945,42 @@ TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
 }
 
 // ---------------------------------------------------------------------------
-// §30: Cache::Group — a whole subtree baked while its bindings hold still.
+// Cache::Group — a whole subtree baked while its bindings hold still.
 //
-// The shape, stated as a shape rather than as one study: MANY SMALL ROTATED
-// PIECES FORMING ONE STATIC ASSEMBLY, each piece carrying a bound entrance.
-// kumiko_asanoha is 523 hinoki strips, each an SkSL wood grain plus a
-// BevelEmboss arris, each rotated to its jig angle, each with a bound opacity
-// and scale on a 6.4 s loop that finishes at 3.4 s and then holds. The
-// fixture below is that in miniature, and every ingredient is load bearing:
+// The shape it exists for: MANY SMALL ROTATED PIECES FORMING ONE STATIC
+// ASSEMBLY, each piece carrying a bound entrance that finishes and then
+// holds. No per-piece cache helps, because each piece is cheap and there are
+// hundreds; what is expensive is the assembly. The fixture below is that in
+// miniature, and every ingredient is load bearing:
 //
-//  - ROTATION, because the bake is device-space and unrotated while the
-//    pieces are not, which is the whole reason a per-piece bake was refused;
-//  - a BEVEL, because §30's per-strip Cache::Texture experiment moved 34% of
-//    the panel's pixels and the arris is where it moved them;
+//  - ROTATION, because a bake is device-space and unrotated while the pieces
+//    are not, which is exactly why a per-piece bake is refused;
+//  - a BEVEL, because a bevel puts most of its work on the piece's edges,
+//    which is where an isolating bake differs from live paint if it differs
+//    anywhere;
 //  - OVERLAP, because a bake into a transparent layer only reproduces live
-//    compositing if srcOver's associativity survives 8-bit rounding, and that
-//    can only be tested where pieces actually composite with each other;
+//    compositing if srcOver's associativity survives 8-bit rounding, and
+//    that can only be exercised where pieces composite with each other;
 //  - a bound opacity AND a bound scale, because the memo has to see both a
 //    scalar that does not move the bake rect and one that does.
 //
-// WHAT "PIXEL IDENTICAL" MEANS HERE, MEASURED RATHER THAN ASSUMED. Every
-// pixel-identity test above this one composites over the host's opaque BLACK
-// clear — and premultiplied srcOver over opaque black is `result.rgb =
-// src.rgb`, with the destination term multiplied away. So those tests cannot
-// see the one error an isolating bake actually makes, and neither could this
-// one until it was pointed at a lit ground:
+// WHAT "PIXEL IDENTICAL" MEANS HERE, AND WHY THE GROUND MATTERS. A test that
+// composites over the host's opaque BLACK clear cannot see the one error an
+// isolating bake makes at all: premultiplied srcOver over opaque black is
+// `result.rgb = src.rgb`, with the destination term multiplied away. Point
+// the same comparison at a LIT ground and a small residual appears on
+// antialiased edges — one extra 8-bit requantisation, because an edge enters
+// the bake as premultiplied coverage already rounded to 8 bits and
+// composites against the ground from there, where live paint composites the
+// same edge from full-precision coverage in one step. It is not the
+// rotation, not the shader and not the device offset: a flat-colour fill
+// shows it too, a single unrotated piece shows it, and forcing the REFERENCE
+// through any layer removes it entirely.
 //
-//     lattice over black                       0 pixels
-//     lattice over a lit ground             1847 pixels, peak 2/255
-//     lattice over a lit ground, but with
-//       the reference ALSO isolated             0 pixels
-//
-// The residual is one extra 8-bit requantisation. An antialiased edge lands
-// in the bake as premultiplied coverage rounded to 8 bits, and composites
-// against the ground from there; live paint composites the same edge against
-// the ground in one step from full-precision coverage. It is not the
-// rotation, not the shader and not the device offset — a flat-colour fill
-// shows it just as strongly (1474), a single unrotated board already shows it
-// (114), and forcing the reference through any layer removes it entirely.
-//
-// So the claim these tests make is the exact one: **a group bake is byte
-// identical to compositing the same subtree through a layer**, which is a
-// thing the author can already ask for by hand. Both spellings are asserted
-// below, because either alone would be the weaker statement.
+// So the exact claim these tests make is: a group bake is byte identical to
+// compositing the same subtree through a layer — something an author can
+// already ask for by hand. Both grounds are asserted below, because either
+// alone would be the weaker statement.
 
 namespace {
 
@@ -994,11 +1012,12 @@ void setBoardPhase(double t) {
 }
 
 sk_sp<SkRuntimeEffect> boardGrain() {
-  // Real per-pixel work with real local coordinates — a shader reads its
-  // local space by INVERTING the CTM, which is the mechanism behind the
-  // 1-LSB bake divergences measured further up this file. A flat color would
-  // test none of it. Cheap on purpose: the loop below draws this 24 times per
-  // frame on two hosts for 240 frames.
+  // Real per-pixel work with real local coordinates. A shader reads its
+  // local space by INVERTING the CTM, so a bake that lands at a different
+  // device offset than live paint would sample the grain differently — a
+  // flat colour would hide that entirely. Kept cheap on purpose: the loop
+  // below draws this once per piece per frame on two hosts, for hundreds of
+  // frames.
   static sk_sp<SkRuntimeEffect> effect = [] {
     auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(
         "half4 main(float2 p) {"
@@ -1014,10 +1033,12 @@ sk_sp<SkRuntimeEffect> boardGrain() {
   return effect;
 }
 
-/** One board: a mitred quad, a grain fill, a counter-rotated arris, a seam
- *  keyline, and the two bound scalars. */
+/** One board: a mitred quad, a grain fill, a bevelled arris whose light
+ *  angle follows the rotation, a seam keyline, and the two bound scalars. */
 Element board(int i) {
-  const float ang = 22.5f * (float)(i % 8); // the three kumiko jig angles
+  // Boards take rotations in 22.5° steps, so neighbours meet at angles a
+  // device-space bake cannot share.
+  const float ang = 22.5f * (float)(i % 8);
   SkPathBuilder quad;
   quad.moveTo(5, 0);
   quad.lineTo(74, 0);
@@ -1095,10 +1116,10 @@ struct GroupPair {
     off.composer.setAutoTexturePromotion(false);
     on.composer.setProfiling(true);
     setBoardPhase(0.0);
-    // Rendered ONCE, like the study: a node carrying outline() compares
-    // unequal on every re-describe (an incomparable callable), so a
-    // per-frame render would mark all 24 boards dirty and no cache in the
-    // library would hold — including the one under test.
+    // Rendered ONCE. A node carrying a shape callable compares unequal on
+    // every re-describe — an incomparable callable never prunes — so a
+    // per-frame render would mark every board dirty and no cache in the
+    // library could hold, including the one under test.
     on.composer.render(latticeScene(Cache::Group, ground));
     off.composer.render(latticeScene(Cache::Auto, ground));
   }
@@ -1175,11 +1196,12 @@ LoopResult walkTheLoop(GroupPair &pair) {
 } // namespace
 
 TEST(ComposeCache, GroupBakesASubtreeItsChildrensBindingsMadeUncacheable) {
-  // The premise first: this lattice is refused by every existing cache. Its
+  // The premise first: this lattice is refused by every other cache. Its
   // children never stop being volatile — the bindings stay connected for the
-  // whole loop — so `Cache::Texture` on the container bakes nothing (a
-  // fill-less container has no own paint to bake), the picture path is
-  // blocked with it, and the study measured 111 ms of GPU on 5 painted nodes.
+  // whole loop, whether or not their values are moving — so `Cache::Texture`
+  // on the container bakes nothing (a fill-less container has no own paint
+  // to bake) and the picture path is blocked along with it. Cache::Group is
+  // the only route by which such a subtree holds pixels at all.
   GroupPair pair;
   for (int i = 0; i < 12; ++i)
     pair.at(kGroupDone + 0.4); // settled: the same numbers every frame
@@ -1216,8 +1238,7 @@ TEST(ComposeCache, GroupDropsTheBakeOnTheFrameABindingTicks) {
          "longer this frame's pixels";
   EXPECT_EQ(pair.bakesThisFrame(), 0u)
       << "the group re-baked on a moving frame: a bake per frame costs "
-         "strictly more than the paint it replaces, which is the shape of "
-         "the fallout2 regression";
+         "strictly more than the paint it replaces";
 
   // Hold that same phase and it comes back — the memo says "not changing",
   // not "finished".
@@ -1254,8 +1275,7 @@ TEST(ComposeCache, GroupIsPixelIdenticalAcrossTheWholeLoop) {
 
 TEST(ComposeCache, AGroupBakeIsExactlyALayerAndNothingMore) {
   // The same loop over a LIT ground, which is where an isolating bake and
-  // live paint genuinely part company — and the measurement that says by how
-  // much, and that it is a requantisation rather than an error.
+  // live paint genuinely part company.
   //
   // The control is the point: wrap the reference subtree in a no-op image
   // filter, so the reference is isolated into a layer exactly as the bake is,
@@ -1273,12 +1293,12 @@ TEST(ComposeCache, AGroupBakeIsExactlyALayerAndNothingMore) {
     EXPECT_GT(r.blitFrames, 0);
     EXPECT_GT(r.liveFrames, 0);
   }
-  // …and the unisolated comparison, kept as a MEASUREMENT with a ceiling
-  // rather than as an equality. Antialiased coverage rounds to 8 bits once
-  // more on the way through a bake, so edge pixels land within a couple of
-  // levels. The numbers when this shipped: 1847 of 57600 pixels on the worst
-  // frame, peak 2/255. The ceiling has headroom; what would break it is a
-  // frozen bake or a misplaced blit, which move whole boards.
+  // …and the unisolated comparison, kept as a CEILING rather than an
+  // equality, because it cannot be an equality: antialiased coverage rounds
+  // to 8 bits once more on the way through a bake, so edge pixels land a
+  // level or two off. The ceiling is loose on purpose — what it is built to
+  // catch is a frozen bake or a misplaced blit, which move whole boards and
+  // blow past any edge-sized budget.
   {
     GroupPair lit(Ground::Lit);
     const LoopResult r = walkTheLoop(lit);
@@ -1353,11 +1373,11 @@ TEST(ComposeCache, AGroupsOwnFadeDoesNotDropItsBake) {
 
 // ---- the refusals: every limit the header documents, exercised -----------
 //
-// §28: "a documented limit is a CLAIM, and claims in this codebase have a
-// poor record." Each of these is a sentence in Cache::Group's doc comment,
-// so each gets a test, and each is paired with the SAME tree minus the
-// offender — because "it did not bake" is worth nothing without "and this
-// one does".
+// A documented limit is a claim, so each sentence in Cache::Group's doc
+// comment gets a case here. Each is paired with the SAME tree minus the
+// offending ingredient, because "it did not bake" is worth nothing without
+// "and this one does" — a fixture that stopped baking for an unrelated
+// reason would satisfy every refusal at once.
 
 namespace {
 /** Did a lattice carrying `extra` as an extra child ever reach the baked
@@ -1424,11 +1444,12 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
 }
 
 TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
-  // The other documented limit, and the one that would be a REGRESSION
+  // The other documented limit, and the one whose failure is a slowdown
   // rather than a wrong picture: a device-pinned bake remade every frame
-  // costs strictly more than the paint it replaces. The group's own
-  // transform is the case a declaration can see; a resizing host is the case
-  // only the device rect can.
+  // costs strictly more than the paint it replaces, so a moving group must
+  // REFUSE the bake instead of remaking it. The group's own transform is the
+  // case a declaration can see coming; a resizing host is the case only the
+  // device rect can.
   static choreograph::Output<float> slide{0};
   Host host(240, 240);
   host.composer.setAutoTexturePromotion(false);
@@ -1461,18 +1482,17 @@ TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
 }
 
 TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
-  // `promotion` is a first-match verdict, so a node that is both volatile
-  // and clipped reported only Volatile — and an author who fixed the
-  // volatility then met a second refusal nobody had mentioned. §15 grew
-  // that population rather than shrinking it, so the mask carries all of
-  // them at once. `promotion` stays the primary outcome, which is why every
-  // assertion in this file that reads it still means what it meant.
-  // The combination is §15's own example: `Volatile` is reported first, so
-  // an author who lifts the moving child out then meets `clip(true)` behind
-  // it, and a rotation behind that. (Composited is deliberately NOT in this
-  // set — opacity only reaches the refusal through the childless leaf fast
-  // path, which a clipped node with children can never take. Two refusals
-  // that cannot co-occur would have made this test unfalsifiable.)
+  // `promotion` is a FIRST-MATCH verdict, so a node that is both volatile
+  // and clipped reports only Volatile — and an author who removes the
+  // volatility then meets a second refusal nobody mentioned. The `refusals`
+  // mask carries all of them at once; `promotion` stays the primary outcome,
+  // so every assertion elsewhere that reads it still means what it meant.
+  //
+  // The tree here is refused three ways at once: a bound child (Volatile),
+  // a rotation (Transformed) and clip(true) (Filtered). Composited is
+  // deliberately NOT in the set — opacity only reaches that refusal through
+  // the childless-leaf fast path, which a clipped node with children can
+  // never take, so including it would make this test unfalsifiable.
   Host host(220, 220);
   host.composer.setProfiling(true);
   host.composer.render(profiledUnder(
@@ -1488,9 +1508,9 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
   EXPECT_TRUE(row->refused(Composer::Promotion::Volatile));
   EXPECT_TRUE(row->refused(Composer::Promotion::Transformed));
   EXPECT_TRUE(row->refused(Composer::Promotion::Filtered));
-  // …and the primary verdict is still exactly the first of them in the
-  // documented order, which is the property that keeps the two from ever
-  // disagreeing: `why` is DERIVED from the mask, not computed beside it.
+  // …and the primary verdict is exactly the first of them in the documented
+  // order. The two can never disagree because the verdict is DERIVED from
+  // the mask rather than computed alongside it.
   EXPECT_EQ(row->promotion, Composer::Promotion::Volatile);
   // A node with nothing wrong with it must report an EMPTY mask, or
   // "refused(X) is true" above is true of everything and tests nothing.
@@ -1505,7 +1525,10 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
 }
 
 TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
-  // #34: backdrop() clipped the node's own decorations to its shape.
+  // A backdrop filter reads and re-draws the region behind the node, which
+  // needs a clip — but that clip must not reach the node's own decorations.
+  // An outer-aligned stroke lies OUTSIDE the node's shape, so clipping it
+  // away is silent and total.
   Host host;
   host.composer.render(box().child(
       box()
@@ -1518,8 +1541,10 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
 }
 
 TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
-  // #20: an item appended to a LIVE staggered list must not inherit its
-  // full-list ordinal delay.
+  // A stagger delay is an ordinal times a step, so an item appended to a
+  // list whose cascade already finished would sit invisible for its full
+  // ordinal delay before entering. Only newly mounted children take a
+  // stagger, and their delay is counted from the mount, not from the list.
   Host host;
   auto card = [](std::string_view key) {
     return box().width(60).height(20).fill(red()).key(key).opacity(
@@ -1545,7 +1570,9 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
 }
 
 TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
-  // #22: the seam of a closed contour is a corner too.
+  // The seam of a closed contour is a corner like any other, even though no
+  // moveTo/lineTo pair announces it: the last segment turns into the first.
+  // A corner tile belongs there too.
   Host host;
   brush::Pattern b;
   b.side = box().width(20).height(4).fill(red());
@@ -1570,18 +1597,15 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
 }
 
 // ---------------------------------------------------------------------------
-// The unified Brush engine: geometry pipeline → paint layers, as ONE value.
-
-
-// ---------------------------------------------------------------------------
-// §16: stamped-brush bakes live with the INSTANCE, not in the brush value.
+// Stamped-brush bakes live with the INSTANCE, not inside the brush value.
 
 TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
-  // The renderSlot() trap, reproduced: a FRESH Scatter value each describe
-  // (empty member cache) around a pointer-stable art, on a node that
-  // repaints every frame. The instance-side StampCache means the art
-  // bakes ONCE; before it, this fixture re-ran snapshot() every frame —
-  // the only place in the library where re-describing cost raster work.
+  // A brush is a value an author rebuilds freely, so any cache stored in the
+  // brush itself is empty on every describe. Here a FRESH Scatter value is
+  // constructed each frame around pointer-stable art, on a node that
+  // repaints every frame. The bake has to be keyed on the instance for the
+  // art to rasterize once; keyed on the brush, re-describing a scene would
+  // cost raster work, which nothing else in the library does.
   static int bakes;
   bakes = 0;
   const Element art = // stable: its node pointer is the cache key
@@ -1616,18 +1640,20 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
 }
 
 TEST(ComposeBrushes, AFreshArtNodePerDescribeRebakesByContract) {
-  // §16's boundary, pinned from the other side (the test above is the hit
-  // direction): the StampCache key is the art Element's NODE, so art built
-  // INSIDE the describe is a fresh node per frame and re-bakes every
-  // frame — the author's half of the contract ("keep the art
-  // pointer-stable", the header's words). This is also the safety
-  // direction: a fresh node is never served another node's bake, so art
-  // whose content genuinely differs always reaches pixels — a cache that
-  // hit here on anything weaker than real content identity would be
-  // §41's frozen-matte class. A future describe-keyed (content-identity)
-  // bake cache — the reopening condition §41/§19/§43 name — would
-  // legitimately turn the identical-content half of this pin into a hit,
-  // and must revisit it deliberately.
+  // The same boundary from the other side (the case above is the hit
+  // direction). The stamp cache is keyed on the art Element's NODE, so art
+  // constructed INSIDE the describe is a fresh node every frame and re-bakes
+  // every frame. That is the author's half of the bargain: keep the art
+  // pointer-stable if you want the bake.
+  //
+  // It is also the safety direction. Because the key is node identity, a
+  // fresh node is never served another node's bake, so art whose content
+  // genuinely differs always reaches pixels. Any cache that hit here on
+  // something weaker than real content identity would show the previous
+  // frame's art instead — a stale picture with no diagnostic. A
+  // content-identity bake cache could legitimately turn the
+  // identical-content half of this into a hit, but only deliberately, and
+  // the differing-content half below must keep failing it.
   static int bakes;
   bakes = 0;
   Host host;

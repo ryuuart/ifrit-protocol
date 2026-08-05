@@ -1,20 +1,27 @@
 // Scene: retro terminal — per-glyph typewriter reveal with per-glyph shading.
 //
-// The stress test this scene answers: can a caller animate a proportional-font
-// paragraph in letter by letter — each glyph with its own brightness, glow,
-// and glitch — on the public API alone? It extends the Rain/Ripple
-// choreography recipe one step: walk the placed runs in logical order, derive
-// a deterministic reveal time per glyph from that order (typing jitter plus
-// word and newline pauses, all in "character units" so one clock scrub replays
-// the whole tape), then instead of GlyphRSXformBatches' flat-color draw,
-// bucket glyphs by quantized (brightness, fade) and draw every bucket twice:
-// a blur-mask phosphor glow pass under a crisp core pass, with scene-owned
-// SkPaints. Glitched glyphs leave those buckets for RGB-split ones. At the
-// end of each loop the tape dissolves: every glyph scrambles through random
-// substitutes drawn from its typeface's own placed-glyph pool while its
-// alpha fades to nothing — per-glyph *identity* control on top of position
-// and shading. The library only ever laid the paragraph out; everything
-// per-glyph is a draw-loop concern.
+// A proportional-font paragraph typed in letter by letter, each glyph with
+// its own brightness, glow, and glitch state. The shape of it:
+//
+//   - Walk the placed runs in logical order and accumulate a reveal time per
+//     glyph as you go — typing jitter plus word and newline pauses. All of
+//     it is expressed in "character units" (multiples of the typing speed),
+//     so the whole tape is a pure function of the clock and scrubbing or
+//     pausing replays it exactly.
+//   - Bucket the glyphs by quantized (brightness, fade) instead of drawing
+//     them one at a time, then draw every bucket twice: a blur-mask phosphor
+//     glow pass beneath a crisp core pass. GlyphRSXformBatches covers the
+//     fixed-color case; the buckets here carry a scene-defined key so each
+//     one can pick its own paint. Glitched glyphs move to separate
+//     RGB-split buckets and skip the core pass.
+//   - At the end of each loop the tape dissolves: every glyph cycles through
+//     random substitutes taken from its own typeface's placed-glyph pool
+//     while its alpha runs out, so the scene controls glyph *identity* as
+//     well as position and shading.
+//
+// The library's part ends at layoutParagraph(); the reveal, the shading, and
+// the substitution are all draw-loop work over the placed runs, and the
+// layout is only recomputed when its inputs change.
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 

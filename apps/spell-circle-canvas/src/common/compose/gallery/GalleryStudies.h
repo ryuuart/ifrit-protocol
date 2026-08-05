@@ -25,10 +25,10 @@ namespace compose_gallery {
 
 namespace sketch = sigil::compose::sketch;
 
-/** One study's gallery identity. `key` is the sketch file's stem and the
- *  key SIGIL_SKETCH_STATIC registered it under — it is also what the
- *  headless capture is named (registryName(), ROADMAP §22); `name` is what
- *  the sidebar shows and what `--scene` matches (the stem matches too). */
+/** One study's gallery identity. `key` is the sketch file's stem and the key
+ *  SIGIL_SKETCH_STATIC registered it under; it is also the name the headless
+ *  capture is written under (see registryName()). `name` is the display
+ *  spelling the sidebar shows. `--scene` matches either one. */
 struct StudyInfo {
   const char *key;
   const char *name;
@@ -112,15 +112,14 @@ inline constexpr StudyInfo kStudies[] = {
      "Bass and Whitney's Vertigo titles (1958) \xe2\x80\x94 a Lissajous off an "
      "M-5 gun director"},
 
-    // ---- Run 2: film, game and esoteric interfaces ----
-    // These were registered in SIGIL_SKETCH_STUDIES one at a time as they
-    // shipped, which compiled them in — and then were absent from the
-    // gallery for hours, because THE COMPILED SET AND THE LISTED SET ARE
-    // TWO LISTS. The build knows what exists; this table knows what is
-    // shown; nothing checks that they agree. Same two-name identity that
-    // cost three agents an hour elsewhere today (ROADMAP §22), wearing
-    // its third face: not two spellings of one name, but two registries
-    // of one fact.
+    // ---- Film, game and esoteric interfaces ----
+    // Adding a study takes TWO edits, in two separate lists.
+    // SIGIL_SKETCH_STUDIES in the build decides what gets compiled in; this
+    // table decides what the gallery shows. The gallery test holds the two
+    // one-to-one: an entry listed here with nothing compiled behind it has
+    // no factory (makeStudy returns nullptr), and a study compiled in but
+    // left off this table is reported by stem — without that check it would
+    // link fine and simply never appear anywhere.
     {"thaumonomicon", "thaumonomicon", "Study \xc2\xb7 Game UI",
      "Thaumcraft 6's research browser (2018) \xe2\x80\x94 edges that are "
      "stamped art, not strokes"},
@@ -193,9 +192,8 @@ inline constexpr StudyInfo kStudies[] = {
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "
      "falloffs: constant, depth of field, a lens edge, a rack focus"},
     {"still_accent", "still accent", "Kit \xc2\xb7 API",
-     "\xc2\xa7""38's measured fixture \xe2\x80\x94 one bound fill() that "
-     "never moves over 512 cells: the 19.6\xc3\x97 reproduction, retired "
-     "by the settle/release"},
+     "one bound fill() held still over hundreds of cells \xe2\x80\x94 "
+     "the case the settle/release memo exists for"},
 };
 inline constexpr int kStudyCount = (int)(sizeof(kStudies) /
                                          sizeof(kStudies[0]));

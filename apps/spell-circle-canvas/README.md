@@ -1,159 +1,182 @@
-# spell-circle-canvas docs
+# SpellCircle
 
-A jump table into this app's documentation and source. Start here, then
-follow a link to the file that actually answers your question — this page
-stays short on purpose.
+SpellCircle draws network-driven vector diagrams for live production. An
+external process — a Python script, a TouchDesigner patch — describes a
+scene of circles, points placed on those circles' perimeters, edges
+between points, and labelled boxes, and sends it as a FlatBuffers
+datagram over UDP. SpellCircle receives it, draws it with Skia on the
+GPU, and publishes the result as a transparent-background texture over
+Syphon, where a VJ or compositing tool picks it up.
 
-## Contents
+The app only receives. Nothing is authored inside it. Scenes typically
+arrive at animation frame rates, so the sender is free to treat it as a
+live output surface rather than a document viewer.
 
-- [Architecture](#architecture)
-- [TextFlow](#textflow)
-  - [Header reference](#textflow-header-reference)
-- [TextFlow gallery](#textflow-gallery)
-- [TextFlow demo](#textflow-demo)
-- [SigilCompose gallery](#sigilcompose-gallery)
-- [Build & test](#build--test)
+What you get on screen is a viewer and a control surface: a canvas you
+pan and zoom, a timestamped feed of arriving packets, a packets-per-second
+readout, and settings for accent colour, stroke width, scale, fonts, box
+geometry, label offsets, canvas size, and the UDP port. Panning and
+zooming never redraw the scene — they move an already-rendered image.
 
-## Architecture
+## Getting a picture on screen
 
-The receiver → model → renderer pipeline (`NetworkManager`, `SpellCircleModel`,
-`SpellCircleRenderer`, the Skia/QCanvasPainter backends, `SyphonBridge`) is
-described in the repository root [`CLAUDE.md`](../../CLAUDE.md#architecture).
-That's the map for the Qt app itself; the sections below cover the
-Qt-independent text engine and its two standalone executables.
-
-## TextFlow
-
-TextFlow is the Qt-independent Skia text layout library under `src/textflow/`.
-[`src/textflow/README.md`](src/textflow/README.md) is the primary reference:
-pipeline diagram, why it's fast, measured benchmarks, the full API sketch,
-the accuracy/performance dial, tuning knobs, threading model, and known
-limitations. Read that first for anything conceptual.
-
-### TextFlow header reference
-
-Each public header opens with a short "what is this / when do I reach for
-it" banner; this table is just the index. All of it (plus every type, field,
-and function) is written as Doxygen comments, so you can also browse it as
-generated HTML:
+Build (see [Build and test](#build-and-test)), start the app, then send
+it something:
 
 ```sh
-cd src/textflow && doxygen Doxyfile   # -> ../../build/docs/textflow/html/index.html
+python3 apps/python/SpellCircle/test/send_spell_circles.py --seed 1
+python3 apps/python/SpellCircle/test/animate_spell_circles.py --fps 60
 ```
 
-| Header | What it's for |
-|---|---|
-| [`TextFlow.h`](src/textflow/include/textflow/TextFlow.h) | Umbrella include + a map of every other header below |
-| [`Style.h`](src/textflow/include/textflow/Style.h) | `TextStyle` = `ShapingStyle` (cache key) + `PaintStyle` (draw-time) |
-| [`PaintShaders.h`](src/textflow/include/textflow/PaintShaders.h) | Animated water, mesh-gradient, and tiled star `SkShader` presets |
-| [`FontContext.h`](src/textflow/include/textflow/FontContext.h) | Per-thread service object: shape cache, HarfBuzz, ICU |
-| [`Paragraph.h`](src/textflow/include/textflow/Paragraph.h) | The document model: text + style spans + placeholders, live-editable |
-| [`Flow.h`](src/textflow/include/textflow/Flow.h) | The geometry text flows into: `BlockFlow`, `ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow`, `PathFlow` |
-| [`ParagraphLayout.h`](src/textflow/include/textflow/ParagraphLayout.h) | `layoutParagraph()` and its options/result — the main entry point |
-| [`Shaper.h`](src/textflow/include/textflow/Shaper.h) | Lower-level `ShapedWord` shaping types the pipeline is built on |
-| [`Query.h`](src/textflow/include/textflow/Query.h) | Optional: find ranges by substring/word/regex, edit-following `MarkerSet` |
-| [`Choreograph.h`](src/textflow/include/textflow/Choreograph.h) | Optional: per-glyph animation (`forEachPlacedGlyph`, `GlyphRSXformBatches`) |
-| [`SingleLineParagraphCache.h`](src/textflow/include/textflow/SingleLineParagraphCache.h) | Optional: fast path for high-frequency labels/captions |
-| [`textflowqt/TextFlowQt.h`](src/textflow/qt/include/textflowqt/TextFlowQt.h) | Optional: Qt bridging (`QFont`/`QString`/`QColor` conversions), zero-copy |
+The first sends a single randomized sigil; the second streams an animated
+one. Both default to `127.0.0.1:27015`.
 
-## TextFlow gallery
+## Authoring a scene
 
-`TextFlowGallery` (`src/textflow/examples/gallery/`) is the interactive Qt Quick scene
-switcher — live text editing, font/size/alignment/line-breaking controls,
-a dynamic panel for every axis exposed by the selected variable font, and a
-GPU/CPU raster A/B switch. Shared scene
-helpers (palette, body-paragraph cache, caption drawing, filler text) live in
-[`scenes/SceneSupport.h`](src/textflow/examples/gallery/src/scenes/SceneSupport.h). `makeScenes()`
-in [`GalleryScenes.cpp`](src/textflow/examples/gallery/src/SceneRegistry.cpp) registers the scenes
-below in switcher order:
+The Python package builds and sends scenes:
 
-| Scene | File | What it shows |
-|---|---|---|
-| Exclusions & shapes | [`ExclusionsScene.cpp`](src/textflow/examples/gallery/src/scenes/ExclusionsScene.cpp) | Moving circle/path exclusions, a live-morphing spiky ring, live text editing |
-| Knuth–Plass & hyphens | [`KnuthPlassScene.cpp`](src/textflow/examples/gallery/src/scenes/KnuthPlassScene.cpp) | Greedy vs. optimal breaking side by side, soft hyphens |
-| Infinite loop | [`LoopScene.cpp`](src/textflow/examples/gallery/src/scenes/LoopScene.cpp) | Text marquee around a closed figure-eight contour |
-| Letter rain | [`RainScene.cpp`](src/textflow/examples/gallery/src/scenes/RainScene.cpp) | Full-paragraph relayout every frame while letters fall as particles |
-| Ripple pool | [`RippleScene.cpp`](src/textflow/examples/gallery/src/scenes/RippleScene.cpp) | Click-to-drop expanding rings displace placed glyphs |
-| Vertical CJK | [`VerticalScene.cpp`](src/textflow/examples/gallery/src/scenes/VerticalScene.cpp) | `vertical-rl`, ruby, kenten, tate-chu-yoko |
-| Unicode singularity | [`HyperScriptsScene.cpp`](src/textflow/examples/gallery/src/scenes/HyperScriptsScene.cpp) | `﷽`, `𰻞`, `𒀱`, `ཧཱུྃ`, `꧅`, `᎙`, Zalgo stacks, bidi collisions, and emoji ZWJ sequences |
-| Paint layers | [`EffectsScene.cpp`](src/textflow/examples/gallery/src/scenes/EffectsScene.cpp) | Animated water and mesh shaders, tiled stars, gradient composition, presets, and visible draw counts |
-| 2,000-word shader stress | [`EffectsStressScene.cpp`](src/textflow/examples/gallery/src/scenes/EffectsStressScene.cpp) | A fully placed huge paragraph with four animated paint passes and no steady-state relayout |
-| Query & markers | [`MarkersScene.cpp`](src/textflow/examples/gallery/src/scenes/MarkersScene.cpp) | Regex-found `MarkerSet` ranges that follow live edits |
-| Inline slots & pills | [`SlotsScene.cpp`](src/textflow/examples/gallery/src/scenes/SlotsScene.cpp) | `appendPlaceholder()` pills and figures woven into the flow |
-| Overflow & ellipsis | [`OverflowScene.cpp`](src/textflow/examples/gallery/src/scenes/OverflowScene.cpp) | CSS `text-overflow`-style clipping vs. shaped ellipsis |
+```python
+from SpellCircle import SpellCircleCanvas, SceneSender
 
-## TextFlow demo
+canvas = SpellCircleCanvas(width=1000, height=1000)
+ring = canvas.circle("outer", center_x=500, center_y=500, radius=400)
 
-`textflow_demo` (`src/textflow/examples/demo/`) is the Qt-free reference: it renders each
-scene to PNG under `textflow_demo_out/` and prints per-frame timing. Shared
-helpers (palette, `TimingStats`, PNG output, filler text) live in
-[`DemoSupport.h`](src/textflow/examples/demo/DemoSupport.h); [`textflow_demo.cpp`](src/textflow/examples/demo/textflow_demo.cpp)
-is just `main()` calling the scenes below in order.
+# Points live at a fraction clockwise from 12 o'clock.
+top = canvas.point(ring, position=0.0, value="north")
+right = canvas.point(ring, position=0.25, value="east")
+canvas.edge(top, right)
 
-| Scene | File | What it shows |
-|---|---|---|
-| A — Exclusions | [`SceneExclusions.cpp`](src/textflow/examples/demo/SceneExclusions.cpp) | Mixed-script rich paragraph reflowing around moving shapes |
-| B — Knuth-Plass | [`SceneKnuthPlass.cpp`](src/textflow/examples/demo/SceneKnuthPlass.cpp) | Justified paragraph with live word updates |
-| C — Freeform | [`SceneFreeform.cpp`](src/textflow/examples/demo/SceneFreeform.cpp) | Spiral path + an arbitrary slanted line set |
-| D — Extreme | [`SceneExtreme.cpp`](src/textflow/examples/demo/SceneExtreme.cpp) | Zigzag, scribble, bumpy baselines, rotated-letter confetti |
-| E — Typography | [`SceneTypography.cpp`](src/textflow/examples/demo/SceneTypography.cpp) | Last-line modes, hyphenation, paint effects, mixed fonts |
-| F — Pretext choreography | [`ScenePretext.cpp`](src/textflow/examples/demo/ScenePretext.cpp) (dispatches [rain](src/textflow/examples/demo/SceneRain.cpp), [ripple](src/textflow/examples/demo/SceneRipple.cpp), [loop](src/textflow/examples/demo/SceneLoop.cpp)) | Per-glyph choreography over a full relayout every frame |
-| G — Babel & features | [`SceneBabel.cpp`](src/textflow/examples/demo/SceneBabel.cpp), [`SceneFeatures.cpp`](src/textflow/examples/demo/SceneFeatures.cpp) | Script-coverage confetti; OpenType feature rows |
-| H — CJK | [`SceneCjk.cpp`](src/textflow/examples/demo/SceneCjk.cpp) | Vertical-rl, ruby, kenten, tate-chu-yoko |
-| I — Shapes | [`SceneShapes.cpp`](src/textflow/examples/demo/SceneShapes.cpp) | Star/heart/donut `SkPath` exclusions |
-| J — CJK fallback | [`SceneFallback.cpp`](src/textflow/examples/demo/SceneFallback.cpp) | Platform fallback resolves Japanese, Korean, and Chinese glyphs under two incomplete primary families |
-| K — Unicode singularity | [`SceneHyperScripts.cpp`](src/textflow/examples/demo/SceneHyperScripts.cpp) | Arabic calligraphy, rare glyphs (`𰻞 𒀱 ཧཱུྃ ꧅ ᎙`), combining storms, bidi, and emoji in one torture wall |
-| L — Paint layers | [`ScenePaintEffects.cpp`](src/textflow/examples/demo/ScenePaintEffects.cpp) | Water/mesh/star/gradient composition plus a fully placed 2,500-word, four-pass stress image (`paint_stress.png`) |
+# A radius-0 circle is an invisible anchor: it places things at an
+# arbitrary coordinate instead of on a visible perimeter.
+canvas.box("readout", canvas.point(canvas.anchor(500, 900)))
 
-## SigilCompose gallery
+with SceneSender("127.0.0.1", 27015) as sender:
+    sender.send(canvas.to_bytes())
+```
 
-`ComposeGallery` exercises the retained composition engine across all scenes in
-`src/common/compose/gallery/`. Its interactive view renders directly into a Qt
-Quick texture through Skia Graphite on supported Metal backends; the portable
-QRhi fallback rasterizes once and performs one explicit texture upload. The
-interactive view requires a hardware-backed Qt Quick RHI; `--headless` remains
-available in software-only environments.
-Use a Release build for performance work—Skia effect-heavy scenes are
-intentionally stressful and Debug timings are not representative.
+`SpellCircleCanvas` records calls as plain values; `to_bytes()` is the
+only thing that serializes. Points shared between edges become a single
+point on the wire.
+
+The package exports `SpellCircleCanvas`, `PointReference`,
+`CircleDefinition`, `SceneBuilder`, `SceneSender`, and `send_once`.
+`SceneBuilder` is the lower-level path if you want to emit FlatBuffers
+tables yourself.
+
+## How a packet becomes pixels
+
+```
+Python  ──FlatBuffers──▶  UDP :27015  ──▶  verify  ──▶  decode
+                                                          │
+                        Syphon ◀── draw ◀── resolveScene ◀─┘
+```
+
+`UdpReceiver` binds dual-stack and hands each datagram to the front end
+on its own I/O thread. The front end moves to its main thread,
+`verifyScenePayload()` rejects malformed buffers, and
+`SceneDocument::decode()` fills an `entt` registry with circle, point,
+edge, and box components.
+
+`resolveScene()` then converts that registry into a `ResolvedScene` of
+absolute native pixels, and `SceneRenderer::draw()` puts it on an
+`SkCanvas`. The drawing order is edges, then circles with their curved
+ring labels, then point labels, then boxes. The canvas clears to
+transparent so downstream tools composite over their own background.
+
+**`resolveScene()` is the only place scaling and point-on-circle math
+happens.** Both front ends consume `ResolvedScene`, which holds nothing
+but absolute pixels, so the two apps cannot drift apart on geometry. If
+you are changing where something lands on screen, that function is where
+the change belongs.
+
+## Layout
+
+The Qt-free core is shared; the two front ends are not.
+
+| Path | What it is |
+| --- | --- |
+| `src/spellcircle/shared/schema/` | `SpellCircle.fbs` and its generated header — the wire format |
+| `src/spellcircle/shared/net/` | `UdpReceiver`. Transport only; callers verify |
+| `src/spellcircle/shared/scene/` | Decode, resolve, draw, ring-label geometry |
+| `src/spellcircle/qt/` | The Qt app — QML front end, cross-platform target |
+| `src/spellcircle/mac/` | `SpellCircleMac` — SwiftUI over an ObjC++ bridge, macOS only |
+
+`SceneRenderer` is not thread-safe. It builds its font context lazily on
+the first `draw()`, and every later `draw()` must come from that same
+thread.
+
+The Mac app is a separate executable rather than a Qt build. Its
+`SpellCircleMacBridge` is a shared library that absorbs the entire C++
+side, because Swift's linker rejects the raw `-framework` flags that
+Skia's package config carries in its link interface; keeping those on the
+clang++ side of a dylib boundary is what makes the Swift target link at
+all.
+
+## Libraries
+
+The app is thin. Most of the code is in libraries under `src/common/` and
+`src/sigilweave/`, each of which has its own README:
+
+| Library | What it does |
+| --- | --- |
+| [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
+| [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
+| [SigilShape](src/common/shape/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
+| [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
+| [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
+| [SigilImage](src/common/image/README.md) | Image decoding and probing |
+| [SigilLoader](src/common/loader/README.md) | Resource access: URIs, mounts, caching, hot reload |
+| [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
+
+## Build and test
 
 ```sh
-cmake --build build --config Release --target ComposeGallery compose_bench
-open ./build/bin/Release/ComposeGallery.app
-./build/bin/Release/ComposeGallery.app/Contents/MacOS/ComposeGallery --headless /tmp/compose-gallery
-ctest --test-dir build -C Release -R 'compose(_gallery)?_test'
+cd apps/spell-circle-canvas
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
 ```
 
-## Demo assets
+`setup.py` finds Qt and vcpkg and writes the uncommitted
+`CMakeUserPresets.json`.
 
-The studies in the gallery and in `sketch/sketches/` are grounded in real
-references, and a reference typeset in whatever face the host OS happens
-to ship is only half-grounded. An opt-in target fetches the open-licensed
-faces those studies want:
+The test suite covers the libraries and the shared scene core —
+`spellcircle_test` builds wire payloads with the FlatBuffers API and runs
+them through decode, resolution, box placement, and ring-label geometry.
+The two front ends themselves have no automated tests: verifying a change
+to app code means running it and sending it a scene.
+
+Use a Release build for any performance work. Several library
+benchmarks and gallery scenes are deliberately stressful and Debug
+timings say nothing useful.
+
+### Changing the wire format
+
+Edit `src/spellcircle/shared/schema/SpellCircle.fbs`, then run
+`scripts/regen_flatbuffers.sh` from anywhere and commit what it writes.
+It regenerates both sides — the C++ header and the Python modules.
+
+Generated, never hand-edited:
+
+- `src/spellcircle/shared/schema/include/SpellCircle_generated.h`
+- `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
+
+### Demo assets
+
+Several library examples reproduce real reference designs, and a
+reference typeset in whatever face the host happens to ship is only half
+a reference. An opt-in target fetches the open-licensed ones:
 
 ```sh
 cmake --build build --config Release --target fetch_assets
 ```
 
-Everything lands in `build/assets/` (gitignored) and the path reaches code
-as the `SIGIL_ASSET_DIR` compile definition; the sketch host also takes
-`--assets <dir>` directly. Nothing here runs during a normal build and
-configuring the project never touches the network.
+They land in `build/assets/` (gitignored), reach code as the
+`SIGIL_ASSET_DIR` compile definition, and are also accepted directly by
+tools that take `--assets <dir>`. Nothing here runs during a normal
+build, and configuring the project never touches the network.
 
-The manifest lives in [`cmake/FetchAssets.cmake`](cmake/FetchAssets.cmake).
-Anything added to it must carry an open licence with its licence file
-fetched alongside, be pinned to an immutable commit rather than a branch,
-and declare an `EXPECTED_HASH` so a changed byte is a hard failure. The
-studies reproduce geometry and palettes, which are facts about a design;
-they do not ship its art.
-
-## Build & test
-
-See the root [`CLAUDE.md`](../../CLAUDE.md#build-and-test) for the full
-setup/build/test commands. Quick reference for the executables covered above:
-
-```sh
-cmake --build build --config Release --target textflow_bench textflow_demo TextFlowGallery
-./build/bin/Release/textflow_demo          # writes PNGs + per-frame timings
-./build/bin/Release/TextFlowGallery        # interactive scene switcher
-ctest --test-dir build -C Debug -R textflow_test
-```
+The manifest is [`cmake/FetchAssets.cmake`](cmake/FetchAssets.cmake).
+Anything added to it carries an open licence with its licence file
+fetched alongside, is pinned to an immutable commit rather than a branch,
+and declares an `EXPECTED_HASH` so a changed byte is a hard failure.

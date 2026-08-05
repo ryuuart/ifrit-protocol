@@ -30,22 +30,27 @@ struct Material::Live {
   std::vector<std::pair<std::string, std::array<float, 2>>> constants2;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
-  // child(): `uniform shader NAME` slots, filled with whole Materials (§10f).
-  // They are recipe (equality) AND volatility: the parent inherits each
-  // child's tier, and resolves every child with the same PaintContext.
+  // child(): `uniform shader NAME` slots, filled with whole Materials.
+  // They are recipe (they participate in equality) AND volatility: the
+  // parent inherits each child's tier, and resolves every child with the
+  // same PaintContext it got itself.
   std::vector<std::pair<std::string, Material>> children;
-  // Context tiers (the REVIEW rule, refined by the leg review):
+  // Which context inputs this effect declares, and therefore which tier the
+  // material sits in:
   //  - usesTime / usesScale: uTime changes every frame and uContentScale
-  //    changes with the HOST's canvas scale (zoom) — neither is a function
-  //    of the node, so both make the material LIVE (per-frame resolve).
-  //  - usesGeometry: uResolution is the node's layout size — stable between
-  //    layouts, so the material resolves when the node RECORDS, caches, and
-  //    re-records on size change (syncLayoutRects).
+  //    changes with the HOST's canvas scale (zoom). Neither is a function of
+  //    the node, so either makes the material LIVE — resolved per frame.
+  //  - usesGeometry: uResolution is the node's laid-out size, stable between
+  //    layouts. Such a material resolves when the node RECORDS, caches with
+  //    that recording, and re-records when layout changes the node's size.
   bool usesTime = false;
   bool usesScale = false;
   bool usesGeometry = false;
-  // quantizeTime(): step the injected uTime at this rate (0 = continuous) —
-  // the P3R sea rule ("we imagine the interpolation ourselves").
+  // quantizeTime(): step the injected uTime at this rate (0 = continuous),
+  // so that a material meant to read as a slow sequence of held states
+  // actually holds — and, since consecutive frames then produce identical
+  // inputs, the memo below returns the same shader and the node's recording
+  // survives.
   float timeQuantizeHz = 0;
   // Resolve memo: when every varying input (bound Outputs + injected
   // time/scale/resolution) is byte-identical to the previous build, the
@@ -56,10 +61,12 @@ struct Material::Live {
   mutable sk_sp<SkShader> lastShader;
 };
 
-/** The comparable build recipe behind gradient/image/blend materials — the
+/** The comparable build recipe behind gradient/image/blend materials: the
  *  structural signature that lets two independently built materials compare
- *  equal (the §8.1 prune). Solid/raw-shader/sksl compare via Material's own
- *  state instead. */
+ *  equal. Without it every re-describe would mint a fresh SkShader whose
+ *  pointer differs, nothing would ever prune, and a static gradient would
+ *  re-record forever. Solid, raw-shader and sksl materials compare through
+ *  Material's own state instead. */
 struct Material::Recipe {
   enum class Kind : uint8_t { Linear, Radial, Conical, Sweep, Image, Blend,
                               Buffer };
@@ -77,7 +84,9 @@ struct Material::Recipe {
   SkSamplingOptions sampling;
   // Blend: layer materials (recursive Material equality) + modes.
   std::vector<std::pair<Material, SkBlendMode>> layers;
-  // Buffer (§4): the Instances pruning rule verbatim — identity + revision.
+  // Buffer: a caller-owned mutable bitmap, so identity alone cannot decide
+  // equality — the revision counter is what makes a committed edit visible
+  // to the prune.
   std::shared_ptr<PixelBuffer> source;
   uint64_t revision = 0;
 
@@ -155,7 +164,8 @@ namespace detail {
 
 // A named child is usable iff the effect declares it as a SHADER child —
 // assigning a missing child SkDEBUGFAILs exactly like a missing uniform.
-// Shared with Effect::child (§19): one validation, two child doors.
+// Shared with Effect::child: one validation behind both ways of filling a
+// child slot, so the two cannot disagree about what is legal.
 bool declaresShaderChild(const sk_sp<SkRuntimeEffect> &effect,
                          std::string_view name) {
   if (!effect)
@@ -181,14 +191,15 @@ sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx) {
 } // namespace detail
 
 namespace {
-/** §19's wrap, the ONE construction both resolve paths share: the built
- *  shader sampled through W⁻¹, so a local drawing coordinate p evaluates
- *  the field at W·p — the root-frame point the node actually occupies.
- *  Precedent: textFill's metric-band mapping (Paint.cpp), the same
- *  makeWithLocalMatrix composition. Identity W (outside a composer, or a
- *  root-level node with no transform) wraps nothing: node-local and
- *  root-local are the same frame there, which is the documented
- *  degradation. */
+/** World-space anchoring, the ONE construction every resolve path here
+ *  shares: the built shader is sampled through the inverse of the node's
+ *  node-to-root matrix W, so a local drawing coordinate p evaluates the
+ *  field at W·p — the root-frame point the node actually occupies. That is
+ *  what lets two separate nodes sample one continuous field.
+ *
+ *  An identity W — outside a composer, or a root-level node with no
+ *  transform — wraps nothing, because node-local and root-local are then
+ *  the same frame. */
 sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> s, const PaintContext &ctx) {
   if (!s || ctx.toRoot.isIdentity())
     return s;
@@ -197,9 +208,10 @@ sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> s, const PaintContext &ctx) {
     return s; // degenerate transform: nothing sensible to anchor through
   return s->makeWithLocalMatrix(inv);
 }
-/** W's affine six, for the varying-input digest (§10f: a digest cannot
- *  see an input it was never fed — without these, frame 2 after a move
- *  serves frame 1's shader). */
+/** W's affine six, fed into the varying-input digest below. A digest cannot
+ *  see an input it was never given: leave these out and the frame after a
+ *  world-space node moves compares equal to the frame before it, and the
+ *  memo hands back a shader anchored to the old position. */
 void digestToRoot(std::vector<float> &inputs, const SkMatrix &w) {
   inputs.push_back(w.getScaleX());
   inputs.push_back(w.getSkewX());
@@ -218,10 +230,11 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
                                 bool worldSpace) {
   if (!live.effect)
     return nullptr;
-  // A user-provided uniform (constant or bound) OWNS its slot: the
-  // auto-injects must never overwrite it — binding uTime to a quantized
-  // Output is the documented way to step a material, and injection ran
-  // AFTER binds, silently defeating it (the persona-sea finding).
+  // A user-provided uniform (constant or bound) OWNS its slot, and the
+  // auto-injects below must never overwrite it. Binding uTime to a
+  // caller-driven Output is a supported way to control a material's clock,
+  // and an injection that ran afterwards would overwrite that value with
+  // the context's own elapsed time without saying anything.
   auto userProvided = [&](std::string_view name) {
     for (const auto &[n, v] : live.constants)
       if (n == name)
@@ -247,9 +260,11 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
       ctx && validUniform(live.effect, "uResolution", 2 * sizeof(float)) &&
       !userProvided("uResolution");
 
-  // §19: a world-space material's uResolution is the ROOT canvas size —
-  // linearUnit's division lands in canvas-unit space, so a unit ramp spans
-  // the canvas and two flagged siblings sample one continuous field.
+  // A world-space material's uResolution is the ROOT canvas size, not the
+  // node's box: the shader is already sampling in root coordinates, so
+  // dividing by the node's size would rescale the field per node and the
+  // two siblings that were meant to share one continuous field would each
+  // get their own.
   const SkSize resSize = worldSpace && ctx && !ctx->rootSize.isEmpty()
                              ? ctx->rootSize
                              : (ctx ? ctx->size : SkSize::MakeEmpty());
@@ -261,18 +276,16 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
     inputs.reserve(live.binds.size() + 10);
     for (const auto &[name, out] : live.binds)
       inputs.push_back(out ? out->value() : 0.0f);
-    // §19 × §10f: when anchored, W is a varying input like any other — a
-    // node that MOVED resolves a different shader, and the memo must see
-    // that or the second frame after a move serves the stale one.
+    // When anchored, W is a varying input like any other: a node that MOVED
+    // resolves a different shader, and the memo has to see that or the next
+    // frame after the move replays the shader anchored to the old position.
     if (worldSpace)
       digestToRoot(inputs, ctx->toRoot);
-    // §19 × §10f: when anchored, W is a varying input like any other — a
-    // node that MOVED resolves a different shader, and the memo must see
-    // that or the second frame after a move serves the stale one.
     if (injectTime) {
-      // Routed through the canonical quantizer (motion::quantizeTime) at
-      // the SAME precision — double in, hz promoted exactly as the old
-      // inline floor did — so this is a spelling change, not a pixel one.
+      // Quantized through motion::quantizeTime rather than inline, so that
+      // the value digested here and the value assigned to the uniform below
+      // are produced by one function at one precision. Two spellings would
+      // let the memo compare a time the shader was not built with.
       const double t =
           motion::quantizeTime(ctx->elapsedSeconds, (double)live.timeQuantizeHz);
       inputs.push_back((float)t);
@@ -296,13 +309,13 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
     if (!childNeedsCtx && live.lastShader && inputs == live.lastInputs)
       return live.lastShader;
   }
-  // §14: the sdf:: glow eats the shape silently. sdf::pad() is reserved
-  // INSIDE the node's box, so a 300×300 box with glowRadius 54 renders a
-  // ~1px disc and said nothing — sdf::minBoxFor() is the answer and
-  // nothing pointed at it from the call site. The numbers only meet HERE
-  // (uPad is a style constant, uResolution the laid-out size), so this is
-  // where the warning lives: once per process, on the sdf prelude's
-  // signature (uPad + uGlowR + uResolution), when pad >= half-size.
+  // An sdf style reserves its glow, shadow and border padding INSIDE the
+  // node's box, so a generous glow on a modest box leaves almost no
+  // interior and the shape all but disappears — with no error anywhere.
+  // The two numbers that decide it only meet here (uPad comes from the
+  // style, uResolution from layout), so this is the only place the warning
+  // can be issued. Once per process, recognised by the sdf prelude's
+  // uniform signature, when the reserve is at least half the shorter side.
   if (injectRes && ctx->size.width() > 0 && ctx->size.height() > 0) {
     static bool warnedPad = false;
     if (!warnedPad && validUniform(live.effect, "uPad", sizeof(float)) &&
@@ -355,10 +368,11 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
           std::array<float, 2>{resSize.width(), resSize.height()};
   }
   sk_sp<SkShader> built = b.makeShader();
-  // §19: wrap BEFORE the memo stores — a held world-space field then keeps
-  // a stable shader pointer across frames, which is what the liveMatOnly
-  // stability probe compares (a per-resolve wrapper would read as a
-  // material that never holds still).
+  // Wrap BEFORE the memo stores. A held world-space field then keeps one
+  // stable shader pointer across frames, and shader-pointer stability is
+  // exactly what the painter's live-material memo compares to decide a
+  // recording can replay. Wrapping after the store would mint a fresh
+  // wrapper per resolve and the material would read as never holding still.
   if (worldSpace && ctx)
     built = anchorToRoot(std::move(built), *ctx);
   if (ctx) {
@@ -431,7 +445,7 @@ Material Material::conical(SkPoint focus, float focusRadius, SkPoint center,
 
 Material Material::sweep(SkPoint center, std::vector<Stop> stops, float startDeg,
                          float endDeg) {
-  // §10j: Skia's sweep CLAMPS outside [startDeg, endDeg] — it never wraps.
+  // Skia's sweep CLAMPS outside [startDeg, endDeg] — it never wraps.
   // A window reaching past the circle (`sweep(c, stops, 90, 450)`, the
   // obvious hue-wheel-starting-at-red) paints the run before startDeg in
   // the first stop's flat colour, silently. The numbers only meet here, so
@@ -499,7 +513,7 @@ Material Material::buffer(std::shared_ptr<PixelBuffer> source,
   return m;
 }
 
-// ---- PixelBuffer (§4) ------------------------------------------------------
+// ---- PixelBuffer -----------------------------------------------------------
 
 struct PixelBuffer::State {
   SkBitmap bitmap;
@@ -531,11 +545,11 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
                         std::vector<std::pair<std::string, float>> constants) {
   Material m;
   if (!effect) {
-    // Host & tooling: "a material that fails to build should be loud."
-    // The classic route here is `MakeForShader` returning null and the
-    // caller passing it straight in — the material then resolves to NONE
-    // and the node paints nothing, with the compile error long scrolled
-    // away. Say so at BUILD, once, where the mistake is.
+    // A material that fails to build must be loud. The usual route here is
+    // `MakeForShader` returning null on a shader compile error and the
+    // caller passing that null straight in: the material resolves to NONE,
+    // the node paints nothing, and the compile error is long gone from the
+    // log by the time anyone looks. Say it at BUILD, where the mistake is.
     static bool warnedNullEffect = false;
     if (!warnedNullEffect) {
       warnedNullEffect = true;
@@ -625,13 +639,13 @@ bool Material::operator==(const Material &o) const {
   if (m_bleed != o.m_bleed)
     return false; // a cull reserve is recipe too — a change must re-record
   if (m_boundOffset != o.m_boundOffset)
-    return false; // §14-a: the pan BINDING is recipe (pointer identity,
-                  // the bound-fill rule); the values it resolves to are
-                  // the scalar memo's business, never the prune's
+    return false; // the pan BINDING is recipe, compared by pointer like any
+                  // other binding; the values it resolves to are the paint
+                  // layer's scalar memo to track, never the prune's
   if (m_worldSpace != o.m_worldSpace)
-    return false; // §19: the FLAG is recipe (which frame the author meant);
-                  // W itself is layout-derived and never compares — it
-                  // rides invalidation exactly like uResolution does
+    return false; // the FLAG is recipe — it says which frame the author
+                  // meant. W itself is layout-derived and never compares
+                  // here; it is invalidated the way uResolution is
   if (m_isSolid != o.m_isSolid)
     return false;
   if (m_isSolid)
@@ -659,10 +673,12 @@ bool Material::operator==(const Material &o) const {
   return m_shader == o.m_shader; // raw shader wrap / none
 }
 
-// uniform() mutations copy-on-write the recipe: Material is a VALUE — copies
-// of a base material must never alias one another's uniforms (two HUD bars
-// sharing one sksl base bind different Outputs; last-write-wins would corrupt
-// both silently — the Fable audit's aliasing defect).
+// uniform() and child() mutations copy-on-write the recipe, because Material
+// is a VALUE: copies of one base material must never alias each other's
+// uniforms. Two elements built from a shared sksl base and then bound to
+// different Outputs are the ordinary case, and without this the second bind
+// would overwrite the first through the shared block and both would be wrong
+// with nothing to indicate it.
 void Material::detachLive() {
   if (m_live && m_live.use_count() > 1)
     m_live = std::make_shared<Live>(*m_live);
@@ -744,10 +760,11 @@ Material &Material::amount(float a01) {
 
 Material &Material::offset(const choreograph::Output<float> *x,
                            const choreograph::Output<float> *y) {
-  // §14-a: only the image-backed kinds carry a local matrix for the pan
-  // to translate — Pattern's backend. Everything else warns and ignores,
-  // uniform()'s guardrail (one sketch typo must not kill the hot-reload
-  // host, and a silent no-op on a gradient would be a lie).
+  // Only the image-backed kinds carry a local matrix for the pan to
+  // translate. Everything else warns and ignores, following the same rule
+  // uniform() uses: never abort (one typo must not kill a live-coding host),
+  // and never silently no-op (an ignored pan on a gradient looks like a
+  // broken animation).
   const bool pannable =
       m_recipe && (m_recipe->kind == Recipe::Kind::Image ||
                    m_recipe->kind == Recipe::Kind::Buffer);
@@ -765,11 +782,14 @@ SkPoint Material::boundOffsetValue() const {
           m_boundOffset[1] ? m_boundOffset[1]->value() : 0.0f};
 }
 
-/** The panned build — resolve()'s and asShader()'s ONE construction for a
- *  bound-offset material: the recipe's static matrix post-translated by
- *  the bindings' CURRENT values. Minted per call; the §17 scalar memo is
- *  what keeps its node's recording stable between moves, so no per-frame
- *  pointer stability is at stake (the gradient-tier argument, verbatim). */
+/** The panned build — the ONE construction resolve() and asShader() share
+ *  for a bound-offset material: the recipe's static matrix post-translated
+ *  by the bindings' CURRENT values.
+ *
+ *  A fresh shader is minted per call, and that is fine here: the paint
+ *  layer's scalar memo compares the resolved pan values rather than the
+ *  shader pointer, so a node whose pan is holding still keeps its recording
+ *  even though this hands back a new pointer each time. */
 sk_sp<SkShader> Material::pannedImageShader() const {
   if (!m_recipe)
     return nullptr;
@@ -830,12 +850,14 @@ Material &Material::quantizeTime(float hz) {
 }
 
 bool Material::isAnimated() const {
-  // §14-a: a bound pan is animation — the material re-resolves per frame
-  // while the pan moves, so it must ride the live slot and every consumer
-  // (blend flatten deferral, child-slot liveness, decoration volatility)
-  // must see it. HOW its node caches is computeVolatile's split: a
-  // pan-only material rides the §17/§20 scalar lane, not the live-material
-  // memo — see animatedBeyondBoundOffset().
+  // A bound pan IS animation: the material re-resolves per frame while the
+  // pan moves, so it has to occupy the live slot and every consumer — the
+  // deferred blend flatten, child-slot liveness, decoration volatility —
+  // must see it as such.
+  //
+  // HOW its node caches is a separate question, split out below: a pan-only
+  // material qualifies for the cheaper scalar-comparison lane rather than
+  // the live-material memo. See animatedBeyondBoundOffset().
   if (hasBoundOffset())
     return true;
   return animatedBeyondBoundOffset();
@@ -864,13 +886,13 @@ bool Material::animatedBeyondBoundOffset() const {
 }
 
 bool Material::geometryDependent() const {
-  // §19: W is layout-derived exactly as uResolution is — a world-space
-  // material needs PaintContext (its node's toRoot) at resolve, resolves
-  // when the node records, and re-records when the layout moves it. This
-  // one `true` is what routes EVERY flagged material — gradient factories
-  // included, which have no m_live — through the context-carrying paths:
-  // Element::fill's live slot, the coverage gate's resolve, childShader's
-  // per-frame form, and build()'s memo skip for children.
+  // W is layout-derived exactly as uResolution is: a world-space material
+  // needs the PaintContext (for its node's toRoot) at resolve time, it
+  // resolves when the node records, and it re-records when layout moves the
+  // node. This one `true` is what routes EVERY flagged material — including
+  // the gradient factories, which have no sksl recipe at all — through the
+  // context-carrying paths: Element::fill's live slot, the coverage gate's
+  // resolve, childShader's per-frame form, and build()'s memo skip.
   if (m_worldSpace)
     return true;
   if (m_live && m_live->usesGeometry)
@@ -952,26 +974,28 @@ sk_sp<SkShader> Material::foldBlend(const PaintContext *ctx) const {
 }
 
 sk_sp<SkShader> Material::asShader() const {
-  // A BLEND has no m_live of its own — it inherits liveness through
-  // m_recipe->layers — so the live branch below would dereference null for
-  // it (§35.1; reachable by nesting a blend in another blend's layer list,
-  // because blend() calls asShader() on every layer). Guarding the null and
-  // falling through to m_shader would not be right either: m_shader is the
-  // eager snapshot blend() built, which is the exact stale answer the live
-  // branch exists to prevent. Fold the layers instead, per call.
+  // A BLEND has no sksl recipe of its own — it inherits liveness through
+  // its layers — so the live branch below would dereference a null m_live
+  // for it. This is reachable by nesting a blend inside another blend's
+  // layer list, since blend() calls asShader() on every layer. Guarding the
+  // null and falling through to m_shader would not be right either:
+  // m_shader is the eager snapshot blend() built, which is precisely the
+  // stale answer the live branch exists to avoid. Fold the layers instead,
+  // per call.
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend && isAnimated())
     return foldBlend(nullptr);
-  // §14-a: a bound-offset image material's m_shader snapshot baked the
-  // static matrix — rebuild with the pan's current values, same
+  // A bound-offset image material's m_shader snapshot baked the static
+  // matrix — rebuild with the pan's current values, the same
   // stale-snapshot rule as the live branch below.
   if (hasBoundOffset())
     if (sk_sp<SkShader> panned = pannedImageShader())
       return panned;
-  // A live material's m_shader snapshot predates its binds — rebuild fresh so
-  // bound Outputs contribute their CURRENT values (what blend() flattens; the
-  // Fable audit's stale-snapshot defect). Past the blend case isAnimated()
-  // used to imply m_live; §14-a's pan (handled above) broke that, so the
-  // guard is explicit now.
+  // A live material's m_shader snapshot predates its binds, so rebuild it
+  // fresh and let bound Outputs contribute their CURRENT values — this is
+  // what blend() flattens, and returning the snapshot would bake whatever
+  // the Outputs happened to hold at construction. The m_live guard is
+  // explicit rather than implied by isAnimated(): a bound pan (handled just
+  // above) reports animated with no sksl recipe behind it.
   if (m_live && isAnimated())
     return build(*m_live, nullptr);
   if (m_shader)
@@ -994,8 +1018,9 @@ Fill Material::resolve(const PaintContext &ctx) const {
   // SDF uResolution), the flatten happens HERE, per resolve, so every layer
   // contributes its correct current form — the eager snapshot from blend()
   // would have baked those layers with a null context (uResolution = 0,0).
-  // §19: a flagged OUTER blend anchors the whole fold; a flagged LAYER
-  // anchored itself inside childShader → resolve (layer-local, by design).
+  // World-space is layer-local by design: a flagged OUTER blend anchors the
+  // whole fold here, while a flagged LAYER already anchored itself on the
+  // way through childShader → resolve.
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
       (isAnimated() || geometryDependent())) {
     sk_sp<SkShader> folded = foldBlend(&ctx);
@@ -1003,16 +1028,17 @@ Fill Material::resolve(const PaintContext &ctx) const {
       folded = anchorToRoot(std::move(folded), ctx);
     return Fill::shader(folded);
   }
-  // The sksl path — build() digests W and wraps inside the memo. Guarded
-  // on m_live now: §19 makes gradient-factory materials (no m_live)
-  // geometryDependent too, and those take the branch below instead.
+  // The sksl path — build() digests W and applies the world-space wrap
+  // inside its memo. Guarded on m_live because a world-space flag makes
+  // gradient-factory materials geometry-dependent too, and those have no
+  // sksl recipe; they take the final branch below instead.
   if (m_live && (isAnimated() || geometryDependent()))
     return Fill::shader(build(*m_live, &ctx, m_worldSpace));
-  // §14-a: the bound pan — the recipe matrix translated by the bindings'
-  // current values, per resolve. Sits above toFill() because the static
-  // snapshot baked the UNpanned matrix; the §17 scalar memo (whose
-  // ContentScalars carry the resolved pan) is what keeps the node's
-  // recording stable between moves.
+  // The bound pan: the recipe matrix translated by the bindings' current
+  // values, per resolve. It has to sit above toFill() because the static
+  // snapshot baked the UNpanned matrix. The paint layer's scalar memo,
+  // which carries the resolved pan among its content scalars, is what keeps
+  // the node's recording alive between moves.
   if (hasBoundOffset()) {
     if (sk_sp<SkShader> panned = pannedImageShader()) {
       Fill f = Fill::shader(std::move(panned));
@@ -1021,11 +1047,12 @@ Fill Material::resolve(const PaintContext &ctx) const {
       return f;
     }
   }
-  // §19's seam for everything that ISN'T an sksl recipe: the gradient
-  // factories, image()/buffer(), raw shader() wraps — chaucer's brass ramp
-  // is Material::linear in canvas px, and this is the line that reaches
-  // it. (The wrap is minted per resolve; these are geometry-tier, resolved
-  // at record, so no per-frame pointer stability is at stake.)
+  // World-space anchoring for everything that ISN'T an sksl recipe: the
+  // gradient factories, image()/buffer(), raw shader() wraps. A gradient
+  // declared in canvas coordinates reaches root space through this line.
+  // The wrapper is minted per resolve, which costs nothing here: these are
+  // geometry-tier materials, resolved when the node records, so no
+  // per-frame pointer stability is at stake.
   Fill f = toFill();
   if (m_worldSpace && f.kind == Fill::Kind::Shader && f.shaderValue)
     f.shaderValue = anchorToRoot(f.shaderValue, ctx);

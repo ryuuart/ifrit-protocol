@@ -53,27 +53,25 @@
 // MAGI 0n stays upright (counter-rotated by -theta), exactly as the cel does.
 //
 // -----------------------------------------------------------------------------
-// WHAT THE MEASUREMENT CORRECTED IN THE BRIEF I WAS HANDED
+// WHAT THE FRAME SAYS ABOUT THE PLATE'S GEOMETRY
 //
-//  1. THE WALLS ARE 55 DEG, NOT 45 — CONFIRMED — BUT THERE IS NO SINGLE
-//     DIAGONAL. Least-squares over six rows of the outer wall's left edge
-//     (642 at y=660 down to 494 at y=860) gives dx:dy = 0.7386 in the FRAME,
-//     53.6 deg from horizontal. Nowhere near 45. But the left V chevron's
-//     OUTER arm fits 0.6955 (55.2 deg) and its INNER arm 0.5346 (61.9 deg),
-//     and the inner chevron's shoulder 1.1875 (40.1 deg). Four fits, each
-//     mirrored to within 2 px on the other side of the plate — so the plate
-//     carries three or four deliberate diagonals, not one, and the brief's
-//     "one diagonal serves the whole plate" is the one claim in it that the
-//     frame does not support. (A first fit here read 0.7004 because it
-//     included a point inside the bend; the corrected number is 0.7386, and
-//     the sketch authors 0.7526 so the camera roll lands it on 0.7386.)
-//  2. THE COLOUR FIELD IS VERTICAL, NOT RADIAL. The brief predicted a radial
-//     ramp centred on Tokyo-3 and therefore a need for Material::worldSpace().
-//     It is not radial: the main barrier band is a uniform #7EB42B across its
-//     whole 570 px span, while a radial field would redden its ends. Sampled
-//     down the plate the ramp is a pure function of y (#217642 at y=20 ->
-//     #7EB42B at 480 -> #A19732 at 700 -> #A55123 at 900 -> #A0250F at 1060).
-//     See the LIBRARY NOTE below for what that does to the gap.
+//  1. THERE IS NO SINGLE DIAGONAL. Least-squares over six rows of the outer
+//     wall's left edge (642 at y=660 down to 494 at y=860) gives dx:dy = 0.7386
+//     in the FRAME, 53.6 deg from horizontal. Nowhere near 45. But the left V
+//     chevron's OUTER arm fits 0.6955 (55.2 deg) and its INNER arm 0.5346
+//     (61.9 deg), and the inner chevron's shoulder 1.1875 (40.1 deg). Four
+//     fits, each mirrored to within 2 px on the other side of the plate — so
+//     the plate carries three or four deliberate diagonals, not one, and no
+//     single angle serves the whole construction. (A fit that includes a point
+//     inside the bend reads 0.7004; the wall's honest ratio is 0.7386, and the
+//     sketch authors 0.7526 so the camera roll lands it on 0.7386.)
+//  2. THE COLOUR FIELD IS VERTICAL, NOT RADIAL. A tactical plate converging on
+//     one city invites a radial ramp centred on Tokyo-3, and this is not one:
+//     the main barrier band is a uniform #7EB42B across its whole 570 px span,
+//     while a radial field would redden its ends. Sampled down the plate the
+//     ramp is a pure function of y (#217642 at y=20 -> #7EB42B at 480 ->
+//     #A19732 at 700 -> #A55123 at 900 -> #A0250F at 1060). See THE SHARED
+//     COLOUR FIELD below for what that buys.
 //  3. THE CELLS ARE NEVER CAPTURED. In the reference every cell of every site
 //     is black. The capture state is carried by the PLATE: five red hostiles,
 //     one cyan friendly. So the falls animate the plate, rim and label colour,
@@ -94,19 +92,18 @@
 // rims, numerals and pill type — the funnel is not in it at all.
 //
 // -----------------------------------------------------------------------------
-// LIBRARY NOTE — the shared colour field, solved WITHOUT worldSpace()
+// THE SHARED COLOUR FIELD, AND WHY IT NEEDS NO WORLD-SPACE MATERIAL
 //
 // Sixteen ribbons must sample ONE continuous field. Material::linear is
 // node-local pixels and radialUnit is the node's unit square; neither spans
-// siblings (ROADMAP 10c). The answer here is better than per-node endpoint
-// arithmetic: the entire funnel is ONE node the size of the canvas whose
-// outline() is the stroked union of every ribbon polyline, so the node's local
-// space IS canvas space and one Material::linear({0,0},{0,1080}) serves all of
-// it in a single draw. That works because the field turned out to be VERTICAL
-// and every ribbon is absolutely placed; the moment a ribbon needs its own
-// transform, or the field is radial about a moving centre, the gap is real
-// again. Counted as a half-citation for 10c with the escape route written
-// down — and see PERF below for why the same node must not be SkSL.
+// siblings. The answer here is better than per-node endpoint arithmetic: the
+// entire funnel is ONE node the size of the canvas whose outline() is the
+// stroked union of every ribbon polyline, so the node's local space IS canvas
+// space and one Material::linear({0,0},{0,1080}) serves all of it in a single
+// draw. That works because the field is VERTICAL and every ribbon is
+// absolutely placed; the moment a ribbon needs its own transform, or the field
+// is radial about a moving centre, this construction stops being available and
+// the ribbons need a field that spans siblings.
 //
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
@@ -126,40 +123,13 @@
 //                                      no filter, no full-canvas anything
 //   SkMaskFilter on TextStyle::paint   the same trick for glyph halos,
 //                                      declared UNDER an opaque core
-//   Cache::Texture, PER MARK           31 bakes the size of the marks, not
-//                                      one 2 MP bake of a 65%-empty canvas
+//   Cache::Texture, PER MARK           one bake per mark, sized to the mark,
+//                                      not one bake of a mostly-empty canvas
 //   ctx.measure()                      every label's point size is SOLVED from
 //                                      the width measured off the reference
 //   console::LineRing                  the rotation audit, printed as it runs
 //
 // -----------------------------------------------------------------------------
-// PERF — 98.8 ms -> 9.8 ms, and every step of it was a measurement
-//
-//   98.8  the obvious build: SkSL hue ramp with a bound uniform, bloom as
-//         effect(Blur) + blend(kPlus) + Cache::Texture over the whole canvas.
-//   36.2  bloom deleted. A filtered full-canvas layer is 2 MP of allocate/
-//         blur/composite whatever bakeScale says, and the COLLAPSING glow
-//         carried a bound opacity so its blur re-ran every frame: 62 ms.
-//   32.1  bloom rebuilt as LayeredBrush + text mask filters (4 ms, and a
-//         truer optic — the halo hugs the mark instead of the canvas).
-//   14.7  SkSL ramp -> Material::linear. A live material re-resolves every
-//         frame and an 11-stage mix chain over 300k covered px is the most
-//         expensive way in the library to say "linear ramp": 15 ms -> 2 ms.
-//   10.3  the art under Cache::Texture with the ROLL BAKED INSIDE IT, the
-//         funnel in a slot() so the 6 Hz front does not dirty the bake, and
-//         the scanline creep quantised to whole pixels (a fractional
-//         translate turns a cached blit into a resample: 7.7 ms -> 0.6 ms).
-//    2.5  the texture bakes moved from the GROUP to each mark. A full-canvas
-//         bake of a plate that is 65% empty is 2 MP of alpha blit a frame;
-//         thirty-one bakes the size of the marks are 0.6 MP. 8.2 -> 2.4 ms.
-//
-//   p50 2.5 ms / p99 12.8 ms at 1920x1080 (the p99 is the 6 Hz front step,
-//   which re-records the funnel). The one thing that did not fit is
-//   the brief's camera push-in: a scaled blit of a 2 MP texture costs the
-//   same at 1.02 as at 1.06 and only scale == 1 is cheap. GATE WEAVE — the
-//   1 px integer wander of a film frame in the projector gate — replaces it
-//   and is both free and truer to a photographed plate.
-//
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/eva_magi_defense.cpp \
@@ -322,46 +292,28 @@ inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
 // ---------------------------------------------------------------------------
 // BLOOM, WITHOUT A SINGLE saveLayer.
 //
-// The first cut put the glow on a full-canvas subtree under
-// effect(Blur) + blend(kPlus) + Cache::Texture, which is the documented
-// recipe and cost SIXTY-TWO MILLISECONDS a frame at 2 MP: a filtered
-// full-canvas layer is 2 MP of allocate/blur/composite whatever bakeScale
-// says, and one of the two glow layers carried a bound opacity, so its blur
-// re-ran every frame. The measured rim profile — v=254 over a 2 px core,
-// v~98 at 3 px, v~25 at 9 px, a long dim tail — is EXACTLY the shape
-// LayeredBrush was built for: additive stroke passes whose blur is an
-// SkMaskFilter on the stroke MASK, bounded by the shape, no layer at all.
-// Same for glyphs: a blurred copy of the run is a mask filter on the text
-// paint, and Skia caches blurred glyph masks. 62 ms -> ~4 ms, and it is the
-// more faithful optic besides, because the halo now hugs the mark.
+// The obvious construction — a full-canvas subtree under effect(Blur) +
+// blend(kPlus) — allocates, blurs and composites a canvas-sized layer whatever
+// bakeScale says, and a bound opacity anywhere inside it re-runs that blur
+// every frame. The measured rim profile — v=254 over a 2 px core, v~98 at
+// 3 px, v~25 at 9 px, a long dim tail — is EXACTLY the shape LayeredBrush was
+// built for: additive stroke passes whose blur is an SkMaskFilter on the
+// stroke MASK, bounded by the shape, no layer at all. Same for glyphs: a
+// blurred copy of the run is a mask filter on the text paint, and Skia caches
+// blurred glyph masks. It is also the more faithful optic, because the halo
+// then hugs the mark instead of the canvas.
 //
 // NOTHING BELOW EVER TOUCHES A RIBBON. Ribbons are flat.
 
-/** THE `Glow` WRAPPER THAT USED TO SIT HERE IS GONE, AND SO IS THE GAP.
+/** A rim and its halo, as one stock brush.
  *
- *  This file shipped an eight-line value scheme whose whole job was to hold a
- *  `LayeredBrush` and declare a `bleed()` for it, because `LayeredBrush` did
- *  not have one — `Decoration` therefore reported 0 reach and a blurred
- *  additive stack was culled at its node's own bounds the moment the subtree
- *  recorded. That was real, and it hit every stock brush in the header:
- *  `kit::brush::presets::filament()` is a 14 px envelope under an 8 px blur and
- * lost its halo the same way.
- *
- *  `LayeredBrush::bleed()` shipped (Brushes.h:76) computing exactly what this
- *  file asked for — per layer, `width/2 + 3σ`, taking the max — so the wrapper
- *  is deleted and `rimGlow` returns the stock brush.
- *
- *  The numbers differ by 3.5 px — the wrapper declared `core/2 + 7 + 3σ`,
- *  adding the WHOLE of the wide layer's extra width where the envelope only
- *  needs half of it — and the difference is worth stating precisely, because
- *  the frame is not byte-identical and a reader diffing it should know why.
- *  No halo is lost: the reach the wrapper was over-reserving carried about a
- *  tenth of one 8-bit level, since 3σ is already >99% of the Gaussian and the
- *  wide pass runs at 0.30 alpha. What DOES change is that every marks bakes
- *  under `Cache::Texture`, so a 3.5 px change in reserved reach resizes the
- *  bake surface and re-phases its blit — which reshuffles about a pixel of
- *  antialiasing on every edge in the plate. Measured, it does not soften it:
- *  mean |dI/dx| over the whole frame goes 4.4732 -> 4.4796. */
+ *  `LayeredBrush::bleed()` reports the envelope the decoration needs — per
+ *  layer, `width/2 + 3σ`, taking the max — so the blurred pass is not culled
+ *  at the node's own bounds when the subtree records, and nothing here has to
+ *  declare reach by hand. That reach also SIZES the surface every mark bakes
+ *  into under `Cache::Texture`, so changing a layer's width or sigma re-phases
+ *  the bake's blit and reshuffles roughly a pixel of antialiasing along every
+ *  edge in the plate. */
 inline LayeredBrush rimGlow(float core, SkColor4f c) {
   // TWO passes, not three. A middle pass at width core+3.5 and only sigma 2
   // does not read as a halo, it reads as a FATTER RIM — side by side with the
@@ -458,8 +410,7 @@ inline SkPath funnelPath() {
   //    what says they were drawn rather than derived.
   pair({{-71.9f, -100.0f}, {209.4f, 310.3f}, {431.1f, -100.0f}}, 24);
 
-  // 3. trunk -> outer wall -> the chamfered bottom rail. 708-514 over 607-884
-  //    is exactly 0.700.
+  // 3. trunk -> outer wall -> the chamfered bottom rail.
   // Authored PRE-roll: the camera takes 0.45 deg back out, so a wall that
   // must MEASURE 0.7386 in the frame is cut at 0.7526 here.
   pair({{kWallTop.fX, -100},
@@ -501,9 +452,9 @@ namespace tre {
 constexpr float kBarW = 343.0f, kBarH = 176.0f;
 constexpr float kStemW = 128.0f, kStemH = 104.0f;
 constexpr float kTotalH = kBarH + kStemH; // 280
-// The corner radius is 16, not the 22 the brief guessed: the black interior
-// of MAGI 02's cell 1 is 72 px wide and its arc solves r = 12.9 from two
-// depths (6 px inset at d=2, 2 px at d=6), plus the ~3 px rim.
+// The corner radius solves to 16: the black interior of MAGI 02's cell 1 is
+// 72 px wide and its arc gives r = 12.9 from two depths (6 px inset at d=2,
+// 2 px at d=6), plus the ~3 px rim.
 constexpr float kCellW = 88.0f, kCellH = 150.0f, kCellR = 16.0f;
 constexpr float kMargin = 20.0f;
 constexpr float kStemX = (kBarW - kStemW) * 0.5f;
@@ -546,7 +497,7 @@ struct Site {
 };
 
 // Centres from a colour-masked flood fill of the reference; rotations
-// DECLARED here and asserted against atan2 in audit().
+// DECLARED here and asserted against atan2 in runAudit().
 constexpr Site kSites[] = {
     {"06", {357.5f, 378.0f}, -45.0f, 0.30},  // CHINA / BEIJING
     {"03", {1582.5f, 374.0f}, 45.0f, 0.75},  // GERMANY / BERLIN
@@ -658,16 +609,16 @@ const Label kCollapsing[] = {
 // ---------------------------------------------------------------------------
 // THE FRONT. Skia's own gradient blitter, not SkSL.
 //
-// The first cut compiled the ramp as an 11-stage SkSL mix chain with the front
-// as a bound uniform. Correct, live, and 15 ms a frame at 1920x1080 on the CPU
-// raster the sketch host uses: a LIVE material re-resolves and repaints every
-// frame, and an interpreted per-pixel mix chain over ~300k covered pixels is
-// the most expensive way in the library to say "linear ramp". Material::linear
-// lowers to SkShaders::LinearGradient, which is a SIMD blitter — same picture,
-// ~1 ms. The front then advances the DATA way: the stop positions shift and
-// update() re-renders at 6 Hz, which is exactly the declared-choppiness rule
-// the library states for the P3R sea (quantizeTime(6)). A 14-second sweep
-// stepped six times a second is invisible as steps and free as pixels.
+// The ramp could be an 11-stage SkSL mix chain with the front as a bound
+// uniform. That is correct and live, and it is the most expensive way in the
+// library to say "linear ramp": a bound uniform makes the material live, so it
+// re-resolves and repaints every frame, and the mix chain is interpreted per
+// covered pixel on the CPU raster the sketch host uses. Material::linear
+// lowers to SkShaders::LinearGradient, a SIMD blitter, for the same picture.
+// The front then advances the DATA way: the stop positions shift and update()
+// re-renders at 6 Hz — declared choppiness, the same idea as
+// Material::quantizeTime. A 14-second sweep stepped six times a second is
+// invisible as steps and cheap as pixels.
 
 inline Material rampMaterial(float front) {
   std::vector<Stop> stops;
@@ -930,18 +881,17 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   Element art() const {
     using namespace eva;
     auto g = box().inset(0);
-    // Cache::Texture PER MARK, not on the group. One full-canvas bake is a
-    // 2 MP alpha blit every frame (8.2 ms measured) for a plate that is 65%
-    // empty; bakes the size of the marks themselves total ~0.6 MP and cost
-    // 2.4 ms. The header's own rule — "Texture is wasteful for sparse
-    // regions" — with a number on it.
+    // Cache::Texture PER MARK, not on the group. A group bake covers the whole
+    // canvas and blits all of it every frame; this plate is mostly empty, so
+    // bakes the size of the marks themselves cover a fraction of that area for
+    // the same picture. Texture is wasteful wherever the covered region is
+    // sparse relative to its bounds.
     //
-    // EXCEPT AT +/-90 DEGREES, WHICH IS A LIBRARY BUG (reported): a node
-    // carrying rotate(+/-90) bakes at the wrong resolution and its content
-    // comes back non-uniformly resampled. On the LEFT SIDE BARRIER pill
-    // (196x33, rotate -90) the type is destroyed — mean |delta| against the
-    // uncached render is 32/255 where every other mark is 2-8. 0, 45 and 180
-    // are all clean, so the guard is exactly the quarter-turn.
+    // EXCEPT AT +/-90 DEGREES, WHICH IS A LIBRARY BUG: a node carrying
+    // rotate(+/-90) bakes at the wrong resolution and its content comes back
+    // non-uniformly resampled. On the LEFT SIDE BARRIER pill (196x33,
+    // rotate -90) the type is destroyed. 0, 45 and 180 are all clean, so the
+    // guard is exactly the quarter-turn.
     for (int i = 0; i < kSiteN; ++i)
       g.child(installation(i).cache(bakeable(kSites[i].rotation)
                                         ? Cache::Texture
@@ -954,26 +904,26 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   }
 
   /** COLLAPSING blinks, so it is its own (volatile) node — and a TIGHT one:
-   *  a full-canvas volatile layer would repaint 2 MP for two 214 px pills. */
+   *  a full-canvas volatile layer would repaint the whole frame for two
+   *  214 px pills. */
   Element collapsingLayer(int i) const {
     using namespace eva;
     return pillOf(kCollapsing[i], siteNameSize[(size_t)i], i, "col")
         .opacity(&blink);
   }
 
-  /** THE CAMERA, and the shape of it is a perf result.
+  /** THE CAMERA, and its shape is dictated by what a cached blit costs.
    *
    *  The roll goes INSIDE the wrapper (on the child), so a Cache::Texture on
    *  the wrapper bakes the rotation into the pixels and the wrapper blits at
-   *  identity. Put the same rotate on the OUTER node and the blit becomes a
-   *  rotated resample of 2 MP: measured, 11.4 ms a frame instead of 2.6.
+   *  identity. Put the same rotate on the OUTER node and every frame becomes a
+   *  rotated resample of a canvas-sized texture.
    *
-   *  The push-in the brief asks for (1.00 -> 1.06 about Tokyo-3) is GONE for
-   *  the same reason and it is the one thing in the plate I could not afford:
-   *  a scaled blit of a 2 MP texture costs the same at 1.02 as at 1.06, and
-   *  only scale == 1 is cheap. What replaces it is truer to the artefact
-   *  anyway — GATE WEAVE, the 1 px wander of a film frame in the projector
-   *  gate, which is an INTEGER translate and therefore free.
+   *  A push-in about Tokyo-3 would cost the same way: any scale != 1 resamples
+   *  the whole texture, and 1.02 is no cheaper than 1.06. What stands in for it
+   *  is truer to the artefact anyway — GATE WEAVE, the 1 px wander of a film
+   *  frame in the projector gate, which is an INTEGER translate and so leaves
+   *  the blit exact.
    *
    *  The pivot is the FRAME CENTRE, not the hub: the coordinates were
    *  measured off an already-rolled frame, and rolling about the centre puts
@@ -993,15 +943,13 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     auto root = stack().inset(0);
 
     // (no ground node: the host clears to ctx.background, and a full-canvas
-    //  opaque fill is a millisecond nobody needs to spend)
+    //  opaque fill on top of that is pure waste)
 
     // The ribbons: flat fills of one continuous field, and NO bloom anywhere.
     // In a SLOT, because the advancing front re-describes it six times a
-    // second and a full render() would dirty the art's texture bake with it
-    // (measured: a 46 ms spike on every step).
+    // second and a full render() would dirty the art's texture bake with it.
     root.child(camera(slot("funnel")));
 
-    // the plates, the pills and the type, each carrying its own bounded halo.
     // the plates, the pills and the type — each mark carries its own bounded
     // halo and its OWN texture bake (see art()); the group is a plain picture
     root.child(camera(art()));
@@ -1031,10 +979,10 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     return root;
   }
 
-  /** The audit, painted across the plate — and ONLY when it fails. The plate
-   *  carries no drafting chrome (see the header), so the checks live on
-   *  stdout in the normal case; a violated construction rule gets the whole
-   *  ring dumped in magenta where nobody can ship past it. */
+  /** The rotation check, painted across the plate — and ONLY when it fails.
+   *  The reference carries no drafting chrome, so the checks live on stdout in
+   *  the normal case; a violated construction rule gets the whole ring dumped
+   *  in magenta where nobody can miss it. */
   Element failureBanner() const {
     sigil::compose::console::Style st;
     st.text = eva::type(23, {0, 0, 0, 1}, 0.95f);
@@ -1063,9 +1011,9 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     using namespace eva;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
-    // §31 named-state beat: the file's documented REFERENCE MOMENT — all
-    // five outer MAGI fallen (last at 2.28), the hue front not yet moving
-    // (3.0). 2.5 s sits inside that hold [2.28, 3.0).
+    // The REFERENCE MOMENT this sketch is built to be diffed at: all five
+    // outer MAGI fallen (last at 2.28), the hue front not yet moving (3.0).
+    // 2.5 s sits inside that hold [2.28, 3.0).
     ctx.captureAt(2.5);
 
     funnel = funnelPath();
@@ -1121,7 +1069,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.04 ? 0.04f : 0.0f;
       // COLLAPSING: hard on/off, 350 on / 250 off (ESTIMATED — a single frame
-      // cannot measure a blink; flagged rather than smuggled in)
+      // cannot measure a blink, so this rate is not read off the reference)
       blink = std::fmod(t, 0.6) < 0.35 ? 1.0f : 0.0f;
       return true;
     });

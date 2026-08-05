@@ -6,18 +6,19 @@
 // here at exactly 2x. Every constant below is in original 640x480 units and
 // goes through n() — divide any canvas number by 2 to recover the 1998 pixel.
 //
-// This is the programme's first TYPE-SET screen. No shader carries it: it is
-// ~60 rows of small type in five different two-column regimes plus a parchment
-// card of real body copy wrapping around an illustration. The paragraph engine
-// and the grid do all the work.
+// This is a TYPE-SET screen: no shader carries it. It is ~60 rows of small
+// type in five different two-column regimes plus a parchment card of real body
+// copy wrapping around an illustration. The paragraph engine and the grid do
+// all the work.
 //
-// CANVAS 1280 x 1088. The SCREEN is exactly 1280x960 at the origin — halve the
-// capture and it overlays the reference pixel-for-pixel. The 128 px band below
-// is a plate caption (the Penrose study's move) carrying the arithmetic audit,
-// which is not part of the 1998 artefact and is drawn outside it on purpose.
+// CANVAS 1280 x 1088, declared by this sketch rather than inherited from the
+// host. The SCREEN is exactly 1280x960 at the origin — halve the capture and
+// it overlays the reference pixel-for-pixel. The 128 px band below it is a
+// caption carrying the arithmetic self-check; it is not part of the 1998
+// artefact and is drawn outside it on purpose.
 //
 // -----------------------------------------------------------------------------
-// SOURCES — read, not remembered
+// SOURCES
 //
 //  * github.com/alexbatalov/fallout2-ce — a C++ decompilation of the shipped
 //    game. `character_editor.cc` (7,306 lines) is the entire screen: window
@@ -38,9 +39,9 @@
 //    of the screen itself (character "Luke", level 1) plus the three premade
 //    selection screens. Because it is PNG and not JPEG the sampled colours are
 //    the game's actual palette entries. Every hex marked "sampled" below was
-//    read off that file's pixels with PIL in this session; every panel rect was
-//    found by scanning it for its near-black wells (results in the table under
-//    "Geometry"), which is why a few of them differ by 1-3 px from the brief.
+//    read off that file's pixels; every panel rect was found by scanning it
+//    for its near-black wells (results in the table under "Geometry"), which
+//    is why a few of them differ by 1-3 px from the game source's coordinates.
 //
 // DOCUMENTED vs RECONSTRUCTED, since the difference is the whole point:
 //   DOCUMENTED — the 640x480 window; every draw x/y; row pitches; the colour
@@ -62,7 +63,7 @@
 //     footprint, not the licensed Vault Boy.
 //
 // -----------------------------------------------------------------------------
-// TWO THINGS THAT SURPRISED THE RESEARCH, AND THEY BELONG IN THE HEADER
+// TWO FINDINGS THAT CHANGE HOW THE SCREEN IS READ
 //
 //  1. FALLOUT'S GREEN IS NOT #00FF00. The engine asks for colours as a 15-bit
 //     RGB555 triple and looks it up in _colorTable[32768], which maps it to the
@@ -104,41 +105,40 @@
 // WHAT THIS EXERCISES, AND THE ONE HARD THING
 //
 // ~60 absolutely-positioned text leaves; text(paragraph, opts) with a FORCED
-// line pitch (LineMetricsOptions.height = 22) and greedy breaking; flowAround()
-// — the derive phase's only user-facing feature, previously untouched by this
-// programme; renderSlot() as the counter/content idiom; measure() for the
-// leader rules and the card's title advance; patterns::grain, Material::blend,
-// Material::linearUnit/radialUnit, shapes::inset, shapes::circle, util::disc,
-// styles::BevelEmboss, PathFormat hairlines, Element::overlay(), bind().
+// line pitch (LineMetricsOptions.height = 22) and greedy breaking; flowAround(),
+// the derive phase's only user-facing feature; renderSlot() as the
+// counter/content idiom; measure() for the leader rules and the card's title
+// advance; patterns::grain, Material::blend, Material::linearUnit/radialUnit,
+// shapes::inset, shapes::circle, util::disc, styles::BevelEmboss, PathFormat
+// hairlines, Element::overlay(), bind().
 //
 // THE HARD THING: every row here is a two-column table and the library has no
 // table. Five regimes on one screen. The kills folder is the dense case — it
 // measures the name, measures the count, and draws a hairline between them at
 // y + lineHeight/2. TabStopOptions carries `positions` and `interval` and NO
-// LEADER, so that is hand-built from two measure() calls per row. See the
-// report; this is now the programme's most concrete text-side ask.
+// LEADER, so that is hand-built from two measure() calls per row.
 //
 // -----------------------------------------------------------------------------
-// SIX THINGS THE RENDER TAUGHT THAT THE MEASUREMENTS COULD NOT
+// SIX RULES THIS RECONSTRUCTION TURNS ON
 //
-//  * FLOWING AROUND THE FIGURE'S OWN BOX IS WRONG, and the reason is a good
-//    one. `flowAround` produces a line interval on EACH side of the exclusion,
-//    which is correct DTP behaviour and is what a float means — so the first
-//    render put the word "and" in the 20 px gutter to the RIGHT of the Vault
-//    figure. Fallout has no such concept: its wrap is one number, so its
-//    exclusion is implicitly everything from the first inked column to the
-//    right margin. Sizing the KEYED node to that rectangle (and drawing the
-//    figure as an unkeyed sibling inside it) reproduces the 1998 rule exactly.
+//  * FLOWING AROUND THE FIGURE'S OWN BOX IS WRONG. `flowAround` produces a
+//    line interval on EACH side of the exclusion, which is correct DTP
+//    behaviour and is what a float means — so a short word lands in the gutter
+//    to the RIGHT of the figure. Fallout has no such concept: its wrap is one
+//    number, so its exclusion is implicitly everything from the first inked
+//    column to the right margin. Sizing the KEYED node to that rectangle (and
+//    drawing the figure as an unkeyed sibling inside it) reproduces the 1998
+//    rule exactly.
 //  * THE S.P.E.C.I.A.L. COLUMN IS NOT A BLACK WELL. It looks like one at 640x480
 //    and it is not: sampled at (45,60) the reference reads #483828, a LIT metal
-//    facet with the odometers and plaques recessed INTO it. Building it as a
-//    well made a fifth of the screen read as a hole. Sampling beats looking.
-//  * THE ENGRAVED GOLD WAS 60% TOO SMALL on the first four passes, because the
-//    brief's sizes are honest guesses and the ink is measurable: "ST-" is 36x21
-//    original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20. Those are
-//    advance/cap ratios of 0.40-0.47, narrower than any stock face, so the
-//    substitute is sized from the CAP and then condensed onto the ADVANCE.
-//    After that every gold run lands within 1-5 px of the original's ink box.
+//    facet with the odometers and plaques recessed INTO it. Read as a well, a
+//    fifth of the screen turns into a hole. Sampling beats looking.
+//  * THE ENGRAVED GOLD IS SIZED FROM MEASURED INK, never from a guess at the
+//    point size: "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16,
+//    "LUKE" 58x20. Those are advance/cap ratios of 0.40-0.47, narrower than any
+//    stock face, so the substitute is sized from the CAP and then condensed
+//    onto the ADVANCE. Sized by eye instead it comes out far too small; sized
+//    this way every gold run lands within a few px of the original's ink box.
 //  * AN OUTLINE FACE AT A BITMAP FACE'S SIZE READS FAR TOO LIGHT. font 101 is
 //    a 10 px bitmap: its stems are a whole pixel at 640 wide, which is a heavy
 //    colour no 20 px outline regular can match. The body runs BOLD — and
@@ -147,9 +147,9 @@
 //    because the face is monospaced; it would have cost the whole grid
 //    otherwise.
 //  * THE CARD IS BRIGHT. Sampling it on a 44x32 grid gives #9C7434..#BC9054
-//    almost everywhere. The first pass vignetted it into tooled leather at a
-//    mean of (46,34,15) against the original's (141,107,50) — "aged parchment"
-//    is a reflex, and the reference is a sun-bleached scrap.
+//    almost everywhere, a mean of (141,107,50). "Aged parchment" is a reflex
+//    that vignettes it down into tooled leather; the reference is a
+//    sun-bleached scrap, so the surface here stays light into its corners.
 //  * A LINE-ART FIGURE HAS TO BE A SILHOUETTE. Built as limbs-plus-torso it
 //    reads as a wireframe skeleton; built as ONE closed contour walking neck ->
 //    shoulder -> arm -> armpit -> hip -> leg -> foot -> crotch and mirrored, it
@@ -235,8 +235,8 @@ constexpr SkColor4f kDigit = C(0xFFFFFF);    // the odometer sprite sheet's
 
 // ---------------------------------------------------------------------------
 // GEOMETRY. Source tag: (code) = character_editor.cc; (measured) = scanned off
-// lp_1-FO2_1_2.png in this session. Where they disagree, measured wins and the
-// difference is noted.
+// the lossless capture lp_1-FO2_1_2.png. Where they disagree, measured wins
+// and the difference is noted.
 
 // The five inset wells (measured bboxes of the near-black regions).
 struct Rect { float x, y, w, h; };
@@ -263,7 +263,7 @@ constexpr float kRowPitch11 = 11; // fontGetLineHeight(101) + 1
 // Substitutes are resolved through the system font manager with a fallback
 // chain; the BODY size is derived from a MEASURED advance rather than assumed,
 // because the whole reason the game's fixed value columns work is that its
-// small font is near-monospaced (winamp_base's lesson, reapplied).
+// small font is near-monospaced.
 
 inline sk_sp<SkTypeface> face(const char *family, int weight,
                               SkFontStyle::Width width,
@@ -329,13 +329,24 @@ inline weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
 }
 
 /** Probed once in setup(): px of advance per em for the body face, and the
- *  scaleX that lands "EN-" on the measured 36 original px. */
+ *  scaleX that condenses the card-title face onto its measured original
+ *  advance. */
 inline float &bodyEm() {
   static float v = 0.6f;
   return v;
 }
 inline float &titleCondense() {
   static float v = 0.6f;
+  return v;
+}
+/** The engraved face's condense for the S.P.E.C.I.A.L. abbreviations, the
+ *  top plaques and the folder tabs, probed in setup(): "ST-" measures 36
+ *  original px of ink on the capture, so the substitute is squeezed until
+ *  its own advance lands there. scaleX is a ratio of the face's
+ *  proportions, not of a size, so the one probe serves all three sites'
+ *  sizes. */
+inline float &engravedCondense() {
+  static float v = 0.84f;
   return v;
 }
 /** Original px the body face advances per character.
@@ -813,8 +824,11 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
    *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
    *  Those cap-to-advance ratios (0.40-0.47) are narrower than any stock face,
-   *  so the substitute is condensed to land on them — the same discipline the
-   *  body advance and the card title use. */
+   *  so the substitute is condensed to land on them. The S.P.E.C.I.A.L.
+   *  abbreviations, the top plaques and the folder tabs take
+   *  engravedCondense(), probed in setup() from "ST-"'s measured ink — the
+   *  same discipline the body advance and the card title use; the headings
+   *  and buttons state their factors at the call, tuned to their own runs. */
   weave::TextStyle plaqueType(float size, SkColor4f c,
                               float condense = 0.95f,
                               float track = 0.5f) const {
@@ -845,7 +859,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     using namespace fo;
     // The plate: an olive ramp, a cast-metal tooth, and rust blotches. The
     // tooth and rust ride as separate LAYER ELEMENTS with node opacity because
-    // Material::blend has no per-layer amount (ROADMAP §5).
+    // Material::blend has no per-layer amount.
     // Sampled off the capture: the plate sits between #302820 and #383020 with
     // lit facets up to #483828 — a narrow band, so the ramp is shallow and the
     // grain does the work.
@@ -881,7 +895,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     // mottle, a paper tooth, creases added as elements below.
     // Sampled across the reference card on a 44x32 grid: it sits between
     // #9C7434 and #BC9054 almost everywhere, with #8C6428 creases. Bright, not
-    // moody — the first pass here vignetted it into leather and was wrong.
+    // moody — a vignette here turns the scrap into leather.
     parchMat = Material::blend(
         {{Material::linearUnit({0.10f, 0}, {0.90f, 1},
                                {{0.0f, kParchLit2},
@@ -925,8 +939,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   }
 
   /** A raised plate button — the top plaques, the folder tabs, the bottom
-   *  buttons. Same two-stroke bevel everywhere, which is the argument for it
-   *  being a primitive rather than a one-screen hack. */
+   *  buttons. One two-stroke bevel serves all three. */
   Element raised(fo::Rect r, float radius = 2.0f) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
@@ -937,9 +950,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     return e;
   }
 
-  /** Engraved gold lettering: the bright face over a 1 px shadow stamp. The
-   *  library has no glyph-level stroke (ROADMAP §9), so the doubling is
-   *  echo() — one misprint stamp UNDER the run, which is exactly the effect. */
+  /** Engraved gold lettering: the bright face over a 1 px shadow stamp. There
+   *  is no glyph-level stroke to reach for, so the doubling is echo() — one
+   *  misprint stamp UNDER the run, which is exactly the effect. */
   Element engravedText(const std::string &s, float size, SkColor4f c,
                        float condense = 0.95f, float track = 0.5f) {
     return fo::t(s, plaqueType(size, c, condense, track))
@@ -967,7 +980,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       // The two-letter gold abbreviation and its dash: measured ink 20..55,
       // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
       g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
-                               kGold, 0.84f, 0.2f)
+                               kGold, engravedCondense(), 0.2f)
                       .opacity(0.94f),
                   kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
 
@@ -1137,7 +1150,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   //         at  y + lineHeight/2                the row's vertical midline
   //
   // Three nodes and two setup-time measure() calls per row, because
-  // TabStopOptions has no leader. See the report.
+  // TabStopOptions has no leader.
 
   Element folder() {
     using namespace fo;
@@ -1157,7 +1170,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
         tab.overlay(styles::colorOverlay(C(0x000000, 0.30f)));
       tab.justify(Justify::Center).alignItems(Align::Center);
       tab.child(engravedText(tabs[(size_t)i], n(23.0f),
-                             sel ? kGold : C(0x6E5A20), 0.84f, 0.3f)
+                             sel ? kGold : C(0x6E5A20), engravedCondense(),
+                             0.3f)
                     .translateY(sel ? n(-1.0f) : n(0.0f)));
       g.child(tab);
     }
@@ -1286,8 +1300,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   // equivalent: it excludes the keyed node's resolved BOX, so the keyed node
   // here is sized to the INK, not to the illustration — and then the two rules
   // agree EXACTLY, because Fallout's scan takes a single global minimum and
-  // therefore also produces one constant wrap width for every line. See the
-  // report for where they stop agreeing.
+  // therefore also produces one constant wrap width for every line. The two
+  // part company only for an illustration whose leftmost ink is not a single
+  // straight column.
 
   fo::Pose poseFor(int skill) const {
     if (skill == 0)
@@ -1327,15 +1342,14 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     // column's right edge, full illustration height. With margin 8 the copy
     // stops at 484 + inkLeft - 8 and the two rules agree to the pixel.
     // Flowing around the FIGURE's own box instead strands words in the gap to
-    // its right, which is correct DTP behaviour and wrong for 1998 — see the
-    // report.
+    // its right, which is correct DTP behaviour and wrong for 1998.
     const float inkX = 484 - 345 + pose.inkLeft;
     g.child(at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink"));
     Element figNode =
         at(box(), inkX, 309 - 267, pose.inkWidth, 128);
     figNode.shape(figure(pose));
     // PathFormat exposes no cap or join, so these open contours end square and
-    // mitre at the joints — fine for a 1998 blit, and noted in the report.
+    // mitre at the joints — fine for a 1998 blit.
     figNode.stroke(util::stroke(n(1.15f), Fill::color(kInk),
                                 PathFormat::Align::Center));
     g.child(figNode);
@@ -1368,8 +1382,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                     .clip()
                     .corners(Corners{n(1)});
     c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
-    // creases: two diagonal slivers and one bottom-right scuff. Study
-    // crop_card.png — the creases are what sell it as a stuck-on scrap.
+    // creases: two diagonal slivers and one bottom-right scuff. The creases
+    // are what sell the card as a stuck-on scrap.
     c.child(at(box(), -40, -20, 60, 260)
                 .rotate(-16.0f)
                 .translateX(n(120))
@@ -1446,7 +1460,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 3; ++i) {
       Element p = raised(plaques[i], 3.0f);
       p.justify(Justify::Center).alignItems(Align::Center);
-      p.child(engravedText(plaqueText[i], n(26.0f), kGold, 0.84f, 0.6f));
+      p.child(engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense(),
+                           0.6f));
       g.child(p);
     }
 
@@ -1519,8 +1534,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
     // The S.P.E.C.I.A.L. column is NOT a well — sampled at (45,60) the
     // reference reads #483828, a LIT metal facet. It is a raised panel with
-    // the odometers and plaques recessed into it, and reading it as black was
-    // the first pass's biggest error.
+    // the odometers and plaques recessed into it; drawn as a black well it
+    // punches a hole through a fifth of the screen.
     {
       Element sp = atR(box(), kWellSpecial)
                        .corners(Corners{n(4)})
@@ -1637,10 +1652,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
     // ---- the arithmetic, before anything is drawn ----------------------
     sheetAudit = audit();
-    // Qualified: `derive` is now also a compose NAMESPACE (the derive
-    // family, ROADMAP §33 ruling 11), and this file's own derive() is
-    // reached through `using namespace fo` — a fourth sighting of the
-    // short-good-noun collision the roadmap is tracking.
+    // Qualified: `derive` is also a compose namespace, and this file's own
+    // derive() arrives through `using namespace fo`, so an unqualified call
+    // here is ambiguous.
     stats = fo::derive(narg, nargTraits, kLevel, kToughness);
     tagged[0] = tagged[4] = tagged[5] = true; // Small Guns, Melee, Throwing
     invested[0] = 12;  // 24% on a tagged skill
@@ -1662,7 +1676,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     // ---- measured type. The body size comes from the face's real advance,
     // not from an assumed em: the reason Fallout's fixed value columns work is
     // that its small font is near-monospaced, so the substitute has to land on
-    // the same 5.85 original px per character.
+    // kBodyAdvance original px per character.
     {
       const float w =
           ctx.measure(t("MMMMMMMMMMMMMMMMMMMM",
@@ -1686,6 +1700,15 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
         titleCondense() = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
       titleRise() =
           std::max(0.0f, ctx.measure(t("H", titleStyle())).height() * 0.20f);
+      // The engraved condense, same discipline: "ST-" is 36 original px of
+      // ink on the capture, so squeeze the substitute onto that measured
+      // width rather than guessing a factor.
+      const float rawSt =
+          ctx.measure(t("ST-", plaqueType(fo::n(29.0f), kGold, 1.0f, 0.2f)))
+              .width();
+      if (rawSt > 1.0f)
+        fo::engravedCondense() =
+            std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
       const float eh = ctx.measure(t("H", plaqueType(100.0f, kGold))).height();
       if (eh > 1.0f)
         engravedRiseFrac() = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
@@ -1724,7 +1747,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   // ---- the three discrete-state slots -------------------------------------
   // Everything continuous is bound; these three change CONTENT, which no
-  // Animatable can carry (ROADMAP §9, last bullet).
+  // Animatable can carry, so they are republished through slots instead.
   int shownSelected = -1, shownPresses = -1;
   std::string shownTens = "?", shownOnes = "?";
 

@@ -24,13 +24,13 @@
 //   The icosahedron is not from anywhere. It is three numbers.
 //
 // -----------------------------------------------------------------------------
-// FIVE CORRECTIONS TO MY OWN BRIEF, ALL FROM THE ENGINE'S TYPES
+// FIVE THINGS THE ENGINE'S TYPES SETTLE
 //
-//  1. THE SKILL LIST'S REAL ORDER IS THE ABILITY GROUPING, AND THE BRIEF
-//     PRINTED THE DOCSTRING ORDER.  The brief quotes `SkillId` off the
-//     `--- @alias` at :1374, which is alphabetical — Acrobatics, AnimalHandling,
-//     Arcana … — because that is a Lua type annotation, sorted for an IDE's
-//     completion list. It is not the engine's order. `Ext_Enums.SkillId`
+//  1. THE SKILL LIST'S REAL ORDER IS THE ABILITY GROUPING, NOT THE DOCSTRING
+//     ORDER.  The `--- @alias` for `SkillId` at :1374 is alphabetical —
+//     Acrobatics, AnimalHandling, Arcana … — because that is a Lua type
+//     annotation, sorted for an IDE's completion list. It is not the engine's
+//     order. `Ext_Enums.SkillId`
 //     (:33053) is the ordinal table the engine actually indexes by, and it is
 //     GROUPED BY GOVERNING ABILITY:
 //
@@ -48,9 +48,9 @@
 //     ability order read backwards from Charisma. Persuasion is ordinal 3, the
 //     last Charisma skill. The tick ladder down the left margin IS this table,
 //     drawn at its true ordinals with its five blocks bracketed; the ornament
-//     is the data, and it is data the brief's alphabetical list destroyed.
+//     is the data, and sorting the list alphabetically destroys it.
 //
-//  2. THE MODIFIER ROW HAS A STRUCT, AND THE BRIEF DID NOT NAME IT.
+//  2. THE MODIFIER ROW HAS A STRUCT.
 //     `ResolvedRollBonus` (:6129) is exactly one row of the column:
 //
 //         --- @class ResolvedRollBonus
@@ -67,9 +67,9 @@
 //     prints two numbers where Proficiency prints one. Every row on this plate
 //     prints its own fields in the right-hand gutter.
 //
-//  3. THE DISCARDED ADVANTAGE DIE IS A FIELD, NOT AN INFERENCE.  The brief
-//     reconstructs the dimmed second d20 from the advantage rule. It did not
-//     need to. `StatsRollResult` (:6708):
+//  3. THE DISCARDED ADVANTAGE DIE IS A FIELD, NOT AN INFERENCE.  The dimmed
+//     second d20 does not have to be reconstructed from the advantage rule.
+//     `StatsRollResult` (:6708):
 //
 //         --- @field Critical RollCritical
 //         --- @field CriticalThreshold uint32?
@@ -85,19 +85,19 @@
 //     numbers they are — which is the whole point of adding after the landing.
 //
 //  4. RollCritical's NUMERIC ORDER IS NOT ITS ALPHABETICAL ONE.  The alias at
-//     :1342 reads `Fail|None|Success` and the brief copied it. The engine's
-//     table (:31644) is `None = 0, Success = 1, Fail = 2`. The plate prints the
-//     ordinals, because a state machine's order is part of the state machine.
+//     :1342 reads `Fail|None|Success`; the engine's table (:31644) is
+//     `None = 0, Success = 1, Fail = 2`. The plate prints the ordinals, because
+//     a state machine's order is part of the state machine.
 //
-//  5. DIALOGUE GRANTS ADVANTAGE AND PROFICIENCY BY TWO PARALLEL PATHS.  The
-//     brief singles out `AdvantageContext.SourceDialogue` (ordinal 8, :24692) as
-//     "literally the enum for this conversation granted you advantage", and it
-//     is. But `ProficiencyBonusBoostType` (:1327) carries its own
-//     `SourceDialogue` member, so a conversation can grant PROFICIENCY by a
-//     separate boost path with a separate enum. Both are named on the plate.
+//  5. DIALOGUE GRANTS ADVANTAGE AND PROFICIENCY BY TWO PARALLEL PATHS.
+//     `AdvantageContext.SourceDialogue` (ordinal 8, :24692) is literally the
+//     enum for "this conversation granted you advantage". Separately,
+//     `ProficiencyBonusBoostType` (:1327) carries its own `SourceDialogue`
+//     member, so a conversation can grant PROFICIENCY by a different boost path
+//     with a different enum. Both are named on the plate.
 //
 //     (Also: `AbilityId` (:24592) is 1-based — None = 0, Strength = 1 …
-//     Charisma = 6, Sentinel = 7 — not the bare six the brief lists.)
+//     Charisma = 6, Sentinel = 7 — not a bare six.)
 //
 // -----------------------------------------------------------------------------
 // THE NUMBERS
@@ -172,7 +172,7 @@
 //    `shapes::chamfered` on the portrait tablet and the outcome banner.
 //
 // -----------------------------------------------------------------------------
-// THE CORNER ANGLE — the predicted break, confirmed, and what it cost
+// THE CORNER ANGLE — why every ornament here passes one explicitly
 //
 // `brackets`, `gappedRule` and `weightedCorners` all route through
 // `detail::cornerWindows(src, radius, keep, angleDeg)`, and `cornerDistances`
@@ -180,19 +180,21 @@
 // The default is 30 degrees. A regular 20-gon turns 360/20 = 18 degrees per
 // vertex, and cos(18) = 0.9511 is NOT below cos(30) = 0.8660 — so at the
 // default the bezel finds ZERO corners, brackets draw nothing, and the gapped
-// rule degenerates to the whole contour. Blank ornament from an API doing
-// exactly what it was told. Confirmed here at 30 and fixed at 12, where
-// cos(18) = 0.9511 < cos(12) = 0.9781 and all twenty land.
+// rule degenerates to the whole contour: blank ornament from an API doing
+// exactly what it was told. At 12 degrees, cos(18) = 0.9511 < cos(12) = 0.9781
+// and all twenty land.
 //
 // Every corner-bearing decoration on this plate therefore passes ~12 degrees
 // EXPLICITLY, and `brush::Pattern` needs it separately — its own
 // `cornerAngleDeg` field defaults to 35, higher still.
 //
-// The default is deliberately not adaptive, and having lived with it I agree:
-// the scan steps 2 px, so a rounded corner of radius 14 turns ~8.5 degrees per
-// sample against this polygon's 18 — less than 2x apart — and any default low
-// enough to catch the 20-gon would invent corners on every rounded rect in the
-// corpus. Report at the bottom of this file.
+// The default is deliberately not adaptive, and it should not be. The
+// threshold's job is to tell a VERTEX from a finely-sampled CURVE, and the scan
+// steps 2 px, so a rounded corner of radius 14 turns ~8.5 degrees per sample
+// against this polygon's 18 — less than 2x apart. Any default low enough to
+// catch a 20-gon invents corners on every rounded rect, and ornament that
+// quietly grows extra arms is far harder to notice than ornament that draws
+// nothing. See the notes at the bottom of this file.
 //
 // -----------------------------------------------------------------------------
 
@@ -870,11 +872,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         // The hanger: the plate reads as a hung sign, so it hangs from a rule.
         .child(rule(166.0f, 118.0f, 192.0f, engraved, 1.0f))
         // The plate box (148..376) and its hanger (166..358) are both centred
-        // on local 262; the three runs were each placed by eye and none of
-        // them was — D C sat 16 px left of centre and the numeral 8.5 right,
-        // so the two stacked runs disagreed by 24.5 px on a symmetric sign.
-        // Offsets below are measured ink centres, not advances: D C carries a
-        // trailing 7 px letterspace and the caption 1.2.
+        // on local 262, and the three type runs have to be centred on it too.
+        // The offsets below are INK centres, not advances: "D C" carries a
+        // trailing 7 px letterspace and the caption 1.2, so centring on the
+        // measured advance leaves each run visibly off-axis on a symmetric
+        // sign, in different directions.
         .child(label("D C", 148.0f + 90.0f, 10.0f, 21.0f,
                      bg3::alpha(bg3::kInk, 0.72f), 7.0f))
         .child(label(std::to_string(bg3::kDC), 148.0f + 91.5f, 26.0f, 42.0f,
@@ -1150,8 +1152,8 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                 .shape(shapes::chamfered(26.0f))
                 .stroke(spans::corners(30.0f, 24.0f),
                         brush::solid(1.4f, bg3::ink(0.42f)))
-                // §33-j: the 8 px inset has no stroke-pass spelling — the
-                // gapped rule keeps the surviving Border value directly.
+                // A Border rather than a stroke pass: an inset rule has no
+                // stroke-pass spelling, since a pass rides the node's outline.
                 .foreground(Border{.width = 0.6f,
                                    .fill = bg3::giltDark(0.55f),
                                    .inset = 8.0f,
@@ -1168,10 +1170,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                    bg3::kW - 56.0f, 60.0f, 8.5f, bg3::alpha(bg3::kInk, 0.36f),
                    true));
 
-    // The advantage note, on the die's upper-left radius where the dimmed
-    // die sits.
-    // In the top-left margin, clear of both the ladder and the bezel, with a
-    // dotted leader running down to the die it describes.
+    // The advantage note: in the top-left margin, clear of both the skill
+    // ladder and the bezel. The leader running from it down to the discarded
+    // die is NOT part of this block — see advantageLeader() below.
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
     g.child(label("ADVANTAGE", kAx2, kAy2, 12.0f,
                   bg3::alpha(bg3::kAdvantage, 0.95f), 3.2f));
@@ -1238,9 +1239,8 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *
    *  It lives on its OWN cached child rather than on the root's fill: the
    *  root has animated children, so the root is live-paint forever, and a
-   *  fill sitting on it re-ran the gradient over all 1.44 MP every frame —
-   *  4.09 ms of the budget for a picture that never changes. Same pixels,
-   *  one blit. */
+   *  fill sitting on it re-runs the gradient over the entire canvas every
+   *  frame for a picture that never changes. Same pixels, one blit. */
   Element ground() const {
     return box()
         .inset(0)
@@ -1326,13 +1326,12 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  only when its props change, i.e. never.
    *
    *  That matters more than it looks. The counter re-describes on every
-   *  integer it passes through (12 → 20), so `describe()` runs ~10 times
-   *  during the reveal; without memo each run rebuilt the ornament from
-   *  scratch, and `brush::Pattern` keeps its baked-tile cache IN THE BRUSH
-   *  VALUE — a freshly constructed brush gets an EMPTY one, so all twenty
-   *  fleurons plus every side tile were re-baked on each pass. That is what
-   *  put p99 at 21.68 ms across the reveal window while the settled frame
-   *  measured 9.49. Memoised, the reveal costs what the still frame does. */
+   *  integer it passes through (12 → 20), so `describe()` runs about ten times
+   *  during the reveal. Without memo, each run rebuilds the ornament from
+   *  scratch — and `brush::Pattern` keeps its baked-tile cache IN THE BRUSH
+   *  VALUE, so a freshly constructed brush gets an EMPTY one and all twenty
+   *  fleurons plus every side tile are re-baked on every pass. Memoised, the
+   *  reveal costs what the settled frame does. */
   Element describe(sketch::SketchContext &ctx) {
     (void)ctx;
     auto once = [](auto fn) { return memo(0, [fn](const int &) { return fn(); }); };
@@ -1438,76 +1437,38 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
 SIGIL_SKETCH(Bg3DiceRoll)
 
 // -----------------------------------------------------------------------------
-// REPORT — the corner default, from the author who lived with it
+// THREE THINGS WORTH KNOWING BEFORE EDITING THIS PLATE
 //
-// The break is real and reproduces exactly as derived: a 20-gon turns 18 deg per
-// vertex, cos(18) = 0.9511 is not below cos(30) = 0.8660, so `brackets`,
-// `gappedRule` and `weightedCorners` all found ZERO corners on this bezel at
-// the default and the ornament rendered blank. At 12 deg all twenty land.
+// 1. THE CORNER THRESHOLD HAS TO BE PASSED, ON EVERY DECORATION SEPARATELY.
+//    On this bezel, at the default 30 degrees, `brackets`, `gappedRule` and
+//    `weightedCorners` find ZERO corners and the ornament renders blank — all
+//    twenty ticks gone, the outer rule flattened to one uniform hairline
+//    (weighted corners with no corners is a plain rule over the whole contour),
+//    the inner gapped rule running continuous instead of stopping at each flat,
+//    and every fleuron missing from `brush::Pattern`, leaving only side tiles.
+//    The library says so when it happens: it reports the sharpest tangent break
+//    it did see and the smaller angle to pass. Note the asymmetry —
+//    `brush::Pattern::cornerAngleDeg` defaults to 35 while
+//    `Border::cornerAngleDeg` defaults to 30, so one polygon needs the same
+//    fact stated twice, in two differently-shaped APIs. Both are 12 here.
 //
-// Should the default scale with detected vertex count? NO, and I changed my
-// mind while building this. The threshold's job is to tell a VERTEX from a
-// finely-sampled CURVE, and the scan steps 2 px — so a rounded corner of
-// radius 14 turns ~8.5 deg per sample against this polygon's 18. Less than 2x
-// apart. Any default low enough to catch the 20-gon invents corners on every
-// rounded rect in the corpus, and a bracket set that quietly grows four extra
-// arms is far harder to notice than one that draws nothing. The diagnostic
-// that now prints the sharpest break it DID see, plus the number to pass, is
-// the right fix and it is what got me to 12 without a bisection.
+// 2. `background()` IS UNDER THE FILL, AND THAT IS EASY TO MISREAD AS A BUG.
+//    It is the CSS box-shadow slot. The natural sentence for a texture is
+//    "give this node a hatch background", and doing that to a node with an
+//    opaque fill renders NOTHING. The slot meaning "over the surface, under the
+//    children" is `overlay()`. The mistake in reverse is just as quiet: a
+//    `background` drop shadow under a low-alpha fill shows straight THROUGH it,
+//    turning a gilt band mud-olive.
 //
-// What was genuinely missing was reachability, and it is now fixed: the three
-// helpers took `(width, fill, arm, inset)` with no way to pass an angle, so the
-// documented remedy could only be had by abandoning the helper and writing a
-// `Border{}` aggregate by hand. They now take a trailing `angleDeg` and this
-// file uses it throughout.
+// 3. A RE-DESCRIBE THROWS AWAY EVERY `brush::Pattern` TILE CACHE. That cache
+//    lives in the brush VALUE, so a freshly constructed brush starts empty and
+//    re-bakes every corner and side tile. It only bites where something
+//    re-describes repeatedly — here, the counter running 12 → 20 — which is why
+//    the static subtrees sit behind `memo(0, …)`. Time the window your motion
+//    happens in, not only the frame you ship.
 //
-// One asymmetry remains: `brush::Pattern::cornerAngleDeg` defaults to
-// 35, five degrees HIGHER than `Border::cornerAngleDeg`'s 30, so a frame whose
-// rules and whose corner tiles are both on the same polygon needs two different
-// numbers passed to two differently-shaped APIs to describe one fact about one
-// shape. Both are set to 12 here.
-//
-// MEASURED, at 30 deg, on this bezel — the whole ornament, gone:
-//   * all twenty brackets (the tick ladder indexing the die's faces)
-//   * the corner weighting on the outer rule, which flattened to one uniform
-//     hairline (Weighted with no corners = gappedRule over the whole contour)
-//   * the inner gapped rule, which ran CONTINUOUS instead of stopping at each
-//     flat — the header's documented degenerate case, seen in the wild
-//   * all twenty brush::Pattern fleurons, leaving only the side tiles
-// and the library printed, correctly and to the exact degree:
-//   "no corner cleared the 30.0 threshold, but the sharpest tangent break on
-//    this contour is 18.0 — ... Pass a smaller angleDeg, e.g. 11f."
-//
-// -----------------------------------------------------------------------------
-// TWO OTHER THINGS THIS PLATE PAID FOR
-//
-// 1. `background()` IS UNDER THE FILL, AND THAT IS EASY TO MISREAD AS A BUG.
-//    It is the CSS box-shadow slot, documented as such. But the natural
-//    sentence for a texture is "give this node a hatch background", and doing
-//    that to a node with an opaque fill renders NOTHING — the rosette's
-//    60-spoke fan and the portrait's rings both vanished this way. The slot
-//    that means "over the surface, under the children" is `overlay()`. The
-//    same mistake in reverse cost the bezel band its colour: a `background`
-//    drop shadow under a 14%-alpha fill shows straight THROUGH the fill, and
-//    turned a gilt band into mud-olive.
-//
-// 2. A RE-DESCRIBE THROWS AWAY EVERY `brush::Pattern` TILE CACHE.  The header of
-//    `brush::Pattern` says the baked-tile cache lives in the brush VALUE and a
-//    constructed brush gets an empty one. The consequence only shows up under
-//    a counter: this plate re-describes on every integer the total passes
-//    through, so `describe()` ran ~10 times during the reveal, and each run
-//    built a fresh brush and re-baked twenty corner tiles plus every side
-//    tile. The settled frame measured 9.49 ms while the reveal window measured
-//    21.68 — a FAIL that a capture at the settled phase would never have
-//    shown. Wrapping the static subtrees in `memo(0, …)` took the reveal to
-//    8.41 ms with identical pixels. Bench the window your motion happens in,
-//    not just the frame you ship.
-//
-// PERF, 1200 x 1200, Release:  p50 7.56 ms / p99 8.10 ms settled;
-//                              p50 7.69 ms / p99 8.41 ms across the reveal.
-//   Dominant: the two rotating baked textures (bezel 660x660 at 1.89 ms, the
-//   rosette 524x524 at 1.15 ms) — that is the resample cost of `.rotate()` on
-//   a `Cache::Texture` node, and it is the price of the brief's 1.5 deg/s
-//   ring, paid deliberately. `bakeScale` was NOT used: it softens gilt
-//   hairlines and the study is about hairlines.
+// One deliberate cost: the bezel and the rosette are `Cache::Texture` nodes
+// that ROTATE, so each frame resamples a large baked texture. That is the price
+// of the slowly turning ring and it is paid on purpose. `bakeScale` is NOT
+// used — it softens gilt hairlines, and the hairlines are the subject.
 // -----------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 // Layout phase: Yoga's calculate pass, the SigilWeave-measured text leaves
-// (measure/baseline callbacks + on-demand text layout), the bounded second
-// pass for custom layout() containers, and resolved-rect reads. The derive
-// pass it triggers lives in Derive.cpp.
+// (measure/baseline callbacks + on-demand text layout), the bounded
+// convergence loop that settles custom layout() containers and centre pins
+// against the geometry Yoga produced, and resolved-rect reads. The derive
+// pass the loop drives lives in Derive.cpp.
 
 #include "ComposeRuntime.h"
 
@@ -18,7 +19,7 @@ namespace sigil::compose {
 using namespace detail;
 
 // ---------------------------------------------------------------------------
-// Text measurement (the spike, productized)
+// Text measurement
 
 YGSize detail::measureTextNode(YGNodeConstRef node, float width,
                                YGMeasureMode widthMode, float, YGMeasureMode) {
@@ -90,13 +91,16 @@ void Composer::Impl::ensureLayout() {
     YGNodeStyleSetHeight(root->yoga, size.height());
   }
   YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
-  // Bounded convergence rounds for the post-measure machinery: custom
-  // layout() placement, auto-sizing, centerAt pins, and the derive phase
-  // all react to RESOLVED geometry, and each can move what another read
-  // (an auto-sized container changes the box a pin centered in; a pinned
-  // node moves an anchor a rail routed through). Three rounds settle every
-  // legal composition; applyCustomLayouts/applyCenterPins report `changed`
-  // only on actual deltas, so stable layouts exit after one extra pass.
+  // A bounded convergence loop, not a single second pass. Custom layout()
+  // placement, auto-sizing, centerAt pins and the derive phase all read
+  // RESOLVED geometry and then write back into Yoga out of band, so each
+  // can move what another already read: an auto-sized container changes the
+  // box a pin centres in, and a pinned node moves an anchor a rail routed
+  // through. Every writer here is idempotent and reports `changed` only on
+  // an actual delta, so a stable layout costs one extra pass and exits, and
+  // a settling one converges within the round cap. The cap is what
+  // guarantees termination if two writers ever disagree permanently — the
+  // result is a slightly-off frame instead of a hang.
   for (int round = 0; round < 3; ++round) {
     bool changed = false;
     if (hasCustomLayout)
@@ -132,22 +136,25 @@ void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
       inst.markPaintDirtyUp(); // own content baked the old bounds
     else if (inst.parent)
       // The parent's RECORDING baked this child's old offset; the parent's
-      // OWN paint did not — it never contained the child at all. §15's
-      // split bake is the one thing that can tell those apart, and it must,
-      // because a moving child is precisely the case it exists for: if this
-      // marked the parent's own paint dirty the bake would be remade every
-      // frame and the feature would silently do nothing.
+      // OWN paint did not — it never contained the child at all. The split
+      // bake (own paint baked, volatile children drawn live over the blit)
+      // is the cache tier that can tell those apart, and this is the case
+      // it exists for: passing ownPaint=true here would remake the parent's
+      // bake on every frame a child moves and the tier would silently never
+      // pay off.
       inst.parent->markPaintDirtyUp(/*ownPaint=*/false);
     contentDirty = true;
   }
-  // §19: a node carrying a world-space material below ANY moved rect —
-  // its own (the position-only branch above stales only the parent, the
-  // invariant worldSpace breaks) or an ancestor's (instanceRect is
-  // parent-relative, so an ancestor's move changes this node's W without
-  // this node's compare ever firing) — marks its OWN paint dirty: its
-  // recording baked W. `movedAbove` carries any rect change, position or
-  // size, because a resized ancestor with a centered transform origin
-  // moves its descendants' W too.
+  // A world-space material samples its field in ROOT coordinates, so the
+  // node's recording bakes the node-to-root matrix W. Any rect change at or
+  // above the node changes W and must stale that recording:
+  //   - its own move: the position-only branch above stales the PARENT, not
+  //     this node, which is right for ordinary content and wrong here;
+  //   - an ancestor's move: instanceRect is parent-relative, so this node's
+  //     own rect compares equal while W has changed underneath it.
+  // `movedAbove` carries any rect change, position or size, because a
+  // resized ancestor with a centred transform origin moves its descendants'
+  // W as surely as a repositioned one does.
   if (inst.hasWorldSpaceMaterial && (movedAbove || rectChanged)) {
     inst.markPaintDirtyUp();
     contentDirty = true;
@@ -156,9 +163,11 @@ void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
     syncLayoutRects(*child, movedAbove || rectChanged);
 }
 
-/** centerAt(): set the pinned node's left/top so its MEASURED box centers
- *  on the point. Runs post-measure; idempotent (only dirties when the
- *  target position actually changed), so the bounded repass converges. */
+/** centerAt(): set the pinned node's left/top so its MEASURED box centres
+ *  on the point. Runs after measurement, since the box is what it centres.
+ *  Must stay idempotent — it reports a change only when the target position
+ *  actually moved — or the bounded loop in ensureLayout would never see a
+ *  quiet round and would burn its full round count every frame. */
 bool Composer::Impl::applyCenterPins(Instance &inst) {
   bool applied = false;
   if (inst.desc->layout.centerAt && inst.yoga) {
@@ -235,9 +244,10 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
     }
     // Auto-size an ABSOLUTE container from the placed extent, per axis,
     // when the author left that axis open (no explicit dim, no
-    // opposing-inset pair). The hand-guessed `.width(340).height(360)` on
-    // a pinned Diagonal battery becomes unnecessary; flex-embedded
-    // layout() containers keep sizing by flex/stretch rules untouched.
+    // opposing-inset pair) — an absolutely-positioned container has no flex
+    // parent to size it, so without this it would collapse and the scheme
+    // would place its children outside a zero box. Flex-embedded layout()
+    // containers are left alone: their flex/stretch sizing already holds.
     const LayoutProps &l = inst.desc->layout;
     if (l.absolute) {
       SkRect extent = SkRect::MakeEmpty();

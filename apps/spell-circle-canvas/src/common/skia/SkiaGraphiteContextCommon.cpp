@@ -1,8 +1,8 @@
 // Graphics-API-independent half of SkiaGraphiteContext. The static
 // create() factory is per-API: exactly one of SkiaGraphiteContextMetal.mm
-// or SkiaGraphiteContextVulkan.cpp is compiled into a given build (see
-// CMakeLists.txt), each defining create() for the QRhi backend it serves
-// and returning null for every other backend.
+// or SkiaGraphiteContextVulkan.cpp is compiled into a given build, each
+// defining create() for the QRhi backend it serves and returning null for
+// every other backend.
 
 #include "SkiaGraphiteContext.h"
 
@@ -25,10 +25,12 @@ namespace {
  *  (raster) SkImage asks the Recorder's client ImageProvider for a texture
  *  version, and DROPS the draw when there is none. This provider promotes
  *  on first use and caches by (image uniqueID, mipmapped) so a raster
- *  atlas/nine-slice uploads once, not per draw. The cache pins textures
- *  until the crude full-evict at capacity — sized for the hosts here (a
- *  handful of long-lived generated atlases), revisit if a host starts
- *  churning thousands of distinct images. */
+ *  atlas or nine-slice uploads once rather than per draw.
+ *
+ *  Entries pin their textures until the cache reaches kMaxEntries, at
+ *  which point it is cleared wholesale — no LRU. That suits hosts holding
+ *  a handful of long-lived generated atlases; a host churning thousands of
+ *  distinct images would want a real eviction policy instead. */
 class CachingImageProvider final : public skgpu::graphite::ImageProvider {
 public:
   sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder *recorder,
@@ -41,10 +43,10 @@ public:
     sk_sp<SkImage> texture =
         SkImages::TextureFromImage(recorder, image, required);
     if (!texture && image->colorType() == kRGBA_F32_SkColorType) {
-      // F32 sources (EXR imports land as F32 SkImages) are not filterable
-      // on Apple GPUs, so promotion fails outright. Retry with an F16 copy:
-      // float range survives, the loader's F32 processing semantics are
-      // untouched, and the draw actually happens.
+      // F32 sources (an EXR import lands as an F32 SkImage) are not
+      // filterable on Apple GPUs, so promotion fails outright. Retry with
+      // an F16 copy: float range survives, the source image's own F32
+      // pixels are untouched, and the draw actually happens.
       SkBitmap f16;
       if (f16.tryAllocPixels(
               image->imageInfo().makeColorType(kRGBA_F16_SkColorType)) &&
@@ -57,7 +59,7 @@ public:
     if (!texture)
       return nullptr;
     if (m_cache.size() >= kMaxEntries)
-      m_cache.clear(); // stale uniqueIDs accumulate across hot reloads
+      m_cache.clear(); // stale uniqueIDs accumulate as images are replaced
     m_cache.emplace(key, texture);
     return texture;
   }
@@ -71,10 +73,11 @@ private:
 
 skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
   skgpu::graphite::ContextOptions options;
-  // Weave ROADMAP §6: the glyph-atlas budget is measurable only if it
-  // can be varied. Env-gated so default behavior never changes; the
-  // kinetic-text bench arm (compose_bench BM_Draw_KineticText_Graphite)
-  // is the instrument this knob exists for.
+  // The glyph-atlas texture budget, overridable from the environment so
+  // it can be varied under a benchmark without a rebuild. Unparseable or
+  // non-positive values are ignored, so an unset or malformed variable
+  // leaves Skia's own default in place and default behaviour never
+  // depends on the environment.
   if (const char *bytes = std::getenv("SIGILSKIA_GLYPH_ATLAS_BYTES"))
     if (const long parsed = std::strtol(bytes, nullptr, 10); parsed > 0)
       options.fGlyphCacheTextureMaximumBytes = (size_t)parsed;
@@ -84,18 +87,17 @@ skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
 skgpu::graphite::RecorderOptions SkiaGraphiteContext::makeRecorderOptions() {
   skgpu::graphite::RecorderOptions options;
   options.fImageProvider = sk_make_sp<CachingImageProvider>();
-  // Unordered replay makes Recorder::snap() evict the glyph/path/clip
-  // atlases every snap (Skia m151 Recorder.cpp:265-267 →
-  // AtlasProvider::invalidateAtlases), so every glyph re-uploads once per
-  // frame. Every host here snaps and inserts one Recording per frame on
-  // one thread, in order — audited 2026-07-26, see
-  // src/sigilweave/docs/graphite_ordering_audit.md.
+  // Ordered replay, because unordered replay makes Recorder::snap() drop
+  // the glyph, path and clip atlases on every snap — so every glyph
+  // re-uploads once per frame. Every host built on this factory snaps and
+  // inserts exactly one Recording per frame, on one thread, in order, so
+  // the ordering requirement costs nothing and the atlases survive.
   //
-  // PRECONDITION, not a tradeoff: a snapped-but-never-inserted Recording
-  // (or a snap() that returns nullptr) skips an ID and permanently kills
-  // this Recorder — insertRecording then returns kOutOfOrderRecording and
-  // renders nothing, forever, unchecked. Do not add a "snap to discard"
-  // anywhere downstream of this line.
+  // PRECONDITION, not a tradeoff: a Recording that is snapped and never
+  // inserted — including a snap() that returns null — skips an ID and
+  // permanently kills this Recorder. Every later insertRecording then
+  // fails with kOutOfOrderRecording and nothing renders again, with no
+  // error anyone checks. Never snap in order to discard.
   options.fRequireOrderedRecordings = true;
   return options;
 }

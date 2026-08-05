@@ -89,11 +89,8 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-// hex() and alpha() were four and one lines here, and the same four lines in
-// twenty-three other files under three names. <sigilcompose/Studio.h> now
-// holds the one body; the palette below is unchanged.
-using studio::alpha;
-using studio::hex;
+using studio::alpha;  // the same colour at a different alpha
+using studio::hex;    // 0xRRGGBB -> SkColor4f
 
 const SkColor4f kBody = hex(0x0B1E21);
 const SkColor4f kStrip = hex(0x102A2A);
@@ -659,11 +656,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
     // the grain the compressed CRT capture carries — enough to kill the
     // "clean vector art" read without becoming VHS noise
-    // perf-pass: static procedural grain, 70.8 ms/frame of live eval on the
-    // CPU raster backend (opacity 0.07 + kOverlay refuses an auto-bake). Bake
-    // once — GPU was already 10ms, provably static so the cache STICKS. (The
-    // plate BASE below it stays live: its fill carries a scrolling scanField
-    // shader, so ds2 keeps a live floor and does not fully clear the gate.)
+    // The grain is a STATIC procedural shader over the whole panel, and
+    // opacity + kOverlay makes the library refuse to bake it automatically,
+    // so it is evaluated per pixel per frame unless asked. It never changes,
+    // hence the explicit bake. (The plate BASE below it stays live on
+    // purpose: its fill carries a scrolling scanField shader.)
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
                    .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))

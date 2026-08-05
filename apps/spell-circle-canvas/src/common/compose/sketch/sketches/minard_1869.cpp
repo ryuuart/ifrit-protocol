@@ -54,8 +54,8 @@
 //   * Minard's own scale bar disagrees with his own map by 1.82x, and I
 //     cannot explain it. Three hypotheses, none asserted.
 //
-// MEASURED IN THIS FILE'S OWN SCRIPTS (work-d04/lat2.py, hann.py) —
-// two numbers the brief left as ESTIMATED, and one finding that is new:
+// MEASURED IN THIS FILE'S OWN SCRIPTS (lat2.py, hann.py) — the two
+// projection scales, and one finding that is new:
 //   * Napoleon panel latitude scale, least-squares on the tan band's
 //     centreline at 8 stations east of Polotzk (where exactly one band
 //     occupies every column): d = 280.3 px/deg on the Commons scan,
@@ -83,39 +83,39 @@
 // and a VARYING width still has no corner join: the band is pos +- n*w/2
 // per sample with nothing inserted where the tangent jumps, so the inner
 // edge self-intersects and the winding fill drops the inside of the bend.
-// At Wilna the advance band is 130 px wide on an 86 px leg and the hole is
-// wider than the band. So the ADVANCE zones are drawn as the union of their
-// per-leg quads plus hand-rolled bevel wedges — i.e. SkPaint::kBevel_Join,
-// spelled out — while the RETREAT band, 25 px on 100 px legs, is a real
-// Ribbon and works. The audit still measures the Ribbon band, and the
-// numbers are in the console: 64 px = 28.4 mm of Minard's paper.
+// The hole opens once the band is wider than about half the leg it turns
+// on, and it is then wider than the band itself. Around Wilna the advance
+// band carries 340,000 men into a leg shorter than the band is wide, so
+// the bend is lost outright. The ADVANCE zones are therefore drawn as the
+// union of their per-leg quads plus hand-rolled bevel wedges — i.e.
+// SkPaint::kBevel_Join, spelled out — while the RETREAT band, a quarter as
+// wide on longer legs, is a real Ribbon and works. The audit still measures
+// the Ribbon band and not the quads, so the defect stays reported rather
+// than hidden behind the workaround; the error it finds is printed in the
+// console in both px and millimetres of Minard's paper.
 //
-// STILL TRUE AFTER THE widthFn→Profile PORT, and worth stating precisely
-// so nobody re-tests it by accident: `profileOffset` delegates to
-// `lines::offsetAcross` — real vertices, arc outside a turn, miter inside
-// — only when the profile is CONSTANT. A flow map's whole point is that it
-// is not, so this band takes the sampled walk either way and the deviation
-// stands. What the port DID buy here is the other half: the law is a
-// comparable value with a derived `max()`, so the band can prune and its
-// reach can no longer go undeclared.
+// `profileOffset` delegates to `lines::offsetAcross` — real vertices, arc
+// outside a turn, miter inside — only when the profile is CONSTANT. A flow
+// map's whole point is that it is not, so this band takes the sampled walk
+// however the width is spelled, and the deviation stands. What the width
+// Profile does buy is the other half: the law is a comparable value with a
+// derived `max()`, so the band can prune and its reach is declared rather
+// than guessed.
 //
-// THREE LIBRARY DEFECTS THIS SKETCH FOUND, one of them silent and new:
-//   * FIXED SINCE, and the fix is worth knowing because the bug was
-//     invisible. `slot(name)` used to store `name` as the node's KEY and
-//     `renderSlot()` resolved it through the ONE byKey index every keyed
-//     element shares — so giving a slot's content a root `.key(name)` let
-//     the content shadow the slot, and every later renderSlot() found a
-//     Box, failed the `kind == Kind::Slot` test and RETURNED SILENTLY. The
-//     slot froze at whatever it was first given, with no warning. Slots now
-//     have an index of their own: `bySlot` (ComposeRuntime.h:276), populated
-//     only for `Kind::Slot` (Reconcile.cpp:708) and the only thing
-//     `renderSlot()` looks in (Composer.cpp:161). A content key can no
-//     longer shadow a slot name. This study still keeps its names distinct,
-//     which is good practice and is no longer load-bearing.
+// THE LIBRARY CONSTRAINTS THIS SKETCH IS SHAPED BY:
+//   * Slot names live in an index of their own — `bySlot`, populated only
+//     for slot nodes, and the only index `renderSlot()` resolves a name
+//     through — so a keyed element elsewhere in the tree cannot shadow a
+//     slot name. This study keeps its slot names and its content keys
+//     distinct anyway, so that a key always names exactly one node.
 //   * `Element::outline()` is memoised on (descriptor, size), so geometry
 //     cannot be a bound value the way a transform or an opacity can. The
-//     12.6% morph therefore costs a re-describe.
-//   * `brush::Ribbon` has no corner join — below.
+//     12.6% morph therefore costs a re-describe, which is why the zones it
+//     moves are the only thing inside their slot.
+//   * `brush::Ribbon` has no corner join — below; a variable-width band is
+//     a stroke, and a join is the one stroke property it cannot state.
+//   * There are no boolean path ops, so the Mediterranean's hachure region
+//     is built as one closed polygon by hand rather than as a difference.
 //
 // NOT TRACED. Every band width here is survivors x 1.126 mm / 10,000
 // against the sheet's own 2.258 px per millimetre; the Russian panel's
@@ -166,7 +166,7 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-using studio::hex;   // the same four lines as twenty-three other files
+using studio::hex;   // hex(0xRRGGBB[, a]) -> SkColor4f, usable in constexpr
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
@@ -239,7 +239,7 @@ constexpr float kConsoleY = 1356.0f, kConsoleH = 236.0f;
 // THE DATA
 //
 // Minard.troops, all 51 rows, regrouped the way MINARD DRAWS IT rather
-// than the way Wilkinson encodes it (see §6.1 of the study notes):
+// than the way Wilkinson encodes it:
 // Minard writes 422.000 on ONE band at the Niemen and lets the columns
 // peel off; Wilkinson records three parallel bands from x = 0. Both are
 // defensible; Minard's is the one that makes the flow identities visible.
@@ -493,16 +493,15 @@ struct WidthProfile {
  *
  *  `scale` is the LIVE 12.6% morph, read at paint. The profile compares on
  *  the pointer, not on the value behind it — two bands reading the same
- *  Output ARE the same law — and the node stays `Cache::None`, which is
- *  the documented way to hold a value the reconciler cannot see change.
- *  What the seam does buy here, which `widthFn` could not: a ribbon that
- *  compares equal to ITSELF, so an identical re-describe prunes instead of
- *  re-recording the whole band.
+ *  Output ARE the same law — and the node stays `Cache::None`, which is how
+ *  a node holds a value the reconciler cannot see change. Being comparable
+ *  also makes the ribbon equal to ITSELF, so an identical re-describe
+ *  prunes instead of re-recording the whole band.
  *
  *  max(): the morph runs mmScale from kMmPer10k DOWN to kStatedMmPer10k
  *  (1.1258 → 1.0), so the ratio never exceeds 1 and the widest the band
- *  ever draws is `maxPx` exactly. The deleted `widthMax` carried a 1.2×
- *  guess because nobody could derive this; the seam requires it. */
+ *  ever draws is `maxPx` exactly. A guessed bound is not needed and would
+ *  be wrong: this one is derived from the morph's own endpoints. */
 struct FlowWidth {
   WidthProfile prof;
   const ch::Output<float> *scale = nullptr;
@@ -555,9 +554,9 @@ WidthProfile profileOfH(const std::vector<HStation> &st) {
  *  ±n·w/2 per sampled station with nothing inserted where the tangent
  *  jumps, so the inner edge self-intersects and the winding fill drops
  *  the inside of the bend — visible as a wedge-shaped HOLE once the band
- *  is wider than about half its leg. Minard's advance band is 130 px on a
- *  56 px leg. The two areas are both measured below; their difference is
- *  the corner defect, in men·km of ink. */
+ *  is wider than about half its leg, which the advance band is at every
+ *  turn between the Niemen and Witebsk. The two areas are both measured
+ *  below; their difference is the corner defect, in ink. */
 SkPath quadUnion(const std::vector<SkPoint> &pts,
                  const std::vector<float> &men, float scale = 1.0f) {
   SkPathBuilder b;
@@ -626,13 +625,14 @@ std::vector<float> menOf(const std::vector<Station> &st) {
 }
 
 /** A line-for-line transcription of brush::Ribbon::paint's band
- *  construction (Brushes.h ~941): sample the contour every `stride` px and
+ *  construction (Brushes.h): sample the contour every `stride` px and
  *  emit pos ± n·w/2, left forward then right backward, closed.
  *
- *  It exists because the library gives no way to GET the polygon a brush
- *  emitted — Ribbon paints and forgets. The audit below has to measure the
- *  polygon that was actually drawn, so either the brush hands it back or
- *  the study copies the constructor. See the gap list. */
+ *  It exists because there is no way to GET the polygon a brush emitted —
+ *  Ribbon paints and forgets. The audit below has to measure the polygon
+ *  that was actually drawn, so the study reconstructs it. Any change to
+ *  Ribbon's sampling has to be mirrored here or the audit measures a band
+ *  nobody draws. */
 SkPath ribbonBand(const SkPath &spine, const WidthProfile &w,
                   float stride = 3.0f) {
   SkPathBuilder band;
@@ -667,9 +667,9 @@ SkPath ribbonBand(const SkPath &spine, const WidthProfile &w,
 
 // ---------------------------------------------------------------------------
 // THE AUDITOR — the same min-chord raycaster that measured Minard's
-// engraving, pointed at the sketch's own geometry. This is the function
-// the gap list asks for as debug::widthAlong(); it is written here so the
-// ask arrives with a working implementation attached.
+// engraving, pointed at the sketch's own geometry: at each step along the
+// spine it takes the shortest chord of the drawn band through that point
+// and compares it with the width the profile asked for.
 
 struct WidthAudit {
   std::vector<float> at, measured, intended;
@@ -734,14 +734,14 @@ WidthAudit widthAlong(const SkPath &band, const SkPath &spine,
   SkContourMeasureIter iter(spine, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
-    // Skip a half-width margin at each cap. The first version did not, and
-    // reported 80 px of error at arc 4 px on a 107 px band — which is not a
-    // corner defect but the END CAP: near the cap the shortest chord runs
-    // diagonally out through the cap, and minimising w/2/sin+d/cos gives
-    // ~68 px where the band is 107. The engraving measurement had the same
-    // exclusion (stair.py splits at the risers and never straddles an end),
-    // so the two audits stay comparable. THIS IS THE FIRST THING A
-    // debug::widthAlong WOULD HAVE TO DOCUMENT.
+    // Skip a half-width margin at each cap, or the audit reports the cap as
+    // a defect: within about w/2 of an end the shortest chord through the
+    // point runs diagonally out through the cap rather than across the
+    // band, so it reads well under the true width and swamps every real
+    // error — the cap is the one place where the shortest chord through a
+    // point is not the width. The engraving measurement excludes ends the
+    // same way (stair.py splits at the risers and never straddles an end),
+    // so the two audits stay comparable.
     const float margin = w.maxPx * 0.55f + step;
     for (float d = std::max(step, margin); d < len - margin; d += step) {
       SkPoint pos;
@@ -880,13 +880,12 @@ Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
 // ===========================================================================
 
 struct Minard1869 : sigil::compose::sketch::Sketch {
-  // ---- the timeline: ONE Output, eleven beats, every beat windowed.
-  // NOT from() — ease:: is not total and a value outside a beat's window
-  // feeds the curve outside its domain (Compose.h ~259, and this is the
-  // eleven-beat case that note was written for).
+  // ---- the timeline: ONE Output, every beat a window onto it.
+  // NOT from() — ease:: is not total, so a value outside a beat's window
+  // would feed the curve outside its domain. bind().window(a, b) clamps
+  // instead, which is what lets one clock drive every beat on the sheet.
   ch::Output<float> T{0};
   ch::Output<float> mmScale{kMmPer10k}; // the 12.6% morph
-  ch::Output<float> reaumurMix{0};
   ch::Output<float> dimAmt{0};
   ch::Output<float> calAlpha{0};
   /** The caliper's discrete steps: an instrument walks in clicks, so its
@@ -898,6 +897,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   sk_sp<SkTypeface> faceScript, faceItalic, faceRoman, faceNum, faceUi,
       faceUiBold, faceMono;
+  sigil::weave::FontContext *fonts = nullptr; // the composer's, held for
+                                              // metrics()/measureRun()
 
   Pattern paperPulp, laidLines, chainLines, foxing, tintSpeckle;
   Material paperMat, zoneMat, inkMat, vignette, stampGrain;
@@ -936,10 +937,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   static constexpr float tLoop = 30.0f;
 
   Animatable<float> beat(float a, float b) const {
-    return bind(&T).window(a, b).clamp(0.0f, 1.0f);
-  }
-  /** Fade in over [a,b] and stay up. */
-  Animatable<float> upFrom(float a, float b) const {
     return bind(&T).window(a, b).clamp(0.0f, 1.0f);
   }
 
@@ -1033,10 +1030,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // amplitude and a long wavelength, before anything is stroked.
     const SkPath line = lines::displace(smooth(coast), 0.9f, 90.0f, false);
     // The sea as a CLOSED region: the coast, then round the panel's own
-    // south-east corner. Built by hand because the library has no boolean
-    // path ops — `panelRect − land` is the natural spelling and `.clip()`
-    // only intersects (see the gap list). Having the polygon, the hachures
-    // are one clipPath.
+    // south-east corner. Built by hand because there are no boolean path
+    // ops here — `panelRect − land` is the natural spelling, and `.clip()`
+    // only intersects, which would keep the land instead of dropping it.
+    // Having the polygon, the hachures are one clipPath.
     SkPathBuilder seab;
     seab.addPath(line);
     seab.lineTo(kFrameR - 2, kDivHN - 2);
@@ -1086,8 +1083,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** Lehmann hachures (Johann Georg Lehmann, 1799): strokes down the line
    *  of steepest descent, black-to-white ratio proportional to slope —
    *  all white at 0°, all black at 45°. Generated from a synthetic height
-   *  field of gaussian ridges, not drawn. This is a FIELD, which is why
-   *  patterns::stripes cannot express it (see the gap list). */
+   *  field of gaussian ridges, not drawn. Every stroke's direction, length,
+   *  weight and alpha come from the local gradient, so this is a FIELD
+   *  rather than a repeated motif and patterns::stripes cannot express
+   *  it. */
   Element lehmann(const std::vector<std::array<float, 4>> &ridges, float x0,
                   float y0, float x1, float y1, const char *key, float t0) {
     return custom([ridges, x0, y0, x1, y1](SkCanvas &c,
@@ -1317,9 +1316,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** A strength written ACROSS its zone — Minard's "écrits en travers des
    *  zônes", set in the French convention with a full stop for thousands
    *  (422.000, never 422,000). The baseline is a segment along the band's
-   *  NORMAL, so TextPath::Orient::Tangent puts the type across the band;
-   *  compose::metrics()::capSlack sets the standoff so the numerals clear
-   *  the edge by their own cap slack rather than by a guessed constant. */
+   *  NORMAL, so TextPath::Orient::Tangent puts the type across the band.
+   *  The segment reaches past the band's half-width — or past the run's
+   *  own half-length, whichever is longer, because glyphs past a path's
+   *  end are DROPPED, so a thin band under a long number needs the run to
+   *  set the floor — by the face's cap slack at this size, so the
+   *  clearance scales with the type instead of sitting at a guessed
+   *  constant. */
   Element bandNumber(SkPoint at, SkVector tangent, float men, float size,
                      const std::string &key, float t0) {
     const float L = std::hypot(tangent.x(), tangent.y());
@@ -1329,10 +1332,19 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     if (n.y() > 0) { // make the type read bottom-up, as on the plate
       n = {-n.x(), -n.y()};
     }
-    const float half = bandPx(men) * 0.5f + 26.0f;
+    const auto style = type(faceNum, size, kInk, 0.2f);
+    float runLen = 0;
+    float slack = size * 0.3f; // metrics-free fallback, same shape
+    if (fonts) {
+      for (float adv : measureRun(toU8(french(men)), style, *fonts))
+        runLen += adv;
+      slack = metrics(style, *fonts).capSlack();
+    }
+    const float half =
+        std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
     const SkPoint a{at.x() - n.x() * half, at.y() - n.y() * half};
     const SkPoint b{at.x() + n.x() * half, at.y() + n.y() * half};
-    return text(toU8(french(men)), type(faceNum, size, kInk, 0.2f))
+    return text(toU8(french(men)), style)
         .rect(SkRect::MakeXYWH(0, 0, kSheetW, kSheetH))
         .onPath(TextPath{.path = segFn(a, b),
                          .at = 0.5f,
@@ -1375,9 +1387,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // the legend as a PARAGRAPH, which is what it is — not a key.
     for (int i = 0; i < 5; ++i) {
-      const bool jerome = i >= 3; // the sentence almost nobody quotes
       g.child(text(toU8(kLegendNapoleon[i]),
-                   type(faceScript, 9.8f, jerome ? kInk : kInk, 0.02f))
+                   type(faceScript, 9.8f, kInk, 0.02f))
                   .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
                   .key("nleg" + std::to_string(i))
                   .mask(by::edge(0.0f,
@@ -1437,8 +1448,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // The zones ride in a SLOT: their geometry is a function of the live
     // mmScale Output, and Element::outline() is memoised on (descriptor,
     // size) — a shape cannot BE a bound value, so a geometry morph costs a
-    // re-describe. renderSlot() keeps that cost to these three nodes
-    // instead of the whole sheet. See the gap list.
+    // re-describe. renderSlot() keeps that re-describe to these three nodes
+    // instead of the whole sheet.
     redStone.child(slot("zones"));
     // the stone took unevenly: a very low-amplitude speckle in the zone
     // colour, NOT a gradient (the Commons p10/p90 are two units apart)
@@ -1572,9 +1583,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   /** A graduated bar. `pxPerUnit` is px per lieue, `span` the last label,
-   *  `step` the label interval — three separate ruler problems in this
-   *  sketch and every one of them is ContourWalk + a stamp that would need
-   *  to know WHICH sample it is. Hand-built for want of stampAt(). */
+   *  `step` the label interval. Built by hand rather than by stamping along
+   *  a contour: each graduation carries its own number, and a stamped
+   *  element cannot know which sample it is. */
   Element scaleBar(float x, float y, float pxPerUnit, int span, int step,
                    const char *label, const char *key, float t0) {
     auto g = box().inset(0).key(key).opacity(beat(t0, t0 + 0.3f));
@@ -1690,8 +1701,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // THE DROPLINES. Nine of them, from the retreat band down through the
     // divider into the graph. They are the joint between the two panels
-    // and they are the whole design — nothing in the library says the two
-    // abscissae are the same axis (see the gap list).
+    // and they are the whole design. Nothing declares that the two panels
+    // share an abscissa: the lock is that both call the same mapX(lon).
     for (size_t i = 0; i < kTemps.size(); ++i) {
       const float x = mapX(kTemps[i].lon);
       SkPathBuilder d;
@@ -1842,14 +1853,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         // (the dim veil is painted BELOW this: an instrument laid on the
         // paper does not dim with it.)
         // NOTE the key on caliper()'s root is "caliperGrp", NOT
-        // "caliper". slot(name) stores `name` as the node's KEY, and
-        // renderSlot() looks it up in the one byKey index every keyed
-        // element shares, then requires kind == Kind::Slot. Give the slot's
-        // CONTENT a root key equal to the slot's name and the content node
-        // shadows the slot in that index on the next rebuildKeyIndex(), so
-        // every later renderSlot() finds a Box, returns silently, and the
-        // slot freezes at whatever it was first given. Cost: forty minutes
-        // and a printf. See the gap list.
+        // "caliper". slot(name) stores `name` as the slot node's key, and
+        // the content rendered into the slot carries a key of its own, so
+        // two nodes in the same tree would answer to "caliper" if both were
+        // spelled that way. Slot lookup does not go through the general key
+        // index, so this is a readability rule rather than a correctness
+        // one: keeping the names apart means a key in a log or a hit test
+        // names exactly one node, and the content can be re-rendered into
+        // the slot without anyone having to work out which was found.
         .child(slot("caliper"))
         .key("sheet")
         .opacity(beat(0.0f, 0.6f));
@@ -2406,11 +2417,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto say = [&](console::LineRing &r, const std::string &s, size_t pal) {
       r.append(toU8(s), pal);
     };
-    // This lambda used to snprintf its own verdict, which is the failure the
-    // whole corpus shares: the printed word and the assertion were joined by
-    // hand and could drift. debug::check computes the verdict FROM the two
-    // values and debug::report prints it in the palette that verdict chose,
-    // so a DIFF cannot read EXACT — and a failure now says what it wanted.
+    // The verdict is never written by hand: debug::check computes it FROM
+    // the two values and debug::report prints it in the palette that
+    // verdict chose, so a line that reads EXACT cannot disagree with the
+    // arithmetic printed beside it, and a line that fails says what it
+    // expected as well as what it got.
     auto chk = [&](console::LineRing &r, const std::string &label, long lhs,
                    long rhs) {
       debug::report(r, debug::check(label, rhs, lhs), 1, 2);
@@ -2567,7 +2578,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
     say(colC, "", 0);
 
-    // --- what THIS study measured that the brief left estimated ----------
+    // --- the projection fits, both panels --------------------------------
     say(colC, "THE PROJECTION — re-measured here, and one finding is new",
         4);
     say(colC, "  Napoleon panel, tan centreline, 8 stations east of Polotzk:",
@@ -2683,8 +2694,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const debug::Coverage cov = debug::coverage(pieces, region, 384);
       coverDoubled = cov.doubledFraction();
     }
-    // connectivity, on the ROUTE polylines (a filled band is closed and
-    // contributes NO endpoints — Debug.h says so explicitly)
+    // connectivity, on the ROUTE polylines: a filled band is a closed
+    // contour and contributes NO endpoints, so it cannot be walked here
     {
       // AS MINARD DRAWS IT: one trunk that splits. The trunk is cut at its
       // two branch points so the junctions are endpoints — endpointDegrees
@@ -2846,7 +2857,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     say(colE, "  → the corner error is brush::Ribbon's, not the data's: "
               "a variable-width",
         0);
-    say(colE, "    band IS a stroke and Ribbon has no join. See the gap list.",
+    say(colE, "    band IS a stroke and Ribbon has no join — compare Wilna's "
+              "corner, where",
+        0);
+    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.",
         0);
   }
 
@@ -2855,10 +2869,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kDesk);
-    // §31 named-state beat: the file's own capture command — both bands +
-    // temperature + geography complete, caliper overlay lit. (The old 6.0
-    // default was mid-advance-band, beat u = 0.82: retreat, temperature and
-    // the entire audit sequence absent. Fully-quiescent alternative: 29.0.)
+    fonts = ctx.fonts;
+    // A study brings its own canvas, background and captured moment rather
+    // than inheriting them: at 20.0 s both bands, the temperature graph and
+    // the geography card are complete and the caliper is lit. 29.0 is the
+    // quiescent alternative — every beat settled, nothing still moving.
     ctx.captureAt(20.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
@@ -2923,9 +2938,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     runAudits();
 
-    // ONE Output drives eleven beats. Every beat is bind().window(lo, hi),
-    // never from(): outside a window from() feeds the easing curve values
-    // outside its domain and ease:: is not total.
+    // ONE Output drives every beat, looping at tLoop. Each beat is
+    // bind().window(lo, hi), never from(): outside a window from() feeds
+    // the easing curve values outside its domain and ease:: is not total.
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       const float s = (float)std::fmod(t, (double)tLoop);
@@ -2950,9 +2965,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       calAlpha = std::clamp(std::min((s - tScale - 0.2f) / 0.3f,
                                      (28.6f - s) / 0.9f),
                             0.0f, 1.0f);
-      reaumurMix = (s >= tReaumur && s <= tReaumurEnd)
-                       ? std::clamp((s - tReaumur) / 1.4f, 0.0f, 1.0f)
-                       : (s > tReaumurEnd ? 1.0f : 0.0f);
       return true;
     });
     // The caliper walks in CLICKS: one spot reading every 2/3 s on its own

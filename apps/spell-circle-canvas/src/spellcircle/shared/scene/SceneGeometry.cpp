@@ -8,10 +8,14 @@ namespace spellcircle {
 namespace {
 
 /**
- * Resolves a point placed at fractional `position` around a circle's
- * perimeter, measured clockwise from 12 o'clock (matching the historical
- * QPainterPath::pointAtPercent behavior on an ellipse subpath, which starts
- * at 3 o'clock and runs clockwise — a quarter-turn ahead).
+ * Resolves the canvas coordinates of a point placed at fractional `position`
+ * around a circle's perimeter.
+ *
+ * `position` is a fraction of one full turn, measured CLOCKWISE FROM 12
+ * O'CLOCK: 0 is straight up, 0.25 is 3 o'clock, 0.5 is straight down. Values
+ * outside [0, 1) wrap, negatives included. The +0.75 quarter turn converts
+ * that authoring convention into the trigonometric one used below, where
+ * angle 0 points along +x, at 3 o'clock.
  */
 Vec2 pointAtPosition(Vec2 center, float radius, float position) {
   float percent = std::fmod(position + 0.75f, 1.0f);
@@ -23,12 +27,12 @@ Vec2 pointAtPosition(Vec2 center, float radius, float position) {
               center.y + radius * std::sin(angle)};
 }
 
-// A radius-0 circle is never drawn (see the skip in SceneRenderer::draw())
-// and is used purely as an invisible anchor: `position` has no meaningful
-// angle around a zero-radius perimeter, so a Point/Box/Edge anchored to one
-// resolves straight to the circle's own coordinates rather than walking a
-// degenerate perimeter. This is what lets boxes/points be placed at an
-// arbitrary (x, y) instead of only along a visible circle's edge.
+// A radius-0 circle is an invisible anchor: it is never drawn (SceneRenderer
+// skips it — no stroke, fill, or ring label), and a Point, Box, or Edge
+// attached to one resolves straight to the circle's own coordinates instead of
+// walking a degenerate perimeter, since `position` has no meaningful angle
+// around a zero-radius circle. This is what lets a scene place a point or box
+// at an arbitrary (x, y) rather than only along a visible circle's edge.
 bool isAnchorOnlyCircle(const CircleComponent &circle) {
   return circle.radius == 0;
 }
@@ -47,7 +51,11 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
   ResolvedScene resolved;
   const entt::registry &registry = document.registry();
 
-  // Radius/point math assumes a uniform horizontal scale.
+  // Centers scale per axis, but a circle has only one radius, so radii — and
+  // therefore every point resolved on a perimeter — use the horizontal factor
+  // alone. Circles stay round on a canvas whose aspect ratio differs from the
+  // author's; only their centers stretch. A scene dimension of 0 means the
+  // sender gave no author-space size, so that axis is left at 1:1.
   const float horizontalScale = document.sceneWidth() > 0.0f
                                     ? canvasWidth / document.sceneWidth()
                                     : 1.0f;
@@ -95,10 +103,12 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
     });
   }
 
-  // Boxes (and point labels, below) face the canvas center: each is anchored
-  // along the ray from the center through its assigned point, so the
-  // direction of that ray is resolved once here rather than recomputed every
-  // frame at draw time.
+  // Boxes (and point labels, below) sit on the ray from the canvas center out
+  // through their anchor point: the renderer pushes each one outward along the
+  // unit vector resolved here, by a distance from the style. Resolving it here
+  // is what keeps the canvas center out of the drawing code. An anchor exactly
+  // on the center has no direction, so it gets straight up — (0, -1), y being
+  // down.
   const Vec2 canvasCenter{canvasWidth / 2.0f, canvasHeight / 2.0f};
   auto directionFrom = [&](Vec2 anchor) -> Vec2 {
     const Vec2 direction{anchor.x - canvasCenter.x, anchor.y - canvasCenter.y};
@@ -120,9 +130,12 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
     });
   }
 
-  // Every Point carrying a non-empty value gets its own label, regardless of
-  // whether it's also an Edge endpoint or a Box's anchor — e.g. an animation
-  // script tracking a point's live position as it moves around a circle.
+  // Every Point carrying a non-empty value gets its own label, whether or not
+  // that same point is also an Edge endpoint or a Box's anchor — a sender can
+  // use one to read out a point's live position as it travels around a circle.
+  // These reuse ResolvedBox for its anchor/direction/value, but the renderer
+  // draws text only, so the fill intensity is fixed at 0 rather than carried
+  // from the wire.
   const auto points = registry.view<PointComponent>();
   for (const entt::entity pointEntity : points) {
     const PointComponent &point = points.get<PointComponent>(pointEntity);

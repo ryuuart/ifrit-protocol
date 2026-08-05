@@ -1,26 +1,25 @@
 #pragma once
 
 /** @file
- * The KIT's stroke-grammar values: convenient shapers, spans, shapes,
- * profiles and strand sets, under the concept scopes they belong to.
+ * The KIT's stroke-grammar values: shapers, profiles, strand sets, spans
+ * and shapes, under the concept scopes they belong to.
  *
- * These are VALUES, not machinery. Every one is a peer of something you
- * could write yourself against the same seam — that is the tier rule, and
- * it is enforced structurally: SigilComposeKit is its own CMake library
- * whose only include path is compose's PUBLIC headers, so a kit value
- * cannot reach ComposeInternal.h even by accident.
+ * **This header is NOT reached by `sigilcompose/kit/Kit.h`.** The umbrella
+ * include does not pull it in, so none of the names below exist unless you
+ * include this file directly.
  *
- * PRESETS live at the bottom, under `kit::brush::presets::`, and they are
- * a DIFFERENT tier from everything above: a shaper is a peer of something
- * you would write against a seam, a preset is a finished composition with
- * a craft name. The end state §33 rules for them is an EXTERNAL loadable
- * kit; no such mechanism is built, and the four that came out of core with
- * R2 (`filament`, `circuit`, `rope`, `pulse`) had to leave `brushes::`,
- * because that namespace dies with R3. So they sit here, in their own
- * scope, saying what they are — one move, not two, and the second move is
- * a change of home rather than a change of name. Standing check unchanged:
- * a preset whose name is craft jargon over a plain composition gets
- * demoted (the `cased` treatment).
+ * These are VALUES, not machinery: each is a peer of something a caller
+ * could write against the same public seam. That is enforced by the build
+ * rather than by convention — the kit is its own CMake library whose only
+ * include path is SigilCompose's public headers, so nothing here can reach
+ * a library internal even by accident.
+ *
+ * PRESETS live at the bottom, under `kit::brush::presets::`, and they are a
+ * different KIND from everything above them: a shaper is a word of
+ * vocabulary, a preset is a finished drawing with a craft name. They are
+ * scoped apart so the difference is visible at the call site. A preset
+ * whose name is craft jargon over a plain composition belongs among the
+ * plain compositions instead.
  */
 
 #include "sigilcompose/Brushes.h"
@@ -69,17 +68,15 @@ namespace shapers {
  *      band(spine, across(Profile(Undulating{}))).centered();
  *
  *  `wavelength` is PX, and the profile seam is asked in FRACTIONS of arc
- *  length — there is no length at that seam to convert with, so the profile
- *  reading treats `wavelength` as px-per-cycle on a nominal 1000 px
- *  contour. That is the reason `strands::braid` takes its own phase count
- *  rather than deriving one, and the reason a wave profile on a very short
- *  or very long spine will not have the wavelength you asked for. The
- *  SHAPER reading (`shape()`) has a real path and is exact. */
-/** THE THIRD MEMBER IS `phase`. The `ops::Wave` this replaced spelled a
- *  `bool zigzag` there, so `Wave{4, 28, true}` meant two different
- *  drawings in the two spellings and compiled both ways. `ops::` is gone
- *  (R3) and the trap with it, but it is the reason `Zigzag` below is its
- *  own value rather than a flag here. */
+ *  length. There is no contour length available at that seam to convert
+ *  with, so the PROFILE reading treats `wavelength` as px-per-cycle on a
+ *  nominal 1000 px contour: on a spine much shorter or much longer than
+ *  that, the wavelength you get is not the one you asked for. That is also
+ *  why `strands::braid` takes its own phase count instead of deriving one.
+ *  The SHAPER reading (`shape()`) has a real path and is exact.
+ *
+ *  The third member is `phase`, not a zigzag flag — the cornered
+ *  oscillation is `Zigzag` below, a separate value. */
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
   bool operator==(const Wave &) const = default;
@@ -106,10 +103,9 @@ private:
 /** A hand-drawn wobble: the mark resampled into short segments, each
  *  pushed off true by a seeded amount (the rough.js line).
  *
- *  ONE pass of SkDiscretePathEffect (grounded params in REFERENCES.md §9:
- *  deviation ~ 2). rough.js draws TWO — full and half deviation at
- *  different seeds — so the sketchy double-line is two brush layers, or
- *  two restyles, never one call. */
+ *  ONE pass of SkDiscretePathEffect. The sketchy double-line those tools
+ *  draw is TWO passes — full and half deviation at different seeds — so it
+ *  is two brush layers or two restyles here, never one call. */
 struct Jitter {
   float segLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
@@ -117,9 +113,10 @@ struct Jitter {
   float bleed() const { return deviation * 2.0f; }
   SkPath shape(const SkPath &p) const {
     SkPathBuilder out;
-    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
-    // open contours — the transit study's phantom river channel (the
-    // return chord braided the real run under jitter divergence).
+    // HAIRLINE rec is required: under a fill rec SkDiscretePathEffect
+    // force-CLOSES open contours, so an open mark gains a return chord
+    // from its end back to its start — which then jitters away from the
+    // real run and draws as a second, phantom line.
     SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
     if (sk_sp<SkPathEffect> fx =
             SkDiscretePathEffect::Make(segLength, deviation, seed);
@@ -130,12 +127,13 @@ struct Jitter {
 };
 
 /** A parallel displacement — the rail. Parallels never cross, which is
- *  why `layers` plus this is the double/triple line and a braid needs
+ *  why `layers` plus this is the double or triple line and a braid needs
  *  Wave instead.
  *
- *  **Positive is LEFT of travel**, the one convention (DESIGN.md; ROADMAP
- *  §33 ruling 5). It agrees with `strand::offset(px)` exactly — the two
- *  used to mean opposite sides, which is what R3's sign port ended. */
+ *  **Positive is LEFT of travel.** That is the library-wide sign
+ *  convention for an across-the-path offset, and it agrees exactly with
+ *  `strand::offset(px)`; anything added here must match it, because a
+ *  disagreement mirrors a drawing rather than erroring. */
 struct Offset {
   float px = 0.0f;
   float step = 4.0f;
@@ -149,13 +147,7 @@ struct Offset {
 /** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
  *  `shapes::rounded()`, which rounds an OUTLINE GENERATOR's result: this
  *  rounds whatever path the brush pipeline is carrying, so it softens a
- *  displaced zigzag or an offset rail, not just a silhouette.
- *
- *  Was the twin of `ops::Rounded`, and the reason it exists: §33 wanted
- *  the `ops::` family gone, and could not have it while `Rounded` and
- *  `Square` had no taught spelling — deleting them would have removed two
- *  capabilities with nothing to say instead. R3 deleted the twins; this
- *  now holds the body. */
+ *  displaced zigzag or an offset rail, not just a silhouette. */
 struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded &) const = default;
@@ -170,11 +162,13 @@ struct Rounded {
 };
 
 /** CUT EVERY CORNER of the mark at 45° (`routers::chamfer`) — Rounded's
- *  machined sibling, the game-UI corner (ROADMAP §8: SkCornerPathEffect
- *  only rounds). Not `shapes::chamfered()`, which cuts an OUTLINE
- *  GENERATOR's box: this cuts whatever polyline the brush pipeline is
- *  carrying — a routed wire, a displaced zigzag, an offset rail. Curved
- *  contours pass through untouched. */
+ *  machined sibling, and the treatment SkCornerPathEffect cannot give you
+ *  because it only rounds. Not `shapes::chamfered()`, which cuts an
+ *  OUTLINE GENERATOR's box: this cuts whatever polyline the brush pipeline
+ *  is carrying — a routed wire, a displaced zigzag, an offset rail.
+ *
+ *  A contour containing any curve segment passes through COMPLETELY
+ *  UNTOUCHED, so this is a silent no-op over a curved mark. */
 struct Chamfer {
   float cut = 6.0f;
   bool operator==(const Chamfer &) const = default;
@@ -182,8 +176,8 @@ struct Chamfer {
 };
 
 /** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
- *  the Greek meander key, a stepped circuit trace. Wave's sibling, and the
- *  other half of what unblocked the `ops::` deletion. */
+ *  the Greek meander key, a stepped circuit trace. Wave's sibling; it has
+ *  no profile reading, only a shaper one. */
 struct Square {
   float amplitude = 5.0f, wavelength = 32.0f;
   bool operator==(const Square &) const = default;
@@ -197,12 +191,10 @@ struct Square {
  *  between its extremes rather than a curve — the drawn zigzag, the
  *  saw edge, the seismograph line.
  *
- *  Its own value rather than a `zigzag` flag on `Wave`, because Wave is
- *  ALSO read as a profile (`across()`) and a flag that the profile reading
- *  ignored would be a silent asymmetry. Found by the R2 port: the
- *  `ops::` deletion turned out to need THREE twins, not the two §33
- *  named — `ops::Wave{.zigzag = true}` was the third gap, and it had a
- *  live corpus site (the gallery's pipeline trio). */
+ *  Its own value rather than a `zigzag` flag on `Wave`, because `Wave` is
+ *  ALSO read as a profile through `across()`, and a flag the profile
+ *  reading had to ignore would be a silent asymmetry between the two
+ *  readings of one value. */
 struct Zigzag {
   float amplitude = 4.0f, wavelength = 24.0f;
   bool operator==(const Zigzag &) const = default;
@@ -235,17 +227,20 @@ inline Offset offset(float px, float step = 4.0f) {
 } // namespace brush
 
 // ---------------------------------------------------------------------------
-// kit::profile — the oscillating profile, kept out of core per the tier rule
+// kit::profile — the oscillating profile
 
 namespace profile {
-/** The wave as a PROFILE value (`across`/`max`): a band that undulates, a
- *  strand that trades sides. Core ships only `strand::self()` and
- *  `strand::offset()`; everything that oscillates lives here. */
+/** The wave as a PROFILE value (`across`/`max`): a strand that trades
+ *  sides. The library itself ships only `strand::self()` and
+ *  `strand::offset()`; everything that oscillates lives here.
+ *
+ *  ZERO-MEAN, so this is a strand CENTRELINE and not a band width — as a
+ *  width it goes negative half the time and inverts the band's rails. See
+ *  `brush::shapers::Wave` for the composition an undulating band wants
+ *  instead. */
 inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Profile(brush::shapers::Wave{amplitude, wavelength, phase});
 }
-/** ZERO-MEAN, so this is a strand CENTRELINE, not a band width — see
- *  brush::shapers::Wave for why, and for the band spelling. */
 } // namespace profile
 
 // ---------------------------------------------------------------------------
@@ -255,21 +250,22 @@ namespace strands {
 
 /** A BRAID: `n` wave strands at phase k/n, all sharing one brush.
  *
- *  Crossings by CONSTRUCTION — n oscillations of equal amplitude and
+ *  Crossings by CONSTRUCTION: n oscillations of equal amplitude and
  *  wavelength at evenly spread phases must trade sides, and where they
- *  trade sides the discovery pass finds a crossing. That is why the braid
- *  primitive is the wave and not the offset: `strands::parallel` was
- *  removed precisely because parallels are rails and cannot braid.
+ *  trade sides the crossing-discovery pass finds a crossing. That is why
+ *  the braid primitive is the wave and not the offset — parallels are
+ *  rails and never cross, so they cannot braid at all.
  *
- *  Pair it with a crossing rule to say who passes over whom —
- *  `crossing::alternate()` for plain weave, `crossing::pairs(...)` with a
- *  cycle for the impossible braid. */
+ *  Pair it with a crossing rule to say who passes over whom:
+ *  `crossing::alternate()` for a plain weave, `crossing::pairs(...)` with
+ *  a cycle for an impossible braid. */
 inline std::vector<sigil::compose::brush::Strand>
 braid(int n, float amplitude, float wavelength, Decoration ink) {
-  // Fully qualified, and the brush parameter is `ink`: inside kit,
-  // `brush::` means kit::brush (the shapers scope), so the composite's
-  // namespace has to be spelled out. Same friction family as `band`
-  // shadowing locals — a short good noun collides.
+  // Fully qualified on purpose. Inside `sigil::compose::kit`, an
+  // unqualified `brush::` resolves to kit::brush — the shapers scope
+  // above — and NOT to the library's own brush namespace, so any name
+  // from the latter has to be spelled out in full here. The parameter is
+  // named `ink` rather than `brush` for the same reason.
   std::vector<sigil::compose::brush::Strand> out;
   const int count = std::max(1, n);
   out.reserve((size_t)count);
@@ -286,8 +282,8 @@ braid(int n, float amplitude, float wavelength, Decoration ink) {
 
 namespace spans {
 /** The reticle: a window of `arm` px at every corner and nothing else.
- *  A COMPOSITION of core terms, not a new kind — which is what a kit span
- *  can be, and the reason `Spans` is a closed value. */
+ *  A composition of existing span terms rather than a new kind — `Spans`
+ *  is a closed value, so a kit span can only ever be a composition. */
 inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
   return sigil::compose::spans::corners(arm, angleDeg);
 }
@@ -297,9 +293,9 @@ inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
 // kit::shapes — silhouette values
 
 namespace shapes {
-/** A RING: the area between two concentric circles. "Annulus" was
- *  rejected as jargon for exactly the shape everybody calls a ring.
- *  A comparable value (it IS the annulus value), so a ring node prunes. */
+/** A RING: the area between two concentric circles, under the plain name.
+ *  Returns the annulus value itself, so it is comparable and a ring node
+ *  prunes like any other shaped node. */
 inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
   return sigil::compose::shapes::annulus(innerRatio);
 }
@@ -308,21 +304,18 @@ inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
 // ---------------------------------------------------------------------------
 // kit::brush::presets — finished compositions with craft names
 //
-// Peers of the shapers in TIER MECHANICS (free functions over the public
-// API, nothing reaches inside) and NOT peers of them in kind: a shaper is
+// Peers of the shapers in MECHANICS — free functions over the public API,
+// nothing reaching inside — and not peers of them in kind: a shaper is
 // vocabulary, a preset is a finished drawing. They are scoped apart so the
-// difference is visible at every call site — `kit::brush::shapers::wave`
-// is a word, `kit::brush::presets::rope` is a picture of Path of Exile's
-// rope. All four moved here from core's `brushes::` in R2 (ROADMAP §33),
-// unchanged: same layers, same numbers, same references; R3 deleted the
-// old namespace and with it the last spelling that was not this one.
+// difference is visible at every call site: `kit::brush::shapers::wave` is
+// a word, `kit::brush::presets::rope` is a picture.
 
 namespace brush {
 namespace presets {
 
-/** Ori-style organic filament (REFERENCES.md §5): four strokes bottom-up —
- *  wide additive glow, mid glow, bright core, white center. Scale sets the
- *  envelope (1.0 → 14px envelope over a 2.5px core). */
+/** An organic glowing filament: four strokes bottom-up — wide additive
+ *  glow, mid glow, bright core, white centre. `scale` sets the envelope;
+ *  at 1.0 that is a 14 px envelope over a 2.5 px core. */
 inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
                              SkColor4f core = {0.875f, 0.965f, 1.0f, 1},
                              float scale = 1.0f) {
@@ -338,9 +331,10 @@ inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
   }};
 }
 
-/** FUI circuit trace (REFERENCES.md §5). Tiers: 0 = data (1px, 55%),
- *  1 = main (2px, 85%), 2 = power (4px + 8px under-glow). Pair with an
- *  octilinear-ish router with 45° chamfers for the full look. */
+/** A circuit trace. Tiers: 0 = data (1 px, 55% alpha), 1 = main (2 px,
+ *  85%), 2 = power (4 px over an 8 px under-glow). Pair it with an
+ *  orthogonal or octilinear router cutting its corners at 45° — see
+ *  `routers::manhattan`'s `chamferCut` — for the full look. */
 inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
                             int tier = 1) {
   SkColor4f c = color;
@@ -361,14 +355,14 @@ inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
   return b;
 }
 
-/** Path of Exile's rope connector, 3-state (REFERENCES.md §5 — palette
- *  ladder verified against Path of Building): counter-dashed strand layers
- *  read as rope; Active adds the warm halo and specular ridge. state:
- *  0 Normal, 1 Intermediate (hover-path), 2 Active.
+/** A three-state rope connector: counter-dashed strand layers read as
+ *  twisted rope, and the Active state adds a warm halo and a specular
+ *  ridge. `state` is 0 Normal, 1 Intermediate, 2 Active; out-of-range
+ *  values clamp.
  *
- *  `scale` is the zoom the rope is drawn at — every width, dash and blur
- *  moves together, the way the game's own line art does. The default is
- *  the widely-spaced study; a dense cluster wants ~0.6. */
+ *  `scale` is the zoom the rope is drawn at, and every width, dash and
+ *  blur moves with it together. The default suits widely-spaced nodes; a
+ *  dense cluster wants around 0.6. */
 inline LayeredBrush rope(int state, float scale = 1.0f) {
   struct P { SkColor4f body, ridge; };
   static constexpr P kStates[3] = {
@@ -393,10 +387,10 @@ inline LayeredBrush rope(int state, float scale = 1.0f) {
   return b;
 }
 
-/** The §5 pulse-travel profile as a brush: plus-blended halo, colored
- *  body, white-hot core. Claim a SHORT window of a rail
- *  (`spans::wrap(&phase, &phaseEnd)`) and march the window along it —
- *  the energy packet on any connector. */
+/** The pulse-travel profile as a brush: plus-blended halo, coloured body,
+ *  white-hot core. Claim a SHORT window of a rail
+ *  (`spans::wrap(&phase, &phaseEnd)`) and march the window along it — the
+ *  energy packet on any connector. */
 inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
                           SkColor4f core = {1, 1, 1, 0.9f},
                           float scale = 1.0f) {

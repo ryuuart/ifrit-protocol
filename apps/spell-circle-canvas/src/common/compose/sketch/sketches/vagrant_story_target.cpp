@@ -63,8 +63,8 @@
 //    Ashley is actor 0. HE SILENTLY GETS +10% TO HIT THAT THE PRINTED NUMBER
 //    DOES NOT INCLUDE, and because the +10 lands after the clamp, a printed
 //    100% is a true 110% — rand(100) < 110 can never fail. Both numbers are on
-//    the render, and the divergence is printed, the way xcom_battlescape.cpp
-//    printed the picker cheat.
+//    the render, side by side, so the divergence is legible in the picture
+//    rather than only in this comment.
 //
 // 3. RISK. _getRiskModifier (146C.c:7265):
 //        rate = ((risk + 150) * 100) / 256;  if (rate == 255) rate = 254;
@@ -121,53 +121,53 @@
 //  * THE TICK LADDER IS THE 5-BIT FIELD: 32 divisions at 11.25 deg, two
 //    lines::radialHatch passes (32 short + 4 long) on a foreshortened annulus.
 //  * THE RISK GAUGE ENCODES VALUE AS HATCH DENSITY, not as a fill — spacing
-//    tightens 7.0 -> 1.6 px as RISK climbs — inside a lines::dottedCore frame
+//    tightens 8.0 -> 2.4 px as RISK climbs — inside a lines::dottedCore frame
 //    (solid casing, dotted core).
-//  * Bracket-only card frames: Bracket/Gapped Borders (via the §33-j legacy
-//    shims) on chamfered outlines. No rounded rect anywhere on this canvas.
+//  * Bracket-only card frames: Bracket and Gapped Borders on chamfered
+//    outlines. No rounded rect anywhere on this canvas.
 //  * shapers::Jitter is deliberately absent. This is an instrument, not a
 //    page. shapers::Wave appears on one thing: the damage-number pop.
 //
 // -----------------------------------------------------------------------------
 // THE COMPOSITION — why there is no column on this canvas
 //
-// The first cut of this study put the six limb readouts in a right-hand margin
-// and drew leaders back to the body. That is a stat sheet with a sphere behind
-// it, and the giveaway is that the leaders were decorative: a column needs no
-// leader, because a column IS the answer to "where does this readout go".
+// Six readouts in a right-hand margin would be a stat sheet with a sphere
+// behind it, and the tell is that its leader lines would be decorative: a
+// column needs no leader, because a column IS the answer to "where does this
+// readout go".
 //
-// So the placement was inverted. layoutCards() takes each limb's BEARING about
-// the torso from the projection itself, re-spaces the six bearings into one
-// 204-degree fan opening away from the title and gauge furniture, and hangs the
-// panel at a radius no neighbour shares (268 / 392 / 300 / 430 / 320 / 300 px).
-// HEAD's panel is above the skull, the arms' are out to either side, the legs'
-// are below, and the selected R.ARM sits CLOSEST to its own limb. Re-spacing
-// preserves order, which is what guarantees six leaders out of one cluster
-// cannot cross — the property the brief asked for, obtained from the geometry
-// rather than by hand-placing boxes until nothing overlapped.
+// So the panels are placed by the body. layoutCards() takes each limb's
+// BEARING about the torso from the projection itself, re-spaces the six
+// bearings into one 204-degree fan opening away from the title and gauge
+// furniture, and hangs the panel at a radius no neighbour shares
+// (268 / 392 / 300 / 430 / 372 / 300 px). HEAD's panel is above the skull, the
+// arms' are out to either side, the legs' are below, and the selected R.ARM
+// sits CLOSEST to its own limb. Re-spacing preserves order, which is what
+// guarantees six leaders out of one cluster cannot cross — a property of the
+// geometry rather than of hand-placing boxes until nothing overlapped.
 //
 // The figure is limbs[6] made visible: six drawables, one per struct entry,
 // each on its limb's projected anchor and joined by drawn bones. The marker
 // ring, the leader and the readout then all key off a shape you can point at.
 //
 // -----------------------------------------------------------------------------
-// THE GEOMETRY REPORT — what animating generated geometry costs
+// MOVING GENERATED GEOMETRY
 //
 // The sphere has to ROTATE, and its wires are shapes::parametric outlines. An
-// Element's outline is a std::function<SkPath(SkSize)> resolved through
-// Composer::Impl::resolveOutline (Paint.cpp:256), which memoizes on
-// (description pointer, size) — so an OutlineFn that closes over a live value
-// is evaluated ONCE and frozen into the node's picture. There is no
-// `isAnimated()` seam on OutlineFn the way there is on DecorationScheme.
+// Element's outline is a std::function<SkPath(SkSize)>, and the composer
+// memoizes the resolved path on (description pointer, size) — so an OutlineFn
+// that closes over a live value is evaluated ONCE and frozen into the node's
+// picture. Unlike a decoration, an outline has no seam for saying "this one
+// changes every frame", so binding a value into it does nothing.
 //
 // The only way to move generated geometry is therefore to re-describe it. This
-// sketch does that through ONE slot: `slot("world")` holds the 12 sphere wires,
-// the 6 limb rings and the 6 leader lines, and update() calls renderSlot()
-// every frame with a fresh rotation. Everything else in the tree — chrome,
-// gauges, cards, ladders, marginalia — is described once in setup() and keeps
-// its caches. Measured cost of that decision is in the report; the natural API
-// would be `outline(fn, Volatility::Live)` or an OutlineFn concept with the
-// same optional `isAnimated()` decorations already have.
+// sketch does that through ONE slot: `slot("world")` holds the sphere wires,
+// the enemy's limb parts, the limb rings, the leader lines and the chain
+// prompt — everything anchored to a spinning limb — and update() calls
+// renderSlot() every frame with a fresh rotation. Everything else in the
+// tree — chrome, gauges, cards, ladders, marginalia — is described once in
+// setup() and keeps its caches, so the per-frame rebuild is bounded to the
+// geometry that actually turns.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -219,7 +219,7 @@ inline float snapG(float v) { return std::round(v / 4.0f) * 4.0f; }   // 320-gri
 inline float snapX(float v) { return std::round(v / 2.5f) * 2.5f; }   // 512-grid
 inline float snapY(float v) { return std::round(v / 4.0f) * 4.0f; }
 
-using studio::hex;   // the same four lines as twenty-three other files
+using studio::hex;
 using studio::mul;
 
 // Reconstructed palette: pale bone rules and type over translucent slate, RISK
@@ -237,9 +237,10 @@ inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 // ---------------------------------------------------------------------------
 // THE PROJECTION. Camera at the origin looking down +z; +x right, +y down
 // (screen sense). A point projects to (f*X/Z, f*Y/Z) offset from the canvas
-// centre. Nothing here is a squashed circle: every ellipse on the canvas is a
-// real perspective image of a real circle, which is why the latitude rings'
-// centres DRIFT off the sphere's centre instead of sharing it.
+// centre. Every ellipse of the SPHERE is a real perspective image of a real
+// circle rather than a squashed one, which is why the latitude rings' centres
+// DRIFT off the sphere's centre instead of sharing it. (The ground plate is
+// the exception; see groundPlate.)
 
 struct Cam {
   float f = 1700.0f;              // focal length, canvas px
@@ -356,10 +357,11 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
   if (total > 1e-5f && !w.allNear && !w.allFar) {
     for (int i = 1; i <= samples; ++i)
       if (face[(size_t)(i - 1)] < 0 && face[(size_t)i] >= 0) {
-        // a < 0 <= b, so (a - b) is NEGATIVE and clamping it to a positive
-        // epsilon flips the fraction to a huge negative number. The whole
-        // sphere painted as far-side dotted rule until this was a magnitude
-        // guard instead of a max().
+        // The guard is on MAGNITUDE, not on sign. Here a < 0 <= b, so (a - b)
+        // is negative; a max(denom, epsilon) would replace a small negative
+        // denominator with a small positive one and send the fraction wildly
+        // negative, which clamps the split to 0 and paints the entire wire as
+        // far-side dotted rule.
         const float a = face[(size_t)(i - 1)], b = face[(size_t)i];
         const float denom = a - b;
         const float k = std::abs(denom) > 1e-6f ? a / denom : 0.5f;
@@ -380,10 +382,10 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
   const float depth = std::clamp(-best / (cam.R * 1.7f), 0.0f, 1.0f);
   w.nearWeight = 1.3f + 1.9f * depth;
 
-  // Left in, opt-in: `#define VS_WIRE_DEBUG 1` above the includes prints every
-  // wire's tangency numbers. It is how the split bug above was found, and a
-  // wrong split is INVISIBLE in the render — it just looks like a flat mandala
-  // rather than a sphere, which reads as a styling choice.
+  // Opt-in: `#define VS_WIRE_DEBUG 1` above the includes prints every wire's
+  // tangency numbers. It is the only way to check them, because a wrong split
+  // is INVISIBLE as an error — the sphere just reads as a flat mandala, which
+  // looks like a styling choice rather than a fault.
 #ifdef VS_WIRE_DEBUG
   SkDebugf("[wire] t0=%.3f split=%.3f allNear=%d allFar=%d weight=%.2f total=%.3f\n",
            t0, w.split, (int)w.allNear, (int)w.allFar, w.nearWeight, total);
@@ -517,22 +519,15 @@ inline float widthOf(const PixFont &f, const std::string &s,
 }
 
 // ---------------------------------------------------------------------------
-// THE RISK GAUGE'S DECORATION USED TO LIVE HERE, AND NO LONGER HAS TO.
+// THE RISK GAUGE'S DENSITY IS A BOUND FIELD, NOT A BESPOKE DECORATION.
 //
-// This file shipped a 24-line `RiskHatch` value decoration that composed
-// `lines::Hatch`, held an `Output<float>*`, mapped RISK to a pitch at paint
-// time and returned `isAnimated() == true`. The reason was real when it was
-// written: `Hatch::spacing` was a plain float with no binding seam, so a
-// RISK-driven density would have forced a `render()` every frame purely to
-// change one number.
+// `lines::Hatch` takes an `Output<float>*` for its spacing and its angle, and
+// a bound field is enough for a gauge whose value is its density: the hatch
+// re-paints when the Output ticks, with no `render()` and no re-describe.
 //
-// THAT GAP IS CLOSED. `Hatch::spacingBinding` and `Hatch::angleBinding`
-// (Lines.h:1185-1186) take exactly the raw `Output<float>*` the workaround
-// held, with `isAnimated()` at :1188 and both in `operator==` at :1196 — which
-// is the same shape the workaround argued for, so it is gone and the gauge
-// binds the stock decoration. The one thing the field cannot do is MAP, so
-// the RISK-to-pitch curve moved into the ticker as its own Output; that is
-// where the study's other three shapings of the same value already live.
+// What the field cannot do is MAP. It reads the raw value as a pitch in
+// pixels, so the RISK-to-pitch curve lives in the ticker as its own Output
+// alongside this file's other shapings of the same value.
 
 // ---------------------------------------------------------------------------
 // THE ARITHMETIC. Every number below is the decompiled function, integer
@@ -736,9 +731,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       .shape(wire.outline)
                       // The draw-on: each wire reveals over 320 ms, and the
                       // group's staggerChildren(24ms) sweeps it round the
-                      // equator — 12 x 24 ms is the full ring in ~290 ms.
-                      // Settled at (0,1) the trim is a no-op (Paint.cpp:678
-                      // skips the effect when s == 0 and e == 1).
+                      // equator. Once settled at (0,1) the trim costs nothing
+                      // — the painter skips a span effect whose start is 0 and
+                      // whose end is 1.
                       .mask(by::spans(spans::upTo(animate(
                           from(0.0f).to(1.0f),
                           {.duration = 320ms, .ease = &ch::easeOutQuad}))));
@@ -819,9 +814,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // THE GROUND PLANE: the attack wedge and the 32-division tick ladder. Both
-  // are foreshortened by the camera pitch — a horizontal circle under a camera
-  // pitched down by p squashes to sin(p) of its width.
+  // THE GROUND PLANE: the attack wedge and the 32-division tick ladder. Unlike
+  // the sphere wires these are NOT projected — they are axis-aligned ellipses
+  // whose height is a fixed fraction of their width. A camera pitched down by
+  // p would see a horizontal circle at sin(p) of its width; the fraction used
+  // is sin(pitch) opened up by the constant 1.62 below, a deliberate
+  // exaggeration kept for legibility: at the true ratio the wedge and the
+  // tick ladder flatten to slivers, and this opened-out plate is the approved
+  // look. Do not "correct" it back to the projection.
 
   /** The reach sphere is centred on Ashley's CHEST, so the ground plane cuts
    *  the sphere well above its lowest point — 0.30 R down the world-up axis.
@@ -1076,9 +1076,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // matters more than the first. brush::Pattern owns its bake in a
   // shared_ptr<Cache> that lives IN THE VALUE, so a brush constructed inside
   // the per-frame describe gets a fresh empty cache and re-runs snapshot() on
-  // all three tiles every frame — three full reconcile+layout+record passes
-  // per leader, eighteen per frame. Holding one brush and copying it shares
-  // the bake, which is what the art-pointer cache key was designed for.
+  // all three tiles — a full reconcile, layout and record pass per tile, per
+  // leader, per frame. Holding one brush and copying it shares that bake
+  // across all six leaders and across frames.
   Element ringArt, dashArt, tickArt;
   brush::Pattern leaderBrush;
 
@@ -1218,8 +1218,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         sel ? shapes::Corner::All : shapes::Corner::Diagonal))
                     .fill(Fill::color(sel ? vs::hex(0x101826, 0.86f)
                                           : vs::hex(0x11141D, 0.72f)));
-    // §33-j: the 6 px inset has no stroke-pass spelling — the gapped rule
-    // keeps the surviving Border value directly.
+    // A Border, not a stroke pass: an INSET rule (6 px inside the silhouette)
+    // has no spelling in the stroke vocabulary, which only draws on the
+    // outline itself.
     c.foreground(Border{
         .width = 1.0f,
         .fill = Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)),
@@ -1231,9 +1232,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                           Fill::color(sel ? vs::kCyan : vs::kBone)));
     if (sel)
       // An OUTSET bracket set 7 px proud of the plate: the selection reads as
-      // a second frame standing off the first, not as a thicker line. (§33-j:
-      // the outset — a negative inset — has no stroke-pass spelling, so the
-      // surviving Border value stays.)
+      // a second frame standing off the first, not as a thicker line. A
+      // negative inset is again something only Border can express.
       c.foreground(Border{.width = 3.4f,
                           .fill = Fill::color(vs::mul(vs::kCyan, 1, 0.55f)),
                           .inset = -7.0f,
@@ -1340,12 +1340,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // card, it is the frame of the screen, so its plate is nearly clear and
     // the wireframe reads straight through it.
     //
-    // 248 TALL, NOT 268. At 268 the plate's bottom edge landed on y=888, and
-    // marginalia() sets the CHAIN / DEFENSE ability rows at 882 — so a 1 px
-    // panel rule ran through the x-height of "CHAIN 14" and straight along the
-    // whole pip ladder, at full weight, for the width of the panel. The last
-    // thing in the panel is the RISK note at ~845, so 248 keeps 23 px of
-    // padding under it and clears the ability block by 14.
+    // The height is bounded from below AND from above. The last thing inside
+    // the panel is the RISK penalty note at ~845, and marginalia() puts the
+    // CHAIN / DEFENSE ability rows at 882 — so the plate must end between
+    // those two, or its bottom rule draws straight through the x-height of
+    // "CHAIN 14" and along the whole pip ladder. 620 + 248 = 868 leaves 23 px
+    // under the note and clears the ability block by 14.
     g.child(panel(-70, 620, 512, 248, "gaugepanel", 22.0f,
                   vs::hex(0x0B0E15, 0.42f)));
 
@@ -1390,10 +1390,10 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         .rect(SkRect::MakeXYWH(x0 + 66, ry, w - 84, 38))
                         .key("risktrack")
                         .shape(shapes::chamfered(11.0f, shapes::Corner::All));
-    // 8.0 px at RISK 0 down to 2.4 px at RISK 100 — the floor is deliberately
-    // not 1.6, because a hatch that closes to solid stops being a hatch and
-    // the reader loses the one cue the whole widget is built on. The curve is
-    // computed into `riskPitch` by the ticker; this binds the stock field.
+    // 8.0 px at RISK 0 down to 2.4 px at RISK 100. The floor has to stay well
+    // clear of the 1.3 px line width: a hatch that closes to solid stops being
+    // a hatch, and the reader loses the one cue the whole widget is built on.
+    // The curve is computed into `riskPitch` by the ticker; this binds it.
     track.foreground(lines::Hatch{.strokeFill = Fill::color(vs::kAmber),
                                   .width = 1.3f,
                                   .angleDeg = 45.0f,
@@ -1455,8 +1455,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   //
   // Radial, not Upright, and on purpose: 24 at the bottom of this dial comes
   // out upside down, which is what an engraved instrument does — you turn it
-  // to read the division you are on. TextPath's own docs make the same point
-  // about Nightingale's 1858 plate. Upright is the modern-gauge convention and
+  // to read the division you are on, exactly as the numerals do around
+  // Nightingale's 1858 coxcomb. Upright is the modern-gauge convention and
   // would be the wrong register for a drawing that is otherwise all drafting.
 
   Element shapeDial() const {
@@ -1572,8 +1572,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
   // THE TITLE BLOCK. The plate number, the two grids, the bit fields, and the
-  // cheat printed as a divergence — the way xcom_battlescape printed the
-  // picker's thumb on the scale.
+  // to-hit cheat printed as a divergence: both numbers on the plate, with the
+  // line of decompiled source that separates them.
 
   /** VS's chrome is translucent slate under everything it has to say. A panel
    *  here is a chamfered plate, a rule that stops short of every corner, and
@@ -1587,8 +1587,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         .key(key)
         .shape(shapes::chamfered(cut, shapes::Corner::All))
         .fill(Fill::color(tint))
-        // §33-j: the 7 px inset has no stroke-pass spelling — the gapped
-        // rule keeps the surviving Border value directly.
+        // A Border again: the rule sits 7 px inside the chamfered silhouette,
+        // which a stroke pass cannot express.
         .foreground(Border{.width = 1.0f,
                            .fill = Fill::color(vs::mul(vs::kBone, 1, 0.26f)),
                            .inset = 7.0f,
@@ -1807,14 +1807,13 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // Radii by FAN POSITION, deliberately unequal and non-monotonic — two
     // neighbours at the same distance would read as a row again.
     //
-    // FAN POSITION 4 IS 372, NOT 320. The fan steps 40.8 degrees, so two
-    // adjacent panels sitting at ~310 are only 216 px apart centre to centre
-    // and the panel is 236 WIDE: L.LEG (k4, 320) and R.LEG (k5, 300) were the
-    // one pair close enough to interpenetrate, 24 px of frame into 56 px of
-    // frame, and L.LEG's left bracket struck clean through R.LEG's "TRUE 100%"
-    // readout. Every other adjacent pair clears — k0/k1 by only 10 px in y,
-    // which is how narrow the margin is here. 372 puts L.LEG's left edge 8 px
-    // clear of R.LEG's right and keeps it well above BODY's row at k3.
+    // The radii are also what keeps the panels apart, and the margin is thin.
+    // The fan steps 40.8 degrees, so two neighbours both sitting near 310 px
+    // are only ~216 px apart centre to centre while an unselected panel is 236
+    // WIDE — they interpenetrate. Positions 4 and 5 are the pair with the
+    // least room, which is why 4 is pushed out to 372: that puts its left edge
+    // clear of position 5's right and keeps it above position 3's row. The
+    // closest surviving pair is 0/1, which clears by about 10 px in y.
     static constexpr float kRadius[6] = {268, 392, 300, 430, 372, 300};
     constexpr float kFrom = -112.0f * 0.017453293f;
     constexpr float kTo = 92.0f * 0.017453293f;
@@ -1840,11 +1839,11 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(vs::kW, vs::kH);
     ctx.background(vs::kVoid);
-    // §31 boundary nudge: beat phase 1.0 — ring fully swept, damage pop at
-    // rest and visible, risk mid-decay, sphere at 42°. (The old 6.0 default
-    // hit the beat boundary exactly: the chain-ability timing ring — a
-    // headline element — masked out at sweep 0, RISK at its instantaneous
-    // spike max.)
+    // The still is captured at beat phase 1.0 of the 6 s cycle below: ring
+    // fully swept, damage pop at rest and visible, RISK mid-decay, sphere at
+    // 42 degrees. A capture on a multiple of 6 s lands exactly on the beat
+    // boundary, where the chain-ability ring — a headline element — is masked
+    // out at sweep 0 and RISK is at its instantaneous spike.
     ctx.captureAt(7.0);
 
     face = pickFace();
@@ -1879,7 +1878,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // ---- motion ----------------------------------------------------------
     ctx.ticker.add([this](double dt) {
       clock += dt;
-      psi = (float)(clock * 6.0 * 0.017453293);   // 6 deg/s, the brief's rate
+      psi = (float)(clock * 6.0 * 0.017453293);   // 6 deg/s
       // RISK: spikes on every swing, then decays — slower with the weapon
       // drawn. One Output, three consumers (hatch density, needle, legend).
       const double beat = std::fmod(clock, 6.0);
@@ -1900,8 +1899,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     Element root = box().inset(0);
 
     // 0. the plate: a slate wash with grain, baked to PIXELS. A full-canvas
-    //    generated material is a shader, and a picture replays the draw call,
-    //    not the result — this is the Cache::Texture that keeps it free.
+    //    generated material is a shader, and a cached picture would replay the
+    //    draw call rather than the result — so this one caches as a texture.
     root.child(box()
                    .inset(0)
                    .key("plate")
@@ -1945,10 +1944,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
   void update(double elapsed, sketch::SketchContext &ctx) override {
     (void)elapsed;
-    // The derive step, across frames: read the cards' resolved rects off the
-    // composer and let THEM decide where the leaders land. Information flows
-    // forward within a frame, so last frame's layout feeds this frame's
-    // description — the loop the API documents.
+    // Read the cards' resolved rects off the composer and let THEM decide
+    // where the leaders land. Within one frame information only flows forward
+    // — describe, then lay out, then paint — so a description that needs a
+    // laid-out rect has to take the PREVIOUS frame's. The cards are static, so
+    // the one-frame lag is invisible; cardBounds is empty on the first frame
+    // and leaders() falls back to the nominal card centre.
     for (int i = 0; i < 6; ++i)
       if (std::optional<SkRect> r =
               ctx.composer.bounds(std::string("card") + std::to_string(i)))

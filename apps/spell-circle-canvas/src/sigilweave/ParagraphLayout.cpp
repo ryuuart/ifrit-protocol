@@ -22,13 +22,20 @@ namespace sigil::weave {
 
 namespace {
 
-/** Skip-ink intercepts, memoized (ROADMAP §4 — measured +111 µs/frame
- *  on the 300w bench before this existed). getIntercepts resolves a
- *  strike and walks glyph outlines, and its inputs are layout-stable:
- *  the blob (identified by uniqueID, which Skia never reuses, so a
- *  freed-and-reallocated blob can't alias a stale entry) and the band
- *  window. Thread-local like the emit scratch; clear-all at the cap,
- *  the house shape (Shaper.cpp's shapeCache). */
+/** Skip-ink intercepts, memoized.
+ *
+ *  SkTextBlob::getIntercepts resolves a glyph strike and walks glyph
+ *  outlines, and an underline redraws it for every run on every frame. Its
+ *  inputs, though, only change when the layout does: the blob and the band
+ *  window (the two y values the band spans). So the result is cached on
+ *  exactly those.
+ *
+ *  The key is the blob's uniqueID, which Skia never reuses — a blob that is
+ *  freed and its memory reallocated therefore cannot collide with a stale
+ *  entry. The cache is thread-local, so entries never outlive the thread
+ *  that draws with them, and at the entry cap it is cleared wholesale
+ *  rather than evicted from: an underline redrawn each frame re-populates
+ *  it immediately, and nothing here needs recency ordering. */
 const std::vector<SkScalar> &cachedIntercepts(const SkTextBlob &blob,
                                               const SkScalar bounds[2]) {
   struct Key {
@@ -914,7 +921,7 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration &decoration,
     band.color = decoration.color;
   } else if (decoration.kind == Decoration::Kind::kHighlight) {
     // An opaque foreground-colored highlight would hide the text it sits
-    // behind; default to a ~25%-alpha tint of the foreground instead.
+    // behind; default to a quarter-alpha tint of the foreground instead.
     band.color = SkColorSetA(foregroundColor, 0x40);
   } else {
     band.color = foregroundColor;
@@ -996,8 +1003,7 @@ decorationSegments(const PositionedRun &run, const Decoration &decoration,
 
   // Blob-local intercepts of glyph ink with the band; grown by one
   // thickness so the line stands off the descender instead of touching it.
-  // Memoized (§4): the per-run path used to heap-allocate and re-walk the
-  // strike per run per frame.
+  // Memoized on (blob, band window) — see cachedIntercepts.
   const SkScalar bounds[2] = {band.position, band.position + band.thickness};
   const std::vector<SkScalar> &intercepts =
       cachedIntercepts(*run.blob, bounds);

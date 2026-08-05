@@ -1,135 +1,57 @@
 # Repository guide
 
-## Layout
+SpellCircle is a receiver application for network-driven vector diagrams:
+scene descriptions arrive as FlatBuffers over UDP, are drawn with Skia on
+the GPU, and are published as a texture over Syphon. The app is thin —
+most of the code is a set of independent libraries under `src/common/`
+and `src/sigilweave/`.
 
-```
-apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
-  src/common/              shared libraries: skia/ (Graphite GPU plumbing),
-                           ui/ (Ifrit.Ui Qt Quick controls), image/
-                           (SigilImage — the image processing
-                           library: Skia-codec import of PNG/JPEG/WebP/
-                           GIF/AVIF stills + animations, plus the
-                           OpenImageIO decode backend — EXR w/ layer
-                           selection, PSD, TIFF, HDR — via
-                           sigilimage/Decode.h),
-                           loader/ (SigilLoader — runtime resource hub:
-                           mounted res:// URIs over pluggable decode
-                           backends; blob/text/image + metadata probe +
-                           hot reload; OpenImageIO extends decoding to
-                           EXR w/ layer selection, PSD, TIFF, HDR —
-                           float sources land as F32 SkImages; http(s)://
-                           URIs fetch via curl behind a disk cache
-                           [setNetworkCacheDir; offline-safe CacheFirst
-                           default, Refresh/Offline via
-                           setNetworkPolicy; poll() skips them] and
-                           file:// strips to local; SVG decodes via
-                           Skia's svg module — DecodeOptions.width/height
-                           set the raster size),
-                           ultralight/ (SigilScry — Ultralight
-                           HTML/CSS layout rendered
-                           to SkImage frames for the canvases; GPU via a
-                           Metal GPUDriver, CPU fallback), motion/
-                           (SigilMotion — animation with no renderer in
-                           it: the CLOCK, FrameClock + Ticker driving
-                           choreograph timelines, event-driven redraw
-                           contract; and the VALUES,
-                           <sigilmotion/Animation.h> — Transition, the
-                           ease:: house curves, animate()/from()/to()/
-                           through(), bind() shaped bindings and
-                           Animatable<T> the property slot, moved
-                           out of Compose.h 2026-07-29 so world/ and
-                           shape/ can reach them without linking a
-                           drawing library (RESOLVING an Animatable
-                           against a paint context stays in compose);
-                           compose re-exports them all
-                           into sigil::compose, ROADMAP §37. Links
-                           choreograph and NOTHING else — that is the
-                           boundary), compose/ (SigilCompose —
-                           data-driven drawable components over
-                           Yoga+SigilWeave+Choreograph: implemented
-                           through the completeness round — kernel,
-                           decorations w/ element stamps, derive
-                           phase, effects, queries incl. hitTest and
-                           snapshot(), organic extension headers
-                           Shapes/Layouts/Routers/Web — see DESIGN.md
-                           / API.md / STRESS_TESTS.md for
-                           architecture, surface, measured numbers),
-                           shape/ (SigilShape — higher-level drawing
-                           over Skia, no compose dependency; 3D data
-                           speaks glm [vec3/mat4 — Mesh/Curves/Points/
-                           Pop/Import/Camera], Skia stays the 2D+draw
-                           currency [SkPath, paint, textures], Space.h
-                           is the bridge:
-                           Illustrator-style blend tool w/ spines +
-                           OKLab color, Pathfinder booleans + offset +
-                           Roughen/Zigzag/PuckerBloat/Twirl distorts
-                           as non-destructive values [Ops.h],
-                           procedural Mesh generators
-                           [extrude/revolve/grid/torus/cylinderPanel],
-                           model import into the same Mesh currency
-                           [Import.h — OBJ via tinyobjloader, glTF/GLB
-                           via cgltf, STL + PLY by hand; PLY extra
-                           properties and glTF _NAME custom accessors
-                           become named attribute lanes, asCloud()
-                           pours them into Cloud/pops, and save::ply
-                           (Save.h) writes clouds/meshes BACK with
-                           all lanes — GPU readPoints to Blender;
-                           resolver-based external refs, textures
-                           stay encoded bytes],
-                           3D splines w/ parallel-transport frames +
-                           tube/ribbon sweeps + 2D projection
-                           [Curves.h], point clouds w/ named attribute
-                           lanes, instancing and billboard UI
-                           particles [Points.h], glm camera +
-                           SkVertices painter pipeline +
-                           perspective panels, and literal materials —
-                           gold foil/chrome/glass SkSL over bevel
-                           normal maps and equirect environments incl.
-                           loaded HDRIs; Easel.h is the fluent
-                           ARTIST surface over all of it, prototyped
-                           live in the easel_playground sketch — see
-                           its README.md),
-                           world/ (SigilWorld — diegetic 3D surfaces
-                           on Diligent Engine, Vulkan/MoltenVK on
-                           macOS [brew install molten-vk
-                           vulkan-loader]; shape::Mesh geometry,
-                           SkImage panel textures, space::Camera,
-                           headless render + PNG readback; vendored
-                           volk + Homebrew-aware VolkShim.c; surfaces
-                           are entt entities [Components.h publishes
-                           Transform/Material, World::registry() for
-                           systems; Material uvScale/uvOffset = LIVE
-                           uv window (scroll with zero uploads) and
-                           setSurfaceMesh = in-place geometry update;
-                           addSweep + addFlock + pop::Chain
-                           combinators (addPoints/setPoints) = GPU
-                           compute geometry: POP-style operator
-                           values cooked over GPU attribute lanes —
-                           world_demo's marquee shows them: the yarn
-                           ball winding painted END TO END with one
-                           SigilCompose infinite-canvas strip
-                           (snapshot()-baked vector picture sliced
-                           into GPU tiles, one per arc, marching
-                           behind a chrome dart)];
-                           Scene.h = declarative node tree
-                           reconciled into surfaces, compose's
-                           describe+diff lesson without the kernel —
-                           see its README.md)
-  src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
-                           shaders, test/, bench/, examples/{gallery,demo}
-  src/spellcircle/         the receiver product: shared/{schema,net,scene}
-                           core embedded by qt/ (Qt app) and mac/ (SwiftUI)
-apps/python/               Python scene-authoring and UDP transport package
-touchdesigner/             TouchDesigner project and editor tooling
-```
+## Where the documentation is
 
-Qt executables keep their own `src/`, `include/`, and `qml/` folders
-(`spellcircle/qt/`, `sigilweave/examples/gallery/`).
+**Each library's `README.md` is the canon for that library.** It is
+written for someone with no prior context and is verified against the
+code. Read the one next to the code you are changing before changing it;
+do not reconstruct a library's rules from another library's document.
 
-Generated files are
-`apps/spell-circle-canvas/src/spellcircle/shared/schema/include/SpellCircle_generated.h`
-and the schema modules `apps/python/SpellCircle/{Box,Circle,Edge,Point,Scene,Vec2}.py`.
-Regenerate them after editing `SpellCircle.fbs`; do not hand-edit them.
+- `apps/spell-circle-canvas/README.md` — the product: the data path,
+  authoring scenes in Python, building and running
+- `src/sigilweave/README.md` — text shaping and layout
+- `src/common/compose/README.md` — data-driven drawable components
+- `src/common/shape/README.md` — higher-level drawing over Skia
+- `src/common/world/README.md` — 3D surfaces on Diligent Engine
+- `src/common/motion/README.md` — animation clock and animatable values
+- `src/common/image/README.md` — image decoding
+- `src/common/loader/README.md` — resource access: URIs, caching, reload
+- `src/common/scry/README.md` — HTML and CSS rendered to Skia images
+- `src/common/skia/README.md` — Skia Graphite GPU plumbing
+- `src/common/ui/README.md` — reusable Qt Quick controls
+
+`archive/` directories hold superseded documents. **Nothing in an
+`archive/` is current — do not build from it, quote it, or cite it.**
+Several of them state things the code contradicts.
+
+Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
+— create it when needed. Each entry states what the code does, what it
+was evidently intended to do, and what a test should assert once intent
+is restored. It is a work queue: delete entries as they are fixed, and
+delete the file when it is empty.
+
+## Documentation conventions
+
+Comments describe the code they sit next to, and must be evaluable by a
+reader who has never opened any other document.
+
+- **No citations.** No section numbers, no document names, no "see the
+  design doc". State the constraint itself.
+- **No performance measurements.** Benchmarks own numbers — `compose_bench`,
+  `weave_bench`, `scry_bench`, and the plate ledger. A behavioral constant
+  is different and belongs in the comment: if only editing the code could
+  falsify it, keep it; if re-running a benchmark could, cut it.
+- **No history.** No dates, no "renamed", no "used to be", no campaign
+  names. When a past attempt revealed a real constraint, state the
+  constraint, never the attempt.
+- This applies to strings that ship too — assertion messages, runtime
+  warnings, `#error` text.
 
 ## Build and test
 
@@ -141,199 +63,84 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
+`setup.py` discovers Qt 6.11+ and vcpkg and writes the uncommitted
 `CMakeUserPresets.json`. Custom ports (`choreograph`, `skia`,
-`diligent-engine`) come from
-the sigil-vcpkg-registry via `vcpkg-configuration.json` — note its
-`repository` currently points at the local checkout
-`/Users/long/REI/sigil-vcpkg-registry`; update the URL and baseline when
-that registry is pushed to GitHub (workflow documented in the registry's
-README). The primary executables are `SpellCircle`,
-`SpellCircleMac` (macOS only, needs a Swift toolchain), `WeaveGallery`,
-`weave_test`, `weave_bench`, `weave_demo`, `scry_demo`
-(CPU/lockstep), `scry_gpu_demo` (Metal + Graphite), and `scry_bench`
-(SigilScry path costs; plain = CPU engine, `--gpu` = GPU engine — see the
-performance table in `src/common/scry/README.md`), `compose_test`,
-`compose_web_test` (SigilCompose×SigilScry, needs the Ultralight SDK),
-`compose_bench`, `loader_test` (SigilLoader), `compose_demo`
-(headless PNG panels of the
-compose stress catalog), `shape_test` and `shape_demo` (SigilShape —
-`shape_demo [outdir] [assetdir]` writes the blend/materials/mesh PNG
-panels, plus an HDRI-lit materials panel when assets are fetched), and
-`world_test` and `world_demo` (SigilWorld — `world_demo [outdir]
-[assetdir]` renders the diegetic-panel scene to PNG shots via
-Vulkan/MoltenVK; the tests SKIP without a Vulkan runtime). `ComposeGallery` is a macOS .app bundle like
-`WeaveGallery` and `SpellCircle`, so its headless mode runs through
-`build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery
---headless <outdir> [--gpu] [--scene <name|index>]` — `--scene` takes a
-case-insensitive substring and renders just that one, which is the loop
-for visual work; `--shot <png> [--scene ...]` captures the APP instead
-(sidebar, folders, live metrics). Byte-identity plate sweeps run
-through `scripts/plate_ledger.py` (parallel `--ledger` renders — no
-benchmark phases — hashed against `build/plate_baseline_<config>.sha256`,
-known flappers auto-attributed; `--rebase` adopts a new baseline,
-`--stability N` re-renders movers to separate scene flap from code);
-~8 min for the full registry vs ~45 serial. Its registry is the catalog scenes
-PLUS every study sketch under `compose/sketch/sketches/`, compiled in
-through `SIGIL_SKETCH_STATIC` (the `SigilSketchStudies` object library)
-and grouped into collapsible folders — so a study is one file that is
-both a hot-reload sketch and a gallery scene, and a study also answers to
-its file stem (`--scene penrose_paving`). Studies bring their own canvas
-size and background, which is why nothing downstream of `makeScene()`
-assumes `kSceneSize`. Open-licensed demo assets (fonts, the
-Ghostscript tiger SVG, a CC0 Poly Haven studio HDRI) come from the
-opt-in `fetch_assets` target into `build/assets/`; see
-`cmake/FetchAssets.cmake` for the manifest rules (hash-pinned, license
-fetched alongside).
+`diligent-engine`) come from the sigil-vcpkg-registry via
+`vcpkg-configuration.json` — **its `repository` currently points at a
+local checkout, `/Users/long/REI/sigil-vcpkg-registry`.** Update the URL
+and baseline when that registry is pushed; the workflow is in its README.
 
-The Ultralight SDK is required for SigilScry;
-`SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
-missing. Installation (headers/dylibs to `/usr/local`, the dylib
-re-signing step, and the runtime-resource locations) is documented in
-`src/common/scry/README.md`. Executables that link `SigilScry` call
-`ultralight_copy_resources(<target>)` so each build stages the resources
-next to the binary, which is where the engine looks first at runtime.
+Use a Release build for any performance work. Several benchmarks and
+gallery scenes are deliberately stressful and Debug timings say nothing.
 
-Naming: libraries destined for extraction into their own repos carry
-the Sigil prefix (SigilCompose, SigilWeave, SigilImage, SigilMotion,
-SigilLoader, SigilSketchKit); product-side integrations keep Ifrit
-(Ifrit.Ui only). Dependencies are built to work independently and
-integrate downstream: SigilLoader owns resource ACCESS (URIs, mounts,
-cache, hot reload) while SigilImage owns image MEANING (decode
-backends incl. OpenImageIO, probing). ComposeSketch is the live-coding
-host for
-SigilCompose sketches (see src/common/compose/sketch/README.md).
+Some targets are conditional: Ultralight-dependent ones disable
+themselves with a warning when the SDK is missing, GPU tests need Metal,
+and the SigilWorld tests *skip* rather than fail without a Vulkan runtime
+(`brew install molten-vk vulkan-loader`).
 
-## FlatBuffers generation
+Open-licensed demo assets come from the opt-in `fetch_assets` target into
+`build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.
 
-Run `apps/spell-circle-canvas/scripts/regen_flatbuffers.sh` (from anywhere)
-after editing `SpellCircle.fbs`, then commit the regenerated files. It wraps:
+### Visual work
+
+`ComposeGallery` is a macOS app bundle, so headless runs go through the
+binary inside it:
 
 ```sh
-flatc --cpp -o apps/spell-circle-canvas/src/spellcircle/shared/schema/include \
-  apps/spell-circle-canvas/src/spellcircle/shared/schema/SpellCircle.fbs
-flatc --python -o apps/python \
-  apps/spell-circle-canvas/src/spellcircle/shared/schema/SpellCircle.fbs
+build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery \
+  --headless <outdir> [--gpu] [--scene <name>]
 ```
 
-## Architecture
+`--scene` takes a case-insensitive substring and renders just that one,
+which is the loop for visual iteration. `--shot <png>` captures the app
+itself rather than a scene. `ComposeSketch` is the live-coding host; a
+study under `compose/sketch/sketches/` is one file that is both a
+hot-reload sketch and a gallery scene, and answers to its file stem.
 
-The Qt-free scene core under `src/spellcircle/shared/scene/`
-(`SpellCircleScene`) is shared by both receiver apps: `SceneModel`
-(FlatBuffers verify/decode into an `entt::registry` of components),
-`SceneGeometry` (`resolveScene()` — author-space to native-canvas
-resolution, the only place scaling and point-on-circle math happens),
-`SceneRenderer` (the Skia/SigilWeave scene drawing), and `SceneLabels`
-(measured ring-label geometry). The Graphite GPU plumbing under
-`src/common/skia/` is split the same way: `SpellCircleSkia` (Qt-free; Metal
-bring-up from raw handles) and `SpellCircleSkiaQt` (QRhi adapters; also the
-Vulkan draft TUs).
+Byte-identity sweeps run through `scripts/plate_ledger.py` in two tiers,
+each with its own baseline. `--tier quick` is the iteration loop —
+GPU renders at a uniform early capture, seconds for the whole registry.
+The default full tier steps every scene to its declared moment on the
+CPU and is the final confirmation gate before trusting a change; one
+legitimately expensive scene (`chaucer_astrolabe`) has its own timeout
+ceiling in the script's override table there. `--rebase` adopts a new
+baseline for the active tier (merging when given `--scenes`), and
+`--stability N` separates scene flap from code changes.
 
-In the Qt app (`src/spellcircle/qt/`), incoming UDP datagrams flow through
-`NetworkManager` verification into `SpellCircleModel`, which holds the
-decoded `spellcircle::SceneDocument`. `SpellCircleRenderer` resolves it via
-`resolveScene()` and draws through `SkiaSceneBackend` — the Qt frame around
-the shared `spellcircle::SceneRenderer`, drawing with Graphite on Qt's
-native GPU device (Metal on macOS; Vulkan draft elsewhere). Without a Skia
-backend (stub build or unsupported RHI) the canvas renders no scene content
-— the former QCanvasPainter fallback is gone.
-
-The backend renders to a native-size `QCanvasOffscreenCanvas`; a
-`TexturePublisher` (`SyphonBridge` on macOS/Metal, `SpoutBridge` draft on
-Windows/D3D11) publishes that texture. The visible QML item blits the
-registered image and handles zoom and pan independently of scene
-rerendering. The Windows paths are untested bring-up drafts until the
-Windows port lands.
-
-The Qt app's QML lives under `src/spellcircle/qt/qml/` (components in its
-`components/` directory); its C++ sources and headers under
-`src/spellcircle/qt/{src,include}/` build the `SpellCircle.Canvas` and
-`SpellCircle.Models` modules and the executable. Reusable Qt Quick controls
-live in `src/common/ui/` (`Ifrit.Ui`).
-
-`SpellCircleMac` (`src/spellcircle/mac/`) is the native macOS companion app — a separate
-executable, not a Qt build: SwiftUI Liquid Glass chrome over an ObjC++ bridge
-(`SpellCircleMacBridge`, a SHARED library that absorbs the C++ world —
-Swift's linker rejects vcpkg's raw `-framework` interface flags). `SCKEngine`
-receives UDP on a GCD source, decodes/resolves/draws through the same shared
-core into an offscreen Metal texture, publishes it over Syphon under the same
-"SpellCircle" server name, and blits into `SCKCanvasView`'s CAMetalLayer
-(pan/zoom, event-driven redraws). Swift imports the bridge via
-`bridge/module.modulemap`; the Qt app remains the cross-platform build.
-
-SigilScry (`src/common/scry/`, namespace `sigil::scry`) renders HTML/CSS/JS
-through the Ultralight SDK (WebKit-derived) for advanced layout on the
-scene canvases. `WebEngine` owns the single-per-process
-`ultralight::Renderer` on a dedicated web thread; each `WebView` is an
-offscreen page. With `WebEngineConfig::metalDevice/metalCommandQueue` set
-(pass the same pair the Graphite context shares), rendering is
-hardware-accelerated: `UltralightMetalDriver`
-(`src/common/scry/metal/`, executing the SDK's stock Metal shaders,
-vendored as `UltralightShaders.metal`) runs Ultralight's command lists
-into MTLTextures, publishes each repaint by blitting into per-view
-ping-pong textures, and `WebView::frame(recorder)` /
-`WebView::draw()` wrap the published texture zero-copy as a
-Graphite-backed SkImage — everything rides one MTLCommandQueue, so
-ordering is implicit. Without a device the CPU renderer publishes
-immutable raster SkImages instead (Ultralight paints straight into
-SkBitmap memory via a custom `ultralight::SurfaceFactory`); the API is
-identical across modes. Integration paths: pull
-(`frame(recorder)`/`frameVersion()`), push (`setFrameCallback()`),
-or lockstep (`threaded=false` + `update()`/`renderFrame()` from the host
-loop, with zero-copy `peekPixels()` in CPU mode). Compositing also runs
-the other way: `WebEngine::createImage()` returns a `WebImage` pages
-display as `<img src="<name>.imgsrc">`; `WebImage::paint(callback)` is
-the safe runtime-collaboration path (canvas handed in, GPU flush +
-invalidate atomic, on the web thread — the engine's Metal driver keeps
-its own Graphite recorder for this), with raster `update()`, `updateTexture()`, and raw
-`nativeTexture()` as alternatives, and unregistered slot names log a
-warning (both directions covered by round-trip pixel tests in scry_test /
-scry_gpu_test). A custom FileSystem maps the `resources/` prefix to the
-SDK runtime data, synthesizes the `.imgsrc` indirection files, and
-resolves other paths against `WebEngineConfig::fileSystemDir`; loadHTML
-pages get a `file:///` base URL so those resources are reachable. Engine shutdown must purge WebCore
-caches before destroying the renderer (see `threadMain`) — GPU glyph
-textures otherwise dangle into pthread TSD cleanup. The engine internals are
-backend-neutral: everything codes against `WebGpuDriver`
-(`src/common/scry/WebGpuDriver.h`), with `UltralightMetalDriver` as the
-Metal implementation and one factory seam in `setupPlatform` — the
-Windows/Linux ports add a Vulkan/D3D driver there alongside the repo's
-other Vulkan draft targets. Sharing an SkCanvas directly is not
-architecturally possible (Ultralight records its own render passes), so
-texture-backed SkImage is the supported compositing model.
-
-SigilWeave is a Qt-independent library under `src/sigilweave/`, with its
-interactive gallery and headless demo under `src/sigilweave/examples/`. Its
-main pipeline is:
+## Layout
 
 ```
-Paragraph -> ICU analysis -> cached HarfBuzz words -> FlowGeometry
-          -> LineBreakStrategy -> ParagraphLayout -> draw/drawBatched
+apps/spell-circle-canvas/src/
+  common/          the libraries — see the README in each
+  sigilweave/      the text engine, with its examples and benchmarks
+  spellcircle/     the product: shared/ core embedded by qt/ and mac/
+apps/python/       scene authoring and UDP transport
+touchdesigner/     TouchDesigner project and editor tooling
 ```
 
-`ParagraphLayoutOptions` groups line metrics, hyphenation, justification,
-Knuth–Plass, overflow, and path-rendering concerns. SpellCircle-specific
-ring label geometry belongs in `src/spellcircle/shared/scene/SceneLabels.*`;
-the core exposes only reusable `SingleLineParagraphCache` and
-`layoutSingleLine()` support.
+Qt executables keep their own `src/`, `include/` and `qml/` folders.
 
-## Python API
+**Naming**: libraries intended for extraction into their own repositories
+carry the `Sigil` prefix. Product-side integrations keep `Ifrit`
+(`Ifrit.Ui` only).
 
-`apps/python/SpellCircle` exposes:
+**Boundaries between libraries are deliberate** and each README states
+its own. Two that are easy to get backwards: SigilLoader owns resource
+*access* while SigilImage owns image *meaning*; and SigilWorld consumes
+SigilShape's types, never the reverse.
 
-- `SpellCircleCanvas` and `PointReference` for scene authoring;
-- `CircleDefinition` and `SceneBuilder` for lower-level serialization;
-- `SceneSender` and `send_once` for UDP transport.
+## Generated files — never hand-edit
 
-Example scripts are under `apps/python/SpellCircle/test/`:
+- `src/spellcircle/shared/schema/include/SpellCircle_generated.h`
+- `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
-```sh
-python3 apps/python/SpellCircle/test/send_spell_circles.py --seed 1
-python3 apps/python/SpellCircle/test/animate_spell_circles.py --fps 60
-```
+After editing `SpellCircle.fbs`, run
+`apps/spell-circle-canvas/scripts/regen_flatbuffers.sh` from anywhere and
+commit what it writes. It regenerates both the C++ header and the Python
+modules.
 
-## TouchDesigner
-
-`touchdesigner/scripts/configure_editors.py` creates/synchronizes the local
-TouchDesigner-compatible virtual environment and writes machine-local VS Code
-settings. The generated environment and editor files are ignored by Git.
+`src/common/compose/README.md` is also compile-checked: a build step
+extracts every API name it spells — from code blocks *and* inline code
+spans — and fails the build if a name no header declares appears there.
+Verify additions to it against the headers rather than writing from
+memory.

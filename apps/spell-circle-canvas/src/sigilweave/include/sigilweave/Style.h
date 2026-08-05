@@ -12,6 +12,13 @@
  *     behind and above it. Resolved at draw time only: recoloring, animating
  *     a shader, or restyling effects never re-shapes and never relayouts.
  *
+ * The split is about who owns glyph advances, not about what is visible: a
+ * change is paint-side only if it cannot move a glyph. One appearance change
+ * escapes PaintStyle without re-shaping — an advance-invariant variable-font
+ * axis driven through ParagraphLayout::LiveVariations at draw time
+ * (ParagraphLayout.h), which reuses the shaped positions precisely because
+ * the axis leaves advances alone.
+ *
  * Attach styles to text through Paragraph / ParagraphBuilder (Paragraph.h).
  */
 
@@ -109,10 +116,10 @@ struct ShapingStyle {
   float letterSpacing = 0.0f; ///< px of tracking added after each cluster
                               ///< (in vertical text this is JIS "aki")
   /// Horizontal glyph condensation (CSS font-stretch by transform): glyph
-  /// shapes AND advances scale by this on the x axis — the condensed
-  /// display voice (ATLUS menus run ≈0.82) for faces without a wdth axis.
-  /// Letter-spacing is NOT scaled (matches CSS). Part of the shape-cache
-  /// key; vertical text condenses glyph width only, never column advance.
+  /// shapes AND advances scale by this on the x axis. It is how a face with
+  /// no `wdth` axis is condensed or extended. Letter-spacing is NOT scaled
+  /// (matches CSS). Part of the shape-cache key; vertical text condenses
+  /// glyph width only, never column advance.
   float scaleX = 1.0f;
   /// Extra px added to each word's trailing-whitespace glue (CSS
   /// word-spacing). Applied after the whitespace is measured, so changing
@@ -144,18 +151,16 @@ struct ShapingStyle {
 
   /** Draw glyphs with HARD edges — no antialiasing.
    *
-   *  Skia takes glyph edging from the `SkFont`, never from the paint, so
-   *  `paint.foreground.setAntiAlias(false)` is silently ignored on text
-   *  and there was no other way to ask. An X11 core font is 1-bit and a
-   *  1995 desktop is ~100% 13 px UI type, so a period reconstruction had
-   *  to leave this engine entirely — a raw `kAlias` SkFont in a
-   *  decoration on a hand-measured box, forfeiting shaping, bidi,
-   *  fallback and flowAround.
+   *  This lives on the style because Skia takes glyph edging from the
+   *  `SkFont`, never from the paint: `paint.foreground.setAntiAlias(false)`
+   *  is silently ignored on text, so a caller has no other way to ask for
+   *  aliased glyphs while still going through shaping, bidi, fallback and
+   *  flow geometry.
    *
-   *  This is the cheap half of "no bitmap-font path": one field, not a
-   *  face. It does not give you a bitmap FACE — the outlines are still
-   *  the outlines — but it gives you their hard-edged rasterisation,
-   *  which is most of what the era looked like. */
+   *  It selects a rasterisation, not a face. The outlines are unchanged;
+   *  only their coverage is thresholded, which is what small bitmap-era UI
+   *  type looks like. Part of the shape-cache key, since the shaped run
+   *  carries the flag through to the SkFont used at draw time. */
   bool aliased = false;
 
   /** Compares every input that participates in shaping identity. */
@@ -313,7 +318,7 @@ struct Decoration {
   Span span = Span::kDecoratedRange; ///< continuous band vs one per word
   /// SK_ColorTRANSPARENT → the resolved foreground paint's color — except
   /// for kHighlight, where an opaque foreground would hide the text, so it
-  /// resolves to the foreground color at ~25% alpha instead.
+  /// resolves to the foreground color at quarter alpha instead.
   SkColor color = SK_ColorTRANSPARENT;
   /// 0 → thickness from font metrics (kHighlight: ascent + descent),
   /// floored at 1px.
@@ -410,15 +415,18 @@ struct TextStyle {
     shaping.variations.emplace_back(tag, value);
     return *this;
   }
-  /** The `wght` axis, fluently: `style.weight(650)`. Weight participates
-   *  in shaping identity (wght changes advances — it is NOT paint-safe),
-   *  so animating it re-shapes; fonts with a `GRAD` axis offer the
-   *  advance-invariant alternative: `variation("GRAD", v)`. */
+  /** The `wght` axis, fluently: `style.weight(650)`. Every axis set here
+   *  lands in `shaping.variations` and so participates in shaping identity:
+   *  animating one re-shapes the words it covers, which is required for
+   *  `wght` because it moves advances on most faces. To animate weight
+   *  without re-shaping, use a face with an advance-invariant axis (`GRAD`
+   *  on the faces that have it) and drive it at draw time through
+   *  ParagraphLayout::LiveVariations instead of setting it here. */
   TextStyle &weight(float wght) { return variation("wght", wght); }
   /** The optical-size axis, fluently: `style.opticalSize(72)`. */
   TextStyle &opticalSize(float opsz) { return variation("opsz", opsz); }
-  /** Horizontal condensation, fluently: `style.condense(0.82f)` — the
-   *  ATLUS voice (see ShapingStyle::scaleX). */
+  /** Horizontal condensation, fluently: `style.condense(0.82f)` — see
+   *  ShapingStyle::scaleX. */
   TextStyle &condense(float sx) {
     shaping.scaleX = sx;
     return *this;

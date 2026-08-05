@@ -2,11 +2,14 @@
 
 /** @file
  * SigilCompose connector routers — Router values for connector().
- * Routers are plain functions of the two endpoint rects returning the
- * routed path (API.md: "routers are values/fns, not an enum — write
- * your own"); these are the stock ones. The routed path arrives as the
- * connector's PaintContext::outline, so any PathFormat/ContourWalk
- * foreground dresses it.
+ *
+ * A Router is a plain function of the two endpoint rects returning the
+ * routed path, and a RailRouter the same over an ordered run of anchor
+ * points. There is no enum of route kinds: these are the stock values, and
+ * a caller's own function is a peer of them.
+ *
+ * The routed path arrives as the connector's `PaintContext::outline`, so
+ * any PathFormat or ContourWalk foreground dresses it.
  */
 
 #include "sigilcompose/Compose.h"
@@ -32,13 +35,18 @@ enum class Bend { MidX, HFirst, VFirst };
 
 /** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
  *  along each leg — on the orthogonal family's right angles that is the
- *  45° face, the game-UI/PCB corner convention (REFERENCES.md §7 "FUI
- *  circuit": orthogonal + 45° chamfers) that `SkCornerPathEffect` cannot
- *  spell (it only rounds). The cut clamps to half of each adjacent leg,
- *  so short legs degenerate to a diagonal rather than crossing over.
- *  Straight-through vertices and contours carrying curve segments pass
- *  through untouched; closed polyline contours chamfer the closing
- *  vertex too, so a routed loop and a `shapes::chamfered` panel agree. */
+ *  45° face of the game-UI and PCB corner convention, which
+ *  `SkCornerPathEffect` cannot spell because it only rounds. The cut
+ *  clamps to half of each adjacent leg, so short legs degenerate to a
+ *  diagonal rather than crossing over. Straight-through vertices are left
+ *  alone; closed polyline contours chamfer the closing vertex too, so a
+ *  routed loop and a `shapes::chamfered` panel agree.
+ *
+ *  THIS IS A POLYLINE TREATMENT. A contour containing ANY curve segment —
+ *  quad, conic or cubic — is copied through completely untouched, so a
+ *  chamfer over `arc()`, `octilinear()`'s rounded output, or anything
+ *  already run through a corner effect is a silent no-op on that
+ *  contour. */
 inline SkPath chamfer(const SkPath &path, float cut) {
   if (cut <= 0 || path.isEmpty())
     return path;
@@ -175,9 +183,8 @@ namespace detail {
 
 /** Consecutive-duplicate and forward-collinear collapse over a waypoint
  *  run — why the manhattan family emits no zero-length or split segments
- *  on axis-aligned pairs (ROADMAP §8: `orthogonal()`'s degenerate verbs,
- *  frozen there, stop here). Reversals (spikes) are kept: a doubled-back
- *  leg is real geometry. */
+ *  on axis-aligned pairs. Reversals (spikes) are kept: a doubled-back leg
+ *  is real geometry, not a redundant vertex. */
 inline void collapseCollinear(std::vector<SkPoint> &pts) {
   size_t w = 0;
   for (size_t i = 0; i < pts.size(); ++i) {
@@ -284,15 +291,18 @@ inline Router orthogonal(float cornerRadius = 0.0f) {
   };
 }
 
-/** Orthogonal route with a bend policy (ROADMAP §8): where the overload
- *  above always bends at midX (a Z), this one also spells the two Ls —
- *  see `Bend`. Collinear points collapse (an axis-aligned pair emits ONE
- *  segment, not three with zero-length ends), and the corner is either
+/** Orthogonal route with a bend policy: where the overload above always
+ *  bends at midX (a Z), this one also spells the two Ls — see `Bend`.
+ *  Collinear points collapse, so an axis-aligned pair emits ONE segment
+ *  rather than three with zero-length ends, and the corner is either
  *  rounded (@p cornerRadius, SkCornerPathEffect) or cut at 45°
- *  (@p chamferCut — see `chamfer()` above; it wins when both are set).
- *  The zero-argument `orthogonal()` keeps its exact old output — its
- *  degenerate verbs are frozen behavior (§27); this spelling is the
- *  clean one. */
+ *  (@p chamferCut — see `chamfer()` above). The two are alternatives:
+ *  chamfer wins when both are set.
+ *
+ *  The zero-argument `orthogonal()` is NOT this function with defaults. It
+ *  emits its degenerate verbs verbatim, and that output is frozen because
+ *  existing routes depend on it byte for byte; this is the spelling to
+ *  reach for in new code. */
 inline Router orthogonal(Bend bend, float cornerRadius = 0.0f,
                          float chamferCut = 0.0f) {
   return [bend, cornerRadius, chamferCut](const SkRect &from,
@@ -306,14 +316,15 @@ inline Router orthogonal(Bend bend, float cornerRadius = 0.0f,
 // ---------------------------------------------------------------------------
 // Rail routers (rail(): an ordered run of anchor points → the line's path)
 
-/** The RAIL spelling of the orthogonal family — `rail(stops,
- *  routers::manhattan())` is the call site ROADMAP §8 found impossible
- *  (`orthogonal()` is a pairwise Router and `rail()` takes a RailRouter).
+/** The RAIL spelling of the orthogonal family: `rail(stops,
+ *  routers::manhattan())`. `orthogonal()` cannot be used here — it is a
+ *  pairwise Router and `rail()` takes a RailRouter over the whole anchor
+ *  run.
+ *
  *  Each consecutive anchor pair runs H/V legs per @p bend; collinear
  *  points collapse, so axis-aligned anchors thread as single clean
  *  segments; corners round with @p cornerRadius or cut at 45° with
- *  @p chamferCut (the game-UI convention — chamfer wins when both are
- *  set). */
+ *  @p chamferCut, and chamfer wins when both are set. */
 inline RailRouter manhattan(Bend bend = Bend::MidX, float cornerRadius = 0.0f,
                             float chamferCut = 0.0f) {
   return [bend, cornerRadius, chamferCut](std::span<const SkPoint> pts) {
@@ -485,13 +496,13 @@ inline RailRouter octilinear(float cornerRadius = 8.0f) {
   };
 }
 
-/** The orbit router (REFERENCES.md §5 — PoE's ring travel): when two
- *  consecutive anchors sit at (nearly) the same radius from `center`, the
- *  leg follows the CIRCLE between them — the short way around — instead
- *  of chording across; radius-changing legs stay straight spokes. This is
- *  how passive-tree edges read: nodes live on orbit rings {82, 162, 335,
- *  493} and their in-ring connections are arcs. `tolerance` is the
- *  radius-match slack as a fraction of the radius. */
+/** The orbit router: when two consecutive anchors sit at (nearly) the same
+ *  radius from `center`, the leg follows the CIRCLE between them — the
+ *  short way around — instead of chording across. Radius-changing legs
+ *  stay straight spokes. This is how a skill-tree or orbital diagram
+ *  reads, where nodes live on concentric rings and their in-ring links are
+ *  arcs rather than chords. `tolerance` is the radius-match slack as a
+ *  fraction of the radius. */
 inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
   return [center, tolerance](std::span<const SkPoint> pts) {
     SkPathBuilder b;

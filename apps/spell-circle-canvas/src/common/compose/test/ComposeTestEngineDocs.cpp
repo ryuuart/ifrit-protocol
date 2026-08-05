@@ -96,12 +96,11 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
 }
 
 TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
-  // `spacing` is Interval-mode SUGAR: it fills in for an interval the
-  // author did not set. It used to do that by comparing the interval
-  // against 24 — the same 24 that was its default — so an author who
-  // typed `.interval = 24` got `spacing` instead, silently (audit I8).
-  // `interval` is an optional now, so "unset" is not a number and cannot
-  // be typed by accident.
+  // `spacing` is Interval-mode SUGAR: it stands in for an interval the
+  // author did not set. That is why `interval` is an OPTIONAL rather than a
+  // float with a default — with a default, "unset" would be a number an
+  // author can type by accident, and typing exactly that number would
+  // silently hand the placement over to `spacing` instead.
   auto stamps = [](std::optional<float> interval, float spacing) {
     Host host;
     brush::Scatter b;
@@ -185,7 +184,7 @@ TEST(ComposeBrushEngine, AlongGradientRampsOverTheArc) {
   EXPECT_LT(SkColorGetR(end), 60u);
 }
 
-// Regression coverage added by the SigilCompose gallery/performance audit.
+// Value semantics and cache invalidation around Element itself.
 
 TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
   Host host;
@@ -319,11 +318,6 @@ TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO invented chord
 }
 
-// (`PatternClosedSeamCornerUsesWrappedBisector` was deleted by the
-//  2026-07-28 audit ruling: its single-pixel probe of the seam corner is
-//  subsumed by ComposeBrushes.PatternCornerLandsOnTheVertexAndFacesTheBisector,
-//  which checks all four vertices — the seam among them — and orientation.)
-
 namespace {
 /** A corner tile whose EXTENT is symmetric but whose colour is not: a 24x8
  *  bar, red on its local -x half and green on its local +x half. The stamp
@@ -350,24 +344,23 @@ struct Blob {
 } // namespace
 
 // ---------------------------------------------------------------------------
-// API.md's call surface, compiled.
+// The documented call surface, compiled.
 //
 // A documented signature that does not compile is worse than no
-// documentation: it is a confident wrong answer, and the reader trusts it
-// over the header. Writing API.md's borders/corners and brush sections
-// turned up exactly that — `brush::restyle` was written there with its
-// arguments in the wrong order, and nothing but compiling it would have
-// caught that, because the prose around it was correct.
+// documentation: it is a confident wrong answer, and a reader trusts it over
+// the header. Prose reads correctly with the arguments in the wrong order,
+// so nothing short of compiling the call catches it.
 //
-// So every call spelled in those sections is spelled here too. This test
-// asserts nothing at runtime; its value is entirely that it must build.
+// Every call spelled in the line and border documentation is spelled here
+// too. This test asserts nothing at runtime; its value is entirely that it
+// must build.
 TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   Fill ink = Fill::color({1, 1, 1, 1});
 
   auto border = decorations::border(1.4f, ink, 0.0f);
-  // §33-j: the corner rows are span claims now (brackets/gappedRule are
-  // deleted); Border's modes remain spellable for the shapes a claim
-  // cannot reach (inset rules, doubleBorder layers, onEdges adaptors).
+  // Brackets and gapped rules are span claims on the node's boundary.
+  // Border's own modes stay spellable for the shapes a claim cannot reach:
+  // inset rules, doubleBorder layers, onEdges adaptors.
   auto brackets = box().stroke(spans::corners(18.0f, 12.0f),
                                brush::solid(2.0f, ink));
   auto gapped = box().stroke(spans::edges(14.0f, 12.0f),
@@ -399,7 +392,8 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto glow = kit::brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
   auto trace = kit::brush::presets::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
   auto cord = kit::brush::presets::rope(1, 1.0f);
-  // OP FIRST, decoration second — the order API.md originally got wrong.
+  // OP FIRST, decoration second. The two arguments read equally well in
+  // either order in prose, which is why the call is spelled here.
   auto restyled = brush::restyle(kit::brush::shapers::Jitter{8.0f, 2.0f, 7},
                                  util::stroke(1.0f, ink), 8.0f);
 
@@ -423,16 +417,15 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
 }
 
 TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
-  // The same mechanism as its sibling above, pointed at the section that
-  // has cost the most: API.md's "Caching — automatic wherever it is
-  // provable" and "Automatic texture promotion". Sixteen studies shipped
-  // over the 60 FPS gate on what that section says, so a call in it that
-  // does not compile converts "I don't know" into a confident wrong
-  // answer faster than anywhere else in the document.
+  // The same mechanism as its sibling above, pointed at the caching and
+  // automatic-promotion surface. An author reaches for that documentation
+  // precisely when a scene is too slow, so a wrong call there costs more
+  // than a wrong call anywhere else — it turns "I do not know why this is
+  // slow" into a confident wrong answer.
   //
   // Asserts almost nothing at runtime by design. Its value is that it must
-  // BUILD, and that a rename or a signature change cannot land without
-  // someone reading the prose next to it.
+  // BUILD, so a rename or a signature change cannot land without someone
+  // reading the prose beside it.
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({100, 100});
@@ -503,18 +496,15 @@ TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
 }
 
 TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
-  // THE GENERALISATION, and it exists because covering one section
-  // proved the mechanism and left every other section exactly as wrong
-  // as before. A documentation site built against these sources found
-  // ten defects, and the worst of them were in the sections the FIRST
-  // doc test does not reach: API.md's `PathFormat` snippets named
-  // `.effects` and `.paint` — the header has `effect` (singular) and
-  // `strokeFill` — so the primitive an author meets on page one shipped
-  // two snippets that do not compile, next to a test whose entire
-  // purpose is that documented calls compile.
+  // The same device widened to the decoration and layout surface, because
+  // covering one documented section leaves every other one exactly as
+  // unchecked as before. PathFormat is the worst place for that: its member
+  // names are close enough to guess wrongly — `effect` is singular and the
+  // colour member is `strokeFill`, not `paint` — and it is the primitive an
+  // author meets first.
   //
-  // Every declaration below is a line of API.md. If one stops
-  // compiling, the prose beside it has to be read.
+  // Every declaration below corresponds to a documented spelling. If one
+  // stops compiling, the prose beside it has to be read.
   Fill ink = Fill::color({0.9f, 0.9f, 1, 1});
 
   // ---- PathFormat, all seven documented spellings ------------------------
@@ -552,7 +542,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   ContourWalk stampWalk{.spacing = 24.0f};
   stampWalk.stamp = box().width(4).height(4).fill(ink);
 
-  // ---- the decoration constructors API.md names -------------------------
+  // ---- the documented decoration constructors ---------------------------
   auto wash = decorations::wash(Material::solid({1, 1, 1, 0.2f}),
                                 SkBlendMode::kOverlay, 0.5f);
   // shadow(color, OFFSET, blur) — the offset is the second argument.
@@ -570,7 +560,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   auto onEdges = shapes::onEdges(shapes::Edge::Top, plain);
   auto inset = shapes::inset(6.0f, Decoration(plain));
 
-  // ---- every layout scheme in Layouts.h, not the three API.md listed ----
+  // ---- EVERY layout scheme in Layouts.h, not only the documented ones ----
   layouts::Radial radial;
   layouts::AlongPath alongPath;
   layouts::ModularGrid modular;
@@ -592,10 +582,10 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   // ---- patterns: grain's FIVE parameters --------------------------------
   (void)patterns::grain(0.02f, 4, 7.0f);              // the documented three
   (void)patterns::grain(0.02f, 4, 7.0f, 1.6f, 3.0f);  // contrast + stretch
-  // turbulence is a BOOL (fractal vs turbulence mode), not an amount — the
-  // first draft of this line passed 0.5f and the implicit conversion
-  // compiled it silently to `true`, which is exactly the class of defect
-  // this suite exists to catch (§25).
+  // The last parameter is a BOOL selecting fractal or turbulence mode, not
+  // an amount. Passing a float compiles — it converts silently to `true` —
+  // so a documented call that reads like `noise(…, 0.5f)` is wrong in a way
+  // only a human reader can catch. Spelled correctly here, once.
   (void)patterns::noise(0.02f, 4, 1.0f, true);
 
   (void)plain; (void)dashed; (void)capped; (void)inner; (void)outer;
@@ -608,14 +598,11 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
 }
 
 TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
-  // API.md's "Materials — the polymorphic paint value" and its cost model.
-  // Materials are the corpus's most expensive objects and its most
-  // frequently mis-specified ones, and the section is long, prose-heavy
-  // and — until this test — entirely unchecked.
-  // `Stop` is a free struct in the namespace, not a Material member, and
-  // the colour factory is `solid`, not `color`. Both were written the
-  // obvious way in the first draft of this test and neither compiled —
-  // which is the entire point of the test existing.
+  // The Material surface and its cost model. Materials are the most
+  // expensive objects a scene carries and the most easily mis-specified, and
+  // two of their names are exactly the ones a reader guesses wrongly: `Stop`
+  // is a free struct in the namespace rather than a Material member, and the
+  // flat-colour factory is `solid`, not `color`.
   auto stops = std::vector<Stop>{{0.0f, {1, 0, 0, 1}},
                                  {0.5f, {0, 1, 0, 1}},
                                  {1.0f, {0, 0, 1, 1}}};
@@ -623,8 +610,9 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   Material lin = Material::linear({0, 0}, {100, 0}, stops);
   Material rad = Material::radial({50, 50}, 40.0f, stops);
   Material sweep = Material::sweep({50, 50}, stops);
-  // The Unit forms — node-relative, and the ONLY ones an author can write
-  // for a content-sized box (closed §10c).
+  // The Unit forms take node-relative coordinates, so they are the only
+  // ones an author can write for a box whose size is decided by its
+  // content — absolute coordinates would have to be guessed.
   Material linU = Material::linearUnit({0, 0}, {1, 0}, stops);
   Material radU = Material::radialUnit({0.5f, 0.5f}, 0.7f, stops);
   Material glowU = Material::glowUnit({0.5f, 0.5f}, 1.0f,
@@ -645,22 +633,21 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   timed.quantizeTime(10.0f);
   EXPECT_TRUE(timed.isAnimated());
 
-  // A material is a value: it converts to a Fill, and it compares by
-  // RECIPE — which is what lets a per-frame describe prune. That
-  // comparison is load-bearing for every cache in the library: a material
-  // rebuilt from equal values must compare equal, or the node is dirtied
-  // every frame and no bake of any kind can hold.
+  // A material is a value: it converts to a Fill, and it compares by RECIPE.
+  // That comparison is load-bearing for every cache in the library — a
+  // material rebuilt from equal values must compare equal, or its node is
+  // dirtied on every describe and no bake of any kind can hold.
   (void)flat.toFill();
   EXPECT_TRUE(flat == Material::solid({0.2f, 0.3f, 0.4f, 1}));
   EXPECT_FALSE(flat == lin);
   EXPECT_TRUE(lin == Material::linear({0, 0}, {100, 0}, stops));
 
-  // Where a Material is accepted, per the doc.
+  // Every place a Material is accepted, spelled once each.
   (void)box().fill(flat);
   (void)box().textFill(linU);
   (void)util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
   PathFormat stroked = util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
-  stroked.strokeMaterial = radU; // §10c's closed item
+  stroked.strokeMaterial = radU; // a stroke takes a Material, not only a Fill
   (void)decorations::wash(glowU, SkBlendMode::kOverlay, 0.5f);
 
   (void)sweep;
@@ -670,21 +657,25 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
 }
 
 TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
-  // Two defects in one placement, both found by a study that needed a real
-  // 48 px elbow against 24 px sides.
+  // Corner placement has two independent ways to go subtly wrong, and a
+  // large corner tile against short sides is what makes both visible.
   //
-  //  a. The scan STRADDLES the vertex — it compares the tangent at d-step
-  //     with the tangent at d — so the break is first seen one step after
-  //     the bend, and recording the midpoint of that bracket put the art
-  //     up to step/2 past it. With advance 24 the step is 6, and the study
-  //     measured its corners a consistent 3 px along the OUTGOING leg.
-  //  b. The bisector was then built by re-probing at d±2. From a point
-  //     already past the vertex both probes land on the same leg, so every
-  //     corner faced the outgoing tangent — except a closed contour's seam,
-  //     inserted at d = 0, whose probes wrap. On a rectangle that is three
-  //     corners one way and the fourth 45 degrees off.
+  //  a. The tangent scan STRADDLES the vertex — it compares the tangent at
+  //     d − step with the tangent at d — so a bend is first detected one
+  //     step AFTER it happens. Taking the midpoint of that bracket as the
+  //     vertex puts the art up to half a step along the outgoing leg. The
+  //     corner has to be recovered from the two legs, not from the scan
+  //     position.
+  //  b. A bisector built by re-probing tangents at d ± ε is wrong for the
+  //     same reason: from a point already past the vertex, both probes land
+  //     on the same leg and every corner ends up facing the outgoing
+  //     tangent. The one exception is a closed contour's seam at d = 0,
+  //     whose probes wrap onto both legs — so on a rectangle three corners
+  //     agree with each other and the fourth sits 45 degrees off, which
+  //     reads as "the seam is special" rather than as a general error.
   //
-  // The rect's vertices are exact, so both claims are arithmetic.
+  // A rectangle's vertices are exact, so both claims here are arithmetic
+  // rather than approximate.
   Host host(400, 340);
   brush::Pattern brush;
   brush.side = box().width(24).height(10).child(
@@ -798,9 +789,9 @@ TEST(ComposeBrushes, PatternCornerAlignOutgoingIsStillAvailable) {
 
 TEST(ComposeMaterials, StableLiveResolveReplaysThePicture) {
   // The resolve memo: a live material whose bound inputs did not change
-  // returns the SAME shader, and a node whose only volatility is that
-  // material replays its picture — repaint at the material's rate, not
-  // the frame rate (the quantized-sea rule).
+  // returns the SAME shader pointer, and a node whose only volatility is
+  // that material replays its picture instead of re-recording. So a slow or
+  // stepped material repaints at ITS rate, not at the frame rate.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
       "uniform float uPhase; half4 main(float2 p) {"
       "  return half4(fract(uPhase), 0.2, 1.0 - fract(uPhase), 1); }"));
@@ -864,9 +855,10 @@ TEST(ComposeMaterials, BakeScaleUpscalesThroughTheSameRect) {
 }
 
 TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
-  // The texture flavor of the resolve memo — the shader-wall case: bake
-  // at the material's own rate, BLIT between (pictures re-execute SkSL
-  // on raster; pixels don't).
+  // The texture flavour of the resolve memo, which matters most for a large
+  // shader-filled area: bake at the material's own rate and BLIT in between.
+  // Replaying a picture re-executes the SkSL on raster; blitting a texture
+  // does not.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
       "uniform float uPhase; half4 main(float2 p) {"
       "  return half4(fract(uPhase), 0.4, 0.2, 1); }"));
@@ -877,8 +869,9 @@ TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
       box()
           .child(box().width(100).height(100).cache(Cache::Texture).fill(
               Material::sksl(fx).uniform("uPhase", &phase)))
-          // an always-animating sibling keeps the ROOT live (the gallery
-          // condition) — the shader wall must still blit
+          // An always-animating sibling keeps the ROOT live, which is the
+          // ordinary case in a real scene: the shader-filled node must still
+          // blit even though the frame as a whole is repainting.
           .child(box().width(10).height(10).fill(red()).translateX(&sibling)));
   host.frame(); // bakes
   const unsigned recordedAfterBake = host.composer.stats().picturesRecorded;
@@ -975,8 +968,9 @@ TEST(ComposeInstances, RepeaterLawExponentialScaleLinearEverythingElse) {
   EXPECT_FLOAT_EQ(pool.positions()[3].fX, 25.0f); // linear translate
   EXPECT_FLOAT_EQ(pool.rotations()[3], 0.3f);     // linear rotate
   EXPECT_FLOAT_EQ(pool.scales()[3], 0.125f);      // pow(0.5, 3)
-  // The opacity lerp rides the ALPHA lane (§2 lane hygiene, 2026-07-27):
-  // repeat() no longer clobbers tints[].fA — the tint stays the author's.
+  // Opacity and tint are separate lanes: the opacity ramp writes alphas[],
+  // and tints[].fA stays exactly what the author put there. Folding one into
+  // the other would make a tinted pool silently un-tintable.
   EXPECT_FLOAT_EQ(pool.alphas()[0], 1.0f);        // opacity lerp endpoints
   EXPECT_FLOAT_EQ(pool.alphas()[3], 0.25f);
   EXPECT_FLOAT_EQ(pool.tints()[3].fA, 1.0f);      // untouched
@@ -1211,9 +1205,10 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
 namespace {
 /** Does @p face DECLARE @p tag at all? `axisIsAdvanceInvariant` answers
  *  FALSE both for "the axis moves advances" and for "there is no such
- *  axis", and this test needs to tell those apart: on a face without wght
- *  the refusal fires for the wrong reason and the pixels hold no matter
- *  what the drive does. (2026-07-28 audit.) */
+ *  axis", and the test below has to tell those apart: on a face without a
+ *  wght axis the refusal fires for the wrong reason, and the pixels hold no
+ *  matter what the drive does — so the test would pass while checking
+ *  nothing. */
 bool faceDeclaresAxis(const sk_sp<SkTypeface> &face, SkFourByteTag tag) {
   if (!face)
     return false;
@@ -1230,11 +1225,13 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface> &face, SkFourByteTag tag) {
 } // namespace
 
 TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
-  // Prefer a system face whose wght really moves advances; where the
-  // system offers none (macOS: the UI face declares no wght at all, the
-  // §35.3 standing skip), fall back to the committed test instrument —
-  // test/assets/AdvanceVariant.ttf, a generated two-master VF whose wght
-  // interpolates advances 500..900 (see make_advance_variant_vf.py).
+  // This needs a face whose wght axis genuinely CHANGES advances, so that
+  // the drive has something to refuse. A system face may not offer one — on
+  // macOS the UI face declares no wght axis at all — so the fallback is a
+  // committed instrument, test/assets/AdvanceVariant.ttf: a generated
+  // two-master variable font whose wght interpolates advances (built by
+  // make_advance_variant_vf.py). Both preconditions are asserted below, so
+  // the test cannot pass by running against a face that has no axis.
   const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
   sk_sp<SkTypeface> ui = fonts().defaultTypeface();
   if (!faceDeclaresAxis(ui, wght) || fonts().axisIsAdvanceInvariant(ui, "wght"))
@@ -1260,8 +1257,8 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
   host.surface->readPixels(base.pixmap(), 0, 0);
 
-  // Liveness guard: the baseline really has ink, so "pixels hold" below
-  // is a claim about glyphs and not about two blank grids (§34's lesson).
+  // Liveness guard: the baseline really has ink, so "the pixels hold" below
+  // is a claim about glyphs rather than about two identical blank grids.
   int inked = 0;
   for (int y = 0; y < 200; y += 2)
     for (int x = 0; x < 200; x += 2)

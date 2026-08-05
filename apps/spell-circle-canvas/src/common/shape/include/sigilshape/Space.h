@@ -11,10 +11,11 @@
  *
  *  - drawMesh(): the painter pipeline for Mesh solids — CPU transform,
  *    per-vertex lighting, back-to-front triangle sort, SkVertices
- *    batches (chunked under the 16-bit index limit). Style::Normals
- *    renders a view-space normal G-buffer instead of lit color; feed
- *    that surface to Materials.h and per-pixel chrome/gold/glass lands
- *    on true 3D geometry — the deferred bridge between the two headers.
+ *    batches (chunked under the 16-bit index limit). MeshStyle::Mode::Normals
+ *    renders a device-space normal G-buffer — +y down, matching the
+ *    canvas — instead of lit color; feed that surface to Materials.h
+ *    and per-pixel chrome/gold/glass lands on true 3D geometry — the
+ *    deferred bridge between the two headers.
  *
  * One Camera struct drives both renderers. 3D data (camera vectors,
  * model/view/projection matrices) speaks glm; this header is the
@@ -65,7 +66,8 @@ struct Light {
 struct MeshStyle {
   enum class Mode : uint8_t {
     Lit,     ///< per-vertex Lambert + Blinn specular + rim
-    Normals, ///< view-space normal G-buffer (rgb = n*0.5+0.5), unlit
+    Normals, ///< device-space normal G-buffer, +y down — the Materials.h
+             ///< convention (rgb = (n.x, -n.y, n.z)*0.5+0.5), unlit
     Uv,      ///< uv debug ramp
   };
   Mode mode = Mode::Lit;

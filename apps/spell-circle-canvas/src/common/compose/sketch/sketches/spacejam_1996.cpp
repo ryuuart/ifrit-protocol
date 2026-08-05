@@ -20,9 +20,8 @@
 // from measured disc centres, radii and palettes. They are NOT pixel copies
 // and do not pretend to be. The label face is baked pixel art in the
 // original; Impact is an approximation of it. The Press Box shuttle and the
-// SPACE JAM logotype are the two deliberate approximations (§11 of the
-// brief): a lozenge-and-fins ship, and a heavy grotesque over a real
-// rainbow swirl.
+// SPACE JAM logotype are the two deliberate approximations: a lozenge-and-
+// fins ship, and a heavy grotesque over a real rainbow swirl.
 //
 // THE 1996 STATE, not today's. The live HTML has the Fast Break row
 // commented out and a 2021 Privacy/Terms/Accessibility/AdChoices row added.
@@ -36,36 +35,34 @@
 // Three things carry it instead.
 //
 //  1. THE LAYOUT IS PRODUCED BY AN ALGORITHM. `TableScheme` below is CSS
-//     2.1 §17.5.2.2 transcribed into a `LayoutScheme` — the first use of
-//     that seam anywhere in this repo. Nothing is hand-placed inside the
-//     table: five columns, five rows, a colspan=2, a colspan=3 rowspan=2
-//     and a rowspan=2, per-cell align/valign, and the proportional surplus
-//     distribution that is why every planet lands on a FRACTIONAL pixel.
-//     MEASURED, and printed on every run (see reportGrid): the five column
-//     widths land within 0.11 px of Chrome's, the five row heights are
-//     EXACT, and all twelve image rects land within 0.05 px with every y
-//     exact.
+//     2.1 §17.5.2.2 transcribed into a `LayoutScheme`. Nothing is
+//     hand-placed inside the table: five columns, five rows, a colspan=2, a
+//     colspan=3 rowspan=2 and a rowspan=2, per-cell align/valign, and the
+//     proportional surplus distribution that is why every planet lands on a
+//     FRACTIONAL pixel. `reportGrid()` prints the resolved columns, rows and
+//     image rects next to the numbers headless Chrome measures, so the
+//     agreement is checkable on every run rather than asserted here.
 //
 //  2. THE DISPLAY CONSTRAINT IS APPLIED TO THE FINISHED FRAME. Two
 //     quantisations, in the two places they actually happened. Nothing on
 //     this page is web-safe — of the 32 distinct component values in the
 //     twelve nav GIFs exactly two (0x00, 0xFF) are in the 216 cube, while
-//     100% are members of {(i<<3)|(i>>2)}, the RGB555→888 expansion. The
-//     art was authored at 15 bit and reduced to GIF; the web-safe cube was
-//     a property of the USER'S SCREEN. So `C5()` snaps every authored
+//     all of them are members of {(i<<3)|(i>>2)}, the RGB555→888 expansion.
+//     The art was authored at 15 bit and reduced to GIF; the web-safe cube
+//     was a property of the USER'S SCREEN. So `C5()` snaps every authored
 //     colour to the 5-bit grid at describe time, and `Composer::setView()`
 //     carries a 216-colour + Bayer-4×4 ordered dither over the whole
-//     output — the first custom `Effect::shader` in a view transform in
-//     this repo (the two prior uses are both baked OCIO LUTs).
+//     output.
 //
-//  3. TIME IS A TRANSPORT PROPERTY. 59,689 bytes over four connections at
-//     3.0 KB/s effective, simulated rather than asserted. The schedule is
-//     nothing like intuition: the starfield is requested FIRST and lands
-//     TENTH at 11.27 s, so for eleven seconds the page is flat black with
-//     planets floating on it. The basketball's last byte lands at 9.0 s.
-//     The logotype finishes dead last at 19.91 s, three seconds after
-//     everything else. Run here at SPEEDUP = 2.5, so the load completes at
-//     7.96 s of sketch time and the page reloads every 11.5 s.
+//  3. TIME IS A TRANSPORT PROPERTY. The sixteen files total 59,689 bytes,
+//     fed through four connections at 3.0 KB/s effective — a schedule
+//     simulated from the real byte counts rather than staged by hand, which
+//     is why it is nothing like intuition. The starfield is requested FIRST
+//     and, being large and sharing the line, lands TENTH: for the first
+//     eleven seconds of real modem time the page is flat black with planets
+//     floating on it. The logotype, the biggest file, finishes dead last,
+//     seconds after everything else. `kSpeedup` compresses all of it into
+//     sketch time, and the page reloads a few seconds after the last byte.
 //
 // FOUR FINDINGS FROM THE FILES, honoured rather than smoothed over:
 //   · None of the sixteen GIFs is interlaced (every image-descriptor flag
@@ -76,41 +73,41 @@
 //     different authoring path from the nav art) and does NOT tile
 //     seamlessly. The 111 px lattice is visible in the real page and is
 //     reproduced: ONE tile, repeated, edge stars cut. This is the case
-//     where instancing is the wrong answer — ~1,300 sprites on paper, one
-//     `Pattern::tile` bake in fact.
+//     where instancing is the wrong answer — the stars are not scattered
+//     over the page, they are one `Pattern::tile` bake shown many times.
 //   · Only ONE thing on this page ever moves: fastbreak.gif, 40×40, six
 //     frames, `duration=100` on every one. `Material::quantizeTime(10.0f)`
 //     is that GIF's frame rate, exactly. Nothing else drifts, twinkles or
 //     parallaxes, and the restraint is the reference.
 //   · The page has NO DOCTYPE, so it renders in quirks mode — which is why
 //     a cell containing `<br>×n` then an image measures exactly
-//     n·18 + imageH and not n·18 + imageH + 4. The brief predicted the
-//     extra 4 px of strut descent; with it, every row below the first
-//     lands 4 px low. With 0, all twelve images land. Twenty-four
-//     independent coordinates say 0. (Netscape 3 had no standards mode at
-//     all, so quirks IS the 1996 behaviour.)
+//     n·18 + imageH, with no line-box strut descent added under the image.
+//     Adding the 4 px of descent a standards-mode box would carry puts
+//     every row below the first 4 px low against the reference render;
+//     with none, all twelve images land. (Netscape 3 had no standards mode
+//     at all, so quirks IS the 1996 behaviour.)
 //
-// VERIFIED AT THE PIXELS, not asserted:
-//   · the view transform's dither cell is locked to DEVICE pixels and does
-//     not swim — two settled frames are byte-identical (getbbox() is None);
-//   · at 20 fps the basketball changes on every OTHER frame, i.e. exactly
-//     10 Hz, and the bounding box of every change across a 14-frame run is
-//     exactly its own 80x80 rect. Nothing else on this page ever moves;
-//   · settled, the page is 41 instances, 31 live pictures, 0 re-records per
-//     frame and 3 nodes painted live (the ball's material and its two
-//     ancestors) — it really does go static once loaded.
+// TWO PROPERTIES OF THE FINISHED FRAME, which are what make it a study of
+// this page and not a moving picture of it:
+//   · the view transform's dither cell is quantised by `uScale`, so it is
+//     locked to the 1996 pixel grid and does not swim when anything under
+//     it moves;
+//   · exactly one thing moves after the load: the basketball, stepping at
+//     10 Hz. The rest of the tree settles to cached pictures, so the page
+//     really does go static once loaded, the way the artefact does.
 //
-// AND ONE THE ALGORITHM TAUGHT: column surplus is distributed
-// PROPORTIONALLY (verified — the alternatives miss Chrome by 8 px), but a
-// rowspan's height deficit is NOT. Chrome gives all 16 px of the
-// logotype's overflow to the LAST row it spans and leaves the first
-// untouched; proportional distribution puts row 2 at 97.7 where the
-// browser measures 88. Both branches are in `TableScheme::place()`.
+// AND ONE THING THE TABLE ALGORITHM ITSELF ASKS FOR: column surplus is
+// distributed PROPORTIONALLY across the columns, but a rowspan's height
+// deficit is NOT. Chrome gives the whole of the logotype's overflow to the
+// LAST row it spans and leaves the first untouched; distributing it
+// proportionally instead makes the second row far too tall and drags every
+// image below it down. Both branches are in `TableScheme::solve()`.
 
 // Material.h first, defensively: Sketch.h pulls in Decorations.h, whose
-// Wash holds a Material BY VALUE while Compose.h only forward-declares it.
-// Decorations.h grew its own include for this mid-session; the ordering
-// here costs nothing and survives the next header that forgets.
+// Wash holds a Material BY VALUE, and Compose.h only forward-declares that
+// type. Any header in this chain that forgets its own Material.h include
+// therefore needs the complete type to already be in scope, and putting it
+// first here costs nothing.
 #include <sigilcompose/Material.h>
 
 #include <sigilsketch/Sketch.h>
@@ -151,7 +148,7 @@ constexpr float kScale = 2.0f;
 constexpr float S(float pagePx) { return pagePx * kScale; }
 
 // ---------------------------------------------------------------------------
-// Colour: the AUTHORING quantisation (§8.1 — RGB555, not the web cube)
+// Colour: the AUTHORING quantisation — RGB555, not the web cube
 
 /** snap5: c8 -> round(c8·31/255) -> (i<<3)|(i>>2). Every distinct component
  *  in all twelve nav palettes is a member of this 32-value set; only two of
@@ -166,19 +163,21 @@ inline SkColor4f C5(uint32_t rgb, float a = 1.0f) {
           snap5f((float)((rgb >> 8) & 0xff) / 255.0f),
           snap5f((float)(rgb & 0xff) / 255.0f), a};
 }
-/** Raw, unsnapped — for the greyscale star tile (off-grid, §4 finding 3)
- *  and the body text, which are not nav art. */
+/** Raw, unsnapped — for the greyscale star tile, whose 8-bit greyscale
+ *  palette does not sit on the 5-bit grid, and for the body text. Neither
+ *  is nav art. */
 constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xff) / 255.0f,
           (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
 }
 inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
-// <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>  [SRC]
+// Straight out of the shipped HTML:
+// <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
 constexpr SkColor4f kPageBlack = C(0x000000);
 constexpr SkColor4f kBodyText = C(0xFF0000);
 
-// The label treatment, identical on all twelve GIFs [MEAS]
+// The label treatment, pixel-sampled and identical on all twelve GIFs
 const SkColor4f kLabel = C5(0xFFFF00);
 const SkColor4f kLabelInk = C5(0x080800);
 
@@ -225,10 +224,10 @@ inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface> &tf, float size,
 inline std::u8string U(const char *s) { return toU8(s); }
 
 /** The label outline, spelled with echo() because there is no glyph stroke.
- *  Eight re-stamps at ±r plus one at (2r, 2r) — the shipped art is a 1 px
- *  black outline all round PLUS a 1 px offset shadow down-right, and this
- *  is the cheapest honest reproduction of it. `Element::textStroke(w, Fill)`
- *  would be one call; this is nine, twelve times over, plus the logotype. */
+ *  Eight re-stamps at ±r plus one at (2r, 2r): the shipped art carries a
+ *  1 px black outline all round PLUS a 1 px offset shadow down-right, and
+ *  stamping the run nine times is the closest honest reproduction of that
+ *  with a fill-only text node. */
 inline Element &outlineText(Element &e, float r) {
   const float d[8][2] = {{-1, 0}, {1, 0},  {0, -1}, {0, 1},
                          {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
@@ -254,10 +253,14 @@ inline Element sphere(SkPoint c, float r, Material m) {
 // ---------------------------------------------------------------------------
 // The one animated thing on the page: a sphere with rotating seams.
 //
-// Monolithic SkSL, no user-defined functions, no uniform-guarded breaks —
-// the split-Skia rule (Patterns.h). Two builds of one source: `uSpin` as a
-// constant (Planet B-Ball, static, geometry tier) and `uTime` +
-// quantizeTime(10) (fastbreak.gif, live, stepping at the GIF's own 100 ms).
+// Monolithic SkSL: everything inside one main(), with no user-defined
+// functions and no uniform-guarded loops or breaks. A sketch dylib's shader
+// source is compiled by the Skia the HOST links, and across that boundary
+// those two constructs fault with no diagnostic.
+//
+// Two builds of one source: `uSpin` as a constant (Planet B-Ball, static)
+// and `uTime` + quantizeTime(10) (fastbreak.gif, live, stepping at the
+// GIF's own 100 ms frame delay).
 
 inline sk_sp<SkRuntimeEffect> ballEffect(bool live) {
   static sk_sp<SkRuntimeEffect> cached[2];
@@ -452,10 +455,10 @@ inline Element starTile() {
   const float T = S(111.0f);
   Element tile = box().width(Dim(T)).height(Dim(T));
 
-  // Two or three very faint lens-flare ghosts. They are what stops the
-  // field reading as pure noise; luminance 10-20, radius ~18 px. At that
-  // level the view transform's dither turns them into sparse single-level
-  // dots, which is exactly what an 8-bit screen did to them.
+  // Three very faint lens-flare ghosts, at the sampled centres and radii
+  // (page px, 15-26). They are what stops the field reading as pure noise.
+  // At this luminance the view transform's dither turns them into sparse
+  // single-level dots, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto &g : ring)
     tile.child(disc({S(g[0]), S(g[1])}, S(g[2]))
@@ -469,12 +472,13 @@ inline Element starTile() {
   int bright = 0;
   for (const Star &s : starData()) {
     const float L = (float)s.peak / 255.0f;
-    // half-intensity radius 2-4 px for the brightest [MEAS]; visible
-    // extent about 3x that. The tile is 76% below L16 and only 128 of its
-    // 12,321 pixels reach L128 — it is far darker than it looks, and the
-    // density comes from repetition, not from brightness. So the falloff
-    // has to be steep: a linear ramp over the full extent sums, across
-    // 1,386 repeats, into a grey haze the artefact does not have.
+    // Sampled off the tile: half-intensity radius 2-4 px for the brightest
+    // stars, visible extent about 3x that. Most of the tile sits below L16
+    // and only 128 of its 12,321 pixels reach L128 — it is far darker than
+    // it looks, and the density on the page comes from repetition, not from
+    // brightness. So the falloff has to be steep: a linear ramp over the
+    // full extent, summed over every repeat of the tile, turns the field
+    // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
     tile.child(disc({S((float)s.x), S((float)s.y)}, R)
@@ -627,8 +631,8 @@ inline Element artJamCentral(sigil::weave::FontContext &f) {
           .clip(true)
           .stroke(stroke(S(1.5f), Fill::color(C5(0x9400DE)),
                          PathFormat::Align::Inner));
-  // Four landmasses, seeded blobs clipped to the disc. Local coordinates
-  // are the disc box (2r), not the image box.
+  // Six landmasses, seeded blobs clipped to the disc. Their coordinates are
+  // fractions of the disc box (2r), not of the image box.
   const float d = r * 2;
   struct Mass { float x, y, w, h; uint32_t seed; uint32_t ink; };
   const Mass mass[6] = {{0.04f, 0.10f, 0.44f, 0.26f, 11, 0x08E700},
@@ -892,9 +896,9 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
   const float rx = S(92), ry = S(58);
 
   auto swirlFill = [] {
-    // glowUnit again (see the sitemap note): on this 1.4:1 box radialUnit
-    // would put the whole rainbow inside t < 0.71 and the outer band would
-    // never draw.
+    // glowUnit again, for the reason artSitemap() gives: on this 1.4:1 box
+    // radialUnit would put the whole rainbow inside t < 0.71 and the outer
+    // band would never draw.
     return Material::glowUnit({0.5f, 0.5f}, 1.0f,
                               {{0.0f, C5(0x101831)},
                                {0.44f, C5(0x21103A)},
@@ -958,9 +962,10 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
       .child(letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2))
       // The swirl passing IN FRONT of the bottom of the J — the single cue
       // that makes this read as a 1996 logotype instead of a gradient
-      // wordmark. Four concentric arcs, not one stroke, because a
-      // PathFormat's fill is evaluated in node-local space and cannot vary
-      // ACROSS the band (ROADMAP §8b).
+      // wordmark. Four concentric arcs, not one stroke: a PathFormat's fill
+      // is evaluated in node-local space, so it can vary ALONG a stroked
+      // band but not ACROSS its width, which is the direction the rainbow
+      // runs.
       .child([&] {
         Element band = rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2).rotate(-18);
         // Same four bands, at the same four radii the annulus ramp puts
@@ -981,8 +986,8 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
 // --- the Fast Break row's two wordmarks, 50x11 each, bright red caps.
 inline Element wordmark(sigil::weave::FontContext &fonts, const char *s,
                         float w, float h, bool rightAlign) {
-  // fast.gif is right-aligned inside its 50x11 box (the left 38% is empty);
-  // break.gif fills its own.
+  // fast.gif is right-aligned inside its 50x11 box, with the left ~40% of
+  // the box empty; break.gif fills its own.
   const float track = 0.35f * kScale;
   const float target = (rightAlign ? 0.60f : 0.97f) * w;
   auto styleAt = [&](float sz) { return ty(display(), sz, C5(0xFF0000), track); };
@@ -1003,7 +1008,8 @@ inline Element wordmark(sigil::weave::FontContext &fonts, const char *s,
 }
 
 // ---------------------------------------------------------------------------
-// The load — 28.8 kbps over four connections (§8.4)
+// The load — 28.8 kbps over four connections. Byte counts are the files'
+// own, as served.
 
 struct Asset {
   const char *name;
@@ -1028,8 +1034,11 @@ enum Ix {
 constexpr double kBandwidth = 3000.0; // bytes/sec, effective on a 28.8k line
 constexpr int kSlots = 4;             // Netscape's HTTP/1.0 default
 constexpr double kSpeedup = 2.5;      // sketch-time compression
-constexpr double kReloadAt = 11.5;    // hit Reload; a cached GIF does not
-                                      // re-download, so the ball keeps spinning
+constexpr double kReloadAt = 11.5;    // length of one cycle in sketch
+                                      // seconds: the finished page holds for
+                                      // the balance of it, then every byte
+                                      // counter is reset and the load replays
+                                      // from empty
 
 // ---------------------------------------------------------------------------
 // The table — CSS 2.1 §17.5.2.2 as a LayoutScheme.
@@ -1044,14 +1053,16 @@ struct Cell {
  *  the one thing this seam cannot express: `LayoutInput` carries the
  *  container size, each child's measured size and each child's baseline —
  *  and no per-child user data. So the span/align table has to be a member
- *  of the scheme, parallel to the children, and it desynchronises silently
- *  if anyone reorders them. See the report. */
+ *  of the scheme, parallel to the children. Nothing checks the two against
+ *  each other: insert or reorder a child of the table without editing
+ *  `cells` in the same order and every cell after it takes the wrong span,
+ *  alignment and origin, silently. */
 struct TableScheme {
   std::vector<Cell> cells;
   int cols = 5, rows = 5;
   float tableWidth = S(500);
-  float spacing = S(2);  // cellspacing, measured [MEAS]
-  float padding = S(1);  // cellpadding, measured [MEAS]
+  float spacing = S(2);  // the table's cellspacing, measured off the page
+  float padding = S(1);  // ... and its cellpadding
 
   /** Exposed so the sketch can print the resolved grid and diff it against
    *  the browser's. */
@@ -1100,6 +1111,7 @@ struct TableScheme {
       for (float &w : colW)
         w += surplus * w / total;
 
+    // 4. column origins: the left edge of each cell's content box.
     x.assign((size_t)cols, 0.0f);
     x[0] = Sp + P;
     for (int j = 1; j < cols; ++j)
@@ -1112,8 +1124,10 @@ struct TableScheme {
             std::max(rowH[(size_t)cells[i].row], sz[i].height());
 
     // 6. and NOT the same second step: a rowspan's deficit goes entirely to
-    //    the LAST row it spans. Proportional distribution here puts row 2 at
-    //    97.7 where Chrome measures 88; last-row lands both rows exactly.
+    //    the LAST row it spans, leaving the rows above it at their own
+    //    content height. Spreading it proportionally, the way step 2 spreads
+    //    a colspan's, over-inflates the first row of the span and pushes
+    //    every row beneath the logotype down.
     for (int k = 2; k <= rows; ++k)
       for (size_t i = 0; i < n; ++i) {
         if (cells[i].rowspan != k)
@@ -1169,9 +1183,11 @@ struct TableScheme {
 // The display quantisation — 216 colours + Bayer 4x4, in setView().
 //
 // Monolithic, one expression for the Bayer index (the recursive matrix's
-// closed form), because the split-Skia rule forbids user-defined SkSL
-// functions. `pos` is quantised by uScale first, so the dither cell is
-// locked to the 1996 pixel grid rather than to the canvas's.
+// closed form), because a shader authored in a sketch and compiled by the
+// host's Skia cannot carry user-defined functions. `pos` is quantised by
+// uScale first, so the dither cell is locked to the 1996 pixel grid rather
+// than to the canvas's — unquantised, the 4x4 cell would land on canvas
+// pixels and come out finer than the art it is dithering.
 
 inline sk_sp<SkRuntimeEffect> ditherEffect() {
   static sk_sp<SkRuntimeEffect> fx = [] {
@@ -1218,8 +1234,10 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
 
   // Everything the browser would have cached as a decoded GIF: each nav
   // image baked ONCE from its element tree via snapshot(), then replayed
-  // under a hard scanline clip. See the report — this is the shape of
-  // ROADMAP §6 (no directional wipe) on a page that does sixteen of them.
+  // under a hard scanline clip. Baking is what makes the reveal affordable —
+  // sixteen assets, each redrawn on every frame it is still arriving — and
+  // the clip is hand-written because a picture has no directional-wipe
+  // control of its own.
   sk_sp<SkPicture> pic[sj::kAssetCount];
   float artW[sj::kAssetCount] = {};
   float artH[sj::kAssetCount] = {};
@@ -1296,7 +1314,8 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
                         .key("starfield");
 
     // 2. the Fast Break row — the only left-aligned thing on the page, and
-    //    the only thing that moves. Restored from the comment (§4.5).
+    //    the only thing that moves. Restored from the HTML comment the live
+    //    page keeps it in.
     const bool ballIn = (arrivedMask & (1u << kFastbreak)) != 0;
     Element fastRow =
         stack()
@@ -1443,8 +1462,14 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     table.padding = S(1);
   }
 
-  /** Print the resolved grid next to the browser's, once, so the claim in
-   *  the header is checkable rather than asserted. */
+  /** Print the resolved grid next to the browser's, once at startup, so the
+   *  table algorithm is checkable against the reference render instead of
+   *  taken on trust. The literals it prints are the numbers headless Chrome
+   *  reports for the same page.
+   *
+   *  The `br` and `ix` arrays below repeat describe()'s cell() arguments in
+   *  the same child order; edit one and the other stops describing the
+   *  layout being printed. */
   void reportGrid() const {
     using namespace sj;
     std::vector<SkSize> sz;
@@ -1470,9 +1495,10 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
       SkDebugf(" %.2f", h / kScale);
     SkDebugf("\n[spacejam]  chrome measured:  0 113 88 73 139\n");
 
-    // ...and the twelve images, which is the claim that matters. The table
-    // origin is (70, 168) on the page; each row here is
-    // scheme-placed vs the headless-Chrome getBoundingClientRect() probe.
+    // ...and the twelve images, which is what actually has to land. The
+    // table origin is (70, 168) on the page; each row prints the
+    // scheme-placed rect against the headless-Chrome
+    // getBoundingClientRect() probe for the same image.
     const float refX[14] = {0, 115.13f, 283.78f, 384.92f, 465.70f, 77.20f,
                             183.41f, 509.00f, 84.20f, 466.20f, 0, 155.77f,
                             259.28f, 382.42f};
@@ -1504,11 +1530,12 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     using namespace sj;
     ctx.canvas(S(640), S(800));
     ctx.background(kPageBlack); // <body bgcolor="#000000">, literally
-    // §31 named-state beat: the completed 1996 page holds [7.96, ~11.46)
-    // before the reload wipes it; 9.5 s is mid-hold. (The old 6.0 default
-    // was mid-load, missing the logotype — dead last in the byte schedule
-    // at 7.96 s. The study's diff reference is the finished
-    // headless-Chrome render.)
+    // The still is taken mid-hold: the load finishes around 7.96 s of sketch
+    // time and the reload wipes the page around 11.46 s, so 9.5 s is the one
+    // window where every asset is present. Anything earlier catches the page
+    // mid-load and misses the logotype, which is dead last in the byte
+    // schedule — and the reference this study is diffed against is the
+    // FINISHED page.
     ctx.captureAt(9.5);
 
     buildTable();
@@ -1559,8 +1586,14 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
         active[nActive++] = i;
     }
     if (nActive == 0) {
-      sinceDone += dt / kSpeedup;
-      if (sinceDone > kReloadAt - 8.0) { // hit Reload
+      sinceDone += dt / kSpeedup; // back to sketch seconds
+      // Idle time since the last byte. The subtrahend is the load's own
+      // duration in sketch seconds, so a cycle — load plus hold — comes to
+      // kReloadAt. Every counter goes back to zero, so the whole page
+      // re-downloads: a cold reload, deliberately — a 1996 Reload
+      // re-requested every asset, so everything blanks and re-arrives,
+      // the spinning ball included. Do not add a warm cache here.
+      if (sinceDone > kReloadAt - 8.0) {
         for (int i = 0; i < kAssetCount; ++i) {
           gotBytes[i] = 0;
           got[i] = 0.0f;

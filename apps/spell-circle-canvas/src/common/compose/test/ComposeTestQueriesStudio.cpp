@@ -1,10 +1,9 @@
 #include "ComposeTestSupport.h"
 
 namespace {
-/** A flow band's width law: 166 px at the start, 12 at the end. The shape
- *  `widthFn` used to need a `std::function` and a hand-set `widthMax` for,
- *  and the shape that proved the trap — Minard's retreat band runs 166 px
- *  at Kowno on a ribbon whose default widthStart/widthEnd declare 10. */
+/** A flow band's width law: wide at the start, narrow at the end, with the
+ *  wide end far larger than any ribbon's default widths. That gap is the
+ *  point — it is what makes an under-declared reach visible. */
 struct FlowLaw {
   float start = 166.0f, end = 12.0f;
   float across(float along) const { return start + (end - start) * along; }
@@ -14,19 +13,19 @@ struct FlowLaw {
 } // namespace
 
 TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {
-  // bleed() grows the recording cull. It could not look inside the deleted
-  // `widthFn`, so a width function returning 166 on a ribbon whose
-  // widthStart/widthEnd were the defaults declared 10 px of reach and the
-  // band was silently CLIPPED — the failure read as a rendering bug rather
-  // than a missing declaration, and the fix was a second field
-  // (`widthMax`) that nobody had to set.
+  // bleed() grows the recording cull, so it has to know how far the widest
+  // part of a ribbon reaches. A width supplied as a callable cannot be
+  // asked, so the declared reach falls back to the fixed widths underneath
+  // it and a much wider band is silently CLIPPED — which reads as a
+  // rendering bug rather than as a missing declaration.
   //
-  // On the profile seam `max()` is REQUIRED by the concept, so the number
-  // cannot go unsaid: the trap is structurally impossible, not merely
-  // documented. Asserted on bleed() directly — an earlier version of this
-  // test tried to observe the cull through rendered pixels and measured
-  // the same number either way, because what reaches the canvas also
-  // depends on cache-mode decisions the test was not pinning.
+  // `max()` is REQUIRED by the Profile concept, so the number cannot go
+  // unsaid: the trap is structurally impossible rather than merely
+  // documented.
+  //
+  // Asserted on bleed() DIRECTLY. Observing the cull through rendered pixels
+  // gives the same answer either way, because what reaches the canvas also
+  // depends on cache-mode decisions this test is not pinning.
   brush::Ribbon plain;
   plain.widthStart = 12.0f;
   plain.widthEnd = 4.0f;
@@ -87,15 +86,15 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   // tangent, so a clockwise ring puts glyph-up radially OUTWARD
   // (Nightingale's 1858 plate) and a counter-clockwise one puts it INWARD
   // (Chevreul's 1864 limb) — both uniform engraver's conventions,
-  // opposite in sign. Half of all ring inscriptions were hand-rolling an
-  // OutlineFn because of a default nobody chose.
+  // opposite in sign, which is why a ring inscription so often ends up
+  // hand-rolling an OutlineFn over a default nobody chose.
   //
-  // Asserted as the two properties that matter and that do not depend on
-  // knowing which quadrant Skia's addOval starts in: the directed
-  // overload at kCW is EXACTLY the undirected one (a strict superset, not
-  // a near-miss), and kCCW is observably different. My first three
-  // attempts each asserted a position I had inferred rather than
-  // measured, and each was wrong in a different way.
+  // The two assertions are chosen so as NOT to depend on knowing which
+  // quadrant Skia's addOval starts in: the directed overload at kCW is
+  // EXACTLY the undirected one — a strict superset, not a near-miss — and
+  // kCCW is observably different. Anything that names a specific expected
+  // position is asserting an inference about Skia rather than a property of
+  // this library.
   auto render = [](std::function<SkPath(SkSize)> path) {
     auto host = std::make_unique<Host>(300, 300);
     host->composer.render(box().child(
@@ -179,13 +178,12 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
 
 TEST(ComposeText, AliasedTextHasHardEdges) {
   // Skia takes glyph edging from the FONT, never the paint, so
-  // `paint.foreground.setAntiAlias(false)` is silently ignored on text
-  // and there was no other way to ask. An X11 core font is 1-bit and a
-  // 1995 desktop is ~100% 13 px UI type, so a period reconstruction had
-  // to leave SigilWeave entirely — a raw kAlias SkFont in a decoration on
-  // a hand-measured box, forfeiting shaping, bidi, fallback and
-  // flowAround. This is the cheap half of "no bitmap-font path": one
-  // field, not a face.
+  // `paint.foreground.setAntiAlias(false)` is silently ignored on text.
+  // Without a field on the shaping style there is no way to ask for aliased
+  // type at all, and the only recourse is a raw kAlias SkFont drawn inside a
+  // decoration on a hand-measured box — which forfeits shaping, bidi,
+  // fallback and flowAround. One field buys it back; this is not a
+  // bitmap-font path, just an edging switch.
   auto greys = [](bool aliased) {
     auto style = whiteStyle(40);
     style.shaping.aliased = aliased;
@@ -249,10 +247,10 @@ TEST(ComposeQuery, AKeyedShellCanOptOutOfHitTesting) {
 }
 
 TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
-  // Layout runs inside draw(), so a query issued in the same update() as
-  // the render() before it reads an unlaid tree — and used to hand back
-  // left=0, top=0, width=NaN for EVERY key. A study lost an iteration
-  // and a debug harness localising that.
+  // Layout runs inside draw(), so a query issued in the same update() as the
+  // render() before it is reading an UNLAID tree. It must answer "no value"
+  // rather than a rect full of NaN: a NaN rect propagates silently into
+  // whatever arithmetic the caller does with it.
   Host host(200, 200);
   host.composer.render(box().child(
       box().key("cell").absolute().left(10).top(10).width(50).height(50)));
@@ -272,13 +270,12 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
 }
 
 TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
-  // slot(name) sets node->key = name, and renderSlot used to resolve
-  // through the same byKey map the whole tree shares. Give the slot's
-  // CONTENT a root .key(name) and — since a child is indexed after its
-  // parent, last writer wins — the content Box shadowed the slot, every
-  // later renderSlot() returned silently, and the slot froze on its
-  // first value. No warning. A study lost forty minutes and a printf to
-  // it. Slots now have their own index.
+  // slot(name) sets node->key = name, so resolving renderSlot through the
+  // shared key index makes a slot collidable with ordinary keys. Give the
+  // slot's CONTENT a root .key(name) and — a child being indexed after its
+  // parent, last writer wins — the content shadows the slot: every later
+  // renderSlot() returns silently and the slot freezes on its first value,
+  // with no warning. Slots therefore keep their own index.
   Host host(200, 200);
   host.composer.render(box().child(slot("readout").absolute().inset(0)));
   host.composer.renderSlot(
@@ -308,11 +305,11 @@ TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
 }
 
 TEST(ComposeSlots, KeyOnASlotRenamesItAndSaysSoOnce) {
-  // The other half of §26b's trap. A slot's NAME is its key — one field —
-  // so `.key()` on a slot renames the mount, renderSlot() on the original
-  // name no-ops, and the symptom is a W x 0 layout rather than an error.
-  // §26b diagnosed it from the renderSlot side; this is the warning at the
-  // call that CAUSES it, where both names are still in hand.
+  // A slot's NAME is its key — one field — so `.key()` on a slot RENAMES
+  // the mount. renderSlot() on the original name then no-ops and the symptom
+  // is a zero-height layout rather than an error. The warning has to fire at
+  // the call that causes it, which is the only place both names are still in
+  // hand.
   ::testing::internal::CaptureStderr();
   {
     Host quiet(200, 200);
@@ -346,12 +343,14 @@ TEST(ComposeSlots, KeyOnASlotRenamesItAndSaysSoOnce) {
 }
 
 TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
-  // Three studies hand-rolled the same forty lines to check a claim
-  // against the pixels rather than the description that produced them.
-  // The F16 default is the non-obvious half: a slit-scan study measuring
-  // an intensity falloff had its outer streak at 1/120 of the apex,
-  // which N32 quantises to two levels — an 8-bit read-back gives a
-  // confident wrong exponent rather than an obviously broken one.
+  // Checking a claim against PIXELS rather than against the description that
+  // produced them otherwise means hand-rolling a surface, a draw and a
+  // read-back at every call site.
+  //
+  // The F16 default is the non-obvious half. Measuring a falloff whose tail
+  // sits at a small fraction of its peak, an 8-bit read-back quantises that
+  // tail to a couple of levels — which yields a confident wrong exponent
+  // rather than an obviously broken one.
   const auto r = debug::rasterize(box().absolute().inset(0).fill(
                                       Fill::color({1.0f, 0.25f, 0.0f, 1})),
                                   fonts(), {32, 32});
@@ -379,7 +378,7 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 
 // ---------------------------------------------------------------------------
 // The extraction layer: placement, the prelude, the console plate, and the
-// proving primitive. See EXTRACT.md for the counts these answer.
+// proving primitive.
 
 #include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
@@ -387,12 +386,11 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 #include <sigilcompose/Util.h>
 
 TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
-  // THE load-bearing test for Element::rect(). 287 sketch + 29 gallery sites
-  // spell .absolute().left().top().width().height(), and nine studies wrote
-  // the three-line helper themselves under four names. The whole safety
-  // argument is that rect() describes the SAME node — so a re-describe that
-  // swaps one spelling for the other must prune to zero patches, and the
-  // pixels must not move.
+  // rect() is sugar for .absolute().left().top().width().height(), and the
+  // entire safety argument is that it describes the SAME node. So a
+  // re-describe that swaps one spelling for the other must prune to zero
+  // patches and must not move a pixel — anything less and the two spellings
+  // are different nodes wearing one name.
   Host host(200, 200);
   const SkRect r = SkRect::MakeXYWH(40, 60, 50, 30);
 
@@ -623,7 +621,7 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   byHand.variation("wght", 650.0f);
   byHand.variation("slnt", -10.0f);
   EXPECT_TRUE(s == byHand)
-      << "studio::type() is not the six-statement core the corpus wrote";
+      << "studio::type() does not build the TextStyle it declares";
 
   // And it actually lays out — a TextStyle that measures to nothing would
   // satisfy every field assertion above.
@@ -634,9 +632,9 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
 }
 
 TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
-  // Seven independent hand-builds differing only in count, axis and colour.
-  // The plate does NOT place itself — it takes the rect, which is the
-  // Layouts.h rule.
+  // A bordered plate holding N rings with dividers between them. The plate
+  // does NOT place itself: it takes the rect, following the same rule every
+  // layout scheme does.
   Host host(240, 120);
   console::LineRing a, b;
   a.append(u8"alpha", 0);
@@ -704,9 +702,9 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
       ++redRows;
   EXPECT_EQ(redRows, 1);
 
-  // monoStyle builds one TextStyle per palette colour off one face and size
-  // — the block six studies wrote five times over. The palette entries mean
-  // nothing to it, deliberately: the six plates do not agree on their order.
+  // monoStyle builds one TextStyle per palette colour from a single face and
+  // size. The palette entries carry no meaning to it, deliberately: what
+  // index 0 or 2 stands for is the caller's convention, not the library's.
   const console::Style mono =
       console::monoStyle(nullptr, 10.5f, {1, 1, 1, 1},
                          {{0.5f, 0.5f, 0.5f, 1}, {0, 1, 0, 1}, {1, 0, 0, 1}});
@@ -718,11 +716,10 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
 }
 
 TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
-  // ROADMAP §21, filed by dunhuang_star_chart: three LineRings with hairline
-  // dividers inside ONE fixed-height panel meant hand-tuning that height
-  // against font size × line count. console::height() is that number, and
-  // the shape below is the study's (consolePanel(), 9.2 px mono, gap 1,
-  // visibleLines 12, padY 9, column gap 6, two 1 px dividers).
+  // Fitting several LineRings with dividers into ONE fixed-height panel
+  // otherwise means hand-tuning that height against font size times line
+  // count. console::height() is that number, and the panel below is built
+  // from it with no slack at all.
   console::Style st;
   st.text = studio::type({.size = 9.2f, .color = {1, 1, 1, 1}});
   st.gap = 1.0f;
@@ -749,9 +746,8 @@ TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
 
   // And it is the height the console ACTUALLY takes when laid out: three
   // rings and two dividers in a column panel sized from the answer, with no
-  // room to spare, must not shrink. (A wrong answer here is SILENT — flex
-  // shrink absorbs the deficit and every ring loses rows, which is exactly
-  // how the study lost its iteration.)
+  // room to spare, must not shrink. A wrong answer here is SILENT — flex
+  // shrink absorbs the deficit and every ring quietly loses rows.
   console::LineRing a, b, c;
   for (int i = 0; i < 20; ++i) {
     a.append(u8"alpha");
@@ -791,11 +787,10 @@ TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
 }
 
 TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
-  // ROADMAP §14: "console::console() admits no entrance choreography — it
-  // builds its line Elements internally, so staggerChildren() on the
-  // returned panel is a no-op". The mechanism is right: staggerChildren
-  // delays the animate() mount transitions a child DECLARES, and a plain
-  // text() declares none. console::line() is the entry's own second remedy.
+  // staggerChildren() on a console panel is a no-op, and correctly so: it
+  // delays the mount transitions a child DECLARES, and console() builds its
+  // rows internally as plain text(), which declare none. console::line()
+  // exposes one row so an author can declare the entrance themselves.
   console::Style st;
   st.text = studio::type({.size = 20, .color = {1, 1, 1, 1}});
   st.palette = {studio::type({.size = 20, .color = {1, 0, 0, 1}})};
@@ -804,13 +799,12 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
   ring.append(u8"AAAA");
   ring.append(u8"BBBB", 0);
 
-  // (a) The hand-rebuild recipe in line()'s doc comment IS the component:
-  //     a panel spelled column().gap(style.gap).clip() with one line() per
-  //     row reconciles onto console() with zero patched nodes. Note what
-  //     this can and cannot falsify — console() DELEGATES to line(), so
-  //     breaking line() breaks both sides equally and leaves this green;
-  //     what it pins is the PANEL spelling an author has to reproduce.
-  //     (b) and (c) below are what hold line() itself.
+  // (a) The hand-rebuild recipe line() documents IS the component: a panel
+  //     spelled column().gap(style.gap).clip() with one line() per row
+  //     reconciles onto console() with zero patched nodes. Note the limit —
+  //     console() DELEGATES to line(), so breaking line() breaks both sides
+  //     equally and leaves this arm green. What it pins is the PANEL
+  //     spelling an author has to reproduce; (b) and (c) hold line() itself.
   Host host(220, 90);
   host.composer.render(box().child(console::console(ring, st)));
   host.frame();
@@ -867,11 +861,11 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
 }
 
 TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
-  // Both proving plates in the corpus prove themselves on screen and neither
-  // can be falsified by its own output: 53 fmt() calls producing strings
-  // whose truth is not connected to the assertion. The fix is that the
-  // printed verdict is DERIVED from the two values it prints —
-  // minard_1869.cpp:2580 invented exactly this as a lambda.
+  // A figure that prints its own verification is worthless if the printed
+  // verdict is written by hand next to the numbers: the string and the claim
+  // are then unconnected, and the plate cannot be falsified by its own
+  // output. debug::check() derives the verdict FROM the two values it
+  // prints, so a wrong number changes the word beside it.
   const debug::Check ok = debug::check("northern column", 422000 - 22000,
                                        400000);
   EXPECT_TRUE(ok.pass);
@@ -950,5 +944,5 @@ TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
 }
 
 // ---------------------------------------------------------------------------
-// The stroke grammar (ROADMAP §33 stage one): shape(), spans, band().
+// The stroke grammar: shape(), spans, band().
 

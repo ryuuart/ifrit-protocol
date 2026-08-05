@@ -4,6 +4,9 @@
 
 #include <include/core/SkSurface.h>
 
+#include <algorithm>
+#include <string_view>
+
 namespace compose_gallery {
 namespace {
 
@@ -44,8 +47,29 @@ TEST(ComposeGallery, EveryStudyInTheTableIsLinkedIn) {
     EXPECT_NE(sketch::findStaticSketch(study.key), nullptr);
   }
   EXPECT_EQ(sketch::findStaticSketch("not_a_sketch"), nullptr);
-  // And the other direction: a sketch added to SIGIL_SKETCH_STUDIES but not
-  // to kStudies compiles, links, and never appears anywhere.
+}
+
+// The other direction. A sketch compiled into SigilSketchStudies but left
+// out of kStudies links fine, registers its factory, and then simply never
+// appears — no gallery row, no headless capture, no plate in the
+// byte-identity sweep — with nothing at runtime to notice the absence.
+// The compiled set is what the build knows, so it is the authority: every
+// registered stem must have a table row, checked by name so the failure
+// says which stem is missing.
+TEST(ComposeGallery, EveryLinkedStudyIsInTheTable) {
+  for (const sketch::StaticSketch &linked : sketch::staticSketches()) {
+    const bool listed =
+        std::any_of(std::begin(kStudies), std::end(kStudies),
+                    [&](const StudyInfo &study) {
+                      return std::string_view(study.key) == linked.key;
+                    });
+    EXPECT_TRUE(listed)
+        << "study \"" << linked.key << "\" is compiled into this binary but "
+        << "has no kStudies entry, so it would never appear in the gallery "
+        << "or the plate sweep";
+  }
+  // Membership both ways plus equal counts is a bijection: this line is
+  // what catches a stem duplicated on either side.
   EXPECT_EQ((int)sketch::staticSketches().size(), kStudyCount);
 }
 

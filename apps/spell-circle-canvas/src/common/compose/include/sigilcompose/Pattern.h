@@ -1,30 +1,29 @@
 #pragma once
 
 /** @file
- * SigilCompose Pattern — runtime-PROCEDURAL, REGENERABLE tiled textures.
- * The user-model: "generate different pattern backgrounds at runtime and
- * apply them to different elements" — an Islamic-tessellation ground, a
- * halftone field, a speckled paper — parameterized, seeded, and cheap to
- * re-roll.
+ * SigilCompose Pattern — procedural, regenerable tiled textures: an
+ * Islamic-tessellation ground, a halftone field, a speckled paper —
+ * parameterized, seeded, and cheap to re-roll at runtime.
  *
- * A Pattern is a RECIPE for one tile plus a mapping (scale/rotation). The
- * tile bakes ONCE into an SkImage (memoized on the shared state), wraps as
- * a repeating shader, and rides the Material path — so a pattern fill
- * caches, prunes (same bake → pointer-equal recipe), and re-generates by
- * DESIGN: `.seed(n)` (or `retile()`) drops the bake, the next `material()`
- * re-renders the tile, and the reconciler sees a changed recipe exactly
- * once. Rotation/scale act on the shader matrix only — no rebake, and a
- * rotated repeat stays seamless.
+ * A Pattern is a RECIPE for one tile plus a mapping (scale, rotation,
+ * offset). The tile bakes ONCE into an SkImage memoized on the shared
+ * state, wraps as a repeating shader, and rides the Material path — so a
+ * pattern fill caches and prunes, and regeneration is explicit: `.seed(n)`
+ * or `retile()` drops the bake, the next `material()` re-renders the tile,
+ * and the reconciler sees a changed recipe exactly once. Rotation, scale
+ * and offset act on the shader matrix only — no rebake, and a rotated
+ * repeat stays seamless.
  *
- * Two tile sources, same discipline as everything else here:
+ * Two tile sources:
  *  - a PatternProgram (seeded raw drawing — the generator route; the stock
  *    generators in <sigilcompose/Patterns.h> are these), or
- *  - an ELEMENT TREE (patterns are compositions too: a tile built from
- *    boxes/text/materials, baked via snapshot()).
+ *  - an ELEMENT TREE: a tile built from boxes/text/materials, baked via
+ *    snapshot().
  *
- * Hold a Pattern where you hold assets (a sketch member, a model field);
- * re-describing it each frame with a fresh Pattern object would re-bake
- * per render — the shared bake is the identity.
+ * THE BAKE IS THE IDENTITY, and that decides where a Pattern is stored.
+ * Hold one where you hold assets — a sketch member, a model field.
+ * Re-describing with a freshly minted Pattern each frame mints a fresh
+ * shared state with no bake in it, so every render re-renders the tile.
  */
 
 #include "sigilcompose/Compose.h"
@@ -74,15 +73,17 @@ public:
   }
 
   /** Change the seed → drop the bake → the next material() REGENERATES.
-   *  Identity flows through: the reconciler sees one changed recipe.
+   *  The reconciler sees one changed recipe.
    *
-   *  COPY-ON-WRITE, like `Material::uniform`: a Pattern is a VALUE whose
-   *  every other setter (scale/rotate/offset/sampling) is per-object, so
-   *  re-rolling a COPY must not re-roll the pattern it was copied from —
-   *  which is what a shared recipe did, silently dropping the original's
-   *  bake and re-generating every element that still drew the old tile
-   *  (audit E5). Holding the ONE Pattern and re-seeding it is unchanged:
-   *  nothing else references the state, so nothing is copied. */
+   *  COPY-ON-WRITE. A Pattern is a value whose every other setter (scale,
+   *  rotate, offset, sampling) is per-object, so re-rolling a COPY must not
+   *  re-roll the pattern it was copied from: without the detach, re-seeding
+   *  a copy would drop the original's bake and silently regenerate every
+   *  element still drawing the old tile. Holding the ONE Pattern and
+   *  re-seeding it copies nothing — no other reference to the state exists.
+   *
+   *  This and `retile()` are the only copy-on-write points; the mapping
+   *  setters never touch the shared state. */
   Pattern &seed(uint32_t s) {
     if (m_state && m_state->seed != s) {
       detachState();
@@ -112,29 +113,25 @@ public:
     return *this;
   }
   /** Pan the repeat, in the node's own pixels — mapping only, no rebake.
+   *  Phase is the defining property of a great many repeats: a twill
+   *  advances one thread per pick, a conveyor belt moves, a barber pole
+   *  turns.
    *
-   *  This is plumbing that already existed: `bake()` hands its matrix to
-   *  `Material::image`, whose `localMatrix` has always taken a
-   *  translation, so `Pattern` was exposing two thirds of a matrix its
-   *  own backend takes whole. Phase is the defining property of a
-   *  surprising number of repeats — a twill advances one thread per pick,
-   *  a conveyor belt moves, a barber pole turns — and two studies wrote
-   *  the pattern twice for want of it.
-   *
-   *  Describe-time: this form re-describes to move. The BOUND overload
-   *  below is the live sibling. */
+   *  Describe-time: this form moves only when the element is re-described.
+   *  The BOUND overload below is the live sibling. */
   Pattern &offset(SkPoint px) {
     m_offset = px;
     return *this;
   }
-  /** Pan the repeat LIVE (ROADMAP §14-a): the same word, the bound form —
-   *  `fill(&output)`'s grammar on the pan. Assign the Outputs and the
-   *  conveyor moves, the twill marches, with NO re-describe and no
-   *  rebake; either axis may be null. Adds to the static offset() (the
-   *  phase origin). Rides `Material::offset`'s bound-matrix channel:
-   *  content volatility while moving, §20's measured-stability release
-   *  once it holds still — a parked conveyor costs what a static pattern
-   *  costs, promotion included — and the re-declare the frame it resumes. */
+  /** Pan the repeat LIVE — the bound form of the same word. Assign the
+   *  Outputs and the conveyor moves, the twill marches, with NO
+   *  re-describe and no rebake; either axis may be null. Adds to the
+   *  static offset(), which is then the phase origin.
+   *
+   *  Rides `Material::offset`'s bound-matrix channel, so the node carries
+   *  content volatility while the values move; once they hold still the
+   *  library's stability detection releases it back to the cached tier,
+   *  and it re-declares volatile on the frame the pan resumes. */
   Pattern &offset(const choreograph::Output<float> *x,
                   const choreograph::Output<float> *y) {
     m_boundX = x;
@@ -143,19 +140,19 @@ public:
   }
   /** How the baked tile samples. Defaults to linear, which is right for
    *  organic tiles and wrong for anything on a pixel grid — a woven
-   *  cloth, a dither, a bitmap-font sheet. `Material::image()` has always
-   *  taken this; `Pattern` did not, which is the same signature-diff
-   *  discoverability trap `Element::sampling()` closed on the image
-   *  leaf. */
+   *  cloth, a dither, a bitmap-font sheet all want nearest. */
   Pattern &sampling(SkSamplingOptions options) {
     m_sampling = options;
     return *this;
   }
   uint32_t currentSeed() const { return m_state ? m_state->seed : 0; }
 
-  /** Bake-once + wrap as a repeating Material (program tiles). */
+  /** Bake-once + wrap as a repeating Material. PROGRAM TILES ONLY: an
+   *  element-tile Pattern has no font context here, so it draws nothing
+   *  and returns an EMPTY material — use the overload below. */
   Material material() const { return bake(nullptr); }
-  /** Element-tile overload — text in tiles needs the fonts. */
+  /** Element-tile overload, and the required one for element tiles: the
+   *  tree is laid out and shaped during the bake, which needs the fonts. */
   Material material(sigil::weave::FontContext &fonts) const {
     return bake(&fonts);
   }
@@ -169,10 +166,10 @@ private:
     sk_sp<SkImage> baked; // the memoized tile; reset regenerates
   };
 
-  /** The copy-on-write step (Material::detachLive's shape): a recipe
-   *  shared with another Pattern is cloned before it is edited. The clone
-   *  keeps the bake — the caller drops it right after, and retile()/seed()
-   *  are the only editors. */
+  /** The copy-on-write step: a recipe shared with another Pattern is
+   *  cloned before it is edited. The clone keeps the bake — both callers
+   *  drop it immediately afterwards, and seed()/retile() are the only
+   *  editors of the shared state. */
   void detachState() {
     if (m_state && m_state.use_count() > 1)
       m_state = std::make_shared<State>(*m_state);
@@ -212,7 +209,7 @@ private:
     Material m = Material::image(st.baked, SkTileMode::kRepeat,
                                  SkTileMode::kRepeat, local, m_sampling);
     if (m_boundX || m_boundY)
-      m.offset(m_boundX, m_boundY); // §14-a: the live pan rides Material's
+      m.offset(m_boundX, m_boundY); // the live pan rides Material's
                                     // bound-matrix channel
     return m;
   }

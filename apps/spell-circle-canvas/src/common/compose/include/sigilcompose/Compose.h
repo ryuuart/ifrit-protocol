@@ -2,8 +2,7 @@
 
 /** @file
  * SigilCompose kernel — data-driven, cacheable, animated drawable
- * components for any SkCanvas. See DESIGN.md (architecture), API.md
- * (surface rationale), STRESS_TESTS.md (acceptance catalog).
+ * components for any SkCanvas.
  *
  * The kernel is: Element descriptions built by fluent value builders,
  * component functions over plain data (+ memo), and a Composer that
@@ -11,6 +10,17 @@
  * paints with explicit stacking, caches provably-static subtrees as
  * SkPictures automatically, and animates through Choreograph driven by
  * an sigil::motion::Ticker.
+ *
+ * THE TWO WRITE PATHS, and the reason they are separate. Structure and
+ * discrete state arrive by DESCRIBE — `Composer::render()` /
+ * `renderSlot()`, reconciled by key. Per-frame values arrive by BIND — a
+ * non-owning pointer to a live `choreograph::Output` the host steps —
+ * and a binding is paint-only: it never relayouts. Because both paths are
+ * DECLARED, the library can decide, without running anything, which
+ * subtrees cannot have changed, and cache exactly those. Every automatic
+ * cache in this file rests on that property. The corollary is an author
+ * obligation: anything that changes without a re-describe must say so,
+ * because nothing introspects a type-erased value.
  */
 
 #include <sigilmotion/Animation.h>
@@ -29,6 +39,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
+#include <include/core/SkTypes.h>
 
 #include <any>
 #include <cassert>
@@ -77,20 +88,16 @@ class Material;
 // Animation values
 
 /** ANIMATION VALUES — Transition, the `ease::` curves, the animate()
- *  keyframe builders and the shaped `bind()` binding — LIVE IN SIGILMOTION
- *  (<sigilmotion/Animation.h>) as of 2026-07-29. None of them ever touched
- *  Skia, Yoga or the kernel, and SigilWorld/SigilShape want them without
- *  swallowing a drawing library; SigilCompose already links SigilMotion, so
- *  the move cost nothing here.
+ *  keyframe builders and the shaped `bind()` binding — are defined in
+ *  SigilMotion (<sigilmotion/Animation.h>). None of them touches Skia,
+ *  Yoga or the kernel, so other libraries can speak them without linking a
+ *  drawing library; SigilCompose already links SigilMotion.
  *
- *  The re-export below is PERMANENT, not a migration shim. These types
- *  appear in compose's own signatures (Element::transition(), animate()'s
- *  spec argument, every Animatable property), so they are part of compose's
- *  authoring surface whoever defines them — a library names the vocabulary
- *  it speaks. `compose::Transition` and `motion::Transition` are the same
- *  entity, not two spellings of one idea, which is why the §32 "REPLACE,
- *  not converge" ruling does not reach this: there is no worse name to
- *  delete and no author decision to disambiguate. See ROADMAP §37. */
+ *  The re-export is permanent, not a shim. These types appear in compose's
+ *  own signatures (Element::transition(), animate()'s spec argument, every
+ *  Animatable property), so they are part of compose's authoring surface
+ *  whoever defines them. `compose::Transition` and `motion::Transition`
+ *  name one entity, not two competing spellings. */
 using motion::Bound;
 using motion::BoundFloat;
 using motion::From;
@@ -106,36 +113,37 @@ using motion::through;
 using motion::to;
 using motion::wiggle;
 namespace ease = motion::ease;
-/** The canonical `floor(t·hz)/hz` time quantizer — the arithmetic
- *  `Material::quantizeTime(hz)` applies to a shader's uTime, exported so
- *  host steppables quantizing their OWN schedules spell the same idea
- *  with the same word instead of hand-rolling it (ROADMAP §43.12 item 4).
+/** The `floor(t·hz)/hz` time quantizer — the same arithmetic
+ *  `Material::quantizeTime(hz)` applies to a shader's uTime, re-exported
+ *  so host steppables quantizing their OWN schedules spell it the same
+ *  way instead of hand-rolling it.
  *
- *  NOTE the derivation verb itself is `Ticker::derive(dst, bind(&src)…)`
- *  — a Ticker member, not a free factory — so it needs no re-export and
- *  cannot collide with compose's `derive::` namespace (the geometry
- *  derive phase below), which already owns the word at namespace scope. */
+ *  The derivation verb itself is `Ticker::derive(dst, bind(&src)…)`, a
+ *  Ticker member rather than a free factory, so it needs no re-export and
+ *  cannot collide with compose's `derive::` namespace (the geometry derive
+ *  phase below), which already owns that word at namespace scope. */
 using motion::quantizeTime;
 
-/** `Animatable<T>` — THE PROPERTY SLOT: a value that can move. Plain T,
- *  a Transitioned<T>, a live `choreograph::Output<T>*`, or that binding
- *  shaped through bind(). It LIVES IN SIGILMOTION too
- *  (<sigilmotion/Animation.h>), for the same reason as everything above:
- *  its four forms are a T and three types SigilMotion already owns, and
+/** `Animatable<T>` — THE PROPERTY SLOT: a value that can move. Four
+ *  forms: a plain T, a Transitioned<T>, a live `choreograph::Output<T>*`,
+ *  or that binding shaped through bind(). Defined in SigilMotion
+ *  (<sigilmotion/Animation.h>) for the same reason as everything above —
  *  no Skia, Yoga or kernel type appears anywhere in it.
  *
- *  Its index() comment used to be read as "this encodes the reconciler's
- *  compare, so it can never leave compose". That reading was wrong — the
- *  ordering is a stable DISCRIMINANT preserved from the pre-compaction
- *  std::variant, and compose's `propEqual` (Reconcile.cpp) is one
- *  consumer of it, not its definition. propEqual goes through the PUBLIC
- *  accessors only and did not change by a character. See ROADMAP §37.
+ *  The two write paths meet in this one type. A plain T (or a
+ *  Transitioned<T>) is DESCRIBED state: it changes only when the author
+ *  describes again, and the reconciler's property comparison can see that
+ *  it did. A bound `Output<T>*` is a per-frame value the host writes, and
+ *  it compares BY IDENTITY — the pointer, not the number behind it — so a
+ *  node holding one is declared volatile and does not cache. That is why
+ *  handing back a freshly constructed Output at a new address breaks
+ *  pruning even when the value is unchanged: the address is the property.
  *
- *  What compose keeps is what compose actually owns: RESOLUTION. An
- *  Animatable is resolved against a PaintContext — node transitions,
- *  stagger, mount entrances, the per-frame Composer state — and that
- *  stays here (Transitions.cpp). SigilMotion supplies the value; compose
- *  decides what a described change MEANS to a node. */
+ *  Compose owns RESOLUTION, not the value: an Animatable is resolved
+ *  against a PaintContext, taking node transitions, stagger, mount
+ *  entrances and the per-frame composer state into account. SigilMotion
+ *  supplies the value; compose decides what a described change means to a
+ *  node. */
 using motion::Animatable;
 
 
@@ -221,18 +229,19 @@ struct PaintContext {
     return SkPath();
   }
 
-  /** The instance's stamp-bake store (§16) — null outside a composer
-   *  (standalone decoration paints fall back to the brush value's own
-   *  cache). Mutable through a const context on purpose: a bake is a
-   *  cache write, not a paint output. */
+  /** The instance's stamp-bake store — null outside a composer (standalone
+   *  decoration paints fall back to the brush value's own cache). Mutable
+   *  through a const context on purpose: a bake is a cache write, not a
+   *  paint output. */
   class StampCache *stamps = nullptr;
 
-  /** The node→composer-root matrix W (§19, Material::worldSpace) — the
-   *  forward accumulation of paint()'s own transform stack, whose inverse
-   *  the hit test walks (Query.cpp). Identity outside a composer, which is
-   *  the deterministic degradation: a world-space material resolved
-   *  standalone anchors node-locally, same picture as the unflagged one.
-   *  Layout-derived, like `size` — never part of any prune signature. */
+  /** The node→composer-root matrix, i.e. the forward accumulation of
+   *  paint()'s own transform stack; the hit test walks its inverse. This
+   *  is what `Material::worldSpace` anchors against. Identity outside a
+   *  composer, which degrades deterministically: a world-space material
+   *  resolved standalone anchors node-locally and draws the same picture
+   *  as the unflagged one. Layout-derived, like `size` — never part of any
+   *  prune signature. */
   SkMatrix toRoot = SkMatrix::I();
   /** The composer root's laid-out size in canvas px — what uResolution
    *  becomes for a world-space material (a canvas-unit ramp spans the
@@ -242,20 +251,19 @@ struct PaintContext {
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
 
-/** The INSTANCE-SIDE bake store for stamped brushes (§16, ruling 6): tile
- *  bakes live with the NODE, not in the brush value, so a brush value
- *  rebuilt by every describe finds its art's bake instead of re-baking —
- *  the only place in the library where re-describing used to cost raster
- *  work rather than a diff (one study measured eighteen full snapshot()
- *  passes per frame from a brush constructed inside renderSlot()).
+/** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
+ *  the NODE, not inside the brush value. A brush value constructed fresh
+ *  by every describe would otherwise re-rasterize its art each time — the
+ *  one place where re-describing costs raster work rather than a diff.
+ *  Keeping the bake on the instance means the rebuilt value finds it.
  *
- *  Keyed on the art Element's node with a WEAK GUARD: a process-wide map
- *  on the raw pointer was rejected in the entry because a freed node's
- *  recycled address would silently inherit the wrong art; holding the
- *  weak handle makes that structurally impossible — a recycled key fails
- *  the lock-identity check and re-bakes. Entries carry either a picture
- *  (Pattern/Scatter tiles) or a rastered image + logical size (Art's 2x
- *  bake); each consumer reads only its own kind. */
+ *  Keyed on the art Element's node WITH A WEAK GUARD, and the guard is
+ *  load-bearing: a plain map on the raw pointer would let a freed node's
+ *  recycled address silently inherit the wrong art's bake. Locking the
+ *  weak handle and comparing identity makes that impossible — a recycled
+ *  key fails the check and re-bakes. Entries carry either a picture
+ *  (pattern and scatter tiles) or a rastered image plus its logical size;
+ *  each consumer reads only its own kind. */
 class StampCache {
 public:
   struct Entry {
@@ -306,42 +314,38 @@ public:
    *  @p angleDeg (degrees, Element::rotate's screen sense — 0 smears
    *  horizontally, 90 vertically, 45 down-right), @p across
    *  perpendicular to it (default 0, a pure streak). A spatial filter,
-   *  not motion blur (ROADMAP §43.7's separate filing — motion blur
-   *  itself is refused there).
+   *  not motion blur: it knows nothing about how the node moved.
    *
-   *  Built ENTIRELY from existing filters — no new SkSL: at an
-   *  axis-aligned angle it IS SkImageFilters::Blur(x, y) (bit-identical,
-   *  which is what let the four hand-built anisotropic sites port
-   *  unchanged), and at any other angle it is the rotate → Blur →
-   *  unrotate sandwich §43.7 named, three nodes the filter DAG composes.
+   *  Built entirely from existing filters, no new SkSL. At an
+   *  axis-aligned angle it IS `SkImageFilters::Blur(x, y)`, bit-identical;
+   *  at any other angle it is a rotate → Blur → unrotate sandwich, three
+   *  nodes the filter DAG composes.
    *
    *  Unlike a raw filter() this carries a comparable RECIPE, so a
-   *  re-described equal directionalBlur PRUNES (filter() can only
-   *  compare by pointer), and the named parameters "sigma" / "angle" /
-   *  "across" accept uniform(name, &output) below — an animated smear
-   *  angle rides the existing live channel, no re-describe per frame. */
+   *  re-described equal directionalBlur PRUNES where filter() — which can
+   *  only compare its already-built filter by pointer — does not. The
+   *  named parameters "sigma" / "angle" / "across" accept
+   *  uniform(name, &output) below, so an animated smear angle rides the
+   *  live channel instead of re-describing per frame. */
   static Effect directionalBlur(float sigma, float angleDeg,
                                 float across = 0);
-  /** A blur whose SIGMA VARIES ACROSS THE NODE (ROADMAP §19) — a
-   *  depth-of-field falloff, a lens edge, a tube's curvature. @p sigmaMap
-   *  is a Material read as a NUMBER rather than as paint (§41's luma
-   *  matte is the precedent): its RED channel at a pixel, times
-   *  @p maxSigma, is the blur radius there. So the natural authoring is a
-   *  unit-space ramp — `Material::linearUnit({0,0}, {1,0}, {{0, black},
-   *  {1, white}})` is "sharp at the left edge, softest at the right" over
-   *  whatever box the layout decides — and any sksl() material is an
-   *  arbitrary field.
+  /** A blur whose SIGMA VARIES ACROSS THE NODE — a depth-of-field
+   *  falloff, a lens edge, a tube's curvature. @p sigmaMap is a Material
+   *  read as a NUMBER rather than as paint: its RED channel at a pixel,
+   *  times @p maxSigma, is the blur radius there. The natural authoring is
+   *  therefore a unit-space ramp — `Material::linearUnit({0,0}, {1,0},
+   *  {{0, black}, {1, white}})` is "sharp at the left edge, softest at the
+   *  right" over whatever box the layout decides — and any sksl() material
+   *  is an arbitrary field.
    *
-   *  Effect::shader could express this only by paying the WORST sigma at
-   *  every pixel: SkSL has no cheap dynamic loop bound, so the kernel has
-   *  to be sized for the largest radius anywhere in the node, and it is
-   *  not separable once sigma varies. This spends a FIXED NUMBER of passes
-   *  instead — MEASURED (compose_bench `VaryingBlur` arms, and the table
-   *  in API.md): quadrupling @p maxSigma costs this 1.3× where it costs
-   *  that kernel 15× on the CPU, and the whole effect is 1.4–2.3× a plain
-   *  constant blur that varies nothing. How it spends them is the
-   *  library's business and is deliberately not in this signature: the
-   *  author says "blur varying by this map".
+   *  Written as its own effect rather than left to Effect::shader because
+   *  a hand-written SkSL kernel would have to pay the WORST sigma at every
+   *  pixel: SkSL has no cheap dynamic loop bound, so the kernel must be
+   *  sized for the largest radius anywhere in the node, and a Gaussian
+   *  stops being separable once sigma varies. This spends a fixed number
+   *  of passes instead, so cost grows far more slowly with @p maxSigma.
+   *  How it spends them is the library's business and deliberately absent
+   *  from this signature: the author says "blur varying by this map".
    *
    *  Rides the same rails as directionalBlur: a comparable RECIPE (an
    *  equal re-described blur PRUNES, and the sigma map's Material
@@ -351,41 +355,41 @@ public:
    *  inheritance — so a bake can never sample the map once and freeze it.
    *  `child("sigma", otherMap)` re-aims the map on an existing blur. */
   static Effect blur(Material sigmaMap, float maxSigma);
-  /** THE CHILD SLOT — Material::child on the effect seam (§19), same name,
+  /** THE CHILD SLOT — `Material::child` on the effect seam: same name,
    *  same shape, same semantics. The effect declares `uniform shader
    *  NAME;` and this fills it with a Material, so the SkSL can read a
    *  source the node has NOT painted: a parameter field, a mask channel, a
-   *  gradient, a second texture. `Effect::shader` already fills exactly
-   *  one child — `content`, the node's own rendered layer — and a second
-   *  declared `uniform shader` used to be left unbound with nothing to
-   *  bind it. The Material resolves against THIS NODE's box, so unit-space
-   *  authoring (linearUnit / glowUnit) works here as it does on a fill.
+   *  gradient, a second texture. `Effect::shader` fills exactly one child
+   *  itself — `content`, the node's own rendered layer — and this is how
+   *  any further declared `uniform shader` gets a source. The Material
+   *  resolves against THIS NODE's box, so unit-space authoring
+   *  (linearUnit / glowUnit) works here as it does on a fill.
    *
-   *  TIER INHERITANCE, the load-bearing half (Material::child's rule,
-   *  reached by calling Material's own recursion rather than repeating
-   *  it): a live child makes the effect isAnimated(), so the node is
-   *  declared volatile and no cache can freeze the parameter; the children
-   *  ride the prune signature, so two effects with different children
-   *  never compare equal.
+   *  TIER INHERITANCE is the load-bearing half, and it calls Material's
+   *  own recursion rather than repeating its rule: a live child makes the
+   *  effect isAnimated(), so the node is declared volatile and no cache
+   *  can freeze the parameter; the children also ride the prune signature,
+   *  so two effects with different children never compare equal.
    *
-   *  Guardrails match Material::child's exactly: a name the effect does
-   *  not declare as `uniform shader` warns and is IGNORED, and on an
+   *  SILENT-ISH GUARDRAILS, matching Material::child. A name the effect
+   *  does not declare as `uniform shader` warns and is IGNORED. On an
    *  effect kind with no child to fill — `filter()`, which wraps an
-   *  already-built SkImageFilter, or a bare `directionalBlur()` — it is a
-   *  no-op with a warning, exactly as uniform() is there. On a blur() the
-   *  one fillable name is "sigma", its sigma map. */
+   *  already-built SkImageFilter, or a bare `directionalBlur()` — the call
+   *  is a no-op with a warning, exactly as uniform() is there. On a
+   *  blur() the one fillable name is "sigma", its sigma map. */
   Effect &child(std::string name, Material source);
-  /** A LIVE float uniform — Material's contract, on the effect seam
-   *  (ROADMAP §11: animating a ripple phase or a bloom threshold used to
-   *  require a full re-describe per frame). The value is read from the
-   *  Output at every paint, and the node repaints per frame while the
-   *  effect is attached — a bound uniform declares volatility exactly as
-   *  a live material does. Meaningful on a shader() effect (any declared
-   *  float uniform), a directionalBlur() ("sigma" / "angle" / "across")
-   *  or a blur() ("maxSigma"); a filter() has no uniform to receive the
-   *  value (the binding is ignored there, and the volatility is NOT
-   *  declared — unknown recipe names warn and are ignored, Material's
-   *  guardrail). */
+  /** A LIVE float uniform — Material's contract, on the effect seam. The
+   *  value is read from the Output at every paint, and the node repaints
+   *  every frame while the effect is attached: a bound uniform declares
+   *  volatility exactly as a live material does, which is what lets a
+   *  ripple phase or a bloom threshold animate without re-describing.
+   *
+   *  Meaningful on a shader() effect (any declared float uniform), a
+   *  directionalBlur() ("sigma" / "angle" / "across") or a blur()
+   *  ("maxSigma"). A filter() has no uniform to receive the value: the
+   *  binding warns and is ignored there, and no volatility is declared, so
+   *  nothing animates. Unknown recipe names on the other kinds warn and
+   *  are ignored, as does a null @p value. */
   Effect &uniform(std::string name, const choreograph::Output<float> *value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
@@ -403,22 +407,24 @@ public:
    *  an Effect outside a paint can ask for. */
   sk_sp<SkImageFilter>
   resolvedImageFilter(const PaintContext *ctx = nullptr) const;
-  /** THE VOLATILITY DECLARATION (one word, everywhere): does this effect
-   *  change without a re-describe? True while any uniform is bound, or
-   *  while any child Material is live — the tier inheritance is
-   *  Material::isAnimated()'s own recursion, called, not copied. */
+  /** THE VOLATILITY DECLARATION — one word across the whole library: does
+   *  this effect change without a re-describe? True while any uniform is
+   *  bound, or while any child Material is live. The tier inheritance
+   *  calls `Material::isAnimated()`'s own recursion rather than repeating
+   *  its rule. */
   bool isAnimated() const;
   /** Does any child Material anchor to the composer root
-   *  (Material::worldSpace, §19)? The reconcile walk asks this to flag the
-   *  node for W-invalidation — the same tier-inheritance shape as
-   *  isAnimated(), calling Material's own recursion. */
+   *  (`Material::worldSpace`)? The reconcile walk asks this so it can mark
+   *  the node's world matrix stale when an ancestor's static transform is
+   *  re-described. Same tier-inheritance shape as isAnimated(). */
   bool usesWorldSpace() const;
-  /** Structural equality for the reconciler: static shader effects
-   *  compare by RECIPE (runtime-effect pointer + constant uniforms), so
-   *  a re-described effect prunes when the caller holds one
-   *  SkRuntimeEffect — the sharedHeavyEffect pattern. A live effect
-   *  never compares equal (conservative, like a live material); filter()
-   *  effects compare by filter pointer, as they always did. */
+  /** Structural equality for the reconciler. A static shader effect
+   *  compares by RECIPE — runtime-effect pointer plus constant uniforms —
+   *  so a re-described effect prunes as long as the caller holds ONE
+   *  SkRuntimeEffect and rebuilds only the wrapper around it. A live
+   *  effect never compares equal, conservatively, like a live material.
+   *  A filter() effect compares by filter pointer, since an already-built
+   *  SkImageFilter carries no recipe to compare. */
   bool operator==(const Effect &o) const;
 
 private:
@@ -429,7 +435,7 @@ private:
     float sigma = 0, angleDeg = 0, across = 0;
     bool operator==(const DirectionalBlur &) const = default;
   };
-  /** blur()'s comparable recipe (§19) — the parameter's RANGE. The sigma
+  /** blur()'s comparable recipe — the parameter's RANGE only. The sigma
    *  MAP itself lives in m_children under "sigma", so one child vector
    *  carries every Material an effect samples: one equality, one tier
    *  walk, one resolve loop, and `child("sigma", …)` re-aims the map for
@@ -448,7 +454,7 @@ private:
       m_bound;
   std::optional<DirectionalBlur> m_dirBlur; // directionalBlur()'s recipe
   std::optional<ParamBlur> m_paramBlur;     // blur()'s recipe
-  // The child slots: `uniform shader NAME` → Material (§19). Held by
+  // The child slots: `uniform shader NAME` → Material. Held by
   // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
   // includes this header, so it cannot be included back) — the surface is
   // still child(name, Material) by value, and a copied Effect never
@@ -520,9 +526,11 @@ using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo &, float)>;
  *  starts after its delay and runs for durationMs. */
 struct Stagger {
   float eachMs = 30;
-  /** GSAP amount-mode (XOR with eachMs; wins when > 0): the TOTAL spread
-   *  divided across all glyphs — the §8 budget law ("entrances ≤ 1.2s")
-   *  as a constant that survives copy changes. */
+  /** Amount-mode (mutually exclusive with eachMs; wins when > 0): the
+   *  TOTAL spread, divided across however many glyphs there are. Use it
+   *  when the budget for the whole entrance is fixed and the text may
+   *  change length — `eachMs` keeps per-glyph spacing and lets the total
+   *  grow, this keeps the total and shrinks the spacing. */
   float amountMs = 0;
   float durationMs = 450;
   enum class From : uint8_t { Start, Center, End } from = From::Start;
@@ -532,16 +540,19 @@ struct Stagger {
 // ---------------------------------------------------------------------------
 // The shape seam — a COMPARABLE silhouette value
 
-/** A shape scheme: `SkPath path(SkSize) const`, plus equality — the
- *  seam-value convention (one named required member, comparable values
- *  throughout; `Shaper` spells `shape()`, `CrossingRule` spells
- *  `decide()`, a shape value spells `path()`).
+/** A shape scheme: `SkPath path(SkSize) const`, plus equality.
  *
- *  Every stock generator in `Shapes.h` is one, which is what lets a
- *  shaped node participate in reconciler equality and PRUNE — the wall
- *  ROADMAP §3 measured at 43.4 of 43.5 ms on one node whose outline
- *  callable could not compare. A scheme's equality is its contract:
- *  equal values must generate identical paths at every size. */
+ *  This is the seam-value convention the library uses throughout — one
+ *  named required member and a comparable value. `Shaper` spells
+ *  `shape()`, `CrossingRule` spells `decide()`, a shape value spells
+ *  `path()`.
+ *
+ *  Equality is the point, not decoration. A shaped node can only prune —
+ *  skip its dirty marking, keep its recording — if the reconciler can
+ *  prove the shape is the same one, and a `std::function` cannot be
+ *  compared. Every stock generator in `Shapes.h` is a scheme for that
+ *  reason. A scheme's equality is a contract on the author: equal values
+ *  must generate identical paths at every size. */
 template <typename S>
 concept ShapeScheme = std::equality_comparable<S> &&
     requires(const S &s, SkSize size) {
@@ -556,15 +567,16 @@ concept ShapeScheme = std::equality_comparable<S> &&
  *  - a COMPARABLE scheme (any `shapes::` generator, or your own value
  *    with `path(SkSize)` + `==`) — the node prunes while the value and
  *    its size are unchanged;
- *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFn`) — the
- *    escape hatch that never compares equal across describes, so the
- *    node stays conservatively un-pruned exactly as every shaped node
- *    used to. Copies of ONE Shape still compare equal (shared state), so
- *    a pointer-stable generator keeps its old prune too.
+ *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFn`) — the escape
+ *    hatch. It never compares equal to a separately-constructed Shape, so
+ *    the node re-patches on every describe and can never prune. That is a
+ *    real per-frame cost on a node that would otherwise be static; reach
+ *    for it only when no value form fits. Copies of ONE Shape do compare
+ *    equal (they share state), so holding the Shape and re-using it —
+ *    rather than re-minting the lambda each describe — restores pruning.
  *
- *  Held as one shared immutable pointer, so an ElementNode carrying a
- *  shape is CHEAPER than the `std::function` it used to hold, and a COW
- *  node copy is a refcount bump. */
+ *  Held as one shared immutable pointer, so a node carrying a shape costs
+ *  a pointer and a copy-on-write node copy is a refcount bump. */
 class Shape {
 public:
   Shape() = default;
@@ -628,26 +640,25 @@ private:
   std::shared_ptr<const State> m_state;
 };
 
-/** A SPATIAL PATH for a node to ride — After Effects' motion model, and
- *  the 2D port of `world::CameraPath` (world/README.md, 2026-07-29).
+/** A SPATIAL PATH for a node to ride — After Effects' motion model.
  *
  *  `translateX`/`translateY` are two independent lanes. Two lanes can
- *  describe a POINT; they cannot describe a TRAJECTORY, and hand-driving
- *  a curve through them means the author computing two numbers a frame,
- *  which is the imperative door wearing the declarative one's clothes.
+ *  describe a POINT; they cannot describe a TRAJECTORY, and hand-driving a
+ *  curve through them means the author computing two numbers a frame,
+ *  which is imperative animation wearing declarative clothes.
  *
- *  The float-only ruling is not bent to do it. The lane here is @ref t —
- *  WHERE ALONG the curve — so the whole `bind()` chain still applies, to
- *  the SCHEDULE rather than to the geometry: `.map(&choreograph::easeInOutQuad)`
- *  eases the move in and out, `.target(0, 2)` runs two laps of a closed
- *  curve, `.window(...)` makes the move a slice of a larger phase. The
- *  curve supplies the SHAPE, the lane supplies the SCHEDULE. That
- *  separation is the whole design.
+ *  The animatable lane here is a single float, @ref t — WHERE ALONG the
+ *  curve — so the whole `bind()` chain still applies, to the SCHEDULE
+ *  rather than to the geometry:
+ *  `.map(&choreograph::easeInOutQuad)` eases the move in and out,
+ *  `.target(0, 2)` runs two laps of a closed curve, `.window(...)` makes
+ *  the move a slice of a larger phase. The curve supplies the SHAPE, the
+ *  lane supplies the SCHEDULE. That separation is the whole design.
  *
  *      .travel({.path = shapes::circle(),
  *               .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0, 1)})
  *
- *  The rules, argued in DESIGN.md (§ The motion path, 2026-07-29):
+ *  The rules:
  *
  *  - **The curve is resolved against the PARENT's box, not the node's.**
  *    A `Shape` is a function of a size, and the size that makes a motion
@@ -665,37 +676,30 @@ private:
  *    while a path is engaged — not blended, not treated as an offset (a
  *    lane that half-contradicts a curve can only place the node off it).
  *    Dropping the path hands the very same lanes back, live.
- *  - **Auto-orient ADDS to `rotate()`, it does not replace it.** This is
- *    the one place the 2D port departs from `CameraPath`, and it departs
- *    towards that header's OTHER rule: an eye cannot be in two places, so
- *    the path takes the eye outright — but `AnimatedCamera::rollDeg`
- *    composes with the flight, and a tangent angle plus an authored spin
- *    is exactly that composition (it is also what AE does: auto-orient
- *    sets the base orientation and the Rotation property adds on top). So
- *    `rotate(&spin)` on a travelling node spins it AS it banks.
+ *  - **Auto-orient ADDS to `rotate()`, it does not replace it.** The
+ *    tangent angle sets the base orientation and the authored rotation
+ *    composes on top, as it does in AE — so `rotate(&spin)` on a
+ *    travelling node spins it AS it banks.
  *  - **WRAP on a closed curve, CLAMP on an open one.** On a closed
  *    outline 0 and 1 are the same point, so `t` past 1 comes round (and
  *    negative `t` runs backwards) — that is what makes `.target(0, 2)`
  *    read as two laps with no extra API. An open curve parks at its ends.
  *    A path is closed when EVERY contour it resolved to is closed.
- *  - **ARC LENGTH is the only parameterisation, and it came free.** `t`
- *    is a fraction of the path's TOTAL arc length across every contour —
- *    the same coordinate `bandPointAt`, `spans::` and `SkTrimPathEffect`
- *    already speak, so a motion path and a span reveal of the same numbers
- *    describe the same run. `SkContourMeasure` measures nothing else,
- *    which is why there is no `arcLength` flag to turn off (the 3D header
- *    needs one because a `Spline3` has a native parameter; an `SkPath` has
- *    no parameter at all, only length).
- *  - **A path that resolves to no length is not engaged**, exactly as a
- *    `CameraPath` with no control points is not.
+ *  - **ARC LENGTH is the only parameterisation.** `t` is a fraction of
+ *    the path's TOTAL arc length across every contour — the same
+ *    coordinate `bandPointAt`, `spans::` and `SkTrimPathEffect` speak, so
+ *    a motion path and a span reveal driven by the same numbers describe
+ *    the same run. There is no flag to switch it off because there is no
+ *    alternative: an `SkPath` has no native parameter, only length.
+ *  - **A path that resolves to no length is not engaged.**
  *
  *  Paint-only, like the lanes it outranks: a travelling node never
  *  relayouts, and its content picture replays under the new transform.
  *
  *  PRUNING follows the shape seam it is built from: a comparable scheme
- *  (any `shapes::` generator) prunes, the raw-callable escape hatch never
- *  compares equal and keeps the node conservatively un-pruned — the same
- *  contract, and the same cost, `Element::shape()` documents. */
+ *  (any `shapes::` generator) prunes, and the raw-callable escape hatch
+ *  never compares equal, so the node re-patches every describe — the same
+ *  contract and the same cost `Element::shape()` documents. */
 struct MotionPath {
   /** The curve, resolved against the PARENT's laid-out box. */
   Shape path;
@@ -719,22 +723,21 @@ struct MotionPath {
  *  and rotated to its tangent, through the same batched RSXform draw
  *  kinetic text uses (one draw per font+colour, never one per glyph).
  *
- *  Written because placing curved lettering by hand costs one Element and
- *  one layout PER GLYPH: the Nightingale coxcomb study spent ~230 leaves,
- *  ~230 measure() calls and sixty lines of arc-length trigonometry on its
- *  ring labels, and got no kerning for the trouble. Ring labels, dial
- *  faces, seals, compass roses, mottoes and map lettering all want this. */
+ *  The alternative, placing curved lettering by hand, costs one Element
+ *  and one layout PER GLYPH and loses kerning, because each glyph is laid
+ *  out alone. Ring labels, dial faces, seals, compass roses, mottoes and
+ *  map lettering all want this instead. */
 struct TextPath {
   /** The baseline, resolved against the node's laid-out box — any
-   *  `shapes::` generator, or your own. EVERY contour is walked, in
-   *  order, as one arc-length coordinate — a trajectory clipped to the
-   *  frame is several contours and used to lose its label silently.
+   *  `shapes::` generator, or your own. EVERY contour is walked, in order,
+   *  as one continuous arc-length coordinate, so a trajectory that the
+   *  frame cut into several contours still carries its whole run.
    *
-   *  "The node's box" means the TEXT NODE'S OWN box, not a parent's: the
-   *  obvious `disc(c, R).child(text(...).onPath(...))` resolves the ring
-   *  against the text's intrinsic size and collapses every label into a
-   *  blob. The working spelling is that the text leaf IS the disc — give
-   *  the text node the disc's width and height (§10j). */
+   *  "The node's box" means the TEXT NODE'S OWN box, not a parent's. The
+   *  tempting `disc(c, R).child(text(...).onPath(...))` resolves the ring
+   *  against the text's intrinsic size and silently collapses every label
+   *  into a blob. Give the TEXT node the disc's width and height instead
+   *  — the text leaf is the disc. */
   Shape path;
   /** Where the run sits along the path, as a fraction of its length.
    *  With Align::Center this is the run's midpoint. */
@@ -748,11 +751,9 @@ struct TextPath {
   /** Flip glyphs that would come out upside down, so lettering on the
    *  lower half of a ring reads right way up.
    *
-   *  Default OFF, and that is a considered default: engravers used one
-   *  convention — glyph-up points radially outward everywhere — so on
-   *  Nightingale's 1858 plate DECEMBER, JANUARY and FEBRUARY are all
-   *  genuinely upside down. Modern signage flips; historical plates do
-   *  not. */
+   *  Default OFF, which is the engraver's convention: glyph-up points
+   *  radially outward everywhere, so the bottom of a ring genuinely reads
+   *  upside down. Modern signage flips; historical plates do not. */
   bool autoFlip = false;
   /** Which way a glyph faces.
    *
@@ -765,8 +766,7 @@ struct TextPath {
    *  radiates like a spoke — which is how an astrolabe limb, a compass
    *  rose and a radial axis label their divisions: you turn the
    *  instrument to read them. Without it each numeral costs one rotated
-   *  Element, which is exactly the per-glyph cost onPath exists to
-   *  abolish, resurfacing for the other half of the problem.
+   *  Element, which is the same per-element cost onPath exists to avoid.
    *
    *  `Upright` leaves every glyph level regardless of where it sits —
    *  the convention a calendar ring or a modern gauge uses, and the one
@@ -779,10 +779,9 @@ struct TextPath {
    *  full-circle baseline and place the run on it with `at`. */
   enum class Orient { Tangent, Radial, Upright } orient = Orient::Tangent;
   /** Structural equality. The baseline is a `Shape`, so a run on a stock
-   *  generator (or any comparable scheme) PRUNES — 72 radial labels used
-   *  to re-record every render() because this operator could not exist
-   *  (ROADMAP §10e). A raw-callable baseline compares unequal and keeps
-   *  the old conservative behaviour. */
+   *  generator — or any comparable scheme — PRUNES, and a ring of labels
+   *  costs nothing per describe. A raw-callable baseline compares unequal,
+   *  so every such label re-records on every render(). */
   bool operator==(const TextPath &) const = default;
 };
 
@@ -798,29 +797,34 @@ struct GlyphFx {
   Animatable<float> progress = 1.0f;
 };
 
-/** Anything with paint(canvas, PaintContext) — decorations, effects
+/** Anything with paint(canvas, PaintContext) — decorations, effect
  *  bodies. An optional `bool isAnimated() const` declares per-frame
- *  volatility (the single declared-volatility rule). */
+ *  volatility; see AnimatedDecoration below. */
 template <typename D>
 concept DecorationScheme =
     requires(const D &d, SkCanvas &canvas, const PaintContext &ctx) {
       { d.paint(canvas, ctx) };
     };
 
-/** THE VOLATILITY DECLARATION. A scheme that repaints every frame — a
- *  bound dash phase, a live material, a walk keyed to elapsed time — says
- *  so with `bool isAnimated() const`, and the library stops caching its
- *  node's picture. Nothing introspects: a Decoration is type-erased by
- *  the time the composer holds it, so the value must declare.
+/** THE VOLATILITY DECLARATION, and the author obligation behind every
+ *  automatic cache in this library.
  *
- *  ONE WORD, five spellings before it (ROADMAP §33 rulings 2 and 13):
- *  schemes said `animated()`, R1's port said `animates()`, Material said
- *  `isLive()`, PaintContext said `animating`, the node-level checks said
- *  "volatile". `isAnimated()` is the only one now — the `is` prefix makes
- *  it unambiguously a QUERY (a cold read of `animates()` asks "animates
- *  WHAT?"), and there is no setter to confuse it with: the answer is
- *  derived from how the value was constructed. All four older spellings
- *  were deleted in R3. */
+ *  A scheme that repaints differently from one frame to the next — a
+ *  bound dash phase, a live material, a walk keyed to elapsed time — must
+ *  say so with `bool isAnimated() const`. The library then stops caching
+ *  its node's picture. Say nothing and the node is treated as static: its
+ *  first frame is recorded and replayed forever, and the mark freezes with
+ *  no error and no warning.
+ *
+ *  Nothing introspects on your behalf. By the time the composer holds it a
+ *  Decoration is a type-erased value with one paint() entry point; there
+ *  is no way to look inside a lambda and see that it read the clock. The
+ *  value declares, or the value freezes.
+ *
+ *  `isAnimated()` is the one word for this question across the whole
+ *  library — Material, Effect and Decoration all spell it the same way,
+ *  and it is always a query derived from how the value was constructed,
+ *  never a setter. */
 template <typename D>
 concept AnimatedDecoration = requires(const D &d) {
   { d.isAnimated() } -> std::convertible_to<bool>;
@@ -837,12 +841,15 @@ concept BleedingDecoration = requires(const D &d) {
 /** Optional on a DecorationScheme: the FULL width of the MARK it paints,
  *  across the outline it dresses.
  *
- *  Distinct from `bleed()`, which is the CULL's number — how far the paint
- *  escapes the node's box. An `Align::Inner` stroke bleeds ZERO (it never
- *  leaves the shape) while painting a mark `width` px wide, so a repair
- *  region derived from bleed() was measurably too small. Anything that
- *  needs to know where a mark IS, rather than how far it escapes, asks
- *  this. Over-reporting is safe; under-reporting is not. */
+ *  A DIFFERENT NUMBER FROM `bleed()`, and confusing them truncates
+ *  pictures silently. `bleed()` is the CULL's number — how far paint
+ *  escapes the node's box. This is how wide the mark is. An
+ *  `Align::Inner` stroke bleeds ZERO, because it never leaves the shape,
+ *  while painting a mark `width` px across; anything sized from its bleed
+ *  would be far too small. Consumers that need to know where a mark IS,
+ *  rather than how far it escapes, ask this one. Over-reporting either
+ *  number is safe; under-reporting either one silently clips cached
+ *  output. */
 template <typename D>
 concept ReachingDecoration = requires(const D &d) {
   { d.reach() } -> std::convertible_to<float>;
@@ -851,20 +858,22 @@ concept ReachingDecoration = requires(const D &d) {
 /** Optional on a DecorationScheme: element keys whose resolved PATHS this
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
- *  PaintContext::borrowed — the third borrow on one flat walk, beside
- *  flowAround and connector/rail, rather than a fourth mechanism.
+ *  `PaintContext::borrowed`, on the same flat walk that resolves
+ *  flowAround and connector/rail borrows.
  *
- *  Declared rather than introspected because a Decoration is type-erased
- *  by then: the element cannot look inside the value, so the value says
- *  so. Composites forward their children's keys. */
+ *  Declared rather than introspected, for the same reason isAnimated() is:
+ *  the element cannot look inside a type-erased value. A composite
+ *  decoration must forward its children's keys, or their borrows resolve
+ *  to nothing and they draw nothing. */
 template <typename D>
 concept BorrowingDecoration = requires(const D &d) {
   { d.borrows() } -> std::convertible_to<std::vector<std::string>>;
 };
 
-/** Type-erased decoration: the kernel seam extension primitives
- *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A
- *  bare PaintProgram works too. */
+/** Type-erased decoration: the kernel seam the extension primitives
+ *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A bare
+ *  PaintProgram works too, at the cost of comparability — see
+ *  operator== below. */
 class Decoration {
 public:
   template <DecorationScheme D>
@@ -926,10 +935,15 @@ public:
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string> &borrows() const { return m_borrows; }
 
-  /** Structural equality for the no-memo prune: true only when both wrap the
-   *  same value-comparable scheme type and those values compare equal. A bare
-   *  PaintProgram or an incomparable scheme always compares unequal —
-   *  conservative, matching the rest of the reconciler's equality. */
+  /** Structural equality, which is what lets a decorated node prune with
+   *  no memo around it: true only when both wrap the same value-comparable
+   *  scheme type and those values compare equal.
+   *
+   *  A bare PaintProgram, or a scheme without operator==, ALWAYS compares
+   *  unequal. That is conservative and correct — the library cannot prove
+   *  a callable is the same drawing — but it has a cost: such a node is
+   *  re-patched and re-recorded on every describe, forever. Prefer a value
+   *  scheme for static chrome, or wrap the node in memo(). */
   bool operator==(const Decoration &o) const {
     return m_equals && o.m_equals && m_scheme.type() == o.m_scheme.type() &&
            m_equals(m_scheme, o.m_scheme);
@@ -956,7 +970,7 @@ struct LayerStyle {
 };
 
 // ---------------------------------------------------------------------------
-// The stroke grammar — WHERE a stroke goes (ROADMAP §33, stage one)
+// The stroke grammar — WHERE a stroke goes
 //
 // The words: SHAPE is the region an element occupies (Element::shape);
 // LINE is an element whose shape is an open path; BAND is a derived shape
@@ -966,8 +980,8 @@ struct LayerStyle {
 // query-side vocabulary (Composer::bounds), never a shape.
 
 /** One claimed run of a boundary, as fractions of its TOTAL arc length —
- *  every contour end to end, which is the coordinate SkTrimPathEffect
- *  uses and therefore the one `trim()` always spoke. */
+ *  every contour end to end. This is `SkTrimPathEffect`'s coordinate, and
+ *  the one every span, reveal and motion path in the library speaks. */
 struct Span {
   float begin = 0.0f, end = 1.0f;
   bool operator==(const Span &) const = default;
@@ -989,21 +1003,19 @@ struct SpanInput {
 /** WHERE a stroke pass goes: a comparable value built by the `spans::`
  *  factories and combined with `|` (union).
  *
- *  **FRACTION 0 IS THE BOTTOM-LEFT CORNER**, and the boundary runs UP the
- *  left edge from there. That is `SkPath::addRRect`'s own convention
- *  (start index 3, clockwise in Skia's y-down space), inherited unchanged
- *  — but nothing said it out loud until R2 wrote two tests against
- *  "top-left, clockwise" and watched them fail. Anything that reasons
- *  about WHERE a fraction lands needs it: `upTo(0.25)` on a square is the
- *  LEFT edge, not the top one. A custom `shape()` seams wherever its own
- *  path starts.
+ *  **FRACTION 0 IS THE BOTTOM-LEFT CORNER** on a box, and the boundary
+ *  runs UP the left edge from there. That is `SkPath::addRRect`'s own
+ *  convention (start index 3, clockwise in Skia's y-down space), inherited
+ *  unchanged. Anything reasoning about WHERE a fraction lands needs it:
+ *  `upTo(0.25)` on a square claims the LEFT edge, not the top one. A
+ *  custom `shape()` seams wherever its own path starts.
  *
  *  Deliberately a CLOSED vocabulary rather than an open seam. The seam
- *  convention (one named required member, §33) governs shapers, profiles
- *  and crossing rules — things whose whole point is that a user writes
- *  new ones. A span is an interval set: kit values (kit::spans::brackets)
- *  are COMPOSITIONS of these terms, not new kinds, so nothing is lost and
- *  the value stays trivially prunable. Widening it later is additive. */
+ *  convention — one named required member on a comparable value — governs
+ *  shapers, profiles and crossing rules, whose whole point is that a user
+ *  writes new ones. A span is an interval set instead: richer values such
+ *  as `kit::spans::brackets` are COMPOSITIONS of these terms, not new
+ *  kinds, so the value stays trivially comparable and prunable. */
 class Spans {
 public:
   enum class Rule : uint8_t {
@@ -1021,12 +1033,13 @@ public:
   struct Term {
     Rule rule = Rule::Range;
     Animatable<float> begin = 0.0f, end = 1.0f;
-    /** Added to BOTH endpoints before the interval is read — trim()'s
-     *  third argument, as a field. Read by Range and Wrap only. Its point
-     *  is the one thing endpoint arithmetic cannot spell: a window whose
-     *  ENDS are driven by one Output and whose position is driven by
-     *  ANOTHER, since a bound endpoint holds one source pointer and two
-     *  live values summed into one number need two. */
+    /** Added to BOTH endpoints before the interval is read. Read by Range
+     *  and Wrap only; other rules ignore it.
+     *
+     *  It exists for the one case endpoint arithmetic cannot spell: a
+     *  window whose ENDS are driven by one Output and whose POSITION is
+     *  driven by another. A bound endpoint holds exactly one source
+     *  pointer, and summing two live values into one number needs two. */
     Animatable<float> offset = 0.0f;
     float arm = 0.0f;         ///< Corners/Edges: px of arc length
     float angleDeg = 30.0f;   ///< Corners/Edges: the tangent break that counts
@@ -1038,9 +1051,8 @@ public:
   std::vector<Term> terms;
 
   /** SLIDE THE WHOLE CLAIM: `by` is added to both endpoints of every
-   *  Range/Wrap term — the direct translation of `trim(begin, end,
-   *  offset)`'s third argument, and the same value kind as the endpoints,
-   *  so it may be constant, `animate(...)` or a bound Output.
+   *  Range/Wrap term. Same value kind as the endpoints themselves, so it
+   *  may be a constant, an `animate(...)` or a bound Output.
    *
    *      .stroke(spans::wrap(&start, &end).offset(&drift), ants)
    *
@@ -1048,8 +1060,7 @@ public:
    *  ONE Output drives the window; this covers the case where the ends
    *  and the position are driven independently.
    *
-   *  Three things about the call, all of them things a reader will
-   *  otherwise assume wrongly:
+   *  Three things about the call, all of them easy to assume wrongly:
    *  - it MUTATES and returns `*this` by reference, so it chains off a
    *    temporary safely only while that temporary lives — bind the result
    *    to a `Spans` value (or pass it straight to `stroke()`, which takes
@@ -1062,9 +1073,10 @@ public:
    *    carry the offset and nothing to warn about. */
   Spans &offset(Animatable<float> by);
 
-  /** Structural equality, defined beside the reconciler's own property
-   *  comparator so an animated endpoint compares the way every other
-   *  animated property does (declared here, defined in Reconcile.cpp). */
+  /** Structural equality. Declared here and defined beside the
+   *  reconciler's own property comparator, so an animated endpoint
+   *  compares the way every other animated property does — by binding
+   *  identity when live, by value when described. */
   bool operator==(const Spans &other) const;
 
   /** Resolve to intervals. Rest terms return nothing — the complement
@@ -1094,46 +1106,41 @@ namespace spans {
 Spans range(Animatable<float> begin, Animatable<float> end);
 /** THE SEAM-CROSSING RANGE: the boundary read as a CYCLE, so a window
  *  whose `begin` is past its `end` claims [begin,1] AND [0,end] — the
- *  marching-ants and orbiting-comet idiom, and the one thing `trim()`
- *  did that the deleted `trim()` needed a whole mode flag for.
+ *  marching-ants and orbiting-comet idiom.
  *
  *      .stroke(spans::wrap(bind(&phase), bind(&phase).offset(0.25f)), ants)
  *
  *  Both ends take the full Animatable treatment, so the window marches by
  *  driving them; two shaped bindings on ONE Output are how a fixed-length
- *  window is spelled (the deleted trim()'s `offset` argument, as
- *  arithmetic on the endpoints rather than a third parameter).
+ *  window is spelled.
  *
- *  A DEDICATED TERM, not `range()` learning to wrap, for two reasons.
- *  (1) `range(0.9, 0.1)` compiles today and means the empty/reversed
- *  window that `normalizeSpans` swaps — teaching it to wrap would change
- *  what existing descriptions DRAW, which §27 forbids and R1 is not the
- *  phase for. (2) The no-overlap law reads over RESOLVED runs, and this
- *  is the only term that yields two runs from one pair of endpoints; a
- *  reader auditing a claim conflict needs the call site to say that the
- *  term is cyclic. `wrap` names the intent; `range` stays the clamped
- *  interval it has always been.
+ *  A DEDICATED TERM rather than `range()` learning to wrap, for two
+ *  reasons. `range(0.9, 0.1)` is legal and means the empty/reversed
+ *  window that endpoint normalisation swaps, so teaching it to wrap would
+ *  silently change what existing descriptions draw. And the no-overlap
+ *  law reads over RESOLVED runs, where this is the only term that yields
+ *  two runs from one pair of endpoints — a reader tracking down a claim
+ *  conflict needs the call site to say that the term is cyclic.
  *
- *  Semantics match the deleted trim()'s Wrap mode exactly, INCLUDING the
- *  degenerate
- *  ends: `end - begin <= 0` claims nothing and `>= 1` claims the whole
- *  boundary (both read from the RAW endpoints, before the fractional
- *  wrap, which is why a window driven past 1.0 keeps its length). The
+ *  DEGENERATE ENDS are read from the RAW endpoints, before the fractional
+ *  wrap: `end - begin <= 0` claims nothing and `>= 1` claims the whole
+ *  boundary, which is why a window driven past 1.0 keeps its length. The
  *  seam itself (fraction 0) is the outline's own start point, and a
- *  seam-crossing claim stitches into ONE contour so caps and additive
+ *  seam-crossing claim is stitched into ONE contour so caps and additive
  *  brushes never double-hit there. */
 Spans wrap(Animatable<float> begin, Animatable<float> end);
 /** THE REVEAL: `range(0, end)`. `spans::upTo(animate(from(0.f).to(1.f),
- *  {600ms}))` is a stroke that DRAWS ON, and a bound Output scrubs it —
- *  uniform across every brush, which is what `trim()` never was (it was a
- *  node-level property that happened to reveal). */
+ *  {600ms}))` is a stroke that DRAWS ON, and a bound Output scrubs it.
+ *  Works the same way under every brush, because it claims a run of the
+ *  boundary rather than modifying the mark. */
 Spans upTo(Animatable<float> end);
 /** A window of `arm` px of arc length either side of every tangent break
  *  — the four corner L's, and the reticle bracket vocabulary. Follows any
  *  silhouette: chamfer the shape and the marks move to the chamfers.
- *  `angleDeg` is what counts as a break; a regular n-gon turns 360/n per
- *  vertex, so nothing above 12 sides clears the 30° default (Border's
- *  cornerAngleDeg doctrine — the scan warns rather than adapting). */
+ *  `angleDeg` is what counts as a break. A regular n-gon turns 360/n at
+ *  each vertex, so at the 30° default nothing above 12 sides registers a
+ *  corner at all — lower the angle for rounder silhouettes. The scan
+ *  warns rather than adapting the threshold for you. */
 Spans corners(float arm, float angleDeg = 30.0f);
 /** The complement of corners(): the runs BETWEEN the breaks, stopping
  *  `arm` px short of each — the rule with open corners. */
@@ -1164,27 +1171,21 @@ Spans rest(std::string_view passName);
 //   parts::  says WHICH of this node's paint outputs the mask applies to
 //   by::     says HOW that paint arrives — the rule by which it is cut
 //
-// Before this family the library had seven mechanisms that each answered
-// both questions at once, in one pre-multiplied token: wipe (everything ×
-// half-plane), trim (surface + marks × arc window), stroke(Spans,…) (one
-// pass × arc window), clip (surface + content + children × own shape). No
-// two gated the same set and no two were the same value kind, so three of
-// the four things an author would call a mask — a region other than the
-// node's own, a coverage source, a per-mark cut — did not exist at all and
-// were hand-rolled below the Compose seam. `trim()` and `wipe()` are both
-// GONE; every picture they drew is a `mask()`.
+// Keeping them independent is what makes the family small: any selection
+// combines with any gate, so a region cut, an arc-length reveal, a
+// coverage matte and a per-mark cut are one mechanism rather than four.
 //
 // TWO LAWS, and they are the whole semantics:
 //
 //  - **A gate is a SHOW set.** `by::edge(90, 0.3)` shows 30%;
-//    `spans::upTo(t)` shows [0,t]. The complement is a TERM, never a mode
-//    flag — `by::outside(r)` is the word for the outside of a region, and
-//    `spans::rest()` was already the precedent. A reader auditing a
-//    picture reads which way round it is off the call site.
+//    `spans::upTo(t)` shows [0,t]. The complement is a separate TERM,
+//    never a mode flag — `by::outside(r)` is the word for the outside of
+//    a region — so which way round a mask runs is readable at the call
+//    site without chasing an argument.
 //  - **Stacked masks INTERSECT where their selections overlap.** Both must
 //    pass. Nesting already means this everywhere else (clip inside clip,
 //    a span claim under a whole-node cut), and UNION is spelled inside one
-//    gate value (`Spans::operator|`), never across gates. Each mask keeps
+//    gate value (combining spans with `|`), never across gates. Each mask keeps
 //    its OWN animation slots, so three masks on one node may run at three
 //    different rates and the intersection is exact per frame.
 
@@ -1192,15 +1193,15 @@ Spans rest(std::string_view passName);
  *  value, and deliberately a closed vocabulary rather than an
  *  `std::function<SkPath(SkSize)>`.
  *
- *  The callable form is the wall this family would otherwise have hit:
- *  an incomparable generator never participates in reconciler equality, so
- *  a masked node never prunes (ROADMAP §3 is the highest measured-impact
- *  item on the roadmap for exactly this reason — 43.4 of 43.5 ms on one
- *  un-prunable callable). A Region is a value: it compares, it prunes, and
- *  a mask built from one keeps the §17 scalar memo.
+ *  A callable would defeat the point of the gate. A gate is read live,
+ *  every frame; an incomparable generator never participates in reconciler
+ *  equality, so a masked node could never prune and would re-record
+ *  forever. A Region is a value: it compares, it prunes, and a node masked
+ *  by one still qualifies for the memo that lets an animated-scalar node
+ *  hold its recording between ticks.
  *
- *  `own()` is the node's own shape — what `clip()` has always used, and
- *  the reason clip() survives as sugar. */
+ *  `own()` is the node's own shape — the region `clip()` uses, and the
+ *  reason clip() survives as sugar over this. */
 class Region {
 public:
   enum class Kind : uint8_t {
@@ -1258,12 +1259,14 @@ private:
  *  itself), the CONTENT leaf, and the CHILDREN.
  *
  *  `named()` addresses ONE mark by the local label its slot call gave it.
- *  Those are the same LOCAL names `stroke(Spans, what, name)` already
- *  carries: for inspection and intra-element reference, never a query key
- *  (DESIGN §Queries — one element's own labels for its own marks, not a
- *  second identity system). A name that matches nothing selects nothing,
- *  silently, exactly as `spans::rest("unknown")` and `spans::fit("unknown")`
- *  do. */
+ *  Those are the same LOCAL names `stroke(Spans, what, name)` carries:
+ *  one element's labels for its own marks, for inspection and
+ *  intra-element reference. They are NOT query keys — `Composer::bounds`
+ *  and `hitTest` do not see them — because a second identity system beside
+ *  `key()` is exactly what the query side refuses.
+ *
+ *  A name that matches nothing selects nothing, silently, exactly as
+ *  `spans::rest("unknown")` and `spans::fit("unknown")` do. */
 class Parts {
 public:
   enum Bits : uint8_t {
@@ -1324,35 +1327,32 @@ class Gate;
  *  because the call site reads as English: mask by edge, mask by spans,
  *  mask by shape. */
 namespace by {
-/** ARC LENGTH along the node's boundary — the existing `Spans` value,
- *  unchanged, promoted from "where a pass goes" to "how much of this
- *  exists yet". This is the gate `trim()` was.
+/** ARC LENGTH along the node's boundary — the same `Spans` value the
+ *  stroke slot uses, here answering "how much of this exists yet" rather
+ *  than "where does this pass go".
  *
  *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
  *
  *  A boundary is a 1-D coordinate, so this gate addresses only the paint
- *  that TRACES the boundary — the surface and the marks. Selecting
- *  content or children with it is not a picture and does nothing. */
+ *  that TRACES the boundary — the surface and the marks. Selecting content
+ *  or children with it means nothing and DOES NOTHING, silently. */
 Gate spans(Spans where);
 /** A MOVING STRAIGHT EDGE at `angleDeg` across the node's laid-out box,
  *  showing the fraction lying before it (0 = left-to-right, 90 = top to
  *  bottom, 180 = right-to-left, 270 = from the bottom). This is the gate
- *  `wipe()` was, and it is the one that reveals a filled surface by
- *  EXTENDING it: an arc-length window walks the perimeter instead, and
- *  scaleX/scaleY squash. */
+ *  that reveals a filled surface by EXTENDING it — an arc-length window
+ *  walks the perimeter instead, and scaleX/scaleY squash rather than
+ *  reveal. */
 Gate edge(float angleDeg, Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
  *  what `clip()` does. */
 Gate shape(Region r);
-/** …and its complement: everything OUTSIDE the region — the `clipOut()` a
- *  study reached for by name, found missing, and worked around with a raw
- *  SkPathOp below the Compose seam. Two masks intersect, so a set
- *  difference is `by::shape(a)` and `by::outside(b)` on one node. */
+/** …and its complement: everything OUTSIDE the region. Two masks
+ *  intersect, so a set difference is `by::shape(a)` and `by::outside(b)`
+ *  on one node. */
 Gate outside(Region r);
 /** A COVERAGE SOURCE: the selected paint keeps the Material's ALPHA — the
- *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite),
- *  and the feature behind the `Material` + `kDstIn` idiom three studies
- *  and one shipped header prescribe by hand.
+ *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite).
  *
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
@@ -1363,26 +1363,24 @@ Gate alpha(Material coverage);
  *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
  *  and needs no shader. */
 Gate alphaOut(Material coverage);
-/** The OTHER coverage source, and the half the family was missing: the
- *  selected paint keeps the Material's LUMA. After Effects' Luma Matte —
- *  paint a matte in greys (or in anything) and its brightness is the
- *  coverage.
+/** The other coverage source: the selected paint keeps the Material's
+ *  LUMA. After Effects' Luma Matte — paint a matte in greys (or in
+ *  anything) and its brightness is the coverage.
  *
- *  **The luma law, stated once** (and `DESIGN.md`'s colour rule is the
- *  argument): `Y' = 0.299 R' + 0.587 G' + 0.114 B'` — **Rec. 601
- *  coefficients on the ENCODED values, taken on the PREMULTIPLIED
- *  colour.** Compose paints into surfaces with NO colour space attached, so
- *  a shader's channels are the display-encoded numbers the author wrote and
- *  there is no linear stage to weight; Rec. 601's luma coefficients are the
- *  set DEFINED on gamma-encoded R'G'B' (Rec. 709's 0.2126/0.7152/0.0722 are
- *  LUMINANCE coefficients, defined on linear light, and using them here
- *  would be the classic Poynton mistake). Premultiplied means a
- *  TRANSPARENT matte reads as black and hides, the same way AE's does — a
- *  half-transparent white and an opaque 50% grey are the same matte.
+ *  **The luma law**: `Y' = 0.299 R' + 0.587 G' + 0.114 B'` — Rec. 601
+ *  coefficients on the ENCODED values, taken on the PREMULTIPLIED colour.
+ *  Compose paints into surfaces with no colour space attached, so a
+ *  shader's channels are the display-encoded numbers the author wrote and
+ *  there is no linear stage to weight. Rec. 601's luma coefficients are
+ *  the set defined on gamma-encoded R'G'B'; Rec. 709's 0.2126/0.7152/
+ *  0.0722 are LUMINANCE coefficients defined on linear light and do not
+ *  belong here. Premultiplied means a TRANSPARENT matte reads as black
+ *  and hides, as AE's does — a half-transparent white and an opaque 50%
+ *  grey are the same matte.
  *
- *  Same cost as `alpha` plus one SkSL pass over the coverage layer (none at
- *  all when the Material resolves to a colour — the weighting is one dot
- *  product in C++). */
+ *  Same cost as `alpha` plus one SkSL pass over the coverage layer, and
+ *  none at all when the Material resolves to a colour, where the
+ *  weighting is one dot product in C++. */
 Gate luma(Material coverage);
 /** …and ITS complement: the selected paint keeps what the Material's luma
  *  leaves DARK. After Effects' Luma Inverted Matte. */
@@ -1414,9 +1412,9 @@ public:
    *  header, which includes this one. */
   std::shared_ptr<const Material> coverage;
 
-  /** Structural equality, defined beside the reconciler's own property
-   *  comparator so an animated fraction compares the way every other
-   *  animated property does (declared here, defined in Reconcile.cpp). */
+  /** Structural equality. Declared here and defined beside the
+   *  reconciler's own property comparator, so an animated fraction
+   *  compares the way every other animated property does. */
   bool operator==(const Gate &other) const;
   /** How many animatable floats this gate contributes, in the order
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
@@ -1438,26 +1436,28 @@ struct Mask {
 // The profile seam — how far a mark sits ACROSS its spine
 
 /** A profile value: `float across(float along) const`, `float max()
- *  const`, and EQUALITY.
+ *  const`, and EQUALITY. Both extra members are required, and both are
+ *  load-bearing.
  *
- *  `max()` is REQUIRED, and that is the point of the seam: a varying width
- *  whose reach is unknown can only be clipped silently (the trap the
- *  deleted `Ribbon::widthFn`/`widthMax` pair left open, ROADMAP §25).
- *  Equality is required for the other half of the same
- *  argument — a profile is read live, and §33's comparable-values law says
- *  anything an author hands the library participates in reconciler
- *  equality or a pruned node reads it stale forever. An incomparable
- *  callable is not a profile; write a struct.
+ *  `max()` is what every cull and bleed calculation is sized from. A
+ *  varying width whose reach cannot be asked for can only be clipped, and
+ *  clipping in a cached picture is silent.
  *
- *  A profile that returns a NON-FINITE width deletes the whole band: one
+ *  Equality is required because a profile is read LIVE, every frame.
+ *  Anything an author hands the library must participate in reconciler
+ *  equality, or a node that prunes goes on reading the value it was
+ *  described with and never sees the new one. An incomparable callable is
+ *  therefore not a profile; write a struct with `operator==`.
+ *
+ *  A PROFILE THAT RETURNS A NON-FINITE WIDTH DELETES THE WHOLE BAND. One
  *  NaN vertex makes the built path non-finite and Skia draws none of it,
- *  silently. The seam does not guard it — clamp inside your law. (Found by
- *  `astral_tome`, whose `sqrt(sin(pi*along))` is NaN at along == 1 because
- *  the float pi rounds up; see ROADMAP §33's widthFn→Profile note.)
+ *  with no error. The seam does not guard this — clamp inside your own
+ *  law. Trigonometric laws are the usual source: `sqrt(sin(pi*along))` is
+ *  NaN at `along == 1` because the float pi rounds up.
  *
  *  `along` is a fraction of the spine's arc length; `across` is px on its
- *  normal, positive to the LEFT of travel — the one convention; see
- *  bandPointAt. */
+ *  normal, positive to the LEFT of travel — see bandPointAt for the one
+ *  statement of that convention. */
 template <typename P>
 concept ProfileScheme = std::equality_comparable<P> &&
     requires(const P &p, float along) {
@@ -1465,36 +1465,33 @@ concept ProfileScheme = std::equality_comparable<P> &&
       { p.max() } -> std::convertible_to<float>;
     };
 
-/** THE PX KEY — optional, one line, and the whole bridge from the deleted
- *  `Ribbon::widthFn` to this seam.
+/** THE PX KEY — optional, one line.
  *
  *  A scheme that declares `static constexpr bool alongIsPx = true` is
- *  keyed in PX OF ARC LENGTH from the spine's start, not in fraction of
- *  it. Consumers that have measured their spine (`profileOffset`, the
- *  band's rails) hand it `along * lengthPx` through `Profile::acrossAt`;
- *  nothing else about the seam changes, and a scheme that says nothing is
- *  fraction-keyed as before.
+ *  keyed in PX OF ARC LENGTH from the spine's start rather than in a
+ *  fraction of it. Consumers that have measured their spine
+ *  (`profileOffset`, the band's rails) hand it `along * lengthPx` through
+ *  `Profile::acrossAt`. Nothing else about the seam changes, and a scheme
+ *  that says nothing stays fraction-keyed.
  *
- *  WHY IT EXISTS. A decoration under a reveal (`spans::upTo`, `trim()`)
- *  is handed the REVEALED contour, so a fraction is a fraction of what
- *  has been drawn SO FAR and a law keyed to it SLIDES along the mark as
- *  the reveal grows — identical in a still frame, wrong in motion, which
- *  is the worst way for a bug to be visible. Absolute distance from the
- *  start does not move. That is why the four px-keyed ribbons in the
- *  corpus (thunder_fulu's 起行收 law and its 75-span foot, dunhuang's
- *  archer bones, minard's flow band) key on distance ON PURPOSE, and the
- *  conversion cannot live in the author's value: it needs the length of
- *  the contour ACTUALLY being painted, which only the paint-time consumer
- *  knows. So the seam converts, and it is one adapter for all of them —
- *  see ROADMAP §33, the widthFn→Profile note. */
+ *  WHY IT EXISTS. A decoration under a reveal (`spans::upTo`, a span
+ *  gate) is handed the REVEALED contour, so a fraction is a fraction of
+ *  what has been drawn SO FAR: a law keyed to it SLIDES along the mark as
+ *  the reveal grows. That looks identical in a still frame and wrong in
+ *  motion. Absolute distance from the start does not move, which is what
+ *  a calligraphic pressure law or a flow-width law actually means.
+ *
+ *  The conversion cannot live in the author's value, because it needs the
+ *  length of the contour ACTUALLY being painted and only the paint-time
+ *  consumer knows that. So the seam converts, once, for every consumer. */
 template <typename P>
 concept PxKeyedProfileScheme = ProfileScheme<P> && requires {
   { P::alongIsPx } -> std::convertible_to<bool>;
 };
 
-/** Type-erased comparable profile — Decoration's pattern on the width
- *  seam. SHARED vocabulary: a band's taper, a weave strand's path and the
- *  future ribbon width are all one value. */
+/** Type-erased comparable profile — Decoration's pattern applied to the
+ *  width seam. One shared vocabulary: a band's taper, a weave strand's
+ *  offset and a ribbon's width are all this same value. */
 class Profile {
 public:
   template <ProfileScheme P>
@@ -1548,9 +1545,9 @@ private:
   std::function<bool(const std::any &, const std::any &)> m_equals;
 };
 
-/** The CORE profile presets. The oscillating family (`wave`, and `braid`
- *  built on it) is kit, per the tier rule — core holds the seam and the
- *  two profiles every other one is measured against. */
+/** The core profile presets: the two every other profile is defined
+ *  against. Richer families — the oscillating `wave`, and `braid` built on
+ *  it — live in kit, since the kernel only needs to hold the seam. */
 namespace strand {
 /** across ≡ 0: the boundary itself. */
 struct Self {
@@ -1560,11 +1557,10 @@ struct Self {
 };
 /** across ≡ px: a parallel. Parallels are rails — they never cross.
  *
- *  **Positive is LEFT of travel** (outside a clockwise path) — the one
- *  convention, stated once in DESIGN.md. `kit::brush::shapers::offset`,
- *  `lines::offsetAcross`, `lines::Rail::across`, `Profile::across` and
- *  `TextPath::offset` all mean this same side; R3's sign port ended the
- *  split (ROADMAP §33 ruling 5). */
+ *  **Positive is LEFT of travel**, which is outside a clockwise path.
+ *  `kit::brush::shapers::offset`, `lines::offsetAcross`,
+ *  `lines::Rail::across`, `Profile::across` and `TextPath::offset` all
+ *  mean this same side; see bandPointAt. */
 struct Offset {
   float px = 0.0f;
   float across(float) const { return px; }
@@ -1601,20 +1597,20 @@ inline Around around(std::string_view key) { return Around{std::string(key)}; }
 
 /** A shaper value: `SkPath shape(const SkPath &) const`, plus equality.
  *
- *  It bends the ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an
- *  offset. That is the whole of the geometry-deviation vocabulary: the
- *  other mechanism (a PATTERN, which builds the mark out of cells) is a
- *  brush kind, not a shaper, and the two were worth naming apart.
+ *  It bends ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an offset —
+ *  and that is the whole of the geometry-deviation vocabulary. Building a
+ *  mark out of repeated CELLS instead is a pattern, which is a brush kind
+ *  rather than a shaper; the two are named apart because they compose
+ *  differently.
  *
- *  SkPath in, SkPath out, because dash and width are path operations —
- *  proved by the fact that every op the corpus wanted was expressible
- *  that way. `bleed()` is optional and declares how far the deviation
- *  reaches (a wave's amplitude), so a cull can hold it.
+ *  SkPath in, SkPath out: dash and width are path operations, so nothing
+ *  richer is needed. `bleed()` is optional and declares how far the
+ *  deviation reaches (a wave's amplitude), so the paint cull can grow by
+ *  it and a cached picture is not truncated.
  *
- *  There are no sugar methods over this seam. Stock shapers are kit
- *  values (`kit::brush::shapers::`), peers of anything you write — which
- *  is the point of a seam and the reason `jittered()`-style convenience
- *  was refused. */
+ *  There are deliberately no sugar methods over this seam. Stock shapers
+ *  are ordinary kit values (`kit::brush::shapers::`), peers of anything
+ *  you write — which is what a seam is for. */
 template <typename S>
 concept ShaperScheme = std::equality_comparable<S> &&
     requires(const S &s, const SkPath &p) {
@@ -1726,22 +1722,21 @@ inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
 } // namespace strand
 
 /** Displace a path in its own (along, across) frame — the primitive
- *  behind a relative strand, and the band's frame exactly: `along` is a
+ *  behind a relative strand, and exactly the band's frame: `along` is a
  *  fraction of total arc length, positive `across` is LEFT of travel
- *  (outside a clockwise path). The same side `lines::offsetAcross` means,
- *  which a constant profile delegates to — one convention since R3. */
+ *  (outside a clockwise path). A constant profile delegates to
+ *  `lines::offsetAcross`, which means the same side. */
 SkPath profileOffset(const SkPath &spine, const Profile &profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get
  *  `lines::offsetAcross`'s real-vertex repair (arc outside a turn, miter
- *  inside) instead of the sample-and-displace spur that a naive walk
- *  leaves on the inside of every rectangle.
+ *  inside) instead of the sample-and-displace spur a naive walk leaves on
+ *  the inside of every rectangle.
  *
- *  Public because a varying-width MARK along a spine IS this region: the
- *  ruling that a milled groove is band + fill (§8b) applies to a ribbon
- *  too, and `brush::Ribbon`'s profile path fills exactly this. One
- *  geometry, so the corner repair is not reimplemented per consumer. */
+ *  Public because a varying-width MARK along a spine IS this region: a
+ *  milled groove, or a ribbon, is this band filled. Sharing one geometry
+ *  keeps the corner repair from being reimplemented per consumer. */
 SkPath bandRegion(const SkPath &spine, const Across &width,
                   Formation formation = Formation::Centered);
 
@@ -1774,8 +1769,10 @@ struct Crossing {
 };
 
 /** A crossing rule value: `Order decide(const Crossing &) const`, plus
- *  equality — the seam convention's one named required member. Never a
- *  bare lambda: a rule is read live, so it must prune. */
+ *  equality — one named required member on a comparable value, like every
+ *  other seam here. Never a bare lambda: a rule is read live every frame,
+ *  so it has to participate in reconciler equality or the node holding it
+ *  can never prune. */
 template <typename D>
 concept CrossingScheme = std::equality_comparable<D> &&
     requires(const D &d, const Crossing &c) {
@@ -1895,8 +1892,8 @@ private:
 
 namespace crossing {
 /** Over, under, over, under — the plain-weave rule, and formally just
- *  `sequence({Over, Under})`. Both words are kept because they name two
- *  author intents over one machine (the layers/weave precedent). */
+ *  `sequence({Over, Under})`. Both spellings exist because they name two
+ *  author intents over one machine. */
 inline CrossingRule alternate() {
   return CrossingRule::sequence({Order::Over, Order::Under});
 }
@@ -1914,12 +1911,8 @@ inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
 /** Every crossing among a set of strand paths, numbered along the
  *  boundary (ascending by position on the lowest-indexed strand
  *  involved). Only PROPER crossings count: coincident strands and
- *  endpoint touches (a shared polygon vertex) are meetings, not
- *  crossings, and reporting them would put a knot at every corner.
- *
- *  Public because the rule VALUES are shared with the pinned
- *  element-level crossover pass — its API is undecided, this vocabulary
- *  is not. */
+ *  endpoint touches, such as a shared polygon vertex, are meetings rather
+ *  than crossings, and reporting them would put a knot at every corner. */
 std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands);
 
 /** The region where two strands' MARKS actually overlap at one crossing:
@@ -1933,11 +1926,11 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands);
  *
  *  `maxRadius` is not a safety margin, it is REQUIRED for correctness on any
  *  ordinary braid. Once reach/sin(theta) approaches the spacing between
- *  knots, the neighbouring lenses touch and pathops merges them into ONE
+ *  knots, neighbouring lenses touch and path ops merge them into ONE
  *  contour — at which point the first crossing's patch owns the whole run
- *  and the weave degenerates to "one strand on top" (measured: a 3px/40px
- *  braid in 6px ink got 25 of 50 knots wrong). Pass half the arc distance to
- *  the adjacent crossing so each knot can only ever claim its own half.
+ *  and the weave degenerates to "one strand on top" for half its knots.
+ *  Pass half the arc distance to the adjacent crossing, so each knot can
+ *  only ever claim its own half.
  *
  *  Falls back to a disc when the intersection is empty (degenerate or
  *  non-overlapping input). */
@@ -1981,55 +1974,58 @@ enum class Justify : uint8_t {
 };
 
 /** One misprint pass: the node's own fill shape and text re-stamped at
- *  `offset` in a flat color, UNDER the real content. Repeated echoes
- *  stack in declaration order (bottom first). The registration-error
- *  language: P3R's red text echo (3,−6), P5's zero-blur sticker stacks,
- *  §5's ink under-copies — one call each, no duplicate sibling nodes. */
+ *  `offset` in a flat color, UNDER the real content. Repeated echoes stack
+ *  in declaration order, bottom first. This is the registration-error
+ *  look — offset ink under-copies, hard-edged sticker stacks — as one call
+ *  rather than duplicate sibling nodes. */
 struct Echo {
   SkVector offset = {3, 3};
   SkColor4f color = {0, 0, 0, 1};
   bool operator==(const Echo &) const = default;
 };
 
-/** Cache override. Auto (the default) picture-caches provably-static
- *  subtrees; Texture rasterizes the subtree once into an image (the
- *  raster-surface pixel win — best for dense or effect-heavy content,
- *  wasteful for sparse regions); Group is Texture for a subtree whose
- *  children ANIMATE (below); None opts a node out (per-frame paint
- *  programs that read the clock MUST declare this — declared
- *  volatility).
+/** Cache override.
  *
- *  **Group** — "many small rotated/blended pieces forming one static
- *  assembly". `Cache::Texture` bakes a node's OWN paint and refuses the
- *  moment anything below it is volatile, so a fill-less container of 523
- *  animated strips gets zero bakes and every strip replays its shaders
- *  every frame. `Cache::Group` bakes the container AND its children into
- *  one unrotated device-space layer — the children's rotations, bevels and
- *  mutual compositing all resolve INSIDE the bake at full precision, which
- *  is why it is pixel-safe where a per-child `Cache::Texture` is not (that
- *  isolates each piece and moved 34% of kumiko's pixels).
+ *  - **Auto** (the default) records provably-static subtrees as pictures.
+ *  - **Picture** records, and never lets the library promote the node to
+ *    a pixel bake.
+ *  - **Texture** rasterizes the subtree once into an image. Best for dense
+ *    or effect-heavy content; wasteful for sparse regions, where the blit
+ *    of a mostly-empty image costs more than the few draws it replaced.
+ *  - **Group** is Texture for a subtree whose children ANIMATE — see
+ *    below.
+ *  - **None** opts a node out entirely. A per-frame paint program that
+ *    reads the clock MUST declare this: nothing can see that a
+ *    `PaintProgram` sampled `elapsedSeconds`, so an undeclared one is
+ *    recorded on its first frame and replayed frozen thereafter.
  *
- *  It is held by a SUBTREE VALUE MEMO, not by a volatility verdict: the
- *  bake is taken only while every bound transform, opacity and content
- *  scalar below the node is holding the value it held last frame, and is
+ *  **Group** is for "many small rotated or blended pieces forming one
+ *  assembly that is currently still". `Cache::Texture` bakes a node's OWN
+ *  paint and refuses the moment anything below it is volatile, so a
+ *  fill-less container of animated strips gets no bake at all and every
+ *  strip replays its shaders every frame. `Cache::Group` bakes the
+ *  container AND its children into one unrotated device-space layer, so
+ *  the children's rotations, bevels and mutual compositing resolve INSIDE
+ *  the bake at full precision. That is why it is pixel-safe where putting
+ *  `Cache::Texture` on each child is not: per-child bakes isolate the
+ *  pieces and change how they composite with each other.
+ *
+ *  It is held by a SUBTREE VALUE MEMO rather than by a volatility verdict.
+ *  The bake is taken only while every bound transform, opacity and content
+ *  scalar below the node still holds the value it held last frame, and is
  *  dropped on the frame any of them ticks. So an entrance animation plays
- *  live and the settled assembly costs one blit — pixel-verified on
- *  `kumiko_asanoha` (byte-identical at seven phases across its 6.4 s
- *  loop), where the lattice reads `[group]` at ~0.49 ms of RECORDING time
- *  on a node that was 523 live pictures, with 0 cache writes in steady
- *  state. **No GPU work-ms number exists for Group yet**: the
- *  before/after pair has not been taken (ROADMAP §30).
+ *  live and the settled assembly costs one blit.
  *
- *  It REFUSES, permanently and loudly (one line to stderr), any subtree
+ *  IT REFUSES, permanently and with one line to stderr, any subtree
  *  carrying volatility a float comparison cannot see: a live material
- *  (`uTime` or a bound uniform), an animated decoration, an animated image,
- *  a bound `fill()`, a variable-font drive, a `Cache::None` descendant, or
- *  a non-srcOver blend / backdrop filter below the root (which would
- *  resolve against the bake's transparent black). It also declines, per
- *  frame, while its own transform animates or its device rect is moving —
- *  a device-pinned bake remade every frame costs more than the paint it
- *  replaces. `--bench` shows a held group as `[group]`; a Group node that
- *  never reaches that state has one of the above in it. */
+ *  (`uTime` or a bound uniform), an animated decoration, an animated
+ *  image, a bound `fill()`, a variable-font drive, a `Cache::None`
+ *  descendant, or a non-srcOver blend or backdrop filter below the root
+ *  (which would resolve against the bake's transparent black). It also
+ *  declines per frame while its own transform animates or its device rect
+ *  is moving, because a device-pinned bake remade every frame costs more
+ *  than the paint it replaces. A Group node that never reports itself as
+ *  held has one of the above in it. */
 enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
 
 // ---------------------------------------------------------------------------
@@ -2084,13 +2080,12 @@ public:
   Element &margin(float all);
   Element &margin(float horizontal, float vertical);
   Element &margin(float left, float top, float right, float bottom);
-  /** The flex BASIS, not a guarantee. `shrink` defaults to 1 (faithful
-   *  Yoga/CSS), so a `width(150)` child of a row that overflows is 150 px
-   *  wide only until the row runs out of room — then it gives some back,
-   *  and the failure is silent overlap rather than an error. Pair with
-   *  `.shrink(0)` when `width(150)` means "this IS 150" (ROADMAP §14: the
-   *  call site reads like a promise, and one study spent an iteration on
-   *  it). The same holds for `height()` in a column. */
+  /** The flex BASIS, not a guarantee. `shrink` defaults to 1, faithful to
+   *  Yoga and CSS, so a `width(150)` child of a row that overflows is
+   *  150 px wide only until the row runs out of room — then it gives some
+   *  back, and the result is silently narrower content rather than an
+   *  error. Pair with `.shrink(0)` when `width(150)` means "this IS 150".
+   *  The same holds for `height()` in a column. */
   Element &width(Dim d);
   Element &height(Dim d);
   Element &minWidth(Dim d);
@@ -2128,26 +2123,15 @@ public:
    *  centerAt(), for when you already know the box.
    *
    *  Exactly `left(r.fLeft).top(r.fTop).width(r.width()).height(r.height())`
-   *  — it calls those four setters, so it writes the same four LayoutProps
+   *  — it calls those four setters, so it writes the same four layout
    *  fields, prunes identically, and cannot drift from the longhand. Right
    *  and bottom stay unpinned.
    *
-   *  **This is a primitive for MEASURED reconstruction, not a general
-   *  ergonomics fix**, and the two populations disagree about it sharply.
-   *  A study that rebuilds an artefact measures coordinates off a
-   *  reference plate, so its positions arrive as numbers: `.left(` beats
-   *  `.inset(` almost 2:1 there (626 : 328) and nine studies independently
-   *  wrote this helper under four names. The gallery is flex-native and
-   *  the ratio inverts (84 : 222). Measured on its two most house-style
-   *  scenes: `ScenesInventory.h` collapses at most 17 chains of 791 lines
-   *  (~4%), and its coordinates are `cellX(col)`/`cellY(row)`/`spanW(w)`,
-   *  so this respells the call rather than removing arithmetic;
-   *  `ScenesPersona.h` saves **zero** — `plainRow()` (`:438-447`) pins
-   *  `.left(kBaseX + r.dx - 14).top(r.y - 14)` and carries no width or
-   *  height at all, so there is no rect to pass. If your position is a
-   *  *relationship* — "inside its parent", "next to that one", "as wide as
-   *  the column" — flex and inset() are the right tools and this is the
-   *  wrong one.
+   *  **A primitive for placing content whose coordinates you already
+   *  have**, typically because they were measured off a reference. When a
+   *  position is a *relationship* instead — "inside its parent", "next to
+   *  that one", "as wide as the column" — flex and inset() express it and
+   *  this does not.
    *
    *      g.child(box().rect(panelBox).fill(…));
    *      g.child(text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop}));
@@ -2158,9 +2142,9 @@ public:
    *  case. */
   Element &rect(const SkRect &r);
   /** Pin an absolute node's top-left to a parent-space POINT, leaving the
-   *  node to size itself from its content — `left(p.fX).top(p.fY)`, the
-   *  187-site half of the placement longhand that carries no box.
-   *  Same qualification as rect() above. */
+   *  node to size itself from its content — `left(p.fX).top(p.fY)`. The
+   *  half of the placement longhand that carries no box; same
+   *  qualification as rect() above. */
   Element &at(SkPoint topLeft);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
@@ -2171,18 +2155,14 @@ public:
    *  ContourWalk) trace it. Spiky dialogs, scalloped frames, any
    *  non-rectangular chrome.
    *
-   *  Was `outline()` until R3: the old name read as a DRAWN LINE — the
-   *  thing `stroke()` does — and call sites showed it,
-   *  `.outline(chevron()).fill(ramp)` filling an "outline" and
-   *  `.outline(shape).stroke(brush)` putting two halves of one idea under
-   *  one word. A shape is a region; a stroke is a mark on its boundary.
+   *  A shape is a REGION; a stroke is a mark on its boundary. Filling this
+   *  is `fill()`, drawing its edge is `stroke()`.
    *
-   *  Takes a `Shape`: every `shapes::` generator is a COMPARABLE value
-   *  now, so a shaped node prunes like an unshapen one (ROADMAP §3 — the
-   *  highest measured-impact item this roadmap carried, 43.5 → 0.10 ms
-   *  on the node that priced it). A raw callable is still accepted as
-   *  the escape hatch and keeps the old conservative behaviour — memo()
-   *  such a node (or keep the SHAPE value stable) to prune it. */
+   *  Takes a `Shape`. Every `shapes::` generator is a comparable value, so
+   *  a shaped node prunes exactly like an unshaped one. A raw callable is
+   *  accepted as the escape hatch, but it never compares equal, so the
+   *  node re-patches and re-records on every describe — memo() such a
+   *  node, or hold the Shape value stable, to get pruning back. */
   Element &shape(Shape path);
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
@@ -2195,14 +2175,14 @@ public:
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
    *  glows keep their reach); hit-testing still bounds the subtree.
    *
-   *  SUGAR, and stated as law so the two doors are one machine:
+   *  SUGAR, and exactly equivalent, so the two spellings are one machine:
    *
    *      .clip()  ==  .mask(parts::surface() | parts::content() |
    *                         parts::children(), by::shape(Region::own()))
    *
-   *  Kept as its own word because 33 corpus sites spell it and because it
-   *  is the cheap path — a rounded box clips with `clipRRect`, where the
-   *  general shape gate has to build and clip a path. */
+   *  Kept as its own word because it is also the cheap path: a rounded box
+   *  clips with `clipRRect`, where the general shape gate has to build a
+   *  path and clip against that. */
   Element &clip(bool on = true);
 
   // ---- mask (the appearance-gating family) ----
@@ -2213,12 +2193,11 @@ public:
    *      .mask(by::shape(Region::path(seal)))
    *      .mask(by::alpha(Material::linear({0,0}, {0,h}, fadeStops)))
    *
-   *  Sugar for `mask(parts::all(), with)`, and what 24 of the 25 sites
-   *  that used to spell `trim()` or `wipe()` write. A gate addresses the
-   *  paint it can address: an arc-length window means something to the
-   *  surface and the marks and nothing to the children, so `parts::all()`
-   *  with `by::spans()` is exactly the reveal `trim()` drew, and
-   *  `parts::all()` with `by::edge()` is exactly the reveal `wipe()` drew.
+   *  Sugar for `mask(parts::all(), with)`, and the form to reach for
+   *  first. A gate addresses only the paint it CAN address: an arc-length
+   *  window means something to the surface and the marks and nothing to
+   *  the children, so `parts::all()` with `by::spans()` gates the boundary
+   *  tracers and leaves the children alone.
    *
    *  Paint-only and bindable, like the transforms: animating a mask never
    *  relayouts, and hit-testing keeps the UNMASKED shape — a mask is a
@@ -2230,21 +2209,21 @@ public:
    *           .foreground(bevelKeyline)
    *           .mask(parts::named("hazard"), by::edge(0.f, &armTime));
    *
-   *  Repeated calls APPEND (the decoration law), and masks whose
+   *  Repeated calls APPEND, as every decoration slot does, and masks whose
    *  selections OVERLAP INTERSECT on the overlap — both gates must pass.
    *  Each mask carries its own animation slots, so masks at three
    *  different rates on one node is a picture, not a race: the
    *  intersection is recomputed exactly, per frame.
    *
-   *  Union is spelled INSIDE a gate value (`Spans::operator|`), never
+   *  Union is spelled INSIDE a gate value (combining spans with `|`), never
    *  across masks — two masks are two conditions, and stacking them can
    *  only ever show less.
    *
    *  The one thing this cannot express that `stroke(where, what)` can: a
-   *  span pass CLAIMS its run and joins the no-overlap ledger, and a mask
-   *  does not. That ledger is deliberately read against the UNMASKED
-   *  boundary, so an overlap is a description-level mistake and never a
-   *  mistake that blinks in and out between 0.3 and 0.7 of a transition. */
+   *  span pass CLAIMS its run and joins the overlap check, and a mask does
+   *  not. That check is deliberately read against the UNMASKED boundary,
+   *  so an overlapping claim is a description-level mistake reported once,
+   *  never one that blinks in and out partway through a transition. */
   Element &mask(Parts what, Gate with);
 
   // ---- paint ----
@@ -2260,10 +2239,10 @@ public:
    *      ticker.add([&](double){ level = v; bar = Fill::color(ramp(v)); … });
    *      box().scaleX(bind(&level)).fill(&bar)
    *
-   *  Spelled out because a study concluded there was no bound Fill at all
-   *  and rebuilt its most period-authentic widget on renderSlot() instead.
-   *  What genuinely does NOT exist is deriving one from the other at the
-   *  binding site — `fill(bind(&level).map(ramp))` — see ROADMAP.md. */
+   *  What does NOT exist is deriving one from the other at the binding
+   *  site: `fill(bind(&level).map(ramp))` does not compile, because the
+   *  shaping chain maps floats to floats. Compute the Fill in the
+   *  steppable, as above. */
   Element &fill(Animatable<Fill> f);
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it
@@ -2277,9 +2256,8 @@ public:
    *
    *      image(tileset).sampling(SkSamplingOptions(SkFilterMode::kNearest))
    *
-   *  `Material::image()` has always taken sampling; the element factory
-   *  did not, so the fix was discoverable only by diffing two signatures.
-   *  No effect on non-image leaves. */
+   *  `Material::image()` takes the same options for a sprite fill. No
+   *  effect on non-image leaves, silently. */
   Element &sampling(SkSamplingOptions options);
   // ---- decoration layers ----
   // Backgrounds paint below content/children (in declaration order),
@@ -2292,27 +2270,28 @@ public:
   // clipped nodes.
   /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
    *
-   *  `hitTest` returns any keyed node whose box contains the point,
-   *  whether or not it paints anything. That is correct and it means a
-   *  keyed full-bleed layout SHELL with no fill swallows every hit in
-   *  the frame: a study's four stat-bar groups were transparent
-   *  containers carrying their bars' keys, and every point on screen
-   *  came back as the last of them. The failure is silent and total.
+   *  READ THIS BEFORE KEYING A CONTAINER. `hitTest` returns any keyed node
+   *  whose box contains the point, whether or not that node paints
+   *  anything. So a keyed, full-bleed layout SHELL with no fill swallows
+   *  every hit in the frame, and every query comes back naming it. There
+   *  is no visual symptom and no diagnostic — the shell is invisible and
+   *  the answers are simply wrong. This is the opt-out.
    *
-   *  Children are still tested — this excludes the node's own box, not
-   *  its subtree. */
+   *  Children are still tested: this excludes the node's own box, not its
+   *  subtree. */
   Element &hitTestable(bool enabled);
   /** A decoration painted OVER the fill and UNDER the content and
-   *  children — the slot between the two that did not exist.
+   *  children.
    *
-   *  `background()` hides beneath the FILL (an opaque fill covers it —
-   *  the trap that sent a first attempt at bevelled chrome back as flat
-   *  slabs, 31 bevels all drawing underneath their own surfaces), and
-   *  `foreground()` paints above the children, so a textured button
-   *  greys out its own label. This slot is what hazard stripes over a
-   *  surface but under the digit, scanlines over a panel but under its
-   *  readout, and 100% of bevelled chrome actually want. The workaround
-   *  was a sibling stack, which costs a node and loses the outline.
+   *  THE STACKING ORDER IS A CONTRACT, not a hint, and picking the wrong
+   *  slot is the commonest way to draw nothing visible. `background()`
+   *  sits beneath the FILL, so an opaque fill covers it completely — a
+   *  bevel put there renders as a flat slab. `foreground()` paints above
+   *  the children, so a texture put there greys out the node's own label.
+   *  This middle slot is what hazard stripes over a surface but under the
+   *  digit, scanlines over a panel but under its readout, and bevelled
+   *  chrome all want. The alternative is a sibling stack, which costs a
+   *  node and loses the shared outline.
    *
    *  `name` is optional and LOCAL: it labels this mark so
    *  `mask(parts::named(name), by::…)` can address it and nothing else.
@@ -2333,30 +2312,24 @@ public:
    *  Identical in every respect to `stroke(Spans, ...)` except WHERE the
    *  mark lands: it paints with the backgrounds, beneath the fill and
    *  therefore beneath the content and the children. Everything else is
-   *  shared, and deliberately so — the passes append into ONE list in
-   *  declaration order, one claim ledger covers both halves, the
-   *  no-overlap law reads across both, and `rest()` complements both.
-   *  A boundary does not have two of itself, so a background pass and a
-   *  stroke pass claiming the same run is the same mistake it always was,
-   *  and `rest("name")` can name a pass in either half.
-   *
-   *  This exists because `trim()` revealed a node's BACKGROUND-slot
-   *  followers along with its foreground ones, and a span pass could only
-   *  ever paint above the children — the one capability the parity table
-   *  could not close by spelling (ROADMAP §33). */
+   *  shared, deliberately — the passes append into ONE list in declaration
+   *  order, one claim record covers both z-halves, the no-overlap rule
+   *  reads across both, and `rest()` complements both. A boundary does not
+   *  have two of itself, so a background pass and a stroke pass claiming
+   *  the same run is the same conflict as two stroke passes doing it, and
+   *  `rest("name")` can name a pass in either half. */
   Element &background(Spans where, Decoration what, std::string name = {});
   /** A decoration painted OVER the children. `name` labels the mark for
    *  `parts::named()`. */
   Element &foreground(Decoration d, std::string name = {});
-  /** fill's peer (the Photoshop/Illustrator mental model): dress the
-   *  node's whole BOUNDARY with a brush — a PathFormat, a layered brush
-   *  stack, any decoration that strokes.
+  /** fill's peer: dress the node's whole BOUNDARY with a brush — a
+   *  PathFormat, a layered brush stack, any decoration that strokes.
    *
-   *  This form does not CLAIM: it overlays the whole boundary, so
-   *  repeated calls stack the way the decoration law says (two strokes
-   *  are two rings) and never collide. Naming a `where` (below) is what
-   *  turns a pass into a claim on part of the boundary; naming a `name`
-   *  (here) is what lets a mask address this mark alone. */
+   *  This form does not CLAIM: it overlays the whole boundary, so repeated
+   *  calls stack (two strokes are two rings) and never collide. Naming a
+   *  `where` (below) is what turns a pass into a claim on part of the
+   *  boundary; naming a `name` (here) is what lets a mask address this
+   *  mark alone. */
   Element &stroke(Decoration brush, std::string name = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
    *
@@ -2364,42 +2337,45 @@ public:
    *      .stroke(spans::edges(14), stroke(1, ink))            // open corners
    *      .stroke(spans::upTo(animate(from(0.f).to(1.f), {600ms})), wire)
    *
-   *  Repeated calls APPEND, in declaration order — the decoration law.
-   *  ORDERING, precisely: the unqualified strokes paint FIRST (they are
-   *  foregrounds and share that list), then the span passes in their own
-   *  declaration order. Within each group declaration order holds;
-   *  between the groups the unqualified ones are underneath. Interleaving
-   *  the two by call order is not expressible today — if a span pass has
-   *  to sit UNDER a whole-boundary one, make the whole-boundary one a
-   *  span pass too (`spans::every(1)`) so both are in one list.
+   *  Repeated calls APPEND, in declaration order.
+   *
+   *  ORDERING, precisely, because CALL ORDER DOES NOT DECIDE IT: the
+   *  unqualified strokes paint FIRST — they are foregrounds and share that
+   *  list — then the span passes in their own declaration order. Within
+   *  each group declaration order holds; between the groups the
+   *  unqualified ones are always underneath. Interleaving the two by call
+   *  order is not expressible, and writing them interleaved does not make
+   *  it so. If a span pass must sit UNDER a whole-boundary one, make the
+   *  whole-boundary one a span pass too (`spans::every(1)`) so both are in
+   *  the same list.
    *
    *  Span-qualified passes CLAIM the runs they resolve to, and two claims
-   *  that overlap are a mistake the library says out loud (naming both
-   *  passes and the overlapping run): one boundary, one mark. Layering
-   *  two marks on one run is a composite BRUSH, not two passes — today
-   *  `Brush{}.layer(a).layer(b)` or a LayeredBrush.
+   *  that overlap are reported out loud, naming both passes and the
+   *  overlapping run: one boundary, one mark. Layering two marks on one
+   *  run is a composite BRUSH rather than two passes —
+   *  `Brush{}.layer(a).layer(b)`, or a LayeredBrush.
    *
-   *  Two exceptions, both deliberate: bare `spans::rest()` claims
-   *  whatever the other passes left over (so a rule and its bracket
-   *  corners are two calls and no arithmetic), and `spans::rest("name")`
-   *  is the complement of ONE named pass and may overlay the others.
+   *  Two exceptions, both deliberate: bare `spans::rest()` claims whatever
+   *  the other passes left over, so a rule and its bracket corners are two
+   *  calls and no arithmetic; and `spans::rest("name")` is the complement
+   *  of ONE named pass and may overlay the others.
    *
    *  `name` is LOCAL to this element — for inspection, for the
-   *  `rest("name")` reference, and for `mask(parts::named(name), …)`. It is
-   *  never a query key: a second identity system is exactly what the query
-   *  side refuses (DESIGN §Queries).
+   *  `rest("name")` reference, and for `mask(parts::named(name), …)`. It
+   *  is not a query key; `Composer::bounds` and `hitTest` see only
+   *  `key()`.
    *
-   *  THE SUGAR LAW, stated so the two doors are one machine:
+   *  EXACTLY EQUIVALENT to the mask spelling, so the two are one machine:
    *
    *      .stroke(where, what, name)
    *          ==  .stroke(what, name).mask(parts::named(name),
    *                                       by::spans(where))
    *
-   *  identical pixels, and the same value under the same intersection law
-   *  — a further `mask(parts::marks(), by::spans(upTo(t)))` cuts this pass
-   *  to `where ∩ upTo(t)`, which is how reticle brackets light up as a
-   *  sweep reaches them. The ONE thing the pass form does that the sugar
-   *  does not: it CLAIMS its run and joins the no-overlap ledger. */
+   *  Identical pixels, and the same value under the same intersection
+   *  rule — a further `mask(parts::marks(), by::spans(upTo(t)))` cuts this
+   *  pass to `where ∩ upTo(t)`, which is how reticle brackets light up as
+   *  a sweep reaches them. The ONE thing the pass form does that the mask
+   *  spelling does not: it CLAIMS its run and joins the overlap check. */
   Element &stroke(Spans where, Decoration what, std::string name = {});
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
@@ -2448,12 +2424,14 @@ public:
    *  from its left edge. */
   Element &scaleX(Animatable<float> factor);
   Element &scaleY(Animatable<float> factor);
-  /** Shear, in degrees, about the transform origin — the diagonal-slash
-   *  language (P3R cards ≈ −12°, P5R ≈ −20°; REFERENCES.md §1). Paint-only
-   *  like rotate/scale: animating skews never relayouts, and content
-   *  pictures replay under the new transform. skewX slants verticals
-   *  (positive leans the top to the right at negative... use negative
-   *  values for the ATLUS lean); skewY slants horizontals. */
+  /** Shear, in degrees, about the transform origin. Paint-only like
+   *  rotate/scale: animating a skew never relayouts, and content pictures
+   *  replay under the new transform.
+   *
+   *  skewX slants verticals, skewY slants horizontals. The sense is
+   *  screen-space, y down: a POSITIVE skewX shifts points further down the
+   *  node further right, so the shape's top leans LEFT — the italic
+   *  forward lean is a NEGATIVE skewX. */
   Element &skewX(Animatable<float> degrees);
   Element &skewY(Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
@@ -2530,22 +2508,21 @@ public:
   /** Text leaves only: paint the GLYPHS with this material, mapped to
    *  TEXT-METRIC space — the material's unit square lands with x across
    *  the widest line and y from the first line's CAP TOP (real cap height
-   *  from the face's metrics) to the last line's baseline. The chrome-type
-   *  primitive (REFERENCES.md §2): author the sunset ramp once in [0,1]
-   *  and its horizon crosses the capitals at any font size — no
-   *  hand-positioned gradients. Supersedes the style's foreground paint;
-   *  a live material re-resolves per frame (animated chrome); glyphFx
-   *  wins when both are set (kinetic text draws its own buckets). */
+   *  from the face's metrics) to the last line's baseline. That is what
+   *  makes chrome type work at any size: author the ramp once in [0,1] and
+   *  its horizon crosses the capitals whatever the font size, with no
+   *  hand-positioned gradients.
+   *
+   *  Supersedes the style's foreground paint. A live material re-resolves
+   *  per frame. glyphFx wins when both are set, because kinetic text draws
+   *  its own batched glyph buckets. */
   Element &textFill(Material m);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.
    *
-   *  `Element::stroke()` dresses the node's BOX outline, which is a
-   *  different thing entirely, so thickening a face meant dropping to
-   *  `sigil::weave::PaintStyle::addUnderlay` with a hand-built stroke
-   *  paint. Three studies did it; one spelled "1 px outline plus offset
-   *  shadow" as 117 full re-draws of a paragraph through `echo()`.
+   *  NOT `Element::stroke()`, which dresses the node's BOX outline and is
+   *  a different thing entirely. This one thickens the letterforms.
    *
    *  Composes with `textFill()` — the stroke is a pass beneath whatever
    *  fills the letterforms — and with the style's own underlays and
@@ -2566,33 +2543,33 @@ public:
    *  across describes, and what `connector`/`rail`/`spans::fit` borrow
    *  geometry by.
    *
-   *  ON A `slot()` IT RENAMES THE MOUNT. A slot's name IS its key —
-   *  there is no second field — so `slot("hud").key("panel")` produces a
-   *  slot called "panel", and `renderSlot("hud")` then finds nothing and
-   *  no-ops. Doing it warns once (Release too), because the symptom is a
-   *  W × 0 layout, not an error (ROADMAP §26b's other half). */
+   *  ON A `slot()` IT RENAMES THE MOUNT. A slot's name IS its key — there
+   *  is no second field — so `slot("hud").key("panel")` produces a slot
+   *  called "panel", and `renderSlot("hud")` then finds nothing and does
+   *  nothing. It warns once, in Release too, because the visible symptom
+   *  is an empty region rather than an error. */
   Element &key(std::string_view k);
   Element &cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
    *  The bake rasterizes at `factor` times the device scale and the blit
    *  scales it back up with linear sampling.
    *
-   *  ALMOST ALWAYS THE WRONG LEVER — it cheapens the BAKE and taxes
-   *  every BLIT (an upscaling resample, paid forever), which is
-   *  backwards for the bake-once/blit-every-frame node Cache::Texture
-   *  exists for. One study removed it from six nodes and went mean
-   *  11.07 → 4.31 ms. Reach for it only when something forces FREQUENT
-   *  re-bakes (a live material stepping at its own rate, a resizing
-   *  node) AND the content is soft enough to survive the resample.
-   *  Sharp text or 1px hairlines never belong under a reduced bake. */
+   *  ALMOST ALWAYS THE WRONG LEVER. It cheapens the BAKE, which happens
+   *  once, and taxes every BLIT with an upscaling resample, which happens
+   *  forever — backwards for the bake-once/blit-every-frame node
+   *  Cache::Texture exists for. Reach for it only when something forces
+   *  FREQUENT re-bakes (a live material stepping at its own rate, a
+   *  resizing node) AND the content is soft enough to survive the
+   *  resample. Sharp text and 1 px hairlines never belong under a reduced
+   *  bake. */
   Element &bakeScale(float factor);
   Element &transition(Transition t); // node default for plain constants
-  /** GSAP-style container stagger: child i's subtree enters with an EXTRA
-   *  order·each delay on all its animate() mount transitions (compounding
-   *  through nested staggered containers). `from` picks the origin —
-   *  Start (declaration order), End (last child first — the P3R bottom-up
-   *  cascade without reordering paint), Center (ripple outward). One call,
-   *  no per-child delay arithmetic:
+  /** Container stagger: child i's subtree enters with an EXTRA
+   *  order·each delay on all its animate() mount transitions, compounding
+   *  through nested staggered containers. `from` picks the origin — Start
+   *  (declaration order), End (last child first, a bottom-up cascade
+   *  without reordering paint), Center (ripple outward). One call, no
+   *  per-child delay arithmetic:
    *  `column().staggerChildren(33ms, Stagger::From::End).children(rows)`. */
   Element &staggerChildren(std::chrono::milliseconds each,
                            Stagger::From from = Stagger::From::Start);
@@ -2616,9 +2593,9 @@ public:
 
 private:
   /** Register a decoration's declared derive borrows (see
-   *  BorrowingDecoration). Called by EVERY slot that takes a Decoration —
-   *  a borrow honoured by only some of them would be the sibling-path
-   *  failure family again. */
+   *  BorrowingDecoration). Every slot that takes a Decoration must call
+   *  this: a borrow honoured in some slots and not others resolves to
+   *  nothing in the others, and draws nothing, with no diagnostic. */
   void claimBorrows(const Decoration &d);
 
   /** The shared body of stroke(Spans,…) and background(Spans,…). `half` is
@@ -2658,13 +2635,12 @@ Element box();
  *  is for: `.top(12).right(12)` pins a corner). Mixed flow wants a box
  *  with a stack inside it. */
 Element stack();
-/** The positioned leaf set (ROADMAP §2/Direction 1): a container whose
- *  children carry their OWN rects and skip Yoga entirely — no flex
- *  nodes anywhere below it. Generated geometry (tilings, lattices, node
- *  graphs, fields drawn as real elements) never wants layout, and this
- *  is how to say so.
+/** A container whose children carry their OWN rects and skip Yoga
+ *  entirely — no flex nodes anywhere below it. Generated geometry
+ *  (tilings, lattices, node graphs, fields drawn as real elements) never
+ *  wants layout, and this is how to say so.
  *
- *  The child spelling is the one the corpus already writes:
+ *  The child spelling is the ordinary placement longhand:
  *  `.left(x).top(y).width(w).height(h)` — px, or pct() against the
  *  parent's rect; an open width/height with an opposing `.right()`/
  *  `.bottom()` pins the far edge instead; a text leaf with an open
@@ -2672,13 +2648,15 @@ Element stack();
  *  Rects nest: a child's children position inside ITS rect, the whole
  *  subtree Yoga-free. Everything else about the children is ordinary —
  *  decorations, strokes, masks, transitions, stagger, zIndex, hitTest,
- *  bounds() — because instances still exist; only their layout engine
- *  is gone (549 Penrose setts: 1647 Yoga nodes to 1).
+ *  bounds() — because instances still exist; only their layout engine is
+ *  gone. A large generated field therefore costs one Yoga node rather
+ *  than one per element.
  *
- *  The container ITSELF is an ordinary box in its parent's flow (size
- *  it with dims or insets; it does NOT auto-size from its children).
- *  Not supported inside: flex props (ignored), centerAt, layout()
- *  schemes, flowAround text — those want the flex world. */
+ *  The container ITSELF is an ordinary box in its parent's flow: size it
+ *  with dims or insets, because it does NOT auto-size from its children.
+ *  NOT SUPPORTED INSIDE, and ignored silently when written: flex props,
+ *  centerAt, layout() schemes, flowAround text. Those need the flex
+ *  world. */
 Element positioned();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
@@ -2690,13 +2668,16 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options = {});
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 /** A box whose content is one paint program (≡ box().background(p)).
- *  Cached like any static subtree — programs that read the clock or
- *  otherwise change per frame must declare .cache(Cache::None). The program
- *  is an incomparable callable, so the structural prune cannot prove a
- *  custom() node unchanged: it re-records on every render(). Wrap it in
- *  memo() (or keep its Element pointer-stable across renders) to prune it
- *  while its inputs are unchanged. Value decorations (PathFormat/Slice/
- *  Shadow) do prune automatically — prefer them for static chrome.
+ *
+ *  TWO COSTS AN AUTHOR MUST KNOW. First, it is cached like any static
+ *  subtree, so a program that reads the clock — or changes for any other
+ *  reason without a re-describe — MUST declare `.cache(Cache::None)`, or
+ *  its first frame is recorded and replayed frozen. Second, the program is
+ *  an incomparable callable, so the structural prune cannot prove a
+ *  custom() node unchanged and it re-records on every render(). Wrap it in
+ *  memo(), keep its Element value stable across renders, or use the keyed
+ *  overload below. Value decorations (PathFormat, Slice, Shadow) prune
+ *  automatically — prefer them for static chrome.
  *
  *  IT SIZES LIKE AN EMPTY BOX, and the failure is silent. Being literally
  *  `box().background(p)`, a custom() leaf has no intrinsic size: dropped
@@ -2706,12 +2687,12 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  `absolute().inset(0)` itself — which is exactly what
  *  `instancing::instances()` returns, for exactly this reason. */
 Element custom(PaintProgram program);
-/** The PRUNABLE spelling (§14): the key is the program's IDENTITY, on
- *  the same author contract as `shapes::parametric(key, …)` — one key
- *  always names one drawing at one parameterisation; fold anything that
- *  varies into the key. Two describes with equal keys compare EQUAL and
- *  the node prunes; the unkeyed form stays the escape hatch that
- *  re-records every render(). */
+/** The PRUNABLE spelling: the key is the program's IDENTITY, on the same
+ *  author contract as `shapes::parametric(key, …)`. One key must always
+ *  name one drawing at one parameterisation — fold anything that varies
+ *  into the key, or two different pictures compare equal and the stale one
+ *  replays. Two describes with equal keys compare EQUAL and the node
+ *  prunes; the unkeyed form above re-records every render(). */
 Element custom(std::string_view key, PaintProgram program);
 
 /** A container whose children are placed by @p scheme instead of
@@ -2732,13 +2713,14 @@ template <LayoutScheme L> Element layout(L scheme) {
 }
 
 /** A named mount point whose content is supplied independently via
- *  Composer::renderSlot() — the surrounding tree's caches stay valid
- *  across slot updates (independent data domains).
+ *  `Composer::renderSlot()`. The surrounding tree is not re-described when
+ *  the slot updates, so its caches stay valid — this is how two data
+ *  domains that change at different rates share one tree.
  *
- *  THE NAME IS STORED AS THE ELEMENT'S `key`, which is the same field
- *  `.key()` writes: `slot("hud").key("panel")` is a slot named "panel"
- *  and `renderSlot("hud")` silently finds nothing. Name the slot here,
- *  never twice; `.key()` warns once if it is called on one anyway. */
+ *  THE NAME IS STORED AS THE ELEMENT'S `key`, the same field `.key()`
+ *  writes: `slot("hud").key("panel")` is a slot named "panel", and
+ *  `renderSlot("hud")` then finds nothing and does nothing. Name the slot
+ *  here and only here; `.key()` warns once if called on one anyway. */
 Element slot(std::string_view name);
 
 /** A relationship as a first-class element: a path routed between two
@@ -2748,11 +2730,12 @@ Element slot(std::string_view name);
  *  for anything else. Position it absolute().inset(0) over the nodes
  *  it connects.
  *
- *  `gap` is `Anchor::gap`'s spelling on this door: it pulls each END of
- *  the routed path back along itself by that many px (clamped so short
- *  routes keep a visible run). Routes run centre to centre, and with
- *  `sdf::` chrome the node box is far larger than the visible shape —
- *  the gap is how a wire stops at the glow instead of piercing it. */
+ *  `gap` is `Anchor::gap` under another name: it pulls each END of the
+ *  routed path back along itself by that many px, clamped so short routes
+ *  keep a visible run. Routes run centre to centre, and a node's box can
+ *  be much larger than its visible shape — under `sdf::` chrome, for
+ *  instance — so the gap is how a wire stops at the glow instead of
+ *  piercing it. */
 using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
@@ -2778,10 +2761,10 @@ using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
  *  anchors (a transit line through its stations, a wire through ports),
  *  resolved in the derive phase and re-routed whenever an anchored node
  *  moves. The routed path becomes PaintContext::outline, so PathFormat
- *  strokes, ContourWalk stamps, and trim() all dress it — a rail with
+ *  strokes, ContourWalk stamps and span masks all dress it — a rail with
  *  `.mask(by::spans(spans::upTo(with(1.0f, {800ms}))))` DRAWS ITSELF.
- *  Position it
- *  absolute().inset(0) over the nodes it threads (like connector()). */
+ *  Position it absolute().inset(0) over the nodes it threads, as with
+ *  connector(). */
 Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 
 /** A BAND: the shape a spine sweeps out at a given width across it.
@@ -2797,15 +2780,15 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *  `across(...)` takes a Profile, so a taper is the same value a strand
  *  or a ribbon width uses.
  *
- *  It does NOT hit-test as its shape: hitTest consults shapeFn, and a
- *  band's silhouette is derived instead, so a band hits as its LAYOUT
- *  BOX. That is the pinned organic-shape hit-testing pass (§33), not a
- *  band defect to work around here.
+ *  IT DOES NOT HIT-TEST AS ITS SHAPE. Hit testing consults the node's own
+ *  shape value, and a band's silhouette is derived rather than set there,
+ *  so a band hits as its LAYOUT BOX — a wider region than the mark you can
+ *  see.
  *
  *  An authored spine is a `Shape`, exactly like shape()'s value: a
  *  comparable generator (any `shapes::` value) prunes; a raw callable is
- *  the escape hatch that stays conservative — memo() such a node (or
- *  keep the SHAPE value stable) to prune it. A borrowed spine
+ *  the escape hatch that never compares equal — memo() such a node, or
+ *  hold the Shape value stable, to prune it. A borrowed spine
  *  (`around(key)`) is a comparable value and prunes on its own.
  *
  *  Formation is explicit: `.centered()` (the default) straddles the
@@ -2823,52 +2806,46 @@ Element band(Around spine, Across width);
  *  fraction of the spine's total arc length, `across` is px on the normal.
  *
  *  **Positive `across` is to the LEFT of travel**, which in screen space
- *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for
- *  rects and circles, so `.outward()` exits the shape.
+ *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for rects
+ *  and circles, so `.outward()` exits the shape.
  *
- *  THE ONE CONVENTION, and DESIGN.md states it once for the whole
- *  library. `lines::` used to be the minority that meant the other side
- *  (`offsetAlong`, `Rail::offset`, `Line::offset`); R3 flipped all three,
- *  renaming each so the compiler found every call site, and negated each
- *  argument so no picture moved (ROADMAP §33 ruling 5).
- *
- *  The one place the two coordinates are spelled out, so a caller placing
- *  content on a band and the band's own geometry cannot disagree. */
+ *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
+ *  `Profile::across`, `strand::offset`, `lines::offsetAcross`,
+ *  `lines::Rail::across`, `kit::brush::shapers::offset` and
+ *  `TextPath::offset` all mean this same side. Anything placing content on
+ *  a band reads it here, so the placement and the band's own geometry
+ *  cannot disagree. */
 SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx);
 
 // ---------------------------------------------------------------------------
 // The DERIVE family, gathered under one word
 
 /** Everything that asks "where did that keyed node land, and give me more
- *  content because of it" — the DERIVE phase, which is already the
- *  pipeline's name for it (DESIGN.md §The pipeline) and therefore canon
- *  vocabulary rather than a coinage.
+ *  content because of it" — the DERIVE phase.
  *
- *  The members shipped separately over a year and shared no name, which
- *  is the audit's item 8: `flowAround`, `connector`/`rail` (with
- *  `routers::` as their pluggable seam, not a seventh member),
- *  `band(around(key))`, `spans::fit(key)` and a weave's
- *  `strand::from(key)` are ONE mechanism with six spellings and ~55 total
- *  uses — the low churn IS the symptom. Aliases only; nothing moves.
+ *  Its members are `flowAround`, `connector` and `rail` (with `routers::`
+ *  as their pluggable seam), `band(around(key))`, `spans::fit(key)` and a
+ *  decoration's `strand::from(key)`. Six spellings, one mechanism; the
+ *  aliases below exist so it can be found under one name.
  *
- *  THE LAWS THEY SHARE — one flat edge store, walked once per render:
+ *  THE RULES THEY SHARE — one flat edge store, walked once per render:
  *
- *   1. **An unknown key is SILENT.** `flowAround("typo")`,
- *      `spans::fit("typo")`, `around("typo")`, a connector to a node that
- *      is not in the tree — every one resolves to nothing and draws
- *      nothing. There is no diagnostic, by precedent and consistency; a
- *      warning would have to be the whole family's at once.
+ *   1. **AN UNKNOWN KEY IS SILENT, across the whole family.**
+ *      `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
+ *      connector naming a node that is not in the tree — each resolves to
+ *      nothing and draws nothing, with no diagnostic. A misspelled key
+ *      looks exactly like a feature you did not write.
  *   2. **ONE SECOND PASS, cycle-guarded.** Backward influence inside a
  *      frame is this declared exception and nothing else: derive answers
  *      are computed from the FIRST layout and fed to at most one more
  *      pass. A borrow that would close a cycle is dropped, not chased.
- *   3. **The answer can lag by a frame** where the borrowed node's own
- *      geometry only settles during that layout — the second `frame()`
- *      in the fit/flow tests is that, not a test artefact.
+ *   3. **The answer can lag by a frame** when the borrowed node's own
+ *      geometry only settles during that layout, so a borrow taken on the
+ *      very first frame may resolve against a not-yet-final rect.
  *   4. **Flat, not recursive.** Routed nodes and flowing text are flat
- *      lists in tree order plus a back-index from anchor key to routes,
- *      so a tree with no derived content pays nothing and `routesAt(key)`
- *      answers in O(routes at that node).
+ *      lists in tree order plus a back-index from anchor key to routes, so
+ *      a tree with no derived content pays nothing and `routesAt(key)`
+ *      answers in time proportional to the routes at that node.
  */
 namespace derive {
 /** A relationship as an element — see connector() above. */
@@ -2878,10 +2855,10 @@ using sigil::compose::rail;
 /** A spine borrowed from a keyed element — `band(derive::around("dial"),
  *  across(14))`. */
 using sigil::compose::around;
-/** The family's text member as a free verb, so the whole family has one
- *  spelling: `derive::flowAround(el, "fig", 8)` == `el.flowAround("fig",
- *  8)`. The METHOD stays the ergonomic form (it chains); this exists so
- *  the family can be named and found in one place. */
+/** The family's text member as a free verb: `derive::flowAround(el,
+ *  "fig", 8)` == `el.flowAround("fig", 8)`. The method is the ergonomic
+ *  form, since it chains; this exists so the whole family can be found
+ *  under one name. */
 inline Element flowAround(Element el, std::string_view key,
                           float margin = 0.0f) {
   el.flowAround(key, margin);
@@ -2897,12 +2874,11 @@ inline Element flowAround(Element el, std::string_view key,
  *  behind ContourWalk element stamps, and generally "an element tree
  *  as a brush".
  *
- *  THE INTRINSIC SIZE COMES FROM THE ROOT'S CHILDREN, not from the
- *  root's own dims (§10j): `snapshot(box().width(32).fill(…))` bakes at
- *  content size, so a probe that reads its own output back gets a
- *  silently different answer than the same content wrapped in a shell —
- *  wrap the sized tree in a plain `box().child(...)` and the forced dims
- *  are honored (the Pattern bake rule). */
+ *  THE INTRINSIC SIZE COMES FROM THE ROOT'S CHILDREN, not from the root's
+ *  own dims, and this catches people out: `snapshot(box().width(32).
+ *  fill(…))` bakes at CONTENT size and quietly ignores the 32. Wrap the
+ *  sized tree in a plain `box().child(...)` and the dims are honoured,
+ *  because they now belong to a child. */
 sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
@@ -2911,18 +2887,14 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
  *  A strip far longer than any texture — a marquee, a scrolling ribbon, a
  *  hanging scroll — is authored as a single element tree and baked with
  *  `snapshot()`, which has no size limit because a picture is vector. The
- *  consumer then wants it as N tile-sized rasters. That slice is a clip and
- *  a translate and nothing else: **there is no windowed bake, and there is
- *  no need for one.** Measured on a 324 x 40960 strip
- *  (`BM_Bake_TiledStrip_*`), replaying the whole picture into each of ten
- *  tiles costs 4.66 ms against a 3.13 ms floor in which each tile's ops
- *  have been extracted in advance — and `sliceable()` below lands ON that
- *  floor (3.11 ms; 12.5 vs 12.5 at forty tiles) for one argument to
- *  `SkPictureRecorder::beginRecording`. A bespoke region bake has nothing
- *  left to win. See ROADMAP §36 for the full table.
+ *  consumer then wants it as N tile-sized rasters. That slice is a clip
+ *  and a translate and nothing else: **there is no windowed bake, and
+ *  there is no need for one.** Replaying the whole picture per tile,
+ *  behind `sliceable()` below, is as cheap as extracting each tile's ops
+ *  in advance would be.
  *
- *  What DOES go wrong is the transform, repeatedly, and that is what these
- *  two verbs exist to own.
+ *  What DOES go wrong is the transform, and that is what these two verbs
+ *  exist to own.
  *
  *  **Author the strip in the tiles' own orientation.** If the tiles are
  *  tall, the tree is a `column()`; if they are wide, a `row()`. The
@@ -2933,13 +2905,13 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
  *  non-transposing slices, on purpose.
  *
  *  **`Facing` is a statement about the CONSUMER, not the picture.** A
- *  texture sampled onto a surface whose u runs backwards (a ribbon wall
- *  mirrors its own u) shows glyphs reversed unless the tile was baked
- *  reversed to match. `Facing::Mirrored` pre-flips ACROSS the strip — the
- *  axis perpendicular to `flow` — so that such a consumer reads the strip
- *  the right way round. Get this wrong and the art is legible in the
- *  offline PNG and mirrored on the surface, which is exactly how it has
- *  been gotten wrong before. */
+ *  texture sampled onto a surface whose u runs backwards — a ribbon wall
+ *  mirrors its own u — shows glyphs reversed unless the tile was baked
+ *  reversed to match. `Facing::Mirrored` pre-flips ACROSS the strip, on
+ *  the axis perpendicular to `flow`, so that such a consumer reads it the
+ *  right way round. Get this wrong and the art is legible in an offline
+ *  PNG of the tile and mirrored on the surface, so it will not show up
+ *  until the texture is in place. */
 namespace tiles {
 
 /** Which way the run of tiles marches through the picture. */
@@ -2973,34 +2945,32 @@ SkMatrix window(SkISize tile, int index, Flow flow = Flow::Down,
  *  `window()` replay visits only the ops that meet its tile instead of all
  *  of them.
  *
- *  Worth it past a handful of tiles and not before: on the strip above it
- *  costs 0.09 / 0.49 / 1.96 ms to build at 2 / 10 / 40 tiles and saves
- *  0.06 / 1.55 / 25.3 ms of replay, so it loses at 2 tiles and pays from
- *  about four on. Slicing without it is quadratic — every tile walks every
- *  tile's ops.
+ *  Worth it past a handful of tiles and not before: building the
+ *  hierarchy costs a pass over the picture, which a two-tile run does not
+ *  earn back. Slicing WITHOUT it is quadratic, because every tile walks
+ *  every tile's ops, so the saving grows with the tile count while the
+ *  build cost does not.
  *
- *  It exists as a verb because the one-liner has a trap: `drawPicture()`
- *  into a recorder stores a NESTED reference that the hierarchy cannot see
- *  into, leaving the tree empty and the cost unchanged. This flattens with
- *  `playback()` instead. */
+ *  It exists as a verb because the obvious one-liner has a trap:
+ *  `drawPicture()` into a recorder stores a NESTED reference the
+ *  bounding-box hierarchy cannot see into, leaving the tree empty and the
+ *  replay cost unchanged. This flattens with `playback()` instead. */
 sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art);
 
 } // namespace tiles
 
 /** A face's vertical metrics at a given size, without laying anything out.
  *
- *  The most-used missing primitive in the study program, and the reason
- *  is a mismatch nobody documents: a compose text node's top is the LINE
- *  BOX top, while almost every artefact worth reconstructing positions
- *  type by its CAP TOP. Aligning a rebuild to a reference therefore needs
- *  the slack between the two, and `measure()` returns only an `SkSize` —
- *  so the Fallout 2 sheet inferred it as an empirical
- *  `0.20 × measure("H").height()` across ~134 runs and three faces, which
- *  happened to work and was a guess.
+ *  A compose text node's top is the LINE BOX top, while type is usually
+ *  positioned against its CAP TOP — so aligning text to a coordinate taken
+ *  from a design or a reference image needs the slack between the two, and
+ *  `measure()` returns only an `SkSize`. `capSlack()` below is that
+ *  number.
  *
- *  `capHeight` and `xHeight` are what a face reports; both fall back to a
- *  fraction of the ascent when it reports zero, which some faces do.
- *  Values are positive distances in px, `ascent` above the baseline. */
+ *  `capHeight` and `xHeight` are what the face itself reports; both fall
+ *  back to a fraction of the ascent when a face reports zero, which some
+ *  do. All values are positive distances in px, with `ascent` measured
+ *  above the baseline. */
 struct TextMetrics {
   float ascent = 0;     ///< baseline to the top of the em box (positive)
   float descent = 0;    ///< baseline to the bottom (positive)
@@ -3016,14 +2986,18 @@ struct TextMetrics {
 TextMetrics metrics(const sigil::weave::TextStyle &style,
                     sigil::weave::FontContext &fonts);
 
-/** Shape ONE RUN without building an Element (§9): per-glyph advances in
- *  px, in visual order, through the same shaping path a text() leaf takes
- *  (real kerning, real ligatures — the count is the GLYPH count, not the
- *  byte or code-point count). Hand-placing N glyphs used to cost N text()
- *  leaves and N `measure()` layouts; this is one layout, and the pen
- *  positions are the running prefix sums. Single style, no wrapping (the
- *  run is laid on one unbounded line — a '\n' starts a new line and will
- *  reset the rest positions, so pass a RUN, not a paragraph). */
+/** Shape ONE RUN without building an Element: per-glyph advances in px, in
+ *  visual order, through the same shaping path a text() leaf takes, so
+ *  kerning and ligatures are real. The result's length is the GLYPH count,
+ *  which is neither the byte nor the code-point count.
+ *
+ *  Pen positions are the running prefix sums, so hand-placing N glyphs
+ *  costs one layout here rather than N text() leaves and N `measure()`
+ *  calls.
+ *
+ *  Single style, no wrapping: the run is laid on one unbounded line. A
+ *  '\n' starts a new line and resets the positions after it, so pass a
+ *  RUN and not a paragraph. */
 std::vector<float> measureRun(std::u8string_view utf8,
                               const sigil::weave::TextStyle &style,
                               sigil::weave::FontContext &fonts);
@@ -3059,18 +3033,19 @@ SkSize measure(Element root, sigil::weave::FontContext &fonts,
 //     // …four levels down, in a component that was never handed it:
 //     const Palette *p = env::inherited<Palette>();
 //
-// WHY THIS DOES NOT COST THE PRUNE — the property this library is built
-// on. An inherited value is read DURING DESCRIBE and lands in the reading
-// node's own props, so `propsEqual` is already the exact dependency
-// tracker: a node whose props came out identical prunes, whether or not it
-// read the environment, and a node whose colour actually moved re-patches.
-// The element tree the Composer sees is environment-INDEPENDENT — the
-// value is already baked in — so no kernel phase learns a new concept and
-// nothing invalidates a subtree wholesale. (Resolving a theme at PAINT
-// instead, through bound Outputs, is the other shape and it was measured:
-// the CDE study priced 40 bound `Fill` Outputs at 0.33 ms/frame steady
-// against 0.033 ms for the same 40 as values — 10x the steady paint to
-// save ~1 ms on one frame in three hundred. ROADMAP §10g.)
+// WHY THIS DOES NOT COST THE PRUNE. An inherited value is read DURING
+// DESCRIBE and lands in the reading node's own props, so the reconciler's
+// property comparison is already an exact dependency tracker: a node whose
+// props came out identical prunes, whether or not it read the environment,
+// and a node whose colour actually moved re-patches. The element tree the
+// Composer sees is environment-INDEPENDENT — the value is baked in by then
+// — so no kernel phase learns a new concept and nothing invalidates a
+// subtree wholesale.
+//
+// The alternative shape, resolving a theme at PAINT through bound Outputs,
+// trades the wrong way: it makes every themed node permanently volatile
+// and therefore uncacheable, paying per frame forever to save work on the
+// rare frame where the theme actually changes.
 //
 // THE ONE PLACE THE KERNEL HAD TO LEARN IT is `memo`, the only site in
 // the library where a component function runs AFTER the author's scope
@@ -3084,19 +3059,21 @@ SkSize measure(Element root, sigil::weave::FontContext &fonts,
 //
 // REQUIREMENTS ON AN INHERITED TYPE, and what its equality means: it is
 // copyable and equality-comparable, and two values are equal exactly when
-// describing anything under them yields props that compare equal — so the
-// comparison is structural and exact (SkColor4f bitwise, typefaces by
-// pointer), never perceptual and never epsilon'd, because the consumer of
-// the answer is the prune. Materialise derived values INTO the type;
-// a theme carrying a `std::function` derivation rule is incomparable and
-// turns every memo below it into a permanent miss (ROADMAP §3's wall in
-// new clothes). Motif's XmGetColors is the model: run the function, store
-// the colours.
+// describing anything under them yields props that compare equal. The
+// comparison is therefore structural and exact — SkColor4f bitwise,
+// typefaces by pointer — never perceptual and never epsilon'd, because
+// the consumer of the answer is the prune.
+//
+// MATERIALISE DERIVED VALUES INTO THE TYPE. A theme that carries a
+// `std::function` derivation rule instead of the colours it produces is
+// incomparable, so it never compares equal to itself and every memo below
+// it becomes a permanent miss. Run the function once and store the
+// results.
 //
 // There is deliberately NO library-wide `Theme` type. Bindings are keyed
 // by C++ TYPE, and the key a library component uses is its own existing
-// props type (`console::Style`), so this is a channel and not the design-
-// token layer the extraction pass refused (archive/EXTRACT.md §4.7).
+// props type (`console::Style`), so this is a transport channel rather
+// than a design-token vocabulary.
 
 namespace detail {
 
@@ -3154,6 +3131,7 @@ public:
     static_assert(std::is_copy_constructible_v<T>,
                   "an inherited value is a value");
     auto held = std::make_shared<const T>(std::move(value));
+    m_self = held.get();
     detail::envStack().push_back(
         detail::EnvEntry{detail::envTypeTag<T>(),
                          std::shared_ptr<const void>(std::move(held)),
@@ -3163,17 +3141,32 @@ public:
                          }});
     m_depth = detail::envStack().size();
   }
+  /** Unbinds THIS scope's binding and no other. Destroying providers out
+   *  of LIFO order is misuse; when it happens, the destructor locates its
+   *  own entry by the held value's identity and removes exactly that one
+   *  — an unconditional pop would unbind a SIBLING that is still alive.
+   *  The misuse warns; the well-nested path stays a compare and a
+   *  pop_back, allocation-free. */
   ~Provide() {
     detail::EnvSnapshot &stack = detail::envStack();
-    assert(stack.size() == m_depth && "env::Provide scopes must nest");
-    if (!stack.empty())
+    if (stack.size() == m_depth && stack.back().value.get() == m_self) {
       stack.pop_back();
+      return;
+    }
+    SkDebugf("[compose] env::Provide destroyed out of order — scopes must "
+             "nest LIFO; removing only this scope's own binding\n");
+    for (size_t i = stack.size(); i-- > 0;)
+      if (stack[i].value.get() == m_self) {
+        stack.erase(stack.begin() + (std::ptrdiff_t)i);
+        return;
+      }
   }
   Provide(const Provide &) = delete;
   Provide &operator=(const Provide &) = delete;
 
 private:
   size_t m_depth = 0;
+  const void *m_self = nullptr; // identity of the entry this scope pushed
 };
 
 /** The nearest enclosing binding of `T`, or nullptr when nothing bound
@@ -3231,8 +3224,10 @@ template <ComponentProps P, ComponentFn<P> F> Element memo(P props, F fn) {
 
 class Composer {
 public:
-  /** @p fontContext outlives the composer; @p ticker drives transitions
-   *  and (via its FrameClock, when attached) PaintContext time. */
+  /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
+   *  composer. @p ticker drives transitions and, through its FrameClock
+   *  when one is attached, PaintContext time; @p fontContext measures and
+   *  shapes every text leaf. */
   Composer(motion::Ticker &ticker, sigil::weave::FontContext &fontContext);
   ~Composer();
 
@@ -3242,8 +3237,8 @@ public:
   /** Layout viewport in canvas-space px; percent dims resolve here.
    *  The root element always fills the viewport (its own width/height
    *  are ignored, like the CSS root) — size content via children.
-   *  An EMPTY size means INTRINSIC instead: the root sizes to its
-   *  content and its own dims ARE respected (Layout.cpp) — the rule the
+   *  An EMPTY size means INTRINSIC instead: the root sizes to its content
+   *  and its own dims ARE respected. That is the rule the
    *  snapshot()/measure() path runs under. */
   void setSize(SkSize size);
 
@@ -3259,29 +3254,28 @@ public:
    *  composite). */
   void setView(Effect view);
 
-  /** THE DECLARED INPUT SPACE — a declaration, not a conversion (§10e).
+  /** THE DECLARED INPUT SPACE — a declaration, NOT a conversion.
    *
    *  Compose composites in ENCODED sRGB and has no linear stage: every
    *  surface it paints into is N32Premul with no SkColorSpace, so the
-   *  numbers an author writes are the numbers that land in the bytes
-   *  (DESIGN.md's colour rule, ROADMAP §41). That is not configurable —
-   *  a colour-managed surface would be a BREAKING change, because every
-   *  channel weighting in the library (`by::luma`'s Rec. 601 first)
-   *  would have to be ruled on again.
+   *  numbers an author writes are the numbers that land in the bytes. That
+   *  is not configurable, because every channel weighting in the library —
+   *  `by::luma`'s Rec. 601 coefficients first among them — is defined
+   *  against it.
    *
-   *  What was missing is the ability to SAY what you believe: "I
-   *  deliberately author encoded sRGB" and "nobody thought about colour
-   *  at all" produced identical trees. So the composer accepts a
-   *  declaration of what the author believes their colour values are.
-   *  `EncodedSRGB` — the default — matches reality and is silent.
-   *  Anything else is a mismatch the library can finally see, and it
-   *  says so once, precisely: your values will still be TREATED as
-   *  encoded sRGB — under a `LinearSRGB` declaration every channel
-   *  maths in the pipeline (blending, `by::luma`, alpha compositing)
-   *  runs on numbers it was not defined for, so your maths are wrong at
-   *  the edges. NO conversion is performed, ever, and the declaration
-   *  participates in nothing else — two renders under different
-   *  declarations are byte-identical, and there is a pin proving it. */
+   *  What this adds is the ability to SAY what you believe your colour
+   *  values are, since "I deliberately author encoded sRGB" and "nobody
+   *  thought about colour at all" otherwise produce identical trees.
+   *  `EncodedSRGB`, the default, matches reality and is silent. Anything
+   *  else is a mismatch the library can see, and it says so once: your
+   *  values are still TREATED as encoded sRGB, so under a `LinearSRGB`
+   *  declaration every channel computation in the pipeline — blending,
+   *  `by::luma`, alpha compositing — runs on numbers it was not defined
+   *  for.
+   *
+   *  NO conversion is performed, ever, and the declaration participates in
+   *  nothing else: two renders under different declarations are
+   *  byte-identical. */
   enum class InputSpace : uint8_t {
     EncodedSRGB, ///< display-encoded sRGB — the space compose composites in
     LinearSRGB,  ///< linear-light sRGB — NOT compose's space; declaring warns
@@ -3290,13 +3284,19 @@ public:
   void declareInputSpace(InputSpace space);
   InputSpace declaredInputSpace() const;
 
-  /** Reconciles against the retained tree (keys match instances; memo
-   *  and payload identity prune). Call whenever data changed. */
+  /** THE DESCRIBE PATH: reconciles @p root against the retained tree,
+   *  matching children by key and pruning where a memo hits or the
+   *  description compares equal. Call it whenever your data changed —
+   *  never per frame just to move a value, which is what a binding is
+   *  for. */
   void render(Element root);
 
-  /** Updates only the named slot() mount point (layout and stacking
-   *  still integrate normally; ancestors re-record their caches, the
-   *  rest of the tree is untouched). No-op if the slot doesn't exist. */
+  /** Updates only the named slot() mount point. Layout and stacking still
+   *  integrate normally and ancestors re-record their caches, but the rest
+   *  of the tree is untouched — which is the point: two data domains
+   *  changing at different rates do not invalidate each other.
+   *
+   *  A name that matches no slot does nothing, silently. */
   void renderSlot(std::string_view name, Element content);
 
   /** Content or layout changed since the last draw(). Redraw when
@@ -3315,20 +3315,26 @@ public:
   void purgeCaches();
 
   // ---- queries (resolved side only) ----
-  /** Layout rect of a keyed node, in the composer's coordinate space
-   *  (valid after draw()/layout). */
+  /** Layout rect of a keyed node, in the composer's coordinate space.
+   *  Valid after a draw() (or any other call that runs layout). */
   std::optional<SkRect> bounds(std::string_view key) const;
   /** Live SigilWeave layout of a keyed text node (valid until the next
    *  layout; for glyph choreography and queries). */
   const sigil::weave::ParagraphLayout *
   paragraphLayout(std::string_view key) const;
-  /** Topmost key at a canvas-space point (valid after draw()/layout).
-   *  Paint-order aware (zIndex, declaration order, topmost first),
-   *  transform-aware (rotated/scaled/translated nodes hit in their
+  /** Topmost key at a canvas-space point. Valid after a draw().
+   *
+   *  Paint-order aware (zIndex, then declaration order, topmost first),
+   *  transform-aware (rotated, scaled and translated nodes hit in their
    *  visual place), and shape-aware (custom outlines and corner radii
-   *  bound the hit region — the gap between a star's arms misses).
-   *  A keyless node hit resolves to its nearest keyed ancestor;
-   *  clipped subtrees don't hit outside their clip. */
+   *  bound the hit region, so the gap between a star's arms misses). A
+   *  keyless node's hit resolves to its nearest keyed ancestor, and
+   *  clipped subtrees do not hit outside their clip.
+   *
+   *  It answers for any keyed node whose region contains the point,
+   *  whether or not that node painted anything — so a keyed transparent
+   *  container will answer for its whole box. See
+   *  `Element::hitTestable` for the opt-out. */
   std::optional<std::string> hitTest(SkPoint canvasPoint) const;
   /** The edge store's back-index: keys of route elements (connector()/
    *  rail()) anchored on @p nodeKey, in tree order — the graph query
@@ -3337,7 +3343,7 @@ public:
    *  omitted; give routes keys to see them here. Valid after render(). */
   std::vector<std::string> routesAt(std::string_view nodeKey) const;
 
-  // ---- introspection (perf verification; see compose_bench) ----
+  // ---- introspection (cost verification; see the compose_bench target) --
   struct Stats {
     size_t instances = 0;       ///< live retained nodes
     size_t yogaNodes = 0;       ///< instances carrying a Yoga node —
@@ -3349,11 +3355,10 @@ public:
     size_t texturesLive = 0;    ///< Cache::Texture images held
     /** CACHE WRITES last draw() — every recording AND every pixel bake.
      *
-     *  The name is narrower than the number and has misled a reader: a
-     *  `Cache::Texture` bake and a promoted bake both count here too, so
-     *  this is "how much cache work did that frame do", which is what
-     *  every caller actually wants to know. `texturesBaked` breaks out
-     *  the pixel-bake subset. */
+     *  The name is narrower than the number: `Cache::Texture` bakes and
+     *  library-promoted bakes count here too, so this answers "how much
+     *  cache work did that frame do". `texturesBaked` breaks out the
+     *  pixel-bake subset. */
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;   ///< of those, bakes rather than recordings
     size_t nodesPainted = 0;    ///< instances painted live last draw()
@@ -3367,13 +3372,10 @@ public:
   };
   const Stats &stats() const;
 
-  /** PER-NODE PAINT COST — the instrument that did not exist.
+  /** PER-NODE PAINT COST.
    *
-   *  `stats().paintMs` says the frame spent 1192 ms painting and says
-   *  nothing about WHERE, and nine studies were authored with no way to
-   *  find out. `debug::coverage` is a geometric path-tiling check and has
-   *  never had anything to do with cost, so the advice to reach for it was
-   *  wrong. This is the replacement.
+   *  `stats().paintMs` says how long the frame spent painting and nothing
+   *  about WHERE. This localizes it.
    *
    *      composer.setProfiling(true);
    *      composer.draw(canvas);
@@ -3381,18 +3383,17 @@ public:
    *        printf("%7.2f ms  %s\n", row.selfMs, row.label.c_str());
    *
    *  `selfMs` EXCLUDES children, so the number lands on the node that
-   *  actually costs, not on its ancestors. `cached` reports whether the
-   *  node replayed a cached picture — and note that a cached node can
-   *  still be the most expensive thing on the sheet, because a picture
-   *  records the DRAW CALLS: replaying it re-runs every shader over every
-   *  pixel. That is the distinction the corpus got wrong, and it is
-   *  visible here as a node with `cached == true` and a large `selfMs`.
+   *  actually costs rather than on its ancestors.
    *
-   *  Off by default: the timing calls are cheap but not free, and a
-   *  profiler that is always on is a profiler nobody trusts. */
-  /** How a node produced its pixels this frame. The distinction between
-   *  Picture and Texture is the one the corpus got wrong, so the profiler
-   *  names it rather than saying "cached". */
+   *  A CACHED NODE CAN STILL BE THE MOST EXPENSIVE THING ON THE SHEET. A
+   *  picture records the DRAW CALLS, so replaying it re-runs every shader
+   *  over every pixel; only a texture bake replaces that with a blit. Such
+   *  a node shows up here as `cached() == true` with a large `selfMs`.
+   *
+   *  Off by default: the timing calls are cheap but not free. */
+  /** How a node produced its pixels this frame. Picture and Texture are
+   *  named separately rather than collapsed into "cached", because they
+   *  cost radically different amounts — see the note above. */
   enum class CacheState : uint8_t {
     Live,     ///< painted from scratch
     Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
@@ -3413,11 +3414,10 @@ public:
   };
   /** WHY a node is, or is not, a pixel bake.
    *
-   *  A node that reads `live paint` and costs 600 ms is the corpus's whole
-   *  problem, and "the library declined" is not an answer an author can act
-   *  on: the refusals are individually correct and individually invisible.
-   *  So every profiled node carries the reason, and `--bench` prints it.
-   *  Each Refused* value names a condition that would make a bake produce
+   *  Promotion refusals are individually correct and individually
+   *  invisible, so an expensive live-painted node is otherwise a dead end
+   *  for an author. Every profiled node carries its reason here. Each
+   *  refusal value names a condition under which a bake would produce
    *  DIFFERENT PIXELS, which is the one thing promotion may never do. */
   enum class Promotion : uint8_t {
     Cheap,      ///< under the cost threshold — promoting it would not pay
@@ -3453,11 +3453,10 @@ public:
     /** EVERY condition that refused a bake, not just the first one.
      *
      *  `promotion` is a first-match verdict, so a node that is both
-     *  volatile and clipped reports only `Volatile` — and an author who
-     *  fixes the volatility then meets a second refusal nobody mentioned.
-     *  That is honest and it costs an iteration each time. The mask carries
-     *  all of them at once; `promotion` stays the primary outcome so every
-     *  existing assertion on it keeps its meaning.
+     *  volatile and clipped reports only `Volatile`, and fixing the
+     *  volatility then reveals a second refusal that was never mentioned.
+     *  This mask carries all of them at once; `promotion` stays the
+     *  primary outcome.
      *
      *  The bit index IS the Promotion ordinal, so there is no second table
      *  to drift out of sync with the enum. */
@@ -3475,44 +3474,38 @@ public:
    *  profiling is off. */
   const std::vector<NodeCost> &profile() const;
 
-  /** AUTOMATIC TEXTURE PROMOTION (on by default on CPU raster; OFF by
-   *  default on a Graphite/GPU surface — the cost model that drives it
-   *  measures op-RECORDING time, which describes raster and not GPU,
-   *  and promotion measured inert there; see ComposeRuntime.h and
-   *  ROADMAP §29. This setter overrides in both directions).
+  /** AUTOMATIC TEXTURE PROMOTION. On by default on CPU raster; OFF by
+   *  default on a Graphite/GPU surface, because the cost model driving it
+   *  measures op-RECORDING time, which describes raster work and not GPU
+   *  work. This setter overrides in both directions.
    *
-   *  A `Cache::Auto` subtree that is provably static already caches as an
-   *  SkPicture — and a picture records the DRAW CALLS, so replaying it
-   *  re-runs every shader over every pixel forever. Nine studies in the
-   *  sketch corpus were authored believing that was a cache; every one of
-   *  them reported `picturesRecorded == 0` while missing 60 FPS by an
-   *  order of magnitude.
-   *
-   *  So the composer now watches how long each static node's paint
-   *  actually costs, and once a node has been expensive for several
-   *  consecutive frames it re-bakes that subtree ONCE into a raster image
-   *  and blits it thereafter.
+   *  A provably-static `Cache::Auto` subtree already caches as an
+   *  SkPicture — but a picture records the DRAW CALLS, so replaying it
+   *  re-runs every shader over every pixel, forever. It saves the describe
+   *  and the layout, not the pixels. Promotion is what turns an expensive
+   *  static node into an actual blit: the composer watches how long each
+   *  static node's paint costs, and once a node has been expensive for
+   *  several consecutive frames it bakes that subtree ONCE into a raster
+   *  image and blits it thereafter.
    *
    *  THREE KINDS OF NODE ARE ELIGIBLE:
    *
    *  1. A cached subtree whose picture replay is expensive.
-   *  2. A LEAF that never records a picture at all. Bare boxes are excluded
-   *     from picture recording on purpose (one drawRect beats a nested
-   *     recording), and the promoter used to watch only the replay path —
-   *     so a full-canvas box carrying one grain shader was structurally
-   *     invisible to it. That node is the corpus's single most expensive
-   *     object: 663 ms of a 697 ms frame in chladni_tab1, 108 ms in
-   *     penrose_paving, 34 ms in genesis_fire. Leaves are measured now.
+   *  2. A LEAF that never records a picture at all. Bare boxes are
+   *     deliberately excluded from picture recording, since one drawRect
+   *     beats a nested recording — but a full-canvas box carrying one
+   *     costly shader is exactly such a leaf, and it is often the single
+   *     most expensive object in a frame. Leaves are measured.
    *  3. A node whose only volatility is a LIVE MATERIAL that has not
-   *     actually moved since the bake — `Material::quantizeTime(10)` steps
-   *     its uniforms ten times a second, so at 60 FPS five frames in six
-   *     resolve to the SAME shader and the previous bake is still exact.
-   *     A material bound to a continuous Output resolves to a new shader
-   *     every frame, never reaches the stability rate, and stays live: the
-   *     library measures that rather than assuming it.
+   *     actually moved since the bake. `Material::quantizeTime(hz)` steps
+   *     its uniforms hz times a second, so most frames resolve to the SAME
+   *     shader and the previous bake is still exact. A material bound to a
+   *     continuous Output resolves to a new shader every frame, never
+   *     reaches that stability, and stays live — the library measures
+   *     which it is rather than assuming.
    *
-   *  Re-baking is not free, so a node only holds its promotion while it is
-   *  actually stable — a bake per frame would cost more than the replay it
+   *  Re-baking is not free, so a node holds its promotion only while it is
+   *  actually stable: a bake per frame would cost more than the replay it
    *  replaced.
    *
    *  IT MUST NOT CHANGE A PIXEL, and that is enforced structurally rather
@@ -3526,15 +3519,15 @@ public:
    *
    *  The refusals that look most like missed wins are the honest ones. A
    *  leaf at `opacity(0.13).blend(kSoftLight)` — the paper-grain idiom,
-   *  and the most expensive node in three studies — cannot be promoted,
-   *  because compositing a bake applies the alpha to an already-rounded
-   *  8-bit colour and the direct draw applies it to the shader's float
-   *  output; the two agree to within 1 LSB, which is not agreement. Ask
-   *  for that one yourself with `.cache(Cache::Texture)`: an author who
-   *  types it has accepted the rounding, and the library has not.
+   *  and often the most expensive node in a tree — cannot be promoted:
+   *  compositing a bake applies the alpha to an already-rounded 8-bit
+   *  colour, while the direct draw applies it to the shader's float
+   *  output, and the two agree only to within 1 LSB. Ask for that one
+   *  yourself with `.cache(Cache::Texture)` — an author who types it has
+   *  accepted the rounding; the library will not accept it on your behalf.
    *
    *  Why a given node was or was not promoted is reported per node as
-   *  NodeCost::promotion, and `ComposeSketch --bench` prints it.
+   *  NodeCost::promotion.
    *
    *  Opting out: globally here, or per node with `.cache(Cache::Picture)`,
    *  which means "record, and never promote". `Cache::Texture` is the

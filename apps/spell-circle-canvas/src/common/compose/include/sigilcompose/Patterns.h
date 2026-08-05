@@ -1,15 +1,19 @@
 #pragma once
 
 /** @file
- * SigilCompose stock pattern generators. TWO return types live here,
- * and the call shape differs: the baked-tile generators return a
- * `Pattern` (`.material()` fills anything, `.seed(n)` re-rolls the
- * seeded ones, `.rotate()/.scale()` remap without rebaking), while the
- * shader-field generators — `halftoneRamp`, `noise`, `grain`, the
- * most-used entries in the file — return a `Material` directly (no
- * `.material()` call; they are SkSL fields, not tiles). The
- * reference-grounded generators (girih tessellation, halftone ramps in
- * the Persona grammar, chrome ramps) build on these primitives.
+ * SigilCompose stock pattern generators. TWO return types live here and
+ * the call shape differs:
+ *
+ *  - the baked-tile generators return a `Pattern` — `.material()` turns it
+ *    into a fill, `.seed(n)` re-rolls the seeded ones, `.rotate()`/
+ *    `.scale()` remap without rebaking;
+ *  - the shader-field generators (`halftoneRamp`, `noise`, `grain`) return
+ *    a `Material` directly. They are SkSL fields, not tiles, so there is
+ *    no `.material()` call on them.
+ *
+ * A returned Material carries a freshly minted shader, so its identity is
+ * fresh too: hold it as a member if the node that fills with it should
+ * prune across re-describes.
  */
 
 #include "sigilcompose/Material.h" // halftoneRamp is a Material (SkSL)
@@ -52,7 +56,9 @@ inline Pattern halftone(float spacing, float radius, SkColor4f color,
       });
 }
 
-/** Stripes along +x (rotate the Pattern for diagonals — stays seamless). */
+/** Stripes along +x (rotate the Pattern for diagonals — stays seamless).
+ *  @p on is the painted width and @p off the gap; a non-positive @p on
+ *  draws nothing. */
 inline Pattern stripes(float on, float off, SkColor4f color) {
   const float period = std::max(on + off, 1.0f);
   return Pattern::tile({period, 8}, [on, color](SkCanvas &c, SkSize sz,
@@ -63,13 +69,15 @@ inline Pattern stripes(float on, float off, SkColor4f color) {
   });
 }
 
-/** A COLOURED SEQUENCE of runs along +x (§14) — what a tartan sett, an
- *  awning, a ribbon edge or a chart axis actually wants, and what
- *  stripes()' single colour and linearUnit's stop model cannot express
- *  (a 24-run sett against six stops). Each run is {width px, color};
- *  the tile period is their sum; @p phase slides the whole sequence
- *  along +x (px, wrapped). Rotate the Pattern for diagonals — stays
- *  seamless. */
+/** A COLOURED SEQUENCE of runs along +x — a tartan sett, an awning, a
+ *  ribbon edge, a chart axis: as many colours as there are runs, which
+ *  neither stripes()' single colour nor a gradient's stop list expresses
+ *  (a 24-run sett against six stops). Each run is {width px, color}; the
+ *  tile period is their sum; @p phase slides the whole sequence along +x
+ *  (px, wrapped). Rotate the Pattern for diagonals — stays seamless.
+ *
+ *  If no run has a positive width the period is zero and the result is a
+ *  degenerate pattern that draws nothing. */
 inline Pattern sequence(std::vector<std::pair<float, SkColor4f>> runs,
                         float phase = 0.0f) {
   float period = 0;
@@ -124,8 +132,7 @@ inline Pattern gridLines(float spacingX, float spacingY, float width,
     c.drawRect(SkRect::MakeWH(width, sz.height()), p);
   });
 }
-/** Square pitch — the common case. A lattice whose x and y pitch differ
- *  is not exotic: an X-COM control panel's is 5 × 2. */
+/** Square pitch — the common case, forwarding to the two-pitch form. */
 inline Pattern gridLines(float spacing, float width, SkColor4f color) {
   return gridLines(spacing, spacing, width, color);
 }
@@ -161,18 +168,22 @@ inline Pattern speckle(float tileSize, int count, float rMin, float rMax,
       });
 }
 
-/** The halftone RAMP (REFERENCES.md §1 — the P3R backdrop): dot radius
- *  swells from `rMin` at the node's top to `rMax` at its bottom, evaluated
- *  in one SkSL pass (a Material, not a baked tile — the ramp needs the
- *  node's height, so it rides the geometry tier: resolved when the node
- *  records, cached between layouts). `angleDeg` rotates the dot grid; the
- *  ramp stays vertical. To DRIFT the field (the menu idle), bind uDriftX /
- *  uDriftY: `.uniform("uDriftX", &phase)` — the material goes live and the
- *  dots slide under the fixed ramp. Drift wraps seamlessly at a period of
- *  2·spacing·√2 px along a 45° grid (d·cosθ ≡ 0 mod 2·spacing generally).
- *  `rampFrom`/`rampTo` remap where the swell runs as fractions of the
- *  node's height (0.25→0.9 confines it to the lower band). Keep
- *  rMax ≲ 0.45·spacing or neighboring dots fuse. */
+/** The halftone RAMP: dot radius swells from `rMin` at the node's top to
+ *  `rMax` at its bottom, evaluated in one SkSL pass. A Material, not a
+ *  baked tile — the ramp reads the node's height, so it resolves when the
+ *  node records and stays picture-cached between layouts.
+ *
+ *  `angleDeg` rotates the dot grid; the ramp stays vertical.
+ *  `rampFrom`/`rampTo` remap where the swell runs, as fractions of the
+ *  node's height (0.25→0.9 confines it to the lower band).
+ *
+ *  To DRIFT the field, bind uDriftX / uDriftY
+ *  (`.uniform("uDriftX", &phase)`): the material goes live and the dots
+ *  slide under a fixed ramp. Drift wraps seamlessly at a period of
+ *  2·spacing·√2 px along a 45° grid (in general, d·cosθ ≡ 0 mod
+ *  2·spacing).
+ *
+ *  Keep rMax below roughly 0.45·spacing or neighbouring dots fuse. */
 inline Material halftoneRamp(float spacing, float rMin, float rMax,
                              SkColor4f color, float angleDeg = 0.0f,
                              float rampFrom = 0.0f, float rampTo = 1.0f) {
@@ -225,9 +236,11 @@ inline Material halftoneRamp(float spacing, float rMin, float rMax,
  *  the organic texture floor. `frequency` is features-per-px (0.01–0.05
  *  reads as clouds/paper at UI scale; ~0.9 as film grain); `turbulence`
  *  uses the abs-value variant (sharper, veiny — brushed-metal fodder).
- *  Raw-shader identity: HOLD the returned Material as a member to prune
- *  across re-describes (each call mints a fresh shader — the same
- *  identity contract as Pattern). */
+ *  Each call mints a fresh shader, so HOLD the returned Material as a
+ *  member if the node filled with it should prune across re-describes.
+ *
+ *  The three channels are INDEPENDENT fields, which is right for a
+ *  displacement source and wrong for grain — see `grain()` below. */
 inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
                       bool turbulence = false) {
   sk_sp<SkShader> shader =
@@ -258,10 +271,10 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
  *
  *  GRAIN WANTS AN OPAQUE SURFACE. The shader returns its own opaque
  *  luminance, so over a near-transparent base it COMPOSITES AS THAT
- *  LUMINANCE instead of modulating what is beneath — the first nebula
- *  authored at 15% alpha came back a white cloud (§10c). Multiply grain
- *  over a solid ground (or into an opaque blend() stack); do not expect
- *  it to read through its own node's alpha.
+ *  LUMINANCE instead of modulating what is beneath — a nebula authored at
+ *  15% alpha comes back a white cloud. Multiply grain over a solid ground
+ *  (or into an opaque blend() stack); do not expect it to read through its
+ *  own node's alpha.
  *
  *  MIND THE PRODUCT. `stretch` divides the x frequency but MULTIPLIES the
  *  y one by the same factor, so it is not free: keep
@@ -270,27 +283,26 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
  *  wants something like `frequency 0.075, stretch 5` — not
  *  `frequency 6, stretch 6`, which asks for 36 cycles per pixel.
  *
- *  TWO IMPLEMENTATION RULES, and both are load-bearing. A sketch dylib
- *  carries its OWN copy of Skia — vcpkg builds Skia hidden-visibility, so
- *  sketch dylibs link libskia.a directly rather than resolving it from the
- *  host (sketch/README.md). `SkRuntimeEffect::MakeForShader` therefore
- *  builds the SkSL AST inside the SKETCH's Skia image while
- *  `getRPProgram` and the SkSL inliner run inside the HOST's, and virtual
- *  dispatch across that boundary faults on pointer authentication. So
- *  every stock SkSL material in this library must:
+ *  TWO IMPLEMENTATION RULES BIND EVERY STOCK SkSL MATERIAL HERE, this one
+ *  included, and violating either crashes rather than misdraws. A sketch
+ *  dylib carries its OWN copy of Skia: Skia is built hidden-visibility, so
+ *  a dylib links it directly instead of resolving it from the host.
+ *  `SkRuntimeEffect::MakeForShader` therefore builds the SkSL AST inside
+ *  the dylib's Skia image while the program generator and the SkSL inliner
+ *  run inside the host's, and virtual dispatch across that boundary faults
+ *  on pointer authentication. So:
  *
  *    1. keep `main()` MONOLITHIC — no user-defined SkSL functions, so the
  *       inliner never runs;
  *    2. avoid a UNIFORM-GUARDED `break` — bake the loop count into the
- *       source string and cache one effect per count instead.
+ *       source string and cache one effect per count instead, which is
+ *       what the octave cache below is for.
  *
- *  This function shipped violating both and segfaulted every sketch that
- *  painted it, with `MakeForShader` returning a valid effect and an empty
- *  error string, so there was nothing to catch. Four agents hit it inside
- *  an hour. `halftoneRamp()` above was always monolithic, which is exactly
- *  why it survived. `sketches/stock_materials.cpp` paints one of each
- *  stock material from a sketch dylib and is wired up as a ctest so the
- *  rule is enforced by the build rather than by memory. */
+ *  Neither is detectable at compile time: `MakeForShader` returns a valid
+ *  effect and an empty error string either way, and the fault only lands
+ *  when a sketch paints it. `sketches/stock_materials.cpp` paints one of
+ *  each stock material from a sketch dylib and runs as a test, so the rule
+ *  is enforced by the build rather than by memory. */
 inline Material grain(float frequency, int octaves = 4, float seed = 1.0f,
                       float contrast = 1.0f, float stretch = 1.0f) {
   const int n = std::clamp(octaves, 1, 8);
@@ -353,7 +365,7 @@ half4 main(float2 pos) {
 }
 
 // ---------------------------------------------------------------------------
-// Islamic geometric pattern (girih) — REFERENCES.md §4
+// Islamic geometric pattern (girih)
 
 /** Zellige color roles for the girih generators. */
 struct GirihPalette {
@@ -362,8 +374,7 @@ struct GirihPalette {
   SkColor4f strap;     // the ribbon
   SkColor4f strapEdge; // the ribbon's dark outline
 };
-/** Fez palette (REFERENCES.md §4): blue stars on teal ground, bone straps
- *  outlined in ink. */
+/** Fez palette: blue stars on teal ground, bone straps outlined in ink. */
 inline GirihPalette fezPalette() {
   return {{0.078f, 0.463f, 0.420f, 1},   // #14766B
           {0.106f, 0.294f, 0.608f, 1},   // #1B4B9B
@@ -386,7 +397,7 @@ inline GirihPalette nasridPalette() {
  *  θ = 45° turns every octagon into the {8/2} khatam (two overlapped
  *  squares through the edge midpoints) and every filler square into its
  *  inscribed square — the strapwork of the classic panel. The crosses are
- *  the leftover ground, exactly as on the walls of Fez. REFERENCES.md §4. */
+ *  the leftover ground, exactly as on the walls of Fez. */
 inline Pattern girih8(float edge, GirihPalette pal = fezPalette(),
                       float strapWidth = 0 /* 0 → 0.12·edge */) {
   const float a = std::max(edge, 4.0f);

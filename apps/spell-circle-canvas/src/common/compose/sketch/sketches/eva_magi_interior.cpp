@@ -26,29 +26,27 @@
 // contains all four.
 //
 // -----------------------------------------------------------------------------
-// THE REFERENCE IS IN PERSPECTIVE, AND EVERY NUMBER IN MY FIRST PASS WAS WRONG
+// THE REFERENCE IS IN PERSPECTIVE, SO NO NUMBER CAN BE READ STRAIGHT OFF IT
 //
-// `eva13_deliberation.png` is the plate seen at an angle. I built a whole pass
-// against it before that was pointed out, and the measurements that looked
-// most like findings were the ones that were purely the projection:
+// `eva13_deliberation.png` is the plate seen at an angle, and the measurements
+// that look most like findings are the ones that are purely the projection:
 //
 //   * a "camera roll varying 8.1 -> 16.4 deg with position" — that is what a
 //     CONSTANT roll looks like under perspective;
-//   * a "0.75x keystone across the plate", quoted as the recession — that is
+//   * a "0.75x keystone across the plate", taken for the recession — that is
 //     the projection itself, quoted back;
-//   * "45 deg cuts, hand-painted, +-8 deg" measured at 47 and -30 in frame;
-//   * a "pale halation rim" round each panel, which I attributed to a
-//     photographed CRT and which is simply the cel's own edge light.
+//   * "45 deg cuts, hand-painted, +-8 deg" measure 47 and -30 in frame;
+//   * a "pale halation rim" round each panel, which looks like a photographed
+//     CRT and is simply the cel's own edge light.
 //
-// I could not find a flat original. WHERE I LOOKED: EvaGeeks/EvaWiki (its
+// There is no flat original to measure instead. SEARCHED: EvaGeeks/EvaWiki (its
 // only MAGI-display still is `Eoe_magi_display.jpg`, Ep 25'), the Evangelion
 // Fandom wiki's Magi and Episode:13 galleries, nervarchives.com's Ep 13 page,
 // the Japanese EVA wikis (wikiwiki.jp/eva-shingeki, evangelion.dancing-doll),
 // fontsinuse 28760, and the recreation repos (itorr/magi, 07JP27/MagiSystem,
 // hirakujira/MAGI-System, mdrbx + TheGreatGildo/nerv-ui). The recreations are
-// flat but they are AUTHORED, not the artefact. So I rectified it explicitly,
-// and the work is on disk in `run2/work/flatten.py`, next to its output
-// `ref-images/eva13_deliberation_FLAT.png` (+ `_FLAT_GRID.png`).
+// flat but they are AUTHORED, not the artefact. So the frame is rectified
+// explicitly, and every number below is measured in the rectified frame.
 //
 // HOW THE RECTIFICATION WORKS, in four steps that are each checkable:
 //   1. Two families of lines that are parallel in the plate but not in the
@@ -77,18 +75,18 @@
 //      K = 1.30 (the median) is adopted. Everything below is measured in that
 //      flat frame, and the capture diffs against the FLAT plate.
 //
-// WHAT SURVIVED, AND IS NOW A MUCH STRONGER CLAIM THAN IT WAS:
+// WHAT THE RECTIFICATION MAKES CHECKABLE:
 //
 //   THE GENERATING RULE. "Every panel is a rectangle whose corner FACING THE
 //   CENTRE is chamfered off." In the flat plate the panels are literally
 //   axis-aligned rectangles — CASPER 390x294 at (158,562), BALTHASAR 330x414
 //   at (455,198), MELCHIOR 368x290 at (682,548) — and their cuts measure
-//   41.0, 45.9 and 46.2 deg. The brief's "45 deg, hand-painted, +-8" is
-//   CONFIRMED, at +-4. And the bearing test tightens from 19.5/19.4/12.2 deg
-//   in the frame to 14.6/18.4/2.0 in the flat plate. audit() prints it.
+//   41.0, 45.9 and 46.2 deg: 45 by hand, to within 4. And the bearing test
+//   tightens from 19.5/19.4/12.2 deg in the frame to 14.6/18.4/2.0 in the
+//   flat plate. audit() prints it.
 //
 // -----------------------------------------------------------------------------
-// WHAT ELSE THE MEASUREMENT CORRECTED IN THE BRIEF — FIVE MORE
+// FIVE MORE THINGS THE MEASUREMENT SETTLED
 //
 //  1. THE INFECTION IS A SHADER OVER THE FILL, NOT GEOMETRY. Its cell is
 //     32 px in the flat plate: red vertical runs p50 32, azure gaps p50 33,
@@ -98,34 +96,33 @@
 //     shader and exactly not a growing set of rectangles. Built as one
 //     `Material::sksl` overlay per panel with a single bound `uFront`; the
 //     panel's own azure is underneath and shows through where the field is
-//     off. My first pass built it as ~110 animated rects per panel and it
-//     re-described the tree on every step; this is one draw and one uniform.
-//  2. THE PANEL RIM IS THE CEL'S EDGE LIGHT, NOT itorr's BLACK KEYLINE. The
-//     brief takes `.1em black / .4em currentColor / .5em black` as the panels'
-//     frame. Cut across CASPER's left edge: ground (9,0,0) -> (137,94,116) ->
+//     off. Built instead as ~110 animated rects per panel it would re-describe
+//     the tree on every step; this is one draw and one uniform.
+//  2. THE PANEL RIM IS THE CEL'S EDGE LIGHT, NOT itorr's BLACK KEYLINE. That
+//     recreation frames its panels `.1em black / .4em currentColor / .5em
+//     black`. Cut across CASPER's left edge: ground (9,0,0) -> (137,94,116) ->
 //     (168,140,175) -> azure. A pale lavender rim two px wide, and no dark
 //     band anywhere. (itorr's DOUBLE rule on the 審議中 box IS on the plate.)
 //  3. THE GREEN BANDS SANDWICH THE KANJI, THEY ARE NOT A DOUBLE RULE. Four
 //     independent horizontal rules, ~19 px thick in the flat plate, one over
-//     and one under each kanji pair, ~120 px apart. The brief asks for
-//     `lines::Rails` at 8 px with small offsets; a Rails value with a 120 px
-//     span is a true statement and a useless one. They ARE serrated — a fine
-//     checker along their length, built as a crosshatch, not a dash.
-//  4. THERE ARE THREE ORANGE RAILS, NOT FOUR. Component analysis of the
-//     orange mask finds exactly three, and nothing at all where the brief puts
-//     a fourth "centre node" stub. What is there is the MAGI wordmark's own
+//     and one under each kanji pair, ~120 px apart. A `lines::Rails` pair
+//     could describe them, but a Rails value with a 120 px span is a true
+//     statement and a useless one. They ARE serrated — a fine checker along
+//     their length, built as a crosshatch, not a dash.
+//  4. THERE ARE THREE ORANGE RAILS. Component analysis of the orange mask
+//     finds exactly three, and nothing at all at the centre where a fourth
+//     "centre node" stub would go. What is there is the MAGI wordmark's own
 //     ink. The centre of this diagram is a hole with a word in it.
-//  5. THE FILE BLOCK IS SET NEARLY SOLID. The brief reports leading/cap =
-//     1.96. The four lines start at y = 415, 439, 463, 487 in the flat plate
-//     with cap 18: leading/cap = 1.33, which is what makes it read as a
-//     machine dump rather than a caption.
+//  5. THE FILE BLOCK IS SET NEARLY SOLID. The four lines start at y = 415,
+//     439, 463, 487 in the flat plate with cap 18: leading/cap = 1.33, which
+//     is what makes it read as a machine dump rather than a caption.
 //
 // -----------------------------------------------------------------------------
 // SOURCES — read and MEASURED
 //
-//  * The frame itself, rectified as above. `work/flatten.py` is the whole
-//    derivation; `work/diff_magi.py` is the per-region diff that closed it.
-//  * github.com/itorr/magi (131*) — a recreation of THIS screen. Taken: the
+//  * The frame itself, rectified as above — the four steps are the whole
+//    derivation and each of them can be redone from the frame.
+//  * github.com/itorr/magi — a recreation of THIS screen. Taken: the
 //    verdict box as a triple box-shadow, `--flash-time: .4s` stepped hard
 //    (`step-end`) with a `.1s` EX mode, the voting->voted state machine, and
 //    `transform: scale(1.2, 1)` — a HORIZONTAL STRETCH on type, which is the
@@ -138,12 +135,12 @@
 //    never overlap). The ALGORITHM is taken — anisotropic, occluded, blocky —
 //    and re-expressed per-pixel; the PROPORTIONS are corrected to the measured
 //    32 px cell.
-//  * github.com/mdrbx/nerv-ui (MIT) — cited as a PALETTE WARNING, the way
-//    lain_navi cited the Lain SDDM theme. Its tokens are #FF9900 / #00FF00 /
-//    #00FFFF, the fan-canonical "NERV colours", and NONE is on this plate.
-//    Its `border-radius: 0` design law is right and is obeyed here.
-//  * github.com/TheGreatGildo/nerv-ui — components/crt-effects.css, already
-//    cine-01's CRT stack. Reused unchanged so both Eva studies share one tube.
+//  * github.com/mdrbx/nerv-ui (MIT) — cited as a PALETTE WARNING. Its tokens
+//    are #FF9900 / #00FF00 / #00FFFF, the fan-canonical "NERV colours", and
+//    NONE is on this plate. Its `border-radius: 0` design law is right and is
+//    obeyed here.
+//  * github.com/TheGreatGildo/nerv-ui — components/crt-effects.css. Transcribed
+//    unchanged, so this study and eva_magi_defense.cpp share one tube.
 //  * fontsinuse.com/uses/28760 — NERV panels are Helvetica / Helvetica
 //    Condensed. Anno picked Matisse EB (Fontworks) for the Japanese; the free
 //    stand-in installed here is Songti SC Black, a heavy Ming.
@@ -151,8 +148,8 @@
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
 //   Element::outline               every panel: an axis-aligned box with ONE
-//                                  corner cut — see the GAP, the cut is not
-//                                  square and shapes::chamfered only cuts 45
+//                                  corner cut — the cut is not square, so it
+//                                  is cutBox() below and not shapes::chamfered
 //   decorations::border            the pale edge-light rim, on those outlines,
 //                                  following the cut untold
 //   decorations::doubleBorder      the 審議中 box (itorr's triple box-shadow)
@@ -180,128 +177,40 @@
 //   hard steps                     every blink; nothing here fades
 //
 // -----------------------------------------------------------------------------
-// LIBRARY GAPS — and ROADMAP §8's second independent citation
+// WHAT THE LIBRARY CANNOT SAY HERE, AND WHAT THIS FILE DOES INSTEAD
 //
 //  A. `routers::orthogonal()` CANNOT BE HANDED TO `rail()`, AND THIS ARTEFACT
 //     IS A PCB. `orthogonal()` is a `Router(SkRect, SkRect)` that always bends
 //     at midX; `rail()` needs a `RailRouter(std::span<const SkPoint>)`, and the
-//     only ones are polyline / octilinear / orbit. There is no adapter, so the
-//     obvious call does not compile — I checked the header rather than assume.
-//     ROADMAP §8 logs this, found "building a PCB-style node graph". This is
-//     its SECOND independent citation and it comes from the study of an angel
-//     that turns a computer into circuitry. Natural API, unchanged from §8:
-//     `routers::manhattan(Bend::HFirst|VFirst|MidX)` as a RailRouter.
+//     only ones are polyline / octilinear / orbit. There is no adapter between
+//     the two, so the obvious call does not compile and the three orange stubs
+//     go through `polyline(0)` on anchor points chosen by hand.
 //  B. NEITHER RAIL ROUTER CAN CUT A CORNER — both only round
 //     (SkCornerPathEffect), so `polyline(0)` (no rounding at all) is the only
-//     usable setting on a plate whose every elbow is square. §8 already asks
-//     for a 45 deg chamfer alternative; seconded.
-//  C. NO JUNCTION DOT AND NO HOP-OVER, IN ANY FORM. `PathFormat{.midCap = Dot,
+//     usable setting on a plate whose every elbow is square.
+//  C. THERE IS NO JUNCTION DOT AND NO HOP-OVER. `PathFormat{.midCap = Dot,
 //     .midSpacing = n}` is a tick ladder — a dot every n px of ARC — which is
-//     the opposite of a via, whose definition is "where two runs meet". The
-//     natural thing is `lines::Junctions{.dotRadius, .minDegree}`, finding
-//     them from the path's own self-intersections; it would serve every
-//     circuit, metro map and plumbing diagram anyone will draw here.
+//     the opposite of a via, whose definition is "where two runs meet", so
+//     nothing on this plate wears one.
 //  D. **`shapes::chamfered(cut, mask)` TAKES ONE SCALAR AND THEREFORE ONLY
 //     CUTS AT 45 DEGREES.** Measured in the flat plate, this artefact's cuts
 //     are 155x135, 136x142 and 66x68 px — 41.0, 46.2 and 45.9 deg. Two of the
 //     three are 45 to within a degree and CASPER's is not, and there is no
 //     spelling for it: `chamfered(155)` and `chamfered(135)` are both wrong.
-//     Worked around with a 12-line `cutBox()` below. Natural API:
-//     `shapes::chamfered(SkVector cut, Corner mask)` with the scalar overload
-//     kept — this is a strictly-wider signature and nothing breaks.
+//     `cutBox()` below takes an independent x and y cut per corner instead.
 //  E. NO PERSPECTIVE TRANSFORM. `Element` is affine-only, and `outline()` can
-//     apply a homography to GEOMETRY but not to text or to a subtree. That is
-//     what stopped the FIRST version of this sketch from simply drawing the
-//     flat plate and projecting it, and it is why the rectification had to
-//     happen in the measurement instead of in the render. One roadmap line —
-//     `Element::perspective(SkMatrix)` on a Texture-cached subtree would be
-//     the whole feature, since a bake is already a texture and Skia will
-//     happily draw one under a 3x3.
+//     apply a homography to GEOMETRY but not to text or to a subtree. So the
+//     plate cannot be drawn flat and then projected back into the reference's
+//     own perspective; the rectification has to happen in the measurement
+//     instead of in the render, which is why every coordinate here is a flat
+//     one.
 //
-// What was NOT a gap, checked in the header rather than assumed:
-// `brush::Pattern::cornerLength`/`cornerAlign` do exactly what the brief says;
+// What is NOT a limitation, checked against the headers:
+// `brush::Pattern::cornerLength`/`cornerAlign` place and orient corner art;
 // `lines::Rails` really does dash in CENTRELINE arc-space so unequal-offset
 // rails stay in register; `decorations::border` really does follow a cut
 // outline untold. `Border::cornerAngleDeg` defaults to 30 and finds ZERO
 // corners above 12 sides — passed explicitly on every hex here.
-//
-// -----------------------------------------------------------------------------
-// PERF — 147.18 -> 15.42 ms p99, and every step of it was a measurement
-//
-//  147.2  the honest build of the mechanism: one Material::sksl per panel, its
-//         arrival field evaluated FIVE times per pixel (self + four
-//         neighbours, for the keyline), each a Manhattan distance over two
-//         4-tap smooth value-noise fields = ~65 hash evaluations per pixel.
-//         BALTHASAR's 330x414 alone was 72.50 ms and CASPER's 57.22. Also
-//         `not baked: promotion opted out`, because I had typed
-//         `.cache(Cache::None)` on the infection node out of habit — the
-//         library was ASKING to bake it and I had told it not to.
-//   20.1  THE LOBES MADE BLOCKY AND THE KEYLINE BRANCHED. The two smooth
-//         noises became ONE hash of a coarse cell each (0.28 x 1.0 and
-//         1.0 x 0.28 — the anisotropy that makes the front grow in fingers
-//         lives in the CELL SHAPE, not in the interpolation), and the
-//         neighbour lookups moved behind three gates: only an OFF cell can
-//         carry a keyline, only a hash-chosen one does, and only within 0.21
-//         of an edge. The average pixel went from 5 arrivals to 1.34 and from
-//         ~65 hashes to ~3. 72.50 -> 11.16 ms on the same node — and it looks
-//         BETTER, because nothing in this cel is smooth.
-//    4.1  THE FRONT QUANTIZED. A continuously bound uniform makes a material
-//         live forever, so `not baked: its content changes every frame` and
-//         136k px of SkSL ran sixty times a second to show a field that only
-//         changes when the front crosses a cell. Held still between steps the
-//         automatic promoter bakes it, and the node drops to 0.19 ms reading
-//         `[TEXTURE, promoted by the library — not by you]`. The step is
-//         invisible because the field is already a per-cell step function.
-//         Same lesson as `Material::quantizeTime`, reached from the other
-//         end: declared choppiness is what makes a live material cacheable.
-//         AND THE ROTOR'S WRAPPER SIZED TO THE ROTOR. Its Texture bake sits
-//         under a bound rotation, so it is a LOCAL bake blitted through the
-//         transform — an AREA cost. A full-canvas wrapper made that a 1.5 MP
-//         resample every frame (6.44 ms); its own 520 px box is 0.27 MP
-//         (1.22 ms) for identical pixels. lain_navi's "the binding goes on a
-//         wrapper", one level further in: the wrapper must be the right SIZE.
-//
-//  Then --bench AT FOUR MOMENTS, because one sample lies about a timed reveal
-//  exactly the way one capture does. t=3.0 passed at 14.9 and t=1.2 FAILED at
-//  24.16, which is the only moment two panels fall at once:
-//
-//   15.4  (a) A PANEL IREUL HAS NOT REACHED CARRIES NO INFECTION NODE. A
-//         shader whose front is below every cell still runs over every pixel
-//         to prove it: CASPER's 115k px were 100% waste for twelve seconds of
-//         a twenty-six second loop. Gated on `seeded`, which is the one place
-//         here where the DATA path beats a uniform.
-//         (b) PER-PANEL STEP RATES, STAGGERED. Each step is one re-bake, so
-//         the step RATE is the cost. MELCHIOR falls in 2.5 s and 40 steps
-//         there is 16 re-bakes a second; 8 is 3/s and indistinguishable. A
-//         0.37-of-a-step phase offset keeps two panels off the same frame.
-//         (c) A 3-OP R2 (Roberts) HASH FOR THE PER-CELL GRAIN instead of
-//         Hoskins' 12-op one — a punch-out mask does not need the quality,
-//         and it is a third of every arrival's cost.
-//         (d) THE COUNTDOWN AND VERDICT CARD MOVED INTO A `slot()`. t=15
-//         failed at 19.07 for a reason that has nothing to do with pixels: a
-//         numeral changing once a second called `render(describe())` on a
-//         tree carrying three live materials. `renderSlot("hud", ...)` leaves
-//         the panels alone; 19.07 -> 12.57.
-//
-//   MEASURED AT FOUR MOMENTS, 120 frames each, 1440x1052:
-//     t = 1.2  (two MAGI falling)  p50 4.09  p99 15.42  mean 5.51
-//     t = 2.5  (THE REFERENCE)     p50 3.85  p99 14.67  mean 5.23
-//     t = 15   (countdown running) p50 3.70  p99 12.57  mean 4.25
-//     t = 20   (settled)           p50 3.70  p99 10.50  mean 3.98
-//   PASS at all four. The p99 is a front step re-baking one panel, which
-//   happens ~3-6 times a second while a MAGI is falling and never otherwise.
-//
-//   AND THE ALTERNATIVE, BENCHED AS ASKED: the first version of this study
-//   drew the infection as ~110 animated rectangles per panel behind a
-//   turn-penalty Dijkstra front, and it was NOT slower — a few hundred
-//   axis-aligned drawRects are microseconds on this host. What it was, was
-//   WRONG. It re-described the tree on every step; it needed a whole graph
-//   search to produce raggedness the shader gets from one anisotropic hash;
-//   and it could not be phased onto a coverage number without a bisection,
-//   where the shader's field inverts to a quantile in one array index. The
-//   shader is the original technique AND the better engineering — but the
-//   honest note is that on a CPU raster host the geometry version would have
-//   passed the gate too, and on a 2 MP GPU canvas the ranking would reverse.
 //
 // -----------------------------------------------------------------------------
 // Run:
@@ -457,10 +366,9 @@ inline weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
 // corner cut — which is the generating rule, stated as a construction now
 // that the projection is out of the way.
 
-/** GAP D's workaround: a box with an INDEPENDENT x and y cut per corner.
- *  `shapes::chamfered` takes one scalar and therefore only cuts at 45 deg;
- *  this plate's three cuts measure 41.0, 45.9 and 46.2. Twelve lines, and the
- *  library should just widen the signature. */
+/** A box with an INDEPENDENT x and y cut per corner. `shapes::chamfered` takes
+ *  one scalar and therefore only cuts at 45 deg; this plate's three cuts
+ *  measure 41.0, 45.9 and 46.2, so none of them is expressible that way. */
 enum CutCorner { CutTL = 1, CutTR = 2, CutBR = 4, CutBL = 8 };
 inline shapes::OutlineFn cutBox(float cx, float cy, int mask) {
   return [cx, cy, mask](SkSize s) {
@@ -571,8 +479,9 @@ float h21(float2 p) {
 // electrical circuits" and a stain.
 //
 // The lobes are BLOCKY — one hash of a coarse cell, not a smooth 4-tap value
-// noise. That was a 24x cost cut (see PERF) and it is also the truer choice:
-// nothing in this cel is smooth. A third hash punches out ~11% of cells
+// noise. Smoothing would pay four hashes plus their blends on every arrival
+// call, for a softness nothing in this cel has — the blocky read is both the
+// cheaper and the truer choice. A third hash punches out ~11% of cells
 // permanently — jackestar's occupancy grid, and the azure islands the frame
 // shows inside the pour.
 float arrival(float2 c, float2 seed) {
@@ -661,9 +570,8 @@ inline float arrival(float cx, float cy, SkPoint seed) {
 
 /** One panel's cells, sorted by arrival and carrying the AREA each actually
  *  contributes — a cell the panel's cut clips in half is half a cell of pour,
- *  and the anchor's 30.2% is an AREA fraction. Without this the model reports
- *  30.1% while the render measures 24.5%, which is exactly the kind of quiet
- *  6-point lie this program exists to catch. */
+ *  and the anchor's 30.2% is an AREA fraction. Counting clipped cells whole
+ *  makes the model claim 30.1% of a panel that renders at 24.5%. */
 struct Arrivals {
   std::vector<std::pair<float, float>> cells; // (arrival, area weight)
   float total = 0;
@@ -778,9 +686,9 @@ inline SkPath ownPads(SkSize s, int salt, int count) {
 }
 
 // ---------------------------------------------------------------------------
-// THE CRT. cine-01's stack, transcribed from TheGreatGildo/nerv-ui
-// components/crt-effects.css and reused UNCHANGED so both Eva studies share
-// one tube: 2 px scanlines at ~4% black, a 70%/70% vignette ellipse to 40%.
+// THE CRT. Transcribed from TheGreatGildo/nerv-ui components/crt-effects.css
+// and reused UNCHANGED so this study and eva_magi_defense.cpp share one tube:
+// 2 px scanlines at ~4% black, a 70%/70% vignette ellipse to 40%.
 
 inline sk_sp<SkRuntimeEffect> crtEffect() {
   static sk_sp<SkRuntimeEffect> fx = [] {
@@ -826,9 +734,10 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
 
   std::array<bool, 3> taken{false, false, false};
   // A panel Ireul has not reached yet carries NO infection node at all:
-  // a shader whose front is below every cell still runs over every pixel
-  // to prove it, and CASPER's 115k px were 100% waste for 12 s of a 26 s
-  // loop. This is the one place the DATA path beats a uniform.
+  // a shader whose front is below every cell still runs over every pixel of
+  // the panel to prove it, and CASPER stays clean for the first twelve
+  // seconds of a twenty-six second loop. This is the one place the DATA path
+  // beats a uniform.
   std::array<bool, 3> seeded{false, false, false};
   int verdictStep = -1;
   int countdown = -1;
@@ -1025,9 +934,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     return node;
   }
 
-  /** A green band: a horizontal bar, dark sea-green, SERRATED by a crosshatch
-   *  (correction 3 — ~19 px thick, four independent rules, not a Rails pair,
-   *  and there is no lean because the plate is level). */
+  /** A green band: a horizontal bar, dark sea-green, SERRATED by a crosshatch.
+   *  ~19 px thick, and there are four independent ones — not a Rails pair —
+   *  with no lean, because the rectified plate is level. */
   Element greenBand(float x0, float x1, float y) {
     return box()
         .left(x0)
@@ -1084,7 +993,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   fitRun(magi::latin(), u8"CODE : 263", 47.0f, 249.0f,
                          magi::kOrange, &sCode),
                   {151, 343}, sCode));
-    // The FILE block — cap 18, LEADING 24 (correction 5).
+    // The FILE block — cap 18, LEADING 24: nearly solid, a machine dump.
     const auto file = fitRun(magi::latin(), u8"EXTENTION:2004", 18.0f, 257.0f,
                              magi::kOrange, &sFile);
     static const char *kBlock[5] = {"FILE:MAGI_SYS", "EXTENTION:2004",
@@ -1096,7 +1005,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
 
     // 提訴 — a proposal is FILED. Two runs stacked: an opaque core and a hot
     // copy whose bound opacity steps 0/1, so the pulse costs one saveLayer the
-    // size of the KANJI, not of the canvas (API.md: 18.38 -> 7.94 ms).
+    // size of the KANJI rather than one the size of the canvas.
     const auto k1 = fitEmSpan(u8"提訴", 266.0f, magi::kKanji, &sK1);
     const auto k1h = fitEmSpan(u8"提訴", 266.0f, magi::kKanjiHot);
     g.child(inked(u8"提訴", k1, {152, 234}, sK1));
@@ -1149,9 +1058,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     const SkColor4f ink = carried ? magi::kGoldPeak : magi::kRedHot;
     float sl = 0;
     const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink, &sl);
-    // 620 put the card straight through portrait labels 1-3 — it is only
-    // ever up after 6.5 s, and the anchor capture is at 2.5. 430 is the gap
-    // the margin actually leaves, between the countdown and the first rail.
+    // 430 is the gap the right margin actually leaves, between the countdown
+    // numeral and the first portrait leader line; at 620 the card runs
+    // straight through portrait labels 1-3.
     Element card =
         box()
             .left(1130)
@@ -1248,9 +1157,8 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .advance = 14.0f,
         .cornerAngleDeg = 34.0f,
         .cornerLength = 0.0f,
-        // No `.corner` art on this brush, so there is no alignment to
-        // state — the field it used to set was inert. Making the two one
-        // value (brush::CornerArt) is what made that visible.
+        // No corner art on this brush, so there is nothing for a corner
+        // alignment to align.
         .stretchToFit = true,
         .reach = 12.0f};
     chevronBrush = brush::Pattern{
@@ -1262,7 +1170,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .advance = 10.0f,
         .cornerAngleDeg = 34.0f,
         .cornerLength = 0.0f,
-        // Likewise inert: no corner art on this brush either.
+        // Likewise: no corner art on this brush either.
         .stretchToFit = true,
         .reach = 11.0f};
   }
@@ -1476,9 +1384,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
    *  can turn against the rest. */
   /** Sized to the ROTOR, not to the canvas: this node lives under a bound
    *  rotation, so its Texture bake is a LOCAL bake blitted through the
-   *  transform — and that blit is an area cost. A full-canvas wrapper made it
-   *  a 1.5 MP resample every frame (6.44 ms); its own 520 px box is 0.27 MP
-   *  (1.1 ms) for identical pixels. */
+   *  transform, and that blit is an area cost paid every frame. A full-canvas
+   *  wrapper resamples the whole canvas to draw a 520 px disc; sizing the
+   *  wrapper to the disc gives identical pixels. */
   static constexpr float kRotorR = 260.0f;
   Element portraitRotor() {
     Element g = box()
@@ -1533,9 +1441,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // x 0.62 — spacings 70,77,103,70,95,123,77: irregular, NOT a grid. The
     // space before the closing paren is Khara's own typo; kept.
     // Run 2's caption is three lines on the design art and is trimmed to two
-    // here; its tail ("at the time of partition un-developing. )") was tried
-    // and taken back out — a third line closes to 15 px of run 3, the same
-    // leading the label uses internally, and the two captions read as one.
+    // here. Its tail ("at the time of partition un-developing. )") does not
+    // fit: a third line closes to 15 px of run 3, the same leading the label
+    // uses internally, and the two captions then read as one.
     static const float kDy[8] = {-33, 11, 58, 122, 166, 224, 301, 349};
     Element g = box().inset(0);
     const auto hi = magi::type(magi::latinPlain(), 11.5f, magi::kPRailHi);
@@ -1632,10 +1540,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                 decorations::border(1.8f, Fill::color(magi::hex(0x1A0F14))));
     // THE SULCI. `overlay()` dresses a node's OUTLINE, and this node's
     // outline is its rectangle — so the wavy Line above deckles the tissue's
-    // EDGE and lays nothing across it, which left the one thing the hatch
-    // exists to show (a human brain behind glass) reading as a blank card.
-    // The folds need geometry of their own; the ink and the wave are the
-    // ones already chosen above.
+    // EDGE and lays nothing across it. The folds need geometry of their own
+    // or the hatch shows a blank card instead of a brain; the ink and the
+    // wave are the ones already chosen above.
     tissue.child(
         box()
             .inset(0)
@@ -1693,9 +1600,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   // ==========================================================================
 
   /** The HUD slot: everything that changes on a CLOCK rather than on the
-   *  front. Re-describing the whole tree once a second for a countdown
-   *  numeral is how a 4 ms frame becomes a 19 ms one — the panels carry live
-   *  materials, and a re-describe puts their bakes at risk. */
+   *  front. The panels carry live materials, and a re-describe puts their
+   *  bakes at risk, so a countdown numeral changing once a second must not
+   *  drag the whole tree through render(describe()) with it. */
   Element hud() {
     return box().inset(0).child(verdictCard()).child(
         countdownNumeral());
@@ -1712,6 +1619,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                    .width(kRotorR * 2)
                    .height(kRotorR * 2)
                    .rotate(&spinRotor)
+                   // The capsules' glow pulse rides here, OUTSIDE the bake:
+                   // a bound opacity on the wrapper costs one composite per
+                   // frame, where the same binding inside the Texture cache
+                   // would re-bake the whole disc every frame.
+                   .opacity(&rotorGlow)
                    .child(portraitRotor()
                               .left(0)
                               .top(0)
@@ -1813,18 +1725,17 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // ease so the front decelerates as the panel fills, which is what the
     // episode's dialogue describes ("Balthazar is now taken over" lands late)
     double frac = k * k * (3.0 - 2.0 * k);
-    // QUANTIZED to kSteps levels — and this is a perf decision as much as an
-    // aesthetic one. A continuously bound uniform makes the material live
-    // FOREVER, so its 136k px re-run every frame (11.16 ms measured). Held
-    // still between steps, the automatic promoter bakes it and the frame is a
-    // blit; the shader is paid ~5 times a second instead of 60. The step is
-    // also invisible, because the field is already a per-cell step function.
+    // QUANTIZED to kSteps levels — a cost decision as much as an aesthetic
+    // one. A continuously bound uniform makes the material live forever, so
+    // every pixel of the panel re-runs the shader every frame to show a field
+    // that only changes when the front crosses a cell. Held still between
+    // steps, the automatic promoter bakes it and the frame is a blit. The step
+    // is invisible because the field is already a per-cell step function.
     // PER PANEL, and staggered. Each step costs one re-bake of that panel, so
-    // the step RATE is the cost: MELCHIOR falls in 2.1 s and 40 steps there is
-    // 19 re-bakes a second (p99 24.16 ms, measured, at t = 1.2 when it and
-    // BALTHASAR are both filling). Sixteen steps over its fall is 7/s and
-    // indistinguishable, and the 0.37-of-a-step offset keeps two panels from
-    // stepping on the same frame.
+    // the step RATE is the cost, and the panels that fall fastest need the
+    // fewest steps: MELCHIOR's whole schedule is 2.5 s, where eight steps is a
+    // few re-bakes a second and indistinguishable from forty. The
+    // 0.37-of-a-step offset keeps two panels from stepping on the same frame.
     static const double kSteps[3] = {20.0, 32.0, 8.0};
     static const double kPhase[3] = {0.0, 0.0, 0.37};
     const double n = kSteps[i];
@@ -1840,10 +1751,10 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(magi::kW, magi::kH);
     ctx.background(magi::kGround);
-    // §31 named-state beat: the reference moment the arrival field is
-    // SOLVED to land on — MELCHIOR taken, BALTHASAR at the measured 30.2%
-    // with a ragged front; exact by construction. (The old 6.0 default was
-    // a dead beat: both MAGI flat red, verdict card not yet filed.)
+    // The reference moment the arrival field is SOLVED to land on — MELCHIOR
+    // taken, BALTHASAR at the measured 30.2% with a ragged front; exact by
+    // construction. 6.0 s is a dead beat by comparison: both MAGI are flat red
+    // by then and the verdict card has not been filed yet.
     ctx.captureAt(2.5);
     fonts = ctx.fonts;
     audit();

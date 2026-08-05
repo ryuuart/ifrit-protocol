@@ -15,6 +15,10 @@ table Circle {
     // or points to be placed at an arbitrary (x, y) rather than only along
     // a visible circle's edge.
     radius: uint32;
+    // Where the middle of the name label lands, as a fraction of the way
+    // around the circle measured from the drawn contour's start at 3 o'clock,
+    // winding clockwise — 0.75 centers the label at the top. Note the origin
+    // differs from Point.position, which measures from 12 o'clock.
     text_start: float;
     // Background fill intensity/alpha in [0, 1]; 0 draws no fill.
     active: float;
@@ -23,6 +27,10 @@ table Circle {
 table Point {
     value: string;
     circle: Circle;
+    // Fraction of one full turn around `circle`, measured CLOCKWISE from
+    // 12 o'clock: 0 is the topmost point, 0.25 is 3 o'clock. Values outside
+    // [0, 1) wrap. Note the origin differs from Circle.text_start, which
+    // measures from 3 o'clock.
     position: float;
 }
 

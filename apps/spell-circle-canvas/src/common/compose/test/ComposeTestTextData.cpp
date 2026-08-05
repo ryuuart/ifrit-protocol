@@ -26,10 +26,10 @@ TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
 }
 
 TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
-  // The wall this closes: a phase in [0,1] — which is what trim() and
-  // opacity() want — could not drive a translation in PIXELS without a
-  // second Output carrying pixels, updated in the same steppable. Five
-  // separate studies kept two Outputs where one would do.
+  // One Output, two units. A phase in [0,1] is what a reveal or an opacity
+  // wants; a translation wants PIXELS. Without a shaping map on the binding,
+  // driving both from one motion means carrying a second Output updated
+  // alongside the first — two things to keep in step for no reason.
   Host host(200, 200);
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().child(box()
@@ -83,11 +83,11 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
 }
 
 TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
-  // textEqual() compared everything about a text run EXCEPT its baseline
-  // when onPath landed, so re-describing with a new path or a new `at`
-  // pruned and the run kept riding the old one. TextPath's defaulted
-  // operator== was implicitly deleted (std::function isn't comparable) and
-  // so never caught it.
+  // A text run's BASELINE has to reach textEqual(). Leave it out and
+  // re-describing with a new path or a new `at` prunes, so the run keeps
+  // riding the old baseline forever. The compiler is no help here: a
+  // TextPath holding a std::function has its defaulted operator== implicitly
+  // deleted, so the omission produces no error anywhere.
   Host host(240, 240);
   auto ring = [](float at) {
     return box().child(text(u8"HHHHHHHHHH", whiteStyle(22))
@@ -116,10 +116,11 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
 }
 
 TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
-  // Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious way
-  // to write "default curve, but I need to name the delay" — initialises
-  // `ease` to an EMPTY std::function. It compiled, then threw
-  // bad_function_call on the first frame and took down a whole scene.
+  // Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious way to
+  // write "default curve, but I need to name the delay" — initialises `ease`
+  // to an EMPTY std::function. It compiles, so the only options are throwing
+  // bad_function_call on the first frame or treating empty as "the default
+  // curve". It is the latter.
   Host host(200, 200);
   host.composer.render(box().child(
       box()
@@ -235,10 +236,10 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
 }
 
 TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
-  // A trajectory clipped to the frame produces SEVERAL contours, and
-  // onPath used to take iter.next() once — so the KSP study's hyperbola
-  // lost its label entirely, with no diagnostic. The baseline is now one
-  // arc-length coordinate over the whole chain.
+  // A path clipped to a frame commonly comes back as SEVERAL contours, so a
+  // baseline that takes only the first one drops the rest of the run with no
+  // diagnostic. The baseline is one arc-length coordinate over the whole
+  // contour chain.
   auto twoSegments = [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(10, 40).lineTo(190, 40);   // contour 1: across the top
@@ -329,16 +330,15 @@ TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
 }
 
 TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
-  // The contract, pinned because a study reported autoFlip as a "no-op"
-  // and it is not — it is a PER-RUN decision working as designed. A run
-  // that stays on the bottom flips; one that stays on the top does not;
-  // one that WRAPS PAST the crossover cannot be fixed by a single flip
-  // and is not pretended otherwise (the engraver's answer is two runs,
-  // top and bottom set separately — ROADMAP §9).
+  // autoFlip is a PER-RUN decision, which is easy to mistake for a no-op. A
+  // run that stays on the bottom flips; one that stays on the top does not;
+  // and one that WRAPS PAST the crossover cannot be fixed by a single flip,
+  // so it is not pretended otherwise. The answer for that case is two runs,
+  // top and bottom set separately.
   //
   // The decision samples ACROSS the run rather than reading one midpoint
-  // tangent, which is strictly more robust: a midpoint that happens to
-  // land on a locally odd tangent used to decide for every glyph.
+  // tangent, so a midpoint that happens to land on a locally odd tangent
+  // cannot decide for every glyph in the run.
   auto ring = [](float at, bool flip) {
     return box().child(text(u8"HHHHHHHH", whiteStyle(20))
                            .width(200).height(200).absolute().left(0).top(0)
@@ -381,11 +381,10 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
 }
 
 TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
-  // Winamp's volume slider is literally round(percent * 28), and its 28
-  // sprite frames are what anyone who used it remembers — a smooth
-  // slider sampled at draw time is a different widget. Quantisation is
-  // the design, so it belongs in the binding rather than in the caller's
-  // steppable.
+  // A stepped readout — a slider with N sprite frames, a gauge with N
+  // notches — is a different widget from a smooth one sampled at draw time.
+  // The quantisation is part of the design, so it belongs in the binding,
+  // where it composes with the rest of the shaping map.
   auto q = [](float v) {
     return bind(nullptr).quantize(5).value().apply(v); // levels 0,.25,.5,.75,1
   };
@@ -597,10 +596,10 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
 }
 
 TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
-  // The slot between the two that did not exist: background() hides
-  // beneath the fill and foreground() paints above the children, so a
-  // textured button greys out its own label. Hazard stripes over the
-  // surface but under the digit is the canonical case.
+  // overlay() is the slot BETWEEN the other two: background() hides beneath
+  // the fill, foreground() paints above the children. Without a middle slot,
+  // a texture applied to a button greys out its own label — hazard stripes
+  // over the surface but under the digit is the case that needs it.
   auto build = [](bool useForeground) {
     auto bars = lines::hatch(Fill::color({0, 0, 0, 1}), 6.0f, 4.0f, 0.0f);
     Element cell = box()
@@ -681,12 +680,11 @@ TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
     EXPECT_FALSE(status.clamped);
   }
 
-  // Reproducibility: the step count comes from TOTAL elapsed time, so the
-  // same instant lands on the same step whatever the draw rate. An
-  // accumulator compared against a step slips one comparison over a long
-  // pre-roll — a study measured byte-identical output at 60/30/20 fps and
-  // a one-step slip at 15 and 10, and correctly blamed float
-  // accumulation rather than the clamp.
+  // Reproducibility: the step count is derived from TOTAL elapsed time, so
+  // the same instant lands on the same step whatever the draw rate. An
+  // accumulator compared against a step size instead slips by one comparison
+  // over a long pre-roll, and only at some frame rates — which reads as a
+  // clamp bug rather than as float accumulation.
   {
     // Each rate advances to the SAME total time — otherwise the counts
     // differ for the honest reason that the clocks differ.
@@ -761,11 +759,12 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
 }
 
 TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
-  // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a
-  // "soft round light" authored at radius 1 is still at ~10% alpha where
-  // the inscribed circle is — and with .shape(shapes::circle()) on the
-  // same node that becomes a visible hard rim. Two studies lost an
-  // iteration to it. The magic number is 0.707, and glowUnit is it.
+  // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a soft
+  // round light authored at radius 1 has not finished falling off where the
+  // INSCRIBED circle is — and on a node also carrying shapes::circle() the
+  // remaining alpha becomes a visible hard rim. glowUnit is radialUnit
+  // scaled to the inscribed circle instead, so radius 1 reaches zero exactly
+  // at the edge that gets clipped.
   const std::vector<Stop> ramp = {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}};
   auto edgeValue = [&](Material m) {
     Host host(200, 200);
@@ -1003,16 +1002,12 @@ TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
   EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
 }
 
-// RENAMED 2026-07-28 (audit): both arms set kNearest and nothing contrasts
-// kLinear, so this proves the PAN and says nothing about sampling() — the
-// name no longer claims it.
 TEST(ComposePattern, ARepeatCanBePanned) {
-  // "Pattern cannot pan" was two studies, and the second located the fix
-  // a level below where the roadmap had it: bake() hands its matrix to
-  // Material::image, whose localMatrix has always taken a translation, so
-  // Pattern was exposing two thirds of a matrix its own backend takes
-  // whole. Phase is the defining property of a surprising number of
-  // repeats — a twill advances one thread per pick.
+  // A repeat's PHASE is a defining property of a surprising number of
+  // patterns — a twill advances one thread per pick — so Pattern exposes the
+  // translation part of the matrix it already hands to Material::image.
+  // Without it, a pattern can be scaled and rotated but not offset, which is
+  // two thirds of a matrix its own backend takes whole.
   auto stripes = [](SkPoint pan) {
     Pattern p = Pattern::tile({8, 8}, [](SkCanvas &c, SkSize s, uint32_t) {
       SkPaint left;
@@ -1092,12 +1087,11 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
 }
 
 TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
-  // The most-used missing primitive in the study program. A compose text
-  // node's top is the LINE BOX top; almost every artefact worth
-  // reconstructing positions type by its CAP TOP, so aligning a rebuild
-  // to a reference needs the slack between them — and measure() returns
-  // only an SkSize. One study inferred it as an empirical
-  // 0.20 × measure("H").height() across ~134 runs and three faces.
+  // A text node's top is the LINE BOX top, while type is usually positioned
+  // by its CAP TOP, so aligning a layout against a reference needs the SLACK
+  // between the two. measure() returns only an SkSize, which leaves a caller
+  // guessing a fraction of the line height — a constant that changes with
+  // every face.
   const auto m = metrics(whiteStyle(40), fonts());
   EXPECT_GT(m.ascent, 0.0f);   // reported as a positive distance, not
   EXPECT_GT(m.descent, 0.0f);  // Skia's signed convention
@@ -1143,12 +1137,11 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
 }
 
 TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
-  // Material.h advertises textFill and the Unit ramps as the same trick,
-  // and it was the opposite: the metric band already maps the shader's
-  // [0,1]² onto the text, then linearUnit's SkSL divided by uResolution
-  // — the NODE's size — a second time. t came out around 0.003, every
-  // glyph painted the first stop, flat, and nothing said so. A logotype
-  // came back solid steel blue.
+  // textFill and the Unit ramps must compose, and they very nearly do not:
+  // the metric band already maps the shader's [0,1]² onto the text, so a
+  // Unit ramp dividing by the NODE's size a second time collapses the whole
+  // gradient to a sliver near zero. Every glyph then paints the first stop,
+  // flat — a wrong picture that looks like a deliberate solid fill.
   Host host(320, 160);
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
@@ -1177,13 +1170,13 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
 }
 
 TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
-  // Three studies asked for this. trim() walks the PERIMETER, so on a
-  // filled shape it sweeps a wedge round the outline instead of extending
-  // the surface; scaleX/scaleY SQUASH, which a striped fill shows
-  // immediately. The last study's workaround left the retained tree
-  // entirely — snapshot() plus a hand-written clipRect in a
-  // custom(Cache::None) leaf — forfeiting decorations, hit-testing and
-  // pruning on twelve nodes.
+  // A wipe needs its own gate because neither neighbour can do it. A span
+  // window walks the PERIMETER, so on a filled shape it sweeps a wedge round
+  // the outline rather than extending the surface; scaleX/scaleY SQUASH,
+  // which any striped fill shows immediately. The alternative is leaving the
+  // retained tree altogether — snapshot() plus a hand-written clipRect in a
+  // Cache::None custom() leaf — which forfeits decorations, hit testing and
+  // pruning for the whole subtree.
   auto lit = [](Host &host, int x0, int x1) {
     int n = 0;
     for (int x = x0; x < x1; ++x)
@@ -1238,13 +1231,11 @@ TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
   EXPECT_EQ(lit(none, 20, 180), 0);
 }
 
-// RENAMED 2026-07-28 (audit): nothing here asserts the paint-only half (no
-// bounds()-unchanged check, the way GradDrivesPaintOnlyWhenAdvanceInvariant
-// does it) — what it proves is the BIND: a gate fraction repaints with no
-// render() call.
 TEST(ComposeFx, EdgeGateIsBindableWithoutARedescribe) {
-  // Bound like the transforms: a bound fraction repaints without a
-  // re-describe.
+  // An edge gate binds like a transform: a bound fraction repaints with no
+  // render() call at all. Note the limit of the claim — this says nothing
+  // about the gate being paint-only, since nothing here checks that bounds()
+  // held still.
   Host host(200, 200);
   choreograph::Output<float> reveal{0.0f};
   host.composer.render(box().child(box()
@@ -1261,11 +1252,10 @@ TEST(ComposeFx, EdgeGateIsBindableWithoutARedescribe) {
 }
 
 TEST(ComposeText, TextStrokeDressesTheGlyphsNotTheBox) {
-  // Element::stroke() dresses the node's BOX outline, which is a
-  // different thing, so thickening a face meant dropping to
-  // PaintStyle::addUnderlay with a hand-built stroke paint. Three studies
-  // did it; one spelled "1 px outline plus offset shadow" as 117 full
-  // re-draws of a paragraph through echo().
+  // Element::stroke() dresses the node's BOX outline, which is a different
+  // mark entirely. Without a text-level stroke, thickening a face means
+  // dropping to PaintStyle::addUnderlay with a hand-built paint — or, worse,
+  // spelling an outline as a ring of offset re-draws of the whole run.
   auto count = [](Host &host, bool wantGreen) {
     int n = 0;
     for (int y = 0; y < 160; ++y)
@@ -1386,9 +1376,9 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
 }
 
 TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
-  // A ring of closed sectors used to come back as N points of degree 1 —
-  // neither right nor wrong, just meaningless, and silently so. A closed
-  // contour has no endpoints; the count of them is now reported instead.
+  // A closed contour has NO endpoints, so reporting one per contour is not
+  // merely wrong, it is meaningless — and silently so, since a plausible
+  // count comes back either way. The endpoint count is reported instead.
   auto sector = [](float a0, float a1) {
     SkPathBuilder p;
     p.moveTo(0, 0)
@@ -1423,12 +1413,11 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
 }
 
 TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
-  // It used to be a fixed six with the tail clamped, which two studies
-  // ran out of from opposite directions — a 24-run tartan sett and a
-  // 72-step chromatic sweep — and both fell back to hand-written pattern
-  // programs. The count is now baked into the source with one effect
-  // cached per count, the rule Patterns.h already follows for grain's
-  // octaves.
+  // A fixed stop count with the tail clamped runs out from both directions
+  // — a many-run repeating sett, a long chromatic sweep — and the only way
+  // out is a hand-written pattern program. The count is baked into the
+  // shader source instead, with one effect cached per count, which is the
+  // same rule the noise generators follow for octaves.
   auto sweep = [](int n) {
     std::vector<Stop> stops;
     for (int i = 0; i < n; ++i) {
@@ -1528,9 +1517,10 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
 
 
 TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
-  // §2: (cell, variant) — several BAKES of one recipe. The X-COM shade
-  // shape in miniature: three shades of one tile, each a re-render (a
-  // per-channel ramp tints() cannot express), addressed as first + v.
+  // A variant is a separate BAKE of one recipe, addressed as first + v.
+  // That is what tints() cannot do: a variant may differ by a whole
+  // re-render — a per-channel ramp, a different shade table — rather than by
+  // a multiply.
   auto atlas = std::make_shared<instancing::Atlas>(1.0f);
   const int first = atlas->variants(3, {20, 20}, [](int v) {
     const float g = 0.2f + 0.3f * (float)v; // three distinct shades
@@ -1556,9 +1546,9 @@ TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
 }
 
 TEST(ComposeInstances, TheAlphaLaneFadesWithoutTouchingTheTint) {
-  // §2: tints() was the only opacity lane. alphas() is opt-in, composes
-  // with the authored tint, and place::repeat writes IT rather than
-  // clobbering tints — the lane-hygiene repair.
+  // alphas() is an opt-in lane that composes with the authored tint, and
+  // place::repeat writes IT rather than tints[].fA. Sharing one lane would
+  // make a faded pool silently un-tintable.
   auto atlas = std::make_shared<instancing::Atlas>(1.0f);
   atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 40});
   auto pool = std::make_shared<instancing::Pool>();
@@ -1578,10 +1568,72 @@ TEST(ComposeInstances, TheAlphaLaneFadesWithoutTouchingTheTint) {
   EXPECT_TRUE(pool->hasAlphas());
 }
 
+TEST(ComposeInstances, AddAfterAlphasKeepsEveryFade) {
+  // hasAlphas() is a length comparison against the position lane, so every
+  // mutator has to keep the alpha lane in step. The sharp case is add()
+  // AFTER the lane exists: a lane left one short would fail that length
+  // test and silently drop every fade in the pool.
+  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 40});
+  auto pool = std::make_shared<instancing::Pool>();
+  pool->add({40, 40});
+  pool->alphas()[0] = 0.5f;
+  pool->add({120, 40}); // the append that must not orphan the lane
+  pool->commit();
+  ASSERT_TRUE(pool->hasAlphas());
+  EXPECT_FLOAT_EQ(pool->alphas()[0], 0.5f); // the fade survives the append
+  EXPECT_FLOAT_EQ(pool->alphas()[1], 1.0f); // the new instance is opaque
+  Host host(200, 200);
+  host.composer.render(box().absolute().inset(0).child(
+      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.frame();
+  const unsigned faded = SkColorGetR(host.pixel(40, 40));
+  const unsigned opaque = SkColorGetR(host.pixel(120, 40));
+  EXPECT_GT(opaque, 240u);       // the appended sprite stamps at full
+  EXPECT_LT(faded, 170u);        // half-alpha red over black ≈ 128
+  EXPECT_GT(faded, 80u);
+}
+
+TEST(ComposeInstances, ClearDropsTheAlphaLaneWithItsGeneration) {
+  // The worse half of the same desync: clear() then re-add the SAME count.
+  // A lane that survived the clear would line up with the position lane
+  // again and apply the previous generation's fades to entirely different
+  // sprites.
+  instancing::Pool pool;
+  pool.add({10, 10});
+  pool.add({30, 10});
+  pool.alphas()[0] = 0.25f;
+  pool.alphas()[1] = 0.5f;
+  pool.clear();
+  pool.add({50, 50});
+  pool.add({70, 50});
+  EXPECT_FALSE(pool.hasAlphas()); // nothing carried forward: stamps opaque
+  auto fresh = pool.alphas();     // re-opting in starts from opaque
+  EXPECT_FLOAT_EQ(fresh[0], 1.0f);
+  EXPECT_FLOAT_EQ(fresh[1], 1.0f);
+}
+
+TEST(ComposeInstances, ResizeKeepsTheAlphaLaneInStepBothWays) {
+  instancing::Pool pool;
+  pool.add({10, 10});
+  pool.add({30, 10});
+  pool.alphas()[0] = 0.5f;
+  pool.resize(4); // grow: existing fades survive, new slots are opaque
+  ASSERT_TRUE(pool.hasAlphas());
+  EXPECT_FLOAT_EQ(pool.alphas()[0], 0.5f);
+  EXPECT_FLOAT_EQ(pool.alphas()[2], 1.0f);
+  EXPECT_FLOAT_EQ(pool.alphas()[3], 1.0f);
+  pool.resize(1); // shrink: the lane truncates with the pool
+  ASSERT_TRUE(pool.hasAlphas());
+  ASSERT_EQ(pool.alphas().size(), 1u);
+  EXPECT_FLOAT_EQ(pool.alphas()[0], 0.5f); // the kept slot keeps its fade
+}
+
 TEST(ComposeInstances, PickInvertsTheStampTopmostFirst) {
-  // §2: hitTest cannot see a pool instance (the field is one custom()
-  // draw). pick() is the inverse projection, against the same lanes the
-  // stamp reads — rotation, scale, and topmost-wins where stamps overlap.
+  // hitTest cannot see a pool instance at all — the whole field is ONE
+  // custom() draw as far as the tree is concerned. pick() is the inverse
+  // projection, read against the same lanes the stamp reads: rotation,
+  // scale, and topmost-wins where stamps overlap.
   using namespace sigil::compose::instancing;
   Atlas atlas(1.0f);
   atlas.cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 20});
@@ -1609,10 +1661,10 @@ TEST(ComposeInstances, PickInvertsTheStampTopmostFirst) {
 }
 
 TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
-  // §9: "no way to shape a run without building an Element" — measure()
-  // is per-Element, so hand-placing N glyphs cost N layouts. measureRun()
-  // is ONE layout through the same shaping path a text() leaf takes; the
-  // pin is that its advances reproduce what the Element machinery
+  // measure() is per-Element, so hand-placing N glyphs costs N layouts.
+  // measureRun() is ONE layout through the same shaping path a text() leaf
+  // takes — which is only useful if it agrees with that leaf, so the
+  // assertion is that its advances reproduce what the Element machinery
   // measures for the same run.
   const sigil::weave::TextStyle style = whiteStyle(24);
   const std::vector<float> advances =

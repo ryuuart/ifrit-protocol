@@ -22,8 +22,11 @@ struct CircleComponent {
   float centerX = 0.0f;
   float centerY = 0.0f;
   uint32_t radius = 0;
-  float textStart =
-      0.0f;            // fraction [0, 1] where the label begins along the path
+  // Where the middle of the name label lands, as a fraction of the way around
+  // the ring measured from the drawn contour's start at 3 o'clock, winding
+  // clockwise — 0.75 centers the label at the top. A quarter turn apart from
+  // PointComponent::position, which measures from 12 o'clock.
+  float textStart = 0.0f;
   float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 

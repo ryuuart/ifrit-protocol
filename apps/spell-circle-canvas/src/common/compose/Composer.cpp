@@ -32,10 +32,13 @@ namespace sigil::compose {
 
 using namespace detail;
 
-// The rare-field block split (ComposeInternal.h) took ElementNode from
-// 2752 B to 1288 B, and the compact Animatable (Compose.h) to 688 B; this
-// guard keeps casual field additions honest — new rare/kind-specific
-// state belongs in a block, not the base struct.
+// One ElementNode is allocated per described node, every render, for the
+// whole tree — so its size is a per-frame allocation cost, not a detail.
+// Rare and kind-specific state therefore lives in separately allocated
+// blocks (ComposeInternal.h) that most nodes never carry, and only hot
+// fields sit inline. This assert is the gate: a field added to the base
+// struct instead of a block fails the build rather than quietly taxing
+// every node in every tree.
 static_assert(sizeof(ElementNode) <= 768,
               "ElementNode grew — put rare fields in a block");
 
@@ -146,8 +149,9 @@ std::vector<float> measureRun(std::u8string_view utf8,
     return advances;
   // The exact machinery a text() leaf runs (layoutText, Layout.cpp): one
   // Paragraph, one unconstrained single-line layout, the placed glyphs in
-  // order. Only the Element is skipped — which is the point (§9: shaping
-  // a run used to cost a whole layout PER GLYPH placed by hand).
+  // order. Only the Element is skipped — which is the point. A caller
+  // placing glyphs by hand needs the advances, and the alternative to this
+  // is a whole paragraph layout per glyph.
   sigil::weave::Paragraph paragraph;
   paragraph.appendText(utf8, style);
   static const sigil::weave::ParagraphLayoutOptions kOptions;
@@ -202,14 +206,15 @@ void Composer::declareInputSpace(InputSpace space) {
   m_impl->inputSpace = space;
   if (space == InputSpace::EncodedSRGB)
     return; // the declaration matches reality — nothing to say
-  // The mismatch warning, once per process — the house diagnostic contract
-  // (renderSlot's unknown-name warning): the mismatch is a fact about the
-  // program's colour thinking, not about this composer instance, and a
-  // repeat per composer would be noise where one precise sentence is the
-  // point. NOTE deliberately no conversion follows: §41's ruling is that a
-  // colour-managed surface is a breaking change, so the library's whole
-  // response to a mismatch is to make it a said thing instead of a silent
-  // one (§10e's minimal form).
+  // Compositing happens in encoded sRGB and NO conversion follows this call.
+  // The declaration exists so a mismatch between what the caller believes
+  // its colours are and what the pipeline actually does with them is stated
+  // rather than silent; adding a conversion here would change every existing
+  // caller's pixels, so it is not done.
+  //
+  // Warned once per process, not once per composer: the mismatch is a fact
+  // about the program's colour handling, and a line per composer would bury
+  // the one sentence that matters.
   static bool warned = false;
   if (warned)
     return;
@@ -218,13 +223,12 @@ void Composer::declareInputSpace(InputSpace space) {
       space == InputSpace::LinearSRGB ? "LinearSRGB" : "DisplayP3";
   SkDebugf(
       "[compose] declareInputSpace(%s): compose composites in ENCODED sRGB "
-      "and performs NO conversion (DESIGN.md colour rule, ROADMAP \xc2\xa7"
-      "41) — your values will be TREATED as encoded sRGB regardless of this "
-      "declaration. Under a %s declaration every channel maths in the "
-      "pipeline (blending, by::luma, alpha compositing) runs on numbers it "
-      "was not defined for, so your maths are wrong at the edges. The "
-      "declaration changes no pixel; it exists so this mismatch is said "
-      "out loud (\xc2\xa7" "10e).\n",
+      "and performs NO conversion — your values will be TREATED as encoded "
+      "sRGB regardless of this declaration. Under a %s declaration every "
+      "channel maths in the pipeline (blending, by::luma, alpha "
+      "compositing) runs on numbers it was not defined for, so your maths "
+      "are wrong at the edges. The declaration changes no pixel; it exists "
+      "so this mismatch is said out loud.\n",
       name, name);
 }
 
@@ -256,16 +260,14 @@ void Composer::renderSlot(std::string_view name, Element content) {
   const auto start = std::chrono::steady_clock::now();
   auto it = impl.bySlot.find(std::string(name));
   if (it == impl.bySlot.end()) {
-    // Silence here costs an hour, reliably, because the SYMPTOM is not
-    // "my slot is empty" — it is "my slot lays out W x 0", which reads as
-    // a layout bug and sends you into Yoga. It was filed as exactly that,
-    // twice, before anyone looked at the name.
+    // A miss must be loud, because the SYMPTOM points somewhere else: an
+    // empty slot lays out W x 0, which reads as a layout bug and sends the
+    // reader into Yoga rather than to the name they typed.
     //
-    // The overwhelmingly likely cause is the one named below: `slot(name)`
-    // stores the name in `key`, so any later `.key(...)` on that element
-    // RENAMES the slot, silently, with no type error and no second field
-    // to disagree with itself. Listing the names that DO exist turns the
-    // diagnosis into one read.
+    // The likely cause is the one the message names: `slot(name)` stores the
+    // name in `key`, so any later `.key(...)` on that element renames the
+    // slot with no type error and no second field to disagree with itself.
+    // Listing the names that DO exist turns the diagnosis into one read.
     static std::set<std::string> warned; // once per name, not per frame
     if (warned.insert(std::string(name)).second) {
       std::string have;
@@ -320,11 +322,13 @@ void Composer::draw(SkCanvas &canvas) {
   impl.promotedBytes = 0;
 
   // Backend-aware promotion default (see ComposeRuntime.h). recorder() is
-  // non-null on a Graphite canvas, recordingContext() on a Ganesh one;
-  // either means the profiler's op-recording measurement does not describe
-  // what this surface costs, so automatic promotion is off unless the host
-  // asked for it. When it flips OFF here, drop any bakes taken on a previous
-  // raster frame so a mixed-backend host does not blit a stale texture.
+  // non-null on a Graphite canvas, recordingContext() on a Ganesh one.
+  // Either means this surface is GPU-backed, and the cost signal automatic
+  // promotion decides from — time spent recording draw ops — no longer
+  // predicts what the surface actually pays, so promotion stays off unless
+  // the host explicitly asked for it. When it flips OFF here, drop any bakes
+  // taken on a previous raster frame so a host that alternates backends does
+  // not blit a stale texture.
   const bool gpuBacked =
       canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
   const bool effective =
@@ -352,10 +356,11 @@ void Composer::draw(SkCanvas &canvas) {
   // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
   // capture the scale current when they re-record.
   {
-    // maxScaleOf, not the diagonal: a host that rotates its canvas reports
-    // getScaleX/Y == 0 at a quarter turn and every material would have been
-    // handed uContentScale = 1 regardless of the real zoom. The canvas rect
-    // locates the Jacobian samples under a host perspective (§44.2b.1).
+    // maxScaleOf, not the matrix diagonal: a host that rotates its canvas
+    // reports getScaleX/Y == 0 at a quarter turn, and every material would
+    // then be handed uContentScale = 1 no matter what the real zoom was.
+    // The canvas rect is passed so the scale estimate samples the Jacobian
+    // in the right place when the host matrix has perspective.
     const float s =
         detail::maxScaleOf(canvas.getTotalMatrix(), SkRect::MakeSize(impl.size));
     impl.hostScale = s > 0 ? s : 1.0f;
@@ -382,9 +387,10 @@ void Composer::draw(SkCanvas &canvas) {
   impl.stats.layoutMs = lap();
 
   // Volatility changes only on reconcile or while animations run (and once
-  // more on the settling frame) — skip the walk otherwise. §20's released
-  // bindings are the exception the scan covers: an externally-driven
-  // Output can move while the walk sleeps, and must re-declare NOW.
+  // more on the frame they settle) — skip the walk otherwise. Bindings the
+  // host drives directly are the exception this scan covers: such an Output
+  // can start moving while no motion is running and the walk is asleep, so
+  // it has to re-declare its node volatile on the spot.
   impl.scanReleasedScalars();
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
@@ -429,8 +435,9 @@ void Composer::setAutoTexturePromotion(bool on) {
   m_impl->promotionExplicit = true; // the host has an opinion; honour it on
                                     // every backend, overriding the default.
   if (!on && m_impl->root) {
-    // Drop every promoted bake so a study can prove the promotion is what
-    // changed its numbers, rather than measuring a stale texture.
+    // Drop every promoted bake, and the counters that would re-promote from
+    // where they left off, so turning promotion off actually exercises the
+    // unpromoted path instead of blitting textures baked before the switch.
     const auto clear = [](auto &&self, detail::Instance &inst) -> void {
       inst.autoTexture = false;
       inst.hotFrames = 0;
@@ -458,18 +465,19 @@ const char *Composer::promotionReason(Promotion p) {
   case Promotion::Volatile:   return "its content changes every frame";
   case Promotion::Composited: return "opacity/blend — a bake would round twice; "
                                      "ask for Cache::Texture yourself";
-  // "rotated, mirrored or skewed" describes the GEOMETRY and leaves the
-  // author with nothing to do about it. A study lost 24.5 ms of a 29.9 ms
-  // frame to a scroll band tilted a constant −0.42°, because a scroll does
-  // not lie square, and two .cache(Cache::Texture) calls took the frame
-  // from 29.92 to 5.81 ms with no visual change. The refusal is real — an
-  // automatic bake at an angle differs by 1 LSB on the antialiased edges of
-  // a shader fill, and 1 LSB is not agreement — but it is the author's to
-  // accept, and they can only accept it if they are told it exists.
+  // The refusal is real: baking a rotated, mirrored or skewed node and
+  // blitting the result differs from painting it live by about one least
+  // significant bit on the antialiased edges of a shader fill, and the
+  // library will not spend a caller's exactness without being asked. But a
+  // constant small tilt is common — a band angled a fraction of a degree
+  // never lies square — and such a node can be the most expensive thing in
+  // the frame while looking ordinary. So the reason names the opt-in
+  // instead of only describing the geometry, which would leave the author
+  // with nothing to act on.
   case Promotion::Transformed:
     return "rotated, mirrored or skewed: a bake would differ by ~1 LSB on "
            "the antialiased edges, so the library will not take it for you "
-           "— add .cache(Cache::Texture) if you accept that (often 5x)";
+           "— add .cache(Cache::Texture) if you accept that";
   case Promotion::Filtered:   return "layer/backdrop effect or clip";
   case Promotion::ReadsBackdrop:
     return "something in this subtree blends with the canvas (a non-srcOver "
@@ -492,7 +500,7 @@ void Composer::purgeCaches() {
   std::function<void(Instance &)> walk = [&walk](Instance &inst) {
     inst.picture.reset();
     inst.textureImage.reset();
-    inst.ownImage.reset(); // §15's split bake is a cache like any other
+    inst.ownImage.reset(); // the split bake's own-paint half is a cache too
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;
     inst.paintDirty = true;
@@ -511,11 +519,11 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
     return std::nullopt;
   // Accumulate offsets up the yoga tree.
   SkRect rect = m_impl->instanceRect(*it->second);
-  // Layout runs inside draw(), so a query issued in the same update() as
-  // the render() before it reads an unlaid tree — which used to hand
-  // back left=0, top=0, width=NaN for EVERY key. A study lost an
-  // iteration and a debug harness localising that. Absent is a far
-  // better answer than a number that is not one.
+  // Layout runs inside draw(), so a query issued between a render() and the
+  // next draw() reads a tree that has not been laid out and whose rects are
+  // non-finite. Reporting absent is the honest answer; handing back a rect
+  // with a NaN extent would be a number the caller cannot tell from a real
+  // one.
   if (!rect.isFinite())
     return std::nullopt;
   for (Instance *p = it->second->parent; p; p = p->parent) {

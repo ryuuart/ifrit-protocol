@@ -12,12 +12,13 @@
 //                                             taken on the PREMULTIPLIED
 //                                             colour, luma == alpha here.
 // So the right halves of the alpha and luma columns MATCH and the left
-// halves do not. That is the whole premultiplied ruling, visible.
+// halves do not — which is what "luma is taken on the premultiplied
+// colour" looks like when you can see both readings side by side.
 //
-// The bottom row is the Rec. 601 ruling: eight bands used as a luma matte,
-// paired as (colour, its 601 grey twin). Green shows as much as grey 0.587
-// and blue as little as grey 0.114 — a coloured matte does NOT read like a
-// grey one of the same apparent brightness.
+// The bottom row shows the Rec. 601 weights at work: eight bands used as a
+// luma matte, paired as (colour, its 601 grey twin). Green shows as much as
+// grey 0.587 and blue as little as grey 0.114 — a coloured matte does NOT
+// read like a grey one of the same apparent brightness.
 //
 // EDIT THESE FIRST
 //   kSplit  — where the matte's two halves meet, 0..1. Push it to 1 and the

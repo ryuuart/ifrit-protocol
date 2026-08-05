@@ -1,22 +1,25 @@
 #pragma once
-// The DAEMON WATCH console (console()/LineRing, REVIEW.md #6.2), ported
-// from sketch/sketches/hacker_console.cpp: the streaming-console mode as
-// pure composition --
+// A streaming terminal feed built entirely out of composition, in the
+// science-fiction console idiom: green phosphor, scanlines, a blinking block
+// cursor and a log that scrolls forever.
 //
-//   scrollback ..... sigil::compose::console::LineRing + console() -- seq-id keys, so every
-//                    append costs ONE mount; scrolled lines keep their
-//                    cached pictures (pinned by ComposeConsole test)
-//   levels ......... palette-indexed line styles (info/dim/warn/alert)
+//   scrollback ..... console::LineRing + console(). Lines are keyed by
+//                    sequence id, so an append reconciles as ONE mount and
+//                    every line already on screen keeps its cached picture.
+//                    The ComposeConsole test pins that property.
+//   levels ......... palette-indexed line styles (info / dim / warn / alert)
 //   cursor ......... the ONLY volatile node: a block bound to a blink Output
-//   fade-out ....... a bg-colored gradient overlay at the top of the panel --
-//                    old lines dim without a single line re-patching
-//   chrome ......... SDF roundBox panel (border + glow, one shader pass,
-//                    cached), scanline grain (uTime sksl, kScreen)
-//   grade .......... OCIO exponent (when the build has OCIO)
+//   fade-out ....... a background-coloured gradient laid over the top of the
+//                    panel, so the oldest visible lines dim without any line
+//                    node being re-patched
+//   chrome ......... an SDF roundBox panel giving fill, border and glow in
+//                    one shader pass, plus a time-driven scanline overlay
+//   grade .......... an OCIO exponent, when the build has OpenColorIO
 //
-// The whole scene re-renders on every append (~14 Hz, from the setup()
-// ticker lambda) and reconciliation prices it at one mount -- the retained
-// spine IS the virtualizer.
+// The whole scene is re-rendered on every append — several times a second,
+// from the ticker lambda in setup() — and reconciliation still prices each
+// one at a single mount. The retained instance tree is what makes that work;
+// there is no separate virtualizer.
 
 #include "GalleryCore.h"
 
@@ -126,10 +129,10 @@ struct DaemonConsoleScene final : Scene {
     s.palette = {dc::mono(14, dc::kGreenDim), dc::mono(14, dc::kAmber),
                  dc::mono(14, dc::kAlert)};
     s.gap = 3;
-    // 22 in the 960x600 sketch. At 24 the feed left four lines of empty
-    // panel under the cursor and scrolled anyway, which reads as a feed
-    // that has lost its own history. 25 is what the well fits at 17px
-    // pitch once the padding clears the chrome.
+    // Tuned to the panel: at the style's 17 px line pitch this is what the
+    // well holds once the padding has cleared the drawn chrome. Setting it
+    // lower leaves empty panel under the cursor while the feed scrolls
+    // anyway, which reads as a terminal that has lost its own history.
     s.visibleLines = 25;
     s.cursorColor = dc::kGreen;
     s.cursorWidth = 9;
@@ -193,12 +196,12 @@ struct DaemonConsoleScene final : Scene {
                                {{0.0f, {0.03f, 0.065f, 0.042f, 1}},
                                 {1.0f, dc::kInk}}))
         .child(
-            // The SDF style reserves pad inside the box for the glow, and
-            // the DRAWN border lands 30px in, not the ~24 this comment used
-            // to claim: at padding(34, 30) the rule ran straight through the
-            // cap-height of DAEMON WATCH and clipped the uplink's last
-            // glyph on the corner arc. The content padding has to CLEAR the
-            // drawn chrome, not meet it.
+            // The SDF material reserves space inside the box for its glow, so
+            // the DRAWN border sits well inside the node's own edge. The
+            // content padding has to clear that drawn border rather than meet
+            // the box edge; too little and the border rule cuts through the
+            // header's cap-height and the right-hand text is clipped by the
+            // corner arc.
             box().column().inset(44, 40, 44, 40).fill(chrome)
                 .clip().padding(46, 44)
                 .child(box().row().gap(10).margin(0, 0, 0, 10)

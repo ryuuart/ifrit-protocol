@@ -1,6 +1,12 @@
-// Headless SigilCompose gallery: renders phase-1 stress-catalog panels
-// (STRESS_TESTS.md items 1–3) to PNG. Out dir: first argument, default
-// ./compose_demo_out. The interactive Qt ComposeGallery follows later.
+// Headless SigilCompose demo: renders one PNG per panel, each exercising a
+// different corner of the library — text and layout, memoized data rows,
+// stacked blending, decoration primitives, layer effects, the free-form
+// shape and routing kit, atlas regions, and the query surface.
+//
+// Output directory is the first argument, default ./compose_demo_out. No
+// window and no GPU: every panel draws into a raster SkSurface, so this
+// runs anywhere the library builds. Not a test — nothing here asserts; it
+// exists to be looked at.
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Util.h>
@@ -66,7 +72,7 @@ Fill backdropGradient(SkSize size) {
       pts, SkGradient({colors, SkTileMode::kClamp}, {})));
 }
 
-// ---- Panel 1: static typographic poster (stress #1) ----------------------
+// ---- Panel 1: static typographic poster ---------------------------------
 
 Element poster(SkSize size) {
   return box().column().padding(64).gap(20).fill(backdropGradient(size))
@@ -91,7 +97,7 @@ Element poster(SkSize size) {
              }).absolute().inset(660, 920, 100, 110).zIndex(0));
 }
 
-// ---- Panel 2: data-driven scoreboard (stress #2 snapshot) ----------------
+// ---- Panel 2: data-driven scoreboard, one memo per row -------------------
 
 struct Row {
   std::string name;
@@ -118,7 +124,7 @@ Element scoreboard(const std::vector<Row> &rows, SkSize size) {
   return list;
 }
 
-// ---- Panel 3: layered tables with blend (stress #3) ----------------------
+// ---- Panel 3: layered tables composited with a blend mode ----------------
 
 Element blendPanel(SkSize size) {
   std::vector<Row> a = {{"alpha", 42, true}, {"beta", 17, false},
@@ -142,7 +148,7 @@ Element blendPanel(SkSize size) {
                  .blend(SkBlendMode::kScreen));
 }
 
-// ---- Panel 4: chrome — per-edge decoration primitives (stress #9/10) ----
+// ---- Panel 4: chrome — the decoration primitives on one frame -----------
 
 Element chromePanel(SkSize size) {
   // A leaf-ish stamp path for the vine walk.
@@ -189,7 +195,7 @@ Element chromePanel(SkSize size) {
                                        .foreground(dashedBottom))));
 }
 
-// ---- Panel 5: CRT stack + bloom (stress #13/#14) -------------------------
+// ---- Panel 5: CRT stack + bloom — layer effects and additive blending ----
 
 Element scanlines(float phase, SkColor4f tint) {
   return custom([phase, tint](SkCanvas &c, const PaintContext &ctx) {
@@ -323,7 +329,7 @@ Element organicPanel(SkSize size) {
                  .inset(0).foreground(bow).zIndex(1));
 }
 
-// ---- Panel 7: tile maze — atlas regions in chunks (stress #15) -----------
+// ---- Panel 7: tile maze — one atlas region per tile ----------------------
 
 std::shared_ptr<sigil::image::ImageAsset> mazeAtlas() {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
@@ -460,8 +466,9 @@ int main(int argc, char **argv) {
   }
 
   {
-    // Query surround (stress #5): the HOST draws around resolved nodes
-    // — a ring from bounds(), and a probe row colored by hitTest().
+    // Query surround: the HOST draws around resolved nodes rather than
+    // describing them — a ring placed from bounds(), and a row of probes
+    // coloured by what hitTest() reports under each one.
     Composer composer(ticker, fonts());
     SkSize size = {720, 420};
     composer.setSize(size);

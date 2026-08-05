@@ -1,25 +1,25 @@
-// THE FIELD WALK — the runtime half of ComposeInternal.h's FIELD PINS.
+// THE FIELD WALK — the runtime half of ComposeInternal.h's field pins.
 //
 // `propsEqual()` and its helpers compare a description FIELD BY FIELD, and a
 // field left out fails INVISIBLY: two different descriptions compare equal,
 // the patch prunes, `markPaintDirtyUp()` never runs, a stale picture replays,
 // and `applyTransitions()` — which only runs inside the `own` branch — never
-// ramps an `animate()` on that property. Nothing errors; no other test fails.
-// `scaleX`/`scaleY` sat in that hole from the day they landed until e37d58d.
+// ramps an `animate()` on that property. Nothing errors, and no other test
+// fails, so the only thing that can catch it is a test built this way.
 //
-// The compile-time pin (a structured binding per struct, plus a
+// The compile-time half (a structured binding per struct, plus a
 // `kFieldCount` assert beside each hand-written comparator) makes ADDING a
-// field a build failure. This file is what makes RULING on it mechanical:
-// each walk perturbs every tied field in turn and demands the comparator
-// notice, so a field is covered the moment it is named in `fields()` — no
-// second list to remember, and a field whose type has no perturbation here
-// does not compile either.
+// field a build failure. This file makes deciding what to do about it
+// mechanical: each walk perturbs every tied field in turn and demands the
+// comparator notice, so a field is covered the moment it is named in
+// `fields()` — no second list to remember. A field whose type has no
+// perturbation below does not compile either.
 //
 // Comparing the values DIRECTLY rather than counting `stats().patchedNodes`
 // is deliberate. A prune is a statement about the SAME node across two
-// describes; keyed siblings never prune into one another, so a
-// render-two-trees harness can pass while the comparator is broken. That
-// trap cost this session nine pins that passed their own positive control.
+// describes, and keyed siblings never prune into one another — so a harness
+// that renders two trees and counts patched nodes can report exactly what a
+// correct comparator would while the comparator is in fact broken.
 
 #include "ComposeTestSupport.h"
 
@@ -34,8 +34,8 @@ namespace {
 
 // ---- perturbations, ONE PER FIELD TYPE -------------------------------------
 // A field whose type is not covered here is a compile error at the walk, and
-// that is the point: a new field type is a ruling ("how would a change to
-// this even look?"), not a silent skip.
+// that is the point: introducing a new field type forces someone to answer
+// "what does a change to this even look like?" instead of skipping it.
 
 template <class> inline constexpr bool kNoPerturbation = false;
 
@@ -120,10 +120,10 @@ void walkFields(Eq equal, const char *const (&names)[N],
 } // namespace
 
 TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
-  // ALL FIFTEEN. There is no legitimate exclusion in this block: every field
-  // of PaintProps is a lane the painter reads live, so every one of them
-  // must reach the comparator. This is the walk `scaleX`/`scaleY` would have
-  // failed for the whole time they were missing.
+  // No legitimate exclusion exists in this block: every field of PaintProps
+  // is a lane the painter reads live, so every one must reach the comparator.
+  // The per-axis scales are the easiest ones to leave out, because the
+  // uniform `scale` beside them makes a comparator look complete.
   static const char *const kNames[] = {
       "fill",   "opacity", "blendMode", "translateX", "translateY",
       "rotate", "scale",   "scaleX",    "scaleY",     "skewX",
@@ -142,11 +142,10 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
 }
 
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
-  // ALL SEVENTEEN, against boundMapEqual() directly. The wiggle wave pinned
-  // five of them end to end
-  // (WiggledBindingsPruneOnlyWhenEveryParameterMatches); the other eleven had
-  // no control at all until this walk. `wrapPeriod` (the derive() wave,
-  // 2026-07-29) is read live like every other stage, so it participates.
+  // Against boundMapEqual() directly. Every stage of a bound float's shaping
+  // map is read live at paint, so every one of them participates — including
+  // the wiggle parameters and `wrapPeriod`, which are easy to add to the
+  // struct and forget in the comparator.
   static const char *const kNames[] = {
       "source",       "inScale",         "inOffset",     "curve",
       "clampInput",   "steps",           "scale",        "offset",
@@ -160,17 +159,17 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
 }
 
 TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
-  // THE SECOND SITE of the scaleX/scaleY miss, filed by the travel() wave
-  // and taken here. `recordBounds()` hand-rolled the transform gate that
-  // `NodeTransform::pivoted()` already spells for paint() and hitInstance(),
-  // and left `sx`/`sy` out of it — so a child whose ONLY transform was a
-  // per-axis scale handed its parent UNSCALED bounds, and every consumer
-  // sized off them (the effect layer here, plus the opacity layer and the
-  // texture bake) truncated the overflow.
+  // `recordBounds()` decides whether a child's transform widens the parent's
+  // bounds, and it must recognise exactly the transforms `NodeTransform`
+  // applies for paint() and hitInstance() — per-axis scale included. Miss one
+  // and a child whose ONLY transform is a per-axis scale hands its parent
+  // unscaled bounds, and every consumer sized off them (the effect layer
+  // here, the opacity layer, the texture bake) silently truncates the
+  // overflow.
   //
-  // The parent takes an identity offset() filter purely to force the
-  // bounded saveLayer: `saveLayer(&recordBounds(inst), …)` clips, so the
-  // scaled-out half of the bar is simply gone when the bounds are wrong.
+  // The parent takes an identity offset() filter purely to force a bounded
+  // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
+  // scaled-out half of the bar instead of merely mis-sizing something.
   Host host(200, 200);
   host.composer.render(
       box().child(box()
@@ -193,9 +192,9 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
 }
 
 TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
-  // THE AUDIT TABLE, EXECUTABLE. Twenty-three fields; twenty-one must reach
-  // propsEqual(), and the two that must NOT are asserted to be inert here
-  // rather than merely described in a comment:
+  // Two fields must NOT reach propsEqual(), and the table asserts their
+  // inertness rather than describing it, so an accidental inclusion fails
+  // here too:
   //
   //  - `memoData` never reaches propsEqual at all. resolveMemo() compares a
   //    memo EARLIER and more strictly (the env snapshot, then the author's
@@ -224,13 +223,13 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
 // ---------------------------------------------------------------------------
 // THE SLOT WALK — the runtime half of ComposeRuntime.h's kSlotSpecs table.
 //
-// The table closes the OMISSION hazard by construction (index-aligned rows
-// under compile-time asserts, so a new Instance::Slot cannot be added
-// without ruling on it). What it opens instead is a MISAIMING hazard that
-// twelve separate hand-written call sites did not have: a copy-pasted row
-// whose accessor returns the neighbouring field would compile, and then
-// `.scaleY(animate(...))` would ramp `scaleX` on every one of the four
-// consumers at once. This walk is what makes that fail.
+// The table closes the OMISSION hazard by construction: rows are index-
+// aligned with the slot enum under compile-time asserts, so a new
+// Instance::Slot cannot be added without a row. What a shared table opens
+// instead is a MISAIMING hazard. A copy-pasted row whose accessor returns
+// the neighbouring field compiles cleanly, and then `.scaleY(animate(...))`
+// ramps `scaleX` in every consumer of the table at once. This walk is what
+// makes that fail.
 
 TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   // Every block a slot can hide behind, PRESENT and defaulted — so every
@@ -247,7 +246,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
     if (spec.role == cd::SlotRole::Bespoke) {
       ++bespoke;
       // The compile-time assert already pairs "no accessor" with "declared
-      // Bespoke, with a reason"; this is the runtime half of the same claim.
+      // Bespoke, with a reason"; this is the runtime half of that claim.
       EXPECT_EQ(spec.of, nullptr) << "slot " << index;
       EXPECT_EQ(cd::slotValueOf(spec, node), nullptr)
           << "slot " << index << ": a Bespoke row must be INERT through "
@@ -279,19 +278,20 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
          "matrix; computeVolatile's device-bake refusal reads that split";
 }
 
-// ---- §44.2b.1 — maxScaleOf's perspective fallback --------------------------
+// ---- maxScaleOf's perspective fallback -------------------------------------
 //
-// getMinMaxScales refuses a perspective matrix, and the old fallback read
-// the matrix DIAGONAL — wrong twice over: a rotation moves the whole scale
-// into the skew terms (at 90° the diagonal is exactly zero), and perspective
-// makes scale position-dependent while the diagonal reads no position at
-// all. The quantized bake ladder consumes this number, so the wrong answer
-// was a wrongly-stepped bake under a host perspective CTM. The fix is local
-// linearization: the Jacobian of the projective map, maxed over the center
-// and four corners of the node's local bounds. This pin holds the answer to
-// a NUMERICALLY-derived ground truth (finite differences of the mapped
-// point at the same five samples), which the diagonal misses by a large
-// factor.
+// Skia's getMinMaxScales refuses a perspective matrix, so maxScaleOf needs a
+// fallback — and the matrix DIAGONAL is the wrong one twice over. A rotation
+// moves the whole scale into the skew terms (at 90° the diagonal is exactly
+// zero), and perspective makes scale position-dependent while the diagonal
+// reads no position at all. The quantized bake ladder consumes this number,
+// so a wrong answer is a wrongly-stepped bake whenever the host CTM carries
+// perspective.
+//
+// What maxScaleOf does instead is local linearization: the Jacobian of the
+// projective map, maxed over the centre and four corners of the node's local
+// bounds. This test holds it to a numerically derived ground truth — finite
+// differences of the mapped point at those same five samples.
 
 TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
   // A card tilt WITH a rotation component: setRotate(90) snaps the diagonal
@@ -331,9 +331,10 @@ TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
   EXPECT_NEAR(got, truth, truth * 0.02f)
       << "the perspective fallback disagrees with the numerical Jacobian";
 
-  // The wrongness the pin exists for: the diagonal answers exactly 0 here
-  // (the old fallback would have clamped to the ladder's 0.25 floor), while
-  // the true near-edge magnification is past 1.5×.
+  // The gap the test exists to hold open: the diagonal answers essentially 0
+  // for this matrix — which the bake ladder would clamp to its 0.25 floor,
+  // baking quarter-resolution — while the true near-edge magnification is
+  // past 1.5x.
   const float diagonal =
       std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
   EXPECT_LT(diagonal, 0.1f);

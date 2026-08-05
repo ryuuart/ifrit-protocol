@@ -7,43 +7,27 @@
  * rather than N Elements. `ticks()` walks a division count around a
  * `Frame`; `chords()` walks a polygon's sides.
  *
- * ## Why one path and not N nodes — this is the part worth reading
+ * ## Why one path and not N nodes
  *
- * The corpus does it both ways and the split is not stylistic:
+ * A divider ladder is static geometry with one style. As N nodes it costs
+ * N layouts, N reconciliations and N recordings for a drawing that never
+ * changes — and a radial mark's box is usually the full diameter of the
+ * figure, so those are N nodes whose bounds are the whole plate. As one
+ * path it is one node, one recording, one stroke, and one arc-length
+ * coordinate over all the marks.
  *
- * | site | marks | spelling |
- * |---|---:|---|
- * | `thaumonomicon.cpp:1319-1327` | 72 | one `SkPathBuilder`, `i % 6` long |
- * | `ds2_bench.cpp:250-262` | n | one `SkPathBuilder`, `i % 3` three lengths |
- * | `sigillum_aemeth.cpp:1928-1945` | 40 | one path, 40 contours, one trim window |
- * | `chevreul_circle.cpp:1160-1181` | 72 | **72 Elements**, each a full-diameter box |
- * | `dunhuang_star_chart.cpp:1743-1756` | 28 | **28 Elements**, each a full-diameter box |
- * | `nightingale_coxcomb.cpp:212-222` | 1 at a time | `spoke(rFrac, bearing)` per call |
- * | `chaucer_astrolabe.cpp:1975-1990` | 181 | one Element each, into an instance pool |
+ * **The one case that must stay N nodes is per-mark animation.** Marks
+ * that fade or move individually need their own keyed nodes, because one
+ * path has one style and one reveal window. If every mark shares those,
+ * use this; if each mark has its own phase, do not.
  *
- * The one-path form is not merely shorter. A divider ladder is static
- * geometry with one style, so as N nodes it costs N layouts, N
- * reconciliations and N pictures for a drawing that never changes — and
- * `chevreul_circle`'s 72 dividers each carry a box the full diameter of
- * the figure, which is 72 nodes whose bounds are the whole plate. As one
- * path it is one node, one picture, one stroke.
+ * ## What this is not
  *
- * **The one case that must stay N nodes** is per-mark animation:
- * `sigillum_aemeth`'s forty ring letters fade individually off a solver's
- * output, so they are forty keyed nodes and correctly so
- * (`EXTRACT.md §5.3`). The DIVIDERS between them are one path with forty
- * contours and one trim window, which is exactly this component. If every
- * mark shares one style and one reveal, use this; if each mark has its own
- * phase, do not.
- *
- * ## What this is NOT
- *
- * Not a linear tick ladder along an edge. `astral_tome.cpp:777-796` does
- * that in twelve lines with `brush::Scatter{.spacing = pitch,
- * .alignToPath = true}`, which is already the right tool and already
- * ships. `EXTRACT.md §5.7` rejected a tick-ladder component on that
- * evidence and it was right about the linear case. The radial case it did
- * not examine, and the radial case has six hand-rolls.
+ * Not a linear tick ladder along an edge. A brush scatter
+ * (`brush::Scatter{.spacing = pitch, .alignToPath = true}`) already stamps
+ * marks at a pitch along any path and is the right tool for the straight
+ * case. These two are the radial and polygonal cases, where the mark
+ * positions come from an angle convention rather than an arc length.
  */
 
 #include "sigilcompose/Shapes.h"
@@ -66,8 +50,8 @@ struct Span {
 
 /** A radial division ladder.
  *
- *      // thaumonomicon's brass rose: 72 divisions, every sixth reaching
- *      // further in. One node instead of a loop.
+ *      // 72 divisions, every sixth reaching further in. One node
+ *      // instead of a loop.
  *      box().rect(fig.box())
  *           .shape(kit::ticks({.divisions = 72,
  *                                .mark = {.inner = 0.96f, .outer = 1.0f},
@@ -94,31 +78,27 @@ struct Ticks {
   /** The ordinary mark. */
   Span mark{};
   /** Every `longEvery`-th mark (counting from index 0) takes `longMark`
-   *  instead. 0 disables. `thaumonomicon` uses 6 of 72, `chaucer` 5 of
-   *  every 2° step, `ds2_bench` 3. */
+   *  instead. 0 disables. */
   int longEvery = 0;
   Span longMark{0.88f, 1.0f};
 
-  /** The escape hatch, and it is needed: `ds2_bench.cpp:255-258` has
-   *  THREE length classes (`i % 3` → 1.0 / 0.86 / 0.93), which no
-   *  long/short pair can express. Return the span for mark @p i; the
-   *  second argument is what the fields above would have given, so a
-   *  classifier can defer to them.
+  /** The escape hatch, for a ladder with more than two length classes —
+   *  three alternating lengths, say, which no long/short pair expresses.
+   *  Return the span for mark @p i; the second argument is what the fields
+   *  above would have given, so a classifier can defer to them.
    *
    *  **Return a degenerate span (`inner == outer`) to SKIP a mark.** That
-   *  is how a ladder drawn in two passes at two stroke weights comes out
-   *  right, and it is not optional: `chaucer_astrolabe.cpp:1970-1987`
-   *  rules its altitude scale every 2° with every fifth heavier and
-   *  longer, so the light pass must leave a hole where the heavy pass
-   *  goes. Draw both and the fifths composite two translucent strokes and
-   *  print darker than the plate ever did.
+   *  is the only way to skip one, and it is what a ladder drawn in two
+   *  passes at two stroke weights needs: the light pass must leave a hole
+   *  where the heavy pass goes, or both passes stack on the same mark and
+   *  it prints darker than either weight.
    *
-   *  Null (the default) means "use the fields". A `std::function` here is
-   *  free of reconciler consequence when the SkPath overload is used (the
-   *  path is built immediately and never stored). On the SHAPE overload it
-   *  is the one member equality cannot see, so a Ticks with a classifier
-   *  compares unequal to everything and its node stays conservative —
-   *  the same escape-hatch rule every raw callable gets (§3). */
+   *  Null (the default) means "use the fields". A `std::function` here has
+   *  no reconciler consequence through the SkPath overload — that path is
+   *  built immediately and never stored. Through the SHAPE overload it is
+   *  the one member equality cannot see, so a Ticks carrying a classifier
+   *  compares unequal to EVERYTHING, including a copy of itself: its node
+   *  never prunes and re-records on every describe. */
   std::function<Span(int i, Span fromFields)> classify;
 
   /** Field-wise, with the classifier conservative: any classify present
@@ -157,18 +137,18 @@ inline SkPath ticks(const Frame &frame, const Ticks &t) {
 /** The ladder as a SHAPE VALUE, with the frame taken from the node's own
  *  laid-out box: centre at the box centre, radius = half the SHORTER side.
  *
+ *  `conventions` therefore supplies ONLY `zero`, `sense` and `originDeg`.
+ *  Its `centre` and `radius` are overwritten, so a frame passed here does
+ *  not place the ladder — the node's box does.
+ *
  *  Half the shorter side, not half the width, so a ladder on a non-square
  *  box stays a circle instead of silently becoming an ellipse whose
- *  `Frame::fraction()` no longer matches — the failure mode documented on
- *  that method. Give it a square box (`Frame::box()`, `util::disc`) and
- *  the question does not arise.
+ *  `Frame::fraction()` no longer matches. Give it a square box
+ *  (`Frame::box()`, `util::disc`) and the question does not arise.
  *
- *  Comparable (so the node prunes) unless the Ticks carries a
- *  `classify` callable — that one member equality cannot see, so a
- *  classified ladder stays conservative like any raw callable.
- *
- *  `conventions` supplies `zero`, `sense` and `originDeg`; its `centre`
- *  and `radius` are ignored and replaced. */
+ *  Comparable, so the node prunes — unless the Ticks carries a `classify`
+ *  callable, which equality cannot see and which therefore makes the whole
+ *  value compare unequal to everything. */
 struct TicksShape {
   Ticks t;
   Frame conventions;
@@ -192,29 +172,23 @@ inline TicksShape ticks(const Ticks &t, Frame conventions = {}) {
 /** The n vertices of a regular n-gon on a frame, as chord endpoints, wound
  *  so that consecutive contours run the same way round.
  *
- *  Three uses, two files:
- *  `sigillum_aemeth.cpp:418-436` (`heptChords`, step 1, inset, OPEN);
- *  `sigillum_aemeth.cpp:1068-1082` (the {7/2} traversal, step 2, closed);
- *  `thaumonomicon.cpp:1331-1341` (a {5/2} pentagram and a {6/2} hexagram
- *  as chord segments in one path).
- *
  *  **What it is for, and nothing else in the library does this.** With
  *  `step = 1` and `closed = false` the sides come out as *n separate open
  *  contours of one path*, and `TextPath` walks every contour of a baseline
- *  in order as ONE arc-length coordinate (`Compose.h:554-558`). So side
- *  *k*'s midpoint is at exactly `(k + 0.5) / n` of the whole run, and 49
- *  letters around a heptagon become one text node on one outline instead
- *  of seven runs a caller has to place. `shapes::polygon(n)` cannot: it
- *  emits one CLOSED contour, so a per-side coordinate does not exist.
+ *  in order as ONE arc-length coordinate. So side *k*'s midpoint is at
+ *  exactly `(k + 0.5) / n` of the whole run, and an inscription around a
+ *  polygon becomes one text node on one outline instead of n runs a caller
+ *  has to place. `shapes::polygon(n)` cannot do this: it emits one CLOSED
+ *  contour, so a per-side coordinate does not exist.
  *
- *  The winding decides which way the glyphs face — clockwise on screen
- *  puts glyph-up radially outward, which is the engraver's convention
- *  (`Shapes.h:154-167` documents the same choice for `circle`). It comes
- *  from the frame's `sense`, so it is one field rather than an argument
- *  nobody chose.
+ *  The winding decides which way glyphs on that baseline face — clockwise
+ *  on screen puts glyph-up radially outward, the engraver's convention,
+ *  the same choice `shapes::circle` documents. It comes from the frame's
+ *  `sense` rather than from an argument here.
  *
  *  @p inset shortens each chord by that many px at BOTH ends — the gap an
- *  engraver leaves at a vertex so the corner ornament reads. */
+ *  engraver leaves at a vertex so the corner ornament reads. A chord
+ *  shorter than twice the inset is dropped entirely. */
 struct Chords {
   int sides = 7;
   /** 1 = the polygon's sides. 2 = a {n/2} star polygon's chords, and so
@@ -282,8 +256,9 @@ inline SkPath chords(const Frame &frame, const Chords &c) {
 }
 
 /** `chords` as a SHAPE VALUE, frame from the laid-out box — same rule as
- *  `ticks`: centre at the box centre, radius half the shorter side.
- *  Fully comparable (Chords has no callable member), so it always
+ *  `ticks`: centre at the box centre, radius half the shorter side, and
+ *  the `conventions` frame's own centre and radius ignored. Fully
+ *  comparable, since Chords has no callable member, so it always
  *  prunes. */
 struct ChordsShape {
   Chords c;

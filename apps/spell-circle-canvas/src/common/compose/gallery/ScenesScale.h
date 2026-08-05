@@ -8,8 +8,8 @@
 //     seal, carved nine-slice, dashed field note) baked THIRTY-TWO ways —
 //     every atlas cell its own hue and content — scattered by the thousand.
 //   - POSTS: six bigger multi-paragraph cards (a title + two paragraphs),
-//     three border languages — the FLOURISH border we just built
-//     (FlourishKit), a carved nine-slice, and a plain modern card — drifting
+//     three border languages — the ornamental flourish border from
+//     FlourishKit, a carved nine-slice, and a plain modern card — drifting
 //     among the chips. Same instancing technique, from a badge to a feed.
 //
 // The EnTT registries stay on OUR side of the seam (velocities, drift,

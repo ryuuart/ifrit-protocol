@@ -13,17 +13,16 @@
 #include <cmath>
 #include <vector>
 
-// POSITIVE CONTROL for the "SigilMotion alone" pin below. The whole point
-// of moving the animation values out of <sigilcompose/Compose.h> is that a
-// consumer can drive them without a drawing library, and a test asserting
-// that is worthless if compose happens to be on the include path anyway —
-// it would pass for the wrong reason. motion_test links SigilMotion and
-// gtest only, so compose's headers must be UNREACHABLE from this TU. If
-// SigilMotion ever grows a link edge that drags them in, this stops the
-// build instead of quietly hollowing out the pin.
+// POSITIVE CONTROL for the "SigilMotion alone" tests below. Those claim a
+// consumer can drive these values without linking a drawing library, and
+// the claim would pass for the wrong reason if a drawing library happened
+// to be on the include path anyway. This target links SigilMotion and
+// gtest only, so a rendering library's headers must be UNREACHABLE here.
+// If SigilMotion grows a link edge that drags them in, the build stops
+// rather than quietly hollowing the tests out.
 #if __has_include(<sigilcompose/Compose.h>)
-#error "motion_test can see SigilCompose headers — the SigilMotion-alone \
-pin is no longer proving anything (ROADMAP §37)."
+#error "motion_test can see a drawing library's headers — the tests \
+below no longer prove that SigilMotion stands alone."
 #endif
 
 using namespace sigil::motion;
@@ -54,7 +53,9 @@ TEST(FrameClockTest, PauseFreezesElapsed) {
   EXPECT_EQ(clock.tick(0.2), 0.0);
   EXPECT_NEAR(clock.elapsed(), 0.1, 1e-9);
   clock.setPaused(false);
-  // The paused span was consumed while paused — no catch-up jump.
+  // A paused tick still advances the clock's own timestamp, so the paused
+  // span is consumed rather than banked: unpausing yields the delta since
+  // the last tick, not a catch-up jump covering the whole pause.
   EXPECT_NEAR(clock.tick(0.3), 0.1, 1e-9);
 }
 
@@ -88,12 +89,12 @@ TEST(TickerTest, SteppablesReportAndRetire) {
 }
 
 // ---------------------------------------------------------------------------
-// Animation values (<sigilmotion/Animation.h>) — moved out of SigilCompose
-// 2026-07-29. These tests exist to prove the values are usable through
-// SigilMotion ALONE: no Skia, no Yoga, no compose kernel is linked into
-// motion_test, and the #error guard at the top of this file keeps it that
-// way. Compose's own coverage of the same types (its reconciler compare,
-// the Composer running them per frame) stays in compose_test.
+// Animation values (<sigilmotion/Animation.h>). These prove the values are
+// usable through SigilMotion ALONE: no drawing library, no layout engine
+// and no scene kernel is linked here, and the #error guard at the top of
+// this file keeps it that way. A consumer's own coverage — how it stores
+// these values and resolves them per frame — belongs in that consumer's
+// tests.
 
 TEST(AnimationValues, TransitionSurvivesAnEmptyEase) {
   // `{360ms, {}, 220ms}` — the obvious way to name a delay and keep the
@@ -168,9 +169,8 @@ TEST(AnimationValues, BoundChainComposesInCallOrder) {
 }
 
 // ---------------------------------------------------------------------------
-// wiggle() — the procedural noise stage (2026-07-29). AE's most-used
-// expression, phased off the NORMALISED INPUT rather than off a clock; see
-// Bound::wiggle for both rulings.
+// wiggle() — the procedural noise stage, phased off the NORMALISED INPUT
+// rather than off a clock; see Bound::wiggle for what that buys.
 
 namespace {
 /** Sample a shaped binding across a phase sweep — the trace every wiggle
@@ -236,10 +236,11 @@ TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
 
 TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
   ch::Output<float> phase = 0.0f;
-  // PURE noise, no base contribution: a rig carrying `.target(-70, 170)`
-  // would make every claim below about the RAMP rather than about the
-  // wiggle (the correlation check in 4 read 0.999 on such a rig — the
-  // shared ramp, not a shared noise field).
+  // PURE noise, no base contribution. A rig carrying `.target(-70, 170)`
+  // would make every claim below a claim about the RAMP rather than about
+  // the wiggle — in particular the correlation check in part 4, where two
+  // traces sharing a ramp correlate almost perfectly whatever their noise
+  // fields do.
   const auto rig = [](uint32_t seed) {
     return bind((const ch::Output<float> *)nullptr)
         .scale(0.f)
@@ -299,10 +300,10 @@ TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
 }
 
 TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
-  // RULING 2's other half: the noise PHASE is read off the normalised
-  // input, so the affine chain moves the wiggle's SIZE and never its
-  // TIMING. Two chains whose outputs differ only by a factor of 10 must
-  // wiggle in step, not at ten times the rate.
+  // The noise PHASE is read off the normalised input, so the affine chain
+  // moves the wiggle's SIZE and never its TIMING. Two chains whose
+  // outputs differ only by a factor of 10 must wiggle in step, not at ten
+  // times the rate.
   ch::Output<float> phase = 0.0f;
   const BoundFloat small = bind(&phase).scale(0.f).wiggle(1.f, 6.f, 3).value();
   const BoundFloat big = bind(&phase).scale(0.f).wiggle(10.f, 6.f, 3).value();
@@ -346,13 +347,12 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
     EXPECT_LE(v, 1.0f);
   }
 
-  // OCTAVES change the TEXTURE, not the SIZE — the normalisation ruling,
-  // and the reason the two extra fields earn their place. The claim is
-  // "a fine TREMBLE rides on the drift", so the honest metric is how
-  // many times the trace turns around, not how far it travels: at
-  // falloff 0.5 each octave carries the same slope, so total variation
-  // only reads 1.26× (and a max single step reads 0.5× — the normaliser
-  // hides it). Direction reversals see the tremble directly.
+  // OCTAVES change the TEXTURE, not the SIZE. The claim is that a fine
+  // tremble rides on the drift, so the honest metric is how often the
+  // trace turns around rather than how far it travels: at the default
+  // falloff each added octave carries about the same slope as the base,
+  // so total variation barely moves and the normaliser hides the change
+  // in step size entirely. Direction reversals see the tremble directly.
   const auto reversals = [](const std::vector<float> &v) {
     int n = 0;
     for (size_t i = 2; i < v.size(); ++i)
@@ -364,11 +364,12 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
       trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 1).value(), 0, 4, 4001);
   const std::vector<float> three =
       trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 3).value(), 0, 4, 4001);
-  // Measured 19 → 46 reversals (2.4×). Not the 4× the frequency ladder
-  // suggests, because at falloff 0.5 the fine octaves carry the same
-  // slope as the base and so only reverse the SUM about half the time —
-  // which is also why `falloff` is worth exposing: 0.9 is turbulence,
-  // 0.2 is a drift with a whisper on it.
+  // Three octaves reverse direction well over twice as often as one, but
+  // not the four times the frequency ladder alone would suggest: at
+  // falloff 0.5 the fine octaves carry about the same slope as the base
+  // and so only turn the SUM around some of the time. That is also why
+  // `falloff` is worth exposing — near 1 it is turbulence, near 0 it is a
+  // drift with a whisper on it.
   EXPECT_GT(reversals(three), reversals(one) * 2)
       << "octaves added no detail — they are not earning their two fields";
   EXPECT_LE(spread(three), 20.0f + 1e-3f); // still inside ±10: the SIZE
@@ -376,10 +377,10 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
 }
 
 TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
-  // The marquee case, and the one that proves seeding: a camera shake.
+  // A camera shake, the case that seeding exists for.
   // `wiggle(&out, …)` is `bind(&out).scale(0).wiggle(…)` named, so the
   // property sits at REST and only the noise moves it — the phase still
-  // comes from the (contribution-zeroed) schedule.
+  // comes from the schedule whose contribution was zeroed.
   Ticker ticker;
   ch::Output<float> seconds = 0.0f;
   ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f); // 1:1
@@ -415,9 +416,9 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
 }
 
 // ---------------------------------------------------------------------------
-// derive() — the bind() chain reaching an OUTPUT (2026-07-29, ROADMAP §43).
-// One new stage (wrap), one new verb (Ticker::derive), and a stepping-order
-// contract with its own pin. Everything else is the existing chain, verbatim.
+// derive() — the bind() chain reaching an OUTPUT instead of a property
+// slot, plus the wrap stage it composes with and the stepping-order
+// contract that makes a derived cell current rather than one frame late.
 
 TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
   ch::Output<float> phase = 0.0f;
@@ -457,39 +458,37 @@ TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
 }
 
 TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
-  // The three hand-rolled retimes §43.3 names, spelled through the chain
-  // and compared BIT-EXACTLY against their originals — the consolidation
-  // claim is identity, not approximation.
+  // Each stage against the hand-written arithmetic it replaces, compared
+  // BIT-EXACTLY: a caller replacing one with the other must see identical
+  // numbers, not merely close ones.
   ch::Output<float> out = 0.0f;
 
-  // vertigo_titles.cpp:105 — the pen tip trailing the growth schedule:
-  // "a second, independently-owned Output the ticker re-copies from
-  // growth − 0.008 every tick".
+  // A trailing follower: the source value, offset back and clamped.
   const BoundFloat penTip = bind(&out).offset(-0.008f).clamp(0.f, 1.f).value();
   for (float g : {0.0f, 0.004f, 0.008f, 0.31f, 0.7431f, 0.999f, 1.0f})
     EXPECT_EQ(penTip.apply(g), std::clamp(g - 0.008f, 0.0f, 1.0f));
 
-  // ScenesSkillTree.h:223 — pulseS = -0.12f + u * 1.12f.
+  // The affine chain, in call order: scale then offset.
   const BoundFloat pulse = bind(&out).scale(1.12f).offset(-0.12f).value();
   for (float u : {-1.0f, 0.0f, 0.31f, 0.5f, 0.99f, 1.0f, 2.5f})
     EXPECT_EQ(pulse.apply(u), -0.12f + u * 1.12f);
 
-  // ScenesSkillTree.h:226 / ScenesVeloren.h — the looping phase,
-  // fmod(t * k, 1): scale into cycles, wrap at 1. Positive schedules are
-  // fmod bit-for-bit (both are exact operations on the same product).
+  // The looping phase, fmod(t * k, 1): scale into cycles, wrap at 1. For
+  // a positive schedule this is fmod bit for bit, both being exact
+  // operations on the same product.
   const BoundFloat ring = bind(&out).scale(0.5f).wrap(1.0f).value();
   for (float t : {0.0f, 0.7f, 1.9f, 2.0f, 13.37f, 400.25f})
     EXPECT_EQ(ring.apply(t), std::fmod(t * 0.5f, 1.0f));
 
-  // ScenesVeloren.h's inverted sawtooth family: invert() IS 1 − v.
+  // The inverted sawtooth: invert() IS 1 − v.
   const BoundFloat rev = bind(&out).invert().value();
   for (float v : {0.0f, 0.25f, 0.61f, 1.0f})
     EXPECT_EQ(rev.apply(v), 1.0f - v);
 
-  // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom (eva_magi's
-  // frontAt, ScenesVeloren's beat windows). The normalisation is stored
-  // as one multiply-add, so bit-identity holds on a dyadic grid where
-  // both spellings are exact; off it they agree to float noise.
+  // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom. The
+  // normalisation is stored as one multiply-add, so bit-identity holds
+  // on a dyadic grid where both spellings are exact; off it the two
+  // agree to float noise.
   const BoundFloat win = bind(&out).window(0.25f, 0.75f).value();
   for (int i = -8; i <= 72; ++i) {
     const float t = (float)i / 64.0f;
@@ -501,19 +500,16 @@ TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
 }
 
 TEST(AnimationValues, QuantizeTimeIsTheCanonicalFloorArithmetic) {
-  // motion::quantizeTime — the ONE definition behind Material's uTime
-  // stepping and the corpus's hand-rolled floor(t*N)/N (ScenesPersona's
-  // 6 Hz caustics, ScenesAero's 8 Hz breathing, ksp's instrument
-  // sampling). Bit-exact against the hand-rolled spelling in BOTH
-  // precisions, because each call site keeps its own.
+  // motion::quantizeTime against the hand-written floor(t*N)/N it stands
+  // in for, bit-exact in BOTH precisions — the template keeps each call
+  // site's own type rather than promoting to double.
   for (double t : {0.0, 0.081, 1.0 / 6.0, 2.499999, 13.37, 1000.05}) {
     EXPECT_EQ(quantizeTime(t, 6.0), std::floor(t * 6.0) / 6.0);
     EXPECT_EQ(quantizeTime(t, 8.0), std::floor(t * 8.0) / 8.0);
     const float ft = (float)t;
     EXPECT_EQ(quantizeTime(ft, 8.0f), std::floor(ft * 8.0f) / 8.0f);
   }
-  // hz <= 0 answers the input unchanged — "continuous", matching
-  // Material::quantizeTime(0).
+  // hz <= 0 answers the input unchanged: the spelling of "continuous".
   EXPECT_EQ(quantizeTime(1.234, 0.0), 1.234);
   EXPECT_EQ(quantizeTime(1.234, -5.0), 1.234);
   // …and the value HOLDS between steps, which is the whole point.
@@ -522,11 +518,11 @@ TEST(AnimationValues, QuantizeTimeIsTheCanonicalFloorArithmetic) {
 }
 
 TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
-  // THE STEPPING-ORDER PIN (ROADMAP §43.3 ruling (a)). The derivation is
-  // registered FIRST and its source's writer SECOND — the arrangement
-  // that reads one frame stale under any single-phase step that honours
-  // registration order. The two-phase contract (sources, then
-  // derivations) makes the answer current regardless of order.
+  // THE STEPPING ORDER. The derivation is registered FIRST and its
+  // source's writer SECOND — the arrangement that would read one frame
+  // stale under any single-phase step honouring registration order. The
+  // two-phase contract (sources, then derivations) makes the answer
+  // current whatever the order was.
   Ticker ticker;
   ch::Output<float> src{0.0f}, dst{0.0f};
   ASSERT_TRUE(ticker.derive(&dst, bind(&src).offset(-0.25f)));
@@ -568,8 +564,8 @@ TEST(TickerTest, DeriveEnforcesTheOneLevelRuleLoudly) {
   ch::Output<float> a{1.0f}, b{0.0f}, c{0.0f}, x{0.0f};
   ASSERT_TRUE(ticker.derive(&b, bind(&a).scale(2.0f)));
 
-  // A derivation of a derivation is REFUSED (in either registration
-  // order), not silently one frame late — §40/§42's standing lesson.
+  // A derivation of a derivation is REFUSED, in either registration
+  // order, rather than accepted and silently one frame late.
   EXPECT_FALSE(ticker.derive(&c, bind(&b).offset(1.0f)))
       << "derive-of-derive must refuse: phase two has no topological order";
   EXPECT_FALSE(ticker.derive(&a, bind(&x).offset(1.0f)))
@@ -622,10 +618,10 @@ TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
 }
 
 TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {
-  // The pin: the clock half and the value half of SigilMotion, working
-  // together, with nothing else linked. A choreograph Output rides the
-  // Ticker; a shaped binding turns its [0,1] phase into pixels the way a
-  // property slot downstream would read it.
+  // The clock half and the value half of SigilMotion working together,
+  // with nothing else linked. A choreograph Output rides the Ticker; a
+  // shaped binding turns its [0,1] phase into pixels the way a property
+  // slot downstream would read it.
   Ticker ticker;
   ch::Output<float> phase = 0.0f;
   const Transition spec{500ms, ease::outBack()};
@@ -650,8 +646,8 @@ TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {
 }
 
 TEST(AnimationValues, AnimatableHoldsAllFourFormsWithNoKernel) {
-  // Animatable<T> — the property SLOT — moved with the values it holds
-  // (ROADMAP §37). Nothing here needs a reconciler, a canvas or a node.
+  // Animatable<T>, the property SLOT: nothing here needs a reconciler, a
+  // canvas or a scene node.
   ch::Output<float> live = 3.0f;
 
   const Animatable<float> plain = 0.5f;
@@ -659,8 +655,8 @@ TEST(AnimationValues, AnimatableHoldsAllFourFormsWithNoKernel) {
   const Animatable<float> bound = &live;
   const Animatable<float> shaped = bind(&live).source(0, 10).target(-70, 170);
 
-  // The discriminant, in the order the pre-compaction std::variant had:
-  // a shaped binding sorts AFTER a bare one rather than replacing it.
+  // The discriminant's numbering is public behaviour: a shaped binding
+  // sorts AFTER a bare one rather than taking its place.
   EXPECT_EQ(plain.index(), 0);
   EXPECT_EQ(ramped.index(), 1);
   EXPECT_EQ(bound.index(), 2);
@@ -676,9 +672,9 @@ TEST(AnimationValues, AnimatableHoldsAllFourFormsWithNoKernel) {
   EXPECT_FLOAT_EQ(ramped.transitioned()->value, 1.0f);
   EXPECT_EQ(ramped.plain(), nullptr);
 
-  // binding() answers for BOTH bound forms — the one accessor every
-  // "bound ⇒ read it live" branch goes through — while boundMap() tells
-  // them apart.
+  // binding() answers for BOTH bound forms, so a consumer asking only
+  // "is this driven live?" reads one accessor; boundMap() tells the two
+  // apart when it matters.
   EXPECT_EQ(bound.binding(), &live);
   EXPECT_EQ(shaped.binding(), &live);
   EXPECT_EQ(bound.boundMap(), nullptr);
@@ -699,10 +695,10 @@ TEST(AnimationValues, AnimatableHoldsAllFourFormsWithNoKernel) {
 
 TEST(AnimationValues, AnimatableDrivenByTheTickerWithNoKernel) {
   // A CONSUMER-SIDE resolve, written here in five lines, to show the
-  // value type is enough on its own. Compose's real resolution is
-  // context-aware (node transitions, stagger, mount entrances against a
-  // PaintContext) and stays in compose — SigilMotion deliberately ships
-  // no resolve surface.
+  // value type is enough on its own. A real consumer's resolution is
+  // context-aware — inherited transitions, staggering, mount entrances
+  // against its own frame state — which is why SigilMotion deliberately
+  // ships no resolve surface of its own.
   const auto readNow = [](const Animatable<float> &a, float fallback) {
     if (const float *p = a.plain())
       return *p;

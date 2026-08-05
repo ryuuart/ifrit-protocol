@@ -5,9 +5,11 @@
 #include <sigilcompose/Console.h>
 
 TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
-  // The seq-id-key law: an append shifts nothing — surviving lines prune
-  // (zero patches) and keep their pictures; only the new tail mounts and the
-  // scrolled-out head unmounts. Index keys would re-patch all ten.
+  // Lines are keyed by their sequence id, not their position in the visible
+  // window, so an append shifts nothing: surviving lines prune and keep
+  // their pictures, and only the new tail mounts while the scrolled-out head
+  // unmounts. Position keys would give every visible line a new key on every
+  // append and re-patch the whole window.
   console::LineRing ring;
   for (int i = 0; i < 30; ++i)
     ring.append(sigil::compose::util::toU8("boot sequence line " +
@@ -310,8 +312,8 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
 }
 
 // ---------------------------------------------------------------------------
-// Kernel-completeness round: wrap, per-edge spacing, per-corner radii,
-// Dim literals, atlas regions, Paragraph overload, contentScale.
+// Layout and leaf surface: wrap, per-edge spacing, per-corner radii,
+// Dim literals, atlas regions, the Paragraph overload, contentScale.
 
 TEST(ComposeLayout, WrapLinesFlowsToSecondRow) {
   Host host;
@@ -414,12 +416,11 @@ TEST(ComposePaint, ContentScaleReportsHostScale) {
 }
 
 TEST(ComposePaint, AnimatingReportsTheTickersState) {
-  // Filed as dead surface ("declared false, never assigned" — audit M4).
-  // It is assigned: Paint.cpp hands every paint program `ticker.active()`,
-  // and the Brushes.h wrappers copy that forward rather than a constant.
-  // Nothing in the library READS it, which is what made it look dead, so
-  // this test is the thing that keeps the field honest — a paint program
-  // is the only consumer there has ever been.
+  // `PaintContext::animating` looks dead from inside the library: Paint.cpp
+  // assigns it from `ticker.active()` (and the Brushes.h wrappers copy that
+  // forward rather than a constant), but nothing in the library ever reads
+  // it back. Its only consumer is a paint program written by a caller, so
+  // this test is the only thing keeping the field wired up.
   Host host;
   bool seen = false;
   host.composer.render(
@@ -515,15 +516,17 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
 }
 
 // ---------------------------------------------------------------------------
-// Shape VALUES (§3): generators are comparable schemes, so shaped nodes
-// prune. The highest measured-impact roadmap item — 43.4 of 43.5 ms on
-// one node whose outline callable could not compare (the Chevreul wash).
+// Shape VALUES: an outline generator is a comparable scheme, so a shaped
+// node can prune. This matters more than it looks — a node whose outline
+// cannot compare re-patches on every describe, which throws away its
+// recording and its bake, so a single such node in an otherwise static tree
+// puts the whole tree back on the live-paint path.
 
 TEST(ComposeShapeValues, AStockGeneratorShapePrunes) {
-  // The §3 scenario itself: a shaped node re-described identically must
-  // patch nothing and re-record nothing. Before shapes were values,
-  // propsEqual refused ANY shaped node and this tree re-recorded every
-  // frame of its life.
+  // The core case: a shaped node re-described identically must patch nothing
+  // and re-record nothing. If structural equality refuses shaped nodes
+  // outright, this tree re-records every frame for its entire life and
+  // nothing reports it.
   Host host;
   auto tree = [] {
     return box().child(box().width(100).height(100)
@@ -561,9 +564,10 @@ TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
 }
 
 TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
-  // A hand-rolled OutlineFn cannot compare, so the node keeps the old
-  // behaviour: re-patch on every describe. This is the documented escape
-  // hatch, not a defect — memo() such a node to prune it.
+  // A hand-rolled OutlineFn cannot compare, so its node re-patches on every
+  // describe. That is the conservative answer and it is deliberate: claiming
+  // equality for two callables would prune a node whose outline had in fact
+  // changed. An author who needs the prune wraps the node in memo().
   Host host;
   auto tree = [] {
     return box().child(box().width(100).height(100)
@@ -582,9 +586,9 @@ TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
 }
 
 TEST(ComposeShapeValues, CopiesOfOneShapeCompareEqualEvenWhenRaw) {
-  // Shared state IS identity: two copies of one Shape are the same value,
-  // which upgrades the old "keep the generator pointer-stable" advice
-  // into an actual prune for raw callables held by the caller.
+  // Two copies of one Shape share state, and shared state IS identity — so
+  // a caller who builds a raw callable once and holds it gets a real prune,
+  // where one who re-mints an equivalent lambda each describe does not.
   const Shape raw = [](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
@@ -621,9 +625,9 @@ TEST(ComposeShapeValues, WrappersAreComparableWhenTheirInnerIs) {
 }
 
 TEST(ComposeShapeValues, SvgShapesAreValuesNow) {
-  // The parsed SkPath has structural equality, so an svg() silhouette
-  // prunes — its old doc said "incomparable like every outline()", which
-  // stopped being true the day shapes became values.
+  // svg() parses its d-string once into an SkPath, and SkPath has structural
+  // equality — so an svg() silhouette compares by geometry and prunes,
+  // unlike the raw-callable hatch above.
   EXPECT_TRUE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
               Shape(shapes::svg("M0 0L10 0L10 10Z")));
   EXPECT_FALSE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
@@ -652,9 +656,10 @@ TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
 }
 
 TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
-  // §10e's third bullet: a node carrying a TextPath never pruned — 72
-  // radial labels re-recorded on every render(). The baseline is a Shape
-  // now, TextPath compares, and the run prunes.
+  // A TextPath's baseline is a Shape, so TextPath compares and a curved run
+  // prunes. Without this every radial label in a figure re-records on every
+  // render(), and a ring of labels is exactly where a figure has the most of
+  // them.
   Host host(240, 240);
   auto ring = [](float at) {
     return text(u8"HHHHHHHHHH", whiteStyle(22))
@@ -670,16 +675,17 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 
-  // …and the equality is honest: moving `at` IS a change. (When onPath
-  // first landed, textEqual omitted it entirely and a moving `at`
-  // silently kept the OLD placement forever — the recorded near-miss.)
+  // …and the equality is honest: moving `at` IS a change. Omit `at` from
+  // textEqual and a run that slides along its baseline compares equal to
+  // where it was, prunes, and keeps the OLD placement forever with no
+  // diagnostic — so this half of the case is the load-bearing one.
   host.composer.render(box().child(ring(0.75f)));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
 }
 
 TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
-  // The band's authored spine rides the same seam (deriveEqual used to
-  // refuse any authored spine outright).
+  // A band's authored spine is a Shape too, so deriveEqual must compare it
+  // rather than refusing any authored spine outright.
   Host host;
   auto tree = [] {
     return box().child(band(shapes::circle(), across(8.0f))
@@ -693,10 +699,11 @@ TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
 }
 
 TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
-  // The measured §3 case, as a steady-state pin: a texture-cached node
-  // whose shape is a generator, re-described every frame. Removing this
-  // ONE node took the study's frame 43.5 → 0.10 ms because its bake was
-  // being thrown away each describe. The bake must survive now.
+  // The steady state the prune exists for: a texture-cached node whose shape
+  // is a generator, re-described every frame. If the shape does not compare,
+  // the node patches, the patch drops the bake, and the node re-rasterizes
+  // every frame — a single such node dominates a frame that is otherwise
+  // entirely cached.
   Host host;
   auto tree = [] {
     return box().child(box().width(120).height(120)
@@ -716,7 +723,7 @@ TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
 }
 
 // ---------------------------------------------------------------------------
-// Element stamps + snapshot() (stress items 10 and 20).
+// Element stamps + snapshot().
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
   sk_sp<SkPicture> pic = snapshot(
@@ -732,8 +739,9 @@ TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
 // ---------------------------------------------------------------------------
 // tiles::window() / tiles::sliceable() — slicing one long bake into a run
 // of tile rasters. These pin the ORIENTATION CONVENTION IN PIXELS, which is
-// the whole reason the door exists: the marquee's slice math was re-derived
-// wrong more than once, always at the mirror.
+// the whole reason the door exists. Slice arithmetic derived by hand goes
+// wrong at the mirror, and it goes wrong invisibly: a strip sliced with the
+// mirror on the wrong axis still produces a plausible-looking run of tiles.
 
 namespace {
 
@@ -827,9 +835,10 @@ TEST(ComposeStripTiles, MirroredWindowFlipsAcrossTheStripNotAlongIt) {
 }
 
 TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
-  // The contract Facing::Mirrored actually states: bake mirrored, sample
-  // mirrored, and the strip reads exactly as the forward bake does. This is
-  // the claim the ribbon wall depends on.
+  // What Facing::Mirrored actually promises: bake mirrored, sample mirrored,
+  // and the strip reads exactly as the forward bake does. A caller drawing
+  // the back face of a ribbon relies on this being an exact reflection
+  // rather than an approximately-similar one.
   const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
   ASSERT_NE(strip, nullptr);
   for (int k = 0; k < kTileCount; ++k) {
@@ -918,9 +927,10 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
 }
 
 TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
-  // Level 2 recursion: the stamp is itself decorated by a ContourWalk
-  // that dots its own outline. compose_test pins that this terminates
-  // and paints (the forward-only law keeps it a finite bake).
+  // Two levels of recursion: the stamp is itself decorated by a ContourWalk
+  // dotting its own outline. This terminates because a stamp may only
+  // decorate art that is already baked, never itself — so the nesting is
+  // finite by construction rather than by a depth limit.
   Host host;
   ContourWalk dots;
   dots.spacing = 6.0f;
@@ -952,8 +962,9 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
 }
 
 TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
-  // Item 20's second half: a custom() leaf hosting an entire nested
-  // Composer — recursion closed at the paint phase.
+  // A custom() leaf hosting an entire nested Composer: the recursion closes
+  // at the paint phase, with the inner composer owning its own ticker and
+  // size and drawing straight onto the outer canvas.
   Host host;
   auto nestedTicker = std::make_shared<sigil::motion::Ticker>();
   auto nested = std::make_shared<Composer>(*nestedTicker, fonts());
@@ -971,7 +982,7 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
 }
 
 // ---------------------------------------------------------------------------
-// hitTest (stress item 5): paint order, transforms, shapes.
+// hitTest: paint order, transforms, shapes.
 
 TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   Host host;
@@ -1062,10 +1073,11 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
 }
 
 TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
-  // §10: Anchor has a terminal gap and connector() did not, so a route
-  // always ran to the node box's CENTRE — and with sdf:: chrome the box
-  // is far larger than the visible shape, so every wire pierced its
-  // terminals. Same spelling, same clamp, on the connector door.
+  // A route runs to the node BOX's centre, and a box is often much larger
+  // than the shape drawn inside it — an sdf:: panel, for instance, reserves
+  // room for its glow. Without a terminal gap the wire is drawn straight
+  // through the visible terminal to a centre nobody can see. The gap is the
+  // same pull-back Anchor takes, spelled on connector().
   const auto scene = [](float gap) {
     PathFormat wire;
     wire.width = 4;
@@ -1078,8 +1090,10 @@ TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
         .child(connector("a", "b", {}, gap)
                    .inset(0).foreground(wire).zIndex(1));
   };
-  // Control: gap 0 is the old behaviour — the wire runs centre to centre
-  // (20,100) → (180,100) and paints OVER both terminal boxes.
+  // Control: with gap 0 the wire runs centre to centre, (20,100) → (180,100),
+  // and paints OVER both terminal boxes. Without this arm, "the gapped wire
+  // does not reach the terminal" would also pass on a wire that was never
+  // drawn.
   Host flush;
   flush.composer.render(scene(0.0f));
   flush.frame();
@@ -1160,8 +1174,10 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
 }
 
 TEST(ComposeTransform, SkewLeansPaintAndHits) {
-  // The ATLUS diagonal (REFERENCES.md §1): skewX(−12°) leans the card's top
-  // to the right about its center; hit-testing walks the shear backwards.
+  // skewX(−12°) leans the card's top to the right about its centre. The
+  // point of the case is the second half: hit-testing must walk the shear
+  // backwards, so a point that is inside the leaning card but outside its
+  // unsheared box still hits it.
   Host host;
   host.composer.render(box().child(
       box().key("card").width(40).height(40).inset(60, 60, 100, 100)
@@ -1175,6 +1191,33 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   ASSERT_TRUE(hit.has_value());
   EXPECT_EQ(*hit, "card"); // transform-aware hit through the shear
   EXPECT_FALSE(host.composer.hitTest({61, 64}).has_value());
+}
+
+TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
+  // THE SIGN PIN. skewX shears about the box centre in screen space, y
+  // down, by tan(skewX degrees): a POSITIVE angle displaces the top edge
+  // toward NEGATIVE x relative to the bottom edge — the top leans left.
+  // The sign is easy to state backwards, so the runtime's answer is
+  // pinned here in pixels.
+  Host host;
+  host.composer.render(box().child(
+      box().key("card").width(40).height(40).inset(60, 60, 100, 100)
+          .absolute().fill(red()).skewX(30.0f)));
+  host.frame();
+  // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
+  // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the
+  // top row spans about [50.8, 90.8]; at y = 97 (17 below) the shift is
+  // +9.8, spanning about [69.8, 109.8].
+  EXPECT_EQ(host.pixel(54, 64), SK_ColorRED);   // top edge left of the box
+  EXPECT_EQ(host.pixel(97, 64), SK_ColorBLACK); // vacated top-right
+  EXPECT_EQ(host.pixel(106, 97), SK_ColorRED);  // bottom edge leaned right
+  EXPECT_EQ(host.pixel(63, 97), SK_ColorBLACK); // vacated bottom-left
+  // And hit-testing walks the same shear: the leaned top-left corner is
+  // inside the card, the vacated top-right is not.
+  auto hit = host.composer.hitTest({54, 64});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, "card");
+  EXPECT_FALSE(host.composer.hitTest({97, 64}).has_value());
 }
 
 // ---- kinetic typography ------------------------------------------------------
@@ -1241,20 +1284,18 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
 }
 
 TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
-  // §38's CLASS, at the glyph slot — found by a positive control that did NOT
-  // fire, which is the finding. Glyph progress must be CONTENT volatility
-  // (kSlotSpecs' SlotRole::Content): it rebuilds the glyph geometry, so the
-  // node's own recording is invalid the moment it ticks. Classify it as
-  // paint-only instead and computeVolatile leaves `ownContent` false,
-  // `subtreeVolatile` false, the picture un-reset — and the reveal FREEZES at
-  // whatever progress the last describe happened to record.
+  // Glyph progress must be classified as CONTENT volatility, not paint-only:
+  // it rebuilds glyph geometry, so the node's own recording is invalid the
+  // moment it ticks. Classified paint-only, computeVolatile leaves
+  // `ownContent` and `subtreeVolatile` false, the picture is never reset,
+  // and the reveal FREEZES at whatever progress the last describe recorded.
   //
-  // Every other kinetic test moved the reveal by RE-DESCRIBING, which marks
-  // the node paint-dirty and hides the question entirely; the one transitioned
-  // case asserts only that some ink exists after settling, which a frozen
-  // half-revealed recording satisfies. So the whole family passed with glyph
-  // progress miscategorised. A BOUND Output is what closes it: the value
-  // moves with no patch anywhere.
+  // Driving the reveal from a BOUND Output is the only way to see that. Any
+  // case that moves the reveal by RE-DESCRIBING marks the node paint-dirty
+  // and hides the question entirely, and a case that only checks for ink
+  // after settling is satisfied by a frozen half-revealed recording. Hence
+  // both halves here: the tail must be dark before, and lit after, with no
+  // describe in between.
   Host host;
   choreograph::Output<float> progress{0.0f};
   GlyphFx fx;
@@ -1281,10 +1322,11 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
 }
 
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
-  // Regression probe for the beethoven-sketch report: text inside a
-  // BaselineGrid nested in an absolute column inside a stack() must paint.
-  // (The sketch symptom was black-on-black over an arc band, not a layout
-  // failure — this pins the layout path anyway.)
+  // Text inside a BaselineGrid, nested in an absolute column, inside a
+  // stack(). A custom layout scheme writes back into Yoga out of band, and
+  // an absolute ancestor changes how its subtree is sized, so this is the
+  // combination most likely to leave the text laid out at zero size and
+  // therefore invisible.
   Host host;
   host.composer.render(
       stack().child(
@@ -1396,7 +1438,7 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
 }
 
 // ---------------------------------------------------------------------------
-// Tile maps (stress item 15): atlas regions + chunked cache invalidation.
+// Tile maps: atlas regions + chunked cache invalidation.
 
 namespace {
 
@@ -1484,9 +1526,10 @@ TEST(ComposeTiling, OnlyTouchedChunkRerecords) {
 }
 
 TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
-  // The docs' promise: "a subtree whose new description equals its old
-  // one is skipped wholesale — whether or not you used memo". Plain
-  // boxes/text/images with value-comparable props re-render for free.
+  // memo() is an optimisation for expensive DESCRIBES, not the thing that
+  // makes pruning work. A subtree whose new description equals its old one
+  // is skipped wholesale either way, so plain boxes, text and images built
+  // from value-comparable props re-render for free.
   Host host;
   auto tree = [] {
     return box().row().gap(8).padding(12)
@@ -1505,20 +1548,14 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
 }
 
 // ---------------------------------------------------------------------------
-// Round-2 friction batch: mount entrances, trim wrap, per-side insets,
-// overflow-safe recording, stroke align, measure(), presets, marquee.
-
-// (`WithFromPlaysEntranceOnMount` and `WithFromColorSweepsOnMount` were
-//  deleted by the 2026-07-28 audit ruling. The R2 grammar port added
-//  AnimatePlaysEntranceOnMount and AnimateColorSweepsOnMount — the same two
-//  trees under the surviving spelling, the first with a mid-ramp pin these
-//  lacked — and never removed the originals.)
+// Mount entrances, trim wrap, per-side insets, overflow-safe recording,
+// stroke align, measure(), presets, marquee.
 
 // ---------------------------------------------------------------------------
-// The §32 authoring grammar: animate(from(a).to(b)) / animate(through({…})).
-// R3 deleted the with/withFrom/withKeyframes trio those used to forward
-// to, so what is pinned now is the VALUE each argument shape builds —
-// which is the only thing the engine ever saw.
+// The authoring grammar: animate(from(a).to(b)) / animate(through({…})).
+// What is pinned is the VALUE each argument shape builds, because that value
+// is the only thing the engine ever sees — the argument spellings are pure
+// sugar over it.
 
 TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
   const Transition spec{200ms, &choreograph::easeNone, 40ms};
@@ -1553,15 +1590,16 @@ TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
   EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f), 0.25f);
 }
 
-// A GUARD, not a reproduction: against the old code `value` was
-// indeterminate, so this could have passed by stack luck.
+// A guard, not a reproduction: an indeterminate value can happen to hold the
+// number this test wants, so a passing run is weaker evidence than usual.
+// Both spellings are checked, and the pixel arm at the bottom is what makes
+// the claim about behaviour rather than about one struct field.
 TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
-  // An empty path is a degenerate ask, and the answer to it used to be
-  // whatever was on the stack: Transitioned<T>::value was
-  // DEFAULT-initialized, so `animate(through({}))` filled `from`,
-  // `spec` and `waypoints` with nothing and left `value` indeterminate —
-  // a float property reading garbage, once, silently (§32 review REV-11).
-  // Value-initialized now: an empty path settles at zero.
+  // An empty waypoint list is a degenerate ask that must still produce a
+  // definite answer. `Transitioned<T>::value` has to be value-initialized:
+  // default-initialized, `animate(through({}))` would leave a float property
+  // reading whatever was on the stack — once, silently, with no failure to
+  // observe anywhere. Zero is the answer.
   const Transitioned<float> empty = animate(through({}));
   EXPECT_EQ(empty.value, 0.0f);
   EXPECT_FALSE(empty.from.has_value());
@@ -1584,9 +1622,10 @@ TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
 }
 
 TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
-  // A nested braced list is a non-deduced context, which is why
-  // The generic form has to be told `<float>`. Compiling with no explicit
-  // template argument IS the test.
+  // A nested braced list is a non-deduced context, so the generic form
+  // normally has to be told `<float>`. This overload exists so it does not.
+  // Compiling with no explicit template argument IS the test — the
+  // assertions below only confirm it deduced the right thing.
   const Transitioned<float> t =
       animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
   ASSERT_EQ(t.waypoints.size(), 2u);
@@ -1721,11 +1760,14 @@ SkColor replayPixel(const sk_sp<SkPicture> &pic, int x, int y) {
 
 } // namespace
 
-/** The Skia contract Composer::Impl::ownPaintBounds' doc block used to get
- *  wrong, measured instead of read off a header. An op outside the cull
- *  rect is NOT rejected at record time and NOT culled at plain playback;
- *  the cull rect only bites through a bounding-box hierarchy, and the
- *  clips that actually bite in the compose paint path are saveLayer bounds
+/** What a picture's cull rect actually does, established by experiment
+ *  rather than assumed — because the intuitive reading ("ops outside the
+ *  cull rect are dropped") is wrong, and `ownPaintBounds` is sized on the
+ *  basis of the real behaviour.
+ *
+ *  An op outside the cull rect is NOT rejected at record time and NOT culled
+ *  at plain playback. The cull rect only bites through a bounding-box
+ *  hierarchy. What does clip in the compose paint path is saveLayer bounds
  *  and bake surfaces. Every arm below is asserted against its opposite, so
  *  the test cannot pass by agreeing with itself. */
 TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
@@ -1838,8 +1880,10 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
 
 
 TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
-  // §14: the data-driven ring the header claims as native needed one
-  // radius PER CHILD. Shorter list = tail falls back to radiusFraction.
+  // `radiusAt` gives each child its own ring radius, so one Radial can draw
+  // nested orbits rather than a single circle. The list may be shorter than
+  // the child count: the tail falls back to `radiusFraction`, which is what
+  // the second half of this case checks.
   Host host;
   std::vector<Element> dots;
   for (int i = 0; i < 4; ++i)

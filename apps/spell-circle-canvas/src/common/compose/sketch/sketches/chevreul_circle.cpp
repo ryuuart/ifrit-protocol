@@ -67,20 +67,14 @@
 //   * EVERY NUMBER IN THE VERIFICATION BLOCK is recomputed by verify() at
 //     startup from the arrays in this file. None is asserted.
 //
-// THE LIMB, CORRECTED AGAINST THE PLATE. The implementation brief called
-// for TextPath::Orient::Radial on all 72 rim labels. The plate does not do
-// that: rotating rim crops into the outward-up frame shows ROUGE, VERT,
-// BLEU and ORANGÉ-JAUNE all set TANGENTIALLY, running along the arc, with
-// GLYPH-UP POINTING RADIALLY INWARD everywhere — you turn the plate so the
-// sector you are reading is at the bottom. That is one uniform engraver's
-// convention (the same kind of decision the Nightingale study found, with
-// the opposite sign). It needs a COUNTER-CLOCKWISE baseline. When this
-// study was written `shapes::circle()` was addOval(kCW) only and the rim
-// baseline had to be spelled out from two arcTo sweeps; that gap is CLOSED
-// — `shapes::circle(SkPathDirection, unsigned startIndex)` is at
-// Shapes.h:167 and `rimBaseline()` below is now one call to it.
-// Orient::Radial is exercised where something genuinely radiates: the
-// reconstructed index ring.
+// THE LIMB IS SET TANGENTIALLY, NOT RADIALLY, and it is worth checking
+// against the plate before "correcting" it. Rotating rim crops into the
+// outward-up frame shows ROUGE, VERT, BLEU and ORANGÉ-JAUNE all running
+// ALONG the arc, with GLYPH-UP POINTING RADIALLY INWARD everywhere — you
+// turn the plate so the sector you are reading is at the bottom. That is one
+// uniform engraver's convention, and it needs a COUNTER-CLOCKWISE baseline,
+// which is what `rimBaseline()` below builds. Orient::Radial is exercised
+// where something genuinely radiates: the reconstructed index ring.
 //
 // NO Composer::setView() ANYWHERE, DELIBERATELY. The whole piece is the
 // claim that a described sRGB value is the delivered sRGB value, and an
@@ -88,18 +82,20 @@
 // way in the API to DECLARE that: "I thought about colour and chose not to
 // transform it" and "nobody thought about colour" produce identical trees.
 //
-// COST, MEASURED (Composer::stats(), CHEVREUL_STATS=1 in the environment):
-//   steady state — one render(), everything else a binding —
-//       908 instances, 84–91 pictures live, paint 0.07 ms/frame.
-//   re-describing the whole plate every frame (CHEVREUL_REDESCRIBE=1):
-//       paint 43.5 ms. Removing ONE node — the 584x584 plate-tone wash,
-//       a patterns::grain under .cache(Cache::Texture) whose shape is an
-//       .shape(shapes::circle()) lambda — takes that to 0.10 ms.
-//       43.4 of 43.5 ms is one Texture bake being thrown away every frame
-//       because an outline() callable can never compare (ROADMAP §3).
-//   the 78 non-pruning onPath limb runs (CHEVREUL_NOLIMB=1), which is the
-//       cost this study was predicted to find: +0.03 ms reconcile,
-//       +0.03 ms layout, +0.01 ms paint. Real, and 600x smaller than §3.
+// COST. Three environment switches price this plate against itself, and
+// what they show is where the money actually is.
+//   CHEVREUL_STATS=1 dumps Composer::stats(). In steady state there is one
+//       render() and everything else is a binding, so paint is negligible.
+//   CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame, which
+//       is catastrophic — and almost all of it is ONE node: the plate-tone
+//       wash, a patterns::grain under .cache(Cache::Texture) whose shape is
+//       an `.shape(shapes::circle())` LAMBDA. An outline() callable can
+//       never compare equal, so its Texture bake is thrown away and redone
+//       every single frame. Remove that one node and the same experiment is
+//       cheap again.
+//   CHEVREUL_NOLIMB=1 drops the 78 onPath limb runs, which cannot prune
+//       because TextPath carries no operator==. Real, and orders of
+//       magnitude smaller than the un-comparable outline above.
 //
 // Run (13.0 s loop; 12.6 s is the settled plate):
 //   ./build/bin/Release/ComposeSketch \
@@ -147,7 +143,7 @@ namespace weave = sigil::weave;
 namespace {
 
 // ---------------------------------------------------------------------------
-// palette — measured off the plate (§4.1 of the brief)
+// palette — sampled off the 1864 plate
 
 constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
   return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
@@ -264,8 +260,8 @@ const std::array<Observation, 17> kObs = {{
 // is describing quantities of pigment on a surface, and an sRGB-code-value
 // lerp is systematically too dark in the middle (a 50/50 white–black mix
 // comes out #808080, Y = 0.216, where the physical answer is #BCBCBC,
-// Y = 0.5). §4.3's table exists partly as the worked check: tone 10 of the
-// grey gamme must be #C0C0C0 and not #808080.
+// Y = 0.5). The grey gamme is the worked check: tone 10 of it must come out
+// #C0C0C0 and not #808080.
 
 inline float toLinear(float c) {
   return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
@@ -431,14 +427,11 @@ inline Element rightAt(const std::string &s, const weave::TextStyle &st,
  *   - the tangent runs the way the engraver set the type, so glyph-up
  *     points radially INWARD everywhere, which is what the plate does.
  *
- *  THIS USED TO BE HAND-BUILT FROM TWO 180° arcTo SWEEPS, under a comment
- *  saying `shapes::circle()` is addOval(kCW) and cannot give the opposite
- *  convention. That was TRUE WHEN WRITTEN and is not any more:
- *  `shapes::circle(SkPathDirection, unsigned startIndex)` landed at
- *  Shapes.h:167. startIndex 2 is the bottom of the box — addOval indexes
- *  0 top, 1 right, 2 bottom, 3 left in BOTH directions, checked — which
- *  is screen-angle 90°, so kCCW + 2 is exactly the contour this used to
- *  spell out, and the plate renders pixel-for-pixel identically. */
+ *  startIndex 2 is the BOTTOM of the box: addOval indexes 0 top, 1 right,
+ *  2 bottom, 3 left in both directions, which is screen-angle 90°. So
+ *  kCCW + 2 starts the contour at the bottom and runs anticlockwise, which
+ *  is the engraver's convention above and cannot be had from the default
+ *  clockwise oval. */
 inline shapes::OutlineFn rimBaseline() {
   return shapes::circle(SkPathDirection::kCCW, 2);
 }
@@ -849,8 +842,8 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     }
 
     // --- the OCIO seam, MEASURED rather than asserted -----------------
-    //     Ocio.h is the least-exercised header in the library and nothing
-    //     anywhere states what a value comes out as. Push tone 10 of the
+    //     Nothing in the API states what a value comes out as, so this
+    //     measures it. Push tone 10 of the
     //     §164 gamme (#C0C0C0) through ocio::exponent(2.2) and read it back
     //     off a raster surface, exactly the way check 10 reads the
     //     staircase — so "the seam works" is a number on the plate.
@@ -1056,10 +1049,9 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // ---- the continuous-sweep ring ----------------------------------
     // The same 72 measured values as ONE gradient: 144 stops (doubled, so
-    // the steps stay franches) in one shader. The six-stop cap that made
-    // this impossible closed on 2026-07-22; this ring is the confirmation,
-    // and it is on-subject — continuous against franche is the distinction
-    // the plate's own title makes.
+    // the steps stay franches) in one shader, against the discrete sectors
+    // beside it. Continuous against franche is the distinction the plate's
+    // own title makes.
     g.child(disc(kC, kRSweepOut)
                 .key("sweepring")
                 .shape(shapes::annulus(kRSweepIn / kRSweepOut))
@@ -1531,8 +1523,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     const float cw = 88, chh = 66, gx = x0 + 6, gy = y0 + 18;
     // Beat 4's grounds arrive and withdraw as a DIRECTIONAL WIPE at 90 deg
     // (downward), which is what Chevreul's own method looks like: take the
-    // ground away and the twelve patches are plainly identical. Roadmap §6
-    // closed this; before it, this gesture was a translate plus a clip.
+    // ground away and the twelve patches are plainly identical.
     // wipe() reveals the fraction of THE NODE'S OWN LAID-OUT BOX before the
     // edge, so the container has to be a real box: a bare box() holding
     // absolutely-positioned children measures zero and the wipe hides the
@@ -1646,10 +1637,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
-    // §31 entrance-into-hold beat: the header's settled plate on the 14 s
-    // loop (13 s reveal + 1 s hold); 12.6 s is fully settled with 1.4 s of
-    // margin before the reset. (The old 6.0 default caught the plate
-    // roughly half-built: verification rows 4/13, later panels unrevealed.)
+    // The still has to name its moment: this is a 14 s loop (13 s reveal +
+    // 1 s hold), and 12.6 s is fully settled with 1.4 s of margin before the
+    // reset. An undeclared capture catches the plate roughly half-built,
+    // with most verification rows and later panels unrevealed.
     ctx.captureAt(12.6);
 
     computeColours();
@@ -1718,9 +1709,9 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // 78 onPath runs) and paintMs, since a TextPath carries no operator==
     // and therefore cannot prune.
     // CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame, which
-    // is what prices gap 3: TextPath has no operator== by design, so the 78
-    // limb runs can never prune and re-record on every render(). Pair it
-    // with CHEVREUL_NOLIMB=1 for the other half of the measurement.
+    // is what prices the un-prunable nodes: TextPath has no operator== by
+    // design, so the 78 limb runs re-record on every render(). Pair it with
+    // CHEVREUL_NOLIMB=1 for the other half of the comparison.
     if (std::getenv("CHEVREUL_REDESCRIBE"))
       ctx.composer.render(describe(ctx));
     if (++frames > 2 && frames < 7 && std::getenv("CHEVREUL_STATS")) {

@@ -10,11 +10,11 @@
 namespace sigil::motion {
 
 /**
- * The backing ticking engine for animation: owns a master
- * choreograph::Timeline and steps it (plus any registered steppables)
- * from per-frame deltas, reporting whether anything is still animating
- * so hosts can stay event-driven — render when active() or content is
- * dirty, sleep otherwise.
+ * The ticking engine for animation: owns a master choreograph::Timeline
+ * and steps it, plus any registered steppables, from per-frame deltas.
+ * It reports whether anything is still animating, so a host can stay
+ * event-driven — render while active() or while content is dirty, sleep
+ * otherwise.
  *
  * Choreograph supplies the vocabulary (Phrase/Sequence/Motion/Output —
  * see <choreograph/Choreograph.h>); the Ticker only drives it:
@@ -24,8 +24,8 @@ namespace sigil::motion {
  *   ...
  *   bool animating = ticker.tick(clock.tick());
  *
- * Not thread-safe; one Ticker per animation domain (typically per
- * canvas/composer), all touched from that domain's thread.
+ * Not thread-safe. Use one Ticker per animation domain and touch it only
+ * from that domain's thread.
  */
 class Ticker {
 public:
@@ -38,7 +38,11 @@ public:
   /**
    * Registers an additional steppable — `fn(dt)` returns whether it
    * still needs frames. Steppables returning false are dropped. Use for
-   * non-Choreograph per-frame effects (glyph choreography, physics).
+   * per-frame effects Choreograph does not express, such as physics.
+   *
+   * A steppable that always returns true keeps active() true forever,
+   * and so keeps an event-driven host rendering forever. Retire it when
+   * it has nothing left to do.
    */
   void add(std::function<bool(double)> steppable);
 
@@ -50,42 +54,30 @@ public:
    *
    *     ticker.addFixed(27.0, [this] { stepFire(); return true; });
    *
-   * Every simulation-shaped study reinvented this and its
-   * spiral-of-death clamp: a cellular automaton at 27 Hz behind the DOOM
-   * PlayStation titles, particles at 24. The library had already
-   * declared choppiness for shaders — `Material::quantizeTime(hz)` — and
-   * nothing at all for logic.
-   *
-   * The step count comes from TOTAL ELAPSED TIME rather than from a
-   * running accumulator: `want = floor(total * hz)`, run `want - ran`.
-   * An accumulator compared against a step slips one comparison over a
-   * long pre-roll, which made the same capture land on either side of a
-   * step boundary depending on the draw rate — a study measured
-   * byte-identical output at 60/30/20 fps and a one-step slip at 15 and
-   * 10, and correctly diagnosed it as float accumulation rather than the
-   * clamp. From total time it is exact at any draw rate.
+   * The step count comes from TOTAL ELAPSED TIME, not from a running
+   * accumulator: `want = floor(total * hz)`, run `want - ran`. A float
+   * accumulator compared against a step size drifts over a long run, so
+   * the same simulated moment lands on either side of a step boundary
+   * depending on the host's draw rate. Counting from total time is exact
+   * at any draw rate, which is what makes a captured frame reproducible.
    *
    * @p maxCatchUp bounds how many steps one frame may run. Without it, a
-   * hitch longer than the step makes the next frame run the backlog,
-   * which takes longer, which grows the backlog — the spiral. Dropping
-   * simulated time is the correct failure: the sim runs slow for one
-   * frame instead of locking the process.
+   * hitch longer than one step makes the next frame run the backlog,
+   * which takes longer, which grows the backlog. Dropping simulated time
+   * is the correct failure: the simulation runs slow for one frame
+   * instead of locking up the process.
    *
    * @p alphaOut, if given, receives the leftover fraction of a step after
-   * the frame's stepping — the standard render interpolant. A fixed sim
-   * drawn straight from its own state judders whenever the draw rate is
-   * not a multiple of `hz`; drawing `lerp(previous, current, alpha)`
-   * removes it. The accumulator lived inside this function and there was
-   * no way to read it, which is the whole reason for the parameter: a
-   * verlet body's state is literally the pair (x*, x), so the integrator
-   * is already holding both ends of the interpolation and the library was
-   * hiding the only scalar missing. Bindable like any Output, so
-   * `bind(alphaOut)` reaches a property directly.
+   * this frame's stepping — the standard render interpolant. A fixed-rate
+   * simulation drawn straight from its own state judders whenever the
+   * draw rate is not a multiple of `hz`; drawing
+   * `lerp(previous, current, alpha)` removes it. It is an ordinary
+   * Output, so `bind(alphaOut)` reaches a property directly.
    */
   /** What one frame's fixed stepping did. When `clamped` is true the
    *  simulation DROPPED time, so anything measured on that frame — a
    *  constraint residual, a convergence rate — is meaningless and must
-   *  not be reported. A study had to infer that from a step count. */
+   *  not be reported. This flag is the only signal of that. */
   struct FixedStatus {
     int stepsRun = 0;
     bool clamped = false;
@@ -110,36 +102,32 @@ public:
    *     ticker.derive(&backwards, bind(&phase).invert());
    *
    * A derived Output is an ordinary Output: `bind(&penTip)`,
-   * `wiggle(&penTip, …)` and every `Output*`-typed consumer (a pool
-   * write, `spans::range`, `Effect::uniform`, a world lane) just work.
-   * This closes the corpus's #1 measured gap — the shadow cells sketches
-   * re-copied by hand every tick (ROADMAP §43.3).
+   * `wiggle(&penTip, …)` and every `Output*`-typed consumer read it like
+   * any other cell, with no knowledge that the Ticker owns the write.
    *
-   * **THE HONEST LIMIT, at the call site because it belongs here:**
-   * `derive()` remaps a schedule's VALUE. That equals a TIME remap
-   * exactly when the schedule is affine in time — `phase = k·t` gives
-   * `0.5·phase(t) = phase(t/2)`; a non-linear phase gives a value remap
-   * that is not a retime. Compose does not retime time; it remaps
-   * schedules (and the corpus's schedules are overwhelmingly `t*k` or
-   * `fmod(t*k, 1)`, which is why this serves the demand).
+   * WHAT IT IS NOT: `derive()` remaps a schedule's VALUE, which equals a
+   * remap of TIME only when the schedule is affine in time — for
+   * `phase = k·t`, `0.5·phase(t)` is `phase(t/2)`, but for a non-linear
+   * phase the two differ. If you need the source evaluated at another
+   * time, retime the source, not its value.
    *
    * THE STEPPING CONTRACT: derivations run in a SECOND PHASE, after the
    * timeline and after every steppable, so **a derivation never reads a
-   * stale source** — registration order does not matter, unlike a
-   * hand-rolled shadow copy in a steppable, which is one frame late
-   * whenever it is registered before its source's writer.
+   * stale source** and registration order does not matter. A hand-rolled
+   * shadow copy inside a steppable does not have that property: it is one
+   * frame late whenever it is registered before its source's writer.
    *
-   * ONE LEVEL ONLY, enforced loudly: within the second phase there is no
-   * topological order, so an Output may not be both a derivation's
-   * destination and a derivation's source. A registration that would
-   * chain two (`derive(&c, bind(&b))` after `derive(&b, …)`, in either
-   * order), write one destination twice, or self-derive is REFUSED with
-   * a warning and returns false — the silent one-frame lag it would
-   * otherwise hide is exactly the class this contract exists to close.
+   * ONE LEVEL ONLY, refused loudly. Phase two has no topological order,
+   * so an Output may not be both a derivation's destination and a
+   * derivation's source. Chaining two derivations (in either
+   * registration order), writing one destination twice, and deriving a
+   * cell from itself are all REFUSED with a warning, returning false.
+   * The silent one-frame lag such a registration would otherwise hide is
+   * the exact failure this contract exists to prevent.
    *
-   * The chain is applied once at registration, so `dst` is correct
-   * before the first tick. Derivations are pure in their source and are
-   * never retired; they do NOT hold active() true — when nothing else is
+   * The chain is applied once at registration, so `dst` is correct before
+   * the first tick. Derivations are pure in their source and are never
+   * retired, and they do NOT hold active() true: when nothing else is
    * active the source cannot move, so neither can the derived value.
    *
    * @return true if registered; false (with a warning) when refused.
@@ -148,28 +136,21 @@ public:
 
   /** Steps the timeline and steppables by `deltaSeconds`, then the
    *  derivations (see derive() for the two-phase contract); returns
-   *  active(). Zero deltas (paused clock) still report activity. */
+   *  active(). A zero delta — a paused clock — still steps everything
+   *  and still reports activity. */
   bool tick(double deltaSeconds);
 
-  /** True while the timeline has motions or steppables remain. */
+  /** True while the timeline holds motions or any steppable remains
+   *  registered. Derivations never contribute. */
   bool active() const;
 
   /**
-   * Total time this Ticker has been stepped, in seconds.
+   * Total time this Ticker has been stepped, in seconds: the sum of the
+   * deltas passed to tick(), not wall-clock time.
    *
-   * `add()` hands a steppable only `dt`, and a steppable is where
-   * Outputs get written — so every author who needed the CLOCK rather
-   * than the delta captured a `double t = 0` by value and accumulated it
-   * themselves. Thirty-six files in this repo do exactly that, in two
-   * populations that never shared a line of code, and the accumulator is
-   * identical in all of them.
-   *
-   * That was never a missing helper. `FrameClock::elapsed()` exists,
-   * `PaintContext::elapsedSeconds` exists, and `Sketch::update` is
-   * handed elapsed; the one place that could not reach it was the one
-   * place that needed it. So this is the getter, not a `phase()` or a
-   * `breath()` over it — a helper wrapping an unreachable clock would
-   * only have produced a thirty-seventh copy.
+   * A steppable is handed only `dt`, and a steppable is where Outputs get
+   * written, so this is how one reaches the CLOCK rather than the delta
+   * without accumulating a private copy of the same number:
    *
    *     ticker.add([this, &ticker](double) {
    *       phase = std::sin(ticker.elapsed() * 2.0);

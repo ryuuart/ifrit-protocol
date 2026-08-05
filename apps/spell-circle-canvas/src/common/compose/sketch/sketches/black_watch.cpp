@@ -115,9 +115,10 @@ constexpr SkColor4f C(uint32_t hex, float a = 1.0f) {
 }
 
 // ---------------------------------------------------------------------------
-// The card it is mounted on. Black Watch is a dark cloth; it sits on manila
-// board, so this is the one sketch in the program lit the other way round —
-// which is also where patterns::grain belongs, per its own header.
+// The card it is mounted on. Black Watch is a dark cloth, and it sits on
+// manila board, so this whole plate is light-on-dark inverted: pale ground,
+// dark ink. patterns::grain is built for exactly that — an opaque board with
+// tooth — rather than for glow over a dark field.
 
 constexpr SkColor4f kCard = C(0xE8E2D6);
 constexpr SkColor4f kWell = C(0xDCD4C4);
@@ -407,15 +408,14 @@ Verdict verify(const std::vector<Run> &bwRuns, const std::vector<uint8_t> &S,
 
 // ---------------------------------------------------------------------------
 // Baking. One pixel per thread, written straight into a bitmap, then sampled
-// with kNearest at an INTEGER magnification. Element::sampling() landed while
-// this was being written; before it, every panel showing the cloth below 1:1
-// was at the mercy of a hardcoded kLinear. It still only takes integer scales
-// here, because 2 px threads on a 4 px interlacement period minified by any
+// with kNearest at an INTEGER magnification. Element::sampling() is what makes
+// the filter choice reachable at all; the magnification must additionally stay
+// integer, because 2 px threads on a 4 px interlacement period minified by any
 // non-integer factor is a moire generator whatever the filter is.
 
 /** N32 is kRGBA_8888 on this build and kBGRA_8888 on others, and writing an
- *  SkColor straight into getAddr32() silently swaps R and B on one of them —
- *  the first render of this card came back with the blue threads maroon. */
+ *  SkColor straight into getAddr32() silently swaps R and B on one of them,
+ *  which comes out as blue threads rendered maroon. */
 inline uint32_t packPixel(const SkBitmap &bm, SkColor4f c) {
   const SkColor s = c.toSkColor();
   const uint32_t a = SkColorGetA(s), r = SkColorGetR(s), g = SkColorGetG(s),
@@ -675,8 +675,8 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     }
 
     // 2. THE WEFT — the defining property of a twill is that the
-    //    interlacement advances ONE THREAD PER PICK, and a Pattern cannot pan
-    //    (ROADMAP 14). Saved only by the phase being mod 4: the weft shows
+    //    interlacement advances ONE THREAD PER PICK, and a Pattern tile cannot
+    //    be panned. Saved only by the phase being mod 4: the weft shows
     //    where (x - y) mod 4 is in {2, 3}, i.e. a 4-px-on / 4-px-off stripe
     //    whose phase is ((i + 2) mod 4) * 2 px. Three colours by four phases
     //    is twelve patterns, built once, and every one of the 378 picks
@@ -842,9 +842,9 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     panel.child(at(0, 0, kClothW, kClothH).fill(warpMat));
 
     // the picks. Every one is an absolutely-placed leaf with a computed rect
-    // and its own progress window — 378 Yoga nodes in a panel with no layout
-    // in it (ROADMAP 2's positioned-leaf-set ask, hit again from the weaving
-    // side, where the "instance" is 1008 x 2 px of a pattern fill).
+    // and its own progress window — 378 Yoga nodes in a panel that has no
+    // layout in it at all, because there is no way to declare a set of
+    // positioned leaves that differ only in rect and fill.
     const float span = kWeaveEnd - kBeamEnd;
     for (int i = 0; i < kPicks; ++i) {
       const int col = (int)S[(size_t)(i % (int)S.size())];
@@ -856,9 +856,9 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
               .opacity(bind(&loom).source(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
     }
 
-    // the shutter: the warp beams on left-to-right. There is no .wipe(), and
+    // the shutter: the warp beams on left-to-right. There is no wipe verb, and
     // scaleX on the ground itself would squash the bands rather than reveal
-    // them, so the reveal is a retreating card-coloured blind (ROADMAP 6).
+    // them, so the reveal is a retreating card-coloured blind laid over it.
     panel.child(
         at(0, 0, kClothW, kClothH)
             .fill(kWell)
@@ -882,15 +882,15 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
                       .opacity(bind(&loom).source(t.a, t.b).clamp(0.0f, 1.0f)));
 
     // the surface, above the weave: rib shadow, then yarn tooth. These are
-    // siblings rather than decorations, and not for the reason a study would
-    // guess — Element::overlay() has landed, but it paints UNDER children,
-    // and foreground() (which is above them) takes a Decoration, of which
-    // none of the four primitives is "flood the outline with this Material
-    // through this blend mode". The raw-PaintProgram form would work and
-    // never prunes. Sibling elements with .blend() do prune, so that is what
-    // these are. Both grain layers carry Cache::Texture: a static SkSL
-    // Material's SHADER caches, its PIXELS do not, and re-evaluating this one
-    // per frame cost 480 ms (see the report).
+    // siblings rather than decorations, and the reason is narrow.
+    // Element::overlay() paints UNDER children; foreground(), which is above
+    // them, takes a Decoration, and none of the decoration primitives means
+    // "flood the outline with this Material through this blend mode". A raw
+    // PaintProgram would do it, but a node carrying one never prunes, whereas
+    // a sibling element with .blend() does. Both grain layers carry
+    // Cache::Texture, because a static SkSL Material caches its SHADER and not
+    // its PIXELS — without the bake, this full-canvas fractal is re-evaluated
+    // per pixel per frame, and it is by far the most expensive thing here.
     panel.child(at(0, 0, kClothW, kClothH)
                     .fill(gridMat)
                     .blend(SkBlendMode::kMultiply)
@@ -1033,7 +1033,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
                   .fill(C(0x9A3324, 0.30f))
                   .opacity(bind(&loom).source(a, b).map(plateau(0.35f))));
     }
-    // drawdown — the cloth itself, at 12 px per thread, kNearest
+    // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
     g.child(
         at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
             .child(image(drawdownAsset)
@@ -1362,15 +1362,13 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     build();
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kCard);
-    // The still belongs to the MODERN hold. The loop weaves, proves, then
+    // The still belongs to the MODERN hold, and has to be declared, because
+    // an undeclared capture lands mid-cycle. The loop weaves, proves, then
     // turns the five shade families over one another (see `turns`), so most
     // of its 8 s shows a cloth that is a correct Black Watch in some OTHER
-    // registered palette. The gallery's fixed t = 6.0 s is loom 0.75 —
-    // dead centre of the WEATHERED card — so every still ever taken of this
-    // plate showed brown and olive under a title reading GOVERNMENT, beside
-    // its own shade cards showing the navy and green. It read as a bad
-    // blend layer and was none: right frame of the wrong beat.
-    // 7.2 s is loom 0.90, inside the final Modern hold (0.85 -> 1.0).
+    // registered palette — brown and olive under a title reading GOVERNMENT,
+    // which reads as a broken blend layer and is not one. 7.2 s is loom 0.90,
+    // inside the final Modern hold (0.85 -> 1.0).
     ctx.captureAt(7.2);
     ctx.ticker.add([this](double dt) {
       clock += dt;

@@ -1,8 +1,7 @@
 #pragma once
-// EMBER GATE — the flagship living poster, ported from
-// sketch/sketches/motion_poster.cpp: a living typographic poster with ZERO
-// raw custom() lambdas — every visual is a composable, cacheable,
-// animatable VALUE:
+// EMBER GATE — a living typographic poster written with ZERO raw custom()
+// lambdas. Every visual on it is a composable, cacheable, animatable VALUE,
+// which is the constraint the scene exists to demonstrate:
 //
 //   ground .......... Material::linear 4-stop ramp (recipe-prunes across
 //                     re-renders — no memo, no re-records)
@@ -20,18 +19,18 @@
 //                     poster panel
 //   entrance ........ Choreograph timeline ramps (Hold-staggered drop+fade
 //                     per line, retarget-safe)
-//   grade ........... OCIO exponent view on the Composer (post-cache,
-//                     one saveLayer; the ACES SDR view from the ASWF
-//                     built-in config is the follow-up once the palette is
-//                     re-authored scene-linear)
+//   grade ........... OCIO exponent view on the Composer — applied after
+//                     caching, in one saveLayer. An ACES SDR view would need
+//                     the palette re-authored scene-linear first.
 //
-// Gallery adaptation: the sketch declares an 810x1012 (4:5) portrait
-// canvas; the gallery stage is 900x640 landscape. The poster is authored
-// UNCHANGED in sketch space and paint-scaled (transform-replay — one
-// recording, replayed under the matrix) into a centered 512x640 panel,
-// with dark letterbox side panels and a small caption bottom-left. The
-// grain overlay sits OUTSIDE the scaled subtree, at panel-native
-// resolution, so the noise stays pixel-sized instead of magnifying.
+// The poster is authored in its own 4:5 portrait space and then paint-scaled
+// into a centred panel on this landscape canvas, with dark letterbox panels
+// either side and a caption bottom-left. Scaling by transform rather than by
+// re-authoring means one recording replayed under a matrix.
+//
+// The grain overlay sits OUTSIDE that scaled subtree, at panel-native
+// resolution, so its noise stays pixel-sized instead of being magnified with
+// everything else.
 
 #include "GalleryCore.h"
 
@@ -204,20 +203,21 @@ struct MotionPosterScene final : Scene {
                            {0.45f, {0.42f, 0.12f, 0.08f, 0.35f}},
                            {1.00f, {0, 0, 0, 0}}}),
          SkBlendMode::kSrcOver},
-        // The sweep highlight, EXPRESSED IN THE 0..360 FRAME.
+        // The sweep highlight, EXPRESSED IN THE FULL 0..360 FRAME. Keep it
+        // that way.
         //
-        // It used to be (-104, 256) with the gold at t=0.18. A sweep's
-        // parameter comes from atan2, whose branch is the +x ray, so with a
-        // start angle of -104 the reachable range is t in [104/360, 1] =
-        // [0.289, 1]: the whole gold stop at 0.18 fell BELOW it and clamped.
-        // The result was not a missing highlight but a HARD HORIZONTAL STEP
-        // — alpha 0 on one side of the +x ray, 0.118 gold on the other,
-        // measured (28,12,28) -> (37,18,29) on one scanline, running the
-        // full width of the poster through the halo's centre.
+        // A sweep's parameter comes from atan2, whose branch cut lies along
+        // the +x ray. Narrowing the start/end angles does not rotate that
+        // cut — it only narrows the reachable range of t, and any stop
+        // outside the reachable range clamps. The visible result is not a
+        // missing highlight: it is a hard step running the full width of the
+        // scene through the sweep's centre, along the +x ray, where the
+        // clamped value meets the live one.
         //
-        // Same angular profile, no branch: transparent at 256 deg, up to
-        // 0.30 at 320.8, down to 0 at 25.6. That band straddles 0 deg, so
-        // t=0 and t=1 both carry its mid-value and the wrap is continuous.
+        // So the band is written across 0..360 instead. It runs transparent
+        // at 256 deg, peaks near 321, and returns to transparent by 25.6,
+        // which means it straddles 0 deg — hence the matching alpha at t=0
+        // and t=1, which is what makes the wrap continuous.
         {Material::sweep(focus,
                          {{0.0000f, {1.0f, 0.80f, 0.42f, 0.1185f}},
                           {0.0711f, {0, 0, 0, 0}},

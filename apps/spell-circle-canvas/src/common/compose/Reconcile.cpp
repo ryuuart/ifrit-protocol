@@ -1,7 +1,23 @@
 // Reconcile phase: keyed reconciliation of element descriptions into the
-// retained Instance tree, the structural-equality prune (the no-memo skip),
-// Yoga-style application of layout props, and the key index. See DESIGN.md
-// "Animation — two write paths" and "Caching".
+// retained Instance tree, the structural-equality prune, Yoga-style
+// application of layout props, and the key index.
+//
+// The structural equality in this file is the library's entire correctness
+// surface, and it is worth understanding before changing anything here. Two
+// descriptions that compare EQUAL cause the node to prune: nothing is marked
+// dirty, no transition is applied, and the recording made under the previous
+// description replays as-is. So a field left out of a comparator does not
+// produce a wrong pixel at the point of the mistake — it produces a stale
+// picture, indefinitely, on a node whose description genuinely changed, with
+// every existing test still passing. That is why the comparators here are
+// hand-written and each is guarded by a static assertion on its struct's
+// field count: adding a field must fail the build and force a decision,
+// because it will not fail anything else.
+//
+// The conservative rule that makes this tractable: anything holding a
+// callable the library cannot compare (custom programs, raw outline
+// lambdas, routers, custom layouts) compares UNEQUAL and never prunes.
+// Memoization is the tool for those.
 
 #include "ComposeRuntime.h"
 
@@ -45,18 +61,19 @@ void applyDim(YGNodeRef node, const Dim &d, void (*setPx)(YGNodeRef, float),
   case Dim::Unit::Px: setPx(node, d.value); break;
   case Dim::Unit::Pct: setPct(node, d.value); break;
   case Dim::Unit::Auto:
-    // Patch reuses the yoga node: a dim REMOVED from the description must
-    // actually release (YGUndefined = unset), or last describe's value
-    // sticks forever — the review-workflow staleness finding.
+    // Patch reuses the yoga node, so a dim REMOVED from the description
+    // must be written back as YGUndefined rather than skipped. Skipping
+    // leaves the previous describe's value in the style set, where it
+    // sticks for the life of the instance.
     setPx(node, YGUndefined);
     break;
   }
 }
 
-// ---- structural equality (the no-memo prune) ------------------------------
-// Conservative: equal only when provably identical. Anything carrying an
-// incomparable callable (custom programs, decorations, outlines, routers,
-// custom layouts) compares unequal — memo is the tool for those; the common
+// ---- structural equality ---------------------------------------------------
+// Equal only when provably identical. Anything carrying a callable the
+// library cannot compare (custom programs, decorations, outlines, routers,
+// custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
 bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
@@ -88,24 +105,22 @@ namespace detail {
  *  only changes the CURVE must NOT prune — the map is read live, so a
  *  pruned node would keep shaping through the old one forever.
  *
- *  EVERY FIELD OF BoundFloat MUST APPEAR HERE. The failure of an omission
- *  is invisible: two different shapings compare equal, the node prunes,
- *  and the instance keeps applying the OLD map forever while every
- *  existing test still passes. The wiggle() fields (2026-07-29) are the
- *  most recent five.
+ *  EVERY FIELD OF BoundFloat MUST APPEAR HERE. An omission is invisible:
+ *  two different shapings compare equal, the node prunes, and the instance
+ *  keeps applying the OLD map for as long as it lives, while every existing
+ *  test still passes.
  *
- *  Three gates keep it honest, and they are the model for every
- *  hand-written comparator in this file (see ComposeInternal.h's FIELD
- *  PINS block):
+ *  Three gates keep it honest, and they are the model for every hand-written
+ *  comparator in this file (see the field-pin block in ComposeInternal.h):
  *    1. the `kFieldCount` assert below — adding a field to BoundFloat does
  *       not compile until someone bumps the count HERE, next to the list;
  *    2. `ComposeReconcile.EveryBoundFloatFieldParticipatesInEquality` —
- *       the field walk, which perturbs each tied field in turn and demands
- *       this function say false, so a new field is covered the moment it
- *       is named in `fields()`;
+ *       a field walk that perturbs each tied field in turn and demands this
+ *       function say false, so a new field is covered the moment it is
+ *       named in `fields()`;
  *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
- *       — the end-to-end pin, through a real re-describe of the SAME node,
- *       for the five wiggle fields. */
+ *       — the end-to-end check, through a real re-describe of the same node,
+ *       for the wiggle parameters. */
 static_assert(kFieldCount<BoundFloat> == 17,
               "BoundFloat gained or lost a field. boundMapEqual() below "
               "compares it BY HAND: rule on the new field (participate, or "
@@ -161,8 +176,8 @@ bool effectEqual(const std::optional<Effect> &a,
   return *a == *b;
 }
 
-// ---- block equality (presence must match; then contents, preserving the
-// monolith's exact semantics — callables stay conservatively unequal) ----
+// ---- block equality: presence must match first, then contents; a block
+// holding a callable stays conservatively unequal ---------------------------
 
 static_assert(kFieldCount<TextData> == 12,
               "TextData gained or lost a field — rule on it in textEqual() "
@@ -201,10 +216,11 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.paragraphOverride)
     return false; // layoutOptions aren't comparable — memo these
-  // onPath(): the baseline is a Shape, so a run on a comparable generator
-  // prunes — 72 radial labels used to re-record every render() for want
-  // of this compare (§10e). A raw-callable baseline makes the Shape
-  // compare false and keeps the old conservative rule.
+  // onPath(): the baseline is a Shape, so a run laid on a comparable
+  // generator prunes like any other static description — which matters
+  // because a ring of labels is one text node per label, all re-recording
+  // together. A raw-callable baseline makes the Shape compare false and
+  // falls back to never pruning.
   if (ta.onPath.has_value() != tb.onPath.has_value())
     return false;
   if (ta.onPath && !(*ta.onPath == *tb.onPath))
@@ -286,10 +302,12 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
   if (a->staggerChildrenMs != b->staggerChildrenMs ||
       a->staggerFrom != b->staggerFrom)
     return false;
-  // The masking family. A mask is read LIVE every frame, so it participates
-  // in reconciler equality or a pruned node reveals to its first frame and
-  // stays there — §33's comparable-values law, and the reason the shape
-  // gate takes a Region value instead of an outline generator.
+  // A mask is read live at paint, so it must participate in this equality:
+  // a mask change that pruned would leave the node showing whatever the
+  // mask revealed on the frame the recording was made. This is also why the
+  // shape gate takes a Region VALUE rather than an outline generator —
+  // a generator could not be compared, and an uncomparable mask would make
+  // every masked node re-patch forever.
   if (a->masks.size() != b->masks.size())
     return false;
   for (size_t i = 0; i < a->masks.size(); ++i)
@@ -322,12 +340,13 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
   if (a->live.has_value() != b->live.has_value())
     return false;
   if (a->live) {
-    // §14-a: a PAN-ONLY material (bound offset, nothing else animated) is
-    // exactly comparable — image identity, matrix, sampling, and the pan
-    // binding by pointer all participate in Material::operator== — so an
-    // identical re-describe PRUNES and a REBOUND pan patches (§40: a
-    // pruned swap would leave the old Output driving the pixels forever).
-    // Everything else that isAnimated() stays never-prune, as below.
+    // A PAN-ONLY material (a bound offset, nothing else animated) is
+    // exactly comparable: image identity, matrix, sampling, and the pan
+    // binding compared by pointer all participate in Material::operator==.
+    // So an identical re-describe prunes, and a re-BOUND pan patches —
+    // which it must, because a pruned swap would leave the old Output
+    // driving the pixels for the life of the instance. Everything else
+    // that reports isAnimated() stays never-prune, below.
     const bool panOnlyA = a->live->hasBoundOffset() &&
                           !a->live->animatedBeyondBoundOffset();
     const bool panOnlyB = b->live->hasBoundOffset() &&
@@ -347,9 +366,9 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
 /** A Spans value compares like any other description — and its animated
  *  endpoints compare through the SAME comparator every animated property
  *  uses, which is why this body lives here rather than in the header.
- *  (§33's comparable-values law: anything an author hands the library
- *  participates in reconciler equality, or a pruned node reads a stale
- *  reveal forever.)
+ *  Anything an author hands the library and the library then reads live has
+ *  to participate in this equality, or a pruned node keeps replaying the
+ *  reveal it was recorded with.
  *
  *  The endpoint trio is compared only for the two rules that READ it
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
@@ -378,9 +397,9 @@ bool Spans::operator==(const Spans &other) const {
       return false;
     return true;
   };
-  // ORDER-INSENSITIVE (§33): `corners(8) | at(0,4)` and `at(0,4) |
-  // corners(8)` claim the same runs — resolve() unions, it never reads
-  // term order — so a describe that reorders terms must PRUNE, not patch.
+  // ORDER-INSENSITIVE: `corners(8) | at(0,4)` and `at(0,4) | corners(8)`
+  // claim the same runs — resolve() unions the terms and never reads their
+  // order — so a describe that reorders terms must PRUNE, not patch.
   // (A retained node keeps ITS OWN term order and the values array paired
   // with it, so pruning across a reorder replays correct pixels.) The
   // multiset match is greedy-with-used-flags, which is exact because term
@@ -471,8 +490,7 @@ static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
               "not to — then bump this count. A miss is silent: the node "
               "prunes, markPaintDirtyUp() never runs, a stale picture "
               "replays, and applyTransitions() never ramps an animate() on "
-              "it. That is exactly how scaleX/scaleY were lost from the day "
-              "they landed until e37d58d.");
+              "it. Nothing else fails, so no test will catch it for you.");
 bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind != b.kind || a.key != b.key)
     return false;
@@ -490,8 +508,9 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   }
   // The shape seam: a comparable scheme (any shapes:: generator) prunes;
   // the raw-callable escape hatch compares unequal and stays conservative.
-  // This WAS a blanket refusal — the §3 wall, 43.4 of 43.5 ms measured on
-  // one node whose outline could not compare.
+  // Worth keeping comparable — a node whose outline cannot compare never
+  // prunes, so it re-records on every describe no matter how static it
+  // looks, and an outline can be the most expensive thing on the node.
   if (!(a.shapeFn == b.shapeFn))
     return false;
   if (!deriveEqual(a.deriveData, b.deriveData))
@@ -527,10 +546,11 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (!materialEqual(a.materialData, b.materialData))
     return false;
-  // Material-set fills compare by RECIPE (the structural signature): equal
-  // recipes mean interchangeable shaders, even though each describe minted a
-  // fresh one — the §8.1 "materials CAN be compared" payoff. Everything else
-  // falls through to the plain fill compare (color values, shader pointers).
+  // Material-set fills compare by RECIPE — the structural signature of how
+  // the material was built. Equal recipes mean interchangeable shaders even
+  // though each describe minted a fresh SkShader, so a re-described gradient
+  // prunes instead of being defeated by pointer inequality. Everything else
+  // falls through to the plain fill compare (colour values, shader pointers).
   const Material *recipeA = a.materialData ? (a.materialData->recipe
                                                   ? &*a.materialData->recipe
                                                   : nullptr)
@@ -551,24 +571,24 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||
       !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
-      // scaleX/scaleY were MISSING from this list since they landed: two
-      // descriptions differing only in a per-axis scale compared EQUAL,
-      // so the patch pruned, the node was never marked paint-dirty, and a
-      // bar re-described at a new width kept the old one's picture (and an
-      // animate() on scaleX never ramped, since applyTransitions only runs
-      // inside the `own` branch). Found by the travel() equality audit.
+      // Every transform lane appears in this list, including the per-axis
+      // scales. Omitting one makes two descriptions that differ only in
+      // that lane compare equal, so the patch prunes, the node is never
+      // marked paint-dirty, and it keeps the picture recorded at the old
+      // value — and applyTransitions runs only inside the `own` branch
+      // below, so an animate() on the missing lane never ramps either.
       !propEqual(pa.scaleX, pb.scaleX) || !propEqual(pa.scaleY, pb.scaleY) ||
       !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
       pa.originX != pb.originX || pa.originY != pb.originY ||
       pa.originPx != pb.originPx || pa.zIndex != pb.zIndex)
     return false;
-  // travel(): a motion path is read live at paint, so it participates in
-  // reconciler equality — every field, or a change to one of them would
-  // prune into its predecessor. `path` carries the shape seam's own
-  // contract (a comparable scheme prunes; the raw-callable escape hatch
-  // never compares equal), `t` compares as any Animatable lane does, and
-  // `lookAhead` is a plain float that changes the ORIENTATION and so
-  // cannot be left out — the wiggle-wave trap, one field at a time.
+  // travel(): a motion path is read live at paint, so every one of its
+  // fields participates here or a change to that field prunes into its
+  // predecessor. `path` carries the shape seam's contract (a comparable
+  // scheme prunes; the raw-callable escape hatch never compares equal),
+  // `t` compares as any Animatable lane does, and `lookAhead` is a plain
+  // float — easy to overlook precisely because it looks inert, and it
+  // changes the node's ORIENTATION.
   if ((bool)a.motionData != (bool)b.motionData)
     return false;
   if (a.motionData &&
@@ -601,11 +621,11 @@ Composer::Impl::resolveMemo(Instance *existing,
     return node;
   }
   // A memo is a pure function of (props, ENVIRONMENT). The environment is
-  // compared first and for the same reason props are: an `env::` binding
-  // is read live by the deferred describe, so a memo that hit on props
-  // alone would serve the theme it first described under forever — the
-  // "anything read live must participate in reconciler equality" law
-  // (DESIGN, Growth rules), applied to the one deferred describe there is.
+  // compared first and for the same reason props are: an `env::` binding is
+  // read live by the deferred describe, so a memo that hit on props alone
+  // would keep serving whatever environment it first described under. This
+  // is the same rule the comparators above follow — anything read live
+  // participates in equality — applied to the one describe that is deferred.
   if (existing && existing->memoShell &&
       envEqual(existing->memoShell->memoData->env, node->memoData->env) &&
       existing->memoShell->memoData->equal(existing->memoShell->memoData->props,
@@ -646,13 +666,16 @@ Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
 
 namespace {
 
-/** §19: does anything this description paints anchor to the composer root
- *  (Material::worldSpace)? Every seam that resolves a Material against the
- *  node's PaintContext is walked — the fill slot, textFill's metric
- *  material, both effects' child materials, the mask coverage materials —
- *  and the answer lands on the INSTANCE as one bool, so the per-relayout
- *  syncLayoutRects walk and the per-frame volatility walk never re-walk a
- *  material tree. */
+/** Does anything this description paints anchor its field to the composer
+ *  root (Material::worldSpace)? Every place a Material is resolved against
+ *  the node's PaintContext is checked — the fill slot, textFill's metric
+ *  material, both effects' child materials, the mask coverage materials.
+ *  Miss one and a world-space material reached through it will not be
+ *  invalidated when the node moves.
+ *
+ *  The answer is cached on the INSTANCE as a single bool so that the
+ *  per-relayout rect walk and the per-frame volatility walk never have to
+ *  descend a material tree again. */
 bool nodeUsesWorldSpace(const ElementNode &n) {
   if (n.materialData) {
     if (n.materialData->live && n.materialData->live->usesWorldSpace())
@@ -675,14 +698,18 @@ bool nodeUsesWorldSpace(const ElementNode &n) {
   return false;
 }
 
-/** §19: did the DESCRIBED transform change between two descriptions? A
- *  re-described static rotation on an ancestor moves every descendant's W
- *  while the descendants themselves prune — no rect changes (layout is
- *  untouched), no binding is connected (volatility never fires), so
- *  neither of the other two movement classes catches it. The patch asks
- *  this and stales the world-space descendants by hand. Lanes mirror
- *  propsEqual's transform block plus travel() (which replaces the
- *  translate lanes and adds to rotate). */
+/** Did the DESCRIBED transform change between two descriptions?
+ *
+ *  There are three ways a node's node-to-root matrix W can move, and this
+ *  covers the one nothing else does. A re-described static rotation on an
+ *  ancestor moves every descendant's W while those descendants themselves
+ *  prune: no rect changed, so the layout walk sees nothing, and no binding
+ *  is connected, so the volatility walk sees nothing either. The patch asks
+ *  this question and stales the world-space descendants by hand.
+ *
+ *  The lanes must mirror propsEqual's transform block plus travel(), which
+ *  replaces the translate lanes and adds to rotate. A lane present there and
+ *  missing here is a world-space material left on a stale W. */
 bool describedTransformEqual(const ElementNode &a, const ElementNode &b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (!propEqual(pa.translateX, pb.translateX) ||
@@ -703,8 +730,8 @@ bool describedTransformEqual(const ElementNode &a, const ElementNode &b) {
   return true;
 }
 
-/** §19: mark every world-space-carrying descendant's OWN paint dirty —
- *  their recordings baked a W the caller just changed. */
+/** Mark every world-space-carrying descendant's OWN paint dirty — their
+ *  recordings baked a node-to-root matrix the caller just changed. */
 void staleWorldSpaceBelow(Instance &inst) {
   for (auto &child : inst.children) {
     if (child->hasWorldSpaceMaterial)
@@ -740,12 +767,13 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     inst.markPaintDirtyUp();
     contentDirty = true;
 
-    // §19: the instance flag, once per patch (a pruned node keeps its
-    // flag — equal props mean equal materials); and the third movement
-    // class: a changed DESCRIBED transform moves every descendant's W
-    // while those descendants prune, so the world-space ones are staled
-    // by hand here (layout moves ride syncLayoutRects, bound transforms
-    // ride the volatility walk).
+    // Recompute the world-space flag once per patch. A pruned node keeps
+    // its existing flag, which is correct: equal props mean equal
+    // materials. Then the movement class only this branch can see — a
+    // changed described transform moves every descendant's node-to-root
+    // matrix while those descendants prune — so the world-space ones are
+    // staled by hand. (Layout moves are caught by the rect sync walk;
+    // bound transforms by the volatility walk.)
     inst.hasWorldSpaceMaterial = nodeUsesWorldSpace(*resolved);
     if (prev && !describedTransformEqual(*prev, *resolved))
       staleWorldSpaceBelow(inst);
@@ -760,8 +788,9 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     }
 
     applyLayoutProps(inst);
-    // centerAt lives outside Yoga's style set (resolved in ensureLayout's
-    // second pass), so a moved pin must force the layout pass itself.
+    // centerAt lives outside Yoga's style set — it is applied inside
+    // ensureLayout's convergence loop — so a moved pin has no dirty bit of
+    // its own and must force the layout pass to run.
     if (!prev || prev->layout.centerAt != resolved->layout.centerAt)
       needsLayout = true;
     // A positioned child's rect IS its layout props: a change must run
@@ -1036,9 +1065,11 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   YGNodeStyleSetFlexShrink(n, l.shrink);
   applyDim(n, l.basis, &YGNodeStyleSetFlexBasis, &YGNodeStyleSetFlexBasisPercent);
   YGNodeStyleSetAlignItems(n, toYogaAlign(l.alignItems));
-  // Measured text must not stretch on the cross axis (the spike's API
-  // lesson): demote a resolved Stretch to Start for text leaves, but let
-  // explicit alignment — own or inherited — through untouched.
+  // Measured text must not stretch on the cross axis: a stretched text leaf
+  // is re-measured against a width it did not ask for, and the box stops
+  // fitting the type. Demote a RESOLVED Stretch to Start for text leaves,
+  // while letting any explicit alignment — the node's own or inherited from
+  // the parent — through untouched.
   Align self = l.alignSelf;
   if (inst.desc->kind == Kind::Text) {
     const Align resolved =

@@ -51,16 +51,21 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
   // exact inverse of paint()'s matrix stack).
   const SkRect rect = instanceRect(inst);
   SkPoint local{parentPt.x() - rect.left(), parentPt.y() - rect.top()};
-  // ONE resolver for the whole matrix (Paint.cpp) — a travelling node's
-  // position replaces the translate lanes and its auto-orient adds to
-  // rotate, and the hit test must undo exactly what paint() applied.
+  // One resolver for the whole matrix, the same one paint uses — a
+  // travelling node's position replaces the translate lanes and its
+  // auto-orient adds to rotate, and the hit test must undo exactly what
+  // paint applied.
   const NodeTransform tf = transformOf(inst);
-  // §44.8 step 0: the inverse is SkMatrix::invert of THE matrix producer
-  // (NodeTransform::matrix), not a hand-unwound copy of it. Degenerate
-  // lanes keep the old hand-inverse's semantics — a zero scale axis or a
-  // numerically singular skew pair means that STEP is skipped (treated as
-  // identity), never a refusal: a zero-scaled node still answers hits as
-  // if unscaled, exactly as the component-wise code did.
+  // The inverse comes from SkMatrix::invert of that same matrix producer
+  // (NodeTransform::matrix), never a hand-unwound copy. Two spellings of
+  // one transform drift the moment either gains a lane, and the drift shows
+  // up as hits landing off the pixels — which is why the producer is shared
+  // rather than mirrored here.
+  //
+  // Degenerate lanes are sanitized rather than refused: a zero scale axis or
+  // a numerically singular skew pair makes that STEP identity, so a
+  // zero-scaled node still answers hits as if unscaled instead of becoming
+  // unhittable.
   NodeTransform safe = tf;
   if (tf.scl * tf.sx == 0 || tf.scl * tf.sy == 0)
     safe.scl = safe.sx = safe.sy = 1;

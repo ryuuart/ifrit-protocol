@@ -73,9 +73,9 @@ float naturalWidth(const std::vector<Word> &words, uint32_t firstWordIndex,
                    uint32_t endWordIndex);
 
 // Whether tab stops are configured at all (ParagraphLayoutOptions::tabStops).
-// Inline (as is glueAfter below): both sit on the breakers' hot loops, and
-// keeping them header-defined preserves the inlining they had as
-// TU-local functions.
+// Defined in the header (as is glueAfter below) rather than in one of the
+// breaker translation units: both are called from the innermost loops of
+// both breakers, and both must stay inlinable there.
 inline bool tabStopsActive(const ParagraphLayoutOptions &options) {
   return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
 }

@@ -24,9 +24,9 @@
 //
 // This plate therefore samples every style FIVE ways:
 //
-//   the fan      straight runs at thirteen angles out of one origin
+//   the fan      straight runs at twenty angles out of one origin
 //   the serpent  an S-curve with one gentle bend and one tight one
-//   the rings    concentric circles from r=250 down to r=55 — the same
+//   the rings    concentric circles from r=160 down to r=42 — the same
 //                style at five curvatures, which is the honest test
 //   the torture  a spiral and a hairpin, where offsets self-intersect
 //   the frames   closed rectangles, for the corner and border language
@@ -36,11 +36,12 @@
 // (parallel pairs, phase-registered dashes), and nothing is captioned in
 // prose — the caption IS the call.
 //
-// WHAT THIS SHEET IS FOR. The complaint that started run 2 was that
-// sketches keep drawing dashes, straight lines and the occasional double
-// rule and stop there, while the library already ships far more. That is a
-// DISCOVERABILITY failure, not a capability one, and a list in a header
-// does not fix it — you have to see the thing. Point an implementer here.
+// WHAT THIS SHEET IS FOR. It is easy to reach for a dash, a straight line
+// and the occasional double rule and stop there, because those are the
+// calls one already knows, while the library ships a great deal more. That
+// is a DISCOVERABILITY problem, not a capability one, and a list of names
+// in a header does not fix it — you have to see the thing. Point a reader
+// here.
 //
 // BUILT FROM (the library, not by hand):
 //   lines::Line          parallels/gap/coreWidthFactor, wave + zigzag,
@@ -50,7 +51,7 @@
 //   kit::brush::shapers::wave/square/zigzag/rounded/jitter/offset
 //                        as Brush pipelines, through .shaped()
 //   Brush                .shaped() pipeline + multi-layer; the per-layer
-//                        suffix takes shapers too (R3 closed the gap)
+//                        suffix takes shapers too
 //   kit::brush::presets::filament/circuit/rope/pulse            LayeredBrush stacks
 //   brush::Ribbon      taper and calligraphic nib
 //   brush::Scatter/Pattern/Art/restyle
@@ -123,7 +124,8 @@ sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
   return s;
 }
 
-/** The caption IS the call: monospaced, small, ink at 70%. */
+/** The caption IS the call: monospaced, small, and set in the same ink as
+ *  the body unless a caller asks for a lighter one. */
 Element call(const char *text, float size = 9.5f, SkColor4f c = kInk) {
   return sigil::compose::text(util::toU8(text), style(gType.mono, size, c, 0.1f));
 }
@@ -255,11 +257,12 @@ Element rule(float x, float y, float w, Decoration dec) {
       .stroke(std::move(dec));
 }
 
-/** The numeral and the name, set as a ROW rather than at a hand-measured
- *  offset. They used to be two absolutely-placed children 26 px apart,
- *  which is exactly the width of "VII" in this face and 8 px short of
- *  "VIII" — so the eighth section ran its name into its own number. A
- *  baseline-aligned row cannot get that wrong for any numeral. */
+/** The numeral and the name, set as a ROW rather than as two absolutely
+ *  placed children a fixed distance apart. A fixed offset has to be chosen
+ *  wide enough for the widest numeral on the sheet — "VIII" is wider than
+ *  "VII" by more than a word space in this face — and gets it wrong for
+ *  every other one. A baseline-aligned row cannot collide for any numeral,
+ *  in any face. */
 Element sectionTitle(float x, float y, const char *n, const char *name) {
   return box()
       .absolute()
@@ -304,8 +307,9 @@ std::vector<Style> railStyles() {
   offsetLine.across = -7.0f;
 
   // …and the same family through lines::Rails, where each rail is its own
-  // line. This is the group the old `parallels` count could not reach:
-  // per-rail width, per-rail fill, per-rail dash, unequal gaps.
+  // line. A `parallels` count cannot reach these: it spaces N identical
+  // rails evenly, so per-rail width, per-rail fill, per-rail dash phase and
+  // unequal gaps all need the rails spelled out one at a time.
   lines::Rails inkRedInk = lines::rails({
       {.across = 5, .width = 2.4f, .fill = ink()},
       {.across = 0, .width = 0.7f, .fill = red()},
@@ -552,7 +556,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         const float t = n > 1 ? (float)i / (float)(n - 1) : 0.5f;
         const float deg = -54.0f + t * 108.0f;
         // The spoke carries only a NUMERAL, and it sits at the OUTER end
-        // where the thirteen rules are maximally separated. Captions along
+        // where the twenty rules are maximally separated. Captions along
         // the spokes converge on the pivot — which is exactly where they are
         // closest together — so no amount of nudging saves them. A numbered
         // key is what a specimen sheet does with a crowded figure, and it
@@ -684,9 +688,9 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         const float lx = cx + std::cos(r.angle) * r.r;
         const float ly = cy + std::sin(r.angle) * r.r;
         // The leader runs OUT of the cluster to a caption column clear of
-        // every ring. Captions placed just off their own ring sat on top of
-        // the rings outside them, which is the one thing a plate of
-        // concentric rules must not do.
+        // every ring. A caption set just off its own ring lands on top of
+        // the rings outside it, which is the one thing a plate of concentric
+        // rules must not do.
         const float capX = 1352;
         plate.child(box()
                         .absolute()
@@ -831,9 +835,10 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         Decoration dec;
         float rot = 0;
         std::optional<LayerStyle> style; // set instead of dec for stacks
-        std::optional<Spans> where;      // §33-j: span-qualified specimens
+        std::optional<Spans> where;      // set to stroke only part of the
+                                         // outline instead of all of it
       };
-      // 1..14, laid out in two staggered rows.
+      // Laid out in two staggered rows of seven and eight.
       std::vector<Frame> frames;
       auto add = [&](const char *label, shapes::OutlineFn shape, Decoration dec,
                      float rot = 0) {
@@ -845,10 +850,11 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
                                rot, std::move(style), std::nullopt});
       };
-      // §33-j (2026-08-04): the corner-bracket and open-corner rows are the
-      // GRAMMAR's spelling now — a span claim on the frame's real boundary.
-      // decorations::brackets/gappedRule are deleted; the captions print
-      // the surviving API, as this page always has.
+      // Corner brackets and open-corner rules are spelled as a SPAN claim on
+      // the frame's own outline — stroke(spans::corners(n), …) — rather than
+      // as a dedicated decoration that draws its own rectangle. The ink then
+      // follows whatever shape the node actually has, so the same call gives
+      // four brackets on a rect and eight on a chamfer.
       auto addSpans = [&](const char *label, shapes::OutlineFn shape,
                           Spans where, Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
@@ -882,7 +888,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         // lozenge on the bisector: a rectangle's outgoing legs are axis
         // aligned, so under Outgoing the same polygon(4, 45) comes back
         // as four upright SQUARES and the label stops being true of the
-        // picture beside it. Measured both ways before writing this.
+        // picture beside it.
         tiled.corner = brush::CornerArt{box()
                                               .width(15)
                                               .height(15)
@@ -976,11 +982,10 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
 
     // ---- VIII. WHICH WAY A CORNER FACES ----------------------------------
     // The corner tile is the one piece of brush art whose ROTATION is a
-    // design decision rather than a consequence, and until this plate
-    // there was no way to see which one you were getting — every corner
-    // silently took the outgoing tangent, and on a rectangle that made
-    // three corners agree and the fourth (the closed contour's seam,
-    // which alone wrapped its probes) sit 45 degrees off.
+    // design decision rather than a consequence of the path, which is why
+    // brush::CornerArt makes the caller state it. Taking the outgoing
+    // tangent and taking the corner bisector agree nowhere on a rectangle:
+    // they differ by half the turn at every vertex.
     //
     // The art below is a CHEVRON pointing along its own local +x, so the
     // difference is unmissable: on the bisector it points out of each
@@ -1043,9 +1048,10 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                                    .left(0)
                                    .top(126)));
       }
-      // And the placement itself: the corner sits ON the vertex now. A
-      // chamfer has EIGHT of them, which is the case that makes a
-      // half-a-detection-step error obvious.
+      // And the placement itself: the corner art sits ON the vertex. A
+      // chamfer has EIGHT vertices at short intervals, which is the case
+      // where a tile landing half a step off along the contour is obvious
+      // rather than looking like a rounding difference.
       brush::Pattern octo;
       octo.side = tick();
       // Bisector, and it is load-bearing for what this specimen is FOR.
@@ -1055,7 +1061,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // Under Outgoing they alternate square/diamond, because a chamfer's
       // legs alternate axis-aligned and 45 degrees, and that alternation
       // is a confound: you cannot tell a misplaced tile from a merely
-      // differently-rotated one. Measured both ways.
+      // differently-rotated one.
       octo.corner = brush::CornerArt{box()
                                            .width(13)
                                            .height(13)

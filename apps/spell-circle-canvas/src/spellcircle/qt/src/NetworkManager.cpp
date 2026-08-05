@@ -3,9 +3,12 @@
 #include "UdpReceiver.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 #include <flatbuffers/flatbuffers.h>
 #include <spdlog/spdlog.h>
 
@@ -99,21 +102,36 @@ void NetworkManager::setStatusText(const QString &statusText) {
 }
 
 QString NetworkManager::configFilePath() {
+  return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
+         "/network_config.json";
+}
+
+QString NetworkManager::legacyConfigFilePath() {
   return QCoreApplication::applicationDirPath() + "/network_config.json";
 }
 
 bool NetworkManager::load() {
-  QFile file(configFilePath());
+  QString path = configFilePath();
+  if (!QFile::exists(path)) {
+    // A config that lives beside the executable keeps loading until the
+    // first save() writes the per-user location, which wins from then on —
+    // settings stored next to the binary migrate on the next save.
+    const QString legacyPath = legacyConfigFilePath();
+    if (QFile::exists(legacyPath))
+      path = legacyPath;
+  }
+
+  QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
     spdlog::info("NetworkManager: no config file at {}, using defaults",
-                 configFilePath().toStdString());
+                 path.toStdString());
     return false;
   }
 
   const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
   if (!document.isObject()) {
     spdlog::warn("NetworkManager: malformed config file at {}",
-                 configFilePath().toStdString());
+                 path.toStdString());
     return false;
   }
 
@@ -127,10 +145,12 @@ bool NetworkManager::save() const {
   QJsonObject rootObject;
   rootObject["port"] = m_port;
 
-  QFile file(configFilePath());
+  const QString path = configFilePath();
+  QDir().mkpath(QFileInfo(path).absolutePath());
+  QFile file(path);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
     spdlog::error("NetworkManager: failed to write config file at {}",
-                  configFilePath().toStdString());
+                  path.toStdString());
     return false;
   }
   file.write(QJsonDocument(rootObject).toJson(QJsonDocument::Indented));

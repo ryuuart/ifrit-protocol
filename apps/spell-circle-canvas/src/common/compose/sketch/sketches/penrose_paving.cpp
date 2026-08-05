@@ -48,17 +48,18 @@
 //   d = min(|r−s|, 5−|r−s|); d=1 → fat rhomb, d=2 → thin rhomb. The tile's
 //   world orientation is ζ_r and ζ_s themselves — never a stored angle — so
 //   the arc decoration is built in the tile's own edge frame and is correct by
-//   construction rather than by eyeballing (brief §10).
+//   construction rather than by eyeballing.
 //
 //   CHANGE kOffset ALONE and you get a DIFFERENT, still-valid Penrose tiling:
 //   0.2 is the Γ=0, exactly 5-fold-symmetric member (the composition centres
 //   on its 5-fold point); 0.1 is Γ=1/2, the anti-Penrose tiling — its illegal
 //   vertex stars show up immediately in the arc chains.
 //
-//   THE ARCS are not free either, and not "at the acute corners" — that was
-//   the first guess here and it is wrong. Every edge of the whole tiling runs
-//   tail → tail + ζ_j for a fixed j, a globally consistent orientation the
-//   dualization hands you. Mark each edge at a·s from its TAIL and both marks
+//   THE ARCS are not free either, and they are NOT "at the acute corners".
+//   Every edge of the whole tiling runs tail → tail + ζ_j for a fixed j, a
+//   globally consistent orientation the dualization hands you: the tile's
+//   corners come out of Σ_j K_j ζ_j, so no edge is free to point the other
+//   way. Mark each edge at a·s from its TAIL and both marks
 //   around corner z sit at a·s while both around z+ζ_r+ζ_s sit at (1−a)·s;
 //   the other two corners see one of each and admit no circular arc at all.
 //   So the two arcs live on the ζ_r+ζ_s DIAGONAL — the acute pair on a fat
@@ -69,19 +70,20 @@
 //   The chain is then C0 across every shared edge whatever meets there (both
 //   endpoints are the edge's exact midpoint) and C1 as well (an arc centred
 //   on an endpoint of the edge crosses that edge perpendicularly, from both
-//   sides). Proof, not assertion — verify() checks all of it numerically at
-//   startup and prints the result; getting the corner pair wrong changes the
-//   loop topology from the photograph's interlocking rings to a field of
-//   isolated little circles, which is exactly what happened here first.
+//   sides). Proof, not assertion — verify() checks the angle sums, the arc
+//   chain and the endpoint radii numerically at startup and prints the
+//   result. Getting the corner pair wrong is not a subtle error: it changes
+//   the loop topology from the photograph's interlocking rings to a field of
+//   isolated little circles.
 //
 //   The deflation vignette runs the OTHER construction — Robinson-triangle
 //   substitution, acute → 1 acute + 1 obtuse, obtuse → 1 acute + 2 obtuse,
 //   ×1/φ — i.e. rhomb-level Fat → 2 Fat + 1 Thin, Thin → 1 Fat + 1 Thin, so
-//   1 → 3 → 8 → 21 rhombs, audited three ways per generation: area
+//   1 → 3 → 8 → 21 rhombs, checked three ways per generation: area
 //   conservation, every child inside a parent, and a point-sampled coverage
-//   test (0 uncovered, 0 double-covered) — the first two both pass on a
-//   subdivision that overlaps here and gaps there, so only the third is
-//   actually a proof of tiling.
+//   test counting uncovered and double-covered samples — the first two both
+//   pass on a subdivision that overlaps here and gaps there, so only the
+//   third is actually a proof of tiling.
 //
 // IT IS STONE, NOT A DIAGRAM: every sett is a slab with a real saw-cut joint,
 // a chamfered arris shaded against one world-fixed sun, a seeded granite
@@ -132,8 +134,8 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
 }
 
 // ---------------------------------------------------------------------------
-// Palette (brief §4 — representative matches for the NAMED granite products,
-// not a colorimeter reading of the installed slabs). Royal White is pulled a
+// Palette — representative matches for the NAMED granite products, not a
+// colorimeter reading of the installed slabs. Royal White is pulled a
 // little off its showroom "snow white" because these are weathered outdoor
 // setts under an overcast sky, and because a φ²-weighted majority of the field
 // is fat rhombs: at the catalogue value the plaza blows out to paper.
@@ -155,12 +157,12 @@ const SkColor4f kNight = rgb(0x101112);
 const SkColor4f kCaption = rgb(0x9CA0A2);
 
 // ---------------------------------------------------------------------------
-// Composition (brief §7, adapted). The brief specifies a 600 px circular field
-// on black; the artefact is a PLAZA, so the paving runs full bleed and the
-// field's termination is the canvas edge plus a daylight falloff — the honest
-// treatment for an aperiodic field, which has no periodic register to frame
-// into. The pentagrid origin still sits at canvas centre, so the γ=1/5
-// construction's exact 5-fold point is the composition's centre.
+// Composition. The artefact is a PLAZA, so the paving runs full bleed: the
+// field is terminated by the canvas edge and a daylight falloff rather than by
+// a frame. An aperiodic field has no periodic register to frame into — any
+// border would cut tiles at an arbitrary place and imply a repeat that is not
+// there. The pentagrid origin sits at canvas centre, which puts the γ=1/5
+// construction's exact 5-fold point at the centre of the composition.
 
 constexpr float kW = 1600, kH = 1200;
 constexpr float kCx = kW * 0.5f, kCy = kH * 0.5f;
@@ -175,8 +177,9 @@ constexpr float kDiagW = 328.0f, kDiagH = 224.0f; // the vignette's drawing box
 const SkVector kSunTo{0.48f, 0.877f}; // the light's direction of travel
 
 // ---------------------------------------------------------------------------
-// Timeline (brief §9). Delays are a continuous function of each tile's own
-// centre distance — the radial stagger the pentagrid hands us for free.
+// Timeline. Every delay is a continuous function of a tile's own centre
+// distance from the pentagrid origin, so the radial stagger falls out of the
+// geometry and no tile carries a schedule of its own.
 
 constexpr double kPeriod = 9.2;
 constexpr double kTileT0 = 0.05, kTileSweep = 1.35, kTileDur = 0.52;
@@ -322,7 +325,7 @@ std::vector<Tile> buildField(float module, float padPx) {
 }
 
 // ---------------------------------------------------------------------------
-// The arc decoration, built in the tile's OWN edge frame (brief §10)
+// The arc decoration, built in the tile's OWN edge frame
 
 struct ArcSpec {
   SkPoint centre{}; // the arc-carrying vertex (v[0] or v[2])
@@ -369,8 +372,10 @@ SkPath arcPath(const ArcSpec &a, float module, float shortenPx) {
 }
 
 // ---------------------------------------------------------------------------
-// Verification (the brief's non-negotiable): the tiling must obey its own
-// rules BEFORE any of it is worth polishing.
+// Verification: the tiling must obey its own rules before any of the surface
+// treatment is worth looking at. A dualization that is subtly wrong still
+// renders a plausible field of rhombs, so the checks below are numeric and
+// run at startup rather than being left to the eye.
 
 struct Audit {
   int tiles = 0, fat = 0, thin = 0;
@@ -425,8 +430,11 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
 
   // 2. Matching-arc chain. Every arc endpoint must land on an edge MIDPOINT,
   //    and every interior edge must collect exactly two of them (one from each
-  //    of the two tiles sharing it) — that is the chain. The tangent check
-  //    confirms C1: both arcs cross the shared edge perpendicularly.
+  //    of the two tiles sharing it) — that is the chain. The radius check
+  //    below pins the edge length at the same time: an endpoint exactly
+  //    module/2 from its own arc centre is what makes two arcs of radius
+  //    module/2, centred on the two ends of a shared edge, meet tangentially
+  //    at its midpoint.
   std::unordered_map<int64_t, std::pair<int, SkPoint>> ends;
   std::unordered_map<int64_t, int> mids;
   for (const Tile &t : tiles) {
@@ -436,7 +444,14 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
     }
     for (int k = 0; k < 2; ++k) {
       const ArcSpec s = arcAt(t, k, module);
-      for (const SkPoint e : {s.end0, s.end1}) {
+      // The edge each endpoint sits on, read back from the tile's own
+      // vertices: end0 is the midpoint of the edge to v[ai+1], end1 of the
+      // edge to v[ai+3].
+      const int ai = t.arcAt[k];
+      const SkPoint edgeFar[2] = {t.v[(ai + 1) % 4], t.v[(ai + 3) % 4]};
+      const SkPoint endPts[2] = {s.end0, s.end1};
+      for (int ei = 0; ei < 2; ++ei) {
+        const SkPoint e = endPts[ei];
         auto &slot = ends[qkey(e)];
         slot.first++;
         slot.second = e;
@@ -446,15 +461,19 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
             (double)std::abs(std::hypot(e.x() - s.centre.x(),
                                         e.y() - s.centre.y()) -
                              module * 0.5f));
-        // tangent check: the arc tangent at e is perpendicular to the edge,
-        // i.e. parallel to the radius' perpendicular — |(e−centre)·edgeDir|
-        // must vanish only if the radius IS the edge direction, which it is.
+        // Tangent check, the C1 half: the arc's tangent at e must be
+        // perpendicular to the edge e sits on. The tangent comes from the
+        // arc's own radius; the edge direction comes from the tile's two
+        // VERTICES — two independent measurements, so an arc centre or an
+        // endpoint that drifts off its tile moves this dot product off zero.
         const double rx = e.x() - s.centre.x(), ry = e.y() - s.centre.y();
         const double L = std::hypot(rx, ry);
         const double tx = -ry / L, ty = rx / L; // arc tangent at e
-        const double ex = rx / L, ey = ry / L;  // the edge direction at e
-        a.worstTangentErr =
-            std::max(a.worstTangentErr, std::abs(tx * ex + ty * ey));
+        const double edx = edgeFar[ei].x() - t.v[ai].x();
+        const double edy = edgeFar[ei].y() - t.v[ai].y();
+        const double eL = std::hypot(edx, edy); // the edge, vertex to vertex
+        a.worstTangentErr = std::max(
+            a.worstTangentErr, std::abs((tx * edx + ty * edy) / eL));
       }
     }
   }
@@ -475,9 +494,10 @@ Audit verify(const std::vector<Tile> &tiles, float module) {
 
 // ---------------------------------------------------------------------------
 // Granite. Two recipes, per the sourcing: Royal White carries larger, sparser
-// black feather-veining; Kobra grey a finer, denser, more uniform speckle.
-// Seeded off the tile's own identity so ~450 repeats of two shapes never read
-// as a stamped texture.
+// black feather-veining; Kobra grey a finer, denser, more uniform speckle —
+// two recipes, not one texture tinted twice. Each is seeded off the tile's
+// own identity so that a field made of two repeated shapes never reads as a
+// stamped texture.
 
 struct Granite {
   SkColor4f base, lit, vein;
@@ -487,18 +507,16 @@ struct Granite {
   float veinContrast; // how hard the dark inclusions bite
 };
 
-// Royal White: larger, sparser black feather-veining. Kobra grey: a finer,
-// denser, more uniform speckle. Two recipes, per the stone suppliers'
-// descriptions — not one texture tinted twice.
 const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein,
                           0.56f,      1.05f,     0.052f,
                           0.42f};
 const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f, 0.88f, 0.070f,
                          0.32f};
 
-// A bank keyed by (species, seed bucket): ~40 recipes per granite is far more
-// variety than 450 setts at 10 possible orientations can expose, and it keeps
-// the live shader count in the dozens rather than the hundreds.
+// A bank keyed by (species, seed bucket). A tile's seed is folded into one of
+// 40 buckets per granite, which is more variety than a field of two prototiles
+// at ten orientations can expose, and it caps the number of live shaders at
+// 80 instead of one per sett.
 class GraniteBank {
 public:
   Material get(const Granite &g, uint32_t seed, bool fat) {
@@ -514,12 +532,11 @@ public:
                        std::clamp(c.fG * (1 + k), 0.f, 1.f),
                        std::clamp(c.fB * (1 + k), 0.f, 1.f), 1};
     };
-    // The slab body: a shallow unit-square ramp from the sun-facing corner to
-    // the shaded one. linearUnit, not linear() — a sett's box is whatever its
-    // rotation makes it, and the ramp has to land the same way on all ten.
-    // A shallow ramp across the slab from its sun corner to its shaded one.
-    // linearUnit, not linear() — a sett's box is whatever its rotation makes
-    // it, and the ramp has to land the same way on all ten orientations.
+    // The slab body: a shallow ramp across the slab from its sun-facing
+    // corner to its shaded one. linearUnit, not linear() — the ramp is stated
+    // in unit-box coordinates because a sett's bounding box is whatever its
+    // rotation makes it, and the ramp has to land the same way on all ten
+    // orientations.
     auto mixc = [](SkColor4f a, SkColor4f b, float u) {
       return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
                        a.fB + (b.fB - a.fB) * u, 1};
@@ -675,8 +692,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   GraniteBank bank;
   Audit audit;
 
-  // ONE progress per sett, in [0,1]; bind() shapes it differently at each
-  // property (see the manager's note — kumiko paid for two vectors here).
+  // One raw progress per sett, in [0,1]. bind() reshapes it at the property
+  // it feeds, so the fade and the seating overshoot ride the same `grow`
+  // value under different curves instead of needing a vector of Outputs each.
   std::vector<choreograph::Output<float>> grow, arcT;
   choreograph::Output<float> sheen{0};
   double t = 0;
@@ -819,8 +837,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // The deflation vignette (brief §9 beat 3) — the OTHER construction,
-  // rendered flat so it reads as the diagram beside the paving.
+  // The deflation vignette — the OTHER construction, rendered flat so it
+  // reads as the diagram beside the paving rather than as more paving.
 
   Element diagram(int gen) {
     const std::vector<Tri> &tri = gens[(size_t)std::clamp(gen, 0, 3)];
@@ -871,15 +889,17 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
               // NO per-piece scale: scaling each half about its own
               // centre pulls a subdivision apart, and a deflation
               // diagram that shows gaps is saying the opposite of
-              // what it is for. The patch as a whole takes the
-              // entrance instead (see the group below).
+              // what it is for. The enclosing group takes the
+              // entrance transform instead.
               .opacity(animate(from(0.0f).to(1.0f),
                                Transition{260ms, choreograph::easeOutQuad})));
     }
 
-    // The rhomb outlines: every triangle's a→b→c run WITHOUT the closing edge,
-    // because c→a is the diagonal each pair of halves shares. Drawing the two
-    // real edges only is what turns 26 triangles back into 13 rhombs on paper.
+    // The rhomb outlines: every triangle is run b→a→c and left OPEN, so the
+    // b→c edge is never drawn — that edge is the diagonal each pair of halves
+    // shares, so a Robinson triangle's two real rhomb edges are exactly the
+    // two this run does draw. Close the path and the diagram claims a tiling
+    // by triangles, which is the one thing it must not say.
     auto edges = tri;
     group.child(custom([edges](SkCanvas &c, const PaintContext &) {
                   SkPaint p;
@@ -928,10 +948,10 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   Element describe(sketch::SketchContext &ctx) {
     (void)ctx;
-    // The positioned leaf set (ROADMAP §2/Direction 1): every sett
-    // carries its own computed rect and the scene has zero layout in
-    // it — under a plain box() these 549 setts (+2 inlays each) cost
-    // 1,647 Yoga nodes; positioned() mounts them with none.
+    // A positioned leaf set: every sett already carries its own computed
+    // rect, so there is nothing for a layout pass to solve. Under a plain
+    // box() each sett and its two inlays would mount three flex nodes;
+    // positioned() mounts them with none.
     auto field = positioned().inset(0, 0, 0, 0);
     for (size_t i = 0; i < tiles.size(); ++i)
       field.child(sett(tiles[i], i));
@@ -945,18 +965,20 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     return stack()
         .fill(Fill::color(kJointBed))
         // the bedding course showing through the saw cuts
-        // perf-pass: full-canvas procedural grain, STATIC, but the single
-        // most expensive node in the frame — 109 ms/frame of live eval on the
-        // CPU raster backend (opacity 0.20 refuses an auto-bake). Bake once.
-        // GPU was already 9.7ms; provably static so the cache STICKS.
+        // A procedural grain evaluated over every pixel of the canvas, and
+        // the most expensive node in the frame by a wide margin. Nothing it
+        // depends on animates, so Cache::Texture bakes it once and the cache
+        // never invalidates; the node's opacity is what keeps it out of the
+        // automatic bake, so the cache has to be asked for by hand.
         .child(box().inset(0, 0, 0, 0).fill(
             patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f)
                    .cache(Cache::Texture))
         .child(field)
-        // Weathering at PLAZA scale — 250 px cells, i.e. a couple of metres
-        // of traffic staining that crosses joints because dirt does not know
-        // where the setts are. Baked: it never changes, and one grain octave
-        // over 1.9 Mpx is the most expensive thing in the frame.
+        // Weathering at PLAZA scale — cells a couple of hundred px across,
+        // i.e. metres of traffic staining that crosses joints because dirt
+        // does not know where the setts are. Baked: it never changes, and a
+        // two-octave grain over the whole canvas is not worth re-evaluating
+        // once a frame to get the same pixels back.
         .child(box()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
@@ -969,8 +991,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // ---- daylight. One multiply pass carries both the sun's falloff
         // across the plaza and the corner vignette; a plaza is not evenly lit
         // and an evenly lit tiling is exactly what reads as a diagram.
-        // perf-pass: static full-canvas daylight/vignette gradient under a
-        // multiply. Cached — the gradient eval stops re-running each frame.
+        // Static, so it is baked: nothing here depends on the clock and the
+        // gradient covers the whole canvas.
         .child(box()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
@@ -980,8 +1002,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                        {rgb(0xFAFAF8), rgb(0xE6E6E4), rgb(0xB2B4B8),
                         rgb(0x74777C), rgb(0x42454A)},
                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
-        // the sun pool itself, added back
-        // perf-pass: static full-canvas sun-pool gradient under a plus. Cached.
+        // the sun pool itself, added back — also static, baked for the same
+        // reason as the pass above
         .child(box()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kPlus)
@@ -1071,7 +1093,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     {
       // Seed: ONE fat rhomb = two obtuse Robinson halves mirrored across its
       // long diagonal (which joins the 72° corners and has length φ·s).
-      const double a0 = -0.9424777961; // −54°: the long diagonal lies flat
+      const double a0 = -0.9424777961; // −54°: the first edge's direction
       const V2 u{std::cos(a0), std::sin(a0)};
       const V2 v{std::cos(a0 + 1.2566370614), std::sin(a0 + 1.2566370614)};
       auto P = [&](V2 p) { return SkPoint{(float)p.x, (float)p.y}; };
@@ -1206,8 +1228,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       g = 0;
     if (g != generation) {
       generation = g;
-      // Only the vignette's mount point re-renders — the paving's ~450 setts
-      // and their caches are untouched.
+      // Only the vignette's mount point re-renders. The paving's setts and
+      // their baked caches are outside this slot and are not re-described.
       ctx.composer.renderSlot("deflate", diagram(g));
     }
   }

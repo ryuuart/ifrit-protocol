@@ -1,20 +1,25 @@
 #pragma once
 
 /** @file
- * SigilCompose layer styles — the PHOTOSHOP ROUTE to rich surfaces: fake
- * bevels, metallic sheens, inner shadows, glows and overlays built from
- * gradients + blurs + blend modes, never shaders. This is the compositional
- * peer to the SkSL route (Sdf.h / Material::sksl): illusory, art-directable,
- * and the native idiom of the y2k / layer-styles era — a chrome button is a
- * gradient ramp, a bevel is two opposed inner shadows, glass is a highlight
- * lens over a body ramp.
+ * SigilCompose layer styles — rich surfaces the way an image editor makes
+ * them: fake bevels, metallic sheens, inner shadows, glows and overlays,
+ * built from gradients, blurs and blend modes and never from shaders. This
+ * is the compositional peer to the SkSL route (Sdf.h, Material::sksl). It
+ * models no lighting: a chrome button is a gradient ramp, a bevel is two
+ * opposed inner shadows, glass is a highlight lens over a body ramp.
  *
- * Every style is a VALUE DecorationScheme (defaulted equality), so styled
- * chrome prunes and caches like any static decoration. Attach with
- * `.background()` (shadows/glows under the fill), `.foreground()` or the
- * `.stroke()`/overlay slots (above content), matching Photoshop's own
- * stacking: drop shadow < outer glow < fill < pattern/gradient/color
- * overlay < inner glow < inner shadow < bevel planes < stroke.
+ * Every style here is a VALUE decoration with defaulted equality, so styled
+ * chrome prunes and caches like any other static decoration — which is the
+ * reason to reach for these before writing a shader.
+ *
+ * ATTACHMENT IS THE CONTRACT. `.background()` paints BENEATH the node's
+ * fill, so anything attached there is hidden by an opaque fill: it is
+ * where shadows and outer glows belong, and where a body ramp belongs on a
+ * node with no fill of its own. `.foreground()` paints above the fill, the
+ * content and the children. The order that reads correctly is the familiar
+ * one — drop shadow, outer glow, fill, colour/gradient overlay, inner glow,
+ * inner shadow, bevel planes, stroke — and it is produced by which slot
+ * each style is attached to plus the order within that slot.
  */
 
 #include "sigilcompose/Compose.h"
@@ -63,22 +68,22 @@ inline sk_sp<SkShader> vRamp(float y0, float y1,
 }
 } // namespace detail
 
-/** Photoshop Drop Shadow — util::shadow under a coherent name. Attach as
- *  the FIRST background so the fill paints over it. */
+/** Drop shadow — `util::shadow` under the name it has in this family.
+ *  Attach as the FIRST background, so everything else paints over it. */
 inline util::Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
                                SkVector offset = {3, 3}, float size = 6) {
   return util::shadow(color, offset, size);
 }
 
-/** Inner Shadow: a blurred band hugging the inner edges — the recessed/
- *  punched-in look (and one half of every fake bevel). `offset` follows
- *  Photoshop: the direction the shadow is CAST, so (0, 3) casts downward
- *  and the band hugs the TOP inner edge.
+/** Inner shadow: a blurred band hugging the inner edges — the recessed,
+ *  punched-in look, and one half of every fake bevel. `offset` is the
+ *  direction the shadow is CAST, so (0, 3) casts downward and the band
+ *  therefore hugs the TOP inner edge.
  *
- *  Implementation note (the y2k-study bug): this is a FINITE stroked band
- *  clipped inside — never a mask-blurred inverse fill, whose bounds are
- *  device-dependent and flood the whole interior when cached at a
- *  non-origin offset. */
+ *  It is built as a FINITE stroked band clipped inside the outline, and
+ *  must stay that way. The obvious alternative — blurring an inverse fill
+ *  through a mask filter — has device-dependent bounds, so it floods the
+ *  whole interior when the node is cached at a non-origin offset. */
 struct InnerShadow {
   SkColor4f color = {0, 0, 0, 0.5f};
   SkVector offset = {0, 3};
@@ -99,9 +104,9 @@ struct InnerShadow {
     p.setStrokeWidth(reach);
     if (size > 0)
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, size * 0.5f));
-    // Cast semantics (empirically pinned by the bevel tests): shifting the
-    // stroked ring WITH the cast thickens its in-clip half on the edge the
-    // shadow falls from — offset (0,3) casts down, band hugs the top.
+    // Cast semantics: shifting the stroked ring WITH the cast direction
+    // thickens the half that stays inside the clip on the edge the shadow
+    // falls from — offset (0,3) casts down, so the band hugs the top.
     c.translate(offset.fX, offset.fY);
     c.drawPath(ctx.outline, p);
     c.restore();
@@ -138,11 +143,11 @@ struct OuterGlow {
   }
 };
 
-/** Bevel & Emboss, the fake-3D workhorse: two OPPOSED inner shadows — a
- *  highlight plane hugging the lit edges and a shadow plane hugging the
- *  far edges. Pure illusion (no lighting model): the y2k plastic/metal
- *  look. `angleDeg` is Photoshop's light angle (CCW from +x, light COMING
- *  FROM that direction; 120° ≈ upper-left). */
+/** Bevel and emboss, the fake-3D workhorse: two OPPOSED inner shadows — a
+ *  highlight plane hugging the lit edges and a shadow plane hugging the far
+ *  edges. There is no lighting model here; the depth is entirely in those
+ *  two bands. `angleDeg` is the light angle, counter-clockwise from +x and
+ *  naming the direction the light COMES FROM, so 120° is upper-left. */
 struct BevelEmboss {
   float depth = 3;     // plane offset, px
   float size = 4;      // soften blur, px
@@ -162,15 +167,17 @@ struct BevelEmboss {
   }
 };
 
-/** Color / Gradient / Pattern Overlay: any Material over the shape with a
- *  blend mode and opacity — Photoshop's three overlay styles are one value
- *  here because Material is already polymorphic.
+/** Colour, gradient and pattern overlay in one value: any Material drawn
+ *  over the shape with a blend mode and an opacity. They are not three
+ *  styles here because a Material is already polymorphic.
  *
- *  Overlay materials must be STATIC. This scheme declares no volatility
- *  and resolves without context, so a LIVE material freezes into the
- *  cached picture and never repaints, and a geometry-dependent one
- *  resolves at zero size. For either, `decorations::wash` is the
- *  material-valued pass that declares both. */
+ *  **Overlay materials must be STATIC.** This scheme declares no volatility
+ *  and resolves its material WITHOUT a paint context, and both halves of
+ *  that bite silently: a LIVE material is sampled once, frozen into the
+ *  cached picture, and never repaints; a geometry-dependent one resolves
+ *  against a zero size, so anything scaled by the node's box degenerates.
+ *  Use `decorations::wash` for either — it declares its animation and
+ *  resolves against the real context. */
 struct Overlay {
   Material material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
@@ -206,23 +213,25 @@ inline Overlay gradientOverlay(Material gradient,
 }
 
 /** Text (or any layer) glow: the node's rendered layer re-emitted blurred
- *  beneath itself (DropShadow at zero offset keeps the content). Attach
- *  with .effect(); chain with .then() for a hotter double glow. The neon /
- *  FUI treatment: `text(...).effect(styles::textGlow(cyan, 6))`. */
+ *  beneath itself — a drop shadow at zero offset, which keeps the content
+ *  on top. Attach with `.effect()`, and chain with `.then()` for a tighter
+ *  core over a wider halo: `text(...).effect(styles::textGlow(cyan, 6))`. */
 inline Effect textGlow(SkColor4f color, float sigma) {
   return Effect::filter(SkImageFilters::DropShadow(
       0, 0, sigma, sigma, color.toSkColor(), nullptr));
 }
 
-/** The water/heat warp: the node's rendered layer resampled through a
- *  sine displacement field — P3R's sea distortion (y shifted by a sine
- *  of x; §1: amp ≈ 2% of height, ~2 waves across, slow phase) and every
- *  glass-shimmer cousin. Attach with .effect() (warps the node's own
- *  layer) or .backdrop() (warps what's beneath). An Effect is a static
- *  value: animate by re-describing with a moving `phase` — the node
- *  re-records per change, so reserve animation for feature moments or
- *  pair with Cache::None. `vertical` displaces x by a sine of y
- *  instead. */
+/** The water/heat warp: the node's rendered layer resampled through a sine
+ *  displacement field — y shifted by a sine of x, or with `vertical`, x by
+ *  a sine of y. Water reads convincingly at an amplitude of a few percent
+ *  of the node's height with only a couple of waves across it. Attach with
+ *  `.effect()` to warp the node's own layer, or `.backdrop()` to warp what
+ *  is beneath it.
+ *
+ *  An Effect is a STATIC value, so animating this means re-describing with
+ *  a moving `phase`, and the node re-records on every change. Keep it for
+ *  moments that earn it, or pair it with Cache::None so the node is not
+ *  paying to invalidate a cache it never keeps. */
 inline Effect ripple(float amplitudePx, float wavelengthPx,
                      float phase = 0.0f, bool vertical = false) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
@@ -255,27 +264,29 @@ inline Effect ripple(float amplitudePx, float wavelengthPx,
 }
 
 // ---------------------------------------------------------------------------
-// Preset bundles (REFERENCES.md §2–3) — LayerStyle values for Element::style()
+// Preset bundles — LayerStyle values for Element::style()
 
-/** Knobs the Aqua bundle exposes (defaults = the §2 measured pill). */
+/** Knobs the gel bundle exposes; the defaults dress a pill. */
 struct AquaGelOptions {
-  float lensAlphaTop = 0.72f;   ///< §2: white .72→0
-  float lensBottomFrac = 0.52f; ///< §2: lens y ∈ [4%, 52%]
-  float lensInsetXFrac = 0.05f; ///< §2: x ∈ [5%, 95%]; ~0.16 on spheres
-  float bottomGlow = 0.85f;     ///< the light-from-below strength (screen)
-  bool halo = true;             ///< §2 luminous halo drop (vs no shadow)
-  /** bleed() can't see the future layout size — reserve cull reach for
-   *  gel up to this tall (raise for hero scale; the halo reaches .65H). */
+  float lensAlphaTop = 0.72f;   ///< lens ramp: white at the top, clear below
+  float lensBottomFrac = 0.52f; ///< lens ends this far down the box
+  float lensInsetXFrac = 0.05f; ///< lens inset each side; ~0.16 on spheres
+  float bottomGlow = 0.85f;     ///< strength of the light from below
+  bool halo = true;             ///< luminous tint drop beneath the shape
+  /** `bleed()` runs before the node has a layout size, so the halo's cull
+   *  reserve has to be declared here: set this to the tallest the gel will
+   *  be. The halo reaches about 0.65 of that height beyond the box, and
+   *  under-declaring it truncates the halo at the cached picture's edge. */
   float expectedHeight = 64.0f;
   bool operator==(const AquaGelOptions &) const = default;
 };
 
-/** The Aqua pill body (REFERENCES.md §2/§3, height-relative): deep→light
- *  vertical body ramp, a dark band recessed from the top, the SCREEN
- *  bottom glow (the Aqua signature — light emerging from below), and the
- *  luminous tint halo underneath. Everything computed from the node's
- *  size at paint, so one value dresses any pill; value-comparable, so a
- *  static aqua button prunes without memo. */
+/** The gel pill body, everything sized as a FRACTION of the node's height:
+ *  a deep→light vertical ramp, a dark band recessed from the top, a
+ *  screen-blended glow rising from the bottom edge, and a luminous halo of
+ *  the tint underneath. Because it reads the size at paint, one value
+ *  dresses a pill of any dimensions; because it is value-comparable, a
+ *  static button wearing it prunes without a memo. */
 struct AquaBody {
   SkColor4f tint = detail::rgb(0x1E8FFF);
   AquaGelOptions opts;
@@ -287,13 +298,13 @@ struct AquaBody {
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     const float H = ctx.size.height();
-    if (opts.halo) { // §2: rgba(66,140,240,.5) (0,10) blur16 on a 40px pill
+    if (opts.halo) { // a lightened, half-transparent cast of the tint
       util::Shadow{detail::toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f),
                    {0, H * 0.25f},
                    H * 0.40f}
           .paint(c, ctx);
     }
-    SkPaint body; // §2 body: deep at top → saturated → light at bottom
+    SkPaint body; // deep at the top, saturated in the middle, light below
     body.setAntiAlias(true);
     body.setShader(detail::vRamp(
         0, H,
@@ -303,7 +314,7 @@ struct AquaBody {
     c.drawPath(ctx.outline, body);
     InnerShadow{detail::scale(tint, 0.30f, 0.45f), {0, H * 0.08f}, H * 0.25f}
         .paint(c, ctx);
-    if (opts.bottomGlow > 0) { // §2: bottom glow, screen, fading by 45%H
+    if (opts.bottomGlow > 0) { // screen-blended, fading out by mid-height
       SkPaint glow;
       glow.setAntiAlias(true);
       glow.setBlendMode(SkBlendMode::kScreen);
@@ -320,8 +331,8 @@ struct AquaBody {
   }
 };
 
-/** The Aqua highlight lens: a white ramp lens across the top half of the
- *  shape (clipped inside), the signature "wet" specular. */
+/** The highlight lens: a white ramp across the top half of the shape,
+ *  clipped inside it — the wet-looking specular that sells the gel. */
 struct AquaGloss {
   float insetXFrac = 0.05f;
   float topFrac = 0.04f, bottomFrac = 0.52f;
@@ -346,9 +357,10 @@ struct AquaGloss {
   }
 };
 
-/** The drop-in Aqua Gel bundle (§2/§3): body + gloss + hairline. Use on a
- *  pill — `box().corners({h/2}).style(styles::aquaGel(tint))` — with no
- *  fill() (the body paints it). Pass options to retune the lens/glow. */
+/** The drop-in gel bundle: body, gloss and a hairline keyline. Use it on a
+ *  pill — `box().corners({h/2}).style(styles::aquaGel(tint))` — and give
+ *  the node NO fill: the body decoration paints the surface, and a fill
+ *  would cover it. Pass options to retune the lens and the glow. */
 inline LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
                           AquaGelOptions opts = {}) {
   PathFormat hairline;
@@ -362,8 +374,10 @@ inline LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
                      Decoration(hairline)}};
 }
 
-/** The sphere-tuned Aqua bundle: dome lens (16% inset, upper half) and a
- *  hotter bottom glow — the Aqua orb / traffic-light geometry. */
+/** The sphere-tuned bundle: a domed lens inset further from the edges and
+ *  confined to the upper half, over a hotter bottom glow — what reads as
+ *  round rather than as a pill. Pass the diameter so the halo reserves the
+ *  right cull reach. */
 inline LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
                           float expectedDiameter = 128.0f) {
   AquaGelOptions opts;
@@ -374,11 +388,11 @@ inline LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
   return aquaGel(tint, opts);
 }
 
-/** Which chrome the Y2K bundle wears (both from §2/§3, exact stops). */
+/** Which chrome the bundle wears. */
 struct ChromeOptions {
   enum class Palette : uint8_t {
-    Steel, ///< the §3 dark preset ramp (logo plates)
-    Silver ///< the §2 silver window-chrome ramp
+    Steel, ///< the dark ramp — heavy contrast, for plates and wordmarks
+    Silver ///< the light ramp — window and control chrome
   };
   Palette palette = Palette::Steel;
   bool horizonSliver = true; ///< white specular sliver straddling 50%
@@ -388,12 +402,13 @@ struct ChromeOptions {
   bool operator==(const ChromeOptions &) const = default;
 };
 
-/** The chrome horizon: the hard ramp stop sits at half height. Position
- *  hand-added glints against `y = kChromeHorizonFrac * H`. */
+/** Where the chrome ramp's hard stop sits, as a fraction of the node's
+ *  height. Position hand-added glints against `kChromeHorizonFrac * H` so
+ *  they stay on the horizon at any size. */
 inline constexpr float kChromeHorizonFrac = 0.50f;
 
-/** The Y2K chrome body: the palette's vertical ramp with its hard horizon,
- *  clipped to the shape. */
+/** The chrome body: the palette's vertical ramp, with its hard stop at the
+ *  horizon, drawn through the shape's outline. */
 struct ChromeBody {
   ChromeOptions::Palette palette = ChromeOptions::Palette::Steel;
   bool operator==(const ChromeBody &) const = default;
@@ -419,13 +434,13 @@ struct ChromeBody {
   }
 };
 
-/** The §2 finishing pass: 1px white top edge + the white specular sliver
- *  straddling the horizon (both clipped inside).
+/** The finishing pass: a 1 px white top edge plus the white specular sliver
+ *  straddling the horizon, both clipped inside the shape.
  *
- *  The sliver is a SPECULAR band, so it fades out at both ends. Drawn as a
- *  hard 4%..96% rectangle it ended in two blunt vertical stubs, and on a
- *  chrome wordmark — where the glyphs already chop the band into segments —
- *  those stubs read as a strikethrough rule someone forgot to finish. */
+ *  The sliver FADES OUT at both ends, and must. A specular band drawn as a
+ *  hard rectangle ends in two blunt vertical stubs, and on a chrome
+ *  wordmark — where the glyphs already chop the band into segments — those
+ *  stubs read as an unfinished strikethrough rather than as light. */
 struct ChromeSliver {
   float horizonFrac = kChromeHorizonFrac;
   /** Fraction of the width the highlight takes to reach full strength. */
@@ -467,9 +482,10 @@ struct ChromeSliver {
   }
 };
 
-/** The drop-in Y2K Chrome bundle (§2/§3): drop shadow, palette ramp,
- *  horizon sliver, chisel bevel, dark keyline outside. Silver skips the
- *  dark top band (§2 silver wants the white top edge instead). */
+/** The drop-in chrome bundle: drop shadow, palette ramp, horizon sliver,
+ *  chisel bevel, and a dark keyline stroked OUTSIDE the silhouette. The
+ *  Silver palette skips the dark inner top band, which would fight its
+ *  white top edge. */
 inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
   PathFormat keyline;
   keyline.width = opts.keylineWidth;
@@ -478,9 +494,9 @@ inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
   LayerStyle bundle;
   bundle.under = {Decoration(util::Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
                   Decoration(ChromeBody{opts.palette})};
-  // The sliver rides the PLATE, under any content: chrome wordmarks keep
-  // the sheen line behind the glyphs — as a foreground it struck through
-  // the type (the mispositioned-sheen finding).
+  // The sliver goes UNDER the content, with the plate. As a foreground it
+  // would cross the node's own type, where a horizontal white band at half
+  // height reads as a strikethrough instead of as a sheen on the plate.
   if (opts.horizonSliver)
     bundle.under.push_back(Decoration(ChromeSliver{}));
   if (opts.palette == ChromeOptions::Palette::Steel)
@@ -495,10 +511,11 @@ inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Chrome type (§2) — unit-space Materials for Element::textFill()
+// Chrome type — unit-space Materials for Element::textFill()
 
-/** The §2 sunset-chrome ramp in UNIT space: feed straight to textFill()
- *  and the hard horizon crosses the capitals at half cap height —
+/** The sunset-chrome ramp in UNIT space: hand it straight to textFill()
+ *  and the hard horizon crosses the capitals at half cap height, whatever
+ *  the size —
  *  `text(u8"CHROME", display).textFill(styles::sunsetChromeText())`. */
 inline Material sunsetChromeText() {
   return Material::linear({0, 0}, {0, 1},
@@ -512,7 +529,7 @@ inline Material sunsetChromeText() {
                            {1.0f, detail::rgb(0xFDF6E3)}});
 }
 
-/** The §2 silver-chrome ramp in unit space, for textFill(). */
+/** The silver-chrome ramp in unit space, for textFill(). */
 inline Material silverChromeText() {
   return Material::linear({0, 0}, {0, 1},
                           {{0.0f, detail::rgb(0xFDFDFD)},
@@ -525,14 +542,16 @@ inline Material silverChromeText() {
 }
 
 // ---------------------------------------------------------------------------
-// Gloss contour — the PS Satin / "Gloss Contour" curve (§3 anatomy)
+// Gloss contour — the satin band that follows the shape
 
 /** The shape's blurred coverage remapped through a 256-entry CONTOUR
- *  table, tinted, clipped inside the shape — the moving light band in gel
- *  and chrome that a plain gradient can't fake (it follows the SHAPE's
- *  distance field, not a screen axis). Same math as SkTableMaskFilter
- *  (the seams-audit entry), built as blur→alpha-table on one image-filter
- *  chain so it composes with the node's other chrome in a single paint. */
+ *  table, tinted and clipped inside the shape.
+ *
+ *  This is the light band in gel and chrome that a plain gradient cannot
+ *  fake, because it follows the SHAPE's own distance field rather than a
+ *  screen axis: on a blob it curves with the blob. It is one image-filter
+ *  chain (blur, then an alpha table), so it composes with the node's other
+ *  decorations inside a single paint rather than forcing a layer. */
 struct GlossContour {
   SkColor4f color = {1, 1, 1, 0.85f};
   float sigma = 6.0f;
@@ -561,8 +580,8 @@ struct GlossContour {
 };
 
 /** A ring contour: the table peaks where blurred coverage crosses
- *  `center` (0 = rim, 1 = deep interior), `width` wide — the classic PS
- *  "Ring" gloss. */
+ *  `center` — 0 is the rim, 1 the deep interior — over a band `width`
+ *  wide, giving one bright ring inside the silhouette. */
 inline std::array<uint8_t, 256> glossRing(float center = 0.55f,
                                           float width = 0.35f) {
   std::array<uint8_t, 256> t{};

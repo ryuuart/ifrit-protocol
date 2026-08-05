@@ -10,10 +10,9 @@
 // component's arithmetic — a test that recomputes the formula it is
 // checking proves only that the compiler is deterministic.
 //
-// The last case is a compile-only spelling of every documented signature,
-// after the ComposeDocs pattern: it asserts nothing and exists so that a
-// signature change breaks the build instead of quietly invalidating the
-// documentation.
+// One case is a compile-only spelling of every documented signature: it
+// asserts nothing and exists so that a signature change breaks the build
+// instead of quietly invalidating the documentation.
 
 #include <sigilcompose/kit/Kit.h>
 
@@ -73,7 +72,8 @@ Contours walk(const SkPath &path, bool closed = false) {
 }
 
 /** The point at arc-length fraction @p f of the WHOLE path, walking every
- *  contour in order — which is what TextPath does (Compose.h:554-558). */
+ *  contour in order — the same coordinate TextPath lays glyphs along, so a
+ *  multi-contour path is one continuous run to it. */
 SkPoint atFraction(const SkPath &path, float f) {
   const Contours c = walk(path);
   float want = f * c.total;
@@ -95,7 +95,9 @@ SkPoint atFraction(const SkPath &path, float f) {
 // Frame — the figure-local polar coordinate system.
 
 TEST(KitFrame, NorthClockwiseMatchesTheHandRolledSpelling) {
-  // sigillum_aemeth.cpp:273 — P(thDeg, rNorm), 0 at 12 o'clock, clockwise.
+  // The convention Frame promises by default: 0° at 12 o'clock, increasing
+  // clockwise, radius normalized. P() below is that spelled by hand, which
+  // is what a figure would otherwise write inline.
   const kit::Frame f{.centre = {100, 100}, .radius = 50};
   auto P = [](float thDeg, float rNorm) {
     const float a = thDeg * 0.01745329252f;
@@ -128,12 +130,12 @@ TEST(KitFrame, EastAndCounterClockwiseAreTheOtherConventions) {
 }
 
 TEST(KitFrame, FractionAgreesWithTheLibrarysOwnCircleContour) {
-  // THE case. sigillum_aemeth.cpp:279 hand-derived
-  //     frac(th) = fmod((th - 90)/360 + 4, 1)
-  // with a comment explaining that shapes::circle()'s contour starts due
-  // east. This asserts the claim against the path Shapes.h actually
-  // builds, so it fails if that default ever changes — which is exactly
-  // the failure the comment could not catch.
+  // Frame::fraction() converts an angle in the frame's convention into the
+  // arc-length fraction TextPath wants, and it can only be right if it knows
+  // where shapes::circle()'s contour starts — due east, not due north, so
+  // the conversion carries a −90° term. Asserting that against the path
+  // Shapes.h actually builds means a change to circle()'s start point fails
+  // here rather than silently rotating every label on a ring.
   const SkSize size{200, 200};
   const SkPath circle = shapes::circle()(size);
   const kit::Frame f{.centre = {100, 100}, .radius = 100};
@@ -143,11 +145,11 @@ TEST(KitFrame, FractionAgreesWithTheLibrarysOwnCircleContour) {
 }
 
 TEST(KitFrame, TheBaselinesDirectionIsNotTheFramesSense) {
-  // Measured, and it inverted the first draft: shapes::circle(kCCW) still
-  // STARTS due east (startIndex is 1 either way) and then runs the other
-  // way, so f = 0.25 is 12 o'clock where the kCW contour is at 6. The
-  // frame's own `sense` says nothing about which way the path was wound,
-  // so fraction() takes the baseline separately.
+  // A frame's `sense` and the winding of the path it labels are independent
+  // facts, which is why fraction() takes the path direction as a separate
+  // argument rather than reading it off the frame. shapes::circle(kCCW)
+  // still STARTS due east — only the travel direction flips — so f = 0.25
+  // is 12 o'clock on the CCW contour and 6 o'clock on the CW one.
   const SkSize size{200, 200};
   const SkPath cw = shapes::circle(SkPathDirection::kCW)(size);
   const SkPath ccw = shapes::circle(SkPathDirection::kCCW)(size);
@@ -234,8 +236,9 @@ TEST(KitGrid, LengthTakesNoOriginAndPositionDoes) {
 }
 
 TEST(KitGrid, SnapRoundsTheResultAndTwoGridsCoexist) {
-  // vagrant_story_target.cpp:216-218 carries a 4 px geometry grid and a
-  // 2.5 px text grid at the same time. A free function cannot.
+  // Grid is a value rather than a free snapping function precisely so that
+  // one figure can carry two of them — say a 4 px geometry grid and a
+  // 2.5 px text grid — without either one being global state.
   const kit::Grid geo{.scale = 4.0f, .snap = 4.0f};
   const kit::Grid type{.scale = 2.5f, .snap = 2.5f};
   EXPECT_FLOAT_EQ(geo.x(1.3f), 4.0f);   // 5.2 → 4
@@ -297,8 +300,9 @@ TEST(KitTicks, LongEveryLengthensEveryNthMark) {
 }
 
 TEST(KitTicks, ClassifyReachesThreeLengthClasses) {
-  // ds2_bench.cpp:255-258 — k = (i%3==0) ? 1.0 : (i%3==1 ? 0.86 : 0.93).
-  // No long/short pair expresses that, which is why `classify` exists.
+  // A three-way length pattern cannot be expressed by the long/short pair,
+  // which is the whole reason `classify` exists: it hands each mark's index
+  // to the caller and takes back that mark's span.
   const kit::Frame f{.centre = {0, 0}, .radius = 100};
   const SkPath p = kit::ticks(
       f, {.divisions = 9,
@@ -350,9 +354,11 @@ TEST(KitTicks, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
 // chords — a polygon's sides as N OPEN contours of one path.
 
 TEST(KitChords, SideKsMidpointIsAtExactlyKPlusHalfOverN) {
-  // The whole reason this exists: TextPath walks every contour in order as
-  // ONE arc-length coordinate, so 49 letters around a heptagon can be one
-  // text run. Measured against the path, not against the formula.
+  // The whole reason chords() exists: TextPath walks every contour in order
+  // as ONE arc-length coordinate, so a run of letters can be laid around a
+  // heptagon as a single text run with each side occupying a known 1/n of
+  // the coordinate. Measured against the path chords() built, not against
+  // the formula it built it with.
   const kit::Frame f{.centre = {0, 0}, .radius = 100};
   for (int n : {5, 7, 12}) {
     const SkPath p = kit::chords(f, {.sides = n, .radius = 1.0f});
@@ -394,8 +400,8 @@ TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
   EXPECT_EQ(walk(kit::chords(f, {.sides = 7, .step = 2, .closed = true}))
                 .pieces.size(),
             1u);
-  // {6/2}: gcd 2, so the hexagram is TWO triangles — the correct answer,
-  // and thaumonomicon.cpp:1331 draws exactly that.
+  // {6/2}: gcd 2, so the hexagram really is TWO separate triangles. Emitting
+  // one contour here would be wrong geometry, not a simplification.
   const Contours hex =
       walk(kit::chords(f, {.sides = 6, .step = 2, .closed = true}));
   EXPECT_EQ(hex.pieces.size(), 2u);
@@ -418,11 +424,11 @@ sigil::weave::TextStyle pixelStyle(float size) {
 } // namespace
 
 TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
-  // thaumonomicon.cpp:1172-1179: +2 ended the surface INSIDE the final
-  // letter, at every size, because measure() returns the ADVANCE and the
-  // last glyph's ink can sit outside it. The assertion is that with the
-  // default pad the ink never reaches the right edge of the plane — i.e.
-  // nothing was cut off.
+  // Sizing the bake plane from measure() plus a small fixed margin ends the
+  // surface inside the final letter: measure() returns the ADVANCE, and a
+  // glyph's ink can sit outside its advance. The assertion is that with the
+  // default pad the ink never reaches the right or bottom edge of the plane
+  // — if it touches an edge, something was cut off.
   const auto style = pixelStyle(10.0f);
   for (const char8_t *s : {u8"Centrifuge", u8"WAV", u8"research", u8"1234567890"}) {
     const kit::Coverage cov = kit::coverage(s, fonts(), style);
@@ -435,16 +441,13 @@ TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
 }
 
 TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
-  // The positive control for the case above, and the first draft of it was
-  // WRONG: it used Menlo, whose ink never leaves its advance because a
-  // monospace face is boxed by construction, so "pad 0 clips" was false and
-  // the pad test above was proving nothing.
-  //
-  // Measured across faces: an italic or script face overhangs at almost
-  // every size and string — Helvetica Italic "Wf" at 12 px has ink to
-  // exactly its advance, Zapfino overhangs on all five probe strings. So
-  // the control uses those, requires at least one to reach the edge at
-  // pad 0, and requires the SAME string to be clear of it at the default.
+  // The positive control for the case above, and the choice of face is
+  // load-bearing. A monospace face is boxed by construction and its ink
+  // never leaves its advance, so with Menlo "pad 0 clips" is simply false
+  // and the pad test above would be proving nothing. Italic and script
+  // faces do overhang, so the control uses those, requires at least one to
+  // reach the edge at pad 0, and requires the SAME string to be clear of it
+  // at the default pad.
   int overhangs = 0;
   for (const char *family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
@@ -462,10 +465,11 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
         continue;
       ++overhangs;
       // The same string with ANY pad must come back unclipped, because
-      // coverage() grows the pad until nothing touches an edge. A single
-      // px is enough to arm the retry, and Zapfino needs more than the
-      // default 8 — which is the finding: no fixed pad is correct, and
-      // that is why the component retries instead of documenting a number.
+      // coverage() grows the pad and re-bakes until nothing touches an
+      // edge. One pixel is enough to arm that retry. No fixed pad is
+      // correct for every face — script faces overhang further than any
+      // plausible default — which is why the component retries rather than
+      // documenting a number for callers to pass.
       for (kit::Pad pad : {kit::Pad{1, 1}, kit::Pad{}}) {
         const kit::Coverage grown = kit::coverage(s, fonts(), style, pad);
         ASSERT_TRUE(grown.valid());
@@ -597,11 +601,14 @@ TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
 
 TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
   // The immediate-mode spelling, which exists because a caption inside a
-  // custom() leaf cannot reach addUnderlay. DIFFERENTIAL, because counting
-  // absolute pixels was the first draft and it asserted the wrong thing:
-  // at 20 px with a 3 px stroke the glyph interiors outnumber the ring, so
-  // "more halo than ink" is simply false. What IS true is that the halo
-  // colour appears only when a halo is asked for.
+  // custom() leaf cannot reach addUnderlay.
+  //
+  // The comparison has to be DIFFERENTIAL — halo render against no-halo
+  // render — because no absolute pixel count is a valid criterion here.
+  // "More halo than ink" is false at ordinary sizes, since glyph interiors
+  // outnumber a thin surrounding ring. What is true regardless of size is
+  // that the halo colour appears only when a halo was asked for, and that
+  // the ink survives it.
   auto render = [](bool halo) {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
     s->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 128));
@@ -639,9 +646,8 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
 
 // ===========================================================================
 // The documentation, spelled. Compiles, asserts nothing, and breaks the
-// build if a signature in any kit header changes. (The ComposeDocs pattern,
-// invented in this program: a doc comment that does not compile is a lie
-// nobody notices.)
+// build if a signature in any kit header changes — a documented call that
+// no longer compiles is a lie nobody would otherwise notice.
 
 TEST(KitDocs, EverySignatureIsSpelledOnce) {
   const kit::Frame frame{.centre = {100, 100},
@@ -733,14 +739,15 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
 }
 
 // ---------------------------------------------------------------------------
-// kit/Strokes.h — the stroke grammar's kit values (ROADMAP §33 stage two).
+// kit/Strokes.h — the kit's stroke values.
 //
-// The tier claim these check is "a kit value is a PEER of one you write":
-// every case below goes through the same public seam a user-written value
-// would, and the kit library's own TU (kit/Kit.cpp) static_asserts the
-// concepts. The structural half of the boundary is not testable here by
-// construction — a compile-failure check cannot live in a gtest binary; it
-// is kit/BoundaryProbe.cpp, built on demand.
+// The claim these check is that a kit value is a PEER of one you write
+// yourself: every case below goes through the same public seam a
+// user-written value would, and kit/Kit.cpp static_asserts the concepts.
+// The other half of the boundary — that the kit compiles against public
+// headers only — cannot be checked from a gtest binary, since it is a
+// compile FAILURE that must be observed; kit/BoundaryProbe.cpp covers it
+// and is built on demand.
 
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Util.h>
@@ -777,9 +784,10 @@ TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
 }
 
 TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
-  // n waves at phase k/n MUST trade sides — that is why the braid
-  // primitive is the wave and not the offset, and why strands::parallel
-  // was removed (parallels are rails; rails cannot braid).
+  // n waves at phase k/n MUST trade sides, which is why the braid primitive
+  // is the wave and not the offset. Constant offsets are rails: they stay a
+  // fixed distance apart and never cross, so no braid can be built from
+  // them — the control at the end of this case is that claim.
   SkPathBuilder b;
   b.moveTo(0, 100);
   b.lineTo(400, 100);
@@ -827,16 +835,17 @@ TEST(ComposeKitStrokes, SpansAndShapesAreCompositionsNotNewKinds) {
   EXPECT_TRUE(kit::spans::brackets(18) == spans::corners(18));
   EXPECT_FALSE(kit::spans::brackets(18) == spans::corners(19));
 
-  // kit::shapes::ring — "annulus" rejected as jargon for the shape
-  // everybody calls a ring.
+  // kit::shapes::ring is a plainer name for core's annulus, not a second
+  // shape — same path, so a figure can use either spelling.
   const SkPath ring = kit::shapes::ring(0.6f)({100, 100});
   EXPECT_FALSE(ring.isEmpty());
   EXPECT_EQ(ring, shapes::annulus(0.6f)({100, 100}));
 }
 
 TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
-  // Core ships strand::self()/offset() only; everything that oscillates is
-  // kit, per the tier rule — but it plugs the SAME Profile seam.
+  // Core ships strand::self()/offset() only; everything that oscillates
+  // lives in the kit — but it plugs the SAME Profile seam, so core code
+  // never learns that a kit profile exists.
   const Profile undulating = kit::profile::wave(9, 50);
   EXPECT_NEAR(undulating.max(), 9.0f, 1e-4f) << "max() is required by the seam";
   EXPECT_TRUE(undulating == kit::profile::wave(9, 50));
@@ -882,20 +891,21 @@ Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 // ---------------------------------------------------------------------------
 // The shaper seam, exercised with KIT shaper values.
 //
-// These live here rather than in compose_test for the reason the CMake
-// comment gives: the kernel suite must not include a kit header, or a kit
-// compile failure is reported as a kernel failure.
+// These live here rather than in compose_test because the kernel suite must
+// not include a kit header: if it did, a kit compile failure would be
+// reported as a kernel failure.
 
 TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   // `.shaped(value)` is the ONE geometry-deviation seam. `brush::restyle`
-  // is the wrapper that does the same job around a `GeometryOp` — it is
-  // the one deliberate mechanism door R3 kept, because a raw lambda can
-  // never be a Shaper (a Shaper is comparable, by design). So the claim
-  // here is agreement between the door and the seam, not replacement.
+  // does the same job around a `GeometryOp`, and it stays because a raw
+  // lambda can never be a Shaper — a Shaper is comparable by design, and a
+  // lambda is not. So the claim here is that the two spellings agree, not
+  // that one replaces the other.
   //
   // What is asserted is INK-COUNT SIMILARITY within 5%, not identical
-  // output: the two paths build their own PaintContext and wrap the op
-  // differently, so byte equality was never the property.
+  // output. The two paths build their own PaintContext and wrap the op
+  // differently, so byte equality is not the property on offer; a shaper
+  // that silently drew nothing, or drew something else, still fails.
   auto draw = [](bool legacySpelling) {
     StrokeHost host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
@@ -919,9 +929,8 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   EXPECT_GT(shaped, 100) << "the shaper drew nothing";
   EXPECT_NEAR((double)shaped, (double)wrapper, (double)wrapper * 0.05);
 
-  // `.shaped()` is the only way into the pipeline now — `.op()` and its
-  // GeometryOp lists were deleted with `ops::` (R3) — and two brushes
-  // built from equal shaper values compare equal, which is the prune.
+  // Two brushes built from equal shaper values compare equal, which is what
+  // lets a node carrying a shaped brush prune instead of re-patching.
   EXPECT_TRUE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
               Brush{}.shaped(kit::brush::shapers::wave(5, 24)));
   EXPECT_FALSE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
@@ -940,15 +949,17 @@ TEST(ComposeKitStrokes, ShapersAreComparableValuesAndPrune) {
 }
 
 TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
-  // THE MEASURED DEGENERACY. Once mark-width/sin(angle) approaches the knot
-  // spacing, the neighbouring overlap lenses touch, pathops merges them into
-  // ONE contour, and crossing 0's patch claims the entire run — the braid
-  // then reads as a single strand laid on top. At amp 3 / wavelength 40 in
-  // 6px ink that was 25 of 50 knots wrong; at 4 / 30 in 5px ink, 33 of 66.
+  // The degeneracy this guards against: as mark-width/sin(crossing angle)
+  // approaches the spacing between knots, neighbouring overlap lenses touch,
+  // pathops merges them into ONE contour, and the first crossing's patch
+  // claims the whole run — so the braid renders as a single strand laid on
+  // top of the other. It shows up only at tight amplitude-to-ink ratios,
+  // hence the two deliberately tight parameter sets at the bottom.
   //
-  // braid() shares ONE brush across its strands by design, so the two
-  // strands are built here with the same geometry braid() produces (waves at
-  // phase k/n) and two inks, which is what makes the alternation VISIBLE.
+  // braid() shares ONE brush across its strands by design, so the strands
+  // here are rebuilt with the geometry braid() produces (waves at phase k/n,
+  // asserted equal below) but two different inks — that is what makes the
+  // alternation readable from pixels at all.
   auto wrongKnots = [](float amp, float wavelength, float inkWidth) {
     StrokeHost host(1000, 240);
     SkPathBuilder sp;
@@ -1009,10 +1020,10 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
 }
 
 // ---------------------------------------------------------------------------
-// R2 added the three twins that unblocked the `ops::` deletion; R3 did the
-// deleting, and the shaper bodies moved here. The `ops::` structs they
-// replaced are gone, so what is testable now is that each still DRAWS —
-// and that Zigzag is not Wave, which is the trap the flag used to hide.
+// Rounded, Square and Zigzag are the corner-rounding and squared-off
+// shapers. Each must actually deviate the path it is handed, and Zigzag
+// must not collapse into Wave — a sharp zigzag and a smooth wave are
+// separate marks, and a shared parameter pair makes them easy to conflate.
 
 TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
   SkPathBuilder b;
@@ -1030,10 +1041,10 @@ TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
   const kit::brush::shapers::Wave kitWave{4, 28};
 
   EXPECT_FALSE(kit::brush::shapers::Rounded{9.0f}.shape(src) == src)
-      << "Rounded absorbed ops::Rounded's SkCornerPathEffect body";
+      << "Rounded did not round the corners";
   EXPECT_FALSE(kitSquare.shape(src) == src);
   EXPECT_FALSE(kitZigzag.shape(src) == src);
-  // …and Zigzag is NOT Wave: the flag it replaces changed the drawing.
+  // …and Zigzag is NOT Wave, at identical amplitude and wavelength.
   EXPECT_FALSE(kitZigzag.shape(src) == kitWave.shape(src));
 }
 
@@ -1052,14 +1063,12 @@ TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
 }
 
 TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
-  // WP3 moved filament/circuit/rope/pulse from core's `brushes::` to
-  // `kit::brush::presets::`. "Unchanged" is the whole claim, so it is
-  // asserted the only way that settles it: against a HAND-BUILT copy of
-  // the layer stack core shipped, transcribed from the pre-move source.
+  // Each preset is pinned against a HAND-BUILT copy of its layer stack.
   // `LayeredBrush` has a defaulted `==`, so this compares every field of
   // every layer — width, colour, blur, dash, phase, blend, the lot.
-  // Counting layers and spot-checking one width would pass on a preset
-  // whose colours had all been halved.
+  // Counting layers and spot-checking one width would keep passing on a
+  // preset whose colours had all been halved, which is precisely the kind
+  // of drift a shared preset suffers.
   using kit::brush::presets::circuit;
   using kit::brush::presets::filament;
   using kit::brush::presets::pulse;
@@ -1132,10 +1141,10 @@ TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
 }
 
 TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
-  // R2 moved the bodies out of core and left `brushes::X` behind as
-  // using-declarations; R3 deleted that namespace and them with it. What
-  // the deleted arms were really pinning was that the DEFAULTS did not
-  // drift in the move, so that is what is pinned directly now.
+  // The presets' default arguments are part of their published shape: a
+  // caller writing `rope(1)` must get the same brush as `rope(1, 1.0f)`.
+  // Nothing else in the suite would notice a changed default, since every
+  // other case passes all the arguments explicitly.
   EXPECT_TRUE(kit::brush::presets::rope(1) == kit::brush::presets::rope(1, 1.0f));
   const SkColor4f teal{0.2f, 0.9f, 0.8f, 1};
   EXPECT_TRUE(kit::brush::presets::circuit(teal) ==
@@ -1147,9 +1156,9 @@ TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
 TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   // bleed() grows the recording cull, so a NEGATIVE one shrinks it and
   // clips the mark it was supposed to protect. A negative amplitude is a
-  // perfectly legal wave — it starts the other way — and three of the
-  // oscillating values used to hand back the raw number while others took
-  // abs(). One rule now, across core and kit.
+  // perfectly legal wave — it simply starts the other way — so every
+  // oscillating value must report the magnitude, never the raw parameter.
+  // The rule is the same across core and kit, so all three are checked.
   // (Named locals: a braced aggregate inside EXPECT_* hands the macro its
   // commas.)
   const kit::brush::shapers::Wave kitWave{-4.0f, 20.0f};

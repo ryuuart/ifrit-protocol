@@ -1,386 +1,351 @@
 # SigilShape
 
-Namespace `sigil::shape`, target `SigilShape`, headers
-`include/sigilshape/`. The higher-level drawing vocabulary over Skia —
-no compose kernel, no motion, no Qt — so SigilCompose and any product
-can adapt downward while this library stays extractable.
+A C++ library for 2D and 3D drawing on top of [Skia](https://skia.org).
+It gives you path resampling, boolean and distortion operators over
+`SkPath`, shape interpolation, a renderer-neutral triangle mesh with
+procedural generators plus model import and export, splines with swept
+geometry, point clouds carrying named attribute lanes and a point-operator
+chain language, a software rasterizer that draws meshes and perspective
+panels onto an ordinary `SkCanvas`, and material shaders written as Skia
+runtime effects.
 
-Two type currencies, split by context: **glm** (`vec2/vec3/vec4/mat4`)
-for everything directly 3D — Mesh, Curves, Points, Pop, Import, the
-Camera — and **Skia** for everything genuinely 2D or draw-time —
-SkPath outlines, paint/style colors, textures, the canvas. Space.h is
-the declared bridge (`toSkM44()` is the seam; both stores are
-column-major). SigilWorld consumes the glm side without touching Skia
-except for `SkImage` textures. One glm trap to know: `vec3::length()`
-is the COMPONENT COUNT (3), not the magnitude — always spell
-`glm::length(v)`.
+It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
+is no windowing, no GPU device, no UI framework and no scene graph — you
+hand it values, it hands you paths, meshes, clouds and pixels.
 
-Twelve headers, one dependency direction (later headers may use earlier):
+Namespace `sigil::shape`. Headers under `include/sigilshape/`.
 
-```
-Geometry.h   SkPath -> Polyline (adaptive flatten, corners exact)
-             SkPath -> Sampled  (N arc-length-uniform points)
-             cyclic alignment, Catmull-Rom rebuild, lerp
-Blend.h      the Illustrator blend tool over that currency
-Ops.h        the Pathfinder panel (unite/subtract/intersect/exclude/
-             simplify/offset over Skia pathops) and the Distort menu
-             (Roughen/Zigzag/PuckerBloat/Twirl as parameter values;
-             chain() composes non-destructive recipes)
-Mesh.h       renderer-neutral Mesh + procedural generators, plus the
-             PRIMITIVE attribute lanes (Mesh::prims — one float4 per
-             TRIANGLE, named like the point lanes) and
-             bakePrimColor()
-Import.h     model files into that Mesh currency: OBJ (+MTL, via
-             tinyobjloader), glTF 2.0 .gltf/.glb (cgltf; node
-             transforms baked, base-color material + texture),
-             ascii/binary STL, and PLY (ascii + binary LE; hand-
-             rolled) — THE attribute carrier: every non-conventional
-             vertex property becomes a named lane, every FACE property
-             a primitive lane on Mesh::prims, faceless files are
-             point clouds — and Alembic .abc (Ogawa; meshes + point
-             clouds at a chosen nearest-sample time, arbGeomParams as
-             lanes). glTF _NAME custom accessors (Blender/
-             Houdini exports) land as lanes too; Part::asCloud() /
-             Model::mergedCloud() pour attributes into shape::Cloud —
-             scatter in Houdini, cook in pops, stamp with points::
-             here. Bytes in, Model{Part…} out; external refs
-             (.mtl/.bin/textures) pull through a caller Resolver
-             (a directory, a SigilLoader Hub, anything). Textures stay
-             ENCODED bytes — SigilImage decodes, same split as the
-             loader. merged() bakes part colors into the color lane;
-             fitTransform() puts any unit scale on the table
-Curves.h     Spline3 (Catmull-Rom/Bezier/linear over glm knots) with
-             arc-length sampling, parallel-transport frames, tube()/
-             ribbon() sweeps, and project() to a 2D path
-Space.h      Skia's 3D: the glm camera + painter-pipeline drawMesh,
-             perspective drawPanel / drawImagePanel (toSkM44 seam)
-Pop.h        POP combinators as VALUES: a Chain of operator values
-             (SplineScatter generator; Jitter/Noise/Ramp/Vary/LookAt/
-             Math filters, Promote for the prim class) with CPU
-             executors — cook() -> Cloud,
-             cookMesh(stamp) -> one Mesh, cookTube()/cookRibbon()
-             sweep the cooked points as a path. The same Chain runs
-             GPU-side in SigilWorld (addPoints); formulas match bit
-             for bit
-Points.h     Cloud = positions + named attribute lanes; generators
-             (onSpline/grid/ring/scatterBox/onMesh), jitter/noise,
-             instance()/panels() stamping, drawBillboards() particles
-Save.h       the return leg of Import.h: save::ply(cloud|mesh) —
-             ascii PLY by default (binary_little_endian via PlyOptions,
-             smaller and bit-exact for big point dumps) with EVERY
-             lane written ("normal" as nx/ny/nz,
-             "tint" as uchar colors, customs as name / name_x.. /
-             name_r..; prim lanes as FACE properties; the importer
-             folds them all back, so round trips are lossless for the
-             point AND primitive classes). Loudest use: World::readPoints a
-             GPU-cooked pop surface and hand the file to Houdini or
-             Blender
-Materials.h  literal materials: gold foil / chrome / glass SkSL
-             over normal maps + equirect environments
-Easel.h      the ARTIST surface: stock shapes (star/ngon/dot/pill/
-             ring), fluent Shape recipes (.bloat().roughen().offset()
-             .gold()), Blend chains (.colors().steps().along()),
-             Wire (.through().closed().tube()/beads()), Particles
-             (.on().count().drift().ramp().glow()) — loud defaults,
-             one draw() at the end, made for the sketch host (see the
-             easel_playground study)
+## Using it
+
+```cpp
+#include <sigilshape/Easel.h>
+#include <sigilshape/Pop.h>
+#include <sigilshape/Space.h>
+
+using namespace sigil::shape;
+
+void paint(SkCanvas &canvas, SkSize viewport) {
+  // 2D: a six-pointed star, bloated, roughened and filled. Every dial
+  // stays editable — the recipe is not applied until draw().
+  easel::shape(easel::star(6, 90))
+      .bloat(0.3f)
+      .roughen(3)
+      .fill({1.0f, 0.6f, 0.2f, 1.0f})
+      .draw(canvas, {320, 240});
+
+  // 3D: scatter points along a window of a closed loop, drift them with
+  // noise, smooth the kinks out, colour them along the loop, then sweep
+  // a tube through the result.
+  const Mesh comet =
+      pop::on(std::vector<glm::vec3>{{-300, 0, -100},
+                                     {0, 140, 120},
+                                     {300, 0, -100}})
+          .count(4000)
+          .window(0.9f, 0.3f)
+          .noise(18)
+          .smooth()
+          .fade({1.0f, 0.3f, 0.6f, 1.0f}, {0.2f, 0.9f, 1.0f, 1.0f})
+          .tube(9);
+
+  space::Camera camera;
+  camera.eye = {0, 180, 640};
+
+  space::MeshStyle style;
+  style.backfaceCull = true;
+
+  space::drawMesh(canvas, comet, space::place({0, 0, 0}), camera,
+                  viewport, style);
+}
 ```
 
-## Blend (the Illustrator study)
+Nothing above holds a device, a context or a frame. `Mesh` is a plain
+struct of vectors; `pop::Chain` is a `std::vector` of variants; the easel
+objects are values you can copy, tweak and re-cook.
 
-`blend::make(keys, options)` expands two-or-more `Key`s (outline +
-fill/stroke/opacity) into drawable `Step`s, faithful to Object > Blend:
+## The mental model
 
-- **Spacing**: `Steps` (exact count), `Distance` (px along the spine),
-  `SmoothColor` (step count from color distance — the 254-step
-  black-to-white rule, scaled).
-- **Spine**: default is the straight line between key centroids
-  (plain interpolation already follows it); set `Options::spine` to any
-  path to ride a spiral, `reverseSpine` to flip direction,
-  `Orientation::AlignToPath` to rotate steps with the tangent.
-- **Correspondence**: both outlines are resampled to `samples`
-  arc-length points per contour; closed contours get least-squares
-  cyclic alignment (rotation + direction), the stable version of
-  dragging between anchor points. Unmatched contours collapse toward
-  the other key's centroid.
-- **Color**: interpolation runs in OKLab (`detail::lerpOklab`), so
-  red-to-blue passes through neither gray nor mud.
+**Two type currencies.** Anything genuinely three-dimensional — mesh
+vertices, spline knots, camera vectors, cloud positions, transforms —
+speaks glm (`vec2`, `vec3`, `vec4`, `mat4`). Anything genuinely
+two-dimensional or draw-time speaks Skia: `SkPath` outlines, `SkColor4f`
+paint, `SkImage` textures, `SkCanvas`. `Space.h` is the declared bridge
+between them, and `space::toSkM44()` is the seam. Because glm's `mat4` and
+Skia's `SkM44` are both column-major, that conversion is a straight memory
+pour with no transpose.
 
-## Mesh (procedural geometry, shared with SigilWorld)
+**Resampling is the substrate.** `Geometry.h` reduces any path to one of
+two forms: a `Polyline` (adaptive curve flattening that keeps corner
+anchors exact) or a `Sampled` (exactly N points spaced uniformly by arc
+length). Everything above stands on those two. Blending interpolates
+`Sampled` pairs. Distortions displace resampled points and rebuild.
+Extrusion walls sweep flattened contours. Swept geometry rides arc-length
+samples of a spline.
 
-`Mesh {positions, normals, uvs, indices}` is deliberately
-renderer-neutral: `space::drawMesh` consumes it through SkVertices and
-`sigil::world::World::addSurface` uploads the same buffers to Diligent.
-Generators: `extrude(path)` (earcut caps with holes, flat-shaded
-walls), `revolve(profile)`, `grid(nu, nv, fn)`, and the presets
-`torus`, `superellipsoid`, `cylinderPanel` (the curved diegetic
-screen), `quad`.
+**Values, not baked results.** Options structs, distortion structs,
+operator values, splines, clouds and chains are all plain data you edit and
+re-cook. `ops::PathOp` plus `ops::chain()` compose a non-destructive
+recipe; `blend::Options`, `curves::TubeOptions` and `pop::Chain` behave the
+same way. Nothing is committed until a draw call or an explicit cook asks
+for it, so changing one dial and re-running is always available.
 
-Conventions: mesh space is y-UP right-handed (extrude flips the y-down
-path upright and centers on its bounds); UVs are image-convention —
-(0,0) samples the texture's top-left — in BOTH renderers.
+**Named attribute lanes, in two classes.** The *point* class lives on
+`Cloud`: string-keyed lanes of scalars, vectors and colours, created on
+first touch and sized to the point count. Generators write conventional
+names — `"t"`, `"tangent"`, `"normal"`, `"binormal"`, `"size"`, `"tint"`,
+`"uv"` — and consumers read them back by name, so your own cooked lane
+slots in wherever a built-in one does. The *primitive* class lives on
+`Mesh::prims`: `vec4` lanes sized to `triangleCount()`, because a primitive
+here *is* one triangle. Its conventional names are `"Color"` (a flat
+per-triangle tint) and `"Id"` (`.x` carries which piece the triangle
+belongs to). `points::promoteToPrims()` and the `pop::Promote` operator
+move values from the point class to the primitive class.
 
-### Append keeps every lane coherent (2026-07-28)
+**`Mesh` is the shared currency.** The same `positions`/`normals`/`uvs`/
+`colors`/`indices` buffers feed the CPU painter in `Space.h` and upload
+directly to a GPU renderer downstream. Nothing renderer-shaped lives in the
+struct.
 
-`Mesh::append` used to concatenate `normals` and `uvs` with bare
-`insert` calls while `colors` (and later `prims`) got a padding dance.
-That is not a cosmetic asymmetry: every consumer reads "lane sized to
-positions" as the mesh's presence bit — `space::drawMesh` literally sets
-`hasNormals = normals.size() == positions.size()` — so merging a
-normal-less mesh into a normal-bearing one dropped lighting for the
-WHOLE merge, not just the half that lacked normals. Same for `uvs` and
-texturing. The everyday source is `points::instance` over a stamp
-authored with positions and indices only, and `import`'s `merged()`
-across model parts.
+**`pop::Chain` is a backend-neutral description.** It is a vector of
+operator variants, not a program. The CPU executor in `popops::cook()` is
+the reference implementation; a GPU consumer can execute the identical
+chain as compute dispatches, and the two are required to agree bit for bit
+— which is what makes the hash helpers and the variant order load-bearing
+(see below).
 
-Both lanes now pad like `colors`: if EITHER side authors the lane, the
-merged mesh carries it sized to `positions`; if neither does, the lane
-stays empty (append pads an existing lane, it never conjures one).
+**`Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
+`pill`, `ring`) and four fluent value types over everything underneath:
+`Shape` (`offset`, `roughen`, `zigzag`, `bloat`, `pucker`, `twirl`,
+`unite`, `cut`, `clip`, `step`, plus one look — `fill`, `stroke`, `gold`,
+`chrome`, `glass` — and `path()`/`draw()`), `Blend` (`colors`, `steps`,
+`every`, `smoothColor`, `along`, `turning`, `smooth`, `between`, `cook`,
+`draw`), `Wire` (`through`, `closed`, `straight`, `spline`, `tube`,
+`ribbon`, `beads`, `draw`) and `Particles` (`on`, `inBox`, `onSurface`,
+`count`, `seed`, `drift`, `jitter`, `size`, `ramp`, `sprite`, `cook`,
+`glow`). It adds no capability; it picks defaults and reads like a
+sentence.
 
-The pads, and why: a missing **normal** pads `{0, 0, 1}`, not zero. A
-zero normal is degenerate three ways — `Mesh::transform`'s
-`normalized()` keeps it zero forever, every lighting term collapses so
-the padded half renders BLACK (louder than the bug being fixed), and
-shader-side `normalize()` of it is undefined. +Z is already the
-library's answer for "no direction" (`detail::normalized`'s fallback,
-`basisFor`'s axis), is unit length, and shades the padded half like a
-flat card. Callers wanting the geometric truth call `computeNormals()`
-on the merge. A missing **uv** pads `{0, 0}` — texel (0,0), the same
-convention `Cloud::append` gives a missing `"uv"` lane.
+## The headers
 
-Pinned by `Mesh.AppendKeepsNormalAndUvLanesSizedToPositions`. No
-`shape_demo` panel moved (all 14 byte-identical): the catalog never
-merges a mixed pair.
+They form a dependency chain — each header includes those it needs, so
+including a later one pulls the earlier ones in.
 
-### Primitive attributes (2026-07-28)
+Four headers stand alone and depend on nothing else in the library:
 
-The TouchDesigner/Houdini **prim class**, the point lanes' sibling. A
-primitive here IS a **triangle** — one index triple — because Mesh is
-the currency both renderers already consume; every other candidate
-(a stamp instance, a swept ring, a cooked contour) is a GROUPING of
-triangles and is expressible as a lane VALUE instead of a second
-container, which is exactly what the reserved `"Id"` lane does.
+- **`Geometry.h`** — the resampling core. `Polyline` and `flatten()`,
+  `Sampled` and `resample()`, `bestAlignment()`/`applyAlignment()` for
+  matching two closed contours, `toPath()` to rebuild (optionally through
+  Catmull-Rom cubics), and `lerp()`.
+- **`Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
+  `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
+  `offset`), and four distortions as parameter structs you apply on demand:
+  `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp` and `chain()`
+  compose them, `offsetBy()` adapts `offset` into a step.
+- **`Materials.h`** — reflective materials as `SkRuntimeEffect` shaders.
+  `bevelNormals()` derives a normal map from a path's coverage;
+  `Environment` supplies what the surface reflects, either as a procedural
+  bake (`studio()`, `sunset()`) or a loaded equirectangular panorama
+  (`fromEquirect()`), with cached roughness blurs. `gold()`, `chrome()` and
+  `glass()` return shaders; `drawGold()`, `drawChrome()` and `drawGlass()`
+  run the whole pipeline for one path.
+- **`Mesh.h`** — the mesh currency and its generators. The `Mesh` struct
+  (positions, normals, uvs, colors, indices, and the `prims` lane map),
+  `append()`/`transform()`/`computeNormals()`/`bounds()`, and the
+  generators `extrude()`, `revolve()`, `grid()`, `torus()`,
+  `superellipsoid()`, `cylinderPanel()`, `quad()`, plus
+  `mesh::bakePrimColor()`.
 
-`Mesh::prims` is a name -> `vector<vec4>` map sized to
-`triangleCount()`, addressed by the same names `pop::AttrRef` uses:
-`prim(name)` creates on touch, `primIf(name)` reads. Conventional
-names are `"Color"` (flat per-primitive tint) and `"Id"` (`.x` = the
-piece the triangle belongs to); anything else is a custom lane.
-`Mesh::append` concatenates lanes and pads a missing side by name
-("Color" pads white, everything else zeros) — the posture
-`Cloud::append` takes for the point class.
+The rest build on those:
 
-Three ways in and three ways out:
+- **`Blend.h`** needs `Geometry`. Shape interpolation modelled on
+  Illustrator's blend tool: `Key`s expand into drawable `Step`s under
+  `Options` controlling spacing (`Steps`, `Distance`, `SmoothColor`), an
+  optional spine path, orientation, sample density and outline smoothing.
+- **`Space.h`** needs `Mesh`. Skia's 3D put to work: a `Camera`,
+  `drawMesh()` (a painter-order software rasterizer with per-vertex
+  lighting and `SkVertices` batching), `drawPanel()`/`drawImagePanel()`
+  (perspective-correct 2D content on a plane), and the transform helpers
+  `place()` and `faceCamera()`. `toSkM44()` is the glm-to-Skia seam.
+- **`Curves.h`** needs `Mesh` and `Space`. `Spline3` (linear, Catmull-Rom
+  or Bezier, open or closed) with `position()`, `tangent()`, `length()`,
+  `sample()` and `sampleArcLength()`; `curves::frames()` for
+  parallel-transport `Frame3`s that do not flip at inflections; the swept
+  generators `tube()`, `ribbon()` and `banner()`; and `project()` to draw
+  the curve as a 2D path under a camera.
+- **`Points.h`** needs `Curves`, `Mesh` and `Space`. `Cloud` and its lane
+  accessors; the generators `onSpline()`, `grid()`, `ring()`,
+  `scatterBox()` and `onMesh()`; the modifiers `jitter()` and
+  `displaceNoise()`; the consumers `instance()` and `panels()` (stamp a
+  mesh at every point into one merged mesh) and `drawBillboards()`
+  (camera-facing sprites); and `promoteToPrims()`.
+- **`Pop.h`** needs `Curves` and `Points`. The operator chain language and
+  its CPU executor.
+- **`Import.h`** and **`Save.h`** need `Mesh` and `Points`. Import reads
+  OBJ (with MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL,
+  ascii and binary-little-endian PLY, and Ogawa Alembic, producing a
+  `Model` of `Part`s; external references resolve through a caller-supplied
+  `Resolver`. Save writes PLY back out — `save::ply()` over a `Cloud` or a
+  `Mesh`, ascii by default or binary via `PlyOptions`.
+- **`Easel.h`** needs `Blend`, `Curves`, `Materials`, `Mesh`, `Ops`,
+  `Points` and `Space`. It does not pull in `Pop`, `Import` or `Save`.
 
-- **In, by hand**: write `mesh.prim("Color")` on any formed model.
-- **In, from the point class**: `points::promoteToPrims(mesh, cloud,
-  cloudLane, primLane)` (Houdini's Attribute Promote) for anything
-  `points::instance` stamped, and `pop::Promote` — the chain op,
-  spelled `.promote(from, to)` — which `popops::cookMesh` honours.
-- **Out, natively**: `space::MeshStyle::primColorLane` multiplies the
-  lane into each triangle's colour with no vertex duplication (Lit
-  mode only; Normals/Uv are buffers and stay unmodulated).
-- **Out, portably**: `mesh::bakePrimColor(mesh, lane)` unwelds into
-  per-vertex colours, so SigilWorld's Diligent pipelines — or any
-  vertex-only renderer — show flat per-primitive colour unchanged.
-- **Out, to the interchange world**: `save::ply` declares each lane on
-  the PLY **face** element (`name_r/_g/_b/_a`, after the index list),
-  which is how Houdini and Blender read per-face attributes — and
-  `import::model` reads them back into `Mesh::prims` (2026-07-29,
-  below), so the trip is a round one.
+### The operators
 
-Executor boundary, stated: prim lanes are **CPU-only** in this pass.
-The GPU executor cooks the point class into lane arenas and has no
-Mesh value to promote onto, so `World::addPoints`/`addPointsOn`/
-`setPoints` **decline** any chain holding `pop::Promote` (return 0)
-rather than dropping it silently — the same graceful boundary
-`MeshScatter` gets.
+`pop::Op` is a variant over fourteen operator values, and `pop::Chain` is a
+vector of them. Generators seed a chain: `SplineScatter` (points along a
+window of a closed loop) and `MeshScatter` (points on a formed model's
+faces). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
+`Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Promote` and
+`Sort`.
 
-Deferred on purpose: the swept sinks (`cookTube`/`cookRibbon`/
-`cookSweep`) promote nothing — their triangles ride RESAMPLED
-cross-sections, so there is no owning point; and no edge class exists
-(nothing in the library addresses half-edges).
+Every operator addresses attributes by name through `pop::AttrRef`, with
+`"P"`, `"T"`, `"Dir"`, `"Scale"`, `"Color"` and `"Tex"` as the well-known
+names and anything else creating a custom lane on first write.
 
-### The prim lanes' way back in (2026-07-29)
+`pop::on()` returns a `Builder` whose chained verbs (`count`, `window`,
+`spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
+`move`, `set`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
+`op`) append operators; the builder converts to a `Chain`, so you can reach
+into any operator afterwards and re-cook. Sinks turn a chain into geometry:
+`cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps, and
+`cookTube()`/`cookRibbon()`/`cookSweep()` treating the cooked points as a
+path to sweep along.
 
-The read leg lands, so the PLY round trip is **closed for both
-attribute classes**: face properties import into `Mesh::prims` under
-the same names `save::ply` wrote them with, ascii and
-`binary_little_endian` alike. Blender or Houdini can now be a step in
-the middle of the pipe, not just the end of it.
+## Conventions that will bite you
 
-They need no new member on `import::Part`. `mesh.prims` is already
-`triangleCount()`-sized *by definition*, which is the whole point: a
-per-face lane parked next to `Part::scalarLanes` would be one
-`asCloud()` away from a silent per-vertex misread, and putting it in
-its own container makes the cardinality unmistakable and carries it
-through `Model::merged()` (via `Mesh::append`) for free.
+These are properties of the code. Getting one wrong produces geometry that
+is silently, plausibly wrong rather than obviously broken.
 
-The suffix grammar is **one** grammar, so it has one implementation —
-`foldSuffixedLanes` folds `_x/_y/_z` and `_r/_g/_b/_a` for the point
-lanes and the prim lanes both (neuter it and tests of both classes
-fail). Prims speak `vec4` only, so a folded colour IS the vec4 (alpha
-defaults to 1), a folded vector takes `w = 0` (`append`'s pad for
-non-`"Color"` lanes), and a lone scalar lands in `.x` — the `"Id"`
-convention. Conventional per-face `red/green/blue/alpha` (what MeshLab
-writes) is collected under the suffixed spelling, so it reconstitutes
-as the same `"Color"` lane with integers normalized.
+- **Mesh space is right-handed and y-up.** Skia's 2D space is y-down.
+  `mesh::extrude()` therefore explicitly negates the incoming path's y and
+  centres the result on the path's tight bounds — an extruded shape does
+  not sit where the source path sat.
+- **UV origin is the texture's top-left**, the image convention, in every
+  generator and every consumer. Formats that use a bottom-left origin
+  (OBJ, Alembic) have their v flipped at import; glTF already matches.
+- **`Polyline::signedArea()` is positive for a clockwise contour**, because
+  it is computed in Skia's y-down space. That is the opposite sign from the
+  usual y-up convention, so a winding test copied from elsewhere will be
+  inverted. Open polylines are treated as if closed.
+- **`space::Camera` is right-handed and y-up, and `fovYDeg` is the
+  *vertical* field of view.** `viewProjection()` carries normalized device
+  coordinates through to viewport pixels and flips y back to Skia's y-down
+  at that last step, so screen-space results are already in canvas
+  coordinates.
+- **glm and Skia matrices are both column-major**, which is why
+  `space::toSkM44()` is a raw pour. Remember that glm indexes
+  column-then-row: `m[0][1]` is column 0, row 1 — not the transpose you may
+  expect from a row-major API.
+- **`glm::vec3::length()` returns 3.** It is the component count, a static
+  member of the vector type, not the magnitude. Always write
+  `glm::length(v)`. This compiles cleanly and is one of the easiest ways to
+  produce nonsense here.
+- **`space::place()` composes as translate × rotate × scale, applied right
+  to left** — scale first, then rotate, then translate. Yaw is about +Y,
+  pitch about +X, roll about +Z.
+- **`MeshStyle::Mode::Normals` writes device-space normals with +y down**,
+  encoded as `rgb = n * 0.5 + 0.5` with the y component negated before
+  encoding. This is deliberate: it matches the normal maps
+  `materials::bevelNormals()` produces, so a G-buffer surface can be fed
+  straight into a material shader.
+- **`SkColor4f` values here are display-encoded sRGB, not linear.** Colour
+  interpolation runs through OKLab, with an explicit sRGB decode on the way
+  in and encode on the way out (`blend::detail::lerpOklab`). Interpolating
+  the components directly is a different — and visibly worse — result.
+- **`Mesh::append` pad rules are load-bearing, not cosmetic.** Consumers
+  read "this lane is sized to `positions`" as the mesh's presence bit for
+  that lane — `space::drawMesh` literally decides `hasNormals` that way —
+  so a merge that left a lane undersized would turn lighting, texturing or
+  tinting off for *both* halves, not just the half that lacked it. Every
+  optional lane therefore comes out sized to the merge whenever either side
+  authors it, and a lane neither side authors stays empty (append pads an
+  existing lane, it never conjures one). The pads: colors white, uvs
+  `(0, 0)`, and **normals `{0, 0, 1}` rather than zero** — a zero normal
+  survives `Mesh::transform`'s normalization as zero, collapses every
+  lighting term so the padded half renders black, and is undefined input to
+  a shader's `normalize()`. Primitive lanes pad by name: `"Color"` white,
+  everything else zeros. `Cloud::append` takes the same posture for the
+  point class: scalar `"size"` pads 1 and other scalars 0, colour `"Tex"`
+  pads the identity window `{0, 0, 1, 1}` and `"uv"` pads `{0, 0, 0, 0}`
+  while other colours pad white, and vectors pad `{0, 0, 1}`. Call
+  `computeNormals()` on the merge when you want the geometric truth instead
+  of the pad.
+- **The hash helpers in `detail/Hash.h` are ABI.** `pcgAdvance`, `pcgMix`
+  and `pcgHash` are bit-matched to the GPU compute kernels that execute the
+  same operator chains. The constants and the shift schedule are not tuning
+  knobs — changing either desynchronizes the CPU reference from the GPU
+  executor, and the failure appears as two renderers scattering points
+  differently rather than as a build error.
+- **The declaration order of `pop::Op`'s variant alternatives is ABI.** A
+  GPU consumer maps each operator's variant *index* to a compute pipeline.
+  New operators are appended; inserting one in the middle silently
+  reassigns every operator after it to the wrong kernel.
+- **Mesh indices are 32-bit.** Skia's `SkVertices` 16-bit index limit is
+  handled by chunking inside `space::drawMesh()`, not by the data — you do
+  not need to split meshes yourself.
+- **`drawPanel()` runs your callback in panel-local coordinates**: origin at
+  the panel's centre, x right, **y down** like any Skia canvas, and one
+  unit equals one world unit.
+- **`mesh::quad()` and `mesh::cylinderPanel()` face +z**, and
+  `space::faceCamera()` orients that +z face at the eye. `points::instance`
+  orients a stamp's +z along the orient lane using the same basis
+  construction, so a face-camera'd quad and an instanced facing lane agree.
+- **Imported textures are not decoded.** `import::Part` carries the encoded
+  bytes (or the unresolved URI); turning them into pixels is a separate
+  concern. Likewise, `import::model()` never touches the filesystem for
+  external references unless you gave it a `Resolver` or used the path
+  overload.
+- **Alembic support is Ogawa-only and nearest-sample.**
+  `AlembicOptions::time` picks the closest stored sample; nothing is
+  interpolated, and HDF5-cored archives return `nullopt`.
 
-**Fan triangulation is the case that breaks.** The reader fans an
-n-gon into n-2 triangles, so a face row's value is REPLICATED across
-exactly the triangles that row produced — and a face naming a vertex
-that does not exist produces NONE, so its values are dropped with it.
-Face rows are therefore BUFFERED: the lanes cannot be appended until
-the row's triangle count is known, which also means the face
-properties may be declared before or after the index list. Nothing on
-this path is sized from a declared count, so a header promising face
-properties the body never delivers fails the read instead of
-over-allocating, and a duplicate face property claims its lane once
-rather than appending twice. Lanes that still end up off
-`triangleCount()` are dropped whole rather than published at a lying
-cardinality.
+## Boundaries
 
-## Space (Skia's 3D)
+Publicly the library links Skia and glm and nothing else. Privately it uses
+tinyobjloader for OBJ, Alembic for `.abc`, and the header-only earcut (cap
+triangulation) and cgltf (glTF); STL and PLY are parsed by hand.
 
-One `Camera` (eye/target/up/fovY) drives two devices:
+It deliberately does not own a GPU device, a window, a Qt dependency, a
+component or scene kernel, an animation timeline, an image decoder, a
+resource-access layer, or text layout. Where one of those is needed —
+decoding a texture an importer handed you, or fetching an asset over the
+network — that is the caller's job, and the library is designed so the
+caller can supply it (`import::Resolver` is the hook).
 
-- `drawPanel` / `drawImagePanel`: concat a full perspective SkM44 and
-  let Skia rasterize — perspective-correct 2D content on planes, the
-  zero-copy diegetic-panel path.
-- `drawMesh`: CPU transform + per-vertex Blinn lighting + backface
-  cull + painter sort, chunked under the 16-bit SkVertices limit.
-  `MeshStyle::Mode::Normals` renders a DEVICE-space normal G-buffer
-  (+y down, rgb = n*0.5+0.5) instead — feed that surface to a material
-  shader and per-pixel chrome lands on true 3D geometry (see
-  shape_demo's mesh_chrome panel).
+The relationship with **SigilWorld**, the GPU renderer that sits beside it,
+is one-directional: SigilWorld links SigilShape and consumes its `Mesh`,
+`Cloud`, `pop::Chain`, `Spline3` and `space::Camera` types. SigilShape does
+not link SigilWorld, does not include its headers, and does not know it
+exists. The consequence worth internalizing is that **the CPU
+implementations here are the reference**: `space::drawMesh()` is the twin
+of the GPU uploader, and `popops::cook()` is the definition a GPU chain
+executor must reproduce. When the two disagree, this side is right.
 
-## Materials (the literal ones)
+## Build and test
 
-A two-channel deferred pass in miniature: **normals** (where the
-surface points) × **environment** (what it reflects), combined per
-pixel by an SkRuntimeEffect.
+Configure and build from `apps/spell-circle-canvas`:
 
-- `bevelNormals(path, bounds, bevelPx)`: coverage → blur →
-  smoothstep shoulder → Sobel; flat interior, rounded rim.
-- `Environment::studio()` / `::sunset()`: procedural equirect bakes
-  (F32, HDR-ish softboxes; sunset is the y2k chrome horizon).
-  `Environment::fromEquirect(image)` wraps a loaded panorama — an
-  OIIO-decoded .hdr from SigilLoader drops straight in.
-  `image(roughness)` returns cached blurs (CPU box blur with proper
-  horizontal wrap — equirect u is periodic).
-- `gold` (F0-tinted reflection, fbm foil crinkle, hash glints),
-  `chrome` (contrast-crushed env, brushed anisotropic smear,
-  `exposure` gain for dim real HDRIs), `glass` (backdrop child
-  refracted through the normal field, fresnel-weighted reflection,
-  edge glow). `drawGold/drawChrome/drawGlass` run the whole pipeline
-  for one path.
-
-## Non-destructive posture
-
-Everything upstream of a pixel is a VALUE with editable parameters:
-blend Keys/Options, distort structs and `ops::chain` recipes, Spline3
-control points, Cloud lanes, mesh generator arguments. Nothing bakes
-until a draw call asks; re-run any stage after touching any dial. The
-attribute vocabulary is deliberately Houdini-ish: generators write
-conventional lanes ("t", "tangent"/"normal"/"binormal", "size",
-"tint"), consumers read them by name, and cooked lanes (write your own
-vector per point) slot in anywhere a built-in one does.
-
-### Two pop verbs, and the count-invariance ruling (2026-07-29)
-
-`pop::Lookup` (`.rampBy`) and `pop::Sort` (`.order` / `.orderBy`) join
-the chain. Lookup is **`fade` grown up**: drive any attribute from any
-other through a table of stops — `key = dot(from, weights)`, remapped
-from `[low, high]` onto the table's span and sampled linearly, so the
-table is a *curve*, not a palette. `Ramp` is its two-stop case driven
-by `T`. Both ends reach customs, so `"energy" → "heat"` is one verb.
-Sort is a **permutation**: every lane travels with its point, stable,
-keyed by `dot(by, weights)` so an arbitrary axis works (pass the
-camera's forward and `descending` for painter order).
-
-Why Sort earns its place instead of being a display concern: **chain
-order is meaning here.** The point sink draws in it — and the Skia
-painter has no depth buffer, so back-to-front is authored, not
-rasterised. The swept sinks thread their path through it, so a sorted
-chain forms a genuinely different tube from the same points. `Relax`
-smooths along it. Pinned by `Pop.OrderPutsTheWholePointInDrawOrder`,
-which checks the reordering, lane coherence (matched by position, so
-it knows nothing of the permutation), the descending mirror, and the
-swept-path consequence.
-
-**The ruling on count.** Every pop op is count-invariant: N points in,
-N points out, lanes rewritten in place. That is not an accident of
-implementation — it is what lets the chain be *one description two
-executors run*, and what lets the GPU executor size a lane arena once
-and dispatch one kernel per op. So:
-
-- **Copy, Merge and Delete are NOT chain ops**, and the research list
-  naming them alongside Math and Noise is comparing different things.
-  They change TOPOLOGY, not attributes; a chain holding one would mean
-  every op after it addresses a different point set. They already have
-  a home: **composition**. `pop::on(const Chain &upstream)` feeds a
-  chain's cooked points into another's generator (`World::addPointsOn`
-  does it device-resident), which is Copy — a downstream chain with its
-  own count riding an upstream result — and stacking upstreams is
-  Merge. Delete is a SINK-side or generator-side concern (scatter
-  fewer, or filter the cooked Cloud), not a mid-program count edit.
-  Building them as ops would buy an upper-bound allocation and a live
-  count on the GPU, i.e. the arena model traded away, in exchange for
-  what composition already expresses.
-- **Sort and Lookup are count-invariant and are therefore the natural
-  first citizens** — agreed with, and shipped.
-- Lookup runs on **both** executors, bit-matched
-  (`World.EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu`). Sort is
-  **CPU-only**, declined by SigilWorld the way `MeshScatter` and
-  `Promote` are — a permutation is not a per-point map, so it wants a
-  sorting network rather than a kernel, and its motivating consumer is
-  the CPU sink anyway.
-
-Filed with reasons rather than built: **Particle** and **Feedback**
-need cook N to read cook N−1 — state plus a clock, which would end the
-property that a Chain's cook is a pure function of its own values
-(SigilWorld made the matching ruling for animation: it owns no clock).
-**Field** wants a field-source currency — SDF, volume, sampled texture
-— that shape has no type for yet; `Noise` is the procedural field we
-do have, and Lookup is now the remap that would consume a sampled one.
-**Line** is a generator, not a filter, and the honest shape for it is
-an `open` flag on `SplineScatter` (which is closed by construction
-today) rather than a fourteenth variant alternative.
-
-### One scatter hash (2026-07-28)
-
-`detail/Hash.h` holds the single PCG the library scatters with —
-`pcgAdvance` / `pcgMix` / `pcgHash`. `Pop.cpp`'s `hash1` (bit-matched to
-the Slang pop kernels, so this is ABI) and `Points.cpp`'s `pcg` PRNG were
-two copies of the same arithmetic; only `Pop.cpp`'s was covered by the
-GPU-parity exemption. They were verified bit-identical over 2^26 inputs
-before merging, and the merged definition reproduces both streams
-exactly (`comet_points.ply` from `world_demo` is byte-identical across
-the change). `Pop.SharedPcgHashKeepsBothConsumersBitStable` pins goldens
-taken from the two originals through both public surfaces. The scatter
-BASIS stays literal at the `Pop.cpp` site, as `VecMath.h` already notes.
-
-## Demo and tests
-
-```
-./build/bin/Debug/shape_demo [outdir] [assetdir]   # 12 PNG panels, +2 with assets
-./build/bin/Debug/shape_test
+```sh
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug
 ```
 
-Panels: blend_morph, blend_color, blend_spine, materials,
-mesh_perspective, mesh_chrome, panels_space, pathfinder,
-splines_particles, pop_models, pop_prims, yarn_marquee — and
-materials_hdri / imported_models when `fetch_assets` has
-populated the asset dir (the Poly Haven studio HDRI through
-SigilLoader/OIIO, the Khronos Avocado glTF). `shape_test` (75 tests)
-covers resampling
-invariants, blend endpoint/spacing/OKLab rules, pathfinder booleans and
-offset, distort sanity, spline interpolation/arc-length/frame
-orthonormality, tube/ribbon well-formedness, cloud generators and
-lanes, instancing, billboard coverage, extrude caps, grid/torus
-normals, camera projection, material shader compilation, the import
-formats (OBJ/glTF/GLB/STL/PLY/Alembic) and PLY save round trips, the
-pop chains and their sinks, and the primitive attribute layer
-(lane sizing/append padding, promote, flat draw, bakePrimColor, and
-the PLY face-property round trip both ways through both spellings —
-fan triangulation, conventional per-face colour, hostile headers).
+Targets: `SigilShape` (static library), `shape_test` (registered with
+ctest), and `shape_demo`.
+
+```sh
+ctest --test-dir build -C Debug -R shape_test --output-on-failure
+./build/bin/Debug/shape_demo [outdir] [assetdir]
+```
+
+Everything is CPU and raster Skia, so the tests need no GPU and run
+anywhere.
+
+`shape_demo` writes PNG panels into `outdir` (default `shape_demo_out`):
+`blend_morph`, `blend_color`, `blend_spine`, `materials`,
+`mesh_perspective`, `mesh_chrome`, `panels_space`, `pathfinder`,
+`splines_particles`, `pop_models`, `pop_prims` and `yarn_marquee`. Two more
+appear when `assetdir` (default `assets`) has been populated by the
+optional `fetch_assets` build target: `materials_hdri`, which lights the
+material swatches with a loaded HDRI panorama, and `imported_models`, which
+renders whatever model files sit in `<assetdir>/models` through the import
+path.

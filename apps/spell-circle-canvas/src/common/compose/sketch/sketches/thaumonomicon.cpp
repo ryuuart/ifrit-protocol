@@ -48,7 +48,7 @@
 //   badge and 16x16 item glyph here is GENERATED — the route tiles and the
 //   frame from the brush vocabulary (shapers::Jitter + lines::cased + a
 //   brush::Scatter of ink spatter), the item icons as run-length pixel art on
-//   the GUI grid, the way xcom_battlescape.cpp reconstructed ICONS.PCK. Also
+//   the GUI grid so every mark lands on a whole mod pixel. Also
 //   reconstructed: the save state (which nodes are complete / unlockable /
 //   locked) and the Minecraft bitmap face (see PixText).
 //
@@ -61,11 +61,10 @@
 //     (childColumn, parentRow), never at the midpoint an orthogonal router
 //     would pick. The tiles are 24x24 straights, and the turn is a 24x24 elbow
 //     UNLESS both deltas exceed one cell, in which case it is a 48x48 elbow
-//     that EATS TWO CELLS OF EACH LEG (`bigCorner`, :904 and :970-1005). That
-//     one flag is the entire reason this brief exists: a corner tile that
-//     consumes leg length before the side tiles are fitted is precisely what
-//     brush::Pattern could not do until this study asked. See THE
-//     CORNER REPORT below.
+//     that EATS TWO CELLS OF EACH LEG (`bigCorner`, :904 and :970-1005). A
+//     corner tile that consumes leg length before the side tiles are fitted is
+//     what `brush::Pattern::cornerLength` does here — see THE CORNER TILE
+//     below.
 //  2. THE ARROWHEAD IS AT THE CHILD AND ITS GLYPH IS PICKED BY THE FIRST LEG,
 //     NOT BY THE EDGE. :938-966 tests ym before xm, so a route with any
 //     vertical component gets a vertical arrowhead even when it approaches the
@@ -83,8 +82,8 @@
 //     updateResearch():246-262 accumulates guiBounds from the node columns and
 //     rows and actionPerformed() centres the view on their midpoint, so the
 //     scroll is not a choice: at 427x267 it is locX = -114, locY = -106.
-//     ScaledResolution then settles the composition. The brief assumed GUI
-//     scale 2, at which the 456 GUI px web sits inside a 608 px window with
+//     ScaledResolution then settles the composition. At GUI
+//     scale 2 the 456 GUI px web sits inside a 608 px window with
 //     room to spare and the screen reads as a diagram; but Minecraft's AUTO
 //     scale at 1280x800 is 3 (1280/4 = 320 passes, 800/4 = 200 fails the 240
 //     floor), the window becomes 395 px, and the web is WIDER than it. The
@@ -92,73 +91,50 @@
 //     resolution it opens at.
 //
 // -----------------------------------------------------------------------------
-// THE CORNER REPORT — brush::Pattern, measured, and now closed
+// THE CORNER TILE — three things brush::Pattern must be told here
 //
-// The brief predicted brush::Pattern would break on a 48 px corner tile against
-// 24 px side tiles. It did. Probed with a scratch sketch (three L routes; a
-// 48 px side tile with coloured end caps; a 96 px corner tile with its local
-// +x axis drawn, so placement and rotation are both readable off the pixels):
+// 1. THE CORNER MUST RESERVE ITS OWN LENGTH. A stamped elbow is not an
+//    ornament laid over a continuous run: it OCCUPIES leg length, and the side
+//    tiles have to stop where it begins or they draw underneath it.
+//    `cornerLength` reserves cornerLength/2 at each end of the corner's two
+//    runs and refits the side tiles over what is left, and with it the counts
+//    come out exact rather than approximately right:
 //
-//   a. IT RESERVED NO LENGTH FOR A CORNER. Runs were the spans BETWEEN corner
-//      distances, both spans were tiled right up to the bend, and the corner
-//      was then stamped on top — so a corner tile twice the advance covered,
-//      and double-drew, exactly one side tile on each leg. Invisible when the
-//      corner art is the same size as the side art, which is why it survived.
-//   b. THE CORNER LANDS 3 PX PAST THE BEND, NOT ON IT. Detection scans at
-//      step = clamp(advance/4, 1, 6) and records `d - step*0.5`, but the
-//      tangent break is first SEEN one step AFTER the vertex, so the recorded
-//      distance is (vertex + step/2). Measured: corner centre at bend + 3 px
-//      along the OUTGOING leg on all three probes, box size exact
-//      (52,193..145,286 for a bend at 96,240 — centre 98.5, 239.5).
-//   c. AND IT IS ROTATED TO THE OUTGOING TANGENT, NOT THE BISECTOR. The
-//      bisector is built from samples at d +/- 2; since d is already 3 px past
-//      the vertex, BOTH land on the outgoing leg, so `before` and `after` are
-//      the same vector. The seam corner of a CLOSED contour is the exception —
-//      it is inserted at d = 0 and its probes wrap, so it alone gets a true
-//      bisector. On a rect that means three corners rotate one way and the
-//      fourth rotates 45 degrees off.
+//      reserve    = kCell/2 (small elbow)  or 1.5*kCell (big)
+//      vertical   = kCell*yd - kCell/2 - reserve = kCell*(yd-1) or kCell*(yd-2)
+//      horizontal = kCell*xd - kCell/2 - reserve = kCell*(xd-1) or kCell*(xd-2)
 //
-// (a) is FIXED: `brush::Pattern::cornerLength` now reserves cornerLength/2 at
-// each end of a corner's two runs and refits the side tiles over the shortened
-// span. These edges are its first real consumer, and the numbers fall out
-// exactly: reserve = kCell/2 for the small elbow and 1.5*kCell for the big
-// one, the routed path is trimmed half a cell at each node, and the runs come
-// out to kCell*(yd-1) / kCell*(xd-1) — or (yd-2) / (xd-2) with the big elbow —
-// which is tile-for-tile what drawLine's `v` and `h` loops emit, at sx = 1.0.
+//    which is tile-for-tile what drawLine's `v` and `h` loops emit, at
+//    sx = 1.0. Change the reserve and the run stops being an integer number of
+//    tiles, so the pattern starts stretching them.
 //
-// (b) and (c) ARE ALSO FIXED NOW, and the fix silently broke this study the
-// same afternoon it shipped — which is the part worth writing down. Nothing
-// in this file changed and no build failed; the render just went wrong, and
-// stayed wrong through a review. The scanner learned to bisect
-// its own bracket, so `hit.d` is the vertex (the 3 px is gone) and the two leg
-// tangents come out of the search, so a corner can finally face a REAL
-// bisector. `cornerAlign` was added at the same time and it defaults to
-// `Bisector`, because that is what an ornamental elbow wants.
+// 2. THE ELBOW MUST BE ALIGNED TO THE OUTGOING LEG, AND SAYING SO IS NOT
+//    OPTIONAL. `cornerAlign` defaults to `Bisector`, which is right for an
+//    ornamental corner that only has to look symmetric about the turn. This
+//    elbow is a piece of PIPE — it has an entry, an exit and a handedness —
+//    and elbowTile() authors it with local +x along the OUTGOING leg. Stamped
+//    on the bisector that art lands 45 degrees off its own connection points,
+//    and because a 2x2 route is ALL corner (from the arithmetic above,
+//    yd-2 = 0 side tiles), the whole edge becomes a floating chevron with
+//    nothing orthogonal left of it. So edgeEl() sets
+//    `cornerAlign = Outgoing` explicitly, and frameBand() — whose corner art
+//    is a rotationally forgiving lozenge — spells out `Bisector` for the same
+//    reason: neither brush should be inheriting an alignment it did not
+//    choose.
 //
-// This study's elbow is not ornamental. It is a piece of PIPE: it has an
-// entry, an exit, and a handedness, and elbowTile() authors it in the frame
-// (c) described — local +x along the OUTGOING leg. The moment the library
-// started honouring the true bisector, that art was stamped 45 degrees off,
-// and because a 2x2 route is ALL corner (see the arithmetic above: yd-2 = 0
-// side tiles), whole edges turned into 45-degree chevrons hanging in space
-// with nothing orthogonal left of them. Nothing here changed; the default
-// under it did. So edgeEl() now asks for `cornerAlign = Outgoing` EXPLICITLY
-// rather than inheriting it from a bug.
+// 3. FOUR ELBOW ARTS PER INK TIER IS THE FLOOR. An outgoing-aligned corner
+//    needs one art per turn direction, and so does a bisector-aligned one:
+//    its two arms sit at (turn/2, 180 - turn/2) off the bisector, which
+//    mirrors with the sign of the turn. Two sizes x two hands is therefore
+//    unavoidable, and it is cheap — each connector has exactly one corner and
+//    picks its art up front.
 //
-// The authoring cost (c) predicted is real and stands: an outgoing-aligned
-// corner needs one art per turn direction. So does a bisector-aligned one, as
-// it happens — the two arms sit at (turn/2, 180 - turn/2) off the bisector,
-// which mirrors with the turn sign — so the "one art" hope in the original
-// report was wrong. Four elbow arts per ink tier (two sizes x two hands) is
-// the floor either way, and it is cheap: each connector has exactly one
-// corner and picks its art up front.
-//
-// One more, found while getting under the 60 FPS gate and not obvious from
-// either header: brush::Pattern and brush::Scatter bake their art with snapshot(),
-// which records DRAW CALLS. So an SkMaskFilter inside tile art is re-run on
-// every stamp — a 1.1 px blurred ink bed cost 3.7 ms of a 15.5 ms frame across
-// ~145 stamps. Art that will be stamped hundreds of times has to be flat
-// geometry.
+// One constraint that binds all tile art here: brush::Pattern and
+// brush::Scatter bake their art with snapshot(), which records DRAW CALLS, not
+// pixels. An SkMaskFilter inside a tile is therefore re-run on every stamp,
+// and these routes stamp well over a hundred tiles per frame. Art that will
+// be stamped that often has to be flat geometry — hence the ink bed below is
+// a wider dark line rather than a blur.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -236,13 +212,13 @@ inline SkPoint centreOf(int col, int row) {
           g(kStartY + (float)row * 24 - kLocY + 8)};
 }
 
-/** :598 — the visibility test, and it is a CULL, not a clip: it is applied to
- *  the icon's top-left, so a node whose plate is more than half on screen is
- *  dropped whole. drawLine has no such test, so the EDGES to a culled node
- *  are drawn anyway and run off under the frame band. That asymmetry is what
- *  makes the browser read as a viewport onto a web that continues, and at
- *  this scroll it drops exactly three: BOTTLETAINT at column -6 and the two
- *  column-12 nodes. */
+/** :598 — the visibility test, and it is a CULL, not a clip: the ICON'S
+ *  TOP-LEFT, in view space, must lie inside [-24, screenX] x [-24, screenY],
+ *  and a node that fails is dropped whole rather than clipped. drawLine has no
+ *  such test, so the EDGES to a culled node are drawn anyway and run off under
+ *  the frame band. That asymmetry is what makes the browser read as a viewport
+ *  onto a web that continues, and at this scroll it drops exactly three:
+ *  BOTTLETAINT at column -6 and the two column-12 nodes. */
 inline bool culled(int col, int row) {
   const float vx = (float)col * 24 - kLocX;
   const float vy = (float)row * 24 - kLocY;
@@ -541,10 +517,11 @@ inline Router thaumRoute(bool flipped) {
 // Art elements are held by the sketch so their node identity is stable and the
 // brush::Pattern bake happens once.
 
-/** A pen stroke as a Brush: the ink BED (wide, dark, blurred — ink soaking
- *  into paper), a triple rule whose bold spine carries the value and whose
+/** A pen stroke as a Brush: the ink BED (wide and dark, ink soaking into
+ *  paper), a triple rule whose bold spine carries the value and whose
  *  hairline outriders are the pen's own casing, and a scatter of spatter
- *  grains. State moves value, never width — the run-2 width law. */
+ *  grains. An edge's state moves its VALUE and never its width, so every tier
+ *  of edge lays down the same weight of line. */
 inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
                       float bow = 0.0f) {
   Brush br;
@@ -552,12 +529,11 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
     br.shaped(kit::brush::shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
   br.shaped(kit::brush::shapers::Jitter{
       .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
-  // The bed: a crisp dark outline a GUI px wider than the body. NO blur —
-  // and that is a measured constraint, not a taste. brush::Pattern and
-  // brush::Scatter bake their art with snapshot(), which records DRAW CALLS,
-  // so an SkMaskFilter inside a tile is re-run on every stamp: 145 stamps of
-  // a 1.1 px blurred bed cost 3.7 ms of a 15.5 ms frame. Art that will be
-  // stamped hundreds of times has to be flat geometry.
+  // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
+  // brush::Pattern and brush::Scatter bake their art with snapshot(), which
+  // records DRAW CALLS, so an SkMaskFilter inside a tile is re-run on every
+  // one of the hundred-plus stamps a frame of routes costs. Art stamped that
+  // often has to be flat geometry.
   br.layer(LayeredBrush{{
       {g(4.0f) * k, mul(kInkDeep, 1.0f, 0.34f * tint.fA)},
       {g(2.6f) * k, mul(kInkDeep, 1.0f, 0.92f * tint.fA)},
@@ -627,8 +603,7 @@ inline Element knotCell(SkColor4f tint) {
 /** The elbow tile, drawn in the frame brush::Pattern stamps it in — local +x
  *  along the OUTGOING leg, which the brush only does when it is ASKED
  *  (`cornerAlign = Outgoing`, set in edgeEl; the default is the bisector, and
- *  under it this art lands 45 degrees off — see THE CORNER REPORT). In that
- *  frame:
+ *  under it this art lands 45 degrees off). In that frame:
  *
  *    the bend    is the art's own centre,
  *    the exit    is at local (+arm, 0),
@@ -665,7 +640,8 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
       .stroke(std::move(br));
 }
 
-/** The 32x32 arrowhead stamped at the child end. */
+/** The arrowhead stamped near the child end of an edge, authored pointing
+ *  along +x and rotated onto the edge's final direction by arrowEl(). */
 inline Element arrowCell(SkColor4f tint) {
   return box()
       .width(g(9))
@@ -714,7 +690,8 @@ inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
 }
 
 /** The plate: silhouette + parchment + tooth + a sketched double rule. The
- *  border is a Brush, never a stroke width — standing order 3. */
+ *  border is a Brush rather than a stroke width, so the rule can carry its own
+ *  jitter and a second dotted pass offset inside it. */
 inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
   const bool hidden = (meta & kHidden) != 0;
   shapes::OutlineFn shape = tornSquare(seed, g(hidden ? 2.4f : 1.3f));
@@ -990,7 +967,10 @@ inline Element iconEl(int glyph, float alpha, bool bw) {
 // THE BADGES. UV(176,16) "new research" at (iconX-9, iconY-9) and UV(208,16)
 // "new page" at (iconX-9, iconY+9), both drawn through glScaled(0.5) — so a
 // 32x32 cell lands as a 16x16 badge whose CENTRE is 1 px outside the icon's
-// corner (:644-659).
+// corner (:644-659). (iconX, iconY) is the 16x16 icon's TOP-LEFT, 8 GUI px
+// up-left of centreOf() — nodeBadges() converts before applying the offsets,
+// which is what puts the research star on the plate's upper-left corner and
+// the page tag against its lower-left one.
 
 inline Element researchBadge() {
   return box()
@@ -1034,9 +1014,9 @@ inline Element pageBadge() {
 // than a mark on it. LIQUIDDEATH (warp 3) and BOTTLETAINT (warp 2) are the
 // two in this category. The mod animates it by walking 32 frames of
 // nodeTexture and calls renderQuadCentered at 32x32; this is one generated
-// lobed halo, drawn a little wider so the corona reads at all now the plate
-// art fills more of its cell, on a bound rotation — paint-only volatility,
-// so the node keeps its cached picture.
+// lobed halo, drawn wider than 32x32 so the corona still reads past a plate
+// that fills its own cell, on a bound rotation — paint-only volatility, so the
+// node keeps its cached picture.
 
 inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
   const float a = 0.30f + 0.09f * (float)strength;
@@ -1055,11 +1035,11 @@ inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
 
 // ---------------------------------------------------------------------------
 // THE FRAME (:726-755). A 22-px band whose outer edge is at -2 on every side,
-// built from a 22x22 corner tile and 64-px edge runs. This is the one place
-// the stock brush::Pattern corner path is used: a closed rect has four hard
-// 90-degree breaks, and 3 px of misregistration on a 128-px tile does not
-// read. The inner rule beside it is the other idiom — four OPEN contours that
-// stop short of the corners instead of mitring.
+// built from a 22x22 corner tile and 64-px edge runs. It is stamped as a
+// CLOSED rect with four hard 90-degree breaks, which is the shape
+// brush::Pattern's corner handling is built for. The inner rule beside it is
+// the other idiom — four OPEN contours that stop short of the corners instead
+// of mitring.
 
 /** One 64x22 GUI edge run: a brass band with beading and rivets. Authored
  *  along +x; the brush rotates it onto each side. */
@@ -1092,7 +1072,10 @@ inline Element frameRun() {
  *  behind every category tab (:1105). So one art serves both, and the tab
  *  rail is literally the frame's own corner boss repeated down the margin.
  *  `tint` is the multiply the mod applies: 1,1,1 normally and 0.6,1.0,1.0 for
- *  the selected category (:1099-1103). */
+ *  the selected category (:1099-1103).
+ *
+ *  The box is 24 GUI px, one px of bleed on each side of the 22-px cell, which
+ *  is why every caller offsets it by an extra -1 in both axes. */
 inline Element cornerPlate(SkColor4f tint) {
   const float s = g(24);
   return box().width(s).height(s).background(
@@ -1152,31 +1135,28 @@ inline Element cornerPlate(SkColor4f tint) {
 // the game's own: FontRenderer offsets by +1 and multiplies the colour by
 // 0.25 ((color & 16579836) >> 2).
 //
-// THE SIZE IS 10, AND IT WAS 9, AND AT 9 EVERY LOWERCASE e WAS AN a.
-// "Alchemical" read "Alchamical" and "research" read "rasaarch" — the most-read
-// text on the plate, wrong in the one letter English uses most. The cause is
-// x-height, not thresholding. Minecraft's own glyph body is 7 px tall on a 5 px
-// x-height, and e's counter is one whole pixel of that. Menlo at 9 px has an
-// x-height of 4.4 px, so under kAlias — which lights a pixel iff its CENTRE is
-// inside the outline — the counter never contains a centre and closes; the
-// glyph becomes a bowl with a notch, which is an a. At 10 px the x-height is
-// 4.9 and rounds to the 5 the reference face has, and every e opens. 11 is
-// worse again: m's two gaps close and it prints as a solid block.
+// THE SIZE MUST BE 10, AND THE CONSTRAINT IS X-HEIGHT, NOT THRESHOLDING.
+// Minecraft's own glyph body is 7 px tall on a 5 px x-height, and lowercase e's
+// counter is one whole pixel of that. kAlias lights a pixel iff its CENTRE is
+// inside the outline, so a face whose x-height rounds below 5 px loses that
+// pixel and e closes into a bowl with a notch — which reads as an a. Menlo's
+// x-height is 4.4 px at size 9 and 4.9 px at size 10, so 9 prints "Alchamical"
+// and "rasaarch" and 10 prints every e open. Going the other way is no better:
+// at 11 the two gaps in m close and it prints as a solid block.
 //
-// Note for anyone who reaches for the threshold below first — it was the
-// obvious knob and it is INERT at these settings. kAlias hands back a mask
-// that is already 0 or 255, so `>= 110` reclassifies nothing: 110 and 170
-// render pixel-for-pixel identical (verified, 0 differing pixels over the whole
-// 1280x800 frame). It only becomes a real control if `aliased` goes false, and
-// the antialiased-then-threshold path fixes e at every threshold from 110 to
-// 205 while ruining m, which is a worse trade than the one it solves.
+// The threshold in bakeText below is NOT the knob for this. Under kAlias the
+// mask handed back is already 0 or 255, so `>= 110` reclassifies nothing and
+// any cutoff in 1..255 renders pixel-for-pixel identical. It only becomes
+// a real control if `aliased` goes false, and the antialiased-then-threshold
+// path opens e at every cutoff that also fills in m.
 
 struct PixText {
   sk_sp<SkImage> mask; // A8, one pixel per GUI px
   int w = 0, h = 0;
 };
 
-/** The substitute face's size, in GUI px. See the note above: 9 kills e. */
+/** The substitute face's size, in GUI px. See the note above: 9 closes every
+ *  lowercase e and 11 fills in m. */
 inline constexpr float kPixSizePx = 10.0f;
 
 inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
@@ -1189,13 +1169,12 @@ inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
   const std::u8string u8(reinterpret_cast<const char8_t *>(s.c_str()));
   Element tree = box().child(text(u8, st));
   const SkSize sz = measure(box().child(text(u8, st)), fonts);
-  // +8, NOT +2. measure() gives the ADVANCE width, and the last glyph's ink
-  // can sit outside its own advance — so the raster surface was ending inside
-  // the final letter and the mask got cropped to what survived. The tooltip's
-  // longest line printed "Centrifug" plus a two-pixel stub where its e should
-  // be, at every font size tried, which is what gave it away: a rasterisation
-  // fault moves with the size, a surface that is too small does not. The mask
-  // is cropped to its lit bbox two dozen lines below, so slack here is free.
+  // The surface must be wider than the measurement. measure() gives the
+  // ADVANCE width, and the last glyph's ink can sit outside its own advance,
+  // so a surface sized to the advance ends INSIDE the final letter and the
+  // mask keeps only the part that fitted — a clipped trailing glyph, at every
+  // font size. The mask is cropped to its lit bbox two dozen lines below, so
+  // slack here costs nothing.
   const int w = std::max(1, (int)std::ceil(sz.width()) + 8);
   const int h = std::max(1, (int)std::ceil(sz.height()) + 4);
   sk_sp<SkSurface> surf =
@@ -1417,7 +1396,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       // elbowTile() authors it with local +x along the outgoing leg. On the
       // bisector this art stamps 45 degrees off — and a 2x2 route is all
       // corner and no side tiles, so the whole edge becomes a chevron. The
-      // frame the art is drawn in now travels WITH the art.
+      // alignment therefore travels with the art rather than being defaulted.
       pb.corner = brush::CornerArt{elbows[t][(size_t)elbow],
                                      brush::CornerAlign::Outgoing};
       pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
@@ -1442,12 +1421,24 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     const Node &child = nodeByKey(e.child);
     const Node &parent = nodeByKey(e.parent);
     const int dy = child.row - parent.row, dx = child.col - parent.col;
+    // The arrowhead sits on the walk's leg AT THE CHILD. An ordinary edge
+    // leaves the child vertically (the bend is at the child's column); a
+    // REVERSE edge starts at the parent instead, so it arrives at the child
+    // along the HORIZONTAL leg (the bend is at the parent's column) and the
+    // arrowhead has to ride that leg or it lands on empty canvas.
     SkVector travel{0, 0};
-    if (dy != 0)
-      travel = {0, dy > 0 ? 1.0f : -1.0f};
-    else if (dx != 0)
-      travel = {dx > 0 ? 1.0f : -1.0f, 0};
-    else
+    if (!e.flipped) {
+      if (dy != 0)
+        travel = {0, dy > 0 ? 1.0f : -1.0f};
+      else if (dx != 0)
+        travel = {dx > 0 ? 1.0f : -1.0f, 0};
+    } else {
+      if (dx != 0)
+        travel = {dx > 0 ? 1.0f : -1.0f, 0};
+      else if (dy != 0)
+        travel = {0, dy > 0 ? 1.0f : -1.0f};
+    }
+    if (travel.fX == 0 && travel.fY == 0)
       return box().width(0).height(0);
     const SkPoint c = centreOf(child.col, child.row);
     const SkColor4f tint = tierTint(e.tier, kInkBody);
@@ -1463,9 +1454,9 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     const SkPoint c = centreOf(n.col, n.row);
     // Cache::Texture, not the automatic picture. A plate is a torn-square
     // outline + a radial + an Sk2D hatch + a sketchy double rule, and a
-    // PICTURE replays the path effects — 22 of them measured 10.8 ms of a
-    // 20 ms frame. Baked to a 64x64 texture they are 22 blits, and the
-    // pulsing ones keep the bake because a bound opacity is paint-only.
+    // PICTURE replays all of those path effects on every frame; baked to a
+    // texture each plate is one blit. The pulsing plates keep their bake too,
+    // because a bound opacity is paint-only volatility.
     Element wrap = box()
                        .left(c.fX - g(16))
                        .top(c.fY - g(16))
@@ -1496,13 +1487,18 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   Element nodeBadges(const Node &n) const {
     const SkPoint c = centreOf(n.col, n.row);
+    // The source's -9/+9 badge offsets are measured from the ICON'S TOP-LEFT
+    // (iconX, iconY), which sits 8 GUI px up-left of centreOf(); the + terms
+    // then step from each badge cell's top-left to the art's own centre for
+    // centerAt().
+    const float tlx = c.fX - g(8), tly = c.fY - g(8);
     Element g0 = box().inset(0);
     if (culled(n.col, n.row))
       return g0;
     if (n.flagResearch)
-      g0.child(researchBadge().centerAt({c.fX - g(9) + g(8), c.fY - g(9) + g(8)}));
+      g0.child(researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)}));
     if (n.flagPage)
-      g0.child(pageBadge().centerAt({c.fX - g(9) + g(6), c.fY + g(9) + g(7)}));
+      g0.child(pageBadge().centerAt({tlx - g(9) + g(6), tly + g(9) + g(7)}));
     return g0;
   }
 
@@ -1518,14 +1514,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
           p.addRect(SkRect::MakeLTRB(in, in, s.width() - in, s.height() - in));
           return p.detach();
         })
-        // Bisector, spelled out, and the value is the DEFAULT. edgeEl() needed
+        // Bisector, spelled out even though it is the default. edgeEl() needs
         // Outgoing because its elbow art is drawn along the outgoing leg and a
-        // 2x2 route is all corner; this corner is a rotationally forgiving
-        // lozenge, so the bisector is right and the output does not change.
-        // Writing it anyway is the point: it records that someone looked. This
-        // file already documented the Outgoing decision three times and still
-        // left its OTHER brush unexamined, which is what a file that reads as
-        // audited but is only half audited looks like.
+        // 2x2 route is all corner; this corner art is a rotationally forgiving
+        // lozenge on a closed rect, so the bisector is the right alignment for
+        // it. Stating it keeps the two brushes' choices readable side by side.
         .stroke(brush::Pattern{
             .side = runTile,
             .corner = brush::CornerArt{cornerTile,
@@ -1565,7 +1558,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // The tab rail (:219-233, :1089-1103). Left column at x = 1, y = 10 + i*24;
+  // The tab rail (:219-233, :1089-1103). Left column at x = 1, and the source
+  // stacks the seven buttons at y = 10 + i*24. The loop below starts one cell
+  // lower — y = 10 + (i+1)*24 — because these coordinates are measured from
+  // the screen origin rather than from the GUI's top inset, and at the source
+  // offset the first tab would sit under the frame band.
   //
   // There is no right-hand rail here, and that is the source's answer rather
   // than an omission. updateResearch() splits categories with
@@ -1678,8 +1675,8 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
           p.setAntiAlias(false);
           // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
           // k1-4 .. k1-3 top strip, i.e. THREE px of sill below the last
-          // line — not one. At +1 the descender of "Centrifuge" landed on
-          // the inner border and its 1 px shadow crossed it.
+          // line — not one. One px of sill is not enough room for a descender
+          // plus its 1 px shadow, which then cross the inner border.
           const SkRect r = SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4),
                                             g(y + ht + 3));
           p.setColor4f(rgb(0x100010, 0.94f), nullptr);
@@ -1705,7 +1702,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
     face = systemFace();
     if (ctx.fonts) {
-      // 10 px, NOT 9. See kPixSizePx below — 9 collapsed every lowercase e.
+      // The size is load-bearing; see kPixSizePx and the note above it.
       tipTitle = bakeText("Alchemical Automation", *ctx.fonts, face, kPixSizePx);
       tipMissing =
           bakeText("Missing required research:", *ctx.fonts, face, kPixSizePx);
@@ -1744,15 +1741,14 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     Element root = box().inset(0);
 
     // 0. drawDefaultBackground (the world under the GUI, then the vanilla
-    //    0xC0101010 -> 0xD0101010 wash) is NOT drawn, and the reason is
-    //    measured rather than assumed. At this resolution the painted
-    //    backdrop plate covers GUI 14..413 x 14..253 opaquely and the frame
-    //    band covers 0..20 and 407..427 / 247..267 — their union is the
-    //    whole canvas, so every pixel of drawDefaultBackground is occluded.
-    //    As a node it cost 3.91 ms of a 15.5 ms frame while contributing
-    //    nothing: a full-canvas gradient is a SHADER, and a cached picture
-    //    replays the draw call, not the pixels. The clear colour stands in
-    //    for it wherever the frame's corner art leaves a hairline.
+    //    0xC0101010 -> 0xD0101010 wash) is NOT drawn, because at this
+    //    resolution nothing of it would be visible: the painted backdrop
+    //    plate covers GUI 14..413 x 14..253 opaquely and the frame band covers
+    //    0..20 and 407..427 / 247..267, and their union is the whole canvas.
+    //    Drawing it anyway would cost a full-canvas gradient every frame — a
+    //    SHADER, which a cached picture replays as a draw call rather than as
+    //    pixels — for no visible result. The clear colour stands in for it
+    //    wherever the frame's corner art leaves a hairline.
 
     // 1. the parallax pair, clipped to (startX-2, startY-2, screenX+4,
     //    screenY+4) and moved at the source's 2.0 : 1.5 divisors.

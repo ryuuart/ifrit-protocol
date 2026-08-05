@@ -1,24 +1,32 @@
 #pragma once
 
 /** @file
- * SigilCompose decoration primitives — the extension over the kernel's
- * Decoration seam (see API.md "Primitives, not a zoo"). Concrete
- * treatments are data over the seam's primitives BEYOND the kernel's Fill
- * (Compose.h) — each a thin value struct over machinery Skia ships:
+ * SigilCompose decoration primitives — the concrete treatments over the
+ * kernel's Decoration seam. Each is a thin value struct over machinery Skia
+ * already ships, and there are deliberately few of them:
  *
  *  - PathFormat: format any stroke along the node's outline — width and
  *    paint plus an optional dash pattern, a stamped path repeated along
  *    the contour (vines, chains), or any custom SkPathEffect.
- *  - Slice: map an image onto the box through a lattice
- *    (drawImageLattice: N-patch; nine-slice is the 3×3 case).
- *  - ContourWalk: walk the outline by arc length and run a draw program
- *    at each sample, the canvas pre-positioned at the sample with x
+ *  - Slice: map an image onto the box through a lattice, of which
+ *    nine-slice is the 3×3 case.
+ *  - ContourWalk: walk the outline by arc length and run a draw program at
+ *    each sample, with the canvas pre-positioned at the sample and +x
  *    along the tangent — the general procedural border.
  *
- * The vocabulary values built OVER them (Wash over Fill, Border over
- * PathFormat) are the shelf's later decision, not a wider seam.
+ * `Wash` and `Border` are built OVER those primitives rather than beside
+ * them: they add vocabulary, not a wider seam, and anything they do can be
+ * done by hand with the three above.
  *
- * All are DecorationScheme values: attach with .background()/.foreground().
+ * All are DecorationScheme values, attached with `.background()` or
+ * `.foreground()`. **Which one you pick is a contract, not a hint.** A
+ * background paints BENEATH the node's fill, so an opaque fill covers it
+ * completely — a background wash or border on a filled box is invisible.
+ * A foreground paints over the fill, the leaf content and the children.
+ *
+ * A decoration paints from `PaintContext::outline` and knows nothing about
+ * the node it belongs to, which is why the same values also work on
+ * geometry you built yourself — see `decorations::paintOn`.
  */
 
 #include "sigilcompose/Compose.h"
@@ -62,29 +70,25 @@ struct PathFormat {
   std::vector<SkScalar> dashIntervals;
   /** A Material for the stroke, superseding `strokeFill` when set.
    *
-   *  `fill()` takes a Material — unit-square authoring, structural
-   *  comparison, live uniforms — and a stroke took only the kernel
-   *  `Fill`, which is node-local pixels compared by shader pointer. On an
-   *  object whose surfaces are mostly STROKES (every bar, ring and
-   *  engraved circle of an astrolabe) that meant writing the same brass
-   *  twice, once per return type, with the world→node conversion done by
-   *  hand in both. */
+   *  Prefer it to `strokeFill` when the same paint also fills something:
+   *  a Material is authored in the unit square, compares structurally, and
+   *  can carry live uniforms, where a `Fill` is node-local pixels compared
+   *  by shader pointer. On an object whose surfaces are mostly strokes,
+   *  using `Fill` means writing the same material twice and converting
+   *  coordinates by hand in both. */
   std::optional<Material> strokeMaterial;
-  /** Stroke cap and join on the paint itself. The card illustration of
-   *  the Fallout 2 study is ~30 open contours of line art; every one of
-   *  them ended square and mitred at the joints because this paint was
-   *  built and never asked. Distinct from `lines::Rail::join`, which is
-   *  per-rail and shapes that rail's own OFFSET CURVE rather than this
-   *  stroke on the node's outline. */
+  /** Stroke cap and join on the paint itself. The defaults are Skia's —
+   *  butt caps and mitred joins — which end open contours square; line art
+   *  built from many short open contours usually wants round for both.
+   *  Distinct from `lines::Rail::join`, which shapes that rail's own
+   *  OFFSET CURVE rather than this stroke on the node's outline. */
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
   float dashPhase = 0.0f;
-  /** Bind the dash phase to a wrapping Output and the dashes MARCH —
-   *  the commonest animated-line idiom in map and diagram UI (a selected
-   *  route, a live link, a cut line). Like `trimPhase`, it supersedes the
-   *  constant and declares the decoration animated, so the node repaints
-   *  without a re-describe. A study wrote a 25-line DecorationScheme for
-   *  want of this. */
+  /** Bind the dash phase to a wrapping Output and the dashes MARCH — a
+   *  selected route, a live link, a cut line. Like `trimPhase`, it
+   *  supersedes the constant and declares the decoration animated, so the
+   *  node repaints every frame without needing a re-describe. */
   const choreograph::Output<float> *dashPhaseBinding = nullptr;
 
   /** Stamp this path repeatedly along the contour (advance px apart),
@@ -114,9 +118,8 @@ struct PathFormat {
    *                   brush::layers({util::stroke(3, Fill::color(kBody)),
    *                                  head}));
    *
-   *  Spelled out because two studies concluded there was one trim window
-   *  per NODE and each rebuilt this as a duplicate element re-measuring
-   *  the same path. */
+   *  So the trim window is per DECORATION, not per node: a second element
+   *  duplicating the same path is never needed for this. */
   float trimStart = 0.0f, trimEnd = 1.0f;
   float trimOffset = 0.0f;
   const choreograph::Output<float> *trimPhase = nullptr; // replaces offset
@@ -223,17 +226,17 @@ struct Slice {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::vector<int> xDivs;
   std::vector<int> yDivs;
-  /** Graphite stubs the native lattice op EMPTY, so it must never be
-   *  recorded: `gpuimg::drawLattice` decomposes on every backend and
-   *  promotes raster sources through this cache (the invisible-nine-slice
-   *  finding). Excluded from equality. */
+  /** Skia's native lattice draw is not implemented on every backend and
+   *  silently draws NOTHING where it is not — including when a picture
+   *  recorded elsewhere replays there. `gpuimg::drawLattice` decomposes
+   *  the lattice itself on every backend and promotes raster sources
+   *  through this cache. Excluded from equality: a cache is not part of
+   *  the value. */
   std::shared_ptr<gpuimg::Promoted> gpuCache =
       std::make_shared<gpuimg::Promoted>();
   /** How the slices sample. Linear is right for a soft frame and wrong
-   *  for pixel art, which is most of what nine-slice is FOR — a window
-   *  chrome, a dialog border, a button from a tile sheet. Every blessed
-   *  image path hardcoded linear until `Element::sampling()` landed on
-   *  the image leaf; this is the same fix on the decoration. */
+   *  for pixel art — a window chrome, a dialog border, a button cut from a
+   *  tile sheet — where it blurs every slice boundary. */
   SkFilterMode filter = SkFilterMode::kLinear;
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
@@ -276,7 +279,7 @@ struct PathSample {
  *    the stamp's decorations may walk their own contours. With
  *    `animatedWalk` the stamp re-records each paint, sampling any
  *    bound ch::Outputs at their current values.
- *  - `stampAt`: the SEQUENCE form of `stamp` (§14) — see its own note.
+ *  - `stampAt`: the SEQUENCE form of `stamp` — see its own note.
  *
  *  When several are set, the sample's stamp replays first (`stampAt`'s
  *  element superseding `stamp` at that sample), then `draw` on top. */
@@ -296,18 +299,18 @@ struct ContourWalk {
    *  (when set), so a numbered major tick every Nth sample rides over a
    *  plain minor tick without two walks.
    *
-   *  An incomparable callable, on the house convention: its presence
-   *  keeps the decoration conservatively unequal — which ContourWalk
-   *  already is for every instance (it has never had an operator==; the
-   *  raw `draw` callable made that decision long ago), so a walk never
-   *  prunes structurally: memo the host if the describe is hot.
+   *  Like every raw callable in this library it is incomparable, so it
+   *  keeps the decoration conservatively unequal. ContourWalk has no
+   *  `operator==` at all — the raw `draw` callable makes that unavoidable
+   *  — so a walk NEVER prunes structurally, and a hot describe wants the
+   *  host node memoized.
    *
-   *  THE BAKES ARE PER CALL, PER RECORD, UNCACHED — deliberately. Each
-   *  returned Element is a FRESH node, so the §16 instance-side
-   *  StampCache has nothing stable to key them on (per-index entries
-   *  would churn its slots and evict the node's real brush bakes). A
-   *  static walk pays the bakes once per describe; with `animatedWalk`
-   *  you pay them per frame, and that cost is the author's choice. */
+   *  THE BAKES ARE PER CALL AND UNCACHED, deliberately. Each returned
+   *  Element is a fresh node, so there is no stable key the instance-side
+   *  stamp cache could hold them under; per-index entries would churn its
+   *  slots and evict the node's real brush bakes. A static walk pays the
+   *  bakes once per describe; with `animatedWalk` it pays them every
+   *  frame, which is the author's call to make. */
   std::function<std::optional<Element>(const PathSample &, size_t)> stampAt;
 
   bool isAnimated() const { return animatedWalk; }
@@ -338,7 +341,8 @@ struct ContourWalk {
           continue;
         PathSample sample{pos, tan, d, length > 0 ? d / length : 0};
         // This sample's OWN art (stampAt): baked per call, uncached — see
-        // the field note. Shell box: snapshot ignores the ROOT's own dims.
+        // the field note. The shell box is needed because snapshot() sizes
+        // by the root's CHILDREN and ignores the root's own dimensions.
         sk_sp<SkPicture> own;
         if (stampAt && ctx.fonts)
           if (std::optional<Element> e = stampAt(sample, index))
@@ -373,20 +377,18 @@ struct ContourWalk {
 };
 
 /** Floods the node's OUTLINE with a Material through a blend mode — the
- *  material-valued decoration built over the Fill primitive: vocabulary,
- *  not a fifth primitive.
+ *  material-valued decoration.
  *
- *  `Element::overlay()` puts a layer over the fill and under the
- *  children; `foreground()` puts one over everything. But `foreground()`
- *  takes a `Decoration`, and the primitives are `PathFormat` (strokes),
- *  `Slice`, `ContourWalk` and a raw `PaintProgram` — none of which fills
- *  a shape with a Material. So "a grain pass over this whole panel,
- *  above its children" had to be a raw PaintProgram, which is an
- *  incomparable `std::function` and therefore never prunes.
+ *  This is how a material pass goes ABOVE the children: `Element::overlay()`
+ *  puts a layer over the fill but under them, and `foreground()` puts a
+ *  Decoration over everything. Of the primitives, none of PathFormat, Slice
+ *  or ContourWalk fills a shape with a Material, and doing it with a raw
+ *  paint program costs pruning — a `std::function` is incomparable, so its
+ *  node re-patches on every describe forever.
  *
- *  `Wash` is a comparable VALUE (Material compares structurally by
- *  recipe), so a static wash prunes like any other decoration, and it
- *  declares itself animated when the material is live.
+ *  `Wash` is a comparable VALUE, because a Material compares structurally
+ *  by recipe. A static wash prunes like any other decoration, and a wash
+ *  over a live material declares itself animated so the node repaints.
  *
  *      .foreground(decorations::wash(patterns::grain(0.3f, 2, 7.0f),
  *                                    SkBlendMode::kSoftLight, 0.35f))
@@ -394,9 +396,8 @@ struct ContourWalk {
 struct Wash {
   Material material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
-  /** Strength, 0..1 — applied as alpha on the pass. The `amount` a
-   *  `Material::blend` layer still does not have (ROADMAP.md §5), here
-   *  at least for the decoration form. */
+  /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
+   *  paints nothing at all. */
   float amount = 1.0f;
 
   bool operator==(const Wash &o) const {
@@ -426,36 +427,25 @@ struct Wash {
   }
 };
 
-/** THE BORDER — a frame is not a 1 px rounded rect.
+/** THE BORDER: one comparable value for a frame that is not simply a
+ *  stroked rounded rect — an inset rule, a set of corner brackets, a rule
+ *  that stops short of the corners, or one that thickens where it turns.
  *
- *  Every study in the corpus that wanted a frame either stroked the box and
- *  accepted a rounded rect, or hand-placed four Elements at the corners.
- *  The second is worse than it looks: four absolutely-positioned nodes do
- *  not follow the shape when it resizes, do not follow it AT ALL when the
- *  shape is not a rectangle, and cost four nodes each.
+ *  It FOLLOWS THE SILHOUETTE. Chamfer the node's outline and the brackets
+ *  land on the chamfers with no further instruction, which is the whole
+ *  advantage over four absolutely-positioned corner elements: those cost
+ *  four nodes, do not move when the box resizes, and do not follow a
+ *  non-rectangular shape at all.
  *
- *  `Border` is one comparable value over machinery that already existed —
- *  `lines::insetOutline` (the offset `shapes::Inset` had locked inside a
- *  decoration adaptor), `lines::cornerBrackets` / `lines::cornerGaps` (the
- *  corner scan `brush::Pattern` already ran), and an ordinary dashed stroke:
+ *  For corner marks on the node's REAL boundary, prefer the span claims,
+ *  which leave the rest of the boundary free for another brush:
  *
  *      .stroke(spans::corners(18), brush::solid(2, ink))  // reticle corners
- *      .foreground(decorations::border(1, ink, 6))        // inset rule
  *      .stroke(spans::edges(14), brush::solid(1, ink))    // open corners
+ *      .foreground(decorations::border(1, ink, 6))        // inset rule
  *
- *  (§33-j: the corner rows are span CLAIMS now — the `decorations::
- *  brackets`/`gappedRule` factories are deleted; `Border::Mode::Bracket`/
- *  `Gapped` remain for the shapes the span family cannot spell, like an
- *  inset rule or a doubleBorder() layer.)
- *
- *  The corner helpers take a trailing `angleDeg`. It is the last
- *  parameter because it is usually the default — but WITHOUT it they
- *  could not reach `Border::cornerAngleDeg` at all, so an n-gon
- *  bezel (18 degrees per vertex on a 20-gon, under the 30 default) had no
- *  spelling short of building the Border by hand.
- *
- *  It follows any silhouette, so chamfering the node's outline puts the
- *  brackets on the chamfers with no further instruction. */
+ *  Build the `Border` value directly for what those cannot say: an inset
+ *  rule, or either mode as a layer inside `doubleBorder()`. */
 struct Border {
   float width = 1.0f;
   Fill fill = Fill::color({1, 1, 1, 1});
@@ -483,10 +473,8 @@ struct Border {
    *
    *  **A regular n-gon turns 360/n degrees per vertex, so this default
    *  finds nothing above 12 sides.** A 20-gon turns 18° and renders blank;
-   *  a dodecagon turns exactly 30° and is on the boundary. That is not
-   *  exotic — an n-gon bezel is the natural frame for a die face or a
-   *  rosette, which is what this vocabulary was added to serve. Pass
-   *  roughly 0.6 × the turn angle (12° for a 20-gon).
+   *  a dodecagon turns exactly 30° and sits on the boundary. Pass roughly
+   *  0.6 × the turn angle for those — 12° for a 20-gon.
    *
    *  The default is deliberately NOT adaptive. The scan steps 2 px, so an
    *  arc of radius r turns ~114/r degrees per sample — about 11° at
@@ -517,10 +505,10 @@ struct Border {
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     // `width` is the RUN's width, and Weighted mode has a second width for
-    // the corners — so width == 0 is not "draw nothing", it is "corners
-    // only, no runs between them", which is a real frame and one of the
-    // things the corner vocabulary exists for. Bailing on width <= 0 made
-    // weightedCorners(0, w, …) silently draw nothing at all.
+    // the corners — so in that mode width == 0 means "corners only, no runs
+    // between them", which is a real frame. The bail-out therefore tests
+    // the HEAVIEST of the two widths, or weightedCorners(0, w, …) would
+    // draw nothing at all.
     const float heaviest =
         mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
     if (ctx.outline.isEmpty() || heaviest <= 0)
@@ -558,9 +546,9 @@ struct Border {
       strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
       break;
     case Mode::Weighted:
-      // Two passes of the same windows: the runs BETWEEN corners at
-      // `width`, the corners themselves at `cornerWidth`. The printed rule
-      // that thickens where it turns.
+      // Two passes over complementary windows: the runs BETWEEN corners at
+      // `width`, then the corners themselves at `cornerWidth` — a rule that
+      // thickens where it turns.
       strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
       strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg),
                  cornerWidth > 0 ? cornerWidth : width);
@@ -580,19 +568,15 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
   return Border{.width = width, .fill = std::move(fill), .inset = inset};
 }
 
-// `decorations::brackets` and `decorations::gappedRule` are DELETED
-// (§33-j ruling, 2026-08-04 — audit item 10's "one capability, two names").
-// The grammar's spelling is a span CLAIM on the node's real boundary:
+// There is no factory for the Bracket and Gapped modes. Corner marks on a
+// node's own boundary are span claims —
 //
 //     .stroke(spans::corners(arm), brush::solid(width, fill))   // brackets
 //     .stroke(spans::edges(gap),   brush::solid(width, fill))   // open corners
 //
-// — same corner scan underneath (lines::detail::findCorners), and the claim
-// leaves `spans::rest()` free to dress everything else. For the shapes the
-// span family cannot spell — an `inset` rule, a Border inside
-// doubleBorder(), an onEdges() adaptor — construct the surviving `Border`
-// value directly (`Border{.mode = Border::Mode::Bracket, …}`), which is
-// byte-identical to what the factories built.
+// — which run the same corner scan underneath and leave `spans::rest()`
+// free to dress everything else. Where a claim cannot say it, name the mode
+// on the value: `Border{.mode = Border::Mode::Bracket, …}`.
 
 /** A border whose WEIGHT changes at the corner: `width` along the runs,
  *  `cornerWidth` within `arm` px of each turn. */
@@ -608,9 +592,9 @@ inline Border weightedCorners(float width, float cornerWidth, Fill fill,
                 .cornerAngleDeg = angleDeg};
 }
 
-/** DOUBLE BORDER with independent insets — two rules, one value, as a
- *  LayerStyle (the shape `lines::railwayCarto` already established). The
- *  inner rule is often the dotted or lighter one; pass whatever you like.
+/** DOUBLE BORDER with independent insets — two rules as one LayerStyle
+ *  value, so both attach and prune together. The inner rule is often the
+ *  dotted or lighter one; pass whatever you like.
  *
  *      .style(decorations::doubleBorder(
  *          decorations::border(1.6f, ink),
@@ -635,11 +619,8 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
  *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
  *      }).cache(Cache::None)
  *
- *  Spelled out because the roadmap recorded the opposite — that live
- *  geometry in `custom()` forfeits the decoration vocabulary along with
- *  pruning — and a researcher caught it by reading the source rather than
- *  the list. It was a discoverability gap wearing a capability gap's
- *  clothes, which is the fourth of those this program has found. */
+ *  What live geometry inside `custom()` gives up is PRUNING, not the
+ *  decoration vocabulary. */
 inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,
                     const Decoration &decoration) {
   PaintContext local = ctx;

@@ -3,9 +3,16 @@
 #include <QFont>
 #include <QObject>
 
-/** Box width/height/padding, exposed as a grouped QML property on
- *  GraphicsConfig (Models.graphicsConfig.box.width, etc.) — the same
- *  convention Qt itself uses for Rectangle.border. */
+/** Geometry of the labelled boxes a scene can attach to its points, exposed as
+ *  a grouped QML property on GraphicsConfig (Models.graphicsConfig.box.width,
+ *  and so on) — the grouping convention Qt itself uses for Rectangle.border.
+ *
+ *  Lengths here are pre-scale: each is multiplied by GraphicsConfig's global
+ *  scale and the result used directly as canvas pixels. They are NOT resized by
+ *  the scene's own author-space-to-canvas conversion, so a box stays the same
+ *  size on screen no matter what coordinate space a sender authored in. Any
+ *  change emits changed(), which GraphicsConfig turns into a generation bump so
+ *  renderers notice. */
 class BoxStyleConfig : public QObject {
   Q_OBJECT
   Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY changed)
@@ -16,26 +23,27 @@ class BoxStyleConfig : public QObject {
 public:
   explicit BoxStyleConfig(QObject *parent = nullptr) : QObject(parent) {}
 
-  /** Returns the configured box width in author-space pixels. */
+  /** Minimum outer width of a box. A box whose label plus padding needs more
+   *  than this grows to fit rather than clipping the text, so this sets the
+   *  width short labels share, not a maximum. */
   qreal width() const { return m_width; }
-  /** Sets the box width. */
   void setWidth(qreal width);
 
-  /** Returns the configured box height in author-space pixels. */
+  /** Outer height of a box, applied as given — unlike the width, it does not
+   *  grow for its content. */
   qreal height() const { return m_height; }
-  /** Sets the box height. */
   void setHeight(qreal height);
 
-  /** Returns the padding between box content and its border. */
+  /** Gap kept between a box's border and the label text inside it. */
   qreal padding() const { return m_padding; }
-  /** Sets the box content padding. */
   void setPadding(qreal padding);
 
-  /** Distance (px, pre-scale) the box's inner edge sits beyond its assigned
-   *  point, measured outward along the ray from the canvas center through
-   *  that point. */
+  /** The gap between the point a box is attached to and the box's nearest
+   *  face, measured outward along the ray from the canvas center through that
+   *  point — so a box always lands on the outside of the diagram, whichever
+   *  side of it the point lies on, and a box that widens to fit a longer
+   *  label grows away from its point rather than toward it. */
   qreal distance() const { return m_distance; }
-  /** Sets the outward distance from an anchor point to the box edge. */
   void setDistance(qreal distance);
 
 signals:
@@ -48,10 +56,13 @@ private:
   qreal m_distance = 40.0;
 };
 
-/** Native canvas width/height, exposed as a grouped QML property
- *  (Models.graphicsConfig.canvas.width, etc.). Drives both the coordinate
- *  space SpellCircleModel scales scenes into and SpellCircleRenderer's
- *  offscreen framebuffer dimensions, so the two stay in sync. */
+/** Size of the render target, in real pixels, exposed as a grouped QML property
+ *  (Models.graphicsConfig.canvas.width, and so on).
+ *
+ *  One setting feeds two consumers that must agree: it is both the coordinate
+ *  space an incoming author-space scene is scaled into and the size of the
+ *  offscreen framebuffer that scene is drawn to. Splitting them into separate
+ *  settings would let the geometry and the surface disagree. */
 class CanvasSizeConfig : public QObject {
   Q_OBJECT
   Q_PROPERTY(int width READ width WRITE setWidth NOTIFY changed)
@@ -60,14 +71,12 @@ class CanvasSizeConfig : public QObject {
 public:
   explicit CanvasSizeConfig(QObject *parent = nullptr) : QObject(parent) {}
 
-  /** Returns the native render-target width in pixels. */
+  /** Render-target width in pixels. */
   int width() const { return m_width; }
-  /** Sets the native render-target width. */
   void setWidth(int width);
 
-  /** Returns the native render-target height in pixels. */
+  /** Render-target height in pixels. */
   int height() const { return m_height; }
-  /** Sets the native render-target height. */
   void setHeight(int height);
 
 signals:
@@ -79,14 +88,28 @@ private:
 };
 
 /**
- * QML-exposed graphics style configuration for the SpellCircle renderer
- * (accent color, stroke width, global scale, typography, box geometry).
- * Owned by the Models singleton (Models.graphicsConfig) and consumed by
- * SpellCircle/SpellCircleRenderer the same way SpellCircleModel is.
+ * How scenes are styled: accent color, stroke width, global scale, typography,
+ * box geometry, and the render-target size. Reachable from QML as
+ * Models.graphicsConfig, which owns the instance. Lives on the GUI thread: the
+ * render side does not read these accessors while drawing, it copies the values
+ * across when generation() tells it something changed.
  *
- * Loads from a JSON file next to the executable on construction, falling
- * back to the defaults below if the file is missing or invalid. Persists
- * only when save() is called explicitly (e.g. from a settings window).
+ * Nothing in here describes a scene — a scene arrives over the network and says
+ * only where things are and what they are called. Everything about how those
+ * things look is a local setting, which is why the same scene renders
+ * differently on two machines by design.
+ *
+ * Reads graphics_config.json during construction — from the per-user
+ * application config directory, or, when no file exists there yet, from the
+ * directory holding the executable — keeping the defaults below wherever the
+ * file is missing, unreadable, or malformed: startup never fails over
+ * configuration. Writing is never automatic: values changed at runtime are
+ * lost unless save() is called, so a settings window can experiment and then
+ * discard.
+ *
+ * Every setter ignores a value equal to the current one, so a QML binding that
+ * re-fires with the same number costs nothing. Anything that does change bumps
+ * generation(), which is how renderers detect that they must rebuild.
  */
 class GraphicsConfig : public QObject {
   Q_OBJECT
@@ -106,57 +129,72 @@ class GraphicsConfig : public QObject {
 public:
   explicit GraphicsConfig(QObject *parent = nullptr);
 
-  /** Returns the accent color used for scene geometry and labels. */
+  /** The single color a scene is drawn in: circles, edges, box borders, and
+   *  label text, with fills using the same color at a per-item alpha. A scene
+   *  cannot override it — the sender chooses shapes, the receiver chooses how
+   *  they look. */
   QColor color() const { return m_color; }
-  /** Sets the scene accent color. */
   void setColor(const QColor &color);
 
-  /** Returns geometry stroke width in author-space pixels. */
+  /** Stroke width for circles, edges, and box borders. */
   qreal strokeWidth() const { return m_strokeWidth; }
-  /** Sets geometry stroke width. */
   void setStrokeWidth(qreal strokeWidth);
 
-  /** Returns the global geometry and typography scale. */
+  /** Multiplier applied to every length here and to the font point size on the
+   *  way to the renderer, so one knob retunes stroke weight, text, and box sizes
+   *  together after changing the render-target size. It does not scale the scene
+   *  itself — geometry is fitted to the canvas from the author-space dimensions
+   *  the sender supplies. */
   qreal scale() const { return m_scale; }
-  /** Sets the global geometry and typography scale. */
   void setScale(qreal scale);
 
-  /** Perpendicular offset (px, pre-scale) applied to every circle's label
-   *  along its text path — no longer authored per-circle over the wire, so
-   *  this is the single knob for nudging all labels uniformly. */
+  /** Shifts every circle's curved label off its circle, perpendicular to the
+   *  text path: positive outward, negative inward, zero sitting the glyphs'
+   *  optical centers on the circle itself. The wire format carries no
+   *  per-circle equivalent, so this moves all labels together or none. */
   qreal labelOffset() const { return m_labelOffset; }
-  /** Sets the global circle-label path offset. */
   void setLabelOffset(qreal labelOffset);
 
-  /** Distance (px, pre-scale) a Point's own value label sits beyond its
-   *  position, measured outward along the ray from the canvas center
-   *  through that point — the same offset a Box uses (box.distance), but a
-   *  separate knob since a point label isn't a box. */
+  /** How far the center of a point's own value label sits from the point,
+   *  measured outward along the ray from the canvas center — the same placement
+   *  rule as box.distance, kept as a separate knob because a bare line of text
+   *  needs different clearance than a bordered box. */
   qreal pointDistance() const { return m_pointDistance; }
-  /** Sets the outward distance used for standalone point labels. */
   void setPointDistance(qreal pointDistance);
 
-  /** Returns the font shared by scene labels. */
+  /** The one font every label in the scene is drawn with; its point size is
+   *  multiplied by scale() before use. */
   QFont font() const { return m_font; }
-  /** Sets the font shared by scene labels. */
   void setFont(const QFont &font);
 
-  /** Returns grouped box style configuration owned by this object. */
+  /** Box geometry group. Owned by this object and alive as long as it is,
+   *  so QML may hold the pointer. */
   BoxStyleConfig *box() const { return m_box; }
 
-  /** Returns grouped native canvas dimensions owned by this object. */
+  /** Render-target size group. Owned by this object and alive as long as it is,
+   *  so QML may hold the pointer. */
   CanvasSizeConfig *canvas() const { return m_canvas; }
 
-  /** Returns the revision used by renderers to detect configuration changes. */
+  /** Counter incremented on every change to any value here, including those in
+   *  the two groups above. A renderer compares it against the value it last
+   *  drew with, which is cheaper and less error-prone than subscribing to each
+   *  individual change signal. Only equality is meaningful; the magnitude
+   *  carries nothing. */
   int generation() const { return m_generation; }
 
-  /** Reads the JSON config file next to the executable, if present.
-   *  Returns false (leaving current values untouched) if the file is
-   *  missing or malformed. */
+  /** Reads graphics_config.json from the per-user config directory, falling
+   *  back to the copy beside the executable when the per-user file does not
+   *  exist yet. Returns false, leaving all current values untouched, when no
+   *  file is found or the one found is not a JSON object; keys the file omits
+   *  keep their current values. Called during construction, and callable
+   *  again to reload after an external edit. */
   Q_INVOKABLE bool load();
 
-  /** Writes the current configuration to the JSON file next to the
-   *  executable. Returns false if the file could not be written. */
+  /** Writes the current values to graphics_config.json in the per-user config
+   *  directory, creating that directory if needed and overwriting the file.
+   *  Returns false if the file could not be opened for writing. This is the
+   *  only thing that persists anything — nothing here saves on change or at
+   *  shutdown. */
   Q_INVOKABLE bool save() const;
 
 signals:
@@ -169,9 +207,20 @@ signals:
   void generationChanged();
 
 private:
-  /** Returns the platform-specific persistent configuration path. */
+  /** The path save() writes and load() prefers: graphics_config.json under
+   *  the per-user application config directory
+   *  (QStandardPaths::AppConfigLocation) — writable, outside the application
+   *  bundle, and surviving a reinstall of the app. */
   static QString configFilePath();
-  /** Advances the revision and emits `generationChanged()`. */
+  /** graphics_config.json in the directory holding the running executable,
+   *  which on macOS is inside the .app bundle. Read only, and only when
+   *  configFilePath() does not exist yet: a file that ended up here keeps
+   *  loading until the next save() writes the per-user path, which then
+   *  takes precedence. */
+  static QString legacyConfigFilePath();
+  /** Advances generation() and emits generationChanged(). Every setter that
+   *  actually changes a value calls this, as does a successful load(); the
+   *  grouped objects' changed() signals are connected to it. */
   void bumpGeneration();
 
   QColor m_color{"#ff0000"};

@@ -82,8 +82,11 @@ target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
 # The pop kernel is authored ONCE in Slang (shaders/pop.slang over the
 # shaders/sigilspline.slang module), compiled to SPIRV at build time by
 # the manifest's slangc, and embedded — Diligent consumes the bytecode
-# directly, no glslang in the loop. Without slangc the HLSL fallback
-# string in World.cpp keeps everything working.
+# directly, no glslang in the loop. Without slangc the build still
+# configures and surface rendering still works (the graphics
+# vertex/pixel shader ships as an HLSL source string in World.cpp), but
+# the compute generators have no fallback: addSweep/addFlock/addPoints/
+# addPointsOn return 0 and log a one-time diagnostic.
 find_program(SLANGC_EXECUTABLE slangc
   PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/shader-slang")
 if(SLANGC_EXECUTABLE)

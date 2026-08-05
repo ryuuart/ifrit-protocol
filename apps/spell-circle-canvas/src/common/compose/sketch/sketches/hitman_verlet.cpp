@@ -81,26 +81,24 @@
 //      applies only to the form Hitman did NOT ship. It also
 //      under-corrects compression (0.60x at d = r/2) and over-corrects
 //      tension (1.20x at d = 2r) - which IS the "removed stiffness".
-//   4. FIGURE 9 RE-MEASURED, and the brief this sketch was built from was
-//      wrong about it. Page 14 of the CMU scan rendered at 600 dpi,
-//      thresholded, eroded by a disc of r = 8 px (which annihilates the
-//      ~5 px sticks and every body-text stem) leaves exactly SIXTEEN
-//      connected components of 620-657 px each - the particle dots, and
-//      nothing else. Their centroids are the rest pose below. The
-//      topology is confirmed: 16 particles, 24 sticks, the neck carrying
-//      five of them. The LENGTHS are not: symmetrising each pair gives a
-//      thigh ratio of 0.20569 of figure height, not 0.20184, so the
-//      paper's own restlength = 100 on the thigh fixes the figure at
-//      486.2 units, not 495. And thigh and shank differ by 1.91%, not by
-//      0.41% - so the Drillis & Contini anthropometric cross-check the
-//      brief wanted printed here would have FAILED, and in the opposite
-//      direction (the diagram's thigh is longer than its shank; human
-//      shanks are marginally longer than thighs). The [DC66] constants
-//      could not be sourced from a primary scan either - the PSU page
-//      carries the figure as an image and no transcription - so the
+//   4. FIGURE 9 MEASURED OFF THE SCAN. Page 14 of the CMU scan rendered at
+//      600 dpi, thresholded, eroded by a disc of r = 8 px (which
+//      annihilates the ~5 px sticks and every body-text stem) leaves
+//      exactly SIXTEEN connected components of 620-657 px each - the
+//      particle dots, and nothing else. Their centroids are the rest pose
+//      below. The topology that confirms: 16 particles, 24 sticks, the
+//      neck carrying five of them. The lengths it gives: symmetrising each
+//      pair puts the thigh at 0.20569 of figure height, so the paper's own
+//      restlength = 100 on the thigh fixes the figure at 486.2 units.
+//      Thigh and shank come out 1.91% apart, and the diagram's thigh is
+//      the LONGER of the two - the reverse of a human skeleton, whose
+//      shank is marginally the longer - so an anthropometric cross-check
+//      against Drillis & Contini fails on the diagram's own proportions.
+//      [DC66] could not be sourced from a primary scan either (the PSU
+//      page carries the figure as an image and no transcription), so that
 //      column is dropped, and this is said on the canvas.
 //
-// MEASURED WHILE BUILDING THIS (all reproducible from the sketch)
+// WHAT THIS RECONSTRUCTION SHOWS (all reproducible from the sketch)
 //   A. ONE RELAXATION ITERATION HAS A SLENDERNESS LIMIT. At this study's
 //      gravity a 3-wide braced truss of 24-unit cells, base row pinned,
 //      stands at 5 rows (97.4% of nominal height, 15.8% peak constraint
@@ -123,16 +121,16 @@
 //      mesh, which is not dependency-sorted either) the claim holds
 //      cleanly: mean e(1) > mean e(4) > mean e(10) on every frame
 //      sampled.
-//   D. addFixed's REPRODUCIBILITY, and what alphaOut buys. Capturing
-//      --at 3.10 at --fps 60 / 30 / 20 gives BYTE-IDENTICAL PNGs: 185
-//      steps, alpha 1.00. --fps 10 gives 186 steps and alpha 0.00 - the
-//      same instant on the other side of a step boundary - and the drawn
-//      corpse differs by a mean of 1.03/255 per channel; --fps 15 lands
-//      188 steps out and differs by 6.72/255, 6.5x more. --fps 5 needs 12
-//      steps per frame against maxCatchUp = 8, the clamp trips exactly as
-//      documented, and the capture lands at step 128 instead of 186. So
-//      the clamp is not the source of the 10/15 Hz drift: float
-//      accumulation is.
+//   D. THE FIXED STEP MAKES A CAPTURE REPRODUCIBLE ACROSS FRAME RATES.
+//      What is drawn is lerp(x*, x, alpha), and both the step count and
+//      alpha follow from accumulated time rather than from the render
+//      rate, so one capture instant gives one image at 60, 30 and 20 fps
+//      alike. Rates whose frame boundaries straddle a step boundary land
+//      the capture one step to the other side of it and differ by a
+//      fraction of a level per channel - that is float accumulation in the
+//      time budget, not the catch-up clamp. The clamp only engages below
+//      kSimHz / maxCatchUp, where a frame owes more steps than it may run
+//      and the simulation deliberately falls behind wall-clock time.
 //
 // RECONSTRUCTED (THE PAPER PUBLISHES NO SIMULATION CONSTANT BUT TWO)
 //   - every rest length, from the re-measured Fig. 9 pose, ANCHORED by
@@ -140,7 +138,7 @@
 //   - 60 Hz fixed step; gravity 0.757 units/step^2, derived from a 1.75 m
 //     stature (1 unit = 3.600 mm, so the paper's cube is a 3.60 m room)
 //   - kFriction 0.14; capsule radius 14 u; knee inequality 100 u; blast
-//     constant K = 179,200 u^3; hit displacement 45 u
+//     constant K = 130,000 u^3; hit displacement 45 u
 //   - the 2D reduction: the scheme is dimension-agnostic, only the DOF
 //     count changes, and it is printed
 //   - the bump, the cloth patch, the plants, all loop timings, all chrome
@@ -154,14 +152,12 @@
 //     primary scan; see VERIFIED 4
 //
 // WHY IT IS A SigilCompose STRESS TEST
-//   Every previous study in this program is FORWARD: frame N is a
-//   function of frame N-1. A verlet body has no velocity variable at all,
-//   so its shape at frame N is a function of what it TOUCHED at frame
-//   N-1 - the solver projects, the integrator reads the projection as
-//   velocity, and the next frame inherits it. That lands on the library's
-//   weakest seam, geometry that is state, and on two things that landed
-//   hours before this file was written:
-//     * ticker.addFixed(hz, fn, maxCatchUp, &alphaOut) now publishes the
+//   A verlet body has no velocity variable at all, so its shape at frame N
+//   is a function of what it TOUCHED at frame N-1 - the solver projects,
+//   the integrator reads the projection as velocity, and the next frame
+//   inherits it. Geometry IS the state, and it is rebuilt every step,
+//   which puts the weight on two parts of the library in particular:
+//     * ticker.addFixed(hz, fn, maxCatchUp, &alphaOut) publishes the
 //       render interpolant. A verlet body's state IS the pair (x*, x), so
 //       lerp(x*, x, alpha) is the integrator's OWN interpolant, free.
 //       Every drawn particle here goes through it.
@@ -170,8 +166,8 @@
 //       centrelines are PathFormat values, and the drag leader wears a
 //       PathFormat trim window riding its own head, all on geometry
 //       recomputed sixty times a second inside custom().
-//   Plus: instances(Mode::Live) for ~370 particle dots, a SECOND pool
-//   driving the same 24 sticks through the new Pool::sizes() lane beside
+//   Plus: instances(Mode::Live) for every particle dot, a SECOND pool
+//   driving the same 24 sticks through the Pool::sizes() lane beside
 //   the custom() path, shapes::parametric for the approximation-error
 //   plot, lines::hatch for the drafting section on the bump,
 //   patterns::grain on the floor, Material::glowUnit for the blast,
@@ -256,14 +252,14 @@ SkColor4f errColor(float e, float alpha = 1.0f) {
 }
 
 // ---------------------------------------------------------------------------
-// §6.1 — the frame. The STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
+// The frame. The STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
 
 constexpr float kCanvasW = 1560, kCanvasH = 920;
 constexpr float kStage = 736;               // px, = the 1000-unit cube
 constexpr float kUnit = kStage / 1000.0f;   // 0.736 px per world unit
 constexpr float kColW = 352;
 
-// §4.7 — the parameter table.
+// The parameter table. Every rate here is per fixed simulation step.
 constexpr double kSimHz = 60.0;
 constexpr float kDrag = 0.99f;         // documented "1.99", per VERIFIED 2
 constexpr float kGravityStep = 0.757f; // a*dt^2, units/step^2 (derived)
@@ -469,7 +465,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   ch::Output<float> bodyFade{1.0f};
 
   // Instancing: the particle dots (the control case) and the sticks (the
-  // new Pool::sizes() lane).
+  // Pool::sizes() lane).
   std::shared_ptr<instancing::Atlas> dotAtlas;
   std::shared_ptr<instancing::Pool> dotPool;
   std::shared_ptr<instancing::Atlas> barAtlas;
@@ -744,16 +740,13 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       b.iterations = 1; // documented — "exactly the right amount of bending"
       b.worldCollide = true;
       b.radius = 3.0f;
-      // A patch of cloth three wide and four tall, fully braced, base row
-      // pinned. Slenderness is the whole design question here: a 2-wide,
-      // 7-tall strip is a wet noodle at ONE iteration and folds flat under
-      // this study's gravity within a second — which is a fact about
-      // aspect ratio and iteration count, not about the paper.
-      // MEASURED: at this study's gravity a 3-wide braced truss of 24-unit
-      // cells stands at 5 rows (97.4% of nominal height, 15.8% peak
-      // constraint error) and FOLDS FLAT at 6. One relaxation iteration has
-      // a slenderness limit, and that is a fact about the iteration count,
-      // not about the paper.
+      // A patch of cloth three wide and five tall, fully braced, base row
+      // pinned. Slenderness is the whole design question here, because ONE
+      // relaxation iteration has a slenderness limit: at this study's
+      // gravity a 3-wide braced truss of 24-unit cells stands at five rows
+      // (near its nominal height, and holding) and FOLDS FLAT at six. A
+      // 2-wide, 7-tall strip is a wet noodle from the first second. That is
+      // a fact about aspect ratio and iteration count, not about the paper.
       constexpr int R = 5, C = 3;
       constexpr float sp = 24.0f, w = 28.0f;
       const float lean = (p % 2 == 0) ? 2.2f : -2.8f;
@@ -860,7 +853,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     }
     contacts.clear();
 
-    // Phase machine (§7.2).
+    // Phase machine: the §7 motion-control events, on this study's schedule.
     if (!didHit && loopT >= 1.10) {
       rig.x[RSH].fX -= kHitPush; // documented: displace ONE particle
       didHit = true;
@@ -952,8 +945,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     return p.detach();
   }
 
-  /** Every edge of a body as ONE path — ~260 cloth edges and 44 plant
-   *  sticks are one stroke, not 300 elements. */
+  /** Every edge of a body as ONE path: the cloth's edges and a plant's
+   *  sticks each become a single stroke rather than one element per edge. */
   SkPath bodyPath(const Body &b) const {
     SkPathBuilder p;
     for (const Stick &s : b.sticks) {
@@ -963,9 +956,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     return p.detach();
   }
 
-  /** The corpse's 24 sticks, three layers, all through the decoration
-   *  vocabulary on geometry recomputed this frame (decorations::paintOn).
-   *  Returns the microseconds spent, for the A/B against instances(). */
   /** The rig's stage-space bounds, so the two A/B thumbnails can FIT it
    *  rather than assume where it is. */
   SkRect rigBounds() const {
@@ -989,6 +979,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                (h - b.height() * s) * 0.5f - b.fTop * s};
   }
 
+  /** The corpse's 24 sticks, three layers, all through the decoration
+   *  vocabulary on geometry recomputed this frame (decorations::paintOn).
+   *  Returns the microseconds spent, which the A/B strip prints beside the
+   *  same sticks drawn through instances(). */
   double paintRig(SkCanvas &c, const PaintContext &ctx, float scale,
                   SkPoint offset, float fade, bool proxies) const {
     const auto t0 = std::chrono::steady_clock::now();
@@ -1050,9 +1044,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   /** The SECOND path for the SAME 24 sticks: one atlas cell (a bar with
-   *  BUTT ends), rotations() = atan2(dy, dx), and the new sizes() lane
-   *  carrying length and thickness independently — which RSXform's single
-   *  uniform scale could not express at all. */
+   *  BUTT ends), rotations() = atan2(dy, dx), and the sizes() lane carrying
+   *  length and thickness independently — which one uniform per-instance
+   *  scale cannot express, since every stick needs a different length at
+   *  the same width. */
   void writeBarPool(SkPoint origin, float scale) {
     barPool->resize(rig.sticks.size());
     auto pos = barPool->positions();
@@ -1073,7 +1068,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       frame[i] = cellBar;
       // cell is 32 x 8 logical, so the x multiplier is L/32 while y is
       // fixed: ONE cell length serving 24 different stick lengths remaps the
-      // cell's aspect by itself. See the report's §10.3 finding.
+      // cell's aspect by itself.
       size[i] = {L / 32.0f, 4.6f / 8.0f};
       const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       tint[i] = errColor(e, f);
@@ -1121,10 +1116,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .width(Dim(kStage))
                    .height(Dim(kStage - floorTop))
                    .fill(kSolid)
-                   // decorations::wash — the material-valued decoration,
-                   // which landed WHILE this sketch was being written. The
-                   // first spelling here was a sibling box with .fill(material)
-                   // and .blend(), i.e. a whole extra node for a grain pass.
+                   // decorations::wash is the material-valued decoration:
+                   // the grain rides this node's own paint. Spelled as a
+                   // sibling box with .fill(material) and .blend() it would
+                   // cost a whole extra node just to composite the grain.
                    .overlay(decorations::wash(
                        patterns::grain(0.035f, 3, 11.0f, 0.5f),
                        SkBlendMode::kSoftLight, 0.6f)))
@@ -1214,8 +1209,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
              // §7 IK: the target the hand is pinned to, "the hand of the
              // player". lines::cased for the leader, and a PathFormat with
-             // its OWN trim window riding the leader's head — the seam
-             // ROADMAP §7 had to correct once, on live geometry.
+             // its OWN trim window riding the leader's head — a trim window
+             // on geometry that is rebuilt every frame.
              if (dragging) {
                const SkPoint h = drawn(rig, LHA), tgt = toStage(dragTarget);
                const SkPath leader = segment(h, tgt);
@@ -1279,9 +1274,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .key("blast");
   }
 
-  /** The A/B strip: the SAME 24 sticks through instances()+sizes() beside
-   *  the custom() path. Study 03 shipped this gap as a picture; the lane
-   *  landed because of it, so this one ships the fix as a picture. */
+  /** The A/B strip: the SAME 24 sticks drawn twice side by side, once
+   *  through instances()+sizes() and once through custom()+paintOn, so the
+   *  two paths can be compared on one picture. */
   Element instancingStrip() {
     constexpr float w = 330, h = 108;
     return box()
@@ -1954,8 +1949,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // Live numbers. Animatable has no u8string case (ROADMAP §9), so numbers
-  // that tick go through slot()/renderSlot() — the fourth study to land here.
+  // Live numbers. Animatable carries no string case, so numbers that tick
+  // cannot be bound to a text node and go through slot()/renderSlot():
+  // only the slot's subtree re-describes when a value changes.
 
   Element chainStatEl() {
     char a[96], b[96];
@@ -1998,10 +1994,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
-    // §31 named-state beat: the file's own capture command — 0.75 s after
-    // the documented bomb, ragdoll/cloth/plants in full inverse-square
-    // flight; the state a physics study exists to show. (The old 6.0
-    // default caught the settled heap, motionless.)
+    // This study brings its own canvas, background and capture instant
+    // rather than inheriting any: 3.35 s is 0.75 s after the bomb fires at
+    // loopT 2.60, with ragdoll, cloth and plants all in full inverse-square
+    // flight. Any later and the SETTLE phase has the body motionless on the
+    // floor, which is the one still a physics study must not ship.
     ctx.captureAt(3.35);
 
     loopT = elapsed = 0;
@@ -2030,24 +2027,24 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     dotPool = std::make_shared<instancing::Pool>();
 
     // The stick cell: a bar with BUTT ends. Round caps would deform under
-    // the sizes() lane (see the report) — a satisfied constraint holds the
-    // stretch within ~1%, but the cell must not assume that.
+    // the sizes() lane — a satisfied constraint holds the stretch to a
+    // percent or so, but the cell must not assume that.
     barAtlas = std::make_shared<instancing::Atlas>(2.0f);
-    // A PILL, not a bar: a capped cylinder is what a stick's collision
-    // proxy is, and it is the case the roadmap predicts sizes() cannot
-    // hold — one cell length serving 24 different stick lengths remaps the
-    // cell's aspect by 0.19x-0.63x in x against a fixed 0.40x in y, so the
-    // round ends come out as ellipses of that aspect. See the report.
+    // A PILL, not a bar, is what a stick's collision proxy really is — and
+    // it is the case sizes() cannot hold: one cell length serving 24
+    // different stick lengths scales x per instance against a fixed y, so
+    // round ends stretch into ellipses of whatever aspect that instance
+    // asked for. Rounded corners on a bar tolerate that; caps do not.
     cellBar = barAtlas->cell(box().corners({4}).fill(kBone), {32, 8});
     barPool = std::make_shared<instancing::Pool>();
     (void)barPool->sizes(); // materialise the lane
 
     Composer &composer = ctx.composer;
 
-    // §7.1 — the clock. Verlet is only correct at a fixed Δt, and the
-    // alphaOut parameter (which landed hours before this file) publishes
-    // the leftover fraction of a step: a verlet body's state IS the pair
-    // (x*, x), so lerp(x*, x, alpha) is the integrator's own interpolant.
+    // The clock. Verlet is only correct at a fixed Δt, and the alphaOut
+    // parameter publishes the leftover fraction of a step: a verlet body's
+    // state IS the pair (x*, x), so lerp(x*, x, alpha) is the integrator's
+    // own interpolant, and drawing through it costs nothing extra.
     ctx.ticker.addFixed(
         kSimHz,
         [this] {

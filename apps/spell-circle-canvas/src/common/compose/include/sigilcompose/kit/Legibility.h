@@ -3,51 +3,28 @@
 /** @file
  * SigilCompose KIT — keeping type readable where it crosses the drawing.
  *
- * Seven sites, six files, three mechanisms, one problem: an annotation has
- * to sit ON the artwork and the artwork eats it.
+ * One problem, three mechanisms: an annotation has to sit ON the artwork
+ * and the artwork eats it.
  *
- * | site | mechanism |
- * |---|---|
- * | `nightingale_coxcomb.cpp:218-231` | stroke underlay, round join (as weight) |
- * | `psx_doom_fire.cpp:365` | `PaintLayer::outline` underlay |
- * | `gallery/ScenesPersona.h:180` | `PaintLayer::outline` underlay |
- * | `gallery/ScenesVeloren.h:106-125` | offset black fill underlay, "not optional" |
- * | `gallery/ScenesY2k.h:77,273,312` | ground underlay + contour underlay |
- * | `slitscan_2001.cpp:1688-1701` | **two `drawString` passes by hand**, 2.2 px |
- * | `astral_tome.cpp:492` | a padded opaque PLATE behind the run |
+ *  - a HALO — a knockout ring in the ground's colour, stroked under the
+ *    glyphs;
+ *  - a SHADE — a displaced solid copy underneath, for a ground so varied
+ *    that a symmetric halo would just grey the glyph;
+ *  - a SCRIM — an opaque plate behind the whole run, for a ground a
+ *    knockout cannot survive.
  *
- * Four of those reach `weave::PaintStyle::addUnderlay` and three do not —
- * and the three that do not are the interesting ones. `slitscan_2001`
- * could not, because its caption lives inside a `PaintProgram` drawing raw
- * `SkFont` strings, so it re-derived the halo with two `drawString` calls
- * and a hand-built stroke paint. `astral_tome` chose a plate instead
- * because its ground is a star field and a 2 px halo would not have been
- * enough. So this header ships all three spellings, and the canvas one is
- * not an afterthought.
+ * The first two are text-style transforms built on `weave::PaintStyle::
+ * addUnderlay`, so they apply to any text node. There is also an
+ * immediate-mode halo at the bottom of this file, because a caption drawn
+ * inside a `custom()` leaf has a canvas and no text node, and none of the
+ * underlay path is reachable from there.
  *
- * ## Warning — a halo makes a CHOICE cheap
+ * ## A halo makes a CHOICE cheap, so read this first
  *
- * Both researcher retrospectives converged on the same rule: attach a
- * caveat to any component that makes a decision cheap rather than a chore
- * cheap. This one qualifies, and its own author already wrote the caveat
- * at `slitscan_2001.cpp:1685-1690`:
- *
- * > HALOED. The carriage travels the whole rail over tau, so this caption
- * > is printed through by the camera body at some phase of every sweep —
- * > **and there is no clear band to move it to**: above is the clock
- * > block, below is the leader pair, the worm-gear rail and the scale
- * > note. A 2 px knockout in the panel colour is what a drafting plate
- * > does when a note has to cross the drawing.
- *
- * The load-bearing clause is "there is no clear band to move it to". A
- * halo is the answer AFTER that search fails. Made one word long, it
- * becomes the answer instead of the search, and a plate where every label
- * is haloed is a plate whose layout gave up. `astral_tome` is the
- * cautionary case in the other direction: it invented `scrimLabel()` and
- * then failed to use it on its own coordinate annotations, which is what a
- * helper nobody reaches for looks like.
- *
- * Use it where the label MUST cross the drawing. Move the label first.
+ * A halo is the answer AFTER the search for a clear band to move the label
+ * into has failed — not instead of that search. A drawing where every
+ * label is haloed is a drawing whose layout gave up. Move the label first;
+ * use this where the label MUST cross the artwork.
  */
 
 #include "sigilcompose/Compose.h"
@@ -70,17 +47,17 @@ struct Halo {
    *  contrasting outline. A drafting plate knocks out in the paper. */
   SkColor4f colour = {1, 1, 1, 1};
   /** Total stroke width in px, so the visible halo is half this on each
-   *  side. `slitscan_2001` measured 2.2 px as what its 7.5 px mono needed;
-   *  below ~1.5 px the counters of small type fill in. */
+   *  side. The default suits mono type around 7–8 px; below about 1.5 px
+   *  total the counters of small type start filling in. */
   float width = 2.2f;
   /** Round is what a knockout wants — a mitred join spikes at every sharp
    *  vertex and reads as a burr. */
   SkPaint::Join join = SkPaint::kRound_Join;
 };
 
-/** A displaced solid copy underneath — the game-HUD spelling, where the
- *  ground is arbitrary terrain and a symmetric halo would grey the glyph.
- *  `ScenesVeloren.h:118-124` explains why it is mandatory there. */
+/** A displaced solid copy underneath — the game-HUD spelling, for a ground
+ *  of arbitrary terrain where a symmetric halo would grey the glyph
+ *  instead of separating it. */
 struct Shade {
   SkColor4f colour = {0, 0, 0, 0.9f};
   SkVector offset = {1, 1};
@@ -112,11 +89,12 @@ inline sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
   return style;
 }
 
-/** The same trick with the STROKE pass on top of the fill — which is not a
- *  halo but the other thing `nightingale_coxcomb.cpp:218-231` used it for:
- *  thickening a face at the glyph level, because the engraved title on the
- *  1858 plate is heavier than any installed digital face. Same three lines,
- *  opposite intent, so it gets its own name rather than a bool. */
+/** The same underlay used for weight rather than for separation: a stroke
+ *  in the INK's colour thickens the face at the glyph level, which is how
+ *  you match an engraved title heavier than any installed digital face.
+ *  Same three lines as `haloed`, opposite intent, so it has its own name
+ *  rather than a flag — the colour a caller passes is the difference, and
+ *  a flag would not make that visible. */
 inline sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
                                           float width, SkColor4f colour) {
   SkPaint p;
@@ -141,19 +119,17 @@ struct Scrim {
   float radius = 0.0f;
 };
 
-/** Wrap @p run in a padded plate. This is `astral_tome.cpp:492
- *  scrimLabel()`, whose own doc explains the case: the tome's ground is a
- *  star field with links crossing it, and *"without one, an annotation
- *  lands on a link and is gone"*.
+/** Wrap @p run in a padded plate.
  *
  *  A halo would be cheaper — this is a second node and a fill. Reach for
  *  it when the ground is BUSY rather than merely crossed: a knockout works
- *  against linework, and stops working against texture.
+ *  against linework and stops working against texture, such as a star
+ *  field or a photograph, where an annotation simply disappears.
  *
- *  Note `weave::Decoration::Kind::kHighlight` is the third option and
- *  lives inside the text system — a band from ascent to descent drawn
- *  beneath every glyph pass, which needs no extra node. It takes no
- *  padding, which is exactly why `astral_tome` did not use it. */
+ *  `weave::Decoration::Kind::kHighlight` is a third option that lives
+ *  inside the text system: a band from ascent to descent drawn beneath
+ *  every glyph pass, needing no extra node. It takes no padding, so reach
+ *  for this one when the plate has to stand off the type. */
 inline Element scrim(Element run, const Scrim &s = {}) {
   Element plate = box().padding(s.paddingX, s.paddingY).fill(s.fill).child(
       std::move(run));
@@ -165,15 +141,14 @@ inline Element scrim(Element run, const Scrim &s = {}) {
 // ---------------------------------------------------------------------------
 // Immediate mode — for a caption inside a PaintProgram.
 
-/** Draw @p s haloed, at an SkFont baseline origin.
+/** Draw @p s haloed, at an SkFont baseline origin: a stroke pass in the
+ *  ground colour, then the same string again in the ink. For a caption
+ *  inside a `custom()` leaf, which has a canvas and no text node and so
+ *  cannot reach the underlay path above.
  *
- *  This is `slitscan_2001.cpp:1690-1701` exactly: build a stroke paint in
- *  the ground colour, draw the string with it, then draw it again in the
- *  ink. It exists because a `custom()` leaf has a canvas and no text node,
- *  and the four `addUnderlay` sites above are unreachable from there.
- *
- *  @p ink is used as configured — pass a paint you have already coloured
- *  and blended, so a caption inside a `kPlus` program keeps its blend. */
+ *  @p ink is used exactly as configured, so pass a paint you have already
+ *  coloured and blended and a caption inside a `kPlus` program keeps its
+ *  blend. */
 inline void drawHaloed(SkCanvas &canvas, std::string_view s, SkPoint at,
                        const SkFont &font, const SkPaint &ink,
                        const Halo &halo = {}) {
@@ -209,13 +184,12 @@ struct Line {
 
 /** A BLOCK of haloed lines: every halo first, then every ink.
  *
- *  Not a convenience. Calling the single-line form in a loop draws
- *  line 2's knockout **after** line 1's ink and eats it — measured, and it
- *  moved 21 px when `slitscan_2001`'s two-line note was migrated line by
- *  line (7.5 px type on a 10 px lead, so the second line's halo reaches
- *  the first line's descenders). Any halo wider than the leading minus
- *  the descent has this problem, which for a drafting note is most of
- *  them. Pass the block. */
+ *  **Not a convenience — pass the whole block.** Calling the single-line
+ *  form in a loop draws line 2's knockout AFTER line 1's ink, so the
+ *  second line's halo eats the first line's descenders. Any halo wider
+ *  than the leading minus the descent has this, which for a tightly-led
+ *  note is most of them, and the damage looks like a font bug rather than
+ *  an ordering one. */
 inline void drawHaloed(SkCanvas &canvas, std::initializer_list<Line> lines,
                        const SkFont &font, const SkPaint &ink,
                        const Halo &halo = {}) {

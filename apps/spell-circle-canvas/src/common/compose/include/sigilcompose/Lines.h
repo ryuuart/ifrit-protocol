@@ -44,21 +44,25 @@
 namespace sigil::compose::lines {
 
 /** Wave/zigzag geometry op: resample @p src by arc length and displace
- *  along the normal. Grounded against shipped implementations (QGIS
- *  triangular/roundWaves, Chromium/Firefox text-decoration wavy): the
- *  wavelength is a MAXIMUM — per contour it snaps so an exact number of
- *  waves fit, and BOTH kinds are zero-phase at the endpoints, so the run
- *  starts and ends ON the route (heads computed from the undisplaced
- *  outline stay attached). Sine sampled at λ/16; zigzag emits triangular
- *  vertices at quarter-wave points. Shared by lines::Line and the kit's
- *  Wave/Zigzag shapers (kit/Strokes.h). */
+ *  along the normal.
+ *
+ *  Two conventions worth knowing. The wavelength is a MAXIMUM: per contour
+ *  it is snapped down so a whole number of waves fits, which is what stops
+ *  a run ending mid-crest. And both kinds are zero-phase at the endpoints,
+ *  so the displaced run starts and ends ON the original route — heads and
+ *  caps computed from the undisplaced outline stay attached to it.
+ *
+ *  The sine is sampled at λ/16; the zigzag emits triangular vertices at
+ *  quarter-wave points. Shared by `lines::Line` and the kit's wave and
+ *  zigzag shapers. */
 inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
                        bool zigzag) {
   SkPathBuilder out;
   SkContourMeasureIter iter(src, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
-    // The QGIS fit rule: actual λ = len / round(len / λmax), never 0.
+    // Fit a whole number of waves: actual λ = len / round(len / λmax),
+    // and never 0.
     const float lambdaMax = std::max(wavelength, 2.0f);
     const float lambda =
         len / std::max(1.0f, std::round(len / lambdaMax));
@@ -99,11 +103,10 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
   return out.detach();
 }
 
-/** Square-wave (battlement/crenellation) displacement: the run holds at
- *  +amp for half a wavelength, drops to −amp for the next — crisp
- *  verticals from doubled points, zero at both endpoints, wavelength
- *  snapped to fit like displace(). The BOXY member of the family: same
- *  path points, meander-key geometry (the historic city-wall line). */
+/** Square-wave (battlement) displacement: the run holds at +amp for half a
+ *  wavelength then drops to −amp for the next, with the verticals coming
+ *  from doubled points at each step. Zero at both endpoints and snapped to
+ *  fit, exactly like displace() — the boxy member of the same family. */
 inline SkPath displaceSquare(const SkPath &src, float amplitude,
                              float wavelength) {
   SkPathBuilder out;
@@ -188,23 +191,18 @@ struct CornerHit {
   SkVector in{0, 0}, out{0, 0};
 };
 
-/** THE corner scanner. One of these, please.
+/** THE corner scanner — the single one. Every decoration that asks where a
+ *  shape's corners are comes through here, so the same shape cannot report
+ *  different corners depending on which one asked, and the diagnostic
+ *  below reaches all of them.
  *
- *  There were three and a half: this one, a bisecting copy inline in
- *  `brush::Pattern::paint`, `placementSamples(Mode::Vertex)`, and a fourth
- *  refinement loop in `shapes::edges()`. They disagreed about the default
- *  angle (30 vs 35), about where the vertex is, and about whether to tell
- *  the author when they found nothing — so the same shape got different
- *  corners depending on which decoration asked, and a fix to one did not
- *  reach the others. Worse: the newest copy reproduced, line for line, the
- *  midpoint-of-bracket defect that had already been diagnosed and fixed in
- *  an older one during the same run.
- *
- *  The scan STRADDLES the vertex — it compares the tangent at d-step with
- *  the tangent at d — so a break is first SEEN one step after the bend.
- *  Bisect that bracket rather than guessing inside it: eight halvings take
- *  a 6 px step under 0.03 px, below the rasterizer's own resolution, and
- *  the two leg tangents fall out of the search for free. */
+ *  The scan STRADDLES the vertex: it compares the tangent at d − step with
+ *  the tangent at d, so a break is first SEEN one step past the bend. The
+ *  bracket is then bisected rather than guessed at — taking its midpoint
+ *  would put the answer up to half a step off the real vertex. Eight
+ *  halvings take a 6 px step under 0.03 px, below what the rasterizer can
+ *  resolve, and the two leg tangents fall out of the search, which is what
+ *  makes an exact bisector available to corner art. */
 inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
                                           float angleDeg,
                                           float minSpacing = 3.0f,
@@ -232,11 +230,11 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
       const float dot = prev.x() * tan.x() + prev.y() * tan.y();
       sharpestDot = std::min(sharpestDot, dot);
       if (dot < cosThresh) {
-        // Narrow the bracket through the SHARED refinement — the same
-        // operation shapes::edges() performs on a quadrant change. Only
-        // the predicate differs, and keeping one copy of the refinement
-        // is what keeps the "answer is `hi`, never the midpoint"
-        // convention from being rediscovered a fourth time.
+        // Narrow the bracket through the shared refinement, which also
+        // serves the quadrant scan in shapes::edges(). Only the predicate
+        // differs, and one copy is what keeps the convention — the answer
+        // is the far end of the bracket, never its midpoint — in one
+        // place.
         SkVector inTan = prev, outTan = tan;
         const float at = shapes::detail::bisectTransition(
             std::max(0.0f, d - stride), std::min(d, len), [&](float mid) {
@@ -279,28 +277,22 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
 } // namespace detail
 
 /** One-sided constant displacement along the normal — **positive is LEFT
- *  of travel**, which in screen space (y down) is OUTSIDE a clockwise
- *  path. That is the ONE convention (DESIGN.md; ROADMAP §33 ruling 5): it
- *  is the kernel's, the one `bandPointAt`, `Profile::across`,
- *  `strand::offset` and `TextPath::offset` always spoke.
+ *  of travel**, which in screen space (y grows down) is OUTSIDE a
+ *  clockwise path. That is the one convention across this library:
+ *  `bandPointAt`, `Profile::across`, `strand::offset`, `Line::across`,
+ *  `Rail::across` and `TextPath::offset` all mean the same sign by
+ *  "across".
  *
- *  Was `offsetAlong`, positive RIGHT of travel (Mapbox line-offset / QGIS
- *  line offset), until R3 flipped it. The new name is the kernel's own
- *  coordinate word — a displacement is ACROSS the mark, and `across` is
- *  defined left-positive everywhere it appears — where `Along` named the
- *  mechanism (a walk down the path) and carried no sign at all. Every
- *  call site was ported with its argument NEGATED, so no picture moved.
- *
- *  Exact on straights, resampled on curves, and — since the corner repair
- *  below — correct at hard vertices too. Also the dash-safe way to build
- *  parallel rails: every rail keeps the same arc parameterization, so
- *  dashes stay in phase across the set.
+ *  Exact on straights, resampled on curves, and correct at hard vertices
+ *  through the repair below. It is also the dash-safe way to build
+ *  parallel rails: every rail keeps the original arc parameterization, so
+ *  dashes stay in phase across the whole set.
  *
  *  THE CORNER REPAIR. A uniform resample cannot offset a polygon: it
  *  samples either side of a vertex and draws a chord between the two
- *  offset points, so the outer side comes out CHAMFERED and the inner
- *  side lays a spur across the turn. On a plain rectangle that is visible
- *  at a glance, and it shipped in the specimen plate as a border.
+ *  offset points, so the outer side comes out CHAMFERED and the inner side
+ *  lays a spur across the turn. On a plain rectangle both are visible at a
+ *  glance.
  *
  *  So the real vertices are found first (one shared scanner) and each one
  *  gets a proper join: the offset point on the incoming leg, an arc of
@@ -311,9 +303,9 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
  *  have no breaks for the scanner to find. */
 inline SkPath offsetAcross(const SkPath &src, float across,
                            float step = 4.0f) {
-  // ONE negation, here, and nowhere else: the construction below was
-  // written right-of-travel and is left exactly as it was, so a rail at
-  // `across` draws the pixels the old `offsetAlong(-across)` drew.
+  // ONE negation, here and nowhere else: the construction below works in
+  // right-of-travel signs, and this is the single place the public
+  // left-positive convention is converted to it.
   const float offset = -across;
   if (offset == 0)
     return src;
@@ -448,17 +440,13 @@ inline SkPath offsetAcross(const SkPath &src, float across,
  *      if (kFill_Style == style || kStrokeAndFill_Style == style) return false;
  *
  *  so `filterPath` with a `SkStrokeRec(kFill_InitStyle)` returns false and
- *  leaves the destination untouched. Every other path effect in this
- *  library — corner, trim, discrete — is happy with a fill rec, so
- *  `kFill_InitStyle` is what everyone reaches for, and the ONE effect that
- *  refuses it fails by returning a solid path instead of a dashed one.
- *  That is invisible in review and invisible in the render unless you know
- *  the line was supposed to be dashed: `lines::Line` with `parallels > 1`
- *  and a dash pattern shipped SOLID for the whole of run 1 and the study
- *  corpus never caught it.
+ *  leaves the destination untouched. Every other path effect used here —
+ *  corner, trim, discrete — accepts a fill rec, so a fill rec is the
+ *  natural thing to reach for, and the one effect that refuses it fails by
+ *  leaving a SOLID path behind rather than by reporting anything. Nothing
+ *  in the render says the line was meant to be dashed.
  *
- *  Hairline is the rec to use, the same one `shapers::Jitter` settled on for
- *  its own (unrelated) reason. Returns the input unchanged when the
+ *  Hairline is the rec to use. Returns the input unchanged when the
  *  pattern is empty or Skia declines. */
 inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,
                            float phase) {
@@ -478,11 +466,10 @@ inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,
  *  following any silhouette — a chamfered panel, a star, a blob — not just
  *  rectangles.
  *
- *  The stroke-and-fill of the outline is the RING of width 2|px| straddling
- *  it; subtracting that ring shrinks the shape, unioning it grows the shape
- *  by the same amount. `shapes::Inset` has done this since the 2Advanced
- *  study; it was locked inside a decoration adaptor, so nothing that wanted
- *  the PATH could reach it. Border needs exactly that path. */
+ *  How it works: stroking the outline at width 2|px| gives the RING
+ *  straddling it, so subtracting that ring shrinks the shape and unioning
+ *  it grows the shape by the same amount. Returns the input unchanged if
+ *  the boolean op fails. */
 inline SkPath insetOutline(const SkPath &outline, float px) {
   if (px == 0 || outline.isEmpty())
     return outline;
@@ -502,9 +489,7 @@ inline SkPath insetOutline(const SkPath &outline, float px) {
 namespace detail {
 
 /** Arc-length positions along @p contour where the tangent breaks by more
- *  than @p angleDeg — the corners, found the same way `brush::Pattern` finds
- *  them (a fine forward scan, plus the wrap comparison a closed contour's
- *  seam needs, because the forward scan never compares across it).
+ *  than @p angleDeg — the corners, from the one shared scanner.
  *
  *  A gently ROUNDED corner deliberately yields nothing: there is no hard
  *  break, so there is no corner. That is the right answer and it surprises
@@ -598,20 +583,15 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
 } // namespace detail
 
 /** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
- *  corner, so a rectangle becomes four L-shaped marks and nothing else. The
- *  reticle, the selection handle, the crop mark, the Blade-Runner/Alien
- *  target frame — and until now every one of them in the corpus was four
- *  hand-placed Elements per frame, which is 4 nodes that do not follow the
- *  shape when it changes. This follows ANY silhouette: chamfer the box and
- *  the brackets land on the chamfers.
+ *  corner, so a rectangle becomes four L-shaped marks and nothing else —
+ *  the reticle, the selection handle, the crop mark. It follows ANY
+ *  silhouette, so chamfering the box puts the brackets on the chamfers,
+ *  where four hand-placed corner elements would stay where they were put.
  *
- *  One capability, four spellings before the stroke grammar: this,
- *  `cornerGaps` below, and the deleted `decorations::brackets`/
- *  `gappedRule` factories — the audit's item 10, closed by §33-j
- *  (2026-08-04). The grammar's spelling is `spans::corners(arm)`, which
- *  CLAIMS the runs on the element's real boundary instead of returning a
- *  path that replaces its shape; reach for that first, and for these when
- *  you want the geometry itself. */
+ *  Prefer `spans::corners(arm)` when the marks belong to an element: that
+ *  CLAIMS runs on the element's real boundary and leaves the rest of it
+ *  free, where this returns a path that replaces the shape. Reach for this
+ *  when you want the geometry itself. */
 inline SkPath cornerBrackets(const SkPath &src, float arm,
                              float angleDeg = 30.0f) {
   return detail::cornerWindows(src, arm, true, angleDeg);
@@ -621,9 +601,8 @@ inline SkPath cornerBrackets(const SkPath &src, float arm,
  *  px of paper at each. The printer's open-corner box rule; also how a
  *  technical drawing keeps a frame from fighting its own dimension lines.
  *
- *  The grammar's spelling is `spans::edges(gap)` — same scan, claimed on
- *  the element's own boundary. Retained (§27); see cornerBrackets above for
- *  the four-spellings note. */
+ *  `spans::edges(gap)` is the same scan claimed on an element's own
+ *  boundary; see cornerBrackets above for when to prefer which. */
 inline SkPath cornerGaps(const SkPath &src, float gap,
                          float angleDeg = 30.0f) {
   return detail::cornerWindows(src, gap, false, angleDeg);
@@ -643,8 +622,8 @@ struct Line {
   /** Parallel casing: 1 = plain, 2 = the transit pair, 3 = triple rail
    *  (odd counts keep a center line, weighted by `coreWidthFactor` — the
    *  bold-spine + light-outriders look). `gap` is CENTER-TO-CENTER spacing
-   *  between adjacent lines (Mapbox's line-gap-width is the inner CLEAR
-   *  gap instead — convert with gap = clear + width). Parallels follow
+   *  between adjacent lines; map styles that specify the inner CLEAR gap
+   *  instead convert as gap = clear + width. Parallels follow
    *  curves exactly (offset contours via the stroke-outline construction;
    *  dashed parallels switch to per-rail offsets so dashes stay in
    *  phase). */
@@ -652,13 +631,12 @@ struct Line {
   float gap = 4.0f;
   float coreWidthFactor = 1.0f;
 
-  /** Corner treatment for the drawn strokes AND the parallel-offset
-   *  construction (§10). The default is the grounded round join
-   *  (osm-carto/leaflet rails) — which also means the offset contour
-   *  ROUNDS sharp corners, so a crisp 45° jog in a cased wire comes out
-   *  as a soft S-curve. `SkPaint::kMiter_Join` keeps the jog sharp: the
-   *  offset rails are built from a stroke outline anyway, so the join is
-   *  simply exposed rather than invented. */
+  /** Corner treatment for the drawn strokes AND for the parallel-offset
+   *  construction. The default round join also rounds the OFFSET contour,
+   *  so a crisp 45° jog in a cased wire comes out as a soft S-curve; pass
+   *  `SkPaint::kMiter_Join` to keep the jog sharp. The offset rails are
+   *  built from a stroke outline either way, so this exposes that join
+   *  rather than adding one. */
   SkPaint::Join join = SkPaint::kRound_Join;
 
   /** Wave/zigzag displacement of the run itself (the y2k squiggle, the
@@ -669,9 +647,10 @@ struct Line {
   bool zigzag = false;
 
   /** Railway ties: short perpendicular ticks every `tickSpacing` px
-   *  (0 = none), `tickLength` px long — the rail/blueprint idiom (QGIS
-   *  hashed-line default ratio is spacing:length = 1:1). `tickWidth` 0
-   *  strokes ties at the line's width; real maps often want ~2× it. */
+   *  (0 for none), `tickLength` px long — the rail and blueprint idiom,
+   *  which reads well at a spacing-to-length ratio near 1:1. `tickWidth`
+   *  0 strokes the ties at the line's own width; map conventions often
+   *  want roughly twice it. */
   float tickSpacing = 0.0f;
   float tickLength = 8.0f;
   float tickWidth = 0.0f;
@@ -681,23 +660,21 @@ struct Line {
    *  road, half-side hachures. Same semantics as
    *  `kit::brush::shapers::Offset` in a Brush pipeline: reach for the
    *  shaper when several layers share one displacement, this field for a
-   *  single Line.
-   *
-   *  Was `offset`, positive right of travel, until R3. */
+   *  single Line. */
   float across = 0.0f;
 
-  /** Terminal caps per contour (start = the path's first point). The
-   *  grounded convention (leaflet-polylinedecorator, tldraw, D3 practice):
-   *  the arrow TIP sits AT the endpoint, the head extends BACKWARD over
-   *  the run, and the body is trimmed under Arrow/Bar heads (dashes stop
-   *  cleanly under the head). 60° apex; capSize ≈ 3× width reads
-   *  canonical. */
+  /** Terminal caps per contour; start is the path's first point. The
+   *  convention: the arrow TIP sits AT the endpoint and the head extends
+   *  BACKWARD over the run, with the body trimmed out from under Arrow and
+   *  Bar heads so dashes stop cleanly instead of showing through. The apex
+   *  is 60°, and a capSize around 3× the line width reads as a normal
+   *  arrowhead. */
   Cap startCap = Cap::None;
   Cap endCap = Cap::None;
   float capSize = 10.0f;
 
-  /** Mid-path repeated caps (the polylinedecorator pattern): a cap glyph
-   *  every `midSpacing` px — direction chevrons down a wire. */
+  /** Mid-path repeated caps: a cap glyph every `midSpacing` px — the
+   *  direction chevrons that run down a wire. */
   Cap midCap = Cap::None;
   float midSpacing = 0.0f;
 
@@ -708,12 +685,13 @@ struct Line {
   /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
   const choreograph::Output<float> *dashPhaseBinding = nullptr;
 
-  /** Along-arc gradient (mapbox line-gradient, §9): color as a ramp over
-   *  the run's arc fraction — the energy fade, the elevation-colored
-   *  trail. Rendered as ~48 arc chunks per contour, each solid at its
-   *  interpolated color (round joins hide the seams); overrides `fill`'s
-   *  color when non-empty. Not composable with parallels>1 or dashes in
-   *  this cut (single-run gradients only — casings keep flat color). */
+  /** Along-arc gradient: colour as a ramp over the run's arc fraction — an
+   *  energy fade, an elevation-coloured trail. Drawn as up to 48 arc chunks
+   *  per contour, each solid at its own interpolated colour, with round
+   *  joins hiding the seams; overrides `fill`'s colour when non-empty.
+   *
+   *  **It applies to a single run only.** With `parallels > 1` or a dash
+   *  pattern set, this list is IGNORED and the casings paint flat. */
   std::vector<Stop> alongStops;
 
   bool operator==(const Line &) const = default;
@@ -738,8 +716,8 @@ struct Line {
       return;
 
     // 1. The body run: offset, then displaced into a wave, then trimmed
-    //    back under Arrow/Bar heads (tldraw clips the body from the head
-    //    region; trimming also stops dashes cleanly under the head).
+    //    back from under Arrow and Bar heads, which also stops dashes
+    //    cleanly instead of letting them show through the head.
     SkPath body = across != 0 ? offsetAcross(ctx.outline, across) : ctx.outline;
     if (waveAmplitude > 0)
       body = displace(body, waveAmplitude, waveLength, zigzag);
@@ -768,8 +746,8 @@ struct Line {
     SkPaint stroke;
     stroke.setAntiAlias(true);
     stroke.setStyle(SkPaint::kStroke_Style);
-    stroke.setStrokeJoin(join); // defaults to the grounded round join on
-    stroke.setStrokeCap(SkPaint::kRound_Cap); // rails (osm-carto/leaflet)
+    stroke.setStrokeJoin(join);               // round unless asked otherwise
+    stroke.setStrokeCap(SkPaint::kRound_Cap); // rails always end round
     applyFill(stroke);
     if (!dashIntervals.empty())
       stroke.setPathEffect(SkDashPathEffect::Make(
@@ -815,28 +793,22 @@ struct Line {
       }
       // Ties/caps still run below; skip the flat body strokes.
     } else
-    // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction
-    //    (exact parallel curves on bends; round joins + Simplify() kill
-    //    the miter spikes and tight-bend knots the references repair by
-    //    hand). Dashed rails are built per line via offsetAcross instead —
-    //    both rails share one arc parameterization, so dashes stay in
-    //    phase (the Mapbox property the loop can't give).
+    // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction,
+    //    which gives exact parallel curves on bends; round joins plus
+    //    Simplify() remove the miter spikes and the self-intersection
+    //    knots a tight bend produces. Dashed rails are built per line
+    //    through offsetAcross instead, so every rail's pattern is measured
+    //    on one arc parameterization and the dashes stay in phase.
     if (parallels <= 1) {
       stroke.setStrokeWidth(width);
       canvas.drawPath(body, stroke);
     } else if (!dashIntervals.empty()) {
-      // Dash FIRST, offset EACH DASH after: offsetting the continuous rail
-      // and then dashing shears phase on any curve (inner/outer rails have
-      // different arc lengths). Dashing the centerline once and offsetting
-      // the resulting dash segments keeps registration across all rails —
-      // the one-parameterization property the references get from shaders.
-      //
-      // This branch shipped BROKEN for the whole of run 1: it built the
-      // dash geometry with a FILL stroke rec, which Skia's dash effect
-      // explicitly refuses (see dashGeometry above), so filterPath returned
-      // false and the rails came out SOLID. Every `lines::cased(...)` with
-      // a dash pattern in the corpus SHIPPED as a solid double rule for the
-      // whole of run 1; run-1 captures of those scenes are stale.
+      // Dash FIRST, offset EACH DASH after. Offsetting the continuous rail
+      // and dashing afterwards shears the phase on any curve, because the
+      // inner and outer rails have different arc lengths; dashing the
+      // centreline once and displacing the resulting segments keeps every
+      // rail in register. Note dashGeometry's stroke-rec requirement — the
+      // obvious fill rec silently yields a solid path.
       const SkPath dashedBody = dashGeometry(
           body, SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
       SkPaint p = stroke;
@@ -898,11 +870,9 @@ struct Line {
       canvas.drawPath(ties.detach(), tiePaint);
     }
 
-    // 4. Caps, FILLED. Grounded convention: the arrow TIP sits AT the
-    //    endpoint and the head extends BACKWARD (leaflet-polylinedecorator
-    //    builds [barb, tip, barb] on the sample; tldraw nudges the base
-    //    back along the body; D3 sets refX to the tip). Mid-path chevrons
-    //    reuse the same glyphs at intervals.
+    // 4. Caps, FILLED with the line's own fill: the arrow TIP sits AT the
+    //    endpoint and the head extends BACKWARD over the run. Mid-path
+    //    chevrons reuse the same glyphs at intervals.
     if (startCap != Cap::None || endCap != Cap::None ||
         (midCap != Cap::None && midSpacing > 0)) {
       SkPaint head;
@@ -960,8 +930,8 @@ private:
     const SkVector n{-tan.y(), tan.x()};
     switch (cap) {
     case Cap::Arrow: {
-      // Tip AT the endpoint; barbs capSize back at ±tan(30°)·capSize —
-      // the canonical 60° apex (tldraw ±π/6, decorator headAngle 60).
+      // Tip AT the endpoint; barbs capSize back at ±tan(30°)·capSize,
+      // which is the 60° apex.
       const SkPoint base{pos.x() - tan.x() * capSize,
                          pos.y() - tan.y() * capSize};
       SkPathBuilder tri;
@@ -1039,9 +1009,10 @@ inline Line railway(float width, Fill fill, float tieSpacing = 12.0f,
   return l;
 }
 
-/** The cartographic railway (osm-carto roads.mss, verified): a dark line
- *  with a white dash overlay at ~1/3 width, 50% duty cycle (8 on, 8 off)
- *  — NOT ties; compose via Element::style(). scale 1 ≈ the z13 weights. */
+/** The cartographic railway: a dark line under a white dash overlay at
+ *  about a third of its width, on a 50% duty cycle — the map convention,
+ *  which uses no ties at all. Two decorations as one LayerStyle, so attach
+ *  with `Element::style()`. */
 inline LayerStyle railwayCarto(float scale = 1.0f,
                                SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
                                SkColor4f light = {1, 1, 1, 1}) {
@@ -1069,46 +1040,36 @@ inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
 // ---------------------------------------------------------------------------
 // N-rail strokes — a parallel rule where EVERY rail is its own line
 //
-// `Line::parallels` gives N rails that all share one width, one fill, one
-// dash and one phase. The single per-rail knob in the whole struct is
-// `coreWidthFactor`, which applies to exactly ONE rail — the centre — and
-// only when `parallels` is ODD. That is a worse story than having nothing,
-// because it looks like the feature exists: the moment an author wants
+// `Line::parallels` gives N rails sharing one width, one fill, one dash and
+// one phase; its only per-rail knob is `coreWidthFactor`, which applies to
+// the centre rail and only when `parallels` is odd. `Rails` is for
+// everything that needs more than that:
 //
-//   heavy outer + hairline inner at parallels = 2      (the engraver's rule)
-//   solid outer + DOTTED inner                          (road under works)
-//   unequal gaps                                        (road + kerb + lane)
-//   per-rail colour                                     (rail in ink, casing red)
+//   heavy outer + hairline inner at two rails  (the engraver's rule)
+//   solid outer + DOTTED inner                 (a road under construction)
+//   unequal gaps                               (road + kerb + lane)
+//   per-rail colour
 //
-// there is no field for it, and both workarounds cost something real. The
-// stacked-PathFormat trick only works on concentric circles, because it is a
-// RADIUS trick and not an offset. `Brush` with a per-layer
-// `shapers::Offset` suffix does work on any path, but it resamples the
-// contour once per layer and each layer then dashes ITS OWN offset curve —
-// whose arc length differs
-// from its neighbour's on every bend, so the dashes shear apart. Keeping
-// them together is the whole reason Line's dashed-parallel path exists.
+// Neither workaround covers it. Stacked strokes with different insets only
+// work on concentric shapes, because an inset is not a displacement. A
+// `Brush` with a per-layer offset shaper works on any path, but each layer
+// dashes ITS OWN offset curve, whose arc length differs from its
+// neighbour's on every bend, so the dashes shear apart.
 //
-// So `Rails` is built ON that machinery rather than beside it:
+// `Rails` is built on Line's dashed-parallel construction instead:
 //
 //     DASH IN CENTRELINE ARC-SPACE, THEN DISPLACE THE DASHES.
 //
-// Every rail's pattern is measured along the SAME curve, so two rails with
-// the same intervals stay in register through any curvature, and a rail
-// with a different pattern is still in register with the centreline (which
-// is what "the inner tick falls between the outer ones" means). Offsetting
-// a continuous rail and dashing afterwards cannot give that, and it is the
-// property a shader-based renderer gets for free.
+// Every rail's pattern is measured along the SAME curve, so rails sharing
+// intervals stay in register through any curvature, and a rail with a
+// different pattern still registers against the centreline — which is what
+// makes an inner tick fall reliably between two outer ones.
 
 /** One rail of a `Rails` stroke: its own displacement from the route, its
  *  own width, fill, dash pattern and phase. `across` is px **LEFT of
  *  travel** — the one convention (see `offsetAcross`), shared with
  *  `Line::across`, `strand::offset` and `Profile::across` — so a
- *  symmetric pair is still {-gap/2, +gap/2}.
- *
- *  Was `offset`, positive right of travel, until R3 (ROADMAP §33
- *  ruling 5). Renamed as well as flipped so the compiler, not a grep,
- *  found all ninety call sites. */
+ *  symmetric pair is {-gap/2, +gap/2}. */
 struct Rail {
   float across = 0.0f;
   float width = 2.0f;
@@ -1220,9 +1181,8 @@ struct Rails {
 };
 
 /** N identical rails, symmetric about the route — the general form of
- *  `Line::parallels` (2 is `cased`, 3 is `triple` with a flat spine, and
- *  4, 5, 6 have simply never been asked for because nothing spelled them).
- *  `gap` is centre-to-centre between neighbours. */
+ *  `Line::parallels`, where 2 is `cased` and 3 is `triple` with a flat
+ *  spine. `gap` is centre-to-centre between neighbours. */
 inline Rails rails(int count, float width, Fill fill, float gap = 5.0f) {
   Rails r;
   const int n = std::max(count, 1);
@@ -1240,18 +1200,14 @@ inline Rails rails(std::vector<Rail> set) {
   return r;
 }
 
-/** The four-rail rule, symmetric. Named because "quad" was one of the
- *  three things asked for by name and `rails(4, …)` does not announce
- *  itself in a completion list. */
+/** The four-rail rule, symmetric — `rails(4, …)` under a name that shows
+ *  up in a completion list. */
 inline Rails quad(float width, Fill fill, float gap = 4.0f) {
   return rails(4, width, std::move(fill), gap);
 }
 
-/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY. The
- *  commonest printed rule after the plain one, and the one `Line` could
- *  not express at all — `coreWidthFactor` scales the centre, so a THIN
- *  centre between two heavy rails needs a factor < 1 on a width chosen for
- *  the heavies, and the moment the two want different colours it is over. */
+/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the
+ *  commonest printed rule after the plain one. */
 inline Rails heavyHairHeavy(float heavy, float hair, Fill fill,
                             float gap = 5.0f) {
   return rails({{.across = -gap, .width = heavy, .fill = fill},
@@ -1273,11 +1229,11 @@ inline Rails dottedCore(float outer, float core, Fill fill, float gap = 5.0f,
                 {.across = gap, .width = outer, .fill = fill}});
 }
 
-/** Sk2D lattice hatching (SkLine2DPathEffect — the engraving/blueprint
- *  fill from the seams audit): parallel rules at `spacing` px and
- *  `angleDeg`, `width` px each, filling the node's OUTLINE (clipped to it,
- *  so concave shapes hatch exactly). `cross` adds the perpendicular pass.
- *  A value decoration: compares, prunes, caches like PathFormat. */
+/** Lattice hatching: parallel rules `spacing` px apart at `angleDeg`,
+ *  `width` px each, filling the node's OUTLINE — clipped to it, so a
+ *  concave shape hatches exactly rather than to its bounds. `cross` adds
+ *  the perpendicular pass. A value decoration: compares, prunes and caches
+ *  like any other. */
 struct Hatch {
   Fill strokeFill = Fill::color({1, 1, 1, 1});
   float spacing = 6.0f;
@@ -1288,12 +1244,12 @@ struct Hatch {
    *  convention `PathFormat::dashPhaseBinding`, `PathFormat::trimPhase`,
    *  `Line::dashPhaseBinding` and `Rails::dashPhaseBinding` already use.
    *
-   *  NOT a `Animatable` — a decoration paints with only a `PaintContext`
-   *  and has no instance to resolve a transition against. Hatch was the
-   *  odd one out in a vocabulary that otherwise animates, so a moiré, a
-   *  tightening engraving or a rotating shade pass had to leave the
-   *  decoration and be rebuilt per frame. Binding declares `isAnimated()`,
-   *  which is the volatility contract. */
+   *  A raw Output pointer and NOT an `Animatable`, because a decoration
+   *  paints with only a `PaintContext` and has no instance against which a
+   *  transition could be resolved. Binding either one makes
+   *  `isAnimated()` true, which is what declares the node volatile and
+   *  keeps a moiré, a tightening engraving or a rotating shade pass
+   *  repainting. */
   const choreograph::Output<float> *spacingBinding = nullptr;
   const choreograph::Output<float> *angleBinding = nullptr;
 
@@ -1354,19 +1310,17 @@ inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
   return h;
 }
 
-/** RADIAL hatching: rules that fan out of a centre, and/or rings
- *  concentric with it, clipped to the node's outline.
+/** RADIAL hatching: rules that fan out of a centre, rings concentric with
+ *  it, or both, clipped to the node's outline.
  *
- *  `lines::hatch` is a parallel lattice at one fixed angle, which is the
- *  wrong field for anything engraved out of a point — the Chladni plate's
- *  figures 3 and 5 are radial fans, and building one from 120
- *  `shapes::sector` sub-wedges each carrying its own rotated Hatch works
- *  but is 120 nodes for a single field.
+ *  `lines::hatch` is a parallel lattice at one fixed angle, which cannot
+ *  describe a field engraved out of a point; approximating one from many
+ *  rotated wedges costs a node per wedge for a single field.
  *
- *  `spokes` rules every `360/spokes` degrees; `rings` circles at even
+ *  `spokes` rules every 360/spokes degrees; `rings` draws circles at even
  *  radii. Set either to 0 for the other alone. `centre` is a FRACTION of
  *  the node's box, so it survives a resize. A value decoration: compares,
- *  prunes and caches like Hatch and PathFormat. */
+ *  prunes and caches like the rest. */
 struct RadialHatch {
   Fill strokeFill = Fill::color({1, 1, 1, 1});
   int spokes = 48;
@@ -1378,11 +1332,11 @@ struct RadialHatch {
   SkPoint centre = {0.5f, 0.5f};
   float rotateDeg = 0.0f;
   /** STATED ring radii, in px from the centre. When non-empty this list
-   *  replaces the `rings` spacing entirely — one circle per entry,
-   *  exactly where it says (§10j: the even spacing runs out to the bbox
-   *  HALF-DIAGONAL, so on a circle() node the outermost ring lands at
-   *  R·√2, outside the shape, clipped away — and a two-circle limb at
-   *  authored radii was unspellable). Spokes keep their own reach. */
+   *  replaces the `rings` spacing entirely — one circle per entry, exactly
+   *  where it says. Use it whenever the radii matter: the even spacing
+   *  runs out to the bounding box's HALF-DIAGONAL, so on a circular node
+   *  the outermost ring lands at R·√2, outside the shape, and is clipped
+   *  away entirely. Spokes keep their own reach either way. */
   std::vector<float> radiiPx;
 
   bool operator==(const RadialHatch &o) const {
@@ -1469,10 +1423,10 @@ inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
   return h;
 }
 
-/** Rings at STATED radii (px from the centre) — `concentric(ink, {60,
- *  64})` is a two-circle limb, exactly where it says. The evenly-spaced
- *  form above spaces out to the bbox half-diagonal, which on a circle()
- *  node clips the outermost ring away (§10j). */
+/** Rings at STATED radii, px from the centre — `concentric(ink, {60, 64})`
+ *  is a two-circle band exactly where it says. The evenly-spaced form
+ *  above runs out to the bounding box's half-diagonal, which on a circular
+ *  node clips its outermost ring away. */
 inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
                               float width = 1.2f,
                               SkPoint centre = {0.5f, 0.5f}) {

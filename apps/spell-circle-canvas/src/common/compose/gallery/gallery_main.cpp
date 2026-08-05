@@ -1,10 +1,15 @@
-// ComposeGallery entry point: the Qt Quick app (WeaveGallery mold —
-// QML sidebar over the scene registry, live metrics panel), or
-// `--headless [outdir] [--gpu] [--scene <name|index>]` for the per-scene FPS
-// table + PNG captures (--gpu sweeps on a Graphite Metal surface).
-// `--scene` narrows the sweep to one entry, which is how a single scene gets
-// looked at during visual work without paying for the other forty-four.
-// `--shot <png> [--scene ...]` captures the APP — sidebar, folders, metrics.
+// ComposeGallery entry point. Two ways to run it:
+//
+//   (no arguments)   the Qt Quick app — a QML sidebar over the scene
+//                    registry with a live metrics panel.
+//   --headless [outdir] [--gpu] [--scene <name|index>]
+//                    a per-scene FPS table plus PNG captures; --gpu sweeps
+//                    on a Graphite Metal surface instead of raster.
+//
+// `--scene` narrows either mode to a single entry, which is how one scene is
+// iterated on without paying for the whole registry. `--shot <png>` captures
+// the APP window rather than a scene, so the sidebar, folders and metrics
+// panel can be looked at.
 
 #include "GalleryScenes.h"
 
@@ -27,14 +32,13 @@ int main(int argc, char *argv[]) {
     bool gpu = false;
     bool noPromotion = false;
     // --capture-at S: take every still at scene time S, overriding both the
-    // derived frame and any Scene::captureSeconds. It exists for the AUDIT
-    // the declaration implies: sweep at two times and diff, and the scenes
-    // that differ are the ones still in motion when the gallery photographs
-    // them. A settled scene is identical at 6 s and 7 s; a moving one is not,
-    // and only its author can say whether the moment it was caught at is the
-    // one worth showing. Without this the question is unaskable per-scene
-    // without a recompile, which is how `black watch` stayed wrong for its
-    // whole life.
+    // derived frame and any Scene::captureSeconds. Sweeping at two different
+    // times and diffing the output tells you which scenes are still in motion
+    // at the moment the gallery photographs them: a settled scene renders
+    // identically at both times, a moving one does not. Only the scene's
+    // author can then say whether the moment it was caught at is the one
+    // worth showing, but without this flag the question cannot be asked
+    // per-scene without a recompile.
     double captureAt = -1.0;
     // --ledger: byte-identity plates only — skip the benchmark phases and
     // step every scene straight to its deterministic capture frame. This
@@ -53,8 +57,8 @@ int main(int argc, char *argv[]) {
         noPromotion = true;
       else if (arg == "--ledger")
         ledger = true;
-      else if (arg == "--list-scenes") { // machine-readable registry list —
-        // the CAPTURE spelling (registryName, §22), one per line
+      else if (arg == "--list-scenes") { // machine-readable registry list, one
+        // per line, spelled the way a capture names it (registryName)
         for (int s = 0; s < compose_gallery::kGallerySceneCount; ++s)
           std::printf("%s\n", compose_gallery::registryName(s));
         return 0;

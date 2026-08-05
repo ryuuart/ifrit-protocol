@@ -1,26 +1,27 @@
 #pragma once
 
 /** @file
- * SigilWorld — diegetic surfaces in real 3D, rendered by Diligent
- * Engine. Where SigilShape's Space.h fakes depth inside one SkCanvas,
- * SigilWorld owns a GPU device (Vulkan via MoltenVK on macOS; the
- * engine layer is Diligent's, so D3D/GL land with the Windows/Linux
- * ports) and renders meshes with a depth buffer, MSAA, and a PBR-lite
- * shading model — panels IN a scene, not sprites OVER one.
+ * SigilWorld — surfaces in real 3D on a real GPU, through Diligent
+ * Engine (Vulkan, via MoltenVK on macOS). It owns the device and renders
+ * meshes with a depth buffer, multisampling and a physically-based
+ * shading pass.
  *
- * The bridge contracts:
- *  - geometry is sigil::shape::Mesh — extrude/revolve/grid/cylinderPanel
- *    output uploads directly;
- *  - panel content is any SkImage — a compose scene, a web view, an
- *    SVG — uploaded as the surface's baseColor texture (unlit for
- *    emissive screens, lit for print-like decals);
- *  - the camera is sigil::shape::space::Camera, so a Skia-composited
+ * Three bridge contracts, and nothing else crosses:
+ *  - geometry in is a sigil::shape::Mesh, uploaded as it stands;
+ *  - panel content in is any SkImage, uploaded as the surface's
+ *    baseColor texture (mark the material unlit for a self-lit screen,
+ *    leave it lit for a decal that should take the scene's light);
+ *  - the camera is a sigil::shape::space::Camera, so a Skia-composited
  *    scene and a World render agree about where things sit.
  *
  * Headless by design: create() needs no window, render() draws into an
- * offscreen target, readback() returns the frame as a raster SkImage
- * (savePng wraps it). A swapchain path can join later without touching
- * the scene API.
+ * offscreen target, and readback() returns the frame as a raster SkImage
+ * (savePng wraps it). There is no swapchain and no window handling.
+ *
+ * COLOUR SPACES ARE ASYMMETRIC HERE, deliberately. Material and light
+ * colours are LINEAR — the shader shades in linear and encodes on the way
+ * out. WorldConfig::clearColor is ENCODED sRGB. See its own comment
+ * before authoring a background.
  */
 
 #include <sigilshape/Mesh.h>
@@ -57,25 +58,31 @@ struct WorldConfig {
    *
    *  Every other colour here (Material::baseColor and emissive, the
    *  Lighting sun/sky/ground, LightComponent colours) is LINEAR: the
-   *  shader shades in linear and runs its own LinearToSrgb() on the way
-   *  to the plain RGBA8_UNORM target. The clear does not go through a
-   *  shader — it writes the value straight into that target — so these
-   *  components ARE the bytes the background pixel gets: the default
-   *  reads back as (7, 8, 11), a near-black navy, not the (47, 48, 60)
-   *  slate an encode would produce.
+   *  shader shades in linear and encodes on the way to the plain
+   *  RGBA8_UNORM target. The clear goes through no shader at all — it
+   *  writes this value straight into that target — so these components
+   *  ARE the bytes the background pixel gets, times 255.
    *
-   *  This is intentional and pinned by
-   *  World.ClearColorIsEncodedSrgbNotLinear; see the 2026-07-28 note in
-   *  world/README.md. Authoring a background is picking the pixel you
-   *  want to see, which is what a display-space value means; matching a
-   *  linear Material colour instead means encoding it yourself
-   *  (shape::blend's linearToSrgb curve). */
+   *  Read the wrong way round, this is a visibly wrong background rather
+   *  than a subtle one: a mid-tone reads roughly a factor of two off in
+   *  every channel. Authoring a background means picking the pixel you
+   *  want to see, which is what a display-space value is. To match a
+   *  linear Material colour instead, encode it yourself with the standard
+   *  sRGB curve first. */
   glm::vec4 clearColor = {0.028f, 0.03f, 0.045f, 1};
 };
 
 /** Surface shading. Textured surfaces multiply texture by baseColor;
- *  `unlit` skips lighting entirely (self-lit UI screens). Alpha below 1
- *  renders in the blended pass, depth-sorted back to front. */
+ *  `unlit` skips lighting entirely, for self-lit screens. Alpha below 1
+ *  routes the surface into the blended pass, sorted back to front by
+ *  view depth.
+ *
+ *  Colours here are LINEAR (unlike WorldConfig::clearColor).
+ *
+ *  Every field is live on mutation of the entity's MaterialComponent
+ *  EXCEPT @ref texture: the texture is uploaded when the surface is
+ *  added, so swapping the pointer changes nothing. Remove the surface
+ *  and add it again to change the image. */
 struct Material {
   glm::vec4 baseColor = {0.8f, 0.8f, 0.8f, 1};
   float metallic = 0;
@@ -86,22 +93,27 @@ struct Material {
   bool unlit = false;
 
   /** UV window into the texture, applied at sample time:
-   *  uv' = uv * uvScale + uvOffset. LIVE like the colors — animate
-   *  uvOffset on the MaterialComponent to scroll content across a
-   *  surface (the marquee riding a ribbon) with zero texture
-   *  uploads. Sampling clamps at the texture edge. */
+   *  uv' = uv * uvScale + uvOffset. Live like the colours, so animating
+   *  uvOffset on the MaterialComponent scrolls content across a surface
+   *  with no texture uploads at all.
+   *
+   *  The sampler CLAMPS on both axes. There is no repeat or tile mode:
+   *  a window that runs off the texture smears its edge texels rather
+   *  than wrapping around. */
   SkV2 uvScale = {1, 1};
   SkV2 uvOffset = {0, 0};
 
-  /** Textures compare by pointer — the scene reconciler's reuse test. */
+  /** Textures compare by POINTER, so two identical images decoded
+   *  separately are different materials. The scene reconciler tests reuse
+   *  with this operator; share one sk_sp to keep a surface. */
   bool operator==(const Material &) const = default;
 };
 
-/** Per-instance lanes an instanced surface reads from its Cloud —
- *  mirrors points::InstanceOptions, but the stamp uploads ONCE and the
- *  points ride a per-instance vertex stream instead of a merged mesh.
- *  Lanes are optional; a bare Cloud stamps unscaled, untinted, in the
- *  stamp's own orientation. */
+/** Per-instance lanes an instanced surface reads from its Cloud. The
+ *  stamp mesh uploads ONCE and the points ride a per-instance vertex
+ *  stream, rather than being merged into one large mesh. Every lane is
+ *  optional: a bare Cloud stamps unscaled, untinted, in the stamp's own
+ *  orientation. */
 struct InstanceLanes {
   float scale = 1;
   /** Scalar lane multiplied into scale per point (e.g. "size"). */
@@ -114,8 +126,8 @@ struct InstanceLanes {
   glm::vec3 up = {0, 1, 0};
 };
 
-/** One sun + hemisphere ambient — enough light vocabulary for panels
- *  and props; HDRI environments join with the loader integration. */
+/** The scene-wide light: one sun plus a hemisphere ambient. Colours are
+ *  LINEAR. Per-entity LightComponents add to this. */
 struct Lighting {
   glm::vec3 sunDirection = {-0.45f, -0.75f, -0.5f}; ///< toward the scene
   glm::vec4 sunColor = {1.0f, 0.96f, 0.9f, 1};
@@ -137,27 +149,29 @@ public:
   World(const World &) = delete;
   World &operator=(const World &) = delete;
 
-  /** Add a surface: mesh + placement + material. Returns an id. */
   /** Add a surface: mesh + placement + material. The returned id IS an
    *  entt entity in registry() (see Components.h); 0 means failure. */
   uint32_t addSurface(const shape::Mesh &mesh, const glm::mat4 &model,
                       const Material &material);
   void setTransform(uint32_t id, const glm::mat4 &model);
-  /** Replace a surface's geometry in place. Matching vertex/index
-   *  counts update the GPU buffers directly (the towed-flag path: a
-   *  ribbon window sliding along a spline keeps its topology and only
-   *  moves its vertices); a different shape recreates them. The
-   *  material, texture, and entity stay untouched. No-op on unknown
-   *  ids; on an instanced flock this swaps the stamp. */
+  /** Replace a surface's geometry in place. Matching vertex and index
+   *  counts update the GPU buffers directly, so geometry that keeps its
+   *  topology and only moves its vertices costs no reallocation; a
+   *  different shape recreates the buffers. The material, texture and
+   *  entity survive either path. No-op on unknown ids; on an instanced
+   *  surface this swaps the stamp. */
   void setSurfaceMesh(uint32_t id, const shape::Mesh &mesh);
 
-  /** A GPU-computed ribbon sweep — the POP-style generator path: the
-   *  loop's control points live in a GPU buffer and a compute pass
-   *  re-sweeps the surface's vertices IN PLACE at render time,
-   *  matching shape::Spline3's closed Catmull-Rom parameter-exactly
-   *  (CPU queries like a dart's position(t) stay on the band) and the
-   *  gravity rig (width hangs world-vertical off the tangent).
-   *  Topology is fixed at creation; the window is two floats. */
+  /** A GPU-computed ribbon sweep: the loop's control points live in a
+   *  device buffer and a compute pass rewrites the surface's vertices IN
+   *  PLACE at render time, so no CPU mesh for the ribbon exists at all.
+   *
+   *  The kernel matches shape::Spline3's closed Catmull-Rom parameter for
+   *  parameter, so a CPU query of position(t) on the same loop lands on
+   *  the band. Width hangs world-vertical off the tangent.
+   *
+   *  Topology is fixed at creation; the animation is the two-float
+   *  window. */
   struct SweepDesc {
     std::vector<glm::vec3> loop; ///< closed Catmull-Rom control points
     float width = 100;
@@ -168,16 +182,16 @@ public:
   /** Add a compute-swept ribbon surface (an ordinary surface entity;
    *  transform/material behave as usual). 0 on failure. */
   uint32_t addSweep(const SweepDesc &desc, const Material &material);
-  /** Slide a sweep's window: two floats in a constant buffer — the
-   *  GPU re-sweep runs at the next render(). No-op on other ids. */
+  /** Slide a sweep's window: two floats into a constant buffer, with the
+   *  re-sweep dispatched at the next render(). No-op on other ids. */
   void setSweepWindow(uint32_t id, float head, float span);
 
-  /** A GPU point flock — POP phase 2: the points never exist on the
-   *  CPU. A compute pass scatters `count` instances along a window of
-   *  the loop (stable per-point radial offsets, optional drift noise,
-   *  a tint ramp from tail to head) and packs the instanced draw
-   *  stream directly. The window flows like the sweep's: slide head
-   *  and the whole flock streams along the loop — a comet. */
+  /** A GPU point flock: the points never exist on the CPU. A compute
+   *  pass scatters `count` instances along a window of the loop — stable
+   *  per-point radial offsets, optional drift noise, a tint ramp from
+   *  tail to head — and packs the instanced draw stream directly. The
+   *  window flows like the sweep's: slide the head and the whole flock
+   *  streams along the loop. */
   struct FlockDesc {
     std::vector<glm::vec3> loop; ///< closed Catmull-Rom control points
     int count = 10000;      ///< instances (fixed at creation)
@@ -198,61 +212,71 @@ public:
   /** Slide a flock's window; the GPU regenerates at next render(). */
   void setFlockWindow(uint32_t id, float head, float span);
 
-  /** POP-style point combinators. The LANGUAGE (operator values,
-   *  Chain, Lane) lives in SigilShape — <sigilshape/Pop.h> — because
-   *  it is backend-neutral computational geometry with a CPU
-   *  reference cook (shape::popops::cook -> Cloud, for the Skia
-   *  painter path). SigilWorld is ONE executor of that language:
-   *  addPoints() cooks the same Chain as compute dispatches over GPU
-   *  attribute lanes with an implicit Copy-POP instancing sink, and
-   *  the two implementations share formulas bit for bit. */
+  /** Point-operator combinators. The LANGUAGE — operator values, Chain,
+   *  Lane — lives in SigilShape, because it is backend-neutral
+   *  computational geometry with a CPU reference implementation there.
+   *  SigilWorld is one EXECUTOR of that language: addPoints() cooks the
+   *  same Chain as compute dispatches over GPU attribute lanes, and the
+   *  two implementations share their formulas bit for bit.
+   *
+   *  A few operator kinds have no GPU counterpart. Every door here
+   *  DECLINES a chain containing one — returning 0, or doing nothing —
+   *  rather than dropping the operator and cooking something subtly
+   *  wrong. Cook such a chain on the CPU instead. */
   using pop = shape::pop;
 
-  /** Cook @p chain (first op must be a generator) and draw @p stamp
-   *  at every point. An ordinary instanced surface otherwise. */
+  /** Cook @p chain (its first op must be a generator) and draw @p stamp
+   *  at every cooked point. An ordinary instanced surface otherwise.
+   *  0 on failure, including a chain the GPU executor declines. */
   uint32_t addPoints(const shape::Mesh &stamp, const pop::Chain &chain,
                      const Material &material);
-  /** Replace the chain and re-cook at the next render(). A changed
-   *  point count recreates the lanes. No-op on other ids. */
+  /** Replace the chain and re-cook at the next render(). A changed point
+   *  count, operator list, custom attribute set or lookup table rebuilds
+   *  the lanes and bindings; anything else is a parameter edit. No-op on
+   *  other ids, and on a chain the GPU executor declines — the surface
+   *  keeps cooking the chain it already had. */
   void setPoints(uint32_t id, const pop::Chain &chain);
-  /** The ANIMATION verb: slide the leading scatter's window without
-   *  re-describing the chain — the pop sibling of setSweepWindow and
-   *  setFlockWindow, so a marching comet is two floats per frame and
-   *  no chain value kept at the call site. Param-only (buffers and
-   *  bindings stay); downstream addPointsOn surfaces re-cook the same
-   *  frame. No-op unless @p id is a pop surface led by a
+  /** Slide the leading scatter's window without re-describing the chain
+   *  — the point-chain sibling of setSweepWindow and setFlockWindow, so
+   *  animating costs two floats per frame and the call site need not
+   *  hold the chain value. Parameters only: buffers and bindings stay
+   *  put, and any surface built on this one with addPointsOn re-cooks in
+   *  the same frame. No-op unless @p id is a point surface led by a
    *  SplineScatter. */
   void setPointsWindow(uint32_t id, float head, float span);
   /** COMPOSE ON DEVICE: cook @p chain with its generator's loop taken
-   *  from @p upstream's cooked P lane — pops feed pops with no CPU
-   *  round trip; the arena reads the arena. The chain's leading
-   *  SplineScatter's own loop points are ignored (its count/window/
-   *  spread/seed still apply); the upstream re-cooking re-cooks this
-   *  surface too, same frame, in dependency order. Semantically
-   *  identical to the CPU composing entry pop::on(chain). 0 on
-   *  failure (needs a valid pop upstream with >= 3 points). */
+   *  from @p upstream's cooked position lane, so one chain feeds another
+   *  with no CPU round trip. The leading SplineScatter's own loop points
+   *  are ignored; its count, window, spread and seed still apply. When
+   *  the upstream re-cooks, this surface re-cooks in the same frame, in
+   *  dependency order. Semantically identical to composing the two
+   *  chains on the CPU. 0 on failure — it needs a valid upstream point
+   *  surface with at least 3 points. */
   uint32_t addPointsOn(uint32_t upstream, const shape::Mesh &stamp,
                        const pop::Chain &chain,
                        const Material &material);
 
-  /** THE QUERY DOOR: read a pop surface's cooked attribute lanes back
-   *  from the GPU as a Cloud (positions + "t"/"dir"/"size"/"tint" —
-   *  the same conventional lanes the CPU cook writes). Cook on the
-   *  GPU, consume anywhere: the Skia painter, exports, analysis —
-   *  no render required beyond the cook itself. Synchronous (copy +
-   *  wait): fine for queries, not a per-frame hot path. Valid after
-   *  a render() has cooked the chain; empty on other ids. */
+  /** THE QUERY DOOR: read a point surface's cooked attribute lanes back
+   *  from the GPU as a Cloud — positions plus the same conventional
+   *  lanes ("t", "dir", "size", "tint") the CPU cook writes, plus any
+   *  custom lanes the chain named. Cook on the GPU, consume anywhere.
+   *
+   *  Synchronous: it copies and waits for the device. Fine as a query,
+   *  wrong as a per-frame path. Valid only after a render() has cooked
+   *  the chain; empty on other ids. */
   shape::Cloud readPoints(uint32_t id);
   void removeSurface(uint32_t id);
   size_t surfaceCount() const;
 
-  /** One draw call stamping @p stamp at every point of @p cloud — the
-   *  GPU-instanced sibling of points::instance() for the thousands
-   *  range where a merged mesh wastes vertices. The flock is ONE
-   *  surface: one id, one TransformComponent (the whole-flock
-   *  transform), one MaterialComponent whose alpha routes the whole
-   *  flock opaque or blended. 0 on failure; an empty cloud is a valid
-   *  (invisible) flock awaiting setInstances(). */
+  /** One draw call stamping @p stamp at every point of @p cloud, for the
+   *  thousands range where merging the stamps into one mesh would waste
+   *  vertices.
+   *
+   *  The whole flock is ONE surface: one id, one TransformComponent
+   *  moving all of it together, one MaterialComponent whose alpha routes
+   *  all of it opaque or blended. Instances are therefore not depth
+   *  sorted against each other. 0 on failure; an empty cloud is a valid
+   *  but invisible flock awaiting setInstances(). */
   uint32_t addInstanced(const shape::Mesh &stamp, const shape::Cloud &cloud,
                         const Material &material,
                         const InstanceLanes &lanes = {});
@@ -268,18 +292,28 @@ public:
   entt::registry &registry();
   const entt::registry &registry() const;
 
-  /** Convenience: a fresh entity carrying @p light. The registry is
-   *  the real API — mutate the LightComponent live, attach one to any
-   *  entity yourself, destroy via registry().destroy(entity(id)).
-   *  render() honors at most kLightBudget lights per frame. */
+  /** Convenience: a fresh entity carrying @p light. The registry is the
+   *  real API — mutate the LightComponent live, attach one to any entity
+   *  yourself, destroy via registry().destroy(entity(id)).
+   *
+   *  render() takes at most kLightBudget lights per frame, in registry
+   *  iteration order, and silently ignores the rest. */
   uint32_t addLight(const LightComponent &light);
 
-  /** The fallback camera. An entity with an ACTIVE CameraComponent
-   *  (Components.h) takes precedence while it exists. */
+  /** The FALLBACK camera. An entity carrying an active CameraComponent
+   *  (Components.h) outranks this one while it exists — including one
+   *  activated before a later call to this setter. With several active,
+   *  the first the registry iterates wins. */
   void setCamera(const shape::space::Camera &camera);
   void setLighting(const Lighting &lighting);
 
-  /** Render the scene into the offscreen target. */
+  /** Render the scene into the offscreen target.
+   *
+   *  Reads no clock: the frame is a pure function of what the registry
+   *  and any bound animation Outputs hold when it is called, so the same
+   *  state renders the same pixels. It does resolve the Animated*
+   *  components first (Animation.h), so a caller stepping a ticker need
+   *  not call the resolver itself. */
   bool render();
   /** The last rendered frame as a raster SkImage (RGBA, opaque). */
   sk_sp<SkImage> readback();

@@ -37,9 +37,13 @@ SketchHost *ComposeSketchView::host = nullptr;
 QMutex ComposeSketchView::hostMutex;
 
 namespace {
-// Which path frames actually take, for the status bar: the CPU-raster
-// sketch host is exactly how full-screen live materials once read as a
-// framework problem, so the backend stays visible at all times.
+// Which path frames are actually taking, published to the status bar. A
+// sketch running full-screen live materials on the CPU raster fallback is
+// slow for reasons that have nothing to do with the sketch, so the backend
+// is kept visible rather than inferred.
+//
+// Written from the render thread and read from the GUI thread's poll timer,
+// hence the atomic.
 std::atomic<int> backendMode{0}; // 0 unknown, 1 Graphite GPU, 2 CPU raster
 } // namespace
 

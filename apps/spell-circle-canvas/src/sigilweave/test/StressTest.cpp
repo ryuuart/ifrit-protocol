@@ -82,11 +82,13 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
 }
 
 TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
-  // A huge paragraph that fits *entirely* (10k words on screen). On a
-  // uniform-width flow the breaker merges same-breakpoint paths (TeX's
-  // one-measure model), so the active list stays bounded by the line width
-  // and warm relayout stays linear — without the merge this case was ~20×
-  // slower and grew super-linearly.
+  // A huge paragraph that fits *entirely* (10k words on screen), which is
+  // the worst case for the Knuth-Plass active list: nothing overflows, so
+  // every word is a breakpoint candidate. On a uniform-width flow the
+  // breaker merges paths that reached the same breakpoint on different line
+  // numbers (TeX's one-measure model), which is what keeps the active list
+  // bounded by the line width instead of growing with the paragraph. The
+  // time bound below fails if that merge stops happening.
   FontContext &fontContext = sharedContext();
   static constexpr const char8_t *kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
@@ -111,21 +113,26 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
           std::chrono::steady_clock::now() - startTime)
           .count() /
       kIterationCount;
+  // A loose ceiling: it is here to catch a super-linear active list, not to
+  // police small regressions. Debug builds do the same work with unelided
+  // container and iterator overhead, so they get their own bound.
 #ifdef NDEBUG
-  const double maximumMicroseconds = 8000.0; // measured ~1.9ms
+  const double maximumMicroseconds = 8000.0;
 #else
   const double maximumMicroseconds =
-      80000.0; // Debug: same work, ~20× the overhead
+      80000.0;
 #endif
   EXPECT_LT(averageMicroseconds, maximumMicroseconds)
       << "KP active list grows with the paragraph";
 }
 
 TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
-  // The marker workflow: repaint ranges every frame (hue cycling), relayout.
-  // Paint edits must not re-run ICU analysis over the whole text or rebuild
-  // spans once per range — cost stays bounded by the geometry, like the
-  // relayout itself (see Overflow.HugeRelayoutIsBoundedByGeometry).
+  // Repaint a set of ranges every frame (hue cycling) and relayout. A paint
+  // edit must not re-run ICU analysis over the whole text, and the batch
+  // form must not rebuild the span list once per range, so the per-frame
+  // cost stays bounded by what the geometry can hold rather than by the
+  // paragraph — the same property Overflow.HugeRelayoutIsBoundedByGeometry
+  // checks for relayout. Almost all of this text never gets placed.
   FontContext &fontContext = sharedContext();
   static constexpr const char8_t *kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
@@ -158,11 +165,14 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
           std::chrono::steady_clock::now() - startTime)
           .count() /
       kIterationCount;
+  // Loose ceiling again: what it must catch is cost scaling with the 30k
+  // words of unplaced text. Debug builds get their own bound for the same
+  // reason as above.
 #ifdef NDEBUG
   const double maximumMicroseconds = 3000.0;
 #else
   const double maximumMicroseconds =
-      30000.0; // Debug: same work, ~20× the overhead
+      30000.0;
 #endif
   EXPECT_LT(averageMicroseconds, maximumMicroseconds)
       << "paint restyle scales with unplaced text";

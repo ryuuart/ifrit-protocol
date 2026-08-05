@@ -1,15 +1,15 @@
 #pragma once
-// ComposeGallery scene registry + headless FPS runner. Scenes live in
-// category headers; the Qt Quick app (ComposeGalleryView + qml/Main.qml)
-// and --headless both build on this. Each scene names the
-// STRESS_TESTS.md catalog items it exercises.
+// ComposeGallery scene registry and headless runner. Individual scenes live
+// in the category headers included below; both the Qt Quick app
+// (ComposeGalleryView + qml/Main.qml) and --headless build on this file.
 //
-// The registry is two halves behind one index space: the CATALOG scenes
-// below, authored against the library's own stress list, and the STUDIES
-// (GalleryStudies.h), which are the sketch files compiled in. They differ
-// in more than provenance — a study brings its own canvas size and
-// background — so everything downstream of makeScene() reads those off the
-// stage rather than off a constant.
+// The registry is two halves sharing one index space: the CATALOG scenes
+// declared here, each written to exercise a particular part of the library,
+// and the STUDIES (GalleryStudies.h), which are the standalone sketch files
+// compiled into the binary. The halves are not interchangeable — a study
+// brings its own canvas size and background colour — so everything
+// downstream of makeScene() reads both off the stage rather than assuming a
+// constant.
 
 #include "GalleryCore.h"
 #include "GalleryStudies.h"
@@ -42,7 +42,7 @@
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
 #include "GalleryGpu.h"
 #include "SkiaGraphiteContext.h"
-#include <include/gpu/GpuTypes.h> // skgpu::GpuStatsFlags — the §29 probe
+#include <include/gpu/GpuTypes.h> // skgpu::GpuStatsFlags
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
@@ -59,14 +59,13 @@ namespace compose_gallery {
 struct SceneInfo {
   const char *name;
   const char *category;
-  const char *catalog; // STRESS_TESTS.md items exercised
+  const char *catalog; // one line on what this scene exercises, shown in the UI
 };
 
-// Folders, not one heap. Eighteen scenes under "Showcase" was already the
-// limit of what a flat list can say, and the studies more than doubled the
-// registry — so the catalog splits by what a scene actually exercises, and
-// mirrors the "Study \xc2\xb7" prefix the sketches use so the two halves read
-// as siblings.
+// `category` is a folder path, not a flat label: the sidebar groups on it, so
+// a registry this size stays navigable. Catalog entries split by what a scene
+// exercises and mirror the "Study \xc2\xb7" prefix the sketch files use, so the
+// two halves of the registry read as siblings rather than two systems.
 inline constexpr SceneInfo kScenes[] = {
     {"world hud", "Catalog \xc2\xb7 Game UI",
      "voxygen dimensions \xe2\x80\x94 bars, hotbar, minimap"},
@@ -79,23 +78,23 @@ inline constexpr SceneInfo kScenes[] = {
     {"organic", "Catalog \xc2\xb7 Generative", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Catalog \xc2\xb7 Generative", "the whole surface, at once"},
     {"kinetic card", "Catalog \xc2\xb7 Type & grid",
-     "\xc2\xa7""8 kinetic grammar (study port)"},
+     "kinetic type grammar"},
     {"night network", "Catalog \xc2\xb7 Generative",
      "the brush engine, twelve constructions"},
     {"persona menu", "Catalog \xc2\xb7 Game UI",
-     "\xc2\xa7""1 verified P3R grammar"},
+     "P3R menu grammar"},
     {"aero desktop", "Catalog \xc2\xb7 Chrome",
-     "\xc2\xa7""6 glass + colorization"},
-    {"y2k chrome", "Catalog \xc2\xb7 Chrome", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
+     "glass + window colorization"},
+    {"y2k chrome", "Catalog \xc2\xb7 Chrome", "chrome presets A/B"},
     {"passive tree", "Catalog \xc2\xb7 Game UI",
-     "\xc2\xa7""5 linework + orbit router"},
+     "linework + orbit router"},
     {"daemon console", "Catalog \xc2\xb7 Game UI", "console() LineRing feed"},
     {"motion poster", "Catalog \xc2\xb7 Type & grid",
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
     {"zellige", "Catalog \xc2\xb7 Tiling",
      "girih Hankin PIC \xe2\x80\x94 regenerating"},
     {"beethoven", "Catalog \xc2\xb7 Type & grid",
-     "\xc2\xa7""7 Brockmann arc table, trim reveal"},
+     "Brockmann arc table, span reveal"},
     {"loot grid", "Catalog \xc2\xb7 Game UI",
      "D2 hoard \xe2\x80\x94 generated materials, instances()"},
     {"gerstner grid", "Catalog \xc2\xb7 Type & grid",
@@ -159,13 +158,15 @@ inline int findScene(std::string_view query) {
   return -1;
 }
 
-/** The REGISTRY spelling for the entry at `index` — the one identity
- *  everything downstream can rely on (ROADMAP §22): a study's file stem
- *  (`chaucer_astrolabe`, what SIGIL_SKETCH_STATIC registered and what
- *  `--scene` selects by), a catalog scene's registry name. Captures are
- *  written under THIS name, not Scene::name()'s display spelling, so a
- *  guard that selects by `$s` can check `gallery_$s.png` without holding
- *  a second model of the mapping. */
+/** The REGISTRY spelling for the entry at `index`: for a study, its file stem
+ *  (`chaucer_astrolabe` — what SIGIL_SKETCH_STATIC registered and what
+ *  `--scene` selects by); for a catalog scene, its registry name.
+ *
+ *  Captures are written under THIS name rather than Scene::name()'s display
+ *  spelling, so a script that selects a scene with `--scene $s` can look for
+ *  `gallery_$s.png` without keeping a second copy of the mapping. Keep the
+ *  two uses in step: anything that names a scene on the command line and
+ *  anything that names a scene on disk must agree here. */
 inline const char *registryName(int index) {
   if (index >= kCatalogSceneCount && index < kGallerySceneCount)
     return kStudies[index - kCatalogSceneCount].key;
@@ -251,27 +252,28 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       return 1;
     }
     std::printf("backend: Graphite GPU (work ms = CPU + synced GPU)\n");
-    // The profiler is blind here, and it must say so: Composer::profile()'s
-    // selfMs measures op-RECORDING time under Graphite, not GPU execution
-    // (which is async). So every per-node cost, and every caching decision
-    // built on one — the promotion threshold, the stability EMA, the
-    // temporal gate — describes the raster machine, not this one. A node can
-    // read 0.1 ms here and cost 20 ms of GPU. Read the work-ms column for
-    // real cost; treat per-node selfMs on GPU as recording weight only.
+    // The profiler is blind here, and it must say so. Under Graphite,
+    // Composer::profile()'s selfMs measures op-RECORDING time, not GPU
+    // execution, which is asynchronous — so a node that records a handful of
+    // cheap ops and then costs the GPU a fortune reads as nearly free. Every
+    // per-node cost, and every caching decision derived from one (the
+    // promotion threshold, the stability average, the temporal gate),
+    // therefore describes the raster machine rather than this one. Read the
+    // work-ms column for real cost, and treat per-node selfMs on GPU as
+    // recording weight only.
     std::printf("NOTE: per-node profile times are RECORDING time on GPU, "
                 "not GPU execution — trust the work-ms column.\n");
-    // §29's other named gap, resolved by LOOKING (2026-08-04): Graphite
-    // m151 does carry a per-RECORDING GPU-time API — request
+    // Graphite does have a per-RECORDING GPU-time API: request
     // GpuStatsFlags::kElapsedTime through InsertRecordingInfo's
     // fFinishedWithStatsProc and the finished callback reports
-    // GpuStats::elapsedTime — but only the Vulkan (VkQueryPool
-    // timestamps) and Dawn backends implement it. MtlCaps never sets
-    // fSupportedGpuStats, so on this Metal context the mask below is 0x0
-    // and the QueueManager strips any request with a warning. And even
-    // where it IS supported, the bracket is the whole command buffer —
-    // Graphite batches many compose nodes into shared DrawPasses, so
-    // per-NODE GPU cost is unreachable without Skia surgery. Printed so
-    // the day a Skia bump lights Metal up is visible right here.
+    // GpuStats::elapsedTime. Only the Vulkan (VkQueryPool timestamps) and
+    // Dawn backends implement it; MtlCaps never sets fSupportedGpuStats, so
+    // on a Metal context the mask below reads 0 and the QueueManager strips
+    // any request for it with a warning. Even where it is supported the
+    // bracket is a whole command buffer, and Graphite batches many compose
+    // nodes into shared DrawPasses, so per-NODE GPU cost stays out of reach
+    // without changes inside Skia. The mask is printed rather than assumed so
+    // that a Skia update enabling it on this backend is visible immediately.
     const skgpu::GpuStatsFlags gpuStatCaps =
         graphite->context()->supportedGpuStats();
     const bool hasElapsed =
@@ -337,20 +339,21 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
 #endif
     if (!surface)
       surface = SkSurfaces::Raster(info);
-    // Warm past the entrance choreography (mount transitions settle
-    // within ~2s across the catalog) so the table reports STEADY STATE —
-    // the number a running gallery feels. Entrances are one-shots; their
-    // cost is real but belongs to a different budget than the loop. On GPU
-    // the warmup also absorbs pipeline compilation.
+    // Warm past the entrance choreography so the table reports STEADY STATE,
+    // which is the number a running gallery feels. Entrance transitions are
+    // one-shots: their cost is real, but it belongs to a different budget
+    // than the frame loop. On GPU the warmup also absorbs pipeline
+    // compilation.
     //
-    // The counts are a TIME budget, not a constant. 240 + 120 was free when
-    // every scene cost under 50 ms; the studies reach 200 ms on raster, where
-    // the same counts are 70 seconds for one row. So: probe, then spend at
-    // most a few seconds per scene. A shortened run is marked in the table,
-    // because a scene warmed for 0.4 s of scene time is still inside its
-    // entrance and its average says something different from the others'.
-    // Asking for ONE scene means you want that scene's real number, so the
-    // budget only applies to a sweep.
+    // The frame counts are a TIME budget rather than a constant, because
+    // scene costs across this registry span more than an order of magnitude
+    // and a fixed count would make a sweep of the expensive ones take
+    // minutes. So: probe briefly, then spend at most a few seconds per scene.
+    // A scene that could not afford the full warmup is marked in the table,
+    // because a run cut short is still inside its entrance and its average
+    // means something different from the others'. Asking for ONE scene means
+    // you want that scene's real number, so the budget applies only to a
+    // sweep.
     const double warmBudgetMs = only >= 0 ? 1e9 : 4000;
     const double sampleBudgetMs = only >= 0 ? 1e9 : 2500;
     // The caps are named because the capture frame is DERIVED from them
@@ -359,13 +362,13 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     constexpr int kProbeFrames = 8, kMinSampleFrames = 24;
     constexpr int kMaxWarmFrames = 240 - kProbeFrames;
     constexpr int kMaxSampleFrames = 120;
-    // --ledger skips the ENTIRE benchmark (probe/warm/sample) and goes
+    // --ledger skips the ENTIRE benchmark (probe, warm, sample) and goes
     // straight to the exact-stepped capture below: a byte-identity sweep
-    // needs the plate, not the timing table, and the benchmark phases are
-    // most of a sweep's wall clock. The plate is bit-identical to the
-    // classic sweep's by the same equivalence §31 proved for
-    // --capture-at: the capture is a function of the declared time alone,
-    // stepped from zero, never of machine speed.
+    // wants the image, not the timing table, and the benchmark phases are
+    // most of a sweep's wall clock. The image it produces is bit-identical to
+    // the full sweep's, because the exact-stepped capture is a function of
+    // the declared time alone — stepped from zero at a fixed dt, never
+    // touched by how fast this machine ran.
     int warmFrames = 0, sampleFrames = kMinSampleFrames;
     bool shortened = false;
     double reconcileMs = 0, layoutMs = 0, volatileMs = 0, paintMs = 0;
@@ -406,36 +409,29 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     }
     // ---- capture determinism -------------------------------------------
     // Everything above is a TIME budget, so `warmFrames` and `sampleFrames`
-    // both depend on how fast this machine happened to be. That is fine for
-    // a timing table and fatal for a PNG: it means the frame we capture is
-    // whatever frame the budget happened to reach, so the same binary on the
-    // same sources renders a different image every run.
+    // both depend on how fast this machine happened to be. That is fine for a
+    // timing table and fatal for a PNG: it would mean the captured frame is
+    // whichever frame the budget happened to reach, so the same binary on the
+    // same sources would render a different image on every run — and an image
+    // that cannot be reproduced cannot be reviewed or diffed.
     //
-    // It was not a theory. Two consecutive sweeps of this harness differed
-    // on 15 of 45 scenes — `daemon console` by 71% of the frame, `vertigo
-    // titles` by 40%, `motion poster` by 46% — which means no gallery scene
-    // has ever been verifiable frame to frame, and every "it still looks
-    // right" check on one of those was reading noise.
-    //
-    // So the capture always lands at the SAME scene time. kCaptureFrame is
-    // the maximum the budgeted path can already reach (probe + warm +
-    // sample) — DERIVED from those two caps rather than restated, so that
-    // raising either moves the capture with it instead of letting the
-    // top-up silently stop reaching. A fast scene tops up by zero; a slow one
-    // pays the difference and is worth it, because an image nobody can
-    // reproduce cannot be reviewed. The timing table above is untouched —
-    // it keeps its budget and its `*` mark.
+    // So the capture always lands at the SAME scene time regardless of
+    // machine speed. kCaptureFrame is the most the budgeted path could
+    // possibly have reached (probe + warm + sample), DERIVED from those caps
+    // rather than restated, so raising either cap moves the capture with it
+    // instead of leaving the top-up below silently short. A fast scene tops
+    // up by zero frames; a slow one pays the difference. The timing table
+    // above is unaffected: it keeps its budget and its `*` mark.
     constexpr int kCaptureFrame =
         kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
     // ...unless the scene NAMES its moment (Scene::captureSeconds). Reaching
     // a declared time cannot reuse the top-up above, for two independent
-    // reasons: `stepped` is machine-dependent — the very bug the derived
-    // frame fixed — and a declared time may be EARLIER than the frames
-    // already spent benchmarking, which there is no way to rewind. So the
-    // scene is rebuilt and stepped exactly, from zero, at the same fixed
-    // step. The capture frame is then a function of the DECLARATION alone,
-    // which is the same property the derived frame bought, obtained the same
-    // way: never let a machine's speed reach the image.
+    // reasons: `stepped` is machine-dependent, and a declared time may be
+    // EARLIER than the frames already spent benchmarking, which there is no
+    // way to rewind. So the scene is rebuilt and stepped from zero at the
+    // same fixed step. The capture frame is then a function of the
+    // DECLARATION alone — the same property the derived frame has, held the
+    // same way: machine speed never reaches the image.
     //
     // The rebuild reuses the surface because it comes from the same factory
     // and therefore declares the same canvas; the sizes are asserted rather
@@ -498,24 +494,27 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
             registryName(i), (int)sceneSize.width(), (int)sceneSize.height(),
             sampleWorkMs, sampleP99Ms, sampleFps,
             shortened ? "true" : "false", gpu ? "gpu" : "raster");
-        std::fflush(timingJson); // a crashed scene must not eat the corpus
+        // Flush per line: a scene that crashes later must not take the lines
+        // already written down with it.
+        std::fflush(timingJson);
       }
     }
-    // Capture the PNG at 2x: the stats above ran at 1x, but the saved
-    // frame re-renders through a scaled canvas so review images are
-    // sharp (Cache::Texture re-bakes at the capture scale). The studies
-    // brought canvases up to 1940 px wide with them, so the factor gives way
-    // rather than the ceiling: a 2x twoadvanced_v4 is a 3880x3120 PNG, and
-    // nobody reviews one of those.
+    // Capture the PNG at up to 2x. The timings above ran at 1x, but the saved
+    // frame is re-rendered through a scaled canvas so review images are sharp
+    // (Cache::Texture re-bakes at the capture scale rather than upsampling).
+    // Scenes in this registry differ widely in canvas width, so it is the
+    // FACTOR that gives way, not the pixel ceiling: doubling an already-wide
+    // canvas produces a PNG too large to actually look at.
     const float captureScale =
         std::max(1.0f, std::min(2.0f, 2400.0f / sceneSize.width()));
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
     if (gpu) {
-      // Same rule as the raster path below, and it has to be said twice
-      // because this branch has its own frame() and its own encode and
-      // `continue`s before reaching it. Measured: without this, the same
-      // scene differs run-to-run by ~1400 px, every one of them inside the
-      // overlay band, on every scene tested.
+      // Turn the stats overlay off before capturing, the same rule as the
+      // raster path below. It has to be set on both paths because this branch
+      // has its own frame() and its own encode and `continue`s before
+      // reaching the other one. Leaving it on bakes live wall-clock digits
+      // into the captured pixels, which makes every capture differ from every
+      // other inside the overlay band.
       stage.showStats = false;
       // GPU captures read back through the async path (a Graphite surface
       // cannot readPixels synchronously) — these are what the interactive
@@ -575,12 +574,10 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     }
 #endif
     // Clean captures: the FPS overlay bakes live wall-clock digits into the
-    // pixels, which makes every capture differ run-to-run — with it off the
-    // scene content is deterministic (fixed dt, seeded rngs) and captures
-    // diff meaningfully across builds. The GPU branch above sets this too;
-    // for a long time it did not, and `continue`d past this line eight lines
-    // earlier — so this comment was a correct and complete diagnosis of a
-    // bug that was live on the sibling path the whole time it sat here.
+    // pixels, which would make every capture differ from every other. With it
+    // off, scene content is fully deterministic (fixed dt, seeded random
+    // sources), so captures diff meaningfully across builds. The GPU branch
+    // above must set this for itself — it returns before reaching here.
     stage.showStats = false;
     sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)(sceneSize.width() * captureScale),

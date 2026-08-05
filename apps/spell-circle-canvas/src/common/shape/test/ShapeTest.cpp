@@ -50,7 +50,10 @@ TEST(Geometry, FlattenCircleHitsTolerance) {
   const std::vector<Polyline> contours =
       flatten(SkPath::Circle(0, 0, 100), 0.1f);
   ASSERT_EQ(contours.size(), 1u);
-  // Every flattened vertex sits on the circle within tolerance-ish.
+  // Flattening emits points sampled ON the curve, so every vertex keeps the
+  // radius; the tolerance argument bounds how far the straight chords
+  // BETWEEN them may sag inside the arc. That sag is also why the polyline
+  // perimeter comes in slightly under the true circumference.
   for (const SkPoint &p : contours[0].points) {
     const float r = std::sqrt(p.fX * p.fX + p.fY * p.fY);
     EXPECT_NEAR(r, 100.0f, 0.5f);
@@ -62,7 +65,9 @@ TEST(Geometry, ResampleUniformSpacing) {
   const std::vector<Sampled> sampled = resample(SkPath::Circle(0, 0, 50), 64);
   ASSERT_EQ(sampled.size(), 1u);
   ASSERT_EQ(sampled[0].points.size(), 64u);
-  // Consecutive samples should be near-equidistant.
+  // resample() spaces its N points evenly along ARC LENGTH, not evenly in
+  // the underlying segment parameter — the two differ on any curved path,
+  // so a parameter-uniform sampler would show up here as an uneven spread.
   float minD = 1e9f, maxD = 0;
   for (size_t i = 0; i < 64; ++i) {
     const SkPoint a = sampled[0].points[i];
@@ -74,6 +79,11 @@ TEST(Geometry, ResampleUniformSpacing) {
   EXPECT_LT(maxD - minD, 0.6f);
 }
 
+// bestAlignment searches for the index offset (and direction) that pairs two
+// sampled contours with the least total distance. Blending relies on it: two
+// shapes sampled from different start points would otherwise twist through
+// the interpolation. A cyclic shift is the case with an exact answer, so it
+// is the one that can be checked to within float noise.
 TEST(Geometry, AlignmentFindsRotation) {
   Sampled a;
   a.closed = true;
@@ -124,7 +134,11 @@ TEST(Blend, SmoothColorScalesWithColorDistance) {
   options.spacing = blend::Spacing::SmoothColor;
   const size_t far = blend::make(white, black, options).size();
   const size_t near = blend::make(white, nearWhite, options).size();
-  EXPECT_GT(far, 200u); // ~254 steps for full range
+  // Spacing::SmoothColor picks the step count from the perceptual distance
+  // between the two key colours, so that each step is a just-noticeable
+  // change: black to white needs a step per 8-bit level, two nearly equal
+  // greys need a handful.
+  EXPECT_GT(far, 200u);
   EXPECT_LT(near, 40u);
 }
 
@@ -197,8 +211,12 @@ TEST(Mesh, ExtrudeAnnulusKeepsHole) {
   ring.addCircle(0, 0, 40, SkPathDirection::kCCW);
   Mesh m = mesh::extrude(ring.detach(), {.depth = 10});
   ASSERT_GT(m.triangleCount(), 0u);
-  // Cap area ~= pi*(80^2-40^2); sum front-cap triangle areas (z>0 caps
-  // have all vertices at z=+5).
+  // The hole must survive triangulation, which is checked by area rather
+  // than by counting triangles: the tessellation is free to change, the
+  // covered area is not. Extrusion centres the profile on z, so the whole
+  // front cap sits at z = +depth/2 and can be picked out by that alone.
+  // The 3% slack absorbs the circle being flattened to a polygon, which
+  // always under-measures.
   double area = 0;
   for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
     const glm::vec3 &a = m.positions[m.indices[t]];
@@ -219,7 +237,10 @@ TEST(Mesh, GridUvAndIndicesCoherent) {
   });
   EXPECT_EQ(m.vertexCount(), 12u);
   EXPECT_EQ(m.triangleCount(), 12u); // 3x2 cells * 2
-  // Image-convention UVs: v param 0 (sheet bottom) samples image v=1.
+  // UV origin is TOP-left, matching how images are addressed, while the
+  // generator's v parameter runs bottom-up across the sheet. The two are
+  // therefore opposite: v = 0 in the generator lands at uv.y = 1. Get this
+  // backwards and every texture on a generated surface is upside down.
   EXPECT_EQ(m.uvs.front().x, 0.0f);
   EXPECT_EQ(m.uvs.front().y, 1.0f);
   EXPECT_EQ(m.uvs.back().y, 0.0f);
@@ -229,7 +250,10 @@ TEST(Mesh, GridUvAndIndicesCoherent) {
 
 TEST(Mesh, TorusNormalsPointOutward) {
   Mesh m = mesh::torus(100, 30, 32, 16);
-  // At u=0,v=0: phi=0 -> outer equator, normal ~ +x.
+  // Parameterization convention: the first vertex is u = v = 0, which is on
+  // the outer equator facing +x, so its normal points outward along +x. An
+  // inward-facing generator would put the normal at -x and light the torus
+  // inside out.
   const glm::vec3 n0 = m.normals.front();
   EXPECT_GT(std::abs(n0.x), 0.7f);
   for (const glm::vec3 &n : m.normals)
@@ -247,9 +271,10 @@ TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {
 }
 
 TEST(Mesh, TransformRotatesNormalsForward) {
-  // Rotation must carry normals WITH it: the inverse transpose applies
-  // in row form. Dotting its columns instead applies the plain inverse
-  // — normals rotate BACKWARDS ({0,-1,0} here).
+  // Normals transform by the inverse transpose of the model matrix, and it
+  // must be applied in row form. Dotting the columns instead is the plain
+  // inverse, which rotates normals BACKWARDS — a +x normal under a +90
+  // degree turn about z would come out at {0,-1,0} instead of {0,1,0}.
   Mesh m = mesh::quad(10, 10);
   m.normals.assign(m.vertexCount(), {1, 0, 0});
   m.transform(
@@ -272,12 +297,16 @@ TEST(Mesh, TransformRotatesNormalsForward) {
 }
 
 TEST(Mesh, AppendKeepsNormalAndUvLanesSizedToPositions) {
-  // The everyday break: a stamp authored with positions + indices only
-  // instances into a normal-less, uv-less Mesh (points::instance copies
-  // only the lanes the stamp has), and merging THAT into a lit mesh used
-  // to leave normals.size() != positions.size(). space::drawMesh reads
-  // exactly that comparison as its hasNormals bit, so lighting died for
-  // the WHOLE merge — torus included, not just the flat flakes.
+  // Invariant across append: an optional vertex lane ends up either absent
+  // on both sides or sized to positions on the merged mesh. Consumers read
+  // "lane size == positions size" as the presence bit for the whole mesh —
+  // space::drawMesh takes exactly that comparison as its hasNormals test —
+  // so a merge that left the lane short would turn lighting off for every
+  // vertex, not only for the ones that arrived without normals.
+  //
+  // The mismatch is easy to author by accident: points::instance copies
+  // only the lanes the stamp actually has, so a stamp of bare positions and
+  // indices instances into a mesh with no normals and no uvs at all.
   Mesh stamp; // a bare triangle: no normals, no uvs
   stamp.positions = {{-2, -2, 0}, {2, -2, 0}, {0, 2, 0}};
   stamp.indices = {0, 1, 2};
@@ -325,13 +354,13 @@ TEST(Mesh, AppendKeepsNormalAndUvLanesSizedToPositions) {
 }
 
 TEST(Mesh, AppendRepairsShortIncomingLanes) {
-  // The remaining hole in the same family: a lane authored SHORTER than
-  // its own mesh's element count. A bare insert leaves the MERGED lane
-  // undersized, and every consumer reads "lane sized to positions" (or
-  // to triangleCount, for prims) as the presence bit for the whole
-  // mesh — so one short lane on one side turns tinting, lighting or
-  // texturing off for the merge. Short lanes come from hand-built and
-  // imported meshes (a PLY whose extra property list ran out early).
+  // A lane can also arrive SHORTER than its own mesh's element count —
+  // hand-built meshes and imported files do this, e.g. a PLY whose extra
+  // property list runs out early. Append repairs both sides, because a
+  // plain insert would leave the MERGED lane undersized, and every consumer
+  // reads "lane sized to positions" (or to triangleCount, for prim lanes)
+  // as the presence bit for the whole mesh: one short lane on one side
+  // would switch tinting, lighting or texturing off for the merged result.
   Mesh a;
   a.positions = {{-50, -50, 0}, {50, -50, 0}, {50, 50, 0}, {-50, 50, 0}};
   a.indices = {0, 1, 2, 0, 2, 3};
@@ -354,15 +383,16 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   EXPECT_EQ(a.uvs.size(), a.positions.size());
   ASSERT_EQ(a.colors.size(), 8u);
   // Ours survived, theirs landed at the right run, and the hole pads
-  // WHITE — the untinted identity. Black would darken the merged half.
+  // WHITE, which is the identity for a colour lane that multiplies into
+  // the base colour. Padding black would darken the merged half instead.
   EXPECT_EQ(a.colors[0], (glm::vec4{1, 0, 0, 1}));
   EXPECT_EQ(a.colors[4], (glm::vec4{0, 1, 0, 1}));
   EXPECT_EQ(a.colors[7], (glm::vec4{1, 1, 1, 1})) << "pad stays white";
   EXPECT_NEAR(a.normals[7].z, 1.0f, 1e-6f); // +Z, never a zero normal
   EXPECT_NEAR(a.uvs[7].x, 0.0f, 1e-6f);
   EXPECT_NEAR(a.uvs[7].y, 0.0f, 1e-6f);
-  // Prim lanes count per TRIANGLE; the prims block's trailing resize is
-  // what covers the same hole there, padding by lane name.
+  // Prim lanes are counted per TRIANGLE rather than per vertex, and are
+  // padded the same way, by the convention their lane name implies.
   ASSERT_EQ(a.triangleCount(), 4u);
   const std::vector<glm::vec4> *heat = a.primIf("heat");
   ASSERT_TRUE(heat);
@@ -370,8 +400,9 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
   EXPECT_FLOAT_EQ((*heat)[2].x, 5.0f); // theirs
   EXPECT_FLOAT_EQ((*heat)[3].x, 0.0f); // padded by name
 
-  // The short lane on OUR side is the mirror case: pad-to-old-count
-  // repairs it before theirs is taken.
+  // Mirror case: the short lane belongs to the receiving mesh. It is padded
+  // up to the old element count first, so the incoming values still land at
+  // the offset the merged mesh expects.
   Mesh shortSide;
   shortSide.positions = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}};
   shortSide.indices = {0, 1, 2};
@@ -388,6 +419,9 @@ TEST(Mesh, AppendRepairsShortIncomingLanes) {
 
 // --- Space ----------------------------------------------------------------
 
+// viewProjection() already folds the viewport mapping in, so its output
+// divided by w is in PIXELS, not in normalized device coordinates: the world
+// origin lands on the middle pixel of an 800x600 canvas rather than on 0,0.
 TEST(Space, CameraProjectsCenterToViewportCenter) {
   space::Camera camera;
   camera.eye = {0, 0, 100};
@@ -399,12 +433,15 @@ TEST(Space, CameraProjectsCenterToViewportCenter) {
 }
 
 TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
-  // The billboard transform (world/README.md "Layers at depth",
-  // 2026-08-04): faceCamera(eye, at) turns mesh::quad's +z facing
-  // toward the eye from wherever it stands.
+  // faceCamera(eye, at) is the billboard transform: it anchors at @p at and
+  // turns mesh::quad's +z face toward the eye, wherever the eye stands. The
+  // eye list deliberately includes the cases that break a naive
+  // cross-product basis — an eye almost on top of the anchor, and eyes
+  // directly above and below it, where the view direction is parallel to
+  // the world up vector and the side vector degenerates.
   const glm::vec3 at = {40, -25, 60};
   const glm::vec3 eyes[] = {
-      {0, 200, 1150},   // the stream shot's camera
+      {0, 200, 1150},   // an ordinary camera, well in front
       {-820, 260, -320},
       {40, -25, 61},    // almost on top of the panel
       {40, 900, 60},    // directly ABOVE: dir ≈ +up, degenerate side
@@ -430,14 +467,16 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
     EXPECT_NEAR(glm::dot(bx, n), 0.0f, 1e-5f);
   }
 
-  // POSITIVE CONTROL: an untransformed quad's normal does NOT point at
-  // an off-axis eye — the assertion above can fail.
+  // Control: an untransformed quad's normal does NOT already point at an
+  // off-axis eye, so the assertion above is capable of failing.
   const glm::vec3 offAxis = glm::normalize(eyes[1] - at);
   EXPECT_LT(glm::dot(glm::vec3{0, 0, 1}, offAxis), 0.99f);
 
-  // Parity with the facing-lane construction: a one-point cloud
-  // oriented by lane through points::panels() stamps the SAME basis
-  // faceCamera builds — a billboard and a facing-lane instance agree.
+  // The two ways of orienting a quad must agree: a one-point cloud whose
+  // "facing" lane holds the eye direction, stamped through points::panels(),
+  // produces the same vertices as transforming a quad by faceCamera. If they
+  // drift apart, a scene mixing billboards with instanced panels shows two
+  // different orientations for the same direction.
   const glm::vec3 eye = eyes[0];
   Cloud one;
   one.positions = {at};
@@ -469,9 +508,49 @@ TEST(Space, DrawMeshCoversPixels) {
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
-  // Center pixel should be lit (reddish, not black).
+  // A smoke check that the whole painter pipeline reaches pixels: transform,
+  // lighting and SkVertices batching all have to work for the middle of a
+  // face-on quad to come out lit rather than the cleared black.
   const SkColor c = bm.getColor(100, 75);
   EXPECT_GT(SkColorGetR(c), 40u);
+}
+
+TEST(Space, NormalsModeEncodesDeviceSpaceYDown) {
+  // The Normals G-buffer is DEVICE-space, +y down (the Materials.h
+  // convention): rgb = (n.x, -n.y, n.z) * 0.5 + 0.5.
+  space::Camera camera;
+  camera.eye = {0, 0, 300};
+  space::MeshStyle style;
+  style.mode = space::MeshStyle::Mode::Normals;
+
+  // Face-on quad: its +z normal encodes as (128, 128, 255).
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  space::drawMesh(*surface->getCanvas(), sigil::shape::mesh::quad(100, 100),
+                  glm::mat4(1.0f), camera, {200, 150}, style);
+  SkBitmap bm;
+  bm.allocPixels(surface->imageInfo());
+  ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+  const SkColor faceOn = bm.getColor(100, 75);
+  EXPECT_NEAR(SkColorGetR(faceOn), 128, 2);
+  EXPECT_NEAR(SkColorGetG(faceOn), 128, 2);
+  EXPECT_NEAR(SkColorGetB(faceOn), 255, 2);
+
+  // Tilt the quad so its normal points toward world +y (screen-up).
+  // Under +y down that encodes BELOW mid-grey green; a view-space
+  // no-flip buffer would put it above.
+  sk_sp<SkSurface> tilted =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
+  tilted->getCanvas()->clear(SK_ColorBLACK);
+  const glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f),
+                                      glm::vec3{1, 0, 0});
+  space::drawMesh(*tilted->getCanvas(), sigil::shape::mesh::quad(100, 100),
+                  model, camera, {200, 150}, style);
+  SkBitmap tiltedBm;
+  tiltedBm.allocPixels(tilted->imageInfo());
+  ASSERT_TRUE(tilted->readPixels(tiltedBm.pixmap(), 0, 0));
+  EXPECT_LT(SkColorGetG(tiltedBm.getColor(100, 75)), 128u);
 }
 
 // --- Materials ------------------------------------------------------------
@@ -505,6 +584,9 @@ TEST(Materials, DrawChromeShadesInsideShapeOnly) {
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+  // The shader is clipped to the path: a material fills its shape and
+  // leaves the rest of the canvas at whatever was already there. Checked on
+  // alpha so it holds whatever colour the environment happens to reflect.
   EXPECT_NE(bm.getColor(60, 60) & 0xff000000, 0u);  // inside: painted
   EXPECT_EQ(bm.getColor(5, 5) & 0xff000000, 0u);    // outside: untouched
 }
@@ -517,11 +599,15 @@ TEST(Materials, BevelNormalsFlatInteriorTiltedRim) {
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(100, 100));
   ASSERT_TRUE(img->readPixels(nullptr, bm.pixmap(), 0, 0));
-  // Interior: flat normal -> b channel ~255, rg ~128.
+  // Normal-map encoding: rgb = n * 0.5 + 0.5, so a flat normal pointing
+  // straight out of the surface is (128, 128, 255) and the mid-grey 128 is
+  // the zero of each axis. The interior of a bevel is flat.
   const SkColor center = bm.getColor(50, 50);
   EXPECT_GT(SkColorGetB(center), 240u);
   EXPECT_NEAR(SkColorGetR(center), 128, 6);
-  // Left rim: normal tilts -x -> r well below 128.
+  // x runs to the right, so the LEFT rim tilts toward -x and its red
+  // channel drops below the 128 zero point. A sign flip here would light
+  // every bevelled shape from the wrong side.
   const SkColor rim = bm.getColor(13, 50);
   EXPECT_LT(SkColorGetR(rim), 110u);
 }
@@ -534,7 +620,9 @@ TEST(Materials, EnvironmentRoughnessBlursAndCaches) {
   ASSERT_TRUE(rough);
   EXPECT_NE(sharp.get(), rough.get());
   EXPECT_EQ(rough->width(), sharp->width());
-  // Cache: same bucket returns the same image.
+  // Roughness is quantized into buckets and each bucket's blurred image is
+  // built once and kept, so asking twice for the same roughness returns the
+  // identical object rather than re-blurring the environment per draw.
   EXPECT_EQ(env.image(0.6f).get(), rough.get());
 }
 
@@ -546,6 +634,9 @@ TEST(Ops, PathfinderBooleans) {
   EXPECT_NEAR(ops::unite(a, b).computeTightBounds().width(), 150, 1e-3);
   EXPECT_NEAR(ops::subtract(a, b).computeTightBounds().width(), 50, 1e-3);
   EXPECT_NEAR(ops::intersect(a, b).computeTightBounds().width(), 50, 1e-3);
+  // Exclude keeps the union's outline but removes the overlap, so bounds
+  // alone cannot tell it from unite — the interior probe is what separates
+  // them.
   const SkPath xr = ops::exclude(a, b);
   EXPECT_NEAR(xr.computeTightBounds().width(), 150, 1e-3);
   EXPECT_FALSE(xr.contains(75, 50)); // the overlap is punched out
@@ -553,6 +644,9 @@ TEST(Ops, PathfinderBooleans) {
                   .contains(200, 50));
 }
 
+// Offset distance is a radius, not a diameter: a positive amount grows the
+// outline by that much on every side, a negative one eats into it, so a
+// circle of radius 50 offset by 10 spans 120 across and by -15 spans 70.
 TEST(Ops, OffsetGrowsAndShrinks) {
   const SkPath circle = SkPath::Circle(0, 0, 50);
   const SkRect grown = ops::offset(circle, 10).computeTightBounds();
@@ -561,6 +655,10 @@ TEST(Ops, OffsetGrowsAndShrinks) {
   EXPECT_NEAR(shrunk.width(), 70, 1.5f);
 }
 
+// Distorts are shape-preserving in the large: they displace the outline but
+// must not translate the shape or run away in size. Each bound below is the
+// distort's own amplitude budget — Roughen's amplitude of 6 can move a point
+// at most 6 outward, so the width cannot exceed the diameter plus twice that.
 TEST(Ops, DistortsKeepBoundsSane) {
   const SkPath base = SkPath::Circle(100, 100, 60);
   const SkRect roughened =
@@ -572,7 +670,7 @@ TEST(Ops, DistortsKeepBoundsSane) {
       std::abs(twirled.computeTightBounds().centerX() - 100), 4);
   const SkRect bloated =
       ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
-  EXPECT_GT(bloated.width(), 118); // pushed toward the silhouette
+  EXPECT_GT(bloated.width(), 118); // bloat pushes outward, never inward
   const SkPath chained = ops::chain(
       {ops::offsetBy(6), ops::Zigzag{4, 20}})(base);
   EXPECT_FALSE(chained.isEmpty());
@@ -592,14 +690,20 @@ TEST(Curves, SplineInterpolatesEndpointsAndLength) {
   spline.points = {{0, 0, 0}, {50, 40, 0}, {100, 0, 0}, {150, -40, 0}};
   const glm::vec3 start = spline.position(0);
   const glm::vec3 end = spline.position(1);
-  EXPECT_NEAR(start.x, 0, 1e-3);   // Catmull-Rom passes through
+  // The default spline type INTERPOLATES its points (Catmull-Rom) rather
+  // than approximating them like a B-spline, so t=0 and t=1 land exactly on
+  // the first and last authored point.
+  EXPECT_NEAR(start.x, 0, 1e-3);
   EXPECT_NEAR(end.x, 150, 1e-3);
 }
 
 TEST(Curves, ArcLengthSamplingIsEven) {
-  Spline3 spline; // deliberately uneven knots
-  spline.type = Spline3::Type::Linear; // keep the curve straight so
-                                       // spacing is the only variable
+  // Knots deliberately bunched at one end: sampling by curve PARAMETER
+  // would put three of eleven beads inside the first 10 units, while
+  // sampling by arc length spreads them evenly over the full 200. Linear
+  // segments keep the path straight so spacing is the only variable.
+  Spline3 spline;
+  spline.type = Spline3::Type::Linear;
   spline.points = {{0, 0, 0}, {5, 0, 0}, {10, 0, 0}, {200, 0, 0}};
   const std::vector<glm::vec3> beads = spline.sampleArcLength(11);
   ASSERT_EQ(beads.size(), 11u);
@@ -623,7 +727,11 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
     EXPECT_NEAR(glm::length(f.tangent), 1, 1e-3);
     EXPECT_NEAR(glm::length(f.normal), 1, 1e-3);
     EXPECT_NEAR(glm::dot(f.tangent, f.normal), 0, 1e-3);
-    if (i > 0) // parallel transport: no sudden flips
+    // Frames are carried along the curve by parallel transport, so each
+    // normal is the previous one rotated as little as the tangent allows.
+    // A frame built independently per sample (from a fixed up vector, say)
+    // would flip near vertical tangents and twist any swept surface.
+    if (i > 0)
       EXPECT_GT(glm::dot(f.normal, rail[i - 1].normal), 0.5f);
   }
 }
@@ -636,11 +744,17 @@ TEST(Curves, TubeAndRibbonAreWellFormed) {
   EXPECT_EQ(t.normals.size(), t.vertexCount());
   for (const glm::vec3 &n : t.normals)
     EXPECT_NEAR(glm::length(n), 1, 1e-3);
+  // A ribbon is a strip: `segments` cross-sections of two vertices each,
+  // and two triangles per gap between consecutive sections.
   const Mesh r = curves::ribbon(arc, {.width = 20, .segments = 24});
-  EXPECT_EQ(r.vertexCount(), 48u);
-  EXPECT_EQ(r.triangleCount(), 46u);
+  EXPECT_EQ(r.vertexCount(), 48u);     // 24 * 2
+  EXPECT_EQ(r.triangleCount(), 46u);   // (24 - 1) * 2
 }
 
+// curves::project() flattens a 3D spline to a 2D SkPath through the same
+// camera the mesh painter uses, so the two agree on where a point lands: a
+// segment centred on the world origin comes back centred on the viewport in
+// pixels. Drawing a projected curve over a drawn mesh depends on this.
 TEST(Curves, ProjectMatchesCameraProjection) {
   Spline3 line;
   line.type = Spline3::Type::Linear;
@@ -671,9 +785,11 @@ TEST(Points, GeneratorsWriteLanes) {
 
   Cloud circle = points::ring({0, 0, 0}, 50, 8);
   EXPECT_EQ(circle.size(), 8u);
+  // A ring is laid out in the plane perpendicular to its axis, and the
+  // default axis is +y, so an unaxised ring lives in the xz plane at y = 0.
   for (const glm::vec3 &p : circle.positions) {
-    EXPECT_NEAR(glm::length(p), 50, 1e-2);  // on the radius
-    EXPECT_NEAR(p.y, 0, 1e-3);          // in the plane ⊥ default axis
+    EXPECT_NEAR(glm::length(p), 50, 1e-2);
+    EXPECT_NEAR(p.y, 0, 1e-3);
   }
 
   Cloud box = points::scatterBox({0, 0, 0}, {10, 10, 10}, 100, 3);
@@ -713,19 +829,22 @@ TEST(Points, InstanceStampsWithLanes) {
   ASSERT_EQ(merged.colors.size(), merged.vertexCount());
   EXPECT_NEAR(merged.colors[0].r, 1, 1e-4);
   EXPECT_NEAR(merged.colors[0].g, 0, 1e-4);
-  // The first stamp is scaled 2x: its extent from its ring point is 10.
+  // The scale lane multiplies the stamp about its own point. An unscaled
+  // 10x10 quad has a 14.1 diagonal, so the first stamp — the only one whose
+  // "size" was set to 2 — has to measure more than that.
   glm::vec3 lo, hi;
   Mesh first;
   first.positions.assign(merged.positions.begin(),
                          merged.positions.begin() + 4);
   first.bounds(&lo, &hi);
-  EXPECT_GT(glm::length(hi - lo), 14.0f); // 2x-scaled quad diagonal-ish
+  EXPECT_GT(glm::length(hi - lo), 14.0f);
 }
 
 TEST(Points, AppendPadsLanesWithConventionalDefaults) {
-  // A lane missing on one side pads with the lane NAME's convention:
-  // "size" pads 1 (not invisible instances) and "Tex" the identity
-  // uv window (not white).
+  // When a lane exists on only one side of an append, the other side is
+  // padded by what the lane NAME means, not by a generic zero: "size" pads
+  // with 1, because 0 would make those instances invisible, and "Tex" pads
+  // with the identity uv window (0,0,1,1) rather than white.
   Cloud a;
   a.positions = {{0, 0, 0}, {1, 0, 0}};
   Cloud b;
@@ -768,6 +887,9 @@ TEST(Points, BillboardsCoverPixels) {
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+  // Twelve 24-pixel billboards cover thousands of pixels; the threshold is
+  // set low because the point is only that the cloud reached the canvas at
+  // all — an empty or entirely off-screen draw is what it must catch.
   int lit = 0;
   for (int y = 0; y < 150; ++y)
     for (int x = 0; x < 200; ++x)
@@ -776,16 +898,19 @@ TEST(Points, BillboardsCoverPixels) {
   EXPECT_GT(lit, 200);
 }
 
-// --- Easel (the artist surface) -------------------------------------------
+// --- Easel (the fluent authoring surface) ---------------------------------
 
+// An easel::Shape is a recipe, not a path: it stores the operations and cooks
+// them on demand. Two properties follow, and both are what let a caller hold
+// one and hand copies around — cooking is pure, and copies are independent.
 TEST(Easel, ShapeRecipeCooksNonDestructively) {
   const easel::Shape recipe =
       easel::shape(easel::dot(50)).bloat(0.4f).offset(10);
   const SkPath once = recipe.path();
-  const SkPath twice = recipe.path(); // cooking twice = same answer
+  const SkPath twice = recipe.path();
   EXPECT_EQ(once.countPoints(), twice.countPoints());
   EXPECT_GT(once.computeTightBounds().width(), 115); // grew by ~offset
-  // A tweaked COPY leaves the original recipe untouched.
+  // Extending a copy must not reach back into the original recipe.
   easel::Shape copy = recipe;
   copy.twirl(90);
   EXPECT_GT(copy.path().countPoints(), 0);
@@ -799,6 +924,8 @@ TEST(Easel, BlendReadsLikeIllustrator) {
           .steps(7)
           .between({0, 0}, {400, 0})
           .cook();
+  // steps(n) counts INTERMEDIATES, as it does in a drawing program's blend
+  // dialog: the two keys are always present on top of it.
   EXPECT_EQ(steps.size(), 9u); // 2 keys + 7
   EXPECT_NEAR(steps.back().path.computeTightBounds().centerX(), 400, 2);
 }
@@ -868,8 +995,10 @@ std::vector<std::byte> triangleBufferBytes() {
   return bin;
 }
 
-/** The minimal scene: one node (translated +10 x) holding one red
- *  triangle. @p bufferUri empty = GLB (no uri member). */
+/** The minimal glTF scene: one node, translated +10 along x, holding one red
+ *  triangle. The node transform is deliberately non-identity so tests can
+ *  tell whether it was applied. @p bufferUri empty writes no uri member,
+ *  which is how a GLB's embedded buffer is spelled. */
 std::string triangleGltfJson(const std::string &bufferUri) {
   std::string buffer = "{\"byteLength\": 42";
   if (!bufferUri.empty())
@@ -958,16 +1087,24 @@ TEST(Import, ObjCubeWithMaterialThroughResolver) {
   ASSERT_EQ(model->parts.size(), 1u);
   const Part &part = model->parts.front();
   EXPECT_EQ(part.name, "Cube");
-  EXPECT_EQ(part.mesh.vertexCount(), 8u);   // deduplicated corners
-  EXPECT_EQ(part.mesh.triangleCount(), 12u); // quads triangulated
+  // Corners shared by several faces collapse to one vertex where their
+  // (position, uv, normal) agree, so a cube stays 8 vertices instead of 24,
+  // and OBJ's n-gon faces are fanned into triangles on the way in.
+  EXPECT_EQ(part.mesh.vertexCount(), 8u);
+  EXPECT_EQ(part.mesh.triangleCount(), 12u);
   EXPECT_FLOAT_EQ(part.baseColor.r, 1);
   EXPECT_FLOAT_EQ(part.baseColor.g, 0);
+  // External references reach the caller through the resolver and nowhere
+  // else — the importer never touches the filesystem itself. The uri is
+  // passed through exactly as the file spelled it.
   ASSERT_EQ(asked.size(), 1u);
   EXPECT_EQ(asked.front(), "cube.mtl");
-  // No normals in the file: computed, unit length.
+  // The file declares no normals, so they are computed; and the uv lane is
+  // sized to the vertices even though the file has no vt records, because
+  // consumers read lane size as the presence bit.
   ASSERT_EQ(part.mesh.normals.size(), 8u);
   EXPECT_NEAR(glm::length(part.mesh.normals.front()), 1, 1e-4);
-  EXPECT_EQ(part.mesh.uvs.size(), 8u); // lane sized even without vt
+  EXPECT_EQ(part.mesh.uvs.size(), 8u);
 }
 
 TEST(Import, GltfEmbeddedBase64Buffer) {
@@ -983,7 +1120,9 @@ TEST(Import, GltfEmbeddedBase64Buffer) {
   EXPECT_EQ(part.mesh.triangleCount(), 1u);
   EXPECT_FLOAT_EQ(part.baseColor.r, 1);
   EXPECT_FLOAT_EQ(part.baseColor.b, 0);
-  // The node's +10 x translation is baked into model space.
+  // Node transforms are BAKED into the positions rather than kept beside
+  // them: the imported mesh is already in model space, so the unit triangle
+  // under a +10 x node spans x = 10..11.
   glm::vec3 lo, hi;
   model->bounds(&lo, &hi);
   EXPECT_FLOAT_EQ(lo.x, 10);
@@ -1013,14 +1152,17 @@ TEST(Import, GlbBinaryContainerAndSniffing) {
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->vertexCount(), 3u);
   EXPECT_EQ(model->triangleCount(), 1u);
-  // No useful extension: the GLB magic identifies it anyway.
+  // Format detection does not depend on the filename: with an extension
+  // that says nothing, the leading "glTF" magic identifies the container.
   auto sniffed = import::model(glb.data(), glb.size(), "download");
   ASSERT_TRUE(sniffed.has_value());
   EXPECT_EQ(sniffed->triangleCount(), 1u);
 }
 
 TEST(Import, StlBinaryAndAscii) {
-  // Binary: two triangles, zero normals force recomputation.
+  // STL stores a normal per facet, and zeroes are the file saying it has
+  // none — the importer must then derive them from the winding rather than
+  // publish a zero-length normal, which would shade black.
   std::vector<std::byte> stl(80, std::byte{0});
   appendRaw(stl, (uint32_t)2);
   const float tri[2][12] = {
@@ -1035,7 +1177,9 @@ TEST(Import, StlBinaryAndAscii) {
   auto model = import::model(stl.data(), stl.size(), "part.stl");
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->triangleCount(), 2u);
-  EXPECT_EQ(model->vertexCount(), 6u); // flat shaded, no dedup
+  // STL has no shared-vertex concept, so nothing is welded: every facet
+  // keeps its own three vertices and the mesh stays flat shaded.
+  EXPECT_EQ(model->vertexCount(), 6u);
   EXPECT_NEAR(glm::length(model->parts.front().mesh.normals.front()), 1,
               1e-4);
 
@@ -1056,6 +1200,9 @@ endsolid tetra piece
   EXPECT_FLOAT_EQ(text->parts.front().mesh.normals.front().z, 1);
 }
 
+// merged() flattens a multi-part model into one Mesh, and a part's material
+// base colour is the only thing that would be lost by that — so it is baked
+// into the vertex colour lane, per part, as the merge happens.
 TEST(Import, MergedBakesBaseColorsIntoLane) {
   Model model;
   Part a;
@@ -1111,8 +1258,11 @@ TEST(Import, FitTransformCentersAndScales) {
   fitted.transform(model.fitTransform(100));
   glm::vec3 lo, hi;
   fitted.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.x - lo.x, 100, 1e-3); // largest extent = target
-  EXPECT_NEAR(hi.y - lo.y, 50, 1e-3);  // aspect kept
+  // fitTransform(n) is uniform: it scales so the LARGEST extent becomes n
+  // and recentres on the origin, leaving the aspect ratio alone. A
+  // per-axis fit would have stretched the 4x2 quad to 100x100.
+  EXPECT_NEAR(hi.x - lo.x, 100, 1e-3);
+  EXPECT_NEAR(hi.y - lo.y, 50, 1e-3);
   EXPECT_NEAR(lo.x + hi.x, 0, 1e-3);   // centered
   EXPECT_NEAR(lo.y + hi.y, 0, 1e-3);
 }
@@ -1120,8 +1270,10 @@ TEST(Import, FitTransformCentersAndScales) {
 // --- Pop ------------------------------------------------------------------
 
 TEST(Import, GltfCustomAttributesBecomeLanes) {
-  // Blender/Houdini's _NAME accessors survive import as named lanes
-  // and pour into a Cloud beside the conventional ones.
+  // glTF spells custom vertex attributes with a leading underscore. They
+  // survive import as lanes named without it — "_ENERGY" becomes "ENERGY" —
+  // and asCloud() carries them alongside the conventional attributes, so an
+  // attribute authored in a DCC tool can drive this library directly.
   const std::string json = R"({
   "asset": {"version": "2.0"},
   "scenes": [{"nodes": [0]}], "scene": 0,
@@ -1156,9 +1308,10 @@ TEST(Import, GltfCustomAttributesBecomeLanes) {
 }
 
 TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
-  // Width routing beyond scalars: VEC2 customs ride the color lane
-  // zero-padded in z/w, VEC4 land verbatim — and both pour through
-  // asCloud() like any lane.
+  // Custom attributes are routed by WIDTH: a scalar accessor becomes a
+  // scalar lane, and anything wider becomes a four-component colour lane —
+  // VEC2 zero-padded in z and w, VEC4 verbatim. There is no vec2 lane kind,
+  // so reading .z of a VEC2 custom always gives 0, not garbage.
   std::vector<std::byte> bin;
   const float positions[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
   for (float f : positions)
@@ -1214,10 +1367,12 @@ TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
 }
 
 TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
-  // The attribute carrier: conventional names build the mesh, every
-  // other property becomes a lane raw (ids stay ids; only colors
-  // normalize), and a faceless file is an honest point cloud whose
-  // lanes drive instancing directly.
+  // PLY property routing: the conventional names (x/y/z, nx/ny/nz, s/t,
+  // red/green/blue) build the mesh, and every other property becomes a lane
+  // carrying its RAW value — no rescaling, so an integer id stays that
+  // number. Only the colour properties are normalized, uchar 0..255 to
+  // 0..1. A file with no face element imports as a point cloud with no
+  // indices rather than being rejected.
   const char *ascii =
       "ply\n"
       "format ascii 1.0\n"
@@ -1239,7 +1394,7 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   ASSERT_TRUE(model.has_value());
   const import::Part &part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 4u);
-  EXPECT_TRUE(part.mesh.indices.empty()); // a point cloud, honestly
+  EXPECT_TRUE(part.mesh.indices.empty()); // no faces declared, none invented
   EXPECT_FLOAT_EQ(part.mesh.positions[1].x, 10);
   ASSERT_EQ(part.mesh.colors.size(), 4u);
   EXPECT_NEAR(part.mesh.colors[0].r, 1, 1e-2f); // uchar normalized
@@ -1248,7 +1403,8 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   ASSERT_NE(intensity, part.scalarLanes.end());
   EXPECT_FLOAT_EQ(intensity->second[3], 3.5f);
 
-  // The lane drives the library: intensity scales instanced stamps.
+  // An imported lane is an ordinary lane: naming it as the scale lane makes
+  // it drive instancing with no conversion step in between.
   const Cloud cloud = part.asCloud();
   points::InstanceOptions options;
   options.scaleLane = "intensity";
@@ -1257,9 +1413,12 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   EXPECT_EQ(stamped.vertexCount(), 4u * 4u);
   glm::vec3 lo, hi;
   stamped.bounds(&lo, &hi);
-  EXPECT_GT(hi.x, 12.0f); // the 3.5x stamp reaches past its point
+  // The last point's intensity is 3.5, so its 2x2 stamp reaches 3.5 beyond
+  // the point at x = 10 — past anything the unscaled stamps could reach.
+  EXPECT_GT(hi.x, 12.0f);
 
-  // Binary little-endian speaks the same rows, faces included.
+  // The binary_little_endian body encodes the same rows: properties in
+  // declaration order, and a face list as a uchar count then int32 indices.
   std::vector<std::byte> bin;
   const auto push = [&](const void *p, size_t n) {
     const auto *b = static_cast<const std::byte *>(p);
@@ -1346,9 +1505,11 @@ TEST(Import, PlyRejectsHostileCountsAndIndices) {
 }
 
 TEST(Import, LoneTStaysAScalarLane) {
-  // "t" is a texture coordinate only when paired with "s". Alone —
-  // the scalar every readPoints/cook/asCloud cloud carries — it must
-  // stay a lane instead of vanishing into uv.y.
+  // In PLY, "t" is a texture coordinate only when it is paired with "s".
+  // On its own it is an ordinary scalar property — and "t" is the name this
+  // library's own point clouds use for the parameter along a curve, so
+  // folding a lone "t" into uv.y would silently eat that lane on every file
+  // this library writes.
   const char *ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 3\n"
@@ -1363,15 +1524,16 @@ TEST(Import, LoneTStaysAScalarLane) {
   ASSERT_NE(t, part.scalarLanes.end());
   ASSERT_EQ(t->second.size(), 3u);
   EXPECT_FLOAT_EQ(t->second[1], 0.5f);
-  // uvs sized by finishPart, untouched by the lone "t".
+  // The uv lane is still sized to the vertices, and still all zeroes: the
+  // lone "t" went nowhere near it.
   for (const glm::vec2 &uv : part.mesh.uvs)
     EXPECT_FLOAT_EQ(uv.y, 0.0f);
   const Cloud cloud = part.asCloud();
   ASSERT_TRUE(cloud.scalarIf("t"));
   EXPECT_FLOAT_EQ((*cloud.scalarIf("t"))[2], 0.75f);
 
-  // The readPoints posture: a cloud whose ONLY extra lane is scalar
-  // "t" round-trips through save::ply with its values intact.
+  // And the loop closes: a cloud whose only extra lane is the scalar "t"
+  // writes to PLY and reads back with its values intact.
   Cloud dump;
   dump.positions = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}};
   dump.scalar("t") = {0.1f, 0.6f, 0.9f};
@@ -1387,9 +1549,11 @@ TEST(Import, LoneTStaysAScalarLane) {
 }
 
 TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
-  // The fold-back leg's edges: an incomplete _x/_y pair fabricates no
-  // vector and keeps its raw scalars; a complete _r/_g/_b without _a
-  // folds with alpha 1.
+  // Properties named with an _x/_y/_z or _r/_g/_b/_a suffix are folded back
+  // into a single vector or colour lane. The fold is all-or-nothing: an
+  // incomplete triple stays as its raw scalar properties rather than
+  // becoming a vector with an invented component, while an _r/_g/_b with no
+  // _a folds with alpha 1, which is opaque.
   const char *ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 2\n"
@@ -1421,10 +1585,10 @@ TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
 }
 
 TEST(Save, PlyRoundTripsPrimitiveLanes) {
-  // The PRIMITIVE class's closed loop: prim lanes write as PLY face
-  // properties and read back into Mesh::prims under the SAME names,
-  // through both spellings. A custom name rides along with the
-  // conventional "Color" — nothing here is special-cased by name.
+  // Per-triangle (prim) lanes survive a PLY round trip in both encodings:
+  // they are written as face properties and read back into Mesh::prims
+  // under the same names. Names are not special-cased — an arbitrary
+  // "Charge" travels exactly like the conventional "Color".
   Mesh quad = mesh::quad(10, 6); // 4 vertices, 2 triangles
   ASSERT_EQ(quad.triangleCount(), 2u);
   quad.prim("Color") = {{1, 0, 0, 1}, {0, 0.5f, 1, 0.25f}};
@@ -1446,7 +1610,9 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
     const std::vector<glm::vec4> *charge = back.primIf("Charge");
     ASSERT_NE(charge, nullptr) << "binary=" << binary;
     ASSERT_EQ(charge->size(), 2u);
-    // ascii pays %g's six significant digits; binary is bit-exact.
+    // The ascii writer prints with %g, which keeps six significant digits,
+    // so ascii values come back close but not identical; binary rows are
+    // raw floats and come back bit-exact.
     const float tol = binary ? 0.0f : 1e-6f;
     for (size_t t = 0; t < 2; ++t)
       for (int c = 0; c < 4; ++c) {
@@ -1459,8 +1625,10 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
       EXPECT_FLOAT_EQ((*charge)[1].x, 1e-5f);
     }
 
-    // Cardinality stays unmistakable: the per-face lanes are NOT point
-    // lanes, so neither the Part's lanes nor asCloud() carry them.
+    // Cardinality is preserved on the way back: a per-face lane has one
+    // value per triangle, a point lane one per vertex, and the two never
+    // mix. So the face lanes appear in Mesh::prims and nowhere else —
+    // neither in the Part's point lanes nor in the Cloud it pours into.
     EXPECT_EQ(part.scalarLanes.count("Color_r"), 0u);
     EXPECT_EQ(part.colorLanes.count("Color"), 0u);
     EXPECT_EQ(part.colorLanes.count("Charge"), 0u);
@@ -1473,10 +1641,12 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
 }
 
 TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
-  // The trap: the reader fan-triangulates an n-gon into n-2 triangles,
-  // so ONE source face's attribute must be REPLICATED across all of
-  // them. A quad (2) plus a pentagon (3) gives 5 triangles from 2 face
-  // rows — a triangles-only file would prove nothing about this.
+  // The reader fan-triangulates an n-gon into n-2 triangles, so ONE source
+  // face's per-face attribute has to be REPLICATED across all of them, or
+  // the lane ends up sized to the face count instead of triangleCount() and
+  // every value after the first n-gon is read against the wrong triangle. A
+  // quad and a pentagon give 5 triangles from 2 face rows; a triangles-only
+  // fixture could not tell the two sizings apart.
   const char *ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 6\n"
@@ -1507,7 +1677,8 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
     EXPECT_FLOAT_EQ((*color)[t].z, 0.5f);
     EXPECT_FLOAT_EQ((*color)[t].w, 0.75f);
   }
-  // A lone per-face scalar widens into .x — the "Id" convention.
+  // Prim lanes are always four-component, so a single per-face scalar
+  // property widens into .x with the other three left at zero.
   const std::vector<glm::vec4> *density = mesh.primIf("density");
   ASSERT_NE(density, nullptr);
   ASSERT_EQ(density->size(), 5u);
@@ -1516,8 +1687,9 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   EXPECT_FLOAT_EQ((*density)[4].x, -1.5f);
   EXPECT_FLOAT_EQ((*density)[0].y, 0.0f);
 
-  // binary_little_endian fans identically: uchar count, int32 indices,
-  // then the face's raw floats.
+  // The binary encoding fans identically. A binary face row is a uchar
+  // list count, then that many int32 indices, then the face's remaining
+  // properties as raw floats.
   std::vector<std::byte> bin;
   const auto push = [&](const void *p, size_t n) {
     const auto *b = static_cast<const std::byte *>(p);
@@ -1562,11 +1734,12 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
 }
 
 TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
-  // (a) MeshLab spells per-face color red/green/blue/alpha; it lands in
-  // the same "Color" lane save::ply writes, integers normalized.
-  // (b) The face properties may be declared BEFORE the index list —
-  // the row is buffered, so the triangle count a lane replicates
-  // across does not depend on where the list sits.
+  // (a) Other tools spell per-face colour as red/green/blue/alpha rather
+  // than Color_r/_g/_b/_a; both land in the same "Color" lane, with integer
+  // channels normalized to 0..1 and a missing alpha filled with 1.
+  // (b) Face properties may be declared BEFORE the index list. The whole
+  // row is read before it is interpreted, so the triangle count a lane
+  // replicates across does not depend on where the list sits.
   const char *ascii =
       "ply\nformat ascii 1.0\n"
       "element vertex 4\n"
@@ -1595,7 +1768,7 @@ TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
   const std::vector<glm::vec4> *heat = mesh.primIf("heat");
   ASSERT_NE(heat, nullptr);
   ASSERT_EQ(heat->size(), 3u);
-  EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f); // raw: ids stay ids
+  EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f); // raw: only colour names normalize
   EXPECT_FLOAT_EQ((*heat)[1].x, 4.0f);
   EXPECT_FLOAT_EQ((*heat)[2].x, 4.0f);
 }
@@ -1684,12 +1857,16 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
 
 namespace {
 
-/** An Ogawa archive written fully in memory: a translated xform
- *  holding a static clockwise triangle with a kVertexScope arb param,
- *  an animated top-level point cloud (2 samples at 24 fps) with ids on
- *  the first sample, and "uvquad"/"uvweld" — one topology written twice,
- *  with FACEVARYING and with VERTEX-scope uvs, the two sides of the
- *  (point, uv, normal) dedup. See AlembicFacevaryingUvsFlipAndDedup. */
+/** An Ogawa archive built entirely in memory, so the Alembic tests need no
+ *  fixture files. It contains:
+ *   - "root", an xform translated +10 along x, holding "tri": a static
+ *     clockwise triangle carrying a per-vertex-scope arbitrary geometry
+ *     parameter;
+ *   - "uvquad" and "uvweld": the SAME topology written twice, once with
+ *     facevarying uvs and once with vertex-scope uvs, which are the two
+ *     sides of the corner dedup;
+ *   - "cloud": a top-level point cloud with two time samples at 24 fps, and
+ *     ids written on the first sample only. */
 std::string alembicArchiveBytes() {
   namespace Abc = Alembic::Abc;
   namespace AbcGeom = Alembic::AbcGeom;
@@ -1719,9 +1896,9 @@ std::string alembicArchiveBytes() {
     energy.set(AbcGeom::OFloatGeomParam::Sample(
         Abc::FloatArraySample(values), AbcGeom::kVertexScope));
 
-    // Two triangles sharing the 0-2 diagonal of a unit square, written
-    // TWICE with the same topology and different uv scopes — the two
-    // sides of the dedup. 4 points, 6 corners either way.
+    // Two triangles sharing the 0-2 diagonal of a unit square: 4 points and
+    // 6 corners, written twice with identical topology and different uv
+    // scopes so the dedup can be observed from both sides.
     const std::vector<Imath::V3f> qpos = {
         {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
     const std::vector<int32_t> qidx = {0, 2, 1, 0, 3, 2}; // clockwise
@@ -1756,7 +1933,9 @@ std::string alembicArchiveBytes() {
     const std::vector<Imath::V3f> frame1 = {{0, 1, 0}, {1, 1, 0}};
     pointsObj.getSchema().set(
         AbcGeom::OPointsSchema::Sample(Abc::P3fArraySample(frame1)));
-  } // OArchive dtor finalizes the Ogawa bytes — .str() only after
+  } // The OArchive destructor is what finalizes the Ogawa stream, so the
+    // scope must close before .str() is read — an earlier read returns a
+    // truncated, unreadable archive.
   return std::move(out).str();
 }
 
@@ -1765,7 +1944,8 @@ std::string alembicArchiveBytes() {
 TEST(Import, AlembicMeshPointsAndLanes) {
   const std::string bytes = alembicArchiveBytes();
 
-  // No useful extension on the hint: the Ogawa magic routes it.
+  // As with GLB, the filename hint carries nothing useful here and the
+  // leading Ogawa magic is what routes the bytes to the Alembic reader.
   auto model = import::model(bytes.data(), bytes.size(), "download");
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 4u); // tri, uvquad, uvweld, cloud
@@ -1783,14 +1963,21 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   EXPECT_EQ(tri->mesh.triangleCount(), 1u);
   glm::vec3 lo, hi;
   tri->mesh.bounds(&lo, &hi);
-  EXPECT_FLOAT_EQ(lo.x, 10.0f); // the root xform baked into positions
+  // Parent xforms are baked into the positions, as glTF node transforms are.
+  EXPECT_FLOAT_EQ(lo.x, 10.0f);
   EXPECT_FLOAT_EQ(hi.x, 11.0f);
-  // Alembic winds clockwise; the importer reverses to CCW, so the
-  // derived normal faces +z instead of -z.
+  // WINDING: Alembic faces are wound clockwise, this library's meshes
+  // counter-clockwise, so the importer reverses each face. The fixture's
+  // triangle therefore ends up with its derived normal along +z; leaving
+  // the file's order alone would point it at -z and cull the whole model.
   ASSERT_EQ(tri->mesh.normals.size(), 3u);
   EXPECT_GT(tri->mesh.normals[0].z, 0.0f);
-  // kVertexScope arbGeomParam -> per-point scalar lane, each value
-  // riding the dedup to its vertex (locally 0.25 + 0.25x + 0.5y).
+  // A vertex-scope arbitrary geometry parameter becomes a per-point scalar
+  // lane, and each value has to follow its point through the corner dedup
+  // and the winding reversal — both of which renumber vertices. Checked by
+  // recomputing the value from the position it ended up on (the fixture's
+  // values are 0.25 + 0.25x + 0.5y in local space) rather than by index,
+  // since matching by index would pass even if the lane were shuffled.
   const auto energy = tri->scalarLanes.find("energy");
   ASSERT_NE(energy, tri->scalarLanes.end());
   ASSERT_EQ(energy->second.size(), 3u);
@@ -1801,7 +1988,9 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   }
   EXPECT_EQ(tri->asCloud().scalars.count("energy"), 1u);
 
-  // The point cloud: faceless part, ids as a lane, frame 0 at time 0.
+  // An OPoints object imports as a part with no indices, its ids carried as
+  // an ordinary scalar lane. With no time requested, the first sample is
+  // the one read.
   EXPECT_TRUE(cloud->mesh.indices.empty());
   ASSERT_EQ(cloud->mesh.positions.size(), 2u);
   EXPECT_FLOAT_EQ(cloud->mesh.positions[0].y, 0.0f);
@@ -1811,7 +2000,9 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   EXPECT_FLOAT_EQ(id->second[0], 0.0f);
   EXPECT_FLOAT_EQ(id->second[1], 1.0f);
 
-  // Malformed bytes stay quiet: garbage and a truncated archive.
+  // Malformed input returns an empty optional rather than throwing or
+  // aborting: the Alembic library signals errors by exception, and those
+  // must not escape into a caller that is merely opening an untrusted file.
   const char garbage[] = "not an alembic archive at all";
   EXPECT_FALSE(import::alembic(garbage, sizeof(garbage)).has_value());
   EXPECT_FALSE(
@@ -1819,11 +2010,15 @@ TEST(Import, AlembicMeshPointsAndLanes) {
 }
 
 TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
-  // The uv path had no Alembic coverage at all. Two claims, one fixture:
-  // (1) Alembic's uv origin is BOTTOM-left and Mesh's is top-left, so v
-  // flips on the way in; (2) corners dedup OBJ-style on (point, uv,
-  // normal) — agreeing corners merge, a uv disagreement splits a point
-  // into two vertices.
+  // Two conventions, one fixture.
+  //
+  // (1) UV ORIGIN: Alembic's is BOTTOM-left, this library's Mesh uses
+  // top-left, so v is flipped on import. Get it wrong and every textured
+  // Alembic model is upside down.
+  //
+  // (2) DEDUP: corners merge OBJ-style on (position, uv, normal) — corners
+  // that agree on all three become one vertex, and a disagreement in uv
+  // splits one point into two vertices so each can keep its own uv.
   const std::string bytes = alembicArchiveBytes();
   auto model = import::alembic(bytes.data(), bytes.size());
   ASSERT_TRUE(model.has_value());
@@ -1844,18 +2039,19 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
     return found;
   };
 
-  // --- FACEVARYING: the dedup keys on the corner INDEX, so every corner
-  // is its own vertex. 6 corners -> 6 vertices, even where two of them
-  // carry an identical uv. That is the "sources" simplification the
-  // importAbcMesh header declares, pinned rather than assumed.
+  // --- FACEVARYING: the uv source is the CORNER, and the dedup keys on the
+  // corner index rather than on the uv value, so every corner becomes its
+  // own vertex — 6 corners give 6 vertices even where two of them happen to
+  // carry an identical uv. Nothing downstream depends on the merge, so the
+  // reader does not pay for comparing values.
   const Part *quad = part("uvquad");
   ASSERT_NE(quad, nullptr);
   const Mesh &fv = quad->mesh;
   ASSERT_EQ(fv.positions.size(), 6u);
   ASSERT_EQ(fv.uvs.size(), 6u);
   EXPECT_EQ(fv.triangleCount(), 2u);
-  // The v FLIP: file uv (0,0) at the origin corner arrives as (0,1) — a
-  // v of 0 becoming 1 is something no non-flipping reader produces.
+  // The flip in one value: the file's uv (0,0) on the origin corner arrives
+  // as (0,1). No reader that passed v through unchanged could produce that.
   const std::vector<glm::vec2> atOrigin = uvsAt(fv, {0, 0, 0});
   ASSERT_EQ(atOrigin.size(), 2u); // corners 0 and 3, NOT welded
   for (const glm::vec2 &uv : atOrigin) {
@@ -1872,8 +2068,10 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
   EXPECT_FLOAT_EQ(shared[1].x, 1.0f);
   EXPECT_FLOAT_EQ(shared[1].y, 0.0f); // file (1, 1)
 
-  // --- VERTEX scope: the uv source IS the point, so the six corners
-  // weld back to four vertices. Same topology, same flip.
+  // --- VERTEX scope: the uv source IS the point, so every corner of a
+  // point keys the same and the six corners weld back down to four
+  // vertices. Identical topology to the facevarying case, identical flip —
+  // only the scope differs.
   const Part *weld = part("uvweld");
   ASSERT_NE(weld, nullptr);
   const Mesh &vw = weld->mesh;
@@ -1902,16 +2100,22 @@ TEST(Import, AlembicTimeSampleSelection) {
         return part.mesh.positions.at(0).y;
     return -1.0f;
   };
-  EXPECT_FLOAT_EQ(cloudY(0), 0.0f);        // frame 0
-  EXPECT_FLOAT_EQ(cloudY(1.0 / 24), 1.0f); // frame 1
-  EXPECT_FLOAT_EQ(cloudY(0.6 / 24), 1.0f); // NEAREST sample, not floor
+  // A requested time selects the NEAREST stored sample, not the one before
+  // it: 0.6 of a frame in is closer to frame 1, so frame 1 is what is read.
+  // Samples are never interpolated, so the values are always ones an
+  // authoring tool actually wrote.
+  EXPECT_FLOAT_EQ(cloudY(0), 0.0f);
+  EXPECT_FLOAT_EQ(cloudY(1.0 / 24), 1.0f);
+  EXPECT_FLOAT_EQ(cloudY(0.6 / 24), 1.0f);
 }
 
 TEST(Save, PlyRoundTripsCloudLanes) {
-  // The return leg: a Cloud with every lane kind writes to PLY and
-  // reads back reconstituted — vectors fold from _x/_y/_z, colors
-  // from _r/_g/_b/_a, tint survives its uchar quantization, and the
-  // conventional names stay conventional.
+  // A Cloud carrying one of every lane kind writes to PLY and comes back
+  // reconstituted: vectors fold from _x/_y/_z, colours from _r/_g/_b/_a,
+  // and the conventional names keep their conventional spellings ("normal"
+  // as nx/ny/nz, "tint" as red/green/blue/alpha). "tint" is the one lane
+  // written as uchar channels, so it comes back quantized to 1/255 while
+  // every other lane is float.
   Cloud cloud;
   cloud.positions = {{0, 0, 0}, {4, 0, 0}, {0, 4, 0}, {4, 4, 2}};
   cloud.scalar("energy") = {0.5f, 1.5f, 2.5f, 3.5f};
@@ -1966,10 +2170,11 @@ TEST(Save, PlyRoundTripsMeshWithFaces) {
 }
 
 TEST(Save, BinaryPlyRoundTripsExactly) {
-  // binary_little_endian rows are raw floats, so the round trip is
-  // BIT-exact — EXPECT_FLOAT_EQ throughout, no %g truncation; only
-  // tint pays its uchar quantization toll. The awkward values
-  // (thirds, 1e-5) are the ones ascii would have rounded.
+  // Binary rows are raw floats, so the round trip is BIT-exact and every
+  // check can be an equality; only "tint", written as uchar channels, still
+  // pays its quantization. The values are chosen to be ones the ascii
+  // writer's six significant digits would have rounded — thirds, sevenths,
+  // 1e-5 — so a silent fallback to the ascii path would fail here.
   Cloud cloud;
   cloud.positions = {{0.1f, 2.3f, -4.5f},
                      {6.7f, -8.9f, 10.11f},
@@ -2002,8 +2207,9 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
   ASSERT_TRUE(back.colorIf("tint")); // uchar red/green/blue/alpha
   EXPECT_NEAR((*back.colorIf("tint"))[2].w, 0.5f, 1.5f / 255.0f);
 
-  // Faces ride binary too: list counts as single raw uchars, indices
-  // as raw int32 — the same rows the ascii writer spells in text.
+  // Faces are written in the binary encoding too: a list count as one raw
+  // uchar, then raw int32 indices — the same rows the ascii writer spells
+  // out in text.
   Mesh quad = mesh::quad(10, 6);
   quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
   const std::string meshBytes = save::ply(quad, {.binary = true});
@@ -2022,8 +2228,11 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
 }
 
 TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
-  // Wrong-length lanes are skipped by header AND rows (the lockstep
-  // predicate): the export still parses and the correct lane survives.
+  // A lane whose length does not match the point count is skipped, and the
+  // header and the row writer must agree on WHICH lanes those are — a
+  // property declared in the header but not written on each row (or the
+  // reverse) desyncs the file and makes every later value read wrong. The
+  // export parsing at all is most of the assertion here.
   Cloud cloud;
   cloud.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
   cloud.scalar("energy") = {1, 2, 3};
@@ -2040,8 +2249,9 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   EXPECT_EQ(part.vectorLanes.count("off"), 0u);
   EXPECT_EQ(part.scalarLanes.count("off_x"), 0u);
 
-  // Zero vertices decline loudly: "" from the string overloads (our
-  // own importer refuses an empty PLY), false from the file overload.
+  // Nothing to write is refused rather than emitted: the string overloads
+  // return empty and the file overloads return false, so no zero-element
+  // PLY is ever produced — this library's own reader rejects one.
   EXPECT_TRUE(save::ply(Cloud{}).empty());
   EXPECT_TRUE(save::ply(Mesh{}).empty());
   const std::filesystem::path file =
@@ -2052,9 +2262,11 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
 }
 
 TEST(Pop, CookMeshFormsAModelFromAChain) {
-  // The whole point of the split: a pop chain DESCRIBES a model, and
-  // the CPU cook forms it as one Mesh — the same currency both
-  // space::drawMesh (Skia) and World::addSurface (Diligent) draw.
+  // A pop chain is a DESCRIPTION; cooking is what forms it. The output is a
+  // plain Mesh, the same type the Skia painter and the GPU surface path
+  // both take, so a chain needs no adapter to be drawn either way.
+  // Cooking is also pure: the same chain cooks to the same model, and
+  // editing the chain value is the only way to get a different one.
   pop::SplineScatter scatter;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2075,20 +2287,18 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   EXPECT_EQ(model.vertexCount(), 500u * stamp.vertexCount());
   EXPECT_EQ(model.triangleCount(), 500u * stamp.triangleCount());
   ASSERT_EQ(model.colors.size(), model.vertexCount()); // tint baked
-  // Determinism: the same description forms the same model.
   const Mesh again = popops::cookMesh(chain, stamp);
   ASSERT_EQ(again.positions.size(), model.positions.size());
   EXPECT_EQ(again.positions[123].x, model.positions[123].x);
-  // The chain is a VALUE: editing it re-describes a different model.
   chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
   const Mesh lifted = popops::cookMesh(chain, stamp);
   EXPECT_GT(lifted.positions[123].y, model.positions[123].y + 400.0f);
 }
 
 TEST(Pop, SweptSinksBendWithTheChain) {
-  // The chain's cooked points ARE the path: a noised circle scatter
-  // becomes a wobbly tube; the same description ribbons; a Math
-  // translate re-describes the whole model elsewhere.
+  // The chain's cooked POINTS are the path a sweep follows, so any operator
+  // that moves points also bends every swept surface built from the chain.
+  // The same description feeds a tube and a ribbon unchanged.
   pop::SplineScatter scatter;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
@@ -2106,7 +2316,9 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   glm::vec3 lo, hi;
   tube.bounds(&lo, &hi);
   EXPECT_GT(hi.y - lo.y, 20.0f) << "noise must bend the sweep off-plane";
-  EXPECT_NEAR(hi.x - lo.x, 624, 130); // ~circle + noise + radius
+  // 600 across the scattered circle, plus the tube radius on each side;
+  // the wide tolerance is the noise, which is free to push either way.
+  EXPECT_NEAR(hi.x - lo.x, 624, 130);
 
   const Mesh ribbon =
       popops::cookRibbon(chain, 60, {.closed = true, .segments = 160});
@@ -2126,12 +2338,16 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
   }
-  // One breath: entry verb, intent verbs, a sink — every default loud.
+  // The builder spelling is one expression: an entry verb, the operators,
+  // and a terminal verb that cooks. Every parameter has a default, so a
+  // chain can be written without naming any of them.
   const Mesh wobble =
       pop::on(loop).count(64).noise(30).tube(10, 8, true);
   EXPECT_GT(wobble.triangleCount(), 500u);
 
-  // The builder IS the chain: nothing hides, edits stay open.
+  // The builder holds nothing the chain does not: it converts to a
+  // pop::Chain whose operators are still ordinary values, so a chain built
+  // fluently can still be taken apart and edited afterwards.
   pop::Chain c = pop::on(loop)
                      .count(10)
                      .spread(5)
@@ -2143,6 +2359,11 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
 }
 
 
+// Smooth must undo what noise did to the local shape of the path, measured
+// as the summed discrete second difference along the points — the quantity
+// that shows up as kinks in anything swept along them. Halving it is a loose
+// bar deliberately: the check is that smoothing acts on neighbours at all,
+// not that it reaches a particular amount.
 TEST(Pop, SmoothHealsNoiseKinks) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
@@ -2187,13 +2408,17 @@ TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   EXPECT_GT(swept.triangleCount(), 1500u);
   glm::vec3 lo, hi;
   swept.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.x - lo.x, 2 * (220 + 24), 30); // ring + star arms
-  EXPECT_GT(hi.y - lo.y, 20.0f); // the profile stands off the plane
+  // The swept profile is carried in the frame's normal plane, so the star's
+  // longest arm adds its radius on each side of the 220 scatter circle...
+  EXPECT_NEAR(hi.x - lo.x, 2 * (220 + 24), 30);
+  // ...and stands out of the loop's own plane rather than lying flat in it.
+  EXPECT_GT(hi.y - lo.y, 20.0f);
 }
 
 
 TEST(Pop, ChainsComposeIntoEachOther) {
-  // Pops feed pops: chain A's cooked result IS chain B's path.
+  // A chain is accepted anywhere a path is: chain A's cooked points become
+  // chain B's path, so operators compose without a separate combinator.
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2203,8 +2428,8 @@ TEST(Pop, ChainsComposeIntoEachOther) {
       pop::on(loop).count(48).noise(26).smooth(0.5f);
   const Cloud beads = pop::on(spine).count(300).spread(6).cloud();
   EXPECT_EQ(beads.size(), 300u);
-  // The beads inherit A's off-plane noise — they ride the composed
-  // path, not the raw circle.
+  // The beads inherit A's off-plane noise, which proves they were scattered
+  // along the composed path and not along the flat circle it started from.
   float yMin = 1e9f, yMax = -1e9f;
   for (const glm::vec3 &p : beads.positions) {
     yMin = std::min(yMin, p.y);
@@ -2218,8 +2443,9 @@ TEST(Pop, ChainsComposeIntoEachOther) {
 
 
 TEST(Pop, ChainsSeedFromFormedModels) {
-  // The recursive loop: form a model, scatter ON its surface, form
-  // again — every stage one description.
+  // A formed Mesh is also a valid seed: scattering ON a cooked surface and
+  // forming again closes the loop, so a model can be built in stages
+  // without any stage being a special case.
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2251,16 +2477,18 @@ TEST(Curves, BannerHangsGravityUpright) {
   const Mesh band =
       curves::banner(loop, {.width = 50, .sections = 120});
   ASSERT_EQ(band.vertexCount(), 240u);
-  // Every cross-section's u=0 vertex sits ABOVE its u=1 partner: the
-  // width hangs vertical, never rolled.
+  // A banner hangs: its width is held vertical in world space rather than
+  // rolling with the curve's frame, which is what keeps text on it upright
+  // all the way round a closed loop. Vertices come in pairs per section, so
+  // the first of every pair must sit ABOVE its partner in y everywhere.
   for (size_t i = 0; i + 1 < band.positions.size(); i += 2)
     EXPECT_GT(band.positions[i].y, band.positions[i + 1].y);
 }
 
 TEST(Pop, ImportedModelsJoinTheSystem) {
-  // The loaders' output is the pop system's input: an imported model
-  // (the in-memory OBJ cube) both SEEDS a chain and serves as a
-  // STAMP — no special casing, Mesh is Mesh.
+  // An imported model is an ordinary Mesh, so it can both SEED a chain (be
+  // scattered on) and serve as a STAMP (be instanced along one). Nothing in
+  // either path distinguishes a loaded mesh from a generated one.
   const std::string obj = kCubeObj;
   auto model = import::model(obj.data(), obj.size(), "cube.obj");
   ASSERT_TRUE(model.has_value());
@@ -2288,8 +2516,10 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
 }
 
 TEST(Pop, NamedAttributesFlowAndExport) {
-  // TD's superpower: any NAME is an attribute. Create one, noise it,
-  // scale it into Scale via Math-on-custom... and read it all back.
+  // Any NAME is an attribute: an operator that takes a lane takes a custom
+  // one on equal terms with the built-in ones, so a lane can be created,
+  // jittered and scaled by the same ops the standard lanes use, and it
+  // exports under the name it was given.
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2310,14 +2540,18 @@ TEST(Pop, NamedAttributesFlowAndExport) {
     hi = std::max(hi, e.r);
   }
   EXPECT_GT(hi, lo + 0.1f); // jittered, not constant
-  EXPECT_GT(lo, 0.4f);      // 2 * (0.5 - 0.25) bounds
+  // Jitter is bounded by its amplitude, so the lane stays in
+  // 0.5 +/- 0.25 before the Math op doubles it into 0.5 .. 1.5.
+  EXPECT_GT(lo, 0.4f);
   EXPECT_LT(hi, 1.6f);
 }
 
 TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
-  // The Lookup op: a value curve, not a palette. Colour is driven by
-  // P.y over an EXPLICIT domain, through three stops -- so the pin has
-  // to see the interpolation between them, not just the endpoints.
+  // rampBy is a value curve, not a palette: one lane's component indexes a
+  // table of stops over an EXPLICIT domain, and the result is written to
+  // another lane. With three stops the interesting behaviour is between
+  // them, so the checks sample the interpolation and the clamping, not just
+  // the stop values.
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2346,9 +2580,9 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
   EXPECT_NEAR(colorAtHeight(-100).b, lowStop.b, 1e-5f);
   EXPECT_NEAR(colorAtHeight(0).g, midStop.g, 1e-5f);
   EXPECT_NEAR(colorAtHeight(100).r, highStop.r, 1e-5f);
-  // BETWEEN two stops: quarter of the way up is halfway from low to
-  // mid, and nothing of the far stop has leaked in. This is the pin
-  // that a nearest-stop lookup could not pass.
+  // BETWEEN two stops: a quarter of the way up the domain is halfway from
+  // the low stop to the mid stop, with nothing of the far stop mixed in. A
+  // nearest-stop lookup would return a stop colour here instead.
   const glm::vec4 quarter = colorAtHeight(-50);
   EXPECT_NEAR(quarter.b, 0.5f, 1e-5f);
   EXPECT_NEAR(quarter.g, 0.5f, 1e-5f);
@@ -2361,7 +2595,9 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
   EXPECT_NEAR(colorAtHeight(1e4f).r, highStop.r, 1e-5f);
   EXPECT_NEAR(colorAtHeight(1e4f).g, 0.0f, 1e-5f);
 
-  // It reaches customs at BOTH ends -- read one lane, write another.
+  // Custom lanes work at BOTH ends: read a named lane, write a named lane,
+  // and the destination is created if it does not exist yet. The stops are
+  // ordinary values, not colours, so a lookup can drive any quantity.
   const pop::Chain custom =
       pop::on(loop)
           .count(16)
@@ -2375,9 +2611,10 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
 }
 
 TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
-  // The Sort op, permutation class. Two things must hold: the key
-  // really orders the points, and EVERY lane travels with its point --
-  // a sort that moved positions alone would silently shear the cloud.
+  // Sorting is a PERMUTATION of whole points. Two things must hold: the key
+  // really orders them, and every lane travels with its own point — a sort
+  // that moved positions alone would shear a cloud's colours and sizes onto
+  // the wrong points, which nothing downstream could detect.
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
@@ -2430,17 +2667,18 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
       }
   EXPECT_EQ(matched, rising.size()) << "every point must survive";
 
-  // 3. Descending is the same permutation reversed (keys are distinct
-  // here), which is the painter-order spelling: farthest first.
+  // 3. Descending is exactly the ascending permutation reversed. The keys
+  // here are distinct, so there are no ties to make that ambiguous. This is
+  // the painter-order spelling: farthest first.
   const Cloud falling = popops::cook(describe(true, true));
   ASSERT_EQ(falling.size(), rising.size());
   for (size_t i = 0; i < falling.size(); ++i)
     EXPECT_EQ(falling.positions[i],
               rising.positions[rising.size() - 1 - i]);
 
-  // 4. Chain order IS the swept path, so a sorted chain forms a
-  // DIFFERENT tube from the same points -- the reason Sort is an
-  // authoring verb here and not a display trick.
+  // 4. Point order IS the swept path, so sorting the same points forms a
+  // genuinely different tube. Sorting is therefore an authoring operation
+  // with geometric consequences, not just a draw-order adjustment.
   const Mesh unsorted = popops::cookTube(describe(false, false), 4);
   const Mesh threaded = popops::cookTube(describe(true, false), 4);
   ASSERT_EQ(unsorted.positions.size(), threaded.positions.size());
@@ -2451,14 +2689,15 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
 }
 
 TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
-  // ONE hash now (detail/Hash.h) feeds both the parity-locked pop
-  // scatter and Points' PRNG. These goldens were captured from the two
-  // separate copies that preceded it, so they fail if the shared
-  // definition drifts a single bit -- which would silently desync the
-  // CPU executor from the Slang kernels.
+  // One hash definition feeds both the pop operators and the point
+  // generators, and the GPU kernels reimplement the same function. These
+  // goldens are the exact bit patterns it produces: a single-bit change to
+  // the hash would desync the CPU results from the GPU ones with no other
+  // symptom, since both would still look like plausible randomness.
   //
-  // Pop side: Jitter with amplitude 0.5 on a zeroed lane IS
-  // hash1(i*3 + seed) - 0.5, undiluted.
+  // The values are readable straight out of the definition. Jitter with
+  // amplitude 0.5 on a zeroed lane is hash1(i * 3 + seed) - 0.5 with
+  // nothing else mixed in...
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
@@ -2477,7 +2716,8 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
   for (size_t i = 0; i < 6; ++i)
     EXPECT_NEAR((*h)[i].x, popGolden[i], 1e-7f) << "pop hash lane " << i;
 
-  // Points side: a unit-box scatter is the raw rand01 stream, in order.
+  // ...and a scatter into the unit box is the raw 0..1 stream in order,
+  // three draws per point.
   const Cloud box =
       points::scatterBox({0, 0, 0}, {1, 1, 1}, 4, /*seed=*/7);
   ASSERT_EQ(box.positions.size(), 4u);
@@ -2500,7 +2740,10 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
   }
   const pop::Chain chain = pop::on(loop).count(40).atlas(2, 2);
   const Mesh stamped = popops::cookMesh(chain, mesh::quad(8, 8));
-  // Every stamped point's uvs land inside ONE half-size atlas cell.
+  // atlas(2, 2) divides the texture into a 2x2 grid and assigns each point
+  // one cell, remapping its stamp's uvs into that cell. So every stamp's
+  // uvs span exactly half the range in each axis and sit wholly inside one
+  // cell — a stamp straddling a cell edge would sample two sprites at once.
   const size_t stampVerts = mesh::quad(8, 8).vertexCount();
   int cellsSeen[4] = {0, 0, 0, 0};
   for (size_t p = 0; p < 40; ++p) {
@@ -2516,8 +2759,9 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
     EXPECT_NEAR(vMax - vMin, 0.5f, 1e-4f);
     cellsSeen[(uMin > 0.25f ? 1 : 0) + (vMin > 0.25f ? 2 : 0)]++;
   }
+  // Every one of the 40 points fell into one of the four cells.
   EXPECT_GT(cellsSeen[0] + cellsSeen[1] + cellsSeen[2] + cellsSeen[3],
-            39); // all classified
+            39);
   int distinct = 0;
   for (int c : cellsSeen)
     distinct += c > 0 ? 1 : 0;
@@ -2528,10 +2772,14 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
 
 namespace {
 
-/** Two triangles splitting a 100x100 square along the (-,-)->(+,+)
- *  diagonal, wound CCW in the y-up world so both survive backface
- *  culling. Triangle 0 is the lower-right half, triangle 1 the upper
- *  left — the flat-tint test samples one pixel inside each. */
+/** Two triangles splitting a 100x100 square along the (-,-) to (+,+)
+ *  diagonal. Front faces are wound counter-clockwise in this y-up world, and
+ *  both triangles here are, so neither is dropped by backface culling.
+ *
+ *  Triangle 0 covers the half below the diagonal and triangle 1 the half
+ *  above it; in the rendered image, with y increasing DOWNWARD on the
+ *  canvas, those are the lower-right and upper-left halves respectively.
+ *  Tests that sample a pixel per triangle depend on that mapping. */
 Mesh splitQuad() {
   Mesh m;
   m.positions = {{-50, -50, 0}, {50, -50, 0}, {50, 50, 0}, {-50, 50, 0}};
@@ -2552,7 +2800,8 @@ TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
       << "\"Color\" creates white";
   a.prim("heat", {0, 0, 0, 0})[1] = {9, 0, 0, 0};
 
-  // Appending a lane-less mesh pads OUR lanes by name convention.
+  // Appending a mesh with no prim lanes still pads ours, by the same name
+  // convention, so the lane stays sized to triangleCount().
   Mesh b = splitQuad();
   a.append(b);
   ASSERT_EQ(a.triangleCount(), 4u);
@@ -2560,7 +2809,9 @@ TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
   EXPECT_EQ((*a.primIf("Color"))[2], (glm::vec4{1, 1, 1, 1}));
   EXPECT_EQ((*a.primIf("heat"))[3], (glm::vec4{0, 0, 0, 0}));
 
-  // ...and the other direction: THEIR lane pads over our old triangles.
+  // ...and in the other direction, a lane only THEY have is padded back
+  // over our existing triangles so their values still start at our old
+  // triangle count.
   Mesh c = splitQuad();
   c.prim("heat", {0, 0, 0, 0})[0] = {5, 0, 0, 0};
   a.append(c);
@@ -2579,7 +2830,9 @@ TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
   m.prim("Color")[0] = {1, 0, 0, 1};
   m.prim("Color")[1] = {0, 0, 1, 1};
   const Mesh baked = mesh::bakePrimColor(m, "Color");
-  // Vertices unshared: three per triangle, indices renumbered.
+  // A flat per-face colour cannot be expressed on shared vertices, so the
+  // bake unwelds: every triangle gets its own three vertices and the
+  // indices are renumbered to match.
   ASSERT_EQ(baked.vertexCount(), 6u);
   ASSERT_EQ(baked.triangleCount(), 2u);
   ASSERT_EQ(baked.colors.size(), 6u);
@@ -2588,12 +2841,14 @@ TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
     EXPECT_FLOAT_EQ(baked.colors[k].b, 0.0f);
     EXPECT_FLOAT_EQ(baked.colors[3 + k].b, 1.0f);
     EXPECT_FLOAT_EQ(baked.colors[3 + k].r, 0.0f);
-    // The pre-existing vertex colour multiplies through.
+    // The face colour MULTIPLIES into whatever vertex colour was already
+    // there rather than replacing it, so the original alpha survives.
     EXPECT_FLOAT_EQ(baked.colors[k].a, 0.5f);
   }
   EXPECT_EQ(baked.positions[3], m.positions[0]) << "triangle order kept";
   EXPECT_TRUE(baked.primIf("Color")) << "lanes survive the unweld";
-  // A missing lane is a no-op, not a corruption.
+  // Naming a lane that does not exist leaves the mesh alone — still welded,
+  // still valid — rather than unwelding it or clearing its colours.
   EXPECT_EQ(mesh::bakePrimColor(m, "absent").vertexCount(), 4u);
 }
 
@@ -2619,7 +2874,8 @@ TEST(Space, PrimColorLaneTintsTrianglesFlat) {
     return bm;
   };
 
-  // Control: no lane named, both halves shade identically.
+  // Control: with no lane named the two halves are the same colour, so the
+  // difference measured below can only come from the lane.
   const SkBitmap plain = render(style);
   EXPECT_EQ(plain.getColor(120, 95), plain.getColor(79, 54));
 
@@ -2630,13 +2886,21 @@ TEST(Space, PrimColorLaneTintsTrianglesFlat) {
   EXPECT_GT(SkColorGetR(lowerRight), SkColorGetB(lowerRight) + 40u);
   EXPECT_GT(SkColorGetB(upperLeft), SkColorGetR(upperLeft) + 40u);
 
-  // The Normals G-buffer is a BUFFER: the tint must not touch it.
+  // The Normals mode writes a G-buffer, whose pixels are data to be decoded
+  // by a later shading pass, not a picture. A colour tint applied there
+  // would silently corrupt the normals it encodes, so the lane must be
+  // ignored outside lit rendering.
   style.mode = space::MeshStyle::Mode::Normals;
   space::MeshStyle bare = style;
   bare.primColorLane.clear();
   EXPECT_EQ(render(style).getColor(120, 95), render(bare).getColor(120, 95));
 }
 
+// promote() moves a POINT lane onto the PRIMITIVES a point becomes: every
+// triangle of a point's stamp carries that point's value. It is only
+// meaningful where the output geometry can be traced back to a point, which
+// is instancing — the swept sinks resample the chain into new geometry that
+// no longer corresponds to points one for one, so they promote nothing.
 TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
@@ -2653,7 +2917,8 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
                                .promote("Id", "Id")
                                .promote(pop::Lane::Scale, "size");
 
-  // The point sink is untouched: a Cloud has no primitive class.
+  // Cooking to a Cloud is unaffected: points have no primitives, so a
+  // promote in the chain is simply inert there.
   const Cloud cooked = popops::cook(chain);
   ASSERT_EQ(cooked.size(), (size_t)kPoints);
 
@@ -2676,13 +2941,15 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
       // Every triangle of a stamp carries its owning POINT's values...
       EXPECT_EQ((*color)[tri], (*tint)[p]);
       EXPECT_FLOAT_EQ((*size)[tri].x, (*sizes)[p]);
-      // ...and "Id" is the owning point itself: one piece, one value.
+      // ..."Id" is the owning point's index, so every triangle of one stamp
+      // reports the same id and different stamps report different ones —
+      // this is what lets a shader address a whole instance.
       EXPECT_FLOAT_EQ((*id)[tri].x, (float)p);
     }
-  // The ramp really varied, so this is not a constant-lane tautology.
+  // The source lane really did vary along the chain, so the equalities
+  // above are not comparing a constant against itself.
   EXPECT_GT((*color)[model.triangleCount() - 1].b, (*color)[0].b + 0.5f);
 
-  // Class boundary: the swept sinks resample, so they promote nothing.
   EXPECT_TRUE(popops::cookTube(chain, 4).prims.empty());
 }
 
@@ -2692,7 +2959,10 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   m.prim("Color")[1] = {0, 0.25f, 0, 1};
   const std::string text = save::ply(m);
   ASSERT_FALSE(text.empty());
-  // Declared on the FACE element, after the index list.
+  // Prim lanes are per-triangle, so they are declared on the FACE element,
+  // and after the vertex_indices list because that is the order the rows
+  // are written in. A reader walks properties in declaration order, so
+  // header order and row order have to agree.
   const size_t face = text.find("element face 2");
   const size_t list = text.find("property list uchar int vertex_indices");
   const size_t prop = text.find("property float Color_r");
@@ -2704,8 +2974,10 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   // ...and written on each face row, after the three indices.
   EXPECT_NE(text.find("3 0 1 2 1 0 0 1\n"), std::string::npos);
   EXPECT_NE(text.find("3 0 2 3 0 0.25 0 1\n"), std::string::npos);
-  // Geometry still round-trips through our own importer, which skips
-  // face properties it does not know (prim lanes are export-only).
+  // Adding face properties must not disturb the geometry: the written file
+  // still reads back through this library's own importer with its triangles
+  // intact. (That the prim VALUES also survive the trip is checked
+  // separately, in PlyRoundTripsPrimitiveLanes.)
   auto back = import::model(text.data(), text.size(), "prims.ply");
   ASSERT_TRUE(back.has_value());
   ASSERT_EQ(back->parts.size(), 1u);

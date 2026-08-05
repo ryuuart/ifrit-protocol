@@ -2,11 +2,11 @@
 // =============================================================================
 // A blur whose sigma is a FUNCTION OF POSITION. Every panel holds the same
 // content and the same maximum sigma; only the MAP differs, and the map is an
-// ordinary Material — which is the whole point of the design (ROADMAP §19):
-// unit-space ramps already answer "authored against a box the layout
-// decides", so a focal falloff is one line and needs no pixel arithmetic.
+// ordinary Material — which is the whole point: unit-space ramps are already
+// authored against whatever box the layout decides, so a focal falloff is one
+// line and needs no pixel arithmetic.
 //
-//   1 the constant blur, what this replaced: all legible or none of it.
+//   1 a constant blur, for contrast: all legible or none of it.
 //   2 DEPTH OF FIELD — a 3-stop linearUnit down the box.
 //   3 A LENS EDGE — glowUnit from the centre: sharp on axis, soft at the rim.
 //   4 RACK FOCUS — the same map, maxSigma BOUND: no re-describe.
@@ -22,10 +22,10 @@
 //                only the FALLOFF changes: the effect, the content and the
 //                node are untouched.
 //
-// The three ways things move (hello.cpp): panel 4 is door 2 (driven). The
-// bound Output IS the volatility declaration — a live map or a live maxSigma
-// lifts the whole effect to live, so no bake can sample the parameter once
-// and freeze it.
+// Of the three ways a scene can move (see hello.cpp), panel 4 is the driven
+// one: nothing re-describes, an Output does the moving. The bound Output IS
+// the volatility declaration — a live map or a live maxSigma lifts the whole
+// effect to live, so no bake can sample the parameter once and freeze it.
 
 #include <sigilsketch/Sketch.h>
 

@@ -40,8 +40,9 @@ namespace {
 
 /** An inherited type is a comparable VALUE. Structural and exact — that is
  *  what makes `propsEqual` the dependency tracker. No std::function lives
- *  in here: an incomparable member would make every memo below a permanent
- *  miss (API.md rule 3). Derivations are RUN and STORED. */
+ *  in here: a member that cannot compare equal to itself would make every
+ *  memo below a permanent miss, because the props of every reading node
+ *  would look changed on every describe. Derivations are RUN and STORED. */
 struct Palette {
   std::string name = "chip()'s own default";
   SkColor4f surface{0.16f, 0.17f, 0.21f, 1};

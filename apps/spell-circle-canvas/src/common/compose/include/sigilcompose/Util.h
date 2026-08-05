@@ -1,10 +1,11 @@
 #pragma once
 
 /** @file
- * SigilCompose util tier — deliberately-demoted sugar a user could write
- * themselves (see DESIGN.md "Kernel, util, extensions — the weight
- * budget"). Depends only on the kernel + decoration primitives; optional
- * by definition.
+ * SigilCompose util tier — sugar a caller could write themselves, kept out
+ * of the kernel on purpose. Everything here is a free function or an
+ * aggregate over the public API, depending only on the kernel and the
+ * decoration primitives, so including this header is optional and skipping
+ * it costs a few lines rather than a capability.
  */
 
 #include "sigilcompose/Compose.h"
@@ -46,10 +47,10 @@ inline Fill radialGradient(SkPoint center, float radius,
                  {})));
 }
 
-/** A box of `radius` about `centre` — the polar-chart placement, since
- *  every inscribed-in-the-box generator (sector, arc, circle, star) needs
- *  `width(2r).height(2r).centerAt(c)` spelled out at every call site.
- *  Two study sketches wrote this locally before it existed. */
+/** A box of `radius` about `centre` — the polar-chart placement. Every
+ *  inscribed-in-the-box generator (sector, arc, circle, star) otherwise
+ *  needs `width(2r).height(2r).centerAt(c)` spelled out at its call
+ *  site. */
 inline Element disc(SkPoint centre, float radius) {
   return box()
       .width(Dim(radius * 2))
@@ -58,8 +59,8 @@ inline Element disc(SkPoint centre, float radius) {
 }
 
 /** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
- *  arithmetic that fifteen call sites in the corpus write out, as a VALUE
- *  you can then inset, union, or hand to `Element::rect()`.
+ *  arithmetic as a VALUE you can then inset, union, or hand to
+ *  `Element::rect()`.
  *
  *  Not a replacement for `centerAt()`: that centres a node on its MEASURED
  *  size after layout, which is the right tool when the node sizes itself.
@@ -67,8 +68,7 @@ inline Element disc(SkPoint centre, float radius) {
  *  — the panel geometry a caption, a rule and a shadow all read from.
  *
  *  There is deliberately no `xywh()` or `ltrb()` wrapper here:
- *  `SkRect::MakeXYWH` and `SkRect::MakeLTRB` already name those, and
- *  wrapping a Skia spelling in a shorter Skia spelling is not extraction. */
+ *  `SkRect::MakeXYWH` and `SkRect::MakeLTRB` already name those. */
 inline SkRect centred(SkPoint c, float w, float h) {
   return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
 }
@@ -106,16 +106,17 @@ struct Shadow {
   float maxBind = 0.0f;
 
   /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
-   *  shadow, so nothing paints under the node — translucent glass over a
-   *  knocked-out shadow stays clear instead of sampling its own murk (the
-   *  aero-study backdrop finding). */
+   *  shadow, so nothing paints under the node. A translucent node over a
+   *  knocked-out shadow stays clear instead of sampling its own shadow
+   *  through itself. */
   bool knockout = false;
 
   bool operator==(const Shadow &) const = default;
   bool isAnimated() const { return bindOffsetX || bindOffsetY; }
-  /** Paint reach beyond the node's bounds (recording cull grows by this) —
-   *  the aero-study fix: big soft shadows must not be culled at the node's
-   *  picture-cache bounds. */
+  /** Paint reach beyond the node's bounds; the recording's cull rect grows
+   *  by this. Under-report it and a big soft shadow is clipped at the
+   *  node's picture-cache bounds, which is why the bound range has to be
+   *  declared through `maxBind` — bleed() cannot read a future value. */
   float bleed() const {
     return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) +
            blur;
@@ -162,10 +163,11 @@ inline Element marquee(Element content,
 }
 
 /** The width-pinned marquee: each copy rides in a fixed `contentWidth`
- *  box, so text content can NEVER wrap against the clip viewport (the
- *  kinetic-study bug: an unpinned strip resolves against the clip box and
- *  wraps to two lines). Measure once — `ctx.measure(strip).width()` — and
- *  pass it here; wrap the phase over [-(contentWidth + gap), 0]. */
+ *  box, so text content can NEVER wrap against the clip viewport. An
+ *  unpinned strip resolves its width against the clip box instead and
+ *  wraps to two lines, which is what the overload above risks with text.
+ *  Measure once — `ctx.measure(strip).width()` — and pass it here; wrap
+ *  the phase over [-(contentWidth + gap), 0]. */
 inline Element marquee(Element content, float contentWidth,
                        const choreograph::Output<float> *phase,
                        float gap = 0.0f) {

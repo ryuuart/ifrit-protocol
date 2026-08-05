@@ -1,7 +1,7 @@
 /** @file
  * layoutParagraph() placement: alignment, justification,
  * mandatory breaks, exclusion/line-set/path flows, plus the
- * Blink-inspired typographic correctness invariants.
+ * typographic correctness invariants a shaping engine must hold.
  */
 
 #include "TestSupport.h"
@@ -250,9 +250,12 @@ TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
       << "advanceScale should compress the arc the text subtends";
   EXPECT_NEAR(full, half * 2.0f, full * 0.25f);
 }
-// ── Typographic correctness (Blink/HarfBuzzShaperTest-inspired) ──────────
-// The invariants Chrome's text stack enforces in its shaper/layout unit
-// tests, adapted to SigilWeave's word model.
+// ── Typographic correctness ──────────────────────────────────────────────
+// Script- and font-level invariants that hold regardless of layout options:
+// variable axes reach the shaper, clusters cover the text, joining and
+// combining behave, kinsoku holds for CJK, non-breaking space does not
+// break. They are stated over this engine's word model, so each one is a
+// statement about Word / WordSegment rather than about raw shaper output.
 
 TEST(Correctness, VariableAxesReachHarfBuzz) {
   // A multi-axis variable instance must shape with the same complete design
@@ -460,7 +463,8 @@ TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
         paragraph.words()[firstRun.wordIndex].spaceWidth;
     if (naturalSpaceWidth <= 0)
       continue;
-    // Shrink is clamped at the glue's shrink limit (glueShrink = 1/3).
+    // Shrink is clamped at JustificationOptions::spaceShrink, a fraction of
+    // the natural space width, which defaults to one third.
     EXPECT_GT(gapWidth, naturalSpaceWidth * (1.0f - 0.34f) - 0.25f)
         << "space collapsed past the shrink limit on line "
         << firstRun.lineIndex;

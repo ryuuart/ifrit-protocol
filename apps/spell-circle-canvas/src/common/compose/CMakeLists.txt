@@ -1,10 +1,8 @@
 # SigilCompose — data-driven, cacheable, animated drawable components
-# over Yoga + SigilWeave + Choreograph/SigilMotion + Skia. DESIGN.md is the
-# architecture, API.md the surface, STRESS_TESTS.md the acceptance
-# catalog. This is the phase-1 kernel: element values, keyed
-# reconciler, Yoga layout with SigilWeave-measured text, stacking paint,
-# automatic picture caching of provably-static subtrees, and
-# Choreograph transitions/bindings.
+# over Yoga + SigilWeave + Choreograph/SigilMotion + Skia: element values,
+# a keyed reconciler, Yoga layout with SigilWeave-measured text, stacking
+# paint, automatic picture caching of provably-static subtrees, and
+# Choreograph transitions/bindings. README.md is the canon.
 add_library(SigilCompose STATIC
   Compose.cpp
   Composer.cpp
@@ -69,20 +67,18 @@ else()
   message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
 endif()
 
-# Nine contiguous slices of what was one 12.6k-line ComposeTest.cpp —
-# byte-identical test bodies in original order, sharing
-# test/ComposeTestSupport.h (the Host harness and helpers). Named by each
-# slice's dominant theme; suites interleave across slices because the
-# original file grew chronologically, and reshuffling 440 tests by suite
-# was judged a bigger risk than a name that is only mostly right.
-# The docs' documented names, compiled against the headers that own them.
-# ROADMAP §25: the hand-transcribed `ComposeDocs.EverySignature…` guards
-# cover the sections someone remembered to transcribe, which is how a
-# `PathFormat{.effects = …}` that does not compile reached page one. This
-# TU is GENERATED from the docs on every build, so a new section is covered
-# the moment it is written and a rename that the prose misses is a build
-# break rather than a confident wrong answer. The generator FAILS on a
-# documented name no header declares — the guard cannot go quiet.
+# The kernel tests, split across files by dominant theme and sharing the
+# harness in test/ComposeTestSupport.h. Suites interleave across the files
+# rather than each file holding one suite, so search for a test by name
+# rather than guessing which file owns it.
+# Every API name the README spells, compiled against the headers that own
+# it. A hand-written guard only covers the sections someone remembered to
+# transcribe, which is how documentation that does not compile reaches a
+# reader. This TU is GENERATED from the document on every build, so new
+# prose is covered the moment it is written and a rename the prose misses
+# is a build break rather than a confident wrong answer. The generator
+# FAILS on a documented name no header declares — the guard cannot go
+# quiet.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(COMPOSE_API_DOC_PROBES
     ${CMAKE_CURRENT_BINARY_DIR}/ComposeApiDocProbes.cpp)
@@ -92,20 +88,27 @@ add_custom_command(
   OUTPUT ${COMPOSE_API_DOC_PROBES}
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
-          --md ${CMAKE_CURRENT_SOURCE_DIR}/API.md
-          --md ${CMAKE_CURRENT_SOURCE_DIR}/DESIGN.md
-          --md ${CMAKE_CURRENT_SOURCE_DIR}/STRESS_TESTS.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           --include ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/API.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/DESIGN.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/STRESS_TESTS.md
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           ${COMPOSE_PUBLIC_HEADERS}
-  COMMENT "Extracting the compose docs' documented names into compile probes"
+  COMMENT "Extracting the README's documented names into compile probes"
   VERBATIM)
+
+# The generator's own fixtures (--self-test): a real name must yield a
+# probe, an unreal one must fail the run, an operator spelling must be
+# exempted AND reported by name, and an EXTERNAL_CLASSES member must take
+# the class-scope probe path. One Python invocation, no C++ — and the only
+# check that notices the EXTRACTOR narrowing, since a generator that
+# silently probes less still emits a probe TU that compiles green.
+add_test(NAME compose_api_doc_probes_self_test
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
+          --self-test)
 
 add_executable(compose_test
   ${COMPOSE_API_DOC_PROBES}

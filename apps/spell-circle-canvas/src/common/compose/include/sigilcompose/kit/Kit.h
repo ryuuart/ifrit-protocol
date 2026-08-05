@@ -5,31 +5,39 @@
  *
  * The kit is a layer ON TOP of SigilCompose that changes none of it: no
  * new `ElementNode` state, no new reconciler equality, no new paint path.
- * Every component here is a free function or a designated-init aggregate
- * over the shipped API, which is what makes the bar different from the
- * core extraction test's (DESIGN.md §Growth rules; evidence in
- * `archive/EXTRACT.md`). A wrong entry in the core API is permanent — the
- * corpus's monument to that is the `stickerScatter` DELETION RECORD in
- * `Layouts.h`: zero users, refused in writing by the one scene that
- * wanted it, then deleted; the record outlived the code because the
- * record is what the code was worth. A wrong kit component is simply not
- * included by the next study and costs nothing.
+ * Every component is a free function or a designated-init aggregate over
+ * the public API.
  *
- * The bar that IS enforced here: **three or more real hand-rolls in the
- * corpus, cited file:line, before anything is built.** Every header names
- * its evidence in its first thirty lines.
+ * That boundary is enforced by the build, not by convention. The kit is
+ * its own CMake library, `SigilComposeKit`, whose only include path is
+ * SigilCompose's public headers — so a kit component cannot reach a
+ * library internal even by accident, and the public headers are proven
+ * sufficient by the fact that the kit compiles against nothing else.
  *
- * | header | component | evidence |
- * |---|---|---|
- * | `kit/Frame.h` | `Frame` — figure-local polar coordinates | 5 hand-rolls, 2 conventions |
- * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) | 4 hand-rolls |
- * | `kit/Divisions.h` | `ticks()` — a division ladder as one path | 6 hand-rolls |
- * | `kit/Divisions.h` | `chords()` — polygon sides as N contours | 3 uses, 2 files |
- * | `kit/PixelType.h` | the aliased bitmap-font bake | 3 hand-rolls, ~120 lines each |
- * | `kit/Legibility.h` | halo / shade / scrim | 7 sites, 6 files |
+ * The two tiers also differ in what a mistake costs. A wrong entry in the
+ * library's own API is effectively permanent, because callers depend on
+ * its spelling; a wrong kit component is simply not `#include`d by the
+ * next caller. So the bar here is lower on taste and specific on evidence:
+ * a component is built when the same few lines have been written by hand
+ * several times over, not when it would be nice to have.
+ *
+ * | header | component |
+ * |---|---|
+ * | `kit/Frame.h` | `Frame` — figure-local polar coordinates |
+ * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) |
+ * | `kit/Divisions.h` | `ticks()` — a division ladder as one path |
+ * | `kit/Divisions.h` | `chords()` — polygon sides as N contours |
+ * | `kit/PixelType.h` | the aliased bitmap-font bake |
+ * | `kit/Legibility.h` | halo / shade / scrim |
+ *
+ * **`kit/Strokes.h` IS NOT INCLUDED HERE, AND THIS UMBRELLA DOES NOT GIVE
+ * YOU IT.** That header carries the stroke grammar — `kit::brush::shapers`,
+ * `kit::profile`, `kit::strands`, `kit::spans`, `kit::shapes`, and the
+ * `kit::brush::presets` — and including this file brings in none of those
+ * names. Include `sigilcompose/kit/Strokes.h` directly when you want them.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
- * `console::panel` + `console::monoStyle` (`Console.h`) and
+ * `console::panel` and `console::monoStyle` (`Console.h`) and
  * `debug::check` / `report` / `failures` (`Debug.h`) are the verification
  * plate; `studio::hex` / `type` / `pickFace` / `ramp` / `fmt`
  * (`Studio.h`) are the prelude; `util::stroke` / `disc` / `centred`

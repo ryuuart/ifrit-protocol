@@ -1,24 +1,20 @@
 #pragma once
 
 /** @file
- * SigilCompose debug assertions for GENERATED geometry.
+ * SigilCompose checks for GENERATED geometry — tilings, subdivisions,
+ * lattices, pavings: the constructions whose correctness is a property of a
+ * rule rather than of anything you can see at a glance.
  *
- * Studies in this library keep generating tilings, subdivisions, lattices
- * and pavings from closed-form rules, and then have no way to check the
- * rule. The Penrose paving study wrote four checks by hand — vertex angle
- * sums, arc-endpoint degree, tangent continuity, and coverage — and
- * reported the thing worth generalising:
+ * Why point-sampled coverage rather than something cheaper: the two obvious
+ * cheap checks both PASS on a subdivision that overlaps in one place and
+ * gaps in another. Total-area conservation passes because an overlap and a
+ * gap of equal area cancel exactly, and containment passes because every
+ * child really does lie inside its parent. Sampling the region is what
+ * separates them, because it asks each point how many pieces claim it.
  *
- *     the two CHEAP checks both pass on a subdivision that overlaps in
- *     one place and gaps in another.
- *
- * Area conservation passes because an overlap and a gap of equal area
- * cancel exactly. Containment passes because every child really is inside
- * its parent. Only point-sampled coverage catches it, and every agent
- * rebuilding a tiling was about to write that sampler again.
- *
- * These are for tests, sketches and `--verify` paths, not for the paint
- * loop: coverage() is O(samples × candidate pieces).
+ * This header is for tests, sketches and verification passes, not for the
+ * paint loop: coverage() costs O(samples × candidate pieces), and the
+ * rasterizing helpers allocate a surface per call.
  */
 
 #include "sigilcompose/Compose.h"
@@ -118,11 +114,13 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
 /** Coverage over an arbitrary REGION rather than a rect.
  *
  *  An annulus, a sector, a plate — anything whose outline is not a box —
- *  cannot be tested against `region.bounds()` without counting the parts
- *  outside it as gaps. Note the reference region should be built from the
- *  SAME vertices as the pieces where it can be: testing a polyline
- *  tiling against a true circle reports the chord error as phantom gaps
- *  (it reported 62 of them, first try, on a ring of zodiac cells). */
+ *  cannot be tested against `region.bounds()` without counting everything
+ *  outside it as a gap.
+ *
+ *  Build the reference region from the SAME vertices as the pieces wherever
+ *  you can. A tiling made of polylines tested against a true circle reports
+ *  the chord error between them as a ring of phantom gaps, which looks
+ *  exactly like a real defect. */
 inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
                          int grid = 128, size_t witnesses = 8) {
   Coverage out;
@@ -166,29 +164,30 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
 }
 
 /** Every distinct endpoint in @p pieces, with how many pieces touch it,
- *  within @p tolerance. The chaining test for decorated tilings: on the
- *  Oxford Penrose paving every interior arc endpoint must have degree 2,
- *  or the stainless bands do not link up. */
+ *  within @p tolerance. The chaining test for decorated tilings: when arcs
+ *  drawn on the tiles are meant to link into continuous bands, every
+ *  interior endpoint must have degree 2 and any other number is a break. */
 struct VertexDegrees {
   std::vector<SkPoint> points;
   std::vector<int> degree;
   /** How many CLOSED contours were seen. A closed contour has no
-   *  endpoints, so it contributes none — and saying so matters: a ring of
-   *  72 closed sectors used to come back as 72 points of degree 1, which
-   *  is neither right nor wrong, just meaningless. If this is nonzero and
-   *  `points` is empty, the input is all closed and this test does not
-   *  apply to it. */
+   *  endpoints and contributes no points at all, which is why this count
+   *  is reported separately: if it is nonzero and `points` is empty, the
+   *  input is entirely closed and the degree test says nothing about it —
+   *  a result that would otherwise read as a clean pass. */
   size_t closedContours = 0;
   /** Which merged point each piece's endpoints landed on, two per
    *  contour in order — the adjacency `components()` needs. */
   std::vector<std::pair<size_t, size_t>> edges;
 
-  /** How many separate CONNECTED pieces the input is.
+  /** How many separate CONNECTED pieces the input is; 1 means it is all
+   *  one piece.
    *
-   *  "Is this one piece of metal?" is the question a decorated tiling, a
-   *  knot, a wire graph and an astrolabe rete all actually ask, and the
-   *  degree list alone cannot answer it — a study hand-rolled union-find
-   *  for exactly this. 1 means one piece. */
+   *  "Is this a single piece of metal?" is what a decorated tiling, a knot
+   *  or a wire graph is usually asking, and the degree list alone cannot
+   *  answer it — every endpoint can have the right degree while the figure
+   *  falls into two disjoint loops. This unions the `edges` adjacency to
+   *  find out. */
   size_t components() const {
     std::vector<size_t> parent(points.size());
     for (size_t i = 0; i < parent.size(); ++i)
@@ -290,20 +289,16 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
 // ---------------------------------------------------------------------------
 // Reading back what you actually drew
 
-/** A rasterised element tree, for measuring your own output.
- *
- *  Three studies hand-rolled the same forty lines — `SkSurfaces::Raster`
- *  plus `snapshot()` plus `readPixels` — to check a claim against the
- *  pixels rather than against the description that produced them. That is
- *  the strongest shape a verification can take, and nothing in `Debug.h`
- *  supported it: everything here was path-level.
+/** A rasterised element tree, for checking a claim against the PIXELS
+ *  rather than against the description that produced them — the strongest
+ *  form a verification here can take, since it tests what was actually
+ *  drawn.
  *
  *  **The default colour type is F16, and that is the non-obvious half.**
- *  A slit-scan study measuring an intensity falloff found its outer
- *  streak at 1/120 of the apex, which N32 quantises to two levels — an
- *  8-bit read-back would have produced a confident wrong exponent rather
- *  than an obviously broken one. If you are measuring a RATIO, measure it
- *  in float. */
+ *  An 8-bit read-back quantises a faint value to a handful of levels, so a
+ *  falloff measured near the dark end returns a confidently wrong number
+ *  instead of an obviously broken one. If you are measuring a RATIO,
+ *  measure it in float. */
 struct Raster {
   SkBitmap bitmap;
 
@@ -331,10 +326,10 @@ inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
   if (!surface)
     return out;
   surface->getCanvas()->clear(background);
-  // snapshot() sizes by the root's CHILDREN, not the root's own dims —
-  // the trap that produced a silently wrong exponent for one study. The
-  // wrapper therefore carries EXPLICIT dims, so an `absolute().inset(0)`
-  // child fills the surface instead of resolving against nothing.
+  // snapshot() sizes by the root's CHILDREN and ignores the root's own
+  // dimensions, so the wrapper carries EXPLICIT dims and an explicit
+  // canvas size: without them an `absolute().inset(0)` child resolves
+  // against nothing and the read-back is of an empty surface.
   if (sk_sp<SkPicture> picture =
           snapshot(box()
                        .width((float)size.width())
@@ -349,46 +344,33 @@ inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
 }
 
 // ---------------------------------------------------------------------------
-// Saying whether it was right — the half that was missing
+// Saying whether it was right
 
 /** One claim, its evidence, and its verdict.
  *
- *  Every proving plate in this corpus proves itself on screen, and **not one
- *  of them can be falsified by its own output**. `sigillum_aemeth` calls
- *  `debug::coverage` twice and then hand-formats a sentence about the
- *  result; `thunder_fulu` calls no `debug::` at all. Between them they make
- *  53 `fmt()` calls producing strings whose truth is not connected to the
- *  assertion — a plate that reads "RING GEOMETRY  EXACT" reads exactly the
- *  same whether it is or not.
- *
- *  `minard_1869.cpp:2580` independently invented the fix as a lambda, and
- *  that is the whole idea: the library supplied the MEASUREMENT and nothing
- *  supplied the REPORTING, so the two were joined by hand at every site and
- *  could drift apart at any of them. Here the printed verdict is computed
- *  from the same two values it prints.
- *
- *  The line saving is small (~130 lines over 5 studies). The point is that a
- *  study's claim stops being a sentence that happens to read well and
- *  becomes a value you can fail a build on — see `failures()`. */
+ *  The point is that the printed line is COMPUTED from the same two values
+ *  it reports. A hand-formatted caption saying "RING GEOMETRY EXACT" reads
+ *  identically whether the geometry is exact or not, because the sentence
+ *  and the measurement are joined only by whoever typed them; here they
+ *  cannot drift apart. And because the verdict is a value rather than a
+ *  string, a set of them can fail a build — see `failures()`. */
 struct Check {
   std::string label;
   std::string expected, actual; ///< already formatted, for printing
   bool pass = false;
 
   /** `  <label padded> <actual, right-aligned>   PASS`, or
-   *  `… FAIL want <expected>` — `"  %-44s %8ld   %s"`, which is the format
-   *  `minard_1869.cpp:2580` snprintf'd by hand, plus the half it could not
-   *  print. Values right-align because a proving plate is a table and a
-   *  ragged number column is unreadable at 8 pt.
+   *  `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. Values
+   *  right-align because a column of results is a table, and a ragged
+   *  number column is hard to scan at small type.
    *
-   *  The `want` clause is the point. Minard's version prints the computed
-   *  number and the word DIFF, and a reader cannot act on that: it says
-   *  something is wrong and not what would have been right.
+   *  The `want` clause matters: a failure that prints only the computed
+   *  number says something is wrong without saying what would have been
+   *  right, which a reader cannot act on.
    *
-   *  Long labels are NOT truncated. `sigillum_aemeth.cpp:1719` documents
-   *  losing four checks' units and one closing paren to a console column
-   *  that silently clipped at 46 characters; a proving plate that hides
-   *  half of a claim is worse than one that wraps. */
+   *  Long labels are NOT truncated — they push the value column right
+   *  instead. A clipped label silently loses the units or the qualifier at
+   *  the end of a claim, which is worse than a line that wraps. */
   std::string line(int labelWidth = 44, int valueWidth = 8) const {
     std::string out = "  " + label;
     if ((int)label.size() < labelWidth)
@@ -415,8 +397,8 @@ inline std::string fmtDouble(double v) {
 }
 } // namespace detail
 
-/** Integer identity — the conservation check (`422,000 − 22,000 == 400,000`
- *  on Minard's own engraved numbers).
+/** Integer identity — the conservation check, where two counts must agree
+ *  exactly.
  *
  *  Constrained to integral types on purpose. A plain `long` parameter would
  *  swallow `check("r", 257.972, measured)` through an implicit truncation
@@ -430,9 +412,9 @@ Check check(std::string label, T expected, U actual) {
 }
 
 /** Float agreement within @p tol. There is no default tolerance on purpose:
- *  a measured radius and a solved one agree to a number the study chose, and
- *  a library-chosen epsilon would be a claim the library is not entitled to
- *  make. */
+ *  how closely a measured value and a solved one must agree is a property
+ *  of the construction being checked, and an epsilon picked here would be a
+ *  claim this header is not entitled to make. */
 inline Check check(std::string label, double expected, double actual,
                    double tol) {
   Check c{std::move(label), detail::fmtDouble(expected),
@@ -455,10 +437,9 @@ inline Check check(std::string label, bool condition) {
 
 /** Append a check to a console ring, palette index chosen by the verdict.
  *
- *  The indices are parameters because the six hand-built plates do not agree
- *  on their palettes — `minard_1869` reads {dim, pass, fail, …} and
- *  `thunder_fulu` reads {dim, heading, pass, number, fail}. The defaults are
- *  minard's, being the plate that invented this. */
+ *  The two indices are parameters because `console::Style::palette` is an
+ *  unnamed vector — nothing here knows which slot a given caller means by
+ *  "pass" — so the defaults are only a convention, not a contract. */
 inline void report(console::LineRing &ring, const Check &c,
                    size_t passPalette = 1, size_t failPalette = 2,
                    int labelWidth = 44, int valueWidth = 8) {
@@ -467,8 +448,8 @@ inline void report(console::LineRing &ring, const Check &c,
               c.pass ? passPalette : failPalette);
 }
 
-/** How many of @p checks failed — a `--verify` exit code, and the thing that
- *  makes the plate's claims mean something off the screen. */
+/** How many of @p checks failed — an exit code for a verification run, and
+ *  what makes the claims mean something away from the screen. */
 inline int failures(std::span<const Check> checks) {
   int n = 0;
   for (const Check &c : checks)

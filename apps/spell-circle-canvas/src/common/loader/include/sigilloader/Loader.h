@@ -95,11 +95,14 @@ std::string networkCacheKey(std::string_view url);
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
  *
- * Loaded resources are cached per (uri, options); poll() re-stats every
- * previously requested resource and reloads the changed ones, returning
- * true so hosts can re-render (holders of old shared_ptrs keep the old
- * data — swap by re-asking). Failed lookups are NOT cached: a missing
- * file loads as soon as it appears.
+ * Each URI is cached as one entry whose blob, image, and channel views
+ * are independent: each populates the first time its accessor is asked,
+ * and asking for one never affects another. An image() ask with a layer
+ * or an explicit size is a different decode and gets its own entry.
+ * poll() re-stats every previously requested resource and reloads the
+ * changed ones, returning true so hosts can re-render (holders of old
+ * shared_ptrs keep the old data — swap by re-asking). Failed lookups
+ * are NOT cached: a missing file loads as soon as it appears.
  */
 class Hub {
 public:
@@ -122,13 +125,17 @@ public:
   /** How http(s):// asks may use the network (default: CacheFirst). */
   void setNetworkPolicy(NetworkPolicy policy);
 
-  /** Raw bytes; null when unresolvable/unreadable. */
+  /** Raw bytes; null when unresolvable/unreadable. Never decodes:
+   *  bytes load and cache whether or not any image codec accepts
+   *  them. */
   std::shared_ptr<const Blob> blob(std::string_view uri);
 
   /** UTF-8 text convenience over blob(). */
   std::optional<std::string> text(std::string_view uri);
 
-  /** Decoded image (stills and animations); null on failure. */
+  /** Decoded image (stills and animations); null on failure. Decodes
+   *  on this first ask, from bytes a prior blob() ask already cached
+   *  when they are present (no second read of the source). */
   std::shared_ptr<const sigil::image::ImageAsset>
   image(std::string_view uri, const ImageOptions &options = {});
 
@@ -139,7 +146,12 @@ public:
   channels(std::string_view uri);
 
   /** Metadata without a full decode (dimensions, channels, layers,
-   *  float-ness, animation frames); nullopt when unreadable. */
+   *  float-ness, animation frames); nullopt when unreadable.
+   *
+   *  const but neither cheap nor side-effect-free: every call performs
+   *  a full fetch of the resource and caches nothing in the hub. For a
+   *  network URI that can mean a network round trip and a write into
+   *  the disk cache directory. */
   std::optional<ResourceInfo> probe(std::string_view uri) const;
 
   /** Re-checks every previously loaded resource; reloads changes and
@@ -148,15 +160,42 @@ public:
   bool poll();
 
 private:
+  /** One cached resource. blob, image, and channels are independent
+   *  views, each populated the first time its accessor asks; asking
+   *  for bytes never decodes, and decoding never drops bytes already
+   *  served. An image decoded with a layer or explicit size lives in
+   *  its own entry (see cacheKey).
+   *
+   *  `uri` is the original request string. reload() and poll() use it
+   *  directly — a URI is never recovered by parsing a map key, so no
+   *  character a URI may contain can confuse them. `path` is where
+   *  the bytes came from (for http(s) URIs, the disk-cache file) and
+   *  doubles as the decode format hint.
+   *
+   *  `mtime` is what poll() compares. It is written when the entry is
+   *  created and when poll() reloads; an accessor that fetches fresh
+   *  bytes into an existing entry leaves it alone, so a file that
+   *  changed between two asks shows a stale stamp and the next poll()
+   *  re-decodes every populated view from one read, bringing the
+   *  views back into agreement. */
   struct Entry {
+    std::string uri;
     std::shared_ptr<const Blob> blob;
     std::shared_ptr<const sigil::image::ImageAsset> image;
     std::shared_ptr<const sigil::image::ChannelData> channels;
     ImageOptions imageOptions;
+    std::filesystem::path path;
     std::filesystem::file_time_type mtime{};
   };
 
-  bool reload(const std::string &key, Entry &entry);
+  bool reload(Entry &entry);
+
+  /** The map key for an ask: the URI alone for blob()/text()/
+   *  channels() and default-options image(); with a layer or size
+   *  set, the URI plus each option behind a '\0' separator — a byte
+   *  no URI that names a real resource can contain, so option
+   *  suffixes never collide with URI content. Keys are write-only:
+   *  nothing parses one back (entries carry their own uri). */
   static std::string cacheKey(std::string_view uri,
                               const ImageOptions *options);
 

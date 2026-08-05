@@ -1,6 +1,7 @@
-// The SigilCompose perf gate (run in Release): what describe, reconcile,
-// layout, and draw cost — and what memo and automatic picture caching
-// actually save. Reference numbers live in STRESS_TESTS.md.
+// The SigilCompose performance gate. Build in Release before reading
+// anything from it. The arms measure what describe, reconcile, layout and
+// draw cost, and what memoization and automatic picture caching save
+// against the same scene without them.
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Kinetic.h>
@@ -104,10 +105,10 @@ static void BM_Render_100Rows_OneChanged(benchmark::State &state) {
 }
 BENCHMARK(BM_Render_100Rows_OneChanged);
 
-/** A static decorated row: fill + drop shadow + stroked border — the chrome
- *  shape that pre-P0 defeated the structural prune (any decoration forced a
- *  re-patch + re-record every render). No memo: this exercises the no-memo
- *  prune over value decorations (Shadow, PathFormat). */
+/** A static decorated row: fill + drop shadow + stroked border. Deliberately
+ *  built without memo, so what is being exercised is the structural prune's
+ *  ability to see through value decorations (Shadow, PathFormat) and declare
+ *  two describes equal. */
 static Element decoratedRow(const Row &row) {
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 14.0f;
@@ -128,11 +129,12 @@ static Element decoratedBoard(const std::vector<Row> &rows) {
   return list;
 }
 
-/** Re-render 100 static DECORATED rows, nothing changed. Pre-P0 every row
- *  re-patched + re-recorded (decorations defeated the prune); now the
- *  value-decoration prune skips them all (patchedNodes → 0). Render-only cost
- *  is describe-dominated (no memo re-builds the rows), so the patch savings
- *  are in the noise here — the win shows on the draw side below. */
+/** Re-render 100 static DECORATED rows, nothing changed. The reported
+ *  patchedNodes counter is the point: if the prune sees the decorations as
+ *  equal, no row is patched and no recording is dropped. Render-only cost
+ *  here is dominated by describing the tree (there is no memo, so the rows
+ *  are rebuilt either way), which is why the saving shows up on the draw
+ *  side rather than in this arm's wall time. */
 static void BM_Render_100DecoratedRows_Unchanged(benchmark::State &state) {
   Host host;
   auto rows = makeRows(100);
@@ -144,14 +146,13 @@ static void BM_Render_100DecoratedRows_Unchanged(benchmark::State &state) {
 }
 BENCHMARK(BM_Render_100DecoratedRows_Unchanged);
 
-/** The realistic frame loop for static decorated chrome: re-render (no memo)
- *  then draw ONLY when dirty() — the standard host contract (API.md worked
- *  example 2 / util::Stage). Pre-P0, an unchanged decorated render still set
- *  contentDirty (every decoration defeated the prune), so dirty() stayed true
- *  and the host redrew the whole scene every frame; now the prune leaves
- *  dirty() false, so the host skips the draw entirely — the blurred-shadow
- *  rasterization is never paid. (draws% → 0, the frame collapses to describe
- *  cost.) */
+/** The realistic frame loop for static decorated chrome: re-render every
+ *  frame without a memo, then draw only when dirty() says something moved.
+ *  This is the contract a host is expected to follow, and it is what turns
+ *  the prune into a saving: an unchanged decorated render leaves dirty()
+ *  false, the draw is skipped entirely, and the blurred shadow is never
+ *  rasterized again. The draws% counter reports how often the guard let a
+ *  draw through; the remaining wall time is describe cost alone. */
 static void BM_Frame_100DecoratedRows_Static(benchmark::State &state) {
   Host host;
   auto rows = makeRows(100);
@@ -287,21 +288,28 @@ static void BM_Draw_DenseText_TextureBlit(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit);
 
-/** SLOT — sktext::gpu::Slug replay, unbuilt on purpose (SigilWeave
- *  ROADMAP §3). Slug plans glyph→strike→atlas once at conversion instead
- *  of per replay, but it lives in include/private/chromium/ (unversioned,
- *  free to vanish on a Skia bump), so adoption goes behind a thin seam or
- *  not at all — and that decision is GATED on the picture-replay number
- *  from BM_Draw_DenseText_PictureReplay_Graphite. This registered name
- *  reserves the slot so the arm lands beside its siblings when the gate
- *  opens; it reports as skipped until then. Do not fill it in without the
- *  Graphite measurement in hand. */
+/** Reserved slot for an sktext::gpu::Slug replay arm, registered but not
+ *  implemented. Slug plans glyph → strike → atlas once at conversion rather
+ *  than on every replay, so it is the natural third arm beside the picture
+ *  and texture dense-text arms. It is not built because the type lives in
+ *  Skia's include/private/chromium/, which carries no version guarantee and
+ *  can disappear on a Skia update, so taking it on means writing a seam to
+ *  hide it behind.
+ *
+ *  Whether that seam is worth writing depends entirely on how much replay
+ *  cost is left to win on the GPU path — read
+ *  BM_Draw_DenseText_PictureReplay_Graphite against
+ *  BM_Draw_DenseText_TextureBlit_Graphite first. The gap between them is the
+ *  ceiling on anything Slug could recover. Registering the name keeps this
+ *  arm ordered next to its siblings if that gap ever grows. */
 static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
   state.SkipWithMessage(
-      "weave ROADMAP §3 adjudicated DEAD 2026-07-27: with ordered "
-      "recordings (§1) dense-text picture replay is 57.7us against a "
-      "42.0us blit floor — Slug's win is bounded by that 15.7us gap. "
-      "The slot stays as the re-open hook if replay cost ever returns");
+      "not implemented: with ordered recordings, dense-text picture replay "
+      "already runs close to the texture-blit floor, so the win available "
+      "here is bounded by that gap — compare "
+      "BM_Draw_DenseText_PictureReplay_Graphite against "
+      "BM_Draw_DenseText_TextureBlit_Graphite. This arm stays registered "
+      "as the re-open hook if replay cost ever grows");
 }
 BENCHMARK(BM_Draw_DenseText_SlugReplay);
 
@@ -354,26 +362,30 @@ static void BM_Draw_Bloom_TextureBaked(benchmark::State &state) {
 BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 
-// ---- §19: a blur whose SIGMA VARIES, three ways --------------------------
+// ---- A blur whose SIGMA VARIES across the node, three ways ----------------
 //
-// The claim the entry's design made, labelled an estimate: the library's
-// pyramid is O(1) in the sigma RANGE where an author-written variable-sigma
-// kernel is O(sigma_max²) per pixel. These arms are what turns that into a
-// number. All three paint the SAME node (hard vertical stripes, so the
-// blur has something to lose) with the SAME parameter map:
+// The question these arms answer: how does Effect::blur's pyramid scale in
+// the sigma range, against writing the same effect by hand. The pyramid
+// builds a fixed number of levels and mixes between them, so its cost does
+// not follow sigma; a hand-written variable-sigma kernel cannot be made
+// separable (the radius differs per pixel), so it pays (2R+1)² taps at every
+// pixel.
 //
-//  Pyramid     Effect::blur(map, sigma)  — fixed levels + one mix pass.
-//  Naive       the workaround that produces the same PICTURE: one SkSL
-//              pass whose kernel is sized for the worst sigma anywhere in
-//              the node. Separability is unavailable when sigma varies per
-//              pixel, so it is (2R+1)² taps at EVERY pixel, R = 3σ.
-//  ConstantMax Effect::filter(Blur(σ, σ)) — the honest FLOOR. It does not
-//              produce the picture (nothing varies), but it is what an
-//              author reaches for when they give up, so it says what the
-//              feature costs over giving up.
+// All three arms paint the SAME node — hard vertical stripes, so the blur
+// has detail to destroy — driven by the SAME parameter map, and differ only
+// in the effect:
 //
-// Two sigmas an octave-and-a-bit apart (6 and 24) because the claim is
-// about SCALING, not about one number.
+//  Pyramid     Effect::blur(map, sigma) — fixed levels plus one mix pass.
+//  Naive       the workaround that produces the same PICTURE: one SkSL pass
+//              whose kernel is sized for the worst sigma anywhere in the
+//              node.
+//  ConstantMax Effect::filter(Blur(σ, σ)) — the floor. It does not produce
+//              the picture (nothing varies across the node), but it is what
+//              an author reaches for when they give up on varying it, so it
+//              prices the feature against giving up.
+//
+// Each is run at two sigmas an octave-and-a-bit apart (6 and 24) because the
+// claim under test is about scaling, not about any single sigma.
 
 namespace {
 
@@ -443,7 +455,8 @@ Element varyingPanel(int side, Effect e) {
 Effect pyramidArm(float sigma) { return Effect::blur(sigmaRamp(), sigma); }
 
 Effect naiveArm(float sigma) {
-  // §19's own point: R = 3σ is the radius the worst pixel needs.
+  // A Gaussian is negligible past three standard deviations, so R = 3σ is
+  // the radius the worst pixel in the node needs — and every pixel pays it.
   const int radius = (int)std::lround(3.0f * sigma);
   return Effect::shader(naiveVaryingBlur(radius), {{"uMaxSigma", sigma}})
       .child("param", sigmaRamp());
@@ -495,8 +508,10 @@ BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24)->Unit(benchmark::kMillisecond);
 
 
 #ifdef COMPOSE_BENCH_GRAPHITE
-// ---- Item 21: the Graphite re-measure — does picture replay finally
-// beat rasterization when the target is a GPU surface? ----
+// ---- The same arms against a Graphite Metal surface ----
+// Cache tiers trade re-recording against re-rasterizing, and which side wins
+// depends on the target. These arms repeat the raster measurements above
+// with a GPU surface underneath so the two can be compared directly.
 
 #include "ComposeBenchGpu.h"
 #include "SkiaGraphiteContext.h"
@@ -725,20 +740,21 @@ static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
 
-// ---- §19 on the GPU: the same three arms, where these shaders live -------
-// The raster pair above is the portable measurement; this is the honest
-// one, because a runtime-effect kernel in production is a fragment shader.
-// Same fixture, same parameter map, a bigger panel (256²) so the numbers
-// are out of the submit noise.
+// ---- The varying-blur arms on the GPU, where these shaders belong --------
+// The raster pair above is the portable measurement; this is the
+// representative one, because a runtime-effect kernel in production runs as
+// a fragment shader. Same fixture and same parameter map, on a larger panel
+// so that per-frame submit overhead does not dominate what is being timed.
 
 namespace {
 
-/** Submit and WAIT. The arms above deliberately do not (they compare
- *  like-for-like at ten thousand iterations, where queue back-pressure is
- *  the signal), but a §19 arm has to report the cost of one FINISHED
- *  frame: an unsynced submit measures the CPU handing work over, and the
- *  first draft of this measurement had the most expensive shader looking
- *  like the cheapest because its queue never drained. */
+/** Submit and WAIT for the GPU to finish. The arms above deliberately do
+ *  not: they run many cheap iterations against each other, where queue
+ *  back-pressure is itself the signal. The varying-blur arms cannot use
+ *  that, because they need the cost of one FINISHED frame. An unsynced
+ *  submit times only the CPU handing work over, which can rank the most
+ *  expensive shader as the cheapest — its queue simply never drains inside
+ *  the timed region. Any arm comparing shader cost must use this. */
 void submitGraphiteSynced(SkiaGraphiteContext &graphiteContext) {
   auto recording = graphiteContext.recorder()->snap();
   if (!recording)
@@ -808,20 +824,19 @@ BM_Draw_VaryingBlur_ConstantMax_s24_Graphite(benchmark::State &state) {
 BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-// ---- SigilWeave ROADMAP §1/§3: the dense-text Graphite arm ---------------
-// "The measurement gap that precedes everything": dense STATIC text on
-// Graphite genuinely replays draw calls every frame (compose's texture
-// promotion is off by default there, by measured design), so every glyph
-// goes through strike → atlas planning per Recording. That is exactly the
-// shape ContextOptions/RecorderOptions::fRequireOrderedRecordings moves
-// (unordered ⇒ Recorder::snap() calls AtlasProvider::invalidateAtlases(),
-// evicting the text atlas every snap) and exactly the shape sktext::gpu::
-// Slug would cache. weave_bench CANNOT answer this — it is CPU raster,
-// which has no glyph atlas at all.
+// ---- Dense static text on Graphite ---------------------------------------
+// Automatic texture promotion is off on the GPU path, so a dense static text
+// block genuinely replays its draw calls every frame and every glyph goes
+// through strike and atlas planning once per Recording. Two Skia knobs act
+// on exactly that shape: RecorderOptions::fRequireOrderedRecordings (with
+// unordered recordings, Recorder::snap() invalidates the atlases, evicting
+// the text atlas on every snap), and sktext::gpu::Slug, which would cache
+// the planning. Neither can be evaluated from weave_bench, which is CPU
+// raster and has no glyph atlas at all.
 //
 // Same corpus and geometry as the raster pair above (denseBlock, 800x2400)
-// so the arms are directly comparable; the only difference is the target
-// surface and the per-iteration snap+insert+submit.
+// so the arms are directly comparable; the only differences are the target
+// surface and the per-iteration snap + insert + submit.
 
 static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State &state) {
   SkiaGraphiteContext *graphiteContext = graphite();
@@ -846,13 +861,16 @@ static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_DenseText_PictureReplay_Graphite);
 
-/** Weave ROADMAP §6's instrument: kinetic typography on Graphite — a
- *  cycling glyphFx reveal drives per-frame batched RSXform glyph draws,
- *  the glyph-atlas-heavy shape (alpha quantized to 32 steps and
- *  rotations snapped by the kinetic path itself, so cardinality is the
- *  library's own). Run at the default budget, then constrained via
- *  SIGILSKIA_GLYPH_ATLAS_BYTES (the makeContextOptions knob), and read
- *  the delta as eviction cost. */
+/** Kinetic typography on Graphite: a looping glyphFx reveal drives batched
+ *  RSXform glyph draws every frame, which is the shape that stresses the
+ *  glyph atlas hardest. The distinct glyph variants come from the kinetic
+ *  path's own quantization (alpha to 32 steps, rotations snapped), so the
+ *  atlas cardinality this produces is the library's, not the benchmark's.
+ *
+ *  To price atlas eviction, run this arm once at the default atlas budget
+ *  and again with SIGILSKIA_GLYPH_ATLAS_BYTES set to something smaller
+ *  (the environment knob makeContextOptions reads); the difference between
+ *  the two runs is the eviction cost. */
 static void BM_Draw_KineticText_Graphite(benchmark::State &state) {
   SkiaGraphiteContext *graphiteContext = graphite();
   if (!graphiteContext) {
@@ -1070,8 +1088,10 @@ BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)->Arg(100000)->Arg(1000000);
 BENCHMARK_MAIN();
 
 // ---------------------------------------------------------------------------
-// Completeness-round benches: stamps, regions vs SkSL tiling, hitTest,
-// direct leaf blending, transform-replay caching.
+// Element stamps, image regions against a procedural SkSL tiling, hit
+// testing, direct leaf blending, and transform-replay caching. These arms
+// register themselves the same way as the ones above; BENCHMARK_MAIN() only
+// runs the registry, so appearing after it makes no difference.
 
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Layouts.h>
@@ -1146,8 +1166,9 @@ static void BM_Draw_TileGrid_Region_Cached(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_TileGrid_Region_Cached);
 
-/** Same grid, one chunk's data mutated per iteration — the incremental
- *  cost item 15 promises: one chunk re-records, 23 replay. */
+/** Same grid, one chunk's data mutated per iteration. The pair with the arm
+ *  above isolates incremental cost: the changed chunk's memo misses and its
+ *  recording is rebuilt, while the other 23 replay untouched. */
 static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State &state) {
   Host host(960, 640);
   std::vector<ChunkProps> chunks(24);
@@ -1172,8 +1193,10 @@ static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_TileGrid_Region_OneChunkChanged);
 
-/** Item 16: the same 2400-tile field as ONE SkSL fill sampling the
- *  atlas procedurally — a single draw, no per-tile identity. */
+/** The same 2400-tile field expressed as ONE SkSL fill that samples the
+ *  atlas procedurally: a single draw, but the tiles have no individual
+ *  identity, so nothing can be keyed, hit-tested or animated per tile. That
+ *  is the trade this arm prices against the two region-tile arms above. */
 static void BM_Draw_TileGrid_SkSLFill(benchmark::State &state) {
   Host host(960, 640);
   static const char *kSkSL = R"(
@@ -1204,8 +1227,10 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
-/** Element-stamp border: a card whose ContourWalk stamps a composed
- *  ornament every 24px — recorded once, replayed ~46 times per draw. */
+/** Element-stamp border: a ContourWalk stamps a composed ornament every
+ *  24 px around a card's outline. The stamp is an Element, so it is
+ *  described and recorded once and then replayed at each station rather
+ *  than rebuilt per station. */
 static void BM_Draw_StampBorder_Cached(benchmark::State &state) {
   Host host(800, 600);
   ContourWalk vine;
@@ -1244,8 +1269,10 @@ static void BM_HitTest_ShapedTree(benchmark::State &state) {
 }
 BENCHMARK(BM_HitTest_ShapedTree);
 
-/** 100 plus-blended blob leaves — the direct-blend fast path (each
- *  used to cost a device-sized saveLayer). */
+/** 100 plus-blended blob leaves. A leaf whose blend mode can be pushed onto
+ *  its own paint needs no isolation layer; the alternative is a
+ *  device-sized saveLayer per leaf, so this arm is where that path's
+ *  absence shows up. */
 static void BM_Draw_BlendField_100Blobs(benchmark::State &state) {
   Host host(900, 640);
   auto scatter = layout(layouts::Scatter{.seed = 9, .jitter = 0.8f})
@@ -1289,16 +1316,22 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State &state) {
 BENCHMARK(BM_Draw_SpinningStamped_TransformReplay);
 
 // ---------------------------------------------------------------------------
-// §44.6 — THE MISSING NUMBER: dense GLYPHS under a perspective CTM on
-// Graphite. The raster penalty was 4.7× on picture replay, hypothesized to
-// be glyphs falling off the atlas path onto path filling; 44.10's recipe
-// block pre-registered this arm (skeleton graphiteVaryingArm, synced
-// submits, glyph-bearing content, Cache::None — the device bakes refuse
-// under perspective per 44.1's guards, so a Cache::Texture arm would
-// measure the local ladder instead of the projection). Three arms differing
-// ONLY by the matrix inside save()/concat()/restore(): identity, the same
-// card tilt WITHOUT its perspective row (the affine control — a pure
-// cos(25°) y-compression), and the full projective tilt.
+// Dense GLYPHS under a perspective CTM on Graphite. A projective matrix can
+// push glyphs off the atlas path and onto path filling, which costs very
+// differently; these arms separate that from the ordinary cost of drawing
+// the same text under any non-identity transform.
+//
+// Three arms differ ONLY in the matrix applied inside save()/concat()/
+// restore(): identity, the card tilt with its perspective row removed (an
+// affine control — a pure cos(25°) y-compression, so the same pixels are
+// resampled without any w-divide), and the full projective tilt. Reading the
+// affine arm against identity gives the cost of the transform; reading
+// perspective against affine gives the cost of the projection alone.
+//
+// Cache::None is required here, not incidental: device-space bakes refuse to
+// form under a perspective CTM, so a Cache::Texture arm would silently fall
+// back to a quantized local-scale bake and measure that ladder instead of
+// the projection.
 
 #ifdef COMPOSE_BENCH_GRAPHITE
 
@@ -1308,11 +1341,13 @@ namespace {
 
 enum class PerspArm { Identity, AffineTilt, Perspective };
 
-/** The documented matrix: a game-UI card tilt — rotateX(25°) about the
- *  panel center (400, 1200), viewed through a CSS-style perspective(2400)
- *  (viewer distance = one panel height; the w-divide term is -1/2400 in
- *  row 3, column 2). Across the 800×2400 panel w spans ~[0.79, 1.21]. The
- *  affine control is the same product with the perspective factor removed. */
+/** A game-UI card tilt: rotateX(25°) about the panel centre (400, 1200),
+ *  viewed through a CSS-style perspective(2400) — viewer distance equal to
+ *  one panel height, expressed as the w-divide term -1/2400 at row 3,
+ *  column 2. Over the 800x2400 panel that puts w in roughly [0.79, 1.21], so
+ *  the projection is strong enough to matter and mild enough to stay a
+ *  plausible UI transform. The affine control is the same product with the
+ *  perspective factor left out. */
 SkM44 perspArmMatrix(PerspArm arm) {
   if (arm == PerspArm::Identity)
     return SkM44(); // identity — the arms stay structurally identical

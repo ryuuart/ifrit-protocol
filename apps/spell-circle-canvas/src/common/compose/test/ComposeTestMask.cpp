@@ -3,17 +3,17 @@
 #include "../ComposeInternal.h" // propsEqual — the comparator, taken directly
 
 // ---------------------------------------------------------------------------
-// PHASE R4 — THE MASKING FAMILY
+// THE MASKING FAMILY
 //
-// `trim()` and `wipe()` are gone; one verb replaced both, and it is a
-// relation between two named factors: `parts::` says WHICH of a node's
-// paint outputs a mask reaches, `by::` says HOW that paint arrives.
+// One verb, `mask()`, expressed as a relation between two named factors:
+// `parts::` says WHICH of a node's paint outputs the mask reaches, and
+// `by::` says HOW the gate's coverage is computed.
 //
-// The eight tests S1–S8 below are the design's own sample set — eight real
-// corpus sites, chosen because each one broke a different candidate shape.
-// They are here as tests because a family designed against eight pictures
-// should be able to draw all eight, and because the shape that could not
-// draw one of them was rejected for exactly that.
+// The cases labelled S1–S8 are a sample set: eight pictures an author
+// actually wants, each of which rules out a different simpler design. Read
+// together they say why the verb has the shape it has — S1 is why the gate
+// cannot live at the call site, S4 is why it must apply to an already-built
+// element, S8 is why it cannot be whole-node only, and so on.
 
 namespace {
 
@@ -39,11 +39,11 @@ int redInk(Host &host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
 
 TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
-  // astral_tome's `linkPass()` returns an element carrying THREE strokes.
-  // The caller wants all three to draw on together and can reach none of
-  // them: this is the sample that fails any shape where the gate lives at
-  // the call site or inside the mark value, because the person who wants
-  // the gate is not the person who wrote the mark.
+  // A helper returns an element carrying THREE strokes, and the caller wants
+  // all three to draw on together while being able to reach none of them
+  // individually. This rules out any design where the gate lives inside the
+  // mark value or at the call that creates it: the person who wants the gate
+  // is not the person who wrote the mark.
   const auto helper = [] {
     return maskBox()
         .stroke(util::stroke(10, blue()))
@@ -101,20 +101,17 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
 
 // ---- S3 · the retarget: one mask in both branches -------------------------
 
-// RE-FIXTURED 2026-07-29 (ROADMAP §35.2), and the ORIGINAL NAME IS BACK.
-// §34's audit renamed this rather than repairing it: phase 0 parked at
-// 0.0001, so a retarget from 0.0001 and a fresh mount from 0 both ramp UP
-// to 0.5 and no assertion here could tell them apart. Phase 0 now parks
-// ABOVE the target — 0.8 → 0.5 — which makes the two hypotheses point in
-// OPPOSITE DIRECTIONS: a retarget ramps DOWN through 0.65, a mount from
-// zero ramps UP through 0.25. The midpoint sample separates them, and
-// `half > settled` is the assertion that could not previously exist.
 TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
-  // ScenesBeethoven: phase 0 is unswept, phase 1 sweeps each arc over its
-  // measured span. `animate(to(span))` is RAMP-ON-CHANGE — it starts from
-  // the property's CURRENT value — so the gate must occupy the same
-  // animation slot in both branches or the motion mounts from zero and the
-  // ring blinks. maskAnims is positional, which is what makes this work.
+  // A gate written in both branches of an if/else must occupy the SAME
+  // animation slot, so that switching branches RETARGETS the running motion
+  // instead of mounting a new one from zero — otherwise the mark blinks off
+  // and sweeps back on. maskAnims is indexed positionally, which is what
+  // makes the two branches share a slot.
+  //
+  // The starting phase parks ABOVE the target (0.8 → 0.5) on purpose. Park
+  // it below and a retarget and a fresh mount both ramp UPWARD, so no
+  // sample can tell them apart. From above they move in opposite
+  // directions, and the midpoint sample separates them.
   const auto tree = [](int phase) {
     Element e = maskBox().stroke(util::stroke(6, red()));
     if (phase == 0)
@@ -145,12 +142,12 @@ TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
 // ---- S4 · a gate applied conditionally to an ALREADY-BUILT element --------
 
 TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
-  // twoadvanced_v4: the orbital ring draws on with the panel, but the
-  // still-frame capture shows it whole. §31's capture audit says this
-  // pattern recurs — so the conditional must survive as a conditional, on
-  // an element that already exists. A gate that lived in the mark value or
-  // in the slot call would force the `if` above construction, which is a
-  // re-authoring rather than a rename.
+  // A mark that animates on in motion but must appear whole in a still
+  // capture is an ordinary requirement, and it means the gate has to be
+  // applicable CONDITIONALLY to an element that already exists. A gate
+  // living inside the mark value, or in the call that builds the node,
+  // would force the `if` above construction — re-authoring the element
+  // rather than qualifying it.
   const auto build = [](bool still) {
     Element ring = maskBox().stroke(util::stroke(6, red()));
     if (!still)
@@ -169,10 +166,10 @@ TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
 // ---- S5 · a span-qualified CLAIM under a whole-node gate ------------------
 
 TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
-  // The corners composition: reticle brackets that LIGHT UP AS A SWEEP
-  // REACHES THEM. The pass claims the corners; the mask gates the marks to
-  // [0, t]; the pass paints `corners ∩ upTo(t)`. One line, no re-authoring,
-  // and no second node.
+  // Reticle brackets that light up as a sweep reaches them. The pass claims
+  // the corners, the mask gates the marks to [0, t], and what paints is
+  // `corners ∩ upTo(t)` — the claim and the gate compose rather than one
+  // overriding the other.
   const auto draw = [](float t) {
     Host host(200, 200);
     host.composer.render(stack().child(
@@ -272,10 +269,9 @@ TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
 }
 
 TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
-  // …and soft-edged, which is the other half of the seal. `Console.h`
-  // prescribes `Material` + `kDstIn` as an IDIOM in a shipped header
-  // because it is not a feature; two more studies hand-roll kSrcIn. It is
-  // a feature now.
+  // …and SOFT-EDGED, which is the other half of what a coverage gate is
+  // for. Without it, the only way to fade a node by a gradient is to hand-
+  // roll a Material plus a kDstIn layer at every call site.
   Host host(200, 200);
   host.composer.render(stack().child(
       box().absolute().left(20).top(20).width(160).height(160).fill(red())
@@ -408,17 +404,14 @@ TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
 }
 
 TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
-  // THE COMPARATOR PIN, taken against propsEqual() DIRECTLY — the lesson of
-  // the equality audit is that a render-two-trees harness can pass while the
-  // comparator is broken, because keyed siblings never prune into one
-  // another.
+  // Taken against propsEqual() DIRECTLY. A harness that renders two trees
+  // and counts patches can pass while the comparator is broken, because
+  // keyed siblings never prune into one another.
   //
-  // `channel` is a new field, so the structured-binding pin in
-  // ComposeInternal.h forced a ruling on it. `outside` is NOT new — it was
-  // already compared in the Shape arm — so nothing in the compiler would
-  // have noticed the Coverage arm ignoring it, and a matte would have
-  // compared equal to its own inverse: pruned, and stuck showing the wrong
-  // half for as long as the node lives.
+  // `outside` is the field to worry about here. It is compared in the Shape
+  // arm already, so the compile-time field pin cannot notice the Coverage
+  // arm ignoring it — and a matte that compares equal to its own INVERSE
+  // prunes and stays showing the wrong half for as long as the node lives.
   const Material m = Material::solid({0.5f, 0.5f, 0.5f, 1});
   const auto node = [&](Gate g) {
     Element el = box().mask(std::move(g));
@@ -442,11 +435,10 @@ TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
 // ---- S8 · per-mark granularity -------------------------------------------
 
 TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
-  // Hazard stripes wipe on while the bevel keyline STAYS. This is the
-  // sample that a whole-node-only family cannot draw: its workaround is a
-  // child node re-declaring the parent's shape, which is verbatim the
-  // thing `overlay()` was added to abolish ("costs a node and loses the
-  // outline").
+  // Hazard stripes wipe on while the bevel keyline STAYS. A whole-node-only
+  // gate cannot draw this at all: the only workaround is a child node that
+  // re-declares its parent's shape, which costs a node and loses the
+  // outline the marks were following.
   const auto panel = [](float t) {
     return stack().child(
         box().absolute().left(20).top(20).width(160).height(160)
@@ -480,11 +472,11 @@ TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
 }
 
 TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
-  // THE COMPOSITION THE DESIGNER ASKED FOR BY NAME: masks whose selections
-  // overlap INTERSECT, and each carries its OWN animation, so three masks
-  // may run at three rates on one node. If they shared a slot the second
-  // would retarget the first and this would be a race instead of a
-  // picture; maskAnims is indexed per mask, which is what makes it one.
+  // Masks whose selections overlap INTERSECT, and each carries its OWN
+  // animation, so three masks can run at three rates on one node. Sharing
+  // one animation slot would make the second gate retarget the first, and
+  // the result would be a race rather than a picture; maskAnims is indexed
+  // per mask, which is what keeps them independent.
   choreograph::Output<float> slow{1.0f}, fast{1.0f};
   Host host(200, 200);
   host.composer.render(stack().child(
@@ -517,11 +509,6 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
 }
 
 // ---- the intersection law, as arithmetic ---------------------------------
-
-// (`StackedSpanGatesIntersectRatherThanUnion` was deleted by the 2026-07-28
-//  audit ruling: it ran the same fixture and the same mask pair as the test
-//  below, which pins the intersection at PIXELS and refutes union with a
-//  disjoint pair — strictly more, on the same claim.)
 
 TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
   // Pinned at pixels rather than at the helper, because the arithmetic is
@@ -585,13 +572,11 @@ TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
   EXPECT_LT(inkedCount(passDoor), passDoor.size());
 }
 
-// RENAMED 2026-07-28 (audit): the fixture carries ONE mark, so there is no
-// unnamed sibling to leave alone; what this uniquely pins is the
-// silent-no-op law for a label that matches nothing.
 TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
-  // parts::named() addresses ONE mark by its LOCAL label. A label that
-  // matches nothing selects nothing, silently — the same law as
-  // spans::rest("unknown") and spans::fit("unknown").
+  // parts::named() addresses ONE mark by its LOCAL label, and a label that
+  // matches nothing selects nothing — SILENTLY. This is the same rule the
+  // whole derive family follows for unknown keys, and it is a real trap:
+  // a typo'd label produces an ungated mark, not an error.
   const auto draw = [](const char *label) {
     Host host(200, 200);
     host.composer.render(stack().child(
@@ -606,19 +591,18 @@ TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
                                    "silent no-op, not a hidden node";
 }
 
-// ---- the memo repair (§3.6) ----------------------------------------------
+// ---- the scalar memo under a gate ----------------------------------------
 
 TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
-  // THE REPAIR. ContentScalars used to be a FIXED five-float struct, which
-  // is why a per-pass span reveal is excluded from the §17 memo by a
-  // written decision — and therefore why R2's 58 trim→spans ports each
-  // moved their node from the scalar memo to per-frame content volatility
-  // with a byte-identical plate ledger and nothing to catch it. A mask's
-  // gate scalars are a bounded per-node list, so they ride ContentScalars
-  // as a vector and an element-level gate keeps the memo.
+  // A mask's gate scalars are a BOUNDED per-node list, so they can ride the
+  // content-scalar memo as a vector and an element-level gate keeps its
+  // node cacheable. Per-pass span endpoints cannot: they belong to an
+  // open-ended pass list, so a node animated only by one of those falls back
+  // to per-frame content volatility.
   //
-  // The probe is the same one §17 shipped with: a keyframe path with a
-  // HELD segment. A held gate must repaint NOTHING.
+  // The probe is a keyframe path with a HELD segment. While the gate is held
+  // the node must repaint NOTHING — and note that a byte-identical picture
+  // proves nothing here, since the failure costs work rather than pixels.
   const auto ring = [] {
     return box().cache(Cache::None).child(
         box().width(120).height(120).key("ring")
@@ -634,10 +618,10 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   Host host;
   host.composer.render(ring());
   host.frame();
-  // Warm PAST the §20 release: after kScalarSettleFrames stable paints
-  // the volatility flag releases and the tree re-records ONCE (the
-  // "settling frame" cost — the price of ancestors gaining the cache).
-  // The hold's steady state after that is the zero this test pins.
+  // Warm past the release: after enough stable paints the volatility flag
+  // releases and the tree re-records ONCE, on the settling frame — that is
+  // the price of the ancestors gaining their caches. The hold's steady state
+  // after that is the zero this test pins.
   for (int i = 0; i < 26; ++i)
     host.frame(1.0 / 60.0); // t ≈ 0.43 s — deep in the hold, post-release
   unsigned duringHold = 0;
@@ -675,15 +659,13 @@ TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
          "its first frame and stay there";
 }
 
-// ---- Region is a VALUE (the §3 wall) -------------------------------------
+// ---- Region is a VALUE ---------------------------------------------------
 
 TEST(ComposeR4Mask, RegionIsComparableFromDayOne) {
   // The shape gate's obvious signature takes an OutlineFn — an
-  // incomparable std::function, which never prunes. That is not a
-  // hypothetical: it is the highest measured-impact item on the roadmap
-  // (43.4 of 43.5 ms on one un-prunable callable). Region is a closed,
-  // comparable value instead, and that is the whole reason the shape
-  // member could ship with the family rather than after it.
+  // incomparable std::function, whose node never prunes and therefore never
+  // caches. Region is a closed, comparable value instead, which is what lets
+  // a shape gate sit on a node without disabling every cache above it.
   EXPECT_TRUE(Region::own() == Region::own());
   EXPECT_TRUE(Region::rect(SkRect::MakeWH(4, 4)) ==
               Region::rect(SkRect::MakeWH(4, 4)));
@@ -704,8 +686,8 @@ TEST(ComposeR4Mask, RegionIsComparableFromDayOne) {
   EXPECT_FALSE(by::edge(0.0f, 0.5f) == by::edge(0.0f, 0.6f));
   EXPECT_FALSE(by::spans(spans::upTo(0.4f)) == by::edge(0.0f, 0.4f));
   EXPECT_TRUE(by::spans(spans::upTo(0.4f)) == by::spans(spans::upTo(0.4f)));
-  // Parts too — a selection is a value you can look at, which was the
-  // designer's question ("I still don't get the shape [of selection]").
+  // Parts too: a selection is a value that can be compared and inspected,
+  // not an opaque predicate.
   EXPECT_TRUE(parts::marks() == parts::marks());
   EXPECT_FALSE(parts::marks() == parts::surface());
   EXPECT_FALSE(parts::named("a") == parts::named("b"));
@@ -716,12 +698,12 @@ TEST(ComposeR4Mask, RegionIsComparableFromDayOne) {
 // ---- the fold: what trim() and wipe() were -------------------------------
 
 TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
-  // The fold table, as behaviour. A boundary is a 1-D coordinate: the
-  // paint that TRACES it is the surface and the marks, and the content and
-  // children do not. So `mask(by::spans(...))` — the taught one-argument
-  // form, whose selection is parts::all() — is exactly the reveal the
-  // deleted trim() drew, and gating children with an arc-length window is
-  // not a picture and does nothing.
+  // Which parts a spans gate can reach follows from what a span IS: a
+  // boundary is a one-dimensional coordinate, so it can address the paint
+  // that TRACES that boundary — the surface and the marks — and has nothing
+  // to say about content or children. The one-argument form selects
+  // parts::all(), and gating children by an arc-length window is therefore
+  // a silent no-op rather than an error.
   Host host(200, 200);
   Element e = box().absolute().left(20).top(20).width(100).height(100)
                   .fill(red())
@@ -751,9 +733,10 @@ TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
 }
 
 TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
-  // wipe(angle, t) is `mask(by::edge(angle, t))` and nothing else changed:
-  // same half-plane, same empty-box guard, same reach over decorations and
-  // children. This is the parity witness the corpus port rests on.
+  // by::edge(angle, t) is a HALF-PLANE reveal, not a squash: the edge lands
+  // at the stated fraction of the box and everything behind it is untouched.
+  // It reaches the node's decorations and its children too, which is what
+  // distinguishes it from a spans gate.
   Host host(200, 200);
   host.composer.render(stack().child(
       box().absolute().left(20).top(20).width(160).height(160).fill(red())
@@ -772,15 +755,16 @@ TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
 }
 
 TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
-  // THE TRIM-PARITY WITNESS THAT SURVIVES THE DELETION. trim() cut the
-  // outline with SkTrimPathEffect; the corpus port of the 17 holdouts is
-  // byte-identical only if the spans gate cuts the same path. So the
-  // expected geometry is built HERE, by SkTrimPathEffect itself, and drawn
-  // through a leaf that the masking family never touches.
+  // A spans gate must cut the outline exactly as SkTrimPathEffect does.
+  // The expected geometry is therefore built HERE by SkTrimPathEffect itself
+  // and drawn through a custom() leaf that the masking family never touches,
+  // so the comparison is against Skia rather than against a second copy of
+  // the library's own arithmetic.
   const SkRect r = SkRect::MakeXYWH(20, 20, 100, 100);
-  // addRRect, not addRect: fraction 0 is the BOTTOM-LEFT corner because
-  // that is SkPath::addRRect's start index, and that convention is what
-  // every span answer and every trim() answer was always in.
+  // addRRect, not addRect: fraction 0 lands on the BOTTOM-LEFT corner
+  // because that is addRRect's start index, and every span answer in the
+  // library is expressed in that convention. Building the reference with
+  // addRect would silently rotate it.
   SkPathBuilder pb;
   pb.addRRect(SkRRect::MakeRect(SkRect::MakeWH(r.width(), r.height())));
   const SkPath boundary = pb.detach();
@@ -812,7 +796,7 @@ TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
   }
 }
 
-// ---- The positioned leaf set (ROADMAP §2 / Direction 1) --------------------
+// ---- the positioned leaf set --------------------------------------------
 
 TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
   Host host;
@@ -888,7 +872,8 @@ TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {
   ASSERT_TRUE(t);
   EXPECT_EQ(t->left(), 10);
   EXPECT_EQ(t->width(), 90);
-  // Open height: measured — a wrapped run is taller than one line.
+  // Height is left open, so it comes from measurement: a wrapped run is
+  // taller than a single line.
   EXPECT_GT(t->height(), 20.0f);
 }
 
@@ -956,11 +941,10 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
 }
 
 TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
-  // §20's acceptance test, enabled by the measured-stability RELEASE:
-  // a bound gate that has held still for kSettleFrames stops declaring
-  // volatility, so the ANCESTOR caches across it — the probe that
-  // preceded the fix measured recording kept (memo) but 5/5 live paints
-  // (the flag never released).
+  // A bound gate that has held still for enough frames stops declaring
+  // volatility, so its ANCESTORS can cache across it. Without the release
+  // the recording is kept but every frame still paints live — the node
+  // looks cached and costs as if it were not.
   choreograph::Output<float> reveal{0.0f};
   Host host;
   host.composer.render(box().child(
@@ -993,29 +977,31 @@ TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
       << "the moved gate did not repaint — a stale picture replayed";
 }
 
-// ---- §38: the Fill lane — §20's release, one lane over --------------------
+// ---- the Fill lane: the same settle/release, one lane over ----------------
 //
-// The measured defect (ROADMAP §38): ONE bound `fill(&output)` on one leaf
-// held `subtreeVolatile` on the whole chain forever, so `contentStable` was
-// false, promotion answered `Promotion::Volatile`, and 512 cells replayed
-// 512 pictures at ~11 µs each for a colour that never moved — 5.02 ms/frame,
-// 19.6×. The extension: `ContentScalars` gained a Fill lane, `boundFill`
-// moved from the unconditional ownContent terms into `scalarContent`, and
-// the §20 settle/release/scan machinery covers it with no new concept.
+// A bound `fill(&output)` counted as unconditional content volatility holds
+// `subtreeVolatile` on its whole ancestor chain forever, so `contentStable`
+// is false, promotion answers `Promotion::Volatile`, and every cell in the
+// tree replays its own picture every frame for a colour that never moves.
+// The fix is not a new concept: a bound Fill is a comparable value, so it
+// joins the content-scalar memo and the existing settle/release/scan
+// machinery covers it.
 //
-// The pins below prove the release against PROMOTION (`contentStable` /
-// the refusals mask), not merely against the recording — the 19.6× was
-// promotion denial — and prove the staleness contract: the frame the
-// Output moves, volatility re-declares BEFORE anything stale replays.
+// The cases below check the release against PROMOTION — `contentStable` and
+// the refusals mask — not merely against the recording, because promotion
+// denial is where the cost lives. They also check the staleness contract:
+// on the frame the Output moves, volatility must re-declare BEFORE anything
+// stale replays.
 
 namespace {
 
-/** §38's measured fixture, at test size: root → frame → row of stroked,
- *  shaped cells + ONE accent whose fill is bound. The accent's ancestors
- *  are what the binding used to poison. `Cache::Texture` on the root makes
- *  the promotion observable deterministically (the asked-for bake obeys
- *  the same volatility gate the automatic one does, without the
- *  cost-threshold timing an assertion could flap on). */
+/** Root → frame → a row of stroked, shaped cells, plus ONE accent whose
+ *  fill is bound. The accent's ANCESTORS are what a badly-classified
+ *  binding poisons, which is why the accent is buried rather than at the
+ *  root. `Cache::Texture` makes the outcome observable deterministically:
+ *  an explicitly asked-for bake obeys the same volatility gate automatic
+ *  promotion does, without the cost-threshold timing an assertion could
+ *  flap on. */
 Element settledFillPanel(const choreograph::Output<Fill> *tint) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
@@ -1067,8 +1053,8 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
     EXPECT_EQ(host.composer.stats().texturesLive, 0u)
         << "the root's asked-for bake must be refused while volatile";
   }
-  for (int i = 0; i < 12; ++i) // kScalarSettleFrames = 8, plus the release
-    host.frame(0.016);         // walk and the settling frame's re-record
+  for (int i = 0; i < 12; ++i) // past the settle count, the release walk,
+    host.frame(0.016);         // and the settling frame's re-record
   // AFTER: released — the node promotes like a plain one.
   {
     const Composer::NodeCost *root = rowOf(host, "root");
@@ -1078,7 +1064,7 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
     EXPECT_GE(host.composer.stats().texturesLive, 1u)
         << "the released root never took its bake — promotion still denied";
   }
-  // …and the hold costs NOTHING (the §20 acceptance test's bar).
+  // …and the hold costs NOTHING, which is the whole point of releasing.
   unsigned settledRecords = 0, settledPaints = 0;
   for (int i = 0; i < 4; ++i) {
     host.frame(0.016);
@@ -1089,10 +1075,9 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   EXPECT_EQ(settledPaints, 0u) << "a settled bound fill painted live";
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorRED);
 
-  // Pin (b), THE STALENESS CONTROL — the moved-again pin, §20's model: the
-  // frame the Output moves, the scan must re-declare and stale every
-  // recording AND the root's bake BEFORE anything paints. One frame, no
-  // stale pixel, ever.
+  // THE STALENESS CONTROL. On the frame the Output moves again, the scan
+  // must re-declare volatility and stale every recording AND the root's
+  // bake BEFORE anything paints. One frame, and never a stale pixel.
   tint = green();
   host.frame(0.016);
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorGREEN)
@@ -1142,17 +1127,17 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorGREEN);
 }
 
-// ---- §14-a: the bound Pattern pan — the third scalar lane -----------------
+// ---- the bound Pattern pan: a third scalar lane ---------------------------
 //
-// `Pattern::offset(SkPoint)` closed the describe-time half of "Pattern
-// cannot pan LIVE" (§14); this is the bound half, ruled BUILT on the
-// campaign's precedent: the pan is §19's W lane and §38's Fill lane's THIRD
-// SIBLING. The spelling is `offset(&x, &y)` — the same word, the bound form,
-// `fill(&output)`'s grammar — riding `Material::offset`'s new bound-matrix
-// channel. The volatility ruling the §14 entry wanted: a pan-only material
-// is CONTENT volatility on the §17/§20 scalar lane (`ContentScalars` gained
-// the resolved pair), NOT the live-material memo — it releases when it
-// provably holds still, promotes, and re-declares the frame it resumes.
+// `Pattern::offset(&x, &y)` pans a pattern from a live Output — the same
+// word as the describe-time `offset(SkPoint)`, in the bound form, following
+// `fill(&output)`'s grammar.
+//
+// How it is CLASSIFIED is the substance: a pan-only material is CONTENT
+// volatility on the scalar lane, not live-material volatility. The resolved
+// pan pair joins the content-scalar memo, so a pan releases when it provably
+// holds still, promotes like anything else, and re-declares on the frame it
+// resumes.
 
 namespace {
 
@@ -1171,10 +1156,11 @@ Pattern halfTilePattern() {
   });
 }
 
-/** §38's fixture with the accent's bound FILL swapped for a bound PAN:
- *  root (asked-for bake) → frame → row of stroked star cells + ONE cell
- *  filled with `pat.material()`. The pattern is passed in because the
- *  shared bake is the identity — the test holds it like an asset. */
+/** The same panel as the bound-fill cases, with the accent's bound FILL
+ *  swapped for a bound PAN: root (asked-for bake) → frame → row of stroked
+ *  star cells, plus ONE cell filled with `pat.material()`. The Pattern is
+ *  passed in by reference because its baked tile IS its identity — the test
+ *  holds it like an asset rather than re-minting it. */
 Element pannedPanel(Pattern &pat) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < 12; ++id)
@@ -1218,10 +1204,10 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
 }
 
 TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
-  // Pin (b): the release must show against Promotion::Volatile's
-  // `contentStable` — §38's argument verbatim: promotion is a SEPARATE
-  // consumer of `subtreeVolatile` from the memo, and a parked conveyor
-  // that kept the recording but not the bake would keep all of the cost.
+  // The release has to show against Promotion::Volatile's `contentStable`,
+  // not only against the recording: promotion is a SEPARATE consumer of
+  // `subtreeVolatile`, so a parked pan that kept its recording but was still
+  // denied its bake would keep all of the cost.
   choreograph::Output<float> panX{0.0f};
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
@@ -1350,9 +1336,9 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
 }
 
 TEST(ComposePatternPan, ThePanBindingIsRecipe) {
-  // §40: the BINDING participates in the prune signature — same binding
-  // prunes, a different binding patches (a pruned swap would leave the old
-  // Output driving the pixels forever).
+  // The BINDING participates in the prune signature: the same binding
+  // prunes, a different one patches. A pruned swap would leave the OLD
+  // Output driving the pixels for as long as the node lives.
   choreograph::Output<float> a{0.0f}, b{0.0f};
   Pattern pat = halfTilePattern();
   Pattern p1 = pat, p2 = pat, p3 = pat;
@@ -1377,22 +1363,24 @@ TEST(ComposePatternPan, ThePanBindingIsRecipe) {
       << "an identical bound re-describe did not prune";
 }
 
-// ---- §17/§20's memo carve-outs: the three lanes they forgot ---------------
+// ---- the memo carve-outs and the lanes they must not forget ---------------
 //
-// `computeVolatile` enumerated its content-volatility terms four times —
-// once for `ownContent`, once for the group memo, once inside each of the
-// two memo carve-outs. The two carve-outs never mentioned a bound fill or
-// a live effect, so a node carrying one of those AND an animated gate took
-// a memo it had no right to and replayed a recording that had baked the
-// old colour. Each test below was RED before the terms were derived by
-// subtraction; each control is the removal of exactly one term.
+// The content-volatility terms are enumerated in several places: once for
+// `ownContent`, once for the group memo, and once inside each memo
+// carve-out. Every copy has to name every term. A carve-out that omits, say,
+// a bound fill or a live effect lets a node carrying one of those AND an
+// animated gate take a memo it has no right to — and replay a recording that
+// baked the old colour.
+//
+// This is why the terms are named once and each consumer subtracts from
+// them, rather than each site listing what it cares about.
 
 TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
-  // A node carrying BOTH a bound fill() and an animated mask gate. §17's
-  // scalarMemo holds the recording while the GATE's floats hold still —
-  // and the recording baked the fill colour. If the bound fill is not part
-  // of the memo's compare, moving it while the gate holds replays the old
-  // colour.
+  // A node carrying BOTH a bound fill() and an animated mask gate. The
+  // scalar memo holds the recording while the GATE's floats hold still — and
+  // that recording baked the fill colour into it. If the bound fill is not
+  // part of the memo's comparison, moving it while the gate holds replays
+  // the old colour.
   choreograph::Output<float> reveal{1.0f};
   choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})}; // red
   Host host(200, 200);
@@ -1402,14 +1390,11 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   for (int i = 0; i < 4; ++i)
     host.frame(0.016); // let the memo bake and hold
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
-  // THE CACHING NUMBERS. When this pin was written (§38's bugfix night)
-  // the node took NO memo — 0 records, 8 live paints (node + parent, 4
-  // frames each) — because a bound Fill was not a number the §17 compare
-  // could see. §38's extension gave ContentScalars a Fill lane, so the
-  // node takes the memo now: the recording (which baked the red) REPLAYS
-  // while the fill provably holds, and only the parent still paints live.
-  // The pixel half below is unchanged and is the pin that matters — the
-  // memo's compare must see the fill move, or the old colour replays.
+  // The counts below describe the memo actually working: the recording,
+  // which baked the red, REPLAYS while both the fill and the gate provably
+  // hold, so only the parent paints live. They are the cheap half of the
+  // claim. The pixel assertion after them is the one that matters — the
+  // memo's comparison must see the fill MOVE, or the old colour replays.
   unsigned records = 0, live = 0;
   for (int i = 0; i < 4; ++i) {
     host.frame(0.016);
@@ -1425,9 +1410,9 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
 }
 
 TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
-  // Same hole, a different lane: a LIVE effect (§11 bound uniform) is
-  // captured by the recording, and the §17 scalar memo's refusal list
-  // does not mention it.
+  // The same hazard, a different lane: a LIVE effect driven by a bound
+  // uniform is captured by the recording, so the scalar memo's refusal list
+  // has to mention it or a held gate replays the effect's old output.
   static sk_sp<SkRuntimeEffect> fx = [] {
     auto [e, err] = SkRuntimeEffect::MakeForShader(
         SkString("uniform shader content; uniform float amt;"

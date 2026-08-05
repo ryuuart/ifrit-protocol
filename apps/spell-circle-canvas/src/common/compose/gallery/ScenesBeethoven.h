@@ -1,25 +1,27 @@
 #pragma once
-// The Brockmann plate (REFERENCES.md §7 — "beethoven", Tonhalle Zürich,
-// 1955), ported from sketch/sketches/beethoven_study.cpp: every number is
-// from the measured arc table (pixel analysis of the archival scan) —
-// center at (0.2693W, 0.7156H), ring widths doubling 1:2:4:8:16, every arc
-// end an exact multiple of the 11.25° module. Construction is pure
-// composition: each arc run is a circle OUTLINE that starts its own path
-// at the run's canvas start angle, stroked at the ring's width and
-// revealed with trim(). The reveal animates in the poster's OWN units
-// (the §7 motion inference): ring durations DOUBLE inward-out
-// (120/240/480/960/1920/3840 ms), sweeps run linearly — geometric
-// progressions, never decorative eases.
+// Josef Müller-Brockmann's "beethoven" concert poster (Tonhalle Zürich,
+// 1955), reconstructed rather than traced. Every number below comes from
+// pixel analysis of an archival scan: arc centre at (0.2693W, 0.7156H), ring
+// widths doubling 1:2:4:8:16, and every arc end landing on an exact multiple
+// of the poster's 11.25° angular module.
 //
-// Porting notes (per the ScenesKinetic.h exemplar):
-//  - the poster is the Weltformat √2 portrait (720x1018); on the 900x640
-//    landscape canvas it hangs as a PLATE REPRODUCTION — scaled to the
-//    canvas height, centered, letterboxed on a museum-wall mat with a
-//    small label in the right panel; all arc-table fractions are of the
-//    PLATE box, so the measured geometry survives the rescale intact
-//  - static ring geometry stays cacheable: the outlines are fixed paths,
-//    only the trim props (Animatable props) move; the reveal is ONE
-//    discrete re-describe gated in update(), exactly like the sketch
+// The construction is pure composition. Each arc run is a full circle
+// OUTLINE whose path starts at that run's canvas start angle, stroked at the
+// ring's width and then revealed with a span mask — so the mask parameter
+// maps directly onto the measured sweep. The reveal moves in the poster's
+// own units: ring durations double from the inside out and sweeps run
+// linearly, so the motion is a geometric progression rather than a
+// decorative ease.
+//
+// Two things to know before editing:
+//  - The poster is a Weltformat portrait (the √2 rectangle). This canvas is
+//    landscape, so it hangs as a PLATE REPRODUCTION — scaled to the canvas
+//    height, centred, matted on a museum wall with a label panel to the
+//    right. Every arc-table fraction is a fraction of the PLATE box, not the
+//    canvas, which is what lets the measured geometry survive the rescale.
+//  - The ring geometry is static and stays cacheable: the outlines are fixed
+//    paths and only the mask parameters animate. The reveal is a single
+//    discrete re-describe gated in update(), not a per-frame one.
 
 #include "GalleryCore.h"
 
@@ -51,8 +53,9 @@ constexpr SkColor4f kPaper{0.961f, 0.953f, 0.933f, 1}; // #F5F3EE
 constexpr SkColor4f kInk{0.066f, 0.062f, 0.058f, 1};
 constexpr SkColor4f kLabel{0.760f, 0.745f, 0.715f, 1};
 
-// The measured arc table (REFERENCES.md §7). Angles in MATH convention
-// (0°=+x, CCW+, y-up); canvas angle = −math angle (y-down, CW+).
+// The arc table measured off the poster. Angles are in MATH convention
+// (0° = +x, counter-clockwise positive, y up); the canvas is y-down and
+// clockwise-positive, so canvas angle = −math angle.
 struct Run {
   float rInner, rOuter;   // × poster W
   float startDeg, endDeg; // math convention
@@ -96,14 +99,18 @@ struct BeethovenScene final : Scene {
 
   void setup(Composer &composer, sigil::motion::Ticker &) override {
     revealed = false;
-    composer.render(describe(0)); // everything at trim ~0
+    composer.render(describe(0)); // every arc masked to nothing
   }
 
-  /** One arc run: a box centered on the poster's arc center, sized to the
-   *  run's mid-radius circle, whose outline STARTS at the run's canvas
-   *  start angle — so trim(0 → sweep/360) reveals exactly the measured
-   *  run. All fractions are of the PLATE box (the parent of these
-   *  absolute children), so the archival geometry rescales as one unit. */
+  /** One arc run: a box centred on the poster's arc centre, sized to the
+   *  run's mid-radius circle, whose outline STARTS at the run's canvas start
+   *  angle. That start angle is what makes the mask parameter meaningful —
+   *  masking the outline from 0 to sweep/360 then reveals exactly the
+   *  measured run and nothing else.
+   *
+   *  All fractions here are of the PLATE box, which is the parent of these
+   *  absolute children, so the whole measured geometry rescales as one
+   *  unit. */
   Element arcRun(const beethoven_plate::Run &run, int ring, int phase) {
     namespace bp = beethoven_plate;
     const SkPoint C{0.2693f * bp::kPlateW, 0.7156f * bp::kPlateH};
@@ -131,7 +138,8 @@ struct BeethovenScene final : Scene {
     if (phase == 0) {
       e.mask(by::spans(spans::upTo(0.0001f)));
     } else {
-      // The §7 motion rule: durations double per ring, linear sweeps.
+      // The poster's own progression: reveal duration doubles per ring
+      // outward, and each sweep runs linearly.
       const auto duration =
           std::chrono::milliseconds(120 << std::min(ring, 5));
       e.mask(by::spans(
@@ -154,12 +162,12 @@ struct BeethovenScene final : Scene {
       poster.child(arcRun(table[i], ringOf[i], phase)
                        .key("arc" + std::to_string(i)));
 
-    // The type block: flush-left grotesque, lowercase-forward, seated LOW
-    // in the paper bowl left of the arc center. The study seated it at the
-    // original's top-left, but the measured R2/R3 runs sweep through that
-    // zone and swallowed half the title (the sketch shipped with that
-    // collision); the bowl below the center line is the plate's one clear
-    // field. Sizes/margins ride the plate scale.
+    // The type block: flush-left grotesque, lowercase-forward, seated LOW in
+    // the paper bowl to the left of the arc centre. Not at the original's
+    // top-left, because the arc runs measured above sweep straight through
+    // that zone and would cover the title; the bowl below the centre line is
+    // the plate's one clear field. Sizes and margins ride the plate scale so
+    // the whole block rescales with the reproduction.
     poster.child(
         box().column()
             .inset(0.07f * bp::kPlateW, 0.54f * bp::kPlateH,

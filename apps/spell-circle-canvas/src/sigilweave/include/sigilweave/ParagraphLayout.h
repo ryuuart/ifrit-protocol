@@ -11,8 +11,10 @@
  * and get back a ParagraphLayout: positioned runs plus overflow / ellipsis /
  * placeholder reporting. draw() or drawBatched() paints it to an SkCanvas
  * (paint resolved per span at draw time), or walk `runs` yourself.
- * ParagraphLayoutOptions gathers every layout-time knob — alignment, line
- * metrics, break strategy, hyphenation, justification, overflow, path text.
+ * ParagraphLayoutOptions carries the settings the layout stage itself reads:
+ * alignment, line metrics, break strategy, hyphenation, justification,
+ * overflow, tab stops, path text. Settings that belong to the geometry stay
+ * on the geometry (ExclusionFlow::setMinIntervalWidth, for instance).
  */
 
 #include "Flow.h"
@@ -124,11 +126,12 @@ struct PathTextOptions {
 };
 
 /**
- * Groups the independent stages of paragraph layout.
+ * Groups the settings of paragraph layout by the stage that reads them.
  *
- * The common path normally sets only `alignment`. More specialized callers
- * opt into `lineBreakStrategy`, `hyphenation`, `justification`, `overflow`, or
- * `pathText` without scanning a flat collection of unrelated tuning knobs.
+ * Every member is defaulted, and the common path sets only `alignment`. Each
+ * nested group is inert unless its stage runs: `justification` applies under
+ * kJustify, `knuthPlass` under kKnuthPlass, `tabStops` only when a word
+ * carries a tab, `pathText` only when runs are transformed.
  */
 struct ParagraphLayoutOptions {
   TextAlignment alignment = TextAlignment::kStart; ///< per-interval placement
@@ -204,24 +207,28 @@ struct ParagraphLayout {
   void draw(SkCanvas *canvas, const Paragraph &paragraph,
             const PaintStyle *overridePaint = nullptr) const;
 
+  /** Draw-time font-variation override, valid only for ADVANCE-INVARIANT
+   *  axes. Every shaped bucket's typeface is swapped for its varied clone
+   *  (memoized by `fonts`) while the glyph positions computed at shaping
+   *  time are reused as they are. That is correct exactly when driving the
+   *  axis leaves every glyph advance alone — GRAD behaves that way on faces
+   *  that have it, whereas wght moves advances on most faces and would leave
+   *  the glyphs sitting at the wrong pen positions. Ask
+   *  FontContext::axisIsAdvanceInvariant before animating an axis here; an
+   *  axis that fails that test belongs in ShapingStyle::variations, which
+   *  re-shapes. Transformed and path runs draw from their baked blobs and
+   *  ignore this override entirely. */
+  struct LiveVariations {
+    FontContext *fonts = nullptr;
+    std::span<const FontVariation> variations;
+  };
+
   /** Draws the same output with minimal draw calls: horizontal runs are
    * merged into one SkCanvas::drawGlyphs per (font, PaintStyle) bucket and
    * configured paint layer instead of one drawTextBlob per word and layer.
    * A default style is one call per bucket; each underlay/overlay adds one.
    * Transformed runs fall back to their baked blobs.
    */
-  /** Draw-time font-variation override for ADVANCE-INVARIANT axes (the
-   *  VariationDrive: GRAD is the advance-invariant weight; wght moves
-   *  advances on most fonts and would shear glyphs off their shaped
-   *  positions — gate with FontContext::axisIsAdvanceInvariant). Every
-   *  shaped bucket's typeface swaps for its varied clone (memoized by
-   *  fonts); glyph positions are untouched. Transformed/path runs draw
-   *  from baked blobs and keep their base coordinates. */
-  struct LiveVariations {
-    FontContext *fonts = nullptr;
-    std::span<const FontVariation> variations;
-  };
-
   void drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
                    const PaintStyle *overridePaint = nullptr,
                    const LiveVariations *liveVariations = nullptr) const;

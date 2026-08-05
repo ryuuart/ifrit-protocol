@@ -1,11 +1,10 @@
 #pragma once
 
 /** @file
- * SigilWorld scene — SigilCompose's core lesson applied to 3D: DECLARE
- * the scene as a value tree, let a reconciler own the device objects.
- * No kernel import — no layout, no decorations, no timelines — just
- * the part that made compose pleasant: describe, diff, and only what
- * changed touches the GPU.
+ * A DECLARATIVE layer over World: describe the scene as a value tree and
+ * let a reconciler own the device objects, so only what changed touches
+ * the GPU. There is no layout, no styling and no timeline here — just
+ * describe, diff, apply.
  *
  *   scene::Node root = scene::group().key("set")
  *     .child(scene::surface(floorMesh, steel).key("floor").at({0,-190,0}))
@@ -14,16 +13,15 @@
  *         ...
  *   scene.render(root);   // add/remove/move against the last render
  *
- * Identity is the KEY PATH (parent keys joined; unkeyed children fall
- * back to their index). A leaf re-uses its device surface when its
- * mesh POINTER and material compare equal — hold meshes in
- * shared_ptrs (or keep the Node tree and rebuild transforms only) and
- * transform-only changes cost setTransform, never re-upload. panel()
- * quads get per-size cached meshes inside the Scene, so panels are
- * stable by construction.
+ * Identity is the KEY PATH: a node's key joined to its parents' keys,
+ * with an index fallback for unkeyed children. A leaf reuses its device
+ * surface when its mesh POINTER and its material compare equal, so hold
+ * meshes in shared_ptrs and a transform-only change costs a setTransform
+ * rather than a re-upload. panel() quads get per-size cached meshes
+ * inside the Scene, which makes panels identity-stable by construction.
  *
- * render() returns Stats {added, removed, moved, kept} — the same
- * pruning visibility compose's ledgers taught us to demand.
+ * render() returns Stats {added, removed, moved, kept}, so a caller can
+ * assert that a re-describe cost what it expected to cost.
  */
 
 #include "sigilworld/World.h"
@@ -102,8 +100,10 @@ private:
 
 inline Node group() { return Node(); }
 
-/** A mesh + material leaf. Identity for reuse is the mesh POINTER —
- *  share the shared_ptr across renders. */
+/** A mesh + material leaf. Identity for reuse is the mesh POINTER, not
+ *  its contents, so share one shared_ptr across renders; the overload
+ *  below allocates a fresh mesh and therefore a fresh identity every
+ *  call. */
 Node surface(std::shared_ptr<const shape::Mesh> mesh, Material material);
 inline Node surface(shape::Mesh mesh, Material material) {
   return surface(std::make_shared<const shape::Mesh>(std::move(mesh)),
@@ -114,14 +114,16 @@ inline Node surface(shape::Mesh mesh, Material material) {
  *  cached per size inside the Scene, so panels stay identity-stable. */
 Node panel(sk_sp<SkImage> image, float width, float height);
 
-/** A layer stack's pixel DENSITY — the one number that closes panel
- *  sizing (README "Layers at depth"): every image through the same
- *  Stack lands at image_px / pxPerWu world units, so aspect is correct
- *  by construction and two layers' world sizes stay in the exact ratio
- *  of their pixel sizes — the scale an aspect-deriving overload cannot
- *  know. Additive: `panel(image, w, h)` spellings are untouched, and a
- *  Stack panel IS that spelling with the arithmetic done — identical
- *  arithmetic means the reconciler sees the identical surface. */
+/** A layer stack's pixel DENSITY: one number that sizes every image in
+ *  the stack. An image through this Stack lands at image_px / pxPerWu
+ *  world units, so each layer's aspect is right by construction and two
+ *  layers' world sizes stay in the exact ratio of their pixel sizes —
+ *  the relative scale an aspect-deriving overload could not know.
+ *
+ *  This is arithmetic, not a new node kind: `Stack::panel(image)` builds
+ *  exactly the `panel(image, w, h)` a caller would write by hand with
+ *  the same numbers, so the reconciler sees the same surface and
+ *  swapping one spelling for the other is a keep. */
 struct Stack {
   float pxPerWu = 1;
 
@@ -151,38 +153,35 @@ public:
   /** Reconcile the declared tree against the last render. */
   Stats render(const Node &root);
 
-  /** PUBLISH IDENTITY — the light door of the Scene × Animation ruling
-   *  (2026-08-04; README "Scene and Animation do not meet"): resolve a
-   *  key path to the live registry entity behind that node, so an
-   *  `Animated*` lane lands on a declared leaf ON PURPOSE instead of
-   *  by iterating the registry around the reconciler's back.
+  /** PUBLISH IDENTITY: resolve a key path to the live registry entity
+   *  behind that node, so an `Animated*` lane can be attached to a
+   *  declared leaf on purpose instead of by iterating the registry
+   *  around the reconciler's back.
    *
-   *  The path is the reconciler's OWN identity spelling — the same
-   *  bookkeeping key `render()` diffs by: keys joined with '/', so
+   *  The path is the reconciler's own identity spelling — the same key
+   *  `render()` diffs by. Keys are joined with '/', so
    *  `group().key("comp").child(panel(...).key("sky"))` answers to
-   *  "comp/sky" (the internal form's leading '/' is also accepted).
-   *  Unkeyed children carry the reconciler's index fallback in that
-   *  spelling too ("#<index>" for the hop, "@" for the unkeyed node
-   *  itself) — but key what you intend to animate. Only leaves have an
-   *  entity; a group path, an unknown path, or a leaf whose addSurface
-   *  failed answers an empty optional, never a throw.
+   *  "comp/sky"; a leading '/' is accepted too. Unkeyed children carry
+   *  the index fallback in that spelling ("#<index>" for the hop, "@"
+   *  for the unkeyed node itself), but key anything you intend to
+   *  animate. Only leaves have an entity: a group path, an unknown path,
+   *  or a leaf whose surface creation failed answers an empty optional,
+   *  never a throw.
    *
-   *  Returns `entt::entity` because that is the currency a lane takes:
-   *  `registry().emplace<AnimatedTransform>(*scene.find("comp/sky"))`
-   *  composes directly with World::registry() and the Animated*
-   *  components. A World surface id is the SAME value one documented
-   *  cast away — `(uint32_t)e` / `world::entity(id)`, the bijection in
-   *  Components.h — so the setter spelling costs nothing.
+   *  Returns `entt::entity` because that is what the Animated*
+   *  components take:
+   *  `registry().emplace<AnimatedTransform>(*scene.find("comp/sky"))`.
+   *  A World surface id is the same value one cast away (Components.h),
+   *  so the imperative setters are equally reachable.
    *
-   *  LIFETIME: the entity is valid until the next render() that
-   *  RECREATES or REMOVES the node. A leaf whose mesh pointer or
-   *  material changed is remove+add — `registry.destroy()` of this
-   *  entity and every component on it, your lanes included. After such
-   *  a render, find() returns the NEW entity: re-attach your lanes. A
-   *  kept (or transform-only moved) leaf keeps its entity — and when a
-   *  kept leaf's declared placement or material is outranked by a live
-   *  Animated* component, render() says so once per node (see the
-   *  README section). */
+   *  LIFETIME: the entity stays valid until the next render() that
+   *  RECREATES or REMOVES that node. A leaf whose mesh pointer or
+   *  material changed is remove-and-add, which destroys this entity and
+   *  every component on it — your lanes included — so call find() again
+   *  after such a render and re-attach. A kept leaf, including one moved
+   *  by transform only, keeps its entity. When a kept leaf's declared
+   *  placement or material is outranked by a live Animated* component,
+   *  render() warns once for that node. */
   std::optional<entt::entity> find(std::string_view keyPath) const;
 
   /** Forget everything (removes all scene-owned surfaces). */
@@ -197,10 +196,12 @@ private:
     bool visited = false;
   };
 
-  /** The loud half of the light door: a kept/moved leaf whose declared
-   *  placement or material a live Animated* component outranks warns
-   *  once per key path (the set below; entries reset when the node is
-   *  removed or recreated, so a fresh entity warns fresh). */
+  /** Warn once per key path when a kept or moved leaf's declared
+   *  placement or material is outranked by a live Animated* component
+   *  on the same entity — silently losing a declared value is the
+   *  failure this makes visible. The set below remembers who has been
+   *  warned; its entries clear when the node is removed or recreated,
+   *  so a fresh entity warns afresh. */
   void warnIfOutranked(const std::string &path, uint32_t id);
 
   World &m_world;

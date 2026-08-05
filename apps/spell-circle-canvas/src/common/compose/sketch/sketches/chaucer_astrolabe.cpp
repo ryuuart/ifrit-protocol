@@ -40,9 +40,8 @@
 // is 0.586% small (−0.229 mm on the real 132 mm object), the Tropic of
 // Cancer 1.175% (−0.299 mm).
 //
-// EVERY NUMBER IN THE BRIEF I WAS HANDED WAS RE-DERIVED HERE AND AGREED.
-// The one thing worth flagging back: the published parameterisation of the
-// azimuth family is measured from the PRIME VERTICAL, not from north
+// ONE THING TO KNOW BEFORE READING THE AZIMUTH FAMILY: the usual published
+// parameterisation is measured from the PRIME VERTICAL, not from north
 // (A′ = 90 − A). The sketch runs the check that catches it — each azimuth
 // projected pointwise from (A, h) → (δ, H) → plate and least-squares
 // circle-fitted — and prints the residual BOTH ways: ~1e-15 R with A′, and
@@ -78,18 +77,18 @@
 //   shapes::circle()      ~73 plate circles + every ring, all engraved as
 //                         V-GROOVES: a radial ramp centred on each circle's
 //                         OWN centre is constant along the groove and varies
-//                         across it — the one cross-section paint the
-//                         library cannot otherwise express (ROADMAP §8b)
+//                         across it, which is the only way to get a
+//                         cross-section paint out of a stroke here
 //   shapes::annulus/sector/arc/parametric/star   limb bands, shadow square,
 //                         the projection ray, the rosette, the throne
 //   TextPath::Orient::Radial   the 24 hour letters and the degree numerals,
-//                         set as spokes — landed for this study
+//                         set as spokes
 //   TextPath::Orient::Tangent  the 12 zodiac names and the 12 star names,
 //                         running lettering, engraver's convention (no flip)
 //   instancing::Pool::sizes()  the 360 limb ticks: ONE atlas cell, three
-//                         LENGTHS through the non-uniform lane — also landed
-//                         for this study, and it works here for exactly the
-//                         reason it cannot work for the almucantars
+//                         LENGTHS through the non-uniform lane — it works
+//                         here for exactly the reason it cannot work for
+//                         the almucantars
 //   bind()                one rete-rotation Output remapped at eight call
 //                         sites; one sun-longitude Output at four
 //   debug::coverage       the 12 zodiac cells tile the ecliptic ring
@@ -99,12 +98,12 @@
 //   brush::taper        the star thorns
 //   console::LineRing     four panels of checks, printed as they run
 //
-// AND ONE CORRECTION FILED BACK, since it changes what the sketch means: the
-// brief's own numbers for the ecliptic residual and Chaucer's example are
-// 5.55e-16 R and 2.1e-14°, and a float cannot hold an opinion about either.
-// The plate is DRAWN in float (SkPoint is float); the proof runs in a
-// parallel double-precision projection (see kEpsD / projD / fitCircleD). With
-// the float path the same checks read 3e-7 and 1e-5 — right, and worthless.
+// THE PROOFS RUN IN DOUBLE, THE PLATE IS DRAWN IN FLOAT, and the two cannot
+// be the same code. Residuals at the 1e-16 R / 1e-14° level are below what a
+// float can represent at all: run through the float path (SkPoint is float),
+// the same checks read 3e-7 and 1e-5 — correct, and worthless as evidence. So
+// a parallel double-precision projection exists purely for the checks; see
+// kEpsD / projD / fitCircleD.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -158,7 +157,7 @@ namespace ch = choreograph;
 
 namespace {
 
-using studio::hex;   // the same four lines as twenty-three other files
+using studio::hex;   // 0xRRGGBB -> SkColor4f
 
 // ---------------------------------------------------------------------------
 // palette — luminance percentiles over the hue-masked brass of the 1466
@@ -196,7 +195,7 @@ SkPoint MC(float mx, float my) { return {kCx + mx * kR, kCy - my * kR}; }
 SkPoint PL(float mx, float my) { return {(mx + 1.0f) * kR, (1.0f - my) * kR}; }
 
 // ---------------------------------------------------------------------------
-// §5.1 — the two constants, and everything that follows from them
+// The two constants, and everything that follows from them
 
 constexpr float kEps = 23.0f + 50.0f / 60.0f;   // Chaucer I.17
 constexpr float kPhi = 51.0f + 50.0f / 60.0f;   // Chaucer I.14
@@ -206,7 +205,7 @@ const float kK = std::tan((90.0f - kEps) * 0.5f * kD);  // 0.65147737
 const float kReq = kK;                                  // equator, in R
 const float kRcan = kK * kK;                            // Cancer,  in R
 
-/** §5.2 — the projection, stated once: a point at declination δ lands at
+/** The projection, stated once: a point at declination δ lands at
  *  radius R_eq·tan((90−δ)/2), at a plate angle equal to its right ascension.
  *  Everything else on this plate is this one line plus trigonometry. */
 float rOfDec(float decDeg) {
@@ -225,19 +224,19 @@ SkPoint projRA(float decDeg, float raDeg) {
   return {r * std::cos(raDeg * kD), r * std::sin(raDeg * kD)};
 }
 
-// §5.4 the horizon; §5.5 the almucantars ("compowned by two and two", I.18)
+// The horizon, and the almucantars ("compowned by two and two", I.18)
 float almCy(float h) {
   return kReq * std::cos(kPhi * kD) / (std::sin(kPhi * kD) + std::sin(h * kD));
 }
 float almR(float h) {
   return kReq * std::cos(h * kD) / (std::sin(kPhi * kD) + std::sin(h * kD));
 }
-// §5.6 the azimuths: a coaxal family through the zenith and the nadir
+// The azimuths: a coaxal family through the zenith and the nadir
 const float kYzen = kReq * std::tan((90.0f - kPhi) * 0.5f * kD);
 const float kYnad = -kReq * std::tan((90.0f + kPhi) * 0.5f * kD);
 const float kAzCy = (kYzen + kYnad) * 0.5f;
 const float kAzA = (kYzen - kYnad) * 0.5f;
-// §5.8 the ecliptic, internally tangent to both tropics
+// The ecliptic, internally tangent to both tropics
 const float kEclCy = (kRcan - 1.0f) * 0.5f;
 const float kEclR = (kRcan + 1.0f) * 0.5f;
 // the zodiac band, Chaucer's ±6° of ecliptic latitude (I.21)
@@ -288,7 +287,7 @@ Circ through3(SkPoint a, SkPoint b, SkPoint c) {
   return out;
 }
 
-/** §5.7 — the k-th seasonal-hour line, as the medieval makers struck it:
+/** The k-th seasonal-hour line, as the medieval makers struck it:
  *  divide the below-horizon arc of each tropic into twelve, and swing a
  *  circle through the k-th division of Cancer, of the equator and of
  *  Capricorn. */
@@ -300,7 +299,7 @@ Circ seasonalLine(int k) {
 }
 
 // ---------------------------------------------------------------------------
-// §6.1 — the twelve zodiac cells. The projection is not uniform along the
+// The twelve zodiac cells. The projection is not uniform along the
 // ecliptic ring, and this is the single most visible "computed, not drawn"
 // feature of a real rete: Capricorn and Sagittarius are 2.26x wider on the
 // ring than Cancer and Gemini.
@@ -318,7 +317,7 @@ float ringAngle(float lamDeg) {
   return a < 0 ? a + 360.0f : a;
 }
 
-// §6.3 — the limb's 24 hour letters. RECONSTRUCTED, not Chaucer's: he reads
+// The limb's 24 hour letters. RECONSTRUCTED, not Chaucer's: he reads
 // the hour as a capital "X" and gets 9 a.m., but never says what the
 // alphabet is. The medieval Latin alphabet without J, U and W is 23 letters
 // with X in position 21; nine a.m. is 21 hours after noon; & was genuinely
@@ -329,7 +328,7 @@ const char *const kLetters[24] = {"A", "B", "C", "D", "E", "F", "G", "H",
                                   "I", "K", "L", "M", "N", "O", "P", "Q",
                                   "R", "S", "T", "V", "X", "Y", "Z", "&"};
 
-// §6.2 — the rete's stars, precessed J2000 → 1326.0 by the IAU 1976 ζ/z/θ
+// The rete's stars, precessed J2000 → 1326.0 by the IAU 1976 ζ/z/θ
 // rotation (ζ = −4.3155°, z = −4.3055°, θ = −3.7543°; T = −6.74 cy). The
 // whole sky has slid ~8.6° in right ascension since J2000, which is why a
 // rete has a service life of a century or two before the stars need
@@ -602,15 +601,14 @@ sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                        .track = tracking});
 }
 
-using studio::ramp;   // six sketches wrote this seven-line body
+using studio::ramp;   // (startMs, durationMs) -> a Transition
 
 /** THE ENGRAVED V-GROOVE. An engraved line is not a stroke, it is a cut with
  *  a shadowed wall and a lit wall — a CROSS-SECTION, which is the one paint
- *  the library cannot express for a stroke (ROADMAP §8b). It can here, and
- *  only here, for the reason the Penrose study found: every line on this
- *  plate IS a circle, so a radial ramp centred on that circle's own centre
- *  is constant ALONG the groove and varies ACROSS it. The trick has now
- *  saved two studies and is still a trick. */
+ *  a stroke cannot express directly. It works here for one reason: every
+ *  line on this plate IS a circle, so a radial ramp centred on that circle's
+ *  own centre is constant ALONG the groove and varies ACROSS it. Nothing
+ *  generalises this to an arbitrary path. */
 Fill grooveFill(float rad, float w, float darkA, float liteA) {
   const float g = rad + w;
   const float a = (rad - w * 0.5f) / g, b = (rad + w * 0.5f) / g;
@@ -625,8 +623,9 @@ Fill grooveFill(float rad, float w, float darkA, float liteA) {
 }
 
 /** One engraved circle: centre and radius in R units of the math frame,
- *  positioned in the plate box. This function is called ~73 times, and that
- *  IS the point — see the report on why instancing cannot help. */
+ *  positioned in the plate box. This function is called ~73 times, and each
+ *  call is a distinct circle: every groove has its own centre and radius, so
+ *  its gradient differs, and there is no instancing to be had here. */
 Element cut(SkPoint mc, float mr, float w, float darkA, float liteA,
             const std::string &key) {
   const float rad = mr * kR;
@@ -763,7 +762,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   // ONE Output for the rete's rotation, remapped at every call site with
   // bind(): the rete's rotate(), the label's angle, the sun mark's position,
   // the readouts and the highlighted letter are all the same number in
-  // different units. That is precisely the case bind() shipped for.
+  // different units, which is exactly what bind() is for.
   ch::Output<float> reteRot{0};
   ch::Output<float> hourAngle{-46.550124f};
   ch::Output<float> sunLam{1.0f};
@@ -794,8 +793,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   //
   // Material is NODE-LOCAL, and this object is ~200 nodes of one piece of
   // metal. The ramp below is authored in CANVAS px and converted into each
-  // node's unit square by hand — ROADMAP §10c's Material::worldSpace(), from
-  // a case where the "world" is one OBJECT rather than the canvas.
+  // node's unit square by hand. There is no world-space material: a Material
+  // is resolved against the node it sits on, and here the "world" the light
+  // belongs to is one OBJECT spanning ~200 nodes.
   /** Brass has ONE colour and many lights. This samples the sampled
    *  percentile ladder as a continuous curve, so "level" means "how lit is
    *  this face" and a single number places every surface on the object on
@@ -982,7 +982,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     // THE REGION IS A SET DIFFERENCE: these live only inside Capricorn AND
     // OUTSIDE the horizon. clip() intersects and nesting intersects more;
     // there is no clipOut() and no shapes::subtract, so the region is built
-    // with a raw SkPathOp below the Compose seam. See the report.
+    // with a raw SkPathOp below the Compose seam.
     {
       const SkPoint hc = PL(0, almCy(0.0f));
       const float hr = almR(0.0f) * kR;
@@ -1555,7 +1555,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // the polished dome: a sheen centred slightly above the pin. glowUnit,
     // because it must FILL its box — radialUnit's radius is a fraction of
-    // the HALF-DIAGONAL and has now cost two studies an iteration.
+    // the HALF-DIAGONAL, so it reaches the corners and stops short of the
+    // edges, which on a disc is the wrong stop entirely.
     g.child(disc({kCx, kCy}, kMaterR)
                 .key("sheen")
                 .shape(shapes::circle())
@@ -2892,10 +2893,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kVellum);
-    // §31 named-state beat: a 26 s loop of named states; 23.0 s is
-    // CHAUCER'S MOMENT — the 12 March 1391 trace at full opacity
-    // [21.9, 24.8]. Any other state asserts a different date. (The old 6.0
-    // default was mid-assembly: azimuth arcs still growing, rete absent.)
+    // The still has to name its moment: this is a 26 s loop of named states,
+    // and 23.0 s is CHAUCER'S MOMENT — the 12 March 1391 trace at full
+    // opacity [21.9, 24.8]. Any other state asserts a different date, and an
+    // undeclared capture lands mid-assembly, with the rete not yet there.
     ctx.captureAt(23.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
@@ -3048,9 +3049,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   }
 
   void update(double, sketch::SketchContext &ctx) override {
-    // The four live readouts change their TEXT every frame, which Animatable
-    // cannot carry (ROADMAP §9). renderSlot is the right answer and is cheap:
-    // the surrounding ~350-node tree is untouched and keeps its caches.
+    // The four live readouts change their TEXT every frame, and an Animatable
+    // carries values, not strings. renderSlot is the right answer and is
+    // cheap: the surrounding ~350-node tree is untouched and keeps its
+    // caches.
     ctx.composer.renderSlot("sun", sunMark());
     ctx.composer.renderSlot("readout", readout());
     ctx.composer.renderSlot("projray", projRay());

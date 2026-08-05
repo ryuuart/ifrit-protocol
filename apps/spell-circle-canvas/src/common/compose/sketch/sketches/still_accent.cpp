@@ -1,42 +1,36 @@
-// still_accent.cpp — §38's measured fixture, kept ALIVE: one bound fill
-// that never moves, in a panel big enough for the cost to matter.
+// still_accent.cpp — one bound fill that never moves, in a panel big
+// enough for the cost of getting it wrong to show.
 // =============================================================================
-// ROADMAP §38 measured what §Argument 3 and §10g(4) filed twice without
-// measuring: `isAnimated()` was per-node and BINARY, so one `fill(&output)`
-// on one leaf — a colour that never moves — set `ownContent`,
-// `computeVolatile` carried it up, promotion answered `Promotion::Volatile`
-// at the root, and 512 stroked cells replayed 512 pictures at ~11 µs each
-// forever. 5.02 ms/frame, 19.6× over the identical panel with the colour
-// spelled as a plain value. Picture caching cannot save it (a picture
-// re-runs its draw calls); texture promotion is the only thing that does,
-// and the binary declaration is what denied it.
+// A colour bound to an animation output is not the same thing as a colour
+// that is currently changing, and this panel is the case where the
+// difference is expensive. A single `fill(&output)` on a single leaf marks
+// that leaf's own content volatile; volatility propagates upward, so the
+// root answers "volatile" too, and the whole subtree is refused texture
+// promotion. Picture caching cannot rescue it — replaying a picture still
+// re-runs every draw call — so all `kCells` stroked, shaped cells redraw
+// on every frame for the sake of one star whose colour is standing still.
 //
-// THE EXTENSION THIS PANEL NOW DEMONSTRATES (§38, built 2026-08-04):
-// `ContentScalars` carries the bound Fill's resolved value, so the §17 memo
-// keeps the recording, §20's settle counter releases the volatility flag
-// after 8 provably-identical frames, and the per-draw released scan
-// re-declares THE FRAME the Output moves — before anything stale replays.
-// A held bound fill now costs what a plain one costs; the binding is free
-// until it is used.
-//
-// No corpus scene carried a slow bound fill (the §38 ledger sweep checked),
-// which is why this study exists: it is the living reproduction of the
-// measurement AND the demonstration that the extension retires it. NOTE it
-// is new — the plate ledger reports it "not in baseline" until the owner
-// rebases.
+// What keeps this panel cheap: the bound fill's resolved value rides in the
+// content-scalar memo, so the recording stays valid while the value holds;
+// a settle counter then clears the volatility flag after 8 consecutive
+// frames of a provably identical value; and the released node re-declares
+// itself volatile on the very frame the output moves, before anything
+// stale can be replayed. A parked binding therefore costs what a plain
+// colour costs, and only starts paying when it is actually used.
 //
 // EDIT THESE FIRST
-//   kCells      — 512 reproduces the measured arm; drop to 32 to see the
-//                 regime where promotion would never fire and the defect
-//                 cost exactly nothing.
-//   kRepaintHz  — 0 is the fixture (the property NEVER moves; with the
-//                 release, everything above the accent caches and the
-//                 panel is a blit). Set it non-zero to watch the §20
-//                 cycle: each change re-declares for one frame, the panel
-//                 repaints, then settles and re-releases 8 frames later.
+//   kCells      — large enough that per-cell picture replay dominates the
+//                 frame. Drop it to 32 for the opposite regime, where the
+//                 subtree is too cheap for promotion to be worth firing and
+//                 the distinction costs nothing either way.
+//   kRepaintHz  — 0 holds the colour still for the whole run, so everything
+//                 above the accent settles, releases, and the panel becomes
+//                 a blit. Set it non-zero to watch the cycle instead: each
+//                 change re-declares volatility for a frame, the panel
+//                 repaints, then it settles and releases 8 frames later.
 //
-// The three ways things move (hello.cpp): the accent is door 2 (driven) —
-// and deliberately parked. Parked is the whole point.
+// The accent's colour is driven by an animation output, and deliberately
+// parked. Parked is the whole point.
 
 #include <sigilsketch/Sketch.h>
 
@@ -50,8 +44,8 @@ using namespace sigil::compose::util;
 
 namespace {
 
-constexpr int kCells = 512;        // the measured arm's population
-constexpr double kRepaintHz = 0.0; // 0 = §38's fixture: never moves
+constexpr int kCells = 512;        // enough cells for picture replay to hurt
+constexpr double kRepaintHz = 0.0; // 0 = the bound colour never moves
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
   sigil::weave::TextStyle style;
@@ -65,10 +59,11 @@ const SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 const SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
 const SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
 
-/** The bench fixture verbatim (ComposeCoreBench.cpp, slowThemedPanel):
- *  `kCells` stroked, shaped cells — each records its own picture — plus
- *  ONE accent cell in the same row whose fill is BOUND. The accent's
- *  ancestors are what the binding used to poison. */
+/** The same shape as the `slowThemedPanel` fixture in ComposeCoreBench.cpp:
+ *  `kCells` stroked, shaped cells — each recording its own picture — plus
+ *  ONE accent cell in the same row whose fill is BOUND rather than a plain
+ *  value. Everything above that accent shares its volatility, which is why
+ *  a single leaf decides the cost of the whole panel. */
 Element panel(const choreograph::Output<Fill> *tint) {
   auto row = box().key("row").row().wrapLines().gap(2);
   for (int id = 0; id < kCells; ++id) {
@@ -104,15 +99,15 @@ struct StillAccent : sigil::compose::sketch::Sketch {
         .key("root")
         .column()
         .padding(6)
-        .child(text(toU8("\xc2\xa7""38 \xc2\xb7 one bound fill, never "
-                         "moving \xc2\xb7 512 cells"),
+        .child(text(toU8("one bound fill, holding still \xc2\xb7 " +
+                         std::to_string(kCells) + " cells"),
                     type(14, kInk)))
-        .child(text(toU8("the seven-point star's colour is fill(&output). "
-                         "before \xc2\xa7""38 that one binding denied "
-                         "texture promotion to every ancestor forever: "
-                         "5.02 ms/frame, 19.6\xc3\x97. now it settles, "
-                         "releases, and the panel promotes like a plain "
-                         "one."),
+        .child(text(toU8("the seven-point star's colour is fill(&output) "
+                         "\xe2\x80\x94 bound, but parked. a parked binding "
+                         "settles, releases, and the panel promotes like a "
+                         "plain colour; the frame the output moves, it "
+                         "declares itself volatile again before anything "
+                         "stale can replay."),
                     type(11, kDim)))
         .child(panel(&tint));
   }
@@ -127,10 +122,11 @@ struct StillAccent : sigil::compose::sketch::Sketch {
   void update(double elapsed, sketch::SketchContext &ctx) override {
     (void)ctx;
     if (kRepaintHz <= 0.0)
-      return; // §38's fixture: the property never moves after setup
+      return; // the colour never moves after setup
     // The demonstration mode: a change every 1/kRepaintHz seconds — each
-    // one re-declares volatility for a frame, then the §20 cycle settles
-    // and re-releases. Derived from `elapsed`, so a still is reproducible.
+    // one re-declares volatility for a frame, after which the value holds
+    // long enough to settle and release again. Derived from `elapsed`, so a
+    // still captured at a given time is reproducible.
     const int now = (int)std::floor(elapsed * kRepaintHz);
     if (now != step) {
       step = now;

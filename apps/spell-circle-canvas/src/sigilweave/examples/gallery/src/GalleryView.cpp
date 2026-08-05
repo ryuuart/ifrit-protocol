@@ -199,8 +199,9 @@ private:
   bool m_animating = true;
   bool m_useGpuBackend = true;
 
-  // The resolved typeface is rebuilt only when the GUI-side family/axis
-  // revision changes. Stable frames do one integer comparison in synchronize.
+  // Rebuilt only when synchronize() sees a different family name or a bumped
+  // axis revision; a frame that changes neither reuses this typeface, and
+  // with it the shape cache keyed on it.
   sk_sp<SkTypeface> m_resolvedTypeface;
   std::vector<SkPoint> m_pendingClicks;
   QSize m_logicalSize;
@@ -227,8 +228,9 @@ void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
 #ifdef TEXTFLOW_GALLERY_GPU
   if (!m_graphiteInitializationAttempted) {
     m_graphiteInitializationAttempted = true;
-    // Same pattern as the SpellCircle app: Graphite built on Qt's own Metal
-    // device/queue, so its submissions order before Qt's scene-graph pass.
+    // Graphite is built on Qt's own device and queue, never a private pair:
+    // sharing the queue is what makes this item's submissions order ahead of
+    // Qt's scene-graph pass without any explicit synchronisation.
     m_graphiteContext = SkiaGraphiteContext::create(rhi());
   }
 #endif

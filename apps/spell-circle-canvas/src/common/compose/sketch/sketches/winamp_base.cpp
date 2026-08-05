@@ -39,19 +39,20 @@
 // an instancing Atlas+Pool, the fader tracks are one shared 3-stop
 // Material, the title-bar grip is a rotated patterns::stripes tile.
 //
-// FIVE THINGS THE RENDER TAUGHT THAT THE MEASUREMENTS COULD NOT:
-//  · patterns::grain(freq=6.0) is unusable at any scale — freq is
-//    features-per-PIXEL, so 6.0 with stretch=6 asks for 36 cycles/px in y
-//    and returns aliasing hash. Brushed aluminium at x3 wants
-//    freq≈0.075 with stretch=5: uFreq = (0.015, 0.375), i.e. features ~65
-//    px long and ~3 px apart. The elongation is what reads as brushed; the
-//    frequency only decides whether you can see it at all, and `contrast`
-//    is the real volume knob (0.26 here — 0.35 was already "textured
-//    plastic" rather than "metal you have to look for").
-//  · the bevel really does do half the work. With the grain and without
-//    the 1 px highlight/shadow pair the panels read as flat lilac card.
-//  · nothing in this UI may have a corner radius — one .corners() left in
-//    by habit and the whole argument collapses into 2005 Aqua.
+// FIVE THINGS THE RENDER DECIDES, WHICH NO MEASUREMENT OF THE SKIN SETTLES:
+//  · patterns::grain's freq is features-per-PIXEL, so it has to be read
+//    against the scale factor. At x3, brushed aluminium wants freq≈0.075
+//    with stretch=5 — uFreq = (0.015, 0.375), features ~65 px long and ~3 px
+//    apart. Anything in the units-digit range (6.0 with stretch=6 asks for
+//    36 cycles per pixel in y) is past Nyquist and returns aliasing hash.
+//    The elongation is what reads as brushed; the frequency only decides
+//    whether you can see it at all, and `contrast` is the real volume knob:
+//    0.26 here, with roughly 0.35 upward reading as textured plastic rather
+//    than as metal you have to look for.
+//  · the bevel does half the work. With the grain but without the 1 px
+//    highlight/shadow pair the panels read as flat lilac card.
+//  · nothing in this UI may have a corner radius. A single .corners() call
+//    anywhere collapses the whole 2003-hardware argument into 2005 Aqua.
 //  · the LCD sells itself with the UNLIT ghost: "88:88" in VISCOLOR's
 //    documented off-segment grey under the live digits is what turns a
 //    green number into a segment display. But the sampled screen colour
@@ -62,8 +63,8 @@
 //  · a fixed-cell bitmap font has to be sized from a MEASURED advance, not
 //    an assumed one. `pix(cellN)` derives its point size from the
 //    substituted face's real advance/em, probed once with ctx.measure() in
-//    setup(); guessing "Menlo is 0.602 em" (it is 0.603) is the kind of
-//    error that only shows up as digits overflowing a 9 px cell.
+//    setup(). An advance assumed even a thousandth of an em wrong does not
+//    look wrong anywhere until digits overflow a 9 px cell.
 
 #include <sigilsketch/Sketch.h>
 
@@ -211,10 +212,11 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
   return s;
 }
 
-/** The measured advance/em of the substituted monospace faces. Probed once
- *  with compose::measure() in setup() rather than assumed — the whole point
- *  of a fixed-cell bitmap font is that the cell is exact, and "Menlo is
- *  0.602 em" was wrong enough to make the LCD digits overflow their well. */
+/** The advance/em of the substituted monospace faces, in em. Probed once in
+ *  setup() rather than assumed: pix() divides by this to hit an exact cell
+ *  width, so a value off by a thousandth is enough to push the LCD digits
+ *  out of their well. The initialiser is only the fallback for a probe that
+ *  measures nothing. */
 inline float &monoEm() {
   static float v = 0.602f;
   return v;
@@ -255,9 +257,8 @@ inline Element at(Element e, float x, float y, float w, float h) {
 }
 
 /** The raised bevel: 1 native px light top/left, 1 native px dark
- *  bottom/right, inset. Twenty-odd controls across three windows wear
- *  exactly this, which is the point — if the idiom generalises it is a
- *  primitive, not a one-skin hack. */
+ *  bottom/right, drawn inside the node's own edge. Twenty-odd controls
+ *  across the three windows wear exactly this, so it is spelled once. */
 inline Element &raised(Element &e, SkColor4f hi = kBtnHi,
                        SkColor4f lo = kBtnLo, float w = 1.0f) {
   e.foreground(shapes::onEdges(
@@ -351,12 +352,14 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   // ---- THE bound outputs. Every idle motion is declared; only discrete
   // state (the digits, the 28-frame sliders, the track list) re-describes.
-  Out playPos{0.42f};   // [0,1] through the current track — drives the seek
-                        // thumb in px, the elapsed underlay's scaleX and the
-                        // MM:SS readout, from ONE source.
+  Out playPos{0.42f};   // [0,1] through the current track. One source for the
+                        // seek thumb's position in px, the elapsed underlay's
+                        // scaleX, the MM:SS readout and the playlist's
+                        // running-time line, so none of them can disagree.
   Out marqueePhase{0};  // px, wraps
-  Out volFrame{0};      // 0..27, a HARD integer — round(pct * 28)
-  Out balFrame{0};
+  Out volFrame{0};      // a HARD integer in 0..28: round(pct * 28), the
+                        // player's 29 thumb positions over the sprite strip
+  Out balFrame{0};      // the same, and 14 is dead centre
   std::array<Out, 11> gain{}; // preamp + 10 bands, [-1,1]; drives the fader
                               // thumbs AND the response graph
   Out graphDraw{0};
@@ -585,7 +588,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                   .scale(&llamaPop));
     bar.child(egg);
 
-    // window buttons, native 9x9, right-aligned exactly as the SDK pins them
+    // Window buttons, native 9x9, at the right-hand offsets the SDK pins
+    // them to; each is centred in whatever bar height it is given.
     auto wbtn = [&](float x, const char *g) {
       Element b = at(box(), x, (hN - 9) * 0.5f, 9, 9)
                       .fill(dark(kTitle, 0.35f))
@@ -596,7 +600,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
       return b;
     };
     if (!wide)
-      bar.child(wbtn(6, "-")); // the option/context menu, native 6,3,9,9
+      bar.child(wbtn(6, "-")); // the option/context menu, native 9x9 at x=6
     if (hasMin)
       bar.child(wbtn(wN - 31, "_"));
     bar.child(wbtn(wN - 21, "="));
@@ -615,7 +619,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(275, "WINAMP", false));
 
-    // ---- the big display well (native 0,22 .. 275,57) -------------------
+    // ---- the big display well (native x 0..275, y 21..58) ---------------
     Element well = at(box(), 0, 21, 275, 37).fill(lcdMat);
     sunken(well);
     w.child(well);
@@ -650,9 +654,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                      .shape(tri(0)));
     w.child(status);
 
-    // MM:SS — the four NUMBERS.BMP cells sit at native x 48/60 and 78/90,
-    // 9x13 each. The ghost "88:88" behind them, in VISCOLOR's documented
-    // off-segment grey, is what turns green numerals into a display.
+    // MM:SS. In the original the four NUMBERS.BMP digits are 9x13 cells at
+    // native x 48/60 and 78/90; here the readout is one 54-wide box holding
+    // five equal cells, so the colon gets a cell of its own and the four
+    // digits land close to, but not exactly on, those positions. The ghost
+    // "88:88" behind them, in VISCOLOR's documented off-segment grey, is
+    // what turns green numerals into a display.
     Element clock = at(box(), 45, 26, 54, 13);
     clock.child(at(lcdCells("88:88", kUnlit), 0, 0, 54, 13));
     clock.child(box().inset(0).child(slot("time")));
@@ -735,7 +742,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // ---- position / seek bar (native 16,72,248,10) ----------------------
     Element pos = at(box(), 16, 72, 248, 10).fill(C(0x14141F));
     sunken(pos, fade(C(0x4A4A70), 0.7f), C(0x08080E));
-    // ONE Output, three consumers: the elapsed underlay's scaleX …
+    // Two of playPos's consumers, both here: the elapsed underlay's scaleX …
     pos.child(at(box(), 1, 1, 246, 8)
                   .fill(C(0x24243A))
                   .transformOrigin(0, 0.5f)
@@ -849,7 +856,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     return r;
   }
 
-  // ---- the 28-frame sliders (the describe path — see the report) ---------
+  // ---- the 28-frame sliders: rebuilt through describe, not bound ---------
 
   /** VOLUME.BMP is 28 stacked 15 px frames and the player picks one with
    *  `round(percent * 28)`: the bar's COLOUR is the level. So this is a
@@ -860,7 +867,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element g = box();
 
     const SkColor4f volColor =
-        kVis[(size_t)std::clamp((vol * 15) / 27, 0, 15)];
+        kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
     Element track = at(box(), 0, 0, 68, 13).fill(C(0x1B1B2C));
     sunken(track, fade(C(0x4A4A70), 0.6f), C(0x0A0A12));
     track.child(at(box(), 1, 3, 66, 3).fill(dark(volColor, 0.45f)));
@@ -871,13 +878,14 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                          {0, 0}, {0, 1},
                          {{0.0f, lift(kBtnFace, 0.12f)},
                           {1.0f, dark(kBtnFace, 0.30f)}}))
-                     .translateX(n((68.0f - 14.0f) * (float)vol / 27.0f));
+                     .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
     raised(vt);
     vt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
     track.child(vt);
     g.child(track);
 
-    // BALANCE.BMP, same 28-frame mechanism, centre-detented.
+    // BALANCE.BMP, same 28-frame mechanism, but read as a distance from
+    // centre: the colour ramps outward in both directions from frame 14.
     const int b = std::abs(bal - 14);
     const SkColor4f balColor = kVis[(size_t)std::clamp((b * 15) / 14, 0, 15)];
     Element btr = at(box(), 70, 0, 38, 13).fill(C(0x1B1B2C));
@@ -889,7 +897,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                          {0, 0}, {0, 1},
                          {{0.0f, lift(kBtnFace, 0.12f)},
                           {1.0f, dark(kBtnFace, 0.30f)}}))
-                     .translateX(n((38.0f - 14.0f) * (float)bal / 27.0f));
+                     .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
     raised(bt);
     bt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
     btr.child(bt);
@@ -908,12 +916,14 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     return s;
   }
 
-  /** The five NUMBERS.BMP cells, ONE GLYPH PER FIXED CELL. Centring the whole
-   *  run instead — which is what this did — lets the leading blank of " 3:02"
-   *  shift the lit digits sideways off the unlit "88:88" behind them, and
-   *  registering with that ghost is the only reason the ghost exists. Cell
-   *  pitch is 54/5; the ghost and the live readout are built by the same
-   *  function so they cannot drift apart again. */
+  /** The five NUMBERS.BMP cells, ONE GLYPH PER FIXED CELL, pitch 54/5.
+   *
+   *  Per-cell placement is the whole point: the live readout has to register
+   *  with the unlit "88:88" ghost painted behind it, and that is the only
+   *  reason the ghost is there. Centring the run as a single text node
+   *  instead would let the leading blank of " 3:02" slide the lit digits
+   *  sideways off the ghost. The ghost and the live readout are built by
+   *  this same function, so they cannot disagree about the pitch. */
   static Element lcdCells(const std::string &s, SkColor4f ink) {
     using namespace wa;
     const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
@@ -1018,9 +1028,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     return w;
   }
 
-  /** The response curve. It has to read the ELEVEN live Outputs at paint
-   *  time and reveal itself over 300 ms, and outline() resolves at layout,
-   *  so this drops to a custom leaf — see the gap list. */
+  /** The response curve. Its shape depends on ten live Outputs that move
+   *  every frame, and an outline() is resolved once at layout, so the path
+   *  cannot be a shape: it is rebuilt inside a custom leaf at paint time,
+   *  where the Outputs' current values are readable. The same leaf clips the
+   *  left-to-right reveal, since there is no trim to animate on a path that
+   *  does not exist until it is drawn. */
   Element eqCurve() {
     return custom([this](SkCanvas &canvas, const PaintContext &ctx) {
       const float w = ctx.size.width(), h = ctx.size.height();
@@ -1092,7 +1105,11 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
 
-    // the list well: left rail 12, right rail 20, 25 rows of 13 px
+    // The list well: left rail 12, right rail 20. At this window height it
+    // is 319 native px tall, which is 24 whole 13 px rows and half of a
+    // twenty-fifth — the list draws all 25 and the clip takes the rest,
+    // exactly as the real window does at a size that is not a multiple of
+    // the row height.
     Element list = at(box(), 12, 20, W - 32, 319).fill(kPlBg);
     sunken(list, fade(C(0x4A4A70), 0.6f), C(0x06060A));
     // row backgrounds: one atlas stamp, three tint states.
@@ -1121,9 +1138,10 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     bottom.child(box().inset(0).fill(steel).cache(Cache::Texture));
     bottom.child(at(box(), 0, 0, W, 1).fill(fade(C(0x585880), 0.6f)));
 
-    // ADD / REM / SEL / MISC, bottom-anchored 6 native px above the sill.
-    // (The brief's absolute y for this row lands above the strip; the
-    // bottom-anchored reading is what the real window does.)
+    // ADD / REM / SEL / MISC. These sit in the strip's own coordinates, 6
+    // native px clear of the sill — in the real window the row is pinned to
+    // the bottom of the playlist, not to a fixed y in the window, so it
+    // stays put whatever height the list is resized to.
     static const char *menus[4] = {"ADD", "REM", "SEL", "MISC"};
     for (int i = 0; i < 4; ++i)
       bottom.child(textKey(14 + 29 * (float)i, 14, 22, 18, menus[i], 4.0f));
@@ -1206,8 +1224,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                          n(listW - 40)));
       r.child(box().grow(1));
       r.child(t(tr.time, type(arial(), n(9) * 0.78f, ink, n(0.5f))));
-      // rows reveal in bands of four (24 rows at an even stagger reads as
-      // 24 animations; batching reads as a list populating)
+      // Rows reveal in bands of four: 25 rows on an even stagger reads as 25
+      // separate animations, where batching reads as a list populating.
       r.opacity(&rowIn[(size_t)i]);
       r.translateY(bind(&rowIn[(size_t)i]).invert().scale(n(2)));
       col.child(r);
@@ -1349,9 +1367,10 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     pushSlots(ctx, false);
   }
 
-  /** The three discrete-state slots. Everything continuous is bound; these
-   *  three are text content and a 28-frame sprite index, neither of which
-   *  a Animatable can carry. */
+  /** The three discrete-state slots. Everything continuous is bound to an
+   *  Output and never re-described; these three are text content and a
+   *  28-frame sprite index, neither of which an Animatable can carry, so
+   *  they are pushed as fresh subtrees only when their value changes. */
   void pushSlots(sketch::SketchContext &ctx, bool force) {
     const int sec =
         (int)(playPos.value() * (float)tracks()[(size_t)nowPlaying].seconds);
@@ -1387,7 +1406,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     using namespace wa;
     const double t = (elapsedNow += dt);
 
-    // ---- playback position: ONE Output, three consumers ----------------
+    // ---- playback position: the one source every readout reads ---------
     const float len = (float)tracks()[(size_t)nowPlaying].seconds;
     playPos = std::fmod(0.42f + (float)std::max(0.0, t - 0.45) / len, 1.0f);
 
@@ -1423,11 +1442,17 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     graphDraw = (float)std::clamp((t - 1.85) / 0.30, 0.0, 1.0);
 
     // ---- the 28-frame sliders: quantisation, not a lerp -----------------
+    // The volume steps once, silent to 78%, at 3.5 s; the balance holds at
+    // centre for the whole run. Rounding to a frame index here is what makes
+    // the thumbs land on sprite positions rather than sliding between them.
     {
       const float pctV = t < 3.5 ? 0.0f : 0.78f;
-      const float pctB = t < 3.5 ? 0.5f : 0.5f;
-      volFrame = std::max(0.0f, std::round(pctV * 28.0f) - 1.0f);
-      balFrame = std::max(0.0f, std::round(pctB * 28.0f) - 1.0f);
+      const float pctB = 0.5f;
+      // The player's own mapping, round(pct * 28): 29 positions 0..28, so
+      // 50% lands exactly on the centre frame 14 and the two ends are
+      // symmetric about it.
+      volFrame = std::round(pctV * 28.0f);
+      balFrame = std::round(pctB * 28.0f);
     }
 
     // ---- the analyser: hard 12 Hz steps, no easing anywhere ------------

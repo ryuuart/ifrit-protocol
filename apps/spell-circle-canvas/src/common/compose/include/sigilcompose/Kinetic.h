@@ -1,10 +1,9 @@
 #pragma once
 
 /** @file
- * SigilCompose kinetic typography presets — the contemporary motion-design
- * grammar (REFERENCES.md §8: the stagger-reveal / wave / pop / spin moves
- * as practiced on Behance/IG) as pure GlyphEffect VALUES over the kernel's
- * GlyphFx seam. Compose them onto any text():
+ * SigilCompose kinetic typography presets — stagger-reveal, wave, pop and
+ * spin moves as plain GlyphEffect VALUES over the kernel's GlyphFx seam.
+ * Compose them onto any text():
  *
  *   GlyphFx fx;
  *   fx.effect = glyphfx::rise();
@@ -28,8 +27,8 @@ inline float easeOutCubic(float t) {
   const float u = 1 - t;
   return 1 - u * u * u;
 }
-/** THE modern reveal curve (REFERENCES.md §8): ease-out-expo,
- *  cubic-bezier(0.16, 1, 0.3, 1) ≡ 1 − 2^(−10t). */
+/** Ease-out-expo: 1 − 2^(−10t), the curve CSS spells
+ *  cubic-bezier(0.16, 1, 0.3, 1). */
 inline float easeOutExpo(float t) {
   return t >= 1.0f ? 1.0f : 1.0f - std::pow(2.0f, -10.0f * t);
 }
@@ -41,8 +40,8 @@ inline float easeOutBack(float t, float s = 1.70158f) {
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
  *  rest while fading in. Ease-out-expo motion; alpha completes over the
- *  first 35% of local progress (the community composition law: opaque
- *  while still moving, never overshooting alpha). */
+ *  first 35% of local progress, so a glyph is fully opaque while it is
+ *  still moving rather than fading and settling together. */
 inline GlyphEffectFn rise(float distancePx = 26) {
   return [distancePx](const GlyphInfo &, float t) {
     GlyphMod m;
@@ -97,8 +96,9 @@ inline GlyphEffectFn typeOn() {
 /** Endless float: glyph i bobs on a sine, phase-shifted per glyph. Bind
  *  progress to a WRAPPING phase Output (t = fract(seconds / period)) and
  *  set stagger.eachMs = 0 so every glyph reads the same master phase.
- *  Units follow the §8 law: amplitude in EM (≤ 0.15em or descenders
- *  collide), phase in RADIANS per glyph (the researched 0.4–0.6). */
+ *  Amplitude is in EM — keep it at or under 0.15em, past which descenders
+ *  of adjacent glyphs collide — and the phase shift is RADIANS per glyph,
+ *  where roughly 0.4–0.6 gives one readable travelling wave. */
 inline GlyphEffectFn waveLoop(float amplitudeEm = 0.10f,
                               float phaseRadPerGlyph = 0.5f) {
   return [amplitudeEm, phaseRadPerGlyph](const GlyphInfo &g, float t) {

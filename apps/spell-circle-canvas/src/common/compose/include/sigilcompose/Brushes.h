@@ -1,29 +1,33 @@
 #pragma once
 
 /** @file
- * SigilCompose brushes — the LINE vocabulary between elements, applied to
- * the node's outline (a rail's route, a connector's wire, a border) and
- * attached with `.stroke()`. Two families over ONE seam:
- *  - the LAYERED STROKE STACK (widths, colors, blurs, dashes, blends,
- *    bottom-up) — the measured game-linework grammars of REFERENCES.md §5;
- *  - the ILLUSTRATOR PIPELINE model (`Brush`: geometry ops over the path
- *    feeding paint legs) and its archetypes — Scatter, Pattern, Ribbon,
- *    Art.
+ * SigilCompose brushes — the vocabulary of MARKS along a path. Everything
+ * here paints `PaintContext::outline`, whatever produced it (a node's
+ * shape, a rail's route, a connector's wire), and attaches with
+ * `.stroke()`.
  *
- * Equality: a brush of comparable parts is a comparable VALUE (defaulted
- * equality → prunes). A mod fn or a width fn is the documented exception —
- * incomparable callables never prune, so memo the host.
+ * Two families over one seam:
+ *  - the LAYERED STROKE STACK (`LayeredBrush`): several passes over the
+ *    same path with their own widths, colours, blurs, dashes and blend
+ *    modes, painted bottom-up — how an additive glow or a multi-tier
+ *    circuit trace is built.
+ *  - the PIPELINE model (`Brush`): geometry shapers over the path feeding
+ *    ordered paint layers, with four leaf kinds — `brush::solid`,
+ *    `brush::Pattern`, `brush::Scatter`, `brush::Art` — and two composites,
+ *    `brush::layers` and `brush::weave`, which may contain any brush at all
+ *    including each other.
  *
- * The stock set transcribes measured grammars:
- *  - filament(): Ori's 4-layer additive glow (envelope 4–6× core — THE
- *    organic-glow signature); state via the whole stack's opacity.
- *  - circuit(): FUI trace tiers (1/2/4px data/main/power + under-glow).
- *  - rope(): Path of Exile's 3-state rope (counter-dashed strand layers;
- *    verified palette ladder Normal→Intermediate→Active).
+ * EQUALITY IS THE THING TO WATCH. A brush assembled from comparable parts
+ * is itself a comparable value, so a styled connector prunes and caches as
+ * one value. Any raw callable in it — a `StampModFn`, an `ops::PathOp` —
+ * makes it conservatively unequal forever, so its node re-patches on every
+ * describe; memo the host node, or keep the value itself alive rather than
+ * rebuilding it.
  *
- * The width law from the research applies: state changes shift COLOR
- * dramatically but width by ≤1.3× — hierarchy encodes importance, state
- * encodes progress.
+ * Two numbers every brush declares, and they are not the same: `bleed()` is
+ * how far paint escapes the outline, which grows a cached recording's cull;
+ * `reach()` is how wide the MARK is in total, which is what a repair region
+ * has to cover. Under-reporting either truncates or thins silently.
  */
 
 #include "sigilcompose/Compose.h"
@@ -75,12 +79,14 @@ struct LayeredBrush {
   bool operator==(const LayeredBrush &) const = default;
 
   /** Extra paint reach past the outline, so a cached recording's cull does
-   *  not truncate the halo. Declaring nothing meant zero, and the whole
-   *  point of an additive stack is that it paints WIDE of the path:
-   *  filament() is a 14 px envelope under an 8 px blur, i.e. 31 px of
-   *  reach that a node culling at its own bounds simply lost. Per layer,
-   *  not per extreme — a wide hard core and a narrow soft halo do not
-   *  compound. 3σ covers >99% of a Gaussian. */
+   *  not truncate the halo — the point of an additive stack is that it
+   *  paints WIDE of the path, and a node culling at its own bounds loses
+   *  exactly that.
+   *
+   *  Taken per layer and then maximised, not summed: a wide hard core and a
+   *  narrow soft halo do not compound, since each layer reaches from the
+   *  path independently. Blur counts as 3σ, which covers over 99% of a
+   *  Gaussian. */
   float bleed() const {
     float reach = 0;
     for (const StrokeLayer &layer : layers)
@@ -116,40 +122,33 @@ struct LayeredBrush {
   }
 };
 
-// The four LayeredBrush PRESETS that used to sit here — filament(),
-// circuit(), rope(), pulse() — moved to kit::brush::presets:: in R2
-// (kit/Strokes.h) unchanged. They were compositions with craft names
-// living in the CORE, under a namespace (`brushes::`) that R3 deleted.
-// Their old spellings went with it: `kit::brush::presets::filament` is
-// the name, and reaching it means including <sigilcompose/kit/Strokes.h>.
+// Ready-made stroke stacks — an additive filament glow, circuit traces, a
+// counter-dashed rope — are `kit::brush::presets::`, in
+// <sigilcompose/kit/Strokes.h>. They are compositions of the values here
+// and need nothing this header does not already expose.
 
 // ---------------------------------------------------------------------------
-// The Illustrator brush model — a brush is a PIPELINE: shapers over the
-// path (the SkComposePathEffect idea, at our seam), then paint LAYERS that
-// INSTANCE real components along the result, each with a programmatic
-// per-instance twist. Four Illustrator archetypes map onto three values:
-//   Scatter brush  → brush::Scatter (jittered instances + mod fn)
-//   Pattern brush  → brush::Pattern (side/corner/start/end tiles,
-//                    integer-fit stretch — the Illustrator tile semantics)
-//   Calligraphic   → brush::Ribbon (variable-width fill; nib angle)
-//   Art brush      → brush::Art (one cell continuously bent along
-//                    the contour via SkVertices; `artAlong()`)
+// The brush model — a brush is a PIPELINE: geometry shapers over the path,
+// then paint LAYERS over the result, some of which instance whole elements
+// along it with a programmatic per-instance twist. The four leaf kinds:
+//   brush::Scatter  jittered instances of one element, plus a mod function
+//   brush::Pattern  side/corner/start/end tiles, fitted an integer number
+//                   of times per run and stretched to close the gap
+//   brush::Ribbon   a variable-width filled band; taper or calligraphic nib
+//   brush::Art      one element bent continuously along the contour
+//                   through SkVertices (`artAlong()`)
 
 // ---------------------------------------------------------------------------
 // THE ONE MECHANISM DOOR
 //
-// `ops::` is what is LEFT of the escape hatch after R3, and it is left
-// deliberately. Everything else that lived here — the comparable structs
-// `Wave`/`Rounded`/`Sketchy`/`Square`/`Offset`, plus `Brush::op()` and the
-// `vector<GeometryOp>` per-layer suffix — was DELETED, because
-// `kit::brush::shapers::` now has a twin for every one of them and
-// `Brush::layer(dec, {shaper…})` reaches them (ROADMAP §33, R3).
+// Geometry deviation has one comparable seam — `Shaper`, any value with
+// `SkPath shape(const SkPath &) const` and equality. Stock shapers are
+// `kit::brush::shapers::`, and writing your own is a few lines; both prune.
 //
-// What has NO replacement is the RAW LAMBDA: a `Shaper` requires equality,
-// by design, so a one-off closure can never be one. That capability would
-// have vanished with nothing to say instead, so it stays — as exactly one
-// door, reached through `brush::restyle(op, decoration)`, documented as a
-// mechanism and priced as one (it never prunes).
+// A raw lambda cannot be a Shaper, because a closure has no equality. That
+// capability is still reachable, through exactly one door —
+// `brush::restyle(op, decoration)` — and it is priced accordingly: it never
+// prunes. Reach for it only when no comparable value can say what you mean.
 
 namespace ops {
 
@@ -167,11 +166,11 @@ namespace ops {
  *  `brush::restyle()`, which is the only thing that takes one. */
 using PathOp = std::function<SkPath(const SkPath &)>;
 
-/** Dump the path's contour census (count/lengths/closedness/bounds) to
- *  stderr and pass it through unchanged — drop into any pipeline position
- *  when a construction misbehaves. Lowercase and kept: it is a
- *  DIAGNOSTIC, has no capitalised twin to be confused with, and a
- *  pass-through that prints has nothing to prune. */
+/** Print the path's contour census — count, lengths, closedness, bounds —
+ *  and pass the path through unchanged. Drop it in at any position in a
+ *  pipeline to see what that stage was handed. Being a pass-through, it
+ *  changes no pixels; being a raw op, it does cost the node its pruning
+ *  while it is there. */
 inline PathOp debug(const char *tag = "brush") {
   std::string t = tag;
   return [t](const SkPath &p) {
@@ -187,11 +186,10 @@ inline PathOp debug(const char *tag = "brush") {
   };
 }
 
-/** Chain escape-hatch ops left-to-right — compose like
- *  SkComposePathEffect. Lowercase and kept for the same reason as
- *  debug(): it is the PathOp family's own combinator, not a duplicate of
- *  a comparable value. Shapers chain by listing them — `Brush::shaped()`
- *  appends, and each `.layer()` carries its own list. */
+/** Chain raw ops left-to-right, each fed the previous one's output. The
+ *  comparable equivalent is simply a list of shapers: `Brush::shaped()`
+ *  appends to the shared pipeline, and each `.layer()` carries its own
+ *  suffix list. */
 inline PathOp chain(std::vector<PathOp> steps) {
   return [steps = std::move(steps)](const SkPath &p) {
     SkPath r = p;
@@ -204,16 +202,14 @@ inline PathOp chain(std::vector<PathOp> steps) {
 
 } // namespace ops
 
-/** What `brush::restyle()` carries: EITHER a comparable `Shaper` (the one
- *  geometry seam, so a restyle of a stock shaper still prunes) OR a raw
- *  `ops::PathOp` (the mechanism door, conservatively unequal forever). A
- *  bare lambda literal must be assigned to an `ops::PathOp` first — two
- *  user-defined conversions do not chain.
+/** What `brush::restyle()` carries: EITHER a comparable `Shaper`, so a
+ *  restyle of a stock shaper still prunes, OR a raw `ops::PathOp`, which is
+ *  conservatively unequal forever. A bare lambda literal must be assigned
+ *  to an `ops::PathOp` first, because two user-defined conversions do not
+ *  chain.
  *
- *  Nothing else builds one. `Brush`'s pipeline and its per-layer suffixes
- *  are `Shaper` lists as of R3; the `apply()`-spelled `GeometryScheme`
- *  concept it used to accept was the second word for `shape()` and died
- *  with the `ops::` structs. */
+ *  Nothing else takes one: `Brush`'s pipeline and its per-layer suffixes
+ *  are plain `Shaper` lists. */
 class GeometryOp {
 public:
   GeometryOp(ops::PathOp fn) // NOLINT: escape hatch, never prunes
@@ -253,27 +249,21 @@ private:
 
 
 // ---------------------------------------------------------------------------
-// THE BRUSH KINDS AND COMPOSITES (ROADMAP §33 stage two)
+// THE BRUSH KINDS AND COMPOSITES
 //
 // A brush is what PAINTS. There are exactly four KINDS — the leaf tools —
 // and two COMPOSITES, which combine any brushes at all, including other
-// composites. That is the whole taxonomy; everything else on this shelf is
-// a value built out of it.
+// composites. That is the whole taxonomy; everything else here is a value
+// built out of it.
 //
 //   kinds       brush::solid   brush::Pattern   brush::Scatter   brush::Art
 //   composites  brush::layers(…)                brush::weave(…)
-//
-// The KINDS are the types that were already here under mechanism names;
-// `brush::` is where they are taught, and the old spellings keep
-// compiling (§27). `solid` replaces `PathFormat` — "path format" names
-// the implementation, and `pen` was rejected because it implies
-// calligraphy, which is a profile, not a kind.
 
 namespace brush {
 
-/** THE plain stroke: a width, a paint, and optional dash/stamp/effect.
- *  Successor to `PathFormat`, which is the same type under its old
- *  mechanism name. */
+/** THE plain stroke: a width, a paint, and an optional dash, stamp or path
+ *  effect. The same type as `PathFormat`, under the name it carries in this
+ *  taxonomy. */
 using Solid = PathFormat;
 /** `brush::solid(width, fill[, align])` — the one-line spelling.
  *  Designated initialisers still work through `brush::Solid{…}`. */
@@ -288,9 +278,9 @@ inline Solid solid(float width, Fill fill,
 
 /** One strand of a composite: WHERE it runs and WHAT paints it.
  *
- *  A pair, deliberately — two parallel lists matched by index was the
- *  first shape tried and it reproduced §10d's defect exactly (add a
- *  strand, silently shift every brush). One strand is one value. */
+ *  Deliberately one value rather than two index-matched lists. Parallel
+ *  lists let an inserted strand silently shift every brush after it, and
+ *  nothing checks that the two lists are the same length. */
 struct Strand {
   StrandPath path;
   Decoration brush;
@@ -302,12 +292,11 @@ struct Strand {
 /** THE COMPOSITE. `brush::weave(...)` and `brush::layers(...)` are two
  *  author intents over this one machine:
  *
- *  **`layers` == `weave` with coincident self-strands.** Coincident
- *  strands produce no crossings, so the rule never fires and list order
- *  applies everywhere — which IS what "fixed order, bottom-up" means.
- *  Both words are kept because they name different intents (the
- *  `alternate` == `sequence({Over, Under})` precedent), and neither is a
- *  special case in the code below.
+ *  **`layers` is `weave` with coincident self-strands.** Coincident
+ *  strands cross nowhere, so no crossing rule ever fires and list order
+ *  applies everywhere — which is exactly what "fixed order, bottom-up"
+ *  means. Neither word is a special case in the code below; they differ
+ *  only in what the author is saying.
  *
  *  Composites NEST: any strand's brush may be another composite, so a
  *  braid painted by layers, or a whole braid used as one strand of a
@@ -344,43 +333,35 @@ struct Weave {
    *
    *  With TRANSLUCENT strands it double-covers: the over-strand's alpha is
    *  composited twice inside the patch, so the crossing reads darker than
-   *  the strand does elsewhere. That is not a bug in the patch size — it is
-   *  the patch MODEL, and it is one of the two named hard cases ROADMAP §33
-   *  pins for the element-level crossover pass (the other being several
-   *  crossings over one region). **Weaves want opaque inks until that pass
-   *  lands.** */
+   *  the strand does elsewhere. That is inherent to repainting rather than
+   *  a patch-size problem, and it also affects a region several crossings
+   *  share. **Weaves want opaque inks.** */
   float patch = 0.0f;
 
-  /** THE CROSSING CACHE (ROADMAP 33-h, closed 2026-08-04).
+  /** THE CROSSING CACHE. Discovering crossings is O(strands² × segments²)
+   *  and runs on every paint without it, which a live weave pays every
+   *  frame.
    *
-   *  `discoverCrossings` is a pure function of the RESOLVED strand paths —
-   *  its flatten step is a constant inside it, and the CrossingRule reads
-   *  the discovered set, never feeds it — so the cache key is the
-   *  function's ENTIRE argument: the resolved paths vector, compared by
-   *  SkPath content equality (exact, with a same-pathref fast path). That
-   *  is what §40 demands of a key, satisfied structurally: an authored
-   *  edit, an outline change under a relative strand, a borrowed-path
-   *  change, and a strand-count change all land in the key BECAUSE they
-   *  all land in the paths. No callable ever enters the key, so there is
-   *  no easeEqual-style conservative-miss arm to need.
+   *  The key is the whole input: the vector of RESOLVED strand paths,
+   *  compared by path content. That is sound because discovery is a pure
+   *  function of those paths — the crossing RULE reads the discovered set
+   *  and never feeds it — and it is complete because every way the answer
+   *  can change lands in the paths first: an authored edit, an outline
+   *  change under a relative strand, a changed borrowed path, a changed
+   *  strand count. No callable enters the key, so there is no case where
+   *  the key cannot be compared.
    *
-   *  Held on the VALUE by shared_ptr — the Scatter/Pattern member-cache
-   *  precedent: copies share it, fresh values start cold, and it is
-   *  deliberately absent from operator== (a cache is not part of the
-   *  value). Two live copies painting DIFFERENT geometry alternately
-   *  thrash it back to the old per-paint discovery cost — never to a
-   *  wrong answer. 33-h's per-Instance refusal (a Weave is a Decoration;
-   *  no Instance to hang state on) was a size argument taken while the
-   *  cost was unmeasured; BM_Draw_BrushWeave_Live then measured
-   *  295/1723/7996 us per steady frame at 2/4/8 strands and the
-   *  milliseconds overruled it — via this value-side slot, which needed
-   *  no PaintContext plumbing at all. */
+   *  Held on the VALUE by shared_ptr, so copies share it and a freshly
+   *  built value starts cold. Deliberately absent from operator==: a cache
+   *  is not part of the value. Two live copies painting DIFFERENT geometry
+   *  through the same cache thrash it back to per-paint discovery, which
+   *  costs time and never correctness. */
   struct CrossingCache {
     std::vector<SkPath> key; ///< the resolved paths the answer belongs to
     std::vector<Crossing> found;
     bool valid = false;
-    int computes = 0; ///< how many discoveries actually ran — the pins'
-                      ///< instrument, never read by the paint itself
+    int computes = 0; ///< how many discoveries actually ran; for tests to
+                      ///< observe, never read by the paint itself
   };
   std::shared_ptr<CrossingCache> crossingCache =
       std::make_shared<CrossingCache>();
@@ -460,11 +441,10 @@ struct Weave {
       paintStrand(i);
 
     // 3. Repair the crossings the rule disagrees with. Crossings are
-    //    DISCOVERED, never authored — and MEMOIZED on the resolved paths
-    //    (33-h): a steady frame pays one vector-of-paths comparison
-    //    instead of the O(P^2 M^2) flatten-and-test. Identical input,
-    //    identical answer: the cache moves WHEN discovery runs, never
-    //    what is drawn, which is what the byte-identity pin holds.
+    //    DISCOVERED, never authored, and memoized on the resolved paths:
+    //    a frame whose geometry did not move pays one vector-of-paths
+    //    comparison instead of the flatten-and-test. The cache changes
+    //    WHEN discovery runs and never what is drawn.
     if (!crossingCache->valid || crossingCache->key != paths) {
       crossingCache->found = discoverCrossings(paths);
       crossingCache->key = paths;
@@ -476,8 +456,8 @@ struct Weave {
       return;
     const auto reachOf = [&](size_t i) {
       // The MARK's full width, not the cull's bleed(): an Align::Inner
-      // stroke bleeds zero while painting a mark `width` wide, and a
-      // region derived from bleed() was measurably too small.
+      // stroke bleeds zero while painting a mark `width` wide, so a region
+      // built from bleed() would be too small to cover its own crossing.
       return patch > 0 ? patch : std::max(strands[i].brush.reach(), 1.0f);
     };
 
@@ -518,10 +498,10 @@ struct Weave {
             continue;
           float delta = std::abs(positionOn(other, s) - mine);
           // On a CYCLE the seam is not a boundary: two knots at 0.02 and
-          // 0.98 sit 4% apart, not 96%. Without this, crossings straddling
-          // the seam read as maximally distant, the bound vanishes, and
-          // the lenses merge again — two overlapping rings put both knots
-          // in one patch and painted the whole thing in one colour.
+          // 0.98 sit 4% apart, not 96%. Without the wrap, crossings
+          // straddling the seam read as maximally distant, their bound
+          // vanishes, and their lenses merge — on two overlapping rings
+          // that puts both knots in one patch painted in one colour.
           //
           // Conditional on closedness, because wrapping an OPEN strand
           // whose crossings sit near its two ends would over-clip: those
@@ -579,11 +559,11 @@ inline Weave weave(std::vector<Strand> strands,
 
 } // namespace brush
 
-/** THE BRUSH: one composable value — a geometry PIPELINE over the outline
- *  (shapers applied in order, the SkComposePathEffect idea as data)
- *  feeding ordered paint LAYERS (any Decoration: a lines::Line, a
- *  LayeredBrush stack, Scatter/Pattern instancing, a Ribbon, a raw
- *  PathFormat). The Illustrator model, closed under composition:
+/** THE BRUSH: one composable value — a geometry PIPELINE over the outline,
+ *  shapers applied in order, feeding ordered paint LAYERS, each of which
+ *  may be any Decoration at all (a lines::Line, a LayeredBrush stack, a
+ *  Scatter or Pattern, a Ribbon, a plain stroke). Closed under
+ *  composition:
  *
  *    element.stroke(Brush{}
  *        .shaped(kit::brush::shapers::Rounded{6})
@@ -591,20 +571,15 @@ inline Weave weave(std::vector<Strand> strands,
  *        .layer(lines::cased(3, ink, 5))
  *        .layer(brush::Scatter{.art = spark(), .spacing = 40}));
  *
- *  A Brush of comparable shapers and layers is itself comparable — the
- *  whole styled connector prunes and caches as ONE value. Animated layers
- *  declare volatility through; bleed aggregates pipeline reach + layer
- *  reach.
- *
- *  `layer()`, not `leg()` (ROADMAP §33 ruling 14): a Brush's stacked
- *  marks are the same idea as `brush::layers(...)`, the fixed-order
- *  composite, the way a strand is the unit of a weave. `leg` named a
- *  mechanism nobody else in the grammar used. */
+ *  A Brush of comparable shapers and layers is itself comparable, so the
+ *  whole styled connector prunes and caches as ONE value. An animated layer
+ *  declares volatility through the brush; `bleed()` sums the pipeline's
+ *  reach and adds the widest layer's. */
 struct Brush {
-  /** One paint layer: a Decoration plus its own pipeline SUFFIX (applied
-   *  after the shared pipeline, this layer only) — the asymmetric-casing
-   *  ask: one Brush reads as one material ("road with lane and curb"),
-   *  each side riding its own `shapers::Offset`. */
+  /** One paint layer: a Decoration plus its own pipeline SUFFIX, applied
+   *  after the shared pipeline and only to this layer. That is what makes
+   *  an asymmetric casing one brush — a road with a lane and a curb, each
+   *  riding its own offset shaper — instead of three stacked elements. */
   struct Layer {
     Decoration dec;
     std::vector<Shaper> shapers;
@@ -616,24 +591,21 @@ struct Brush {
   std::vector<Shaper> pipeline;
   std::vector<Layer> layers;
 
-  /** THE geometry-deviation seam: any comparable value with
-   *  `SkPath shape(const SkPath &) const`. Stock shapers are kit values
-   *  (`kit::brush::shapers::wave/jitter/offset`), peers of anything you
-   *  write — there is deliberately no sugar method over this. */
+  /** Append to the shared geometry pipeline. A `Shaper` is any comparable
+   *  value with `SkPath shape(const SkPath &) const`; the stock ones
+   *  (`kit::brush::shapers::wave/jitter/offset`) are peers of anything you
+   *  write, which is why there is no shorthand for them here. */
   Brush &shaped(Shaper s) {
     pipeline.push_back(std::move(s));
     return *this;
   }
-  /** One mark in the stack, bottom-up, with an optional shaper SUFFIX
-   *  that deviates this layer's geometry only.
+  /** One mark in the stack, bottom-up, with an optional shaper SUFFIX that
+   *  deviates this layer's geometry only.
    *
-   *  The suffix takes shapers, the same seam `shaped()` takes — before R3
-   *  it took `GeometryOp`, which is why `ops::` had to stay public for a
-   *  phase (a kit shaper could not reach a `vector<GeometryOp>`: two
-   *  user-defined conversions do not chain). For a raw incomparable
-   *  lambda, wrap the layer's decoration in `brush::restyle(op, dec)` —
-   *  that is the one deliberate mechanism door and it is documented as
-   *  one. */
+   *  The suffix takes the same comparable `Shaper` seam `shaped()` takes.
+   *  For a raw incomparable lambda, wrap this layer's decoration in
+   *  `brush::restyle(op, dec)` instead — the one mechanism door, at the
+   *  cost of pruning. */
   Brush &layer(Decoration d, std::vector<Shaper> suffix = {}) {
     layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
@@ -708,14 +680,14 @@ namespace brush {
  *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
  *  jitter, rounding without knowing.
  *
- *  THE ONE MECHANISM DOOR (ROADMAP §33, R3). It takes a `GeometryOp`, so
- *  a comparable shaper value (`kit::brush::shapers::Wave{...}`, or one you
- *  wrote) and a raw `ops::PathOp` lambda both spell it — and the lambda
- *  has nowhere else to go, which is the whole reason `ops::` survived the
- *  deletion. The WRAPPER is incomparable either way — it has no
- *  operator== — so memo the host node (or keep it pointer-stable) to
- *  prune, whichever op you hand it. Prefer `Brush::shaped(value)` when a
- *  shaper can say it: that prunes. */
+ *  THE ONE MECHANISM DOOR. It takes a `GeometryOp`, which a comparable
+ *  shaper value and a raw `ops::PathOp` lambda both convert to — and the
+ *  lambda has nowhere else to go.
+ *
+ *  The WRAPPER is incomparable either way, because it has no operator== at
+ *  all, so a node wearing one never prunes whichever op it was handed:
+ *  memo the host node, or keep the value pointer-stable. Prefer
+ *  `Brush::shaped(value)` whenever a shaper can say it — that prunes. */
 struct Restyled {
   GeometryOp op;
   Decoration inner;
@@ -729,8 +701,8 @@ struct Restyled {
   std::vector<std::string> borrows() const { return inner.borrows(); }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
-    // GeometryOp::apply passes the path through when it holds nothing,
-    // which is what the old `op ? op(outline) : outline` guard bought.
+    // No null check: GeometryOp::apply passes the path through unchanged
+    // when it holds nothing.
     PaintContext restyled{ctx.size,        op.apply(ctx.outline),
                           ctx.elapsedSeconds, ctx.contentScale,
                           ctx.animating,   ctx.fonts,
@@ -744,12 +716,10 @@ inline Restyled restyle(GeometryOp op, Decoration inner,
   return Restyled{std::move(op), std::move(inner), extraBleed};
 }
 
-/** WHERE instances land along a path — the QGIS marker-line placement
- *  grammar (Interval | Vertex | FirstVertex | LastVertex | InnerVertices |
- *  CentralPoint | SegmentCenter), verified in REFERENCES.md §9. Vertex
- *  modes read the path's REAL verbs (the route's bends), not tangent
- *  sampling; `interval` > 1 is px, ≤ 1 is a FRACTION of each contour
- *  (the decorator px-or-% spec). */
+/** WHERE instances land along a path. The vertex modes read the path's
+ *  REAL verbs — the route's authored bends — rather than sampling
+ *  tangents, so a marker at a bend sits exactly on it. `interval` above 1
+ *  is px; at or below 1 it is a FRACTION of each contour's length. */
 struct Placement {
   enum class Mode : uint8_t {
     Interval,      ///< every `interval` px (or fraction), phase `offset`
@@ -761,12 +731,12 @@ struct Placement {
     SegmentCenter, ///< the midpoint of every straight segment
   };
   Mode mode = Mode::Interval;
-  /** px, or contour fraction when ≤ 1. UNSET means "take the host brush's
-   *  own spacing" — `Scatter::spacing` resolves it. It is an optional
-   *  and not a defaulted float because the default WAS 24, compared against
-   *  24 to detect "unset", so an author writing `.interval = 24` got
-   *  `spacing` instead of the number they typed, silently (audit I8). An
-   *  optional cannot be spelled by accident. */
+  /** px, or a contour fraction when ≤ 1. UNSET means "take the host
+   *  brush's own spacing", which `Scatter::spacing` supplies.
+   *
+   *  An optional rather than a defaulted float on purpose: a sentinel
+   *  value would be a number an author could also type deliberately, and
+   *  typing it would silently select the host's spacing instead. */
   std::optional<float> interval;
   float offset = 0.0f; ///< leading phase for Interval (same units)
   bool operator==(const Placement &) const = default;
@@ -893,8 +863,8 @@ using StampModFn =
     std::function<StampMod(const PathSample &, size_t index, size_t count)>;
 
 namespace detail {
-/** THE corner hit type lives in Lines.h now — there was one per scanner,
- *  and they described the same thing. */
+/** The corner hit type, shared with the one corner scanner in Lines.h so
+ *  every decoration that asks about corners gets the same answer. */
 using CornerHit = sigil::compose::lines::detail::CornerHit;
 
 inline void drawStamp(SkCanvas &c, const SkPicture &pic,
@@ -929,21 +899,20 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  the art Element pointer-stable across renders to prune; a mod fn makes
  *  the value incomparable (memo the host).
  *
- *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed — as in
- *  Pattern): inside a composer the bake lives in the INSTANCE's
- *  StampCache, handed in via PaintContext::stamps and keyed on the
- *  art's node with a weak guard, so a brush value rebuilt by every
- *  describe finds its art's bake instead of re-rastering it. What
- *  still re-bakes is a NEW ART NODE each describe: keep the art
- *  Element pointer-stable (a member, a static, a captured value) —
- *  its node is the cache key. This member cache serves standalone
- *  paints (no composer, no PaintContext::stamps). */
+ *  THE CACHE IN THIS VALUE IS THE FALLBACK. Inside a composer the bake
+ *  lives in the INSTANCE's stamp cache, handed in through
+ *  `PaintContext::stamps` and keyed on the art's node, so a brush value
+ *  rebuilt by every describe still finds its art's bake instead of
+ *  re-rastering it. What defeats that is a NEW ART NODE each describe,
+ *  since the node IS the key: keep the art Element pointer-stable — a
+ *  member, a static, a captured value. The member cache here serves
+ *  standalone paints, where there is no composer and no stamp cache. */
 struct Scatter {
   Element art;
   float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
-  /** Full placement grammar — set `place.mode` for Vertex/SegmentCenter/
-   *  CentralPoint… families; `spacing` feeds Interval when place is
-   *  `interval` is unset. */
+  /** Full placement grammar — set `place.mode` for the Vertex,
+   *  SegmentCenter and CentralPoint families. In Interval mode an unset
+   *  `place.interval` falls back to `spacing`. */
   Placement place{};
   uint32_t seed = 0; ///< 0 = a regular run, no jitter roll
   float jitterAlong = 0, jitterNormal = 0; ///< ±px
@@ -976,15 +945,16 @@ struct Scatter {
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     if (spacing <= 0 || !ctx.fonts)
       return;
-    // §16: prefer the instance-side store — a brush value rebuilt every
-    // describe finds its art's bake there; the value member remains the
+    // Prefer the instance-side store, so a brush value rebuilt every
+    // describe still finds its art's bake; the member cache is the
     // standalone-paint fallback.
     sk_sp<SkPicture> pic;
     if (ctx.stamps) {
       if (const StampCache::Entry *e = ctx.stamps->get(art.node()))
         pic = e->pic;
       if (!pic) {
-        // shell box: snapshot ignores the ROOT's own dims
+        // Shell box: snapshot() sizes by the root's CHILDREN and ignores
+        // the root's own dimensions.
         pic = snapshot(box().child(art), *ctx.fonts);
         ctx.stamps->put(art.node(), {pic, nullptr, {0, 0}});
       }
@@ -998,9 +968,9 @@ struct Scatter {
     if (!pic)
       return;
 
-    // An unset place.interval takes `spacing` — the sugar, resolved where
-    // the spacing lives rather than by comparing against a sentinel value
-    // an author could type (audit I8).
+    // An unset place.interval takes `spacing`, resolved here where the
+    // spacing lives rather than by comparing against a sentinel value an
+    // author could also have typed on purpose.
     std::vector<PathSample> samples =
         detail::placementSamples(ctx.outline, place, spacing);
     for (size_t i = 0; i < samples.size(); ++i) {
@@ -1021,66 +991,47 @@ struct Scatter {
   }
 };
 
-/** Which way a corner tile faces. **There is no default**, and that is
- *  the whole design: it is not a preference, it is a statement about what
- *  the art LOOKS LIKE, and the library cannot see the art.
+/** Which way a corner tile faces. **There is no default**, deliberately:
+ *  this is not a preference but a statement about what the art LOOKS LIKE,
+ *  and nothing here can see the art.
  *
  *  WHICH ONE:
  *
- *  - `Bisector` — for an ORNAMENT: art symmetric about its own bisector,
- *    drawn once and serving all four corners of a frame. A fleuron, a
- *    rosette, a bracket.
+ *  - `Bisector` — for an ORNAMENT symmetric about its own bisector, drawn
+ *    once and serving all four corners of a frame: a fleuron, a rosette, a
+ *    plain bracket.
  *  - `Outgoing` — for anything with a distinguishable ENTRY and EXIT: an
  *    elbow of pipe, a flow tick, an arrow turning a corner, a cross whose
- *    arms are meant to lie along the edges. This class is not exotic — it
- *    is **two of the five corner consumers in this corpus, and both of
- *    them shipped broken.**
+ *    arms are meant to lie along the edges.
  *
- *  Bisector does NOT buy you one art instead of two. The arms of a
- *  bisector-aligned tile sit at `(turn/2, 180 − turn/2)` off the bisector
- *  and mirror with the SIGN of the turn, so a handed ornament costs two
- *  drawings either way.
+ *  Getting it wrong rotates every corner stamp by half the turn angle,
+ *  which is a rotation and not an absence — easy to miss and easy to
+ *  mistake for the art itself. The worst case is structural: **every
+ *  corner of an annular sector is a right angle**, so its bisector sits
+ *  45° from both legs, and art with 90° symmetry — a Greek cross — is
+ *  corner-agnostic under `Outgoing` and uniformly 45° off under
+ *  `Bisector`, turning every cross into a saltire.
  *
- *  ---
- *  **CHANGELOG — if your art predates `f706f5d` (2026-07-22 12:03), IT IS
- *  ALIGNED WRONG AND YOU MUST ASK FOR `Outgoing`.**
+ *  To check which an existing composition needs, render it under one value
+ *  and then the other and compare: if nothing moves, the art is
+ *  rotationally forgiving and either is correct; if the corners snap, one
+ *  of the two renders was wrong. Judging the rotation by eye on a busy
+ *  drawing is unreliable.
  *
- *  Before that commit the bisector was computed by re-probing at d±2 from
- *  a point already past the vertex, so both probes landed on the SAME leg
- *  and every corner in every study behaved as `Outgoing` — not as a
- *  choice, as a bug. Art authored then is authored in the outgoing frame.
- *  `f706f5d` fixed the probe and added an alignment field defaulting to
- *  `Bisector`, and the two correct halves together silently re-aimed every
- *  corner stamp in the corpus by half the turn angle. It was
- *  source-compatible, warned nothing, and edited no file its victims
- *  owned. (The commit's subject line is about caching, so
- *  `git log --oneline` gives no hint either.)
- *
- *  Two studies shipped visibly wrong through review. The worst case of the
- *  class is structural and worth knowing: **every corner of an annular
- *  sector is a right angle**, so the bisector sits 45° from BOTH legs —
- *  and a shape with 90° symmetry (a Greek cross) is therefore
- *  corner-agnostic under `Outgoing` and uniformly, maximally wrong under
- *  `Bisector`. Twenty-eight crosses had been twenty-eight saltires.
- *
- *  **TO AUDIT A STUDY, IN THIRTY SECONDS:** set the other value in a
- *  scratch copy, re-render the same `--at`, and diff. If nothing moves,
- *  the art is rotationally forgiving and the study is *proved* clean; if
- *  corners snap, it was broken. Render a third variant with no corner art
- *  to mask the stamps, and you can MEASURE the rotation instead of judging
- *  it. Judging it by eye failed twice on the same plate. */
+ *  `Bisector` does NOT save you a drawing. The arms of a bisector-aligned
+ *  tile sit at `(turn/2, 180 − turn/2)` off the bisector and mirror with
+ *  the SIGN of the turn, so a handed ornament costs two drawings either
+ *  way. */
 enum class CornerAlign { Bisector, Outgoing };
 
 /** CORNER ART AND HOW IT IS AIMED — one value, because the second half is
  *  not optional information about the first.
  *
- *  This is ROADMAP §27's own conclusion, finally landed (§33 ruling 8):
- *  *"a required constructor argument would be better and costs a source
- *  break at all five consumers."* A `std::optional<CornerAlign>` beside
- *  the art could only WARN at paint time, which is a diagnostic for a
- *  mistake the type system can refuse outright. There is no default
- *  constructor and no default member initializer: you cannot hand this
- *  brush a corner tile without saying which way it faces.
+ *  There is no default constructor and no default member initializer, so
+ *  a corner tile cannot be handed to this brush without saying which way
+ *  it faces. Defaulting the alignment would leave the mistake detectable
+ *  only as a warning at paint time, which the type system can refuse
+ *  outright instead.
  *
  *      pb.corner = brush::CornerArt{elbow, brush::CornerAlign::Outgoing};
  */
@@ -1094,13 +1045,12 @@ struct CornerArt {
   }
 };
 
-/** The PATTERN brush (Illustrator tile semantics): a SIDE tile repeated an
- *  INTEGER number of times per run and stretched along the tangent to fit
- *  exactly (never a torn tile at the end); optional CORNER tiles where the
- *  tangent breaks by more than `cornerAngleDeg` (placed on the bisector,
- *  or on the outgoing leg — `CornerArt` carries the choice and requires
- *  it); optional START/END tiles on open contours. Runs are the stretches
- *  between corners. An art brush is the one-tile degenerate case. */
+/** The PATTERN brush: a SIDE tile repeated an INTEGER number of times per
+ *  run and stretched along the tangent to close the remainder, so a run
+ *  never ends on a torn tile. Optional CORNER tiles go where the tangent
+ *  breaks by more than `cornerAngleDeg`, aimed by the `CornerArt` value,
+ *  which requires you to say how; optional START and END tiles cap open
+ *  contours. A run is a stretch between two corners. */
 struct Pattern {
   Element side;
   std::optional<Element> start, end;
@@ -1108,32 +1058,26 @@ struct Pattern {
    *  runs simply meet at the break. */
   std::optional<CornerArt> corner;
   float advance = 0;           ///< tile length along the path (0 → intrinsic)
-  /** PER-SAMPLE tangent break — gently ROUNDED corners intentionally take
-   *  no corner tile (no hard break exists).
+  /** The tangent break that counts as a corner. A gently ROUNDED corner
+   *  has no hard break, so it takes no corner tile — and a regular n-gon
+   *  turns 360/n per vertex, so at this default nothing above 10 sides is
+   *  seen as having corners at all. Lower it for those.
    *
-   *  35° here against 30° in the other corner scanners is a deliberate
-   *  FREEZE, not a drift: a default that encodes a judgement about the
-   *  caller's art cannot be changed compatibly, because the test is
-   *  whether any existing caller's OUTPUT changes (ROADMAP §27). */
+   *  35° here where the other corner scanners default to 30°. Changing
+   *  either number changes what existing compositions draw, so both stay
+   *  as they are. */
   float cornerAngleDeg = 35.0f;
-  /** Arc length a corner tile RESERVES on each adjacent run, px. 0 uses the
-   *  corner art's own width.
+  /** Arc length a corner tile RESERVES on each adjacent run, px. 0 uses
+   *  the corner art's own width.
    *
-   *  This used to not exist, and the omission was invisible for exactly the
-   *  reason it was dangerous. Side tiles were laid out over the full
-   *  corner-to-corner span and the corner tile was then drawn ON TOP at the
-   *  break point, so side tiles ran underneath it. With a corner tile the
-   *  same size as a side tile the overlap lands where a tile boundary
-   *  already was and nothing looks wrong; with a real elbow — a 48 px
-   *  corner against a 24 px side, which is what an ornamental frame
-   *  actually wants — the side run visibly continues under the elbow.
-   *
-   *  Now each corner reserves `cornerLength / 2` at each end of its two
-   *  adjacent runs and the side run's integer fit is recomputed over the
-   *  SHORTENED span, so tiles butt against the corner instead of sliding
-   *  beneath it. Frames whose corner art is the same size as their side art
-   *  will shift side-tile phase very slightly; that is the corner finally
-   *  taking up its own room. */
+   *  Each corner takes `cornerLength / 2` off the end of each of its two
+   *  adjacent runs, and the side run's integer fit is computed over the
+   *  SHORTENED span, so side tiles butt against the corner instead of
+   *  running underneath it. The reservation matters most when the corner
+   *  art is much larger than a side tile — an elbow twice the side tile's
+   *  width — where without it the side run continues visibly beneath the
+   *  elbow. Setting it also shifts side-tile phase slightly, since the
+   *  runs are shorter. */
   float cornerLength = 0.0f;
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
@@ -1154,19 +1098,18 @@ struct Pattern {
            !o.mod && animatedMod == o.animatedMod;
   }
 
-  /** The baked tile art. Keyed on the art Element's node POINTER, which is
-   *  what makes the next paragraph a trap.
+  /** The baked tile art, keyed on each art Element's node POINTER — which
+   *  is what makes the rule below matter.
    *
-   *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed): inside a
-   *  composer the bakes live in the INSTANCE's StampCache, handed in via
-   *  PaintContext::stamps and keyed on the art's node with a weak guard —
-   *  so a brush value rebuilt by every describe (the renderSlot() trap
-   *  that once cost eighteen snapshot() passes per frame) finds its
-   *  art's bake instead of re-rastering it. What still re-bakes is a
-   *  NEW ART NODE each describe: keep the art Element pointer-stable
-   *  (a member, a static, a captured value) — its node is the cache
-   *  key. This member cache serves standalone paints (no composer, no
-   *  PaintContext::stamps): copies share it; fresh values start empty. */
+   *  THE CACHE IN THIS VALUE IS THE FALLBACK. Inside a composer the bakes
+   *  live in the INSTANCE's stamp cache, handed in through
+   *  `PaintContext::stamps` and keyed on the art's node, so a brush value
+   *  rebuilt by every describe still finds its art's bakes rather than
+   *  rasterizing them again. What defeats that is a NEW ART NODE each
+   *  describe, since the node IS the key: keep the art Elements
+   *  pointer-stable — a member, a static, a captured value. The member
+   *  cache here serves standalone paints; copies share it and a fresh
+   *  value starts empty. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
     const void *bakedSide = nullptr;
@@ -1194,16 +1137,16 @@ struct Pattern {
       cache->bakedEnd = endNode;
       cache->bakedCorner = cornerNode;
     }
-    // §16: each slot warms from the instance-side store first, so a
-    // Pattern value rebuilt every describe (empty member cache) reuses
-    // its arts' bakes; misses bake once and publish back.
+    // Each slot warms from the instance-side store first, so a Pattern
+    // value rebuilt every describe — whose member cache is empty — still
+    // reuses its arts' bakes; a miss bakes once and publishes back.
     auto bake = [&](const Element &e, sk_sp<SkPicture> &slot) {
       if (slot)
         return;
       if (ctx.stamps)
         if (const StampCache::Entry *hit = ctx.stamps->get(e.node()))
           slot = hit->pic;
-      if (!slot) { // shell box: snapshot ignores the ROOT's own dims
+      if (!slot) { // shell box: snapshot() sizes by the root's CHILDREN
         slot = snapshot(box().child(e), *ctx.fonts);
         if (ctx.stamps && slot)
           ctx.stamps->put(e.node(), {slot, nullptr, {0, 0}});
@@ -1231,29 +1174,17 @@ struct Pattern {
       const float len = contour->length();
       const bool closed = contour->isClosed();
 
-      // Corners: where successive tangents break by more than the
-      // threshold (sampled at a fine step, deduped within a tile).
+      // Corners come from the one shared scanner (lines::detail::
+      // findCorners), so the same shape reports the same corners whichever
+      // decoration asks, and the diagnostic it prints when a scan finds
+      // nothing reaches a pattern brush too.
       //
-      // The scan STRADDLES the vertex — it compares the tangent at d-step
-      // with the tangent at d, so the break is first seen one step AFTER
-      // the bend. Taking the midpoint of that bracket put the corner art
-      // up to half a step off the actual vertex (measured: a bend at
-      // (96, 240) drew its corner box centred on (98.5, 239.5)), and it
-      // also broke the bisector: probing d±2 from a point already past
-      // the vertex lands on the SAME leg twice, so every corner rotated
-      // to the outgoing tangent. On a rectangle three corners came out
-      // one way and the fourth — the seam, whose probes wrap — 45° off.
-      //
-      // So bisect the bracket instead of guessing inside it, and keep the
-      // two leg tangents the bisection converged on. Eight halvings take
-      // a 6 px step under 0.03 px, which is below the rasterizer's own
-      // resolution, and the bisector is then exact by construction rather
-      // than by a 2 px probe that assumes both legs are longer than 2 px.
-      // ONE corner scanner (lines::detail::findCorners). This used to be a
-      // second copy of the same bisecting search, with its own 35 degree
-      // default and no diagnostic — so the same shape got different corners
-      // depending on which decoration asked, and the n-gon warning added
-      // for borders never reached a pattern brush.
+      // The scanner returns the vertex position AND the two leg tangents,
+      // which is what the corner tiles below need. Re-probing the contour
+      // at a fixed distance from the vertex instead would land both probes
+      // on the same leg whenever it is shorter than the probe, aiming the
+      // tile at the outgoing tangent regardless of the alignment asked
+      // for.
       std::vector<detail::CornerHit> corners;
       if (cache->corner)
         corners = sigil::compose::lines::detail::findCorners(
@@ -1305,12 +1236,11 @@ struct Pattern {
         }
       }
 
-      // Corner tiles sit on the bisector of the break — the two leg
-      // tangents came out of the detection, so no re-probing is needed.
-      // No diagnostic here any more: the alignment is a REQUIRED
-      // constructor argument of CornerArt (§27's own conclusion, §33
-      // ruling 8), so "corner art with no stated alignment" is a state
-      // that cannot be described.
+      // Corner tiles sit on the bisector of the break, or on the outgoing
+      // leg — both tangents came out of the detection, so nothing is
+      // re-probed here. No diagnostic is needed either: the alignment is a
+      // required constructor argument of CornerArt, so corner art with no
+      // stated alignment cannot be described in the first place.
       if (cache->corner)
         for (const detail::CornerHit &hit : corners) {
           SkPoint pos;
@@ -1350,10 +1280,10 @@ struct Pattern {
   }
 };
 
-/** The variable-width RIBBON: a filled band whose width follows a profile —
- *  linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
- *  (width peaks perpendicular to the nib, the Illustrator calligraphic
- *  model), or any `Profile` on the shared width seam. */
+/** The variable-width RIBBON: a filled band whose width follows a law —
+ *  a linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
+ *  (the width peaks where the path runs perpendicular to the nib), or any
+ *  `Profile` on the shared width seam. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
   float widthStart = 10.0f, widthEnd = 2.0f;
@@ -1361,18 +1291,15 @@ struct Ribbon {
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
 
-  /** THE WIDTH LAW, on the shared PROFILE seam — and what replaced the
-   *  deleted `widthFn`/`widthMax` pair (ROADMAP §33, the widthFn→Profile
-   *  note).
+  /** THE WIDTH LAW, on the shared PROFILE seam.
    *
    *  A `Profile` is `float across(float along)` plus a REQUIRED
-   *  `float max()` plus EQUALITY, so setting it closes both holes the old
-   *  callable pair left open at once: `bleed()` asks how far the mark
-   *  reaches instead of trusting a second field nobody set (the
-   *  §25/audit-I9 silent-clip trap, now structurally impossible), and the
-   *  reconciler compares two ribbons instead of declaring every
-   *  varying-width ribbon unequal forever — a `widthFn` ribbon could
-   *  never prune, so its whole band re-recorded every frame.
+   *  `float max()` plus EQUALITY, and both of those additions are
+   *  load-bearing. The declared maximum is what `bleed()` reports, so a
+   *  wide ribbon cannot be silently clipped by a cull that assumed a
+   *  narrow one; the equality is what lets a varying-width ribbon prune,
+   *  where a bare width callable would compare unequal forever and
+   *  re-record its whole band every frame.
    *
    *  `across(along)` is the FULL width at that fraction of the spine, the
    *  same value `band(spine, across(...))` reads — one vocabulary for a
@@ -1381,12 +1308,12 @@ struct Ribbon {
    *  **A law that must not slide under a reveal is keyed in PX**: give the
    *  scheme `static constexpr bool alongIsPx = true` and `across` is
    *  handed arc-length px from the spine's start instead of a fraction.
-   *  Under `trim()`/`spans::upTo` the decoration receives the REVEALED
-   *  contour, so a fraction is a fraction of what has been drawn so far
-   *  and a fraction-keyed law walks along the mark as it writes; px does
-   *  not move — provided the reveal is anchored at the spine's start
- *  (upTo/range-from-0); a moving-begin window or wrap measures px from
- *  the revealed piece's start. See `PxKeyedProfileScheme`.
+   *  Under a span reveal such as `spans::upTo` the decoration receives the
+   *  REVEALED contour, so a fraction is a fraction of what has been drawn
+   *  so far and a fraction-keyed law walks along the mark as it writes;
+   *  px does not move — provided the reveal is anchored at the spine's
+   *  start. A window whose BEGIN moves, or one that wraps, measures px
+   *  from the revealed piece's own start. See `PxKeyedProfileScheme`.
    *
    *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
    *  through `profileOffset` — a CONSTANT profile picks up
@@ -1495,26 +1422,26 @@ inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
   return r;
 }
 
-/** The ART brush proper (Illustrator's third brush kind, the one the
- *  stamp/tile brushes can't fake): ONE art cell stretched and continuously
- *  BENT along each contour via SkVertices. The art bakes once to a texture
- *  (2x oversampled, like the instancing atlas); each contour is walked
- *  into a triangle-strip ribbon (position ± normal·h per station) whose
- *  texture coordinates sweep the art from end to end — curvature warps the
- *  art smoothly, where a stamp run breaks into rigid segments. One
- *  drawVertices per contour. `stationPx` is warp fidelity: one strip
- *  station per N arc-px (6 px follows tight metro curves; loosen for
- *  long gentle paths).
+/** The ART brush: ONE art cell stretched and continuously BENT along each
+ *  contour. This is what the stamp and tile brushes cannot do — they break
+ *  a curve into rigid segments, where this warps the art smoothly through
+ *  it.
  *
- *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed — as in
- *  Pattern): inside a composer the 2x bake lives in the INSTANCE's
- *  StampCache, handed in via PaintContext::stamps and keyed on the
- *  art's node with a weak guard, so a brush value rebuilt by every
- *  describe finds its art's bake — the most expensive of the three
- *  to miss. What still re-bakes is a NEW ART NODE each describe:
- *  keep the art Element pointer-stable (a member, a static, a
- *  captured value) — its node is the cache key. This member cache
- *  serves standalone paints (no composer, no PaintContext::stamps). */
+ *  The art bakes once to a texture at 2× oversample, and each contour is
+ *  walked into a triangle-strip ribbon (position ± normal·h per station)
+ *  whose texture coordinates sweep the art from one end to the other. One
+ *  drawVertices per contour. `stationPx` is the warp fidelity, one station
+ *  per that many arc px: a few px follows tight curves, and a larger value
+ *  is cheaper on long gentle paths.
+ *
+ *  THE CACHE IN THIS VALUE IS THE FALLBACK, and missing it costs more
+ *  here than for the other brushes, because the bake is a rasterized
+ *  texture rather than a picture. Inside a composer it lives in the
+ *  INSTANCE's stamp cache, handed in through `PaintContext::stamps` and
+ *  keyed on the art's node, so a brush value rebuilt by every describe
+ *  still finds it. What defeats that is a NEW ART NODE each describe,
+ *  since the node IS the key: keep the art Element pointer-stable. The
+ *  member cache here serves standalone paints. */
 struct Art {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)
@@ -1541,8 +1468,7 @@ struct Art {
     if (!cache->image || cache->bakedFor != art.node().get()) {
       cache->bakedFor = art.node().get();
       cache->image = nullptr;
-      // §16: the most expensive of the three bakes (2x raster) — the
-      // instance-side store is consulted before any raster work.
+      // Consult the instance-side store before doing any raster work.
       if (ctx.stamps) {
         if (const StampCache::Entry *hit = ctx.stamps->get(art.node());
             hit && hit->image) {
@@ -1552,7 +1478,8 @@ struct Art {
       }
     }
     if (!cache->image) {
-      // shell box: snapshot/measure ignore the ROOT's own dims
+      // Shell box: snapshot() and measure() size by the root's CHILDREN
+      // and ignore the root's own dimensions.
       const SkSize sz = measure(box().child(art), *ctx.fonts);
       if (sz.isEmpty())
         return;
@@ -1632,16 +1559,10 @@ inline Art artAlong(Element art, float height = 0,
 
 } // namespace brush
 
-// ---------------------------------------------------------------------------
-// `namespace brushes` is GONE (R3). Everything it held lives in `brush::`
-// under the taught name — the kinds are `brush::Pattern`/`Scatter`/`Art`/
-// `Ribbon`, not `PatternBrush`/`ScatterBrush`/`ArtBrush`, because a type
-// suffixed with its own namespace was the two-names-for-one-identity
-// defect (§22) the deletion phase exists to remove.
-
 namespace brush {
-/** A Ribbon on the PROFILE seam — the taught constructor, because the
- *  profile is the half of a ribbon that has a shared vocabulary. */
+/** A Ribbon built on the PROFILE seam — the constructor to prefer, since
+ *  the profile is the half of a ribbon that shares a vocabulary with
+ *  bands and strands. */
 inline Ribbon ribbon(Profile width, Fill fill) {
   Ribbon r;
   r.width = std::move(width);

@@ -1,10 +1,9 @@
 #pragma once
-// Shared support for the compose test TUs — the Host harness, color and
-// text-style helpers, and every header any slice needs. Split out of the
-// single 12.6k-line ComposeTest.cpp (2026-07-27); the slices are
-// contiguous regions of that file, byte-identical, in original order.
-// Helpers live in an anonymous namespace on purpose: internal linkage
-// per TU, same as they always had.
+// Shared support for the compose test translation units — the Host
+// harness, colour and text-style helpers, and every header the tests
+// need. Helpers sit in anonymous namespaces so each including TU gets its
+// own internal-linkage copy; nothing here is meant to be shared across
+// TUs at link time.
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -50,9 +49,8 @@
 #include <sigilcompose/Studio.h>
 #include <type_traits>
 
-// Kernel behavior tests: layout, stacking paint, reconciliation (keys,
-// memo), automatic picture caching, and transition semantics — the P1
-// slice of STRESS_TESTS.md, in headless deterministic form.
+// Everything here draws into a raster surface at a fixed size and reads
+// pixels back, so the tests are deterministic and need no GPU.
 
 
 
@@ -175,8 +173,8 @@ Element straightRun(Decoration style) {
 
 namespace {
 /** Expensive per PIXEL, which is the only kind of expensive that matters
- *  here: the promoter measures milliseconds, not ops. Shared by the leaf
- *  tests further down. */
+ *  here: automatic promotion thresholds on how long a node takes to paint,
+ *  so cost has to come from fragment work over an area. */
 sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
   // The static variant must not so much as DECLARE uTime: Material::sksl
   // reads liveness off the declaration, not off whether anything drives it.
@@ -202,12 +200,12 @@ sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
 
 /** A subtree the promoter will actually promote.
  *
- *  "Expensive" here has to mean **over the promotion threshold**, and this
- *  panel did not: 220 thin children with hairline strokes measured 23 us
- *  against a 1 ms bar, so every test that asked whether this thing gets
- *  promoted was asking about a node that never could be. Structure alone
- *  does not cost milliseconds — per-pixel work does, so the panel now
- *  carries a shader over its whole area as well as its 220 children. */
+ *  "Expensive" has to mean over the promotion time threshold. Child count
+ *  alone does not get there — hundreds of thin hairline-stroked boxes are
+ *  still far under the bar — so the panel carries a per-pixel shader across
+ *  its whole area as well as its children. Drop the shader and every
+ *  assertion about this node being promoted quietly becomes an assertion
+ *  about a node that never could be. */
 Element expensivePanel() {
   Element panel =
       box().width(180).height(180).fill(Material::sksl(heavyEffect(false)));
@@ -230,12 +228,10 @@ Element expensivePanel() {
  *
  *  A static node under a CACHEABLE parent is painted exactly once, into
  *  that parent's recording, and never visited again — so it never appears
- *  in `profile()` and every assertion about it passes by iterating an
- *  empty match set. That is not a hypothetical: three tests in this file
- *  shipped that way, including one guarding a property we had to prove
- *  twice. `Cache::None` on the wrapper keeps the subject painted every
- *  frame, which is also the real shape of the corpus (these nodes sit
- *  under a stack() with animated siblings).
+ *  in `profile()`, and any assertion written as "loop the rows, check the
+ *  matches" passes vacuously over an empty match set. `Cache::None` on the
+ *  wrapper keeps the subject painted every frame, which is also how these
+ *  nodes sit in real scenes: under a stack() with animated siblings.
  *
  *  Pair it with `requireRow()`, and note what each half guarantees:
  *  `profiledUnder` gets the node PROFILED, `requireRow` proves it was.
@@ -291,13 +287,12 @@ namespace {
 /** ONE effect for the whole process, and this is not tidiness.
  *
  *  `heavyEffect()` mints a fresh SkRuntimeEffect on every call, and a fresh
- *  effect makes the material RECIPE compare unequal — so a fixture that
- *  re-describes each frame dirties the node's own paint each frame and no
- *  bake of any kind can hold. Every other cache test in this file calls
- *  `render()` once and then `frame()`, so none of them ever met this. The
- *  split has to re-describe, because the whole point is that the child
- *  moves. The corpus does not hit it because real materials are built from
- *  comparable values; a raw SkSL pointer is the one thing that is not. */
+ *  effect pointer makes the material recipe compare unequal — so a fixture
+ *  that re-describes each frame dirties the node's own paint each frame and
+ *  no bake of any kind can hold. Tests that describe once and then only
+ *  `frame()` never notice; a test whose whole point is that a child moves
+ *  must re-describe, and then it does. Materials built from ordinary values
+ *  compare fine; a raw SkSL effect pointer is the one that does not. */
 sk_sp<SkRuntimeEffect> sharedHeavyEffect() {
   static sk_sp<SkRuntimeEffect> effect = heavyEffect(false);
   return effect;

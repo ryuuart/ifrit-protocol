@@ -313,9 +313,10 @@ struct CosmatiScene final : Scene {
     const std::chrono::milliseconds delay{600 + 80 * seed};
     // The bed is the largest stone surface on the plate and every square
     // pixel of it is an SkSL evaluation — three fBm octaves under three
-    // gradients. Static once it has entered, so bake it: on GPU the
-    // difference is noise, on the CPU raster backend it is the difference
-    // between 12 fps and 100.
+    // gradients. It is static once it has entered, so bake it. This matters
+    // little on GPU and enormously on the CPU raster backend, where the
+    // alternative is re-evaluating that shader over the whole quarter every
+    // single frame.
     Element q = stack()
                     .width(Dim(side))
                     .height(Dim(side))

@@ -1,7 +1,8 @@
 // Paint phase: the volatility walk that decides what may cache, the node
-// silhouette resolution, and the stacking painter with its three cache tiers
-// (live paint, auto SkPicture of provably-static subtrees, and Cache::Texture
-// raster bakes). See DESIGN.md "Stacking and compositing" and "Caching".
+// silhouette resolution, and the stacking painter with its cache tiers —
+// live paint, an automatic SkPicture over provably-static subtrees, a bake
+// of the node's own paint with live children over it, a whole-subtree bake
+// held by a value memo, and Cache::Texture raster bakes.
 
 #include "ComposeRuntime.h"
 
@@ -117,7 +118,7 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
   return &live;
 }
 
-/** §30: every animated scalar under a `Cache::Group` root, in tree order.
+/** Every animated scalar under a `Cache::Group` root, in tree order.
  *
  *  This is the whole invalidation mechanism, and therefore the whole risk.
  *  What it gathers is the set of numbers that can change what the bake looks
@@ -138,8 +139,8 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
  *     paintContent and are gathered like everyone else's.
  *
  *  Cost is one traversal of the subtree per frame, reading a handful of
- *  floats per node: ~2000 reads for kumiko's 523 strips, against the 113 ms
- *  of GPU work (ROADMAP §29) it is deciding whether to skip. */
+ *  floats per node — set against the entire paint of that subtree, which is
+ *  what it decides whether to skip. */
 void collectGroupScalars(const Instance &inst, bool root,
                          std::vector<float> &out) {
   const ElementNode &node = *inst.desc;
@@ -156,9 +157,9 @@ void collectGroupScalars(const Instance &inst, bool root,
   // THE ORDER OF THIS VECTOR IS ARBITRARY BUT MUST BE STABLE. It is only
   // ever compared against the vector this same function produced on the
   // previous frame (Impl::paint, `groupScratch == inst.groupPrev`), so any
-  // fixed permutation of the gathered values computes the identical verdict
-  // — which is what let the enumeration move into a table whose order is
-  // the enum's rather than this function's.
+  // fixed permutation of the gathered values computes the identical
+  // verdict; what would break the memo is an order that varies between
+  // frames for the same tree.
   for (const SlotSpec &spec : kSlotSpecs) {
     if (root && spec.role != SlotRole::Content)
       continue;
@@ -307,8 +308,8 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   }
 
   // The no-overlap law, over the CLAIMING passes only. An unqualified
-  // stroke never gets here (it is an ordinary foreground), so no existing
-  // scene can become an error — the §27 alias-first law.
+  // stroke never gets here — it is an ordinary foreground — so overlaying
+  // marks on a whole boundary is never diagnosed as a claim collision.
   for (size_t i = 0; i < passes.size(); ++i) {
     if (passes[i].where.hasRest())
       continue;
@@ -357,12 +358,12 @@ Fill detail::Instance::resolveBoundFill() const {
 }
 
 std::array<float, 2> detail::Instance::resolvePatternOffset() const {
-  // §14-a: only the TOP-LEVEL bound offset of the node's fill material is
-  // a scalar-lane input — a nested one (blend layer, child slot) keeps
-  // the material on the opaque live path (animatedBeyondBoundOffset) and
-  // never reaches this lane. All-zero when unbound, matching the
-  // ContentScalars guard: a node without the channel compares equal to
-  // itself forever.
+  // Only the TOP-LEVEL bound offset of the node's fill material is a
+  // scalar-lane input. A nested one (in a blend layer, in a child slot)
+  // keeps the material on the opaque live path — see
+  // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
+  // unbound, matching the ContentScalars guard, so a node without the
+  // channel compares equal to itself forever.
   const Material *m = liveMaterialOf(*desc);
   if (!m || !m->hasBoundOffset())
     return {};
@@ -394,9 +395,10 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
 namespace {
 
 /** Does this span set claim the whole boundary? Then the boundary is
- *  untouched — a settled reveal must draw the path it would have drawn
- *  with no mask on it at all, bit for bit, or every settled plate in the
- *  corpus moves. */
+ *  untouched, and returning the source path unchanged is required, not an
+ *  optimisation: a fully settled reveal must draw exactly the path it would
+ *  have drawn with no mask on it at all, bit for bit, or adding a mask that
+ *  is currently showing everything moves pixels. */
 bool claimsEverything(const std::vector<Span> &show) {
   return show.size() == 1 && show[0].begin <= 1e-6f && show[0].end >= 1.0f - 1e-6f;
 }
@@ -424,9 +426,10 @@ SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
 //
 //  - WHICH CHANNEL (Gate::Channel) — Alpha is the shader's own alpha and
 //    needs no work at all. Luma weights the PREMULTIPLIED colour with
-//    Rec. 601 on the ENCODED values (by::luma states the law; DESIGN.md's
-//    colour rule is the argument). Premultiplied is what makes a
-//    TRANSPARENT matte read as black, the way After Effects' does.
+//    Rec. 601 on the ENCODED values, with no linearization, because
+//    everything here composites in encoded sRGB. Premultiplied is what
+//    makes a TRANSPARENT matte read as black, the way compositing
+//    applications do.
 //  - WHICH SIDE (Gate::outside) — the complement is `kDstOut` instead of
 //    `kDstIn`. `dst * (1 - a)` IS `1 - coverage`, exactly, for any source,
 //    so an inverted matte costs one enum value and no shader.
@@ -466,16 +469,17 @@ half4 main(float2 p) {
 // ---------------------------------------------------------------------------
 // Volatility & caching
 
-/** §20's movement scan: released instances re-checked once per draw, so
- *  an EXTERNALLY-driven Output that moves re-declares volatility (and
- *  stales every ancestor recording) in the same frame — nothing stale
- *  ever replays. Cheap by construction: released nodes are few and each
- *  check is a handful of float resolves. */
-// §19: the node→root matrix, recomputed outside paint. The op sequence per
-// level — preTranslate(rect), preConcat(matrix()) — is EXACTLY the pair
-// paint() applies to curToRoot as it recurses, on the same resolved floats,
-// so the result is bit-identical to the paint-side accumulation; the §20
-// release compare depends on that (an ulp of drift would read as motion).
+/** The movement scan for released instances: re-checked once per draw, so
+ *  an EXTERNALLY-driven output that moves re-declares volatility (and
+ *  stales every ancestor recording) in the same frame — nothing stale ever
+ *  replays. Cheap by construction: released nodes are few and each check is
+ *  a handful of float resolves. */
+// The node→root matrix, recomputed outside paint. The op sequence per level
+// — preTranslate(rect), preConcat(matrix()) — is EXACTLY the pair paint()
+// applies to curToRoot as it recurses, on the same resolved floats, so the
+// result is bit-identical to the paint-side accumulation. The settle
+// compare depends on that: an ulp of drift reads as motion, and the node
+// never releases.
 SkMatrix Composer::Impl::worldMatrixOf(Instance &inst) {
   std::vector<Instance *> chain;
   for (Instance *i = &inst; i; i = i->parent)
@@ -512,16 +516,16 @@ void Composer::Impl::scanReleasedScalars() {
     now.gates = inst->resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(*inst->desc))
       now.glyph = inst->resolveFloat(Instance::kGlyphProgress, g->progress);
-    // §19: the released scan gains the node's W — a rete released while
-    // holding must re-declare THE FRAME its externally-driven rotation
-    // resumes, before any recording with the old anchoring replays.
+    // The node→root matrix: a released world-space node whose externally
+    // driven transform resumes must re-declare THE FRAME it resumes, before
+    // any recording carrying the old anchoring replays.
     now.world = worldScalarsOf(*inst);
-    // §38: and the bound fill — a released accent whose Output is assigned
-    // while the walk sleeps must re-declare before its settled colour
-    // replays from any ancestor's recording (or its own promoted bake).
+    // The bound fill: a released node whose output is assigned while the
+    // volatility walk is idle must re-declare before its settled colour
+    // replays from an ancestor's recording or its own promoted bake.
     now.fill = inst->resolveBoundFill();
-    // §14-a: and the bound pan — a parked conveyor whose Output resumes
-    // while the walk sleeps re-declares before the parked phase replays.
+    // The bound tile pan: same argument, so a parked scroll re-declares
+    // before its parked phase replays.
     now.pattern = inst->resolvePatternOffset();
     if (!(now == inst->settledScalars)) {
       inst->settleFrames = 0; // the hold is over: warm up from scratch
@@ -541,9 +545,10 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
     return inst.anims[slot] && inst.anims[slot]->value.isConnected();
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
-  // animated brush repaints it. Both are CONTENT volatility, like trim —
-  // and deliberately kept out of the scalar/live-material memos, which
-  // compare a fixed list of floats and cannot see a span claim.
+  // animated brush repaints it. Both are CONTENT volatility, and both are
+  // deliberately kept out of the scalar and live-material memos, which
+  // compare a bounded per-node list of values and have nowhere to put an
+  // open-ended pass list's endpoints.
   const bool spanVolatile = [&] {
     if (!node.hasStrokePasses())
       return false;
@@ -564,8 +569,8 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
     }
     return live;
   }();
-  // Mask gates, split the way §3.6 requires. A gate whose animation is a
-  // BOUNDED LIST OF FLOATS (spans endpoints, an edge fraction) is
+  // Mask gates, split by what a memo can compare. A gate whose animation is
+  // a BOUNDED LIST OF FLOATS (spans endpoints, an edge fraction) is
   // memo-visible and joins scalarContent below; a gate driven by a LIVE
   // MATERIAL is not a float and refuses both memos, exactly as a live
   // material fill does. A shape gate is a static Region and moves nothing.
@@ -614,7 +619,8 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   //    node is not moving. Opacity is deliberately not part of it — it does
   //    not move the rect.
   //  - Content rebuilds the recording, and joins `scalarContent` below,
-  //    which is the memoizable half of content volatility (§17).
+  //    which is the memoizable half of content volatility: the half whose
+  //    inputs are floats this frame can read back and compare.
   bool ownPaint = false;
   bool moving = false;
   bool scalarContent = false;
@@ -647,27 +653,26 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // THEM. Four questions are asked of this one list — "is anything
   // volatile" (ownContent), "can a group's float memo SEE it"
   // (opaqueToTheMemo), "is the live material the ONLY one" (liveMatOnly),
-  // "are the animated scalars the only ones" (scalarMemo) — and each used
-  // to re-enumerate the list by hand. Three of the four copies drifted:
-  // neither memo carve-out mentioned a bound fill or a live effect, so a
-  // node carrying one of those AND an animated gate took a memo, kept the
-  // recording that had baked the old colour, and replayed it for as long
-  // as the gate held still (three reproduced staleness cases, pinned in
-  // ComposeR4Mask). Deriving each consumer by subtraction is what makes
+  // "are the animated scalars the only ones" (scalarMemo). Each of them
+  // could be written as its own enumeration of the terms, and the copies
+  // would drift: a carve-out that forgets, say, a bound fill lets a node
+  // carrying one AND an animated gate take a memo, keep the recording that
+  // baked the old colour, and replay it for as long as the gate holds
+  // still. Deriving each consumer by subtraction is what makes
   // `ownContent == liveMat | otherThanLiveMat == scalarContent |
   // otherThanScalar` true BY CONSTRUCTION rather than by review.
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
                         inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
   const Material *nodeLiveMat = liveMaterialOf(node);
-  // §14-a: a fill material whose ONLY animation is its own bound pan is
-  // NOT the live-material lane — it is two floats, resolvable outside
-  // paint by a pointer dereference, so it rides the §17/§20 scalar lane
-  // exactly as a gate fraction, W's six, and the bound Fill do. A
-  // material with a bound pan AND anything else (a live uniform, uTime, a
-  // nested pan in a blend layer) stays on the opaque live path —
-  // conservative, and the split is a partition: patternPan and liveMat
-  // can never both be true.
+  // A fill material whose ONLY animation is its own bound tile pan is NOT
+  // the live-material lane — it is two floats, resolvable outside paint by
+  // a pointer dereference, so it rides the memoized scalar lane exactly as
+  // a gate fraction, the world matrix's six and a bound Fill do. A material
+  // with a bound pan AND anything else (a live uniform, an elapsed-time
+  // input, a nested pan in a blend layer) stays on the opaque live path.
+  // Conservative, and the split is a partition: patternPan and liveMat can
+  // never both be true.
   const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
   const bool patternPan = liveMatAnimated && nodeLiveMat->hasBoundOffset() &&
                           !nodeLiveMat->animatedBeyondBoundOffset();
@@ -691,70 +696,70 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
                          imageAssetOf(node)->animated();
   const bool driveLive = node.textData && node.textData->driveValue != nullptr;
-  // A LIVE effect (§11): the filter is captured by the recording, so bound
-  // uniforms are content volatility — the material rule on the effect seam.
+  // A LIVE effect: the filter is captured by the recording, so bound
+  // uniforms on it are content volatility, exactly as they are on a fill
+  // material.
   const bool liveEffect =
       (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
       (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
-  // can sit still for a long time inside a running motion (§17). Declared
-  // and filled with every SlotRole::Content slot up in the table walk; the
-  // MASK GATES join here, because their count is a property of the
-  // description and no fixed slot can hold them.
+  // can sit still for a long time inside a running motion. Declared and
+  // filled with every SlotRole::Content slot up in the table walk; the MASK
+  // GATES join here, because their count is a property of the description
+  // and no fixed slot can hold them.
   scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
-  // §19: a world-space material under a CONNECTED transform — this node's
-  // own or any ancestor's (movingAbove, threaded down this recursion) —
-  // has W changing off the describe clock, and W is baked into the
-  // recording. That is content volatility, and it joins the MEMOIZED lane
-  // rather than the opaque one: W is six floats ContentScalars carries, so
-  // §17 keeps the recording between ticks, §20 releases the flag once the
-  // motion provably settles, and the per-draw scan re-declares the frame
-  // it resumes. The kind-partition doctrine holds: for THIS node the
-  // transform is a content input, which is what the flag says.
+  // A world-space material under a CONNECTED transform — this node's own or
+  // any ancestor's, threaded down this recursion as movingAbove — has its
+  // node→root matrix changing off the describe clock, and that matrix is
+  // baked into the recording. That is content volatility, and it joins the
+  // MEMOIZED lane rather than the opaque one, because the matrix is six
+  // floats ContentScalars carries: the recording survives between ticks,
+  // the flag releases once the motion provably settles, and the per-draw
+  // scan re-declares the frame it resumes. Note that for THIS node an
+  // ancestor's transform is a content input, not a geometric one — it does
+  // not move this node's own device rect.
   const bool worldUnderMotion =
       inst.hasWorldSpaceMaterial && (moving || movingAbove);
   scalarContent |= worldUnderMotion;
-  // §38: a BOUND fill joins the memoized lane too. §20's text argued "there
-  // is no equivalent of 'the numbers the recording was baked with' for the
-  // general case" — false for a bound Fill, whose equality is structurally
-  // exact (kind + colour bitwise + shader pointer) and whose resolve is one
-  // pointer dereference. ContentScalars carries the resolved value, so §17
-  // keeps the recording between changes, §20's release frees the flag after
-  // kScalarSettleFrames of identity — the 19.6× measured on a never-moving
-  // bound accent (the promotion denial, §38's table) collapses to the plain
-  // spelling — and the per-draw released scan re-declares THE FRAME the
-  // Output moves, before anything stale replays.
+  // A BOUND fill joins the memoized lane too, even though a Fill is not a
+  // float: its equality is structurally exact (kind, colour bitwise, shader
+  // pointer) and resolving it is one pointer dereference, so "the value the
+  // recording was baked with" is well defined. ContentScalars carries it,
+  // so the recording survives between changes, the flag releases after
+  // kScalarSettleFrames of identity — which is what lets a never-moving
+  // bound accent be promoted like a plain colour — and the per-draw
+  // released scan re-declares THE FRAME the output moves, before anything
+  // stale replays.
   scalarContent |= boundFill;
-  // §14-a: and the bound PATTERN PAN — the third sibling. ContentScalars
-  // carries the resolved pair, so §17 keeps the recording between moves
-  // (each moved frame re-records with the new phase, nothing re-describes),
-  // §20's release frees the flag after kScalarSettleFrames of identity —
-  // a parked conveyor promotes like a static pattern — and the per-draw
-  // released scan re-declares THE FRAME the pan resumes.
+  // …and the bound tile PAN, the third member of the lane. ContentScalars
+  // carries the resolved pair, so each moved frame re-records with the new
+  // phase and nothing re-describes, a parked scroll releases and promotes
+  // like a static pattern, and the released scan re-declares THE FRAME the
+  // pan resumes.
   scalarContent |= patternPan;
-  /** The pre-release reading. §20 below may set `scalarContent` false for a
-   *  node that is provably holding still; the LIVE-MATERIAL memo must keep
-   *  answering about such a node exactly as it did before that release
-   *  existed, so it subtracts this and not the released value. */
+  /** The pre-release reading. The release below may set `scalarContent`
+   *  false for a node that is provably holding still; the LIVE-MATERIAL
+   *  memo asks a question about what the node DECLARES, not about whether
+   *  it is currently moving, so it subtracts this and not the released
+   *  value. */
   const bool scalarDeclared = scalarContent;
-  // §20: the measured-stability RELEASE, read side. The settle counter
-  // accumulates at PAINT time — this walk re-runs only on reconcile or
-  // while the TICKER is active, which is exactly why the flag never
-  // released before — so here the walk merely honours a warmed-up
-  // release and registers the instance for the per-draw scan
-  // (scanReleasedScalars) that re-declares volatility THE FRAME an
-  // externally-driven binding moves again. The §17 memo always kept
-  // this node's own recording; the FLAG is what this frees, so
-  // ancestors can finally cache across a settled reveal.
+  // The stability RELEASE, read side. The settle counter accumulates at
+  // PAINT time, because this walk re-runs only on reconcile or while the
+  // ticker is active and so cannot count frames by itself. Here the walk
+  // merely honours a warmed-up release and registers the instance for the
+  // per-draw scan (scanReleasedScalars) that re-declares volatility THE
+  // FRAME an externally-driven binding moves again. The node's own
+  // recording was already kept by the scalar memo; what this frees is the
+  // FLAG, so ancestors can cache across a settled reveal as well.
   if (scalarContent && inst.settleFrames >= Instance::kScalarSettleFrames) {
     Instance::ContentScalars now;
     now.gates = inst.resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(node))
       now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
-    now.world = worldScalarsOf(inst); // §19: a held W releases like a gate
-    now.fill = inst.resolveBoundFill(); // §38: and so does a held bound fill
-    now.pattern = inst.resolvePatternOffset(); // §14-a: and a held bound pan
+    now.world = worldScalarsOf(inst);   // a held world matrix releases too
+    now.fill = inst.resolveBoundFill(); // …and a held bound fill
+    now.pattern = inst.resolvePatternOffset(); // …and a held bound pan
     if (now == inst.settledScalars) {
       scalarContent = false; // released — provably holding still
       releasedScalars.push_back(&inst);
@@ -763,48 +768,44 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
       inst.settledScalars = std::move(now);
     }
   }
-  // §30: what a SUBTREE VALUE MEMO can and cannot see. A group bake is held
-  // by comparing floats, so every source of volatility in it must either BE
-  // a float this frame can read back (the transform slots, opacity, the
+  // What a SUBTREE VALUE MEMO can and cannot see. A group bake is held by
+  // comparing floats, so every source of volatility inside it must either
+  // BE a float this frame can read back (the transform slots, opacity, the
   // mask gates, glyph progress, the fill lerp) or arrive as a description
   // change, which stales the group root through markPaintDirtyUp().
-  // Everything listed here is neither: it moves pixels off the clock with no number to compare, and
-  // a group holding a bake across one of them would blit last second's
-  // picture forever. Refused outright rather than approximated — this is the
-  // whole risk of the feature, and it is the one place to be conservative.
-  // (A Fill is not a float; nor is a live material's uTime, an animated
-  // decoration, a GIF frame, a variable-font drive or a bound effect
-  // uniform.)
-  // §38 split the one list in two: `sharedOpaque` is every term that is
-  // opaque to EVERY memo, named once; `boundFill` and `liveMat` each carry
-  // their own ruling (the fill rides the §17/§20 scalar lane now, the live
-  // material has its own memo) and are added back per consumer. The
-  // subtraction discipline is unchanged — no consumer re-enumerates.
+  // Everything named in `sharedOpaque` is neither: it moves pixels off the
+  // clock with no number to compare, and a group holding a bake across one
+  // of them would blit an old frame's picture indefinitely. Refused
+  // outright rather than approximated — this is where the whole feature's
+  // risk sits, and it is the one place to be conservative.
+  //
+  // The list is split in two: `sharedOpaque` is every term opaque to EVERY
+  // memo, named once, while `boundFill` and `liveMat` are handled per
+  // consumer below (the fill rides the memoized scalar lane, the live
+  // material has its own memo). No consumer re-enumerates.
   const bool sharedOpaque = metricLive || cacheNone || decorLive ||
                             imageLive || driveLive || spanVolatile ||
                             maskOpaque || liveEffect;
-  // §38, the GROUP lane, deliberately NOT taken: a bound fill still refuses
-  // Cache::Group. The group memo's currency is one flat float vector
-  // gathered across the subtree (collectGroupScalars) — a Fill's
+  // A bound fill still refuses Cache::Group, even though it rides the
+  // node-level scalar lane. The group memo's currency is one flat float
+  // vector gathered across the subtree (collectGroupScalars), and a Fill's
   // shader-kind value compares by POINTER identity, which is only sound
-  // while an owning sk_sp keeps the allocation alive, and a float vector
-  // cannot hold a reference. Flattening the pointer into floats would make
-  // "a freed shader reallocated at the same address" compare stable — the
-  // exact silent-stale-bake failure §30 refuses outright.
-  // §14-a, the GROUP lane, deliberately NOT taken (the Fill lane's
-  // contract): a bound pan still refuses Cache::Group. Unlike the Fill the
-  // refusal here is not unsound currency — a pan IS two floats — it is an
-  // unbuilt gather: collectGroupScalars does not collect the pan, so a
-  // group bake held across a moving one would blit the parked phase.
-  // Refused outright in §30's direction until that lane is decided on its
-  // own; the node-level release above still frees a settled pan's flag, so
-  // the practical cost is only that the group BAKE stays refused.
+  // while an owning sk_sp keeps the allocation alive — a vector of floats
+  // cannot hold that reference. Flattening the pointer into floats would
+  // make a freed shader reallocated at the same address compare stable,
+  // which is exactly the silent stale bake this refusal exists to prevent.
+  //
+  // A bound tile pan refuses the group as well, for a different reason: a
+  // pan IS two floats, but collectGroupScalars does not gather it, so a
+  // group bake held across a moving one would blit the parked phase. The
+  // node-level release above still frees a settled pan's flag; only the
+  // group BAKE stays refused.
   const bool opaqueToTheMemo =
       sharedOpaque || boundFill || liveMat || patternPan;
   // Everything volatile about this node EXCEPT its animated scalars, and
   // everything EXCEPT its live material. The two memo carve-outs below are
   // exactly these two subtractions, which is why neither can forget a term.
-  // (`boundFill` is inside `scalarDeclared` now — §38 — so it reaches
+  // (`boundFill` is inside `scalarDeclared`, so it reaches
   // `otherThanLiveMat` through the scalar term, exactly as a gate does.)
   const bool otherThanScalar = sharedOpaque || liveMat || fillLerp;
   const bool otherThanLiveMat = sharedOpaque || fillLerp || scalarDeclared;
@@ -814,7 +815,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   bool childReadsBackdrop = false;
   bool childrenGroupSafe = true;
   for (auto &child : inst.children) {
-    // §19: a bound transform HERE moves every descendant's W.
+    // A connected transform HERE moves every descendant's world matrix.
     childrenVolatile |= computeVolatile(*child, movingAbove || moving);
     childReadsBackdrop |= child->subtreeReadsBackdrop;
     childrenGroupSafe &= child->groupSafe;
@@ -826,29 +827,30 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // still frame of the common case, so it is computed rather than assumed.
   // Split into halves, because the two cache strategies ask different
   // questions of it. Whole-subtree promotion bakes the children too, so it
-  // must ask about the whole subtree. A split bake (§15) replaces only the
-  // node's OWN layer and draws children over the blit, so it must ask only
-  // about the node's own paint — the children composite against the blit
-  // exactly as they would against freshly rasterized pixels.
+  // must ask about the whole subtree. A split bake replaces only the node's
+  // OWN layer and draws children over the blit, so it must ask only about
+  // the node's own paint — the children composite against the blit exactly
+  // as they would against freshly rasterized pixels.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
                           node.paint.blendMode != SkBlendMode::kSrcOver;
   inst.subtreeReadsBackdrop = inst.ownReadsBackdrop || childReadsBackdrop;
 
-  // §30, the two halves. `groupSafe` is what a PARENT asks of this subtree —
-  // and it includes this node's own backdrop read, because inside a group
-  // bake a kMultiply child resolves against transparent black exactly as it
-  // would under whole-subtree promotion. `groupRootOK` is what this node
-  // asks of ITSELF, and deliberately does not: a group root's own blend and
-  // opacity are applied by paint()'s saveLayer, outside the bake, exactly as
-  // they would be applied outside the live paint. A backdrop FILTER on the
-  // root is still fatal — it samples the destination, which the bake is not.
-  // §19: a MOVING world-space field refuses the group memo — W is not
-  // among the floats collectGroupScalars gathers (only transforms INSIDE
-  // the group are), so a bake held across an ancestor's motion would blit
-  // stale anchoring. Conservative in the §30 direction: refused outright,
-  // and a fully-static chain (no connected transform anywhere above)
-  // keeps its group — description changes reach it through
-  // markPaintDirtyUp and layout moves through syncLayoutRects.
+  // The two halves of the group question. `groupSafe` is what a PARENT asks
+  // of this subtree — and it includes this node's own backdrop read,
+  // because inside a group bake a kMultiply child resolves against
+  // transparent black exactly as it would under whole-subtree promotion.
+  // `groupRootOK` is what this node asks of ITSELF, and deliberately does
+  // not include its own blend and opacity: those are applied by paint()'s
+  // saveLayer, outside the bake, exactly as they would be applied outside
+  // the live paint. A backdrop FILTER on the root is still fatal — it
+  // samples the destination, which the bake is not.
+  //
+  // A MOVING world-space field also refuses the group memo. The node→root
+  // matrix is not among the floats collectGroupScalars gathers (only
+  // transforms INSIDE the group are), so a bake held across an ancestor's
+  // motion would blit stale anchoring. A fully static chain — no connected
+  // transform anywhere above — keeps its group: description changes reach
+  // it through markPaintDirtyUp and layout moves through syncLayoutRects.
   inst.groupSafe = !opaqueToTheMemo && !inst.ownReadsBackdrop &&
                    !worldUnderMotion && childrenGroupSafe;
   inst.groupRootOK = node.cacheMode == Cache::Group && !opaqueToTheMemo &&
@@ -856,9 +858,9 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
                      backdropEffectOf(node) == nullptr;
   if (node.cacheMode == Cache::Group && !inst.groupRootOK && !inst.groupWarned) {
     inst.groupWarned = true;
-    // Loud, because the alternative is an author reading `live paint,
-    // 663 ms` on a node they explicitly asked to bake and having no way to
-    // learn that one descendant three levels down declined it for them.
+    // Loud, because the alternative is an author seeing a node they
+    // explicitly asked to bake reported as live paint, with no way to learn
+    // that one descendant several levels down declined it for them.
     SkDebugf("sigilcompose Cache::Group: \"%s\" cannot bake — %s. A group is "
              "held by comparing FLOATS, so live materials (uTime or a bound "
              "uniform), animated decorations, animated images, bound fill(), "
@@ -887,14 +889,13 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // stable and re-records only when the shader actually changes. Stated as
   // the subtraction it is, so it cannot fall behind the list again.
   inst.liveMatOnly = liveMat && !otherThanLiveMat && !childrenVolatile;
-  // §17: the same carve-out for animated SCALARS. A node whose content
-  // volatility is entirely mask gates and glyph progress keeps its
-  // recording and
-  // re-records only when one of those numbers actually ticks — a keyframe
-  // hold segment repaints nothing. Deliberately disjoint from liveMatOnly:
-  // a node with BOTH a live material and an animated trim takes neither
-  // memo, which is the conservative answer and costs only what it costs
-  // today.
+  // The same carve-out for animated SCALARS. A node whose content
+  // volatility is entirely memoizable numbers keeps its recording and
+  // re-records only when one of them actually ticks, so a keyframe's hold
+  // segment repaints nothing. Deliberately disjoint from liveMatOnly: a
+  // node with BOTH a live material and an animated gate takes neither memo,
+  // which is the conservative answer and costs no more than having no memo
+  // at all.
   inst.scalarMemo = scalarContent && !otherThanScalar && !childrenVolatile;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
   if (blocked != inst.subtreeVolatile) {
@@ -904,7 +905,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   }
   if (inst.subtreeVolatile && !memoized) {
     inst.picture.reset();
-    // §30: a group root's bake is dropped by its OWN value memo, in paint(),
+    // A group root's bake is dropped by its OWN value memo, in paint(),
     // one frame at a time. Dropping it here instead would drop it every
     // frame — the subtree IS volatile, permanently, and that verdict is
     // precisely the one the group exists to look past. `picture` is still
@@ -946,10 +947,10 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   if (!spec.path)
     return;
   const SkPath baseline = spec.path(size);
-  // ALL the contours, walked in order as one baseline. It used to be the
-  // first one only, silently: a trajectory clipped to the frame produces
-  // several contours, and the KSP study's hyperbola lost its label with
-  // no diagnostic at all.
+  // ALL the contours, walked in order as one baseline. Walking only the
+  // first would silently drop text: a curve clipped to the frame comes back
+  // as several contours, and the run would simply stop at the end of the
+  // first one with no diagnostic.
   static thread_local std::vector<sk_sp<SkContourMeasure>> contours;
   contours.clear();
   for (SkContourMeasureIter iter(baseline, false);;) {
@@ -1011,22 +1012,21 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   }
 
   // autoFlip is a decision about the RUN, not about each glyph. Turning
-  // glyphs over one at a time reverses the reading order — a caption on
-  // the lower half of a clockwise ring came out mirrored — so the run
+  // glyphs over one at a time reverses the reading order — a caption on the
+  // lower half of a clockwise ring would come out mirrored — so the run
   // decides once and then walks its along-path coordinate backwards.
   //
-  // The decision is a MAJORITY over the run, not a reading at its
-  // midpoint. A midpoint sample is exactly ambiguous where the tangent is
-  // vertical, which is precisely where a ring caption centred on 12 or 6
-  // o'clock puts it: `tan.x < 0` is false at x == 0, so the most natural
-  // spelling of all — circle(), at = 0, Center, autoFlip — silently did
-  // nothing. Sampling across the run has no such point.
+  // The decision is a MAJORITY over the run, not a reading at its midpoint.
+  // A midpoint sample is exactly ambiguous where the tangent is vertical,
+  // which is precisely where a ring caption centred at the top or bottom of
+  // a circle puts it: `tan.x < 0` is false at x == 0, so the most natural
+  // spelling of all — a circle, at = 0, centred, autoFlip — would silently
+  // do nothing. Sampling across the run has no such point.
   //
   // A run that wraps PAST the crossover cannot be fixed by one flip, and
-  // this model does not pretend otherwise: the majority reads right way
-  // up and the tail does not. That is a real limitation, and the
-  // engraver's answer to it is two runs — top and bottom set separately,
-  // which is how ring inscriptions have always been cut. See ROADMAP.md.
+  // this model does not pretend otherwise: the majority reads right way up
+  // and the tail does not. Setting the top and bottom halves as two
+  // separate runs is the way around it.
   bool flipRun = false;
   if (spec.autoFlip) {
     constexpr int kVotes = 9;
@@ -1183,37 +1183,12 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
 // ---------------------------------------------------------------------------
 // Recording bounds
 
-/** The rect a node's RECORDING must cover, in its own local space: its box,
- *  grown by its decorations' declared bleed(), unioned with every child's
- *  bounds mapped through that child's layout offset and static paint
- *  transforms.
- *
- *  What this rect is NOT for, measured rather than assumed (the probe is
- *  ComposeCullRect.PictureCullDoesNotCullWithoutABbh, Skia m151):
- *  SkPictureRecorder does NOT reject ops outside the cull rect at record
- *  time. An op drawn wholly outside it is still recorded
- *  (approximateOpCount == 1), even when the cull rect is EMPTY, and a plain
- *  drawPicture replays it — the pixels land. Culling against the cull rect
- *  happens only when a bounding-box hierarchy is attached (SkRTreeFactory
- *  clips each op's bounds to the cull rect as it builds the tree, so an
- *  outside op is dropped at PLAYBACK); we pass no BBH, so the picture path
- *  never culls. The old comment here claimed record-time quick-reject; it
- *  was wrong, and the test that "proved" it passes with this whole child
- *  union deleted.
- *
- *  What the rect IS load-bearing for are this function's other three
- *  consumers, all of which clip for real: the BOUNDED saveLayer opened for
- *  a group opacity/blend and for a layer effect (saveLayer bounds ARE a
- *  clip), the Cache::Texture bake surface, which is literally sized from
- *  this rect mapped to device, and the dstIn coverage drawRect. A child
- *  translated beyond its parent's box vanishes through THOSE — pinned by
- *  ComposeCache.OverflowingChildSurvives{GroupOpacityLayer,TextureBake},
- *  both of which fail if this child union is removed. Overflow is legal;
- *  the rect must hold it (the same failure family as the bleed
- *  truncation). Animated
- *  transforms are fine: resolveFloat reads the record-time value, and a
- *  RUNNING transform makes the subtree volatile — nothing records at all.
- *  A clipped node contributes only its own box: children can't escape. */
+/** The rect this node's OWN paint covers, in its own local space — children
+ *  excluded; recordBounds() below adds the child union. The node's box,
+ *  grown by every declared bleed (decorations, stroke passes, echo offsets,
+ *  band width profiles, material reserves), then joined with the geometry a
+ *  layout rect does not bound at all: a routed connector/rail path and a
+ *  borrowed band spine, each outset by its own reach. */
 SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   const ElementNode &node = *inst.desc;
   const SkRect rect = instanceRect(inst);
@@ -1229,20 +1204,19 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   if (node.strokeData)
     for (const detail::StrokePass &pass : node.strokeData->passes)
       bleed = std::max(bleed, pass.what.bleed());
-  // A band reaches profile.max() px off its spine, and the profile is
-  // REQUIRED to know that number — which is the whole reason `max()` is
-  // part of the seam. Without it a varying width could only be clipped
-  // silently — the trap the deleted `Ribbon::widthFn`/`widthMax` pair left
-  // open, §25.
+  // A band reaches profile.max() px off its spine, and a width profile is
+  // REQUIRED to be able to report that number — which is the whole reason
+  // `max()` is part of that interface. A width function that cannot state
+  // its own maximum can only be clipped silently.
   if (const Across *band = node.bandWidth())
     bleed = std::max(bleed, band->profile.max());
   for (const Echo &e : echoesOf(node))
     bleed = std::max(
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
-  // A Material can declare a reserve too (§14): a fill whose outline
-  // (shape()) escapes the box truncated at the cached picture/texture
-  // bounds, and DecorationScheme::bleed() had no material counterpart.
-  // Both carriers — the live/geometry slot and the static recipe.
+  // A Material can declare a reserve too: a fill whose own outline escapes
+  // the node's box is truncated at the cached picture or texture bounds
+  // otherwise, exactly as an under-reported decoration bleed is. Both
+  // carriers are checked — the live/geometry slot and the static recipe.
   if (node.materialData) {
     if (node.materialData->live)
       bleed = std::max(bleed, node.materialData->live->bleed());
@@ -1283,13 +1257,13 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
 // ---------------------------------------------------------------------------
 // travel(): the motion path
 //
-// The 2D port of world::CameraPath. The lane is `t` — WHERE ALONG the curve —
-// so the whole bind() chain applies to the schedule while the Shape supplies
-// the geometry. What the 3D case never faced is that a Shape is a function of
-// a SIZE: the curve is resolved against the PARENT's box (the frame the node
-// moves in), so a relayout re-shapes the curve under a moving node. `t` is
-// untouched by that — the node slides to the same fraction of the new curve
-// rather than jumping to a different phase of its schedule.
+// The animated lane is `t` — WHERE ALONG the curve the node sits — so the
+// whole bind() chain applies to the schedule while the Shape supplies the
+// geometry. A Shape is a function of a SIZE, and the curve is resolved
+// against the PARENT's box (the frame the node moves in), so a relayout
+// re-shapes the curve under a moving node. `t` is untouched by that: the
+// node slides to the same fraction of the new curve rather than jumping to
+// a different phase of its schedule.
 
 std::optional<std::pair<SkPoint, float>>
 Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
@@ -1330,7 +1304,7 @@ Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
   if (!(cache.total > 0))
     return std::nullopt; // no measurable length ⇒ not engaged
 
-  // WRAP on a closed curve, CLAMP on an open one — the CameraPath rule.
+  // WRAP on a closed curve, CLAMP on an open one.
   const auto walk = [&](float u) {
     float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
     if (cache.closed && w < 0.0f)
@@ -1396,6 +1370,36 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance &inst) {
   return out;
 }
 
+/** The rect a node's RECORDING must cover, in its own local space: its own
+ *  paint bounds (ownPaintBounds above), unioned with every child's bounds
+ *  mapped through that child's layout offset and static paint transforms.
+ *
+ *  WHAT THIS RECT DOES NOT DO, which is easy to assume it does:
+ *  SkPictureRecorder does NOT reject ops outside the cull rect at record
+ *  time. An op drawn wholly outside it is still recorded, even when the
+ *  cull rect is EMPTY, and a plain drawPicture replays it — the pixels
+ *  land. Culling against the cull rect happens only when a bounding-box
+ *  hierarchy is attached (SkRTreeFactory clips each op's bounds to the cull
+ *  rect as it builds the tree, so an outside op is dropped at PLAYBACK),
+ *  and no BBH is attached here, so the picture path never culls.
+ *  ComposeCullRect.PictureCullDoesNotCullWithoutABbh holds that behaviour
+ *  down.
+ *
+ *  What the rect IS load-bearing for are this function's other three
+ *  consumers, all of which clip for real: the BOUNDED saveLayer opened for
+ *  a group opacity/blend and for a layer effect (saveLayer bounds ARE a
+ *  clip), the Cache::Texture bake surface, which is sized from this rect
+ *  mapped to device, and the dstIn coverage drawRect. A child translated
+ *  beyond its parent's box vanishes through THOSE if the child union below
+ *  is dropped — pinned by
+ *  ComposeCache.OverflowingChildSurvives{GroupOpacityLayer,TextureBake}.
+ *  Overflow is legal; the rect must hold it, the same way it must hold a
+ *  decoration's declared bleed.
+ *
+ *  Animated transforms are fine here: resolveFloat reads the record-time
+ *  value, and a RUNNING transform makes the subtree volatile, so nothing
+ *  records at all. A clipped node contributes only its own box, because its
+ *  children cannot escape it. */
 SkRect Composer::Impl::recordBounds(Instance &inst) {
   const ElementNode &node = *inst.desc;
   SkRect local = ownPaintBounds(inst);
@@ -1406,18 +1410,15 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     const SkRect crect = instanceRect(*child);
     SkRect cb = recordBounds(*child); // child-local
     const NodeTransform tf = transformOf(*child);
-    // THE GATE IS `pivoted()`, NOT A COPY OF IT. One resolver, three
-    // consumers — paint()'s matrix, this child union, and hitInstance()'s
-    // inverse — and the three must build the SAME matrix or a node draws
-    // where it cannot be hit. This was the only one of the three that
-    // hand-rolled the condition, and it omitted `sx`/`sy`: a child whose
-    // only transform was a per-axis scale contributed UNSCALED bounds, so
-    // its parent's effect layer, opacity layer and texture bake were all
-    // sized to the unscaled box and truncated the overflow. Same field,
-    // same feature, second site — filed by the travel() wave, taken here.
-    // §44.8 step 0 then moved the whole build (gate included) into
-    // NodeTransform::matrix() — the pivot arithmetic only enters when
-    // tf.pivoted(), exactly as before, but now for all three at once.
+    // The matrix comes from NodeTransform::matrix(), gate included, and not
+    // from a copy of that build written here. One resolver, three consumers
+    // — paint()'s matrix, this child union, and hitInstance()'s inverse —
+    // and the three must build the SAME matrix or a node draws where it
+    // cannot be hit. A hand-rolled gate here that omits a lane is
+    // invisible: a child whose only transform was a per-axis scale would
+    // contribute UNSCALED bounds, so its parent's effect layer, opacity
+    // layer and texture bake would all be sized to the unscaled box and
+    // truncate the overflow.
     const SkMatrix m = tf.matrix({crect.left(), crect.top()}, cn.paint,
                                  crect.width(), crect.height());
     local.join(m.mapRect(cb));
@@ -1432,7 +1433,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                   float contentScale, SkBlendMode leafBlend,
                                   float leafOpacity, Phase phase) {
   const ElementNode &node = *inst.desc;
-  // §15. The two halves of a node's paint, split at the children loop. A
+  // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that
   // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
   // reproduce it. A clip and a whole-node mask wrap both halves too, but
@@ -1559,8 +1560,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // same object, whenever one mask gates both — the common case).
   //
   // Built BEFORE the effect's saveLayer because an effect's child Material
-  // (§19) resolves against it — the node's box, the node's clock, exactly
-  // what Material::child hands a fill's children.
+  // resolves against it — the node's box, the node's clock, exactly what
+  // Material::child hands a fill's children.
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
                               std::move(marksPath),
                               elapsed(),
@@ -1571,13 +1572,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                   ? nullptr
                                   : &inst.borrowedPaths,
                               &inst.stampCache,
-                              curToRoot,       // §19: W, as paint() stacked it
+                              curToRoot,       // node→root, as paint() stacked it
                               rootLayoutSize}; // …and the canvas it maps into
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
-  // effect (bound uniforms, a live child material, §11/§19) resolves here
-  // per paint — computeVolatile declared the node volatile, so this
+  // effect (bound uniforms, a live child material) resolves here per paint,
+  // and computeVolatile has declared such a node volatile, so this
   // recording is never cached stale.
   const Effect *layerFx = layerEffectOf(node);
   const sk_sp<SkImageFilter> layerFilter =
@@ -1586,10 +1587,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   if (hasEffect) {
     SkPaint effectPaint;
     effectPaint.setImageFilter(layerFilter);
-    // BOUNDED: with nullptr bounds the layer allocates at the CLIP size —
-    // on a root-level canvas that filtered 900x640 for a 92x72 icon
-    // shadow (13.5ms/frame, the aero-icon defect). recordBounds is what
-    // the subtree actually paints; Skia expands it for the filter reach.
+    // BOUNDED: with nullptr bounds the layer allocates at the CLIP size, so
+    // a small icon's drop shadow on a root-level canvas would filter the
+    // whole canvas. recordBounds is what the subtree actually paints; Skia
+    // expands it for the filter's own reach.
     const SkRect content = recordBounds(inst);
     canvas.saveLayer(&content, &effectPaint);
   }
@@ -1601,10 +1602,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // definition, stacked kDstIn layers by multiplication.
   //
   // A gate whose selection is EVERYTHING is hoisted to wrap the whole node
-  // once, exactly where wipe()'s clip used to sit. That is not only the
-  // cheap path: applying one antialiased clip per paint group would
-  // compound its own edge coverage where the groups overlap, and the
-  // hoisted form is the one that reproduces wipe() bit for bit.
+  // once. That is not only the cheap path: applying one antialiased clip
+  // per paint group would compound its own edge coverage wherever the
+  // groups overlap, so the hoisted form is also the only one whose edge is
+  // the clip's own.
   struct PlaneGate {
     const Mask *mask = nullptr;
     float fraction = 1.0f; // Edge
@@ -1627,8 +1628,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     }
   }
 
-  /** wipe()'s half-plane, verbatim: the region lying before a moving edge
-   *  at `angleDeg`, built in the edge's own frame and rotated into place —
+  /** An edge gate's half-plane: the region lying before a moving edge at
+   *  `angleDeg`, built in the edge's own frame and rotated into place —
    *  {p : (p - mid)·d <= edge}. */
   const auto edgeRegion = [&](float angleDeg, float t01) {
     const float t = std::clamp(t01, 0.0f, 1.0f);
@@ -1673,9 +1674,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
         base = canvas.getSaveCount();
       if (m.with.kind == Gate::Kind::Edge) {
         // A container of absolutely-positioned children measures ZERO, and
-        // a half-plane built from an empty box is empty — so a FULL reveal
-        // once hid an entire subtree. A reveal at 1 must never hide
-        // anything, and an empty box has nothing to reveal along.
+        // a half-plane built from an empty box is empty — so clipping to it
+        // would hide the entire subtree even at a full reveal. A reveal at 1
+        // must never hide anything, and an empty box has no axis to reveal
+        // along in the first place.
         if (bounds.isEmpty())
           continue;
         canvas.save();
@@ -1778,7 +1780,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           paintCtx.animating,
           paintCtx.fonts,
           paintCtx.borrowed,
-          nullptr, // stamps: deliberately unshared, as before §19
+          nullptr, // stamps: deliberately not shared with a span pass
           paintCtx.toRoot,
           paintCtx.rootSize};
       passes[i].what.paint(canvas, passCtx);
@@ -1820,7 +1822,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                  paintCtx.animating,
                                  paintCtx.fonts,
                                  paintCtx.borrowed,
-                                 nullptr, // stamps: unshared, as before §19
+                                 nullptr, // stamps: not shared with a mark
                                  paintCtx.toRoot,
                                  paintCtx.rootSize};
       d.paint(canvas, markCtx);
@@ -1832,9 +1834,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   };
 
   // Background decorations paint beneath the fill (the CSS box-shadow
-  // ordering): shadow/pattern layers first, then the surface. Decorations
-  // are NEVER clipped — they dress the outline (shadows keep their
-  // reach, outer strokes survive on clipped nodes; the aero-study fix).
+  // ordering): shadow and pattern layers first, then the surface.
+  // Decorations are NEVER clipped — they dress the outline, so shadows keep
+  // their reach and an outer stroke survives on a node that clips its
+  // content.
   if (emitOwn) {
     for (size_t i = 0; i < node.backgrounds.size(); ++i)
       paintMark(node.backgrounds[i], detail::MarkSlot::Background, i);
@@ -2132,8 +2135,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     canvas.restore(); // decorations below stay unclipped
 
   // FOREGROUNDS PAINT AFTER THE CHILDREN, so they belong to the children
-  // half and can never be in an own-paint bake. §15's spec originally read
-  // "own paint is everything except the children"; it is not.
+  // half and can never be in an own-paint bake. The own half is the
+  // contiguous PREFIX up to the children loop, which is not the same thing
+  // as "everything except the children".
   if (emitChildren)
     for (size_t i = 0; i < node.foregrounds.size(); ++i)
       paintMark(node.foregrounds[i], detail::MarkSlot::Foreground, i);
@@ -2166,9 +2170,10 @@ constexpr uint8_t kPromoteFrames = 8;
  *  hold a bake while the material is provably holding still, and re-bakes
  *  when it ticks — which is only a win if it ticks slower than the frame
  *  rate. A bake costs about what the replay it replaces costs, so the
- *  break-even stability is ~0.5; promote at 0.5, keep until 0.3, and a
- *  material bound to a continuous Output (rate 0) never gets close.
- *  quantizeTime(10) at 60 FPS settles near 0.83. */
+ *  break-even stable fraction is around a half: promote at 0.5, keep until
+ *  0.3. A material bound to a continuous output sits at 0 and never gets
+ *  close; one quantized to a step slower than the frame rate sits well
+ *  above the promote bar. */
 constexpr float kStablePromote = 0.5f;
 constexpr float kStableKeep = 0.3f;
 
@@ -2249,20 +2254,20 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   canvas.save();
   canvas.translate(rect.left(), rect.top());
 
-  // ONE transform producer for the resolver's lanes (§44.8 step 0):
-  // concatTo() is matrix()'s op list applied as elementary canvas ops —
-  // byte-exactness demands the sequence, see its comment — while
-  // recordBounds()'s child union and hitInstance()'s inverse map/invert
-  // the composed matrix() itself.
+  // ONE transform producer for the resolver's lanes: concatTo() is
+  // matrix()'s op list applied as elementary canvas ops — byte-exactness
+  // demands that sequence, see its comment — while recordBounds()'s child
+  // union and hitInstance()'s inverse map and invert the composed matrix()
+  // itself.
   const NodeTransform tf = transformOf(inst);
   tf.concatTo(canvas, node.paint, rect.width(), rect.height());
 
-  // §19: accumulate W (node→root) alongside the canvas ops — the same
+  // Accumulate the node→root matrix alongside the canvas ops — the same
   // T(rect)·matrix() product hitInstance() inverts, so a world-space
   // material draws its field exactly where the hit test says the node is.
-  // NOT canvas.getTotalMatrix(): that includes the HOST's transform and
-  // bake-layer offsets, and W must stop at the composer root. RAII because
-  // paint() returns from four places.
+  // NOT canvas.getTotalMatrix(): that includes the HOST's transform and any
+  // bake-layer offset, and this matrix must stop at the composer root. RAII
+  // because paint() returns from several places.
   if (!inst.parent)
     rootLayoutSize = SkSize{rect.width(), rect.height()};
   struct ToRootScope {
@@ -2278,9 +2283,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const Effect *backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
   if (backdropFx) {
-    // A backdrop effect's child materials (§19) resolve against the node's
-    // box too — the same context the node's own paint builds, minus the
-    // marks outline (nothing of the node has been painted yet). Built
+    // A backdrop effect's child materials resolve against the node's box
+    // too — the same context the node's own paint builds, minus the marks
+    // outline, because nothing of the node has been painted yet. Built
     // INSIDE the branch: every node reaches this line and only a few carry
     // a backdrop.
     const PaintContext backdropCtx{{rect.width(), rect.height()},
@@ -2291,7 +2296,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                                    &fonts,
                                    nullptr,
                                    &inst.stampCache,
-                                   curToRoot, // §19: this node's W
+                                   curToRoot, // this node→root
                                    rootLayoutSize};
     backdropFilter = backdropFx->resolvedImageFilter(&backdropCtx);
   }
@@ -2314,10 +2319,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     canvas.restore(); // release the clip — content is NOT bounded by it
   }
 
-  // The live-material resolve probe: when the node's only volatility is
-  // its live material, resolve NOW — a stable shader means the cached
-  // picture is still exact and simply replays (the quantized-sea rule:
-  // repaint at the material's rate, not the frame rate).
+  // The live-material resolve probe: when the node's only volatility is its
+  // live material, resolve NOW — an unchanged shader means the cached
+  // picture is still exact and simply replays, so the node repaints at the
+  // material's own rate rather than the frame rate.
   bool liveStable = false;
   inst.hasPendingLiveFill = false;
   if (inst.liveMatOnly && liveMaterialOf(node)) {
@@ -2329,7 +2334,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                        &fonts,
                        nullptr,
                        nullptr,
-                       curToRoot, // §19: the memo digest sees W move
+                       curToRoot, // so the memo digest sees this move
                        rootLayoutSize};
     inst.pendingLiveFill = liveMaterialOf(node)->resolve(probe);
     inst.hasPendingLiveFill = true;
@@ -2344,42 +2349,42 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         inst.liveStableRate * 0.75f + (liveStable ? 0.25f : 0.0f);
   }
 
-  // §17's probe: the animated content scalars AS OF THIS FRAME. Same
-  // argument as the material's — identical inputs mean identical pixels, so
-  // a recording made with these numbers is still exact while they hold.
+  // The scalar memo's probe: the animated content scalars AS OF THIS FRAME.
+  // Same argument as the material's — identical inputs mean identical
+  // pixels, so a recording made with these numbers is still exact while
+  // they hold.
   Instance::ContentScalars scalarsNow;
   if (inst.scalarMemo) {
-    // §3.6's repair in one line: every mask gate's animated numbers, as a
-    // bounded per-node list. A masked node keeps the §17 memo — which is
-    // exactly what the 58 trim→spans ports gave up when the only
-    // element-level door closed.
+    // Every mask gate's animated numbers, as a bounded per-node list, so a
+    // masked node can take this memo at all.
     scalarsNow.gates = inst.resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(node))
       scalarsNow.glyph =
           inst.resolveFloat(Instance::kGlyphProgress, g->progress);
-    // §19: W as of THIS paint — curToRoot is exactly it here, and the
-    // walk-side compares (release, scan) recompute it bit-identically.
+    // The node→root matrix as of THIS paint — curToRoot is exactly it here,
+    // and the walk-side compares (release, scan) recompute it
+    // bit-identically.
     if (inst.hasWorldSpaceMaterial)
       scalarsNow.world = {curToRoot.getScaleX(),     curToRoot.getSkewX(),
                           curToRoot.getTranslateX(), curToRoot.getSkewY(),
                           curToRoot.getScaleY(),     curToRoot.getTranslateY()};
-    // §38: the bound fill, through the SAME body the walk and scan call —
-    // the value the recording below bakes is this frame's binding read, so
-    // the memo compares exactly "the Fill the recording was baked with".
+    // The bound fill, through the SAME body the walk and scan call — the
+    // value the recording below bakes is this frame's binding read, so the
+    // memo compares exactly the Fill the recording was baked with.
     scalarsNow.fill = inst.resolveBoundFill();
-    // §14-a: the bound pan, same one-body law — the recording bakes the
-    // fill shader translated by exactly this read (Material::resolve's
-    // pannedImageShader), so the memo compares the pan it was baked with.
+    // The bound tile pan, under the same one-body rule: the recording bakes
+    // the fill shader translated by exactly this read, so the memo compares
+    // the pan it was baked with.
     scalarsNow.pattern = inst.resolvePatternOffset();
   }
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&
                              scalarsNow == inst.bakedScalars;
-  // §20 warmup, write side: count consecutive stable paints; crossing the
-  // bar requests ONE volatility recompute, and that walk performs the
-  // actual release (and registers the node for the per-draw movement
-  // scan). Any instability resets the warmup — a moving binding costs
-  // exactly what it did before this existed.
+  // The settle warmup, write side: count consecutive stable paints, and on
+  // crossing the bar request ONE volatility recompute — that walk performs
+  // the actual release and registers the node for the per-draw movement
+  // scan. Any instability resets the warmup, so a binding that is genuinely
+  // moving pays nothing for this machinery beyond the compare.
   if (inst.scalarMemo) {
     if (scalarsStable) {
       inst.settledScalars = scalarsNow;
@@ -2418,16 +2423,16 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       !backdropEffectOf(node) &&
       !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
       node.cacheMode != Cache::Group; // (same reason: bakes isolate)
-  // §18: a texture-cached node composites exactly ONE draw — its blit —
-  // so its blend/opacity ride the blit's paint instead of a
-  // device-clip-sized saveLayer (3.45 → 0.24 ms measured on the node
-  // that filed the entry, and one fewer 8-bit requantisation). The
-  // predicate is EXACT by construction: it is the texture branch's own
-  // entry condition (the memo probes above were hoisted so cacheHolds is
-  // known here), and every exit of that branch ends in a single image
-  // draw — the device blit, or the quantized-local blit it falls back
-  // to. A node that fails the entry keeps the layer, so nothing can
-  // lose its blend.
+  // A texture-cached node composites exactly ONE draw — its blit — so its
+  // blend and opacity can ride that draw's paint instead of a
+  // device-clip-sized saveLayer. Cheaper, and slightly more exact: no
+  // full-canvas intermediate, and one fewer 8-bit requantisation.
+  //
+  // The predicate is EXACT by construction: it is the texture branch's own
+  // entry condition (the memo probes above are hoisted so cacheHolds is
+  // known here), and every exit of that branch ends in a single image draw
+  // — the device blit, or the quantized-local blit it falls back to. A node
+  // that fails the entry keeps the layer, so nothing can lose its blend.
   const bool deferBlendToBlit =
       (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
       !leafDirectBlend && !liveOnly && cacheHolds &&
@@ -2440,8 +2445,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     layerPaint.setAlphaf(opacity);
     layerPaint.setBlendMode(node.paint.blendMode);
     // BOUNDED like the effect layer: nullptr would allocate a clip-sized
-    // (often full-canvas) layer for every fading container — entrance
-    // opacity ramps paid a fullscreen composite per animated group.
+    // (often full-canvas) layer for every fading container, so an entrance
+    // opacity ramp would cost a fullscreen composite per animated group.
     const SkRect content = recordBounds(inst);
     canvas.saveLayer(&content, &layerPaint);
   }
@@ -2485,44 +2490,30 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // under which a device-aligned bake is provably the same pixels as the
   // replay; anything else keeps replaying. See Composer::setAutoTexturePromotion.
   const SkMatrix &totalM = canvas.getTotalMatrix();
-  // Upright, unmirrored, unrotated and unskewed — and MEASURED, after this
-  // gate was relaxed on an argument and the measurement took it back.
+  // Upright, unmirrored, unrotated and unskewed. It is tempting to drop
+  // this: a device-space bake concatenates the full matrix into the layer
+  // and blits with the matrix reset at an integer offset, so it cannot
+  // resample and ought to be exact at any angle. It is not, for two
+  // separate reasons, and automatic promotion is held to exact agreement
+  // because the author never asked for it.
   //
-  // The argument was: a device-space bake concatenates the full matrix into
-  // the layer and blits with the matrix reset at an integer offset, so it
-  // cannot resample and must be exact at any angle; `upright` was a
-  // leftover from the LOCAL bake, which really is resampled (mean |Δ|
-  // 13.5/255 at ±90°). It sounded right, `TextureBakeSurvivesAQuarterTurn`
-  // appeared to support it at 45°, and it is wrong. Measured on a 220 px
-  // box carrying a runtime shader, promoted vs. the identical unpromoted
-  // render:
+  //  - A shader's local coordinates come from INVERTING the CTM, and the
+  //    layer's CTM differs from the canvas's by an integer device
+  //    translation. Inverting a rotation maps that integer offset through
+  //    irrational entries, so the cancellation is only approximate, while
+  //    an axis-aligned matrix maps it through ±1 and 0 and cancels exactly.
+  //    Off-axis, shaded pixels land about one least-significant bit away.
+  //  - A bake rect larger than the device clip hands Skia a different clip
+  //    to rasterize the antialiased edges against. That one is worth many
+  //    levels, not one, and it shows up wherever a rotated node's bounds
+  //    overflow the canvas.
   //
-  //     rotate(0),  bounds inside the canvas    0 pixels differ
-  //     rotate(0),  bounds overflow the canvas  0 pixels differ
-  //     rotate(45), bounds inside the canvas    5 pixels differ, Δ1
-  //     rotate(30), bounds inside the canvas    2 pixels differ, Δ1
-  //     rotate(45), bounds overflow the canvas  1157 differ, Δ up to 40
-  //
-  // Two separate effects, and the mechanism explains both. A shader's local
-  // coordinates come from INVERTING the CTM, and the layer's CTM differs
-  // from the canvas's by an integer device translation. Inverting a
-  // rotation maps that integer offset through irrational entries, so the
-  // cancellation is only approximate — while an axis-aligned matrix maps it
-  // through ±1 and 0 and cancels exactly. Hence 0 at 0° and ±1 LSB at every
-  // other angle. Separately, a bake rect larger than the device clip gives
-  // Skia a different clip to rasterize the AA edges against, and that one
-  // is worth tens of levels, not one.
-  //
-  // The quarter-turn test does not contradict this: its pill is colour
-  // fills at a size that fits, so it exercises neither effect, and
-  // `Cache::Texture` is opt-in — the author accepted the trade. Automatic
-  // promotion did not, and `ARefusalSaysWhy` already states the standard
-  // for exactly this case: agreement to within 1 LSB "is not agreement".
-  //
-  // So the gate stays square, and the refusal now names Cache::Texture as
-  // the remedy instead of describing the geometry, which is what a
-  // dunhuang_star_chart author staring at a CONSTANT −0.42° tilt and 24.5
-  // ms of a 29.9 ms frame actually needed to be told.
+  // A test that rotates a plain colour fill small enough to fit exercises
+  // neither effect and will pass with this gate removed. `Cache::Texture`
+  // is opt-in and does accept the trade, which is why the refusal message
+  // points an author there rather than describing the geometry — a node
+  // held off promotion by a constant fraction-of-a-degree tilt needs to be
+  // told what to do about it.
   const bool upright = totalM.getSkewX() == 0 && totalM.getSkewY() == 0 &&
                        totalM.getScaleX() > 0 && totalM.getScaleY() > 0 &&
                        !totalM.hasPerspective();
@@ -2555,16 +2546,15 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
 
   // Every refusal below is a condition under which a bake would produce
   // DIFFERENT PIXELS, or would not pay for itself. Naming them is not
-  // decoration: a node reading `live paint · 663 ms` with no reason beside
-  // it is exactly how sixteen studies shipped over the 60 FPS gate.
+  // decoration: a node reported as expensive live paint with no reason
+  // beside it gives an author nothing to act on.
   //
-  // ALL of them, not the first. `why` used to be a first-match `else if`
-  // chain, so a node that is both volatile and clipped reported only
-  // `Volatile` — and an author who fixed the volatility then met a second
-  // refusal nobody had mentioned. The split bake GROWS that population
-  // rather than shrinking it, so the mask lands in the same batch. `why` is
-  // derived from the mask below rather than computed alongside it, which is
-  // what stops the two from ever disagreeing.
+  // A BIT MASK, so ALL refusals are reported, not the first. A first-match
+  // chain would report only `Volatile` for a node that is both volatile and
+  // clipped, and an author who fixed the volatility would then meet a
+  // second refusal nobody had mentioned. `why` below is derived FROM this
+  // mask rather than computed alongside it, so the summary and the full set
+  // cannot disagree.
   using Prom = Composer::Promotion;
   uint16_t refusals = 0;
   const auto flag = [&](Prom p) {
@@ -2602,15 +2592,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       break;
     }
 
-  // recordingDepth == 0, for the SAME reason the Cache::Texture device
-  // path checks it (and the split bake): a device-space bake blits with
+  // recordingDepth == 0, for the SAME reason the Cache::Texture device path
+  // and the split bake check it: a device-space bake blits with
   // canvas.resetMatrix() + drawImage() at an ABSOLUTE device rect, and a
   // picture can be replayed under a different matrix than it was recorded
-  // at. Recorded into an ancestor's picture and replayed at the 2x capture
-  // scale, that blit draws a 1x texture at 1x coords on a 2x canvas — the
-  // wordmark of y2k_chrome came out at quarter size in the wrong place,
-  // 283k pixels and a peak of 0.92. The Cache::Texture path guarded this
-  // from the day it shipped; automatic promotion never did.
+  // at. Recorded into an ancestor's picture and replayed at a different
+  // capture scale, such a blit draws a texture baked for one scale at the
+  // coordinates of another — wrong size, wrong place.
   const bool promotable =
       why == Prom::Cheap && !liveOnly && recordingDepth == 0;
   if (!promotable)
@@ -2647,8 +2635,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // Bake in DEVICE space, snapped OUT to whole device pixels, then blit
     // with the matrix reset. An integer device translation cannot change
     // rasterisation for an AXIS-ALIGNED matrix — which is what `upright`
-    // above is really guarding, and the measurement in its comment is why
-    // the guard is not about resampling.
+    // above is guarding, and why that guard is about exactness rather than
+    // about resampling.
     const SkIRect device = deviceRectOf();
     const int64_t area = (int64_t)device.width() * device.height();
     const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
@@ -2711,14 +2699,14 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     note(Prom::TooBig);
   }
 
-  // ---- §15: the SPLIT bake ------------------------------------------------
+  // ---- the SPLIT bake -----------------------------------------------------
   //
-  // Volatility is declared per NODE, and a node is one verdict. So a static
-  // full-canvas ground plane carrying one 264 px disc on a bound Output is
-  // `subtreeVolatile`, nothing about it is cached, and the whole plane is
-  // re-rasterized every frame in order to redraw the disc on top of it —
-  // 34.9 ms and 14.9 ms of SELF time on two 888x666 nodes of genesis_fire,
-  // both reporting "its content changes every frame" about a child.
+  // Volatility is declared per NODE, and a node gets one verdict. So a
+  // static full-canvas ground plane carrying one small child on a bound
+  // output is `subtreeVolatile`, nothing about it is cached, and the whole
+  // plane is re-rasterized every frame purely so the child can be redrawn
+  // on top of it. The node reports "its content changes every frame" when
+  // what changes is a child's.
   //
   // THE PIXEL-IDENTITY ARGUMENT, which is NOT promotion's argument.
   // Promotion bakes a whole subtree and blits it in place of everything the
@@ -2752,25 +2740,22 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   //    wrappers that is. An image filter applies to the UNION of own paint
   //    and children; filtering the own half alone and drawing the children
   //    over the result is a different picture.
-  //  - clipContent and a whole-node mask() are NOT excluded, and the spec
-  //    this was written from said clips were. They wrap both halves, and the
-  //    phase flag skips only the CONTENT — the clip is opened and closed
-  //    inside
-  //    each phase, so both halves get the identical clip, in the identical
-  //    device geometry, and the composition is unchanged. A GRANULAR mask
-  //    is narrower still: its scope is entered and left around one paint
-  //    group, inside the half that group belongs to. That correction
-  //    is not academic: §15's own citation node, genesis_fire's regolith(),
-  //    carries `.clip(true)` because it clips its disc to a limb outline —
-  //    which is exactly WHY the disc is a child. Excluding clips would have
-  //    shipped a feature that refuses the example it was written for.
+  //  - clipContent and a whole-node mask() are NOT excluded, though it
+  //    looks as though they should be. They wrap both halves, and the phase
+  //    flag skips only the CONTENT — the clip is opened and closed inside
+  //    EACH phase, so both halves get the identical clip in the identical
+  //    device geometry and the composition is unchanged. A GRANULAR mask is
+  //    narrower still: its scope is entered and left around one paint
+  //    group, inside the half that group belongs to. Excluding clips would
+  //    refuse the most common shape this feature exists for, since a
+  //    backdrop that clips its moving child to an outline is exactly why
+  //    that child is a separate node.
   //
-  // And the promotion is measured on the OWN paint alone. A split candidate
+  // And the promotion is judged on the OWN paint alone. A split candidate
   // paints in two phases from the first eligible frame precisely so that
-  // half can be timed by itself: judging it by the node's total would bake
-  // a cheap ground plane because it carries an expensive child, which is
-  // the same inversion that made the corpus's largest cost centre invisible
-  // to the promoter before leaves were measured.
+  // half can be timed by itself: judging it by the node's total would
+  // promote a cheap ground plane because it carries an expensive child, and
+  // would leave an expensive plane unpromoted under a cheap one.
   const bool splitCandidate =
       !optedOut && !liveOnly && inst.subtreeVolatile &&
       !inst.ownContentVolatile && // the CHILDREN are what block this node
@@ -2778,13 +2763,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
       leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
       recordingDepth == 0 && !inst.transformLive &&
-      // `upright` for the same measured reason promotion needs it, and it
-      // is the SAME construction: an integer device offset concatenated
-      // onto the node's matrix. Under rotation a shader's local coordinates
-      // come back through an inverse that cannot cancel that offset
-      // exactly, and the antialiased edges land ~1 LSB apart. Leaving this
-      // out was the split quietly holding itself to a weaker standard than
-      // the promoter beside it.
+      // `upright` for the same reason promotion needs it, and it is the
+      // SAME construction: an integer device offset concatenated onto the
+      // node's matrix. Under rotation a shader's local coordinates come
+      // back through an inverse that cannot cancel that offset exactly, and
+      // the antialiased edges land about a least-significant bit apart.
+      // Leaving it out would hold the split to a weaker standard than the
+      // promoter beside it.
       upright;
   if (!splitCandidate)
     inst.splitBake = false;
@@ -2901,38 +2886,35 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     return;
   }
 
-  // ---- §30: Cache::Group — the whole subtree, held by a VALUE memo --------
+  // ---- Cache::Group — the whole subtree, held by a VALUE memo -------------
   //
-  // The problem this exists for, stated as the shape it has rather than as
-  // one study: MANY SMALL ROTATED PIECES FORMING ONE STATIC ASSEMBLY, each
-  // piece carrying a bound entrance. kumiko_asanoha is 523 hinoki strips,
-  // each an SkSL wood grain plus a BevelEmboss arris, each rotated to its
-  // jig angle, each with a bound opacity and scale on a 6.4 s loop that is
-  // finished by 3.4 s and then holds. Nothing in that description is
-  // cacheable by the volatility rule and everything in it is cacheable for
-  // three seconds in every six.
+  // The shape of the problem this exists for: MANY SMALL ROTATED PIECES
+  // FORMING ONE STATIC ASSEMBLY, each piece carrying a bound entrance that
+  // runs for a while and then holds. Nothing in that description is
+  // cacheable by the volatility rule, because the bindings never
+  // disconnect, and everything in it is cacheable for every frame the
+  // entrance is not running.
   //
   // WHY THE BAKE IS THE EASY HALF. This is the same construction the device
   // path below and whole-subtree promotion already use: paintContent into a
   // transparent layer whose canvas carries the node's exact matrix offset by
   // an INTEGER device translation, then blit with the matrix reset. The
   // children's rotations, their bevels and their mutual compositing all
-  // happen INSIDE that bake at full precision — which is exactly why it is
-  // pixel-safe where the per-strip Cache::Texture the study tried was not.
-  // That one isolated each piece into its own layer, so every arris and
-  // every abutment resolved against transparent black instead of against
-  // its neighbour, and 34% of the panel's pixels moved.
+  // happen INSIDE that bake at full precision, which is what makes it
+  // pixel-safe where per-piece Cache::Texture is not: baking each piece
+  // separately isolates it into its own layer, so every shared edge and
+  // abutment resolves against transparent black instead of against its
+  // neighbour.
   //
   // WHY THE INVALIDATION IS THE HARD HALF, AND THE WHOLE FEATURE. A group
   // may hold a bake only while it is provably not changing, and "not
   // changing" cannot be read off the volatility verdict — that verdict says
-  // Volatile forever, correctly, because the bindings never disconnect. So
-  // the group compares VALUES, as §17 does for one node's content scalars,
-  // generalised to a whole subtree's bound transforms and opacities. Every
-  // frame: gather them, compare with last frame's, and on any difference at
-  // all DROP THE BAKE and paint live. A bake taken while the entrance is
-  // running would freeze the entrance, and it would look completely fine in
-  // any still.
+  // Volatile forever, correctly. So the group compares VALUES, the same way
+  // the per-node scalar memo does, generalised to a whole subtree's bound
+  // transforms and opacities. Every frame: gather them, compare with last
+  // frame's, and on any difference at all DROP THE BAKE and paint live. A
+  // bake taken while the entrance is running would freeze the entrance, and
+  // would look completely correct in any still frame.
   //
   // The refusals are in computeVolatile (`groupRootOK`), because they are
   // about what the memo can SEE, not about this frame.
@@ -2954,14 +2936,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // pinned to a rect that moves is a bake remade every frame, which costs
     // strictly more than the paint it replaces.
     // THE BAKE RECT IS CLIPPED TO THE CANVAS, and this is not an
-    // optimisation — it is the difference between 2871 differing pixels and
-    // zero. §25 measured it on the promoter: a bake rect LARGER than the
-    // device clip hands Skia a different clip to rasterize antialiased edges
-    // against, and that is worth tens of levels, not the one LSB an integer
-    // offset under rotation costs. A lattice of rotated boards with bevel
-    // bleed overruns its own canvas on all four sides, so this fires on
-    // exactly the content the feature exists for: measured here at peak
-    // channel delta 12 before the intersection and 0 after.
+    // optimisation — it is a correctness condition. A bake rect LARGER than
+    // the device clip hands Skia a different clip to rasterize antialiased
+    // edges against, and the resulting difference is many levels deep, not
+    // the single least-significant bit an integer offset under rotation
+    // costs. A lattice of rotated pieces with any bleed overruns its own
+    // canvas on all four sides, so this fires on exactly the content the
+    // feature exists for.
     //
     // Nothing visible is lost — content outside the device clip does not
     // reach the canvas either way — and `getDeviceClipBounds()` is in base
@@ -2971,9 +2952,6 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     const SkIRect clip = canvas.getDeviceClipBounds();
     if (!device.intersect(clip))
       device = SkIRect::MakeEmpty();
-    else
-      device = SkIRect::MakeLTRB(clip.left(), clip.top(), device.right(),
-                                 device.bottom());
     const bool rectStable =
         !inst.deviceRectSeen || device == inst.lastDeviceRect;
     inst.lastDeviceRect = device;
@@ -3055,10 +3033,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // A bake held in LOCAL space and blitted through the node's transform
     // is resampled by whatever that transform is: at a quarter turn the
     // texel grid lands half a texel off the device grid and every sample
-    // interpolates two texels. Measured on rotated type — mean |Δ| 13.5
-    // against 1.4 upright, and 21% less gradient across the axis whose
-    // device edge falls on a half pixel. Correct scale was necessary and
-    // not sufficient.
+    // interpolates two texels, which softens edges and flattens gradients
+    // across the axis whose device edge falls on a half pixel. Baking at
+    // the correct scale is necessary for sharpness but not sufficient.
     //
     // Baking in DEVICE space, snapped OUT to whole device pixels and
     // blitted with the matrix reset, has nothing left to resample: the
@@ -3139,9 +3116,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         canvas.resetMatrix();
         profDraw("blit", [&] {
           if (deferBlendToBlit) {
-            // §18: the node's blend/opacity on the ONE draw it composites
+            // The node's blend and opacity on the ONE draw it composites
             // as — cheaper and slightly MORE exact than the layer it
-            // replaces (no full-canvas intermediate, one less rounding).
+            // replaces: no full-canvas intermediate, one less rounding.
             SkPaint blit;
             blit.setAlphaf(opacity);
             blit.setBlendMode(node.paint.blendMode);
@@ -3164,12 +3141,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // resize, pinch zoom) reuses one bake per step instead of re-rasterizing
     // every frame. Between steps the draw minifies slightly, which stays sharp.
     SkMatrix total = canvas.getTotalMatrix();
-    // maxScaleOf, NOT the matrix diagonal: a ±90° node's diagonal is (0, 0)
-    // and clamped to the 0.25 floor, which baked quarter-resolution type and
-    // upscaled it 4× (see ComposeRuntime.h for the measured error). The
-    // node's local bounds locate the Jacobian samples when the CTM carries
-    // a host perspective (§44.2b.1) — this ladder feeds the re-bake test
-    // below, so an underestimate here is a stale, blurry bake.
+    // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
+    // is (0, 0) and would clamp to the 0.25 floor, baking at a quarter
+    // resolution to be upscaled by the blit (see maxScaleOf in
+    // ComposeRuntime.h). The node's local bounds locate the Jacobian
+    // samples when the CTM carries a host perspective. This ladder feeds
+    // the re-bake test below, so an underestimate here means a stale,
+    // blurry bake rather than a wasted one.
     const float raw = std::clamp(maxScaleOf(total, localBounds), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                            1.5f, 2.0f, 3.0f, 4.0f};
@@ -3220,7 +3198,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         (float)inst.textureImage->height() / inst.textureScale);
     profDraw("blit", [&] {
       if (deferBlendToBlit) {
-        SkPaint blit; // §18: same rule as the device blit above
+        SkPaint blit; // same rule as the device blit above
         blit.setAlphaf(opacity);
         blit.setBlendMode(node.paint.blendMode);
         canvas.drawImageRect(inst.textureImage, dst,
@@ -3233,10 +3211,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A zero-sized node (auto-height layout() containers, spacer
              // shims) must NOT record. NOT because an empty cull rect
-             // rejects ops — measured, it does not, see the note on
-             // ownPaintBounds — but because the recording is pure overhead
-             // and it opens a recordingDepth scope around the subtree,
-             // which is an input to promotion. Control: delete this size
+             // rejects ops — it does not, see the note on ownPaintBounds —
+             // but because the recording is pure overhead and it opens a
+             // recordingDepth scope around the subtree, which is an input
+             // to promotion. Control: delete this size
              // test and ComposeCache.{PromotionRefusesASubtreeThatBlends
              // WithTheCanvas, TheBlendingChildIsWhatCausesTheRefusal,
              // PromotionRefusesABackdropFilter} all fail. Painted live
@@ -3284,8 +3262,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     if (profileScope.row != SIZE_MAX)
       profileRows[profileScope.row].cacheState = Composer::CacheState::Picture;
     // The measurement that drives promotion. Two clock reads per candidate
-    // node per frame; the thing being measured is a full rasterisation, so
-    // the overhead is not close to material.
+    // node per frame, against a full rasterisation — the overhead is not
+    // close to material.
     const auto replayStart = std::chrono::steady_clock::now();
     profDraw("replay", [&] { canvas.drawPicture(inst.picture); });
     accrue(std::chrono::duration<double, std::milli>(
@@ -3293,15 +3271,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                .count());
   } else {
     stats.nodesPainted++;
-    // A LEAF never records a picture (one drawRect beats a nested
-    // recording) and so was never measured — which made the single most
-    // expensive object in this corpus, a full-canvas box carrying one
-    // grain shader, structurally invisible to the promoter. Measure the
-    // live draw too, but ONLY for a node that could actually be promoted:
-    // that keeps the clock reads off the thousands of ineligible nodes.
-    // Measured cost of the pair: 51 ns. The densest study in the corpus
-    // paints 1664 nodes, so the ceiling is 85 us/frame — against the
-    // 663 ms leaf this exists to find.
+    // A LEAF never records a picture — one draw call beats a nested
+    // recording — so without this it would never be timed at all, and the
+    // most expensive single object a scene can hold, a full-canvas box
+    // carrying one shader, would be structurally invisible to the promoter.
+    // So the live draw is timed too, but ONLY for a node that could
+    // actually be promoted: that keeps two clock reads per frame off every
+    // ineligible node in the tree, of which there are usually thousands.
     if (!promotable) {
       profDraw("live", [&] {
         paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);

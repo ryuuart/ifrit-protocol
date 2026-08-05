@@ -8,8 +8,8 @@
 //          panel of high-contrast artwork and gels. Super Panavision 70:
 //          65 mm negative, 5 perf, spherical, projected 2.20:1, 24 fps,
 //          f/1.8. There is no object in the picture. The subject IS the
-//          exposure, and every pixel of the film frame below is the sum of
-//          812 additive stamps -- nothing paints it.
+//          exposure: the film frame below is a sum of additive stamps, two
+//          walls of them, and nothing paints it.
 //
 // -----------------------------------------------------------------------------
 // SOURCES -- read, not remembered
@@ -17,12 +17,10 @@
 //  [T68] Douglas Trumbull, "Creating Special Effects for 2001: A Space
 //        Odyssey", American Cinematographer 49(6):416-420, 451-453, June 1968.
 //        http://www.visual-memory.co.uk/sk/2001a/page3.html
-//        *** READ DIRECTLY. The brief warned the host's TLS certificate had
-//        expired and that WebFetch refuses it; `curl -k` does not. The
-//        passage is verbatim as the brief had it -- AND the reprint carries
-//        three photo captions no secondary carrier reproduced, which settle
-//        FINDING 1 outright. Reading the primary was worth more than every
-//        secondary in this file.
+//        READ DIRECTLY -- the host serves an expired TLS certificate, so
+//        most fetchers refuse it. The reprint carries three photo captions
+//        that no secondary carrier reproduces, and those captions settle
+//        note 1 below outright.
 //  [C85] Cinefex 85, April 2001 -- Trumbull on the Star Gate. Quoted at one
 //        remove by two independent carriers (fellinis.com.au 2021-03-23;
 //        slashfilm.com 680507). NOT read directly.
@@ -63,26 +61,24 @@
 //    mechanism."
 //
 // -----------------------------------------------------------------------------
-// WHAT THIS STUDY VERIFIED, AND WHAT CHANGED (all printed on canvas)
+// WHAT THIS STUDY CHECKS, ALL OF IT PRINTED ON CANVAS
 //
 //  1. THE DEPTH-OF-FIELD SENTENCE CANNOT MEAN WHAT IT SAYS -- AND THE
 //     ARTICLE ITSELF SAYS WHAT IT MEANT. At f/1.8, c = 0.05 mm, with the
 //     self-consistent f = 28.64 mm, the DOF at 1.5 in is 0.0791 mm against
-//     a claimed bracket of 4533.9 mm: a ratio of 5.7e4. (The brief's 5.1e4
-//     is right for a flat f = 28.0 mm; both are ~5e4.) For the sentence to
+//     a claimed bracket of 4533.9 mm: a ratio of 5.7e4. (A flat f = 28.0 mm
+//     gives 5.1e4 instead; both are ~5e4.) For the sentence to
 //     be literally true, one setting would need a hyperfocal of 76.2 mm,
 //     i.e. f = 1.83 / 2.57 / 3.14 / 3.61 mm for c = 0.025 / 0.05 / 0.075 /
 //     0.1 -- a 169-degree field on a 52.6 mm frame. Read the fifteen feet
 //     as a HYPERFOCAL NEAR LIMIT and the closed form
 //     f = (-Nc + sqrt((Nc)^2 + 4HNc))/2 at H = 9144 mm gives 20.26 / 28.64 /
-//     35.07 / 40.48 mm. ALL EIGHT ROWS RE-DERIVED; all eight agree with the
-//     brief, INCLUDING the c = 0.075 row the researcher corrected on his
-//     second pass (35.07, not 26.1).
-//     What the machine held was FOCUS, SERVOED TO THE TRACK -- and I did
-//     not have to infer it. [T68]'s own captions say "follow-focus device"
-//     and "SELSYN-DRIVEN follow-focus mechanism". A selsyn is a synchro: a
-//     shaft-position servo. The erratum is settled by the same page that
-//     carries it.
+//     35.07 / 40.48 mm for those same four circles of confusion.
+//     What the machine held was FOCUS, SERVOED TO THE TRACK, and that does
+//     not have to be inferred: [T68]'s own captions say "follow-focus
+//     device" and "SELSYN-DRIVEN follow-focus mechanism". A selsyn is a
+//     synchro -- a shaft-position servo. The erratum is settled by the same
+//     page that carries it.
 //  1b. AND THE LENS EXISTS. [AP] lists Panavision's Super Panavision 70
 //     spherical primes as 28mm T2.8, 35mm T2.8, 50mm T2.0, 75mm T2.8,
 //     100mm T2.5, 150mm T3, and notes 28/50/75/100 in the film's own
@@ -103,7 +99,7 @@
 //  2. THE TWO PUBLISHED DISTANCE FIGURES DISAGREE BY 10.5 INCHES. [T68]'s
 //     pair implies 178.5 in = 14 ft 10.5 in of travel; [C85] says 14 ft
 //     flat, putting the near end at 12 in, not 1.5 in. 6.2500% of the
-//     track, 33 years apart, same source. Re-checked; exact. This study
+//     track, two accounts 33 years apart from the same source. This study
 //     uses [T68] for the 120.0:1 RATIO (which the picture depends on) and
 //     [C85] for the TRACK (which the diagram depends on).
 //  3. THE ATTRIBUTION. [T68] credits "a technique of image scanning as used
@@ -113,30 +109,28 @@
 //     The adjacent sentence ("after he sent some test sequences on film to
 //     Stanley Kubrick, the technique was adapted by Douglas Trumbull")
 //     cites a 2010 Trumbull Master Class at TIFF Bell Lightbox, for which I
-//     could reach no transcript. So the honest line is narrower than the
-//     brief's: the 1968 attribution is the designer's own and names
-//     industrial image scanning; the Whitney lineage rests on one uncited
-//     sentence plus one un-transcribed talk given 42 years after the fact.
-//     (Study 02 of this programme documented the Vertigo spirals as a
-//     pendulum on an M-5 gun director. A pen on a rotating plate is not a
-//     moving slit.)
+//     could reach no transcript. So the honest line is a narrow one: the
+//     1968 attribution is the designer's own and names industrial image
+//     scanning; the Whitney lineage rests on one uncited sentence plus one
+//     un-transcribed talk given 42 years after the fact. (The Vertigo title
+//     spirals were drawn by a pendulum on an M-5 gun director, and a pen on
+//     a rotating plate is not a moving slit.)
 //  4. THE 65 mm APERTURES CHECK OUT. [WP] "70 mm film": camera aperture
 //     52.63 x 23.01 mm (2.072 x 0.906 in) = 2.287:1; projection aperture
 //     48.56 x 22.10 mm (1.912 x 0.870 in) = 2.1973:1 ~ 2.20:1. Corroborated,
 //     NOT read against SMPTE; a second carrier gives 2.066 in for the
 //     camera width. Both circulate.
-//  5. K = 400 IS UNDER ITS OWN DERIVATION. The overlap condition is
+//  5. THE STAMP COUNT IS NOT A TASTE SETTING. The overlap condition is
 //     d(ln u) <= ln(1 + w/X0), not <= w/X0. With X0/w = 84 that is
-//     K >= 1 + ln(120)/ln(1 + 1/84) = 405.6, so K_min = 406. The brief's
-//     402 linearised the logarithm. This file stamps 406 per wall, 812 in
-//     the frame.
+//     K >= 1 + ln(120)/ln(1 + 1/84) = 405.6, so K_min = 406 per wall.
+//     Linearising the logarithm gives 402, which is under and leaves gaps.
+//     The film frame stamps four times K_min per wall (see kOversample).
 //  6. [GE]'s UNWRAP PINS THE ARTWORK ADVANCE, WHICH NO SOURCE PUBLISHES. If
 //     the panel advanced MORE than one slit-width per frame the unwrap
 //     would show gaps; LESS, and repeats. Ercolano recovered coherent
-//     artwork from four shots, so the advance is ~= the slit width. The
-//     brief listed 0.9 in/frame as a free parameter; it is not free, and
-//     this file uses w = 0.5857 in/frame. An independent observation
-//     constraining a reconstructed parameter is the best thing here.
+//     artwork from four shots, so the advance is ~= the slit width. It is
+//     therefore not a free parameter, and this file uses the slit width
+//     itself, w = 0.5857 in/frame.
 //
 // -----------------------------------------------------------------------------
 // DOCUMENTED (cited above; not altered)
@@ -254,20 +248,22 @@ constexpr float kX0OverW = 84.0f;    // slit aspect        RECONSTRUCTED
 constexpr float kSlitWIn = kX0In / kX0OverW;  // 0.585714 in
 constexpr float kAdvanceIn = kSlitWIn;        // pinned by [GE], note 6
 
-// K_min = 1 + ln(R)/ln(1 + w/X0) = 405.6 -> 406. The brief said 402; it
-// linearised the logarithm.
+// K_min = 1 + ln(R)/ln(1 + w/X0) = 405.6 -> 406: the fewest stamps whose
+// adjacent images still touch across the whole sweep. Linearising the
+// logarithm gives 402, which is under and leaves gaps.
 constexpr int kK = 406;
-// AND K_min REMOVES GAPS, NOT RIPPLE -- a finding of this build, measured
-// below. drawSpriteAtlas's drawVertices is not antialiased, so at exactly
-// K_min, where adjacent stamps only just touch, the covering count beats
-// between one and two on the pixel grid. Verification D prints the residual
-// at both K, and the fitted exponent is untouched by it: the LAW survives
-// its own quantisation. The picture stamps four times the minimum.
+// K_min removes GAPS, not RIPPLE. drawSpriteAtlas's drawVertices is not
+// antialiased, so at exactly K_min -- where adjacent stamps only just touch
+// -- the covering count beats between one and two on the pixel grid.
+// Verification D below fits the exposure law at both counts, which is what
+// separates the ripple from the exponent. The picture stamps four times the
+// minimum so the ripple is not what the frame shows.
 constexpr int kOversample = 4;
 constexpr int kKDisplay = kK * kOversample;
 
-// The film frame is drawn to its own 120:1 scale: 1 px from the vanishing
-// point is 15 ft from the lens; 600 px is one and a half inches.
+// The film frame is drawn to its own 120:1 scale: the sweep starts 5 px
+// from the vanishing point, which is 15 ft from the lens, and ends at
+// 600 px, which is one and a half inches.
 constexpr float kUFar = 5.0f;
 constexpr float kUNear = kUFar * kR; // 600 px
 
@@ -277,10 +273,9 @@ constexpr float kCellW = kPanelIn * kCellPxPerIn;  // 1476 px
 constexpr float kCellH = kSlitHIn * kCellPxPerIn;  // 492 px
 constexpr float kWinFrac = kSlitWIn / kPanelIn;    // 0.00406746
 // on-screen width = w*ppi*s and height = h*ppi*s, so s(u) = u/(X0*ppi)
-// makes width = u*w/X0 and height = u*h/X0 EXACTLY. ONE scale, both axes:
-// a perspective projection is uniform by construction, and this is the
-// first study in the programme whose geometry is uniform by construction
-// rather than by luck.
+// makes width = u*w/X0 and height = u*h/X0 EXACTLY. ONE scale, both axes,
+// because a perspective projection scales both the same way; anisotropic
+// stamp scaling here would be a drawing choice, not a projection.
 constexpr float kScaleDen = kX0In * kCellPxPerIn;  // 504.3
 
 // ---------------------------------------------------------------------------
@@ -399,10 +394,10 @@ Element rule(float w, SkColor4f c, float h = 1.0f) {
 // ---------------------------------------------------------------------------
 // The film's transfer curve: D = 1 - e^(-kE), applied to the ACCUMULATION.
 //
-// ROADMAP 10f used to say a palette LUT was unreachable, and was corrected
-// before this was built: Effect::shader's layer arrives as the child shader
-// named `content`, so a transfer curve over already-painted content is one
-// call. Exercised here at a real call site, over a Mode::Live leaf.
+// Effect::shader hands the node's already-painted layer to the SkSL as a
+// child shader named `content`, so a tone curve over painted content is one
+// call and needs no palette lookup and no read-back. Applied here over a
+// Mode::Live instancing leaf.
 
 sk_sp<SkRuntimeEffect> transferCurve() {
   static sk_sp<SkRuntimeEffect> fx = [] {
@@ -436,10 +431,9 @@ half4 main(float2 xy) {
 // flowers, microscopic and botanical photography, backlit graphic shapes
 // with scrolling graphics, and composites of abstract shapes and spirals. So
 // the sketch generates those KINDS of thing and thresholds the result to one
-// bit, which is what "high-contrast negative" means. The gel then lives
-// entirely in the tints() lane and no palette material is needed anywhere in
-// this file -- which is exactly why this study ranks the two-source-Material
-// item DOWN rather than citing it.
+// bit, which is what "high-contrast negative" means. Colour then lives
+// entirely in the pools' tints() lane: the artwork is one-bit, the gel is a
+// per-stamp tint, and no palette material is needed anywhere in this file.
 
 struct Strip {
   sk_sp<SkImage> image;
@@ -628,13 +622,13 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     rot[j] = phi;
     sc[j] = scale;
     fr[j] = s.cell;
-    // AREA-CONSERVING SUB-PIXEL CLAMP, and the one thing nothing predicted.
-    // Below u = X0/w px the stamp is narrower than a pixel, and
-    // drawSpriteAtlas's drawVertices is NOT antialiased -- so most of the
-    // sweep would silently vanish. Widen to one pixel through the sizes()
-    // lane and scale the weight by the true width, leaving the deposited
-    // light unchanged. That is a box filter, and it is why the measured
-    // exponent holds at 1 straight through the apex.
+    // AREA-CONSERVING SUB-PIXEL CLAMP. Below u = X0/w px the stamp is
+    // narrower than a pixel, and drawSpriteAtlas's drawVertices is NOT
+    // antialiased -- so most of the sweep would silently vanish. Widen to
+    // one pixel through the sizes() lane and scale the weight by the true
+    // width, leaving the deposited light unchanged. That is a box filter;
+    // without it the fitted exposure exponent rolls off near the apex,
+    // where the stamps go sub-pixel, instead of holding at 1.
     float sx = 1.0f;
     if (wpx < 1.0f) {
       sx = 1.0f / std::max(wpx, 1e-4f);
@@ -645,9 +639,10 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     if (s.upTo >= 0.0f && f > s.upTo)
       ti[j].fA = 0.0f;
     // Pool::texWindows() -- ONE bake of the twelve-foot panel, addressed at
-    // a different window per stamp. Continuous, not quantised: the brief's
-    // planned workaround was 64 pre-registered cells and a stepped crawl,
-    // because Atlas::cell() drops the whole sheet when you re-register.
+    // a different sub-rect per stamp, so the artwork crawl is continuous.
+    // The alternative is pre-registering a cell per crawl position, which
+    // quantises the crawl to that cell count and cannot be repaired later:
+    // Atlas::cell() drops the whole baked sheet when you re-register.
     const float left =
         s.artwork ? std::fmod(s.artLeft + s.artDrift * f + 8.0f, 1.0f) : 0.0f;
     win[j] = SkRect::MakeXYWH(std::min(left, 1.0f - kWinFrac), 0.0f, kWinFrac,
@@ -690,10 +685,10 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   int rtCols = 0;
   int sheetW = 0, sheetH = 0;
   double bakeMs = 0, measMs = 0, rtMs = 0;
-  // --deterministic: pin numbers this study measured about its own
-  // execution. Unpinned, the plate differs from ITSELF run to run
-  // (16 px), and every pixel sweep blames the patch in flight rather
-  // than the instrument. ROADMAP.md Â§26.
+  // Set from the host's --deterministic flag: suppress any number this
+  // study timed about its own execution, so two headless renders of the
+  // same code are byte-identical. Left in, a wall-clock digit changes the
+  // plate by itself and a pixel comparison blames the code under test.
   bool deterministic_ = false;
 
   struct Shot {
@@ -704,13 +699,12 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     const char *art;
   };
   /** 96 film frames = 4.0 s at 24 fps. The shot index is derived from the
-   *  FRAME COUNTER, never from the wall clock -- verification F caught the
-   *  difference: `addFixed` is exact across draw rates (frame 148 and the
-   *  artwork offset matched to the last digit at 60 and 30 fps), but the
-   *  plate's rotation was accumulated inside the fixed step from a `shot`
-   *  that update() set at the DRAW rate, so the two runs charged different
-   *  steps to different dPhi and diverged by 0.85 degrees. A fixed-rate
-   *  step must not read a variable-rate value. */
+   *  FRAME COUNTER, never from the wall clock: `addFixed` runs an exact
+   *  number of steps whatever the draw rate, so anything accumulated inside
+   *  that step must also be a function of the frame counter. Reading a
+   *  value that update() writes at the DRAW rate instead would charge
+   *  different fixed steps to different shots, and the plate's rotation
+   *  would depend on how fast the host happened to be drawing. */
   static int shotFor(long long frame) { return (int)((frame / 96) & 3); }
 
   static const Shot &shotAt(int i) {
@@ -826,9 +820,10 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                         .child(instancing::instances(flatAtlas, pb,
                                                      instancing::Mode::Data,
                                                      SkBlendMode::kPlus));
-    // snapshot() sizes by the root's CHILDREN, not the root's own dims
-    // (ROADMAP 10j) -- hence the shell. Without it the read-back is a
-    // silently wrong answer, which is exactly what that entry warns about.
+    // snapshot() sizes the picture by the root's CHILDREN, not by the
+    // root's own width/height -- hence the shell box. Passed directly, the
+    // accumulation's children are instancing leaves, which measure zero on
+    // both axes, and the read-back would be a silently empty raster.
     sk_sp<SkPicture> pic = snapshot(box().child(std::move(accum)), fonts);
     sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::Make(
         (int)kFilmW, (int)kFilmH, kRGBA_F16_SkColorType, kPremul_SkAlphaType));
@@ -1153,10 +1148,10 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .child(hud("THE FRAME IS HELD, NOT TWEENED. addFixed’s INTERPOLANT "
                    "DRIVES THE SHUTTER BAR AND NOTHING IN THE PICTURE.",
                    10, -1, -1, 18, al(kTick, 0.8f)))
-        .child(hud("1 px FROM THE VANISHING POINT = 15 FEET FROM THE LENS · "
-                   "600 px = 1½ INCHES · THE FRAME IS THE SCAN, 120 : 1, "
-                   "DRAWN TO ITS OWN SCALE — AND THE 5 px HOLE AT THE APEX "
-                   "IS WHERE THE SWEEP BEGINS",
+        .child(hud("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = 15 FEET "
+                   "FROM THE LENS, AND ENDS AT 600 px = 1½ INCHES · THE "
+                   "FRAME IS THE SCAN, 120 : 1, DRAWN TO ITS OWN SCALE — "
+                   "THE 5 px HOLE AT THE APEX IS THAT FAR LIMIT, VISIBLE",
                    10, -1, -1, 6, al(kType2, 0.95f)));
   }
 
@@ -1226,8 +1221,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   // ------------------------------------------------------------- sidebar
   /** Every text child inside a panel is shrink(0): a flex column will
    *  otherwise squash a text leaf below its measured height and the run
-   *  silently overlaps its neighbour -- the height-axis twin of ROADMAP
-   *  14's "a fixed width() flex child still shrinks". */
+   *  silently overlaps its neighbour. This is the height-axis form of the
+   *  same rule that lets a fixed width() flex child still shrink. */
   Element pl(const std::string &str, sigil::weave::TextStyle st) {
     return slit::t(str, std::move(st)).shrink(0);
   }
@@ -1554,7 +1549,7 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   p.setStyle(SkPaint::kFill_Style);
 
   // THE TRACK: 14 ft = 168 in = 504 px [C85], from z = 180 in down to
-  // z = 12 in -- which is where FINDING 2 becomes a picture. A double rule,
+  // z = 12 in -- which is where note 2 becomes a picture. A double rule,
   // with the worm gear as a micro-pitch lattice along it [NO].
   const float trackL = plateX - kZ0In * S;             // z = 180 in, x = 8
   const float trackR = trackL + kTrackIn * S;          // z = 12 in,  x = 512
@@ -1602,11 +1597,12 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     qt.setAntiAlias(true);
     // EIGHT EQUAL STEPS IN ln z means the ticks CROWD at the near end, and
     // the labels cannot all be set: over 180 -> 1.5 in the last four ticks
-    // fall 17.3 / 8.8 / 4.4 px apart while "11.68" measures ~20 px, so
-    // 11.68 / 5.898 / 2.977 / 1.5 all landed on one another and the near
-    // end of the rule read as a blot. Every tick is still drawn — a ruler
-    // whose crowded end is tick-only is what a drafting plate does — and a
-    // label is set only when it clears the last one set.
+    // fall 17.3 / 8.8 / 4.4 px apart while a five-character label measures
+    // about 20 px, so 11.68 / 5.898 / 2.977 / 1.5 would print on top of one
+    // another and the near end of the rule would read as a blot. Every tick
+    // is still drawn — a ruler whose crowded end is tick-only is what a
+    // drafting plate does — and a label is set only when it clears the last
+    // one set.
     float lastRight = -1e9f;
     for (int i = 0; i <= 7; ++i) {
       const float zz = kZ0In * std::pow(kR, -(float)i / 7.0f);
@@ -1691,7 +1687,7 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
          "14 ft = 168 in = 504 px  TRACK [C85]", kAmber);
 
   // The 1.5 in near focus: 4.5 px, dimensioned anyway. The whole erratum of
-  // FINDING 2 is visible as a dimension you can barely see -- and as the
+  // note 2 is visible as a dimension you can barely see -- and as the
   // 36 px of red dashes the published track never reaches.
   {
     SkPaint q;
@@ -1717,8 +1713,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     const char *r1 = "1½ in = 4.5 px [T68] — AND [C85]’s TRACK";
     const char *r2 = "STOPS 12 in SHORT: THE RED DASHES.";
     tp.setColor4f(kRed);
-    // The BLOCK form: every halo, then every ink. Line by line, the second
-    // knockout eats the first line's descenders — 21 px of it, measured.
+    // The BLOCK form: every halo, then every ink. Haloing line by line
+    // instead, the second line's knockout eats the first line's descenders.
     kit::drawHaloed(c, {{r1, {304, trackY - 26}}, {r2, {304, trackY - 16}}},
                     f75, tp, halo);
   }
@@ -1745,8 +1741,8 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
   }
 
   // Two lines, not one: the caption column runs out of room at the plate,
-  // and set as a single run the last nineteen characters were drawn UNDER
-  // the glass panel and never read.
+  // and set as a single run the tail of it is drawn UNDER the glass panel
+  // and never read.
   tp.setColor4f(al(kAmber, 0.9f));
   c.drawString("6 ft PLATE [C85], 4 ft OPENING [NO] —", 292, 10, f75, tp);
   c.drawString("PROBABLY NOT A CONTRADICTION, AND NOTHING SAYS SO", 292, 21,
@@ -1883,13 +1879,13 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
   ctx.canvas(kCanvasW, kCanvasH);
   ctx.background(kInk);
 
-  // ---- bake the artwork ONCE. NOT a Material::buffer case (ROADMAP 4):
-  // this is a static image made at setup and never mutated, and three
-  // studies have now over-cited that entry. The distinction is the useful
-  // part, so it is said plainly rather than cited.
+  // ---- bake the artwork ONCE. These are static images made at setup and
+  // never mutated afterwards, so they are plain baked SkImages; a live
+  // pixel buffer would only be needed if something wrote into them later.
   const double b0 = (double)std::clock() / CLOCKS_PER_SEC;
   gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, kWhite);
-  // patterns::speckle's tile IS the repeat (ledger 63) -- so a large one.
+  // patterns::speckle's tile IS the repeat, so it has to be large or the
+  // speckle reads as a visibly repeating stamp.
   spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
   if (ctx.fonts) {
     strips[0] =
@@ -1901,12 +1897,9 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
   }
   bakeMs = ((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0;
 
-  // ---- ONE atlas, THREE cells, ONE bake. The brief planned 64
-  // pre-registered cells and a 64-step quantised crawl, because a Pool
-  // could name a cell INDEX and never a RECT and Atlas::cell() drops the
-  // whole sheet when you re-register. Pool::texWindows() landed while the
-  // brief was being written, so the crawl is CONTINUOUS and the sheet is a
-  // twentieth of the planned size.
+  // ---- ONE atlas, THREE cells, ONE bake: one cell per artwork strip, and
+  // nothing else. The crawl across a strip is addressed per stamp through
+  // Pool::texWindows(), so it costs no extra cells and no re-bake.
   atlas = std::make_shared<instancing::Atlas>(1.0f);
   atlas->filter(SkFilterMode::kNearest); // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
@@ -1969,12 +1962,10 @@ void SlitScan2001::setup(sketch::SketchContext &ctx) {
       fitResid * 100.0f, slit::kK, fitPMin, fitResidMin * 100.0f, fitRays,
       fitPts, measMs, rtCols, rtCorr, rtMismatch * 100.0f, rtMaxErr, rtMs);
 
-  // ---- THE FILM CLOCK. 24 Hz because the film runs at 24 fps: the first
-  // fixed rate in this programme that is the artefact's own published
-  // number rather than a reconstruction. The interpolant drives the shutter
-  // bar and the sub-frame readout and NOTHING in the picture -- a projector
-  // holds a frame for its whole 1/24 s and then replaces it; it does not
-  // cross-fade. A correct NON-use of alphaOut is worth reporting.
+  // ---- THE FILM CLOCK. 24 Hz because the film runs at 24 fps. The
+  // interpolant drives the shutter bar and the sub-frame readout and
+  // NOTHING in the picture: a projector holds a frame for its whole 1/24 s
+  // and then replaces it, so tweening the frame would be wrong.
   ctx.ticker.addFixed(
       24.0,
       [this] {
@@ -2027,8 +2018,8 @@ void SlitScan2001::update(double e, sketch::SketchContext &ctx) {
     rebuildWalls();
     ctx.composer.render(describe(ctx));
   }
-  // Eight live numbers through slot()/renderSlot() -- never a per-frame
-  // re-render of the tree (ROADMAP 9, and the fourth study to land here).
+  // The live numbers go through slot()/renderSlot(), so the tree itself is
+  // never re-described per frame.
   ctx.composer.renderSlot("readout", readoutEl());
   ctx.composer.renderSlot("expo", expoEl());
   ctx.composer.renderSlot("fit", fitEl());

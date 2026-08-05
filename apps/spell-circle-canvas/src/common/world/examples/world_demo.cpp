@@ -1,15 +1,17 @@
-// Headless SigilWorld scene: diegetic UI panels and SigilShape
-// procedural props rendered by Diligent (Vulkan/MoltenVK), one PNG per
-// camera angle.
-// Usage: world_demo [outdir] [assetdir]  (defaults world_demo_out,
-// assets). With fetch_assets run, the tiger SVG lands on a poster panel
-// through SigilLoader's SVG decode; without it the scene simply omits
-// the poster.
+// A headless SigilWorld scene: UI panels and procedural props rendered
+// through Vulkan/MoltenVK, written out as one PNG per camera angle.
 //
-// The last shot is the odd one out and the only one not aimed by hand:
-// world_camera_flight.png is the DECLARED camera (AnimatedCamera +
-// CameraPath + a wiggled roll lane), and it lives here rather than in a
-// ComposeSketch study because the sketch host has no Vulkan device. See
+// Usage: world_demo [outdir] [assetdir] [frameCount]
+//   outdir     where the PNGs go (default world_demo_out)
+//   assetdir   optional fetched assets (default assets); when it holds
+//              the SVG below, an extra poster panel joins the scene
+//   frameCount if given, also dumps that many sequential animation
+//              frames for encoding into a video
+//
+// Every shot but the last aims its camera by hand through setCamera().
+// The last one exercises the declared camera instead — an AnimatedCamera
+// with a CameraPath and a wiggled roll lane — and it lives here rather
+// than in a live-coding sketch because that host has no GPU device. See
 // the block at the bottom of main().
 
 #include "sigilworld/Animation.h"
@@ -108,19 +110,21 @@ sk_sp<SkImage> uiCard(int w, int h, SkColor4f accent, float gaugeFrac) {
   return surface->makeImageSnapshot();
 }
 
-// --- the marquee's type ---------------------------------------------------
-// THE YARN, fully painted, PERPENDICULAR orientation, FILLED end to
-// end: the entire ball winding is the ribbon, its full length ONE
-// SigilCompose COLUMN — every line of type reads ACROSS the band's
-// width and the stack advances ALONG the winding. The column is
-// packed with numbered SECTORS: a big numeral, a narrow-column
-// paragraph, and a graphics stretch (ruler / waveform / swatch run /
-// dot ellipsis, each parameterized by its sector index so no two
-// render alike), with only thin grow gaps between — no empty
-// stretches anywhere on the loop. Snapshotted ONCE as a vector
-// SkPicture, SLICED straight down into GPU tiles (texture x = u,
-// y = v — no transpose), drawn mirrored in x so the wall's u-mapping
-// restores unmirrored glyphs. Arcs share boundary texels: seamless.
+// --- the ribbon's artwork -------------------------------------------------
+// One long strip of type and graphics, wound end to end around the
+// scene. The whole winding is a single tall column of laid-out content:
+// every line of type reads ACROSS the band's width, and the column
+// advances ALONG the winding. It is packed with numbered sectors — a
+// numeral, a narrow-column paragraph, and one of four graphic stretches,
+// each parameterized by its sector index so that no two render alike —
+// separated only by thin growing gaps, so no stretch of the loop is
+// blank.
+//
+// The column is laid out and snapshotted ONCE as a vector picture, then
+// sliced straight down into GPU tiles: texture x is u and y is v, with
+// no transpose. Each tile is drawn mirrored in x, because the ribbon
+// wall's own u mapping mirrors it back. Adjacent arcs share their
+// boundary texels, so the seams are invisible.
 struct StripArt {
   std::vector<sk_sp<SkImage>> tiles;
   float acrossPx = 0; ///< column width = the band's texel width
@@ -254,8 +258,9 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
 
   root.child(label(u8"THE YARN", 96, kAccent));
-  const int kSectors = 44; // fills ~90% of the column; thin grow gaps
-                           // absorb the rest evenly
+  // Enough sectors to fill most of the column; the growing gaps between
+  // them absorb whatever height is left, evenly.
+  const int kSectors = 44;
   for (int s = 0; s < kSectors; ++s) {
     root.child(sc::box().grow());
     char numeral[8];
@@ -276,11 +281,10 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
   root.child(label(u8"— and back to its own beginning", 72, kAccent));
 
   const sk_sp<SkPicture> art = sc::snapshot(root, fonts);
-  // Sliced through compose's tiles:: door — the picture re-recorded
-  // behind a bounding-box hierarchy so each tile's replay visits only
-  // the ops that meet it. On THIS strip (10 tiles of 506x4096 over a
-  // 40960 px column, 5202 ops): 6.81 ms of raw replay becomes 0.39 ms
-  // of build + 4.4 ms of replay, and the tiles come out pixel-identical.
+  // Re-record the picture behind a bounding-box hierarchy, so each
+  // tile's replay visits only the drawing operations that meet it
+  // instead of the whole column. The tiles come out pixel-identical to
+  // replaying the original.
   const sk_sp<SkPicture> sliced = sc::tiles::sliceable(art);
   StripArt out;
   out.acrossPx = (float)acrossPx;
@@ -290,10 +294,11 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
         SkImageInfo::MakeN32Premul(acrossPx, tileAlongPx));
     SkCanvas *canvas = surface->getCanvas();
     canvas->clear(SK_ColorTRANSPARENT);
-    // The slice is compose's door, not arithmetic done here: step down
-    // the column to tile k, mirrored across it because the ribbon
-    // wall's own u-mapping mirrors back. This transform was derived by
-    // hand twice and gotten wrong twice — sc::tiles::window() owns it.
+    // Step down the column to tile k, mirrored across it because the
+    // ribbon wall's own u mapping mirrors back. The transform comes from
+    // sc::tiles::window() rather than being spelled out here: it is easy
+    // to get the mirror and the step the wrong way round, and the band's
+    // legibility on the wall rests entirely on it.
     canvas->concat(sc::tiles::window({acrossPx, tileAlongPx}, k,
                                      sc::tiles::Flow::Down,
                                      sc::tiles::Facing::Mirrored));
@@ -305,8 +310,9 @@ StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
 
 float wrap01(float t) { return t - std::floor(t); }
 
-/** The dart that tows the flag: revolve's +y nose aimed down the
- *  flight tangent, keeping the flag's own up convention. */
+/** Place the dart at @p head on the loop, with the revolved mesh's +y
+ *  nose aimed down the flight tangent and its up axis matching the
+ *  ribbon's. */
 glm::mat4 dartTransform(const sigil::shape::Spline3 &loop, float head) {
   const glm::vec3 p = loop.position(wrap01(head));
   const glm::vec3 ahead = loop.position(wrap01(head + 0.004f));
@@ -319,8 +325,8 @@ glm::mat4 dartTransform(const sigil::shape::Spline3 &loop, float head) {
   const float nLen = glm::length(n);
   n = nLen > 1e-6f ? n * (1.0f / nLen) : glm::vec3{0, 1, 0};
   const glm::vec3 b = glm::cross(t, n);
-  // Basis columns (binormal, tangent, normal | position) — glm's
-  // constructor takes columns directly.
+  // Basis columns (binormal, tangent, normal | position): glm's matrix
+  // constructor takes columns, so this needs no transpose.
   return glm::mat4(glm::vec4(b, 0), glm::vec4(t, 0), glm::vec4(n, 0),
                    glm::vec4(p, 1));
 }
@@ -373,7 +379,7 @@ int main(int argc, char **argv) {
                   floor);
   }
 
-  // Three emissive UI cards, cockpit arc.
+  // Three self-lit UI cards, arranged on an arc facing the viewer.
   {
     world::Material screen;
     screen.unlit = true;
@@ -423,9 +429,9 @@ int main(int argc, char **argv) {
                   shape::space::place({210, 40, 150}, -12, -3), glass);
   }
 
-  // Fetched-asset poster: the Ghostscript tiger, decoded from SVG at
-  // panel resolution through SigilLoader (run the fetch_assets target
-  // to populate the asset dir; the scene degrades to no poster).
+  // An optional poster, decoded from SVG at panel resolution through
+  // SigilLoader. Present only when the asset directory has been
+  // populated; otherwise the scene simply omits it.
   if (std::filesystem::exists(assetDir / "svg/tiger.svg")) {
     loader::Hub hub;
     hub.mount("res://", assetDir);
@@ -444,15 +450,16 @@ int main(int argc, char **argv) {
   }
 
   // The stream: a spline crossing the space above the set, carrying a
-  // chrome wire and camera-facing UI cards on its arc-length stations —
-  // declared through the scene layer (describe + reconcile), not
-  // imperative addSurface calls. The cards are live BILLBOARDS
-  // (2026-08-04): every shot re-describes them through
-  // space::faceCamera() against that shot's ACTUAL camera eye, and the
-  // reconciler sees transform-only changes — a setTransform per card,
-  // never a re-upload. (They used to be one merged points::panels mesh
-  // with a "facing" lane baked against the stream shot's hard-coded
-  // eye — a billboard frozen for one shot.)
+  // chrome wire and camera-facing UI cards at its arc-length stations.
+  // Declared through the scene layer — describe and reconcile — rather
+  // than through imperative addSurface calls.
+  //
+  // The cards are live billboards: every shot re-describes them through
+  // space::faceCamera() against that shot's actual camera eye, so the
+  // reconciler sees transform-only changes and each card costs a
+  // setTransform rather than a re-upload. Baking the facing into one
+  // merged mesh instead would freeze the billboards toward whichever eye
+  // was used when the mesh was built.
   world::scene::Scene stream(*w);
   std::function<world::scene::Scene::Stats(glm::vec3)> faceStream;
   shape::Spline3 arc;
@@ -468,9 +475,9 @@ int main(int argc, char **argv) {
     wireMat.metallic = 1;
     wireMat.roughness = 0.15f;
 
-    // The wire carries a baked color lane — cool chrome at the start
-    // warming to rose by the end. Tube rings are ordered along the
-    // curve, so a vertex-index ramp IS an arc-length ramp.
+    // The wire carries a baked colour lane, cool at the start and warm
+    // by the end. A tube's rings are generated in order along the curve,
+    // so ramping by vertex index ramps along the curve.
     shape::Mesh wire = shape::curves::tube(
         arc, {.radius = 7, .segments = 180, .sides = 10});
     wire.colors.resize(wire.positions.size());
@@ -487,10 +494,11 @@ int main(int argc, char **argv) {
     cardMat.texture = uiCard(384, 256, {0.45f, 0.95f, 0.85f, 1}, 0.62f);
     cardMat.baseColor = {1, 1, 1, 0.92f};
 
-    // Pointer-stable wire so every re-describe keeps its surface; the
-    // card quads are identity-stable through the Scene's per-size quad
-    // cache — so a re-faced stream costs setTransform x cards, nothing
-    // else.
+    // The wire mesh is held by shared_ptr so every re-describe presents
+    // the same pointer and keeps its surface; the card quads are
+    // identity-stable through the Scene's per-size quad cache. Together
+    // that makes re-facing the stream cost one setTransform per card and
+    // nothing else.
     auto wireMesh =
         std::make_shared<const shape::Mesh>(std::move(wire));
     faceStream = [&stream, wireMesh, wireMat, cardMat,
@@ -505,13 +513,16 @@ int main(int argc, char **argv) {
                            eye, positions[i])));
       return stream.render(root);
     };
-    faceStream({0, 200, 1150}); // the stream shot frames it first
+    // A first describe, so the surfaces exist before any shot runs; the
+    // eye here matches the stream shot's.
+    faceStream({0, 200, 1150});
   }
 
   // The set dressing, declared through the world easel (Easel.h): two
-  // colored point lights pooling on the floor by the props, and a
-  // 3000-spark swarm riding the stream arc, GPU-instanced as ONE draw
-  // — tint ramps along "t", size varies through the scale lane.
+  // coloured point lights pooling on the floor by the props, and a swarm
+  // of sparks riding the stream arc, GPU-instanced as one draw call with
+  // tint ramping along the "t" lane and size varying through the scale
+  // lane.
   {
     shape::Cloud sparks = shape::points::onSpline(arc, 3000);
     shape::points::jitter(sparks, 30, 11);
@@ -527,7 +538,7 @@ int main(int argc, char **argv) {
     }
     world::Material sparkMat;
     sparkMat.unlit = true;
-    sparkMat.baseColor = {1, 1, 1, 0.85f}; // blended pass, one flock
+    sparkMat.baseColor = {1, 1, 1, 0.85f}; // alpha < 1: the blended pass
     world::InstanceLanes sparkLanes;
     sparkLanes.tintLane = "tint";
     sparkLanes.scaleLane = "size";
@@ -542,24 +553,26 @@ int main(int argc, char **argv) {
     std::printf("easel dressing: %d added\n", stats.added);
   }
 
-  // THE YARN, painted end to end: the sparse ball winding wraps the
-  // whole scene (latitude swings seven times while the winding plane
-  // precesses twice — coprime, so the wraps spread), and every unit
-  // of it carries the infinite-canvas strip above. One surface per
-  // GPU tile; per frame every arc re-sweeps one step forward so the
-  // whole canvas marches around the winding behind the chrome dart.
+  // The ribbon, painted end to end: a loose ball winding that wraps the
+  // whole scene, carrying the strip artwork above along its entire
+  // length. One surface per GPU tile, and each frame every arc re-sweeps
+  // one step forward so the whole canvas marches around the winding
+  // behind the chrome dart.
   std::vector<uint32_t> stripIds; // one surface per strip tile
   uint32_t dartId = 0, cometId = 0, guideId = 0;
   const float kCometSpan = 0.34f;
   world::World::pop::Chain guideChain;
   shape::Spline3 flightLoop;
-  float bandWidth = 300;            // set from the strip's texel density
+  float bandWidth = 300;            // recomputed from the strip's density
   const int kTiles = 10;            // GPU tiles the vector strip slices to
   const int kSectionsPerTile = 200; // ribbon cross-sections per arc
-  const float kFlagHome = 0.91f;    // stills: strip start on a front pass
+  const float kFlagHome = 0.91f;    // puts the strip's start on a front
+                                    // pass in the still shots
   {
     flightLoop.closed = true;
     const int kKnots = 96;
+    // Coprime, so successive wraps land beside each other instead of
+    // retracing the same great circle.
     const float kWraps = 7;   // latitude oscillations
     const float kPrecess = 2; // turns of the winding plane
     const float kTilt = 1.0f; // latitude amplitude, radians
@@ -568,7 +581,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < kKnots; ++i) {
       const float t = (float)i / (float)kKnots;
       const float lat = kTilt * std::sin(2.0f * (float)M_PI * kWraps * t);
-      const float azi = -2.0f * (float)M_PI * kPrecess * t; // front: face out
+      // Negative, so the winding faces outward at the front of the ball.
+      const float azi = -2.0f * (float)M_PI * kPrecess * t;
       flightLoop.points.push_back(
           {center.x + shell.x * std::cos(lat) * std::cos(azi),
            center.y + shell.y * std::sin(lat),
@@ -585,20 +599,22 @@ int main(int argc, char **argv) {
     sigil::weave::FontContext fonts(
         sigil::weave::ports::systemFontManager());
 
-    // Square texels: 10 x 4096 px over ~24k wu ≈ 1.68 px/wu, so a
-    // 506 px column stands ~300 wu wide on the winding — a real
-    // narrow-column measure reading across the band.
+    // The band's world width is DERIVED from the strip's pixel density
+    // rather than chosen, which keeps the texels square: the strip's
+    // total pixel length over the loop's world length gives px-per-unit,
+    // and the column's pixel width divided by that is how wide the band
+    // stands on the winding.
     const StripArt strip = yarnStrip(fonts, kTiles, 4096, 506);
     const float pxPerWu = strip.totalAlongPx / loopLen;
     bandWidth = strip.acrossPx / pxPerWu;
     // Each arc is a GPU sweep: the loop's control points live in a
-    // device buffer and a compute pass writes the ribbon's vertices —
-    // no CPU mesh exists for the band at all.
+    // device buffer and a compute pass writes the ribbon's vertices, so
+    // no CPU mesh for the band exists at all.
     for (int k = 0; k < kTiles; ++k) {
       world::Material segment;
       segment.unlit = true;
       segment.texture = strip.tiles[(size_t)k];
-      segment.baseColor = {1, 1, 1, 0.98f}; // alpha < 1: blended pass
+      segment.baseColor = {1, 1, 1, 0.98f}; // alpha < 1: the blended pass
       world::World::SweepDesc arc;
       arc.loop = flightLoop.points;
       arc.width = bandWidth;
@@ -619,9 +635,9 @@ int main(int argc, char **argv) {
                            chromeDart);
 
     // The comet, COMPOSED ON DEVICE: a small guide chain rides the
-    // yarn's window, and the comet chain rides the GUIDE — its
-    // generator reads the guide's cooked arena directly. Animating
-    // the guide (two floats) cascades through the comet in compute;
+    // ribbon's window, and the comet chain rides the guide — its
+    // generator reads the guide's cooked lanes directly. Animating the
+    // guide costs two floats and cascades through the comet in compute;
     // the CPU never touches a point of either.
     guideChain = shape::pop::on(flightLoop.points)
                      .count(64)
@@ -634,9 +650,11 @@ int main(int argc, char **argv) {
     guideId = w->addPoints(shape::mesh::quad(4, 4), guideChain,
                            guideMat);
     const world::World::pop::Chain cometChain =
-        shape::pop::on(std::vector<glm::vec3>{}) // loop = the guide's arena
+        shape::pop::on(std::vector<glm::vec3>{}) // loop comes from the guide
             .count(300000)
-            .window(0.984f, 0.984f) // skip the closing return segment
+            // Just short of the whole guide, to skip the segment that
+            // closes the loop back on itself.
+            .window(0.984f, 0.984f)
             .spread(48)
             .noise(20, 0.004f)
             .vary(0.5f)
@@ -698,8 +716,9 @@ int main(int argc, char **argv) {
   const int total = (int)std::size(shots);
   int written = 0;
   for (const Shot &shot : shots) {
-    // Re-face the stream's billboards toward THIS shot's eye: a
-    // transform-only reconcile (moved = cards, kept = wire).
+    // Re-face the stream's billboards toward THIS shot's eye. It must
+    // reconcile as transform-only: the cards move, the wire is kept, and
+    // nothing is added or removed.
     const world::scene::Scene::Stats faced = faceStream(shot.camera.eye);
     if (faced.added + faced.removed != 0)
       std::fprintf(stderr,
@@ -716,13 +735,12 @@ int main(int argc, char **argv) {
     else
       std::fprintf(stderr, "write failed: %s\n", shot.name);
   }
-  // --- the interop door, demonstrated -------------------------------------
-  // The comet's 300k particles exist ONLY as GPU lanes — cooked by
-  // compute, never touched by the CPU. readPoints() pulls the arena
-  // back as a Cloud and save::ply() writes a binary PLY (a third the
-  // ascii size, bit-exact floats) Houdini or Blender opens directly:
-  // positions, t/size scalars, dir vectors, tint colors — the
-  // attributes ride along.
+  // --- reading GPU-cooked points back out ---------------------------------
+  // The comet's particles exist only as GPU lanes, cooked by compute and
+  // never touched by the CPU. readPoints() pulls those lanes back as a
+  // Cloud, and save::ply() writes a binary PLY that a DCC application
+  // opens directly — positions plus the scalar, vector and colour lanes
+  // the chain named, all riding along.
   if (cometId) {
     const shape::Cloud comet = w->readPoints(cometId);
     const auto file = outDir / "comet_points.ply";
@@ -736,15 +754,15 @@ int main(int argc, char **argv) {
                   comet.colors.size());
   }
 
-  // --- the flight, and its numbers ----------------------------------------
-  // Per frame every strip arc re-sweeps one step forward along the
-  // winding (setSurfaceMesh per tile — same topology, an UpdateBuffer
-  // each), so the whole painted yarn marches behind the dart. Timed
-  // two ways: submit+flush throughput (drained at the end) and fully
-  // synced frames (render + GPU readback each time).
+  // --- the flight, and its timings ----------------------------------------
+  // Each frame slides every strip arc one step forward along the
+  // winding, so the whole painted ribbon marches behind the dart. Timed
+  // two ways, because they answer different questions: submit-and-flush
+  // throughput, drained once at the end, and fully synced frames that
+  // read the GPU back every time.
   if (!stripIds.empty()) {
     w->setCamera(shots[5].camera);
-    // One circumnavigation every 2400 frames (40 s at 60).
+    // One full circumnavigation per 2400 frames.
     const auto animate = [&](int frame) {
       const float shift =
           wrap01(kFlagHome + (float)frame / 2400.0f);
@@ -754,7 +772,7 @@ int main(int argc, char **argv) {
             wrap01(shift + (float)(k + 1) / (float)kTiles),
             1.0f / (float)kTiles);
       w->setTransform(dartId, dartTransform(flightLoop, shift));
-      // Two floats on the GUIDE; the comet re-cooks by cascade.
+      // Two floats on the GUIDE only; the comet re-cooks by cascade.
       w->setPointsWindow(guideId, shift, kCometSpan);
     };
 
@@ -764,7 +782,9 @@ int main(int argc, char **argv) {
       animate(frame);
       w->render();
     }
-    w->readback(); // drain, so the mean owns every submitted frame
+    // Drain the queue, so the mean below covers every submitted frame
+    // rather than stopping while work is still in flight.
+    w->readback();
     const auto flushed = std::chrono::steady_clock::now();
 
     const int kSynced = 30;
@@ -791,7 +811,7 @@ int main(int argc, char **argv) {
 
     int flightWritten = 0;
     for (int i = 0; i < 6; ++i) {
-      animate(i * 400); // six stations around one full loop
+      animate(i * 400); // six evenly spaced stations around one lap
       char name[40];
       std::snprintf(name, sizeof(name), "world_marquee_flight_%d.png",
                     i);
@@ -800,12 +820,12 @@ int main(int argc, char **argv) {
     }
     std::printf("flight frames: %d/6\n", flightWritten);
 
-    // Showcase mode: argv[3] = a frame count dumps a continuous
-    // animation sequence (world_anim_0000.png ...) for ffmpeg.
+    // Optional third argument: a frame count, which dumps a continuous
+    // numbered sequence suitable for encoding into a video.
     const int animFrames = argc > 3 ? std::atoi(argv[3]) : 0;
     int animWritten = 0;
     for (int i = 0; i < animFrames; ++i) {
-      animate(i * 4); // 4 loop-steps per frame: one lap in 600 frames
+      animate(i * 4); // four loop-steps per frame: one lap in 600
       char name[40];
       std::snprintf(name, sizeof(name), "world_anim_%04d.png", i);
       if (w->render() && w->savePng(outDir / name))
@@ -816,42 +836,42 @@ int main(int argc, char **argv) {
   }
 
   // --- the DECLARED camera: a flight path and a wiggled lane --------------
-  // Everything above aims the camera the imperative way — `setCamera()` with
-  // two vectors per shot, which is still the right tool for a still. This
-  // shot is the other door, and it is here rather than in a ComposeSketch
-  // study for one blunt reason: the sketch host has no Vulkan device.
+  // Everything above aims the camera imperatively, with setCamera() and
+  // two vectors per shot, which is still the right tool for a still.
+  // This shot uses the declared door instead, and it lives here rather
+  // than in a live-coding sketch because that host has no GPU device.
   //
-  //  · `AnimatedCamera` is the fifth Animated* component and needed no new
-  //    home — a camera is already a registry entity, and an ACTIVE
-  //    `CameraComponent` outranks `World::setCamera` while it exists.
-  //  · `CameraPath` flies the EYE along a `shape::Spline3`; the lane is `t`,
-  //    WHERE ALONG it, so the whole bind() chain shapes the SCHEDULE while
-  //    the curve supplies the shape. `lookAhead != 0` is the caller's
-  //    spelling of "aim it for me", so the framing is the tangent and the
-  //    target lanes are ignored outright.
-  //  · `rollDeg` is the one wiggled lane: a handheld dutch tilt. `wiggle()`
-  //    reads NO CLOCK — it is a pure function of the normalised input — so
-  //    this PNG is a function of the frame index and nothing else, which is
-  //    the only reason a wiggled artifact can be byte-reproducible at all.
+  //  · An AnimatedCamera needs no special home: a camera is already a
+  //    registry entity, and an ACTIVE CameraComponent outranks
+  //    World::setCamera while it exists.
+  //  · CameraPath flies the EYE along a spline. The lane is `t`, where
+  //    along the curve, so the bind() chain shapes the SCHEDULE while
+  //    the curve supplies the shape. A non-zero lookAhead is the
+  //    caller's way of saying "aim it for me", so the framing follows
+  //    the tangent and the target lanes are ignored outright.
+  //  · rollDeg is the one wiggled lane, a handheld dutch tilt. wiggle()
+  //    reads NO CLOCK — it is a pure function of the normalised input —
+  //    so this frame depends on the frame index and nothing else, which
+  //    is what lets a wiggled artifact be byte-reproducible at all.
   //
-  // ADDITIVE by construction: the entity is created after every artifact
-  // above is on disk, so an active camera cannot reframe a shot already
-  // taken, and this PNG is outside `written`/`total`.
+  // The camera entity is created only after every artifact above is on
+  // disk, so an active camera cannot reframe a shot already taken. This
+  // PNG is deliberately outside the `written`/`total` count.
   {
     entt::registry &registry = w->registry();
     const entt::entity cam = registry.create();
     registry.emplace<world::CameraComponent>(cam);
 
-    // A closed loop threaded THROUGH the set — dive past the cockpit, sweep
-    // the poster wall, climb out over the yarn ball. Aiming down the tangent
-    // only frames something if the curve goes somewhere.
+    // A closed loop threaded THROUGH the set: dive past the panels,
+    // sweep the poster wall, climb out over the ribbon ball. Aiming down
+    // the tangent only frames anything if the curve goes somewhere.
     shape::Spline3 flight;
     flight.closed = true;
     flight.points = {{1650, 520, 1450},   {320, 150, 780},
                      {-1080, 360, 340},   {-1500, 880, -1050},
                      {180, 1020, -760},   {1700, 700, -260}};
 
-    // The caller owns the clock: world has none, by ruling.
+    // The caller owns the clock; world has none.
     motion::Ticker ticker;
     choreograph::Output<float> along{0.0f};
     ticker.timeline().apply(&along).then<choreograph::RampTo>(1.0f, 8.0f);
@@ -867,13 +887,13 @@ int main(int argc, char **argv) {
     path.lookAhead = 0.05f;                        // aim down the tangent
     lens.rollDeg = world::wiggle(&along, 3.5f, 24.0f, 5, 2);
 
-    const int kCameraFrame = 140; // 2.3 s into an 8 s eased lap
+    const int kCameraFrame = 140; // part-way into the eased lap
     for (int i = 0; i < kCameraFrame; ++i)
       ticker.tick(1.0 / 60.0);
-    // Resolve the lanes first so the flown eye is readable, then face
-    // the stream's billboards at it — the same per-frame re-describe a
-    // live loop would run (render()'s own resolve then finds every
-    // lane parked).
+    // Resolve the lanes first so the flown eye can be read back, then
+    // face the stream's billboards at it — the same per-frame
+    // re-describe a live loop would run. render()'s own resolve then
+    // finds every lane already parked and writes nothing.
     world::resolveAnimation(*w);
     faceStream(registry.get<world::CameraComponent>(cam).camera.eye);
     if (w->render() && w->savePng(outDir / "world_camera_flight.png")) {

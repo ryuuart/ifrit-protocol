@@ -1,8 +1,10 @@
 # Source tree layout:
 #
-#   common/      libraries shared across products: the generic Skia Graphite
-#                GPU plumbing (skia/), the reusable Ifrit.Ui Qt Quick
-#                controls (ui/), and image import for the canvases (image/)
+#   common/      libraries shared across products: skia/ (Graphite GPU
+#                plumbing), ui/ (Ifrit.Ui Qt Quick controls), image/
+#                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
+#                motion/ (SigilMotion), shape/ (SigilShape), world/
+#                (SigilWorld), compose/ (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by

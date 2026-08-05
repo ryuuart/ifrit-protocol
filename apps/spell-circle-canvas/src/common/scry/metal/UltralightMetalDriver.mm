@@ -86,8 +86,17 @@ struct UltralightMetalDriver::State {
   std::vector<ultralight::Command> commands;
   std::unordered_set<uint32_t> pendingClear;
 
-  // The driver's own Graphite context on the shared device/queue, used by
-  // paintTexture() so WebImage::paint() needs no caller-side plumbing.
+  // A Graphite context of the driver's own, built on the same MTLDevice and
+  // MTLCommandQueue the driver draws with, so paintTexture() can hand a
+  // caller an SkCanvas without any context being plumbed in from outside.
+  // Sharing the queue is what orders this Skia work against the driver's own
+  // render passes.
+  //
+  // The recorder is made with default options and therefore has no image
+  // provider. Graphite silently DROPS any draw that samples a raster
+  // (non-Graphite) image when the recorder cannot promote it, so a paint
+  // callback that draws a CPU-decoded SkImage produces nothing and reports
+  // no error. Only Graphite-backed images and drawn geometry land.
   std::unique_ptr<skgpu::graphite::Context> skiaContext;
   std::unique_ptr<skgpu::graphite::Recorder> skiaRecorder;
 
@@ -135,8 +144,10 @@ UltralightMetalDriver::create(void *mtlDevice, void *mtlCommandQueue) {
           desc.colorAttachments[0];
       color.pixelFormat = MTLPixelFormatBGRA8Unorm;
       color.blendingEnabled = blend != 0;
-      // Ultralight's premultiplied-alpha blend equation (matches the
-      // stock AppCore Metal driver).
+      // Ultralight emits premultiplied-alpha colour, and the destination is
+      // itself composited later, so alpha accumulates with its own factors
+      // rather than following the RGB ones. Changing either pair makes pages
+      // with transparency composite wrong against whatever draws them.
       color.rgbBlendOperation = MTLBlendOperationAdd;
       color.alphaBlendOperation = MTLBlendOperationAdd;
       color.sourceRGBBlendFactor = MTLBlendFactorOne;
@@ -173,6 +184,12 @@ UltralightMetalDriver::create(void *mtlDevice, void *mtlCommandQueue) {
 UltralightMetalDriver::UltralightMetalDriver(std::unique_ptr<State> state)
     : m_state(std::move(state)) {}
 
+// Teardown order is a precondition on the owner, not something this class can
+// enforce: a destroyed page defers its GPU resource teardown to the renderer's
+// next frame, so DestroyTexture/DestroyRenderBuffer/DestroyGeometry calls for
+// pages that are already gone still have to land on a live driver. The driver
+// must outlive the Ultralight renderer that was given it, and the last frame
+// pumped through that renderer must be flushed before this runs.
 UltralightMetalDriver::~UltralightMetalDriver() = default;
 
 uint32_t UltralightMetalDriver::NextTextureId() {
@@ -473,12 +490,17 @@ bool UltralightMetalDriver::paintTexture(
   const skgpu::graphite::InsertStatus status =
       m_state->skiaContext->insertRecording(info);
   if (!status) {
-    // Once per process: a failed insert means this WebImage frame never
-    // rendered. This recorder comes from the bare makeRecorder() on the
-    // driver's own Context and never opts into ordered recordings (audit
-    // site 13), so the guard here is for kAddCommandsFailed-class internal
-    // failures, not chain breaks
-    // (src/sigilweave/docs/graphite_ordering_audit.md).
+    // The status is checked, never assumed. A snapped Recording that is not
+    // inserted consumes an ID out of the recorder's sequence, and a recorder
+    // configured for ordered replay is dead from that point on: every later
+    // insert fails and nothing it records is ever drawn again. This recorder
+    // is created with default options and so imposes no ordering, which
+    // confines a failure to the one frame being painted — but the failure is
+    // otherwise invisible (the painted image simply never updates), so it is
+    // reported rather than swallowed.
+    //
+    // Warned once per process: the cause is a property of the context, so
+    // repeating it every frame would only flood the log.
     static bool warned = false;
     if (!warned) {
       warned = true;

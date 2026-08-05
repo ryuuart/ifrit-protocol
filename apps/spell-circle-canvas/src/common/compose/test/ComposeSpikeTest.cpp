@@ -1,9 +1,10 @@
-// Feasibility spike for the SigilCompose design (see ../DESIGN.md):
-// proves that Yoga's measure and baseline callbacks can be driven by
-// SigilWeave, which is the load-bearing assumption of the whole proposal.
+// Pins the Yoga/SigilWeave seam that SigilCompose's text leaves are built
+// on: a Yoga node whose size comes from a measure callback running real
+// paragraph layout, and whose baseline comes from that layout's first line.
 //
-// No poster API exists yet — this talks to Yoga and SigilWeave directly,
-// the way the future layout pass would.
+// Deliberately talks to Yoga and SigilWeave directly, with no Composer in
+// the picture. If a text leaf mis-sizes, these tests say whether the seam
+// itself broke or only compose's use of it did.
 
 #include <sigilweave/Flow.h>
 #include <sigilweave/FontContext.h>
@@ -35,8 +36,9 @@ TextStyle styleAt(float fontSize) {
   return style;
 }
 
-/** The future Text leaf: a paragraph plus the layout produced by the
- *  last measurement, which painting would reuse. */
+/** Stands in for a text leaf: a paragraph plus the layout produced by the
+ *  most recent measurement, which a painter would reuse rather than
+ *  laying out again. */
 struct TextLeaf {
   explicit TextLeaf(std::u8string_view utf8, float fontSize) {
     paragraph.appendText(utf8, styleAt(fontSize));
@@ -93,8 +95,9 @@ YGNodeRef makeTextNode(TextLeaf &leaf) {
 
 } // namespace
 
-// A leaf sized by its own measured text: the poster's "box grows to fit
-// the type" behavior.
+// A leaf sized by its own measured text — the "box grows to fit the type"
+// behaviour, which only happens if the measure callback's return value
+// survives flexbox sizing.
 TEST(PosterSpike, TextLeafSizesToMeasurement) {
   TextLeaf leaf(u8"IFRIT PROTOCOL", 48.0f);
 
@@ -104,8 +107,8 @@ TEST(PosterSpike, TextLeafSizesToMeasurement) {
   YGNodeStyleSetHeight(root, 400);
   YGNodeStyleSetPadding(root, YGEdgeAll, 40);
   // Flexbox's align-items default is stretch, which would override the
-  // measured height on the cross axis — the poster API should default
-  // text leaves away from that (design note).
+  // measured height on the cross axis and make the height assertions below
+  // meaningless. Flex-start is what leaves the measurement visible.
   YGNodeStyleSetAlignItems(root, YGAlignFlexStart);
 
   YGNodeRef text = makeTextNode(leaf);
@@ -115,8 +118,9 @@ TEST(PosterSpike, TextLeafSizesToMeasurement) {
 
   EXPECT_EQ(YGNodeLayoutGetLeft(text), 40.0f);
   EXPECT_EQ(YGNodeLayoutGetTop(text), 40.0f);
-  // One unwrapped line at 48px: a plausible headline extent, and the
-  // node adopted the measured size rather than stretching to the row.
+  // Loose bounds on purpose: the exact extent depends on which system font
+  // resolves, so these only assert that one unwrapped line at 48px landed
+  // in a plausible range rather than stretching to the 1080-wide row.
   EXPECT_GT(YGNodeLayoutGetWidth(text), 200.0f);
   EXPECT_LT(YGNodeLayoutGetWidth(text), 1000.0f);
   EXPECT_GT(YGNodeLayoutGetHeight(text), 30.0f);
@@ -154,8 +158,9 @@ TEST(PosterSpike, ConstrainedWidthWrapsText) {
   YGNodeFreeRecursive(narrowRoot);
 }
 
-// Baseline alignment across mixed type sizes — the typographic feature
-// that justifies Yoga's baseline callback in the design.
+// Baseline alignment across mixed type sizes. This is the one thing the
+// baseline callback exists for: without it Yoga would align the two nodes
+// on their boxes, and type at different sizes would sit off the same line.
 TEST(PosterSpike, MixedSizesAlignOnBaseline) {
   TextLeaf big(u8"Poster", 64.0f);
   TextLeaf small(u8"vol. 4", 16.0f);

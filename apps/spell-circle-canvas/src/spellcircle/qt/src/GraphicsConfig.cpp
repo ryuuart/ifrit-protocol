@@ -1,9 +1,12 @@
 #include "GraphicsConfig.h"
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFontDatabase>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 #include <spdlog/spdlog.h>
 
 void BoxStyleConfig::setWidth(qreal width) {
@@ -116,21 +119,36 @@ void GraphicsConfig::bumpGeneration() {
 }
 
 QString GraphicsConfig::configFilePath() {
+  return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
+         "/graphics_config.json";
+}
+
+QString GraphicsConfig::legacyConfigFilePath() {
   return QCoreApplication::applicationDirPath() + "/graphics_config.json";
 }
 
 bool GraphicsConfig::load() {
-  QFile file(configFilePath());
+  QString path = configFilePath();
+  if (!QFile::exists(path)) {
+    // A config that lives beside the executable keeps loading until the
+    // first save() writes the per-user location, which wins from then on —
+    // settings stored next to the binary migrate on the next save.
+    const QString legacyPath = legacyConfigFilePath();
+    if (QFile::exists(legacyPath))
+      path = legacyPath;
+  }
+
+  QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
     spdlog::info("GraphicsConfig: no config file at {}, using defaults",
-                 configFilePath().toStdString());
+                 path.toStdString());
     return false;
   }
 
   const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
   if (!document.isObject()) {
     spdlog::warn("GraphicsConfig: malformed config file at {}",
-                 configFilePath().toStdString());
+                 path.toStdString());
     return false;
   }
 
@@ -207,10 +225,14 @@ bool GraphicsConfig::save() const {
   rootObject["canvas"] = canvasObject;
   rootObject["font"] = fontObject;
 
-  QFile file(configFilePath());
+  const QString path = configFilePath();
+  // The per-user config directory is not guaranteed to exist until someone
+  // creates it; the first save is that someone.
+  QDir().mkpath(QFileInfo(path).absolutePath());
+  QFile file(path);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
     spdlog::error("GraphicsConfig: failed to write config file at {}",
-                  configFilePath().toStdString());
+                  path.toStdString());
     return false;
   }
   file.write(QJsonDocument(rootObject).toJson(QJsonDocument::Indented));

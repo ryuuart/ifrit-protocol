@@ -24,12 +24,13 @@
  *    `.uniform(name, &output)` actually drive pixels — see the note on
  *    uniform() below.
  *
- * The material vocabulary mirrors MaterialX's solid/mix/ramp/image/blend
- * atoms so a MaterialX document importer is a clean later addition;
- * no MaterialX dependency is pulled — we own the SkSL/SkShader backend. The
- * OCIO working-space / view transform is a Composer output stage
- * (`Composer::setView` + `ocio::display` — <sigilcompose/Ocio.h>),
- * orthogonal to Material the way SigilLoader is to SigilImage.
+ * The vocabulary mirrors the solid/mix/ramp/image/blend atoms a material
+ * graph format would use, but nothing of the sort is linked: the backend
+ * here is SkSL and SkShader and nothing else.
+ *
+ * Colour management is not part of a Material. A view transform belongs to
+ * the Composer's output stage (`Composer::setView`, with the factories in
+ * <sigilcompose/Ocio.h>) and applies to the whole composite.
  */
 
 #include "sigilcompose/Compose.h"
@@ -66,14 +67,16 @@ struct Stop {
   bool operator==(const Stop &) const = default;
 };
 
-/** The user-owned raster behind `Material::buffer()` (§4) — the Pool
- *  contract for pixels: draw into `bitmap()` (or through `canvas()`),
- *  then `commit()` to publish. The material's recipe carries
- *  (source, revision), so nothing repaints between commits and one
- *  commit patches exactly once on its next describe. `image()` snapshots
- *  lazily, cached per revision — a describe that prunes never copies a
- *  pixel. Not thread-safe by design (the Pool rule: one owner, one
- *  writer). */
+/** The caller-owned raster behind `Material::buffer()`: draw into
+ *  `bitmap()`, or through `canvas()`, then `commit()` to publish.
+ *
+ *  The material's recipe carries (source, revision), so an identical
+ *  re-describe between commits prunes and nothing repaints, and the first
+ *  describe after a commit patches exactly once. `image()` snapshots
+ *  lazily and caches per revision, so a describe that prunes copies no
+ *  pixels at all.
+ *
+ *  Not thread-safe, deliberately: one owner, one writer. */
 class PixelBuffer {
 public:
   PixelBuffer(int width, int height);
@@ -105,25 +108,26 @@ class Material;
 namespace detail {
 /** The unit-square ramp both linearUnit() and radialUnit() compile to: one
  *  SkSL pass that divides by uResolution, so the gradient's coordinates are
- *  fractions of the node's laid-out box rather than pixels. ANY number of
- *  stops: the count is baked into the source and one effect is cached per
- *  count (the rule Patterns.h uses for grain's octaves), chained mixes,
- *  each only taking effect past its own start. */
+ *  fractions of the node's laid-out box rather than pixels. Any number of
+ *  stops — the count is baked into the generated source as a chain of
+ *  mixes, each taking effect past its own start, and one effect is cached
+ *  per stop count. */
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
                          bool radial);
 
-/** THE CHILD-SLOT CONVERSION, in ONE place because its callers have to
- *  agree: sksl()'s children (§10f), blend()'s layers, and Effect's
- *  children (§19) all need "this Material as the SkShader a builder slot
- *  takes". @p ctx non-null is the per-frame `resolve()` form, null the
- *  context-free `asShader()` snapshot — the tier split every child site
- *  makes — and a solid collapses to a colour shader either way. */
+/** THE CHILD-SLOT CONVERSION, in one place because its callers must agree:
+ *  sksl()'s children, blend()'s layers and Effect's children all need this
+ *  Material as the SkShader a builder slot takes. @p ctx non-null is the
+ *  per-frame `resolve()` form and null the context-free `asShader()`
+ *  snapshot — the same split every child site makes — and a solid collapses
+ *  to a colour shader either way. */
 sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx);
 
 /** Does @p effect declare @p name as a `uniform shader`? Assigning a child
- *  an effect does not declare SkDEBUGFAILs, so both child() doors —
- *  Material's and Effect's — validate at STORE time and warn-and-ignore
- *  (one sketch typo must not kill the hot-reload host). */
+ *  an effect does not declare aborts in a debug build, so both child()
+ *  doors — Material's and Effect's — validate at STORE time and then warn
+ *  and ignore: one typo in a live-reloaded sketch must not take the host
+ *  process down. */
 bool declaresShaderChild(const sk_sp<SkRuntimeEffect> &effect,
                          std::string_view name);
 } // namespace detail
@@ -141,14 +145,15 @@ public:
                          SkTileMode tile = SkTileMode::kClamp);
   static Material radial(SkPoint center, float radius, std::vector<Stop> stops,
                          SkTileMode tile = SkTileMode::kClamp);
-  /** OFFSET-FOCUS radial — `SkShaders::TwoPointConicalGradient`, the
-   *  natural sphere-shading primitive (§10c). The ramp runs from the
-   *  circle (@p focus, @p focusRadius) to the circle (@p center,
-   *  @p radius); a highlight displaced off the sphere's centre is
-   *  `conical(hot, 0, centre, R, …)`. Displacing a plain radial()'s
-   *  centre instead couples the falloff to the offset — the whole ramp
-   *  slides — where this keeps the outer circle put and only the focus
-   *  moves. Both radii in node-local px, like radial(). */
+  /** OFFSET-FOCUS radial: the ramp runs from the circle
+   *  (@p focus, @p focusRadius) to the circle (@p center, @p radius), so a
+   *  highlight displaced off a sphere's centre is
+   *  `conical(hot, 0, centre, R, …)`.
+   *
+   *  This is what a plain radial() cannot do. Moving a radial's centre
+   *  couples the falloff to the displacement — the entire ramp slides,
+   *  including its outer edge — where here the outer circle stays put and
+   *  only the hot spot moves. Both radii are node-local px. */
   static Material conical(SkPoint focus, float focusRadius, SkPoint center,
                           float radius, std::vector<Stop> stops,
                           SkTileMode tile = SkTileMode::kClamp);
@@ -168,14 +173,15 @@ public:
                         SkTileMode ty = SkTileMode::kClamp,
                         const SkMatrix &local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
-  /** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING (§4): a user-owned
-   *  raster the material samples — a simulation, a decoded video frame,
-   *  a paint surface, a scrollback. The seam Instances.h invented,
-   *  verbatim: you own the PixelBuffer, draw into it, `commit()`; the
-   *  material's recipe compares by (source, revision), so an identical
-   *  re-describe PRUNES between commits and the commit's next describe
-   *  patches exactly once. No `custom()` + `Cache::None`, no forfeited
-   *  picture caching, decorations intact. */
+  /** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING: a caller-owned raster the
+   *  material samples — a simulation, a decoded video frame, a paint
+   *  surface, a scrollback. Own the PixelBuffer, draw into it, `commit()`.
+   *
+   *  The recipe compares by (source, revision), so an identical
+   *  re-describe between commits PRUNES and the first describe after a
+   *  commit patches exactly once. That is the whole point: the node keeps
+   *  its picture caching and its decorations, where the alternative — a
+   *  `custom()` leaf at Cache::None — gives up both. */
   static Material buffer(std::shared_ptr<class PixelBuffer> source,
                          SkTileMode tx = SkTileMode::kClamp,
                          SkTileMode ty = SkTileMode::kClamp,
@@ -213,16 +219,15 @@ public:
    *  (0,0) is the box's top-left, (1,1) its bottom-right, whatever the box
    *  turns out to be.
    *
-   *  linear() takes PIXELS in node-local space, which is fine for a box
-   *  whose size you wrote down and impossible for one whose size the layout
-   *  decides — a tooltip card as tall as its copy, a stat panel, a button
-   *  that grows with its label. The alternative was guessing a number, and
-   *  every gallery scene that guessed one guessed wrong. textFill() already
-   *  solved exactly this for glyphs by mapping the material's unit square
-   *  onto the text metrics; this is the same trick for a box fill.
+   *  linear() takes PIXELS in node-local space, which is workable for a box
+   *  whose size you wrote down and impossible for one the layout decides —
+   *  a card as tall as its copy, a button that grows with its label. There
+   *  is no number to guess here. (`textFill()` maps a material's unit
+   *  square onto the text metrics for the same reason.)
    *
-   *  Rides the GEOMETRY tier (uResolution): resolved when the node records,
-   *  cached between layouts — no per-frame cost. Any number of stops. */
+   *  Rides the GEOMETRY tier through uResolution: resolved when the node
+   *  records and cached between layouts, so it costs nothing per frame.
+   *  Any number of stops. */
   static Material linearUnit(SkPoint from01, SkPoint to01,
                              std::vector<Stop> stops) {
     return detail::unitRamp(from01, to01, std::move(stops), false);
@@ -231,11 +236,12 @@ public:
    *  box's HALF-DIAGONAL, so a ramp centred at {0.5, 0.5} with radius 1
    *  reaches the CORNERS of any box.
    *
-   *  Which is a trap for the commonest use, and caught two studies: a
-   *  soft round light authored at radius 1 is still at ~10% alpha where
-   *  the inscribed circle is, so if the node also carries
-   *  `.shape(shapes::circle())` the glow gets a visible hard rim. The
-   *  magic number is 0.707. And the trap cuts the other way too: a ramp
+   *  Which is a trap for the commonest use. A soft round light authored at
+   *  radius 1 still has alpha left where the INSCRIBED circle is, so if the
+   *  node also carries `.shape(shapes::circle())` the shape cuts the ramp
+   *  off mid-falloff and the glow gets a visible hard rim. The number that
+   *  reaches the inscribed circle instead is 0.707. The trap cuts the other
+   *  way too: a ramp
    *  authored past 1 (a planet terminator at radius 1.28) puts its far
    *  end entirely OUTSIDE the inscribed disc, so on a circle-shaped node
    *  the shading silently disappears — nothing is drawn wrong, the
@@ -295,15 +301,15 @@ public:
   Material &uniform(std::string name, SkColor4f value);
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
-  /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material (§10f). The
-   *  effect declares `uniform shader NAME;` and this fills it with another
-   *  Material, so one shader can read two images and combine them by a rule
-   *  only SkSL can state: an index texture sampled through a palette LUT
-   *  (X-COM's `(src & 0xF0) | min(15, (src & 0x0F) + shade)` is index
-   *  arithmetic and expressible no other way), a mask channel, a noise
-   *  field, a second gradient. `Effect::filter` has always had ONE child
-   *  (`content`, the already-painted layer); this is the door for the
-   *  sources the node has NOT painted.
+  /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material. The effect
+   *  declares `uniform shader NAME;` and this fills it with another
+   *  Material, so one shader can read two sources and combine them by a
+   *  rule only SkSL can state: an index texture sampled through a palette
+   *  lookup (index arithmetic on the sampled value, which no blend mode can
+   *  express), a mask channel, a noise field, a second gradient.
+   *  `Effect::filter` has exactly one child, `content`, which is the
+   *  already-painted layer; this is the door for sources the node has NOT
+   *  painted.
    *
    *  Any Material is a legal child, including another sksl() one — children
    *  nest, and the whole tree still compiles to ONE shader (no saveLayer).
@@ -317,55 +323,57 @@ public:
    *  parent live; a geometry-dependent child (uResolution) propagates the
    *  geometry tier. The children also ride the prune signature, so two
    *  materials with DIFFERENT children never compare equal and two with
-   *  identical ones prune — a child that did not participate in equality
-   *  would leave a pruned node sampling last frame's texture forever
-   *  (DESIGN.md: anything read live must participate in reconciler
-   *  equality).
+   *  identical ones prune. That is required, not incidental: a child left
+   *  out of equality would let a node prune while its second source had
+   *  changed, and it would sample the old texture indefinitely.
    *
    *  Guardrails match uniform()'s: a name the effect does not declare as a
-   *  shader child is warned and IGNORED (assigning a missing child
-   *  SkDEBUGFAILs, which would kill the hot-reload host over one typo), and
+   *  shader child is warned and IGNORED — assigning a missing child aborts
+   *  in a debug build, which would take a live-reload host down over one
+   *  typo — and
    *  on a non-sksl() material there is nothing to fill — no-op with a
    *  warning. Copy-on-write like every other recipe mutation. */
   Material &child(std::string name, Material source);
 
-  /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%"
-   *  (ROADMAP §5: the only route used to be forking the generator's SkSL
-   *  to bake `0.5 + (v-0.5)*amp` into it). Photoshop layer-opacity
-   *  semantics: the layer composites with its blend mode in full, then
-   *  the result mixes back toward the accumulation by `a01` — which is
-   *  NOT the same as thinning the layer's alpha first, and is the number
-   *  a reference's layer panel states. Clamped to [0, 1]; 1 (the
-   *  default) is free. Read ONLY by blend(); a material used directly as
-   *  a fill ignores it (there is no accumulation to mix back toward).
-   *  Participates in equality like every recipe field. */
+  /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%".
+   *
+   *  Layer-opacity semantics, as an image editor's layer panel means them:
+   *  the layer composites with its blend mode IN FULL, and the result then
+   *  mixes back toward the accumulation by `a01`. That is not the same
+   *  picture as thinning the layer's own alpha first, which changes what
+   *  the blend mode sees. Clamped to [0, 1]; the default 1 is free.
+   *
+   *  Read ONLY by blend(). A material used directly as a fill ignores it,
+   *  because there is no accumulation to mix back toward. Participates in
+   *  equality like every recipe field. */
   Material &amount(float a01);
 
-  /** RECORDING-CULL RESERVE (§14): how far this material's node paints
-   *  beyond its own box, in px. A DecorationScheme can declare `bleed()`
-   *  so the recording cull grows; a Material could not, so a fill on an
-   *  outline that escapes the box (a `shape()` silhouette larger than
-   *  the layout rect — overflow is legal) truncated at the cached
-   *  picture/texture bounds, and the arithmetic fell to the caller.
-   *  Declares the same number on the same word. Read by the recording
-   *  cull only — it moves no pixels itself; the default 0 changes
-   *  nothing. Participates in equality like every recipe field (a
-   *  changed reserve must re-record). */
+  /** RECORDING-CULL RESERVE: how far this material's node paints beyond
+   *  its own box, in px, declared with the same word a decoration uses.
+   *
+   *  Needed when a node's outline escapes its layout rect — a `shape()`
+   *  silhouette larger than the box, which is legal — because the cached
+   *  picture or texture is culled to the box plus whatever reserve was
+   *  declared, and paint outside that is simply cut off. Read by the
+   *  recording cull only: it moves no pixels itself, and the default 0
+   *  changes nothing. Participates in equality, since a changed reserve
+   *  has to force a re-record. */
   Material &bleed(float px);
   /** The declared reserve (0 unless bleed() was set). */
   float bleed() const { return m_bleed; }
 
-  /** WORLD SPACE (ROADMAP §19 / §10c): this material's coordinates are the
-   *  COMPOSER ROOT's frame — canvas px — instead of the node's. A field
-   *  that must be continuous ACROSS separately-laid-out nodes (one light
-   *  over a whole instrument, a plaza's weathering over its tiles) is
-   *  authored ONCE against the canvas and every flagged node samples the
-   *  same field where it actually sits, through its layout offset and its
-   *  transforms. A rotated node samples the field through its rotation, so
-   *  the highlight stays put while the object turns — the chaucer_astrolabe
-   *  case (its brass ramp was hand-converted per node, and turned WITH the
-   *  rete). uResolution becomes the ROOT canvas size when flagged, so
-   *  linearUnit()/glowUnit() read as fractions of the canvas.
+  /** WORLD SPACE: this material's coordinates are the COMPOSER ROOT's
+   *  frame — canvas px — instead of the node's.
+   *
+   *  It is for a field that must be continuous ACROSS separately-laid-out
+   *  nodes: one light over a whole instrument, weathering across a floor's
+   *  tiles. Author the field once against the canvas and every flagged node
+   *  samples it where it actually sits, through its layout offset and its
+   *  transforms. A ROTATED node samples through its rotation, so the
+   *  highlight stays put while the object turns — which is the behaviour a
+   *  per-node hand conversion cannot reproduce, since that turns with the
+   *  node. uResolution becomes the ROOT canvas size when flagged, so
+   *  linearUnit() and glowUnit() read as fractions of the canvas.
    *
    *  Per-material-LAYER, deliberately not inherited: flagging a blend()
    *  does not flag its layers, flagging an sksl() parent does not flag its
@@ -375,20 +383,20 @@ public:
    *  — that is Skia's local-matrix composition, not flag inheritance.)
    *
    *  Mechanism: at resolve the built shader is wrapped
-   *  `makeWithLocalMatrix(W⁻¹)` where W is the node→root matrix the paint
+   *  `makeWithLocalMatrix(W⁻¹)`, where W is the node→root matrix the paint
    *  walk accumulated (`PaintContext::toRoot`) — the same matrix the hit
    *  test inverts, so a node draws its field exactly where it can be hit.
-   *  ONE seam inside resolve()/build(), so every consumer inherits it:
-   *  fill(), coverage gates, Effect::child() materials, blend() layers.
+   *  There is one such seam, inside resolve()/build(), so every consumer
+   *  inherits it: fill(), coverage gates, Effect::child() materials and
+   *  blend() layers.
    *
-   *  Rides the GEOMETRY tier (like uResolution): W is layout-derived, so
-   *  the material resolves when the node records and the library re-records
-   *  it when the node — or any ancestor — moves (syncLayoutRects), when an
-   *  ancestor's described transform changes (reconcile), and per-frame
-   *  while a BOUND transform above it is connected (volatility lift, with
-   *  §20's measured-stability release once it holds still). The flag is
-   *  recipe (participates in operator==); W itself is the system's and
-   *  never compares.
+   *  Rides the GEOMETRY tier, like uResolution: W is layout-derived, so the
+   *  material resolves when the node records, and the library re-records it
+   *  when the node or any ancestor moves, when an ancestor's described
+   *  transform changes, and every frame while a BOUND transform above it is
+   *  connected — releasing that once the transform provably holds still.
+   *  The flag is recipe and participates in operator==; W itself belongs to
+   *  the system and never compares.
    *
    *  Resolved OUTSIDE a composer (asShader(), a standalone decoration,
    *  measure()): toRoot is identity, and the material deterministically
@@ -405,51 +413,51 @@ public:
    *  instance for W-invalidation; authors want worldSpace() above. */
   bool usesWorldSpace() const;
 
-  /** THE BOUND-MATRIX CHANNEL (ROADMAP §14-a): pan an image-backed
-   *  material LIVE, in the node's own px, without re-describing. This is
-   *  `Pattern::offset(SkPoint)`'s bound sibling — the same word, the
-   *  bound form — and the third sibling of §19's W lane and §38's Fill
-   *  lane: the resolved pair joins `ContentScalars`, the node lifts to
-   *  CONTENT volatility while the pan moves, §20's measured-stability
-   *  release frees the flag once it provably holds still (so ancestors
-   *  cache and the node promotes), and the per-draw released scan
-   *  re-declares THE FRAME an externally-driven pan resumes.
+  /** THE BOUND PAN: move an image-backed material LIVE, in the node's own
+   *  px, with no re-describe — `Pattern::offset(SkPoint)` in its bound
+   *  form.
    *
-   *  Meaningful on image()/buffer() materials only — the kinds whose
-   *  recipe carries a local matrix for the pan to translate (Pattern's
-   *  backend); warned and IGNORED on any other kind, matching uniform()'s
-   *  guardrails. Composes with the recipe's static matrix the way
-   *  Pattern::offset(SkPoint) does: the bound values post-translate it,
-   *  so a static phase origin and a bound pan add. Either pointer may be
-   *  null (pan one axis). The BINDING is recipe — it participates in
-   *  operator== by pointer identity, like a bound fill — while the
-   *  values it resolves to are the system's and ride the scalar memo,
-   *  never the prune. */
+   *  The resolved pair is treated as content scalars, so the node lifts to
+   *  content volatility while the pan is moving and is released once the
+   *  values provably hold still, letting ancestors cache again; the
+   *  per-draw scan re-declares it on the frame an externally-driven pan
+   *  resumes.
+   *
+   *  Meaningful on image() and buffer() materials only — the kinds whose
+   *  recipe carries a local matrix for the pan to translate. On any other
+   *  kind it is warned and IGNORED, matching uniform()'s guardrails.
+   *  Composes with the recipe's static matrix rather than replacing it: the
+   *  bound values post-translate, so a static phase origin and a bound pan
+   *  add. Either pointer may be null to pan one axis only.
+   *
+   *  The BINDING is recipe and participates in operator== by pointer
+   *  identity, like a bound fill; the values it resolves to belong to the
+   *  system and never enter the prune comparison. */
   Material &offset(const choreograph::Output<float> *x,
                    const choreograph::Output<float> *y);
   /** Does THIS material carry a bound offset (the layer-local answer)? */
   bool hasBoundOffset() const { return m_boundOffset[0] || m_boundOffset[1]; }
-  /** The pan as of NOW — one pointer dereference per axis (0 for a null
-   *  axis). The walk-release, the per-draw scan and the paint probe all
-   *  read the pan through Instance::resolvePatternOffset(), which calls
-   *  this — one body, so the three compares cannot drift (§38's
-   *  discipline). */
+  /** The pan as of NOW — one pointer dereference per axis, 0 for a null
+   *  one. Every consumer reads the pan through this one body, so the
+   *  volatility release, the per-draw scan and the paint itself cannot
+   *  disagree about what the current value is. */
   SkPoint boundOffsetValue() const;
-  /** Everything isAnimated() says EXCEPT this material's own bound
-   *  offset: live uniform binds, uTime/uContentScale, and any animated
-   *  child()/blend() layer — including a NESTED bound offset, which the
-   *  node-level scalar lane cannot resolve and therefore must treat as
-   *  opaque. `computeVolatile` subtracts this from isAnimated() to route
-   *  a pan-only material onto the §17/§20 scalar lane instead of the
+  /** Everything isAnimated() reports EXCEPT this material's own bound
+   *  offset: live uniform bindings, uTime/uContentScale, and any animated
+   *  child() or blend() layer — including a NESTED bound offset, which the
+   *  node-level scalar lane cannot reach and must therefore treat as
+   *  opaque. Subtracting this from isAnimated() is what routes a pan-only
+   *  material onto the comparable-scalar path instead of the coarser
    *  live-material memo. */
   bool animatedBeyondBoundOffset() const;
 
-  /** Step the auto-injected uTime at `hz` (floor(t·hz)/hz) — declared
-   *  choppiness as a MATERIAL property, not per-consumer ticker plumbing.
-   *  The P3R sea rule: its caustics run at 6 Hz ("we imagine the
-   *  interpolation ourselves"); stop-motion/flipbook surfaces generally.
-   *  Meaningful only on an sksl() material whose effect declares uTime
-   *  (warn-and-ignore otherwise); 0 restores continuous time. */
+  /** Step the auto-injected uTime at `hz`, as floor(t·hz)/hz — deliberate
+   *  choppiness declared as a property of the MATERIAL rather than plumbed
+   *  through whatever drives the clock. Stop-motion and flipbook surfaces
+   *  read as intentional at a low rate where a smoothly interpolated one
+   *  reads as sliding. Meaningful only on an sksl() material whose effect
+   *  declares uTime; warned and ignored otherwise, and 0 restores
+   *  continuous time. */
   Material &quantizeTime(float hz);
 
   // ---- resolution ----------------------------------------------------------
@@ -457,12 +465,8 @@ public:
    *  spells (see the AnimatedDecoration concept). True once any ch::Output
    *  uniform is bound OR the effect reads uTime or uContentScale (both
    *  change independently of the node): the material re-resolves per frame
-   *  and its node stays volatile. A blend() inherits liveness from its
-   *  layers.
-   *
-   *  Was `isLive()` until R3 (ROADMAP §33 rulings 2 and 13). That word
-   *  said "live DATA" about a thing that is animated GRAPHICS, and it was
-   *  the fifth spelling of one idea; one word now, and it is this one. */
+   *  and its node stays volatile. A blend() inherits this from its
+   *  layers. */
   bool isAnimated() const;
   /** True when the effect declares uResolution (the node's layout size):
    *  the material needs PaintContext at resolve, but is stable between
@@ -488,36 +492,45 @@ public:
    *  static one, exactly toFill(). What the painter calls for a live fill. */
   Fill resolve(const PaintContext &ctx) const;
 
-  /** STRUCTURAL value equality — the prune signature (§8.1 fix #1). Two
-   *  materials compare equal when they were built from the same recipe:
-   *  solids by color; gradients by geometry + stops + tile; images by
-   *  (image pointer, tiles, matrix, sampling); static sksl by (effect
-   *  pointer, constant values, CHILD materials); blend stacks recursively by
-   *  (layer recipes, modes). Rebuilding the same describe code therefore
-   *  yields EQUAL
-   *  materials even though each build minted a fresh SkShader — which is
-   *  what lets a material-filled node prune across re-renders. Raw
-   *  shader() wraps compare by pointer; live (Output-bound) materials
-   *  compare by recipe identity only (they never prune anyway). */
+  /** STRUCTURAL value equality — the prune signature. Two materials
+   *  compare equal when they were built from the same recipe: solids by
+   *  colour; gradients by geometry, stops and tile mode; images by (image
+   *  pointer, tile modes, matrix, sampling); static sksl by (effect
+   *  pointer, constant values, CHILD materials); blend stacks recursively
+   *  by (layer recipes, modes). So re-running the same describe code
+   *  yields EQUAL materials even though each run minted a fresh SkShader,
+   *  which is what lets a material-filled node prune across renders. Raw
+   *  shader() wrappers compare by pointer, and Output-bound materials
+   *  compare by recipe identity only — they are volatile and never prune
+   *  regardless.
+   *
+   *  **An sksl() material compares by EFFECT POINTER, so a helper that
+   *  compiles a fresh `SkRuntimeEffect` on every call never compares equal
+   *  to itself.** Its node re-patches on every describe, and every memo
+   *  above it misses. Compile the effect once — a function-local static,
+   *  or a cache keyed on whatever varies — and hold the resulting Material
+   *  rather than re-minting it. */
   bool operator==(const Material &o) const;
 
 private:
   struct Live;   // sksl recipe (effect + constants + Output bindings)
   struct Recipe; // comparable build recipe (gradients/image/blend)
-  /** @p worldSpace routes §19's anchoring through the ONE build: the
-   *  varying-input digest gains W's six floats (a digest cannot see an
-   *  input it was never fed — §10f's blind-spot rule), uResolution becomes
-   *  the root canvas size, and the built shader is wrapped W⁻¹ BEFORE the
-   *  memo stores it, so a held field keeps a stable shader pointer. */
+  /** @p worldSpace routes root anchoring through this ONE build. Three
+   *  things follow from it: the digest of varying inputs gains W's six
+   *  floats, because a digest cannot detect a change in an input it was
+   *  never fed; uResolution becomes the root canvas size; and the built
+   *  shader is wrapped in W⁻¹ BEFORE the memo stores it, so a field that
+   *  is holding still keeps a stable shader pointer. */
   static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx,
                                bool worldSpace = false);
   /** Fold a Blend recipe's layers into one shader — `ctx` null is the
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */
   sk_sp<SkShader> foldBlend(const PaintContext *ctx) const;
-  /** §14-a: the image shader rebuilt with the bound pan's CURRENT values
-   *  post-translated onto the recipe matrix — resolve()'s and asShader()'s
-   *  one construction for a bound-offset material. */
+  /** The image shader rebuilt with the bound pan's CURRENT values
+   *  post-translated onto the recipe matrix — one construction shared by
+   *  resolve() and asShader(), so a bound-offset material cannot look
+   *  different depending on which asked. */
   sk_sp<SkShader> pannedImageShader() const;
   void detachLive(); // copy-on-write before any recipe mutation
 
@@ -525,7 +538,7 @@ private:
   bool m_worldSpace = false; // root-frame anchoring (see worldSpace())
   float m_amount = 1.0f;     // blend-layer strength (see amount())
   float m_bleed = 0.0f;      // recording-cull reserve (see bleed())
-  // §14-a: the bound pan (x, y) — see offset(). Recipe by pointer identity.
+  // The bound pan (x, y) — see offset(). Recipe, by pointer identity.
   std::array<const choreograph::Output<float> *, 2> m_boundOffset{};
   SkColor4f m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
@@ -536,12 +549,13 @@ private:
                                           // solid/none/raw-shader/sksl —
                                           // those compare by their own state)
 
-  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block for the whole
-   *  argument). `operator==` is hand-written SIX HUNDRED LINES AWAY in
-   *  Material.cpp, and a material that compares equal when it isn't lets a
-   *  node prune and keep painting the old shader forever. The state is
-   *  private, so the decomposition lives inside the class; it names every
-   *  member and stops compiling the moment one is added. */
+  /** FIELD PIN. `operator==` is hand-written, in another translation unit,
+   *  and a material that compares equal when it is not lets its node prune
+   *  and keep painting the old shader indefinitely — a failure with no
+   *  symptom at the point of the mistake. This decomposition names every
+   *  member and stops compiling the moment one is added or removed, which
+   *  forces the comparator to be revisited. It lives inside the class
+   *  because the state is private. */
   static void fieldPin(Material &v) {
     auto &[isSolid, worldSpace, amount, bleed, boundOffset, solid, shader,
            live, recipe] = v;
@@ -561,14 +575,10 @@ namespace detail {
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
                          bool radial) {
   // The stop count is BAKED INTO THE SOURCE and one effect is cached per
-  // count — the rule Patterns.h already follows for grain's octaves, and
-  // for the same two reasons: a uniform-guarded loop faults across the
-  // split-Skia boundary, and main() has to stay monolithic.
-  //
-  // It used to be a fixed six with the tail clamped, which two studies
-  // ran out of from opposite directions: a 24-run tartan sett and a
-  // 72-step chromatic sweep, both falling back to hand-written pattern
-  // programs for want of stops.
+  // count. The alternative — one effect with a uniform-guarded loop over a
+  // fixed maximum — is not available: such a loop faults here, and main()
+  // has to stay a single function. Generating per count also means there
+  // is no arbitrary ceiling on stops below the uniform budget.
   if (stops.empty())
     return Material::solid(SkColor4f{0, 0, 0, 0});
   if (stops.size() == 1)

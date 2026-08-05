@@ -142,9 +142,10 @@ Element &Element::centerAt(SkPoint p) {
 // rect()/at() go through the edge setters rather than writing LayoutProps
 // themselves. That is the whole safety argument: they cannot describe a node
 // the longhand could not, they touch no field the longhand does not, and
-// they cannot drift from it when a setter changes. Nine studies wrote this
-// by hand under four names and two of those bodies are the same line twice
-// (black_watch.cpp:544, chevreul_circle.cpp:406).
+// they cannot drift from it when a setter changes. Keep them that way — the
+// setters do more than assign (left/top also raise `absolute` and
+// `hasInsets`), so a shortcut that wrote the fields directly would produce a
+// node the longhand can never produce.
 Element &Element::rect(const SkRect &r) {
   left(Dim(r.fLeft));
   top(Dim(r.fTop));
@@ -358,12 +359,14 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
 }
 
 namespace {
-/** directionalBlur's filter, from EXISTING filters only (§43.7's ruling:
- *  reuse over new SkSL — the separable Gaussian stays Skia's). An
- *  axis-aligned angle IS SkImageFilters::Blur — the exact call the four
- *  hand-consolidated sites wrote, which is what made their ports
- *  bit-identical — and any other angle is the rotate → Blur → unrotate
- *  sandwich, three DAG nodes, bounds handled by the filter graph. */
+/** directionalBlur's filter, built from stock Skia filters rather than a
+ *  hand-written kernel: the separable Gaussian stays Skia's, which is both
+ *  faster than an SkSL rewrite and pixel-identical to a caller who was
+ *  already spelling this out by hand.
+ *
+ *  An axis-aligned angle IS SkImageFilters::Blur with the sigmas swapped.
+ *  Any other angle is a rotate → Blur → unrotate sandwich: three filter
+ *  nodes, with bounds handled by the filter graph rather than by us. */
 sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
                                          float across) {
   float axis = std::fmod(angleDeg, 180.0f); // a blur axis has no sign
@@ -391,7 +394,7 @@ Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
 }
 
 namespace {
-/** THE PYRAMID (§19's cost model), and the whole of blur()'s recipe: a
+/** THE PYRAMID, and the whole of blur()'s recipe: a
  *  small fixed number of CONSTANT-sigma blurs of the layer, blended by the
  *  parameter. Skia's Gaussian is separable and its cost is a function of
  *  sigma; a spatially-varying sigma is NOT separable, so an author-written
@@ -527,10 +530,17 @@ sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
 
 Effect &Effect::uniform(std::string name,
                         const choreograph::Output<float> *value) {
-  if (m_dirBlur && value) {
-    // The recipe's named parameters — anything else is Material's
-    // guardrail: warn and ignore, never a debug abort (one sketch typo
-    // must not kill the hot-reload host).
+  // Every dropped binding says so — Material's guardrail: warn and ignore,
+  // never a debug abort (one sketch typo must not kill the hot-reload
+  // host). A silent drop here loses an animation with no diagnostic.
+  if (!value) {
+    SkDebugf("[compose] Effect::uniform(\"%s\"): null Output — there is "
+             "nothing to read at paint time; ignored\n",
+             name.c_str());
+    return *this;
+  }
+  if (m_dirBlur) {
+    // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
       SkDebugf("[compose] Effect::uniform(\"%s\") on a directionalBlur() — "
                "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
@@ -540,7 +550,7 @@ Effect &Effect::uniform(std::string name,
     m_bound.emplace_back(std::move(name), value);
     return *this;
   }
-  if (m_paramBlur && value) {
+  if (m_paramBlur) {
     if (name != "maxSigma") {
       SkDebugf("[compose] Effect::uniform(\"%s\") on a blur() — its one "
                "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
@@ -551,8 +561,14 @@ Effect &Effect::uniform(std::string name,
     m_bound.emplace_back(std::move(name), value);
     return *this;
   }
-  if (m_effect && value)
+  if (m_effect) {
     m_bound.emplace_back(std::move(name), value);
+    return *this;
+  }
+  SkDebugf("[compose] Effect::uniform(\"%s\"): ignored — this effect has no "
+           "uniform to receive it (only shader(), directionalBlur() and "
+           "blur() do; a filter() wraps an already-built SkImageFilter)\n",
+           name.c_str());
   return *this;
 }
 
@@ -629,10 +645,10 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext *ctx) const {
 bool Effect::isAnimated() const {
   if (!m_bound.empty())
     return true;
-  // TIER INHERITANCE (§10f's rule, its own recursion — Material answers
-  // for its whole subtree): a live child makes the effect live, so the
-  // node is declared volatile and no bake can sample the parameter once
-  // and freeze it.
+  // Tier inheritance: a live child makes the whole effect live, so the node
+  // is declared volatile and no cache can sample the parameter once and
+  // freeze it. Material answers this question for its own subtree, so the
+  // recursion stops at the child.
   for (const auto &[name, child] : m_children)
     if (child && child->isAnimated())
       return true;
@@ -640,8 +656,8 @@ bool Effect::isAnimated() const {
 }
 
 bool Effect::usesWorldSpace() const {
-  // §19: the same tier-inheritance shape as isAnimated() — Material's own
-  // recursion answers for blend layers and nested children.
+  // Same tier-inheritance shape as isAnimated(): Material's own recursion
+  // answers for blend layers and nested children.
   for (const auto &[name, child] : m_children)
     if (child && child->usesWorldSpace())
       return true;
@@ -649,10 +665,10 @@ bool Effect::usesWorldSpace() const {
          (m_chainA->usesWorldSpace() || m_chainB->usesWorldSpace());
 }
 
-/** Children compare by VALUE (Material::operator==, recursive) — the same
- *  rule §10f pinned for material children: anything read live that did not
+/** Children compare by VALUE (Material::operator==, recursive), by the same
+ *  rule material children follow: anything read live that did not
  *  participate in reconciler equality would leave a pruned node sampling
- *  last frame's parameter forever. */
+ *  the parameter its recording was made with. */
 static bool childrenEqual(
     const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
         &a,
@@ -693,10 +709,12 @@ Element &Element::hitTestable(bool enabled) {
   return *this;
 }
 
-/** Register whatever a decoration says it borrows (BorrowingDecoration)
- *  so the derive pass answers it. Every slot that takes a Decoration goes
- *  through here — a borrow that only some slots honoured would be the
- *  sibling-path failure family all over again. */
+/** Register whatever a decoration says it borrows (BorrowingDecoration) so
+ *  the derive pass resolves it. EVERY slot that accepts a Decoration must
+ *  route through here: a borrow honoured on some slots and not others fails
+ *  silently — the decoration draws with nothing borrowed and says why on no
+ *  channel — and the difference between the slots is invisible to the
+ *  author. */
 void Element::claimBorrows(const Decoration &d) {
   if (d.borrows().empty())
     return;
@@ -866,10 +884,11 @@ Element &Element::zIndex(int z) { m_node->paint.zIndex = z; return *this; }
 
 Element &Element::key(std::string_view k) {
   // A slot's NAME is its key — one field, two spellings — so this call
-  // RENAMES the mount and renderSlot() on the original name then no-ops
-  // into a W x 0 layout. §26b bought the diagnosis on the renderSlot side
-  // (it names this trap in its message); this is the same warning on the
-  // side that CAUSES it, where the caller still has both names in hand.
+  // RENAMES the mount, and renderSlot() on the original name then finds
+  // nothing and leaves the slot laying out at zero on its content axis.
+  // renderSlot warns about the same trap from the other side; this warning
+  // fires where the caller still has BOTH names in hand, which is what
+  // makes it actionable.
   if (m_node->kind == Kind::Slot && !m_node->key.empty() && m_node->key != k) {
     static std::set<std::string> warned; // once per rename, not per frame
     if (warned.insert(m_node->key + "->" + std::string(k)).second)
@@ -927,10 +946,11 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   detail::TextData &text = e.node()->textData.ensure();
   text.utf8 = std::move(utf8);
   text.style = std::move(style);
-  // "The box fits the type": measured text must not stretch on the
-  // cross axis (the spike's API lesson) — but that demotion happens at
-  // layout-apply time, where the resolved alignment is known, so a
-  // parent's alignItems(Center/End) still reaches text leaves.
+  // The box fits the type: measured text must not stretch on the cross
+  // axis. That demotion is NOT applied here — it happens when layout props
+  // are written to Yoga, where the alignment this leaf actually resolved to
+  // (its own, or its parent's) is known, so a parent's alignItems(Center)
+  // or alignItems(End) still reaches text leaves untouched.
   return e;
 }
 
@@ -1089,9 +1109,10 @@ EnvRestore::~EnvRestore() { envStack() = std::move(m_saved); }
 // Spans: the boundary's arc length, in claimed runs
 //
 // Every answer is in ONE normal form (clamped, sorted, merged, non-empty)
-// so overlap tests and complements are interval arithmetic rather than a
-// pile of per-rule special cases — the seam where a sibling-path failure
-// would otherwise live.
+// so overlap tests and complements are plain interval arithmetic. Any rule
+// added here must normalize too: the alternative is per-rule special cases
+// in every consumer, which is exactly how one rule ends up behaving subtly
+// differently from its neighbours.
 
 namespace {
 
@@ -1305,12 +1326,11 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
       // A whole contour claimed whole stays whole — closed stays closed,
       // so joins and additive brushes behave as they do untrimmed.
       //
-      // The close() is load-bearing and was MISSING (found by the R1
-      // wrap-parity test, which compares a full-cycle span against an
-      // untrimmed TrimMode::Wrap window): getSegment hands back an OPEN
-      // run whose ends merely coincide, so the vertex at the seam got two
-      // butt caps instead of a miter join — two pixels at one corner of a
-      // rectangle, and a visible notch under any wide or additive brush.
+      // The close() is load-bearing. getSegment hands back an OPEN run
+      // whose ends merely coincide, so without it the vertex at the seam
+      // gets two butt caps instead of a miter join: a notch at one corner,
+      // small under a hairline and obvious under any wide or additive
+      // brush.
       if (lo <= 1e-4f && hi >= run.length - 1e-4f) {
         (void)contour->getSegment(0, run.length, &out, !stitch);
         if (run.closed && !stitch)
@@ -1380,10 +1400,12 @@ struct BandRail {
 
 /** Uniform arc-length samples of a rail, in ONE forward walk.
  *
- *  The first version asked bandPointAt per sample, and bandPointAt
- *  re-measures the whole path every call — quadratic, and measured at
- *  700 ms for an r=550 ring against 3 ms for the same outline stroked.
- *  The contours are collected once and the cursor only moves forward. */
+ *  Do not implement this by calling bandPointAt per sample: that function
+ *  re-measures the whole path on every call, which makes sampling quadratic
+ *  in the sample count — and the sample count scales with the spine's
+ *  length, so the cost grows fastest on exactly the large rings this is
+ *  wanted for. Here the contours are measured once and the cursor only ever
+ *  moves forward. */
 std::vector<SkPoint> sampleRail(const SkPath &rail, int steps) {
   std::vector<SkPoint> out;
   std::vector<sk_sp<SkContourMeasure>> contours;
@@ -1452,11 +1474,12 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
   // sample-and-displace that leaves a spur on the inside of every
   // rectangle.
   //
-  // Sign and frame: positive `across` is LEFT of travel, which with y down
-  // is OUTSIDE a clockwise path — SkPath's own direction for rects and
-  // circles, so `.outward()` exits the shape. Since R3 that is the ONE
-  // convention and lines::offsetAcross means the same side; see
-  // bandPointAt, and DESIGN.md, which states it once.
+  // Sign and frame, the one convention for the whole band family: positive
+  // `across` is LEFT of travel, which with y pointing down is OUTSIDE a
+  // clockwise path — and clockwise is SkPath's own direction for rects and
+  // circles, so `.outward()` exits the shape. bandPointAt and
+  // lines::offsetAcross mean the same side; a helper that flipped it would
+  // turn every band inside out on one code path only.
   SkPathBuilder out;
   float consumed = 0;
   for (const auto &[contour, len] : splitContours(spine)) {
@@ -1718,10 +1741,10 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
   // outside a turn, miter inside) instead of chording across. The naive
   // sample-and-displace walk below cannot: at a hard corner it offsets one
   // sampled point along ONE edge's normal, which leaves a spur on the
-  // inside of every rectangle. Rather than grow a second corner repair
-  // (the sibling-path failure family), delegate.
-  // No sign conversion any more: offsetAcross is LEFT of travel, which is
-  // this seam's frame exactly (R3's sign port; see bandPointAt).
+  // inside of every rectangle. Delegating rather than growing a second
+  // corner repair here is deliberate — two repairs would drift apart.
+  // No sign conversion is needed: offsetAcross is LEFT of travel, which is
+  // this file's frame exactly (see bandPointAt).
   //
   // Constancy is detected by SAMPLING, and that is a real limitation, not
   // a rounding detail: a stepped profile whose period divides the sample
@@ -1762,11 +1785,12 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
       // and a relative strand, so the two cannot drift apart.
       float w =
           profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
-      // §33-m (astral_tome): ONE non-finite sample deletes the WHOLE band
-      // — Skia draws none of a path containing a non-finite vertex, so a
-      // law like sqrt(sin(π·along)) whose float rounding dips negative at
-      // along == 1 silently erased everything and nothing said why. A
-      // NaN width is a LOCAL pinch to the spine instead.
+      // ONE non-finite sample would delete the WHOLE band: Skia draws none
+      // of a path that contains a non-finite vertex, and says nothing. An
+      // author profile only has to misbehave at a single parameter value to
+      // hit this — sqrt(sin(pi*along)) rounds to a tiny negative at
+      // along == 1 — so a non-finite width is clamped to a LOCAL pinch down
+      // to the spine rather than allowed to erase everything.
       if (!std::isfinite(w))
         w = 0.0f;
       const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
@@ -1894,13 +1918,14 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
         continue;
       const Flat &fa = flats[a];
       const Flat &fb = flats[b];
-      // BBOX REJECTION before the segment x segment loop (33-h's cheap
-      // algorithmic half). A reported crossing's hit point lies on a
-      // segment of EACH strand — within the eps overshoot, under 2e-3 px
-      // at the 2 px flatten step — so two strands whose bounds stay half
-      // a pixel apart provably cannot cross. 0.5 px is ~250x the true
-      // overshoot: this skips only provably empty work and can never
-      // change an answer, which is what the byte-identity pin holds.
+      // Bounds rejection before the segment-by-segment loop, which is
+      // quadratic in the flattened point counts. A reported crossing's hit
+      // point lies on a segment of EACH strand, up to the parametric eps
+      // overshoot below — a fraction of the flattening step, so far under a
+      // pixel — which means two strands whose bounds stay half a pixel
+      // apart provably cannot cross. The 0.5 px outset is orders of
+      // magnitude larger than that overshoot, so this skips only provably
+      // empty work and cannot change an answer.
       SkRect nearA = fa.bounds, nearB = fb.bounds;
       nearA.outset(0.5f, 0.5f);
       nearB.outset(0.5f, 0.5f);
@@ -1926,13 +1951,13 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
           const float u = (d.x() * r.y() - d.y() * r.x()) / denom;
           // CLOSED intervals, then a transversality test.
           //
-          // Strict interiors were the first thing tried and they are wrong:
-          // symmetric geometry — two diagonals of a square, a horizontal
-          // met by verticals on a regular sampling grid — puts a genuine
-          // crossing EXACTLY on a sample boundary, and a strict test threw
-          // every one of them away. So accept the endpoints and then ask
-          // the question that actually distinguishes the two cases: does
-          // the other strand pass THROUGH, or does it merely touch?
+          // Strict interiors cannot be used here. Symmetric geometry — two
+          // diagonals of a square, a horizontal met by verticals on a
+          // regular sampling grid — puts a genuine crossing EXACTLY on a
+          // sample boundary, and a strict test discards all of them. So the
+          // endpoints are accepted, and the question that actually
+          // separates the two cases is asked afterwards: does the other
+          // strand pass THROUGH here, or does it merely touch?
           const float eps = 1e-3f;
           if (t < -eps || t > 1.0f + eps || u < -eps || u > 1.0f + eps)
             continue;

@@ -6,7 +6,8 @@
 // Windows/Linux bring-up draft: this TU never compiles on Apple builds (see
 // CMakeLists.txt) and is untested until the Windows port lands. Run the app
 // with QSG_RHI_BACKEND=vulkan for this path; under D3D11 create() returns
-// null and the renderer falls back to QCanvasPainter.
+// null and the canvas renders no scene content — there is no non-Skia
+// drawing path.
 
 #include "SkiaGraphiteContext.h"
 
@@ -97,8 +98,8 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
 
 #else // !QT_CONFIG(vulkan)
 
-// Qt built without Vulkan: no Graphite backend on this platform yet, and
-// the renderer falls back to QCanvasPainter.
+// Qt built without Vulkan: no Graphite backend on this platform, so
+// create() returns null and the canvas renders no scene content.
 std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *) {
   return nullptr;
 }

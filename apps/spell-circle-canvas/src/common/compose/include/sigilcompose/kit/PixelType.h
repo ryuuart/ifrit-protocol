@@ -3,77 +3,54 @@
 /** @file
  * SigilCompose KIT — the aliased bitmap-font bake.
  *
- * ## Why this exists
+ * Shape a run with antialiasing off, rasterise it, threshold it to a 1-bit
+ * A8 mask, and present that mask at an integer scale with nearest
+ * sampling. The result is pixel type: a Minecraft-style or PS1-style face
+ * whose every edge lands on the grid.
  *
- * Three studies wrote this from scratch, ~120 lines each, with no
- * knowledge of one another:
+ * ## This is a workaround, and it is worth knowing what for
  *
- * - `thaumonomicon.cpp:1160-1205` — `bakeText`/`blitText`, a 1-bit A8 mask
- *   per string, presented at 2× with `kNearest`. Minecraft's `ascii.png`.
- * - `vagrant_story_target.cpp:425-520` — `bakeCell`/`bakeFont`/`blit`/
- *   `widthOf`, 96 cells with a tabular digit advance. PS1 cell type.
- * - `xcom_battlescape.cpp:764-818` — `pixelText`, the same bake with a
- *   TWO-level quantisation into palette indices, presented at 4×.
+ * `text()` takes a `std::u8string`, not an animatable value, so a LIVE
+ * numeric readout cannot be a text node at all. Baking to a mask and
+ * blitting it inside a `custom()` leaf is how a readout gets drawn from a
+ * bound `Output` without re-describing anything. If `text()` ever accepts
+ * an animatable, most of the reason to reach for this file goes away —
+ * what would remain is the aliased look itself.
  *
- * That is 240+ duplicated lines and three independent rediscoveries of the
- * same four traps. Whether the *core* should grow a bitmap-font path is a
- * separate question (it should not, on this evidence); a kit component
- * costs nothing and deletes the duplication today.
+ * ## The four traps
  *
- * ## The actual hole, which this does not close
+ * 1. **`measure()` returns the ADVANCE, and glyph ink escapes it.** Ink
+ *    overhanging the advance is normal — an italic's exit stroke, a
+ *    negative left side-bearing, a swash — and a scratch surface sized to
+ *    the advance clips it. The tell is that a clipped bake looks the same
+ *    at every font size, where a rasterisation fault would move with the
+ *    size.
  *
- * All three studies bake because **`text()` takes a `std::u8string`, not a
- * `Animatable`** (`Compose.h`, verified) — so a live numeric readout cannot
- * be a text node at all. `vagrant_story_target.cpp:409` says so in as many
- * words. Baking is the workaround, not the goal. That is a ROADMAP entry
- * and a mask helper will bury it if nobody says this out loud, so: **this
- * header is a workaround.** If `text()` ever takes a Animatable, two of the
- * three motivating uses go away.
- *
- * ## The four traps, all of them paid for once already
- *
- * 1. **`measure()` returns the ADVANCE, and glyph ink escapes it.** At a
- *    +2 pad `thaumonomicon`'s longest tooltip line printed "Centrifug"
- *    plus a two-pixel stub where its `e` should be — **at every font size
- *    tried**, which is what gave it away: a rasterisation fault moves with
- *    the size, a surface that is too small does not. Its fix was `+8`.
- *
- *    Measured here across faces, **`+8` is not a fix either, it is a
- *    bigger guess**: Menlo (monospace, boxed by construction) never
- *    overhangs at all, Helvetica Italic overhangs at almost every size and
- *    string, and Zapfino "Wf" at 12 px still reaches the edge at +8. And
- *    all three studies padded only the RIGHT and BOTTOM, so a face with a
- *    negative left side-bearing clips at the left instead and no pad value
- *    reaches it.
- *
- *    So this component does not guess. `Pad` is slack on **each** side,
- *    the run is drawn inset by it, and if the ink still touches any edge
- *    the bake is retried with the pad doubled (`kPadRetries` times). The
- *    mask is cropped to its lit bbox afterwards, so slack costs a larger
- *    scratch surface and nothing else. This is the one place where being a
- *    shared component buys something the three hand-rolls could not
- *    justify individually.
+ *    No fixed pad is a fix; it is only a bigger guess. A boxed monospace
+ *    never overhangs at all, while a script face can still reach past a
+ *    generous pad, and padding only right and bottom leaves a negative
+ *    left side-bearing clipping at the left where no pad value reaches it.
+ *    So `Pad` is slack on **each** side, the run is drawn inset by it, and
+ *    if ink still touches any edge the bake retries with the pad doubled.
+ *    The mask is cropped to its lit bbox afterwards, so slack costs a
+ *    larger scratch surface and nothing in the output.
  *
  * 2. **The SIZE is the control, and the threshold is inert.** Under
  *    `ShapingStyle::aliased` Skia lights a pixel iff its centre is inside
- *    the outline, so the coverage handed back is already 0 or 1 and the
- *    threshold reclassifies nothing (`thaumonomicon.cpp:1146-1152`
- *    verified 110 vs 170 as pixel-identical over a whole 1280×800 frame).
- *    What decides legibility is whether the **x-height rounds to the
- *    reference face's**: Menlo at 9 px has a 4.4 px x-height, `e`'s
- *    counter never contains a pixel centre, and every `e` prints as an
- *    `a` — "research" reads "rasaarch". At 10 px the x-height is 4.9,
- *    rounds to 5, and every `e` opens. At 11 `m`'s two gaps close.
- *    **Sweep the size, not the threshold.** The threshold only becomes a
- *    real control with `aliased = false`.
+ *    the outline, so the coverage handed back is already 0 or 1 and any
+ *    threshold in (0, 1] classifies it identically. What decides
+ *    legibility is whether the x-height rounds up or down: at one size a
+ *    lowercase `e`'s counter contains no pixel centre and every `e` prints
+ *    as an `a`; one pixel larger and they all open; one larger again and
+ *    an `m`'s gaps close instead. **Sweep the size, not the threshold.**
+ *    The threshold becomes a real control only with `aliased = false`.
  *
- * 3. **Digits want one tabular advance.** Otherwise a rolling readout
- *    shivers as `1` narrows the string (`vagrant_story_target.cpp:486`).
+ * 3. **Digits want one tabular advance,** or a rolling readout shivers as
+ *    a `1` narrows the string.
  *
  * 4. **Present at an INTEGER scale with `kNearest`.** A bitmap face at a
  *    fractional scale is a blurry bitmap face. `Material::image` is the
- *    image path that takes a sampling parameter
- *    (`xcom_battlescape.cpp:822-833`).
+ *    image path that takes a sampling parameter.
  */
 
 #include "sigilcompose/Compose.h"
@@ -96,7 +73,7 @@ namespace sigil::compose::kit {
 
 /** Slack around the measured run, in px **on each side**. See trap 1: the
  *  defaults are a starting point, not a guarantee — `coverage()` grows
- *  them until no ink touches an edge. */
+ *  them, up to a limit, until no ink touches an edge. */
 struct Pad {
   int x = 8;
   int y = 4;
@@ -104,18 +81,15 @@ struct Pad {
 };
 
 /** How many times `coverage()` doubles the pad before giving up. Four
- *  doublings take the default 8 to 128 px a side, which is past any face
- *  probed here. */
+ *  doublings take the default 8 px to 128 px a side. */
 inline constexpr int kPadRetries = 4;
 
 /** The raw bake: a coverage plane and the box its ink actually occupies.
  *
- *  This is the step all three studies share, and it stops before the step
- *  where they diverge — `thaumonomicon` and `vagrant_story_target`
- *  threshold to 1-bit A8, `xcom_battlescape` quantises to two levels and
- *  looks each up in a 256-entry VGA palette. Handing back coverage rather
- *  than a finished mask serves all three; a component that only emitted
- *  A8 would have served two. */
+ *  Coverage rather than a finished mask, because the useful next step
+ *  varies: thresholding to 1-bit A8 is one, quantising to a few levels and
+ *  looking each up in a palette is another, and a colour-aware
+ *  classification reads the plane directly. */
 struct Coverage {
   /** F16 premultiplied, `pad` bigger than the measured advance. Read it
    *  with `alphaAt`, or directly for a colour-aware classification. */
@@ -139,11 +113,16 @@ struct Coverage {
 
 /** Shape @p run in @p style, rasterise it, and hand back the coverage.
  *
- *  Built on `debug::rasterize`, which already carries the other trap in
- *  this area: `snapshot()` sizes by the root's CHILDREN, so the wrapper
- *  must carry explicit dims or an absolutely-placed child resolves against
- *  nothing. Reusing it is deliberate — a second copy of that code is
- *  exactly what this header exists to stop. */
+ *  The pad grows by doubling until no ink touches an edge of the scratch
+ *  surface. **After `kPadRetries` doublings it gives up silently and
+ *  returns the clipped bake** — there is no error channel, so a face that
+ *  overhangs further than that comes back cropped and looks like a
+ *  rasterisation bug rather than a sizing one.
+ *
+ *  Built on `debug::rasterize`, which carries the neighbouring trap:
+ *  `snapshot()` sizes by the root's CHILDREN, so the wrapper must carry
+ *  explicit dimensions or an absolutely-placed child resolves against
+ *  nothing. */
 inline Coverage coverage(std::u8string_view run, sigil::weave::FontContext &fonts,
                          const sigil::weave::TextStyle &style, Pad pad = {}) {
   Coverage out;
@@ -158,7 +137,8 @@ inline Coverage coverage(std::u8string_view run, sigil::weave::FontContext &font
     const int h = advH + 2 * std::max(0, pad.y);
     // padding() rather than an absolute offset: the run is inset by `pad`
     // on EVERY side, so a negative left side-bearing has somewhere to go.
-    // The three hand-rolled versions all padded right and bottom only.
+    // Growing only the surface would pad right and bottom alone and clip
+    // that case no matter how large the pad got.
     debug::Raster r = debug::rasterize(
         box()
             .padding((float)std::max(0, pad.x), (float)std::max(0, pad.y))
@@ -205,10 +185,10 @@ struct Mask {
 
 /** Threshold a `Coverage` to 1-bit A8 and (by default) crop to its ink.
  *
- *  @p threshold is in coverage units [0, 1] and is **inert under
- *  `aliased`** — see trap 2. It matters only when you deliberately shape
- *  antialiased and quantise afterwards, which `xcom_battlescape` does with
- *  two levels rather than one. */
+ *  @p threshold is in coverage units [0, 1] and is **inert under aliased
+ *  shaping**, where the coverage is already binary — see trap 2. It
+ *  becomes a real control only when the run was deliberately shaped
+ *  antialiased and is being quantised afterwards. */
 inline Mask threshold(const Coverage &cov, float threshold = 0.5f,
                       bool cropToInk = true) {
   Mask m;
@@ -233,7 +213,7 @@ inline Mask threshold(const Coverage &cov, float threshold = 0.5f,
   return m;
 }
 
-/** The whole bake in one call — what `thaumonomicon::bakeText` is. */
+/** The whole bake in one call: shape, rasterise, threshold, crop. */
 inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext &fonts,
                     const sigil::weave::TextStyle &style, Pad pad = {},
                     float thresholdAt = 0.5f) {
@@ -247,10 +227,9 @@ struct Present {
    *  face. */
   float scale = 1.0f;
   /** A second pass underneath, offset by this many DESTINATION px, with
-   *  the colour's RGB multiplied by `shadowMul`. Minecraft's own
-   *  `FontRenderer` offsets by +1 GUI px and multiplies by 0.25
-   *  (`(color & 16579836) >> 2`), which is `thaumonomicon.cpp:1218-1233`.
-   *  Zero offset = no shadow pass. */
+   *  the colour's RGB multiplied by `shadowMul`. The defaults follow
+   *  Minecraft's own font renderer, which offsets by one GUI pixel and
+   *  multiplies by a quarter. Zero offset = no shadow pass. */
   SkVector shadowOffset = {0, 0};
   float shadowMul = 0.25f;
 };
@@ -258,9 +237,8 @@ struct Present {
 /** Draw a baked mask at @p at (top-left), immediate mode.
  *
  *  An A8 image drawn through `drawImageRect` modulates the PAINT's colour,
- *  which is why all three studies blit rather than fill: a mask carries
- *  coverage, and the colour stays a paint property so one bake serves
- *  every tint the plate needs. */
+ *  which is the reason to blit rather than fill: the mask carries only
+ *  coverage, so one bake serves every tint the drawing needs. */
 inline void draw(SkCanvas &canvas, const Mask &m, SkPoint at,
                  const Present &p = {}) {
   if (!m.image)
@@ -316,7 +294,7 @@ struct PixFont {
   std::array<Cell, 96> cells{};
   /** The tallest cell — a line box for the caller. */
   int lineHeight = 0;
-  /** The widest DIGIT advance, shared by all ten. Trap 3. */
+  /** The widest DIGIT advance, shared by all ten — see trap 3. */
   int digitAdvance = 0;
 
   const Cell &cell(char c) const {
@@ -328,11 +306,11 @@ struct PixFont {
 
 /** Bake every printable ASCII cell in @p style.
  *
- *  Space is given an advance and no mask, which is not the same as a cell
- *  that failed to bake — `vagrant_story_target.cpp:471` sets it to
- *  `size * 0.34 * condense` because a shaped lone space measures zero ink
- *  and the loop would otherwise crop it to nothing. @p spaceRatio is that
- *  number; the default matches. */
+ *  Space is special-cased: it gets an advance and no mask, which is not
+ *  the same as a cell that failed to bake. A lone shaped space has no ink,
+ *  so the crop-to-ink step would otherwise reduce it to nothing and every
+ *  word would run together. @p spaceRatio is its advance as a fraction of
+ *  the font size, scaled by the style's horizontal condense. */
 inline PixFont bakeFont(sigil::weave::FontContext &fonts,
                         const sigil::weave::TextStyle &style, Pad pad = {3, 3},
                         float thresholdAt = 0.5f, float spaceRatio = 0.34f) {
@@ -372,8 +350,8 @@ struct Blit {
   bool tabularDigits = true;
   /** Round every pen position to a multiple of this many px (0 = off).
    *  A bitmap face that lands off the device grid is a resampled bitmap
-   *  face. `vagrant_story_target` snaps to its own 512-grid; pass the
-   *  grid pitch, or `1` for the device grid. */
+   *  face. Pass the pitch of whatever grid the drawing is on, or `1` for
+   *  the device grid. */
   float snap = 0.0f;
 };
 

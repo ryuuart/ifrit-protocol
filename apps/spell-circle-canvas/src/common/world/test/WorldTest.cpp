@@ -30,8 +30,10 @@ using namespace sigil;
 
 namespace {
 
-/** Device bring-up needs a Vulkan runtime (MoltenVK); tests skip — not
- *  fail — when the machine has none, so CI without a GPU stays green. */
+/** Device bring-up needs a Vulkan runtime. Tests SKIP rather than fail
+ *  when the machine has none, so a machine without a GPU stays green.
+ *  Anything that must be checked everywhere belongs in one of the
+ *  device-free tests further down, which run over a bare registry. */
 #define MAKE_WORLD_OR_SKIP(w, config)                                       \
   std::unique_ptr<world::World> w;                                          \
   {                                                                         \
@@ -68,19 +70,18 @@ TEST(World, RendersClearColorWhenEmpty) {
   EXPECT_LT(SkColorGetG(c), 40u);
 }
 
-// PIN — the COLOUR SPACE of WorldConfig::clearColor.
+// The COLOUR SPACE of WorldConfig::clearColor.
 //
-// clearColor is ENCODED sRGB; every other colour in the API is linear.
-// The clear writes straight into the RGBA8_UNORM target with no shader
-// in the way, so its components are the bytes the background pixel
-// gets. RendersClearColorWhenEmpty above cannot see this — it uses 0
-// and 1, the two fixed points of the sRGB curve — so this test picks
+// clearColor is ENCODED sRGB, while every other colour in the API is
+// linear. The clear writes straight into the RGBA8_UNORM target with no
+// shader in the way, so its components are the bytes the background
+// pixel gets. RendersClearColorWhenEmpty above cannot see this: it uses
+// 0 and 1, the two fixed points of the sRGB curve. This test picks
 // mid-tones, where the two readings are far apart.
 //
 // It exists to fail loudly if someone "fixes" the asymmetry by running
-// clearColor through the encode: every world plate's background would
-// move (the default from (7, 8, 11) to (47, 48, 60)). The ruling and
-// its evidence are dated 2026-07-28 in world/README.md.
+// clearColor through the encode, which would move the background of
+// every scene rendered by this library.
 TEST(World, ClearColorIsEncodedSrgbNotLinear) {
   world::WorldConfig config;
   config.width = 32;
@@ -94,12 +95,13 @@ TEST(World, ClearColorIsEncodedSrgbNotLinear) {
   bm.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
   ASSERT_TRUE(frame->readPixels(nullptr, bm.pixmap(), 0, 0));
   const SkColor c = bm.getColor(16, 16);
-  // Encoded reading: the components ARE the bytes (x255).
+  // Encoded reading: the components ARE the bytes, times 255.
   EXPECT_NEAR((int)SkColorGetR(c), 128, 2) << "clearColor is encoded sRGB";
   EXPECT_NEAR((int)SkColorGetG(c), 64, 2);
   EXPECT_NEAR((int)SkColorGetB(c), 191, 2);
-  // Linear reading — what an added encode would give — is (188, 137,
-  // 225). Nowhere near, in every channel.
+  // The linear reading — what treating this value as linear and encoding
+  // it would give — is far higher in every channel. These bounds sit
+  // between the two, so either interpretation is distinguishable.
   EXPECT_LT(SkColorGetR(c), 160u) << "clearColor must NOT be encoded";
   EXPECT_LT(SkColorGetG(c), 100u);
   EXPECT_LT(SkColorGetB(c), 208u);
@@ -199,8 +201,8 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
     return frame->readPixels(nullptr, bm->pixmap(), 0, 0);
   };
 
-  // Plain pipeline: the mesh color lane — what pop's cookMesh fades and
-  // import's merged() bake — reads back directly. Left red, right blue.
+  // Plain pipeline: a mesh's baked colour lane reaches the fragment
+  // directly. Left half red, right half blue.
   shape::Mesh mesh = shape::mesh::quad(220, 160);
   mesh.colors.resize(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i)
@@ -219,9 +221,10 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
   EXPECT_GT(SkColorGetB(right), SkColorGetR(right));
   w->removeSurface(id);
 
-  // Instanced pipeline: baked stamp color MULTIPLIES the per-instance
-  // tint. Yellow stamp x cyan tint = green — a color neither input
-  // shows alone, so pass-through of either would fail both counts.
+  // Instanced pipeline: a stamp's baked colour MULTIPLIES the
+  // per-instance tint. Yellow stamp times cyan tint is green — a colour
+  // neither input shows on its own, so passing either through
+  // unmultiplied fails both counts below.
   shape::Mesh stamp = shape::mesh::quad(14, 14);
   stamp.colors.assign(stamp.positions.size(), glm::vec4{1, 1, 0, 1});
   shape::Cloud field = shape::points::grid({-150, -100, 0}, {300, 0, 0},
@@ -495,8 +498,8 @@ TEST(World, InstancedFieldRendersAndCounts) {
   camera.eye = {0, 0, 500};
   w->setCamera(camera);
 
-  // An 10x8 lattice of small quads spanning the middle of the frame,
-  // tinted red through the tint lane over a white unlit material.
+  // A lattice of small quads spanning the middle of the frame, tinted
+  // red through the tint lane over a white unlit material.
   shape::Cloud field = shape::points::grid({-150, -100, 0}, {300, 0, 0},
                                            {0, 200, 0}, 10, 8);
   field.color("tint", {1, 0, 0, 1});
@@ -698,9 +701,9 @@ TEST(Easel, SwarmsAreKeyStable) {
 }
 
 TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
-  // The fingerprint arm SwarmsAreKeyStable leaves untested: the SAME
-  // key with CHANGED cloud content must refresh instances in place
-  // (setInstances), never tear the surface down and re-add it.
+  // The case SwarmsAreKeyStable leaves untested: the SAME key with
+  // CHANGED cloud content must refresh the instance stream in place,
+  // never tear the surface down and re-add it.
   world::WorldConfig config;
   config.width = 96;
   config.height = 64;
@@ -732,10 +735,11 @@ TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
 }
 
 TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
-  // uvScale {0,0} collapses sampling to the single texel uvOffset
-  // names — filtering- and orientation-proof, and mutating the LIVE
-  // MaterialComponent between frames must move it (the marquee scroll
-  // contract: animation with zero texture uploads).
+  // uvScale {0,0} collapses sampling to the single texel uvOffset names,
+  // which makes this independent of filtering and of the quad's
+  // orientation. Mutating the LIVE MaterialComponent between frames must
+  // move that texel: scrolling content across a surface with no texture
+  // uploads at all.
   world::WorldConfig config;
   config.width = 64;
   config.height = 64;
@@ -786,17 +790,17 @@ TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
 }
 
 TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
-  // The transfer-function pin. Panel textures are uploaded
+  // The transfer function, both ways round. Panel textures are uploaded
   // RGBA8_UNORM_SRGB, so the sampler DECODES with the piecewise sRGB
-  // curve; the render target is plain UNORM, so the shader ENCODES by
-  // hand. Those two must be inverses, or an unlit panel — a pure
-  // pass-through path — does not pass through. The old pow(c, 1/2.2)
-  // encode was not the inverse: it pushed 8/255 out to ~17/255 and shed
-  // 5-8/255 across the dark-to-mid range.
+  // curve, and the render target is plain UNORM, so the shader ENCODES
+  // by hand. Those two must be exact inverses, or an unlit panel — the
+  // pure pass-through path — does not pass through. A pow(c, 1/2.2)
+  // encode is not the inverse and fails this test through the darks.
   //
-  // uvScale {0,0} collapses sampling to the single texel uvOffset
-  // names, so this is filtering- and geometry-proof: whatever byte goes
-  // in must come back out, within the 1/255 the UNORM target rounds to.
+  // uvScale {0,0} collapses sampling to the single texel uvOffset names,
+  // so the result depends on neither filtering nor geometry: whatever
+  // byte goes in must come back out, within the 1/255 the UNORM target
+  // rounds to.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -807,8 +811,9 @@ TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
   camera.target = {0, 0, 0};
   w->setCamera(camera);
 
-  // Greys across the range, weighted toward the dark end where the
-  // curves diverge hardest (the piecewise linear toe lives below ~11).
+  // Greys across the range, weighted toward the dark end, where a power
+  // curve and the piecewise standard curve diverge hardest — the
+  // standard curve's linear toe lives down there.
   const uint8_t levels[] = {2, 8, 24, 55, 96, 128, 170, 210, 250};
   const int count = (int)(sizeof(levels) / sizeof(levels[0]));
   SkBitmap texels;
@@ -849,9 +854,8 @@ TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
 }
 
 TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
-  // The towed-flag contract: same topology updates the GPU buffers in
-  // place; a different shape recreates them; material and entity
-  // survive both.
+  // Same topology updates the GPU buffers in place; a different shape
+  // recreates them; the material and the entity survive both.
   world::WorldConfig config;
   config.width = 100;
   config.height = 100;
@@ -886,7 +890,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   EXPECT_GT(top, 0);
   EXPECT_GT(bottom, 0); // centered quad spans both halves
 
-  // Same topology, vertices moved up: the UpdateBuffer path.
+  // Same topology, vertices moved up: the in-place update path.
   shape::Mesh moved = shape::mesh::quad(100, 100);
   moved.transform(glm::translate(glm::mat4(1.0f), {0, 150, 0}));
   w->setSurfaceMesh(id, moved);
@@ -903,10 +907,10 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
 }
 
 TEST(World, GpuSweepGeneratesAndSlidesOnTheGpu) {
-  // The compute generator path: a circle loop lives on the GPU, the
-  // sweep writes the ribbon's vertices in place, and sliding the
-  // window (two floats) moves the arc to the other side — no CPU
-  // mesh ever exists.
+  // The compute generator path: a circular loop lives on the GPU, the
+  // sweep writes the ribbon's vertices in place, and sliding the window
+  // with two floats moves the arc to the other side. No CPU mesh for the
+  // ribbon ever exists.
   world::WorldConfig config;
   config.width = 64;
   config.height = 64;
@@ -958,9 +962,9 @@ TEST(World, GpuSweepGeneratesAndSlidesOnTheGpu) {
 }
 
 TEST(World, GpuFlockStreamsAlongTheLoop) {
-  // POP phase 2: the points never exist on the CPU. A window of
-  // instances lands on one side of the loop; sliding it (two floats)
-  // streams the whole flock to the other side.
+  // A flock's points never exist on the CPU. A window of instances lands
+  // on one side of the loop; sliding it with two floats streams the
+  // whole flock to the other side.
   world::WorldConfig config;
   config.width = 64;
   config.height = 64;
@@ -1014,9 +1018,10 @@ TEST(World, GpuFlockStreamsAlongTheLoop) {
 }
 
 TEST(World, PopChainCooksAndRedescribes) {
-  // The combinator path: a chain of operator VALUES cooks on the GPU.
-  // Re-describing with edited fields re-cooks; a Math op pushing the
-  // window's points across the frame proves the whole chain ran.
+  // A chain of operator VALUES cooks on the GPU, and re-describing with
+  // edited fields re-cooks. The appended Math op mirrors the window's
+  // points across the frame, so seeing them move proves the whole chain
+  // ran rather than just its generator.
   world::WorldConfig config;
   config.width = 64;
   config.height = 64;
@@ -1067,8 +1072,9 @@ TEST(World, PopChainCooksAndRedescribes) {
   EXPECT_GT(right, 0) << "the scatter window starts on +x";
   EXPECT_EQ(left, 0);
 
-  // Nondestructive edit: append a Math op mirroring P across x. The
-  // chain SHAPE changed, so lanes rebind, then the re-cook runs it.
+  // A nondestructive edit: append a Math op mirroring positions across
+  // x. The chain's shape changed, so the lanes rebind before the re-cook
+  // runs it.
   chain.push_back(
       pop::Math{pop::Lane::P, {-1, 1, 1, 1}, {0, 0, 0, 0}});
   w->setPoints(id, chain);
@@ -1079,11 +1085,11 @@ TEST(World, PopChainCooksAndRedescribes) {
 }
 
 TEST(World, PopCpuAndGpuExecutorsAgree) {
-  // The two executors of one description: the GPU chain (compute
-  // lanes -> instanced draw) and the CPU reference (popops::cookMesh
-  // -> plain surface) must land the same geometry. Tint stays white
-  // (the plain pipeline ignores baked vertex colors); the material
-  // carries the green, so the comparison is pure P/Dir/Scale.
+  // Two executors of one description: the GPU chain, cooking compute
+  // lanes into an instanced draw, and the CPU reference, cooking a plain
+  // mesh, must land the same geometry. The material carries the colour
+  // and no tint lane is used, so the comparison is purely about
+  // position, direction and scale.
   world::WorldConfig config;
   config.width = 64;
   config.height = 64;
@@ -1145,17 +1151,18 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
       ++mismatched;
   }
   ASSERT_GT(lit, 100);
-  // Different vertex paths (instanced VS vs pre-merged mesh) may
-  // wiggle edge pixels; the SHAPES must agree.
+  // The two vertex paths — an instanced vertex shader versus a
+  // pre-merged mesh — may disagree on edge pixels; the SHAPES must
+  // agree.
   EXPECT_LT(mismatched, lit / 50)
       << mismatched << " of " << lit << " lit pixels disagree";
 }
 
 
 TEST(World, ReadPointsQueriesGpuLanesNumerically) {
-  // The query door, and with it the strongest parity statement: the
-  // GPU-cooked lanes read back as a Cloud must match the CPU
-  // reference cook point for point, number for number.
+  // The query door, and the strongest form of the parity claim: the
+  // GPU-cooked lanes, read back as a Cloud, must match the CPU reference
+  // cook point for point and number for number.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1206,9 +1213,9 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
 }
 
 TEST(World, SetPointsWindowSlidesLikeAFullRedescribe) {
-  // The animation verb: two floats must land exactly where a whole
-  // setPoints re-describe with the same window lands — same kernels,
-  // same seeds, zero drift between the doors.
+  // Sliding the window with two floats must land exactly where a whole
+  // re-describe carrying the same window lands: same kernels, same
+  // seeds, no drift between the two ways of asking.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1258,10 +1265,9 @@ TEST(World, SetPointsWindowSlidesLikeAFullRedescribe) {
 }
 
 TEST(World, CustomAttributesCookOnTheGpu) {
-  // The last vocabulary gap closed: a custom named attribute gets an
-  // arena slot, cooks through GPU dispatches, and reads back equal to
-  // the CPU reference — the two executors now speak the whole
-  // language (mesh seeding aside).
+  // A custom named attribute gets its own arena slot, cooks through the
+  // GPU dispatches, and reads back equal to the CPU reference — so the
+  // lane vocabulary is not limited to the builtin names.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1280,7 +1286,7 @@ TEST(World, CustomAttributesCookOnTheGpu) {
           .op(shape::pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const uint32_t id = w->addPoints(shape::mesh::quad(4, 4), chain,
                                    world::Material{});
-  ASSERT_NE(id, 0u) << "custom-attr chains must be GPU-cookable now";
+  ASSERT_NE(id, 0u) << "a chain with custom attribute lanes must cook on the GPU";
   ASSERT_TRUE(w->render());
 
   const shape::Cloud gpu = w->readPoints(id);
@@ -1294,11 +1300,10 @@ TEST(World, CustomAttributesCookOnTheGpu) {
 }
 
 TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
-  // The graceful boundary, the house pattern: the GPU executor cooks
-  // the POINT class only. A chain carrying a primitive-class op
-  // (pop::Promote) must be REFUSED outright — dropping it would cook
-  // silently-wrong geometry, and its variant index does not even map
-  // to a real compute PSO. Same treatment MeshScatter gets.
+  // The GPU executor cooks the point class only. A chain carrying an
+  // operator that writes the primitive class must be REFUSED outright:
+  // dropping the operator would cook silently wrong geometry, and its
+  // variant index maps to no compute pipeline at all.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1318,7 +1323,7 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
   };
   const shape::Mesh stamp = shape::mesh::quad(6, 6);
 
-  // The control: the same chain WITHOUT the prim op cooks fine.
+  // The control: the same chain WITHOUT that operator cooks fine.
   const uint32_t plain = w->addPoints(stamp, describe(false),
                                       world::Material{});
   ASSERT_NE(plain, 0u);
@@ -1337,19 +1342,20 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
   w->setPoints(plain, describe(true));
   EXPECT_TRUE(w->render());
 
-  // ...and the CPU executor still forms the prim lanes the GPU cannot.
+  // ...and the CPU executor still builds the primitive lanes the GPU
+  // cannot, so the capability is not lost, only located.
   const shape::Mesh cpu =
       shape::popops::cookMesh(describe(true), stamp);
   EXPECT_TRUE(cpu.primIf("Color"));
 }
 
 TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
-  // THE MAPPING PIN, and the parity pin for Lookup in one: a chain
-  // holding EVERY op the GPU executor runs, read back and compared to
-  // the CPU reference lane by lane. Variant index -> compute PSO is a
-  // table (kPopOpPso); if any row of it were off, or any kernel drifted
-  // from its C++ twin, at least one lane below diverges. Numbers only,
-  // no pixels -- this is arithmetic, not rendering.
+  // A chain holding EVERY operator the GPU executor runs, read back and
+  // compared to the CPU reference lane by lane. Operator variant index
+  // maps to a compute pipeline through a table, so if any row of it were
+  // off — or if any kernel drifted from its CPU twin — at least one lane
+  // below diverges. Numbers only, no pixels: this is arithmetic, not
+  // rendering.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1361,9 +1367,9 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
     loop.push_back({170.0f * std::cos(a), 45.0f * std::sin(3 * a),
                     170.0f * std::sin(a)});
   }
-  // SplineScatter, Jitter, Noise, Relax, Set, Math, Vary, LookAt,
-  // Atlas, Ramp, Lookup -- all eleven, each writing a lane the
-  // readback below reads.
+  // SplineScatter, Jitter, Noise, Relax, Set, Math, Vary, LookAt, Atlas,
+  // Ramp and Lookup — every operator with a kernel, each writing a lane
+  // the readback below checks.
   const shape::pop::Chain chain =
       shape::pop::on(loop)
           .count(384)
@@ -1452,12 +1458,12 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
 }
 
 TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
-  // The same graceful boundary MeshScatter and Promote get, for the
-  // same structural reason: pop::Sort permutes the whole point set,
-  // which is not a per-point map and so has no place in the executor's
-  // one-kernel-per-op arena model. Declining is the contract -- a
-  // dropped Sort would cook points in the WRONG ORDER, and order is
-  // load-bearing (painter order, swept paths, Relax neighbourhoods).
+  // The same boundary, for the same structural reason: a sort permutes
+  // the whole point set, which is not a per-point map and so has no
+  // place in a model of one kernel per operator over fixed lanes.
+  // Declining is the contract — a dropped sort would cook the points in
+  // the WRONG ORDER, and order is load-bearing for draw order, for swept
+  // paths and for neighbourhood operators.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1506,7 +1512,7 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
     EXPECT_NEAR(after.positions[i].y, cooked.positions[i].y, 1e-4f)
         << "a declined re-describe must change nothing";
 
-  // ...and the CPU executor does the sort the GPU declined, so the
+  // ...and the CPU executor performs the sort the GPU declined, so the
   // capability is not lost, only located.
   const shape::Cloud cpu = shape::popops::cook(describe(true));
   ASSERT_EQ(cpu.size(), 64u);
@@ -1515,9 +1521,9 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
 }
 
 TEST(World, ChainsComposeOnDevice) {
-  // Pops feed pops with NO CPU round trip: chain B's generator reads
-  // chain A's cooked P lane straight from its arena — and the result
-  // matches the CPU composing entry numerically.
+  // One chain feeds another with NO CPU round trip: chain B's generator
+  // reads chain A's cooked position lane straight from its arena, and
+  // the result matches composing the same two chains on the CPU.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1546,7 +1552,7 @@ TEST(World, ChainsComposeOnDevice) {
   ASSERT_TRUE(w->render());
 
   const shape::Cloud gpu = w->readPoints(b);
-  // The CPU composing entry over the same descriptions.
+  // The same composition, done on the CPU.
   shape::pop::Chain cpuB = chainB;
   std::get<shape::pop::SplineScatter>(cpuB.front()).loop =
       shape::popops::cook(chainA).positions;
@@ -1562,8 +1568,9 @@ TEST(World, ChainsComposeOnDevice) {
 
 TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
   // The loop is part of the description too: a re-describe whose
-  // control points MOVED must cook the new loop, not the buffer the
-  // original addPoints uploaded — same-shape chains included.
+  // control points MOVED must cook the new loop rather than the buffer
+  // uploaded when the surface was added — including when the chain's
+  // shape is otherwise unchanged.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1587,8 +1594,8 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
 
-  // Same ops, same count — only the loop shrank. The re-cook must
-  // land where a fresh describe of the small circle lands.
+  // Same operators, same count; only the loop shrank. The re-cook must
+  // land where a fresh describe of the smaller circle lands.
   w->setPoints(id, chainOn(60));
   ASSERT_TRUE(w->render());
   const shape::Cloud gpu = w->readPoints(id);
@@ -1603,9 +1610,9 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
 }
 
 TEST(World, RemovingUpstreamLeavesDependentsCookedAndAlive) {
-  // Tearing down a chain's upstream must not take the dependent with
-  // it: the rider keeps its last cooked lanes (its SRBs hold the
-  // upstream arena alive) and the world keeps rendering.
+  // Tearing down a chain's upstream must not take its dependents with
+  // it. The dependent keeps its last cooked lanes — its bindings hold
+  // the upstream arena alive — and the world goes on rendering.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1649,10 +1656,9 @@ TEST(World, RemovingUpstreamLeavesDependentsCookedAndAlive) {
 }
 
 TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
-  // The dependency edge is LIVE: sliding the upstream's window (two
-  // floats) must re-cook the rider in the same render, and the rider
-  // must land where the CPU composing entry over the slid upstream
-  // lands.
+  // The dependency edge is LIVE: sliding the upstream's window must
+  // re-cook its dependent within the same render, and that dependent
+  // must land where composing the slid upstream on the CPU lands.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -1692,14 +1698,14 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
   const shape::Cloud slid = w->readPoints(b);
   ASSERT_EQ(slid.size(), 300u);
 
-  // (i) The rider actually followed the upstream arc.
+  // (i) The dependent actually followed the upstream arc.
   float moved = 0;
   for (size_t i : {size_t(0), size_t(150), size_t(299)})
     moved += glm::length(slid.positions[i] - before.positions[i]);
-  EXPECT_GT(moved, 1.0f) << "the rider must follow the slid window";
+  EXPECT_GT(moved, 1.0f) << "geometry riding the window must move when the window slides";
 
-  // (ii) And it landed on the CPU composing reference over the slid
-  // upstream description.
+  // (ii) And it landed on the CPU reference over the slid upstream
+  // description.
   shape::pop::Chain cpuB = chainB;
   std::get<shape::pop::SplineScatter>(cpuB.front()).loop =
       shape::popops::cook(chainAt(0.5f, 0.4f)).positions;
@@ -1712,19 +1718,18 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
   }
 }
 
-// --- the marquee's slice ---------------------------------------------------
-// world_demo paints THE YARN as one tall SigilCompose column, snapshots
-// it to a vector picture, and cuts it into GPU tiles through compose's
-// sigil::compose::tiles:: door (2026-07-28 — it used to do the matrix by
-// hand, and got it wrong twice). The band's legibility on the ribbon
-// wall rests entirely on that transform, so it is pinned here: these are
-// the marquee's own tile geometry and orientation, and if a future
-// tiles:: change moves them the band silently mirrors or steps wrong.
+// --- the demo's tile slicing -----------------------------------------------
+// world_demo lays its ribbon artwork out as one tall column, snapshots
+// it to a vector picture, and cuts it into GPU tiles through
+// sigil::compose::tiles. The band's legibility on the ribbon wall rests
+// entirely on that transform, and getting the mirror or the step wrong
+// fails silently — the band simply reads backwards or jumps. These two
+// tests hold the demo's own tile geometry and orientation in place.
 
 TEST(WorldMarqueeSlice, TileWindowsStepDownAndMirrorAcross) {
   namespace tiles = sigil::compose::tiles;
-  // world_demo's real strip: a 506 px wide column cut into ten
-  // 4096 px tiles, mirrored across because the sweep wall's u runs
+  // The demo's actual strip geometry: a 506 px wide column cut into ten
+  // 4096 px tiles, mirrored across, because the sweep wall's u axis runs
   // backwards.
   const SkISize tile = SkISize::Make(506, 4096);
   const float w = (float)tile.width();
@@ -1734,7 +1739,7 @@ TEST(WorldMarqueeSlice, TileWindowsStepDownAndMirrorAcross) {
     const SkMatrix got =
         tiles::window(tile, k, tiles::Flow::Down, tiles::Facing::Mirrored);
 
-    // (i) Exactly the concatenation world_demo used to spell out:
+    // (i) Exactly this concatenation:
     //     translate(w, 0) . scale(-1, 1) . translate(0, -k*h).
     SkMatrix byHand = SkMatrix::Translate(w, 0);
     byHand.preScale(-1, 1);
@@ -1748,15 +1753,16 @@ TEST(WorldMarqueeSlice, TileWindowsStepDownAndMirrorAcross) {
     EXPECT_EQ(got.mapPoint({0, (float)k * h}), (SkPoint{w, 0}));
     EXPECT_EQ(got.mapPoint({w, (float)k * h + h}), (SkPoint{0, h}));
     // The slice is a pure step along y: no scaling of the band, and no
-    // transpose (the trap the door exists to close).
+    // transpose.
     EXPECT_FLOAT_EQ(std::abs(got.getScaleX()), 1.0f);
     EXPECT_FLOAT_EQ(got.getScaleY(), 1.0f);
     EXPECT_FLOAT_EQ(got.getSkewX(), 0.0f);
     EXPECT_FLOAT_EQ(got.getSkewY(), 0.0f);
   }
 
-  // (iii) The two knobs the marquee chose are load-bearing: an unmirrored
-  //       tile, or a row slice, is a different picture.
+  // (iii) Both options the demo chose are load-bearing: an unmirrored
+  //       tile, or a slice across instead of down, is a different
+  //       picture.
   EXPECT_NE(tiles::window(tile, 3, tiles::Flow::Down, tiles::Facing::Forward),
             tiles::window(tile, 3, tiles::Flow::Down,
                           tiles::Facing::Mirrored));
@@ -1768,8 +1774,9 @@ TEST(WorldMarqueeSlice, TileWindowsStepDownAndMirrorAcross) {
 
 TEST(WorldMarqueeSlice, SliceableReplaysTheSamePixels) {
   namespace tiles = sigil::compose::tiles;
-  // The marquee draws the SLICEABLE re-recording, not the snapshot, so
-  // the plates only stay put while the two replay identically.
+  // The demo draws the SLICEABLE re-recording rather than the original
+  // snapshot, so its output only stays put while the two replay
+  // identically.
   const SkISize tile = SkISize::Make(24, 32);
   const int tileCount = 3;
   SkPictureRecorder recorder;
@@ -1812,19 +1819,18 @@ TEST(WorldMarqueeSlice, SliceableReplaysTheSamePixels) {
 }
 
 // ---------------------------------------------------------------------------
-// DECLARED MOTION (2026-07-29) — Animation.h.
+// DECLARED MOTION — Animation.h.
 //
-// The second animation door: Animatable<float> lanes on registry
-// components, resolved by resolveAnimation() (which render() calls
-// itself). The imperative setters above are untouched; these pins
-// cover the new surface AND the three design rulings it rests on
-// (float-only lanes, no clock in world, animate() lands settled).
+// Animatable<float> lanes on registry components, resolved by
+// resolveAnimation(), which render() calls itself. These cover that
+// surface and the three properties it rests on: float-only lanes, no
+// clock inside world, and an animate() form that lands settled.
 // ---------------------------------------------------------------------------
 
 TEST(WorldAnimation, BoundLaneDrivesTheTransformWithoutADevice) {
   // The device-free half of the system is a free function over a plain
-  // entt::registry — which is what makes the semantics pinnable on a
-  // machine with no Vulkan, where every world test above skips.
+  // entt::registry, which is what lets the animation semantics be
+  // checked on a machine with no GPU, where every test above skips.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::TransformComponent>(e);
@@ -1845,10 +1851,10 @@ TEST(WorldAnimation, BoundLaneDrivesTheTransformWithoutADevice) {
 }
 
 TEST(WorldAnimation, ShapedBindingRunsItsChainOnTheLane) {
-  // Ruling 1: lanes are float SO THAT bind()'s normalise -> curve ->
+  // Lanes are float precisely so that bind()'s normalise → curve →
   // affine chain reaches them. If the chain were dropped and the raw
-  // Output landed on the lane, this yaw would be 1 degree instead of
-  // 22.5 — the whole reason a vec3 lane was rejected.
+  // Output landed on the lane, this yaw would be 1 degree rather than
+  // 22.5.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::TransformComponent>(e);
@@ -1862,16 +1868,17 @@ TEST(WorldAnimation, ShapedBindingRunsItsChainOnTheLane) {
 
   const glm::mat4 &m = registry.get<world::TransformComponent>(e).model;
   EXPECT_NEAR(m[0][0], std::cos(22.5f * (float)M_PI / 180.0f), 1e-5f);
-  // A raw (unshaped) binding would have yawed 1 degree: cos = 0.99985.
+  // A raw, unshaped binding would have yawed 1 degree, whose cosine is
+  // barely under 1.
   EXPECT_LT(m[0][0], 0.99f) << "the bind() chain must run";
 }
 
 TEST(WorldAnimation, AnimateFormLandsOnItsSettledValue) {
-  // Ruling 3: these lanes accept compose's animate() because they are
-  // the same slot type — but ramp-on-change needs a CHANGE event, and
-  // world has no describe/diff over components. So a transitioned value
-  // resolves to its TARGET, no ramp, the way compose's snapshot() bakes
-  // one. Landing on the `from` (or on a zero) would be the bug.
+  // These lanes accept the animate() forms because they are the
+  // ordinary motion slot type — but ramp-on-change needs a CHANGE event,
+  // and world has no describe-and-diff over components. So a
+  // transitioned value resolves straight to its TARGET with no ramp.
+  // Landing on the `from`, or on a zero, would be the bug.
   using namespace std::chrono_literals;
   entt::registry registry;
   const entt::entity e = registry.create();
@@ -1914,11 +1921,11 @@ TEST(WorldAnimation, MaterialLanesOverrideOnlyWhatTheyDeclare) {
 }
 
 TEST(WorldAnimation, DerivedOutputDrivesAWorldLaneDeviceFree) {
-  // THE CROSS-LIBRARY COMPOSITION PIN for Ticker::derive() (SigilMotion,
-  // 2026-07-29): a derived Output is an ordinary Output, so a world lane
-  // consumes it through the same bind() chain as any hand-stepped cell —
-  // no world code knows or cares that the Ticker owns the write. Device-
-  // free: the ticker steps, resolveAnimation() reads, nothing renders.
+  // Ticker::derive() composing across the library boundary: a derived
+  // Output is an ordinary Output, so a world lane consumes it through
+  // the same bind() chain as any hand-stepped cell and no world code
+  // knows the Ticker owns the write. Device-free — the ticker steps,
+  // resolveAnimation() reads, nothing renders.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::MaterialComponent>(e);
@@ -1926,8 +1933,9 @@ TEST(WorldAnimation, DerivedOutputDrivesAWorldLaneDeviceFree) {
   motion::Ticker ticker;
   choreograph::Output<float> phase{0.0f}, trail{0.0f};
   ticker.timeline().apply(&phase).then<choreograph::RampTo>(1.0f, 1.0f);
-  // Registered BEFORE the ramp above would ever be stepped, and shaped
-  // through the ordinary chain: the pen-tip idiom, one level.
+  // Registered before the ramp above is ever stepped, and shaped through
+  // the ordinary chain: one level of derivation, which is all that is
+  // allowed.
   ASSERT_TRUE(
       ticker.derive(&trail, world::bind(&phase).offset(-0.25f).clamp(0, 1)));
 
@@ -1951,9 +1959,9 @@ TEST(WorldAnimation, DerivedOutputDrivesAWorldLaneDeviceFree) {
 }
 
 TEST(WorldAnimation, ResolveIsIdempotentAndReportsOnlyWhatMoved) {
-  // Change detection, the property that keeps a lane in front of a GPU
-  // re-cook honest — and the reason AnimationStats exists at all
-  // (scene::Scene::Stats' "pruning is observable" contract).
+  // Change detection: the property that keeps a lane sitting in front of
+  // a GPU re-cook from dispatching every frame, and the reason
+  // AnimationStats exists at all.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::TransformComponent>(e);
@@ -1992,10 +2000,10 @@ TEST(WorldAnimation, ResolveIsIdempotentAndReportsOnlyWhatMoved) {
 }
 
 TEST(WorldAnimation, SameTimeYieldsTheSameNumber) {
-  // DETERMINISM, half one: world owns NO clock (ruling 2). The caller
-  // steps a motion::Ticker with the delta it chooses, so the same frame
-  // index resolves to the same number, bit for bit, in a fresh process
-  // state — which is what makes a headless plate reproducible.
+  // DETERMINISM, in numbers: world owns no clock, so the caller steps a
+  // motion::Ticker with the delta it chooses and the same frame index
+  // resolves to the same number, bit for bit — which is what makes a
+  // headless render reproducible.
   const auto run = [](double dt, int frames) {
     motion::Ticker ticker;
     choreograph::Output<float> phase{0.0f};
@@ -2029,11 +2037,11 @@ TEST(WorldAnimation, SameTimeYieldsTheSameNumber) {
 }
 
 TEST(WorldAnimation, WiggledLanesShakeDeterministicallyAndPerSeed) {
-  // The wiggle() stage landed in SigilMotion (2026-07-29), so world
-  // inherits AE's most-used expression on every lane for free. The
-  // reason it may: the noise is a pure function of the NORMALISED input,
-  // never of a clock — so ruling 2 stands and this test can hold the
-  // same bar as SameTimeYieldsTheSameNumber above.
+  // The wiggle() stage lives in the motion library, so every world lane
+  // gets it. It stays compatible with world's no-clock property because
+  // the noise is a pure function of the NORMALISED input and never of a
+  // clock — so this test can hold the same bar as
+  // SameTimeYieldsTheSameNumber above.
   const auto run = [](double dt, int frames, uint32_t seedX, uint32_t seedY) {
     motion::Ticker ticker;
     choreograph::Output<float> seconds{0.0f};
@@ -2062,8 +2070,8 @@ TEST(WorldAnimation, WiggledLanesShakeDeterministicallyAndPerSeed) {
     EXPECT_EQ(a[i], b[i]) << "frame " << i << " must be bit-identical";
 
   // Not vacuous, to the same three-part standard: the shake MOVES, it
-  // stays inside its declared ±0.6, and a different dt sequence lands
-  // elsewhere at the same frame index.
+  // stays inside its declared amplitude, and a different dt sequence
+  // lands elsewhere at the same frame index.
   float span = 0.0f;
   for (const auto &[x, y] : a) {
     EXPECT_LE(std::fabs(x), 0.6f + 1e-4f);
@@ -2111,9 +2119,9 @@ TEST(WorldAnimation, RenderResolvesTheLanesItself) {
 }
 
 TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
-  // DETERMINISM, half two: the same frame INDEX must produce the same
-  // pixels. If the new door made plates a function of wall time this is
-  // the test that would catch it.
+  // DETERMINISM, in pixels: the same frame INDEX must produce the same
+  // image. If declared motion ever made a render a function of wall
+  // time, this is the test that catches it.
   world::WorldConfig config;
   config.width = 96;
   config.height = 72;
@@ -2168,10 +2176,10 @@ TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
 }
 
 TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
-  // The one lane sitting in front of a GPU RE-COOK. Two claims: it
-  // lands exactly where the imperative setter lands, and a lane that is
-  // not moving costs zero dispatches (without that, every animated
-  // flock would re-scatter forever behind a parked Output).
+  // The one lane sitting in front of a GPU RE-COOK, and two claims about
+  // it: it lands exactly where the imperative setter lands, and a lane
+  // that is not moving costs zero dispatches. Without the second, an
+  // animated flock would re-scatter every frame behind a parked Output.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -2238,13 +2246,12 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
 }
 
 // ---------------------------------------------------------------------------
-// THE CAMERA LANE (2026-07-29) — AnimatedCamera.
+// THE CAMERA LANES — AnimatedCamera.
 //
-// The camera needed no new home: it is already a registry entity
-// (CameraComponent), so the lanes hang off an entity like every other
-// lane and resolve in the DEVICE-FREE half. Precedence is not a new
-// rule either — an active CameraComponent beats setCamera(), which is
-// what these pins nail down at the pixel level.
+// A camera is already a registry entity, so its lanes hang off an entity
+// like every other lane and resolve in the DEVICE-FREE half. Precedence
+// is the existing rule — an active CameraComponent beats setCamera() —
+// and the tests below fix it at the pixel level.
 // ---------------------------------------------------------------------------
 
 TEST(WorldAnimation, CameraLanesDriveACameraEntityWithoutADevice) {
@@ -2264,16 +2271,17 @@ TEST(WorldAnimation, CameraLanesDriveACameraEntityWithoutADevice) {
   EXPECT_FLOAT_EQ(cam.eye.z, 400.0f);
   EXPECT_FLOAT_EQ(cam.fovYDeg, 29.0f);
 
-  // Change detection is the same one rule: a parked Output writes zero.
+  // Change detection is one rule everywhere: a parked Output writes
+  // nothing.
   stats = world::resolveAnimation(registry);
   EXPECT_EQ(stats.cameras, 0) << "an unmoved camera lane must not write";
 }
 
 TEST(WorldAnimation, CameraLanesOverrideOnlyWhatTheyDeclare) {
-  // Ruling 5 applied to the camera: it is a component the caller also
-  // authors, so the lanes are optional. Plain defaults would slam this
-  // camera's authored 12-degree lens back to 40 and its target to the
-  // origin the moment eyeX was engaged.
+  // The camera is a component the caller also authors, so its lanes are
+  // optional. With plain defaults instead, engaging eyeX alone would
+  // also slam this camera's authored 12-degree lens back to 40 and its
+  // target to the origin.
   entt::registry registry;
   const entt::entity e = registry.create();
   shape::space::Camera authored;
@@ -2302,9 +2310,9 @@ TEST(WorldAnimation, CameraLanesOverrideOnlyWhatTheyDeclare) {
 
 TEST(WorldAnimation, CameraRollTurnsUpAboutTheViewAxisAndStaysUnit) {
   // `up` gets no lanes because three free floats cannot promise a unit
-  // vector; rollDeg is the safe parameterisation, and this is the pin
-  // that says so — the derived up stays exactly unit length, and it is
-  // recomputed from rollReference every resolve, so it cannot drift.
+  // vector; rollDeg is the safe single-float parameterisation. The
+  // derived up stays exactly unit length, and it is recomputed from
+  // rollReference on every resolve, so repeated resolves cannot drift.
   entt::registry registry;
   const entt::entity e = registry.create();
   shape::space::Camera authored;
@@ -2336,10 +2344,10 @@ TEST(WorldAnimation, CameraRollTurnsUpAboutTheViewAxisAndStaysUnit) {
 }
 
 TEST(WorldAnimation, CameraTraceIsTheSameAtTheSameFrameIndex) {
-  // DETERMINISM for the camera lanes, to the standard ruling 2 set:
-  // same frame index, same numbers bit for bit; the trace must MOVE;
-  // and a different dt sequence must land elsewhere at the same index,
-  // so "identical" is not a claim about a constant.
+  // DETERMINISM for the camera lanes, to the same three-part standard:
+  // same frame index gives the same numbers bit for bit; the trace must
+  // MOVE; and a different dt sequence must land elsewhere at the same
+  // index, so "identical" is not a claim about a constant.
   const auto run = [](double dt, int frames) {
     motion::Ticker ticker;
     choreograph::Output<float> phase{0.0f};
@@ -2378,11 +2386,11 @@ TEST(WorldAnimation, CameraTraceIsTheSameAtTheSameFrameIndex) {
 }
 
 TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
-  // THE PRECEDENCE RULE, at the pixel: an animated camera IS a camera
-  // entity, and an active CameraComponent beats setCamera() — including
-  // a setCamera() called after the lanes were engaged. Reversing that
-  // (last writer wins) would make the frame depend on call order, which
-  // a declared lane has none of.
+  // PRECEDENCE, at the pixel: an animated camera IS a camera entity, and
+  // an active CameraComponent beats setCamera() — including a
+  // setCamera() called after the lanes were engaged. Last-writer-wins
+  // would make the frame depend on call order, which a declared lane
+  // does not have.
   world::WorldConfig config;
   config.width = 96;
   config.height = 72;
@@ -2438,9 +2446,10 @@ TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
 }
 
 TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
-  // Determinism half two for the camera, mirroring
-  // AnimatedFrameRendersIdenticallyAcrossRuns: same frame index, same
-  // pixels; the next frame differs, so the dolly is really moving.
+  // Determinism in pixels for the camera, mirroring
+  // AnimatedFrameRendersIdenticallyAcrossRuns: the same frame index
+  // gives the same pixels, and the next frame differs, so the dolly is
+  // really moving.
   world::WorldConfig config;
   config.width = 96;
   config.height = 72;
@@ -2492,14 +2501,14 @@ TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
 }
 
 // ---------------------------------------------------------------------------
-// THE CAMERA PATH (2026-07-29) — one float lane walking a curve.
+// THE CAMERA PATH — one float lane walking a curve.
 //
-// Eight independent float lanes could describe a POINT but not a
-// TRAJECTORY. CameraPath adds the curve and keeps the float-only ruling
-// by making the LANE the parameter. These pins fix the four rules that
-// answer for it: precedence over the eye lanes, the wrap, arc-length by
-// default, and roll composing with the flight axis — plus the cache that
-// keeps the arc-length table off the per-frame bill.
+// Independent float lanes can describe a POINT but not a TRAJECTORY.
+// CameraPath adds the curve while keeping lanes float-only, by making
+// the lane the curve's PARAMETER. The tests below fix its four rules —
+// precedence over the eye lanes, the wrap, arc-length by default, and
+// roll composing with the flight axis — plus the cache that keeps the
+// arc-length table off the per-frame bill.
 // ---------------------------------------------------------------------------
 
 namespace {
@@ -2516,7 +2525,7 @@ shape::Spline3 unevenRun() {
   return s;
 }
 
-/** A CLOSED loop through four points, for the wrap and roll pins. */
+/** A CLOSED loop through four points, for the wrap and roll tests. */
 shape::Spline3 diamondLoop() {
   shape::Spline3 s;
   s.points = {{100, 0, 0}, {0, 0, 100}, {-100, 0, 0}, {0, 0, -100}};
@@ -2542,7 +2551,7 @@ TEST(WorldAnimation, CameraPathFliesTheEyeAlongTheSpline) {
   world::CameraPath &flight = animated.path.emplace();
   flight.path = unevenRun();
   flight.t = &along;
-  flight.lookAhead = 0; // aim is a separate pin; this one is placement
+  flight.lookAhead = 0; // aiming is tested separately; this is placement
 
   along = 0.5f;
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
@@ -2561,8 +2570,8 @@ TEST(WorldAnimation, CameraPathFliesTheEyeAlongTheSpline) {
 }
 
 TEST(WorldAnimation, CameraPathArcLengthIsConstantSpeedByDefault) {
-  // THE OWNER'S RULING, pinned: a camera move wants constant SPEED, so
-  // arc-length is the default and the flag is the opt-out.
+  // A camera move wants constant SPEED, so arc-length parameterisation
+  // is the default and the flag is the opt-out.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::CameraComponent>(e);
@@ -2723,12 +2732,12 @@ TEST(WorldAnimation, CameraPathWrapsOnALoopAndClampsOnAnOpenCurve) {
 }
 
 TEST(WorldAnimation, CameraPathTableRebuildsOnlyWhenTheSplineChanges) {
-  // THE COST RULE. The arc-length table is 256 spline evaluations; it
-  // must not be rebuilt per frame. There is no dirty flag — the cache
-  // is compared against the SPLINE that determines it — so this pin
-  // POISONS the table and shows a resolve honours the poison (i.e. did
-  // not rebuild), then edits the control points and shows the very same
-  // resolve does rebuild.
+  // The arc-length table costs `samples` spline evaluations to build and
+  // must not be rebuilt per frame. There is no dirty flag; the cache is
+  // compared against the SPLINE that determines it. So this test
+  // POISONS the table and shows that a resolve keeps the poison — proof
+  // it did not rebuild — then edits a control point and shows that the
+  // very same resolve does rebuild.
   entt::registry registry;
   const entt::entity e = registry.create();
   registry.emplace<world::CameraComponent>(e);
@@ -2752,7 +2761,7 @@ TEST(WorldAnimation, CameraPathTableRebuildsOnlyWhenTheSplineChanges) {
       << "an unchanged spline must not rebuild its table";
 
   // Edit a control point in place: the cache no longer matches the
-  // spline, so it rebuilds — no flag to forget to set.
+  // spline, so it rebuilds. There is no flag anyone could forget.
   flight.path.points[2] = {200, 0, 0};
   world::resolveAnimation(registry);
   EXPECT_NEAR(flight.arcTable.back(), 200.0f, 0.05f);
@@ -2786,9 +2795,9 @@ TEST(WorldAnimation, CameraPathRollTurnsAboutTheFlightAxis) {
   EXPECT_NEAR(cam.up.x, -1.0f, 5e-2f);
   EXPECT_NEAR(cam.up.y, 0.0f, 5e-2f);
   EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-5f);
-  // Rolling about the AUTHORED axis (-z, from eye 0,0,10 to the origin)
-  // would have put up on +x instead — that is the difference this pin
-  // exists to see, and it is a whole sign apart.
+  // Rolling about the AUTHORED axis instead — the -z from eye (0,0,10)
+  // to the origin — would have put up on +x. That whole sign is the
+  // difference this test exists to see.
   EXPECT_LT(cam.up.x, 0.0f);
 
   // Still idempotent with a path in front of it.
@@ -2797,10 +2806,10 @@ TEST(WorldAnimation, CameraPathRollTurnsAboutTheFlightAxis) {
 }
 
 TEST(WorldAnimation, CameraPathTraceIsTheSameAtTheSameFrameIndex) {
-  // DETERMINISM for the path, to the standard ruling 2 set: same frame
-  // index, same numbers bit for bit; the trace must MOVE; and a
-  // different dt sequence must land elsewhere at the same index, so
-  // "identical" is not a claim about a constant.
+  // DETERMINISM for the path, to the same three-part standard: same
+  // frame index gives the same numbers bit for bit; the trace must MOVE;
+  // and a different dt sequence must land elsewhere at the same index,
+  // so "identical" is not a claim about a constant.
   const auto run = [](double dt, int frames) {
     motion::Ticker ticker;
     choreograph::Output<float> phase{0.0f};
@@ -2839,9 +2848,9 @@ TEST(WorldAnimation, CameraPathTraceIsTheSameAtTheSameFrameIndex) {
 }
 
 TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
-  // Determinism half two: the path reaches the renderer, the same frame
-  // index is the same pixels, and the next frame is not — so the flight
-  // is genuinely under way rather than parked.
+  // Determinism in pixels: the path reaches the renderer, the same frame
+  // index gives the same pixels, and the next frame does not — so the
+  // flight is genuinely under way rather than parked.
   world::WorldConfig config;
   config.width = 96;
   config.height = 72;
@@ -2895,26 +2904,23 @@ TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
 }
 
 // ---------------------------------------------------------------------------
-// SCENE x ANIMATION (2026-07-29) — the question nobody had asked.
+// SCENE x ANIMATION — what happens to an Animated* component on an
+// entity the reconciler manages.
 //
-// What happens to an Animated* component on an entity the reconciler
-// manages? Three pins, and they answer it: a kept leaf rides its
-// entity and keeps its lanes (but the lanes then OUTRANK the declared
-// placement, silently); a leaf whose material or mesh changed is
-// remove+add, so its lanes are destroyed with the entity; and the
-// camera is the one lane that composes freely, because a camera is not
-// a scene node. When these pins were written nothing in the public API
-// could ASK the Scene for an entity id — which is why "these two
-// systems do not meet" was the honest headline. Since 2026-08-04 that
-// door is open: Scene::find(keyPath) publishes identity (the LIGHT
-// door pins below), and these three keep pinning the underlying
-// mechanics — the iteration workaround they use deliberately reaches
-// around the API, as the fixture comment says.
+// Three answers. A kept leaf rides its entity and keeps its lanes, but
+// those lanes then OUTRANK the node's declared placement. A leaf whose
+// material or mesh changed is remove-and-add, so its lanes are destroyed
+// along with the entity. And the camera composes freely, because a
+// camera is not a scene node.
+//
+// These three reach for their entity by iterating the registry rather
+// than through Scene::find(), deliberately: they exercise the underlying
+// mechanics independently of the lookup, which has its own tests below.
 // ---------------------------------------------------------------------------
 
 namespace {
-/** The registry's one and only surface entity — reconstructed by
- *  iteration precisely BECAUSE scene::Scene publishes no ids. */
+/** The registry's one and only surface entity, found by iteration so
+ *  these tests do not depend on Scene::find() being correct. */
 entt::entity soleSurfaceEntity(world::World &world) {
   entt::entity found = entt::null;
   int count = 0;
@@ -2957,12 +2963,12 @@ TEST(WorldSceneAnimation, KeptLeavesRideTheirEntityAndTheirLanesOutrankIt) {
   ASSERT_TRUE(w->registry().valid(e));
   ASSERT_TRUE(w->registry().all_of<world::AnimatedTransform>(e));
 
-  // ...and then WINS. AnimatedTransform owns the whole placement, so
-  // the node's declared x=100 is gone: the surface sits at the lane's
-  // origin plus lift, and the reconciler reports `kept` while the
-  // surface is nowhere the tree says. This is the documented "do not
-  // also drive it with setTransform()" rule meeting a setTransform()
-  // driver, and it is why a declared node should not carry a lane.
+  // ...and then WINS. AnimatedTransform owns the whole placement, so the
+  // node's declared x = 100 is gone: the surface sits at the lane's own
+  // origin plus lift, and the reconciler still reports `kept` while the
+  // surface is nowhere the tree says it is. This is the rule that a
+  // component owning a TransformComponent must not also be driven by
+  // hand, met by a reconciler that drives it by hand.
   lift = 55.0f;
   ASSERT_TRUE(w->render());
   const glm::mat4 &model = w->registry().get<world::TransformComponent>(e).model;
@@ -2991,8 +2997,8 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
   w->registry().emplace<world::AnimatedTransform>(e).y = &lift;
   EXPECT_EQ(world::resolveAnimation(w->registry()).transforms, 1);
 
-  // Change the material: reuse needs mesh pointer AND material equal,
-  // so this leaf is remove + add — a NEW entity.
+  // Change the material: reuse needs the mesh pointer AND the material
+  // to compare equal, so this leaf is remove-and-add — a NEW entity.
   world::Material recoloured;
   recoloured.baseColor = {1, 0, 0, 1};
   const world::scene::Scene::Stats stats = scene.render(describe(recoloured));
@@ -3003,8 +3009,8 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
       << "the old entity is destroyed, not reused in place";
   EXPECT_EQ(w->registry().view<world::AnimatedTransform>().size(), 0u)
       << "the lane went with it — silently";
-  // The whole system now resolves nothing at all, which is exactly the
-  // failure mode that costs an afternoon if it is not written down.
+  // The whole system now resolves nothing at all: the animation simply
+  // stops, with no error anywhere. Re-attach after a recreate.
   EXPECT_EQ(world::resolveAnimation(*w).transforms, 0);
   const entt::entity replacement = soleSurfaceEntity(*w);
   EXPECT_NE(replacement, e);
@@ -3012,9 +3018,9 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
 }
 
 TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
-  // The one place the two systems DO compose, and by construction: a
+  // The one place the two systems compose freely, and by construction: a
   // camera is not a scene node, so no reconcile can add, remove or
-  // recreate it. A declared dolly over a declared scene is fine.
+  // recreate it. A declared dolly over a declared scene is safe.
   world::WorldConfig config;
   config.width = 32;
   config.height = 32;
@@ -3055,16 +3061,15 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
 }
 
 // ---------------------------------------------------------------------------
-// THE LIGHT DOOR (2026-08-04, owner ruling) — Scene::find() publishes
-// identity and the reconciler warns on the silent outrank. The three
-// pins above stay word-for-word as the record of the closed door; these
-// pin the shipped answer: (a) find() resolves the reconciler's own key
-// path to the kept entity, (b) a recreate's component drop is now
-// OBSERVABLE through find() returning the new entity, (c) a lane
-// attached through find() animates, (d) a kept-and-outranked leaf is
-// LOUD, once, and a clean keep stays silent. Like every Scene pin these
-// need a device — Scene requires a World, and identity is only
-// observable through Scene::render() — so they skip without Vulkan.
+// Scene::find() — publishing identity, and warning on the silent
+// outrank. Four claims: (a) find() resolves the reconciler's own key
+// path to the kept entity, (b) a recreate's component drop is
+// observable, because find() then answers the NEW entity, (c) a lane
+// attached through find() animates, and (d) a kept-and-outranked leaf
+// warns once while a clean keep stays silent.
+//
+// These need a device — a Scene requires a World, and identity is only
+// observable through Scene::render() — so they skip without one.
 // ---------------------------------------------------------------------------
 
 TEST(WorldSceneAnimation, FindResolvesANestedPathAcrossAKeep) {
@@ -3133,17 +3138,17 @@ TEST(WorldSceneAnimation, FindReturnsTheNewEntityAfterARecreate) {
   EXPECT_EQ(stats.removed, 1);
   EXPECT_EQ(stats.added, 1);
 
-  // The drop is now OBSERVABLE: the old entity is gone from the
-  // registry, and find() answers the NEW one — re-attach your lanes.
+  // The drop is OBSERVABLE: the old entity is gone from the registry and
+  // find() answers the new one, so a caller can re-attach its lanes.
   EXPECT_FALSE(w->registry().valid(*before));
   const std::optional<entt::entity> after = scene.find("set/card");
   ASSERT_TRUE(after.has_value());
   ASSERT_TRUE(w->registry().valid(*after));
   EXPECT_NE(*after, *before);
-  // CONTROL against id aliasing: entt may reuse the destroyed slot's
-  // INDEX, but the version bumps — so the full id (the uint32 World
-  // hands out) still differs, and a stale id cannot pass for the new
-  // entity.
+  // CONTROL against id aliasing: the registry may reuse the destroyed
+  // slot's INDEX, but its version bumps, so the full id — the uint32
+  // World hands out — still differs and a stale id cannot pass for the
+  // new entity.
   EXPECT_NE((uint32_t)*after, (uint32_t)*before);
   EXPECT_FALSE(w->registry().all_of<world::AnimatedTransform>(*after))
       << "the lane died with the old entity; the replacement is bare";
@@ -3165,8 +3170,8 @@ TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
                 .added,
             1);
 
-  // The supported spelling of the old registry-iteration workaround:
-  // ask the Scene, attach, resolve.
+  // The supported way to reach a declared leaf: ask the Scene, attach,
+  // resolve.
   const std::optional<entt::entity> e = scene.find("set/card");
   ASSERT_TRUE(e.has_value());
   choreograph::Output<float> lift{0.0f};
@@ -3177,7 +3182,7 @@ TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
   const glm::mat4 &model =
       w->registry().get<world::TransformComponent>(*e).model;
   EXPECT_FLOAT_EQ(model[3][1], 33.0f);
-  // Idempotent, like every resolve: a second pass writes nothing.
+  // Idempotent, like every resolve: a second pass writes nothing at all.
   EXPECT_EQ(world::resolveAnimation(w->registry()).transforms, 0);
 }
 
@@ -3214,8 +3219,8 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
     return n;
   };
 
-  // Two kept renders with a live outranking lane: the warning names the
-  // node and the component, ONCE — not per frame — and never names the
+  // Two kept renders with a live outranking lane. The warning names the
+  // node and the component ONCE, not once per frame, and never names the
   // clean sibling kept right beside it.
   ::testing::internal::CaptureStderr();
   EXPECT_EQ(scene.render(describe()).kept, 2);
@@ -3245,15 +3250,14 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
 }
 
 // ---------------------------------------------------------------------------
-// LAYERS AT DEPTH (2026-08-04) — README "Layers at depth", pinned.
+// LAYERS AT DEPTH — a stack of flat panels at different depths, which is
+// how a compositing-style layer stack is expressed here.
 //
-// The AE-style layer stack was documented as already-expressible; these
-// pins close its three filed items. The parallax and Stack-arithmetic
-// pins are DEVICE-FREE on purpose — like the resolveAnimation() pins
-// above they run on a machine with no Vulkan, where every device test
-// here skips. faceCamera() itself is pinned in shape_test (it lives in
-// shape::space beside place()); the reconciler-keep pin below needs a
-// device because identity is only observable through Scene::render().
+// The parallax and Stack-arithmetic tests are DEVICE-FREE on purpose,
+// like the resolveAnimation() tests above: they run on a machine with no
+// GPU, where every device test here skips. The reconciler test at the
+// end does need a device, because identity is only observable through
+// Scene::render().
 // ---------------------------------------------------------------------------
 
 TEST(WorldLayers, NearLayersShiftMoreThanFarOnesInTheDepthRatio) {
@@ -3280,8 +3284,9 @@ TEST(WorldLayers, NearLayersShiftMoreThanFarOnesInTheDepthRatio) {
   // The truck must actually displace both layers on screen.
   EXPECT_GT(std::abs(nearShift), 1.0f);
   EXPECT_GT(std::abs(farShift), 1.0f);
-  // 1%: float32 LookAt/Perspective round-off leaves ~0.1% on the
-  // ratio; 1% still separates 2 from the control's 1 by a mile.
+  // The tolerance absorbs float round-off through the view and
+  // projection matrices while still separating this ratio of 2 from the
+  // control's ratio of 1 by a wide margin.
   EXPECT_NEAR(nearShift / farShift, 1200.0f / 600.0f, 0.02f);
 
   // POSITIVE CONTROL: a stack at ONE Z displaces uniformly — ratio 1 —
@@ -3318,9 +3323,9 @@ TEST(WorldLayers, StackSizesLayersInTheirPixelRatio) {
   EXPECT_FLOAT_EQ(a.width() / a.height(), 640.0f / 360.0f);
   EXPECT_FLOAT_EQ(a.width(), 20.0f); // 640 px / 32 px-per-wu
 
-  // POSITIVE CONTROL: the hand-tuned spelling this replaces (the tiger
-  // poster: a 640x360-class image on a square panel) FAILS the aspect
-  // equality — the guarantee is not vacuous.
+  // POSITIVE CONTROL: hand-picking panel dimensions instead — here a
+  // square panel for a widescreen image — fails the aspect equality, so
+  // the guarantee above is not vacuous.
   const float handTunedAspect = 300.0f / 300.0f;
   EXPECT_NE(handTunedAspect, 640.0f / 360.0f);
 }
@@ -3352,8 +3357,9 @@ TEST(WorldLayers, StackPanelsReconcileAsKeepsAgainstExplicitPanels) {
   EXPECT_EQ(stats.removed, 0);
   EXPECT_EQ(stats.moved, 0);
 
-  // POSITIVE CONTROL: a different density is a different quad — the
-  // reconciler recreates, so the keep above was measuring identity.
+  // POSITIVE CONTROL: a different density is a different quad, so the
+  // reconciler recreates — which means the keep above really was
+  // measuring identity.
   const world::scene::Stack denser{4.0f};
   stats = scene.render(
       world::scene::group().key("comp").child(

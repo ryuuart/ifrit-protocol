@@ -90,21 +90,19 @@
 //   m = 4.83 + 5*log10(3.64) - 5 = 2.63, between Megrez (3.31) and
 //   Merak (2.37). The number is printed on the star field.
 //
-// WHY IT IS A SigilCompose STRESS TEST
-//   Reeves' §2.2 attribute list IS the Pool schema the roadmap keeps
-//   asking for, published in 1983. Five of its seven attributes fit:
-//   position, colour, transparency and initial size land on
-//   positions()/tints()/scales(), and per-sprite blend landed in
-//   d1ae3db, so the additive-and-clamp colour model finally reaches the
-//   destination — the sidebar's three-path bench shows the SAME pool at
-//   kSrcOver and kPlus side by side. Two do not:
+// HOW IT MAPS ONTO SigilCompose
+//   Reeves' §2.2 attribute list is, in effect, an instancing Pool schema
+//   published in 1983. Five of its seven attributes fit: position,
+//   colour, transparency and initial size land on
+//   positions()/tints()/scales(), and per-sprite blend carries the
+//   additive-and-clamp colour model — the sidebar's three-path bench
+//   shows the SAME pool at kSrcOver and kPlus side by side. Two do not:
 //     * `shape: streaked spherical` is per-instance NON-UNIFORM scale (a
-//       quad 0.5*|v| long by `size` wide, swinging ~2.4:1 at ejection to
-//       under 1:1 at apogee). SkRSXform is uniform by construction, so
-//       the 30,000-body field drops to custom() + one SkVertices list
-//       per 8,000 streaks. That is not a defeat — it is Reeves' own
-//       renderer, "merely antialiased lines" — but it is 69 lines the
-//       library should have owned.
+//       quad 0.5*|v| long by `size` wide: elongated at ejection, wider
+//       than it is long at apogee). SkRSXform is uniform by
+//       construction, so the main field is drawn instead by custom()
+//       plus one SkVertices list per 8,000 streaks — which is Reeves'
+//       own renderer, "merely antialiased lines".
 //     * `lifetime`, measured in frames, has no delay/progress lane, and
 //       the wall of fire IS a stagger. It lives in a parallel Site::t0.
 //   Everything else is the library: two CONTROL pools through
@@ -117,6 +115,11 @@
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/genesis_fire.cpp \
 //       --frame /tmp/genesis_fire.png --at 4.6
+//
+//   4.6 s into the 10 s loop is the one instant that shows the whole
+//   stagger at once: the wavefront is close to the right edge (it clears
+//   the stage at kFrontCrossSeconds), the leftmost systems have finished
+//   generating and are burning out, and the rightmost have just ignited.
 
 #include <sigilsketch/Sketch.h>
 
@@ -153,7 +156,7 @@ namespace ch = choreograph;
 namespace {
 
 // ---------------------------------------------------------------------------
-// Palette (study §5.3 — this study's own chrome, not sourced)
+// Palette — this study's own chrome, not sourced
 
 constexpr SkColor4f hex(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xFF) / 255.0f,
@@ -168,8 +171,8 @@ constexpr SkColor4f kSteelDim = hex(0x545E74);
 constexpr SkColor4f kKeyline = hex(0x242A36);
 constexpr SkColor4f kCyan = hex(0x4FB8D8);
 
-// §5.1 — THE EMISSION SEED. Everything about the fire's colour is a
-// consequence of this triple plus "light adds and clamps" [R83 §2.5].
+// THE EMISSION SEED. Everything about the fire's colour is a consequence
+// of this triple plus "light adds and clamps" [R83 §2.5].
 constexpr float kE0r = 0.220f, kE0g = 0.050f, kE0b = 0.009f;
 
 /** clamp(n * e0) — the colour of a pixel covered by n particles. This is
@@ -182,7 +185,8 @@ SkColor4f overlap(int n) {
 constexpr int kRampN[14] = {1, 2, 3, 4, 5, 8, 12, 16, 20, 28, 40, 60, 85, 111};
 
 // ---------------------------------------------------------------------------
-// §6 — geometry
+// Geometry. The canvas size and the ink background are this sketch's own,
+// declared in setup(); nothing here inherits a host default.
 
 constexpr float kCanvasW = 1440, kCanvasH = 864;
 constexpr float kStageW = 888, kStageH = 666; // 4:3 — the 500-line raster
@@ -196,9 +200,9 @@ float limbY(float x) {
   return kLimbCy - (k > 0 ? std::sqrt(k) : 0.0f);
 }
 
-// §4.4 — the reconstructed parameter table. All rates are per SIMULATION
-// FRAME at 24 Hz, because [R83] counts lifetimes in frames and the frames
-// in question are film frames.
+// The reconstructed parameter table. All rates are per SIMULATION FRAME at
+// 24 Hz, because [R83] counts lifetimes in frames and the frames in question
+// are film frames.
 constexpr double kSimHz = 24.0;
 constexpr double kSimStep = 1.0 / kSimHz;
 constexpr double kLoopSeconds = 10.0;
@@ -217,8 +221,8 @@ constexpr float kPsiMax = 34.0f * 0.0174532925f; // ejection cone, rad
 // of births — see the census panel's derivation, which is printed on the
 // canvas and measured against the live count.
 constexpr int kDepth = 3;
-// The A/B bench's population — enough bodies to accumulate in a 130x52
-// cell, which 240 is not.
+// The A/B bench's pool size: enough slots that the cloud visibly
+// accumulates inside a 130x52 cell. Births stop once this many are alive.
 constexpr size_t kAbCount = 700;
 constexpr float kInitialMeanParts = 41.0f * (float)kDepth;
 constexpr float kDeltaMeanParts =
@@ -339,7 +343,7 @@ Element panelHead(const char *s) {
 // ===========================================================================
 
 struct GenesisFire : sigil::compose::sketch::Sketch {
-  // --- §4.1 the two levels -------------------------------------------------
+  // --- the two levels ------------------------------------------------------
   struct Site {
     SkPoint p;      // surface point
     SkVector n, u;  // outward normal, surface tangent
@@ -351,7 +355,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   };
   struct Particle {
     SkPoint pos{0, 0}, vel{0, 0};
-    float r = 0, g = 0, b = 0;     // emission (the seven attributes, §2.2)
+    float r = 0, g = 0, b = 0;     // emission ([R83 §2.2]'s seven attributes)
     float size = 0, grow = 0;      // diameter, px + its per-frame rate
     float age = 0, life = 0;       // FRAMES
     uint16_t site = 0;
@@ -388,7 +392,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   ch::Output<float> liveFrac{0.0f}; // census bar, [0,1]
 
   // --- measured ------------------------------------------------------------
-  size_t liveCount = 0, peakCount = 0;
+  size_t liveCount = 0;
   double buildUs = 0;
   size_t vertCount = 0;
 
@@ -405,7 +409,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   float rand11() { return rand01() * 2.0f - 1.0f; }
 
   // =========================================================================
-  // §4.2 — one second-level system
+  // One second-level system
 
   void emitAt(std::vector<Particle> &into, const Site &s, uint16_t si,
               float speedScale, float sizeScale, float genScale) {
@@ -431,7 +435,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     into.push_back(p);
   }
 
-  /** §4.2 per-frame integration + the three documented extinction rules. */
+  /** Per-frame integration + the three documented extinction rules. */
   void advance(std::vector<Particle> &v, const std::vector<Site> &ss,
                float gravity, bool killBelowSurface) {
     for (size_t i = 0; i < v.size();) {
@@ -480,27 +484,30 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     }
     advance(parts, sites, kGravity, true);
 
-    // The A/B bench: a steady-state explosion, ~240 alive, fixed recipe.
+    // The A/B bench: one steady-state explosion on a fixed recipe, births
+    // stopping at the pool's kAbCount slots.
     const int nb = (int)std::lround(std::max(0.0f, 25.0f + rand11() * 5.0f));
     for (int k = 0; k < nb && abParts.size() < kAbCount; ++k)
       emitAt(abParts, abSite(), 0, 0.55f, 0.72f, 0.35f);
     advance(abParts, abSites(), 1.06f, false);
 
     liveCount = parts.size();
-    peakCount = std::max(peakCount, liveCount);
     ++simSteps;
   }
 
-  // The bench's single system, in its 130x56 cell's local px.
+  // The bench's single system, in the local px of its 130x52 cell — the
+  // emitter sits 2 px above the cell's bottom edge, so the whole arc stays
+  // inside the clip and the below-emitter cull (2 px under the emitter, in
+  // advance()) lands exactly on the cell's edge.
   static const std::vector<Site> &abSites() {
     static const std::vector<Site> s = {
-        Site{{65.0f, 55.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
+        Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
     return s;
   }
   static const Site &abSite() { return abSites()[0]; }
 
   // =========================================================================
-  // §4.3 — the renderer that defines the look.
+  // The renderer that defines the look.
   //
   // ONE additive pass over every living particle, no depth sort, no
   // occlusion. Each streak is a quad from pos(f + 1/2) to pos(f) — a
@@ -522,7 +529,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     static thread_local std::vector<uint16_t> idx;
     // Six triangles: a FLAT core with an antialiased shoulder either side,
     // which is what an antialiased line actually is. (A three-band strip
-    // whose core is one line is 30% dimmer for the same coverage.)
+    // whose core collapses to a single line reads dimmer for the same
+    // coverage, because the flat interior is where the light lives.)
     static constexpr uint16_t kTri[18] = {0, 1, 2, 0, 2, 3, 3, 2, 4,
                                           3, 4, 5, 5, 4, 6, 5, 6, 7};
     for (size_t base = 0; base < v.size(); base += kChunk) {
@@ -539,9 +547,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         const SkVector d = speed > 1e-4f
                                ? SkVector{p.vel.fX / speed, p.vel.fY / speed}
                                : SkVector{0.0f, -1.0f};
-        // streaked spherical: length 0.5*|v|, width `size`. The aspect
-        // swings ~3.5:1 at ejection to ~1:1 at apogee — which is exactly
-        // what SkRSXform cannot express (see LIBRARY GAPS).
+        // streaked spherical: length 0.5*|v| but never less than half the
+        // diameter, width `size`. So the quad is elongated at ejection and
+        // ends up wider than it is long once the particle slows at apogee —
+        // a per-instance NON-UNIFORM scale, which is exactly what SkRSXform
+        // (and therefore the instancing path) cannot express.
         const float len = std::max(p.size * 0.5f, speed * 0.5f);
         const SkPoint head = p.pos;
         const SkPoint tail{p.pos.fX - d.fX * len, p.pos.fY - d.fY * len};
@@ -595,8 +605,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     };
   }
 
-  /** The A/B bench's third cell: the same 240 particles as the two
-   *  instanced cells, through §4.3's quads. */
+  /** The A/B bench's third cell: the same particles as the two instanced
+   *  cells, through the streak quads above. */
   PaintProgram benchQuadProgram() {
     return [this](SkCanvas &canvas, const PaintContext &) {
       std::vector<sk_sp<SkVertices>> chunks;
@@ -658,7 +668,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   // =========================================================================
-  // §9.5 / §9.2 — the two control pools, laid out once
+  // The two control pools, laid out once
 
   void seedStars() {
     starAtlas = std::make_shared<instancing::Atlas>(2.0f);
@@ -746,8 +756,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   void seedBench() {
     abAtlas = std::make_shared<instancing::Atlas>(4.0f);
-    // ONE baked aspect. The paper's shape swings 3.5:1 -> 1:1 over a
-    // particle's life; an atlas cell is one size and a Pool scale is one
+    // ONE baked aspect. The paper's shape goes from elongated at ejection to
+    // stubby at apogee; an atlas cell is one size and a Pool scale is one
     // float, so this cell is the compromise the middle two panels show.
     abAtlas->cell(box()
                       .width(4.4f)
@@ -780,7 +790,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   };
 
   Element dipper() {
-    // §6.1 — real relative geometry, framed into x[430,860] y[40,250].
+    // Real relative geometry, framed into x[430,860] y[40,250].
     static const DipStar kStars[8] = {
         {"ALKAID", 0.05f, 0.10f, 1.85f}, {"MIZAR", 0.24f, 0.26f, 2.23f},
         {"ALIOTH", 0.42f, 0.30f, 1.77f}, {"MEGREZ", 0.58f, 0.36f, 3.31f},
@@ -862,8 +872,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element regolith() {
-    // §9.3 — a generated surface, plus the ONE hand-added light in the
-    // shot (Tom Duff's), riding the wavefront.
+    // A generated surface, plus the ONE hand-added light in the shot
+    // (Tom Duff's), riding the wavefront.
     Material ground = Material::blend(
         {{Material::radialUnit({0.5f, 0.723f}, 0.50f,
                                {{0.0f, hex(0x3B3933)},
@@ -903,9 +913,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element shockwave() {
-    // §7.2 — the impact flash and Carpenter/Cole's shockwave, at the
-    // impact point (off-frame left). Documented as elements; timing is
-    // reconstruction.
+    // The impact flash and Carpenter/Cole's shockwave, at the impact point
+    // (off-frame left). Documented as elements; timing is reconstruction.
     const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
     Element g = box().inset(0);
     g.child(disc(impact, 170)
@@ -944,8 +953,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element planInset() {
-    // §6.1 — Fig. 2: the distribution of second-level systems on the
-    // planet's surface, live.
+    // Fig. 2: the distribution of second-level systems on the planet's
+    // surface, live.
     Element inner =
         box()
             .left(12)
@@ -1012,7 +1021,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
             animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1050ms}));
   }
 
-  /** §3's motion-blur construction, magnified 3x. */
+  /** [R83 §3]'s motion-blur construction, magnified 3x. */
   PaintProgram blurCalloutProgram() {
     return [](SkCanvas &canvas, const PaintContext &ctx) {
       const float h = ctx.size.height();
@@ -1449,9 +1458,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                               .child(productionPanel())));
   }
 
-  /** The live census row. Animatable has no u8string case (ROADMAP §9), so
-   *  a number that ticks goes through a slot — which is the right answer
-   *  and is cheap, but is not what the call site reaches for first. */
+  /** The live census row. An Animatable carries no string, so a number that
+   *  ticks cannot be bound; it is republished through a slot instead, which
+   *  re-describes only this row. */
   Element liveRow() {
     char parts_[32], per_[24], sys_[16];
     std::snprintf(parts_, sizeof parts_, "%zu,%03zu", liveCount / 1000,
@@ -1471,9 +1480,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(censusBar(0.0f, kCyan, "livebar"));
   }
 
-  /** The field's own measured cost, printed next to API.md's "10k
-   *  instances in 0.18 ms on Graphite". Same slot idiom as the census
-   *  row: a number that ticks has no binding path (ROADMAP §9). */
+  /** The field's own live cost, printed on the stage. Same slot idiom as
+   *  the census row: a number that ticks has no binding path. */
   Element fieldStat() {
     char buf[160];
     std::snprintf(buf, sizeof buf,
@@ -1482,11 +1490,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   "FRAME",
                   liveCount / 1000, liveCount % 1000, vertCount / 1000,
                   vertCount % 1000, fieldChunks.size(),
-                  // A number this study measured about its own execution.
-                  // Pinned under --deterministic so the plate is diffable:
-                  // unpinned it differs from ITSELF run to run (34 px), and
-                  // every pixel sweep then blames whatever patch is in
-                  // flight. See ROADMAP.md §26.
+                  // The one number on this canvas that measures the host
+                  // rather than the artefact, so it differs between two
+                  // renders of the same frame. Pinned to zero under
+                  // --deterministic, which is what makes a captured still
+                  // comparable byte for byte.
                   deterministic_ ? 0.0 : buildUs / 1000.0);
     return t(buf, mono(8.5f, hex(0xFFB672, 0.85f), 0.5f))
         .textAlign(sigil::weave::TextAlignment::kEnd);
@@ -1505,14 +1513,14 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     stepped = false;
     elapsed = 0;
     simSteps = 0;
-    liveCount = peakCount = 0;
+    liveCount = 0;
     buildUs = 0;
     vertCount = 0;
     parts.clear();
     abParts.clear();
     fieldChunks.clear();
 
-    // §4.1 — the 53 second-level systems, and THE STAGGER.
+    // The 53 second-level systems, and THE STAGGER.
     rng = 0x0F1E2D3Cu;
     sites.clear();
     for (int i = 0; i < kSiteCount; ++i) {
@@ -1535,15 +1543,13 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     rng = 0x9E3779B9u;
 
     Composer &composer = ctx.composer;
-    // §7.1 — the clock. [R83] counts lifetimes in FRAMES and the frames
-    // in question are film frames, so the whole simulation runs at a
-    // fixed 24 Hz whatever the host draws at. This used to be a
-    // hand-rolled accumulator plus its own spiral-of-death clamp;
-    // ROADMAP §12 closed while this sketch was being written and it is
-    // now one line. The clamp matters here and is visible: a headless
-    // pre-roll at `--fps 1` hands the ticker dt = 1.0, addFixed runs its
-    // 8 steps and DROPS the other 16, so the sim lags the wall clock —
-    // which is the correct failure, not a bug.
+    // The clock. [R83] counts lifetimes in FRAMES and the frames in
+    // question are film frames, so the whole simulation runs at a fixed
+    // 24 Hz whatever rate the host draws at. addFixed's catch-up clamp
+    // matters here and is visible: a headless pre-roll at `--fps 1` hands
+    // the ticker dt = 1.0, addFixed runs its 8 steps and DROPS the other
+    // 16, so the sim lags the wall clock — which is the correct failure,
+    // not a bug.
     ctx.ticker.addFixed(kSimHz, [this] {
       stepSim();
       stepped = true;
@@ -1566,8 +1572,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         composer.renderSlot("fieldStat", fieldStat());
       }
       // ONE phase Output. bind() derives the wavefront in px, the plan
-      // ring's unit scale, and two piecewise alphas from it (ROADMAP §1,
-      // closed — this study would have carried four Outputs).
+      // ring's unit scale, and two piecewise alphas from it; without that
+      // shaping each consumer would need an Output of its own, kept in
+      // step by hand.
       loopU = (float)(loopT / kLoopSeconds);
       liveFrac = std::clamp(
           (float)(std::log10(std::max(1.0, (double)liveCount)) - 3.8) / 2.2f,

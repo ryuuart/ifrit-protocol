@@ -2,11 +2,16 @@
 //   cmake --build build --config Release --target weave_bench
 //   ./build/bin/Release/weave_bench
 //
-// The headline numbers this suite exists to confirm:
-//   - warm relayout (moving geometry, no text change) is sub-millisecond
-//     for real paragraph sizes, and
-//   - a one-word edit or restyle costs barely more than a warm relayout
-//     (the shape cache absorbs everything else).
+// The suite is arranged so that arms can be read against each other rather
+// than in isolation. The comparisons it is built to support:
+//   - cold vs warm shaping, which shows what the shape cache absorbs;
+//   - warm relayout swept over paragraph length, which shows how layout
+//     scales when nothing was reshaped;
+//   - each kind of per-frame update (one-word edit, paint restyle, size
+//     restyle, moving exclusions, whole-text replacement) against that same
+//     warm relayout, which shows what the update itself adds;
+//   - draw arms that differ in exactly one paint feature, so the feature's
+//     cost is the difference between two runs.
 
 #include <sigilweave/PaintShaders.h>
 #include <sigilweave/SigilWeave.h>
@@ -140,7 +145,7 @@ BENCHMARK(BM_Layout_Warm)
     ->Arg(10000)
     ->Unit(benchmark::kMicrosecond);
 
-// ── The acceptance scenarios ──────────────────────────────────────────────
+// ── Per-frame update scenarios ────────────────────────────────────────────
 
 // One word of a ~500-word mixed paragraph changes per frame (rich-text
 // update): everything else must come out of the shape cache.
@@ -196,8 +201,8 @@ static void BM_Update_SizeRestyle_500w(benchmark::State &state) {
 }
 BENCHMARK(BM_Update_SizeRestyle_500w)->Unit(benchmark::kMicrosecond);
 
-// Shapes sweeping through a mixed-language paragraph, relayout every frame
-// (acceptance test #1). Pure placement arithmetic — zero reshaping.
+// Shapes sweeping through a mixed-language paragraph, relayout every frame.
+// The text never changes, so this is placement arithmetic with no reshaping.
 static void BM_Update_MovingExclusions_300w(benchmark::State &state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(300, /*mixed=*/true), style16());
@@ -384,7 +389,7 @@ static void BM_Update_SpanRestyleAcrossLines_500w(benchmark::State &state) {
 }
 BENCHMARK(BM_Update_SpanRestyleAcrossLines_500w)->Unit(benchmark::kMicrosecond);
 
-// ── Knuth-Plass (acceptance test #2) ──────────────────────────────────────
+// ── Knuth-Plass ───────────────────────────────────────────────────────────
 
 static void BM_KnuthPlass_Warm(benchmark::State &state) {
   const int words = static_cast<int>(state.range(0));
@@ -493,16 +498,16 @@ static void BM_DrawBatched_Raster_300w(benchmark::State &state) {
 }
 BENCHMARK(BM_DrawBatched_Raster_300w)->Unit(benchmark::kMicrosecond);
 
-// ROADMAP §4, the wall reproduction. Identical corpus, flow, surface and
-// draw path to BM_DrawBatched_Raster_300w above — the ONLY difference is
-// one default underline decoration (skipInk = true, span = kDecoratedRange).
-// Every frame that costs: makeFont + getMetrics per decoration group
-// (ParagraphLayout.cpp:787-790) and TWO SkTextBlob::getIntercepts calls per
-// run (:828, :832), each resolving a strike and walking glyph outlines —
-// all of it recomputed from layout-stable inputs (blob, band position, band
-// thickness). This is a raster-vs-raster diff of CPU-side work, so raster is
-// the right harness (the ROADMAP's GPU hazard does not apply: no glyph atlas
-// is involved in the quantity being measured).
+// Identical corpus, flow, surface and draw path to BM_DrawBatched_Raster_300w
+// above — the ONLY difference is one default underline decoration
+// (skipInk = true, span = kDecoratedRange). The difference between the two
+// runs is therefore the whole per-frame price of a skip-ink underline:
+// resolving font metrics once per decoration group, plus the glyph-ink
+// intercepts of every run in the group.
+//
+// Raster is deliberately the harness. The quantity here is CPU-side work
+// before any glyphs are submitted, so a GPU surface would only add atlas
+// behaviour that has nothing to do with it.
 static void BM_DrawBatched_Raster_300w_SkipInkUnderline(
     benchmark::State &state) {
   TextStyle underlined = style16();
@@ -522,12 +527,11 @@ static void BM_DrawBatched_Raster_300w_SkipInkUnderline(
 BENCHMARK(BM_DrawBatched_Raster_300w_SkipInkUnderline)
     ->Unit(benchmark::kMicrosecond);
 
-// The control that makes the number above attributable: same decoration,
-// skip-ink OFF. Plain-vs-none is the price of drawing a band at all;
-// skipInk-vs-plain is an UPPER BOUND on the intercept/strike cost the
-// memoization fix targets — ink-skipping also swaps one wide band rect
-// per group for N segment fills, and the memo removes only the former.
-// Without this arm the §4 diff conflates band price with intercept cost.
+// The control that makes the arm above attributable: the same decoration
+// with skip-ink OFF. Plain-vs-none is the price of drawing a band at all;
+// skipInk-vs-plain is an UPPER BOUND on the intercept cost, because ink
+// skipping also replaces one wide band rect per group with several segment
+// fills. Without this arm the two are indistinguishable.
 static void BM_DrawBatched_Raster_300w_PlainUnderline(benchmark::State &state) {
   TextStyle underlined = style16();
   Decoration decoration;

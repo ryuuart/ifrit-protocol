@@ -103,7 +103,7 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   };
   host.composer.render(tree());
   host.frame();
-  // Aqua pill — the §2 gloss physics: bright lens at the top, the
+  // Aqua pill — the gloss reads as: bright lens at the top, the
   // saturated dark band just under it, and the LIGHT-FROM-BELOW glow at
   // the bottom (both ends beat the midband).
   const SkColor aquaTop = host.pixel(80, 28);
@@ -116,7 +116,7 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   };
   EXPECT_GT(lum(aquaTop), lum(aquaMid));
   EXPECT_GT(lum(aquaBottom), lum(aquaMid));
-  // Chrome bar: the §3 ramp's hard horizon — brighter above it than below.
+  // Chrome bar: the ramp has a hard horizon, brighter above than below.
   const SkColor chromeTop = host.pixel(220, 28);
   const SkColor chromeMid = host.pixel(220, 42);
   EXPECT_GT(lum(chromeTop), lum(chromeMid) + 100);
@@ -259,19 +259,20 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   EXPECT_LT(lit(bottom, 0, 110), 40);
 }
 
-// RENAMED 2026-07-28 (audit): the mirroring half never makes the
-// first-third/last-third comparison its comment sets up — both arms measure
-// the same whole-half ink — so what is pinned is the SEAM straddle plus the
-// flipped run still occupying its half. Naming the weaker of the two.
 TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
-  // Two bugs found by the Vertigo study, hours after onPath shipped.
+  // Two properties of text on a closed baseline, each easy to get wrong in
+  // a way that looks like a layout choice.
   //
-  // 1. Align::Center at at=0 on a CLOSED baseline put half the run at a
-  //    negative distance and dropped it. Fraction 0 and 1 are the same
-  //    point on a ring; the run has to straddle the seam.
-  // 2. autoFlip turned each glyph over IN PLACE, which reverses reading
-  //    order — a lower-half caption came out mirrored. The flip is a
-  //    decision about the RUN, so the run also walks backwards.
+  // 1. Align::Center at at=0 puts half the run at a NEGATIVE distance.
+  //    Fraction 0 and 1 are the same point on a ring, so the run has to
+  //    straddle the seam rather than be clipped off at it.
+  // 2. autoFlip must turn the RUN over, not each glyph in place. Flipping
+  //    glyphs individually reverses reading order, so a caption on the
+  //    lower half comes out mirrored.
+  //
+  // Note what is and is not asserted: both arms measure ink over a whole
+  // half, so this pins the seam straddle and the flipped run still
+  // occupying its half — not the order of glyphs within it.
   auto ink = [](Host &host, int x0, int x1, int y0, int y1) {
     int count = 0;
     for (int y = y0; y < y1; ++y)
@@ -315,10 +316,10 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
 }
 
 TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
-  // textFill supersedes the FOREGROUND, not the passes around it. The
-  // chrome-type override used to be a blank PaintStyle, which silently
-  // dropped every underlay — a chrome wordmark lost its cast shadow and
-  // its dark keyline and read as flat type sitting on the plate.
+  // textFill supersedes the style's FOREGROUND only, never the passes
+  // around it. Overriding the whole PaintStyle instead silently drops every
+  // underlay — a wordmark loses its cast shadow and its keyline and reads as
+  // flat type, which looks like a design choice rather than a bug.
   Host host(300, 120);
   auto styled = [] {
     auto s = whiteStyle(64);
@@ -345,9 +346,8 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
 }
 
 // ---------------------------------------------------------------------------
-// Round-2b: fleet feedback landed at the API level — delay staggers,
-// unclipped decorations, knockout shadows, px origins, centerAt, wrapped
-// stroke windows, one-contour wrap.
+// Delay staggers, unclipped decorations, knockout shadows, px origins,
+// centerAt, and wrapped stroke windows.
 
 TEST(ComposeMotion, DelayStaggersTheEntrance) {
   Host host;
@@ -433,8 +433,8 @@ TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
 }
 
 TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
-  // The pinned battery no longer needs hand-guessed dims: the container
-  // takes the placed extent.
+  // A Diagonal container sizes itself from the extent of what it placed, so
+  // an author does not have to compute the skewed bounding box by hand.
   Host host;
   host.composer.render(box().child(
       Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
@@ -491,14 +491,11 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   EXPECT_LT((float)still, 0.25f * (float)redNow.size());
 }
 
-// (`ComposeMask.WrapSeamIsOneContour` was deleted by the 2026-07-28 audit
-//  ruling. It rendered a node and then asserted on a path it stitched
-//  ITSELF with SkContourMeasure, never reading the rendered result: it
-//  measured Skia's getSegment, and a total regression in spans::wrap would
-//  have left it green. The closed-contour seam law wants a pixel test in
-//  the shape of ComposeMask.OpenContourWrapKeepsTwoPieces; filed as
-//  ROADMAP §34's open remainder rather than left standing as a claim
-//  nothing checks.)
+// A note for anyone tempted to check the closed-contour wrap seam by
+// stitching the window with SkContourMeasure and asserting on the result:
+// that tests Skia's getSegment, not the renderer. A total failure of
+// spans::wrap would leave such a test green. Read pixels instead — see
+// ComposeMask.ClosedContourWrapSeamIsOnePiece.
 
 TEST(ComposePatterns, HalftoneRampBandRemaps) {
   // rampFrom/rampTo confine the swell: with the band pushed to the bottom
@@ -525,8 +522,9 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
 }
 
 TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
-  // One container call replaces per-child delay arithmetic: child i's
-  // subtree enters i·each later (three studies asked independently).
+  // One container call replaces per-child delay arithmetic: child i's whole
+  // subtree enters i·each later, so inserting a child does not require
+  // renumbering its siblings.
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
@@ -627,12 +625,12 @@ Element corneredRun(lines::Line style) {
 } // namespace
 
 TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
-  // §10: parallels > 1 builds its rails from a stroke OUTLINE, and the
-  // grounded default join is round — so a hard 90° jog in a cased wire
-  // came out as a soft S-curve with no way to say otherwise. The join is
-  // now DATA on the Line (it participates in the defaulted equality, so
-  // it is recipe like every other field): miter reaches the corner's
-  // outer point, round provably never does.
+  // parallels > 1 builds its rails from a stroke OUTLINE, so the join is
+  // what decides whether a hard 90° jog in a cased wire stays a corner or
+  // becomes a soft S-curve. It is DATA on the Line and part of its defaulted
+  // equality, so it is recipe like every other field. The discriminator is
+  // exact: a miter reaches the corner's outer point, a round join provably
+  // never does.
   const auto cased = [](SkPaint::Join join) {
     return lines::Line{.width = 3,
                        .fill = green(),
@@ -668,11 +666,11 @@ TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
 }
 
 TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
-  // §10j: the evenly-spaced form spaces rings out to the bbox
-  // HALF-DIAGONAL, so on a circle() node the outermost ring lands at
-  // R·√2 — outside the shape, clipped away. The stated-radii overload
-  // puts a circle exactly where it says; the old spelling is the control,
-  // demonstrating the trap it closes.
+  // The evenly-spaced form distributes rings out to the bounding box's
+  // HALF-DIAGONAL, so on a circle() node the outermost ring lands at R·√2 —
+  // outside the shape and clipped away, drawing nothing with no warning.
+  // The stated-radii overload puts a circle exactly where it says. The
+  // spaced form is kept here as the control that the trap is real.
   const auto ringNode = [](lines::RadialHatch hatch) {
     return box().child(box()
                            .absolute()
@@ -699,7 +697,7 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
       spacedInk += spaced.pixel(x, y) != SK_ColorBLACK;
   EXPECT_EQ(spacedInk, 0)
       << "the evenly-spaced ring was expected to clip away on a circle() "
-         "node (the §10j trap) — if this now draws, the trap is fixed and "
+         "node — if this now draws, that limitation is gone and "
          "this control needs a rethink";
   // And the stated form is a comparable value: radii join the equality.
   EXPECT_TRUE(lines::concentric(green(), std::vector<float>{60.0f}) ==
@@ -764,11 +762,10 @@ struct RailScan {
 /** Samples both rails at 720 angles. The predicate is COVERAGE-BASED, not
  *  exact colour: sampling a 3 px arc at integer pixel coordinates lands on
  *  anti-aliased pixels constantly, and an exact-colour test then scores
- *  them as unpainted. Measured on this exact scene, an exact-colour
- *  predicate reports 0.8833 agreement for a geometrically PERFECT
- *  implementation, purely from rasterisation — so it measures the
- *  rasteriser, not the library. G > 128 puts the boundary at 50% coverage,
- *  which is symmetric between the two radii, and reports 0.9472. */
+ *  them as unpainted, which reports a large disagreement for geometry that
+ *  is exactly right — that measures the rasteriser, not the library.
+ *  G > 128 puts the boundary at 50% coverage, which is symmetric between
+ *  the two radii and therefore does not favour either rail. */
 RailScan scanRails(Host &host, float cx, float cy, float rInner,
                    float rOuter) {
   RailScan scan;
@@ -818,19 +815,19 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   host.frame();
   const RailScan good = scanRails(host, 150, 150, 92, 108);
 
-  // LIVENESS FIRST. Two SOLID rails agree at 720 of 720 angles, so an
-  // agreement threshold alone is passed trivially by the exact bug this
-  // test exists to prevent — and it was: the first cut of Rails dropped
-  // every dash (Skia's dash effect refuses a fill stroke rec) and this
-  // assertion scored a perfect 1.0 while measuring nothing. Prove the
+  // LIVENESS FIRST. Two SOLID rails agree at every angle, so an agreement
+  // threshold on its own scores a perfect 1.0 on the exact failure this
+  // test exists to catch — rails that lost their dashes entirely. Prove the
   // rails actually BREAK before believing anything about their phase.
   EXPECT_GT(good.innerOn, 100) << "inner rail painted nothing";
   EXPECT_LT(good.innerOn, good.samples - 100) << "inner rail is SOLID";
   EXPECT_GT(good.outerOn, 100) << "outer rail painted nothing";
   EXPECT_LT(good.outerOn, good.samples - 100) << "outer rail is SOLID";
 
-  // The workaround the corpus had to use: a Brush whose layers each carry
-  // a shapers::Offset suffix. Correct geometry, sheared phase.
+  // The alternative an author reaches for without Rails: a Brush whose
+  // layers each carry a shapers::Offset. Correct geometry, sheared phase —
+  // which is what the agreement comparison below has to be able to tell
+  // apart from the registered case.
   Host naive(300, 300);
   lines::Line dashed{.width = 3, .fill = green(), .dashIntervals = {8, 8}};
   Brush perLayer;
@@ -842,20 +839,21 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   EXPECT_GT(sheared.innerOn, 100); // the comparison must be dashed too, or
   EXPECT_LT(sheared.innerOn, sheared.samples - 100); // it proves nothing
 
-  // Measured on this scene: Rails 0.9472, the workaround 0.5639. The
-  // residual in the good case is the ROUND CAP, which is a fixed 1.5 px of
-  // arc and therefore a BIGGER ANGLE on the inner rail (0.934 deg vs 0.796
-  // deg per dash end); across 39 dashes that is 10.8 deg = 21.6 of 720
-  // samples that cannot agree however exact the geometry is. The bars are
-  // set from those numbers, not chosen to be green.
+  // The registered case cannot reach 1.0, and the reason is geometric
+  // rather than a tolerance: the ROUND CAP is a fixed arc LENGTH, so it
+  // subtends a larger ANGLE on the inner rail than on the outer one. Across
+  // every dash that accumulates into a fixed number of sample angles that
+  // can never agree, however exact the geometry is. The bars below are set
+  // from that residual, with the sheared case an order of magnitude worse.
   EXPECT_GT(good.agreement, 0.93);
   EXPECT_LT(sheared.agreement, good.agreement - 0.30);
 }
 
 TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
-  // The registration claim in its exact form, measured on the PATHS with no
-  // rasteriser in the way — this is the assertion that actually detects the
-  // regression, and the pixel test above is liveness plus a comparison.
+  // The registration claim in its exact form, read off the PATHS with no
+  // rasteriser in the way. This is the assertion that actually detects a
+  // per-rail dashing scheme; the pixel test above is liveness plus a
+  // relative comparison.
   //
   // A radial displacement preserves ANGLE: dash the centreline in arc-space
   // and push each dash along its normal, and both rails' dash endpoints sit
@@ -890,17 +888,17 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
     worst = std::max(worst, std::max(std::abs(inner[i].first - outer[i].first),
                                      std::abs(inner[i].second -
                                               outer[i].second)));
-  // Measured: 2.15e-6 rad, and scattered rather than ramping round the
-  // contour. 1e-3 leaves ~500x headroom and still fails any per-rail scheme
-  // by orders of magnitude.
+  // The residual here is float noise — scattered, not ramping round the
+  // contour — so the bound is loose by a wide margin and still fails any
+  // per-rail dashing scheme by orders of magnitude.
   EXPECT_LT(worst, 1e-3) << "worst endpoint angle mismatch " << worst << " rad";
 }
 
 TEST(ComposeLines, DashedParallelsOnLineActuallyDash) {
-  // A REGRESSION test for a bug that predates Rails: `Line`'s dashed-
-  // parallel branch built its dash geometry with a FILL stroke rec, which
-  // Skia's dash effect refuses outright — so `lines::cased(...)` with a
-  // dash pattern painted two SOLID rails for the whole of run 1, in every
+  // `Line`'s dashed-parallel branch must not build its dash geometry with a
+  // FILL stroke rec: Skia's dash effect refuses one outright, and the
+  // failure mode is silent — `lines::cased(...)` with a dash pattern simply
+  // paints two SOLID rails, which looks like a design choice in every
   // study that used one, without anyone noticing.
   Host host;
   lines::Line pair = lines::cased(3, green(), 10);
@@ -965,11 +963,10 @@ TEST(ComposeLines, DottedCoreKeepsTheCasingContinuous) {
     EXPECT_EQ(host.pixel(x, 108), SK_ColorGREEN) << "casing gap at x=" << x;
   }
   // Core: dotted, so it breaks. Coverage, not exact colour — a dotted line
-  // is a round cap on a zero-length dash, i.e. a disc whose diameter IS the
-  // core width, and a 2 px disc centred on a pixel BOUNDARY never fully
-  // covers any pixel. Measured on this scene it peaks at G=231 (91%
-  // coverage) and produces exactly zero pure-green pixels, so the exact
-  // test reported "no dots" for dots that were plainly there.
+  // is a round cap on a zero-length dash, so each dot is a disc whose
+  // diameter IS the core width, and a thin disc centred on a pixel BOUNDARY
+  // never fully covers any pixel. An exact-colour test therefore reports
+  // "no dots" for dots that are plainly there.
   int on = 0, off = 0;
   for (int x = 30; x < 170; ++x)
     (SkColorGetG(host.pixel(x, 100)) > 60 ? on : off)++;
@@ -1012,17 +1009,19 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
 // Cache::Auto texture promotion — the library fixing a slow frame by itself.
 
 
-// RENAMED 2026-07-28 (audit): nothing here establishes that a node actually
-// promoted (no profiledUnder/requireRow), so if promotion stopped firing
-// this would compare two unpromoted renders and still pass. What it pins is
-// that flipping the SWITCH moves no pixel — which is the constraint below.
 TEST(ComposeCache, TheAutoPromotionSwitchChangesNoPixels) {
-  // THE constraint. A texture cache that resolved at the wrong scale and
-  // softened a hairline would trade a perf bug for a fidelity bug, and this
-  // library's whole output is hairlines at 1x. So promotion bakes in DEVICE
-  // space at an integer-snapped rect and blits with the matrix reset: an
-  // integer device translation cannot change rasterisation. This asserts
-  // that claim on every one of 40,000 pixels rather than trusting it.
+  // Automatic promotion may never change a pixel. A texture cache that
+  // resolved at the wrong scale and softened a hairline would trade a speed
+  // problem for a fidelity problem, and hairlines at 1x are most of what
+  // this library draws. So promotion bakes in DEVICE space at an
+  // integer-snapped rect and blits with the matrix reset: an integer device
+  // translation cannot change rasterisation. This asserts that over the
+  // whole canvas rather than trusting it.
+  //
+  // Note the limit of the claim: nothing here establishes that a node was
+  // actually promoted. If promotion stopped firing entirely, this would
+  // compare two unpromoted renders and pass. It pins the SWITCH, not the
+  // mechanism — see the profiling cases for that.
   Host reference;
   reference.composer.setAutoTexturePromotion(false);
   reference.composer.render(box().child(expensivePanel()));
@@ -1045,9 +1044,6 @@ TEST(ComposeCache, TheAutoPromotionSwitchChangesNoPixels) {
       << differing << " pixels changed when the library promoted a node";
 }
 
-// RENAMED 2026-07-28 (audit): promotion is OFF for the whole test, so the
-// reporting is only tested in the negative — which is exactly the claim the
-// body makes, and now the name makes it too.
 TEST(ComposeCache, NoRowReportsPromotedWhilePromotionIsOff) {
   // A silent good outcome and a silent bad outcome look identical without an
   // instrument, so a promotion the library performs must be attributable to
@@ -1178,15 +1174,20 @@ TEST(ComposeCache, TextureBakeSurvivesAQuarterTurn) {
   // the pixels the uncached draw would have produced — at ANY angle, not
   // merely close at the convenient ones.
   //
-  // The history is worth keeping, because each stage looked finished:
-  // mean |Δ| over the ink of a rotated pill was 30–32/255 at ±90° while
-  // upright measured 4.4 (the bake read the matrix DIAGONAL, saw scale 0
-  // at a quarter turn, and rasterized at the 0.25 floor). Fixing the scale
-  // took ±90° to 13.5 and upright to 0 — better, and still wrong, because
-  // a bake held in LOCAL space is resampled by whatever transform blits
-  // it: the texel grid landed half a texel off the device grid, costing
-  // 21% of the gradient across that axis. Correct resolution was necessary
-  // and not sufficient.
+  // Two independent things have to be right, and getting only the first
+  // leaves a picture that still looks nearly correct at every angle:
+  //
+  //  - the bake RESOLUTION, which must come from the matrix's singular
+  //    values rather than its diagonal (a quarter turn puts the whole scale
+  //    in the skew terms, so the diagonal reads zero and the bake clamps to
+  //    the ladder's floor); and
+  //  - the bake SPACE, which must be device space. A bake held in LOCAL
+  //    space is resampled by whatever transform blits it, so its texel grid
+  //    lands off the device grid and softens every hairline.
+  //
+  // Correct resolution alone is necessary and not sufficient, which is why
+  // the assertion is exact pixel equality at every angle rather than a
+  // tolerance.
   for (float degrees : {0.0f, 90.0f, -90.0f, 180.0f, 45.0f}) {
     const BakeError e = bakeErrorAt(degrees);
     EXPECT_EQ(e.differing, 0u)
@@ -1233,24 +1234,22 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
 }
 
 // ---------------------------------------------------------------------------
-// §44-d — the !hasPerspective() boundary. The three device-space bakes
+// The !hasPerspective() boundary. The three device-space bakes
 // (automatic promotion's `upright` gate, the Cache::Group device bake, the
 // Cache::Texture device bake) all refuse a perspective CTM, because a
 // device bake pins pixels to ONE device rect and a projected quad is not
-// one. §44.1 verified the guards against source; nothing PINNED them —
-// §28's oldest outstanding ask. The refusal is asserted through the
-// observable promotion state (guard #1) and through pixels tracking a
-// moving camera (guard #3); the no-perspective arms are the controls.
+// one. The refusal is asserted through the observable promotion state and
+// through pixels tracking a moving camera; the no-perspective arms are the
+// controls.
 
 namespace {
 /** A host camera that is PURE perspective: the keystone `[1,0,0; 0,1,0;
  *  0,p,1]` — a plate tipped away from the viewer, anchored at the top
  *  edge. Deliberately NOT a perspective·rotateY SkM44: that matrix's 2D
  *  projection also carries a skew term, so the `upright` gate would
- *  refuse it through its OLDER clauses and this pin would hold even with
- *  the `!hasPerspective()` clause deleted (measured — the first draft
- *  passed its own control). This one is upright by every other test the
- *  gate makes: scale 1, skew 0, and only `hasPerspective()` says no. */
+ *  refuse it for the skew alone, and this test would pass even with the
+ *  perspective clause removed. This matrix is upright by every other test
+ *  the gate makes — scale 1, skew 0 — so only `hasPerspective()` says no. */
 SkMatrix hostCamera(float p) {
   SkMatrix m = SkMatrix::I();
   m.setPerspY(p);
@@ -1389,13 +1388,12 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
       << "the baked node did not track the camera — a device-rect-pinned "
          "texture replayed the old projection (mean |delta| over ink "
       << tracked << " against " << cameraMoved << " of real motion)";
-  // The accounting is what separates the two paths (a wrongly-taken
-  // device bake mostly self-heals through its rect-stability test, so
-  // pixels alone cannot convict it — measured, the first draft of this
-  // pin passed with the guard deleted): the LOCAL fallback bakes ONCE and
-  // the bake is matrix-independent, so the camera's motion re-bakes
-  // NOTHING. A device bake is pinned to its rect and has to be re-taken
-  // when the camera moves — one extra bake, visible right here.
+  // The BAKE COUNT, not the pixels, is what separates the two paths. A
+  // wrongly-taken device bake mostly self-heals through its rect-stability
+  // test, so a pixel comparison alone passes either way. The local fallback
+  // bakes ONCE and its bake is matrix-independent, so camera motion re-bakes
+  // nothing; a device bake is pinned to its rect and has to be re-taken
+  // every time the camera moves.
   EXPECT_EQ(bakes, 1u)
       << "a Cache::Texture node under a perspective camera took a "
          "device-space bake (or re-baked under camera motion) instead of "
@@ -1567,11 +1565,11 @@ TEST(ComposeCache, PromotionRefusesEveryRotation) {
 // ---------------------------------------------------------------------------
 // Promotion, part two: the nodes it could not previously SEE.
 //
-// A leaf never records a picture — one drawRect beats a nested recording —
-// and the promoter only ever measured the replay path. So a full-canvas box
-// carrying one shader, which is the most expensive object in this corpus by
-// an order of magnitude (663 ms of a 697 ms frame in chladni_tab1), was
-// structurally invisible to it.
+// A leaf never records a picture — a single drawRect beats a nested
+// recording — so a promoter that watches only the picture-replay path
+// cannot see one at all. That is exactly backwards for the most expensive
+// object a scene can hold: a full-canvas box carrying one shader, which is
+// all leaf and no structure.
 
 namespace {
 Element heavyLeaf(const char *key) {
@@ -1593,9 +1591,9 @@ TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
       << " ms per frame was never considered for a bake";
   EXPECT_EQ(row->promotion, Composer::Promotion::Promoted);
 
-  // …and it is the same picture. This is the whole constraint: the corpus
-  // is hairlines at 1x, and a bake that resolved anywhere but the device
-  // grid would trade a perf bug for a fidelity bug.
+  // …and it is the same picture. That is the binding constraint: the output
+  // is hairlines at 1x, and a bake resolved anywhere but on the device grid
+  // trades a speed problem for a fidelity one.
   Host plain(400, 400);
   plain.composer.setAutoTexturePromotion(false);
   plain.composer.render(heavyLeaf("field"));
@@ -1606,12 +1604,15 @@ TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
 }
 
 TEST(ComposeCache, ARefusalSaysWhy) {
-  // The refusals are individually correct and individually invisible, and
-  // an author staring at `live paint  663 ms` cannot act on silence. The
-  // opacity case is the honest one: compositing a bake applies the alpha
-  // to an already-rounded 8-bit colour where the direct draw applies it to
-  // the shader's float output, so the two agree to within 1 LSB — which is
-  // not agreement. Cache::Texture is how you say you accept that.
+  // Every refusal is individually correct and individually invisible, so an
+  // author looking at a node that is painting live and slow has nothing to
+  // act on unless the refusal names itself.
+  //
+  // Opacity is the honest refusal: compositing a bake applies the alpha to
+  // an already-rounded 8-bit colour, where a direct draw applies it to the
+  // shader's float output. The two agree to within one least-significant
+  // bit, which is not agreement. Cache::Texture is how an author says they
+  // accept that trade.
   Host host(400, 400);
   host.composer.setProfiling(true);
   host.composer.render(profiledUnder(box()
@@ -1761,9 +1762,10 @@ TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
   Host host;
   host.composer.render(gatedRing(Cache::Auto));
   host.frame();
-  // Warm PAST the §20 release: kScalarSettleFrames stable paints in, the
-  // volatility flag releases and the tree re-records ONCE (the settling
-  // frame). The steady state after that is the zero this test pins.
+  // Warm past the release: after enough stable paints the volatility flag
+  // releases and the tree re-records ONCE, on the settling frame. The steady
+  // state after that is the zero this test pins — measuring before the
+  // release would count the settling record and prove nothing.
   for (int i = 0; i < 26; ++i)
     host.frame(1.0 / 60.0); // t ~ 0.43 s: deep in the hold, post-release
   unsigned duringHold = 0;
@@ -1806,10 +1808,128 @@ TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The Cache::Group bake rect. A group bake is taken in DEVICE space at the
+// node's device bounds intersected with the device clip — on all FOUR
+// sides. The blit draws at the rect's own origin, so the rect's size never
+// shows in pixels: a rect wrongly grown toward the canvas origin renders
+// correctly forever while a node in the far corner of a large canvas
+// quietly allocates many times its own area and charges it against the
+// shared bake budget, evicting other bakes. The budget is therefore the
+// measuring instrument here — enough identical settled groups that
+// per-node overcharge exhausts it and the surplus nodes visibly fail to
+// hold a bake — and the pixel assertions are the guard rail that says the
+// rect is bookkeeping only.
 
+namespace {
+/** @p count identical 100x100 Cache::Group leaves at (@p x, @p y), under a
+ *  Cache::None wrapper so every one is painted — and its value memo run —
+ *  each frame. */
+Element groupField(int count, float x, float y, Cache mode = Cache::Group) {
+  Element root = box().cache(Cache::None);
+  for (int i = 0; i < count; ++i)
+    root.child(box()
+                   .absolute()
+                   .left(x)
+                   .top(y)
+                   .width(100)
+                   .height(100)
+                   .cache(mode)
+                   .fill(Fill::color({0.2f, 0.5f, 0.8f, 1})));
+  return root;
+}
+/** Frame past the settle: a group's first frame seeds its value memo, its
+ *  second takes the bake, the rest prove the bake holds. */
+void settleGroups(Host &host) {
+  for (int i = 0; i < 8; ++i)
+    host.frame();
+}
+} // namespace
+
+TEST(ComposeCache, AGroupBakeChargesOnlyTheNodesOwnArea) {
+  // 150 settled 100x100 groups charge 150 bakes of their own area — far
+  // inside the bake budget, so every one of them holds a texture. A bake
+  // rect that reached the canvas origin on either axis would charge that
+  // whole span per node instead, exhaust the budget partway through the
+  // paint order, and every node after that point would fail affordability
+  // and paint live. Three placements, each on a canvas long in exactly the
+  // axis it pins, so a rect grown to left = 0 and one grown to top = 0
+  // are each caught alone as well as together.
+  struct Placement {
+    int w, h;   // canvas
+    float x, y; // the node, away from the origin toward the far corner
+  };
+  const Placement placements[] = {
+      {800, 600, 700, 500},   // both axes at once
+      {4000, 100, 3900, 0},   // the LEFT side alone
+      {100, 4000, 0, 3900},   // the TOP side alone
+  };
+  for (const Placement &p : placements) {
+    Host host(p.w, p.h);
+    host.composer.render(groupField(150, p.x, p.y));
+    settleGroups(host);
+    EXPECT_EQ(host.composer.stats().texturesLive, 150u)
+        << "on a " << p.w << "x" << p.h << " canvas, 100x100 groups at ("
+        << p.x << ", " << p.y << ") did not all hold their bakes — a group "
+        << "away from the origin is charging more than its own area "
+        << "against the bake budget, and the overcharge evicted the rest";
+    host.frame();
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "a settled group re-baked instead of blitting what it already "
+           "had — the bake rect is not holding still";
+  }
+}
+
+TEST(ComposeCache, AGroupBakeAtTheCanvasOriginStillBakes) {
+  // The corner where the node's device bounds and the clip share a corner:
+  // the intersection IS the node's rect, and it must keep baking. Pinned so
+  // the placement tests above can never pass for the wrong reason (a group
+  // machinery that stopped baking entirely would fail here first, loudly
+  // and by name).
+  Host host(800, 600);
+  host.composer.setProfiling(true);
+  Element root = box().cache(Cache::None)
+                     .child(box()
+                                .absolute()
+                                .left(0)
+                                .top(0)
+                                .width(100)
+                                .height(100)
+                                .cache(Cache::Group)
+                                .key("corner")
+                                .fill(Fill::color({0.2f, 0.5f, 0.8f, 1})));
+  host.composer.render(std::move(root));
+  settleGroups(host);
+  EXPECT_EQ(host.composer.stats().texturesLive, 1u);
+  const Composer::NodeCost *row = requireRow(host.composer, "corner");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Group)
+      << "the group at the canvas origin is not blitting its bake";
+}
+
+TEST(ComposeCache, AGroupBakeAwayFromTheOriginChangesNoPixels) {
+  // The bake rect governs allocation and budget accounting, never
+  // placement: the blit draws the texture at the rect's own origin. So a
+  // group anywhere on the canvas must produce byte-identical output to the
+  // same subtree painted live every frame — including on the frame the
+  // bake is first taken and on every blit after it.
+  const SkPoint positions[] = {{0, 0}, {400, 400}, {700, 500}};
+  for (const SkPoint &at : positions) {
+    Host baked(800, 600), live(800, 600);
+    baked.composer.render(groupField(1, at.x(), at.y(), Cache::Group));
+    live.composer.render(groupField(1, at.x(), at.y(), Cache::None));
+    for (int i = 0; i < 8; ++i) {
+      baked.frame();
+      live.frame();
+      ASSERT_TRUE(identicalPixels(baked, live, 800, 600))
+          << "frame " << i << ": the group bake at (" << at.x() << ", "
+          << at.y() << ") drew different pixels than the live paint";
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
-// ROADMAP §8 — the manhattan family: rail-compatible orthogonal routing,
+// The manhattan router family: rail-compatible orthogonal routing,
 // collinear collapse, bend policies, chamfer corners.
 
 namespace {
@@ -1854,8 +1974,9 @@ PathDump dumpPath(const SkPath &p) {
 } // namespace
 
 TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
-  // The §8 wall: rail() takes a RailRouter and orthogonal() is a pairwise
-  // Router. This line compiling IS half the entry.
+  // rail() takes a RailRouter, and orthogonal() is a pairwise Router — so
+  // orthogonal routing was unreachable from a rail at all. This line
+  // compiling is half of what is being checked.
   RailRouter router = routers::manhattan();
 
   // An axis-aligned pair: ONE segment, no zero-length verbs.
@@ -1874,12 +1995,12 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   ASSERT_EQ(merged.pts.size(), 2u);
   EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
 
-  // THE FROZEN CONTRAST (§27): the zero-argument orthogonal() keeps its
-  // degenerate verbs — M, then THREE lines, two of them zero-length. The
-  // §8 investigation could not make those verbs flare through
-  // lines::cased (Skia's stroker skips exactly-degenerate segments; the
-  // render is byte-identical to clean geometry), so the old spelling's
-  // output is frozen as-is and only the new spellings collapse.
+  // The contrast, frozen deliberately: the zero-argument orthogonal() keeps
+  // its degenerate verbs — a move, then THREE lines, two of them
+  // zero-length. Those verbs are harmless in practice (Skia's stroker skips
+  // exactly-degenerate segments, and the render is byte-identical to clean
+  // geometry), so its output is pinned as-is and only manhattan() collapses.
+  // Changing it would move pixels for no benefit.
   Router old = routers::orthogonal();
   PathDump frozen = dumpPath(old(SkRect::MakeXYWH(10, 90, 20, 20),
                                  SkRect::MakeXYWH(170, 90, 20, 20)));
@@ -1891,8 +2012,9 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
 
 TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
   const SkPoint run[2] = {{20, 20}, {180, 160}};
-  // HFirst: horizontal out of the source, the L bends AT the target
-  // column — the circuit-graph shape §8 could not spell.
+  // HFirst: horizontal out of the source, with the L bending AT the target
+  // column — the shape a circuit-style graph wants and the midpoint router
+  // cannot produce.
   PathDump h = dumpPath(routers::manhattan(routers::Bend::HFirst)(
       std::span(run, 2)));
   ASSERT_EQ(h.pts.size(), 3u);
@@ -1973,13 +2095,11 @@ TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
 }
 
 TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
-  // The §8 flare complaint, pinned from the fixed side: a cased (offset
-  // contour) brush over the NEW spelling renders byte-identically to the
-  // same brush over hand-authored clean geometry — nothing the router
-  // emits (no degenerate verb, no split run) reaches the pixels. The
-  // investigation note lives in ManhattanIsARailRouterAndCollapses...:
-  // the OLD spelling's degenerate verbs happen not to flare either, so
-  // this is the regression guard that keeps the new family clean.
+  // A cased brush builds its rails from an offset CONTOUR, which is where
+  // stray geometry flares into visible artefacts. So the check is that a
+  // cased brush over a manhattan route renders byte-identically to the same
+  // brush over hand-authored clean geometry: nothing the router emits — no
+  // degenerate verb, no split run — reaches the pixels.
   auto boxes = [](Element route) {
     return stack()
         .child(box().key("a").width(20).height(20)

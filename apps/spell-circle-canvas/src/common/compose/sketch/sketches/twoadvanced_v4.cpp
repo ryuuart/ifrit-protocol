@@ -33,16 +33,16 @@
 // copy name-checks Maxon). There is no 3D here: flat SDF shapes, one
 // radial portal, an opacity-ramped skyline, three dome silhouettes with
 // gloss rim-light, a mirrored blurred reflection under a hard horizon
-// hairline, and a blurred kPlus bloom copy over the whole stack. §10's
-// claim holds — stacking ORDER does the work, not any one layer.
+// hairline, and a blurred kPlus bloom copy over the whole stack. Stacking
+// ORDER is what does the work, not any one layer.
 //
-// Two things the render taught that the brief could not:
-//  · the FOG RAMP runs the other way. Keying slab opacity to |x − cx| so
-//    the EDGE buildings are the most opaque makes the skyline a bar
-//    chart; the near ones have to be the hard silhouettes and the far
-//    ones dissolve. And none of it reads at all without a full-width
-//    kPlus haze band UNDER the skyline — the outer thirds were
-//    black-on-black.
+// Two things the hero depends on that no reference image states:
+//  · the FOG RAMP runs toward the centre, not away from it. Keying slab
+//    opacity to |x − cx| so the EDGE buildings are the most opaque makes
+//    the skyline a bar chart; the near ones have to be the hard
+//    silhouettes and the far ones dissolve. And none of it reads at all
+//    without a full-width kPlus haze band UNDER the skyline, because the
+//    outer thirds are otherwise black-on-black.
 //  · the reflection is sold by the specular COLUMN, not the blur. A
 //    vertically-smeared bar of glow under the portal reads as water from
 //    across the room; the mirrored blurred disc alone does not.
@@ -84,7 +84,8 @@ namespace ch = choreograph;
 namespace tav {
 
 // ---------------------------------------------------------------------------
-// Palette — §4, every value sampled from an artefact.
+// Palette — every value sampled from one of the reference artefacts above,
+// never picked by eye.
 
 constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
   return {(float)((rgb >> 16) & 0xff) / 255.0f,
@@ -164,7 +165,8 @@ inline const sk_sp<SkTypeface> &arial() {
   return f;
 }
 
-/** Tracking authored in Illustrator units (1/1000 em), as §6 states it. */
+/** Tracking is authored in Illustrator units — 1/1000 em — and converted
+ *  to pixels here, so a tracking value stays the same when the size does. */
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface> &tf, float size,
                                     SkColor4f color, float trackUnits = 0,
                                     float condense = 1.0f) {
@@ -196,7 +198,8 @@ inline Element t(const char *s, sigil::weave::TextStyle st) {
 }
 
 // ---------------------------------------------------------------------------
-// Geometry vocabulary — chamfers, not radii (§5).
+// Geometry vocabulary — chamfers, not radii. Nothing on this interface is
+// round; every corner that is not square is cut at 45°.
 
 enum Cut : uint8_t { kTL = 1, kTR = 2, kBR = 4, kBL = 8 };
 
@@ -345,8 +348,8 @@ struct TickRail {
 
 /** The rail flare tick read off leftsidepanel.gif: a near-vertical
  *  hairline ending in a small flag, with a soft highlight travelling down
- *  it every 6 s (§9's idle list). The rail is 24 px at ×2, so the 90 px
- *  flare runs 8° off VERTICAL — the only way that length fits the asset. */
+ *  it once per `period`. The rail is 24 px wide at this ×2 scale, so a
+ *  90 px flare has to lean about 8° off VERTICAL to fit inside it. */
 struct RailFlares {
   SkColor4f color = C(0x99AAAA);
   float period = 6.0f, phase = 0.0f;
@@ -452,6 +455,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   ch::Output<float> stripePan{0.0f};    // hazard-stripe conveyor
   ch::Output<float> portalGlow{54.0f};  // MAINFRAME portal glow radius
   ch::Output<float> pressScroll{0.0f};  // PRESS UPDATES auto-scroll
+  float pressOverflow = 0;              // entry list minus well, measured once
   ch::Output<float> wirePhase{0.0f};    // status-bus marquee phase
   float wireW = 1;                      // measured once (compose::measure)
   ch::Output<float> vuLeft{0.4f}, vuRight{0.6f};
@@ -477,9 +481,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   // Live materials (SkSL).
 
   /** The audio spectrum: a bar field whose heights are hashed per column
-   *  per TIME STEP. uTime arrives quantized at 10 Hz (quantizeTime), so
-   *  the readout is deliberately chunky — the era's digital feel, and the
-   *  P3R sea rule applied to a waveform. */
+   *  per TIME STEP. uTime arrives quantized at 10 Hz (quantizeTime), so the
+   *  bars STEP rather than slide — the era's digital readout feel, and the
+   *  same reason a stylised meter animates on a beat instead of smoothly. */
   static sk_sp<SkRuntimeEffect> spectrumFx() {
     static const sk_sp<SkRuntimeEffect> fx = [] {
       auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
@@ -524,7 +528,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   }
 
   /** The diagonal hazard stripe as a LIVE material so every header bar can
-   *  run its slow conveyor pan (§9: 20 px per 8 s) off ONE bound uniform.
+   *  run its slow conveyor pan — 20 px per 8 s — off ONE bound uniform.
    *  This exact value is reused by the nav bar and four panel headers. */
   static sk_sp<SkRuntimeEffect> stripeFx() {
     static const sk_sp<SkRuntimeEffect> fx = [] {
@@ -609,8 +613,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             fade(kCyan, 0.55f), 4, 3, 7, 1, 3, false, true}));
   }
 
-  /** CTA: chamfered, blood-red ramp in UNIT space (the button's height is
-   *  a layout outcome, not a number I wrote down), gloss band on top. */
+  /** CTA: chamfered, blood-red ramp in UNIT space so the gradient follows
+   *  whatever height the layout hands the button, gloss band on top. */
   Element cta(const char *lbl, float w = 116, float h = 34,
               SkColor4f hairline = tav::kNear) {
     using namespace tav;
@@ -656,8 +660,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element statusBar() {
     using namespace tav;
-    // Two segments meeting on a DIAGONAL seam, not a vertical edge —
-    // the teal leads, the maroon follows 80 ms later (§9 beat 5).
+    // Two segments meeting on a DIAGONAL seam, not a vertical edge. They
+    // drop in one after the other: teal leads, maroon follows 80 ms later.
     Element teal =
         singleBevel(box().left(Dim(0)).top(Dim(0)).width(560)
                         .height(40)
@@ -794,7 +798,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                         .justify(Justify::SpaceEvenly).alignItems(Align::Center)
                         .padding(6, 0),
                     kChrome);
-    bar.fill(stripesLive).staggerChildren(40ms); // §9 beat 7
+    bar.fill(stripesLive).staggerChildren(40ms); // the items arrive in order
     for (int i = 0; i < 7; ++i) {
       bar.child(box().column().alignItems(Align::Center).gap(3)
                     .translateY(animate(from(16.0f).to(0.0f),
@@ -947,7 +951,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   // ---- the hero -----------------------------------------------------------
 
-  /** §10: composite ORDER is what sells it. sky → skyline → portal →
+  /** Composite ORDER is what sells this. sky → skyline → portal →
    *  ring → figures → water + reflection → horizon hairline.
    *  `still` builds the same scene with no live material and no entrance,
    *  so the bloom duplicate stays provably static and bakes ONCE. */
@@ -972,9 +976,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                       cx - 330, horizon - 420, 660, 620)
                     .blend(SkBlendMode::kPlus));
 
-    // the horizon haze band, full width, UNDER the skyline: the outer
-    // thirds were black-on-black and the silhouettes never read against
-    // them. One kPlus ramp is the whole fix.
+    // the horizon haze band, full width, UNDER the skyline. Without it the
+    // outer thirds are black-on-black and the silhouettes have nothing to
+    // read against; one kPlus ramp is the whole of the fix.
     scene.child(place(box().fill(Material::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.00f, fade(kTealBar, 0.0f)},
@@ -1046,9 +1050,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          .blend(SkBlendMode::kPlus);
     if (!still)
       // the one deliberately bouncy beat: the power core kicking on.
-      // ease::outBack() is the curve this always wanted — a bound
-      // parameter, so it converts to EaseFn (the keyframe path that
-      // used to be necessary is three lines shorter and reads).
+      // ease::outBack() takes its overshoot as a parameter and converts to
+      // an EaseFn, so the kick is one animate() call rather than a
+      // hand-written keyframe path through the overshoot and back.
       portal.scale(animate(from(0.80f).to(1.0f),
                            {620ms, ease::outBack(2.1f), 2400ms}));
     scene.child(portal);
@@ -1106,9 +1110,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                {{0.0f, fade(kGlow, 0.75f)},
                                                 {0.45f, fade(kTealBar, 0.32f)},
                                                 {1.0f, fade(kTealBar, 0.0f)}}))
-                    // smear the reflection down into the water: 26 along
-                    // the vertical, 14 across (== the hand-built
-                    // Blur(14, 26) this consolidated, bit-identically)
+                    // smear the reflection down into the water: sigma 26
+                    // along the 90° axis (straight down), 14 across it
                     .effect(Effect::directionalBlur(26, 90, 14))
                     .opacity(0.78f)
                     .blend(SkBlendMode::kPlus));
@@ -1121,14 +1124,14 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                         {{0.00f, fade(kGlow, 0.55f)},
                          {0.35f, fade(kGlow, 0.20f)},
                          {1.00f, fade(kGlow, 0.0f)}}))
-                    // soften the column's sides: 10 horizontally, 3 down
-                    // it (== the hand-built Blur(10, 3), bit-identically)
+                    // soften the column's sides: sigma 10 along the 0° axis
+                    // (horizontal), only 3 down its length
                     .effect(Effect::directionalBlur(10, 0, 3))
                     .blend(SkBlendMode::kPlus));
     scene.child(water);
 
-    // THE horizon hairline — §10 is right that this sells the reflection
-    // more than the blur does.
+    // THE horizon hairline. A hard, bright edge where the water starts
+    // sells the reflection below it more than the blur itself does.
     scene.child(place(box().fill(fade(kGlow, 0.62f)), 0, horizon - 1, w, 2));
     scene.child(place(box().fill(fade(kCyanRing, 0.16f)), 0, horizon + 3, w, 1));
     return scene;
@@ -1378,7 +1381,16 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return panel;
   }
 
-  Element pressUpdates() {
+  /** The entry column alone, so setup() can measure its laid-out height
+   *  against the well and derive the real scroll overflow. kPressWellW is
+   *  the width the entries wrap at inside the well: the 690 monitor body
+   *  less its two 11 px paddings, the 8 px gap, the 16 px scrollbar and
+   *  the clip's two 9 px paddings. kPressWellH is the matching viewport
+   *  height: 376 less the two 11 px paddings, the 9 px column gap, the
+   *  34 px footer row and the clip's two 9 px paddings. */
+  static constexpr float kPressWellW = 690 - 2 * 11 - 8 - 16 - 2 * 9;
+  static constexpr float kPressWellH = 376 - 2 * 11 - 9 - 34 - 2 * 9;
+  Element pressList() {
     using namespace tav;
     struct Entry {
       const char *date, *headline, *body;
@@ -1400,7 +1412,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
          "Three widescreen wallpapers in the Prophecy palette."},
     };
 
-    Element list = box().column().gap(9).translateY(&pressScroll);
+    Element list = box().column().gap(9);
     for (const Entry &e : entries)
       list.child(
           box().column().gap(4)
@@ -1414,6 +1426,12 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               .child(t(e.headline,
                        type(blackFace(), 13, C(0x0E3234), 50, 0.92f)))
               .child(t(e.body, prose(12.5f, C(0x0C2E30)))));
+    return list;
+  }
+
+  Element pressUpdates() {
+    using namespace tav;
+    Element list = pressList().translateY(&pressScroll);
 
     Element scrollbar =
         box().width(16).column().gap(3)
@@ -1897,12 +1915,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    .child(t("SITE MAP", micro(11, kDustDim, 200))));
   }
 
-  /** The 970×110 sitefooter.gif, ×2 — deliberately MONOCHROME oxblood,
-   *  no accent colour anywhere (the real asset saves colour for the SWF's
-   *  live states). Crosshatch dither, bracketed windows, chevrons, and the
-   *  three-circle gauge cluster in its dark bezel. */
   /** The dock's oscilloscope bars — monochrome oxblood, like the rest of
-   *  sitefooter.gif. Deterministic, so the strip stays picture-cached. */
+   *  sitefooter.gif. Every height is a closed-form function of the bar
+   *  index and never of time, so the whole strip stays picture-cached. */
   std::vector<Element> dockBars() {
     using namespace tav;
     std::vector<Element> bars;
@@ -1918,6 +1933,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return bars;
   }
 
+  /** The 970×110 sitefooter.gif, ×2 — deliberately MONOCHROME oxblood,
+   *  no accent colour anywhere (the real asset saves colour for the SWF's
+   *  live states). Crosshatch dither, bracketed windows, chevrons, and the
+   *  three-circle gauge cluster in its dark bezel. */
   Element footerDock() {
     using namespace tav;
     Element strip =
@@ -2044,7 +2063,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .cache(Cache::None);
   }
 
-  // ---- boot overlay (§9 beats 1–4) ---------------------------------------
+  // ---- boot overlay: dot, reticle, percentage, flash ----------------------
 
   Element bootOverlay() {
     using namespace tav;
@@ -2189,7 +2208,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     spectrum = Material::sksl(spectrumFx(), {{"uBars", 32.0f}})
                    .uniform("uHot", kGlow)
                    .uniform("uCool", kTealBar)
-                   .quantizeTime(10.0f); // §8: a deliberately chunky readout
+                   .quantizeTime(10.0f); // 10 steps a second, not a slide
 
     // ONE stripe material value, reused by the nav bar and four panel
     // headers; the pan is a bound uniform, not five redraw loops.
@@ -2205,6 +2224,13 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     wireW = std::ceil(ctx.measure(wireContent()).width());
     if (wireW < 1)
       wireW = 1;
+
+    // measure the press entries at the well's own wrap width, so the
+    // auto-scroll walks the REAL overflow rather than a guessed one
+    pressOverflow = std::max(
+        0.0f, ctx.measure(box().width(Dim(kPressWellW)).child(pressList()))
+                      .height() -
+                  kPressWellH);
 
     // --- the instanced chevron array in the footer dock ---
     dockAtlas = std::make_shared<instancing::Atlas>(2.0f);
@@ -2233,7 +2259,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       dockPool->commit();
     }
 
-    // --- declared idle motion (§9's second list) --------------------------
+    // --- the idle motion, all of it driven from this one ticker -----------
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       const float s = (float)t;
@@ -2262,14 +2288,12 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         gaugeAlpha[(size_t)i] = i == active ? 1.0f : 0.22f;
       }
 
-      // PRESS UPDATES: the six entries EXACTLY fill the well — the wire is
-      // page 1 of 4, not a scrolling column. The old driver stepped 62 px
-      // six times over a ~19 s loop against ~0 px of overflow, so it walked
-      // the whole wire off the top and the panel read EMPTY for two thirds
-      // of every loop. Step only over real overflow; there is none, so the
-      // page holds. (Give the well a seventh entry and this scrolls again.)
+      // PRESS UPDATES auto-scroll: walk the list a 62 px entry at a time,
+      // clamped to the overflow measured in setup(), so the last step
+      // parks the list bottom-flush instead of walking it off the top and
+      // leaving the well empty. A list that fits its well holds still.
       const float span = 3.1f;
-      const float overflow = 0.0f; // contentHeight - wellHeight, measured
+      const float overflow = pressOverflow;
       const int steps = (int)(overflow / 62.0f);
       if (steps > 0) {
         const float u =

@@ -1,31 +1,34 @@
 #pragma once
 
 /** @file
- * SigilCompose shape kit — the free-form answer to "everything is a
- * box". An extension over the kernel's shape() seam: every generator
- * here is a COMPARABLE VALUE (a `ShapeScheme`: params + `path(SkSize)`
- * + equality), so any element can *be* a star, blob, polygon, or
- * squircle — fill, clip, and every outline-following decoration
- * (PathFormat, ContourWalk) trace the shape, hitTest() honors it, and
- * the node PRUNES like an unshapen one (ROADMAP §3: the incomparable
- * callable era cost 43.4 of 43.5 ms on the node that measured it).
+ * SigilCompose shape kit — the free-form answer to "everything is a box".
  *
- * Every generator is also CALLABLE over a size, so it still converts to
- * an `OutlineFn` anywhere a raw path-over-size function is wanted — a
- * band spine, a TextPath baseline, your own wrapper. Going the other
- * way, a raw callable handed to `shape()` is the escape hatch that
- * never prunes; give your own generators `path(SkSize)` + `operator==`
- * to make them values.
+ * An extension over the kernel's shape() seam. Every generator here is a
+ * COMPARABLE VALUE — parameters, a `path(SkSize)` member and an
+ * `operator==` — so any element can *be* a star, blob, polygon or
+ * squircle: fill, clip and every outline-following decoration (PathFormat,
+ * ContourWalk) trace the shape, hitTest() honours it, and the node PRUNES
+ * exactly like an unshapen one.
+ *
+ * That comparability is the whole point of the value form. A raw callable
+ * handed to `shape()` is the escape hatch: it can never compare equal, so
+ * its node is re-patched on every describe and its subtree re-records.
+ * Give your own generators `path(SkSize)` plus `operator==` and they
+ * become values with the same standing as these.
+ *
+ * Every generator is also CALLABLE over a size, so it converts to an
+ * `OutlineFn` anywhere a raw path-over-size function is wanted — a band
+ * spine, a TextPath baseline, your own wrapper.
  *
  * Generators compose through wrappers: `rounded(star(5), 8)` is a
- * five-point star with consistently rounded points — corners() for
- * silhouettes that have no box corners — and the wrapper is comparable
- * whenever what it wraps is.
+ * five-point star with consistently rounded points, which is what
+ * corners() cannot do for a silhouette that has no box corners. A wrapper
+ * is comparable whenever what it wraps is.
  *
- * `edges()` runs the other way: it extracts the sub-contours of a
- * resolved outline that face a given box edge, so per-edge treatments
- * (stress item 9) are composition — `onEdges(Edge::Top, PathFormat…)`
- * — not new primitive types.
+ * `edges()` runs the other way: it extracts the sub-contours of a resolved
+ * outline that face a given box edge, so a per-edge treatment is
+ * composition — `onEdges(Edge::Top, PathFormat…)` — rather than a new
+ * primitive type.
  */
 
 #include "sigilcompose/Compose.h"
@@ -47,11 +50,11 @@
 
 namespace sigil::compose::shapes {
 
-/** A silhouette generator: local-coordinate path over the node's
- *  laid-out size. The ESCAPE-HATCH spelling of what Element::shape()
- *  accepts — a raw callable never prunes; the generator values below
- *  do. Kept because helpers across the corpus return it, and because a
- *  hand-rolled curve has to start somewhere. */
+/** A silhouette generator: local-coordinate path over the node's laid-out
+ *  size. The ESCAPE-HATCH spelling of what Element::shape() accepts — a
+ *  raw callable never prunes, where the generator values below do. It
+ *  exists because a hand-rolled curve has to start somewhere; promote it
+ *  to a value once it settles. */
 using OutlineFn = std::function<SkPath(SkSize)>;
 
 /** An outline from an SVG path-d string (SkParsePath) — trace a reference
@@ -122,11 +125,10 @@ inline Polygon polygon(int sides, float rotationDeg = 0.0f) {
  *  vertices sit at @p innerRatio of the outer radius.
  *
  *  @p waist bows each arm edge INWARD along its own bisector, in units of
- *  the outer radius. 0 is the straight-chord star. Engraved and cut stars
- *  are almost never straight-chorded — Chladni's 1787 sound-figures
- *  narrow fast off the hub and then run as needles, and nine figures on
- *  that one plate wanted exactly this parameter. ~0.10–0.25 reads as
- *  engraved; negative bulges the arms instead (a compass rose). */
+ *  the outer radius. 0 is the straight-chord star, which engraved and cut
+ *  stars almost never are: they narrow fast off the hub and then run out
+ *  as needles. Roughly 0.10–0.25 reads as engraved; a negative value
+ *  bulges the arms instead, which is the compass-rose look. */
 struct Star {
   int points = 5;
   float innerRatio = 0.5f;
@@ -167,25 +169,21 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
 /** The circle (ellipse, on a non-square box) inscribed in the box, with a
  *  chosen WINDING and start point.
  *
- *  Direction is not a detail on a text baseline — it decides which way
- *  the glyphs face. `onPath` orients to the tangent, so a clockwise ring
- *  puts glyph-up radially OUTWARD (Nightingale's 1858 plate) and a
- *  counter-clockwise one puts it INWARD (Chevreul's 1864 limb). Both are
- *  uniform engraver's conventions and they are opposite in sign, so
- *  exactly half of all ring inscriptions were writing their own
- *  `OutlineFn` because of a default nobody chose.
+ *  Direction is not a detail on a text baseline — it decides which way the
+ *  glyphs face. `onPath` orients to the tangent, so a clockwise ring puts
+ *  glyph-up radially OUTWARD and a counter-clockwise one puts it INWARD.
+ *  Both are uniform engraver's conventions, and they are opposite in sign,
+ *  so a ring inscription that reads upside down wants this argument rather
+ *  than a hand-written `OutlineFn`.
  *
- *  @p startIndex picks which of the oval's four extreme points the
- *  contour begins at, which is what `TextPath::at` measures from. It
- *  defaults to 1 because that is what Skia's own `addOval(rect, dir)`
- *  uses — so `circle(kCW)` is byte-for-byte the path `circle()` gives,
- *  and the oriented overload is a strict superset rather than a
- *  near-miss. (It was defaulted to 0 first and the two produced
- *  different paths, which a test caught immediately and would have been
- *  a nasty thing to discover from a drifting label.)
+ *  @p startIndex picks which of the oval's four extreme points the contour
+ *  begins at, which is what `TextPath::at` measures from. It defaults to 1
+ *  to match Skia's own `addOval(rect, dir)`, so `circle(kCW)` yields
+ *  byte-for-byte the path `circle()` gives and the oriented overload is a
+ *  strict superset. Changing that default would silently move every label
+ *  placed by arc-length fraction.
  *
- *  Exact conics either way — this is `addOval`, not a sampled
- *  polyline. */
+ *  Exact conics either way — this is `addOval`, not a sampled polyline. */
 struct Circle {
   SkPathDirection direction = SkPathDirection::kCW;
   unsigned startIndex = 1;
@@ -269,20 +267,19 @@ inline float hashNoise(uint32_t seed, uint32_t i) {
 /** Localise the point where a property of a contour CHANGES, given a
  *  bracket that straddles it.
  *
- *  Every scanner that walks a contour at a stride has the same two
- *  halves: notice between two samples that something flipped, then
- *  narrow the bracket. This is the second half, once, and it exists
- *  because the first half's convention is a bug magnet: **the answer is
- *  `hi`, the first distance PROVEN past the transition — never the
- *  midpoint of the bracket.** Recording the midpoint puts the result up
- *  to stride/2 early, which was measured at 3 px on a corner scan with
- *  advance 24, diagnosed, fixed in one copy, and then written again from
- *  the shape of the surrounding code in a second one days later.
+ *  Every scanner that walks a contour at a stride has the same two halves:
+ *  notice between two samples that something flipped, then narrow the
+ *  bracket. This is the second half, written once, because the returned
+ *  value is easy to get wrong: **the answer is `hi`, the first distance
+ *  PROVEN past the transition — never the midpoint of the bracket.**
+ *  Returning the midpoint reports the transition up to half the scanning
+ *  stride early, which shows up as a run boundary sitting short of the
+ *  corner it belongs to.
  *
  *  @param stillNear answers "is @p d still on the starting side?" for any
- *         distance in the bracket. A sample it cannot evaluate must
- *         answer `true`: that can only move `lo`, so it can never report
- *         a transition earlier than the truth. */
+ *         distance in the bracket. A sample it cannot evaluate must answer
+ *         `true`: that can only move `lo`, so it can never report a
+ *         transition earlier than the truth. */
 template <typename Pred>
 inline float bisectTransition(float lo, float hi, Pred stillNear,
                               int iterations = 8) {
@@ -366,10 +363,10 @@ inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
 }
 
 /** A circular arc inscribed in the box, STARTING at @p startDeg (Skia
- *  canvas convention: 0° = +x, clockwise) and sweeping @p sweepDeg — the
- *  path begins at the arc's start, so `spans::upTo(sweep/360)`-style reveals
- *  and orbit connectors (the PoE Orbit idiom, REFERENCES.md §5) need no
- *  wrap math. Stroke it; an unstroked open arc has no fillable area. */
+ *  canvas convention: 0° = +x, clockwise) and sweeping @p sweepDeg. The
+ *  path begins at the arc's own start, so an arc-length reveal such as
+ *  `spans::upTo(sweep/360)` needs no wrap arithmetic. Stroke it: an open
+ *  arc has no fillable area. */
 struct Arc {
   float startDeg = 0.0f;
   float sweepDeg = 359.9f;
@@ -402,9 +399,9 @@ struct Sector {
   bool operator==(const Sector &) const = default;
   SkPath path(SkSize s) const {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    // arcTo swallows a full turn, so sector(start, 360, inner) — the most
-    // obvious call there is, a gauge's annular TRACK — silently drew
-    // nothing. Clamp inside the primitive rather than at every call site.
+    // arcTo swallows a full turn, so an unclamped sector(start, 360,
+    // inner) — a gauge's annular TRACK, the most obvious call there is —
+    // draws nothing at all. Clamped here rather than at every call site.
     const float sweep = std::clamp(sweepDeg, -359.99f, 359.99f);
     const float inner = std::clamp(innerRatio, 0.0f, 0.999f);
     const SkRect outerBox = SkRect::MakeWH(s.width(), s.height());
@@ -430,9 +427,8 @@ inline Sector sector(float startDeg, float sweepDeg, float innerRatio = 0.0f) {
   return Sector{startDeg, sweepDeg, innerRatio};
 }
 
-/** A parallelogram leaning by @p skewDeg (the ATLUS slash, REFERENCES.md
- *  §1: P3R ≈ −12°, P5R ≈ −20°): the top edge shifts by h·tan(skew) relative
- *  to the bottom, staying inside the box. */
+/** A parallelogram leaning by @p skewDeg: the top edge shifts by
+ *  h·tan(skew) relative to the bottom, staying inside the box. */
 struct Parallelogram {
   float skewDeg = 0.0f;
   bool operator==(const Parallelogram &) const = default;
@@ -457,23 +453,20 @@ inline Parallelogram parallelogram(float skewDeg) {
 // ---------------------------------------------------------------------------
 // Parametric curves
 //
-// Everything above generates a closed SHAPE from parameters. A curve
-// DEFINED by a parameter — Lissajous, harmonograph, rose, epitrochoid,
-// spirograph, orbit trace, phase portrait — had no generator at all, so
-// every study that needed one wrote the same SkPathBuilder loop inside
-// its own outline() lambda: the Vertigo titles, the Nightingale rings,
-// and (predictably) every diagram sketch since.
+// Everything above generates a closed SHAPE from parameters. These
+// generate a curve DEFINED by a parameter — Lissajous, harmonograph,
+// rose, epitrochoid, spirograph, orbit trace, phase portrait.
 //
-// These evaluate in a UNIT frame centred on the box — x and y in [-1, 1]
-// — and are then scaled onto the node's half-extents, so a curve keeps
-// its proportions when the box changes and `amplitude` means the same
-// thing everywhere.
+// They evaluate in a UNIT frame centred on the box — x and y in [-1, 1] —
+// and are then scaled onto the node's half-extents, so a curve keeps its
+// proportions when the box changes and an amplitude means the same thing
+// everywhere.
 //
 // The named families are comparable values like every other generator.
 // The raw `parametric(fn, …)` holds YOUR callable, which cannot compare —
-// key it (`parametric("orbit-a", fn, …)`) to make it a value: the key
-// plus the sampling parameters become its identity, on the author's
-// contract that one key means one function.
+// key it (`parametric("orbit-a", fn, …)`) to make it a value: the key plus
+// the sampling parameters become its identity, on the author's contract
+// that one key means one function.
 
 /** Samples @p f over t ∈ [t0, t1] into a polyline. @p f returns UNIT
  *  coordinates (±1 spans the box); @p samples is the segment count, and
@@ -716,13 +709,11 @@ inline Rounded rounded(Shape shape, float radius) {
 // Corner geometry — the shapes a frame is actually cut to
 //
 // `corners()` rounds, and rounding is the ONE corner treatment the kernel
-// offers. Modern game UI is built on the other two: the 45° CHAMFER (every
-// panel in Cyberpunk 2077, Destiny, Deus Ex, XCOM; the "cut corner" that
-// reads as machined metal) and the rectangular NOTCH (the bitten corner
-// that reads as a stencil or a fixing lug). Both were hand-built with
-// SkPathBuilder in the corpus, per panel, which is where a mask enum
-// belongs instead: a chamfer on two corners and square on the other two is
-// the commonest real case, and it is not expressible by a radius at all.
+// offers. The other two are the 45° CHAMFER — the cut corner that reads as
+// machined metal — and the rectangular NOTCH, the bitten corner that reads
+// as a stencil or a fixing lug. Both take a per-corner MASK rather than a
+// single number, because a chamfer on two corners and square on the other
+// two is the common case and no radius expresses it.
 
 /** Which corners a treatment applies to. Clockwise from the top-left. */
 enum class Corner : uint8_t {
@@ -788,8 +779,8 @@ inline Chamfered chamfered(float cut, Corner mask = Corner::All) {
 }
 
 /** The NOTCHED box: each selected corner carries a rectangular bite @p
- *  notchWidth wide and @p depth deep — the stencil corner, the fixing lug,
- *  the Aliens-console cut. */
+ *  notchWidth wide and @p depth deep — the stencil corner, the fixing lug.
+ *  Both are clamped to 0.45 of the shorter side. */
 struct Notched {
   float notchWidth = 0.0f;
   float depth = 0.0f;
@@ -841,7 +832,7 @@ inline Notched notched(float notchWidth, float depth,
 }
 
 // ---------------------------------------------------------------------------
-// Per-edge extraction (stress item 9)
+// Per-edge extraction
 
 enum class Edge : uint8_t {
   Top = 1,
@@ -900,11 +891,9 @@ inline SkPath edges(const SkPath &outline, Edge mask, float step = 3.0f) {
         continue;
       const Edge e = classify(pos);
       if (e != runEdge) {
-        // The boundary between the previous sample and this one. Shared
-        // with lines::detail::findCorners — the SCANNERS differ (that one
-        // brackets a tangent break, this one a quadrant change) but the
-        // refinement is the same operation, and it is the half that has
-        // been got wrong twice.
+        // The boundary lies between the previous sample and this one;
+        // narrow the bracket rather than taking either sample, or every
+        // run boundary sits up to one step away from the real corner.
         const float at = detail::bisectTransition(
             length * (float)(i - 1) / (float)samples, d, [&](float mid) {
               SkPoint mp;
@@ -941,14 +930,11 @@ struct EdgeSlice {
   }
   bool isAnimated() const { return inner.isAnimated(); }
   /** Structural equality, so a static per-edge border prunes like any
-   *  other decoration. It did not have one — `Inset`, the sibling
-   *  adaptor twelve lines below, always did — so every
-   *  `shapes::onEdges(...)` in the corpus compared unequal and
-   *  re-recorded its subtree EVERY FRAME. The edge extraction itself is
-   *  the expensive half (a contour walk with a binary search at each
-   *  boundary), and it was being redone at 60 Hz for chrome that never
-   *  changed. Nothing about the type prevented this; the operator was
-   *  simply never written. */
+   *  other decoration. Without it every `onEdges(...)` compares unequal
+   *  and re-records its subtree on every describe, redoing the edge
+   *  extraction — a contour walk with a binary search at each run boundary
+   *  — for chrome that never changed. Any adaptor added beside this one
+   *  needs the same operator for the same reason. */
   bool operator==(const EdgeSlice &o) const {
     return mask == o.mask && step == o.step && inner == o.inner;
   }
@@ -962,11 +948,9 @@ inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {
  *  outline — EdgeSlice's sibling, and the same trick: rewrite
  *  `PaintContext::outline` and delegate.
  *
- *  "The same bevel again, six pixels in" is the entire vocabulary of
- *  nested chrome — 2Advanced's own SWF names two panel classes,
- *  FSingleBevelPanel and FDoubleBevelPanel, and the second is literally
- *  the first run twice at two insets. Without this, every nested frame is
- *  either a second element or a bespoke decoration struct.
+ *  "The same bevel again, six pixels in" is the whole vocabulary of nested
+ *  chrome, and without this every nested frame is either a second element
+ *  or a bespoke decoration struct.
  *
  *  Positive `px` shrinks; negative grows. Implemented as a stroke-and-fill
  *  offset of the resolved outline, so it follows any silhouette — a
@@ -1011,9 +995,7 @@ inline Inset inset(float px, Decoration inner) {
 }
 
 /** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
- *  height and a head of `headFrac` of the width. Every HUD, gizmo,
- *  manoeuvre node and diagram draws one, and every one of them was
- *  hand-built with SkPathBuilder. */
+ *  height and a head of `headFrac` of the width. */
 struct Arrow {
   float shaftFrac = 0.34f;
   float headFrac = 0.42f;

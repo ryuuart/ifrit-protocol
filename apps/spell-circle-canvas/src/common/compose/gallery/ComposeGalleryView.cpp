@@ -135,8 +135,8 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
                    m_stage->scene
                        ? QString::fromUtf8(m_stage->scene->name())
                        : QString());
-    // Worth showing now that it varies: the studies range from 640x800 to
-    // 1940x1560, and "why is this one slower" usually starts here.
+    // Scene canvases vary widely across the registry, and "why is this one
+    // slower" usually starts with how many pixels it is drawing.
     metrics.insert(QStringLiteral("canvas"),
                    QStringLiteral("%1x%2")
                        .arg((int)m_stage->sceneSize.width())
@@ -165,11 +165,11 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
 void ComposeGalleryRenderer::renderScene(SkCanvas &canvas, QSize pixelSize) {
   if (!m_stage)
     return;
-  // The canvas is the SCENE's, not a constant: the studies range from a
-  // 640x800 web page to a 1940x1560 Flash site, and letterboxing each to its
-  // own aspect is the difference between showing it and distorting it. The
-  // matte stays black so the frame's own edge reads; inside the clip the
-  // scene's declared background takes over.
+  // Letterbox to the SCENE's own canvas rather than to a fixed size. Scenes
+  // declare their own dimensions and do not share an aspect ratio, so
+  // stretching one to fill the item would distort what it is trying to show.
+  // The matte around it stays black so the scene's own edge reads; inside the
+  // clip the scene's declared background takes over.
   const SkSize sceneSize = m_stage->sceneSize;
   canvas.clear(SK_ColorBLACK);
   const float scale =
@@ -253,9 +253,10 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer *commandBuffer) {
   }
 #endif
 
-  // Portable fallback: one reusable raster buffer and one explicit upload.
-  // This remains substantially leaner than QQuickPaintedItem, which added a
-  // second QPainter backing-store copy before Qt uploaded the result.
+  // Portable fallback: one reusable raster buffer and one explicit upload,
+  // so the frame is copied only by the backend's staging upload. Drawing
+  // through QQuickPaintedItem instead would insert a QPainter backing store
+  // and a second full-frame copy ahead of that upload.
   m_rasterPixels.resize(static_cast<size_t>(pixelSize.width()) *
                         static_cast<size_t>(pixelSize.height()));
   sk_sp<SkSurface> surface = SkSurfaces::WrapPixels(

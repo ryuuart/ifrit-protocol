@@ -37,16 +37,16 @@
 //   1. 罡 HAS EXACTLY TEN STROKES, so the doctrine that it encodes the ten
 //      Heavenly Stems 甲乙丙丁戊己庚辛壬癸 is checkable rather than
 //      decorative. Panel A asserts it against the data and prints the count.
-//   2. **KanjiVG DOES NOT CONTAIN 罡.** The brief says "makemeahanzi has the
-//      coverage; KanjiVG has the taxonomy — use both", and for the other ten
-//      characters that is right. But 罡 is not a Japanese kanji:
-//      kanji/07f61.svg is a 14-byte 404. The one character whose stroke
-//      classes this study most needs has no taxonomy to look up. So the
-//      class is RECOVERED FROM THE MEDIAN GEOMETRY — arc length, the body
-//      chord angle over the 14–86% span, and the peak turn away from the
-//      entry direction — and the recovery is validated against the 54
-//      strokes KanjiVG does carry for the seven characters shared with this
-//      plate. Panel B prints the agreement and every disagreement.
+//   2. **KanjiVG DOES NOT CONTAIN 罡.** makemeahanzi has the coverage and
+//      KanjiVG has the taxonomy, which works for ten of the eleven
+//      characters here. But 罡 is not a Japanese kanji: kanji/07f61.svg is a
+//      14-byte 404. The one character whose stroke classes this study most
+//      needs has no taxonomy to look up. So the class is RECOVERED FROM THE
+//      MEDIAN GEOMETRY — arc length, the body chord angle over the 14–86%
+//      span, and the peak turn away from the entry direction — and the
+//      recovery is validated against the 54 strokes KanjiVG does carry for
+//      the seven characters where the two sources agree on the count. Panel
+//      B prints the agreement and every disagreement.
 //   3. The datasets disagree with each other twice, and both disagreements
 //      are real: 鬼 is NINE strokes in makemeahanzi and TEN in KanjiVG (the
 //      Japanese form carries an extra ノ), and the two sources order the
@@ -63,20 +63,18 @@
 // s = 0.88 (1.42 w₀) and a fast 收筆 cut. w₀ itself is 提按, set per stroke
 // CLASS: a 橫 is thin, a 捺 is fat, a 點 is nearly all 頓.
 //
-//   THE BRIEF PREDICTED brush::Ribbon takes a taper or a scalar and not an
-//   arbitrary w(s), "and if it cannot take a profile callback that is the
-//   gap to file". IT CAN — `Ribbon::width` is a `Profile`, a comparable
-//   value with `across(along)` and a REQUIRED `max()`, and takes exactly
-//   this law. The trap is one line further down: under `trim()` a
-//   decoration receives the ALREADY-TRIMMED outline, so a FRACTION is a
-//   fraction of the REVEALED contour, not of the stroke. Keying the profile
-//   to it makes the 頓 bulge SLIDE along the stroke as it draws. Declare
-//   `static constexpr bool alongIsPx = true` and the seam hands the law
-//   arc-length px measured from the spine's start — divided by the length
-//   the sketch measured once, the press stays where the brush puts it.
-//   That is the finding, and it is why the px key exists at all. The band
-//   can no longer be silently clipped either: `max()` is required, so the
-//   old hand-set `widthMax` (a guess with headroom) is gone.
+//   brush::Ribbon takes that law directly: `Ribbon::width` is a `Profile`,
+//   a comparable value with `across(along)` and a REQUIRED `max()`, so an
+//   arbitrary w(s) needs no taper approximation. The trap is what `along`
+//   MEANS. Under `trim()` a decoration receives the ALREADY-TRIMMED
+//   outline, so a FRACTION is a fraction of the REVEALED contour and not of
+//   the stroke, and a profile keyed that way makes the 頓 bulge SLIDE along
+//   the stroke as it draws. Declare `static constexpr bool alongIsPx =
+//   true` and the seam hands the law arc-length px measured from the
+//   spine's start — divided by the length the sketch measured once, the
+//   press stays where the brush puts it. `max()` being required is what
+//   keeps the band from being silently clipped: the profile states its own
+//   widest excursion rather than leaving a bound to be guessed by hand.
 //
 // THE FOOT IS ONE CONTOUR. 「符腳是最後步驟…必須聚精會神，一氣立斷，不得遲緩
 // 拖滯」 — the foot is the last step; total concentration, cut off in a
@@ -86,10 +84,11 @@
 // reveal, no lift anywhere. Its width Profile carries a 75-span table so each
 // stroke span gets its class weight and each ligature thins to 0.16 w₀. It
 // is the only mark on this plate that is a single contour, and it is written
-// at 0.034 s per stroke against the body's 0.240 — 7.1× — which is doctrine
-// measured, not taste. 飛白 flying-white comes with the speed: two dashed
-// rails at shapers::Offset ±2.6 px, so the dry streaks are longitudinal and
-// follow the tangent BY CONSTRUCTION rather than by a canvas-axis shader.
+// at 0.034 s per stroke against the body's 0.240 — 7.1× — which is the
+// doctrine turned into a tempo, not a taste. 飛白 flying-white comes with the
+// speed: two dashed rails a couple of px either side of the spine via
+// shapers::Offset, so the dry streaks are longitudinal and follow the tangent
+// BY CONSTRUCTION rather than by a canvas-axis shader.
 //
 // THE LAYOUT IS THE TREAD. 步罡踏斗, 禹步 「三步九跡」 — three steps making
 // nine prints. The nine stations are the REAL Big Dipper: J2000 right
@@ -224,7 +223,7 @@ constexpr float kCol = 306.0f;              // the spine: every part is strung
                                             // it are deliberate
 
 // ---------------------------------------------------------------------------
-// §1 — THE STROKE DATA, verbatim from makemeahanzi `graphics.txt`.
+// THE STROKE DATA, verbatim from makemeahanzi `graphics.txt`.
 // Layout: per stroke, [n, x0,y0, x1,y1, … x(n-1),y(n-1)] with the 1024 em box
 // already flipped to screen orientation (y = 900 − y_published). In DRAWING
 // ORDER and DRAWING DIRECTION — which is the whole point of the file.
@@ -394,7 +393,7 @@ const KvgRow kKvg[] = {{JI, kKvg_ji, 9},   {RU, kKvg_ru, 6},
                        {LEI, kKvg_lei, 13}, {GUI, kKvg_gui, 10}};
 
 // ---------------------------------------------------------------------------
-// §2 — MEDIANS → GEOMETRY.
+// MEDIANS → GEOMETRY.
 
 using Poly = std::vector<SkPoint>;
 
@@ -521,21 +520,22 @@ float widthLaw(float s) {
 
 /** The law's peak, in units of w₀. It is widthLaw(0) = 1.15 + 0.62 exactly
  *  (the 頓 gaussian is e^-69.7 there, i.e. nothing), and the law falls
- *  immediately — so the 逆鋒 entry IS the maximum, which is the 1.77 the
- *  comment above quotes. Every profile below reports it as `max()`, which
- *  is the number `bleed()` grows the cull by; the deleted `widthMax` had
- *  to be told it by hand and was set to a guess with headroom. */
+ *  immediately from there — so the 逆鋒 entry IS the maximum, and it is the
+ *  1.77 the comment above quotes. Every profile below returns it from
+ *  `max()`, which is what the cull bounds are grown by: understate it and
+ *  the widest part of the band gets clipped at the node's edge. */
 constexpr float kWidthLawMax = 1.77f;
 
 /** ONE STROKE'S WIDTH, as a comparable Profile keyed in PX of arc length.
  *
- *  `alongIsPx` is load-bearing and is the reason this sketch was the one
- *  that documented the trap: every stroke is written under
- *  `trim(0, bind(&scribe).window(t0, t1))`, so the decoration is handed
- *  the REVEALED contour and a fraction is a fraction of what has been
- *  drawn SO FAR. Keyed that way the 頓 press would slide down the stroke
- *  as it writes; keyed in px against the length the stroke was AUTHORED
- *  at, the press stays where the brush puts it. */
+ *  `alongIsPx` is load-bearing. Every stroke on this plate is written under
+ *  a reveal — `spans::upTo(bind(&scribe).window(t0, t1))` — so the
+ *  decoration is handed the REVEALED contour, and a fraction would be a
+ *  fraction of what has been drawn SO FAR. Keyed that way the 頓 press
+ *  would slide down the stroke as it writes; keyed in px against `fullLen`,
+ *  the length the stroke was AUTHORED at, the press stays where the brush
+ *  puts it. `fullLen` must therefore be the whole spine's length, measured
+ *  once, and never the revealed part. */
 struct StrokePress {
   float fullLen = 1.0f;
   float w0 = 6.0f;
@@ -629,7 +629,7 @@ Poly place(const Poly &m, SkPoint origin, float sx, float sy) {
 }
 
 // ---------------------------------------------------------------------------
-// §3 — THE BIG DIPPER, and the tread on it.
+// THE BIG DIPPER, and the tread on it.
 //
 // J2000 RA/Dec, gnomonically projected about the asterism's own centroid and
 // normalised so the seven stars span 1.0 in x. 左輔 Alcor comes out 0.0079
@@ -672,7 +672,7 @@ const Fu kOthers[11] = {
 };
 
 // ---------------------------------------------------------------------------
-// §4 — THE SCORE. Seconds. The tempo marks are quotations, not choices.
+// THE SCORE. Seconds. The tempo marks are quotations, not choices.
 
 constexpr float tPlate = 0.05f, tPlateEnd = 1.15f;
 constexpr float tLoad = 1.20f;
@@ -763,8 +763,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     rib.step = 2.2f;
 
     // Both laws are PX-KEYED profiles — see StrokePress / FootPress for
-    // why the key is px and not a fraction, and for the max() the seam
-    // now derives instead of being told.
+    // why the key is px and not a fraction under the reveal below.
     if (s.spans.empty())
       rib.width = StrokePress{s.len, s.w0};
     else
@@ -922,20 +921,16 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
     // corner tiles: a facet, not a fillet.
     //
-    // `cornerAlign` is spelled out below and the value is the DEFAULT, which
-    // is the point. It defaults to Bisector only since f706f5d (12:03);
-    // before that every corner behaved as Outgoing, and a study written
-    // before that hour has art in the other frame and no way to say so — one
-    // did, and its corners silently turned 45 degrees. This plate was
-    // written at 12:36 against the new header, so the facets were drawn and
-    // approved on the bisector, and on a bisector is where they belong: a
-    // hammer lands on the CORNER, and the flat it leaves straddles both legs
-    // instead of lying along one of them. Audited by rendering the same
-    // frame with Outgoing forced — the six facets rotate 13 to 35 degrees
-    // (half the chamfer's own turn, perturbed by shapers::Jitter) and nothing
-    // snaps into or out of alignment, because a stubby lozenge at elongation
-    // 1.4 has no strong axis to align. So the value stands, and now it is
-    // stated rather than inherited.
+    // `cornerAlign` is spelled out below even though the value it names is
+    // the default, because the frame a corner stamp is drawn in is part of
+    // the art and should not be inherited silently. Bisector is right here:
+    // a hammer lands on the CORNER, and the flat it leaves straddles both
+    // legs instead of lying along one of them. The facet is a stubby lozenge
+    // with no strong axis, so forcing Outgoing instead rotates each one by
+    // half its corner's turn without anything snapping into or out of
+    // alignment — a mild difference, which is exactly why the choice has to
+    // be written down rather than left to whatever the default happens to
+    // be.
     g.child(box()
                 .inset(0)
                 .shape([](SkSize s) {
@@ -966,10 +961,13 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   /** The grain wash that unifies ink and iron — the flying-white streaks are
-   *  painted in the iron's own mid-tone, and this is what stops them reading
-   *  as paint. Explicitly baked: the library refuses to promote an
-   *  opacity+blend leaf because compositing a bake rounds twice, and it is
-   *  right to refuse and I am right to accept it. */
+   *  painted in the iron's own mid-tone, and this wash over the top is what
+   *  stops them reading as paint. The bake is asked for BY NAME because the
+   *  library will not promote a leaf that carries both an opacity and a
+   *  blend mode on its own: compositing a baked layer rounds a second time,
+   *  so it declines rather than change the pixels. Here the wash is a soft
+   *  full-plate gradient where that second rounding is invisible, and it is
+   *  the most expensive single node on the plate if it repaints. */
   Element ironWash() {
     return box()
         .inset(0)
@@ -1322,12 +1320,14 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   Element tread() {
     const float x0 = 1012, y0 = 108, W = 738, H = 738 * 0.5302f;
-    // where each station's plate stands relative to it — five step right,
-    // two step ABOVE, so the tread's own line stays legible where the
-    // handle folds back on itself
-    // JIANG BAO (6) hangs 24 lower than its neighbours: at the common 26 its
-    // plate top landed inside JUAN WU's caption band and swallowed the first
-    // two letters of "roll up fog" against its own lit top edge.
+    // Where each station's plate stands relative to its star. Six step right
+    // and three step left, so the tread's own line stays legible where the
+    // handle folds back on itself. KAI YANG (index 5) steps well ABOVE its
+    // star instead: the handle turns there, and the plates of its two
+    // neighbours already stand in the space below it.
+    // JIANG BAO (index 6) hangs 24 px lower than the common 26: at 26 its
+    // plate top overlaps JUAN WU's caption band, and the first letters of
+    // "roll up fog" are lost against its own lit top edge.
     static const float kOffX[9] = {-56, 48, 48, -56, 48, -58, 50, 54, 52};
     static const float kOffY[9] = {26, 26, 26, 26, 26, -104, 50, 26, 34};
     auto g = box()
@@ -1392,10 +1392,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                                   : std::vector<SkScalar>{}}));
       g.child(std::move(st));
       // 天璇 is the one station the walk reaches from straight overhead — the
-      // Dubhe-Merak leg is 8 px of run over 169 of rise — so its ritual name,
-      // hung 44 px left of the star, had the tread coming down through the X
-      // of "XUAN". It moves to the star's right instead, where that leg has
-      // already stopped. Every other ritual name clears its own segments.
+      // Dubhe–Merak leg is 8 px of run over 169 of rise — so at the common
+      // 44 px left of the star the tread comes straight down through the
+      // ritual name. It hangs to the star's right instead, where that leg
+      // has already stopped. Every other ritual name clears its own
+      // segments, which is why the rest of the table is 0.
       static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
       g.child(text(toU8(fmt("%d %s", i + 1, kDipper[i].ritual)),
                    type(faceMono, 9.5f, hex(0xa48c5c, 0.9f)))
@@ -1405,15 +1406,15 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .opacity(bind(&scribe).window(t, t + 0.45f))
                   .key(fmt("starlbl%d", i)));
       // THE BAYER NAME DODGES THE WALK. It hangs 12 px under its own star,
-      // which is fine for the five stations the tread leaves sideways and
-      // wrong for the three it leaves downward: the walk ran straight through
-      // "Dubhe", "Mizar" and "Alcor" at their x-height. A plate would set the
-      // name clear of the line, not on it, so each name carries its own dodge
-      // — left at 天樞 and 左輔, right at 開陽, where the segment falls the
-      // other way. The other six are 0 and stay under their star.
-      // 左輔's dodge is 30 and not more: the margin column's right edge is at
-      // x = 1000 and "Alcor" is only 38 px wide, so a bigger left dodge walks
-      // it into the SIX CLASSES rule.
+      // which is clear for the stations the tread leaves sideways and not
+      // for the three it leaves downward — at 天樞, 開陽 and 左輔 the walk
+      // would cross "Dubhe", "Mizar" and "Alcor" at their x-height. A plate
+      // sets the name clear of the line, not on it, so those three carry a
+      // dodge: left at 天樞 and 左輔, right at 開陽, where the segment falls
+      // the other way. The other six are 0 and stay under their star.
+      // 左輔's dodge is 30 and no more: the margin column ends at x = 1000
+      // and "Alcor" is only 38 px wide, so a larger left dodge would push it
+      // over the margin's own rules.
       static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
       g.child(text(toU8(kDipper[i].name), type(faceItalic, 9.0f, hex(0x6f6047, 0.85f)))
                   .left(p.fX - 22 + kNameDodge[i])
@@ -1423,11 +1424,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .key(fmt("starnm%d", i)));
     }
 
-    // the eleven other plates. Nine stand on stations; TWO bleed off the
-    // canvas — the tread does not stop at the frame.
-    // the tread does not stop at the sheet: one plate walks off the right
-    // edge and one off the top. Neither is labelled — a caption cut mid-word
-    // reads as an accident, a plate cut mid-edge reads as a frame.
+    // The eleven other plates. Nine stand on stations; the last two bleed
+    // off the sheet, one walking off the right edge and one off the top,
+    // because the tread does not stop at the frame. Neither of those two is
+    // labelled — a caption cut mid-word reads as an accident, a plate cut
+    // mid-edge reads as a frame.
     const SkPoint bleed[2] = {{W + 150, H * 0.16f}, {W * 0.52f, -150.0f}};
     for (int i = 0; i < 11; ++i) {
       SkPoint at = i < 9 ? S(i) : bleed[i - 9];
@@ -1464,12 +1465,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const int srcs[4] = {YU, WU, LEI, YUN};
       const std::vector<Poly> ms = medians(srcs[i % 4]);
       const int take = 3 + (i % 3);
-      // The rows must FIT the plate, and a fixed 17 px pitch did not: the
-      // fourth row hung 6 px past the bottom edge and the FIFTH landed
-      // entirely below it, on the plate's own caption — which is why QI YU,
-      // QI XUE and QI QING (the three plates where i % 3 == 2) each carried a
-      // red mark struck through their gloss. Pitch the band between the head
-      // hook and the foot tick instead, so any `take` is contained.
+      // The rows must FIT the plate for every `take`, and `take` varies from
+      // 3 to 5 with i % 3. A fixed pitch cannot do that: at five rows the
+      // last ones fall past the bottom edge and land on the plate's own
+      // caption, striking a red mark through the gloss. So the band is
+      // pitched BETWEEN the head hook and the foot tick and divided by
+      // `take`, which contains any count.
       const float rowTop = 24.0f, rowBot = ph - 19.0f;
       const float rowH = std::min(16.0f, (rowBot - rowTop) / (float)take);
       const float pitch =
@@ -1634,12 +1635,13 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  /** The chant that is sung WHILE the stroke goes down — head and gall. The
-   *  六句 of 罡 must finish exactly as the tenth stroke lands, so each line
-   *  is windowed on the same Output as the strokes. */
   /** The margin column: the chants that are said WHILE the stroke goes down,
-   *  and the two things that decide how every stroke on this plate is drawn —
-   *  the width law, plotted, and the six recovered classes as specimens. */
+   *  and the two things that decide how every stroke on this plate is drawn
+   *  — the width law, plotted, and the six recovered classes as specimens.
+   *
+   *  The chants are windowed on the same Output as the strokes themselves,
+   *  which is what keeps them in step: the 六句 of 罡 must finish exactly as
+   *  the tenth stroke lands. */
   Element marginColumn() {
     const float X = 718, Wc = 282;
     auto g = box().left(X).top(0).width(Dim(Wc)).key("margin");
@@ -1771,14 +1773,14 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
 
     // --- the six recovered classes, as specimens -------------------------
-    // 412, and the chant below moved to 646. The grid is three rows at a 62
-    // pitch with each caption hung at cell + 56, so the last caption's
-    // BASELINE landed on 636 — which was the chant heading's own top. DIAN and
-    // TURN's captions and "SUNG WHILE GANG IS DRAWN" printed 3 px apart with
-    // the section rule below both, so the specimen key read as the first line
-    // of the next section. The grid cannot compress (SHU's specimen starts at
-    // cell y = 2 and the caption above already sits over that), so the fix is
-    // 8 px off the top of the block and 10 px onto the heading below it.
+    // The block starts at 412 and the chant heading below it at 646, and the
+    // gap between them is tight by construction: the grid is three rows at a
+    // 62 pitch with each caption hung at cell + 56, which puts the last
+    // caption's baseline just above that heading. Close it further and the
+    // specimen key reads as the first line of the next section, since a
+    // section rule follows the heading immediately. The grid cannot be
+    // compressed to buy room — SHU's specimen starts at cell y = 2, already
+    // under its own caption — so any change here has to move the heading.
     const float ky = 412;
     g.child(text(toU8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
@@ -2113,10 +2115,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
-    // §31 entrance-into-hold beat: the file's own reference on the 27 s
-    // score — everything through the 19.7 tap complete and the foot 40%
-    // through its flying-white sweep. (The old 6.0 default showed ~15% of
-    // the talisman written. Fully settled alternative: 26.0.)
+    // The single frame this sketch is photographed at, chosen on the 27 s
+    // score: everything through the 19.65 s tap is complete and the foot is
+    // about half way through its flying-white sweep, so one still shows both
+    // a finished talisman and a stroke being written. Anything before ~8 s
+    // catches an almost blank plate; 26.0 gives the fully settled plate with
+    // nothing in motion.
     ctx.captureAt(20.6);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
@@ -2189,33 +2193,32 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 SIGIL_SKETCH(ThunderFulu)
 
 // ---------------------------------------------------------------------------
-// WHAT IT COST, AND WHAT DID NOT PAY. 1900 × 1220, `--bench`, worst moment
-// (t = 20.6, the whole plate written and the foot flying): p50 8.57 ms /
-// p99 9.45 ms. At t = 3.0 it is 4.37 / 4.87.
+// WHY A WHOLE WRITTEN PERFORMANCE STAYS CHEAP.
 //
-// THE SHAPE THAT MADE IT CHEAP. 86 marks in 49 nodes (the foot's 38 strokes
-// are one node and one contour), every one carrying a Ribbon with a width
-// Profile and every one bound to the SAME Output through
-// `window(t0, t1)`, and the frame is still under 10 ms — because a stroke
-// that has not started trims to nothing and a stroke that is finished trims
-// to a constant, so almost every node is a plain cached fill on almost every
-// frame. There is no re-describe anywhere in the score: `update()` is empty
-// and the whole 27 s performance runs off one `ch::Output<float>` stepped in
-// the ticker. That is also why each node is sized to its OWN bounds and not
-// to the plate — 49 full-plate boxes would have made the culling and the
-// layer composites the cost instead of the ink.
+// 86 marks in 49 nodes (the foot's 38 strokes are one node and one contour),
+// every one carrying a Ribbon with a width Profile, and every one bound to
+// the SAME Output through `window(t0, t1)`. That last part is what does it: a
+// stroke whose window has not opened trims to nothing, and a stroke whose
+// window has closed trims to a constant, so on any given frame almost every
+// node is a settled fill that the library can keep in a cache and only the
+// one or two strokes actually being written are live.
 //
-// Two things measured that did NOT pay, both worth the next study's time:
-//   1. `bakeScale(0.5f)` on the 624 × 1040 grain wash made it WORSE, 2.9 ms
-//      → 5.0 ms and the frame 8.6 → 10.9. The upscale resample on composite
-//      costs more than the half-area bake saves; a full-canvas soft wash is
-//      already the cheapest thing a texture bake can hold.
-//   2. removing the plate group's BOUND OPACITY — a 624 × 1040 saveLayer
-//      every frame — bought 0.1 ms, not the several-millisecond win the same
-//      change bought another study. The layer is only expensive when what it
-//      wraps is expensive; here its whole subtree is already two texture
-//      bakes and a pile of tiny cached fills, so the layer is nearly free.
-//      The plate's arrival is part of the score, so the binding stayed.
-// The one node that does cost is the grain wash at 2.9 ms — an
-// opacity + kSoftLight leaf the library refuses to promote (a bake would
-// round twice) and which therefore has to be asked for by name.
+// There is no re-describe anywhere in the score. `update()` is empty and the
+// whole 27 s performance runs off one `ch::Output<float>` stepped in the
+// ticker. Each node is also sized to its OWN bounds rather than to the plate;
+// 49 full-plate boxes would move the cost out of the ink and into culling and
+// layer composites, since a node's box is what those two are charged for.
+//
+// Two shapes that do NOT pay here, and are worth knowing before trying them:
+//   1. `bakeScale(0.5f)` on the full-plate grain wash makes it worse, not
+//      better. The upscale resample at composite time costs more than the
+//      half-area bake saves, and a large soft wash is already the cheapest
+//      thing a texture bake can hold.
+//   2. removing the plate group's BOUND OPACITY — a full-plate saveLayer
+//      every frame — buys almost nothing, because a layer only costs what
+//      the subtree under it costs to replay, and this subtree is already two
+//      texture bakes and a pile of small cached fills. The plate's arrival is
+//      part of the score, so the binding stays.
+// The one node that genuinely costs is the grain wash: an opacity +
+// kSoftLight leaf the library will not promote on its own (see ironWash), so
+// its bake is asked for by name.

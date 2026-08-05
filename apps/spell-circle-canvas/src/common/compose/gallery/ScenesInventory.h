@@ -369,8 +369,8 @@ struct LootGridScene final : Scene {
   // gold counter's tick.
   choreograph::Output<float> dragX{0}, dragY{0};
   choreograph::Output<float> blockedMix{0}, fitsMix{0};
-  // A PHASE in [0,1]. It used to carry pixels, because a bound Output
-  // landed on translateX raw; bind() shapes it at the call site now.
+  // A PHASE in [0,1], not a distance: the call sites shape it into pixels
+  // with bind(), so this stays a unit value.
   choreograph::Output<float> shimmer{0};
   choreograph::Output<float> goldFrac{0};
   int gold = 0;
@@ -382,11 +382,11 @@ struct LootGridScene final : Scene {
 
   const char *name() const override { return "loot grid"; }
 
-  // §31 named-state beat: the 4.4 s drag cycle's old t = 6.0 default caught
-  // the shield mid-slide — red footprint at 84% and green at 16%
-  // simultaneously, the item asserted both blocked and fitting. The blocked
-  // rest [4.4, 5.8) is the authored setup pose and shows the overlap
-  // mechanic; 5.1 s is its midpoint. (Green "fits" alternative: 7.3.)
+  // The drag runs on a 4.4 s cycle, and a still caught mid-slide shows the
+  // blocked and fitting footprints blended together — the item claiming to
+  // be both at once. This lands in the middle of the blocked rest, which is
+  // the authored setup pose and the one that shows the overlap mechanic.
+  // Around 7.3 s would show the green "fits" pose instead.
   double captureSeconds() const override { return 5.1; }
 
   /** The counter ticks, so the tree re-renders — but only on the frames

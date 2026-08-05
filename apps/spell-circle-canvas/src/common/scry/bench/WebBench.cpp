@@ -8,10 +8,12 @@
 //   scry_bench --gpu    # GPU engine (Metal driver, texture frames)
 //
 // Benchmarks that only exist in one mode skip themselves in the other.
-// Draw benchmarks measure the consumer-side cost of compositing an
-// already-published frame (Ultralight's own repaint cadence is capped at
-// 60 FPS by the SDK edition and is reported by BM_Page_ChangeLatency,
-// which times a scripted DOM change until the new frame is published).
+//
+// The draw arms isolate the CONSUMER side: they composite a frame that is
+// already published, so nothing they time depends on how often Ultralight
+// chooses to repaint. Producer-side cost sits in one arm of its own,
+// BM_Page_ChangeLatency, which times a scripted DOM change until the new
+// frame is published and therefore includes the engine's own pacing.
 
 #include "BenchGpu.h"
 
@@ -40,6 +42,7 @@
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace sigil::scry;
 
@@ -62,7 +65,9 @@ WebEngine &engine() {
   return *instance;
 }
 
-/** A shared 1280x720 view showing a card layout, first frame published. */
+/** One view showing a card layout, shared by every arm and not returned
+ *  until its first frame is published, so no benchmark pays for page load
+ *  or waits on a frame that does not exist yet. */
 WebView &benchView() {
   static std::shared_ptr<WebView> view = [] {
     auto v = engine().createView(kViewWidth, kViewHeight,
@@ -135,8 +140,10 @@ BENCHMARK(BM_Draw_RasterCanvas);
 
 #ifdef __APPLE__
 
-/** GPU mode: acquiring the published frame with its texture wrapped for
- *  a recorder — the per-version cache makes repeats free. */
+/** GPU mode: acquiring the published frame with its texture wrapped for a
+ *  recorder. The view caches one wrap per (frame version, recorder), and
+ *  nothing here publishes a new frame or changes recorder, so every
+ *  iteration after the first takes the cached path. */
 static void BM_Frame_WrapCached(benchmark::State &state) {
   if (!g_useGpu) {
     state.SkipWithMessage("GPU mode only");
@@ -148,8 +155,9 @@ static void BM_Frame_WrapCached(benchmark::State &state) {
 }
 BENCHMARK(BM_Frame_WrapCached);
 
-/** GPU mode: the uncached wrap cost, forced by alternating recorders
- *  (what the first acquisition after each publish pays). */
+/** GPU mode: the uncached wrap, isolated by alternating between two
+ *  recorders so the cache key differs on every iteration. This is the path
+ *  a real consumer takes on its first acquisition after each publish. */
 static void BM_Frame_WrapMiss(benchmark::State &state) {
   if (!g_useGpu) {
     state.SkipWithMessage("GPU mode only");
@@ -174,20 +182,39 @@ static void BM_Draw_GraphiteRecord(benchmark::State &state) {
     return;
   }
   WebView &view = benchView();
-  // A separate recorder, deliberately: this bench snaps and DROPS the
-  // accumulated recording (executing hundreds of thousands of full-screen
-  // draws would saturate the GPU and poison the benchmarks that follow),
-  // and a dropped snap burns an ID in the recorder's ordered-recording
-  // chain — under fRequireOrderedRecordings every later insert from that
-  // recorder fails silently (src/sigilweave/docs/graphite_ordering_audit
-  // .md). Static, not scoped: WebView caches its Graphite wrap keyed on
-  // the raw Recorder*, so a per-invocation recorder freed and reallocated
-  // at the same address would cache-hit on a dangling key.
-  static std::unique_ptr<skgpu::graphite::Recorder> recorder =
-      graphite().context()->makeRecorder(
-          SkiaGraphiteContext::makeRecorderOptions());
+  // Built through makeRecorderOptions() like every other recorder here,
+  // and that is not optional: those options install the caching image
+  // provider, and Graphite silently DROPS any draw that samples a raster
+  // (non-Graphite) image when the recorder has no provider to promote it.
+  // A bare makeRecorder() would leave this arm timing draws that never
+  // happen.
+  //
+  // A recorder of its own, deliberately, and a FRESH one per invocation.
+  // This arm times recording alone and never submits — actually executing
+  // one full-screen draw per iteration would saturate the GPU and distort
+  // every benchmark that follows — so it snaps and DROPS the accumulated
+  // recording. Those same options also require ordered recordings, and a
+  // dropped snap burns an ID in the recorder's chain: every later insert
+  // from that recorder then fails, silently and permanently. Google
+  // Benchmark invokes this function more than once (iteration-count
+  // estimation, and again under --benchmark_repetitions), so a recorder
+  // that survived invocations would carry that poison into every one after
+  // the first; a recorder that lives and dies with one invocation cannot.
+  // Both allocations sit outside the timed loop, so the timing is
+  // unaffected.
+  //
+  // Retired, not freed: WebView caches its Graphite wrap keyed on the raw
+  // Recorder*, so a freed recorder whose address the next invocation's
+  // allocation reuses would cache-hit on a dangling key. Parking each
+  // spent recorder in a static list keeps every address distinct for the
+  // life of the process, and the handful of invocations the framework
+  // makes keeps the list small.
+  static std::vector<std::unique_ptr<skgpu::graphite::Recorder>> retired;
+  retired.push_back(graphite().context()->makeRecorder(
+      SkiaGraphiteContext::makeRecorderOptions()));
+  skgpu::graphite::Recorder *recorder = retired.back().get();
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      recorder.get(),
+      recorder,
       SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
   for (auto _ : state)
     view.draw(*surface->getCanvas(),
@@ -196,8 +223,9 @@ static void BM_Draw_GraphiteRecord(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_GraphiteRecord);
 
-/** GPU mode: draw + snap + insert + submit per frame — the realistic
- *  per-frame consumer cost (GPU executes asynchronously). */
+/** GPU mode: draw + snap + insert + submit per iteration — the shape of a
+ *  real consumer frame. submit() returns once the work is queued, so this
+ *  is the host-side cost of a frame and not the GPU's execution of it. */
 static void BM_Draw_GraphiteSubmit(benchmark::State &state) {
   if (!g_useGpu) {
     state.SkipWithMessage("GPU mode only");
@@ -263,8 +291,9 @@ static void BM_Slot_Paint(benchmark::State &state) {
 }
 BENCHMARK(BM_Slot_Paint)->Arg(256)->Arg(1024);
 
-/** Full-pipeline latency: a scripted DOM change until the repainted
- *  frame is published (includes Ultralight's 60 FPS pacing). */
+/** Full-pipeline latency: a scripted DOM change until the repainted frame
+ *  is published. The only arm that includes the engine's own repaint
+ *  pacing, so it is a latency figure and not a per-frame cost. */
 static void BM_Page_ChangeLatency(benchmark::State &state) {
   WebView &view = benchView();
   int toggle = 0;

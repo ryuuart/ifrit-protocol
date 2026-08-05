@@ -1,556 +1,477 @@
 # SigilWeave
 
-A flexible, cache-first text layout engine for Skia, inspired by Chromium's
-LayoutNG (shape-by-word caching, paint/shaping style split) and Cheng Lou's
-[Pretext](https://github.com/chenglou/pretext) (shape once, position freely,
-lines are not rectangles). It shapes with HarfBuzz and analyzes with ICU
-directly — no SkShaper, no SkParagraph — so every intermediate result (words,
-glyph runs, blobs) is exposed and reusable.
+A C++20 library that turns styled Unicode text into positioned glyph runs
+ready to draw on a Skia canvas. It calls HarfBuzz for shaping and ICU for
+line-break analysis, script itemization, bidi, case mapping and regular
+expressions directly, instead of going through Skia's own SkShaper or
+SkParagraph.
 
-- [Architecture](#architecture)
-- [Library targets & consumption](#library-targets--consumption)
-- [Typographic features](#typographic-features)
-- [Effects: what belongs where](#effects-what-belongs-where)
-- [Why it's fast](#why-its-fast)
-- [Measured performance](#measured-performance)
-- [API sketch](#api-sketch)
-- [Behavior notes & accuracy trade-offs](#behavior-notes--accuracy-trade-offs)
-- [Tuning knobs](#tuning-knobs)
-- [Threading model](#threading-model-and-why-theres-no-onetbb)
-- [Known limitations](#known-limitations)
+Two consequences follow from that, and they are the reason the library
+exists.
 
-## Architecture
+**Every intermediate value is a public type.** The word list, each shaped
+run, each text blob, each placed run — you can inspect them, hold them
+across frames, reuse them in a different layout, or walk them per glyph.
+Nothing important is sealed inside an opaque paragraph object.
 
-```
-Paragraph (UTF-16 + style spans, horizontal or vertical-RL writing mode)
-  │  ICU: line-break opportunities (UAX#14), bidi levels (skipped when
-  │       LTR-only), script itemization, per-codepoint font fallback,
-  │       locale-aware text-transform case mapping, UTR#50 vertical
-  │       orientation (vertical mode)
-  ▼
-Word list          — break-delimited segments; content + trailing glue
-  │  HarfBuzz via the ShapeCache: content-addressed by
-  │  (typeface, fontSize, letterSpacing, script, direction, vertical,
-  │   languageTag, fontFeatures, text). Variable-font axes and text
-  │   transforms enter *indirectly* — via the memoized varied typeface's
-  │   uniqueID and via the transformed key text — so the key itself never
-  │   grows.
-  ▼
-ShapedWord (shared, immutable) — glyphs, advances, clusters,
-  │                              + lazily built origin-relative SkTextBlob
-  ▼
-FlowGeometry       — per line: ordered intervals (rect bands, bands minus
-  │                  exclusion shapes — circles, rects, or any SkPath —
-  │                  arbitrary segments, SkPath contours, vertical columns);
-  │                  OverflowOptions::maxLines clamps any geometry
-  ▼
-LineBreakStrategy  — greedy or Knuth-Plass, both feeding one placement stage
-  │                  (both resolve tab stops through the same glue function)
-  ▼
-ParagraphLayout    — PositionedRuns: shared word blob + origin (horizontal or
-                     vertical columns), or RSXform-baked blob (rotated /
-                     on-path); draw() resolves paint per span at draw time
-                     and emits line-spanning decoration bands
-```
+**A line of text is not a rectangle.** Layout consumes an ordered list of
+line *intervals*, supplied one line at a time by a geometry interface you
+can implement. An interval is a straight segment in any direction, or a span
+of an `SkPath` contour. So the same engine fills a block, flows around
+arbitrary excluded shapes, runs down vertical CJK columns, or rides the
+tangent of a Bezier curve — and none of those is a special mode inside the
+breaker.
 
-Optional layers on top (nothing in the core pipeline depends on them):
-
-- `Query.h` — find ranges by substring / ICU regex / word, and `MarkerSet`:
-  named ranges that follow edits via the Paragraph's bounded revision log
-  (DOM-Range style).
-- `SingleLineParagraphCache.h` + `layoutSingleLine()` — reusable support for
-  high-frequency labels and captions, shaped once per unique text/font/size.
-  SpellCircle-specific ring measurement and curvature compensation live with
-  that renderer in `src/spellcircle/shared/scene/SceneLabels.*`, not in this library.
-- `Choreograph.h` — per-glyph animation: `forEachPlacedGlyph` (walk a
-  layout's glyphs with rest positions; stable order across relayouts) and
-  `GlyphRSXformBatches` (thousands of animated letters → a handful of
-  drawGlyphsRSXform calls). Used by the gallery's rain/ripple scenes.
-- `Features.h` — named OpenType presets (`Features::tabularNumbers`,
-  `smallCaps`, `stylisticSet(n)`, …) so styles don't hand-spell four-cc
-  tags.
-
-## Library targets & consumption
-
-The build splits along dependency lines so consumers link only what they
-use:
-
-| Target | Contents | Extra deps |
-|---|---|---|
-| `SigilWeave` | the engine (everything above) | Skia (public); HarfBuzz, ICU, abseil (private) |
-| `SigilWeaveKit` | `sigilweavekit/` — consumer companion utilities: keyed rebuild/layout guards, glyph bucketing, label/style shorthand, sample content (see `kit/README.md`) | Skia only (via core) |
-| `SigilWeaveShaders` | `PaintShaders.h` — animated SkSL presets (water, mesh gradient, sparkle, star nest, clouds, tunnel) | Skia + SkRuntimeEffect |
-| `SigilWeavePorts` | `ports/SystemFontManager.h` — the OS font manager (CoreText today; DirectWrite/Fontconfig slot in here) | Skia platform ports |
-| `SigilWeaveQt` | header-only Qt bridging (QFont → SkTypeface, QString ↔ Paragraph zero-copy) | Qt6::Gui |
-
-The core is deliberately Qt-free and contains no SkSL/runtime-effect code —
-presets are content, not engine. No abseil type appears in any public
-header (`Word::segments` uses the library's own `InlineVector`; internal
-caches hide behind pimpls), so consumers never inherit that dependency
-surface.
-
-Install rules are in place for standalone consumption (the eventual private
-vcpkg registry port drives exactly these):
-
-```cmake
-find_package(SigilWeave CONFIG REQUIRED)                # core, Qt-free
-find_package(SigilWeave CONFIG REQUIRED COMPONENTS Kit) # + sigil::weave::SigilWeaveKit
-find_package(SigilWeave CONFIG REQUIRED COMPONENTS Qt)  # + sigil::weave::SigilWeaveQt
-target_link_libraries(app PRIVATE sigil::weave::SigilWeave sigil::weave::SigilWeavePorts)
-```
-
-**C++ baseline:** everything compiles as standard C++20 with extensions
-disabled. Public APIs use non-owning `std::span` views, concept-constrained
-callbacks, and diagnostic `[[nodiscard("reason")]]` annotations. C++26
-contracts are deliberately not enabled; until they're a portable baseline,
-contracts are expressed with strong types, scoped enums, constrained
-templates, and documented preconditions.
-
-## Typographic features
-
-The Chrome-parity surface, and where each feature lives in the pipeline:
-
-- **Text decorations** — underline / strikethrough / overline / highlight
-  on `PaintStyle::decorations`. Thickness and position default to the
-  font's own metrics (1px floor when a face reports none); color defaults
-  to the foreground; underlines skip ink around descenders via blob
-  intercepts. **Span is a per-decoration choice**: the default
-  `Span::kDecoratedRange` merges contiguous same-style runs on a line into
-  one continuous band covering the glue between words (CSS-style — an
-  underlined sentence is one line; skip-ink breaks come only from glyph
-  ink), while `Span::kPerWord` draws one band per word (spell-check
-  squiggles, word chips). `Kind::kHighlight` is the background member: a
-  full-text-height band drawn beneath every glyph pass — with range
-  spanning it reads as one highlighter stroke across words *and* gaps
-  (default color: the foreground at ~25% alpha, so text stays legible).
-  Band *fill* is a separate concern from band geometry: `color` is the
-  lightweight spelling, and `Decoration::paint` is a full-`SkPaint`
-  override applied verbatim — shaders (including the `PaintShaders`
-  presets), blend modes, mask filters — resolved independently of the
-  glyph paint, so a shaded marker can sit under plain ink or vice versa;
-  stack same-geometry decorations for multi-pass band effects. All of it
-  is paint-side: adding, recoloring, or re-shading never reshapes or
-  relayouts.
-- **Text transform** — `ShapingStyle::textTransform` (uppercase, lowercase,
-  capitalize) applies locale-aware ICU case mapping just before shaping
-  (Turkish dotless-i via `languageTag`, full ß→SS). The stored text, edit
-  ranges, and queries stay untransformed; the transformed text is itself
-  the shape-cache key, so `"HELLO"` typed and `"hello"`+uppercase share one
-  entry.
-- **Spacing** — `letterSpacing` (tracking, part of the shape key; JIS aki
-  in vertical text) and `wordSpacing` (added to inter-word glue after
-  measurement; restyles at pure cache-hit cost, never below zero).
-- **Variable fonts** — `ShapingStyle::variations = {{"wght", 700}}`. The
-  FontContext memoizes the varied `SkTypeface` clone per (base, axis list),
-  so identical positions share one instance — and therefore one shape-cache
-  identity — while HarfBuzz mirrors the same design position Skia
-  rasterizes. No hand-built `SkFontArguments` clones needed.
-- **OpenType features** — per-span `ShapingStyle::fontFeatures`, part of the
-  shape-cache key (liga/dlig/smcp/lnum/frac variants of the same text
-  coexist in the cache), with `Features::` presets for the common ones.
-- **Line clamp** — `OverflowOptions::maxLines` (CSS line-clamp) wraps any
-  `FlowGeometry`, so it works identically under greedy, Knuth-Plass, and
-  exclusion flows; combine with `overflow.ellipsis` for a shaped marker on
-  the clamped line.
-- **Tab stops** — `ParagraphLayoutOptions::tabStops` (explicit positions +
-  repeating interval). Tab glue advances to the next stop under both
-  breakers; justification stretches only the gaps past a line's last tab, so
-  columns stay pinned to their stops. Unconfigured, tabs measure as spaces.
-- **Overflow ellipsis** — `overflow.ellipsis` trims the final placed line
-  until a shaped marker fits (CSS text-overflow, but the marker is a real
-  glyph run in the tail's style).
-- **Inline placeholders** — pills/icons/images woven into the flow; the
-  breaker treats each slot as an unbreakable word and the layout reports
-  its rect.
-- **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
-  orientation, 'vert' forms, and per-span `VerticalForm` overrides
-  (upright / rotated / tate-chu-yoko).
-- **Line metrics** — `ParagraphLayout::lineMetrics()` reports per-line
-  baseline, ascent/descent band, advance extent, and character range,
-  derived on demand from the placed runs (see the effects section for the
-  design rationale).
-- **Font fallback** — per-codepoint, per-language, memoized. The default
-  resolver uses the supplied `SkFontMgr`'s platform cascade; pass a
-  `FontContext::FallbackResolver` to encode an application-owned family
-  list or script policy. (The `languageTag` view handed to resolvers is
-  not guaranteed NUL-terminated — copy before calling C APIs.)
-
-## Effects: what belongs where
-
-A deliberate split, worth knowing before reaching for a feature request:
-
-- **Span-level appearance is the library's job.** `PaintStyle` carries the
-  foreground, ordered underlay/overlay passes, and decorations per style
-  span; the layout resolves it at draw time. Anything that needs *run or
-  line geometry* — continuous decoration bands, skip-ink, per-span shader
-  fills — must live here, because only the layout knows where lines and
-  words landed.
-- **Paragraph-wide surface effects need no library support.** Skia shaders
-  are canvas-space: a single `PaintShaders::meshGradient(bounds, t)` set as
-  one span's foreground already flows seamlessly across every line of a
-  2,000-word paragraph (the gallery's stress wall is exactly this). For
-  compositing effects over the finished text — blur it, fade it, mask it —
-  use `SkCanvas::saveLayer` around `draw()`.
-- **Paragraph-level geometric transforms are user-level on purpose.**
-  Rotating, scaling, or skewing a whole paragraph is
-  `canvas->concat(matrix)` before `draw()`/`drawBatched()`; it composes
-  with every effect, costs nothing in the engine, and keeping it out of the
-  API means the layout's coordinates stay in one predictable space (shatai
-  obliquing in vertical text is the documented example: a canvas skew).
-- **Per-glyph transforms are a walk, not a mode.** Choreograph exposes each
-  glyph's rest position; rain/ripple/marquee effects rebuild RSXform
-  batches per frame while the layout itself stays untouched.
-
-- **Line geometry is a query, not an effect system.**
-  `ParagraphLayout::lineMetrics(paragraph)` derives per-line geometry from
-  the placed runs on demand — baseline, tallest ascent / deepest descent
-  (mixed fonts grow the band, placeholders too), advance extent, and the
-  line's character range. Selection bands, line backgrounds, and
-  point-to-line hit-testing are `lineMetrics()[i].rect()` plus ordinary
-  canvas drawing; nothing is stored during layout and callers who never
-  ask pay nothing.
-
-## Why it's fast
-
-- **The shape cache is the incremental engine.** Editing one word of a
-  paragraph re-runs analysis, but every unchanged word (and the glue
-  between words) resolves to a cache hit — only the edited word reaches
-  HarfBuzz. Keys are content-addressed, so repeated words across the whole
-  session share one entry.
-- **Blobs are shaped once and repositioned forever.** Each ShapedWord
-  lazily builds one origin-relative SkTextBlob shared by every layout and
-  frame (the Pretext trick). A moving exclusion shape re-runs placement
-  arithmetic only: zero shaping, zero blob building.
-- **Paint is not shaping.** `TextStyle` splits into `ShapingStyle` (cache
-  key) and `PaintStyle` (resolved at draw time), so recoloring, decorating,
-  or re-shadering words never reshapes and doesn't even require a relayout
-  if span boundaries are unchanged.
-- **Language is shaping, not bidi.** ICU derives bidi levels from Unicode
-  properties separately. The BCP-47 `languageTag` stays in the shape key
-  because it can select a different fallback face and because HarfBuzz uses
-  it for OpenType language systems and localized (`locl`) substitutions.
-- **Shaping is lazy and geometry-bounded.** Analysis splits into whole-text
-  itemization (cheap) and per-word HarfBuzz shaping that the breakers pull
-  just ahead of their frontier — words past the geometry are never shaped
-  at all. A 30,000-word paragraph in a 15-line box shapes ~600 words.
-- Zero-allocation cache probes (heterogeneous lookup), an ASCII
-  direct-mapped fallback table, memoized script/language tables, glue
-  memoization, and inline word-segment storage keep warm re-analysis lean.
-  For long-lived processes whose typeface population churns,
-  `FontContext::purgeAllCaches()` resets everything (the per-typeface maps
-  are otherwise never pruned).
-
-## Measured performance
-
-M-series Mac, Release, google benchmark / demo (re-baselined 2026-07 after
-the polish pass — decorations, tab-aware breakers, and friends are priced
-in; the SpellCircle/rain/ripple/marquee rows are gallery-HUD readings):
-
-| Scenario | Time |
-|---|---|
-| Warm relayout, 500 mixed Latin/CJK words | ~30 µs |
-| Warm relayout, 2000 words | ~119 µs |
-| Moving exclusion shapes through 300 words, per frame | ~18 µs |
-| Same sweep with SkPath exclusions (star + holed donut) | ~18 µs |
-| One-word edit in 500-word paragraph (full pipeline) | ~135 µs |
-| Paint-only restyle of a word, 500 words | ~30 µs |
-| Size restyle of a word, 500 words (reshape + relayout) | ~138 µs |
-| Knuth-Plass justify, 500 words, warm | ~85 µs |
-| Cold shape of 100 mixed words (empty cache) | ~51 µs |
-| Warm relayout, 500 words across 3 typefaces + CJK fallback | ~30 µs |
-| Replace the *entire* paragraph text (warm variants) | ~145 µs |
-| Replace the entire paragraph with never-seen text (true cold) | ~530 µs |
-| Batched CPU-raster draw, 300 mixed words, foreground only | ~200 µs |
-| Same draw with shadow + glow + outline + foreground (two blurs) | ~1.14 ms |
-| Fully placed 2000-word CPU-raster draw, foreground only | ~0.83 ms |
-| Same 2000 words, mesh shader + tiled stars + glow + outline | ~58 ms |
-| Cross-line span restyle (spans merge, steady state) | ~30 µs |
-| Knuth-Plass with soft hyphens, 300 words @180px | ~96 µs |
-| Live in SpellCircle: reflow around 12 streamed shapes @4K | ~170 µs/frame |
-| Letter rain: 1000-word paragraph, breathing measure, 4657 letters | 41 µs relayout + 180 µs letters/frame |
-| Pool ripple: 1000-word paragraph, rings displacing every letter | 37 µs relayout + 228 µs wave/frame |
-| Infinite-loop path marquee (relayout around a closed contour) | ~15 µs/frame |
-| Babel confetti: 2000 tokens across ~12 scripts, rotated intervals | ~555 µs/frame |
-
-Run them yourself:
-
-```
-cmake --build build --config Release --target weave_bench weave_demo
-./build/bin/Release/weave_bench
-./build/bin/Release/weave_demo   # headless PNG panels (see below)
-ctest --test-dir build -C Debug -R weave_test
-```
-
-**`weave_demo`** writes headless PNG panels for the library-only
-surfaces: extreme geometries, typographic options, babel/features panels,
-CJK/vertical, SkPath exclusions, CJK fallback, and a `new_features.png`
-panel covering decorations, text-transform, word spacing, variable axes,
-tab stops, and line clamp (the visual-regression image for those features).
-
-**`WeaveGallery`** (`src/sigilweave/examples/gallery/`) is the interactive home for the
-animated scenes: exclusions & morphing SkPath shapes,
-greedy-vs-Knuth-Plass, infinite loop, letter rain, click-to-ripple pool,
-vertical CJK with ruby/kenten/tate-chu-yoko, a Unicode-singularity wall,
-the merged **Effects & shaders** scene (layer showcase / loud SkSL shaders
-/ a fully placed 2,000-word stress wall with live pass toggles), regex
-markers with live decoration toggles, inline slots, and overflow/clamp.
-Scenes self-register with declarative parameters, so the sidebar builds
-their controls automatically (or loads a scene-owned QML file). It renders
-through a QQuickRhiItem — Skia Graphite on Qt's own Metal queue, with a CPU
-raster fallback and a live GPU/CPU A/B switch — and reports fps, layout µs,
-and a **reshaped-words-per-frame** counter (watch it sit at 0 while
-everything moves: that's the shape cache doing its job). Judge performance
-on the Release build; Skia's Debug recording path alone is ~20× slower on
-glyph-heavy scenes.
-
-The test suite (145 cases across per-module TUs) includes a Blink-inspired
-typographic-correctness section: complete cluster coverage across scripts,
-ZWNJ joining control, combining-mark attachment (NFC ≡ NFD widths), kinsoku
-prohibitions, NBSP no-break, justification shrink limits, UAX#9 visual
-reordering, strut metrics, and edit safety at surrogate boundaries.
-
-## API sketch
-
-UTF-8 entry points use `std::u8string_view`; use `u8` literals or
-`std::u8string` so the encoding contract is carried by the type.
+## Getting started
 
 ```cpp
-// One context per thread. SigilWeavePorts supplies the OS font manager.
-FontContext fontContext(sigil::weave::ports::systemFontManager());
+#include <sigilweave/SigilWeave.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
-ParagraphBuilder builder(baseStyle);
+using namespace sigil::weave;
+
+// One context per layout thread. It owns every cache the pipeline leans on.
+FontContext fonts(ports::systemFontManager());
+
+TextStyle base;
+base.shaping.fontSize = 28.0f;
+base.paint.foreground.setColor(SK_ColorWHITE);
+
+TextStyle accent = base;
+accent.paint.foreground.setColor(SK_ColorRED);
+
+ParagraphBuilder builder(base);
 builder.addText(u8"Glyphs flow ")
-    .pushStyle(red)
+    .pushStyle(accent)
     .addText(u8"around")
     .popStyle()
     .addText(u8" obstacles… 日本語も 한국어도 中文也");
 Paragraph paragraph = builder.build();
 
+// A rectangle with shapes punched out of it. Shapes are cheap to move:
+// geometry is re-queried on every layout pass.
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
 flow.shapes().push_back(ExclusionFlow::Shape::fromCircle(circleBounds, 8));
-flow.shapes().push_back(ExclusionFlow::Shape::fromPath(anySkPath, 8));
-// kPath honors the fill rule: even-odd holes and concave gaps stay open to
-// text. Animate with shape.pathOffset (free — the flattening is cached by
-// the path's generation ID); rebuilding the SkPath re-flattens.
+flow.shapes().push_back(ExclusionFlow::Shape::fromPath(anyPath, 8));
 
 ParagraphLayoutOptions options;
 options.alignment = TextAlignment::kJustify;
 options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-options.overflow.maxLines = 4;          // CSS line-clamp, any geometry
+options.overflow.maxLines = 4;      // CSS line-clamp, over any geometry
 options.overflow.ellipsis = u"…";
-options.tabStops.positions = {120, 320}; // greedy breaker, LTR lines
 
-ParagraphLayout layout =
-    layoutParagraph(fontContext, paragraph, flow, options);
-layout.draw(canvas, paragraph);        // or walk layout.runs yourself
-layout.drawBatched(canvas, paragraph); // few drawGlyphs calls instead of
-                                       // one drawTextBlob per word
-
-paragraph.replaceText(4, 9, u8"swift");
-paragraph.setPaint(0, 6, {SK_ColorRED}); // skips ICU re-analysis too
-
-// Typography knobs on the shaping side (these re-shape the covered words):
-TextStyle style = baseStyle;
-style.shaping.variations = {{"wght", 650}, {"wdth", 85}}; // variable axes
-style.shaping.textTransform = TextTransform::kUppercase;  // locale-aware
-style.shaping.wordSpacing = 4.0f;                         // extra glue px
-style.shaping.fontFeatures = {Features::tabularNumbers};
-
-// Draw-time appearance (never reshapes, never relayouts):
-PaintStyle effects(SK_ColorWHITE);
-effects
-    .addUnderlay(PaintLayer::dropShadow(0x77000000, {4, 5}, 3.0f))
-    .addUnderlay(PaintLayer::glow(0x6688AAFF, 6.0f))
-    .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 4.0f))
-    .addDecoration({})   // metric underline, skip-ink, spans word gaps
-    .addDecoration({.kind = Decoration::Kind::kStrikethrough,
-                    .color = SK_ColorRED})
-    .addDecoration({.kind = Decoration::Kind::kHighlight,   // marker stroke
-                    .color = 0x66FFD54A})                   // behind the text
-    .addDecoration({.span = Decoration::Span::kPerWord});   // squiggle-style
-                                                            // per-word bands
-// Decoration bands take a full SkPaint of their own, shaded
-// independently of the glyphs (same geometry, caller's fill verbatim):
-SkPaint bandPaint;
-bandPaint.setAlphaf(0.5f);
-bandPaint.setShader(PaintShaders::water(canvasBounds, elapsedSeconds));
-effects.addDecoration(
-    {.kind = Decoration::Kind::kHighlight, .paint = bandPaint});
-// Shaders are canvas-space: one shader spans the whole paragraph.
-// (PaintShaders presets live in the separate SigilWeaveShaders library.)
-effects.foreground.setShader(
-    PaintShaders::meshGradient(canvasBounds, elapsedSeconds));
-paragraph.setPaint(0, 6, effects); // existing ParagraphLayout sees it
-
-// Whole-paragraph transforms are canvas transforms — user level:
-canvas->save();
-canvas->rotate(-4.0f, origin.x(), origin.y());
-layout.draw(canvas, paragraph);
-canvas->restore();
-
-// Query layer (optional): HTML/JS-flavoured selection + styling.
-MarkerSet markers(paragraph);
-markers.setRanges("keywords", findAllOccurrences(paragraph, u8"glyph"));
-paragraph.replaceText(0, 0, u8"New intro. ");
-markers.applyPaint(paragraph, "keywords", {accent});
-
-// Large documents: scope queries to what the layout actually placed —
-// search cost follows the geometry, not the text.
-uint32_t placedTextEnd =
-    layout.overflowed()
-        ? paragraph.words()[layout.firstUnplacedWord].textBegin
-        : uint32_t(paragraph.text().size());
-findRegexMatches(paragraph, u8"\\p{Lu}\\w+", {0, placedTextEnd});
-
-// Vertical CJK (書字方向): columns top-to-bottom, right-to-left.
-paragraph.setWritingMode(WritingMode::kVerticalRL);
-VerticalBlockFlow columns(SkRect::MakeWH(600, 800));
-
-// Inline placeholders: pills/icons/images woven into the flow.
-paragraph.appendPlaceholder({90, 22, /*baselineDrop=*/5}, style);
-for (const auto &placeholder : layout.placeholderRects(paragraph))
-  drawMyPill(canvas, placeholder.rect, placeholder.index);
-
-// Line metrics (derived on demand): selection bands, line backgrounds,
-// point-to-line hit tests.
-for (const LineMetrics &line : layout.lineMetrics(paragraph))
-  if (selection.intersects(line.textBegin, line.textEnd))
-    canvas->drawRect(line.rect(), selectionPaint);  // then layout.draw(...)
+ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow, options);
+layout.drawBatched(canvas, paragraph);
 ```
 
-Geometries: `BlockFlow` (rect), `ExclusionFlow` (rect minus moving shapes),
-`VerticalBlockFlow` (top-to-bottom columns advancing right to left),
-`LineSetFlow` (explicit intervals — any origin/direction/count per line),
-`PathFlow` (each SkPath contour is a line; glyphs follow the tangent via
-RSXform runs). Closed contours wrap arc positions, so animating
-`LineInterval::contourStart` produces an infinite marquee;
-`LineInterval::advanceScale` compensates curvature when glyph centers ride
-a different radius than the measured contour. Implement `FlowGeometry` for
-anything else.
+Editing and restyling happen on the paragraph, and the shape cache absorbs
+everything that did not actually change:
 
-## Behavior notes & accuracy trade-offs
+```cpp
+paragraph.replaceText(4, 9, u8"swift");     // one word reaches HarfBuzz
+paragraph.setPaint(0, 6, {SK_ColorRED});    // no re-shape, no relayout —
+                                            // an existing layout sees it
+```
 
-- **Shape-by-word (default, fast):** words are shaped independently, so
-  cross-word kerning/ligatures at word boundaries are dropped — the same
-  trade Chrome makes. Within a word (including CJK runs between break
-  opportunities) shaping is fully contextual.
-- Justification stretches spaces (shrink is clamped at the glue's shrink
-  limit, TeX-style); for spaceless CJK it optionally expands inter-cluster
-  gaps. InDesign-style endings via `justification.lastLineAlignment` /
-  `justifyLastLine`. Tab gaps are rigid under justification.
-- Soft hyphens (U+00AD) are discretionary breaks in both breakers:
-  invisible unless a line actually breaks there, in which case a styled
-  hyphen is rendered; Knuth-Plass charges `hyphenation.penalty` per
-  hyphenated line. Feed text through any hyphenator that inserts U+00AD.
-- Lines never render past the measure: shrink is only counted where
-  placement will shrink, final lines get TeX's `\parfillskip`, and when no
-  break fits the tolerance the pass reruns with `\emergencystretch` rather
-  than force an overfull line.
-- Knuth-Plass is linear in *placed* words on uniform-width flows
-  (`FlowGeometry::uniformIntervals`): paths reaching the same breakpoint
-  merge, TeX's one-measure model, so a fully-placed 10k-word paragraph
-  relayouts in ~2 ms. Filter exclusion slivers with
-  `knuthPlass.minimumIntervalWidth`.
-- Layout cost is bounded by the *geometry*, not the text: both strategies
-  stop dead when the flow runs out of intervals
-  (`ParagraphLayout::overflowed()` / `firstUnplacedWord`), and shaping is
-  lazy behind the breaker frontier.
-- Vertical mode resolves each character per UTR#50 (CJK upright with 'vert'
-  forms, Latin rotated — CSS `text-orientation: mixed`), overridable per
-  span. Kinsoku prohibitions come from ICU's UAX#14 rules. Ruby (furigana)
-  and kenten are deliberately *not* core features — they're a dozen lines
-  each over the layout's placed runs (see the CJK demo and gallery scenes).
-- Script coverage is fallback-driven and tested: Arabic joining and
-  lam-alef ligation, Devanagari conjuncts, supplementary-plane Cuneiform,
-  emoji ZWJ/modifier/flag sequences as single grapheme clusters.
-- Rendering hygiene for animation: subpixel positioning is size-gated
-  (<48px) and on-path rotations quantize to 512 steps, so Skia's glyph
-  atlas keeps hitting while text moves.
-- For per-glyph choreography walk the layout with `forEachPlacedGlyph` and
-  feed `SkCanvas::drawGlyphsRSXform`; on the CPU raster backend quantize
-  rotation angles so Skia's glyph-mask cache can hit.
+`layout.runs` is a plain vector of `PositionedRun`, so walking the output
+yourself is a first-class option; `draw()` and `drawBatched()` are
+conveniences over it.
 
-## Tuning knobs
+### Writing your own geometry
 
-Everything that trades fidelity against speed, in one place:
+`FlowGeometry` is one virtual call. Implement it and the whole engine — both
+breakers, justification, hyphenation, placement — applies to your shape:
 
-| Knob | Where | Default | Effect |
-|---|---|---|---|
-| `lineBreakStrategy` | ParagraphLayoutOptions | greedy | greedy or optimal Knuth-Plass breaking |
-| `hyphenation.enabled` / `.penalty` | ParagraphLayoutOptions | on / 50 | discretionary soft-hyphen breaks |
-| `justification.*` | ParagraphLayoutOptions | see header | space elasticity, CJK gap expansion, last-line alignment |
-| `knuthPlass.tolerance` / `.minimumIntervalWidth` | ParagraphLayoutOptions | 4000 / 0 | badness limit; sliver filtering |
-| `overflow.ellipsis` / `.maxLines` | ParagraphLayoutOptions | off | shaped overflow marker; line clamp over any geometry |
-| `tabStops.positions` / `.interval` | ParagraphLayoutOptions | off | tab-stop columns (greedy, LTR); unset → tabs measure as spaces |
-| `pathText.tangentRotationSteps` | ParagraphLayoutOptions | 512 | quantizes animated path tangents; 0 = exact |
-| `advanceScale` | LineInterval | 1 | curvature compensation for offset baselines on contours |
-| `letterSpacing` / `wordSpacing` | ShapingStyle | 0 / 0 | tracking (shape key) / inter-word glue (restyle-only) |
-| `variations` | ShapingStyle | none | variable-font axes via the memoized clone cache |
-| `textTransform` | ShapingStyle | none | pre-shaping locale-aware case mapping |
-| `verticalForm` | ShapingStyle | auto | per-span upright / rotated / tate-chu-yoko in vertical mode |
-| paint layers / decorations | PaintStyle | none | ordered extra glyph passes and decoration bands (range or per-word span; highlights beneath the glyphs; band fill via `color` or a verbatim full-`SkPaint` override); each layer adds one draw |
-| shader program / layer count | PaintStyle + SigilWeaveShaders | solid foreground | runtime shader pixel cost and pass count are independent; prefer `drawBatched` |
-| subpixel gate | Shaper.cpp (`makeFont`) | <48px | subpixel positioning only where visible |
-| shape-cache cap | FontContextImpl.h | ~130k entries | wholesale clear past the cap (one cold frame), no LRU |
-| `purgeAllCaches()` | FontContext | manual | drops every cache incl. per-typeface HarfBuzz records |
-| `Paragraph` edit history | Paragraph.cpp | 256 ops | how far behind a MarkerSet may fall before re-querying |
-| `draw` vs `drawBatched` | ParagraphLayout | — | per-word blobs vs one drawGlyphs per (font, paint) bucket |
+```cpp
+class SingleContourFlow : public FlowGeometry {
+public:
+  SingleContourFlow(sk_sp<SkContourMeasure> contour, float start)
+      : m_contour(std::move(contour)), m_start(start) {}
 
-## Threading model (and why there's no oneTBB)
+  bool lineIntervals(int index, float lineHeight, float ascent,
+                     std::vector<LineInterval> &intervals) override {
+    if (index > 0)
+      return false;              // one line only; false = geometry exhausted
+    LineInterval interval;
+    interval.contour = m_contour;
+    interval.contourStart = m_start;   // animate this for a marquee
+    interval.length = m_contour->length();
+    intervals.push_back(interval);
+    return true;
+  }
 
-A `FontContext` — shape cache, HarfBuzz buffer, ICU iterators, UBiDi — is
-**single-threaded by contract**; every scratch object is reused rather than
-locked. Parallelism happens *above* the library: one FontContext per
-thread, one paragraph per task, embarrassingly parallel with zero shared
-state (the app runs its context on the Qt render thread; the tests/bench/
-demo each own theirs).
+private:
+  sk_sp<SkContourMeasure> m_contour;
+  float m_start;
+};
+```
 
-Intra-paragraph parallelism (e.g. oneTBB over words) was considered and
-rejected: the only path over ~100 µs is *cold* shaping of never-seen text,
-paid once per novel word per session; the warm paths this library is built
-around are 10–150 µs, well below the cost of waking a thread pool. A
-parallel shape pass would also force locks or sharding onto the shape
-cache — the single hottest structure — to speed up the coldest path. If a
-workload ever needs faster cold starts, the right shape is N contexts
-shaping N paragraphs, then merging layouts — no library changes needed.
+Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
+`ExclusionFlow` (a rectangle minus moving circles, rects, or arbitrary
+`SkPath`s with their fill rule honored), `VerticalBlockFlow` (top-to-bottom
+columns advancing right to left), `LineSetFlow` (explicit intervals — any
+origin, direction, and count per line), and `PathFlow` (each contour of a
+path becomes a line).
 
-## Known limitations
+## The pipeline
 
-- **Decorations:** straight horizontal runs only — transformed (on-path /
-  rotated) and vertical runs skip them. Range-spanning bands merge across
-  word gaps within a same-style, same-metrics group; a bidi reorder or
-  fallback-font switch mid-range starts a new band (per-word spans are
-  unaffected). Skip-ink intercepts are computed per draw (uncached).
-  Highlights are per-decorated-range bands; for full-line/selection
-  geometry use `ParagraphLayout::lineMetrics()`, which reports the advance
-  extent of what actually placed (lines whose geometry placed nothing do
-  not appear, and straight horizontal lines only — query the FlowGeometry
-  itself for raw interval geometry).
-- **Tab stops:** greedy breaker, LTR, straight horizontal lines;
-  Knuth-Plass treats tabs as ordinary glue. Alignments other than kStart
-  may shift a tabbed line as a whole.
-- **Text transform:** length-changing mappings (ß→SS) make per-character
-  hit-testing inside that word approximate; break analysis runs on the
-  untransformed text (matching browser engines).
-- Bidi: levels are computed and per-line visual reordering (UAX#9 L2) is
-  applied per word, but glue between reordered runs is approximated and
-  multi-segment RTL words keep logical segment order. Latin+CJK (the
-  priority) is unaffected.
-- Restyling a range that cuts *inside* a word splits that word into
-  separately shaped fragments (one-time reshape of the boundary words);
-  word-aligned ranges cost zero reshapes. Adjacent identical spans
-  re-merge automatically.
-- No automatic hyphenation dictionary — soft hyphens must be present in
-  the text (preprocess with a Liang-pattern hyphenator if needed).
-- Placeholders: slots match records by U+FFFC occurrence order; a line
-  never grows to fit a slot taller than the leading; straight intervals
-  only.
-- Vertical mode: rotated (Latin) runs put their baseline on the column
-  axis rather than optically centering; RTL scripts inside vertical
-  columns keep logical order; one strut line height per layout.
-- Re-analysis on edit is full-paragraph (all cache hits except the edit):
-  O(n) at ~0.2 µs/word. The next optimization, if ever needed, is windowed
-  re-analysis around the edit.
-- The shape cache evicts by clearing wholesale past ~130k entries (one
-  cold frame), not LRU; the per-typeface/fallback maps are unbounded but
-  naturally small — `purgeAllCaches()` resets them manually.
+`layoutParagraph()` is the entry point and runs these stages in order.
+
+1. **Line clamp.** When `overflow.maxLines` is set, the caller's geometry is
+   wrapped by one that stops handing out lines at the limit. Every geometry
+   and both breakers get clamping for free.
+2. **Segmentation only.** `Paragraph::ensureAnalyzed()` runs the ICU passes —
+   UAX#14 break opportunities, script itemization, bidi, per-codepoint
+   fallback resolution — and builds the `Word` list. No glyphs yet. The bidi
+   pass is skipped entirely unless the codepoint walk saw something that can
+   force right-to-left, which is the overwhelmingly common case.
+3. **Strut and line metrics.** Line height and ascent come from the first
+   span's font unless `lineMetrics` overrides them.
+4. **Geometry flattening.** Every line's intervals are flattened, lazily,
+   into a single indexed `IntervalSequence`. Both breakers consume geometry
+   *only* through it, so a break decision and the placement that follows can
+   never disagree about which interval is which.
+5. **Line breaking.** Greedy or Knuth-Plass (see below).
+6. **Lazy shaping.** Breakers call `ensureShapedTo()` just ahead of their own
+   frontier, so a paragraph far larger than its geometry only ever sends the
+   words that can actually land through HarfBuzz. Words past the last
+   interval are never shaped at all.
+7. **Shaping.** `shapeWord()` goes through the content-addressed shape cache.
+   The cache is probed with a borrowed view of the key, so a warm
+   re-analysis allocates nothing; an owning key is materialized only on a
+   miss.
+8. **Placement.** Words are reordered per UAX#9 rule L2 (reverse maximal runs
+   of each level, highest first), then positioned inside their interval with
+   the requested alignment.
+9. **Blob emission.** One of four shapes per run: a straight horizontal run
+   reuses the word's shared origin-relative blob translated to its origin; an
+   upright vertical run does the same down a column; tate-chu-yoko reuses it
+   centred across the column axis; anything rotated or on a contour bakes
+   per-glyph `SkRSXform`s into a fresh blob.
+10. **Ellipsis.** When set and the layout overflowed, the final placed line
+    is trimmed until a shaped marker fits.
+11. **Draw.** `draw()` emits one blob per word; `drawBatched()` merges
+    horizontal runs into one `drawGlyphs` call per (font, paint) bucket.
+    Both resolve paint per span at draw time.
+
+## Headers
+
+Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
+
+| Header | What it is |
+|---|---|
+| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. |
+| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones, the shape cache, observable `Stats`. |
+| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, and the analysis entry points. |
+| `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |
+| `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
+| `Shaper.h` | `ShapedWord`, `shapeWord()`, `wordBlob()`, `makeFont()`. Reach for it to inspect or reuse individual glyph runs. |
+| `Query.h` | Optional: find ranges by substring, word, or ICU regex; `MarkerSet` tracks named ranges across edits, DOM-Range style. |
+| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs with their rest positions, and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls. |
+| `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
+| `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
+| `InlineVector.h` | The small-buffer vector `Word::segments` uses, so no third-party container appears in a public header. |
+
+Separate targets add `PaintShaders.h` (animated SkSL presets),
+`ports/SystemFontManager.h` (the OS font manager), the companion utilities
+in `kit/`, and a Qt bridge.
+
+## Targets and dependencies
+
+| Target | Contents | Beyond Skia |
+|---|---|---|
+| `SigilWeave` | the engine | HarfBuzz, ICU, abseil — all private |
+| `SigilWeaveShaders` | `PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
+| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
+| `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
+
+Skia is a PUBLIC dependency; HarfBuzz, ICU and abseil are PRIVATE and appear
+in no public header. Pimpls hide the hash maps, and `InlineVector` replaces
+the one abseil container that would otherwise have leaked into a value type.
+The core is Qt-free and carries no SkSL: shader presets are content, not
+engine.
+
+Install and export rules are generated, so an installed tree works with:
+
+```cmake
+find_package(SigilWeave CONFIG REQUIRED)                # core, Qt-free
+find_package(SigilWeave CONFIG REQUIRED COMPONENTS Kit) # + SigilWeaveKit
+find_package(SigilWeave CONFIG REQUIRED COMPONENTS Qt)  # + SigilWeaveQt
+target_link_libraries(app PRIVATE
+  sigil::weave::SigilWeave sigil::weave::SigilWeavePorts)
+```
+
+Everything compiles as standard C++20 with extensions disabled. Public APIs
+use `std::span` views, concept-constrained callbacks, and
+`[[nodiscard("reason")]]` where ignoring a return silently corrupts caller
+state.
+
+## What the engine covers
+
+- **Decorations** — underline, strikethrough, overline, highlight, on
+  `PaintStyle::decorations`. Thickness and position default to the font's own
+  metrics; underlines skip ink around descenders. Span is per-decoration:
+  `kDecoratedRange` merges contiguous same-style runs on a line into one band
+  that covers the gaps between words (CSS behavior), `kPerWord` draws one
+  band per word (squiggles, chips). `Decoration::paint` takes a full `SkPaint`
+  applied verbatim, resolved independently of the glyph paint, so a shaded
+  band can sit under plain ink.
+- **Paint layers** — ordered underlays and overlays around the foreground,
+  each a complete `SkPaint` plus an offset; `PaintLayer::dropShadow`, `glow`,
+  and `outline` are presets over that. Each layer costs one more draw per
+  bucket.
+- **Variable fonts** — `shaping.variations = {{"wght", 700}}`, or the fluent
+  `style.weight(650)`. `FontContext` memoizes the varied clone, so HarfBuzz
+  and Skia agree on the design position and the varied face has a stable
+  cache identity. An advance-invariant axis can instead be driven at *draw*
+  time through `ParagraphLayout::LiveVariations`, with no re-shape.
+- **OpenType features and text transform** — per-span features (part of the
+  cache key) and locale-aware ICU case mapping applied just before shaping.
+  The stored text, edit ranges, and query results stay untransformed.
+- **Spacing** — `letterSpacing` (tracking, JIS aki in vertical text),
+  `wordSpacing` (added to inter-word glue after measurement), `scaleX`
+  (horizontal condensation of glyph shapes *and* advances, for faces with no
+  `wdth` axis).
+- **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
+  orientation, `vert` forms, and per-span `VerticalForm` overrides (upright,
+  rotated, tate-chu-yoko).
+- **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
+  direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
+  platform cascade; supply a `FontContext::FallbackResolver` to encode your
+  own family list or script policy.
+- **Inline placeholders** — pills, icons, and images woven into the flow. The
+  breakers treat each as an unbreakable word; `placeholderRects()` reports
+  where they landed.
+- **Line metrics** — `lineMetrics()` derives per-line baseline, ascent and
+  descent band, advance extent, and character range from the placed runs.
+  Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
+  plus ordinary canvas drawing; nothing is stored during layout and callers
+  who never ask pay nothing.
+- **Tab stops, overflow ellipsis, line clamp** — see the options structs.
+
+## The hard parts
+
+These are the places where the implementation is not the obvious one, and
+where a change is most likely to break something quietly.
+
+**Breaking against a list of intervals, not a width.** Classical line
+breaking asks "does the next word fit in the measure?". Here each line may
+offer several intervals of different lengths — the gaps a set of exclusion
+shapes leaves behind — and the answer depends on which one the pen is in.
+The greedy breaker therefore has to survive a word that fits in *no*
+interval: it records the widest interval it skipped over, and when the
+geometry runs out (or it has skipped too many) it backs up to that interval
+and forces the word there. Without that, a long word either drops the rest
+of the paragraph or jams itself into whatever narrow sliver the skip run
+happened to stop on, visibly overflowing into an exclusion shape.
+
+**Knuth-Plass, made to always terminate.** Three departures from the
+textbook algorithm:
+
+- *Badness saturates.* A stretch-free underfull line is terrible but must
+  stay finite. Let badness reach infinity and the squared demerits overflow
+  and poison every surviving path, which loses whole paragraphs on narrow,
+  hyphen-heavy measures.
+- *A lifeline break.* When no feasible break survives at some boundary, the
+  least-bad candidate is force-accepted, uniformly penalized so any feasible
+  path still beats it. A loose line is preferred to an overfull one
+  regardless of demerits: loose merely looks bad, overfull leaks past the
+  measure.
+- *An emergency rerun.* If that lifeline ever had to accept an overfull
+  line, the entire pass is redone with each line's own width added to its
+  stretchability (TeX's `\emergencystretch`), which turns loose lines into
+  real break nodes. Overfull is then forced only when a single box is wider
+  than its line.
+
+On uniform geometry the breaker also merges paths that reached the same
+breakpoint on different line numbers — their futures are identical — which
+is what keeps the active list bounded by the measure instead of growing with
+the paragraph.
+
+**Justification has three kinds of gap.** Rigid, space, and ideographic.
+CJK has no spaces at all, so zero-width ideographic break opportunities are
+the only thing that can absorb slack, and they expand up to a per-gap cap
+expressed as a fraction of the font size. Shrink is clamped at the glue's
+shrink limit. Gaps at or before a line's last tab are rigid: stretching them
+would move the following tab stop and unpin the column, so only the gaps
+past the last tab absorb slack.
+
+**Hyphenation is discretionary only.** There is no dictionary and no Liang
+patterns in this library. Soft hyphens (U+00AD) must already be in the text;
+feed it through any hyphenator that inserts them. Both breakers then treat
+them as break opportunities that are invisible unless a line actually breaks
+there, in which case a styled hyphen is rendered, and Knuth-Plass charges the
+configured penalty per hyphenated line.
+
+**Text on a path.** Each glyph is anchored by its *advance center* on the
+baseline point, not by its origin — with the offsets HarfBuzz applied on top
+of the pen position backed out first, or accented glyphs drift off the curve.
+Closed contours wrap their arc positions, so animating an interval's
+`contourStart` gives an infinite marquee around the loop. Tangents are
+quantized to a fixed number of directions by default, because every distinct
+rotation mints a fresh glyph-atlas strike, and continuously varying per-glyph
+rotations turn animated curved text into a per-frame mask-rasterization
+storm. Set `pathText.tangentRotationSteps = 0` for exact rotations on static
+artwork.
+
+## Conventions and gotchas
+
+Read this section before writing against the library. Most of it is not
+discoverable from a signature.
+
+**Threading.** A `FontContext` is single-threaded by contract and contains no
+locks. The shape cache, the HarfBuzz buffer, the ICU break iterator and the
+bidi object are all reused scratch, not per-call state. Create one per layout
+thread; parallelism belongs above the library, one paragraph per task with
+zero shared state. Several hot paths also use `thread_local` scratch, so a
+context must not migrate between threads mid-use.
+
+**Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
+Typefaces must outlive the context, or be consistently owned by it.
+
+**Cache eviction is a wholesale clear**, not LRU: past its cap the shape
+cache empties in one go and re-fills, costing one cold frame. The
+per-typeface, fallback, and varied-typeface maps are never pruned at all —
+`purgeAllCaches()` is the manual reset for a long-lived process whose
+typeface population churns. It is safe to call while shaped-word references
+are outstanding, because a `ShapedWord` owns its own data.
+
+**All range APIs are UTF-16 code-unit offsets, end-exclusive.** UTF-8 entry
+points take `std::u8string_view` specifically, so the encoding contract rides
+the type — use `u8` literals or `std::u8string`.
+
+**Coordinates are Skia's: y grows down.** A decoration's `offset` is the
+band's *top edge relative to the baseline*, positive meaning below it. Ascent
+and descent are reported as positive magnitudes. The horizontal fast path
+tests for a direction of exactly (1, 0) and the vertical one for exactly
+(0, 1); anything else takes the transformed path.
+
+**On contour intervals, length, fitting and alignment stay in unscaled
+advance units.** Only the pen-to-arc mapping is scaled by `advanceScale`. To
+offer a whole contour, set `length = arcLength / advanceScale`.
+
+**Rendering must match shaping.** Build draw fonts with `makeFont()` — it
+sets the unhinted, linear-metrics, size-gated-subpixel configuration the
+shaper measured against — or glyphs drift off their shaped positions. Related:
+Skia takes glyph edging from the *font*, never the paint, so
+`paint.setAntiAlias(false)` is silently ignored for text. Ask for hard edges
+with `ShapingStyle::aliased` instead.
+
+**Shaping style versus paint style.** Any change to a shaping field re-shapes
+the words it covers. Paint changes never re-shape and never relayout, and
+they are visible to an *already-computed* `ParagraphLayout`, because `draw()`
+resolves paint per span at draw time. `wordSpacing` is the odd one out: it
+lives in the shaping style and is compared for restyle detection, but it is
+not part of the shape-cache key — it is applied to whitespace after
+measurement, so changing it re-derives words at pure cache-hit cost.
+
+**Variable-font variation lists are order-sensitive for memo identity.** A
+permuted list resolves to an equivalent face but occupies a second memo
+entry, so keep the order stable across call sites. For draw-time animation
+only advance-invariant axes are safe; ask
+`FontContext::axisIsAdvanceInvariant()` before driving one through
+`LiveVariations`. An axis that fails that test belongs in
+`ShapingStyle::variations`, which re-shapes.
+
+**Placeholders match records by occurrence order** of the object-replacement
+character (U+FFFC) in the text, so a direct text edit must not add or remove
+one.
+
+**Two `[[nodiscard]]` returns mean "rebuild your ranges".**
+`Paragraph::editsSince()` and `MarkerSet::synchronize()` both return false
+when the bounded edit log no longer reaches back to the caller's revision.
+Ignoring that silently corrupts tracked ranges. The log is halved when it
+fills rather than trimmed one entry at a time, so the lookback you can count
+on is half the cap, not the cap.
+
+**The `languageTag` handed to a custom fallback resolver is a borrowed view**,
+valid only for that call, and it is *not* guaranteed to be NUL-terminated.
+Copy it before handing it to any C API; never pass its `.data()` through
+directly.
+
+**Several things silently no-op outside their scope.** Decorations render on
+straight horizontal runs only — transformed and vertical runs skip them. The
+ellipsis marker requires the final interval to be straight, horizontal, and
+not a contour. `lineMetrics()` skips transformed and vertical runs, and omits
+lines whose geometry placed nothing. Tab stops are line-local and scoped to
+straight horizontal left-to-right intervals.
+
+**Geometry is re-queried on every layout pass and never cached between
+passes**, so an implementation may depend freely on animated state. For
+exclusion flows, animate through a shape's `pathOffset`: path flattening is
+cached by the path's generation ID, so translating is free while assigning a
+rebuilt `SkPath` changes the ID and re-flattens.
+
+**Lazy shaping is ascending and idempotent only.** `ensureShapedTo()` with a
+decreasing word count is not supported.
+
+## Boundaries
+
+- **No SkShaper, no SkParagraph.** HarfBuzz and ICU are called directly.
+- **Product-specific geometry lives with the consumer.** The core exposes the
+  reusable pieces — `SingleLineParagraphCache` and `layoutSingleLine()` — and
+  nothing above them. Measurement and curvature compensation for a particular
+  application's labels belong in that application. No product symbol appears
+  in this library or its tests.
+- **Shape-by-word.** Words are shaped independently, so cross-word kerning and
+  ligatures at word boundaries are dropped — the same trade browser engines
+  make. Within a word, including CJK runs between break opportunities, shaping
+  is fully contextual.
+- **Whole-paragraph transforms are canvas transforms.** Rotating, scaling, or
+  skewing a paragraph is `canvas->concat()` before `draw()`. Keeping it out of
+  the API means layout coordinates stay in one predictable space, and
+  compositing effects over finished text are `SkCanvas::saveLayer()` around
+  the draw.
+- **Paragraph-wide shaders need no library support.** Skia shaders are
+  canvas-space, so one shader set as a span's foreground already flows
+  seamlessly across every line.
+- **Ruby and kenten are not core features.** They are a few lines each over
+  the layout's placed runs; the CJK demo and gallery scenes show how.
+- **Bidi is per-word.** Levels are computed and UAX#9 L2 visual reordering is
+  applied per word; glue between reordered runs is approximated, and
+  multi-segment RTL words keep logical segment order.
+
+## Build, test, and see it
+
+From `apps/spell-circle-canvas`:
+
+```sh
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug -R weave_test --output-on-failure
+```
+
+`weave_test` is one binary with a translation unit per module, plus a
+typographic-correctness section: cluster coverage across scripts, ZWNJ
+joining control, combining-mark attachment (NFC and NFD must measure alike),
+kinsoku prohibitions, NBSP no-break, justification shrink limits, UAX#9
+visual reordering, strut metrics, and edit safety at surrogate boundaries.
+
+`weave_bench` owns every performance claim about this library. Build it
+Release and run it rather than trusting a number written down anywhere:
+
+```sh
+cmake --build build --config Release --target weave_bench weave_demo
+./build/bin/Release/weave_bench
+./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
+```
+
+`weave_demo` renders headless PNG panels of the library-only surfaces:
+extreme geometries, typographic options, mixed-script and feature panels,
+CJK and vertical text, `SkPath` exclusions, CJK fallback, and a panel
+covering decorations, text transform, word spacing, variable axes, tab stops,
+and line clamp.
+
+`WeaveGallery` (`examples/gallery/`) is the interactive home for the animated
+scenes — exclusions and morphing paths, greedy versus Knuth-Plass, an
+infinite path loop, letter rain, a click-to-ripple pool, vertical CJK with
+ruby, kenten and tate-chu-yoko, a mixed-script wall, effects and shaders,
+regex markers, inline slots, overflow and clamp, an aliased-type terminal.
+Scenes self-register with declarative
+parameters, so the sidebar builds their controls automatically. It renders
+through a `QQuickRhiItem` — Skia Graphite on Qt's own Metal queue, with a CPU
+raster fallback and a live GPU/CPU switch — and displays a
+reshaped-words-per-frame counter, which sits at zero while everything moves
+when the shape cache is doing its job. Judge any of it on a Release build;
+Skia's Debug recording path is dramatically slower on glyph-heavy scenes.

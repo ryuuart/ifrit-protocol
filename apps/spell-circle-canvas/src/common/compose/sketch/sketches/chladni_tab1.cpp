@@ -24,10 +24,10 @@
 //     with up to 11 px of hand wander, which is kept below (kFigures) —
 //     figure 7 genuinely sits 11 px lower than figure 8.
 //   * every star's point count AND inner radius, by walking 720 rays
-//     inward from the rim and recording the first ink. THIS IS WHERE THE
-//     BRIEF I WAS HANDED WAS WRONG: it guessed innerRatio 0.02-0.08 for
-//     all nine stars. Measured, the hub GROWS monotonically with the mode
-//     number — 0.05, 0.11, 0.18, 0.24, 0.36, 0.42, 0.46 for n = 1..7 —
+//     inward from the rim and recording the first ink. The hub is NOT a
+//     uniform needle across the nine stars, which is the easy assumption:
+//     it GROWS monotonically with the mode number — innerRatio 0.05, 0.11,
+//     0.18, 0.24, 0.36, 0.42, 0.46 for n = 1..7 —
 //     which is most of what makes figure 12 read as a solid boss with
 //     teeth and figure 1 as a bare needle. Spike counts confirmed 2n
 //     independently of Chladni's prose (he states 4, 5, 6, 7 lines for
@@ -38,10 +38,11 @@
 //     and 4, worn as a paper-coloured mask over hatched petals.
 //
 // THE TRACED THREE ARE NOT TRACED — THEY ARE COMPASS WORK.
-//   Figures 7, 9 and 10 have no eigenmode formula, so the brief expected
-//   hand-placed Beziers. Fitting circles through three measured points on
-//   each curve says otherwise: every one is a true circular arc, and the
-//   fits close to three decimal places. Figure 7's left hook is centred at
+//   Figures 7, 9 and 10 have no eigenmode formula, which invites drawing
+//   them as hand-placed Beziers. Fitting circles through three measured
+//   points on each curve says otherwise: every one is a true circular arc,
+//   and the fits close to three decimal places.
+//   Figure 7's left hook is centred at
 //   (-0.930, -0.447) in unit-disc coordinates with radius 0.540 — i.e. the
 //   compass point sits ON THE RIM (|c| = 1.03) and the arc is swung from
 //   there. That is how Capieux drew them, and it makes all three figures
@@ -53,9 +54,9 @@
 //   four lines (a diameter, two hooks, one arch) exactly like figure 6,
 //   and figures 9 and 10 have five like figure 8. The variants are the
 //   SAME modes, bent.
-//   Two further corrections to the brief from the pixels: the hooks do NOT
-//   meet the vertical diameter (they stop ~0.35R short of it), and figure
-//   10's hooks do not nearly touch (0.5R apart at their closest).
+//   Two further details off the pixels: the hooks do NOT meet the vertical
+//   diameter (they stop ~0.35R short of it), and figure 10's hooks do not
+//   nearly touch (0.5R apart at their closest).
 //
 // ORDER IS PITCH. Chladni tunes the plate by ear against the previous
 // figure and reports intervals: fig 6 two octaves over the fundamental,
@@ -67,14 +68,11 @@
 // semitones where Chladni gives one (higher pitch bounces the sand into
 // place faster) and to n where he does not.
 //
-// NO CURVED LETTERING, DELIBERATELY. Element::onPath() was offered for the
-// rim labels; the crops say no. Every one of the 62 reference letters on
-// this plate is UPRIGHT, never rotated to the tangent, on both halves of
-// every circle. Bending them would be a nicer sketch and a worse study.
-// (onPath was still exercised here as a throwaway probe on clear paper,
-// because I was asked to trust it: a centred run at at = 0 on a closed
-// shapes::circle() now keeps every glyph across the seam, confirmed. The
-// autoFlip half did not hold up — see the report.)
+// NO CURVED LETTERING, DELIBERATELY. Element::onPath() would be the obvious
+// choice for the rim labels, and the crops say no: every one of the 62
+// reference letters on this plate is UPRIGHT, never rotated to the tangent,
+// on both halves of every circle. Bending them would be a nicer sketch and a
+// worse study.
 //
 // BUILT FROM (the library, not by hand):
 //   shapes::star()       nine ink figures and two paper-coloured masks
@@ -441,7 +439,8 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  // sand: ~5900 grains, one pool, one atlas stamp
+  // sand: 9,580 grains (the per-figure counts in kFigures, summed), one
+  // pool, one atlas stamp
 
   void seedGrains() {
     grains.clear();
@@ -677,29 +676,25 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
     // is), a vignette that lands on the sampled scan colour ----
-    // perf-pass: the ENTIRE paper base is static and CPU-catastrophic — the
-    // paperMat procedural fractal alone is 662 ms/frame of live eval on the
-    // raster backend, plus a ~14 ms/frame full-canvas softLight COMPOSITE.
-    // Fold all four static layers into ONE opaque box whose own fill is
-    // kPaper — the exact backdrop the softLight blended against when these
-    // were separate root children — and cache it once. The softLight now
-    // resolves at BAKE time (no per-frame composite) and the frame blits one
-    // opaque srcOver texture. The cache BOUNDARY sits around these four
-    // because everything below them is this static base and everything above
-    // (frame hairlines, the twelve figures, the live bow, the sand pool) is
-    // animated or genuinely live and must stay outside the bake.
-    //   opacity+blend refuses an auto-bake (rounds twice); accepted here.
-    //   CPU p50 672 -> 16.96 ms, p99 17.76 (was 672/672). GPU was already
-    //   4.9 ms and the group is provably static so the cache STICKS (0
-    //   steady-state cache writes — the backend-neutral thrash guard).
-    //   Pixels verified at the settled phase t=12: 0/3151200 differ, byte
-    //   IDENTICAL (the fold bakes the fully-composited OPAQUE paper at float
-    //   precision, so even the softLight rounding vanishes).
-    //   Residual: chladni still lands ~1 ms over the 16.6 gate. The floor is
-    //   now the live sand pool (instancing Mode::Live, ~7.5 ms) — genuinely
-    //   live because the grains ANIMATE in ("the sand finds the line"); it
-    //   cannot be frozen without killing the study's entrance. Honest
-    //   near-miss: p50 16.96 / p99 17.76 CPU, PASS on GPU.
+    // The ENTIRE paper base is static, and left as separate root children it
+    // is ruinous on the raster backend: paperMat is a procedural fractal
+    // evaluated per pixel per frame, under a full-canvas softLight composite.
+    // So all four static layers are folded into ONE opaque box whose own fill
+    // is kPaper — the exact backdrop the softLight blended against when they
+    // were siblings — and cached. The softLight then resolves at BAKE time
+    // and each frame blits one opaque srcOver texture instead.
+    //
+    // The cache BOUNDARY sits exactly around these four: everything below is
+    // this static base, and everything above (frame hairlines, the twelve
+    // figures, the live bow, the sand pool) is animated or genuinely live and
+    // must stay outside the bake. The bake is explicit because opacity+blend
+    // refuses an automatic one, on the grounds that it would round twice —
+    // here it does not, since the fold composites at float precision into an
+    // opaque result.
+    //
+    // What remains live is the sand pool (instancing Mode::Live), and it has
+    // to: the grains ANIMATE in, which is the study's whole entrance, so
+    // there is nothing to freeze.
     root.child(stack().inset(0).fill(Fill::color(kPaper))
                    .child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
                        SkBlendMode::kSoftLight))
@@ -769,10 +764,10 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
-    // §31 entrance-into-hold beat: the header's settled mark — all twelve
-    // figures inked (6.47), credit in (8.3), the idle bow at maximum on
-    // figure 8's rim. (The old 6.0 default caught figure 12's sand still
-    // migrating and the Capieux credit absent.)
+    // The still has to name its moment: the settled plate, with all twelve
+    // figures inked (6.47 s), the credit in (8.3 s) and the idle bow at
+    // maximum on figure 8's rim. An undeclared capture catches figure 12's
+    // sand still migrating and the Capieux credit absent.
     ctx.captureAt(10.6);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
@@ -828,9 +823,9 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     seedGrains();
 
     // ---- the simulation ------------------------------------------------
-    // instancing::Pool has no per-instance tween, so the ~5900 little
-    // timelines (start, target, delay, duration, ease) are bookkept here
-    // and stepped by hand. See the report: this is the study's main gap.
+    // instancing::Pool has no per-instance tween, so one little timeline per
+    // grain (start, target, delay, duration, ease) is bookkept here and
+    // stepped by hand — which is why the pool has to stay Mode::Live.
     ctx.ticker.add([this](double dt) {
       now += dt;
       const float t = (float)now;

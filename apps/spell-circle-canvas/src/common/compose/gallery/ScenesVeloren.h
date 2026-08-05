@@ -247,10 +247,10 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
 } // namespace worldhud
 
 struct WorldHudScene final : Scene {
-  // Plain fractions. Every bar here is a full-size fill with its growing
-  // edge pinned by transformOrigin() and its extent carried by scaleX —
-  // which is what these Outputs used to encode as pixel slides inside a
-  // clip, back when Element had only a uniform scale().
+  // Plain fractions in [0,1], not pixel widths. Every bar here is a
+  // full-size fill whose growing edge is pinned with transformOrigin() and
+  // whose extent is carried by scaleX, so these Outputs feed the transform
+  // directly and none of them needs to know the bar's size.
   choreograph::Output<float> hp{0.62f}, energy{0.78f}, poise{0.55f};
   choreograph::Output<float> xp{0}, enemyHp{0.4f};
   choreograph::Output<float> lowPulse{0}, compass{0};
@@ -306,13 +306,12 @@ struct WorldHudScene final : Scene {
       poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
       compass = (float)std::fmod(t * 8.0, 360.0);
       xp = (float)std::fmod(t * 0.11, 1.0);
-      // The boss bar drains over the 6.25 s cycle. It used to be
-      // max(0, 0.85 - fmod(...)), which reaches zero at fmod = 0.85 and then
-      // sits at EXACTLY EMPTY for the remaining 0.94 s — 15% of every cycle,
-      // and the gallery's (now deterministic) capture frame lands inside it,
-      // so the scene's canonical still showed a boss nameplate over a black
-      // slab with no fill at all. Scaled to drain 0.85 -> 0.08 instead: the
-      // same sawtooth, the same read, but the bar is never empty.
+      // The boss bar drains on a sawtooth and must never reach zero. A
+      // formulation that clamps at empty spends part of every cycle showing a
+      // boss nameplate over an unfilled black slab, and any still captured in
+      // that window looks like a bug in the bar rather than a moment in the
+      // animation. Scaling the ramp so it bottoms out just above empty keeps
+      // the same read with no dead interval.
       enemyHp = 0.85f - 0.77f * (float)std::fmod(t * 0.16, 1.0);
       for (size_t i = 0; i < cooldown.size(); ++i) {
         const double period = 2.4 + 0.9 * (double)i;

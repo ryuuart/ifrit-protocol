@@ -4,8 +4,8 @@
 // Style Manager's Color dialog, and a derivation strip that shows the
 // algorithm running.
 //
-// THIS IS THE FIRST STUDY IN THE PROGRAM OF A *SYSTEM* RATHER THAN A
-// PICTURE, and that is the whole reason CDE was chosen. A CDE theme is
+// THIS IS A STUDY OF A *SYSTEM* RATHER THAN A PICTURE, and that is the
+// whole reason CDE was chosen. A CDE theme is
 // EIGHT BACKGROUND COLOURS in a 40-byte `.dp` file and nothing else;
 // Motif's XmGetColors derives the foreground, the top shadow, the bottom
 // shadow and the select colour for each of them at runtime, by a
@@ -14,11 +14,11 @@
 // function is implemented (cde::calculate, below) and every one of the
 // 40 live colours on this canvas is its output.
 //
-// (Mac OS 8 "Platinum" was the researcher's first choice for this slot
-// and it collapsed: Apple's HIG describes Platinum entirely in prose —
-// no ramps, no bevel widths, no pixel patterns. The "published
-// specification" the received account promises is not there. Motif's is,
-// in source, and that is why this subject and not that one.)
+// (Mac OS 8 "Platinum" is the obvious neighbouring subject and does not
+// work: Apple's HIG describes Platinum entirely in prose — no ramps, no
+// bevel widths, no pixel patterns. The "published specification" it is
+// usually credited with is not there. Motif's is, in source, and that is
+// why this subject and not that one.)
 //
 // SOURCES — [SRC] read out of shipped source, [MEAS] pixel-sampled,
 // [CALC] computed from the algorithm, [EST] estimated.
@@ -88,10 +88,10 @@
 //  · THE ARITHMETIC IS DEFINED ON GAMMA-ENCODED INTEGERS AND DOING IT
 //    "PROPERLY" DESTROYS IT. The same factors applied in linear light
 //    move the bottom shadow by up to 0x39 — #5D6069 becomes #838794,
-//    a hard engraved edge becoming a washed-out mid-grey. That is a
-//    number attached to roadmap 10e, "colour has no space": a value
-//    described as display-encoded on purpose and a value nobody thought
-//    about are the same bytes here.
+//    a hard engraved edge becoming a washed-out mid-grey. Colour here
+//    carries no space with it, so a value that is display-encoded ON
+//    PURPOSE and a value nobody thought about are the same bytes, and
+//    nothing but this comment tells them apart.
 //  · SUNKEN IS NOT A DIFFERENT DRAWING. XmeDrawShadows implements
 //    XmSHADOW_IN by swapping the two GCs and calling the same function.
 //    One boolean covers every Motif widget state, and MotifShadow below
@@ -106,7 +106,7 @@
 // And the render is verified against the [MEAS] band tables too, by
 // sampling the capture. Window frame, going in from the left edge:
 // DCADC2 DCADC2 | B24D7A B24D7A B24D7A | 57253B — 2 px top shadow, 3 px
-// band, 1 px inverted inner bevel, exactly §6.1. Vertically: frame 6,
+// band, 1 px inverted inner bevel. Vertically: frame 6,
 // title bar 23 (1 ts + 21 body + 1 bs), menu bar 31 (1 + 29 + 1), then
 // the client area. Front Panel from its top edge: DCDEE5 DCDEE5 |
 // AEB2C3 AEB2C3 | DCDEE5 DCDEE5 — the raised T=2 shell containing a
@@ -114,37 +114,27 @@
 // pixels with no fractional coverage anywhere.
 //
 // ---------------------------------------------------------------------
-// WHAT THE RENDER TAUGHT, THAT THE MEASUREMENTS COULD NOT
+// WHAT DRAWING IT TEACHES, THAT THE MEASUREMENTS DO NOT
 //
-//  · THE BOUND `Fill` HELD AT SCALE AND LOST THE ARGUMENT ANYWAY, and
-//    that is this study's headline number. Run both ways over the same
-//    tree (CDE_STATIC_COLORS=1 flips it), the captures are PIXEL-
-//    IDENTICAL — ImageChops.difference().getbbox() is None — and the
-//    cost is not:
-//
-//        40 bound Output<Fill>  : 1018 / 1270 nodes painted live,
-//                                 103 pictures held, 0.33 ms/frame
-//                                 steady; switch frame 3.50 ms paint,
-//                                 0.27 reconcile, 61 re-records
-//        the same 40 as values  :   57 / 1270 nodes painted live,
-//                                 288 pictures held, 0.033 ms/frame
-//                                 steady; switch frame 4.64 ms paint,
-//                                 0.44 reconcile, 237 re-records
-//
-//    Ten times the steady-state paint, to save 1.1 ms on one frame in
-//    three hundred. Over one palette interval that is 59 ms of paint
-//    against 10 ms — the bound path is 5.6x MORE total work for a
-//    colour that changes every three seconds. Nothing is wrong with the
-//    binding; the pricing is. `isAnimated()` is declared per NODE and is
-//    binary, so "this repaints when the theme changes" and "this
-//    repaints at 60 Hz" are the same declaration (ROADMAP.md argument
-//    3), and 80% of a desktop inherits it.
-//  · A 2 px BAND LANDS EXACTLY ON THE DEVICE PIXEL GRID. No study had
-//    checked, because everything else in this program is organic. At
-//    contentScale 1 with integer rects and AA off, every sampled band
-//    above is one flat colour with no 254/255 edge anywhere. Yoga's
-//    resolved rects are integers when the inputs are, `.padding(6)` is
-//    exact, and shapes::inset(5, …)'s path-op offset survives it.
+//  · A BOUND `Fill` IS THE WRONG TRADE FOR A COLOUR THAT CHANGES EVERY
+//    FEW SECONDS. Both spellings are in this file, and
+//    `CDE_STATIC_COLORS=1` flips between them for identical pixels.
+//    Bound, a palette change is forty assignments and no re-describe —
+//    but `isAnimated()` is declared per NODE and is BINARY, so every
+//    node carrying one of those colours is content-volatile forever and
+//    paints live on every frame, which here is most of the desktop. As
+//    values, almost everything prunes and picture-caches, at the cost of
+//    one heavier frame — a re-describe that repatches and re-records the
+//    screen — when the palette actually turns. Steady-state paint
+//    dominates, because there are hundreds of steady frames per switch.
+//    Nothing is wrong with the binding; it just cannot say "this
+//    repaints when the theme changes" as distinct from "this repaints at
+//    60 Hz".
+//  · A 2 px BAND LANDS EXACTLY ON THE DEVICE PIXEL GRID. At contentScale
+//    1 with integer rects and AA off, every sampled band above is one
+//    flat colour with no 254/255 edge anywhere. Yoga's resolved rects
+//    are integers when the inputs are, `.padding(6)` is exact, and
+//    shapes::inset(5, …)'s path-op offset survives it.
 //  · TEXT EDGING IS THE ONE THING THAT CANNOT BE ASKED FOR. `TextStyle`
 //    has no edging or hinting field and SigilWeave's makeFont() pins
 //    SkFont::Edging::kAntiAlias; Skia takes glyph edging from the
@@ -155,22 +145,17 @@
 //    decoration on a measured box); the ONE remaining SigilWeave run is
 //    the derivation strip's title, kept in the capture so the two sit
 //    side by side.
-//  · ZERO outline() CALLS, as predicted, and it is worth saying. Motif
-//    has no shaped nodes: every silhouette is the default rect, so
-//    roadmap §3's "shaped nodes can never prune" costs this artefact
-//    exactly nothing. The only three corners() in the file are inside
-//    the clock icon, which is artwork, not chrome.
+//  · ZERO outline() CALLS, and it is worth saying. Motif has no shaped
+//    nodes: every silhouette is the default rect, so the rule that a
+//    shaped node can never prune costs this artefact exactly nothing.
+//    The only three corners() in the file are inside the clock icon,
+//    which is artwork, not chrome.
 //  · `.background()` IS NOT WHERE A BEVEL GOES. It paints BENEATH the
-//    fill (the CSS box-shadow ordering), so the first render came back
-//    with every window a flat slab of colour and no bevel anywhere —
-//    the decorations were all drawing, underneath their own surfaces.
-//    `.overlay()` is the slot ("over the fill, under content and
-//    children"), which is exactly a Motif shadow's layer. Every bevel in
-//    the file, one word. The header comment reads "backgrounds paint
-//    below content/children ... fill() is the transitionable first
-//    background", which says nothing about the fill/decoration order and
-//    then implies the wrong one; `overlay()` carries no doc comment at
-//    its declaration at all.
+//    fill (the CSS box-shadow ordering), so a bevel put there is drawn
+//    and then covered by the surface it was meant to sit on, leaving a
+//    flat slab of colour. `.overlay()` is the slot that means "over the
+//    fill, under content and children", which is exactly a Motif
+//    shadow's layer. Every bevel in this file uses it.
 
 #include <sigilsketch/Sketch.h>
 
@@ -450,9 +435,8 @@ struct ColorSet {
     bs = Fill::color(bsV);
     sel = Fill::color(selV);
   }
-  // The two spellings of the same colour, chosen by the experiment
-  // switch below. Declared out of line because g_liveColors is defined
-  // after this type.
+  // The two spellings of the same colour, chosen by the switch below.
+  // Declared out of line because g_liveColors is defined after this type.
   Animatable<Fill> pBg() const;
   Animatable<Fill> pFg() const;
   Animatable<Fill> pTs() const;
@@ -460,7 +444,7 @@ struct ColorSet {
   Animatable<Fill> pSel() const;
 };
 
-/** The experiment switch (`CDE_STATIC_COLORS=1` in the environment).
+/** The colour-spelling switch (`CDE_STATIC_COLORS=1` in the environment).
  *
  *  BOUND (default): every one of the forty colours reaches its node as a
  *  `const ch::Output<Fill>*`. A palette change is forty assignments; the
@@ -472,7 +456,8 @@ struct ColorSet {
  *  Everything prunes and picture-caches — and a palette change is a
  *  re-describe that repatches and re-records every node on the screen.
  *
- *  Both numbers are in the report. */
+ *  The two produce identical pixels; they differ only in where the work
+ *  lands, steadily or in one frame. */
 inline bool g_liveColors = true;
 
 inline Animatable<Fill> ColorSet::pBg() const {
@@ -557,7 +542,7 @@ struct MotifShadow {
   // The static alternative: the same two colours as VALUES. Filled only
   // when the bindings are not (see bevel()), because a decoration that
   // carries values compares unequal after a palette change and therefore
-  // repatches and re-records — which is the whole experiment.
+  // repatches and re-records instead of staying volatile.
   SkColor4f topValue{1, 1, 1, 1}, bottomValue{0, 0, 0, 1};
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
@@ -586,9 +571,9 @@ struct MotifShadow {
     canvas.drawPath(pb.detach(), p);
   }
   /** A bound colour is declared volatility, and here it is per NODE and
-   *  binary: "this bevel changes every three seconds" is priced as "this
-   *  bevel repaints at 60 Hz" (ROADMAP.md argument 3). Measured both
-   *  ways — see the report in the sketch's tail comment. */
+   *  binary: "this bevel changes every three seconds" is priced exactly
+   *  as "this bevel repaints at 60 Hz". See the header for what that
+   *  costs across a desktop's worth of bevels. */
   bool isAnimated() const { return top != nullptr || bottom != nullptr; }
   bool operator==(const MotifShadow &) const = default;
 };
@@ -1989,17 +1974,17 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(1152, 900);
     ctx.background(cde::C(0x000000));
-    // §31 named-state beat: palettes snap every 3 s over {Default, Crimson,
-    // Black, Summer}; the old 6.0 default landed exactly on the
-    // Crimson -> Black snap (the all-black degenerate palette). Default —
+    // The still has to name its moment: palettes snap every 3 s over
+    // {Default, Crimson, Black, Summer}, and an undeclared capture can land
+    // on a snap or on Black, the all-black degenerate palette. Default —
     // the shipped canonical, loaded at setup — holds [12, 15); 13.5 s is
     // dead centre, with the derivation strip visibly mid-sweep.
     ctx.captureAt(13.5);
 
     // CDE_STATIC_COLORS=1 rebuilds all forty colours as plain values
-    // instead of bound Outputs — the A/B for "what does declared
-    // volatility cost when the thing that changes changes every three
-    // seconds". See cde::g_liveColors.
+    // instead of bound Outputs — the two spellings of the same pixels, for
+    // comparing what declared volatility costs when the thing that changes
+    // changes every three seconds. See cde::g_liveColors.
     cde::g_liveColors = std::getenv("CDE_STATIC_COLORS") == nullptr;
     std::printf("[cde] colours: %s\n",
                 cde::g_liveColors

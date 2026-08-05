@@ -1,6 +1,6 @@
 #pragma once
-// The passive-tree study (REFERENCES.md section 5 — skill-tree / node-graph
-// brushes between elements), rebuilt on REAL tree geometry.
+// A passive skill tree: the node-graph idiom, drawn with brushes running
+// between elements, and built on REAL tree geometry rather than a sketch.
 //
 // SkillTreeData.h carries a 39-node disc of Path of Exile's public tree
 // export: group centres, the orbitRadii/skillsPerOrbit ladder, node kinds,
@@ -17,11 +17,12 @@
 //                         This is what makes a passive tree READ as orbits
 //                         rather than as an arbitrary node soup.
 //   the 3-state law ..... every edge is Normal / Intermediate / Active --
-//                         kit::brush::presets::rope(state, zoom) is the
-//                         verified PoE ladder (#3A332A -> #6B5A40 -> #8A7248 +
-//                         halo); Active needs BOTH ends allocated, Intermediate
-//                         exactly one, and the whole rope scales with the
-//                         cluster's zoom the way the game's line art does
+//                         kit::brush::presets::rope(state, zoom) carries
+//                         PoE's own colour ladder (#3A332A -> #6B5A40 ->
+//                         #8A7248 plus a halo). Active needs BOTH ends
+//                         allocated, Intermediate exactly one, and the rope
+//                         scales with the cluster's zoom the way the game's
+//                         line art does.
 //   frame ladder ........ four node chromes, not one: minor circle,
 //                         notable double ring + notch rosette, mastery
 //                         diamond, keystone octagon under an ornament ring.
@@ -73,7 +74,7 @@ namespace skill_tree {
 
 namespace data = skill_tree_data;
 
-// Near-black ground and the PoE ladder (REFERENCES.md section 5).
+// Near-black ground, and PoE's own colour ladder for edge and socket state.
 constexpr SkColor4f kBg{0.098f, 0.082f, 0.071f, 1};      // #191512
 constexpr SkColor4f kBgLift{0.125f, 0.104f, 0.086f, 1};  // center lift
 constexpr SkColor4f kBgSink{0.072f, 0.060f, 0.052f, 1};  // vignette edge

@@ -47,16 +47,26 @@ public:
   /** Returns the recorder associated with `context()`. */
   skgpu::graphite::Recorder *recorder() const { return m_recorder.get(); }
 
-  /** RecorderOptions every backend factory must pass to makeRecorder():
-   *  installs the caching ImageProvider that promotes non-Graphite
-   *  (raster) SkImages to textures on first draw. Graphite performs NO
-   *  implicit uploads — without a provider it silently drops any draw
-   *  that samples a raster image. */
+  /** REQUIRED for every recorder: pass these to makeRecorder().
+   *
+   *  Two settings here are preconditions, and violating either fails
+   *  silently rather than loudly.
+   *
+   *  1. The caching ImageProvider. Graphite performs NO implicit
+   *     uploads: a draw that samples a raster (non-Graphite) SkImage
+   *     asks the recorder's provider for a texture version and DROPS
+   *     the draw when there is none. A recorder built without these
+   *     options renders nothing from any raster image and reports no
+   *     error.
+   *  2. Ordered recordings. Every recording this recorder snaps must be
+   *     inserted, in order. A snap that returns null, or one whose
+   *     recording is discarded, skips an ID and permanently kills the
+   *     recorder — every later insert fails and nothing ever renders
+   *     again. Never snap in order to throw the result away. */
   static skgpu::graphite::RecorderOptions makeRecorderOptions();
-  /** One funnel for ContextOptions too (both backends). Honors
-   *  SIGILSKIA_GLYPH_ATLAS_BYTES (weave ROADMAP §6's experiment knob:
-   *  cap the Graphite glyph-atlas texture budget from the environment;
-   *  unset = Skia's default). */
+  /** One funnel for ContextOptions too (both backends). Reads
+   *  SIGILSKIA_GLYPH_ATLAS_BYTES to cap the Graphite glyph-atlas
+   *  texture budget; unset leaves Skia's own default in place. */
   static skgpu::graphite::ContextOptions makeContextOptions();
 
 private:

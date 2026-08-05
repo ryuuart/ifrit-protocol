@@ -1,8 +1,7 @@
 #pragma once
-// "Aurelia" — the living flourish border, extracted from the ComposeSketch
-// stress sketch into a gallery scene. A gilt-on-oxblood ornamental frame
-// around a central parchment cartouche that fans across nearly the whole
-// SigilCompose surface at once:
+// "Aurelia" — a living flourish border: a gilt-on-oxblood ornamental frame
+// around a central parchment cartouche. It is deliberately maximal, reaching
+// across nearly the whole SigilCompose surface in one scene:
 //   PathFormat rule weights + bead stamps, a ContourWalk acanthus vine
 //   (element stamp, recursion L2) + an animatedWalk glow, a Slice
 //   nine-slice, onEdges crests, AlongPath/Radial/Scatter layouts, arc +

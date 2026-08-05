@@ -83,9 +83,9 @@
 //
 // BUILT FROM (the library, not by hand):
 //   lines::Rails          the engraver's asymmetric rule — heavy outer +
-//                         hairline inner, per-rail width AND dash. Exactly
-//                         the thing lines::Line could not say; it landed
-//                         this run and this plate is nine rules of it.
+//                         hairline inner, per-rail width AND dash, which is
+//                         exactly what a single lines::Line cannot express.
+//                         Nine rules on this plate are drawn with it.
 //   lines::Line           Cap::Arrow on the jump arcs (a jump is DIRECTED)
 //                         and Cap::Dot on the margin's leader lines
 //   lines::hatch/crosshatch/radialHatch   the wax ground, the 40 wedge
@@ -124,35 +124,39 @@
 //
 // A star polygon {n/k} self-intersects n(k−1) times, so this heptagram has
 // SEVEN crossings and fourteen passes — not the fourteen crossings a {7/3}
-// would have. Panel D counts them and confirms each got exactly one over and
-// one under: the {7/2} heptagram is ONE closed curve, 0→2→4→6→1→3→5→0, so
-// alternating along that single traversal IS a valid alternating weave.
+// would have. Panel D counts them and reports any crossing whose two passes
+// came out on the same side: the {7/2} heptagram is ONE closed curve,
+// 0→2→4→6→1→3→5→0, so alternating along that single traversal IS a valid
+// alternating weave.
 //
-// WHAT IT COST, AND WHAT PAID FOR IT. First measured frame: 110 ms at
-// 2400×1700. It is now 5.3 ms p50 / 6.7 ms p99 at 2000×1417, with the settle
-// — the only moment a cached layer moves — at 12.4 / 16.4. Nothing was
-// removed to get there; six things were understood:
-//   1. a mask blur is not a decoration. One sigma-34 shadow under the cake
-//      and a four-layer blurred filament on 33 solver arcs were 50 ms.
+// WHAT MAKES IT AFFORDABLE. The plate is large and nearly all of it is
+// static, so the whole question is which layers can be baked and then left
+// alone. Six things decide that here:
+//   1. a mask blur is not a decoration. A wide-sigma shadow under the cake,
+//      or a multi-layer blurred filament on every solver arc, costs more
+//      than everything else on the plate put together.
 //   2. a KEYFRAME PATH THAT IS STILL RUNNING IS LIVE VOLATILITY EVEN WHILE
-//      ITS VALUE IS CONSTANT. Seven text-on-path runs held a mid-path
-//      opacity from 1.5 s to 9.9 s and painted live for eight seconds —
-//      29 ms of a 38 ms frame, and they kept their parents out of a texture.
-//   3. "All 40 cells are drawn cold" (§5.1) is also the perf answer: 73
-//      independently fading glyph nodes hold a whole band out of its cache.
-//   4. the seal's groups were sized to the WAX CAKE (1.058 R) when the
-//      largest thing drawn on them reaches 0.87 R. Sizing them to their
-//      content took 28% off every layer composite.
-//   5. rotation-invariant geometry has no business inside a rotating layer.
-//      Lifting the circles and the radial hatch field out of the turning
-//      groups was 11 ms.
-//   6. the solver is an independent update domain — slot() + renderSlot(),
-//      because a full render() to advance the walk cost a 365 ms frame.
-// And one that did NOT pay: explicit Cache::Texture on the big groups was
-// SLOWER than the library's own promotion (19.8 ms vs 11.5 ms) — it bakes
-// one giant layer where the library bakes several small ones. The exception
-// is a group under a LIVE rotation, where the library falls back to replaying
-// the picture through a rotated matrix (45 ms) and an explicit bake wins.
+//      ITS VALUE IS CONSTANT. A text-on-path run holding a mid-path opacity
+//      paints live for the whole hold and keeps its parents out of a
+//      texture; a ramp that finishes does not.
+//   3. the circumference band is 40 letters and 33 numerals as separate
+//      nodes, and the unvisited cells fade on staggered delays. While ANY
+//      of those is still animating the band as a whole cannot settle into
+//      a cache, so a stagger spread over seconds is a cost, not a flourish.
+//   4. a group's box should be sized to what is drawn ON it. The seal's
+//      groups are sized to their content, not to the wax cake (1.058 R),
+//      which is wider than anything they carry; every layer composite pays
+//      for the box, not for the marks.
+//   5. rotation-invariant geometry has no business inside a rotating layer,
+//      which is why the circles and the radial hatch field sit outside the
+//      turning groups even though they belong to the same figure.
+//   6. the solver is an independent update domain — slot() + renderSlot() —
+//      so advancing the walk never re-describes the plate.
+// And one thing that does NOT pay: forcing Cache::Texture on the big groups
+// is slower than the library's own promotion, because it bakes one giant
+// layer where the library bakes several small ones. The exception is a group
+// under a LIVE rotation, where the library falls back to replaying the
+// picture through a rotated matrix and an explicit bake wins.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -201,7 +205,7 @@ namespace ch = choreograph;
 
 namespace {
 
-using studio::hex;   // the same four lines as twenty-three other files
+using studio::hex;   // 0xRRGGBB (+ optional alpha) → SkColor4f
 
 // ---------------------------------------------------------------------------
 // palette — beeswax, four centuries old, under museum light: one hue and
@@ -285,7 +289,7 @@ float frac(float thDeg) {
 float skAngle(float thDeg) { return thDeg - 90.0f; }
 
 // ---------------------------------------------------------------------------
-// §2 — THE PLATE'S OWN CONTENT, recovered from the vector coordinates.
+// THE PLATE'S OWN CONTENT, recovered from the vector coordinates.
 
 struct Cell {
   const char *glyph; // as drawn
@@ -375,7 +379,7 @@ const std::array<Planet, 5> kPentaNames = {{{"Z", "edekieil", "Jupiter"},
                                             {"C", "orabiel", "Mercurius"}}};
 
 // ---------------------------------------------------------------------------
-// §3 — THE SOLVER. Michael's rule, walked. This is the only place the seven
+// THE SOLVER. Michael's rule, walked. This is the only place the seven
 // Names exist in this file: they are not a table, they are an output.
 
 struct Solved {
@@ -413,7 +417,7 @@ Solved walkFrom(int start1) {
 }
 
 // ---------------------------------------------------------------------------
-// §4 — GEOMETRY. The heptagon, the {7/2} heptagram, and its 14 crossings.
+// GEOMETRY. The heptagon, the {7/2} heptagram, and its 7 crossings.
 
 SkPoint heptVertex(int k, float rNorm) { return P((float)k * 360.0f / 7.0f, rNorm); }
 
@@ -436,10 +440,12 @@ shapes::OutlineFn heptChords(float rNorm, float inset) {
   };
 }
 
-/** The {7/2} heptagram is ONE closed curve: 0→2→4→6→1→3→5→0. Fourteen
- *  crossings, twenty-eight passes; alternating along the traversal is a
- *  proper over-under weave, and the console checks that every crossing
- *  really did get one of each. */
+/** The {7/2} heptagram is ONE closed curve: 0→2→4→6→1→3→5→0. Each of its
+ *  seven segments crosses exactly two others, so there are SEVEN crossings
+ *  and fourteen passes. Because the whole star is a single traversal,
+ *  alternating over/under along it is a valid weave; `inconsistent` counts
+ *  any crossing whose two passes came out claiming the same side, and the
+ *  console reports it. */
 struct Weave {
   SkPoint v[7];            // traversal vertices, in visiting order
   struct Cross {
@@ -456,7 +462,10 @@ Weave buildWeave(float rNorm) {
   Weave w;
   for (int k = 0; k < 7; ++k)
     w.v[k] = heptVertex((2 * k) % 7, rNorm);
-  // every unordered pair of non-adjacent segments meets exactly once
+  // All 21 unordered pairs are tested. Adjacent pairs share an endpoint and
+  // are rejected by the t/u range test below, as are the non-adjacent pairs
+  // whose infinite lines meet outside both segments; on a {7/2} star what
+  // survives is the seven real crossings, two per segment.
   struct Pass { int seg; float t; size_t cross; };
   std::vector<Pass> passes;
   for (int i = 0; i < 7; ++i)
@@ -509,22 +518,22 @@ shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
 // ---------------------------------------------------------------------------
 // paint helpers
 
-// The six-statement core is in Studio.h now; this file keeps its positional
-// shorthand because it has one type signature and hundreds of call sites.
+// A positional shorthand over studio::type. Every text run on this plate is
+// built from the same four fields, and there are hundreds of call sites.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
   return studio::type({.face = std::move(face), .size = size, .color = c,
                        .track = tracking});
 }
 
-using studio::ramp;   // six sketches wrote this seven-line body
+using studio::ramp;   // ramp(delayMs, durationMs) — a delayed eased reveal
 
-/** THE ENGRAVED V-GROOVE, borrowed wholesale from chaucer_astrolabe. A cut
- *  in wax is a cross-section — a shadowed wall and a lit wall — which is
- *  the one paint a stroke cannot carry. It can here for the same reason it
- *  could there: every rule on this plate that matters is a CIRCLE, so a
- *  radial ramp centred on that circle's own centre is constant ALONG the
- *  groove and varies ACROSS it. Third study; still a trick. */
+/** THE ENGRAVED V-GROOVE. A cut in wax is a cross-section — a shadowed wall
+ *  and a lit wall — which is the one thing a stroke's own paint cannot
+ *  carry. It works here because every rule on this plate that matters is a
+ *  CIRCLE: a radial ramp centred on that circle's own centre is constant
+ *  ALONG the groove and varies ACROSS it. On any path that is not
+ *  concentric with the gradient, this trick falls apart. */
 Fill grooveFill(float rad, float w, float darkA, float liteA) {
   const float g = rad + w;
   const float a = (rad - w * 0.5f) / g, b = (rad + w * 0.5f) / g;
@@ -577,7 +586,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   static constexpr float tInner = 1.05f;
   static constexpr float tSolve = 2.00f;
   static constexpr float tSolveEach = 0.92f;
-  static constexpr float tDark = tSolve + 7 * tSolveEach + 0.35f; // ~9.6
+  static constexpr float tDark = tSolve + 7 * tSolveEach + 0.35f; // ~8.8
   static constexpr float tBirds = 9.6f;
   static constexpr float tSpin = 15.4f;
 
@@ -644,8 +653,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // clockwise "toward the right hand".
 
   /** The rules and the radial hatch field: invariant under rotation about
-   *  their own centre, so they stay OUT of the turning layer. Keeping them
-   *  in cost 11 ms a frame during the settle, for no visible difference. */
+   *  their own centre, so they stay OUT of the turning layer. Inside it they
+   *  would be resampled every frame of the settle and look identical. */
   Element circumferenceRules() {
     auto g = box().inset(0);
 
@@ -793,19 +802,16 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // with brush::Pattern corner tiles: "at each corner of these
     // segments of circles, to make little Crosses."
     //
-    // A CROSS TURNED 45 DEGREES IS AN X, and for one afternoon these were
-    // all X. The art below is a Greek cross drawn with its arms on local
-    // +x/+y, and every corner of an annular sector is a RIGHT ANGLE — the
-    // radial leg meets the arc at 90 degrees — so aligning the stamp to
-    // either leg puts one arm along the arc and one along the radius, at all
-    // four corners of all seven plates, which is what the record draws. The
-    // BISECTOR of a right angle is 45 degrees off both, and the same 90-fold
-    // symmetry that makes Outgoing corner-agnostic makes Bisector uniformly
-    // wrong: not a tilt to notice, a saltire. This shipped at 0ea8aa3 (11:44)
-    // when brush::Pattern had no `cornerAlign` and every corner behaved as
-    // Outgoing; the scanner learned to bisect its own bracket at f706f5d
-    // (12:03) and defaulted to Bisector, and nothing in this file changed.
-    // So ask for the frame the art is drawn in, out loud.
+    // A CROSS TURNED 45 DEGREES IS AN X, so `cornerAlign` is stated here and
+    // not left to the default. The art below is a Greek cross drawn with its
+    // arms on local +x/+y, and every corner of an annular sector is a RIGHT
+    // ANGLE — the radial leg meets the arc at 90 degrees — so aligning the
+    // stamp to either leg (Outgoing) puts one arm along the arc and one along
+    // the radius, at all four corners of all seven plates, which is what the
+    // record draws. The BISECTOR of a right angle is 45 degrees off both, and
+    // the same 90-fold symmetry that makes Outgoing corner-agnostic makes
+    // Bisector uniformly wrong here: not a tilt to notice, a saltire. Any art
+    // whose own axes carry meaning has to name the frame it was drawn in.
     Element crossTile = box()
                             .width(13)
                             .height(13)
@@ -869,13 +875,13 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       std::string row;
       for (int c = 0; c < 7; ++c)
         row += kAngles[k][c];
-      // NOTE (perf, measured): this run used to hold a mid-path opacity via
-      // a keyframe path from 1.55 s to 9.9 s. A keyframe path that is still
-      // RUNNING is live volatility even while its value is constant, so all
-      // seven of these text-on-path nodes painted live for eight seconds —
-      // 29 ms of a 38 ms frame, and they blocked their parents from being
-      // promoted to textures. The entrance is now a plain ramp, and the
-      // birds' arrival is marked by a separate cheap rule on each plate.
+      // The entrance is a plain ramp that FINISHES, and it has to be: a
+      // keyframe path that is still running counts as live volatility even
+      // while its value is constant, so a long hold on one of these seven
+      // text-on-path nodes would keep all of them, and their parents,
+      // painting live and out of any texture for the whole hold. The birds'
+      // later arrival is therefore marked by a separate cheap rule on each
+      // plate rather than by holding this run's opacity.
       g.child(text(toU8(row), angStyle)
                   .inset(0)
                   .key("ang" + std::to_string(k))
@@ -975,7 +981,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   }
 
   // =========================================================================
-  // THE HEPTAGRAM — an interlaced band, fourteen crossings, drawn as one
+  // THE HEPTAGRAM — an interlaced band, seven crossings, drawn as one
   // custom leaf because the library has no over/under primitive.
 
   Element heptagram() {
@@ -1224,10 +1230,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                      {.across = 3.2f,
                       .width = 0.8f,
                       .fill = Fill::color(hex(0xfbf0d0, 0.45f))}}))
-                // THE MARKS, and not the wash under them: the rails draw
-                // themselves, the ground is simply there. Measured before
-                // the port: sweeping the 18%-alpha wash over its own ground
-                // moves ≤ 4 LSB, which is a picture nobody was reading.
+                // THE MARKS, and not the wash under them: the reveal runs on
+                // the rails only, and the 18%-alpha ground is simply there
+                // from the start. Sweeping a wash that faint across its own
+                // background is a change too small to read as an entrance.
                 .mask(parts::marks(),
                       by::spans(spans::upTo(animate(
                           from(0.0f).to(1.0f),
@@ -1660,14 +1666,12 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // =========================================================================
 
   console::Style logStyle() {
-    // 10.2, not 11. The panel is 690 wide, less 24 of padding, less a 14 gap
-    // either side of the 1 px divider: 318.5 to a column, and this mono is
-    // 0.62 em, so 11 pt fits 46 characters and nothing warns you about the
-    // 47th. FOUR lines were being truncated with no ellipsis and no clue —
-    // the two longest checks in the whole plate lost their units ("R = 257.972"
-    // for "R = 257.972 pt", "off by (-0.82, -2.47) p"), one lost a closing
-    // paren ("vs r(letter"), and the {7/2} verdict lost its full stop. The
-    // longest line is 50 characters, so the type has to be 11 x 47/50 or less.
+    // 10.2, and the ceiling is arithmetic. The panel is 690 wide, less 24 of
+    // padding, less a 14 gap either side of the 1 px divider: 318.5 px to a
+    // column. This mono advances 0.62 em, so 11 pt would fit 46 characters
+    // and the 47th onward would be cut with no ellipsis and no warning —
+    // console lines simply lose their tails. The longest line printed below
+    // is 50 characters, so the size has to be at most 11 x 47/50.
     constexpr float kMono = 10.2f;
     console::Style s = console::monoStyle(faceMono, kMono, hex(0x9d8a66),
                                           {hex(0x6b5c44),   // 0 dim
@@ -1756,10 +1760,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // against it off ONE Output — the seven-fold body one way, the five-fold
     // heart the other. Relative motion is what the figure is about: since
     // gcd(40,7) = gcd(40,5) = gcd(7,5) = 1 the three agree in exactly one
-    // direction, and arriving there is the ending. (The rim turned too until
-    // it was measured: a third rotating full-plate layer is ~7 ms a frame of
-    // pure layer resample and buys no relative motion that is not already
-    // on screen.)
+    // direction, and arriving there is the ending. Turning the rim as well
+    // would add a third full-plate layer resampled every frame and show no
+    // relative motion that is not already on screen.
     seal.child(circumferenceCells());
     // the whole seven-fold system turns as one body — heptagon, its two
     // letter bands, the heptagram woven on its vertices, and everything the
@@ -1934,10 +1937,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     logD.append(toU8(fmt("  along a point's ray the core stops at %.3f R",
                          (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
                 0);
-    // "Filiae", not "Fili\xc3\xa6": the console runs in the MONO face and that
-    // face has no ash. It fell back to a different typeface mid-word and the
-    // line read "Fili=/Filii". The seal's own legend, which is set in the
-    // serif, keeps the ligature.
+    // "Filiae", not "Fili\xc3\xa6": the console runs in the MONO face, which has
+    // no ash, and a missing glyph falls back to another typeface mid-word.
+    // The seal's own legend, set in the serif, keeps the ligature.
     logD.append(toU8(fmt("  Filiae/Filii Filiorum measured %.3f / %.3f R",
                          (double)rFiliaeFil, (double)rFiliiFil)),
                 0);
@@ -1948,7 +1950,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     logD.append(toU8(fmt("  %zu crossings, %zu passes, %d inconsistent",
                          weave.crossings.size(), weave.crossings.size() * 2,
                          weave.inconsistent)),
-                (weave.crossings.size() == 14 && weave.inconsistent == 0) ? 2 : 1);
+                // buildWeave() records one Cross per crossing POINT, so a
+                // {7/2} star yields 7 of them (n(k-1)); the 14 passes are the
+                // same points counted from both segments.
+                (weave.crossings.size() == 7 && weave.inconsistent == 0) ? 2 : 1);
     logD.append(toU8("  gcd(40,7)=gcd(40,5)=gcd(7,5)=1 \xe2\x80\x94 one"), 0);
     logD.append(toU8("  alignment only, and it is 12 o'clock."), 2);
   }
@@ -2029,14 +2034,15 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     ctx.composer.render(describe(ctx));
   }
 
-  /** The one discrete state this sketch has, and it is a CACHING state.
-   *  At rest the library promotes the seven-fold group's parts to small
-   *  textures and the frame is 8 ms. Under a live rotation it falls back to
-   *  replaying that group's picture — every AA clip, every hatch lattice and
-   *  every glyph re-rasterised through a rotated matrix — and the frame is
-   *  45 ms. Forcing Cache::Texture fixes the spin and costs 8 ms at rest, so
-   *  neither setting wins everywhere. Re-describing at the phase boundary
-   *  does: two render() calls per 26 s loop. */
+  /** The one discrete state this sketch has: which Name the solver is
+   *  currently walking. Everything else on the plate is continuous and rides
+   *  the ticker's Outputs, so it is described once and never re-described.
+   *
+   *  The walk cannot: each Name is a different path with a different contour
+   *  count, so advancing it means new geometry. That is what slot() is for —
+   *  `renderSlot` rebuilds ONLY the solver overlay, a handful of nodes, and
+   *  leaves the rest of the tree (and its baked layers) untouched. A full
+   *  render() to advance one hop would rebuild the whole seal. */
   void update(double, sketch::SketchContext &ctx) override {
     const double t = std::fmod(clockT, 26.0);
     // -1 before the walk and again once the plate turns; 7 = every Name

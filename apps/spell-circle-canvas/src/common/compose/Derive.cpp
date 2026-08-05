@@ -1,7 +1,17 @@
 // Derive phase: content whose input is RESOLVED geometry — text exclusions
-// (flowAround) plumbed into SigilWeave, and connectors routed between two
-// keyed nodes' resolved bounds. Runs after the first layout pass; a changed
-// exclusion asks for a bounded second pass (forward-only law, cycle-guarded).
+// (flowAround) plumbed into SigilWeave, band spines and stroke gaps borrowed
+// from other keyed nodes, and connectors and rails routed between keyed
+// nodes' resolved bounds. Runs after Yoga has laid the tree out; a changed
+// exclusion asks the caller for another round of its bounded convergence
+// loop.
+//
+// This is also where reference cycles are rejected — nothing upstream checks
+// for them. Every borrow here resolves a key to an instance and then refuses
+// the answer if that instance is this node or one of its descendants: a
+// descendant's box is computed FROM this node's, so borrowing it would feed
+// the shape its own output and the loop would never settle. The refusal is
+// silent by design (draw nothing rather than diverge), which is the same
+// answer an unknown key gets.
 
 #include "ComposeRuntime.h"
 
@@ -31,10 +41,11 @@ SkPath expandForHit(const SkPath &route) {
 
 } // namespace
 
-/** The derive pass over the EDGE STORE's flat lists (rebuilt with the key
- *  index each render): flowAround text nodes first, then routed nodes, both
- *  in tree order — no tree recursion. Returns true when a text exclusion
- *  changed (second layout pass needed). */
+/** The derive pass over the flat instance lists the key index rebuilds each
+ *  render: flowAround text nodes first, then routed nodes, both in tree
+ *  order — no tree recursion here. Returns true when a text exclusion
+ *  changed, which means the geometry the caller just laid out is stale and
+ *  layout must run again. */
 bool Composer::Impl::resolveDerived() {
   bool relayout = false;
   for (Instance *inst : flowInstances)
@@ -96,12 +107,13 @@ SkPath resolvedShapeOf(Instance &inst) {
   return b.detach();
 }
 
-/** The forward-only law, as the other derive borrows spell it: the target
- *  must not be this node or anything under it. Borrowing a DESCENDANT's
- *  geometry is the cycle — the child's box depends on this node's, so the
- *  shape would feed itself. (deriveFlow and the rail path carry the same
- *  three lines; this is the third copy of the SAME rule, kept together
- *  with them rather than invented differently.) */
+/** The cycle guard every borrow in this file applies: the target must not be
+ *  this node or anything under it. Borrowing a DESCENDANT's geometry is the
+ *  cycle — the child's box is derived from this node's, so the shape would
+ *  feed itself and the layout loop would never settle. deriveFlow and the
+ *  rail branch below open-code the same walk; if you add a fourth borrow,
+ *  it needs this check too, or an author can hang the layout pass with a
+ *  key. */
 bool borrowIsCyclic(const Instance &inst, Instance *target) {
   for (Instance *p = target; p; p = p->parent)
     if (p == &inst)
@@ -193,11 +205,11 @@ void Composer::Impl::deriveRoute(Instance &inst) {
           b.lineTo(to.centerX(), to.centerY());
           inst.connectorPath = b.detach();
         }
-        // Terminal gap — Anchor::gap's spelling on the connector door
-        // (§10): pull each END of the routed path back along itself,
-        // clamped like the rail's pullIn so a short wire keeps a run.
-        // Applied to the ROUTE rather than to the rects so it works for
-        // any router, straight or orthogonal or arc.
+        // Terminal gap, the connector's spelling of the same knob rail
+        // anchors carry: pull each END of the routed path back along
+        // itself, clamped like the rail's pullIn below so a short wire
+        // keeps a visible run. Applied to the ROUTE rather than to the
+        // rects, so it works for any router — straight, orthogonal, arc.
         if (derive->connectorGap > 0 && !inst.connectorPath.isEmpty()) {
           SkPathBuilder trimmed;
           SkContourMeasureIter iter(inst.connectorPath, false);

@@ -35,7 +35,7 @@
 //   4. The IDP scan (204.8 px/cm) for the PAPER — fibre, tone, the roll's
 //      replication marks. Not for positions.
 //
-// FIVE CORRECTIONS TO MY OWN BRIEF, ALL FROM THE DATA.
+// FIVE THINGS THE DATA SETTLES, AGAINST THE OBVIOUS READING.
 //
 //   1. 1,463 is a TOKEN count, not a HIP count. Three of the tokens are
 //      deep-sky objects — DSO:M44 (積屍氣, the cadaverous vapour in the
@@ -53,7 +53,8 @@
 //      paper. The difference is 0.489° of RA over 35 years, which is 4.6×
 //      below map 5's own RA mean residual of 2.26° — printed on the plate,
 //      because an epoch you cannot resolve is a result.
-//   4. Table 5 is 34 asterisms and 142 stars, not the 20 my brief carried.
+//   4. Table 5 runs to 34 asterisms and 142 stars — a longer list than
+//      Table 4's twenty rows for map 5, not a matching one.
 //   5. Ziwei is NOT the only mixed-colour asterism: Table 5 row 13,
 //      Tianpei 天棓, reads "5 R, 1 B?" — question mark and all.
 //
@@ -124,8 +125,8 @@
 // character for the same nine stars, while a DIFFERENT 左旗 exists in the
 // Dipper region.
 //
-// THE THIRD MODE OF LINE. Sigillum is ENGRAVED; the fulu is WRITTEN; this
-// is DRAWN — a draughtsman's fine brush on 0.04 mm mulberry. One weight,
+// THE MODE OF LINE. Not engraved and not written: DRAWN, with a
+// draughtsman's fine brush on 0.04 mm mulberry. One weight,
 // one ring, three fills, and a hand-drawn join BOWS: every asterism line
 // here is shapers::Jitter at low amplitude over a polyline through real dot
 // centres, revealed by trim() in RA order so the joining sweeps
@@ -136,8 +137,8 @@
 //                        from the precession matrix every frame while the
 //                        epoch runs. FIVE cells, not "three plus a tint":
 //                        an atlas cell is a whole ELEMENT TREE, so fill
-//                        AND ring bake into one sprite (the brief
-//                        predicted six cells or two passes; neither).
+//                        AND ring bake into one sprite, and no second
+//                        concentric pass is needed for the ring.
 //   lines::Rails         the scroll's top and bottom rules are NOT equal
 //                        weights; the map frames; the disc's limb
 //   PathFormat::trimStart/trimEnd   28 mansion rules that stop short of
@@ -149,7 +150,7 @@
 //                        brush press does not slide under the reveal
 //   brush::Scatter   the roll's contact replication marks
 //   patterns::grain (anisotropic) + Cache::Texture   the mulberry ground
-//   Bracket/Gapped Borders (legacy shims, §33-j)   with an EXPLICIT angleDeg — the
+//   Bracket/Gapped Borders   with an EXPLICIT angleDeg — the
 //                        disc's 28-fold division turns 12.86° per vertex
 //                        and the 30° default finds no corners at all
 //   TextPath::Orient::Radial   the disc's mansion names
@@ -307,8 +308,8 @@ inline float wrap180(float d) {
 }
 
 // ---------------------------------------------------------------------------
-// PRECESSION — IAU 1976 ζ/z/θ, the same routine chaucer_astrolabe runs at
-// T = −6.74 cy for 1326. Here T sweeps 0 → −13.00 cy, J2000 → +700.
+// PRECESSION — IAU 1976 ζ/z/θ. T is Julian centuries from J2000 and sweeps
+// 0 → −13.00 cy over the score, J2000 → +700.
 
 struct Mat3 { float m[9]; };
 
@@ -1254,8 +1255,8 @@ SkColor4f schoolInk(char c) {
  *  the bone instead of riding the reveal's leading edge.
  *
  *  max(): the law is 0.55 + 0.75·e^(-9t) + 0.35t on [0,1], monotone down
- *  then up, so its peak is at t=0 — w0·1.30. The old `widthMax = w0·1.9`
- *  was a guess with headroom; the seam takes the real number. */
+ *  then up, so its peak is at t=0 and equals w0·1.30 exactly. Reporting
+ *  more than that only pads the stroke's claimed bounds. */
 struct BonePress {
   float fullLen = 1.0f;
   float w0 = 1.0f;
@@ -1285,22 +1286,33 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
 
   /** THE ONE DISCRETE STATE, AND IT IS A CACHING STATE. Every reveal on this
    *  plate is a window() on `scribe`, which is a BOUND property and therefore
-   *  live volatility for ever — even once its value has been 1.0 for ten
-   *  seconds. Past the score's end the same reveal is described as a plain
-   *  constant, so ~500 nodes fall back into their parents' recordings. Two
-   *  render() calls per 31 s loop buy it. (sigillum_aemeth found the same
-   *  shape and paid 365 ms for a full render(); this one is cheap because
-   *  nothing below re-measures.) */
+   *  counts as live volatility for ever — even once its value has been 1.0
+   *  for ten seconds. Past the score's end the same reveal is described as a
+   *  plain constant instead, so the several hundred nodes that carry one fall
+   *  back into their parents' recordings. The cost is the two render() calls
+   *  per loop that flip the state, and they are cheap here because nothing
+   *  below re-measures text. */
   bool settled = false;
   Animatable<float> gate(float t0, float t1) const {
     if (settled) return Animatable<float>(1.0f);
     return Animatable<float>(bind(&scribe).window(t0, t1));
   }
-  /** A mark that comes and GOES: gone in the settled state. */
+  /** A mark that COMES AND GOES: it ramps 0 → 1 across [t0, t1], then
+   *  falls back to 0 by t2, so the mark is a visit rather than a residue.
+   *  One binding carries the whole visit — the window normalises [t0, t2]
+   *  onto [0,1] and the map folds that into a rise that peaks where t1
+   *  lands and a fall that reaches zero at the window's end. Past the
+   *  score, `settled` describes it as a plain 0 so the node drops out of
+   *  the live set entirely. */
   Animatable<float> flash(float t0, float t1, float t2) const {
     if (settled) return Animatable<float>(0.0f);
+    const float peak =
+        std::min(0.999f, std::max(0.001f, (t1 - t0) / (t2 - t0)));
     return Animatable<float>(
-        bind(&scribe).source(t0, t1).clamp(0, 1).scale(1.0f).offset(0.0f)
+        bind(&scribe).window(t0, t2)
+            .map([peak](float v) {
+              return v < peak ? v / peak : (1.0f - v) / (1.0f - peak);
+            })
             .clamp(0, 1));
   }
 
@@ -1336,14 +1348,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   std::vector<int> astMap;      // 5, 13, or 0
   std::vector<float> astRa;     // mean RA at +700, for the reveal stagger
 
-  /** The asterism line art, built ONCE. describe() runs twice per loop (the
-   *  settle flip and the loop reset) and rebuilding 1,747 precessions and 317
-   *  paths inside it cost a 20.4 ms frame — measured, then removed. */
+  /** The asterism line art, built ONCE in setup(). describe() runs twice per
+   *  loop (the settle flip and the loop reset), so 1,747 precessions and 317
+   *  path builds inside it would land whole on those two frames. */
   struct AstArt { SkPath local; SkRect box; float t0; SkColor4f ink; };
   std::vector<AstArt> astArt;
-  /** Map 5's twenty centroids and the 28 determinative RAs, resolved ONCE.
-   *  describe() runs twice per loop and both were O(asterisms x vertices)
-   *  inside it — one 22.3 ms frame at the settle flip, measured then removed. */
+  /** Map 5's twenty centroids and the 28 determinative RAs, resolved ONCE in
+   *  setup(). Both are O(asterisms x vertices), so leaving them inside
+   *  describe() would put that whole walk on each of the two re-describes. */
   std::array<SkPoint, 20> m5Cent{};
   std::array<int, 20> m5Region{};
   std::array<float, 28> xiuRa{};
@@ -1430,7 +1442,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       SkPoint paper;
       p.onPaper = paperPoint(p.raNow, p.decNow, paper, region);
       p.paper = p.onPaper ? paper : p.sky;
-      const float f = smooth((fold - p.fold0) / 0.42f) * (p.onPaper ? 1.0f : 1.0f);
+      const float f = smooth((fold - p.fold0) / 0.42f);
       pos[(size_t)i] = {p.sky.fX + (p.paper.fX - p.sky.fX) * f,
                         p.sky.fY + (p.paper.fY - p.sky.fY) * f};
       SkColor4f t{1, 1, 1, 1};
@@ -1533,11 +1545,15 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   Element scrollBand(float x0, float x1, const char *keyName, float tilt) {
     const float w = x1 - x0;
     // ASK FOR THE BAKE BY NAME. The band carries a paper gradient, an
-    // anisotropic grain and a speckle wash over 780 kpx, and it is ROTATED
-    // (a scroll does not lie square) — which disqualifies it from the
-    // library's device-space promotion, since a bake pinned to one device
-    // rect is not matrix-independent. Measured: 24.5 ms of a 29.9 ms frame
-    // for the two bands, replaying three shaders over 1.5 Mpx forever.
+    // anisotropic grain and a speckle wash over its whole area, and it is
+    // ROTATED (a scroll does not lie square) — which disqualifies it from
+    // the library's automatic device-space promotion, since a bake pinned to
+    // one device rect is not matrix-independent. Without this explicit cache
+    // the three shaders re-run over every pixel of both bands on every frame,
+    // although nothing here ever moves. The rule generalises: a node is
+    // refused the automatic bake for a decorative half-degree tilt exactly as
+    // it is for animation, so any rotated node with area must be baked by
+    // name.
     auto g = box().left(x0).top(kBandTop).width(Dim(w))
                  .height(Dim(kBandH)).rotate(tilt).key(keyName)
                  .cache(Cache::Texture)
@@ -1567,8 +1583,9 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .cache(Cache::Texture));
 
     // "replication marks by contact due to long conservation in a rolled
-    // state" — the ghost of the adjacent turn, one circumference over
-    const float circ = 244.0f * 3.14159f * 0.5f * kPxMm; // ~85 cm of roll
+    // state" — the ghost of the adjacent turn, one circumference over,
+    // taking the sheet's 244 mm width as the roll's diameter
+    const float circ = 244.0f * 3.14159f * kPxMm; // ~77 cm of scroll
     for (int k = -3; k <= 3; ++k) {
       const float gx = std::fmod(std::abs(x0) + (float)k * circ, w);
       g.child(box().left(gx).top(6).width(Dim(3.0f)).height(Dim(kBandH - 12))
@@ -1871,9 +1888,10 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int a = 0; a < nAst; ++a) {
       const AstRec &A = kAst[a];
       SkPathBuilder pb;
-      // NOT SkRect::join — it EARLY-OUTS on an empty rect, and a single
-      // point IS an empty rect, so joining points one at a time leaves the
-      // box inverted and every asterism draws nothing. Cost: one render.
+      // Bounds accumulated by hand, NOT with SkRect::join — join EARLY-OUTS
+      // on an empty rect, and a single point IS an empty rect, so growing a
+      // box one point at a time leaves it inverted and every asterism draws
+      // nothing.
       float bl = 1e9f, bt = 1e9f, br = -1e9f, bb = -1e9f;
       bool open = false;
       int pts = 0;
@@ -2002,8 +2020,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (c.fY < kFrameTop || c.fY > kFrameTop + kFrameH) continue;
       const float t = tAudit + (float)i * tAuditEach;
 
-      // the audit's own ring. Transient on a clean row; PERMANENT on the six
-      // documented defects, so the settled plate carries exactly the errata.
+      // the checking panel's own ring, raised on this row's beat. A clean row
+      // takes flash() — up on its beat and faded back out three seconds
+      // later — while a defect row takes gate() and stays up for the rest of
+      // the running score, so from mid-audit onward the plate carries
+      // exactly the six documented defects.
       g.child(box().left(c.fX - 30).top(c.fY - 30).width(Dim(60))
                   .height(Dim(60)).shape(shapes::circle())
                   .opacity(r.defect ? gate(t, t + 0.3f)
@@ -2896,11 +2917,12 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas((int)kW, (int)kH);
     ctx.background(kVoid);
-    // §31 entrance-into-hold beat: the file's own documented reference; the
-    // settled plate holds [28.2, 31.0) on the 31 s loop, and 29.0 s keeps
-    // 2 s of margin before the wrap. (The old 6.0 default was
-    // mid-precession: the unprojected sky sliding at ~1450 AD — no scroll,
-    // no asterisms, no audit.)
+    // This study brings its own canvas size and background (above) rather
+    // than inheriting a default, and names its own still frame here. The
+    // settled plate holds [28.2, 31.0) of the 31 s loop, so 29.0 s sits
+    // inside that hold with 2 s of margin before the wrap. Anything much
+    // earlier catches the score mid-precession: unprojected sky, no scroll,
+    // no asterisms, no checking panel.
     ctx.captureAt(29.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
@@ -3032,47 +3054,3 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
 };
 
 SIGIL_SKETCH(DunhuangStarChart)
-
-// ---------------------------------------------------------------------------
-// WHAT IT COST, AND THE ONE LINE THAT PAID FOR IT. 2560 x 1600, `--bench`,
-// across the whole score:
-//
-//     t = 3.0   p50 6.02 / p99 7.88      the paper and the sky
-//     t = 15.0  p50 8.70 / p99 9.48      317 asterisms drawing themselves
-//     t = 20.0  p50 9.18 / p99 9.76      the audit walking map 5
-//     t = 27.0  p50 9.76 / p99 11.06     (max 22.34 — see below)
-//     t = 29.0  p50 10.09 / p99 10.83    the settled plate
-//
-// THE FIRST MEASUREMENT WAS 29.92 ms p50, AND 24.5 ms OF IT WAS TWO NODES.
-// The two scroll bands carry a paper gradient, an anisotropic grain and a
-// speckle wash over 1.5 Mpx between them, and they are ROTATED -0.42 deg
-// because a scroll does not lie square. That constant rotation is enough to
-// disqualify them from the library's device-space promotion — a bake pinned
-// to one device rect is not matrix-independent — so `--bench` printed
-// `not baked: rotated, mirrored or skewed` and three shaders re-ran over
-// every pixel, every frame, for ever. One `.cache(Cache::Texture)` per band
-// took the frame 29.92 -> 5.81 ms, 5.1x, and changed nothing on screen.
-//
-// The reading to take from that: "not baked: rotated" is not a warning about
-// live animation. A node that never moves at all is refused the same way if
-// its matrix is not axis-aligned, and a decorative half-degree tilt is enough
-// to do it. Any rotated node with area is a node you must bake by name.
-//
-// THREE MORE THINGS MEASURED:
-//   1. EVERY REVEAL ON THIS PLATE IS A window() ON ONE OUTPUT, and a bound
-//      property is live volatility for ever — including ten seconds after its
-//      value settled at 1.0. Past the score's end the same reveals are
-//      described as plain constants (`gate()`), which drops ~500 nodes back
-//      into their parents' recordings. Two render() calls per 31 s loop.
-//   2. THE PRICE OF THAT IS ONE FRAME. The settle flip re-describes the whole
-//      tree: 22.34 ms, once per 1,860 frames. p99 does not see it (11.06 ms)
-//      because 120 sampled frames contain at most one. It came down from
-//      worse by hoisting everything O(asterisms x vertices) out of describe()
-//      — the 317 asterism paths, map 5's twenty centroids, and the 28
-//      determinative RAs are all built once in setup().
-//   3. 1,460 dots are 1.28 ms as ONE instancing leaf in Mode::Live, and the
-//      pool rebuild early-outs whenever the epoch and the fold have not moved,
-//      so the settled plate pays only the stamp. The atlas is FIVE cells and
-//      no tint: a cell is a whole element tree, so the school fill and the
-//      black ring bake into one sprite. The brief predicted six cells or a
-//      two-pass pool for the ring; neither was needed.

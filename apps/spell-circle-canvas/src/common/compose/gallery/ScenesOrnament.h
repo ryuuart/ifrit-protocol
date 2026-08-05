@@ -20,9 +20,10 @@ struct ManuscriptScene final : Scene {
 
   const char *name() const override { return "manuscript"; }
 
-  // §31 named-state beat: two verse states on a 14 s cycle; verse 0 is the
-  // incipit the fixed rubric announces ("INCIPIT..."). 3.5 s is dead centre
-  // of verse 0's hold — maximum margin from both verse turns.
+  // The page turns between two verses on a cycle, so the still names its
+  // moment. This sits mid-hold on verse 0, which is the incipit the fixed
+  // rubric in the margin announces — the only verse the rest of the page
+  // agrees with.
   double captureSeconds() const override { return 3.5; }
 
   static constexpr const char8_t *kVerses[2] = {
@@ -55,11 +56,11 @@ struct ManuscriptScene final : Scene {
     const Palette pal = azurePalette();
     const Palette rubric = crimsonPalette();
 
-    // A TRUE drop cap: the verse's first grapheme becomes the
-    // illuminated initial, and the body text is the REMAINDER — the
-    // paragraph flows around the initial via the derive phase.
-    // (SigilWeave's ExclusionFlow provides the geometry; a first-class
-    // N-line initial in ParagraphLayoutOptions is the eventual home.)
+    // A TRUE drop cap: the verse's first grapheme becomes the illuminated
+    // initial and the body text is the REMAINDER, with the paragraph flowing
+    // around the initial through the derive phase. There is no dedicated
+    // drop-cap facility; the geometry comes from SigilWeave's exclusion flow,
+    // which is why the split is done here on the string.
     const std::u8string letter(1, kVerses[verse][0]);
     const std::u8string body(kVerses[verse] + 1);
 
@@ -88,10 +89,11 @@ struct ManuscriptScene final : Scene {
           .child(custom(sprig(pal)).inset(0));
     };
 
-    // Everything static lives in one texture-baked stack: the page is
-    // dense (noise fills, hundreds of vine stamps, flowed text), so
-    // picture replay would re-rasterize ~20ms/frame on raster — baked,
-    // the per-frame cost is one image blit. Re-bakes on verse turns.
+    // Everything static lives in one texture-baked stack. The page is dense
+    // — noise fills, hundreds of vine stamps, text flowed around exclusions —
+    // so replaying it as a picture would re-rasterize all of that every
+    // frame; baked, the per-frame cost is one image blit. The bake is dropped
+    // and retaken only on a verse turn.
     auto pageStack = stack().inset(0).cache(Cache::Texture)
         // The page: parchment ground, stem-colored rule, vine border.
         .child(box().inset(26, 22, 26, 22).corners({6})

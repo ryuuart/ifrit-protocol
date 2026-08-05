@@ -32,7 +32,7 @@ namespace sigil::compose::sketch {
 
 /** Bumped whenever SketchContext/Sketch change shape; the host refuses
  *  sketch dylibs built against another version. */
-inline constexpr unsigned kAbiVersion = 4; // 4: CanvasSpec::captureSeconds
+inline constexpr unsigned kAbiVersion = 4;
 
 /** The canvas the host realizes for the sketch: logical size (the
  *  window letterboxes it, headless captures honor it) and the clear
@@ -64,10 +64,9 @@ struct SketchContext {
         deterministic(deterministicIn) {}
   /** NON-COPYABLE, deliberately: this is a PER-FRAME value the host
    *  rebuilds — capturing it in a steppable by reference dangles next
-   *  frame, and capturing a COPY would hold stale spec/size just as
-   *  silently. Neither compiles now; capture `ctx.composer` (stable for
-   *  the sketch's life) or plain data instead. Layout is unchanged, so
-   *  kAbiVersion stays at 4. */
+   *  frame, and capturing a COPY would hold a stale spec/size just as
+   *  silently. Neither compiles; capture `ctx.composer` (stable for the
+   *  sketch's life) or plain data instead. */
   SketchContext(const SketchContext &) = delete;
   SketchContext &operator=(const SketchContext &) = delete;
   /** `--deterministic`: the host is taking a capture that will be DIFFED,
@@ -80,20 +79,18 @@ struct SketchContext {
    *  a bake cost, a live node count, a frame counter. Returns @p value
    *  normally and @p pinned under `--deterministic`.
    *
-   *  WHY THIS EXISTS. A study that draws its own measurements into its own
+   *  WHY THIS EXISTS. A sketch that draws its own timings into its own
    *  plate is not a reproducible capture: it differs from ITSELF between
-   *  two runs of the same binary. Measured on this corpus —
-   *  `genesis_fire` 34 differing pixels, `slitscan_2001` 16, against a
-   *  negative control at 0. So every pixel sweep reports those studies as
-   *  changed by any patch, including a patch that changes nothing, and the
-   *  false positive has exactly the shape (small, clustered, plausible) of
-   *  the real regression a sweep is for. It cost this program two rounds
-   *  of cropping and looking to clear a change that had altered nothing.
+   *  two runs of the same binary. A pixel-comparison sweep then reports it
+   *  as changed by a patch that changed nothing, and that false positive
+   *  has exactly the shape — small, clustered, plausible — of the real
+   *  regression the sweep exists to catch.
    *
-   *  The rule is broader than clocks: it is any value the sketch computed
-   *  from its own execution rather than from its data. A node count is
-   *  usually stable and a bake time never is, but both belong here,
-   *  because "usually stable" is what makes the eventual diff mystifying.
+   *  The rule is broader than clocks: it covers any value the sketch
+   *  computed from its own execution rather than from its data. A node
+   *  count is usually stable and a bake time never is, but both belong
+   *  here, because "usually stable" is what makes the eventual diff
+   *  mystifying.
    *
    *      std::snprintf(buf, n, "BUILD %.2f ms", ctx.measured(buildMs)); */
   double measured(double value, double pinned = 0.0) const {
@@ -124,17 +121,15 @@ struct SketchContext {
    *  the moment the piece is most itself. GALLERY stills honor it; the
    *  live host and the timing table are untouched. ComposeSketch's own
    *  `--frame` does NOT consult it: that path warms to `--at` and takes
-   *  its moment from there (aligning the two is open).
+   *  its moment from there.
    *
    *  Reach for it whenever the sketch has beats: an entrance that settles
-   *  into a hold, a cycle that visits several states, a reveal. The gallery
-   *  otherwise captures at a fixed t = 6.0 s that is an artifact of its
-   *  warm-and-sample budget, and a sketch whose loop is longer than that
-   *  will be reviewed mid-gesture. `black_watch` turns five shade families
-   *  over an 8 s cycle and was captured, for its whole life, on the
-   *  weathered one.
+   *  into a hold, a cycle that visits several states, a reveal. Left
+   *  undeclared, the gallery captures at a fixed time derived from its own
+   *  warm-and-sample budget, so a sketch whose cycle is longer than that
+   *  is reviewed mid-gesture, and always at the same arbitrary phase.
    *
-   *      ctx.captureAt(7.2); // loom 0.90 — the Modern hold */
+   *      ctx.captureAt(7.2); // the hold at the end of the cycle */
   void captureAt(double seconds) {
     if (spec)
       spec->captureSeconds = seconds;

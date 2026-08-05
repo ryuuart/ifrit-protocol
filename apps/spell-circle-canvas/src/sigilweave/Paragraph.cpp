@@ -249,6 +249,10 @@ void itemizeScripts(const std::u16string &text, bool &hasRightToLeftText,
 void Paragraph::recordEdit(uint32_t start, uint32_t removedLength,
                            uint32_t insertedLength) {
   ++m_revision;
+  // Bounded history, trimmed half at a time so trimming is amortized instead
+  // of running on every edit once the cap is reached. The consequence for
+  // callers is in editsSince(): the lookback that is always available is
+  // kMaxHistory / 2 edits, not kMaxHistory.
   constexpr size_t kMaxHistory = 256;
   if (m_editHistory.size() >= kMaxHistory) {
     m_editHistory.erase(m_editHistory.begin(),
@@ -960,9 +964,12 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
   }
 
   // Trailing whitespace becomes justification glue. Hard-break characters
-  // are zero-width; tabs measure as spaces (documented simplification).
-  // The overwhelmingly common glue (" " in the same style as the previous
-  // word) is memoized, skipping even the shape-cache probe.
+  // are zero-width, and a tab is shaped as a space here; when tab stops are
+  // configured, layout replaces this glue with an advance to the next stop
+  // (see glueAfter in ParagraphLayoutInternal.h), so the shaped width is
+  // only the fallback. The overwhelmingly common glue (" " in the same
+  // style as the previous word) is memoized, skipping even the shape-cache
+  // probe.
   const int32_t whitespaceEnd = static_cast<int32_t>(word.whitespaceEnd);
   if (whitespaceStart < whitespaceEnd) {
     static thread_local std::u16string whitespaceScratch;

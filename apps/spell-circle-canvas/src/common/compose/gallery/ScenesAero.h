@@ -1,22 +1,30 @@
 #pragma once
-// The Windows 7 Aero glass desktop (REFERENCES.md sec.6 -- the recovered
-// DWM colorization formula), ported from sketch/sketches/aero_study.cpp:
+// The Windows 7 Aero glass desktop.
+//
+// Aero's Desktop Window Manager composited glass as
+//
 //   out.rgb = tint*colorBalance + tint*luma(blur)*afterglowBalance
 //             + blur*blurBalance
-// approximated as Element::backdrop(blur sigma=3, the registry's tight
-// blurdeviation 30) + a Material::blend tint stack in the Win7 "Sky"
-// accent (#74B8FC). Frame anatomy per sec.6: 1px black a.65 silhouette
-// (stroke align Outer on the frame outline), 1px white a.55 glass edge
-// inside it (align Inner, same outline), client hole ringed 1px black
-// a.35 / 1px white a.45 (one ring box, Outer+Inner), top corners r~6,
-// radial white corner glows, one diagonal desktop-space sheen. Caption
-// text = black over the DrawThemeTextEx white haze (styles::textGlow).
-// The wallpaper is a procedural aurora SkSL shader (high-frequency
-// filaments + stars so the tight glass blur actually READS). The DWM
-// drop shadow is a rounded-box SDF shader with a smoothstep knockout
-// under the pane -- the glass is translucent, so a solid shadow core
-// would go murky through the backdrop blur. Window-open replays on
-// every activation: scale .96->1 (220ms) + fade 0->1 (180ms) mounts.
+//
+// which is approximated here as Element::backdrop() with a tight blur sigma
+// (Aero's own blur deviation was small — the glass shows shape, not colour)
+// plus a Material::blend tint stack in the Windows 7 "Sky" accent (#74B8FC).
+//
+// The frame anatomy is what makes it read as Aero rather than as a blur:
+// a 1px black silhouette stroked Outer on the frame outline, a 1px white
+// glass edge stroked Inner on the same outline, the client hole ringed with
+// a black/white pair the same way, small top-corner radii, radial white
+// glows in the corners, and one diagonal sheen in desktop space. Caption
+// text is black over a white haze, which is what DrawThemeTextEx produced.
+//
+// Two supporting pieces are deliberate. The wallpaper is a procedural SkSL
+// aurora with high-frequency filaments and stars, because a smooth wallpaper
+// gives a tight blur nothing to show. The drop shadow is a rounded-box SDF
+// shader with a smoothstep knockout under the pane: the glass is
+// translucent, so a solid shadow core would show through the backdrop blur
+// and muddy it.
+//
+// The window-open animation replays on every activation of the scene.
 
 #include "GalleryCore.h"
 
@@ -38,7 +46,8 @@ namespace aero_desktop {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // Window geometry (desktop space), recomposed for 900x640: the pane
-// keeps sec.6-credible proportions, the taskbar keeps its 40px band.
+// keeps proportions credible against the original, the taskbar keeps its
+// 40px band.
 constexpr float kWX = 150, kWY = 84, kWW = 600, kWH = 440;
 constexpr float kCaption = 30; // caption band height
 // Client hole (window-local): glass border 9px, caption above.
@@ -119,18 +128,15 @@ inline Material glassTint(float w, float h) {
   return Material::blend({
       // tint*colorBalance -- the flat Sky wash.
       //
-      // 0.30, was 0.54. The user's report was that the glass reads OPAQUE,
-      // and the diagnosis is worth keeping because it exonerates the parts
-      // that looked guilty: the fake-backdrop (a canvas-aligned frozen
-      // aurora copy, blurred and clipped to the pane -- there is no live
-      // backdrop() here, deliberately, so the pane can bake) is CORRECT and
-      // was rendering the whole time; and promotion is not touching it
-      // (on/off differs by ~1 LSB). It was buried. Dropped to 0.10 in a
-      // scratch build the blurred aurora resolved perfectly and aligned
-      // with the desktop through the frame; 0.54 simply washed 54% of it
-      // out. 0.30 lets the blur READ as translucent glass -- the whole
-      // point of the pane -- while keeping the Sky character and the dark
-      // caption text legible over it (measured at this value).
+      // This alpha is the whole scene's balance point, so change it
+      // knowingly. The pane's translucency does not come from a live
+      // backdrop(): it is a canvas-aligned frozen copy of the aurora,
+      // blurred and clipped to the pane, chosen deliberately so the pane can
+      // bake as one texture. That copy resolves correctly underneath, and
+      // this wash sits on top of it. Raise the alpha and it simply covers the
+      // blurred desktop, and the glass stops reading as glass; lower it and
+      // the Sky character goes, along with the contrast the dark caption text
+      // needs to stay legible.
       {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.30f}),
        SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
@@ -160,7 +166,7 @@ inline Material cornerGlow(SkPoint center) {
                            {1.0f, {1, 1, 1, 0.0f}}});
 }
 
-// sec.6 close-button hover bloom.
+// The bloom that filled the close button on hover.
 inline Material closeBloom(float w, float h) {
   return Material::radial(
       {w * 0.5f, h * 0.42f}, w * 0.60f,
@@ -226,7 +232,8 @@ struct AeroDesktopScene final : Scene {
     ticker.timeline()
         .apply(&bloom)
         .then<ch::Hold>(0.0f, 0.45f)
-        .then<ch::RampTo>(1.0f, 0.10f, &ch::easeOutQuad); // ~100ms in (sec.6)
+        // Aero's hover bloom came up fast, over roughly a tenth of a second.
+        .then<ch::RampTo>(1.0f, 0.10f, &ch::easeOutQuad);
 
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
@@ -277,7 +284,7 @@ struct AeroDesktopScene final : Scene {
     // NOTE: the hovered close-button bloom is drawn by closeBloomOverlay()
     // in describe() -- its &bloom opacity bind here would keep the entire
     // window texture plane volatile. `hovered` stays in the signature as
-    // the sec.6 state marker.
+    // the state marker the real control had.
     (void)hovered;
     // faint inner top light
     b.child(box().inset(1, 1, 1, h - 2)
@@ -306,9 +313,9 @@ struct AeroDesktopScene final : Scene {
   // ---- caption text over the DrawThemeTextEx white haze ---------------
   Element captionText() {
     namespace ad = aero_desktop;
-    // sec.6: black text, white backplate blur sigma~5 a.9 -- textGlow re-emits
-    // the glyph layer blurred beneath itself; a tight+wide chain gives
-    // the dense core with the soft 6-8px falloff.
+    // Aero drew caption text as black glyphs over a white blurred backplate.
+    // textGlow re-emits the glyph layer blurred beneath itself, so chaining a
+    // tight pass and a wide one gives the dense core with a soft falloff.
     return box().inset(36, 8, 130, ad::kWH - ad::kCaption)
         .child(text(toU8("Aurora Borealis \xe2\x80\x94 Aero Glass"),
                     ad::type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
@@ -475,13 +482,14 @@ struct AeroDesktopScene final : Scene {
   Element startOrb() {
     // 34px sphere, window-local to the taskbar strip.
     const float d = 34;
-    // NOTE: the breathing aqua glow that used to sit behind the orb here
-    // lives in describe() now -- its &orbGlow opacity bind would keep the
-    // whole taskbar texture plane volatile (see orbHalo()).
+    // The breathing aqua glow behind the orb is NOT built here; it is
+    // orbHalo(), placed by describe() outside the taskbar plane. Its opacity
+    // is bound to &orbGlow, and a binding anywhere in this subtree would mark
+    // the whole taskbar volatile and stop it caching as one texture.
     return box().inset(14, 3, 0, 0).width(d).height(d)
         .child(
             box().inset(0).corners({d / 2}).clip()
-                // sec.6 radial base
+                // the orb's radial base
                 .fill(Material::radial(
                     {d * 0.5f, d * 0.42f}, d * 0.62f,
                     {{0.00f, {0.086f, 0.227f, 0.373f, 1}},   // #163A5F

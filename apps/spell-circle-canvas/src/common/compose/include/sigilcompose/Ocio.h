@@ -1,35 +1,29 @@
 #pragma once
 
 /** @file
- * SigilCompose × OpenColorIO — VFX-grade color management for the Composer's
- * output stage. Available when the build found OpenColorIO (already in this
- * repo's dependency closure via OpenImageIO); guarded by
+ * SigilCompose × OpenColorIO — color management for the Composer's output
+ * stage. Compiled in only when the build found OpenColorIO; guarded by
  * SIGILCOMPOSE_ENABLE_OCIO.
  *
- * The pattern (the sanctioned real-time OCIO path — its GPU codegen emits
- * GLSL/HLSL/MSL/OSL, not SkSL, so we sidestep it): build a CPU processor for
- * the requested transform, bake it into a 3D LUT once at setup, upload the
- * LUT as an SkImage, and apply it per frame with a tiny SkSL trilinear
- * sampler wrapped in an SkImageFilter. The result is an ordinary `Effect` —
- * hand it to `Composer::setView()` (the whole-output view transform) or to
- * any node's `.effect()`.
+ * How it works, and why not the obvious way: OCIO's own GPU codegen emits
+ * GLSL/HLSL/MSL/OSL and never SkSL, so it cannot be used directly here.
+ * Instead each factory below builds a CPU processor for the requested
+ * transform, bakes it into a 3D LUT once at construction, uploads the LUT as
+ * an SkImage, and applies it per frame through a small SkSL trilinear sampler
+ * wrapped in an SkImageFilter. The result is an ordinary `Effect` — hand it
+ * to `Composer::setView()` for the whole output, or to any node's
+ * `.effect()`. Nothing of OCIO proper (config parsing, processors, CPU
+ * evaluation) runs per frame; the frame carries only the baked LUT texture
+ * and one sample per pixel.
  *
  * Color contract: authored colors are treated as the transform's INPUT space.
  * For a display/view transform, author in the config's scene-linear role and
- * the view maps linear → display. Off by default; costs one saveLayer while
- * set.
+ * the view maps linear → display. No view is set by default; setting one
+ * costs a saveLayer over the output for as long as it is set.
  *
- * POSITIONING (2026-07-21): OCIO here is BAKE/EXPORT TOOLING, not a runtime
- * system. The runtime carries only the baked LUT texture — one sample per
- * pixel in the final composite, the same technique game engines ship for
- * grading — expected ~free on Graphite, but UNMEASURED: there is no
- * STRESS_TESTS.md entry for it yet. OCIO-proper
- * (config parsing, processors, tetrahedral CPU eval) belongs at bake time
- * and at CAPTURE/EXPORT time, where single frames can afford full-fidelity
- * transforms. Scene-linear/ACES authoring workflows (linear palettes, F16
- * intermediates for >1.0 values) are rendering-pipeline territory and are
- * deliberately NOT pursued for the realtime path. LUTs bake to F16: F32
- * textures are not linearly filterable on Apple GPUs.
+ * LUTs bake to F16 because F32 textures are not linearly filterable on Apple
+ * GPUs — a trilinear sampler over an F32 LUT would fall back to point
+ * sampling and band.
  */
 
 #include "sigilcompose/Compose.h"

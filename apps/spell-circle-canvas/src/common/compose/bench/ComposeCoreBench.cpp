@@ -1,6 +1,8 @@
-// SigilCompose scaling benchmarks. ComposeBench.cpp keeps the historical
-// scene/perf-gate probes; this file is the systematic cold/warm/update/draw
-// matrix, mirroring weave_bench's organization and parameterized sizes.
+// SigilCompose scaling benchmarks: the same operations at several node
+// counts, so the reader gets a curve rather than a point. Arms are organized
+// as a cold / warm / update / draw matrix, laid out the same way as
+// weave_bench with the same style of size parameters. ComposeBench.cpp is
+// the companion file, holding whole-scene arms at a single fixed size.
 
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Compose.h>
@@ -229,16 +231,19 @@ Element groupScene(int count, Cache mode) {
   return box().cache(Cache::None).absolute().inset(0).child(std::move(group));
 }
 
-// ---- ROADMAP §Argument 3 / §10g(4): what the BINARY volatility
-// ---- declaration costs a node whose bound property barely moves.
+// ---- What a binding costs a node whose bound property barely moves --------
 //
-// A panel of `count` stroked, shaped cells — each records its own picture —
-// plus ONE accent cell in the same row whose fill is either bound to an
-// external Output or a plain value. The accent's ancestors (the row, the
-// frame, the root) are what a bound fill poisons: `computeVolatile` walks
-// the volatility UP, so the row and the root drop their pictures and lose
-// texture promotion for as long as the binding exists, whether or not it
-// has moved this frame. Everything else about the three arms is identical.
+// Volatility is declared, not observed: a bound property marks its node
+// volatile for as long as the binding exists, regardless of whether the
+// value changed this frame. Volatility then propagates upward, so the
+// ancestors of a bound node also drop their recordings and lose texture
+// promotion.
+//
+// The fixture isolates that: a panel of `count` stroked, shaped cells, each
+// recording its own picture, plus ONE accent cell in the same row whose fill
+// is spelled either as a binding to an external Output or as a plain value.
+// Everything else about the arms is identical, so the difference is entirely
+// what declaring the binding costs the row, the frame and the root above it.
 
 enum class AccentFill { Bound, Plain };
 
@@ -482,7 +487,10 @@ BENCHMARK(BM_Query_Bounds)
     ->Arg(10000)
     ->Unit(benchmark::kNanosecond);
 
-// ---- paint mechanisms added after the original perf gate -----------------
+// ---- paint mechanisms: masks, brushes, profiled strokes, spans -----------
+// Each of these resolves geometry during paint rather than at describe time,
+// so all of them run with Cache::None: the arms are meant to price the
+// per-frame resolve, and a recording would hide exactly that.
 
 static void BM_Draw_Mask_Spans_Live(benchmark::State &state) {
   const int count = (int)state.range(0);
@@ -537,8 +545,10 @@ BENCHMARK(BM_Draw_ProfiledRibbon_Live)
     ->Arg(128)
     ->Unit(benchmark::kMicrosecond);
 
-/** The ROADMAP's explicit missing arm: crossing discovery re-flattens every
- * strand and compares every segment pair on every live paint. */
+/** Woven strokes: crossing discovery re-flattens every strand and compares
+ *  every segment pair on every live paint, so cost grows with the square of
+ *  the strand count. The `pairs` counter reports that count directly, which
+ *  is what the arm's timings should be divided by. */
 static void BM_Draw_BrushWeave_Live(benchmark::State &state) {
   const int count = (int)state.range(0);
   CoreHost host(640, 640);
@@ -555,15 +565,18 @@ BENCHMARK(BM_Draw_BrushWeave_Live)
     ->Arg(8)
     ->Unit(benchmark::kMicrosecond);
 
-/** ROADMAP §33 residue (resolveSpans): the span walk is re-run 3-4x per
- *  paint with nothing held between frames — "fine at the corpus's pass
- *  counts", where the corpus runs 1-3 passes per boundary. This arm is the
- *  measurement that claim was missing: a 16-node grid whose every node
- *  carries `passes` marching `spans::wrap` passes (disjoint windows off one
- *  Output, the marching-ants idiom), so every endpoint resolves and every
- *  boundary re-walks on every frame. 1-2 is corpus-representative; 8-16 is
- *  the spans-heavy stress the fix-shape (an Instance-side cache keyed like
- *  outlineCache) would exist for. */
+/** Span strokes hold nothing between frames: the contour walk that turns a
+ *  span's endpoints into a sub-path is redone on every paint, several times
+ *  per painted node, and the count scales with the number of span passes on
+ *  that node.
+ *
+ *  The fixture makes that the only variable: a 16-node grid where each node
+ *  carries `passes` marching `spans::wrap` passes — disjoint windows driven
+ *  off one shared Output, the marching-ants idiom — so every endpoint
+ *  resolves and every boundary re-walks each frame. The low pass counts are
+ *  what real scenes use; the high ones exist so the growth is visible and so
+ *  a per-Instance span cache, if one is ever added, has something to be
+ *  measured against. */
 Element spanStrokeGrid(int passCount, choreograph::Output<float> &phase) {
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 4;
@@ -612,17 +625,19 @@ BENCHMARK(BM_Draw_StrokeSpans_Live)
     ->Arg(16)
     ->Unit(benchmark::kMicrosecond);
 
-// ---- ROADMAP §10g "scoped, not built" (1): env read tracking ------------
+// ---- The cost of an environment change under memos that never read it ----
 //
-// A memo captures the ambient environment stack at construction and
-// compares it BEFORE its props, so a theme change misses every memo below
-// the provider — including memos that never read the environment at all.
-// The scoped-but-unbuilt read flag would let exactly those memos keep
-// hitting. These two arms bracket what it would save: `_ThemeHeld` is the
-// all-hits steady state, `_ThemeChange` re-describes every memo each
-// iteration and then prunes every one of them (patched stays 0 — the
-// describe's result compares equal). The delta per iteration is the entire
-// prize the read flag is competing for.
+// A memo captures the ambient environment stack when it is constructed and
+// compares that stack BEFORE it compares its own props. So changing anything
+// in the environment misses every memo below the provider, including memos
+// that never read the environment at all.
+//
+// These two arms bracket that cost. `_ThemeHeld` is the all-hits steady
+// state. `_ThemeChange` flips one environment value each iteration, which
+// forces every memo to re-describe; the describes then all compare equal, so
+// the `patched` counter stays at zero and the difference between the arms is
+// pure wasted describe work. That difference is what tracking which memos
+// actually read the environment would be able to recover.
 
 struct BenchPalette {
   SkColor4f surface{0.20f, 0.40f, 0.60f, 1.0f};
@@ -640,7 +655,8 @@ Element memoGridUnder(int count, const BenchPalette &palette) {
   for (int id = 0; id < count; ++id)
     root.child(memo(MemoCellProps{id},
                     [](const MemoCellProps &props) {
-                      // Never reads env::inherited — the read flag's case.
+                      // Deliberately never reads env::inherited: this memo
+                      // has no reason to miss when the theme changes.
                       return box().width(19).height(19).fill(
                           cellFill(props.id, -1, 0));
                     })
@@ -703,16 +719,20 @@ BENCHMARK(BM_Draw_GroupCache_LivePictures)
     ->Arg(64)
     ->Unit(benchmark::kMicrosecond);
 
-// ---- the windowed/tiled bake question ------------------------------------
-// A strip far wider than any texture is baked ONCE as a vector picture and
-// then sliced into tile rasters. The candidate mechanism was a "region
-// bake" that would hand back per-tile content directly; these three arms
-// measure what such a mechanism could possibly save. `FullReplay` is the
-// status quo (every tile replays the WHOLE picture behind a clip);
-// `PerTilePicture` pre-extracts one picture per tile and replays only that,
-// which is the FLOOR any region bake could reach — it has already paid the
-// op-selection cost outside the timed loop. The gap between them is the
-// entire budget a new mechanism has to spend.
+// ---- Slicing one very long picture into tile rasters ---------------------
+// A strip far longer than any single texture is baked ONCE as a vector
+// picture and then cut into tile-sized rasters. How much does the cutting
+// cost, and how much of it is avoidable?
+//
+// The arms bracket the answer. `FullReplay` is the straightforward way:
+// every tile replays the WHOLE picture behind a clip. `PerTilePicture`
+// extracts one picture per tile ahead of the timed loop and replays only
+// that, so it has already paid all op-selection cost and is the floor no
+// windowing mechanism can beat. `RTreeReplay` is the cheapest real thing in
+// between — one extra argument to beginRecording — with `RTreeBuild` pricing
+// what that costs to set up, and `SurfacesOnly` giving the raster floor
+// underneath all of them. Any proposal to add windowed baking has to fit in
+// the gap between FullReplay and PerTilePicture.
 
 Element marqueeStrip(float acrossPx, float alongPx) {
   auto label = [&](std::string text, float size, SkColor4f color) {
@@ -949,12 +969,13 @@ BENCHMARK(BM_Draw_GroupCache_Blit)
     ->Arg(64)
     ->Unit(benchmark::kMicrosecond);
 
-// ---- §Argument 3: the binary volatility declaration -----------------------
+// ---- Volatility is declared, not observed ---------------------------------
 //
 // PAIR ONE — the property does not move AT ALL. Same tree, same pixels; the
-// only difference is that one arm spells the accent's colour as a binding.
-// Whatever separates these two arms is paid by a node that is provably
-// holding still, which is the defect stated as a measurement.
+// only difference is that one arm spells the accent's colour as a binding
+// and the other as a plain value. Whatever separates the two arms is
+// therefore paid purely for declaring a binding on a node that is provably
+// holding still.
 
 static void BM_Draw_StillAccent_Bound(benchmark::State &state) {
   const int count = (int)state.range(0);
@@ -1019,11 +1040,12 @@ BENCHMARK(BM_Draw_StillAccent_Plain)
     ->Arg(512)
     ->Unit(benchmark::kMicrosecond);
 
-// PAIR TWO — the same colour actually moves, once every 180 frames (three
-// seconds at 60 Hz, the entry's own example). Each arm does the minimum
-// work its spelling requires: the bound arm assigns the Output and never
-// re-describes; the plain arm re-describes only on the frame it changes,
-// and prunes everything but the one node that moved.
+// PAIR TWO — the same colour actually moves, once every kSlowPeriod frames
+// (three seconds at 60 Hz: slow enough that re-describing on the change is
+// clearly an option). Each arm does the minimum work its spelling allows:
+// the bound arm assigns the Output and never re-describes; the plain arm
+// re-describes only on the frame the colour changes, and prunes everything
+// except the one node that moved.
 
 constexpr int kSlowPeriod = 180;
 

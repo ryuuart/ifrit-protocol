@@ -63,7 +63,7 @@ namespace ch = choreograph;
 namespace {
 
 // ---------------------------------------------------------------------------
-// §5 — the palette. flames.html's `rgbs` array, index = heat value [0,36].
+// The palette: flames.html's `rgbs` array, index = heat value [0,36].
 
 constexpr uint32_t kPalette[37] = {
     0x070707, 0x1F0707, 0x2F0F07, 0x470F07, 0x571707, 0x671F07, 0x771F07,
@@ -78,7 +78,7 @@ constexpr SkColor4f hex(uint32_t rgb, float a = 1.0f) {
           (float)((rgb >> 8) & 0xFF) / 255.0f, (float)(rgb & 0xFF) / 255.0f, a};
 }
 
-// Chrome palette (§5) — the study's own UI, not the simulation.
+// Chrome palette — the study's own UI, not the simulation.
 constexpr SkColor4f kInk = hex(0x0B0B0F);
 constexpr SkColor4f kPanelInk = hex(0x090909);
 constexpr SkColor4f kBone = hex(0xEDE9DE);
@@ -86,7 +86,8 @@ constexpr SkColor4f kSteel = hex(0x6E7B91);
 constexpr SkColor4f kKeyline = hex(0x3A3A42);
 constexpr SkColor4f kAmber = hex(0xFFB000);
 
-// §6 — geometry.
+// Geometry. The buffer dimensions are the source's; everything else is
+// this study's layout, sized so the blit stays an integer scale.
 constexpr int kFireW = 320;   // FIRE_WIDTH
 constexpr int kFireH = 168;   // FIRE_HEIGHT
 constexpr int kBlit = 3;      // exact integer nearest-neighbour scale
@@ -96,7 +97,7 @@ constexpr int kSwatch = 24;                // 37*24 + 36*2 = 960 exactly
 constexpr int kInspectCells = 34, kInspectRows = 17, kInspectZoom = 8;
 constexpr int kCropX = 143, kCropY = 100;  // the crop the inspector watches
 
-// §7 — the one timing constant from the source: CJS_TICKER_FPS = 27.
+// The one timing constant taken from the source: CJS_TICKER_FPS = 27.
 constexpr double kSimHz = 27.0;
 constexpr double kSimStep = 1.0 / kSimHz;
 
@@ -147,8 +148,9 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
   return type(uiFace(), size, c, track);
 }
 
-/** back.out(1.70158) — glyphfx::pop's constant. choreograph ships no
- *  easeOutBack, so the study carries its own (see LIBRARY GAPS). */
+/** back.out with the standard 1.70158 overshoot, the same constant
+ *  glyphfx::pop uses. choreograph ships no easeOutBack, so this file
+ *  carries its own. */
 float easeOutBack(float t) {
   constexpr float s = 1.70158f;
   const float u = t - 1.0f;
@@ -170,7 +172,7 @@ Element chip(Element content, float alpha = 0.72f) {
 // ---------------------------------------------------------------------------
 
 struct PsxDoomFire : sigil::compose::sketch::Sketch {
-  // --- the automaton's state: one buffer, mutated in place (§4) ---
+  // --- the automaton's state: one buffer, mutated in place ---
   std::vector<uint8_t> heat;
   std::array<uint32_t, 37> lut{};   // heat → premultiplied RGBA8888 word
   SkBitmap bitmap;                  // 320×168, rewritten once per sim tick
@@ -192,11 +194,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   // --- console ---
   console::LineRing ring{64};
   size_t bootLine = 0;
-  double nextBoot = 0.20;           // §7: boot starts at 200 ms
+  double nextBoot = 0.20;           // first boot line lands at 200 ms
   bool bootDone = false;
 
   // =========================================================================
-  // §4 — the algorithm, verbatim.
+  // The algorithm, verbatim.
 
   float rand01() { // xorshift32
     rng ^= rng << 13;
@@ -417,7 +419,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         // ink under the flame — the fire's own alpha-0 cells reveal it and
         // whatever else sits below the custom() leaf
         .child(box().inset(0).fill(kPanelInk))
-        // §8, the reveal trick: the word is never drawn "on top". It sits
+        // The reveal trick: the word is never drawn "on top". It sits
         // BEHIND the flame, and the rasterizer's alpha-0 for heat 0 lets the
         // cold core show it through, breathing as the simulation runs. Its
         // cap band deliberately straddles the flame's ragged front (≈ row 60
@@ -519,7 +521,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         sw.fill(Material::solid(hex(0x070707)))
             .stroke(stroke(1.0f, Fill::color(kKeyline),
                            PathFormat::Align::Inner));
-      if (i == 36) // §7: the energy strobe — one pulse per simulation tick
+      if (i == 36) // the energy strobe — one pulse per simulation tick
         sw.opacity(&pulse);
       swatches.push_back(std::move(sw));
     }
@@ -737,7 +739,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     seed();
     rasterize();
 
-    // ---- the fixed-timestep accumulator (§7/§10) -------------------------
+    // ---- the fixed-timestep accumulator ---------------------------------
     // Ticker hands us a continuous dt; there is no "fixed update" helper, so
     // the accumulator is bespoke sketch code. Everything the automaton does
     // — step, rasterize, strobe — happens on THIS clock, at 27 Hz, whatever
@@ -769,7 +771,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         composer.renderSlot("stats", stats());
       }
 
-      // §7 energy strobe: exp decay (τ ≈ 20 ms), reset to 1 on every tick.
+      // Energy strobe: exponential decay with a 20 ms time constant, reset
+      // to 1 on every simulation tick.
       float p = pulse.value() * (float)std::exp(-dt / 0.02);
       if (stepped)
         p = 1.0f;
@@ -793,7 +796,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         const size_t indented = kBoot[bootLine][2] == ' ' ? 0 : SIZE_MAX;
         ring.append(toU8(kBoot[bootLine]), indented);
         ++bootLine;
-        nextBoot += 0.11; // §7: staggerChildren(110ms) as data
+        nextBoot += 0.11; // 110 ms between lines — a stagger, as data
         composer.render(describe());
         if (bootLine == kBootCount)
           bootDone = true;

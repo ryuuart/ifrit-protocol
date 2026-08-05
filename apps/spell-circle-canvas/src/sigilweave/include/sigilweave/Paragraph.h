@@ -100,9 +100,11 @@ struct Word {
   uint8_t bidiLevel = 0; ///< UBA embedding level; odd means right-to-left
   bool mandatoryBreakAfter = false; ///< '\n' and friends
   /// Trailing whitespace contains a tab (U+0009). With
-  /// ParagraphLayoutOptions::tabStops configured, the greedy breaker
-  /// replaces this word's glue with an advance to the next stop; without
-  /// tab stops (and always under Knuth-Plass) tabs measure as spaces.
+  /// ParagraphLayoutOptions::tabStops configured, both breakers replace
+  /// this word's glue with an advance to the next stop (greedy fits
+  /// against tab-resolved widths as it goes; Knuth-Plass scores every
+  /// candidate line at its tab-resolved width). Without tab stops, tabs
+  /// measure as spaces.
   bool tabAfter = false;
   /// Break opportunity with zero glue (CJK): justification may expand here
   /// even though there is no space.
@@ -201,7 +203,9 @@ public:
   /// Every text mutation is recorded under a monotonically increasing
   /// revision, so external structures (e.g. Query.h's MarkerSet) can keep
   /// UTF-16 ranges in sync without wrapping every edit call. History is
-  /// bounded; a consumer that falls too far behind must rebuild its ranges.
+  /// bounded and, when it fills, the older half is discarded in one go — so
+  /// the lookback a consumer can count on is half the cap, not the cap. A
+  /// consumer that falls further behind than that must rebuild its ranges.
   struct TextEdit {
     uint32_t start = 0;    ///< UTF-16 position where the edit applied
     uint32_t removed = 0;  ///< UTF-16 units deleted at `start`

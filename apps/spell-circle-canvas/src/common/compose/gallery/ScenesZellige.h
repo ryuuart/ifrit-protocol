@@ -1,22 +1,23 @@
 #pragma once
-// The zellige wall (REFERENCES.md §4 — girih Hankin PIC), ported from
-// sketch/sketches/zellige_study.cpp: patterns::girih8 runs Hankin's
-// polygons-in-contact rule on the real 4.8.8 tiling (contact angle θ=45°
-// → the {8/2} khatam through every octagon's edge midpoints), colored
-// with zellige palettes. ONE generator, parameterized, applied to three
-// panels at different scales and rotations, REGENERATED at runtime — the
-// wall re-tiles itself every few seconds; each swap is exactly one
-// changed recipe, one new bake.
+// A wall of zellige panels, generated rather than drawn.
 //
-// Porting notes (per the ScenesKinetic.h exemplar):
-//  - ctx.canvas(960, 640) → the registry's 900x640 kSceneSize (insets
-//    tightened), ctx.background(kPlaster) → the root stack's fill
-//  - Pattern objects stay SCENE MEMBERS (the header's identity contract:
-//    patterns bake once per recipe — re-describing a fresh Pattern each
-//    frame would re-bake per render); update() re-rolls them on a timer
-//    and gates composer.render() on that discrete swap
-//  - carved depth is the Photoshop route (inner shadow + inner glow),
-//    not a shader
+// patterns::girih8 runs Hankin's polygons-in-contact construction on the
+// real 4.8.8 tiling: at a 45° contact angle the interlace through every
+// octagon's edge midpoints is the {8/2} khatam star, which is how these
+// patterns are actually built. One generator, parameterized, applied to
+// three panels at different scales and rotations and coloured from
+// historical zellige palettes.
+//
+// The wall re-tiles itself every few seconds. Each swap is exactly one
+// changed recipe and one new bake, which is the point of the scene.
+//
+// Two constraints if you edit it:
+//  - The Pattern objects must stay SCENE MEMBERS. A pattern bakes once per
+//    recipe and is identified by that recipe; minting a fresh Pattern inside
+//    describe() would re-bake on every render. update() re-rolls them on a
+//    timer and only then calls render().
+//  - The carved depth is a layer-style stack (inner shadow plus inner glow),
+//    not a shader.
 
 #include "GalleryCore.h"
 
@@ -57,8 +58,9 @@ inline std::string caption(const char *palette, float edge, bool rotated) {
 } // namespace zellige_wall
 
 struct ZelligeScene final : Scene {
-  // Three panels of one generator at different parameters — held as
-  // members (the Pattern identity contract), re-rolled in update().
+  // Three panels from one generator at different parameters. Held as members
+  // rather than built in describe(): a Pattern bakes once per recipe, so a
+  // fresh one each render would re-bake every frame.
   Pattern left = patterns::girih8(16, patterns::fezPalette());
   Pattern middle = patterns::girih8(26, patterns::nasridPalette());
   Pattern right = patterns::girih8(20, patterns::fezPalette());
@@ -70,10 +72,10 @@ struct ZelligeScene final : Scene {
 
   const char *name() const override { return "zellige"; }
 
-  // §31 named-state beat: the wall re-rolls all three girih recipes every
-  // 3.0 s, and the old t = 6.0 default sat within one frame of the
-  // phase1 -> phase2 re-roll (race-prone). Phase 0 is the authored setup
-  // recipe the captions document; 1.5 s is the hold midpoint.
+  // The wall re-rolls all three recipes every kSwapPeriod seconds, so the
+  // still has to name its moment or it can land a frame either side of a
+  // re-roll. This is the midpoint of the first hold, which shows the authored
+  // setup recipes — the ones the captions describe.
   double captureSeconds() const override { return 1.5; }
 
   void setup(Composer &composer, sigil::motion::Ticker &) override {
