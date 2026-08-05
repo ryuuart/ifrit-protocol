@@ -1036,9 +1036,10 @@ sk_sp<SkRuntimeEffect> boardGrain() {
 /** One board: a mitred quad, a grain fill, a bevelled arris whose light
  *  angle follows the rotation, a seam keyline, and the two bound scalars. */
 Element board(int i) {
-  // Boards take rotations in 22.5° steps, so neighbours meet at angles a
-  // device-space bake cannot share.
-  const float ang = 22.5f * (float)(i % 8);
+  // Boards cycle through the three kumiko jig angles — 22.5°, 45°, 67.5°
+  // — so every board is rotated (a device-space bake cannot share any of
+  // them) and neighbours always meet at different angles.
+  const float ang = 22.5f * (float)(1 + i % 3);
   SkPathBuilder quad;
   quad.moveTo(5, 0);
   quad.lineTo(74, 0);
