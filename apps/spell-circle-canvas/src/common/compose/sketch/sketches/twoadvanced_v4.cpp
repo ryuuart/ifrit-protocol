@@ -17,18 +17,26 @@
 //     FBevelledPanelClass — the nav taxonomy company/services/portfolio/
 //     accolades/experimental/equipment/contact, and the embedded faces
 //     Arial, Arial Black, Helvetica 95 Black, Helvetica CondensedBlack.
-//   · .../mp3Info.xml — the 2004 playlist; the 2006 one (DESERT TRANCE /
-//     NEVERMIND / SYNERGY / EXHALE) is off the FWA press screenshot,
-//     https://thefwa.com/cases/2advanced-v4-prophecy (900×575 of the live
-//     interface, news items dated 01.30.06 / 04.05.06).
+//   · .../mp3Info.xml — the 2004 playlist; the 2006 one (01. DESERT
+//     TRANCE / 02. NEVERRAIN / 03. SYNERGY / 04. EXHILE, track 01
+//     selected) is read off 2Advanced's own 1200×900 interface capture,
+//     https://v4prophecy.2advanced.com/images/prophecy-v4-flash-site.png.
 //   · https://v4prophecy.2advanced.com/ — 2Advanced's own Ruffle
-//     restoration of this exact movie.
+//     restoration of this exact movie. Its HTML shell still serves the
+//     PRODUCTION artefacts, and this sketch draws them directly:
+//     images/{leftsidepanel,rightsidepanel,sitebackground,sitefooter}.gif
+//     and images/2alogobug.svg arrive over SigilLoader's https path
+//     (fetched once, then served from the loader's disk cache). Every
+//     real-asset site keeps its procedural stand-in as the fallback, so
+//     a run with no network and a cold cache still renders — just with
+//     rebuilt chrome instead of the original bitmaps.
 //
 // THE PALETTE IS NOT CYAN/ORANGE. The genre's reputation says orange;
-// neither the 2004 GIFs nor the 2006 screenshot contain ANY. It is
-// cyan-teal (#7BDAD6 / #01D0D5 / #579797) against oxblood (#571119 /
-// #4A100F), with blood red (#700000) — not orange — on the CTAs. Do not
-// "correct" this from memory.
+// the chrome carries none. It is cyan-teal (#7BDAD6 / #01D0D5 / #579797)
+// against oxblood (#571119 / #4A100F), with blood red (#700000) — not
+// orange — on the CTAs. The single amber pixel-group on the whole page
+// is the 2ADVANCED.NET press logo's mark inside AUXILIARY PANEL. Do not
+// "correct" any of this from memory.
 //
 // The MAINFRAME hero was a real Cinema 4D composite (the site's own press
 // copy name-checks Maxon). There is no 3D here: flat SDF shapes, one
@@ -463,12 +471,57 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   Material grain;          // page-background film grain (luminance, not RGB)
   Material spectrum, stripesLive, waterStreaks;
 
+  // --- the production shell artefacts, fetched from the restoration host.
+  // Any of these may be null (no network, cold cache); every use site
+  // keeps its procedural stand-in for exactly that case.
+  std::shared_ptr<const sigil::image::ImageAsset> railLeftGif, railRightGif;
+  std::shared_ptr<const sigil::image::ImageAsset> siteBgGif;   // 1×1600 ramp
+  std::shared_ptr<const sigil::image::ImageAsset> footerGif;   // 970×110
+  std::shared_ptr<const sigil::image::ImageAsset> logoBugSvg;  // circular 2A
+
+  /** A bitmap stretched to exactly (w, h) — how every shell GIF is
+   *  placed: the 2004 page scaled them with IMG width/height attributes,
+   *  and this sketch is a ×2 enlargement of those numbers. */
+  static Material stretchFill(
+      const std::shared_ptr<const sigil::image::ImageAsset>& asset, float w,
+      float h, SkTileMode tx = SkTileMode::kClamp) {
+    const sk_sp<SkImage>& img = asset->frames()[0].image;
+    return Material::image(
+        img, tx, SkTileMode::kClamp,
+        SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
+        SkSamplingOptions(SkFilterMode::kLinear));
+  }
+
   // --- instancing: the footer dock's chevron tick array ---
   std::shared_ptr<instancing::Atlas> dockAtlas;
   std::shared_ptr<instancing::Pool> dockPool;
 
   int bootPct = 0;
   bool booted = false;
+
+  // --- the section cycle: the GLOBAL NAVIGATOR walked in order ----------
+  // The SWF changed sections by collapsing the MAINFRAME viewport behind
+  // sliding panels and a loading readout, then reopening on the new
+  // content. The cycle here replays that transition grammar on the nav
+  // taxonomy: shutters close L→R, the ACCESSING readout flashes up, the
+  // shutters reopen — while the selection mark glides to the next item.
+  static constexpr const char* kNavItems[7] = {
+      "COMPANY",      "SERVICES",  "PORTFOLIO", "ACCOLADES",
+      "EXPERIMENTAL", "EQUIPMENT", "CONTACT"};
+  static constexpr double kCycleStart = 8.0, kHoldS = 4.9, kTransS = 0.9;
+  std::array<ch::Output<float>, 6> shutter{};  // per-slat cover fraction
+  ch::Output<float> shutterInfo{0.0f};         // ACCESSING plate opacity
+  ch::Output<float> navIndX{0.0f};             // selection mark X offset
+  int mfSection = -2;                          // section in the readout
+
+  /** Nav item i's centre inside the 584-wide bar (SpaceEvenly over the
+   *  572 inner px), as the translateX for a 24-wide mark at left 0. */
+  static float navMarkX(int i) {
+    return 6.0f + 572.0f * ((float)i + 0.5f) / 7.0f - 12.0f;
+  }
+  /** The section the cycle rests on after `stop` changes; the interface
+   *  opens on PORTFOLIO and walks onward from there. */
+  static int cycleTarget(int stop) { return (3 + stop) % 7; }
 
   // =========================================================================
   // Live materials (SkSL).
@@ -690,10 +743,13 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .alignItems(Align::Center)
                        .child(box().width(9).height(9).corners({5}).stroke(
                            util::stroke(2, Fill::color(kCyan)))))
-            .child(t("SYSTEM ONLINE", micro(12, kNear, 240)))
+            // The teal segment's voice, verbatim from the interface
+            // capture: the boot callsign, then the two region labels the
+            // page hangs over its modules.
+            .child(t("INITREQ 2A", micro(12, kNear, 240)))
             .child(box().width(1).height(14).fill(fade(kCyan, 0.4f)))
-            .child(
-                t("SECTOR 04 / PROPHECY", micro(12, fade(kCyan, 0.85f), 240)))
+            .child(t("\xe2\x80\xba GLOBAL AMBIENCE",
+                     micro(11, fade(kCyan, 0.9f), 240)))
             .child(box().grow(1))
             .child(box().width(90).height(12).foreground(
                 TickRail{fade(kNear, 0.45f), 6, 3, 8, 1, 3, false, true}))
@@ -713,14 +769,19 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                     kChrome)
             .translateY(animate(from(-46.0f).to(0.0f),
                                 {380ms, &ch::easeOutQuint, 1530ms}))
-            .child(t("2ADVANCED STUDIOS", micro(12, kDust, 260)))
-            .child(box().width(1).height(14).fill(fade(kDust, 0.4f)))
-            .child(t("PROGRESSIVE DESIGN TECHNOLOGY", micro(12, kDustDim, 260)))
+            .child(t("\xe2\x80\xba GLOBAL NAVIGATOR", micro(11, kDust, 260)))
             .child(box().grow(1))
-            .child(
-                t("LAT 33.6189 N   LON 117.9298 W", micro(11, kDustDim, 200)))
-            .child(box().width(1).height(14).fill(fade(kDust, 0.4f)))
-            .child(t("V4.PROPHECY", heavy(14, kNear, 80)));
+            // V4.PROPHECY sits in its own hairline-outlined plate at the
+            // bar's right end — the one piece of type up here that is
+            // boxed rather than bare.
+            .child(box()
+                       .height(24)
+                       .padding(9, 0)
+                       .stroke(util::stroke(1, Fill::color(fade(kNear, 0.75f)),
+                                            PathFormat::Align::Inner))
+                       .row()
+                       .alignItems(Align::Center)
+                       .child(t("V4.PROPHECY", heavy(14, kNear, 80))));
 
     return box()
         .left(Dim(0))
@@ -733,12 +794,13 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element audioModule() {
     using namespace tav;
-    static const char* tracks[4] = {"01  DESERT TRANCE", "02  NEVERMIND",
-                                    "03  SYNERGY", "04  EXHALE"};
-    static const char* times[4] = {"4:12", "5:08", "3:41", "3:55"};
+    // The playlist verbatim from the interface capture: numbered with
+    // periods, track 01 highlighted, no duration column anywhere.
+    static const char* tracks[4] = {"01. DESERT TRANCE", "02. NEVERRAIN",
+                                    "03. SYNERGY", "04. EXHILE"};
     Element list = box().column().width(268).gap(2);
     for (int i = 0; i < 4; ++i) {
-      const bool sel = i == 2;
+      const bool sel = i == 0;
       list.child(
           box()
               .height(23)
@@ -753,9 +815,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                PathFormat::Align::Inner)))
               .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
               .child(t(tracks[i], type(blackFace(), 13, sel ? kNear : kHeadDim,
-                                       60, 0.92f)))
-              .child(box().grow(1))
-              .child(t(times[i], micro(11, sel ? kCyan : kDustDim, 120))));
+                                       60, 0.92f))));
     }
 
     Element scope =
@@ -833,10 +893,6 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element navBar() {
     using namespace tav;
-    // The taxonomy verbatim from the SWF's strings.
-    static const char* items[7] = {"COMPANY",   "SERVICES",     "PORTFOLIO",
-                                   "ACCOLADES", "EXPERIMENTAL", "EQUIPMENT",
-                                   "CONTACT"};
     Element bar = singleBevel(box()
                                   .width(584)
                                   .height(46)
@@ -855,14 +911,22 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                         {240ms, &ch::easeOutQuint, 2250ms}))
                     .opacity(animate(from(0.0f).to(1.0f),
                                      {240ms, &ch::easeOutQuad, 2250ms}))
-                    .child(t(items[i], label(13, i == 2 ? kCyan : kNear, 80)))
-                    .child(box()
-                               .width(i == 2 ? 22.0f : 8.0f)
-                               .height(2)
-                               .fill(fade(i == 2 ? kCyan : kDust, 0.75f))));
+                    .child(t(kNavItems[i], label(13, kNear, 80)))
+                    .child(box().width(8).height(2).fill(fade(kDust, 0.6f))));
       if (i < 6)
         bar.child(box().width(1).height(20).fill(fade(C(0x2A0A0C), 0.9f)));
     }
+    // The GLOBAL NAVIGATOR's live selection mark: one cyan bar whose X is
+    // a single bound value, gliding between items as the section cycle
+    // walks the taxonomy.
+    bar.child(box()
+                  .left(Dim(0))
+                  .top(Dim(38))
+                  .width(24)
+                  .height(3)
+                  .fill(kCyan)
+                  .background(styles::OuterGlow{fade(kGlow, 0.5f), 6, 0})
+                  .translateX(&navIndX));
     return bar;
   }
 
@@ -949,20 +1013,29 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .width(78)
             .height(78)
             .background(styles::OuterGlow{fade(kGlow, 0.45f), 14, 0})
-            .fill(sdf::material(
-                sdf::circle(),
-                {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan}))
             .justify(Justify::Center)
-            .alignItems(Align::Center)
-            .child(box()
-                       .width(50)
-                       .height(50)
-                       .shape(shapes::polygon(6, 0))
-                       .stroke(
-                           util::stroke(1, Fill::color(fade(kCyanRing, 0.75f))))
-                       .justify(Justify::Center)
-                       .alignItems(Align::Center)
-                       .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
+            .alignItems(Align::Center);
+    if (logoBugSvg) {
+      // The production mark itself, recoloured to the wordmark cyan: a
+      // solid fill masked by the SVG raster's coverage, so the vector
+      // art contributes shape only and the palette stays sampled.
+      emblem.child(box().width(62).height(62).fill(kCyan).mask(
+          by::alpha(stretchFill(logoBugSvg, 62, 62))));
+    } else {
+      emblem
+          .fill(sdf::material(
+              sdf::circle(),
+              {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan}))
+          .child(
+              box()
+                  .width(50)
+                  .height(50)
+                  .shape(shapes::polygon(6, 0))
+                  .stroke(util::stroke(1, Fill::color(fade(kCyanRing, 0.75f))))
+                  .justify(Justify::Center)
+                  .alignItems(Align::Center)
+                  .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
+    }
 
     return box()
         .width(700)
@@ -1293,6 +1366,42 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element mainframe() {
     using namespace tav;
+    Element body = box().grow(1).clip().child(hero(1174, 316));
+    // The transition shutters: six slats over the viewport, each one's
+    // cover fraction a bound value — the hero underneath is never
+    // re-described, so its bloom bake survives every section change.
+    const float slatW = 1174.0f / 6.0f;
+    for (int i = 0; i < 6; ++i)
+      body.child(
+          box()
+              .left(Dim((float)i * slatW))
+              .top(Dim(0))
+              .width(Dim(slatW + 1))
+              .height(316)
+              .fill(Material::linearUnit(
+                  {0, 0}, {1, 0}, {{0.0f, C(0x2A0708)}, {1.0f, C(0x1A0405)}}))
+              .foreground(shapes::onEdges(
+                  shapes::Edge::Bottom,
+                  util::stroke(3, Fill::color(fade(kCyan, 0.5f)),
+                               PathFormat::Align::Inner)))
+              .scaleY(&shutter[(size_t)i])
+              .transformOrigin(0.5f, 0.0f));
+    // The ACCESSING readout that rides the closed shutters.
+    body.child(box()
+                   .left(Dim(1174.0f / 2 - 220))
+                   .top(Dim(316.0f / 2 - 32))
+                   .width(440)
+                   .height(64)
+                   .shape(chamfer(10, kTL | kBR))
+                   .fill(fade(C(0x140404), 0.92f))
+                   .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.6f)),
+                                        PathFormat::Align::Inner))
+                   .foreground(Brackets{fade(kCyan, 0.7f), 10, 2, 3, 0xF})
+                   .justify(Justify::Center)
+                   .alignItems(Align::Center)
+                   .child(slot("mfload"))
+                   .opacity(&shutterInfo));
+
     Element panel = doubleBevel(
         box().width(1180).height(350).column().padding(3), kChrome, 3);
     panel.key("mainframe")
@@ -1300,9 +1409,24 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             animate(from(70.0f).to(0.0f), {520ms, &ch::easeOutQuint, 2400ms}))
         .opacity(
             animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2400ms}))
-        .child(panelHeader("MAIN", "FRAME", "PRIMARY VISUAL FEED", 0, 1174))
-        .child(box().grow(1).clip().child(hero(1174, 316)));
+        .child(panelHeader("MAIN", "FRAME",
+                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0,
+                           1174))
+        .child(body);
     return panel;
+  }
+
+  Element mfLoadReadout(int section) {
+    using namespace tav;
+    return box()
+        .row()
+        .gap(10)
+        .alignItems(Align::Center)
+        .child(t("ACCESSING", micro(12, fade(kCyan, 0.85f), 260)))
+        .child(t("\xe2\x96\xb8", micro(11, kCyan, 0)))
+        .child(t(kNavItems[section], heavy(17, kNear, 80)))
+        .child(box().width(60).height(10).foreground(
+            TickRail{fade(kCyan, 0.6f), 5, 3, 8, 1, 4, false, true}));
   }
 
   // ---- teal monitor panels ------------------------------------------------
@@ -1661,112 +1785,181 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return panel;
   }
 
-  Element auxStat(const char* k, const char* v) {
+  /** A module's red title bar inside AUXILIARY PANEL. */
+  Element auxBar(const char* label) {
     using namespace tav;
     return box()
-        .column()
-        .gap(1)
-        .child(t(k, micro(9, kDustDim, 240)))
-        .child(t(v, type(blackFace(), 12, fade(kCyan, 0.9f), 40, 0.92f)));
+        .height(18)
+        .row()
+        .alignItems(Align::Center)
+        .padding(6, 0)
+        .gap(6)
+        .fill(Material::linearUnit({0, 0}, {0, 1},
+                                   {{0.0f, C(0x5A1A20)}, {1.0f, C(0x2E0A0C)}}))
+        .child(t("\xc2\xbb", micro(10, kCyan, 0)))
+        .child(t(label, micro(11, kNear, 160)));
+  }
+
+  /** The teal full-width VIEW bar the two right modules end on. */
+  Element auxView() {
+    using namespace tav;
+    return box()
+        .height(17)
+        .fill(Material::linearUnit(
+            {0, 0}, {0, 1},
+            {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
+        .stroke(util::stroke(1, Fill::color(fade(C(0xCFEFEC), 0.6f)),
+                             PathFormat::Align::Inner))
+        .justify(Justify::Center)
+        .alignItems(Align::Center)
+        .child(t("VIEW", label(11, kDate, 200)));
   }
 
   Element auxiliary() {
     using namespace tav;
-    static const char* stats[3][6] = {
-        {"CHANNEL", "04", "BITRATE", "384K", "VIEWERS", "1,204"},
-        {"LIST", "41,208", "SENT", "118", "OPEN", "62%"},
-        {"FILES", "14", "SIZE", "88 MB", "DL", "9,442"},
+    const SkColor4f kCopy = C(0x7FD4D0);  // the module copy teal
+
+    // Column 1: three icon rows, copy and link verbatim (including the
+    // interface's own "inorder").
+    struct Item {
+      const char *glyph, *l1, *l2, *link;
     };
-    struct Col {
-      const char *icon, *title, *l1, *l2, *link;
+    static const Item items[3] = {
+        {"\xe2\x96\xa0", "The Equipment store carries the latest",
+         "2Advanced apparel and publications...", "\xe2\x80\xba VIEW"},
+        {"\xe2\x96\xa3", "Chat live with a 2Advanced sales agent",
+         "inorder to inquire about project pricing...", "\xe2\x80\xba OFFLINE"},
+        {"\xe2\x9c\x89", "Subscribe to the 2Advanced Members",
+         "List and receive exclusive news & press...",
+         "\xe2\x80\xba SUBSCRIBE"},
     };
-    static const Col cols[3] = {
-        {"\xe2\x96\xa0", "BROADCAST", "Live studio feed, weeknights at",
-         "22:00 PST on the Prophecy channel.", "\xe2\x80\xba OFFLINE"},
-        {"\xe2\x96\xb2", "DISPATCH", "Monthly transmission to 41,208",
-         "subscribers. No spam, ever.", "\xe2\x80\xba SUBSCRIBE"},
-        {"\xe2\x97\x86", "DESKTOPS", "Fourteen widescreen wallpapers",
-         "in the Prophecy palette.", "\xe2\x80\xba VIEW"},
-    };
-    Element row = box().width(1180).height(154).row().gap(10).padding(3);
-    for (int i = 0; i < 3; ++i) {
-      Element col =
-          singleBevel(box().grow(1).column().padding(9).gap(5), C(0x3E1013));
-      col.foreground(TickRail{fade(kDust, 0.35f), 7, 3, 6, 1, 4, false, true})
-          .child(box()
-                     .row()
-                     .gap(8)
-                     .alignItems(Align::Center)
-                     .child(box()
-                                .width(32)
-                                .height(32)
-                                .shape(chamfer(8, kTL | kBR))
-                                .fill(Material::linearUnit(
-                                    {0, 0}, {0, 1},
-                                    {{0.0f, C(0x5A1A20)}, {1.0f, C(0x220608)}}))
-                                .stroke(util::stroke(1, Fill::color(kCta),
-                                                     PathFormat::Align::Inner))
-                                .justify(Justify::Center)
-                                .alignItems(Align::Center)
-                                .child(t(cols[i].icon, micro(12, kCyan, 0))))
-                     .child(box()
-                                .column()
-                                .gap(2)
-                                .child(t(cols[i].title, heavy(15, kNear, 60)))
-                                .child(t("AUXILIARY MODULE",
-                                         micro(9, kDustDim, 240))))
-                     .child(box().grow(1))
-                     .child(tickDots(3 + i, fade(kCyan, 0.9f))))
-          .child(box()
-                     .column()
-                     .gap(1)
-                     .child(t(cols[i].l1, prose(12.5f, kBody)))
-                     .child(t(cols[i].l2, prose(12.5f, fade(kBody, 0.7f)))))
-          .child(box().grow(1))
-          // the micro stat rail nobody reads — three keyed values on a
-          // hairline grid, the density this idiom is actually made of
-          .child(box()
-                     .row()
-                     .gap(10)
-                     .alignItems(Align::Center)
-                     .child(auxStat(stats[i][0], stats[i][1]))
-                     .child(box().width(1).height(16).fill(fade(kDust, 0.28f)))
-                     .child(auxStat(stats[i][2], stats[i][3]))
-                     .child(box().width(1).height(16).fill(fade(kDust, 0.28f)))
-                     .child(auxStat(stats[i][4], stats[i][5]))
-                     .child(box().grow(1))
-                     .child(box().width(52).height(14).foreground(TickRail{
-                         fade(kCyan, 0.45f), 5, 3, 7, 1, 4, false, true})))
-          .child(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .gap(8)
-                     .child(t(cols[i].link, micro(11, fade(kCyan, 0.9f), 220)))
-                     .child(box().grow(1))
-                     .child(box()
-                                .width(120)
-                                .height(24)
-                                .shape(chamfer(7, kTL | kBR))
-                                .fill(Material::linearUnit({0, 0}, {0, 1},
-                                                           {{0.0f, kPanelHi},
-                                                            {0.5f, kPanel},
-                                                            {1.0f, kPanelSh}}))
-                                .foreground(styles::gloss(
-                                    {1, 1, 1, 0.55f}, 8, {0, -7}, 0.60f, 0.30f))
-                                .stroke(util::stroke(
-                                    1, Fill::color(fade(C(0xCFEFEC), 0.6f)),
-                                    PathFormat::Align::Inner))
-                                .justify(Justify::Center)
-                                .alignItems(Align::Center)
-                                .child(t("VIEW", label(12, kDate, 140)))));
-      row.child(col);
-    }
-    row.key("aux")
+    Element supplementals = box().grow(1).basis(Dim(0)).column().gap(3).child(
+        auxBar("SUPPLEMENTALS & "
+               "ESSENTIALS"));
+    for (const Item& it : items)
+      supplementals.child(
+          box()
+              .row()
+              .gap(8)
+              .alignItems(Align::Center)
+              .child(box()
+                         .width(26)
+                         .height(26)
+                         .shrink(0)
+                         .corners({4})
+                         .fill(Material::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, C(0x8E2A2A)}, {1.0f, C(0x3A0C0E)}}))
+                         .stroke(util::stroke(1, Fill::color(fade(kNear, 0.4f)),
+                                              PathFormat::Align::Inner))
+                         .justify(Justify::Center)
+                         .alignItems(Align::Center)
+                         .child(t(it.glyph, micro(11, kPanelHi, 0))))
+              .child(
+                  box()
+                      .grow(1)
+                      .column()
+                      .child(t(it.l1, prose(11.5f, kCopy)))
+                      .child(box()
+                                 .row()
+                                 .child(t(it.l2, prose(11.5f, kCopy)))
+                                 .child(box().grow(1))
+                                 .child(t(it.link, micro(9, fade(kNear, 0.85f),
+                                                         160))))));
+
+    // Column 2: the book plate is white — the one white rectangle on the
+    // whole page — with the title set dark on it.
+    Element photoshop =
+        box()
+            .grow(1)
+            .basis(Dim(0))
+            .column()
+            .gap(4)
+            .child(auxBar("PHOTOSHOP: SECRETS OF THE PROS"))
+            .child(box()
+                       .row()
+                       .gap(8)
+                       .grow(1)
+                       .child(box()
+                                  .width(118)
+                                  .shrink(0)
+                                  .fill(C(0xF2F0EA))
+                                  .column()
+                                  .padding(7, 6)
+                                  .gap(2)
+                                  .child(t("Photoshop",
+                                           type(arial(), 15, C(0x2A4A7A), 0)))
+                                  .child(t("Secrets of the Pros",
+                                           type(arial(), 10, C(0x333333), 0))))
+                       .child(t("Eric Jordan appears in \"Photoshop: Secrets "
+                                "of the Pros\", a book featuring 20 top "
+                                "designers with insights on their "
+                                "techniques/methods.",
+                                prose(11.5f, kCopy))))
+            .child(auxView());
+
+    // Column 3: the 2ADVANCED.NET plate — its angular mark is the only
+    // amber on the interface.
+    Element press =
+        box()
+            .grow(1)
+            .basis(Dim(0))
+            .column()
+            .gap(4)
+            .child(auxBar("FEATURED PRESS"))
+            .child(
+                box()
+                    .height(40)
+                    .row()
+                    .alignItems(Align::Center)
+                    .padding(8, 0)
+                    .gap(7)
+                    .fill(Material::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.0f, C(0x2A0A0C)}, {1.0f, C(0x140404)}}))
+                    .stroke(util::stroke(1, Fill::color(fade(kDust, 0.4f)),
+                                         PathFormat::Align::Inner))
+                    .child(box()
+                               .width(20)
+                               .height(20)
+                               .shape(chamfer(6, kTL | kBR))
+                               .fill(Material::linearUnit(
+                                   {0, 0}, {0, 1},
+                                   {{0.0f, C(0xE8A83C)}, {1.0f, C(0x9A5E10)}})))
+                    .child(box()
+                               .column()
+                               .gap(1)
+                               .child(t("2ADVANCED.NET",
+                                        heavy(13, C(0xD9DDE0), 60)))
+                               .child(t("PRECISION HOSTING PLATFORM",
+                                        micro(8, kDust, 220)))))
+            .child(t("2advanced Studios is pleased to announce the official "
+                     "launch of 2advanced.net, a flexible and managed web "
+                     "hosting platform.",
+                     prose(11.5f, kCopy)))
+            .child(box().grow(1))
+            .child(auxView());
+
+    Element panel = doubleBevel(
+        box().width(1180).height(168).column().padding(3), kChrome, 3);
+    panel.key("aux")
         .translateY(
             animate(from(56.0f).to(0.0f), {400ms, &ch::easeOutQuint, 3100ms}))
         .opacity(
-            animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 3100ms}));
-    return row;
+            animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 3100ms}))
+        .child(panelHeader("AUXILIARY", " PANEL",
+                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3,
+                           1174))
+        .child(box()
+                   .grow(1)
+                   .row()
+                   .gap(10)
+                   .padding(8, 6)
+                   .fill(C(0x300B0E))
+                   .child(supplementals)
+                   .child(photoshop)
+                   .child(press));
+    return panel;
   }
 
   /** The band the FWA screenshot leaves under AUXILIARY on the left
@@ -2229,6 +2422,21 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
    *  three-circle gauge cluster in its dark bezel. */
   Element footerDock() {
     using namespace tav;
+    if (footerGif) {
+      // The real 970×110 dock bitmap at ×2 — on the page it sat BELOW
+      // the SWF as a plain image, monochrome oxblood, no live states.
+      // Everything the procedural fallback rebuilds is already in it.
+      return box()
+          .width(1892)
+          .height(220)
+          .fill(stretchFill(footerGif, 1892, 220))
+          .key("dock")
+          .opacity(
+              animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3850ms}))
+          .foreground(shapes::onEdges(
+              shapes::Edge::Top,
+              util::stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
+    }
     Element strip =
         box()
             .width(1892)
@@ -2374,11 +2582,24 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element rail(bool right) {
     using namespace tav;
-    return box()
-        .left(Dim(right ? 1916.0f : 0.0f))
-        .top(Dim(0))
-        .width(24)
-        .height(Dim(1560))
+    Element r = box()
+                    .left(Dim(right ? 1916.0f : 0.0f))
+                    .top(Dim(0))
+                    .width(24)
+                    .height(Dim(1560))
+                    .cache(Cache::None);
+    const auto& gif = right ? railRightGif : railLeftGif;
+    if (gif) {
+      // The production rail bitmap, held to the shell's own display
+      // geometry: the page shows the 26×780 GIF at 12×780 CSS px, and
+      // this frame is ×2 of that page, so the node is 24×1560.
+      r.fill(stretchFill(gif, 24, 1560));
+      // The flare highlight stays live on top — the bitmap carries the
+      // flare ART, and the travelling sheen is drawn over it.
+      r.foreground(RailFlares{C(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});
+      return r;
+    }
+    return r
         .fill(Material::linearUnit({0, 0}, {0, 1},
                                    {{0.00f, C(0x6A1B21)},
                                     {0.22f, kChrome},
@@ -2388,8 +2609,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             right ? shapes::Edge::Left : shapes::Edge::Right,
             util::stroke(1, Fill::color(fade(C(0x99AAAA), 0.35f)),
                          PathFormat::Align::Inner)))
-        .foreground(RailFlares{C(0x99AAAA), 6.0f, right ? 3.0f : 0.0f})
-        .cache(Cache::None);
+        .foreground(RailFlares{C(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});
   }
 
   // ---- boot overlay: dot, reticle, percentage, flash ----------------------
@@ -2490,7 +2710,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     stage.child(place(masthead(), 1192, 8, 700, 236));
     stage.child(place(mainframe(), 0, 246, 1180, 350));
     stage.child(place(featureSystem(), 1196, 246, 696, 350));
-    stage.child(place(auxiliary(), 0, 616, 1180, 154));
+    stage.child(place(auxiliary(), 0, 616, 1180, 168));
     stage.child(place(transmissionLog(), 0, 790, 1180, 236));
     stage.child(place(pressUpdates(), 1196, 616, 696, 410));
     stage.child(place(statusWire(), 0, 1038, 1892, 38));
@@ -2498,19 +2718,27 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     stage.child(place(legalStrip(), 0, 1196, 1892, 96));
     stage.child(place(footerDock(), 0, 1310, 1892, 220));
 
-    // sitebackground.gif is a 1×1600 strip: the oxblood is only the top
-    // band, and it is nearly black by a third of the way down. A linear
-    // two-stop ramp reads as a flat maroon field and gets the figure/
-    // ground backwards — the PANELS are the light thing on this page.
-    return stack()
-        .fill(Material::linearUnit({0, 0}, {0, 1},
-                                   {{0.00f, kBgTop},
-                                    {0.13f, C(0x2E0808)},
-                                    {0.40f, C(0x150202)},
-                                    {1.00f, kBgBot}}))
-        .child(box().inset(0).fill(grain).opacity(0.07f).blend(
-            SkBlendMode::kOverlay))
-        .child(rail(false))
+    // sitebackground.gif is a 1×1600 strip tiled across the page: the
+    // oxblood is only the top band, and it is nearly black by a third
+    // of the way down. When the real strip is loaded it IS the page —
+    // repeated in x, ×2 in y, clamped so the canvas shows the strip's
+    // top 780 rows exactly as a 780-CSS-px-tall page did. The fallback
+    // ramp keeps the same shape (a two-stop ramp reads as flat maroon
+    // and gets figure/ground backwards — the PANELS are the light thing
+    // on this page) and adds grain for the strip's vertical tooth.
+    Element page = stack();
+    if (siteBgGif) {
+      page.fill(stretchFill(siteBgGif, 1940, 3200, SkTileMode::kRepeat));
+    } else {
+      page.fill(Material::linearUnit({0, 0}, {0, 1},
+                                     {{0.00f, kBgTop},
+                                      {0.13f, C(0x2E0808)},
+                                      {0.40f, C(0x150202)},
+                                      {1.00f, kBgBot}}))
+          .child(box().inset(0).fill(grain).opacity(0.07f).blend(
+              SkBlendMode::kOverlay));
+    }
+    return page.child(rail(false))
         .child(rail(true))
         .child(stage)
         .child(bootOverlay());
@@ -2522,6 +2750,21 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     using namespace tav;
     ctx.canvas(1940, 1560);
     ctx.background(C(0x0A0000));
+
+    // --- the production shell bitmaps, from the restoration host ----------
+    // The loader's https path caches on disk (CacheFirst), so only the
+    // very first run touches the network; each call returns null when the
+    // fetch fails AND nothing is cached, which the use sites treat as
+    // "draw the procedural stand-in".
+    {
+      sigil::loader::Hub& hub = ctx.assets.hub();
+      const std::string base = "https://v4prophecy.2advanced.com/images/";
+      railLeftGif = hub.image(base + "leftsidepanel.gif");
+      railRightGif = hub.image(base + "rightsidepanel.gif");
+      siteBgGif = hub.image(base + "sitebackground.gif");
+      footerGif = hub.image(base + "sitefooter.gif");
+      logoBugSvg = hub.image(base + "2alogobug.svg", {.width = 124});
+    }
 
     // --- generated materials, built ONCE and HELD (identity = pruning) ---
     hazard = patterns::stripes(6, 10, kChromeHi);
@@ -2603,6 +2846,40 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       vuLeft = 0.45f + 0.42f * std::abs(std::sin(s * 3.1f));
       vuRight = 0.40f + 0.45f * std::abs(std::sin(s * 2.3f + 1.1f));
 
+      // the section cycle: shutters, ACCESSING plate, selection mark
+      {
+        float ph = -1.0f;  // transition phase, <0 outside a change
+        int target = 2, from = 2;
+        if (t >= kCycleStart) {
+          const double u = std::fmod(t - kCycleStart, 7.0 * kHoldS);
+          const int stop = (int)(u / kHoldS);
+          const double within = u - stop * kHoldS;
+          target = cycleTarget(stop);
+          from = stop == 0 ? 2 : cycleTarget(stop - 1);
+          if (within < kTransS) ph = (float)(within / kTransS);
+        }
+        for (int i = 0; i < 6; ++i) {
+          float cover = 0.0f;
+          if (ph >= 0.0f) {
+            // close L→R over the first 0.4, reopen R→L over the last 0.4
+            const float closeAt = 0.04f * (float)i;
+            const float openAt = 0.60f + 0.04f * (float)(5 - i);
+            cover = std::clamp((ph - closeAt) / 0.14f, 0.0f, 1.0f) -
+                    std::clamp((ph - openAt) / 0.14f, 0.0f, 1.0f);
+          }
+          shutter[(size_t)i] = cover;
+        }
+        shutterInfo = ph < 0.0f
+                          ? 0.0f
+                          : std::clamp((ph - 0.22f) / 0.08f, 0.0f, 1.0f) -
+                                std::clamp((ph - 0.70f) / 0.08f, 0.0f, 1.0f);
+        // the mark glides during the middle of the change
+        const float glide =
+            ph < 0.0f ? 1.0f : std::clamp((ph - 0.3f) / 0.4f, 0.0f, 1.0f);
+        const float eased = glide * glide * (3.0f - 2.0f * glide);
+        navIndX = navMarkX(from) + (navMarkX(target) - navMarkX(from)) * eased;
+      }
+
       // seven tick clusters, each blinking its three dots in sequence,
       // phase-offset per panel so they never lock step
       for (int p = 0; p < 7; ++p) {
@@ -2644,12 +2921,27 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     ctx.composer.render(describe());
     ctx.composer.renderSlot("bootpct", bootReadout());
+    ctx.composer.renderSlot("mfload", mfLoadReadout(mfSection = 2));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    // The DATA path, used for exactly one thing: the boot percentage is
-    // TEXT CONTENT, not a paint property, so it cannot be a binding. The
-    // slot() keeps the churn local — the rest of the tree is untouched.
+    // The ACCESSING readout's section name is text content, so it rides
+    // the DATA path: re-rendered into its slot only when the cycle's
+    // target changes.
+    {
+      int target = 2;
+      if (elapsed >= kCycleStart) {
+        const double u = std::fmod(elapsed - kCycleStart, 7.0 * kHoldS);
+        target = cycleTarget((int)(u / kHoldS));
+      }
+      if (target != mfSection) {
+        mfSection = target;
+        ctx.composer.renderSlot("mfload", mfLoadReadout(target));
+      }
+    }
+    // The boot percentage is TEXT CONTENT, not a paint property, so it
+    // cannot be a binding. The slot() keeps the churn local — the rest
+    // of the tree is untouched.
     if (booted) return;
     const double u = (elapsed - 0.55) / 0.80;
     const int pct = (int)std::lround(std::clamp(u, 0.0, 1.0) * 100.0);

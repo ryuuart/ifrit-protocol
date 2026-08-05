@@ -62,7 +62,9 @@ audit), the gallery when you are LOOKING at one next to everything else.
 | `spacejam_1996` | spacejam.com, Warner Bros. Online, still live and unmodified | A DOCUMENT, not a panel — HTML auto table layout as a `LayoutScheme` matching Chrome to 0.11 px, and a 216-colour dither in `setView` |
 | `psx_doom_fire` | The DOOM PlayStation title flame (1995) | A stateful cellular automaton at a fixed 27 Hz under a variable frame rate |
 | `minard_1869` | Minard's own BnF presentation copy of the 1869 sheet | The plate audited against its own printed legend, then the sketch audited by the same instrument |
-| `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths; the whole skeuomorphic vocabulary |
+| `twoadvanced_equipment` | 2Advanced's Equipment.Modules store (2003), an HTML 4.0 frameset of Dreamweaver tables | The page's own bitmaps over the loader's https path, its table metrics verbatim, the styled IE scrollbar — and its only two behaviours (JS rollovers, frame scroll) as the only motion |
+| `twoadvanced_v3` | 2Advanced Studios "V3 Expansions Reboot" (2024), the live Rive/React rebuild of the 2001 v3 site | The production art itself — embedded PNGs lifted from the site's own `mainstage.riv` over the loader's https path, the 62-frame cloud loop composited through a soft mask, and the section cycle replaying the stepped shape-wipe |
+| `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths; the whole skeuomorphic vocabulary — with the real shell GIFs fetched from the studio's restoration host |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |

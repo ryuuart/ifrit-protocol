@@ -61,6 +61,12 @@ inline constexpr StudyInfo kStudies[] = {
     {"spacejam_1996", "spacejam 1996", "Study \xc2\xb7 Screens",
      "spacejam.com, still live \xe2\x80\x94 HTML auto table layout as a "
      "LayoutScheme, to 0.11 px"},
+    {"twoadvanced_equipment", "twoadvanced equipment", "Study \xc2\xb7 Screens",
+     "2Advanced's Equipment.Modules store (2003) \xe2\x80\x94 an HTML "
+     "frameset of Dreamweaver tables, bitmaps and all"},
+    {"twoadvanced_v3", "twoadvanced v3", "Study \xc2\xb7 Screens",
+     "2Advanced Studios V3 Expansions Reboot (2024) \xe2\x80\x94 the "
+     "production art, lifted from the live site's own Rive file"},
     {"twoadvanced_v4", "twoadvanced v4", "Study \xc2\xb7 Screens",
      // The literal breaks after the en dash on purpose: \x93 followed by a
      // digit would swallow it into one out-of-range hex escape.

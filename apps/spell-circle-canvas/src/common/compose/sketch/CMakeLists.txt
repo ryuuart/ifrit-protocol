@@ -46,7 +46,8 @@ set(SIGIL_SKETCH_STUDIES
   ds2_bench fallout2_charsheet ksp_mapview psx_doom_fire xcom_battlescape
   thaumonomicon vagrant_story_target astral_tome bg3_dice_roll
   # Screens and software
-  cde_motif spacejam_1996 twoadvanced_v4 winamp_base
+  cde_motif spacejam_1996 twoadvanced_equipment twoadvanced_v3 twoadvanced_v4
+  winamp_base
   # Science and data
   chaucer_astrolabe chevreul_circle chladni_tab1 minard_1869
   nightingale_coxcomb
