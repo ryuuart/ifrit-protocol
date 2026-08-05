@@ -649,6 +649,7 @@ class Animatable {
   Animatable(const Animatable& other) { *this = other; }
   Animatable(Animatable&&) noexcept = default;
   Animatable& operator=(const Animatable& other) {
+    if (this == &other) return *this;
     m_kind = other.m_kind;
     m_plain = other.m_plain;
     m_bound = other.m_bound;
