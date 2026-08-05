@@ -81,6 +81,16 @@ and the SigilWorld tests *skip* rather than fail without a Vulkan runtime
 Open-licensed demo assets come from the opt-in `fetch_assets` target into
 `build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.
 
+Code coverage runs through `scripts/coverage.py` — one command that
+configures a dedicated instrumented tree (`build-coverage/`, reusing the
+primary build's preset composition and its `vcpkg_installed/`
+dependencies read-only; the primary `build/` is never touched), builds
+the test targets, runs ctest under LLVM source-based profiling, and
+writes the `llvm-cov` summary to the console plus an HTML report under
+`build-coverage/coverage/html/`. `--filter <regex>` runs a test subset
+and builds only the targets it needs; `--export-lcov <file>` emits an
+lcov file for CI consumers.
+
 ### Visual work
 
 `ComposeGallery` is a macOS app bundle, so headless runs go through the

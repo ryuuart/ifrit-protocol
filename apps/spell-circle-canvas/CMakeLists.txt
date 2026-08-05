@@ -76,6 +76,39 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   endif()
 endif()
 
+# Instruments this project's objects for LLVM source-based coverage
+# (llvm-profdata / llvm-cov). Meant for a dedicated build tree — configure a
+# separate binary dir with this ON (scripts/coverage.py does exactly that)
+# rather than toggling it inside a primary tree, because flipping the flag
+# recompiles every object file. vcpkg dependencies arrive as prebuilt
+# archives and are never instrumented; reports therefore cover this
+# repository's sources, which is the point.
+option(SPELLCIRCLE_COVERAGE "Instrument C/C++/ObjC++ targets for llvm-cov source-based coverage" OFF)
+if(SPELLCIRCLE_COVERAGE)
+  # The instrumentation flags are Clang's; this gate covers AppleClang and
+  # clang-cl too (both carry Clang in their compiler id, and clang-cl
+  # accepts these flags even with its MSVC-style frontend).
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR
+      "SPELLCIRCLE_COVERAGE requires a Clang toolchain: "
+      "-fprofile-instr-generate/-fcoverage-mapping are Clang's source-based "
+      "coverage and ${CMAKE_CXX_COMPILER_ID} does not implement them. Under "
+      "MSVC cl.exe the alternative is OpenCppCoverage — PDB-based binary "
+      "instrumentation of an ordinary build, no recompile, a standalone "
+      "tool rather than a library — not integrated here because the "
+      "Windows port is not yet buildable.")
+  endif()
+  # Compile flags are gated on language because SpellCircleMac's Swift
+  # sources go through swiftc, which rejects these clang flags. The link
+  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
+  # through the clang++ driver, which embeds the profile runtime, while the
+  # Swift executable's swift-driver link must not see the flag. The Swift
+  # app still links the instrumented SpellCircleMacBridge dylib, which
+  # carries its own runtime reference.
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate;-fcoverage-mapping>")
+  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate>")
+endif()
+
 # Opt-in network fetch of open-licensed demo assets into the build tree
 # (`--target fetch_assets`); nothing here runs during a normal build.
 include(FetchAssets)
