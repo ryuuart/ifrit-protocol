@@ -8,3 +8,4 @@
 # rejects anything else. Append the hash of the whole-tree Google-style
 # clang-format commit here as part of landing it (the hash does not
 # exist until the commit is made).
+50cc5e8c133f4644447dd7431893de08f8069742  # style: the great reformat (Google style, mechanical)
