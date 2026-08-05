@@ -12,7 +12,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -217,7 +216,7 @@ def main() -> int:
 
     if not arguments.build_only:
         if USER_PRESETS.exists() and not arguments.force:
-            print(f"CMakeUserPresets.json already exists (use --force to regenerate).")
+            print("CMakeUserPresets.json already exists (use --force to regenerate).")
         else:
             print("Locating dependencies...")
             qt_installation = find_qt()

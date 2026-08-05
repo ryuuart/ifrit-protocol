@@ -1,0 +1,10 @@
+# Google C++ style, stock. The value of a published style is that this
+# file stays empty of local opinion: tooling, editors, and new
+# contributors all agree by default. Add an override only when stock
+# Google is genuinely broken for this codebase, with a comment saying
+# why.
+#
+# The whole-tree reformat onto this style is a single commit listed in
+# .git-blame-ignore-revs, so blame skips it. Vendored and generated
+# sources are never formatted: see .clang-format-ignore.
+BasedOnStyle: Google

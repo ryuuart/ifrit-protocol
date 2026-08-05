@@ -1,0 +1,10 @@
+# Commits that changed formatting only, listed so blame skips them and
+# attributes every line to the change that last touched its meaning.
+# Locally this file takes effect via:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub's blame view honors it automatically.
+#
+# Entries must be full 40-character commit hashes, one per line; git
+# rejects anything else. Append the hash of the whole-tree Google-style
+# clang-format commit here as part of landing it (the hash does not
+# exist until the commit is made).

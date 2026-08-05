@@ -81,15 +81,45 @@ and the SigilWorld tests *skip* rather than fail without a Vulkan runtime
 Open-licensed demo assets come from the opt-in `fetch_assets` target into
 `build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.
 
+Formatting and linting run through `scripts/check.py` — one command
+covering clang-format (Google C++ style, stock), ruff (lint and format),
+qmllint, and clang-tidy, scoped by default to the files git sees as
+changed. `--all` checks the whole tree, `--fix` applies the format
+fixes, `--tidy-all` analyzes every translation unit. The configs live at
+the repository root: `.clang-format` with `.clang-format-ignore`,
+`.clang-tidy`, `.clangd`, and `ruff.toml`. The discipline is
+check-forward: the tools police changes, never mass-reformat — the one
+whole-tree reformat that adopted the style is listed in
+`.git-blame-ignore-revs`, which `git config blame.ignoreRevsFile
+.git-blame-ignore-revs` makes local blame skip (GitHub's blame view
+honors it automatically). clang-tidy comes from `brew install llvm`,
+ruff from `brew install ruff`; the other tools ride the Xcode and Qt
+installs the build already needs.
+
 Code coverage runs through `scripts/coverage.py` — one command that
 configures a dedicated instrumented tree (`build-coverage/`, reusing the
 primary build's preset composition and its `vcpkg_installed/`
 dependencies read-only; the primary `build/` is never touched), builds
 the test targets, runs ctest under LLVM source-based profiling, and
 writes the `llvm-cov` summary to the console plus an HTML report under
-`build-coverage/coverage/html/`. `--filter <regex>` runs a test subset
-and builds only the targets it needs; `--export-lcov <file>` emits an
-lcov file for CI consumers.
+`build/coverage/html/` in the primary build directory. Each run replaces
+the report wholesale, and `RUN.txt` beside it records the invocation and
+scope that produced it. `--filter <regex>` runs a test subset and builds
+only the targets it needs; `--export-lcov <file>` emits an lcov file for
+CI consumers.
+
+Sanitizer runs go through `scripts/sanitize.py`: ASan+UBSan by default
+(`build-asan/`), the TSan lane with `--thread` (`build-tsan/`);
+`--filter`/`--targets`/`--config` work as in `coverage.py`, and both
+orchestrators share `scripts/buildtree.py` for preset resolution and the
+shared-vcpkg configure. The runtimes ship with Clang — no new
+dependencies. UBSan findings abort rather than scroll past, so a finding
+fails its test. vcpkg archives are uninstrumented, which is why
+container-overflow checking is disabled at runtime and the address lane
+pins Abseil's table layout to agree with the prebuilt archive;
+LeakSanitizer is unsupported on Apple Silicon and disabled. The TSan
+lane runs `scry_test`'s web-thread handoffs, though the Ultralight
+dylibs themselves are uninstrumented.
 
 ### Visual work
 

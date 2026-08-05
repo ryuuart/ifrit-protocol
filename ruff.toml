@@ -1,0 +1,69 @@
+# Lint and format policy for the repo's Python: the authoring package
+# under apps/python and the tool scripts. Tuned to pass on the existing
+# code — the tools police changes going forward; they do not restyle
+# what already works.
+
+# The practical ceiling of the existing code (most of it wraps near 80).
+line-length = 88
+
+extend-exclude = [
+    # FlatBuffers output, owned by regen_flatbuffers.sh. Regenerating
+    # would silently discard any hand fix or reformat.
+    "apps/python/SpellCircle/Box.py",
+    "apps/python/SpellCircle/Circle.py",
+    "apps/python/SpellCircle/Edge.py",
+    "apps/python/SpellCircle/Point.py",
+    "apps/python/SpellCircle/Scene.py",
+    "apps/python/SpellCircle/Vec2.py",
+    # Build trees carry generated and vendored Python.
+    "apps/spell-circle-canvas/build*",
+    "touchdesigner/venv*",
+]
+
+[lint]
+# Existing patterns in this repository that the default rule set would
+# flag wholesale. Each entry is a deliberate house habit, not an
+# oversight; removing one from this list means fixing every place it
+# fires first.
+ignore = [
+    "E401",    # compact one-line import blocks in the tool scripts
+    "UP031",   # printf-style formatting
+    "EXE001",  # shebang lines on scripts that are not chmod +x
+    "SIM115",  # open() without a context manager
+    "PLW1510", # subprocess.run without explicit check=
+    "PLR1711", # bare trailing `return` (TouchDesigner callback stubs)
+    "DTZ005",  # local-time datetime.now() — report timestamps are local
+    "PYI034",  # __enter__ annotated with the concrete class, not Self
+    "N999",    # the package directory is named SpellCircle, capital S
+    "PIE810",  # consecutive startswith() calls
+    "C408",    # dict(x=1) keyword-literal calls
+]
+
+[lint.per-file-ignores]
+# TouchDesigner injects op/DAT/mod and friends into script globals at
+# runtime; outside TouchDesigner they are undefined names. Its import
+# block, like the two below, predates import sorting.
+"touchdesigner/scripts/spell_circle.py" = ["F821", "I001"]
+"apps/spell-circle-canvas/scripts/plate_ledger.py" = ["I001"]
+"apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py" = ["I001"]
+
+[format]
+# Grandfathered: these predate the formatter and diverge from its
+# output (deliberately aligned literal tables, compact wrapping).
+# Reformatting them is a separate decision from adopting the tool —
+# until then they are lint-checked but not format-checked. New Python
+# files are format-checked from birth; do not add to this list.
+exclude = [
+    "apps/python/SpellCircle/test/animate_spell_circles.py",
+    "apps/python/SpellCircle/test/send_spell_circles.py",
+    "apps/spell-circle-canvas/scripts/buildtree.py",
+    "apps/spell-circle-canvas/scripts/coverage.py",
+    "apps/spell-circle-canvas/scripts/plate_ledger.py",
+    "apps/spell-circle-canvas/scripts/sanitize.py",
+    "apps/spell-circle-canvas/scripts/setup.py",
+    "apps/spell-circle-canvas/src/common/compose/gallery/tools_gen_skill_tree_data.py",
+    "apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py",
+    "apps/spell-circle-canvas/src/common/compose/test/docs/api_doc_probes.py",
+    "touchdesigner/scripts/configure_editors.py",
+    "touchdesigner/scripts/spell_circle.py",
+]

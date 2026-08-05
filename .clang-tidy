@@ -1,0 +1,53 @@
+# Curated for signal on a mature codebase: the bug-finding families
+# wholesale, plus individually chosen modernize/readability checks.
+# The excluded and omitted checks below each fired en masse against
+# existing, deliberate code (measured on representative files) —
+# re-enabling one means either fixing its findings tree-wide or
+# drowning the checks that catch real defects.
+#
+# Not enabled, by measurement (findings on a four-file sample):
+#   modernize-use-trailing-return-type (666), readability-identifier-length
+#   (310), readability-uppercase-literal-suffix (241),
+#   readability-braces-around-statements (163), modernize-use-nodiscard
+#   (126), readability-magic-numbers (81) — constants ARE the content in
+#   graphics code, modernize-use-designated-initializers (66),
+#   modernize-avoid-c-style-cast (45), readability-math-missing-parentheses
+#   (40), readability-implicit-bool-conversion (23),
+#   modernize-avoid-c-arrays (15).
+Checks: >
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  performance-*,
+  -performance-enum-size,
+  clang-analyzer-*,
+  modernize-loop-convert,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-redundant-void-arg,
+  modernize-use-emplace,
+  modernize-use-equals-default,
+  modernize-use-equals-delete,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  readability-container-size-empty,
+  readability-delete-null-pointer,
+  readability-misleading-indentation,
+  readability-non-const-parameter,
+  readability-redundant-member-init,
+  readability-redundant-smartptr-get,
+  readability-redundant-string-cstr,
+  readability-redundant-string-init,
+  readability-simplify-boolean-expr,
+  readability-static-accessed-through-instance,
+  readability-string-compare
+
+# Empty on purpose: nothing is promoted to an error until the check set
+# has proven itself quiet on routine changes.
+WarningsAsErrors: ''
+
+# Report findings in this repository's own headers, but never in
+# vendored or generated ones.
+HeaderFilterRegex: 'apps/spell-circle-canvas/src/'
+ExcludeHeaderFilterRegex: 'thirdparty/|SpellCircle_generated'

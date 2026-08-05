@@ -109,6 +109,73 @@ if(SPELLCIRCLE_COVERAGE)
   add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate>")
 endif()
 
+# Builds this project's objects under Clang's runtime sanitizers. The value
+# is a CMake list of -fsanitize= names — "address;undefined" for the
+# ASan+UBSan lane, "thread" for TSan. Meant for a dedicated build tree —
+# configure a separate binary dir with this set (scripts/sanitize.py does
+# exactly that) rather than toggling it inside a primary tree, because
+# changing the value recompiles every object file, and a sanitized binary
+# is not a binary anyone ships. vcpkg dependencies arrive as prebuilt,
+# uninstrumented archives; ASan's interceptors still see every allocation
+# and libc call those archives make, so bugs in this repository's use of
+# them are caught — but checks that need both sides instrumented (container
+# overflow) misfire across the boundary, which is why sanitize.py disables
+# that one check at runtime.
+set(SPELLCIRCLE_SANITIZE "" CACHE STRING
+  "Sanitizers to compile and link with (e.g. address;undefined or thread); empty builds none")
+if(SPELLCIRCLE_SANITIZE)
+  # The flag spellings and runtime libraries are Clang's; this gate covers
+  # AppleClang and clang-cl too (both carry Clang in their compiler id).
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR
+      "SPELLCIRCLE_SANITIZE requires a Clang toolchain: the -fsanitize= "
+      "runtimes configured here ship with Clang and "
+      "${CMAKE_CXX_COMPILER_ID} does not provide them.")
+  endif()
+  if("thread" IN_LIST SPELLCIRCLE_SANITIZE AND "address" IN_LIST SPELLCIRCLE_SANITIZE)
+    message(FATAL_ERROR
+      "SPELLCIRCLE_SANITIZE cannot combine thread with address: each "
+      "runtime interposes the allocator and shadows the address space its "
+      "own way, and a process can only host one. Build separate trees.")
+  endif()
+  list(JOIN SPELLCIRCLE_SANITIZE "," spellcircle_sanitize_names)
+  set(spellcircle_sanitize_compile_flags
+    "-fsanitize=${spellcircle_sanitize_names}"
+    # Sanitizer reports unwind through frame pointers; without them the
+    # stacks in a report degrade to unusable fragments.
+    "-fno-omit-frame-pointer")
+  if("undefined" IN_LIST SPELLCIRCLE_SANITIZE)
+    # UBSan's default is print-and-continue, which lets a finding scroll
+    # past inside a passing test. Non-recoverable checks abort instead, so
+    # a UBSan finding fails the test that triggered it.
+    list(APPEND spellcircle_sanitize_compile_flags
+      "-fno-sanitize-recover=undefined")
+  endif()
+  if("address" IN_LIST SPELLCIRCLE_SANITIZE)
+    # Abseil's swisstable headers turn on iterator-generation bookkeeping
+    # in any translation unit compiled under ASan, which changes the
+    # table layout and makes generation pointers load-bearing. The
+    # function that supplies the empty-table generation pointer lives in
+    # the prebuilt (unsanitized) vcpkg archive, where that bookkeeping
+    # compiled out — it returns null, and the first find() on an absl map
+    # dereferences it. NDEBUG_SANITIZER is Abseil's own switch for
+    # keeping generations off under sanitizers; defining it makes our
+    # sanitized objects agree with the archive about the layout. The cost
+    # is Abseil's iterator-invalidation checking, which cannot work
+    # against a prebuilt archive anyway.
+    add_compile_definitions(NDEBUG_SANITIZER)
+  endif()
+  # Compile flags are gated on language because SpellCircleMac's Swift
+  # sources go through swiftc, which rejects these clang flags. The link
+  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
+  # through the clang++ driver, which links the sanitizer runtime dylib,
+  # while the Swift executable's swift-driver link must not see the flag.
+  # The Swift app still links the sanitized SpellCircleMacBridge dylib,
+  # which carries its own runtime reference.
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:${spellcircle_sanitize_compile_flags}>")
+  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fsanitize=${spellcircle_sanitize_names}>")
+endif()
+
 # Opt-in network fetch of open-licensed demo assets into the build tree
 # (`--target fetch_assets`); nothing here runs during a normal build.
 include(FetchAssets)

@@ -1,0 +1,11 @@
+# Points language servers at the app's compile database so IDE
+# diagnostics use the real build's flags.
+#
+# The Add is required on macOS: the database records /usr/bin/c++
+# without -isysroot (the driver injects the SDK path itself at build
+# time), so a bare clangd cannot find the C++ standard library headers.
+# The path is Xcode's stable sdk symlink; `xcrun --show-sdk-path`
+# resolves inside it.
+CompileFlags:
+  CompilationDatabase: apps/spell-circle-canvas/build
+  Add: [-isysroot/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk]
