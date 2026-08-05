@@ -6,7 +6,9 @@ SPELLCIRCLE_COVERAGE=ON, reusing the primary build's preset composition
 (vcpkg toolchain, Qt prefix) from CMakeUserPresets.json, builds the test
 targets, runs ctest with per-process profile emission, merges the raw
 profiles with llvm-profdata, and prints the llvm-cov summary plus an HTML
-report under build-coverage/coverage/html/.
+report under build/coverage/html/ — in the PRIMARY build directory, beside
+the other build artifacts. Each run replaces the report wholesale, and
+RUN.txt beside it records the invocation and scope that produced it.
 
 Usage (from apps/spell-circle-canvas):
   scripts/coverage.py                                # full suite
@@ -46,6 +48,7 @@ import shutil
 import subprocess
 import sys
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -352,10 +355,17 @@ def main() -> int:
     resolved = resolve_preset("main")
     environment = preset_environment(resolved)
 
+    # Instrumentation intermediates stay with the instrumented tree; the
+    # human-facing report lands in the PRIMARY build directory, where the
+    # other build artifacts (plate baselines, fetched assets) already live.
+    # Each run REPLACES the report wholesale — what sits there is always
+    # the last run, never an accumulation — and RUN.txt says which run
+    # that was, so a filtered subset can never pass for the full suite.
     coverage_dir = COVERAGE_BUILD_DIR / "coverage"
     raw_dir = coverage_dir / "raw"
     profdata = coverage_dir / "coverage.profdata"
-    html_dir = coverage_dir / "html"
+    report_dir = PRIMARY_BUILD_DIR / "coverage"
+    html_dir = report_dir / "html"
 
     configure(resolved, environment)
 
@@ -399,8 +409,9 @@ def main() -> int:
 
     run([*llvm_tool("llvm-cov"), "report", *common_arguments], PROJECT_DIR)
 
-    if html_dir.exists():
-        shutil.rmtree(html_dir)
+    if report_dir.exists():
+        shutil.rmtree(report_dir)
+    report_dir.mkdir(parents=True)
     run(
         [*llvm_tool("llvm-cov"), "show", "--format=html",
          f"-output-dir={html_dir}", *common_arguments],
@@ -417,6 +428,18 @@ def main() -> int:
         )
         lcov_path.write_text(result.stdout)
         print(f"lcov export: {lcov_path}")
+
+    # The report's provenance, beside the report. A reader who finds
+    # build/coverage/ a week from now learns what produced it without
+    # trusting anyone's memory: the exact invocation, the scope, and when.
+    scope = (f"test filter: {arguments.filter}" if arguments.filter
+             else "full test suite")
+    (report_dir / "RUN.txt").write_text(
+        f"generated: {datetime.now().isoformat(timespec='seconds')}\n"
+        f"command:   {' '.join(sys.argv)}\n"
+        f"config:    {arguments.config}\n"
+        f"scope:     {scope}\n"
+        f"objects:   {', '.join(e.name for e in executables)}\n")
 
     index = html_dir / "index.html"
     if arguments.open:
