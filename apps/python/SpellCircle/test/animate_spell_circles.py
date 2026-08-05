@@ -178,7 +178,7 @@ def build_frame(elapsed_seconds: float) -> bytes:
         CANVAS_CENTER_X,
         CANVAS_CENTER_Y,
         round(BIG_CIRCLE_RADIUS),
-        text_start=(0.62 + elapsed_seconds * 0.04) % 1.0,
+        text_start=(0.87 + elapsed_seconds * 0.04) % 1.0,
     )
 
     # Orbiting circles.
@@ -217,7 +217,7 @@ def build_frame(elapsed_seconds: float) -> bytes:
                 center_y,
                 max(1, round(radius)),
                 text_start=(
-                    0.75 + elapsed_seconds * 0.09 + orbiter_index * 0.13
+                    0.0 + elapsed_seconds * 0.09 + orbiter_index * 0.13
                 )
                 % 1.0,
                 active=active,

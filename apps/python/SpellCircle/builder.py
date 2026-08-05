@@ -31,7 +31,7 @@ class CircleDefinition:
     center_x: float
     center_y: float
     radius: int
-    text_start: float = 0.75
+    text_start: float = 0.0
     active: float = 0.0
 
     @property

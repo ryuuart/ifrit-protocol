@@ -116,10 +116,9 @@ TEST(SceneModel, SharedPointTablesDecodeToOneEntity) {
 // ── SceneGeometry ──────────────────────────────────────────────────────────
 
 TEST(SceneGeometry, PointFractionsMeasureClockwiseFromTwelveOClock) {
-  // Pins the Point.position convention: a fraction of one full turn measured
-  // CLOCKWISE from 12 o'clock, so 0.0 is the topmost point of the circle and
-  // 0.25 is 3 o'clock. Deliberately a quarter turn apart from
-  // Circle.text_start, whose origin is the contour start at 3 o'clock.
+  // Pins the wire convention shared by Point.position and Circle.text_start:
+  // a fraction of one full turn measured CLOCKWISE from 12 o'clock, so 0.0
+  // is the topmost point of the circle and 0.25 is 3 o'clock.
   flatbuffers::FlatBufferBuilder fbb;
   const SpellCircle::Vec2 center(500.0f, 500.0f);
   const auto circle =
@@ -155,6 +154,51 @@ TEST(SceneGeometry, PointFractionsMeasureClockwiseFromTwelveOClock) {
   ASSERT_NE(right, nullptr);
   EXPECT_NEAR(right->anchor.x, 900.0f, 0.01f);
   EXPECT_NEAR(right->anchor.y, 500.0f, 0.01f);
+}
+
+TEST(SceneGeometry, TextStartSharesThePointOriginAndResolvesToTheContour) {
+  // text_start rides the wire in the same convention as Point.position —
+  // clockwise from 12 o'clock — and resolveScene() converts it into the
+  // drawn contour's own parameterisation, whose start is 3 o'clock (pinned
+  // by SceneLabels.CircleContoursStartAtThreeOClock). So wire 0.0 (top)
+  // must resolve to contour fraction 0.75, and wire 0.25 (3 o'clock) to
+  // the contour's own start at 0.0.
+  flatbuffers::FlatBufferBuilder fbb;
+  const SpellCircle::Vec2 center(500.0f, 500.0f);
+  const auto top = SpellCircle::CreateCircleDirect(
+      fbb, &center, "top", /*radius=*/400, /*text_start=*/0.0f);
+  const auto east = SpellCircle::CreateCircleDirect(
+      fbb, &center, "east", /*radius=*/400, /*text_start=*/0.25f);
+  const std::vector<flatbuffers::Offset<SpellCircle::Circle>> circles{top,
+                                                                      east};
+  const auto bytes =
+      finishScene(fbb, SpellCircle::CreateSceneDirect(fbb, &circles));
+
+  const SceneDocument document = decodeScene(bytes);
+  const spellcircle::ResolvedScene resolved =
+      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
+
+  ASSERT_EQ(resolved.circles.size(), 2u);
+  const auto circleNamed =
+      [&](std::string_view name) -> const spellcircle::ResolvedCircle * {
+    const auto found =
+        std::find_if(resolved.circles.begin(), resolved.circles.end(),
+                     [&](const auto &c) { return c.name == name; });
+    return found != resolved.circles.end() ? &*found : nullptr;
+  };
+  const auto *topCircle = circleNamed("top");
+  ASSERT_NE(topCircle, nullptr);
+  EXPECT_NEAR(topCircle->textStart, 0.75f, 1e-6f);
+  const auto *eastCircle = circleNamed("east");
+  ASSERT_NE(eastCircle, nullptr);
+  EXPECT_NEAR(eastCircle->textStart, 0.0f, 1e-6f);
+
+  // The conversion is the same one point resolution uses, so a label
+  // anchored at fraction f and a point placed at fraction f agree — one
+  // origin on the wire, one quarter-turn, one home for it.
+  EXPECT_NEAR(spellcircle::ringFractionFromTwelve(0.0f), 0.75f, 1e-6f);
+  EXPECT_NEAR(spellcircle::ringFractionFromTwelve(0.25f), 0.0f, 1e-6f);
+  EXPECT_NEAR(spellcircle::ringFractionFromTwelve(-0.25f), 0.5f, 1e-6f);
 }
 
 TEST(SceneGeometry, RadiiScaleWithTheHorizontalAxisOnly) {

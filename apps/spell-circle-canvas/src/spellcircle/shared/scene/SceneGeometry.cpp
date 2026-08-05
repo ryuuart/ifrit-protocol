@@ -5,6 +5,16 @@
 
 namespace spellcircle {
 
+float ringFractionFromTwelve(float fraction) {
+  // The drawn contour starts at 3 o'clock (SkPath circles begin there and
+  // wind clockwise in screen space), which sits three quarters of a turn
+  // clockwise from 12 o'clock — hence the +0.75.
+  float percent = std::fmod(fraction + 0.75f, 1.0f);
+  if (percent < 0.0f)
+    percent += 1.0f;
+  return percent;
+}
+
 namespace {
 
 /**
@@ -13,14 +23,12 @@ namespace {
  *
  * `position` is a fraction of one full turn, measured CLOCKWISE FROM 12
  * O'CLOCK: 0 is straight up, 0.25 is 3 o'clock, 0.5 is straight down. Values
- * outside [0, 1) wrap, negatives included. The +0.75 quarter turn converts
+ * outside [0, 1) wrap, negatives included. ringFractionFromTwelve converts
  * that authoring convention into the trigonometric one used below, where
  * angle 0 points along +x, at 3 o'clock.
  */
 Vec2 pointAtPosition(Vec2 center, float radius, float position) {
-  float percent = std::fmod(position + 0.75f, 1.0f);
-  if (percent < 0.0f)
-    percent += 1.0f;
+  const float percent = ringFractionFromTwelve(position);
   const float angle = percent * 2.0f * std::numbers::pi_v<float>;
   // Screen coordinates are y-down, so increasing angle sweeps clockwise.
   return Vec2{center.x + radius * std::cos(angle),
@@ -89,7 +97,11 @@ ResolvedScene resolveScene(const SceneDocument &document, float canvasWidth,
         .center = Vec2{circle.centerX * horizontalScale,
                        circle.centerY * verticalScale},
         .radius = static_cast<float>(circle.radius) * radiusScale,
-        .textStart = circle.textStart,
+        // The wire measures from 12 o'clock, matching Point.position; the
+        // renderer's ring geometry measures along the drawn contour from
+        // 3 o'clock. Converting here keeps both conventions out of every
+        // consumer.
+        .textStart = ringFractionFromTwelve(circle.textStart),
         .active = circle.active,
     });
   }

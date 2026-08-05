@@ -54,10 +54,16 @@ class SpellCircleCanvas:
         center_y: float,
         radius: int,
         *,
-        text_start: float = 0.75,
+        text_start: float = 0.0,
         active: float = 0.0,
     ) -> CircleDefinition:
-        """Adds a visible circle and returns its reusable definition."""
+        """Adds a visible circle and returns its reusable definition.
+
+        ``text_start`` anchors the middle of the name label, as a fraction
+        of one full turn measured clockwise from 12 o'clock — the same
+        origin ``point`` positions use. The default 0.0 centers the label
+        at the top.
+        """
         circle = CircleDefinition(
             name=name,
             center_x=float(center_x),

@@ -60,7 +60,7 @@ def build_scene(
         canvas_center,
         canvas_center,
         round(_scaled(1150, canvas_size)),
-        text_start=0.62,
+        text_start=0.87,
     )
 
     # Smaller circles placed at random positions/radii, kept inside the canvas

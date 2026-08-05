@@ -24,6 +24,11 @@ struct ResolvedCircle {
   std::string name; // UTF-8
   Vec2 center;
   float radius = 0.0f;
+  // Label anchor as a fraction of the DRAWN CONTOUR, which starts at
+  // 3 o'clock and winds clockwise — the domain SkContourMeasure and the
+  // ring-label geometry speak. The wire carries this from 12 o'clock
+  // (matching Point.position); resolveScene() converts, so nothing
+  // downstream needs to know two conventions ever existed.
   float textStart = 0.0f;
   float active = 0.0f; // background fill alpha/intensity [0, 1]
 };
@@ -61,6 +66,15 @@ struct ResolvedScene {
 
   void clear();
 };
+
+/**
+ * Converts a fraction measured CLOCKWISE FROM 12 O'CLOCK — the wire
+ * convention shared by Point.position and Circle.text_start — into a
+ * fraction of the drawn contour, which starts at 3 o'clock. Wraps values
+ * outside [0, 1), negatives included. This is the one home of the
+ * quarter-turn; both point resolution and label anchoring go through it.
+ */
+float ringFractionFromTwelve(float fraction);
 
 /**
  * Resolves every entity of @p document into absolute canvas coordinates for
