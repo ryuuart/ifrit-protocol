@@ -168,6 +168,20 @@ struct Lighting {
   glm::vec4 skyColor = {0.35f, 0.45f, 0.65f, 1};
   glm::vec4 groundColor = {0.10f, 0.09f, 0.11f, 1};
   float ambient = 0.55f;
+
+  /** Image-based light: an equirectangular panorama lighting every lit
+   *  surface — a diffuse term read along the normal from the panorama's
+   *  blurriest levels, a specular term read along the reflection at a
+   *  roughness-chosen blur, weighted by the split-sum environment BRDF.
+   *  When set it REPLACES the sky/ground hemisphere; `ambient` still
+   *  scales it. Float images keep their range (uploaded as half float
+   *  with a full mip chain); 8-bit images work and simply have none.
+   *  Compared by pointer, like material images: setting the same
+   *  sk_sp again uploads nothing. u = 0.5 of the image faces -Z; the
+   *  rotation turns the panorama about +Y. */
+  sk_sp<SkImage> environment;
+  float environmentIntensity = 1;
+  float environmentRotationDeg = 0;
 };
 
 class World {

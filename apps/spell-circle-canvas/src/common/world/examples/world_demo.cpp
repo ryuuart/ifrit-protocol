@@ -394,10 +394,32 @@ void renderMaterialLab(const std::filesystem::path& outDir,
 
   world::Lighting lighting;
   lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
-  lighting.sunIntensity = 3.2f;
+  lighting.sunIntensity = 2.4f;
   lighting.skyColor = {0.42f, 0.5f, 0.7f, 1};
   lighting.groundColor = {0.09f, 0.08f, 0.1f, 1};
-  lighting.ambient = 0.7f;
+  lighting.ambient = 0.9f;
+  // The fetched studio HDRI lights the lab when it is there: decoded
+  // float, so the panorama keeps its range through the upload; the
+  // same image, flattened, dresses a backdrop sphere so the reflections
+  // have a visible source. Absent, the hemisphere stands in.
+  if (sk_sp<SkImage> hdri =
+          decodeFile(assetDir / "hdri/studio_small_09_1k.hdr")) {
+    lighting.environment = hdri;
+    lighting.environmentIntensity = 1.0f;
+    lighting.environmentRotationDeg = 200;
+    world::Material sky;
+    sky.unlit = true;
+    sky.texture = hdri;  // flattened to 8-bit here: the backdrop clips
+    sky.baseColor = {0.55f, 0.55f, 0.55f, 1};
+    sky.uvScale = {-1, 1};  // seen from inside: mirror u
+    sky.uvOffset = {1, 0};
+    sky.tile = true;
+    // Inside the camera's far plane all round.
+    shape::Mesh dome =
+        shape::mesh::superellipsoid({2400, 2400, 2400}, 2, 96, 48);
+    w->addSurface(dome, shape::space::place({0, 0, 0}, 200 + 180), sky);
+    std::printf("environment: %dx%d\n", hdri->width(), hdri->height());
+  }
   w->setLighting(lighting);
   world::LightComponent fill;
   fill.type = world::LightComponent::Type::Point;

@@ -128,6 +128,7 @@ cbuffer FrameConstants
     float4 g_Params;      // x ambient, y light count
     float4 g_LightPos[8];   // xyz position (point) / direction (dir), w 1=point
     float4 g_LightColor[8]; // rgb color * intensity, w range (point)
+    float4 g_Env;         // x intensity, y rotation (radians), z top mip, w 1 = present
 };
 
 cbuffer DrawConstants
@@ -157,6 +158,23 @@ Texture2D    g_OcclusionMap;
 SamplerState g_OcclusionMap_sampler;
 Texture2D    g_EmissiveMap;
 SamplerState g_EmissiveMap_sampler;
+// The environment panorama, bound like a material map (a 1x1 black
+// stand-in when the lighting has none) so the frame's light rides the
+// same binding shape as everything else.
+Texture2D    g_Environment;
+SamplerState g_Environment_sampler;
+
+// Equirectangular lookup: u = 0.5 faces -Z, v = 0 is straight up, with
+// the panorama turned about +Y by g_Env.y.
+float3 envSample(float3 d, float lod)
+{
+    float c = cos(g_Env.y), s = sin(g_Env.y);
+    float3 r = float3(c * d.x - s * d.z, d.y, s * d.x + c * d.z);
+    float u = atan2(r.x, -r.z) / 6.2831853 + 0.5;
+    float v = acos(clamp(r.y, -1.0, 1.0)) / 3.1415926;
+    return g_Environment.SampleLevel(g_Environment_sampler, float2(u, v), lod).rgb
+           * g_Env.x;
+}
 
 float pick(float4 v, float channel)
 {
@@ -372,12 +390,44 @@ float4 PSMain(in PSIn IN) : SV_TARGET
                   g_LightColor[i].rgb * (atten * ndli);
     }
 
-    // Hemisphere ambient, with a reflection-oriented lobe for spec.
-    float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
-    float3 R     = reflect(-V, N);
-    float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
-    float3 ambient = g_Params.x * occlusion *
-        (hemiN * albedo + hemiR * F0 * (1.0 - rough) * (0.4 + 0.6 * pow(1.0 - ndv, 2.0)));
+    // Ambient: the panorama when the lighting carries one, otherwise the
+    // sky/ground hemisphere with a reflection-oriented lobe for spec.
+    float3 R = reflect(-V, N);
+    float3 ambient;
+    if (g_Env.w > 0.5)
+    {
+        // Diffuse: a five-tap cosine-weighted hemisphere read from a
+        // blurred level (the top levels of a panorama's mip chain are
+        // too few texels to stand in for a convolution on their own);
+        // specular along R at a roughness-chosen level, weighted by the
+        // split-sum environment BRDF (the analytic fit, no lookup
+        // texture).
+        float dlod = max(g_Env.z - 3.0, 0.0);
+        float3 tN = abs(N.y) < 0.9 ? cross(N, float3(0.0, 1.0, 0.0))
+                                   : cross(N, float3(1.0, 0.0, 0.0));
+        tN = normalize(tN);
+        float3 bN = cross(N, tN);
+        float3 irradiance = envSample(N, dlod) * 0.36;
+        irradiance += envSample(normalize(N * 0.5 + tN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 - tN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 + bN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 - bN * 0.866), dlod) * 0.16;
+        float3 prefiltered = envSample(R, rough * g_Env.z);
+        float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+        float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+        float4 rr = rough * c0 + c1;
+        float a004 = min(rr.x * rr.x, exp2(-9.28 * ndv)) * rr.x + rr.y;
+        float2 AB = float2(-1.04, 1.04) * a004 + rr.zw;
+        ambient = g_Params.x * occlusion *
+            (irradiance * albedo + prefiltered * (F0 * AB.x + AB.y));
+    }
+    else
+    {
+        float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
+        float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
+        ambient = g_Params.x * occlusion *
+            (hemiN * albedo + hemiR * F0 * (1.0 - rough) * (0.4 + 0.6 * pow(1.0 - ndv, 2.0)));
+    }
 
     float3 color = direct + ambient + emissive;
 
@@ -398,6 +448,7 @@ struct FrameConstants {
   float params[4];                    // x ambient, y light count
   float lightPos[kLightBudget][4];    // xyz pos/dir, w 1=point
   float lightColor[kLightBudget][4];  // rgb premultiplied intensity, w range
+  float env[4];  // x intensity, y rotation, z top mip, w present
 };
 
 struct DrawConstants {
@@ -503,7 +554,10 @@ struct MaterialBinding {
   const SkImage* emissive = nullptr;
   bool tile = false;
   bool valid = false;  ///< false until the first bind
-  static MaterialBinding of(const Material& m) {
+  /** The panorama the binding was built against; the frame's light is
+   *  bound per surface, so a new panorama rebinds every surface once. */
+  const SkImage* environment = nullptr;
+  static MaterialBinding of(const Material& m, const SkImage* environment) {
     return {m.texture.get(),
             m.normalMap.get(),
             m.roughnessMap.get(),
@@ -511,7 +565,8 @@ struct MaterialBinding {
             m.occlusionMap.get(),
             m.emissiveMap.get(),
             m.tile,
-            true};
+            true,
+            environment};
   }
   bool operator==(const MaterialBinding&) const = default;
 };
@@ -697,6 +752,14 @@ struct World::Impl {
   // shader variable picks its sampler here.
   dg::RefCntAutoPtr<dg::ISampler> clampSampler;
   dg::RefCntAutoPtr<dg::ISampler> wrapSampler;
+  dg::RefCntAutoPtr<dg::ISampler> panoramaSampler;  // wrap u, clamp v, mips
+  dg::RefCntAutoPtr<dg::ITexture> blackTexture;
+  /** The uploaded panorama and the image it came from (by pointer):
+   *  setLighting compares and re-uploads only on a new image. */
+  dg::RefCntAutoPtr<dg::ITexture> environmentTexture;
+  const SkImage* environmentKey = nullptr;
+  int environmentMips = 1;
+  bool uploadEnvironment(const sk_sp<SkImage>& image);
   /** Upload every map of @p material into a fresh binding on @p pso and
    *  record what was bound in @p bound. */
   bool bindMaterial(dg::IPipelineState* pso, const Material& material,
@@ -892,6 +955,8 @@ bool World::Impl::createPipelines(std::string* error) {
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
       {SHADER_TYPE_PIXEL, "g_EmissiveMap",
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_Environment",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
   psoCI.PSODesc.ResourceLayout.Variables = variables;
   psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)std::size(variables);
@@ -913,7 +978,13 @@ bool World::Impl::createPipelines(std::string* error) {
     samplerDesc.AddressV = TEXTURE_ADDRESS_WRAP;
     samplerDesc.Name = "sigilworld wrap";
     device->CreateSampler(samplerDesc, &wrapSampler);
-    if (!clampSampler || !wrapSampler) {
+    // The panorama: seamless around (wrap u), pinned at the poles
+    // (clamp v), and its mip chain is the roughness blur.
+    samplerDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.Name = "sigilworld panorama";
+    device->CreateSampler(samplerDesc, &panoramaSampler);
+    if (!clampSampler || !wrapSampler || !panoramaSampler) {
       if (error) *error = "sampler creation failed";
       return false;
     }
@@ -981,12 +1052,65 @@ bool World::Impl::createPipelines(std::string* error) {
     TextureSubResData flatSub{&flat, 4};
     TextureData flatData{&flatSub, 1};
     device->CreateTexture(desc, &flatData, &flatNormalTexture);
+    desc.Name = "sigilworld black";
+    const Uint32 black = 0xff000000u;
+    TextureSubResData blackSub{&black, 4};
+    TextureData blackData{&blackSub, 1};
+    device->CreateTexture(desc, &blackData, &blackTexture);
   }
-  if (!whiteTexture || !flatNormalTexture) return false;
+  if (!whiteTexture || !flatNormalTexture || !blackTexture) return false;
   whiteTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
       ->SetSampler(clampSampler);
   flatNormalTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
       ->SetSampler(clampSampler);
+  blackTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  return true;
+}
+
+bool World::Impl::uploadEnvironment(const sk_sp<SkImage>& image) {
+  using namespace dg;
+  environmentTexture.Release();
+  environmentKey = image.get();
+  environmentMips = 1;
+  if (!image) return true;
+  // Half float keeps an HDR panorama's range; the full mip chain is the
+  // roughness blur the shader walks. Only level 0 is supplied; the
+  // device generates the rest.
+  const int w = image->width(), h = image->height();
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::Make(w, h, kRGBA_F16_SkColorType, kUnpremul_SkAlphaType));
+  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0)) return false;
+  int mips = 1;
+  for (int mw = w, mh = h; mw > 1 || mh > 1; ++mips) {
+    mw = std::max(mw / 2, 1);
+    mh = std::max(mh / 2, 1);
+  }
+  TextureDesc desc;
+  desc.Name = "sigilworld environment";
+  desc.Type = RESOURCE_DIM_TEX_2D;
+  desc.Width = (Uint32)w;
+  desc.Height = (Uint32)h;
+  desc.Format = TEX_FORMAT_RGBA16_FLOAT;
+  desc.BindFlags = BIND_SHADER_RESOURCE | BIND_RENDER_TARGET;
+  desc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.MipLevels = (Uint32)mips;
+  device->CreateTexture(desc, nullptr, &environmentTexture);
+  if (!environmentTexture) return false;
+  // Level 0 is written after creation, then the chain is generated —
+  // creating with partial initial data (only level 0 supplied) is not a
+  // path the device takes.
+  TextureSubResData subres{bitmap.getPixels(), (Uint64)bitmap.rowBytes()};
+  Box box(0, (Uint32)w, 0, (Uint32)h);
+  context->UpdateTexture(environmentTexture, 0, 0, box, subres,
+                         RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                         RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  ITextureView* view =
+      environmentTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+  view->SetSampler(panoramaSampler);
+  context->GenerateMips(view);
+  environmentMips = mips;
   return true;
 }
 
@@ -1048,7 +1172,10 @@ bool World::Impl::bindMaterial(
   set("g_MetallicMap", material.metallicMap, false, whiteTexture);
   set("g_OcclusionMap", material.occlusionMap, false, whiteTexture);
   set("g_EmissiveMap", material.emissiveMap, true, whiteTexture);
-  bound = MaterialBinding::of(material);
+  if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Environment"))
+    var->Set((environmentTexture ? environmentTexture : blackTexture)
+                 ->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  bound = MaterialBinding::of(material, environmentKey);
   return true;
 }
 
@@ -2120,6 +2247,8 @@ void World::setCamera(const shape::space::Camera& camera) {
 
 void World::setLighting(const Lighting& lighting) {
   m_impl->lighting = lighting;
+  if (lighting.environment.get() != m_impl->environmentKey)
+    m_impl->uploadEnvironment(lighting.environment);
 }
 
 bool World::render() {
@@ -2518,6 +2647,11 @@ bool World::render() {
       ++lightCount;
     }
     constants->params[1] = (float)lightCount;
+    constants->env[0] = impl.lighting.environmentIntensity;
+    constants->env[1] =
+        impl.lighting.environmentRotationDeg * (float)M_PI / 180.0f;
+    constants->env[2] = (float)std::max(impl.environmentMips - 1, 0);
+    constants->env[3] = impl.environmentTexture ? 1.0f : 0.0f;
   }
 
   // Gather from the registry: opaque first, then blended, sorted back to
@@ -2580,7 +2714,8 @@ bool World::render() {
       // The bindings are pipeline-compatible across all four PSOs, so
       // the plain PSO builds every plain one and the instanced PSO
       // every instanced one.
-      const MaterialBinding want = MaterialBinding::of(*item.material);
+      const MaterialBinding want =
+          MaterialBinding::of(*item.material, impl.environmentKey);
       if (item.instanced && !(item.instanced->bound == want))
         impl.bindMaterial(impl.opaqueInstancedPso, *item.material,
                           item.instanced->srb, item.instanced->bound);

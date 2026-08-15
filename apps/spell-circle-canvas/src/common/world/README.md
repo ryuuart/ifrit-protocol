@@ -226,6 +226,20 @@ is kept.
 **Occlusion darkens the ambient term only**, by `occlusionStrength`;
 direct light ignores it, as it should.
 
+**A panorama replaces the hemisphere, not the sun.** `Lighting::environment`
+is an equirectangular image (u = 0.5 faces -Z, v = 0 straight up, turned
+about +Y by `environmentRotationDeg`) uploaded as half float with a full
+mip chain, so a float-decoded HDR keeps its range. The lit shader reads
+diffuse light from a five-tap cosine hemisphere at a blurred level and
+specular from the reflection direction at a roughness-chosen level,
+weighted by the analytic split-sum environment BRDF; `ambient` scales
+the whole term and occlusion darkens it. The sun and the registry lights
+add on top exactly as before. The panorama is compared by pointer like a
+material image and bound per surface, so a new one rebinds every surface
+once; the mip levels are a *box-filtered* chain, not a proper
+convolution — good for reflections and the look of a lit set, not a
+radiometric irradiance.
+
 **Matrices upload as raw column-major memory** and the shader does
 column-vector math (`mul(M, v)`). Nothing is transposed anywhere, in
 either direction — that symmetry is deliberate and it is what keeps the

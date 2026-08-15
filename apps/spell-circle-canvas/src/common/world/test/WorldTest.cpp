@@ -388,6 +388,54 @@ TEST(World, PackedMapChannelsReachTheirSlots) {
   EXPECT_GT(lumaOf(dielectric), lumaOf(metal) + 10);
 }
 
+TEST(World, EnvironmentPanoramaLightsFromItsBrightSide) {
+  // No sun, no lights: only the panorama. Its left half is white and
+  // its right half black, and u = 0.25 faces -X, so a rough white sphere
+  // is lit on its left. Turning the panorama 180 degrees swaps the
+  // sides; removing it (and the hemisphere fallback with ambient 0)
+  // leaves the sphere black.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Lighting lighting;
+  lighting.sunIntensity = 0;
+  lighting.ambient = 1;
+  lighting.skyColor = lighting.groundColor = {0, 0, 0, 1};
+  lighting.environment = solidImage(SK_ColorWHITE, 64, 32, SK_ColorBLACK);
+  w->setLighting(lighting);
+  world::Material white;
+  white.baseColor = {1, 1, 1, 1};
+  white.roughness = 0.9f;
+  ASSERT_NE(
+      w->addSurface(shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48),
+                    glm::mat4(1.0f), white),
+      0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  const float left = luma(bm.getColor(24, 32));
+  const float right = luma(bm.getColor(72, 32));
+  EXPECT_GT(left, right + 40) << "lit from the panorama's bright half";
+  EXPECT_GT(left, 60);
+
+  lighting.environmentRotationDeg = 180;
+  w->setLighting(lighting);
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_GT(luma(bm.getColor(72, 32)), luma(bm.getColor(24, 32)) + 40)
+      << "turned about +Y, the bright half faces the other side";
+
+  lighting.environment = nullptr;
+  w->setLighting(lighting);
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_LT(luma(bm.getColor(24, 32)), 8) << "no panorama, no light";
+}
+
 TEST(WorldTextureSet, ClassifiesTheToolsNames) {
   using world::textures::classify;
   using world::textures::Role;
