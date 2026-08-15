@@ -350,6 +350,54 @@ TEST(World, NormalMapTiltsShadingInItsConvention) {
   EXPECT_NEAR(lumaOf(off), lFlat, 3);
 }
 
+TEST(World, EmissiveMapGlowsWhereItIsLit) {
+  // No lights at all: only emission can brighten a pixel. A two-column
+  // emissive map (green | black) under a white emissive colour glows on
+  // the left and stays black on the right; strength 0 turns it off; the
+  // unlit branch reads the same map.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Lighting dark;
+  dark.sunIntensity = 0;
+  dark.ambient = 0;
+  w->setLighting(dark);
+  world::Material m;
+  m.baseColor = {0, 0, 0, 1};
+  m.emissive = {1, 1, 1, 1};
+  m.emissiveStrength = 1;
+  m.emissiveMap = solidImage(SK_ColorGREEN, 8, 8, SK_ColorBLACK);
+  // The quad just fills the frame, so x = 16 and 48 read u = 0.25 and
+  // 0.75 — well inside each column, clear of the bilinear seam.
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  EXPECT_GT(SkColorGetG(bm.getColor(16, 32)), 120)
+      << "the map's green half glows";
+  EXPECT_LT(SkColorGetR(bm.getColor(16, 32)), 20);
+  EXPECT_LT(luma(bm.getColor(48, 32)), 8) << "the black half emits nothing";
+
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(id)).material;
+  live.emissiveStrength = 0;
+  ASSERT_TRUE(w->render());
+  EXPECT_LT(luma(readFrame(*w).getColor(16, 32)), 8) << "strength 0 is off";
+
+  live.emissiveStrength = 1;
+  live.unlit = true;
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_GT(SkColorGetG(bm.getColor(16, 32)), 200) << "unlit adds the map too";
+  EXPECT_LT(luma(bm.getColor(48, 32)), 8);
+}
+
 TEST(World, PackedMapChannelsReachTheirSlots) {
   // One RGB image standing in for an occlusion-roughness-metallic pack:
   // occlusion in R, roughness in G, metallic in B. Metallic 1 through
