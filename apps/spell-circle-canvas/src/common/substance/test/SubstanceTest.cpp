@@ -61,6 +61,9 @@ TEST(Substance, RendersOutputsAndParametersChangeThem) {
   ASSERT_TRUE(package) << error;
   substance::Graph& graph = package->graph(0);
   ASSERT_TRUE(graph.setResolution(7, 7));  // 128 x 128: fast
+  EXPECT_TRUE(graph.normalsAreDirectX()) << "the engine's default";
+  ASSERT_TRUE(graph.set("$normalformat", 1.0f));
+  EXPECT_FALSE(graph.normalsAreDirectX());
   ASSERT_TRUE(graph.render());
   const std::map<std::string, sk_sp<SkImage>> byUsage = graph.outputsByUsage();
   ASSERT_FALSE(byUsage.empty());

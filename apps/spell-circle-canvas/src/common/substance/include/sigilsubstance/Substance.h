@@ -125,6 +125,14 @@ class Graph {
   /** Back to the authored defaults, every parameter. */
   void reset();
 
+  /** Which way the graph's normal output points its green channel: the
+   *  standard `$normalformat` input, 0 DirectX (green down the image —
+   *  the engine's default) and 1 OpenGL. True when the input is absent
+   *  too, since that is what the engine then produces. Read it after
+   *  setting the input; hand it to the material builder as its
+   *  `normalDirectX`. */
+  bool normalsAreDirectX() const;
+
   /** Cook. Synchronous; every enabled image output is (re)rendered and
    *  can be read with output(). Returns false when the engine reports a
    *  failure. */

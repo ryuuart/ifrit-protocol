@@ -37,8 +37,8 @@ graph.set("Season", 0.8f);
 graph.render();
 
 sk_sp<SkImage> normal = graph.output("normal");  // by usage or identifier
-world::Material leaves =
-    world::textures::material(graph.outputsByUsage(), {}, /*normalDirectX=*/false);
+world::Material leaves = world::textures::material(
+    graph.outputsByUsage(), {}, graph.normalsAreDirectX());
 ```
 
 `substance_demo <file.sbsar> [outdir] [log2size] [name=value ...]` prints
@@ -66,8 +66,9 @@ identifier. Both spellings a graph may use for the same slot
 is what `setResolution()` sets. `$normalformat` (0 DirectX, 1 OpenGL)
 selects the normal map's green convention; the engine's default is
 DirectX, which is why `world::textures::material()`'s by-usage overload
-defaults `normalDirectX` to true — pass false after setting the input
-to 1.
+defaults `normalDirectX` to true. `Graph::normalsAreDirectX()` reads the
+input back, so the material builder can be handed the graph's own
+answer rather than a remembered one.
 
 **Images are 8-bit.** The package is opened with output options that
 allow only RGBA8 and L8 without mip pyramids, and the engine substitutes

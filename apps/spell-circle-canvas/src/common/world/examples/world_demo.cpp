@@ -580,8 +580,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       graph.set("Season", season);
       graph.set("Density", density);
       graph.render();
-      world::Material m = world::textures::material(graph.outputsByUsage(),
-                                                    world::Material{}, false);
+      world::Material m = world::textures::material(
+          graph.outputsByUsage(), world::Material{}, graph.normalsAreDirectX());
       m.roughness = 0.75f;
       m.metallic = 0;
       m.normalScale = 1.4f;

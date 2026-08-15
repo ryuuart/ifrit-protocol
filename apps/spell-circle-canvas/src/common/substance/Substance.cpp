@@ -295,6 +295,20 @@ bool Graph::setResolution(int log2Width, int log2Height) {
   return set("$outputsize", {(float)log2Width, (float)log2Height});
 }
 
+bool Graph::normalsAreDirectX() const {
+  air::InputInstanceBase* in = m_impl->input("$normalformat");
+  if (!in) return true;
+  bool directX = true;
+  withNumeric(*in, [&](auto& numeric, int n) {
+    if (n != 1) return false;
+    if constexpr (std::is_arithmetic_v<
+                      std::decay_t<decltype(numeric.getValue())>>)
+      directX = (int)numeric.getValue() == 0;
+    return true;
+  });
+  return directX;
+}
+
 void Graph::reset() {
   for (air::InputInstanceBase* in : m_impl->instance->getInputs()) in->reset();
 }
