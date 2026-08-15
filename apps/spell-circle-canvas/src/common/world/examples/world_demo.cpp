@@ -687,6 +687,44 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     frosted.thickness = 12;
     w->addSurface(shape::mesh::quad(300, 210),
                   shape::space::place({420, 40, 250}, -24), frosted);
+
+    // Fluted (reeded) glass: refraction goes through the shaded normal,
+    // so a normal map of vertical half-cylinders ribbons whatever is
+    // behind the pane — no geometry. Drawn here: each flute's normal
+    // swings from -60 to +60 degrees across its width (red encodes x,
+    // blue z; green stays flat), OpenGL convention. A faint warm
+    // emission makes it edge-lit glass, which is why it still reads in
+    // the dark shot.
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(256, 4));
+    {
+      SkCanvas* c = surface->getCanvas();
+      const int flute = 32;
+      for (int x = 0; x < 256; ++x) {
+        const float u =
+            ((float)(x % flute) + 0.5f) / (float)flute * 2.0f - 1.0f;
+        const float angle = u * 60.0f * (float)M_PI / 180.0f;
+        const float nx = std::sin(angle), nz = std::cos(angle);
+        SkPaint p;
+        p.setColor(SkColorSetARGB(255, (U8CPU)(nx * 127.5f + 127.5f), 128,
+                                  (U8CPU)(nz * 127.5f + 127.5f)));
+        c->drawRect(SkRect::MakeXYWH((float)x, 0, 1, 4), p);
+      }
+    }
+    world::Material fluted;
+    fluted.baseColor = {0.96f, 0.98f, 1.0f, 1};
+    fluted.roughness = 0.12f;
+    fluted.transmission = 1;
+    fluted.ior = 1.5f;
+    fluted.thickness = 30;
+    fluted.normalMap = surface->makeImageSnapshot();
+    fluted.normalScale = 1;
+    fluted.uvScale = {2, 1};
+    fluted.tile = true;
+    fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
+    fluted.emissiveStrength = 0.12f;
+    w->addSurface(shape::mesh::quad(300, 230),
+                  shape::space::place({-330, 150, 80}, 26), fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base

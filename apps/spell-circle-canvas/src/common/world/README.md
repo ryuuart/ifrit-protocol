@@ -274,8 +274,12 @@ hard edge and write depth.
 mipped scene-colour texture between the two passes, only in frames that
 have such a surface — where the view ray, bent by `ior` and pushed
 `thickness` world units into the surface, exits; blurred by roughness,
-tinted by `baseColor`, mixed in encoded space, its specular kept on top,
-and written OPAQUE (it has composed its own background). Consequences:
+tinted by `baseColor`, mixed in encoded space, its specular AND its
+emission kept on top (edge-lit and neon glass glow at any transmission),
+and written OPAQUE (it has composed its own background). The refracted
+look goes through the shaded normal, so a normal map on glass shapes the
+refraction — a map of vertical half-cylinders is fluted glass, no
+geometry needed. Consequences:
 glass sees only opaque surfaces (glass behind glass shows the opaque
 scene, not the nearer pane); what lies outside the frame clamps to the
 edge; and a very rough transmissive surface is a frosted blur of the
@@ -455,8 +459,8 @@ It writes a set of camera shots as PNGs — a material lab, twice
 `world_materials_dark.png` with no panorama, no sun and a faint ambient,
 where the emissive props are the light: the fetched Poly Haven texture set on a floor,
 a sphere and a torus, a dark sphere lit only by its emissive map (a
-drawn circuit, tinted by the emissive colour), a clear glass sphere and a
-frosted pane, the fetched Avocado
+drawn circuit, tinted by the emissive colour), a clear glass sphere, a
+frosted pane and a fluted edge-lit pane, the fetched Avocado
 wearing the material its glTF carries, plus — when the Substance SDK is installed — the SDK's sample
 archive rendered live at two parameter settings), a pop lab
 (`world_pops.png`: the fetched Avocado's surface scattered into a cloud

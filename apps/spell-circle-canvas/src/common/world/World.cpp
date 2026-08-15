@@ -471,9 +471,13 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         float3 seen = g_SceneColor.SampleLevel(g_SceneColor_sampler, suv,
                                                rough * g_Glass.w).rgb;
         float3 tinted = seen * base.rgb;
+        // Specular AND emission ride on top of what is transmitted:
+        // glass shines, and edge-lit or neon glass glows, at any
+        // transmission. Only the diffuse gives way.
         float3 specE = LinearToSrgb(specular / (specular + 1.0));
-        float3 ownE = LinearToSrgb((diffuse + emissive) / (diffuse + emissive + 1.0));
-        encoded = lerp(ownE, tinted, transmission) + specE;
+        float3 emitE = LinearToSrgb(emissive / (emissive + 1.0));
+        float3 ownE = LinearToSrgb(diffuse / (diffuse + 1.0));
+        encoded = lerp(ownE, tinted, transmission) + specE + emitE;
         alpha = lerp(alpha, 1.0, transmission);
     }
     return float4(encoded, alpha);

@@ -450,6 +450,14 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   ASSERT_TRUE(w->render());
   c = readFrame(*w).getColor(20, 44);
   EXPECT_LT(SkColorGetR(c), 60) << "the tint multiplies what is seen";
+
+  // Emission rides on top of the transmission: green glow over the
+  // dark blue-tinted view.
+  live.emissive = {0, 1, 0, 1};
+  live.emissiveStrength = 1;
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(20, 44);
+  EXPECT_GT(SkColorGetG(c), 150) << "glass that glows";
 }
 
 TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
