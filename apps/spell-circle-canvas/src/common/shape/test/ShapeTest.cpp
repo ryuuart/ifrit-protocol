@@ -2890,3 +2890,213 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   ASSERT_EQ(back->parts.size(), 1u);
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
 }
+
+namespace {
+
+std::vector<glm::vec3> flatRing(int n, float radius) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < n; ++i) {
+    const float a = (float)i / (float)n * 2.0f * (float)M_PI;
+    loop.push_back({radius * std::cos(a), 0, radius * std::sin(a)});
+  }
+  return loop;
+}
+
+}  // namespace
+
+TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
+  // A ring in the xz plane; a sphere selector around +x picks the points
+  // on that side and nowhere else; a masked Math then lifts ONLY those,
+  // and an unmasked point stays on the floor. Feather grades the edge.
+  const std::vector<glm::vec3> loop = flatRing(12, 200);
+  const pop::Chain chain = pop::on(loop)
+                               .count(400)
+                               .select("east", {200, 0, 0}, 120)
+                               .move({0, 50, 0})
+                               .masked("east");
+  const Cloud cooked = popops::cook(chain);
+  const std::vector<glm::vec4>* east = cooked.colorIf("east");
+  ASSERT_TRUE(east);
+  int lifted = 0, grounded = 0;
+  for (size_t i = 0; i < cooked.size(); ++i) {
+    const float sel = (*east)[i].x;
+    EXPECT_TRUE(sel == 0.0f || sel == 1.0f) << "hard edge selects 0/1";
+    if (sel == 1.0f) {
+      EXPECT_NEAR(cooked.positions[i].y, 50.0f, 1e-3f);
+      EXPECT_GT(cooked.positions[i].x, 80.0f);
+      ++lifted;
+    } else {
+      EXPECT_NEAR(cooked.positions[i].y, 0.0f, 1e-3f);
+      ++grounded;
+    }
+  }
+  EXPECT_GT(lifted, 40);
+  EXPECT_GT(grounded, 200);
+
+  // Feathered: values in between exist, and the blend is proportional.
+  const pop::Chain soft = pop::on(loop)
+                              .count(400)
+                              .select("east", {200, 0, 0}, 160, 0.6f)
+                              .move({0, 50, 0})
+                              .masked("east");
+  const Cloud softCooked = popops::cook(soft);
+  const std::vector<glm::vec4>* softEast = softCooked.colorIf("east");
+  ASSERT_TRUE(softEast);
+  int partial = 0;
+  for (size_t i = 0; i < softCooked.size(); ++i) {
+    const float sel = (*softEast)[i].x;
+    EXPECT_NEAR(softCooked.positions[i].y, 50.0f * sel, 1e-3f);
+    if (sel > 0.05f && sel < 0.95f) ++partial;
+  }
+  EXPECT_GT(partial, 10) << "the feather band must grade";
+
+  // Combine: a second box selector UNIONS the west side in.
+  pop::Chain both = chain;
+  both.insert(both.begin() + 2, pop::Group{"east",
+                                           pop::Group::Shape::Box,
+                                           {-200, 0, 0},
+                                           {120, 400, 120},
+                                           0,
+                                           false,
+                                           pop::Group::Combine::Union});
+  const Cloud unioned = popops::cook(both);
+  int liftedBoth = 0;
+  for (const glm::vec3& p : unioned.positions) liftedBoth += p.y > 25.0f;
+  EXPECT_GT(liftedBoth, lifted + 40);
+
+  // A mask naming a lane nothing wrote selects nobody.
+  const Cloud nobody =
+      popops::cook(pop::on(loop).count(50).move({0, 50, 0}).masked("ghost"));
+  for (const glm::vec3& p : nobody.positions) EXPECT_NEAR(p.y, 0.0f, 1e-4f);
+}
+
+TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
+  const std::vector<glm::vec3> loop = flatRing(12, 100);
+  // A pure translation on P is Math's move; a rotation is not, and Dir
+  // follows through orient() renormalized.
+  const glm::mat4 turn = space::place({0, 30, 0}, 90);
+  const Cloud a = popops::cook(pop::on(loop).count(60).transform(turn));
+  const Cloud b = popops::cook(pop::on(loop).count(60));
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i) {
+    const glm::vec4 expected = turn * glm::vec4(b.positions[i], 1.0f);
+    EXPECT_NEAR(a.positions[i].x, expected.x, 1e-3f);
+    EXPECT_NEAR(a.positions[i].y, expected.y, 1e-3f);
+    EXPECT_NEAR(a.positions[i].z, expected.z, 1e-3f);
+  }
+  const Cloud oriented =
+      popops::cook(pop::on(loop).count(60).orient(space::place({}, 90)));
+  const std::vector<glm::vec3>* dirA = oriented.vectorIf("dir");
+  const std::vector<glm::vec3>* dirB = b.vectorIf("dir");
+  ASSERT_TRUE(dirA && dirB);
+  for (size_t i = 0; i < 60; ++i) {
+    EXPECT_NEAR(glm::length((*dirA)[i]), 1.0f, 1e-4f);
+    // Yaw by 90 about +Y: (x, y, z) -> (z, y, -x).
+    EXPECT_NEAR((*dirA)[i].x, (*dirB)[i].z, 1e-3f);
+    EXPECT_NEAR((*dirA)[i].z, -(*dirB)[i].x, 1e-3f);
+  }
+
+  // Peak: on a loop scatter Dir is the tangent, so peaking slides every
+  // point along the ring by the same distance — the radius holds.
+  const Cloud peaked = popops::cook(pop::on(loop).count(60).peak(25));
+  for (size_t i = 0; i < 60; ++i) {
+    const float moved = glm::length(peaked.positions[i] - b.positions[i]);
+    EXPECT_NEAR(moved, 25.0f, 1e-3f);
+  }
+  // Peak along a custom zero lane moves nothing.
+  const Cloud still = popops::cook(pop::on(loop).count(60).peak(25, "nowhere"));
+  for (size_t i = 0; i < 60; ++i)
+    EXPECT_NEAR(glm::length(still.positions[i] - b.positions[i]), 0.0f, 1e-4f);
+}
+
+TEST(Pop, DeformersTwistTaperAndBend) {
+  // A vertical column: points along y from 0 to 200, all at x = 50.
+  std::vector<glm::vec3> loop = {
+      {50, 0, 0}, {50, 200, 0}, {50, 200, 1}, {50, 0, 1}};
+  const auto column = [&] {
+    return pop::on(loop).count(200).window(0.5f, 0.5f);
+  };
+  const Cloud base = popops::cook(column());
+
+  // Twist 180 degrees over 0..200: a point at the top lands at x = -50.
+  const Cloud twisted = popops::cook(column().twist(180, {0, 1, 0}, 0, 200));
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = base.positions[i];
+    const glm::vec3& p1 = twisted.positions[i];
+    EXPECT_NEAR(p1.y, p0.y, 1e-3f);
+    EXPECT_NEAR(glm::length(glm::vec2{p1.x, p1.z}),
+                glm::length(glm::vec2{p0.x, p0.z}), 1e-3f)
+        << "twist preserves the radius";
+    const float u = std::clamp(p0.y / 200.0f, 0.0f, 1.0f);
+    const float ang = (float)M_PI * u;
+    // Rodrigues about +Y: x' = x cos + z sin.
+    EXPECT_NEAR(p1.x, p0.x * std::cos(ang) + p0.z * std::sin(ang), 1e-2f);
+  }
+
+  // Taper to 0.2 at the top: the radius shrinks linearly.
+  const Cloud tapered = popops::cook(column().taper(0.2f, {0, 1, 0}, 0, 200));
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = base.positions[i];
+    const glm::vec3& p1 = tapered.positions[i];
+    const float u = std::clamp(p0.y / 200.0f, 0.0f, 1.0f);
+    EXPECT_NEAR(p1.x, p0.x * (1.0f + (0.2f - 1.0f) * u), 1e-2f);
+    EXPECT_NEAR(p1.y, p0.y, 1e-3f);
+  }
+
+  // Bend 90 degrees toward +x over 0..200: the band's centreline
+  // becomes a quarter circle of radius 200 * 2 / pi; the top of the
+  // column ends up pointing along +x, at height R and x = R + offset
+  // adjustment. Arc length is preserved for the x = 0 fibre.
+  const std::vector<glm::vec3> spine = {
+      {0, 0, 0}, {0, 200, 0}, {0, 200, 1}, {0, 0, 1}};
+  const Cloud bent = popops::cook(pop::on(spine)
+                                      .count(200)
+                                      .window(0.5f, 0.5f)
+                                      .bend(90, {0, 1, 0}, {1, 0, 0}, 0, 200));
+  const Cloud spineBase =
+      popops::cook(pop::on(spine).count(200).window(0.5f, 0.5f));
+  const float R = 200.0f / ((float)M_PI * 0.5f);
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = spineBase.positions[i];
+    const glm::vec3& p1 = bent.positions[i];
+    // The spline overshoots its control points a little at both ends;
+    // points outside the band ride the end tangents rigidly, so only
+    // the band itself is on the arc.
+    if (p0.y < 0.0f || p0.y > 200.0f) continue;
+    const float theta = p0.y / R;
+    EXPECT_NEAR(p1.y, R * std::sin(theta), 1e-2f);
+    EXPECT_NEAR(p1.x, R - R * std::cos(theta), 1e-2f);
+    // Distance from the arc centre (x = R, y = 0) is R everywhere.
+    EXPECT_NEAR(std::hypot(p1.x - R, p1.y), R, 1e-2f);
+  }
+  // Amount 0 is the identity.
+  const Cloud unbent = popops::cook(
+      pop::on(spine).count(200).window(0.5f, 0.5f).bend(0, {0, 1, 0}));
+  for (size_t i = 0; i < 200; ++i)
+    EXPECT_NEAR(glm::length(unbent.positions[i] - spineBase.positions[i]), 0.0f,
+                1e-4f);
+}
+
+TEST(Pop, MixBlendsCopiesAndFadesByALane) {
+  const std::vector<glm::vec3> loop = flatRing(8, 100);
+  const pop::Chain chain = pop::on(loop)
+                               .count(40)
+                               .set("a", {1, 0, 0, 1})
+                               .set("b", {0, 0, 1, 1})
+                               .mix("a", "b", "half", 0.5f)
+                               .copy("a", "again")
+                               .mixBy("a", "b", "byT", "T");
+  const Cloud cooked = popops::cook(chain);
+  const std::vector<glm::vec4>* half = cooked.colorIf("half");
+  const std::vector<glm::vec4>* again = cooked.colorIf("again");
+  const std::vector<glm::vec4>* byT = cooked.colorIf("byT");
+  const std::vector<float>* t = cooked.scalarIf("t");
+  ASSERT_TRUE(half && again && byT && t);
+  for (size_t i = 0; i < 40; ++i) {
+    EXPECT_NEAR((*half)[i].r, 0.5f, 1e-5f);
+    EXPECT_NEAR((*half)[i].b, 0.5f, 1e-5f);
+    EXPECT_NEAR((*again)[i].r, 1.0f, 1e-5f);
+    EXPECT_NEAR((*byT)[i].b, (*t)[i], 1e-5f);
+    EXPECT_NEAR((*byT)[i].r, 1.0f - (*t)[i], 1e-5f);
+  }
+}

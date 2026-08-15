@@ -195,6 +195,9 @@ inline constexpr StudyInfo kStudies[] = {
     {"pop_lanes", "pop lanes", "Kit \xc2\xb7 API",
      "shape::pop rampBy() and order() \xe2\x80\x94 colour by height, and "
      "painter order on a sink with no depth buffer"},
+    {"pop_deform", "pop deform", "Kit \xc2\xb7 API",
+     "shape::pop select() and masked(), then twist / taper / bend / peak "
+     "\xe2\x80\x94 one column, six chains, every one GPU-executable"},
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "
      "falloffs: constant, depth of field, a lens edge, a rack focus"},

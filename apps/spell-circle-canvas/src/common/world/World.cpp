@@ -546,8 +546,7 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
             note(o.a);
             note(o.b);
             note(o.to);
-            if (!o.factorLane.empty())
-              note(World::pop::AttrRef{o.factorLane});
+            if (!o.factorLane.empty()) note(World::pop::AttrRef{o.factorLane});
           }
           // The mask is a lane read like any other; an unnamed mask
           // (empty) is "everyone" and owns no slot.
@@ -1114,9 +1113,9 @@ namespace {
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
 constexpr const char* kPopEntries[] = {
-    "CSSplineScatter", "CSJitter", "CSNoise",     "CSRamp",   "CSVary",
-    "CSLookAt",        "CSMath",   "CSRelax",     "CSSet",    "CSAtlas",
-    "CSLookup",        "CSGroup",  "CSTransform", "CSPeak",   "CSDeform",
+    "CSSplineScatter", "CSJitter",   "CSNoise",     "CSRamp", "CSVary",
+    "CSLookAt",        "CSMath",     "CSRelax",     "CSSet",  "CSAtlas",
+    "CSLookup",        "CSGroup",    "CSTransform", "CSPeak", "CSDeform",
     "CSMix",           "CSCopyBack", "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
@@ -2238,10 +2237,10 @@ bool World::render() {
                 params.a[0] = op.factor;
                 params.b[0] = (float)points.slotFor(op.a);
                 params.b[1] = (float)points.slotFor(op.b);
-                params.b[2] = op.factorLane.empty()
-                                  ? -1.0f
-                                  : (float)points.slotFor(
-                                        pop::AttrRef{op.factorLane});
+                params.b[2] =
+                    op.factorLane.empty()
+                        ? -1.0f
+                        : (float)points.slotFor(pop::AttrRef{op.factorLane});
                 params.d[1] = (float)points.slotFor(op.to);
               }
               // The mask slot rides every filter that carries one.

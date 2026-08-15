@@ -1427,6 +1427,83 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   }
 }
 
+TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
+  // The second parity chain: Group (sphere and box, feathered and
+  // combined), a masked Math and a masked Relax, Transform on P and on
+  // Dir, Peak, all three Deform kinds and Mix by lane — read back from
+  // the GPU and compared to the CPU cook. A kernel that ignored its
+  // mask, or a table row pointing at the wrong kernel, shows up as a
+  // lane that disagrees.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
+    loop.push_back(
+        {180.0f * std::cos(a), 30.0f * std::sin(2 * a), 180.0f * std::sin(a)});
+  }
+  const shape::pop::Chain chain =
+      shape::pop::on(loop)
+          .count(512)
+          .seed(4)
+          .select("east", {180, 0, 0}, 140, 0.5f)
+          .select("east", shape::pop::Group::Shape::Box, {-180, 0, 0},
+                  {90, 300, 90}, 0.2f, shape::pop::Group::Combine::Union)
+          .move({0, 40, 0})
+          .masked("east")
+          .jitter(9)
+          .smooth(0.5f, 2)
+          .masked("east")
+          .transform(shape::space::place({10, 0, -5}, 35, 10))
+          .orient(shape::space::place({}, 35, 10))
+          .peak(12)
+          .twist(120, {0, 1, 0}, -40, 40)
+          .taper(0.4f, {0, 1, 0}, -40, 40)
+          .bend(60, {0, 1, 0}, {1, 0, 0}, -40, 40)
+          .set("warm", {1, 0.5f, 0.2f, 1})
+          .fade({0, 0, 1, 1}, {0, 1, 0, 1})
+          .mixBy("Color", "warm", "Color", "east")
+          .copy("east", "sel2");
+  const uint32_t id =
+      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+  ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
+  ASSERT_TRUE(w->render());
+
+  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud cpu = shape::popops::cook(chain);
+  ASSERT_EQ(gpu.size(), 512u);
+  ASSERT_EQ(cpu.size(), 512u);
+  const std::vector<glm::vec3>* gpuDir = gpu.vectorIf("dir");
+  const std::vector<glm::vec3>* cpuDir = cpu.vectorIf("dir");
+  const std::vector<glm::vec4>* gpuTint = gpu.colorIf("tint");
+  const std::vector<glm::vec4>* cpuTint = cpu.colorIf("tint");
+  const std::vector<glm::vec4>* gpuEast = gpu.colorIf("east");
+  const std::vector<glm::vec4>* cpuEast = cpu.colorIf("east");
+  const std::vector<glm::vec4>* gpuSel2 = gpu.colorIf("sel2");
+  ASSERT_TRUE(gpuDir && cpuDir && gpuTint && cpuTint && gpuEast && cpuEast &&
+              gpuSel2);
+  int selected = 0, partial = 0;
+  for (size_t i = 0; i < gpu.size(); ++i) {
+    EXPECT_NEAR(gpu.positions[i].x, cpu.positions[i].x, 0.05f) << i;
+    EXPECT_NEAR(gpu.positions[i].y, cpu.positions[i].y, 0.05f) << i;
+    EXPECT_NEAR(gpu.positions[i].z, cpu.positions[i].z, 0.05f) << i;
+    EXPECT_NEAR((*gpuDir)[i].x, (*cpuDir)[i].x, 1e-3f) << i;
+    EXPECT_NEAR((*gpuDir)[i].y, (*cpuDir)[i].y, 1e-3f) << i;
+    EXPECT_NEAR((*gpuDir)[i].z, (*cpuDir)[i].z, 1e-3f) << i;
+    EXPECT_NEAR((*gpuTint)[i].r, (*cpuTint)[i].r, 1e-3f) << i;
+    EXPECT_NEAR((*gpuTint)[i].g, (*cpuTint)[i].g, 1e-3f) << i;
+    EXPECT_NEAR((*gpuEast)[i].x, (*cpuEast)[i].x, 1e-4f) << i;
+    EXPECT_NEAR((*gpuSel2)[i].x, (*cpuEast)[i].x, 1e-4f) << i;
+    selected += (*gpuEast)[i].x > 0.99f;
+    partial += (*gpuEast)[i].x > 0.05f && (*gpuEast)[i].x < 0.95f;
+  }
+  EXPECT_GT(selected, 60) << "the selection must pick real points";
+  EXPECT_GT(partial, 8) << "the feather must grade";
+}
+
 TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
   // The same boundary, for the same structural reason: a sort permutes
   // the whole point set, which is not a per-point map and so has no

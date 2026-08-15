@@ -326,9 +326,9 @@ Cloud cook(const pop::Chain& chain) {
               if (op.direction) {
                 const glm::vec4 t = op.matrix * glm::vec4{v.x, v.y, v.z, 0.0f};
                 const float len = std::sqrt(t.x * t.x + t.y * t.y + t.z * t.z);
-                r = len > 1e-6f ? glm::vec4{t.x / len, t.y / len, t.z / len,
-                                            v.w}
-                                : glm::vec4{v.x, v.y, v.z, v.w};
+                r = len > 1e-6f
+                        ? glm::vec4{t.x / len, t.y / len, t.z / len, v.w}
+                        : glm::vec4{v.x, v.y, v.z, v.w};
               } else {
                 const glm::vec4 t = op.matrix * glm::vec4{v.x, v.y, v.z, 1.0f};
                 r = {t.x, t.y, t.z, v.w};
@@ -388,8 +388,8 @@ Cloud cook(const pop::Chain& chain) {
                   out = p;
                 } else {
                   const float R = span / rad;
-                  const float hb = h < op.low ? op.low
-                                              : (h > op.high ? op.high : h);
+                  const float hb =
+                      h < op.low ? op.low : (h > op.high ? op.high : h);
                   const float theta = (hb - op.low) / R;
                   const float c = std::cos(theta), sn = std::sin(theta);
                   // Arc centre sits at +R along dir from (low). A
@@ -397,8 +397,7 @@ Cloud cook(const pop::Chain& chain) {
                   //   along axis: low + (R - x) * sin(theta)
                   //   along dir:  R - (R - x) * cos(theta)
                   const float extra = h - hb;  // rigid overhang
-                  const float hOut =
-                      op.low + (R - x) * sn + extra * c;
+                  const float hOut = op.low + (R - x) * sn + extra * c;
                   const float xOut = R - (R - x) * c + extra * sn;
                   out = axis * hOut + dir * xOut + side * y;
                 }

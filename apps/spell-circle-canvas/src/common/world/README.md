@@ -255,6 +255,15 @@ to the variant; never insert. Operators with no GPU counterpart —
 `MeshScatter`, `Promote`, `Sort` — cause the whole chain to be
 **declined**: `addPoints`, `addPointsOn` and `setPoints` return 0 or do
 nothing rather than silently cooking a chain with an operator missing.
+Everything else runs here: the selectors (`Group`), the deformers
+(`Transform`, `Peak`, `Deform`), `Mix`, and every filter's `mask` —
+a mask lane is just one more slot in the lane arena, and the masked
+blend is the same expression the CPU cook uses.
+
+**A `Deform`'s frame is computed once, on the CPU.** `popops::deformFrame`
+normalizes the axis and orthogonalizes the bend direction for both
+executors, and the kernel receives that frame rather than recomputing it,
+so a degenerate axis or direction falls back the same way on both sides.
 
 **A lookup-table edit is structural.** `pop::Lookup` stops ride an
 immutable device buffer, so `setPoints()` with a changed table takes the

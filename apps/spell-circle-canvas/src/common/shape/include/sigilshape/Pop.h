@@ -302,8 +302,8 @@ struct pop {
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */
   using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt,
-                          Math, Relax, MeshScatter, Set, Atlas, Promote,
-                          Lookup, Sort, Group, Transform, Peak, Deform, Mix>;
+                          Math, Relax, MeshScatter, Set, Atlas, Promote, Lookup,
+                          Sort, Group, Transform, Peak, Deform, Mix>;
   using Chain = std::vector<Op>;
 
   /** The artist's spelling — TouchDesigner ergonomics over the same

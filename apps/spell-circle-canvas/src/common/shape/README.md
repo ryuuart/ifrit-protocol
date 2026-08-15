@@ -190,25 +190,42 @@ The rest build on those:
 
 ### The operators
 
-`pop::Op` is a variant over fourteen operator values, and `pop::Chain` is a
-vector of them. Generators seed a chain: `SplineScatter` (points along a
+`pop::Op` is a variant over nineteen operator values, and `pop::Chain` is
+a vector of them. Generators seed a chain: `SplineScatter` (points along a
 window of a closed loop) and `MeshScatter` (points on a formed model's
 faces). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
-`Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Promote` and
-`Sort`.
+`Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Transform`
+(any `mat4` on a position or a direction lane), `Peak` (push along a
+direction lane), `Deform` (twist, taper or bend about an axis) and `Mix`
+(blend two lanes into a third by a constant or a lane). `Group` is the
+selector: it writes a mask lane from a sphere or box region, feathered at
+its edge and combined into what the lane already holds (replace, union,
+intersect, subtract). `Promote` and `Sort` are the primitive-class and
+permutation-class operators.
 
 Every operator addresses attributes by name through `pop::AttrRef`, with
 `"P"`, `"T"`, `"Dir"`, `"Scale"`, `"Color"` and `"Tex"` as the well-known
 names and anything else creating a custom lane on first write.
 
+**Every filter takes a mask.** Each per-point filter carries a `mask`
+field naming a lane; that lane's `.x`, clamped to `[0, 1]`, is how much of
+the operator's write each point receives — `old + (new - old) * mask`. An
+empty name (the default) is every point in full; naming a lane nothing has
+written selects nobody, the way an empty group is empty. `Group` is one
+way to write such a lane; a `Lookup`, a `Math` on a custom lane, or an
+importer's attribute serve just as well. Both executors apply the mask
+with the same expression.
+
 `pop::on()` returns a `Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
 `move`, `set`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
-`op`) append operators; the builder converts to a `Chain`, so you can reach
-into any operator afterwards and re-cook. Sinks turn a chain into geometry:
-`cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps, and
-`cookTube()`/`cookRibbon()`/`cookSweep()` treating the cooked points as a
-path to sweep along.
+`select`, `masked`, `transform`, `orient`, `peak`, `twist`, `taper`,
+`bend`, `mix`, `mixBy`, `copy`, `op`) append operators — `masked()` sets
+the mask on the filter just added — and the builder converts to a
+`Chain`, so you can reach into any operator afterwards and re-cook. Sinks
+turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
+mesh of stamps, and `cookTube()`/`cookRibbon()`/`cookSweep()` treating the
+cooked points as a path to sweep along.
 
 ## Conventions that will bite you
 
@@ -279,6 +296,15 @@ is silently, plausibly wrong rather than obviously broken.
   GPU consumer maps each operator's variant *index* to a compute pipeline.
   New operators are appended; inserting one in the middle silently
   reassigns every operator after it to the wrong kernel.
+- **`Deform` bends positions only.** `Dir` is left where it was, so a bent
+  column's stamps still point the way the loop's tangent did; re-derive a
+  direction afterwards (`LookAt`, `Transform` on `Dir`) when the stamps
+  should follow the bend. Points outside the band `[low, high]` ride the
+  arc's end tangents rigidly, so the geometry past the band keeps its
+  shape rather than being stretched.
+- **`Group` sizes are radii per axis in both shapes.** A box of `size`
+  `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
+  an ellipsoid. `feather` is a fraction of that extent, not a distance.
 - **Mesh indices are 32-bit.** Skia's `SkVertices` 16-bit index limit is
   handled by chunking inside `space::drawMesh()`, not by the data — you do
   not need to split meshes yourself.
