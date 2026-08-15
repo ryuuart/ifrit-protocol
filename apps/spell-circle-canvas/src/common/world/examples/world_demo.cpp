@@ -667,6 +667,28 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     }
   }
 
+  // Glass: a clear sphere and a frosted pane, both transmission 1 —
+  // the sphere bends what is behind it (ior 1.5, a thick slab), the
+  // pane is thin, faintly blue and rough enough to blur.
+  {
+    world::Material clear;
+    clear.baseColor = {0.98f, 0.99f, 1.0f, 1};
+    clear.roughness = 0.04f;
+    clear.transmission = 1;
+    clear.ior = 1.5f;
+    clear.thickness = 140;
+    w->addSurface(shape::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
+                  shape::space::place({-150, 40, 260}), clear);
+    world::Material frosted;
+    frosted.baseColor = {0.85f, 0.93f, 1.0f, 1};
+    frosted.roughness = 0.45f;
+    frosted.transmission = 1;
+    frosted.ior = 1.45f;
+    frosted.thickness = 12;
+    w->addSurface(shape::mesh::quad(300, 210),
+                  shape::space::place({420, 40, 250}, -24), frosted);
+  }
+
   // 3. An imported model wearing the material its file carries: base
   // colour, normal, packed metallicRoughness and occlusion, decoded from
   // the bytes the importer kept.

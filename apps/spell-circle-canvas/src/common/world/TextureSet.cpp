@@ -275,6 +275,9 @@ Material material(const shape::import::Part& part, const BytesDecoder& decode,
   m.metallic = part.metallic;
   m.roughness = part.roughness;
   m.emissive = part.emissive;
+  m.transmission = part.transmission;
+  m.ior = part.ior;
+  m.alphaCutoff = part.alphaCutoff;
   if (part.emissive.r + part.emissive.g + part.emissive.b > 0 &&
       m.emissiveStrength <= 0)
     m.emissiveStrength = 1;

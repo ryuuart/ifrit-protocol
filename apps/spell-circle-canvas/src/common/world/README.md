@@ -258,8 +258,28 @@ the normal when it faces away from the eye. Winding order does not
 determine visibility, so a mesh with inconsistent winding still renders.
 
 **A translucent material routes into a separate blended pass sorted back
-to front** (alpha below 1 in `baseColor`). An instanced surface is one
-item in that sort — its instances are not sorted against each other.
+to front** — alpha below 1 in `baseColor`, an `opacityMap`, or any
+`transmission` (`Material::blended()` is the rule). An instanced surface
+is one item in that sort — its instances are not sorted against each
+other.
+
+**Opacity is a channel; a cutoff makes it a cutout.** `opacityMap` reads
+one channel (`opacityChannel`) into alpha alongside `baseColor.a` and the
+base texture's own alpha; `alphaCutoff` above 0 discards fragments below
+it instead of blending them (glTF's MASK), so leaves and grilles keep a
+hard edge and write depth.
+
+**Glass is screen-space refraction of the opaque pass.** A surface with
+`transmission` above 0 reads the frame's opaque pass — resolved into a
+mipped scene-colour texture between the two passes, only in frames that
+have such a surface — where the view ray, bent by `ior` and pushed
+`thickness` world units into the surface, exits; blurred by roughness,
+tinted by `baseColor`, mixed in encoded space, its specular kept on top,
+and written OPAQUE (it has composed its own background). Consequences:
+glass sees only opaque surfaces (glass behind glass shows the opaque
+scene, not the nearer pane); what lies outside the frame clamps to the
+edge; and a very rough transmissive surface is a frosted blur of the
+mip chain, not a scattering model.
 
 **Swapping an image on a `MaterialComponent` is live, and costs an
 upload.** `render()` compares the image pointers and the tile flag a
@@ -435,7 +455,8 @@ It writes a set of camera shots as PNGs — a material lab, twice
 `world_materials_dark.png` with no panorama, no sun and a faint ambient,
 where the emissive props are the light: the fetched Poly Haven texture set on a floor,
 a sphere and a torus, a dark sphere lit only by its emissive map (a
-drawn circuit, tinted by the emissive colour), the fetched Avocado
+drawn circuit, tinted by the emissive colour), a clear glass sphere and a
+frosted pane, the fetched Avocado
 wearing the material its glTF carries, plus — when the Substance SDK is installed — the SDK's sample
 archive rendered live at two parameter settings), a pop lab
 (`world_pops.png`: the fetched Avocado's surface scattered into a cloud

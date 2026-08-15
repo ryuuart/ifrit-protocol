@@ -398,6 +398,104 @@ TEST(World, EmissiveMapGlowsWhereItIsLit) {
   EXPECT_LT(luma(bm.getColor(48, 32)), 8);
 }
 
+TEST(World, GlassShowsTheOpaquePassThroughItself) {
+  // A red quad behind, a white glass quad in front. With transmission 1
+  // and an ior of 1 (no bend) the centre reads red — the opaque pass
+  // seen through the glass, tinted white — and opaque, not blended;
+  // transmission 0 on the same material is a plain white surface; a
+  // blue tint colours what is seen.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Lighting lighting;
+  lighting.sunDirection = {0, 0, -1};
+  lighting.sunIntensity = 2;
+  lighting.ambient = 0.3f;
+  w->setLighting(lighting);
+  world::Material red;
+  red.baseColor = {1, 0, 0, 1};
+  red.roughness = 1;
+  ASSERT_NE(w->addSurface(shape::mesh::quad(400, 400),
+                          glm::translate(glm::mat4(1.0f), {0, 0, -100}), red),
+            0u);
+  world::Material glass;
+  glass.baseColor = {1, 1, 1, 1};
+  glass.roughness = 0.1f;
+  glass.transmission = 1;
+  glass.ior = 1;
+  const uint32_t pane =
+      w->addSurface(shape::mesh::quad(400, 400),
+                    glm::translate(glm::mat4(1.0f), {0, 0, 50}), glass);
+  ASSERT_NE(pane, 0u);
+  ASSERT_TRUE(w->render());
+  SkColor c = readFrame(*w).getColor(20, 44);  // off the specular centre
+  EXPECT_GT(SkColorGetR(c), 120) << "the red quad shows through";
+  EXPECT_GT((int)SkColorGetR(c) - (int)SkColorGetG(c), 60);
+
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(pane)).material;
+  live.transmission = 0;
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(20, 44);
+  EXPECT_LT((int)SkColorGetR(c) - (int)SkColorGetG(c), 20) << "opaque white";
+  EXPECT_GT(luma(c), 60);
+
+  live.transmission = 1;
+  live.baseColor = {0, 0, 1, 1};  // a blue tint over red shows dark blue-ish
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(20, 44);
+  EXPECT_LT(SkColorGetR(c), 60) << "the tint multiplies what is seen";
+}
+
+TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
+  // A white quad with a two-column opacity map (black | white): the
+  // left half is transparent onto the clear colour, the right opaque.
+  // With a cutoff the left half is discarded outright — the depth
+  // buffer sees nothing there, so a surface behind it shows.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Material m;
+  m.unlit = true;
+  m.baseColor = {1, 1, 1, 1};
+  m.opacityMap = solidImage(SK_ColorBLACK, 8, 8, SK_ColorWHITE);
+  EXPECT_TRUE(m.blended());
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  EXPECT_LT(luma(bm.getColor(16, 32)), 8) << "transparent half";
+  EXPECT_GT(luma(bm.getColor(48, 32)), 240) << "opaque half";
+
+  // Cutout: an unlit green quad BEHIND; the discarded half lets it
+  // through, the kept half hides it.
+  world::Material green;
+  green.unlit = true;
+  green.baseColor = {0, 1, 0, 1};
+  ASSERT_NE(w->addSurface(shape::mesh::quad(240, 240),
+                          glm::translate(glm::mat4(1.0f), {0, 0, -50}), green),
+            0u);
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(id)).material;
+  live.alphaCutoff = 0.5f;
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_GT(SkColorGetG(bm.getColor(16, 32)), 200) << "cut away: green shows";
+  EXPECT_LT(SkColorGetR(bm.getColor(16, 32)), 30);
+  EXPECT_GT(SkColorGetR(bm.getColor(48, 32)), 240) << "kept: white";
+}
+
 TEST(World, PackedMapChannelsReachTheirSlots) {
   // One RGB image standing in for an occlusion-roughness-metallic pack:
   // occlusion in R, roughness in G, metallic in B. Metallic 1 through

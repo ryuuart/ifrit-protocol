@@ -121,6 +121,29 @@ struct Material {
   float occlusionStrength = 1;
   /** Emissive map, multiplied by emissive * emissiveStrength. */
   sk_sp<SkImage> emissiveMap;
+  /** Opacity map: ONE channel (`opacityChannel`, 0 red .. 3 alpha)
+   *  multiplied into the surface's alpha with `baseColor.a` and the
+   *  base texture's alpha. Any material carrying one routes into the
+   *  blended pass. `alphaCutoff` above 0 turns opacity into a cutout:
+   *  fragments below the cutoff are discarded rather than blended
+   *  (glTF's MASK mode; leaves, grilles, decals). */
+  sk_sp<SkImage> opacityMap;
+  int opacityChannel = 0;
+  float alphaCutoff = 0;
+  /** GLASS. `transmission` is how much of what lies behind the surface
+   *  shows through it — 0 an ordinary surface, 1 clear glass — sampled
+   *  from the frame's opaque pass through a refracted look (screen-space:
+   *  the view ray bent by `ior` and pushed `thickness` world units into
+   *  the surface decides where behind it is read), tinted by baseColor
+   *  and blurred by roughness. Specular light stays on top, so a rough
+   *  glass frosts and a smooth one shines. Any transmission above 0
+   *  routes into the blended pass and writes an opaque pixel (it has
+   *  composed its own background). Only OPAQUE surfaces are seen through
+   *  glass: glass behind glass shows the opaque scene, not the nearer
+   *  pane. */
+  float transmission = 0;
+  float ior = 1.5f;
+  float thickness = 40;
 
   /** UV window into the textures, applied at sample time:
    *  uv' = uv * uvScale + uvOffset. Live like the colours, so animating
@@ -140,6 +163,12 @@ struct Material {
    *  separately are different materials. The scene reconciler tests reuse
    *  with this operator; share one sk_sp to keep a surface. */
   bool operator==(const Material&) const = default;
+
+  /** Whether the surface draws in the blended pass: alpha below 1, an
+   *  opacity map, or any transmission. */
+  bool blended() const {
+    return baseColor.w < 1.0f || opacityMap != nullptr || transmission > 0.0f;
+  }
 };
 
 /** Per-instance lanes an instanced surface reads from its Cloud. The

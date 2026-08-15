@@ -121,9 +121,10 @@ using BytesDecoder = std::function<sk_sp<SkImage>(
 /** Build a Material from an imported model part: its base colour
  *  texture and factor, its metallic / roughness / emissive factors, and
  *  every map its `textures` carry (glTF's normal, packed
- *  metallicRoughness, occlusion, emissive), decoded through @p decode.
- *  glTF normals are OpenGL-convention; the sampler tiles. The part's
- *  factors are kept as the scalars the maps multiply. */
+ *  metallicRoughness, occlusion, emissive), decoded through @p decode,
+ *  plus its transmission, ior and alpha cutoff. glTF normals are
+ *  OpenGL-convention; the sampler tiles. The part's factors are kept as
+ *  the scalars the maps multiply. */
 Material material(const shape::import::Part& part, const BytesDecoder& decode,
                   Material base = {});
 

@@ -88,6 +88,14 @@ struct Part {
   float metallic = 1;   ///< glTF's factor default; multiplies the map
   float roughness = 1;  ///< likewise
   glm::vec4 emissive = {0, 0, 0, 1};
+  /** glTF's transmission and index of refraction extensions (0 and 1.5
+   *  when absent), and its alpha mode: `alphaCutoff` above 0 is MASK
+   *  (cut out below it), 0 with a base alpha or texture alpha is
+   *  BLEND, and `opaque` says the file declared OPAQUE regardless. */
+  float transmission = 0;
+  float ior = 1.5f;
+  float alphaCutoff = 0;
+  bool opaque = true;
 
   /** Custom per-vertex attributes — the Houdini/Blender lanes glTF
    *  spells as _NAME accessors and PLY as extra properties. Names

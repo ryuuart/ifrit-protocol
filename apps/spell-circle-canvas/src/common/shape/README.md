@@ -342,8 +342,9 @@ is silently, plausibly wrong rather than obviously broken.
   concern. glTF's whole metallic-roughness material rides along the same
   way: `Part::textures` keys the normal, packed metallicRoughness
   (`"orm"`), occlusion and emissive images by usage word, beside the
-  `metallic`/`roughness`/`emissive` factors — words SigilWorld's
-  texture-set door reads directly. Likewise, `import::model()` never touches the filesystem for
+  `metallic`/`roughness`/`emissive` factors, the transmission and ior
+  extensions and the alpha mode — words SigilWorld's texture-set door
+  reads directly. Likewise, `import::model()` never touches the filesystem for
   external references unless you gave it a `Resolver` or used the path
   overload.
 - **Alembic support is Ogawa-only and nearest-sample.**

@@ -376,6 +376,13 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
       fetch(material.emissive_texture, "emissive");
       part.emissive = {material.emissive_factor[0], material.emissive_factor[1],
                        material.emissive_factor[2], 1};
+      if (material.has_transmission)
+        part.transmission = material.transmission.transmission_factor;
+      if (material.has_ior) part.ior = material.ior.ior;
+      part.opaque = material.alpha_mode == cgltf_alpha_mode_opaque;
+      if (material.alpha_mode == cgltf_alpha_mode_mask)
+        part.alphaCutoff = material.alpha_cutoff;
+      if (part.opaque) part.baseColor.a = 1;  // OPAQUE ignores base alpha
     }
 
     finishPart(part, normal && normal->count == count);

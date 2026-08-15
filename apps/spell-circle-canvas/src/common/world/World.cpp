@@ -125,7 +125,7 @@ cbuffer FrameConstants
     float4 g_SunColor;
     float4 g_SkyColor;
     float4 g_GroundColor;
-    float4 g_Params;      // x ambient, y light count
+    float4 g_Params;      // x ambient, y light count, zw 1/target size
     float4 g_LightPos[8];   // xyz position (point) / direction (dir), w 1=point
     float4 g_LightColor[8]; // rgb color * intensity, w range (point)
     float4 g_Env;         // x intensity, y rotation (radians), z top mip, w 1 = present
@@ -139,8 +139,9 @@ cbuffer DrawConstants
     float4 g_Emissive;    // rgb emissive, a unused
     float4 g_MatParams;   // x metallic, y roughness, z emissiveStrength, w unlit
     float4 g_UvScaleOffset; // xy uv scale, zw uv offset
-    float4 g_MapParams;   // x normalScale, y occlusionStrength, z 1 = DirectX normal
-    float4 g_Channels;    // x roughness, y metallic, z occlusion channel index
+    float4 g_MapParams;   // x normalScale, y occlusionStrength, z 1 = DirectX normal, w transmission
+    float4 g_Channels;    // x roughness, y metallic, z occlusion, w opacity channel index
+    float4 g_Glass;       // x ior, y thickness, z alphaCutoff, w scene-colour top mip
 };
 
 // The texture set. Every slot is bound — a 1x1 white (or flat-normal)
@@ -158,6 +159,13 @@ Texture2D    g_OcclusionMap;
 SamplerState g_OcclusionMap_sampler;
 Texture2D    g_EmissiveMap;
 SamplerState g_EmissiveMap_sampler;
+Texture2D    g_OpacityMap;
+SamplerState g_OpacityMap_sampler;
+// The frame's OPAQUE pass, resolved and mipped, for glass to look
+// through. Bound to every surface (a 1x1 black stand-in until a
+// transmissive surface exists in the frame).
+Texture2D    g_SceneColor;
+SamplerState g_SceneColor_sampler;
 // The environment panorama, bound like a material map (a 1x1 black
 // stand-in when the lighting has none) so the frame's light rides the
 // same binding shape as everything else.
@@ -295,6 +303,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float2 uv   = IN.UV * g_UvScaleOffset.xy + g_UvScaleOffset.zw;
     float4 tex  = g_Texture.Sample(g_Texture_sampler, uv);
     float4 base = tex * g_BaseColor * IN.Tint;
+    base.a *= pick(g_OpacityMap.Sample(g_OpacityMap_sampler, uv), g_Channels.w);
+    // The cutout: below the cutoff the fragment is not there at all.
+    if (g_Glass.z > 0.0 && base.a < g_Glass.z)
+        discard;
     float3 emissiveMap = g_EmissiveMap.Sample(g_EmissiveMap_sampler, uv).rgb;
     float3 emissive = g_Emissive.rgb * g_MatParams.z * emissiveMap;
 
@@ -352,7 +364,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float  Vis = 0.5 / max(lerp(2.0 * ndl * ndv, ndl + ndv, a), 1e-4);
 
     float3 sun    = g_SunColor.rgb * g_SunDir.w;
-    float3 direct = (albedo / 3.1415926 + D * F * Vis) * sun * ndl;
+    // Diffuse and specular kept apart: glass keeps its specular on top
+    // of what it transmits and gives up its diffuse.
+    float3 diffuse  = (albedo / 3.1415926) * sun * ndl;
+    float3 specular = (D * F * Vis) * sun * ndl;
 
     // Registry lights: the same GGX lobe per light, with point lights on
     // a windowed falloff — (1 - (d/range)^2)^2 — rather than a physical
@@ -386,14 +401,14 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         float  Di   = a2 / max(3.1415926 * ddi * ddi, 1e-4);
         float3 Fi   = F0 + (1.0 - F0) * pow(1.0 - hdvi, 5.0);
         float  Visi = 0.5 / max(lerp(2.0 * ndli * ndv, ndli + ndv, a), 1e-4);
-        direct += (albedo / 3.1415926 + Di * Fi * Visi) *
-                  g_LightColor[i].rgb * (atten * ndli);
+        diffuse  += (albedo / 3.1415926) * g_LightColor[i].rgb * (atten * ndli);
+        specular += (Di * Fi * Visi) * g_LightColor[i].rgb * (atten * ndli);
     }
 
     // Ambient: the panorama when the lighting carries one, otherwise the
     // sky/ground hemisphere with a reflection-oriented lobe for spec.
     float3 R = reflect(-V, N);
-    float3 ambient;
+    float3 ambientDiffuse, ambientSpecular;
     if (g_Env.w > 0.5)
     {
         // Diffuse: a five-tap cosine-weighted hemisphere read from a
@@ -418,23 +433,50 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         float4 rr = rough * c0 + c1;
         float a004 = min(rr.x * rr.x, exp2(-9.28 * ndv)) * rr.x + rr.y;
         float2 AB = float2(-1.04, 1.04) * a004 + rr.zw;
-        ambient = g_Params.x * occlusion *
-            (irradiance * albedo + prefiltered * (F0 * AB.x + AB.y));
+        ambientDiffuse  = g_Params.x * occlusion * irradiance * albedo;
+        ambientSpecular = g_Params.x * occlusion * prefiltered * (F0 * AB.x + AB.y);
     }
     else
     {
         float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
         float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
-        ambient = g_Params.x * occlusion *
-            (hemiN * albedo + hemiR * F0 * (1.0 - rough) * (0.4 + 0.6 * pow(1.0 - ndv, 2.0)));
+        ambientDiffuse  = g_Params.x * occlusion * hemiN * albedo;
+        ambientSpecular = g_Params.x * occlusion * hemiR * F0 * (1.0 - rough) *
+                          (0.4 + 0.6 * pow(1.0 - ndv, 2.0));
     }
-
-    float3 color = direct + ambient + emissive;
+    diffuse  += ambientDiffuse;
+    specular += ambientSpecular;
 
     // Tonemap, then the same sRGB encode the unlit branch uses — one
     // transfer function for the whole target.
-    color = color / (color + 1.0);
-    return float4(LinearToSrgb(color), base.a);
+    float3 color = diffuse + specular + emissive;
+    float3 encoded = LinearToSrgb(color / (color + 1.0));
+    float  alpha = base.a;
+
+    float transmission = g_MapParams.w;
+    if (transmission > 0.0)
+    {
+        // Glass: what lies behind, read from the opaque pass where the
+        // refracted view ray exits a slab `thickness` deep, blurred by
+        // roughness, tinted by the base colour; the surface's own
+        // diffuse gives way to it and its specular rides on top. The
+        // scene colour is already encoded and tonemapped, so the mix
+        // happens in encoded space and the pixel is written opaque —
+        // the background has been composed here.
+        float3 rd = refract(-V, N, 1.0 / max(g_Glass.x, 1.0));
+        float3 exitP = IN.World + rd * g_Glass.y;
+        float4 clip = mul(g_ViewProj, float4(exitP, 1.0));
+        float2 suv = clip.xy / max(clip.w, 1e-4) * float2(0.5, -0.5) + 0.5;
+        suv = clamp(suv, 0.0, 1.0);
+        float3 seen = g_SceneColor.SampleLevel(g_SceneColor_sampler, suv,
+                                               rough * g_Glass.w).rgb;
+        float3 tinted = seen * base.rgb;
+        float3 specE = LinearToSrgb(specular / (specular + 1.0));
+        float3 ownE = LinearToSrgb((diffuse + emissive) / (diffuse + emissive + 1.0));
+        encoded = lerp(ownE, tinted, transmission) + specE;
+        alpha = lerp(alpha, 1.0, transmission);
+    }
+    return float4(encoded, alpha);
 }
 )";
 
@@ -460,6 +502,7 @@ struct DrawConstants {
   float uvScaleOffset[4];
   float mapParams[4];
   float channels[4];
+  float glass[4];  // x ior, y thickness, z alphaCutoff, w scene top mip
 };
 
 struct Vertex {
@@ -552,6 +595,7 @@ struct MaterialBinding {
   const SkImage* metallic = nullptr;
   const SkImage* occlusion = nullptr;
   const SkImage* emissive = nullptr;
+  const SkImage* opacity = nullptr;
   bool tile = false;
   bool valid = false;  ///< false until the first bind
   /** The panorama the binding was built against; the frame's light is
@@ -564,6 +608,7 @@ struct MaterialBinding {
             m.metallicMap.get(),
             m.occlusionMap.get(),
             m.emissiveMap.get(),
+            m.opacityMap.get(),
             m.tile,
             true,
             environment};
@@ -725,6 +770,11 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::ITexture> resolveTarget;  // single-sample
   dg::RefCntAutoPtr<dg::ITexture> depthTarget;
   dg::RefCntAutoPtr<dg::ITexture> stagingTarget;
+  /** The opaque pass, resolved and mipped, for transmissive surfaces
+   *  to read; refreshed between the passes only in frames that have
+   *  one. */
+  dg::RefCntAutoPtr<dg::ITexture> sceneColor;
+  int sceneColorMips = 1;
   int sampleCount = 1;
 
   dg::RefCntAutoPtr<dg::IPipelineState> opaquePso;
@@ -851,6 +901,22 @@ bool World::Impl::createTargets(std::string* error) {
   desc.SampleCount = (Uint32)sampleCount;
   device->CreateTexture(desc, nullptr, &depthTarget);
 
+  desc.Name = "sigilworld scene colour";
+  desc.Format = colorFormat;
+  desc.BindFlags = BIND_SHADER_RESOURCE | BIND_RENDER_TARGET;
+  desc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.SampleCount = 1;
+  sceneColorMips = 1;
+  for (int mw = config.width, mh = config.height; mw > 1 || mh > 1;
+       ++sceneColorMips) {
+    mw = std::max(mw / 2, 1);
+    mh = std::max(mh / 2, 1);
+  }
+  desc.MipLevels = (Uint32)sceneColorMips;
+  device->CreateTexture(desc, nullptr, &sceneColor);
+  desc.MiscFlags = MISC_TEXTURE_FLAG_NONE;
+  desc.MipLevels = 1;
+
   desc.Name = "sigilworld staging";
   desc.Format = colorFormat;
   desc.BindFlags = BIND_NONE;
@@ -859,7 +925,8 @@ bool World::Impl::createTargets(std::string* error) {
   desc.CPUAccessFlags = CPU_ACCESS_READ;
   device->CreateTexture(desc, nullptr, &stagingTarget);
 
-  if (!colorTarget || !resolveTarget || !depthTarget || !stagingTarget) {
+  if (!colorTarget || !resolveTarget || !depthTarget || !stagingTarget ||
+      !sceneColor) {
     if (error) *error = "offscreen target creation failed";
     return false;
   }
@@ -961,6 +1028,10 @@ bool World::Impl::createPipelines(std::string* error) {
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
       {SHADER_TYPE_PIXEL, "g_Environment",
        SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_OpacityMap",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_SceneColor",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
   psoCI.PSODesc.ResourceLayout.Variables = variables;
   psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)std::size(variables);
@@ -992,6 +1063,8 @@ bool World::Impl::createPipelines(std::string* error) {
       if (error) *error = "sampler creation failed";
       return false;
     }
+    sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+        ->SetSampler(clampSampler);
   }
 
   // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
@@ -1176,6 +1249,9 @@ bool World::Impl::bindMaterial(
   set("g_MetallicMap", material.metallicMap, false, whiteTexture);
   set("g_OcclusionMap", material.occlusionMap, false, whiteTexture);
   set("g_EmissiveMap", material.emissiveMap, true, whiteTexture);
+  set("g_OpacityMap", material.opacityMap, false, whiteTexture);
+  if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_SceneColor"))
+    var->Set(sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
   if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Environment"))
     var->Set((environmentTexture ? environmentTexture : blackTexture)
                  ->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
@@ -1209,12 +1285,16 @@ void World::Impl::writeDrawConstants(const glm::mat4& model,
   constants->mapParams[0] = m.normalMap ? m.normalScale : 0.0f;
   constants->mapParams[1] = m.occlusionMap ? m.occlusionStrength : 0.0f;
   constants->mapParams[2] = m.normalMapDirectX ? 1.0f : 0.0f;
-  constants->mapParams[3] = 0;
+  constants->mapParams[3] = std::clamp(m.transmission, 0.0f, 1.0f);
   const auto channel = [](int c) { return (float)std::clamp(c, 0, 3); };
   constants->channels[0] = channel(m.roughnessChannel);
   constants->channels[1] = channel(m.metallicChannel);
   constants->channels[2] = channel(m.occlusionChannel);
-  constants->channels[3] = 0;
+  constants->channels[3] = channel(m.opacityChannel);
+  constants->glass[0] = m.ior;
+  constants->glass[1] = m.thickness;
+  constants->glass[2] = m.alphaCutoff;
+  constants->glass[3] = (float)std::max(sceneColorMips - 1, 0);
 }
 
 namespace {
@@ -2678,7 +2758,9 @@ bool World::render() {
     putColor(constants->skyColor, impl.lighting.skyColor, 1);
     putColor(constants->groundColor, impl.lighting.groundColor, 1);
     constants->params[0] = impl.lighting.ambient;
-    constants->params[1] = constants->params[2] = constants->params[3] = 0;
+    constants->params[1] = 0;
+    constants->params[2] = 1.0f / (float)impl.config.width;
+    constants->params[3] = 1.0f / (float)impl.config.height;
 
     // Registry lights: the first kLightBudget the view yields, in
     // registry iteration order. Any beyond that are silently ignored.
@@ -2732,7 +2814,7 @@ bool World::render() {
     item.geometry = &geometry;
     item.model = &transform.model;
     item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
+    (material.material.blended() ? blended : opaque).push_back(item);
   }
   for (auto [e, geometry, transform, material] :
        impl.registry
@@ -2743,7 +2825,7 @@ bool World::render() {
     item.instanced = &geometry;
     item.model = &transform.model;
     item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
+    (material.material.blended() ? blended : opaque).push_back(item);
   }
   if (!blended.empty()) {
     const glm::mat4 view = cam.view();
@@ -2813,6 +2895,35 @@ bool World::render() {
     }
   };
   drawList(opaque, impl.opaquePso, impl.opaqueInstancedPso);
+  bool anyGlass = false;
+  for (const DrawItem& item : blended)
+    anyGlass |= item.material->transmission > 0;
+  if (anyGlass) {
+    // Glass looks through the opaque pass: resolve (or copy) it into
+    // the scene-colour texture, build its mip chain for the roughness
+    // blur, and rebind the targets — the resolve unbinds them.
+    if (opaque.empty()) impl.context->Flush();
+    if (msaa) {
+      ResolveTextureSubresourceAttribs resolve;
+      resolve.SrcTextureTransitionMode =
+          RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      resolve.DstTextureTransitionMode =
+          RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      impl.context->ResolveTextureSubresource(impl.colorTarget, impl.sceneColor,
+                                              resolve);
+    } else {
+      CopyTextureAttribs copy;
+      copy.pSrcTexture = impl.resolveTarget;
+      copy.pDstTexture = impl.sceneColor;
+      copy.SrcTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      copy.DstTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      impl.context->CopyTexture(copy);
+    }
+    impl.context->GenerateMips(
+        impl.sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+    impl.context->SetRenderTargets(1, &rtv, dsv,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  }
   drawList(blended, impl.blendPso, impl.blendInstancedPso);
 
   // A frame with no draws never begins a render pass, so the backend
