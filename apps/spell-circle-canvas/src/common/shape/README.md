@@ -106,7 +106,9 @@ directly to a GPU renderer downstream. Nothing renderer-shaped lives in the
 struct.
 
 **`pop::Chain` is a backend-neutral description.** It is a vector of
-operator variants, not a program. The CPU executor in `popops::cook()` is
+operator variants, not a program — and a value: every operator, `Mesh`
+and `Cloud` compares by content with `==`, so a reconciler can ask
+whether a chain changed. The CPU executor in `popops::cook()` is
 the reference implementation; a GPU consumer can execute the identical
 chain as compute dispatches, and the two are required to agree bit for bit
 — which is what makes the hash helpers and the variant order load-bearing

@@ -1097,6 +1097,45 @@ TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
   ASSERT_TRUE(w->render());
 }
 
+TEST(Easel, PointsReconcileByChainValue) {
+  // A declared point chain is a keep while its value stands, a move
+  // when a parameter (the window) changes, and a re-add when its stamp
+  // changes; an undeclared one leaves.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  MAKE_WORLD_OR_SKIP(w, config);
+  world::easel::Stage stage(*w);
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
+  }
+  const shape::Mesh stamp = shape::mesh::quad(6, 6);
+  const auto declare = [&](float head, const shape::Mesh& withStamp) {
+    return stage
+        .points(shape::pop::on(loop).count(300).window(head, 0.5f).noise(9),
+                withStamp, world::Material{})
+        .key("comet")
+        .commit();
+  };
+  world::scene::Scene::Stats stats = declare(1.0f, stamp);
+  EXPECT_EQ(stats.added, 1);
+  ASSERT_EQ(w->surfaceCount(), 1u);
+  stats = declare(1.0f, stamp);
+  EXPECT_EQ(stats.kept, 1);
+  EXPECT_EQ(stats.added + stats.removed, 0);
+  stats = declare(0.4f, stamp);
+  EXPECT_EQ(stats.moved, 1) << "a window slide is a chain edit";
+  EXPECT_EQ(stats.added + stats.removed, 0);
+  stats = declare(0.4f, shape::mesh::quad(9, 9));
+  EXPECT_EQ(stats.added, 1) << "a new stamp is a rebuild";
+  EXPECT_EQ(stats.removed, 1);
+  stats = stage.commit();  // nothing declared: it leaves
+  EXPECT_EQ(stats.removed, 1);
+  EXPECT_EQ(w->surfaceCount(), 0u);
+}
+
 TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
   // uvScale {0,0} collapses sampling to the single texel uvOffset names,
   // which makes this independent of filtering and of the quad's

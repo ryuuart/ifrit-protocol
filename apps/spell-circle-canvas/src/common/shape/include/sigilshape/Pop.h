@@ -42,6 +42,7 @@ struct pop {
                                      : "T") {}
     AttrRef(const char* n) : name(n) {}             // NOLINT: implicit
     AttrRef(std::string n) : name(std::move(n)) {}  // NOLINT
+    bool operator==(const AttrRef&) const = default;
   };
   /** The GPU executor's packed-lane index for a builtin — "Tex"
    *  included, slot 5; -1 for custom names, whose chains the GPU
@@ -64,6 +65,7 @@ struct pop {
     float head = 1, span = 1;
     float radius = 0;  ///< stable per-point offset in the normal plane
     uint32_t seed = 1;
+    bool operator==(const SplineScatter&) const = default;
   };
   /** Filter: lane += a stable random cube offset per point. */
   struct Jitter {
@@ -71,6 +73,7 @@ struct pop {
     float amplitude = 10;
     uint32_t seed = 7;
     std::string mask;  ///< see "Masks" below; empty = every point
+    bool operator==(const Jitter&) const = default;
   };
   /** Filter: lane += a smooth sin-field drift sampled at P. */
   struct Noise {
@@ -79,6 +82,7 @@ struct pop {
     float frequency = 0.01f;
     float seed = 0;
     std::string mask;
+    bool operator==(const Noise&) const = default;
   };
   /** Filter: lane = lerp(from, to) by the T attribute. */
   struct Ramp {
@@ -86,6 +90,7 @@ struct pop {
     glm::vec4 from = {1, 1, 1, 1};
     glm::vec4 to = {1, 1, 1, 1};
     std::string mask;
+    bool operator==(const Ramp&) const = default;
   };
   /** Filter: lane.x = base * (1 + spread * (hash * 2 - 1)). */
   struct Vary {
@@ -94,11 +99,13 @@ struct pop {
     float spread = 0.5f;
     uint32_t seed = 11;
     std::string mask;
+    bool operator==(const Vary&) const = default;
   };
   /** Filter: Dir = normalize(target - P) — billboards, gazes. */
   struct LookAt {
     glm::vec3 target = {0, 0, 0};
     std::string mask;
+    bool operator==(const LookAt&) const = default;
   };
   /** Filter: lane = lane * mul + add, per component. */
   struct Math {
@@ -106,6 +113,7 @@ struct pop {
     glm::vec4 mul = {1, 1, 1, 1};
     glm::vec4 add = {0, 0, 0, 0};
     std::string mask;
+    bool operator==(const Math&) const = default;
   };
   /** Filter: neighborhood smoothing — each point eases toward its
    *  chain-order neighbors' midpoint (ends clamp). The op the ribbon
@@ -117,6 +125,7 @@ struct pop {
     float strength = 0.5f;  ///< 0 = off, 1 = full midpoint
     int iterations = 1;
     std::string mask;
+    bool operator==(const Relax&) const = default;
   };
   /** Generator: scatter count points ON a formed model's surface.
    *  Seeds a chain from a Mesh — sweep a tube, scatter on it, form
@@ -126,6 +135,7 @@ struct pop {
     Mesh mesh;
     int count = 10000;
     uint32_t seed = 1;
+    bool operator==(const MeshScatter&) const = default;
   };
   /** Creator (TD's Attribute Create): fill an attribute — customs
    *  spring into being on first write. */
@@ -133,6 +143,7 @@ struct pop {
     AttrRef attr = "Tex";
     glm::vec4 value = {0, 0, 1, 1};
     std::string mask;
+    bool operator==(const Set&) const = default;
   };
   /** Texture hint: pick a sprite-atlas cell per point (stable hash)
    *  and write "Tex" = {uOffset, vOffset, uScale, vScale}. The
@@ -141,6 +152,7 @@ struct pop {
     int cols = 2, rows = 2;
     uint32_t seed = 17;
     std::string mask;
+    bool operator==(const Atlas&) const = default;
   };
   /** Filter, PRIMITIVE class (TD/Houdini's Attribute Promote,
    *  point -> prim): bake a point attribute onto the PRIMITIVES the
@@ -157,6 +169,7 @@ struct pop {
   struct Promote {
     AttrRef from = Lane::Color;
     std::string to;  ///< primitive lane name; empty = the source's name
+    bool operator==(const Promote&) const = default;
   };
   /** Filter (TouchDesigner's Lookup): DRIVE one attribute from another
    *  through a table of stops. The key is dot(from, weights); it is
@@ -175,6 +188,7 @@ struct pop {
     std::vector<glm::vec4> stops = {{0, 0, 0, 1}, {1, 1, 1, 1}};
     float low = 0, high = 1;  ///< the source range the table spans
     std::string mask;
+    bool operator==(const Lookup&) const = default;
   };
   /** Filter, PERMUTATION class (TouchDesigner's Sort): reorder the
    *  whole point set by dot(by, weights). Every lane travels with its
@@ -197,6 +211,7 @@ struct pop {
     AttrRef by = Lane::P;
     glm::vec4 weights = {0, 0, 1, 0};  ///< key = dot(by, weights)
     bool descending = false;
+    bool operator==(const Sort&) const = default;
   };
   /** MASKS — the selection every filter takes.
    *
@@ -238,6 +253,7 @@ struct pop {
     bool invert = false;
     Combine combine = Combine::Replace;
     AttrRef from = Lane::P;
+    bool operator==(const Group&) const = default;
   };
   /** Filter: lane = matrix * lane — the whole affine vocabulary in one
    *  op (Math is the diagonal case). As a POSITION (w = 1) the
@@ -250,6 +266,7 @@ struct pop {
     glm::mat4 matrix = glm::mat4(1.0f);
     bool direction = false;
     std::string mask;
+    bool operator==(const Transform&) const = default;
   };
   /** Filter: lane.xyz += normalize(along.xyz) * distance — push every
    *  point out along its own direction (Dir by default: the tangent on
@@ -260,6 +277,7 @@ struct pop {
     AttrRef along = Lane::Dir;
     AttrRef lane = Lane::P;
     std::string mask;
+    bool operator==(const Peak&) const = default;
   };
   /** Filter: the classic space deformers over an axis. Each point's
    *  height h = dot(p - origin, axis) is remapped to u = (h - low) /
@@ -286,6 +304,7 @@ struct pop {
     float low = 0, high = 100;
     AttrRef lane = Lane::P;
     std::string mask;
+    bool operator==(const Deform&) const = default;
   };
   /** Filter: to = a + (b - a) * factor, the factor a constant or a
    *  lane's .x (`factorLane`; when named it replaces the constant).
@@ -299,6 +318,7 @@ struct pop {
     float factor = 0.5f;
     std::string factorLane;
     std::string mask;
+    bool operator==(const Mix&) const = default;
   };
   /** Generator: seed the chain from an EXISTING point set — an imported
    *  .geo or PLY poured through asCloud(), a cooked Cloud, anything with
@@ -312,6 +332,7 @@ struct pop {
    *  with a different cloud re-uploads it on the GPU executor. */
   struct PointSet {
     Cloud cloud;
+    bool operator==(const PointSet&) const = default;
   };
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */

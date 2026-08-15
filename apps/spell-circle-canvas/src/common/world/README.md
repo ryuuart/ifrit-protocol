@@ -139,9 +139,10 @@ numbers per frame and no geometry work on the CPU.
   resolves a node's key path to its entity.
 - *Fluent*: `Easel.h`. `easel::stage(world)` chains one sentence per
   thing on the set — `sun()`, `light()`, `place()`, `panel()`,
-  `swarm()` — with `at()/turned()/sized()/key()` styling the last
-  declared item, and `commit()` reconciling the lot through the Scene
-  layer.
+  `swarm()`, `points()` (a GPU-cooked `pop::Chain`, compared by value
+  on the next commit) — with `at()/turned()/sized()/key()` styling the
+  last declared item, and `commit()` reconciling the lot through the
+  Scene layer.
 
 **Declared motion is an orthogonal door with a device-free half.**
 `Animation.h` adds five components — `AnimatedTransform`,

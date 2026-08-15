@@ -63,6 +63,9 @@ struct Cloud {
    *  (others 0), color "Tex" pads the identity window {0,0,1,1} and
    *  "uv" pads {0,0,0,0} (other colors white), vectors pad {0,0,1}. */
   void append(const Cloud& other);
+
+  /** Content equality, lane for lane. */
+  bool operator==(const Cloud&) const = default;
 };
 
 namespace points {
