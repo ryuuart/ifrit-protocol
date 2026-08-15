@@ -421,7 +421,10 @@ The demo renders a diegetic-panel scene headlessly:
 It writes a set of camera shots as PNGs — a material lab
 (`world_materials.png`: the fetched Poly Haven texture set on a floor,
 a sphere and a torus, plus — when the Substance SDK is installed — the
-SDK's sample archive rendered live at two parameter settings), a cockpit
+SDK's sample archive rendered live at two parameter settings), a pop lab
+(`world_pops.png`: the fetched Avocado's surface scattered into a cloud
+that seeds a chain — a selected band twisted, the rest peaked, colour by
+height — cooked on the GPU as one instanced surface), a cockpit
 view, a low orbit, a close panel, a poster panel, the stream, and the
 marquee — plus a short
 marquee flight sequence, a declared-camera flight frame

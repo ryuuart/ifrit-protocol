@@ -26,6 +26,7 @@
 #include <sigilloader/Loader.h>
 #include <sigilmotion/Ticker.h>
 #include <sigilshape/Curves.h>
+#include <sigilshape/Import.h>
 #include <sigilshape/Mesh.h>
 #include <sigilshape/Points.h>
 #include <sigilshape/Save.h>
@@ -377,6 +378,105 @@ sk_sp<SkImage> decodeFile(const std::filesystem::path& path) {
   return asset->frameAt(0).image;
 }
 
+/** The pop lab: a point chain seeded from an existing point set — the
+ *  fetched Avocado's own vertices when the model is there, a scattered
+ *  torus otherwise — selected into a band, the band twisted, the rest
+ *  peaked along its normals and coloured by height, cooked on the GPU
+ *  and drawn as one instanced surface. Written as world_pops.png. */
+void renderPopLab(const std::filesystem::path& outDir,
+                  const std::filesystem::path& assetDir) {
+  world::WorldConfig config;
+  config.width = 1440;
+  config.height = 810;
+  config.clearColor = {0.03f, 0.032f, 0.045f, 1};
+  std::string error;
+  std::unique_ptr<world::World> w = world::World::create(config, &error);
+  if (!w) return;
+
+  // The seed: an imported model's vertices as a cloud, fitted to the
+  // stage — every lane it carries rides into the chain — or, without
+  // the asset, points scattered on a torus.
+  shape::Cloud seed;
+  std::string seedName = "torus scatter";
+  if (std::optional<shape::import::Model> avocado =
+          shape::import::model(assetDir / "models/Avocado.glb")) {
+    const glm::mat4 fit = avocado->fitTransform(520);
+    shape::Mesh merged = avocado->merged();
+    merged.transform(fit);
+    // Densify: scatter on the fitted surface, keeping its normals.
+    seed = shape::points::onMesh(merged, 14000, 3);
+    seedName = "Avocado.glb, scattered";
+  } else {
+    seed = shape::points::onMesh(shape::mesh::torus(180, 70, 96, 48), 14000, 3);
+  }
+  const std::vector<glm::vec4> heightStops = {
+      {0.05f, 0.15f, 0.7f, 1}, {0.95f, 0.25f, 0.1f, 1}, {1.0f, 0.85f, 0.2f, 1}};
+  glm::vec3 lo, hi;
+  lo = hi = seed.positions.empty() ? glm::vec3{0} : seed.positions[0];
+  for (const glm::vec3& p : seed.positions) {
+    lo = glm::min(lo, p);
+    hi = glm::max(hi, p);
+  }
+  const shape::pop::Chain chain =
+      shape::pop::on(seed)
+          .select("band", shape::pop::Group::Shape::Box,
+                  {0, (lo.y + hi.y) * 0.5f, 0},
+                  {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
+          .rampBy(shape::pop::Lane::P, 1, heightStops, lo.y, hi.y)
+          .peak(14)
+          .select("band", shape::pop::Group::Shape::Box,
+                  {0, (lo.y + hi.y) * 0.5f, 0},
+                  {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f,
+                  shape::pop::Group::Combine::Replace, true)
+          .masked("band")  // the peak: everyone OUTSIDE the band
+          .select("band", shape::pop::Group::Shape::Box,
+                  {0, (lo.y + hi.y) * 0.5f, 0},
+                  {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
+          .twist(90, {0, 1, 0}, lo.y, hi.y, {60, 0, 0})
+          .masked("band")
+          .peak(-40)
+          .masked("band")
+          .vary(0.45f, 1.0f)
+          .lookAt({120, 260, 900});
+  world::Material flake;
+  flake.baseColor = {1, 1, 1, 1};
+  flake.roughness = 0.85f;
+  const uint32_t id = w->addPoints(shape::mesh::quad(5, 5), chain, flake);
+  if (id == 0) {
+    std::fprintf(stderr, "pop lab: the executor declined the chain\n");
+    return;
+  }
+  // A quiet floor and the studio light.
+  world::Material floor;
+  floor.baseColor = {0.12f, 0.12f, 0.14f, 1};
+  floor.roughness = 0.5f;
+  floor.metallic = 0.3f;
+  w->addSurface(shape::mesh::grid(2, 2,
+                                  [&](float u, float v) -> glm::vec3 {
+                                    return {(u - 0.5f) * 1800, lo.y - 40,
+                                            (v - 0.5f) * 1200};
+                                  }),
+                glm::mat4(1.0f), floor);
+  world::Lighting lighting;
+  lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
+  lighting.sunIntensity = 2.6f;
+  lighting.ambient = 0.45f;
+  if (sk_sp<SkImage> hdri =
+          decodeFile(assetDir / "hdri/studio_small_09_1k.hdr")) {
+    lighting.environment = hdri;
+    lighting.environmentRotationDeg = 200;
+  }
+  w->setLighting(lighting);
+  shape::space::Camera camera;
+  camera.eye = {120, 260, 900};
+  camera.target = {0, (lo.y + hi.y) * 0.5f, 0};
+  camera.fovYDeg = 44;
+  w->setCamera(camera);
+  if (w->render() && w->savePng(outDir / "world_pops.png"))
+    std::printf("wrote world_pops.png (%s, %zu points, %zu ops)\n",
+                seedName.c_str(), seed.size(), chain.size());
+}
+
 /** The material lab: one shot, several props, each dressed by a
  *  different door into Material — a fetched texture set read by its
  *  file names, a Substance archive rendered on the fly (twice, with a
@@ -538,6 +638,7 @@ int main(int argc, char** argv) {
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
   renderMaterialLab(outDir, assetDir);
+  renderPopLab(outDir, assetDir);
 
   world::WorldConfig config;
   config.width = 1440;
