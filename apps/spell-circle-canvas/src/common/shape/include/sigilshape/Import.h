@@ -3,7 +3,7 @@
 /** @file
  * SigilShape model import — files into the Mesh currency.
  *
- * Five formats cover the practical interchange world:
+ * Six formats cover the practical interchange world:
  *  - Wavefront OBJ (+ MTL): the classic text workhorse (tinyobjloader);
  *  - glTF 2.0, .gltf and .glb: the modern standard (cgltf) — node
  *    transforms baked, base-color material honored, buffers reachable
@@ -14,12 +14,19 @@
  *    every FACE property a primitive lane on Mesh::prims, and
  *    faceless files are honest point clouds;
  *  - Alembic, .abc Ogawa: the vfx cache — meshes and point clouds at
- *    a chosen time, arbGeomParams as lanes (Alembic library).
+ *    a chosen time, arbGeomParams as lanes (Alembic library);
+ *  - Houdini .geo (JSON): the SOP network's own save — polygons
+ *    unwelded so vertex-class uv and N survive, point attributes as
+ *    lanes, primitive attributes on Mesh::prims, point and primitive
+ *    GROUPS as 0/1 lanes under the group's name (a pop mask, ready
+ *    made), and a primitive-less file as a point cloud (parsed by
+ *    hand; the binary .bgeo and blosc .sc variants are not read).
  *
  * ATTRIBUTES flow through: glTF's custom _NAME accessors (what Blender
- * and Houdini exporters write) and PLY's extra properties land on the
- * Part as named lanes, and asCloud() pours a part into a shape::Cloud
- * — scatter in Houdini, cook in pops, stamp with points:: here.
+ * and Houdini exporters write), PLY's extra properties and .geo's
+ * point class land on the Part as named lanes, and asCloud() pours a
+ * part into a shape::Cloud — scatter in Houdini, cook in pops, stamp
+ * with points:: here.
  *
  * Import stays ACCESS-agnostic: bytes in, Model out. External
  * references (.mtl libraries, .bin buffers, texture files) are pulled

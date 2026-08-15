@@ -181,10 +181,11 @@ The rest build on those:
   its CPU executor.
 - **`Import.h`** and **`Save.h`** need `Mesh` and `Points`. Import reads
   OBJ (with MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL,
-  ascii and binary-little-endian PLY, and Ogawa Alembic, producing a
-  `Model` of `Part`s; external references resolve through a caller-supplied
-  `Resolver`. Save writes PLY back out — `save::ply()` over a `Cloud` or a
-  `Mesh`, ascii by default or binary via `PlyOptions`.
+  ascii and binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON
+  `.geo`, producing a `Model` of `Part`s; external references resolve
+  through a caller-supplied `Resolver`. Save writes PLY back out —
+  `save::ply()` over a `Cloud` or a `Mesh`, ascii by default or binary via
+  `PlyOptions`.
 - **`Easel.h`** needs `Blend`, `Curves`, `Materials`, `Mesh`, `Ops`,
   `Points` and `Space`. It does not pull in `Pop`, `Import` or `Save`.
 
@@ -323,6 +324,18 @@ is silently, plausibly wrong rather than obviously broken.
 - **Alembic support is Ogawa-only and nearest-sample.**
   `AlembicOptions::time` picks the closest stored sample; nothing is
   interpolated, and HDF5-cored archives return `nullopt`.
+- **A `.geo` import is unwelded, and its groups are lanes.** Every polygon
+  vertex becomes its own mesh vertex (so a vertex-class `uv` or `N`
+  survives seams and hard edges; the vertex class outranks the point
+  class for the conventional names), the `uv` v axis is flipped to the
+  top-left convention, primitive `Cd` becomes the `"Color"` prim lane and
+  every other primitive attribute a prim lane under its own name. Point
+  and primitive *groups* arrive as 0/1 lanes named after the group — the
+  shape a `pop` mask expects — so a Houdini group named `top` is
+  `.masked("top")` downstream. Detail (global) attributes and string
+  attributes have no lane to land in and are dropped; only the JSON
+  `.geo` spelling is read, not `.bgeo` or the blosc-compressed `.sc`
+  variants.
 
 ## Boundaries
 
