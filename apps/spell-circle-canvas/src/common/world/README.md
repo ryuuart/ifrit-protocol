@@ -69,6 +69,20 @@ screen.unlit = true;  // self-lit UI, no shading applied
 w->addSurface(shape::mesh::quad(380, 252), placement, screen);
 ```
 
+A scanned or authored material is the full texture set, read from the
+folder a tool exported by its file names:
+
+```cpp
+#include <sigilworld/TextureSet.h>
+
+for (const world::textures::TextureSet& set :
+     world::textures::discover("assets/textures/metal_plate")) {
+  world::Material plate = world::textures::material(set, decodeImage);
+  plate.uvScale = {4, 4};  // the set tiles; lay it down four times
+  w->addSurface(shape::mesh::torus(150, 60), placement, plate);
+}
+```
+
 ## The mental model
 
 **Four things cross the boundary, and nothing else does.** Geometry
@@ -154,6 +168,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/surface/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the five `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
+| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set or from usage-keyed images. |
 
 ## Conventions that will bite you
 
@@ -174,16 +189,42 @@ linearized by the sampler, re-encoded by the shader and read back lands
 on its own byte. Substituting a gamma power breaks that round trip
 through the dark and mid range.
 
-**Panel textures upload as an sRGB format** so the sampler linearizes on
-read; the render target is plain unorm and depth is 32-bit float.
+**Colour maps upload as an sRGB format, data maps as plain unorm.** The
+base colour and emissive maps are linearized by the sampler on read;
+normal, roughness, metallic and occlusion maps are numbers and are read
+as stored. The render target is plain unorm and depth is 32-bit float.
 
 **Any image is flattened to 8-bit unpremultiplied RGBA on upload.**
 Float and HDR sources lose their range there. No mipmaps are generated.
 
-**The sampler clamps on both axes.** There is no repeat or tile mode.
-`Material::uvScale` and `uvOffset` apply at sample time and clamp at the
-texture edge, so a scrolling window walks off the edge rather than
-wrapping.
+**The sampler clamps unless the material tiles.** `Material::uvScale`
+and `uvOffset` apply at sample time; with `tile` false a window that
+runs off the texture smears its edge texels, with `tile` true every map
+on the material repeats. Two samplers exist on the device and each
+uploaded texture's view carries one of them.
+
+**The texture set is a metallic-roughness set, one channel per scalar
+map.** `roughnessMap`, `metallicMap` and `occlusionMap` each read ONE
+channel, chosen by their `*Channel` index, so a packed
+occlusion-roughness-metallic image serves all three slots with channels
+0, 1, 2 — which is what `textures::material()` wires when a set carries
+an `_arm` / `_orm` / `OcclusionRoughnessMetallic` file and no separate
+maps. A missing map reads as 1, so the scalar next to it (`roughness`,
+`metallic`) is the whole value; a present map is *multiplied* by that
+scalar, which is why the loader sets the scalar to 1 when the set
+carries the map.
+
+**Normal maps need no vertex tangents.** The tangent frame is solved per
+pixel from the position and uv screen-space derivatives — the direct 2x2
+solve, not the cross-product shortcut, so the frame's signs do not depend
+on which way the backend's `ddy` points. `normalMapDirectX` flips the
+green axis for maps authored with green pointing down the image; the
+default reads OpenGL maps. `normalScale` 0 is a flat map. Where a
+surface has no uv gradient (a degenerate uv layout) the geometric normal
+is kept.
+
+**Occlusion darkens the ambient term only**, by `occlusionStrength`;
+direct light ignores it, as it should.
 
 **Matrices upload as raw column-major memory** and the shader does
 column-vector math (`mul(M, v)`). Nothing is transposed anywhere, in
@@ -202,12 +243,12 @@ determine visibility, so a mesh with inconsistent winding still renders.
 to front** (alpha below 1 in `baseColor`). An instanced surface is one
 item in that sort — its instances are not sorted against each other.
 
-**Swapping a material's texture is not live.** Every other
-`MaterialComponent` field — colours, metallic, roughness, emissive, the
-uv window — takes effect on the next render when you mutate it. Changing
-`texture` requires removing and re-adding the surface (or re-describing
-it through the Scene layer), because the shader resource binding is
-baked at creation.
+**Swapping an image on a `MaterialComponent` is live, and costs an
+upload.** `render()` compares the image pointers and the tile flag a
+surface's binding was built from against the live component and rebuilds
+the binding when any moved. Colours, scalars and the uv window are read
+every draw and cost nothing; an image swap re-uploads every map on that
+surface, so it is a change-of-scene operation, not a per-frame one.
 
 **An `Animated*` component owns its entity's corresponding component.**
 Do not also drive that component by hand: the next resolve overwrites
@@ -317,9 +358,14 @@ the compute generators: `addSweep`, `addFlock`, `addPoints` and
 
 Deliberately absent: a clock or timeline of its own; any dependency on
 SigilCompose or SigilWeave (both are test and demo links only); text
-layout; windowing and swapchains; the primitive attribute class on the
-GPU (the GPU executor cooks the point class only); permutation
-operators; count-changing operators.
+layout; windowing and swapchains; an image decoder (`textures::material`
+takes a decode callback, `sigilworld/TextureSet.h` classifies names and
+wires slots but never opens a file's pixels); the Substance SDK
+(SigilSubstance renders `.sbsar` archives and hands over usage-keyed
+images; this library takes them through the same by-usage door as any
+other pipeline); the primitive attribute class on the GPU (the GPU
+executor cooks the point class only); permutation operators;
+count-changing operators.
 
 ## Build and test
 
@@ -352,8 +398,12 @@ The demo renders a diegetic-panel scene headlessly:
 ./build/bin/Debug/world_demo [outdir] [assetdir] [frameCount]
 ```
 
-It writes a set of camera shots as PNGs — a cockpit view, a low orbit, a
-close panel, a poster panel, the stream, and the marquee — plus a short
+It writes a set of camera shots as PNGs — a material lab
+(`world_materials.png`: the fetched Poly Haven texture set on a floor,
+a sphere and a torus, plus — when the Substance SDK is installed — the
+SDK's sample archive rendered live at two parameter settings), a cockpit
+view, a low orbit, a close panel, a poster panel, the stream, and the
+marquee — plus a short
 marquee flight sequence, a declared-camera flight frame
 (`world_camera_flight.png`), and `comet_points.ply` exported from the
 GPU-cooked point lanes. A frame count as the third argument dumps a

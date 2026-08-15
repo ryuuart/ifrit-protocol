@@ -21,6 +21,7 @@
 #include <include/core/SkRRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilimage/Decode.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
 #include <sigilmotion/Ticker.h>
@@ -39,16 +40,22 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iterator>
+#include <optional>
 #include <vector>
 
 #include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 #include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
+#include "sigilworld/TextureSet.h"
 #include "sigilworld/World.h"
+#ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
+#include <sigilsubstance/Substance.h>
+#endif
 
 using namespace sigil;
 
@@ -356,6 +363,146 @@ SkPath starPath(int points, float outer, float inner) {
 
 }  // namespace
 
+namespace {
+
+/** Decode an image file through SigilImage; null when unreadable. */
+sk_sp<SkImage> decodeFile(const std::filesystem::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return nullptr;
+  const std::vector<char> bytes((std::istreambuf_iterator<char>(in)),
+                                std::istreambuf_iterator<char>());
+  std::optional<image::ImageAsset> asset = image::decodeImage(
+      reinterpret_cast<const std::byte*>(bytes.data()), bytes.size(), {}, path);
+  if (!asset) return nullptr;
+  return asset->frameAt(0).image;
+}
+
+/** The material lab: one shot, several props, each dressed by a
+ *  different door into Material — a fetched texture set read by its
+ *  file names, a Substance archive rendered on the fly (twice, with a
+ *  parameter moved), and plain scalar materials for reference. Written
+ *  as world_materials.png. */
+void renderMaterialLab(const std::filesystem::path& outDir,
+                       const std::filesystem::path& assetDir) {
+  world::WorldConfig config;
+  config.width = 1440;
+  config.height = 810;
+  config.clearColor = {0.03f, 0.032f, 0.045f, 1};
+  std::string error;
+  std::unique_ptr<world::World> w = world::World::create(config, &error);
+  if (!w) return;
+
+  world::Lighting lighting;
+  lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
+  lighting.sunIntensity = 3.2f;
+  lighting.skyColor = {0.42f, 0.5f, 0.7f, 1};
+  lighting.groundColor = {0.09f, 0.08f, 0.1f, 1};
+  lighting.ambient = 0.7f;
+  w->setLighting(lighting);
+  world::LightComponent fill;
+  fill.type = world::LightComponent::Type::Point;
+  fill.position = {520, 380, 520};
+  fill.color = {1.0f, 0.85f, 0.7f, 1};
+  fill.intensity = 1.6f;
+  fill.range = 1500;
+  w->addLight(fill);
+
+  // 1. A texture set from the fetched assets, found by its file names.
+  world::Material plate;
+  bool havePlate = false;
+  for (const world::textures::TextureSet& set :
+       world::textures::discover(assetDir / "textures/metal_plate")) {
+    plate = world::textures::material(set, decodeFile);
+    havePlate = plate.texture != nullptr;
+    std::printf("texture set %s: %zu maps\n", set.name.c_str(),
+                set.files.size());
+  }
+  if (!havePlate) {
+    plate.baseColor = {0.5f, 0.5f, 0.55f, 1};
+    plate.metallic = 1;
+    plate.roughness = 0.35f;
+  }
+  // The floor: the plate laid down four times across.
+  world::Material floor = plate;
+  floor.uvScale = {4, 4};
+  w->addSurface(shape::mesh::grid(2, 2,
+                                  [](float u, float v) -> glm::vec3 {
+                                    return {(u - 0.5f) * 1800, -150,
+                                            (v - 0.5f) * 1200};
+                                  }),
+                glm::mat4(1.0f), floor);
+  // A sphere and a torus wearing it once around.
+  world::Material once = plate;
+  once.uvScale = {2, 1};
+  w->addSurface(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+                shape::space::place({-420, 20, 0}, 20), once);
+  world::Material band = plate;
+  band.uvScale = {6, 1.5f};
+  w->addSurface(shape::mesh::torus(150, 60, 96, 48),
+                shape::space::place({420, 20, 0}, 0, -20), band);
+
+#ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
+  // 2. A Substance archive rendered here and now: the SDK's own sample,
+  // its normal format switched to OpenGL through the graph's standard
+  // $normalformat input, once at the authored season and once moved.
+  const std::filesystem::path sbsar =
+      std::filesystem::path(SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS) /
+      "Autumn_Leaves.sbsar";
+  std::string sbsError;
+  if (std::unique_ptr<substance::Package> package =
+          substance::Package::load(sbsar, &sbsError)) {
+    substance::Graph& graph = package->graph(0);
+    graph.setResolution(9, 9);
+    graph.set("$normalformat", 1.0f);  // OpenGL
+    const auto leaves = [&](float season, float density) {
+      graph.set("Season", season);
+      graph.set("Density", density);
+      graph.render();
+      world::Material m = world::textures::material(graph.outputsByUsage(),
+                                                    world::Material{}, false);
+      m.roughness = 0.75f;
+      m.metallic = 0;
+      m.normalScale = 1.4f;
+      return m;
+    };
+    w->addSurface(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+                  shape::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
+    // ...and a leaning panel wearing the late-season cook, tiled twice.
+    world::Material late = leaves(1.0f, 1.0f);
+    late.uvScale = {2, 2};
+    w->addSurface(shape::mesh::quad(560, 340),
+                  shape::space::place({0, -30, 330}, 0, -62), late);
+    std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
+                substance::Package::engineVersion().c_str());
+  } else {
+    std::fprintf(stderr, "substance: %s\n", sbsError.c_str());
+  }
+#endif
+
+  // 3. Scalar reference materials on the back row.
+  world::Material rubber;
+  rubber.baseColor = {0.85f, 0.2f, 0.15f, 1};
+  rubber.roughness = 0.9f;
+  w->addSurface(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+                shape::space::place({-200, 260, -300}), rubber);
+  world::Material chrome;
+  chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
+  chrome.metallic = 1;
+  chrome.roughness = 0.08f;
+  w->addSurface(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+                shape::space::place({200, 260, -300}), chrome);
+
+  shape::space::Camera camera;
+  camera.eye = {60, 330, 1150};
+  camera.target = {0, 0, 0};
+  camera.fovYDeg = 44;
+  w->setCamera(camera);
+  if (w->render() && w->savePng(outDir / "world_materials.png"))
+    std::printf("wrote world_materials.png\n");
+}
+
+}  // namespace
+
 int main(int argc, char** argv) {
   if (argc > 1 && argv[1][0] == '-') {
     const bool help =
@@ -368,6 +515,7 @@ int main(int argc, char** argv) {
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
+  renderMaterialLab(outDir, assetDir);
 
   world::WorldConfig config;
   config.width = 1440;

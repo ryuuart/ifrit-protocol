@@ -1474,7 +1474,12 @@ bool World::Impl::bindPopSrbs(PopComponent& points,
 // ---------------------------------------------------------------------------
 
 World::World() : m_impl(std::make_unique<Impl>()) {}
-World::~World() = default;
+World::~World() {
+  // Anything recorded but not submitted (an add with no render after it)
+  // is flushed before the context goes, so teardown never leaves
+  // commands behind.
+  if (m_impl && m_impl->context) m_impl->context->Flush();
+}
 
 std::unique_ptr<World> World::create(const WorldConfig& config,
                                      std::string* error) {
@@ -2234,11 +2239,15 @@ bool World::render() {
           points.srbs.empty())
         return;
       const auto laneBarrier = [&] {
+        // Old state UNKNOWN: taken from the resource itself. The scratch
+        // buffer sits in the copy state its upload left it in until the
+        // first Relax touches it, so a fixed "was UAV" would be wrong
+        // for every chain without one.
         StateTransitionDesc barriers[] = {
-            {points.lanes, RESOURCE_STATE_UNORDERED_ACCESS,
+            {points.lanes, RESOURCE_STATE_UNKNOWN,
              RESOURCE_STATE_UNORDERED_ACCESS,
              STATE_TRANSITION_FLAG_UPDATE_STATE},
-            {points.scratch, RESOURCE_STATE_UNORDERED_ACCESS,
+            {points.scratch, RESOURCE_STATE_UNKNOWN,
              RESOURCE_STATE_UNORDERED_ACCESS,
              STATE_TRANSITION_FLAG_UPDATE_STATE},
         };

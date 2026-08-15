@@ -80,6 +80,16 @@ target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
   SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
 
+# The material lab shot dresses its props with a fetched texture set and,
+# when the Substance SDK was found, with .sbsar materials rendered by
+# SigilSubstance from the SDK's own sample archives. Without the SDK the
+# lab still renders; the Substance props are simply absent.
+if(SPELLCIRCLE_ENABLE_SUBSTANCE)
+  target_link_libraries(world_demo PRIVATE SigilSubstance)
+  target_compile_definitions(world_demo PRIVATE
+    SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS="${SUBSTANCE_SDK_DIR}/assets")
+endif()
+
 # --- Slang kernels ---------------------------------------------------------
 # The pop kernel is authored ONCE in Slang (shaders/pop.slang over the
 # shaders/sigilspline.slang module), compiled to SPIRV at build time by
