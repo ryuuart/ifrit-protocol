@@ -601,6 +601,48 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   }
 #endif
 
+  // The emissive slot on its own: a dark, rough sphere whose emissive
+  // MAP is a drawn circuit — bright traces on black — tinted amber by the
+  // emissive colour and pushed past 1 by the strength, under no light of
+  // its own. Where the map is black nothing glows; the map is the shape,
+  // the colour the hue, the strength the intensity.
+  {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(256, 256));
+    SkCanvas* c = surface->getCanvas();
+    c->clear(SK_ColorBLACK);
+    SkPaint trace;
+    trace.setAntiAlias(true);
+    trace.setColor(SK_ColorWHITE);
+    trace.setStyle(SkPaint::kStroke_Style);
+    trace.setStrokeWidth(5);
+    trace.setStrokeCap(SkPaint::kRound_Cap);
+    for (int i = 0; i < 6; ++i) {
+      const float y = 24 + (float)i * 40;
+      SkPathBuilder path;
+      path.moveTo(0, y);
+      path.lineTo(60 + (float)(i % 3) * 30, y);
+      path.lineTo(90 + (float)(i % 3) * 30, y + 20);
+      path.lineTo(256, y + 20);
+      c->drawPath(path.detach(), trace);
+    }
+    SkPaint pad;
+    pad.setAntiAlias(true);
+    pad.setColor(SK_ColorWHITE);
+    for (int i = 0; i < 6; ++i)
+      c->drawCircle(60 + (float)(i % 3) * 30, 24 + (float)i * 40, 9, pad);
+    world::Material circuit;
+    circuit.baseColor = {0.03f, 0.03f, 0.035f, 1};
+    circuit.roughness = 0.9f;
+    circuit.emissiveMap = surface->makeImageSnapshot();
+    circuit.emissive = {1.0f, 0.5f, 0.12f, 1};
+    circuit.emissiveStrength = 3.5f;
+    circuit.uvScale = {4, 2};
+    circuit.tile = true;
+    w->addSurface(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
+                  shape::space::place({-460, 250, -320}, 20), circuit);
+  }
+
   // 3. An imported model wearing the material its file carries: base
   // colour, normal, packed metallicRoughness and occlusion, decoded from
   // the bytes the importer kept.
