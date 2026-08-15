@@ -51,6 +51,15 @@ option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) of
 # with a warning when the SDK isn't installed (see cmake/FindUltralight.cmake).
 option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilScry Ultralight HTML-layout backend" ON)
 
+# Builds SigilSubstance (src/common/substance): Adobe Substance 3D
+# archives (.sbsar) rendered to texture sets through the Substance
+# Engine, for SigilWorld materials. The SDK is a licensed download and is
+# never vendored; scripts/setup.py finds an installed copy and writes
+# SUBSTANCE_SDK_DIR into CMakeUserPresets.json. Auto-disables with a
+# warning when the SDK is not there.
+option(SPELLCIRCLE_ENABLE_SUBSTANCE "Build the SigilSubstance .sbsar material renderer" ON)
+set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds substance-config.cmake)")
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts CanvasPainter Network GuiPrivate)
@@ -73,6 +82,25 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   if(NOT Ultralight_FOUND)
     message(WARNING "Ultralight SDK not found; disabling the SigilScry backend")
     set(SPELLCIRCLE_ENABLE_ULTRALIGHT OFF)
+  endif()
+endif()
+
+if(SPELLCIRCLE_ENABLE_SUBSTANCE)
+  if(SUBSTANCE_SDK_DIR AND EXISTS "${SUBSTANCE_SDK_DIR}/substance-config.cmake")
+    # The CPU engine ("blend": results in system memory), matched to the
+    # host: NEON on Apple Silicon, SSE2 on x86-64. Headless, no GPU
+    # context to own, and its outputs land as bytes SigilWorld uploads
+    # like any other image.
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+      set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT neon_blend)
+    else()
+      set(SUBSTANCE_FRAMEWORK_ENGINE_VARIANT sse2_blend)
+    endif()
+    include("${SUBSTANCE_SDK_DIR}/substance-config.cmake")
+    message(STATUS "Substance SDK: ${SUBSTANCE_SDK_DIR} (${SUBSTANCE_FRAMEWORK_ENGINE_VARIANT})")
+  else()
+    message(WARNING "Substance SDK not found (SUBSTANCE_SDK_DIR unset or invalid); disabling SigilSubstance")
+    set(SPELLCIRCLE_ENABLE_SUBSTANCE OFF)
   endif()
 endif()
 

@@ -14,12 +14,15 @@
 #include <cstring>
 #include <filesystem>
 #include <glm/gtc/matrix_transform.hpp>
+#include <map>
+#include <optional>
 #include <vector>
 
 #include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 #include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
+#include "sigilworld/TextureSet.h"
 #include "sigilworld/World.h"
 
 using namespace sigil;
@@ -174,6 +177,331 @@ TEST(World, TexturedUnlitPanelShowsTexture) {
   const SkColor right = bm.getColor(140, 75);
   EXPECT_GT(SkColorGetG(left), SkColorGetB(left));
   EXPECT_GT(SkColorGetB(right), SkColorGetG(right));
+}
+
+namespace {
+
+/** A solid-colour raster image, or a two-column one when @p right is
+ *  given. */
+sk_sp<SkImage> solidImage(SkColor color, int w = 8, int h = 8,
+                          std::optional<SkColor> right = std::nullopt) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
+  surface->getCanvas()->clear(color);
+  if (right) {
+    SkPaint paint;
+    paint.setColor(*right);
+    surface->getCanvas()->drawRect(SkRect::MakeXYWH(w / 2.0f, 0, w / 2.0f, h),
+                                   paint);
+  }
+  return surface->makeImageSnapshot();
+}
+
+SkBitmap readFrame(world::World& w) {
+  sk_sp<SkImage> frame = w.readback();
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(frame->width(), frame->height()));
+  frame->readPixels(nullptr, bm.pixmap(), 0, 0);
+  return bm;
+}
+
+float luma(SkColor c) {
+  return 0.2126f * SkColorGetR(c) + 0.7152f * SkColorGetG(c) +
+         0.0722f * SkColorGetB(c);
+}
+
+}  // namespace
+
+TEST(World, SwappingATextureIsLive) {
+  // The image pointer on a MaterialComponent is as live as its colours:
+  // move it and the next render draws the new image, no re-add.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Material material;
+  material.unlit = true;
+  material.texture = solidImage(SK_ColorRED);
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(400, 400), glm::mat4(1.0f), material);
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkColor c = readFrame(*w).getColor(32, 32);
+  EXPECT_GT(SkColorGetR(c), 200);
+  EXPECT_LT(SkColorGetB(c), 30);
+
+  w->registry()
+      .get<world::MaterialComponent>(world::entity(id))
+      .material.texture = solidImage(SK_ColorBLUE);
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(32, 32);
+  EXPECT_GT(SkColorGetB(c), 200) << "the swapped image must be bound";
+  EXPECT_LT(SkColorGetR(c), 30);
+
+  // Instanced surfaces take the same door.
+  shape::Cloud one;
+  one.positions = {{0, 0, 0}};
+  world::Material inst;
+  inst.unlit = true;
+  inst.texture = solidImage(SK_ColorGREEN);
+  w->removeSurface(id);
+  const uint32_t flock =
+      w->addInstanced(shape::mesh::quad(400, 400), one, inst);
+  ASSERT_NE(flock, 0u);
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(32, 32);
+  EXPECT_GT(SkColorGetG(c), 200);
+  w->registry()
+      .get<world::MaterialComponent>(world::entity(flock))
+      .material.texture = solidImage(SK_ColorRED);
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(32, 32);
+  EXPECT_GT(SkColorGetR(c), 200);
+  EXPECT_LT(SkColorGetG(c), 30);
+}
+
+TEST(World, TileRepeatsWhereClampSmears) {
+  // A two-column image (red | blue) under uvScale {2, 1}: at u = 0.625
+  // the window reads 1.25 — a tiling material wraps to 0.25 (red), a
+  // clamping one smears the last column (blue).
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  camera.fovYDeg = 40;
+  w->setCamera(camera);
+  world::Material material;
+  material.unlit = true;
+  material.texture = solidImage(SK_ColorRED, 8, 8, SK_ColorBLUE);
+  material.uvScale = {2, 1};
+  material.tile = true;
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(1000, 1000), glm::mat4(1.0f), material);
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  // The quad fills the frame; x = 40 of 64 is u = 0.625.
+  SkColor c = readFrame(*w).getColor(40, 32);
+  EXPECT_GT(SkColorGetR(c), 200) << "tile wraps back to the first column";
+  EXPECT_LT(SkColorGetB(c), 80);
+
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(id)).material;
+  live.tile = false;
+  ASSERT_TRUE(w->render());
+  c = readFrame(*w).getColor(40, 32);
+  EXPECT_GT(SkColorGetB(c), 200) << "clamp smears the edge column";
+  EXPECT_LT(SkColorGetR(c), 80);
+}
+
+TEST(World, NormalMapTiltsShadingInItsConvention) {
+  // A quad facing the camera, one directional light from ABOVE at a
+  // grazing angle. A normal map that tilts every normal toward its own
+  // "up" (green) brightens the quad under an OpenGL-convention read and
+  // darkens it under a DirectX read of the same pixels — the two
+  // conventions disagree by exactly the sign of green, and the flat map
+  // sits between them.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Lighting lighting;
+  lighting.sunDirection = {0, -1, -0.25f};  // from above, grazing
+  lighting.sunIntensity = 3;
+  lighting.ambient = 0;
+  w->setLighting(lighting);
+
+  // Tilted normal: (0, +0.7, 0.71) encoded -> green high.
+  const sk_sp<SkImage> tilted = solidImage(SkColorSetARGB(255, 128, 218, 218));
+  world::Material flat;
+  flat.baseColor = {0.8f, 0.8f, 0.8f, 1};
+  world::Material gl = flat;
+  gl.normalMap = tilted;
+  world::Material dx = gl;
+  dx.normalMapDirectX = true;
+
+  const auto lumaOf = [&](const world::Material& m) {
+    const uint32_t id =
+        w->addSurface(shape::mesh::quad(400, 400), glm::mat4(1.0f), m);
+    EXPECT_NE(id, 0u);
+    EXPECT_TRUE(w->render());
+    const float l = luma(readFrame(*w).getColor(32, 32));
+    w->removeSurface(id);
+    return l;
+  };
+  const float lFlat = lumaOf(flat);
+  const float lGl = lumaOf(gl);
+  const float lDx = lumaOf(dx);
+  EXPECT_GT(lGl, lFlat + 15) << "OpenGL green tilts toward the light";
+  EXPECT_LT(lDx, lFlat - 5) << "DirectX green tilts away";
+  // normalScale 0 is the flat result again.
+  world::Material off = gl;
+  off.normalScale = 0;
+  EXPECT_NEAR(lumaOf(off), lFlat, 3);
+}
+
+TEST(World, PackedMapChannelsReachTheirSlots) {
+  // One RGB image standing in for an occlusion-roughness-metallic pack:
+  // occlusion in R, roughness in G, metallic in B. Metallic 1 through
+  // channel 2 (blue = 255) darkens the diffuse lobe of a grey sphere
+  // versus the same map read through channel 0 (red = 0, so metallic 0).
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Lighting lighting;
+  lighting.sunDirection = {0, 0, -1};
+  lighting.ambient = 0.2f;
+  w->setLighting(lighting);
+  const sk_sp<SkImage> orm = solidImage(SkColorSetARGB(255, 0, 255, 255));
+  world::Material dielectric;
+  dielectric.baseColor = {0.6f, 0.6f, 0.6f, 1};
+  dielectric.metallic = 1;
+  dielectric.metallicMap = orm;
+  dielectric.metallicChannel = 0;  // reads red = 0 -> metallic 0
+  world::Material metal = dielectric;
+  metal.metallicChannel = 2;  // reads blue = 1 -> metallic 1
+  const auto lumaOf = [&](const world::Material& m) {
+    const uint32_t id = w->addSurface(
+        shape::mesh::superellipsoid({90, 90, 90}, 1), glm::mat4(1.0f), m);
+    EXPECT_NE(id, 0u);
+    EXPECT_TRUE(w->render());
+    // Off-centre, away from the specular highlight.
+    const float l = luma(readFrame(*w).getColor(22, 40));
+    w->removeSurface(id);
+    return l;
+  };
+  EXPECT_GT(lumaOf(dielectric), lumaOf(metal) + 10);
+}
+
+TEST(WorldTextureSet, ClassifiesTheToolsNames) {
+  using world::textures::classify;
+  using world::textures::Role;
+  // Substance Painter / Designer.
+  EXPECT_EQ(classify("Rock_BaseColor.png").role, Role::BaseColor);
+  EXPECT_EQ(classify("Rock_BaseColor.png").set, "Rock");
+  EXPECT_EQ(classify("Rock_Normal.png").role, Role::Normal);
+  EXPECT_FALSE(classify("Rock_Normal.png").directX);
+  EXPECT_TRUE(classify("Rock_NormalDX.png").directX);
+  EXPECT_TRUE(classify("Rock_Normal_DirectX.png").directX);
+  EXPECT_EQ(classify("Rock_Roughness.png").role, Role::Roughness);
+  EXPECT_EQ(classify("Rock_Metallic.png").role, Role::Metallic);
+  EXPECT_EQ(classify("Rock_Height.png").role, Role::Height);
+  EXPECT_EQ(classify("Rock_Emissive.png").role, Role::Emissive);
+  EXPECT_EQ(classify("Rock_OcclusionRoughnessMetallic.png").role, Role::Packed);
+  // Poly Haven.
+  EXPECT_EQ(classify("metal_plate_diff_1k.png").role, Role::BaseColor);
+  EXPECT_EQ(classify("metal_plate_diff_1k.png").set, "metal_plate");
+  EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").role, Role::Normal);
+  EXPECT_FALSE(classify("metal_plate_nor_gl_1k.png").directX);
+  EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").set, "metal_plate");
+  EXPECT_TRUE(classify("metal_plate_nor_dx_2k.png").directX);
+  EXPECT_EQ(classify("metal_plate_rough_1k.png").role, Role::Roughness);
+  EXPECT_EQ(classify("metal_plate_metal_1k.png").role, Role::Metallic);
+  EXPECT_EQ(classify("metal_plate_ao_1k.png").role, Role::Occlusion);
+  EXPECT_EQ(classify("metal_plate_arm_1k.png").role, Role::Packed);
+  EXPECT_EQ(classify("metal_plate_disp_1k.png").role, Role::Height);
+  // ambientCG.
+  EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").role, Role::BaseColor);
+  EXPECT_EQ(classify("Metal049A_1K-PNG_NormalGL.png").role, Role::Normal);
+  EXPECT_TRUE(classify("Metal049A_1K-PNG_NormalDX.png").directX);
+  EXPECT_EQ(classify("Metal049A_1K-PNG_Metalness.png").role, Role::Metallic);
+  EXPECT_EQ(classify("Metal049A_1K-PNG_AmbientOcclusion.png").role,
+            Role::Occlusion);
+  EXPECT_EQ(classify("Metal049A_1K-PNG_Displacement.png").role, Role::Height);
+  EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").set, "Metal049A_1K_PNG");
+  // glTF-ish.
+  EXPECT_EQ(classify("thing_orm.png").role, Role::Packed);
+  EXPECT_EQ(classify("thing_albedo.jpg").role, Role::BaseColor);
+  // Nothing recognizable.
+  EXPECT_EQ(classify("photo.png").role, Role::Unknown);
+  EXPECT_EQ(classify("IMG_2048.png").role, Role::Unknown);
+}
+
+TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
+  // A set discovered from a scratch directory: a base colour, a DirectX
+  // normal, a packed ARM, and a separate roughness that outranks the
+  // pack's green channel. The decoder is a stub that stamps the role
+  // colour so slots can be told apart by pointer identity.
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / "sigilworld_texset";
+  fs::create_directories(dir);
+  for (const char* name :
+       {"tiles_diff_1k.png", "tiles_nor_dx_1k.png", "tiles_arm_1k.png",
+        "tiles_rough_1k.png", "other_BaseColor.png", "notes.txt"}) {
+    FILE* f = std::fopen((dir / name).string().c_str(), "wb");
+    ASSERT_TRUE(f);
+    std::fputs("x", f);
+    std::fclose(f);
+  }
+  const std::vector<world::textures::TextureSet> sets =
+      world::textures::discover(dir);
+  ASSERT_EQ(sets.size(), 2u);
+  EXPECT_EQ(sets[0].name, "other");
+  EXPECT_EQ(sets[1].name, "tiles");
+  const world::textures::TextureSet& tiles = sets[1];
+  EXPECT_TRUE(tiles.normalDirectX);
+  EXPECT_EQ(tiles.files.size(), 4u);
+
+  std::map<std::string, sk_sp<SkImage>> decoded;
+  const auto decode = [&](const fs::path& p) {
+    sk_sp<SkImage>& img = decoded[p.filename().string()];
+    if (!img) img = solidImage(SK_ColorWHITE, 2, 2);
+    return img;
+  };
+  const world::Material m = world::textures::material(tiles, decode);
+  EXPECT_EQ(m.texture.get(), decoded["tiles_diff_1k.png"].get());
+  EXPECT_EQ(m.normalMap.get(), decoded["tiles_nor_dx_1k.png"].get());
+  EXPECT_TRUE(m.normalMapDirectX);
+  EXPECT_EQ(m.roughnessMap.get(), decoded["tiles_rough_1k.png"].get());
+  EXPECT_EQ(m.roughnessChannel, 0);
+  EXPECT_EQ(m.metallicMap.get(), decoded["tiles_arm_1k.png"].get());
+  EXPECT_EQ(m.metallicChannel, 2);
+  EXPECT_EQ(m.occlusionMap.get(), decoded["tiles_arm_1k.png"].get());
+  EXPECT_EQ(m.occlusionChannel, 0);
+  EXPECT_FLOAT_EQ(m.metallic, 1);
+  EXPECT_FLOAT_EQ(m.roughness, 1);
+  EXPECT_TRUE(m.tile);
+  EXPECT_FALSE(m.emissiveMap);
+  fs::remove_all(dir);
+
+  // The by-usage door: what a rendered Substance graph hands over. A
+  // "diffuse" key lands on the base slot, an "arm" pack fills the three
+  // channel slots, and the Substance default is a DirectX normal.
+  const sk_sp<SkImage> a = solidImage(SK_ColorWHITE, 2, 2);
+  const sk_sp<SkImage> b = solidImage(SK_ColorWHITE, 2, 2);
+  const sk_sp<SkImage> c = solidImage(SK_ColorWHITE, 2, 2);
+  const world::Material u = world::textures::material(
+      {{"diffuse", a}, {"normal", b}, {"arm", c}, {"height", a}});
+  EXPECT_EQ(u.texture.get(), a.get());
+  EXPECT_EQ(u.normalMap.get(), b.get());
+  EXPECT_TRUE(u.normalMapDirectX);
+  EXPECT_EQ(u.roughnessMap.get(), c.get());
+  EXPECT_EQ(u.roughnessChannel, 1);
+  EXPECT_EQ(u.metallicMap.get(), c.get());
+  EXPECT_EQ(u.metallicChannel, 2);
+  EXPECT_EQ(u.occlusionMap.get(), c.get());
+  EXPECT_EQ(u.occlusionChannel, 0);
+  EXPECT_EQ(world::textures::roleForUsage("ambientOcclusion"),
+            world::textures::Role::Occlusion);
+  EXPECT_EQ(world::textures::roleForUsage("baseColor"),
+            world::textures::Role::BaseColor);
+  EXPECT_EQ(world::textures::roleForUsage("wibble"),
+            world::textures::Role::Unknown);
 }
 
 TEST(World, BakedVertexColorsTintBothPipelines) {

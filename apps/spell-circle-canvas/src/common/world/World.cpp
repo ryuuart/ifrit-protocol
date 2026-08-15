@@ -138,10 +138,61 @@ cbuffer DrawConstants
     float4 g_Emissive;    // rgb emissive, a unused
     float4 g_MatParams;   // x metallic, y roughness, z emissiveStrength, w unlit
     float4 g_UvScaleOffset; // xy uv scale, zw uv offset
+    float4 g_MapParams;   // x normalScale, y occlusionStrength, z 1 = DirectX normal
+    float4 g_Channels;    // x roughness, y metallic, z occlusion channel index
 };
 
+// The texture set. Every slot is bound — a 1x1 white (or flat-normal)
+// stand-in where the material has no map — so the shader multiplies
+// unconditionally and never branches on presence.
 Texture2D    g_Texture;
 SamplerState g_Texture_sampler;
+Texture2D    g_NormalMap;
+SamplerState g_NormalMap_sampler;
+Texture2D    g_RoughnessMap;
+SamplerState g_RoughnessMap_sampler;
+Texture2D    g_MetallicMap;
+SamplerState g_MetallicMap_sampler;
+Texture2D    g_OcclusionMap;
+SamplerState g_OcclusionMap_sampler;
+Texture2D    g_EmissiveMap;
+SamplerState g_EmissiveMap_sampler;
+
+float pick(float4 v, float channel)
+{
+    int c = (int)(channel + 0.5);
+    return c == 0 ? v.x : (c == 1 ? v.y : (c == 2 ? v.z : v.w));
+}
+
+// The tangent frame from screen-space derivatives — no vertex tangents.
+// T follows increasing u, B increasing v; with v running DOWN the image
+// (uv origin top-left) an OpenGL-convention map's green axis is -B, and a
+// DirectX map's is +B.
+float3 perturbNormal(float3 N, float3 P, float2 uv, float3 mapN, float dx)
+{
+    // Solve the 2x2 for dP/du and dP/dv outright rather than through
+    // the cross-product shortcut: the direct solve is invariant to the
+    // handedness of the screen-space derivative pair, so the frame's
+    // signs do not depend on which way the backend's ddy points.
+    float3 dp1 = ddx(P);
+    float3 dp2 = ddy(P);
+    float2 duv1 = ddx(uv);
+    float2 duv2 = ddy(uv);
+    float det = duv1.x * duv2.y - duv2.x * duv1.y;
+    if (abs(det) < 1e-12)
+        return N;  // no uv gradient here: keep the geometric normal
+    float3 dPdu = (dp1 * duv2.y - dp2 * duv1.y) / det;
+    float3 dPdv = (dp2 * duv1.x - dp1 * duv2.x) / det;
+    float3 T = dPdu - N * dot(N, dPdu);
+    float3 B = dPdv - N * dot(N, dPdv);
+    float tl = length(T), bl = length(B);
+    if (tl < 1e-12 || bl < 1e-12)
+        return N;
+    T /= tl;
+    B /= bl;
+    float3 up = dx > 0.5 ? B : -B;
+    return normalize(T * mapN.x + up * mapN.y + N * mapN.z);
+}
 
 struct VSIn
 {
@@ -226,6 +277,8 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float2 uv   = IN.UV * g_UvScaleOffset.xy + g_UvScaleOffset.zw;
     float4 tex  = g_Texture.Sample(g_Texture_sampler, uv);
     float4 base = tex * g_BaseColor * IN.Tint;
+    float3 emissiveMap = g_EmissiveMap.Sample(g_EmissiveMap_sampler, uv).rgb;
+    float3 emissive = g_Emissive.rgb * g_MatParams.z * emissiveMap;
 
     if (g_MatParams.w > 0.5)
     {
@@ -235,7 +288,7 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         // function for the whole target. With the exact inverse curve
         // this branch is a true pass-through: an untinted texel lands in
         // the readback as its own byte.
-        float3 unlit = base.rgb + g_Emissive.rgb * g_MatParams.z;
+        float3 unlit = base.rgb + emissive;
         return float4(LinearToSrgb(unlit), base.a);
     }
 
@@ -248,8 +301,20 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     if (dot(N, V) < 0.0)
         N = -N;
 
-    float  metallic = g_MatParams.x;
-    float  rough    = clamp(g_MatParams.y, 0.045, 1.0);
+    // The normal map: decoded from [0,1] to [-1,1], its tilt scaled by
+    // normalScale (0 = flat), applied in the derivative frame.
+    float3 mapN = g_NormalMap.Sample(g_NormalMap_sampler, uv).xyz * 2.0 - 1.0;
+    mapN.xy *= g_MapParams.x;
+    N = perturbNormal(N, IN.World, uv, mapN, g_MapParams.z);
+
+    float  metallic = g_MatParams.x *
+        pick(g_MetallicMap.Sample(g_MetallicMap_sampler, uv), g_Channels.y);
+    float  rough    = clamp(g_MatParams.y *
+        pick(g_RoughnessMap.Sample(g_RoughnessMap_sampler, uv), g_Channels.x),
+        0.045, 1.0);
+    float  occlusion = lerp(1.0,
+        pick(g_OcclusionMap.Sample(g_OcclusionMap_sampler, uv), g_Channels.z),
+        g_MapParams.y);
     float3 F0       = lerp(float3(0.04, 0.04, 0.04), base.rgb, metallic);
     float3 albedo   = base.rgb * (1.0 - metallic);
 
@@ -311,10 +376,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
     float3 R     = reflect(-V, N);
     float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
-    float3 ambient = g_Params.x *
+    float3 ambient = g_Params.x * occlusion *
         (hemiN * albedo + hemiR * F0 * (1.0 - rough) * (0.4 + 0.6 * pow(1.0 - ndv, 2.0)));
 
-    float3 color = direct + ambient + g_Emissive.rgb * g_MatParams.z;
+    float3 color = direct + ambient + emissive;
 
     // Tonemap, then the same sRGB encode the unlit branch uses — one
     // transfer function for the whole target.
@@ -342,6 +407,8 @@ struct DrawConstants {
   float emissive[4];
   float matParams[4];
   float uvScaleOffset[4];
+  float mapParams[4];
+  float channels[4];
 };
 
 struct Vertex {
@@ -423,10 +490,37 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
 /** The private GPU component: device objects for one surface entity.
  *  Public state (transform, material) lives in the public components —
  *  see Components.h. */
+/** Which images (by pointer) and which addressing a surface's shader
+ *  resource binding was built from. render() compares this against the
+ *  live MaterialComponent and rebinds when a pointer moved, which is
+ *  what makes swapping a material's texture live. */
+struct MaterialBinding {
+  const SkImage* base = nullptr;
+  const SkImage* normal = nullptr;
+  const SkImage* roughness = nullptr;
+  const SkImage* metallic = nullptr;
+  const SkImage* occlusion = nullptr;
+  const SkImage* emissive = nullptr;
+  bool tile = false;
+  bool valid = false;  ///< false until the first bind
+  static MaterialBinding of(const Material& m) {
+    return {m.texture.get(),
+            m.normalMap.get(),
+            m.roughnessMap.get(),
+            m.metallicMap.get(),
+            m.occlusionMap.get(),
+            m.emissiveMap.get(),
+            m.tile,
+            true};
+  }
+  bool operator==(const MaterialBinding&) const = default;
+};
+
 struct GpuGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
   dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+  MaterialBinding bound;
   uint32_t indexCount = 0;
 };
 
@@ -438,6 +532,7 @@ struct GpuInstancedGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> instanceBuffer;
   dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+  MaterialBinding bound;
   uint32_t indexCount = 0;
   uint32_t instanceCount = 0;
 };
@@ -596,6 +691,17 @@ struct World::Impl {
   bool ensurePopPipelines();
   bool bindPopSrbs(PopComponent& points, dg::IBuffer* instanceBuffer);
   dg::RefCntAutoPtr<dg::ITexture> whiteTexture;
+  dg::RefCntAutoPtr<dg::ITexture> flatNormalTexture;  // (0.5, 0.5, 1)
+  // The two addressing modes a material can ask for. Assigned to each
+  // uploaded texture's view, which is how a combined texture-sampler
+  // shader variable picks its sampler here.
+  dg::RefCntAutoPtr<dg::ISampler> clampSampler;
+  dg::RefCntAutoPtr<dg::ISampler> wrapSampler;
+  /** Upload every map of @p material into a fresh binding on @p pso and
+   *  record what was bound in @p bound. */
+  bool bindMaterial(dg::IPipelineState* pso, const Material& material,
+                    dg::RefCntAutoPtr<dg::IShaderResourceBinding>& srb,
+                    MaterialBinding& bound);
 
   /** Surfaces are entities, and the ids handed to callers are entity
    *  values. Entity 0 is reserved at init so that a valid surface id is
@@ -606,7 +712,11 @@ struct World::Impl {
   bool init(std::string* error);
   bool createTargets(std::string* error);
   bool createPipelines(std::string* error);
-  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image);
+  /** @p srgb decodes the image as display-encoded colour (base colour,
+   *  emissive); data maps (normal, roughness, metallic, occlusion) pass
+   *  false. @p tile picks the repeat sampler over clamp. */
+  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image,
+                                                bool srgb, bool tile);
   void writeDrawConstants(const glm::mat4& model, const Material& material);
   bool createMeshBuffers(const shape::Mesh& mesh,
                          dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
@@ -773,25 +883,41 @@ bool World::Impl::createPipelines(std::string* error) {
 
   ShaderResourceVariableDesc variables[] = {
       {SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_NormalMap", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_RoughnessMap",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_MetallicMap",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_OcclusionMap",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
+      {SHADER_TYPE_PIXEL, "g_EmissiveMap",
+       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
   };
   psoCI.PSODesc.ResourceLayout.Variables = variables;
-  psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+  psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)std::size(variables);
 
-  // One immutable sampler for every pipeline. CLAMP on both axes is the
-  // only addressing mode surfaces get: a Material's uv window that runs
-  // off the texture smears edge texels rather than tiling, and there is
-  // no way for a caller to ask for repeat.
-  SamplerDesc samplerDesc;
-  samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.MipFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
-  samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
-  ImmutableSamplerDesc samplers[] = {
-      {SHADER_TYPE_PIXEL, "g_Texture", samplerDesc},
-  };
-  psoCI.PSODesc.ResourceLayout.ImmutableSamplers = samplers;
-  psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+  // No immutable samplers: each texture VIEW carries its own sampler
+  // (clamp or repeat, per Material::tile), and the combined
+  // texture-sampler variables pick it up from the view. Two samplers
+  // exist in the whole device.
+  {
+    SamplerDesc samplerDesc;
+    samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.Name = "sigilworld clamp";
+    device->CreateSampler(samplerDesc, &clampSampler);
+    samplerDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.Name = "sigilworld wrap";
+    device->CreateSampler(samplerDesc, &wrapSampler);
+    if (!clampSampler || !wrapSampler) {
+      if (error) *error = "sampler creation failed";
+      return false;
+    }
+  }
 
   // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
   // shader and resource layout are identical across all four, so one
@@ -847,12 +973,25 @@ bool World::Impl::createPipelines(std::string* error) {
     TextureSubResData subres{&white, 4};
     TextureData data{&subres, 1};
     device->CreateTexture(desc, &data, &whiteTexture);
+    // ...and its normal-map twin: (0.5, 0.5, 1) decodes to the
+    // unperturbed normal, so a material without a normal map shades
+    // exactly as if the map path were not there.
+    desc.Name = "sigilworld flat normal";
+    const Uint32 flat = 0xffff8080u;  // ABGR in memory: R=0x80 G=0x80 B=0xff
+    TextureSubResData flatSub{&flat, 4};
+    TextureData flatData{&flatSub, 1};
+    device->CreateTexture(desc, &flatData, &flatNormalTexture);
   }
-  return whiteTexture != nullptr;
+  if (!whiteTexture || !flatNormalTexture) return false;
+  whiteTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  flatNormalTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  return true;
 }
 
 dg::RefCntAutoPtr<dg::ITexture> World::Impl::uploadTexture(
-    const sk_sp<SkImage>& image) {
+    const sk_sp<SkImage>& image, bool srgb, bool tile) {
   using namespace dg;
   if (!image) return whiteTexture;
   // Every source flattens to 8-bit unpremultiplied RGBA here, so a float
@@ -869,17 +1008,48 @@ dg::RefCntAutoPtr<dg::ITexture> World::Impl::uploadTexture(
   desc.Type = RESOURCE_DIM_TEX_2D;
   desc.Width = (Uint32)w;
   desc.Height = (Uint32)h;
-  // Panel content is authored in sRGB, so an sRGB view linearizes it on
-  // sample and the shader can work in linear throughout. The pixel
-  // shader's own encode is the exact inverse of this decode.
-  desc.Format = TEX_FORMAT_RGBA8_UNORM_SRGB;
+  // Colour content is authored in sRGB, so an sRGB view linearizes it
+  // on sample and the shader can work in linear throughout. The pixel
+  // shader's own encode is the exact inverse of this decode. Data maps
+  // (normals, roughness, metallic, occlusion) are numbers, not colours,
+  // and upload as plain UNORM.
+  desc.Format = srgb ? TEX_FORMAT_RGBA8_UNORM_SRGB : TEX_FORMAT_RGBA8_UNORM;
   desc.BindFlags = BIND_SHADER_RESOURCE;
   desc.MipLevels = 1;
   TextureSubResData subres{bitmap.getPixels(), (Uint64)bitmap.rowBytes()};
   TextureData data{&subres, 1};
   RefCntAutoPtr<ITexture> texture;
   device->CreateTexture(desc, &data, &texture);
-  return texture ? texture : whiteTexture;
+  if (!texture) return whiteTexture;
+  texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(tile ? wrapSampler : clampSampler);
+  return texture;
+}
+
+bool World::Impl::bindMaterial(
+    dg::IPipelineState* pso, const Material& material,
+    dg::RefCntAutoPtr<dg::IShaderResourceBinding>& srb,
+    MaterialBinding& bound) {
+  using namespace dg;
+  srb.Release();
+  pso->CreateShaderResourceBinding(&srb, true);
+  if (!srb) return false;
+  const auto set = [&](const char* name, const sk_sp<SkImage>& image, bool srgb,
+                       ITexture* standIn) {
+    RefCntAutoPtr<ITexture> texture =
+        image ? uploadTexture(image, srgb, material.tile)
+              : RefCntAutoPtr<ITexture>(standIn);
+    if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, name))
+      var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  };
+  set("g_Texture", material.texture, true, whiteTexture);
+  set("g_NormalMap", material.normalMap, false, flatNormalTexture);
+  set("g_RoughnessMap", material.roughnessMap, false, whiteTexture);
+  set("g_MetallicMap", material.metallicMap, false, whiteTexture);
+  set("g_OcclusionMap", material.occlusionMap, false, whiteTexture);
+  set("g_EmissiveMap", material.emissiveMap, true, whiteTexture);
+  bound = MaterialBinding::of(material);
+  return true;
 }
 
 void World::Impl::writeDrawConstants(const glm::mat4& model,
@@ -905,6 +1075,15 @@ void World::Impl::writeDrawConstants(const glm::mat4& model,
   constants->uvScaleOffset[1] = m.uvScale.y;
   constants->uvScaleOffset[2] = m.uvOffset.x;
   constants->uvScaleOffset[3] = m.uvOffset.y;
+  constants->mapParams[0] = m.normalMap ? m.normalScale : 0.0f;
+  constants->mapParams[1] = m.occlusionMap ? m.occlusionStrength : 0.0f;
+  constants->mapParams[2] = m.normalMapDirectX ? 1.0f : 0.0f;
+  constants->mapParams[3] = 0;
+  const auto channel = [](int c) { return (float)std::clamp(c, 0, 3); };
+  constants->channels[0] = channel(m.roughnessChannel);
+  constants->channels[1] = channel(m.metallicChannel);
+  constants->channels[2] = channel(m.occlusionChannel);
+  constants->channels[3] = 0;
 }
 
 namespace {
@@ -1317,13 +1496,9 @@ uint32_t World::addSurface(const shape::Mesh& mesh, const glm::mat4& model,
                               geometry.indexBuffer))
     return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaquePso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
@@ -1351,13 +1526,9 @@ uint32_t World::addInstanced(const shape::Mesh& stamp,
   geometry.instanceBuffer = impl.createInstanceBuffer(instances);
   if (geometry.instanceCount > 0 && !geometry.instanceBuffer) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -1478,13 +1649,9 @@ uint32_t World::addSweep(const SweepDesc& desc, const Material& material) {
     var->Set(
         geometry.vertexBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaquePso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
@@ -1564,13 +1731,9 @@ uint32_t World::addFlock(const shape::Mesh& stamp, const FlockDesc& desc,
     var->Set(
         geometry.instanceBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -1696,13 +1859,9 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   if (!geometry.instanceBuffer) return 0;
   if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -1763,13 +1922,9 @@ uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
   if (!geometry.instanceBuffer) return 0;
   if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -2363,8 +2518,8 @@ bool World::render() {
   // routes as a whole and counts as ONE sorted item, so its instances
   // are not sorted against each other.
   struct DrawItem {
-    const GpuGeometry* geometry = nullptr;
-    const GpuInstancedGeometry* instanced = nullptr;
+    GpuGeometry* geometry = nullptr;
+    GpuInstancedGeometry* instanced = nullptr;
     const glm::mat4* model = nullptr;
     const Material* material = nullptr;
   };
@@ -2411,6 +2566,18 @@ bool World::render() {
         bound = pso;
       }
       impl.writeDrawConstants(*item.model, *item.material);
+      // A material whose images moved since the binding was built gets
+      // a fresh binding here — the live half of "every field is live".
+      // The bindings are pipeline-compatible across all four PSOs, so
+      // the plain PSO builds every plain one and the instanced PSO
+      // every instanced one.
+      const MaterialBinding want = MaterialBinding::of(*item.material);
+      if (item.instanced && !(item.instanced->bound == want))
+        impl.bindMaterial(impl.opaqueInstancedPso, *item.material,
+                          item.instanced->srb, item.instanced->bound);
+      if (item.geometry && !(item.geometry->bound == want))
+        impl.bindMaterial(impl.opaquePso, *item.material, item.geometry->srb,
+                          item.geometry->bound);
       DrawIndexedAttribs attribs;
       attribs.IndexType = VT_UINT32;
       attribs.Flags = DRAW_FLAG_VERIFY_ALL;

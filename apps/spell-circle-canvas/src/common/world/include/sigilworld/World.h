@@ -70,36 +70,71 @@ struct WorldConfig {
   glm::vec4 clearColor = {0.028f, 0.03f, 0.045f, 1};
 };
 
-/** Surface shading. Textured surfaces multiply texture by baseColor;
- *  `unlit` skips lighting entirely, for self-lit screens. Alpha below 1
- *  routes the surface into the blended pass, sorted back to front by
- *  view depth.
+/** Surface shading: a metallic-roughness material with the full
+ *  texture set the authoring tools export — base colour, normal,
+ *  roughness, metallic, occlusion and emissive maps, each optional and
+ *  each multiplying (or perturbing) the scalar next to it. `unlit`
+ *  skips lighting entirely, for self-lit screens. Alpha below 1 routes
+ *  the surface into the blended pass, sorted back to front by view
+ *  depth.
  *
- *  Colours here are LINEAR (unlike WorldConfig::clearColor).
+ *  Colours here are LINEAR (unlike WorldConfig::clearColor). The base
+ *  colour and emissive maps are read as sRGB-encoded images and
+ *  linearized on sample; the normal, roughness, metallic and occlusion
+ *  maps are read as plain data.
  *
- *  Every field is live on mutation of the entity's MaterialComponent
- *  EXCEPT @ref texture: the texture is uploaded when the surface is
- *  added, so swapping the pointer changes nothing. Remove the surface
- *  and add it again to change the image. */
+ *  Every field is live on mutation of the entity's MaterialComponent.
+ *  Swapping an image pointer rebinds that surface's textures at the next
+ *  render — an upload, so not free per frame, but no re-add. */
 struct Material {
   glm::vec4 baseColor = {0.8f, 0.8f, 0.8f, 1};
   float metallic = 0;
   float roughness = 0.5f;
   glm::vec4 emissive = {0, 0, 0, 1};
   float emissiveStrength = 0;
+  /** Base colour: multiplied by baseColor (and a mesh's colour lane). */
   sk_sp<SkImage> texture;
   bool unlit = false;
 
-  /** UV window into the texture, applied at sample time:
+  /** Tangent-space normal map. Green is +Y "up the image" in the
+   *  OpenGL convention (the default); set `normalMapDirectX` for a map
+   *  authored with green pointing down. No vertex tangents are needed:
+   *  the tangent frame is derived per pixel from the surface's position
+   *  and uv derivatives. `normalScale` scales the perturbation (0 flat,
+   *  1 as authored). */
+  sk_sp<SkImage> normalMap;
+  float normalScale = 1;
+  bool normalMapDirectX = false;
+  /** Roughness, metallic and occlusion maps: ONE channel each, chosen
+   *  by the matching `*Channel` (0 red .. 3 alpha), so a packed
+   *  occlusion-roughness-metallic image can be assigned to all three
+   *  slots with channels 0, 1, 2. The value multiplies `roughness` /
+   *  `metallic`; occlusion darkens the ambient term by
+   *  `occlusionStrength` (0 ignores the map). A missing map reads as
+   *  1 everywhere. */
+  sk_sp<SkImage> roughnessMap;
+  int roughnessChannel = 0;
+  sk_sp<SkImage> metallicMap;
+  int metallicChannel = 0;
+  sk_sp<SkImage> occlusionMap;
+  int occlusionChannel = 0;
+  float occlusionStrength = 1;
+  /** Emissive map, multiplied by emissive * emissiveStrength. */
+  sk_sp<SkImage> emissiveMap;
+
+  /** UV window into the textures, applied at sample time:
    *  uv' = uv * uvScale + uvOffset. Live like the colours, so animating
    *  uvOffset on the MaterialComponent scrolls content across a surface
    *  with no texture uploads at all.
    *
-   *  The sampler CLAMPS on both axes. There is no repeat or tile mode:
-   *  a window that runs off the texture smears its edge texels rather
-   *  than wrapping around. */
+   *  By default the sampler CLAMPS on both axes: a window that runs off
+   *  the texture smears its edge texels. `tile` switches every map on
+   *  the material to REPEAT, which is what a scanned material set
+   *  wants — uvScale {4, 4} then lays the set down four times across
+   *  the surface. */
   SkV2 uvScale = {1, 1};
   SkV2 uvOffset = {0, 0};
+  bool tile = false;
 
   /** Textures compare by POINTER, so two identical images decoded
    *  separately are different materials. The scene reconciler tests reuse

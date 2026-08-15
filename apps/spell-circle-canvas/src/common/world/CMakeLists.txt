@@ -12,12 +12,14 @@ enable_language(C)
 
 add_library(SigilWorld STATIC
   Scene.cpp
+  TextureSet.cpp
   VolkShim.c
   World.cpp
   include/sigilworld/Animation.h
   include/sigilworld/Components.h
   include/sigilworld/Easel.h
   include/sigilworld/Scene.h
+  include/sigilworld/TextureSet.h
   include/sigilworld/World.h
 )
 

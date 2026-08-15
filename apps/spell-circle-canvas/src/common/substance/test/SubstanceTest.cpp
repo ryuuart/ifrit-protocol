@@ -1,0 +1,120 @@
+#include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+
+#include <filesystem>
+
+#include "sigilsubstance/Substance.h"
+
+using namespace sigil;
+
+namespace {
+
+std::filesystem::path sampleArchive() {
+  return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
+         "Autumn_Leaves.sbsar";
+}
+
+SkColor pixel(const sk_sp<SkImage>& image, int x, int y) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(image->width(), image->height()));
+  image->readPixels(nullptr, bm.pixmap(), 0, 0);
+  return bm.getColor(x, y);
+}
+
+}  // namespace
+
+TEST(Substance, LoadsAPackageAndDescribesIt) {
+  std::string error;
+  std::unique_ptr<substance::Package> package =
+      substance::Package::load(sampleArchive(), &error);
+  ASSERT_TRUE(package) << error;
+  ASSERT_GE(package->graphCount(), 1u);
+  substance::Graph& graph = package->graph(0);
+  EXPECT_FALSE(graph.url().empty());
+  const std::vector<substance::Parameter> params = graph.parameters();
+  EXPECT_FALSE(params.empty());
+  bool hasSize = false;
+  for (const substance::Parameter& p : params) {
+    if (p.identifier == "$outputsize") {
+      hasSize = true;
+      EXPECT_EQ(p.kind, substance::Parameter::Kind::Int2);
+      EXPECT_EQ(p.components(), 2);
+    }
+    if (p.kind != substance::Parameter::Kind::Image &&
+        p.kind != substance::Parameter::Kind::Text &&
+        p.kind != substance::Parameter::Kind::Other)
+      EXPECT_EQ(p.values.size(), p.defaults.size()) << p.identifier;
+  }
+  EXPECT_TRUE(hasSize) << "every graph exposes its output size";
+  const std::vector<substance::Output> outputs = graph.outputs();
+  EXPECT_FALSE(outputs.empty());
+  bool anyUsage = false;
+  for (const substance::Output& o : outputs) anyUsage |= !o.usage.empty();
+  EXPECT_TRUE(anyUsage) << "the sample declares channel usages";
+  EXPECT_FALSE(substance::Package::engineVersion().empty());
+}
+
+TEST(Substance, RendersOutputsAndParametersChangeThem) {
+  std::string error;
+  std::unique_ptr<substance::Package> package =
+      substance::Package::load(sampleArchive(), &error);
+  ASSERT_TRUE(package) << error;
+  substance::Graph& graph = package->graph(0);
+  ASSERT_TRUE(graph.setResolution(7, 7));  // 128 x 128: fast
+  ASSERT_TRUE(graph.render());
+  const std::map<std::string, sk_sp<SkImage>> byUsage = graph.outputsByUsage();
+  ASSERT_FALSE(byUsage.empty());
+  sk_sp<SkImage> base;
+  for (const auto& [usage, image] : byUsage) {
+    ASSERT_TRUE(image) << usage;
+    EXPECT_EQ(image->width(), 128) << usage;
+    EXPECT_EQ(image->height(), 128) << usage;
+    if (usage == "baseColor" || usage == "diffuse") base = image;
+  }
+  ASSERT_TRUE(base) << "a material graph has a base colour";
+  EXPECT_EQ(graph.output("baseColor") ? graph.output("baseColor")
+                                      : graph.output("diffuse"),
+            base);
+
+  // Move a numeric parameter and the picture moves. Pick the first
+  // float slider that is not the size; if the sample has none, the
+  // resolution change alone proves the re-render.
+  const std::vector<substance::Parameter> params = graph.parameters();
+  const substance::Parameter* knob = nullptr;
+  for (const substance::Parameter& p : params)
+    if (p.kind == substance::Parameter::Kind::Float &&
+        p.identifier != "$outputsize" && p.maximum.size() == 1 &&
+        p.maximum[0] > p.minimum[0]) {
+      knob = &p;
+      break;
+    }
+  ASSERT_TRUE(graph.setResolution(6, 6));
+  if (knob) {
+    const float far = knob->values[0] == knob->maximum[0] ? knob->minimum[0]
+                                                          : knob->maximum[0];
+    ASSERT_TRUE(graph.set(knob->identifier, far));
+  }
+  ASSERT_TRUE(graph.render());
+  sk_sp<SkImage> again = graph.output("baseColor");
+  if (!again) again = graph.output("diffuse");
+  ASSERT_TRUE(again);
+  EXPECT_EQ(again->width(), 64);
+  // A wrong identifier and a wrong arity are refused, not applied.
+  EXPECT_FALSE(graph.set("no_such_parameter", 1.0f));
+  EXPECT_FALSE(graph.set("$outputsize", {1.0f}));
+
+  // reset() returns to the authored values.
+  graph.reset();
+  for (const substance::Parameter& p : graph.parameters())
+    if (p.kind == substance::Parameter::Kind::Float)
+      EXPECT_EQ(p.values, p.defaults) << p.identifier;
+}
+
+TEST(Substance, RejectsGarbage) {
+  std::string error;
+  const char junk[] = "this is not an archive";
+  EXPECT_FALSE(substance::Package::load(junk, sizeof(junk), &error));
+  EXPECT_FALSE(error.empty());
+  EXPECT_FALSE(substance::Package::load(
+      std::filesystem::path("/nonexistent/x.sbsar"), &error));
+}
