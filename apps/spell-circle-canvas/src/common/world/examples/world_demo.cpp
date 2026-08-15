@@ -483,7 +483,7 @@ void renderPopLab(const std::filesystem::path& outDir,
  *  parameter moved), and plain scalar materials for reference. Written
  *  as world_materials.png. */
 void renderMaterialLab(const std::filesystem::path& outDir,
-                       const std::filesystem::path& assetDir) {
+                       const std::filesystem::path& assetDir, bool dark) {
   world::WorldConfig config;
   config.width = 1440;
   config.height = 810;
@@ -494,16 +494,19 @@ void renderMaterialLab(const std::filesystem::path& outDir,
 
   world::Lighting lighting;
   lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
-  lighting.sunIntensity = 2.4f;
+  lighting.sunIntensity = dark ? 0.0f : 2.4f;
   lighting.skyColor = {0.42f, 0.5f, 0.7f, 1};
   lighting.groundColor = {0.09f, 0.08f, 0.1f, 1};
-  lighting.ambient = 0.9f;
+  lighting.ambient = dark ? 0.06f : 0.9f;
   // The fetched studio HDRI lights the lab when it is there: decoded
   // float, so the panorama keeps its range through the upload; the
   // same image, flattened, dresses a backdrop sphere so the reflections
-  // have a visible source. Absent, the hemisphere stands in.
+  // have a visible source. Absent, the hemisphere stands in. The dark
+  // shot takes neither: what light there is comes from the emissive
+  // props and a faint hemisphere.
   if (sk_sp<SkImage> hdri =
-          decodeFile(assetDir / "hdri/studio_small_09_1k.hdr")) {
+          dark ? nullptr
+               : decodeFile(assetDir / "hdri/studio_small_09_1k.hdr")) {
     lighting.environment = hdri;
     lighting.environmentIntensity = 1.0f;
     lighting.environmentRotationDeg = 200;
@@ -521,13 +524,15 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     std::printf("environment: %dx%d\n", hdri->width(), hdri->height());
   }
   w->setLighting(lighting);
-  world::LightComponent fill;
-  fill.type = world::LightComponent::Type::Point;
-  fill.position = {520, 380, 520};
-  fill.color = {1.0f, 0.85f, 0.7f, 1};
-  fill.intensity = 1.6f;
-  fill.range = 1500;
-  w->addLight(fill);
+  if (!dark) {
+    world::LightComponent fill;
+    fill.type = world::LightComponent::Type::Point;
+    fill.position = {520, 380, 520};
+    fill.color = {1.0f, 0.85f, 0.7f, 1};
+    fill.intensity = 1.6f;
+    fill.range = 1500;
+    w->addLight(fill);
+  }
 
   // 1. A texture set from the fetched assets, found by its file names.
   world::Material plate;
@@ -592,6 +597,13 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     // ...and a leaning panel wearing the late-season cook, tiled twice.
     world::Material late = leaves(1.0f, 1.0f);
     late.uvScale = {2, 2};
+    if (dark) {
+      // In the dark the panel is backlit by its own base colour: the
+      // same image in the emissive slot, warm and dim.
+      late.emissiveMap = late.texture;
+      late.emissive = {0.9f, 0.55f, 0.3f, 1};
+      late.emissiveStrength = 1.4f;
+    }
     w->addSurface(shape::mesh::quad(560, 340),
                   shape::space::place({0, -30, 330}, 0, -62), late);
     std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
@@ -641,6 +653,18 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     circuit.tile = true;
     w->addSurface(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
                   shape::space::place({-460, 250, -320}, 20), circuit);
+    if (dark) {
+      // Emission does not light its neighbours by itself; in the dark a
+      // dim point light of the same hue sits inside the sphere so the
+      // props around it pick up its glow.
+      world::LightComponent glow;
+      glow.type = world::LightComponent::Type::Point;
+      glow.position = {-460, 250, -320};
+      glow.color = {1.0f, 0.5f, 0.12f, 1};
+      glow.intensity = 2.2f;
+      glow.range = 900;
+      w->addLight(glow);
+    }
   }
 
   // 3. An imported model wearing the material its file carries: base
@@ -682,8 +706,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   camera.target = {0, 0, 0};
   camera.fovYDeg = 44;
   w->setCamera(camera);
-  if (w->render() && w->savePng(outDir / "world_materials.png"))
-    std::printf("wrote world_materials.png\n");
+  const char* name = dark ? "world_materials_dark.png" : "world_materials.png";
+  if (w->render() && w->savePng(outDir / name)) std::printf("wrote %s\n", name);
 }
 
 }  // namespace
@@ -700,7 +724,8 @@ int main(int argc, char** argv) {
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
-  renderMaterialLab(outDir, assetDir);
+  renderMaterialLab(outDir, assetDir, /*dark=*/false);
+  renderMaterialLab(outDir, assetDir, /*dark=*/true);
   renderPopLab(outDir, assetDir);
 
   world::WorldConfig config;
