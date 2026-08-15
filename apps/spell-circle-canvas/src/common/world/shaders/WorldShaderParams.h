@@ -34,6 +34,11 @@ struct PopParamsData {
   SIGIL_FLOAT4(b);
   SIGIL_FLOAT4(c);
   SIGIL_FLOAT4(d);  // x count, y lane slot, z loop point count, w eps
+  SIGIL_FLOAT4(e);  // Transform: matrix column 0; Deform: axis
+  SIGIL_FLOAT4(f);  // Transform: matrix column 1; Deform: origin
+  SIGIL_FLOAT4(g);  // Transform: matrix column 2; Deform: direction
+  SIGIL_FLOAT4(h);  // Transform: matrix column 3
+  SIGIL_FLOAT4(m);  // x mask slot (-1 = none), yzw unused
 };
 
 #ifdef __cplusplus
@@ -42,7 +47,7 @@ static_assert(sizeof(sigil::world::shaderparams::SweepParamsData) == 32,
               "cbuffer packing is 16-byte rows");
 static_assert(sizeof(sigil::world::shaderparams::FlockParamsData) == 80,
               "cbuffer packing is 16-byte rows");
-static_assert(sizeof(sigil::world::shaderparams::PopParamsData) == 64,
+static_assert(sizeof(sigil::world::shaderparams::PopParamsData) == 144,
               "cbuffer packing is 16-byte rows");
 #endif
 

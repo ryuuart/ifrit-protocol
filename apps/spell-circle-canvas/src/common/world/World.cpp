@@ -529,16 +529,30 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
     std::visit(
         [&](const auto& o) {
           using T = std::decay_t<decltype(o)>;
-          if constexpr (requires { o.lane; })
-            note(o.lane);
-          else if constexpr (std::is_same_v<T, World::pop::Set>)
-            note(o.attr);
-          else if constexpr (std::is_same_v<T, World::pop::Lookup>) {
+          if constexpr (requires { o.lane; }) note(o.lane);
+          if constexpr (std::is_same_v<T, World::pop::Set>) note(o.attr);
+          if constexpr (std::is_same_v<T, World::pop::Lookup>) {
             // Both ends: a lookup may read one custom lane and write
             // another, and each needs its own slot.
             note(o.from);
             note(o.to);
           }
+          if constexpr (std::is_same_v<T, World::pop::Group>) {
+            note(o.from);
+            note(World::pop::AttrRef{o.to});
+          }
+          if constexpr (std::is_same_v<T, World::pop::Peak>) note(o.along);
+          if constexpr (std::is_same_v<T, World::pop::Mix>) {
+            note(o.a);
+            note(o.b);
+            note(o.to);
+            if (!o.factorLane.empty())
+              note(World::pop::AttrRef{o.factorLane});
+          }
+          // The mask is a lane read like any other; an unnamed mask
+          // (empty) is "everyone" and owns no slot.
+          if constexpr (requires { o.mask; })
+            if (!o.mask.empty()) note(World::pop::AttrRef{o.mask});
         },
         op);
   return names;
@@ -1100,9 +1114,10 @@ namespace {
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
 constexpr const char* kPopEntries[] = {
-    "CSSplineScatter", "CSJitter",   "CSNoise",   "CSRamp", "CSVary",
-    "CSLookAt",        "CSMath",     "CSRelax",   "CSSet",  "CSAtlas",
-    "CSLookup",        "CSCopyBack", "CSPopPack",
+    "CSSplineScatter", "CSJitter", "CSNoise",     "CSRamp",   "CSVary",
+    "CSLookAt",        "CSMath",   "CSRelax",     "CSSet",    "CSAtlas",
+    "CSLookup",        "CSGroup",  "CSTransform", "CSPeak",   "CSDeform",
+    "CSMix",           "CSCopyBack", "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
@@ -1142,6 +1157,11 @@ constexpr size_t kPopOpPso[] = {
     kPopNoKernel,  // 13 Sort        — CPU only: a permutation of the
                    //                  whole point set is not a per-point
                    //                  map, so no kernel can express it
+    11,            // 14 Group
+    12,            // 15 Transform
+    13,            // 16 Peak
+    14,            // 17 Deform
+    15,            // 18 Mix
 };
 static_assert(
     std::size(kPopOpPso) == std::variant_size_v<World::pop::Op>,
@@ -2089,7 +2109,20 @@ bool World::render() {
         params.d[0] = (float)points.count;
         params.d[2] = (float)points.loopCount;
         params.d[3] = 0.002f;
+        params.m[0] = -1;  // no mask
         return params;
+      };
+      const auto put4 = [](float* dst, const glm::vec4& v) {
+        dst[0] = v.x;
+        dst[1] = v.y;
+        dst[2] = v.z;
+        dst[3] = v.w;
+      };
+      const auto put3 = [](float* dst, const glm::vec3& v) {
+        dst[0] = v.x;
+        dst[1] = v.y;
+        dst[2] = v.z;
+        dst[3] = 0;
       };
       // Walks the chain in the SAME order popTable() concatenated in, so
       // each Lookup dispatch gets the offset its own stops landed at.
@@ -2167,7 +2200,54 @@ bool World::render() {
                 params.b[2] = op.add.z;
                 params.b[3] = op.add.w;
                 params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Group>) {
+                put3(params.a, op.center);
+                put3(params.b, op.size);
+                params.c[0] = op.feather;
+                params.c[1] = (float)op.shape;
+                params.c[2] = op.invert ? 1.0f : 0.0f;
+                params.c[3] = (float)op.combine;
+                params.d[1] = (float)points.slotFor(pop::AttrRef{op.to});
+                params.m[1] = (float)points.slotFor(op.from);
+              } else if constexpr (std::is_same_v<T, pop::Transform>) {
+                params.a[0] = op.direction ? 1.0f : 0.0f;
+                put4(params.e, op.matrix[0]);
+                put4(params.f, op.matrix[1]);
+                put4(params.g, op.matrix[2]);
+                put4(params.h, op.matrix[3]);
+                params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Peak>) {
+                params.a[0] = op.distance;
+                params.d[1] = (float)points.slotFor(op.lane);
+                params.m[1] = (float)points.slotFor(op.along);
+              } else if constexpr (std::is_same_v<T, pop::Deform>) {
+                glm::vec3 axis, dir, side;
+                shape::popops::deformFrame(op, &axis, &dir, &side);
+                params.a[0] = (float)op.kind;
+                params.a[1] = op.amount;
+                params.a[2] = op.low;
+                params.a[3] = op.high;
+                params.b[0] = op.amount * 3.14159265f / 180.0f;
+                params.b[1] = op.high - op.low;
+                put3(params.e, axis);
+                put3(params.f, op.origin);
+                put3(params.g, dir);
+                put3(params.h, side);
+                params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Mix>) {
+                params.a[0] = op.factor;
+                params.b[0] = (float)points.slotFor(op.a);
+                params.b[1] = (float)points.slotFor(op.b);
+                params.b[2] = op.factorLane.empty()
+                                  ? -1.0f
+                                  : (float)points.slotFor(
+                                        pop::AttrRef{op.factorLane});
+                params.d[1] = (float)points.slotFor(op.to);
               }
+              // The mask slot rides every filter that carries one.
+              if constexpr (requires { op.mask; })
+                if (!op.mask.empty())
+                  params.m[0] = (float)points.slotFor(pop::AttrRef{op.mask});
             },
             points.chain[i]);
         if (const auto* relax = std::get_if<pop::Relax>(&points.chain[i])) {

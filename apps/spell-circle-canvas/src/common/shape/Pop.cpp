@@ -65,6 +65,25 @@ struct Attrs {
 
 namespace popops {
 
+void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
+                 glm::vec3* side) {
+  glm::vec3 a = op.axis;
+  const float al = glm::length(a);
+  a = al > 1e-6f ? a / al : glm::vec3{0, 1, 0};
+  glm::vec3 d = op.direction - a * glm::dot(op.direction, a);
+  const float dl = glm::length(d);
+  if (dl > 1e-6f) {
+    d = d / dl;
+  } else {
+    d = std::abs(a.y) < 0.9f ? glm::cross(a, {0, 1, 0})
+                             : glm::cross(a, {1, 0, 0});
+    d = d / glm::length(d);
+  }
+  *axis = a;
+  *direction = d;
+  *side = glm::cross(a, d);
+}
+
 Cloud cook(const pop::Chain& chain) {
   Cloud out;
   if (chain.empty()) return out;
@@ -129,6 +148,26 @@ Cloud cook(const pop::Chain& chain) {
     laneDir[i] = {tangent.x, tangent.y, tangent.z, 0};
   }
 
+  // The mask read every filter shares: a lane's .x clamped to [0, 1],
+  // 1 for the empty name. Written as one expression here and one in
+  // the kernels — old + (new - old) * m, with m == 1 storing new
+  // outright so an unmasked write is bit-identical to a direct one.
+  const auto maskAt = [&](const std::string& mask, size_t i) -> float {
+    if (mask.empty()) return 1.0f;
+    const float m = attrs.load(mask, i).x;
+    return m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
+  };
+  const auto storeMasked = [&](const std::string& lane, size_t i,
+                               const std::string& mask, glm::vec4 v) {
+    const float m = maskAt(mask, i);
+    if (m >= 1.0f) {
+      attrs.store(lane, i, v);
+      return;
+    }
+    const glm::vec4 old = attrs.load(lane, i);
+    attrs.store(lane, i, old + (v - old) * m);
+  };
+
   for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
     std::visit(
         [&](const auto& op) {
@@ -142,7 +181,10 @@ Cloud cook(const pop::Chain& chain) {
             // back off the chain once the stamps exist.
           } else if constexpr (std::is_same_v<T, pop::Relax>) {
             // Neighborhood op: double-buffered, read-old/write-new —
-            // the same shape the GPU's parallel pass has.
+            // the same shape the GPU's parallel pass has. The mask
+            // blends the relaxed value against the old one BEFORE the
+            // scratch write, so a masked point's neighbours still see
+            // its old value this pass, exactly like the kernel.
             for (int pass = 0; pass < op.iterations; ++pass) {
               std::vector<glm::vec4> next(count);
               for (size_t i = 0; i < count; ++i) {
@@ -152,7 +194,9 @@ Cloud cook(const pop::Chain& chain) {
                                        attrs.load(op.lane.name, b)) *
                                       0.5f;
                 const glm::vec4 v = attrs.load(op.lane.name, i);
-                next[i] = v + (mid - v) * op.strength;
+                const glm::vec4 relaxed = v + (mid - v) * op.strength;
+                const float m = maskAt(op.mask, i);
+                next[i] = m >= 1.0f ? relaxed : v + (relaxed - v) * m;
               }
               for (size_t i = 0; i < count; ++i)
                 attrs.store(op.lane.name, i, next[i]);
@@ -176,7 +220,7 @@ Cloud cook(const pop::Chain& chain) {
               i0 = i0 < 0 ? 0 : (i0 > n - 1 ? n - 1 : i0);
               const int i1 = i0 + 1 < n ? i0 + 1 : n - 1;
               const float f = x - (float)i0;
-              attrs.store(op.to.name, i,
+              storeMasked(op.to.name, i, op.mask,
                           op.stops[i0] + (op.stops[i1] - op.stops[i0]) * f);
             }
           } else if constexpr (std::is_same_v<T, pop::Sort>) {
@@ -209,7 +253,7 @@ Cloud cook(const pop::Chain& chain) {
             }
           } else if constexpr (std::is_same_v<T, pop::Set>) {
             for (size_t i = 0; i < count; ++i)
-              attrs.store(op.attr.name, i, op.value);
+              storeMasked(op.attr.name, i, op.mask, op.value);
           } else if constexpr (std::is_same_v<T, pop::Atlas>) {
             // Clamp once and use throughout: raw op.cols in the cell
             // remap is a division by zero on Atlas{0, ...} (the GPU
@@ -223,9 +267,153 @@ Cloud cook(const pop::Chain& chain) {
               const int cell = std::min(
                   (int)(hash1((uint32_t)i * 13u + op.seed) * (float)cells),
                   cells - 1);
-              attrs.store("Tex", i,
+              storeMasked("Tex", i, op.mask,
                           {(float)(cell % cols) * du, (float)(cell / cols) * dv,
                            du, dv});
+            }
+          } else if constexpr (std::is_same_v<T, pop::Group>) {
+            // The selector: distance in the region's own units, a
+            // smoothstep band across the outer `feather` fraction, an
+            // optional flip, then combined into the lane. The
+            // smoothstep is spelled out (t * t * (3 - 2t)) so both
+            // executors run the same arithmetic.
+            const glm::vec3 size = {op.size.x != 0.0f ? op.size.x : 1e-6f,
+                                    op.size.y != 0.0f ? op.size.y : 1e-6f,
+                                    op.size.z != 0.0f ? op.size.z : 1e-6f};
+            const float f = op.feather < 0.0f
+                                ? 0.0f
+                                : (op.feather > 1.0f ? 1.0f : op.feather);
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 s = attrs.load(op.from.name, i);
+              const glm::vec3 q = {(s.x - op.center.x) / size.x,
+                                   (s.y - op.center.y) / size.y,
+                                   (s.z - op.center.z) / size.z};
+              const float d =
+                  op.shape == pop::Group::Shape::Sphere
+                      ? std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z)
+                      : std::max(std::abs(q.x),
+                                 std::max(std::abs(q.y), std::abs(q.z)));
+              float inside;
+              if (f <= 0.0f) {
+                inside = d <= 1.0f ? 1.0f : 0.0f;
+              } else {
+                float t = (d - (1.0f - f)) / f;
+                t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+                inside = 1.0f - t * t * (3.0f - 2.0f * t);
+              }
+              if (op.invert) inside = 1.0f - inside;
+              const glm::vec4 old = attrs.load(op.to, i);
+              float v = inside;
+              switch (op.combine) {
+                case pop::Group::Combine::Replace:
+                  break;
+                case pop::Group::Combine::Union:
+                  v = std::max(old.x, inside);
+                  break;
+                case pop::Group::Combine::Intersect:
+                  v = std::min(old.x, inside);
+                  break;
+                case pop::Group::Combine::Subtract:
+                  v = old.x * (1.0f - inside);
+                  break;
+              }
+              attrs.store(op.to, i, {v, v, v, v});
+            }
+          } else if constexpr (std::is_same_v<T, pop::Transform>) {
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 v = attrs.load(op.lane.name, i);
+              glm::vec4 r;
+              if (op.direction) {
+                const glm::vec4 t = op.matrix * glm::vec4{v.x, v.y, v.z, 0.0f};
+                const float len = std::sqrt(t.x * t.x + t.y * t.y + t.z * t.z);
+                r = len > 1e-6f ? glm::vec4{t.x / len, t.y / len, t.z / len,
+                                            v.w}
+                                : glm::vec4{v.x, v.y, v.z, v.w};
+              } else {
+                const glm::vec4 t = op.matrix * glm::vec4{v.x, v.y, v.z, 1.0f};
+                r = {t.x, t.y, t.z, v.w};
+              }
+              storeMasked(op.lane.name, i, op.mask, r);
+            }
+          } else if constexpr (std::is_same_v<T, pop::Peak>) {
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 a = attrs.load(op.along.name, i);
+              const float len = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+              glm::vec4 v = attrs.load(op.lane.name, i);
+              if (len > 1e-6f) {
+                const float k = op.distance / len;
+                v.x += a.x * k;
+                v.y += a.y * k;
+                v.z += a.z * k;
+              }
+              storeMasked(op.lane.name, i, op.mask, v);
+            }
+          } else if constexpr (std::is_same_v<T, pop::Deform>) {
+            // The frame: a unit axis, plus for Bend a unit direction
+            // made perpendicular to it. Degenerate inputs (a zero
+            // axis, a direction parallel to the axis) fall back the
+            // same way on both executors.
+            glm::vec3 axis, dir, side;
+            deformFrame(op, &axis, &dir, &side);
+            const float span = op.high - op.low;
+            const float rad = op.amount * 3.14159265f / 180.0f;
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 v = attrs.load(op.lane.name, i);
+              const glm::vec3 p = glm::vec3{v.x, v.y, v.z} - op.origin;
+              const float h = glm::dot(p, axis);
+              const glm::vec3 perp = p - axis * h;
+              float u = span != 0.0f ? (h - op.low) / span
+                                     : (h >= op.low ? 1.0f : 0.0f);
+              u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
+              glm::vec3 out;
+              if (op.kind == pop::Deform::Kind::Twist) {
+                const float ang = rad * u;
+                const float c = std::cos(ang), sn = std::sin(ang);
+                // Rodrigues about the unit axis; perp is already
+                // perpendicular so the parallel term is zero.
+                out = axis * h + perp * c + glm::cross(axis, perp) * sn;
+              } else if (op.kind == pop::Deform::Kind::Taper) {
+                out = axis * h + perp * (1.0f + (op.amount - 1.0f) * u);
+              } else {
+                // Bend: the band becomes an arc of `rad` radians and
+                // length `span`, curving toward dir. Below the band
+                // nothing moves; on it, the axis coordinate walks the
+                // arc; above it, the point rides the arc's end
+                // tangent. The x offset toward dir bends with the
+                // arc (points on the outside stretch, inside
+                // compress); the offset along side is carried over.
+                const float x = glm::dot(perp, dir);
+                const float y = glm::dot(perp, side);
+                if (rad == 0.0f || span == 0.0f) {
+                  out = p;
+                } else {
+                  const float R = span / rad;
+                  const float hb = h < op.low ? op.low
+                                              : (h > op.high ? op.high : h);
+                  const float theta = (hb - op.low) / R;
+                  const float c = std::cos(theta), sn = std::sin(theta);
+                  // Arc centre sits at +R along dir from (low). A
+                  // point at height hb and offset x lands at
+                  //   along axis: low + (R - x) * sin(theta)
+                  //   along dir:  R - (R - x) * cos(theta)
+                  const float extra = h - hb;  // rigid overhang
+                  const float hOut =
+                      op.low + (R - x) * sn + extra * c;
+                  const float xOut = R - (R - x) * c + extra * sn;
+                  out = axis * hOut + dir * xOut + side * y;
+                }
+              }
+              out += op.origin;
+              storeMasked(op.lane.name, i, op.mask, {out.x, out.y, out.z, v.w});
+            }
+          } else if constexpr (std::is_same_v<T, pop::Mix>) {
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 a = attrs.load(op.a.name, i);
+              const glm::vec4 b = attrs.load(op.b.name, i);
+              const float f = op.factorLane.empty()
+                                  ? op.factor
+                                  : attrs.load(op.factorLane, i).x;
+              storeMasked(op.to.name, i, op.mask, a + (b - a) * f);
             }
           } else {
             for (size_t i = 0; i < count; ++i) {
@@ -237,7 +425,7 @@ Cloud cook(const pop::Chain& chain) {
                        op.amplitude;
                 v.z += (hash1((uint32_t)i * 7u + op.seed + 2u) - 0.5f) * 2.0f *
                        op.amplitude;
-                attrs.store(op.lane.name, i, v);
+                storeMasked(op.lane.name, i, op.mask, v);
               } else if constexpr (std::is_same_v<T, pop::Noise>) {
                 const glm::vec3 dd =
                     drift(attrs.p3(i), op.frequency, op.seed) * op.amplitude;
@@ -245,27 +433,28 @@ Cloud cook(const pop::Chain& chain) {
                 v.x += dd.x;
                 v.y += dd.y;
                 v.z += dd.z;
-                attrs.store(op.lane.name, i, v);
+                storeMasked(op.lane.name, i, op.mask, v);
               } else if constexpr (std::is_same_v<T, pop::Ramp>) {
                 const float t = attrs.load("T", i).x;
-                attrs.store(op.lane.name, i, op.from + (op.to - op.from) * t);
+                storeMasked(op.lane.name, i, op.mask,
+                            op.from + (op.to - op.from) * t);
               } else if constexpr (std::is_same_v<T, pop::Vary>) {
                 const float v =
                     op.base *
                     (1.0f +
                      op.spread *
                          (hash1((uint32_t)i * 11u + op.seed) * 2.0f - 1.0f));
-                attrs.store(op.lane.name, i, {v, v, v, v});
+                storeMasked(op.lane.name, i, op.mask, {v, v, v, v});
               } else if constexpr (std::is_same_v<T, pop::LookAt>) {
                 glm::vec3 d = op.target - attrs.p3(i);
                 const float len = glm::length(d);
                 const glm::vec3 dir =
                     len > 1e-6f ? d * (1.0f / len) : glm::vec3{0, 0, 1};
                 const float w = attrs.load("Dir", i).w;
-                attrs.store("Dir", i, {dir.x, dir.y, dir.z, w});
+                storeMasked("Dir", i, op.mask, {dir.x, dir.y, dir.z, w});
               } else if constexpr (std::is_same_v<T, pop::Math>) {
                 const glm::vec4 v = attrs.load(op.lane.name, i);
-                attrs.store(op.lane.name, i, v * op.mul + op.add);
+                storeMasked(op.lane.name, i, op.mask, v * op.mul + op.add);
               }
             }
           }
