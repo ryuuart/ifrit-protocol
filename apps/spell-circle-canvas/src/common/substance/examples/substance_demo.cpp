@@ -13,6 +13,7 @@
 #include <include/encode/SkPngEncoder.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <sstream>
@@ -87,7 +88,7 @@ int main(int argc, char** argv) {
   }
   const std::filesystem::path outDir =
       argc > 2 ? argv[2] : "substance_demo_out";
-  const int log2 = argc > 3 ? std::atoi(argv[3]) : 9;
+  const int log2 = argc > 3 ? (int)std::strtol(argv[3], nullptr, 10) : 9;
   std::filesystem::create_directories(outDir);
   std::printf("engine: %s\n", substance::Package::engineVersion().c_str());
 
@@ -129,7 +130,11 @@ int main(int argc, char** argv) {
           graph.label().empty() ? "graph" + std::to_string(g) : graph.label();
       for (char& c : stem)
         if (c == ' ' || c == '/') c = '_';
-      const std::filesystem::path path = outDir / (stem + "_" + usage + ".png");
+      std::string file = stem;
+      file += '_';
+      file += usage;
+      file += ".png";
+      const std::filesystem::path path = outDir / file;
       std::printf("  wrote %s (%dx%d)\n", path.string().c_str(), image->width(),
                   image->height());
       writePng(image, path);

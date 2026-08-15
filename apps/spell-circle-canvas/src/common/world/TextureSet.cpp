@@ -190,6 +190,7 @@ std::vector<TextureSet> discover(const std::filesystem::path& directory) {
     if (c.role == Role::Normal) set.normalDirectX = c.directX;
   }
   std::vector<TextureSet> out;
+  out.reserve(sets.size());
   for (auto& [name, set] : sets) out.push_back(std::move(set));
   return out;
 }

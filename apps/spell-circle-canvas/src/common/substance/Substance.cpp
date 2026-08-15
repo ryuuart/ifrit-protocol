@@ -18,7 +18,7 @@ namespace {
 namespace air = SubstanceAir;
 
 /** The framework's strings use their own allocator; copy out. */
-std::string str(const air::string& s) { return std::string(s.c_str()); }
+std::string str(const air::string& s) { return {s.data(), s.size()}; }
 
 Parameter::Kind kindOf(SubstanceIOType type) {
   switch (type) {
@@ -172,7 +172,8 @@ struct Graph::Impl {
 
   air::InputInstanceBase* input(std::string_view identifier) const {
     for (air::InputInstanceBase* in : instance->getInputs())
-      if (std::string_view(in->mDesc.mIdentifier.c_str()) == identifier)
+      if (std::string_view(in->mDesc.mIdentifier.data(),
+                           in->mDesc.mIdentifier.size()) == identifier)
         return in;
     return nullptr;
   }

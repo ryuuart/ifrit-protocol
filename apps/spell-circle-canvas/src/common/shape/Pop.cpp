@@ -125,7 +125,7 @@ std::vector<std::string> seedCustomNames(const Cloud& cloud) {
     if (values.size() == n && name != "t" && name != "size") note(name);
   for (const auto& [name, values] : cloud.vectors)
     if (values.size() == n && name != "dir" &&
-        !(name == "normal" && !cloud.vectorIf("dir")))
+        (name != "normal" || cloud.vectorIf("dir")))
       note(name);
   for (const auto& [name, values] : cloud.colors)
     if (values.size() == n && name != "tint") note(name);
