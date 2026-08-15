@@ -18,4 +18,5 @@ build
 # Generated demo renders
 textflow_demo_out/
 ifritweb_demo_out/
+--help/
 .skilltree-export.json

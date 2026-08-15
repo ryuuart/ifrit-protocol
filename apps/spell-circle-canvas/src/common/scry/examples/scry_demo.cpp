@@ -23,6 +23,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <thread>
@@ -104,6 +105,12 @@ bool writePng(const SkPixmap& pixmap, const std::filesystem::path& path) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc > 1 && argv[1][0] == '-') {
+    const bool help =
+        std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;
+    std::fprintf(help ? stdout : stderr, "usage: scry_demo [outdir]\n");
+    return help ? 0 : 1;
+  }
   std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
 
