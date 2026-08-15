@@ -2405,6 +2405,65 @@ TEST(WorldMarqueeSlice, SliceableReplaysTheSamePixels) {
 // clock inside world, and an animate() form that lands settled.
 // ---------------------------------------------------------------------------
 
+TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
+  // A twist amount bound to an Output: the resolve writes it into the
+  // component's chain and re-describes the surface only when the value
+  // moved; a still Output costs no re-cook, and the cooked positions
+  // follow the amount.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+  std::vector<glm::vec3> loop = {
+      {40, -100, 0}, {40, 100, 0}, {40, 100, 1}, {40, -100, 1}};
+  const shape::pop::Chain chain = shape::pop::on(loop)
+                                      .count(200)
+                                      .window(0.5f, 0.5f)
+                                      .twist(0, {0, 1, 0}, -100, 100);
+  const uint32_t id =
+      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+  ASSERT_NE(id, 0u);
+  choreograph::Output<float> amount{0.0f};
+  world::AnimatedChain animated;
+  animated.chain = chain;
+  world::AnimatedChain::Lane lane;
+  lane.op = 1;  // the Deform
+  lane.field = "amount";
+  lane.value = world::bind(&amount);
+  animated.lanes.push_back(std::move(lane));
+  w->registry().emplace<world::AnimatedChain>(world::entity(id),
+                                              std::move(animated));
+
+  world::AnimationStats stats = world::resolveAnimation(*w);
+  EXPECT_EQ(stats.chains, 1) << "the first resolve applies the lane";
+  stats = world::resolveAnimation(*w);
+  EXPECT_EQ(stats.chains, 0) << "a still lane costs nothing";
+  ASSERT_TRUE(w->render());
+  const shape::Cloud flat = w->readPoints(id);
+
+  amount = 180.0f;
+  ASSERT_TRUE(w->render());  // render resolves; a moved lane re-cooks
+  const shape::Cloud twisted = w->readPoints(id);
+  ASSERT_EQ(flat.size(), twisted.size());
+  // At the top of the column (u = 1) a 180 twist about +Y sends x = 40
+  // to x = -40; at the bottom (u = 0) nothing moves.
+  int flipped = 0, still = 0;
+  for (size_t i = 0; i < flat.size(); ++i) {
+    if (flat.positions[i].y > 90 && twisted.positions[i].x < -35) ++flipped;
+    if (flat.positions[i].y < -90 &&
+        std::abs(twisted.positions[i].x - flat.positions[i].x) < 3.0f)
+      ++still;
+  }
+  EXPECT_GT(flipped, 0);
+  EXPECT_GT(still, 0);
+  // ...and it agrees with the CPU cook of the same edited chain.
+  shape::pop::Chain edited = chain;
+  shape::popops::setField(edited[1], "amount", 180.0f);
+  const shape::Cloud cpu = shape::popops::cook(edited);
+  for (size_t i = 0; i < cpu.size(); i += 13)
+    EXPECT_NEAR(twisted.positions[i].x, cpu.positions[i].x, 1e-2f) << i;
+}
+
 TEST(WorldAnimation, BoundLaneDrivesTheTransformWithoutADevice) {
   // The device-free half of the system is a free function over a plain
   // entt::registry, which is what lets the animation semantics be

@@ -145,10 +145,13 @@ numbers per frame and no geometry work on the CPU.
   Scene layer.
 
 **Declared motion is an orthogonal door with a device-free half.**
-`Animation.h` adds five components — `AnimatedTransform`,
+`Animation.h` adds six components — `AnimatedTransform`,
 `AnimatedMaterial`, `AnimatedLight`, `AnimatedCamera`,
-`AnimatedWindow` — whose fields are `Animatable<float>` lanes from
-SigilMotion. Attach them and the values follow whatever
+`AnimatedWindow`, `AnimatedChain` — whose fields are `Animatable<float>`
+lanes from SigilMotion. `AnimatedChain` reaches any operator dial of a
+point chain by (operator index, field name) — `"amount"`, `"center.x"`,
+`"seed"` — through SigilShape's `popops::setField`, and re-describes the
+surface only when a lane moved. Attach them and the values follow whatever
 `choreograph::Output` they are bound to. `resolveAnimation()` has two
 overloads: one taking a bare `entt::registry`, which touches no GPU
 state at all and is therefore usable and testable with no device
@@ -167,7 +170,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `InstanceLanes`. Device bring-up, every surface-creating call, camera and lighting setters, `render`/`readback`/`savePng`. |
 | `sigilworld/Components.h` | The registry face: `TransformComponent`, `MaterialComponent`, `LightComponent`, `CameraComponent`, the `kLightBudget` constant, and `entity(id)`. |
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/surface/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
-| `sigilworld/Animation.h` | Declared motion: the five `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
+| `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
 | `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `shape::import::Part` (glTF's material, factors and all). |
 
@@ -276,6 +279,13 @@ engaging one lane must not slam the others to defaults.
 `setCamera()` called afterwards. Deactivate (`active = false`) or
 destroy the entity to hand control back. With several active cameras,
 whichever the registry iterates first wins — keep one active.
+
+**An `AnimatedChain` re-describes; an `AnimatedWindow` slides.** Both
+are change-detected, but a moved chain lane goes through `setPoints`
+(a parameter re-cook — cheap, but a re-dispatch of the whole chain, and
+a full rebuild when the lane it edits is a lookup table or a loop),
+while head and span through `AnimatedWindow` are two floats. Drive the
+window with the window component and everything else with the chain.
 
 **Every animation lane is a float.** A position is three lanes, not an
 `Animatable<glm::vec3>`. The value of a lane is the shaping chain

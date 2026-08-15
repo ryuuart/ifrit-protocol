@@ -68,6 +68,7 @@
 
 #include <sigilmotion/Animation.h>
 #include <sigilshape/Curves.h>
+#include <sigilshape/Pop.h>
 
 #include <algorithm>
 #include <cmath>
@@ -307,6 +308,33 @@ struct AnimatedWindow {
   bool applied = false;
 };
 
+/** Declared motion for a point chain's operator DIALS — the twist's
+ *  amount, the noise's seed, a selector's centre, a mix factor: any
+ *  numeric field `shape::popops::setField` addresses, each a float lane
+ *  bound to (operator index, field name). The component holds its own
+ *  copy of the chain (the surface's value lives inside World); a resolve
+ *  writes every lane into that copy and, when any lane MOVED, pushes it
+ *  through `World::setPoints`, which is a parameter re-cook — buffers
+ *  and bindings stay — for everything but a lookup-table or loop edit.
+ *  Change-detected like AnimatedWindow: a still lane costs nothing per
+ *  frame. The chain is also the door for edits that are not lanes —
+ *  change a field on it by hand and it goes with the next moved lane.
+ *
+ *  Use AnimatedWindow for head and span: it costs a two-float parameter
+ *  push rather than a whole-chain re-describe. A lane naming a field the
+ *  operator lacks is ignored (setField says no; nothing is written). */
+struct AnimatedChain {
+  struct Lane {
+    size_t op = 0;      ///< index into `chain`
+    std::string field;  ///< "amount", "center.x", "seed"...
+    Animatable<float> value = 0.0f;
+    float applied = 0;
+    bool wasApplied = false;
+  };
+  shape::pop::Chain chain;
+  std::vector<Lane> lanes;
+};
+
 /** What the last resolve actually MOVED. Zero across the board means the
  *  resolve wrote nothing, which is what a settled scene reports and what
  *  makes the change detection observable from outside. */
@@ -316,6 +344,7 @@ struct AnimationStats {
   int lights = 0;
   int cameras = 0;
   int windows = 0;
+  int chains = 0;
 };
 
 /** One lane's current number, reading the forms in the order the slot
@@ -566,6 +595,21 @@ inline AnimationStats resolveAnimation(World& world) {
     window.appliedSpan = span;
     window.applied = true;
     ++stats.windows;
+  }
+  for (auto [e, animated] : registry.view<AnimatedChain>().each()) {
+    bool moved = false;
+    for (AnimatedChain::Lane& lane : animated.lanes) {
+      const float value = resolveValue(lane.value);
+      if (lane.wasApplied && value == lane.applied) continue;
+      if (lane.op < animated.chain.size() &&
+          shape::popops::setField(animated.chain[lane.op], lane.field, value))
+        moved = true;
+      lane.applied = value;
+      lane.wasApplied = true;
+    }
+    if (!moved) continue;
+    world.setPoints((uint32_t)e, animated.chain);
+    ++stats.chains;
   }
   return stats;
 }

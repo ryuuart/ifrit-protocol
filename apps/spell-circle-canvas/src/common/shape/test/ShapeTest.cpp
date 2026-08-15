@@ -3384,3 +3384,48 @@ TEST(Import, GltfCarriesTheWholeMaterial) {
               part.textures.at("orm").bytes)
         << "the Avocado packs occlusion into the same image";
 }
+
+TEST(Pop, FieldsAreAddressableByName) {
+  // The dial door: any operator's numeric field by its own name, vector
+  // components dotted, enums and bools as numbers; a name the operator
+  // lacks is refused and leaves it untouched.
+  pop::Op twist = pop::Deform{};
+  EXPECT_TRUE(popops::setField(twist, "amount", 45.0f));
+  EXPECT_TRUE(popops::setField(twist, "origin.x", 12.0f));
+  EXPECT_TRUE(popops::setField(twist, "kind", (float)pop::Deform::Kind::Bend));
+  EXPECT_FALSE(popops::setField(twist, "wibble", 1.0f));
+  const auto& d = std::get<pop::Deform>(twist);
+  EXPECT_FLOAT_EQ(d.amount, 45.0f);
+  EXPECT_FLOAT_EQ(d.origin.x, 12.0f);
+  EXPECT_EQ(d.kind, pop::Deform::Kind::Bend);
+  EXPECT_FLOAT_EQ(*popops::getField(twist, "amount"), 45.0f);
+  EXPECT_FLOAT_EQ(*popops::getField(twist, "kind"), 2.0f);
+  EXPECT_FALSE(popops::getField(twist, "mask"));  // a string, not a dial
+
+  pop::Op group = pop::Group{};
+  EXPECT_TRUE(popops::setField(group, "center.y", 80.0f));
+  EXPECT_TRUE(popops::setField(group, "invert", 1.0f));
+  EXPECT_TRUE(
+      popops::setField(group, "combine", (float)pop::Group::Combine::Union));
+  const auto& g = std::get<pop::Group>(group);
+  EXPECT_FLOAT_EQ(g.center.y, 80.0f);
+  EXPECT_TRUE(g.invert);
+  EXPECT_EQ(g.combine, pop::Group::Combine::Union);
+
+  pop::Op ramp = pop::Ramp{};
+  EXPECT_TRUE(popops::setField(ramp, "to.g", 0.25f));  // colour spelling
+  EXPECT_FLOAT_EQ(std::get<pop::Ramp>(ramp).to.y, 0.25f);
+  EXPECT_FLOAT_EQ(*popops::getField(ramp, "to.y"), 0.25f);
+
+  pop::Op scatter = pop::SplineScatter{};
+  EXPECT_TRUE(popops::setField(scatter, "count", 250.7f));  // int truncates
+  EXPECT_EQ(std::get<pop::SplineScatter>(scatter).count, 250);
+  EXPECT_TRUE(popops::setField(scatter, "seed", 9.0f));
+  EXPECT_EQ(std::get<pop::SplineScatter>(scatter).seed, 9u);
+
+  // Operators without dials say no to everything.
+  pop::Op promote = pop::Promote{};
+  EXPECT_FALSE(popops::setField(promote, "to", 1.0f));
+  pop::Op given = pop::PointSet{};
+  EXPECT_FALSE(popops::getField(given, "count"));
+}

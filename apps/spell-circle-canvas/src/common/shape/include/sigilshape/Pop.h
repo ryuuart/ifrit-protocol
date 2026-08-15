@@ -13,7 +13,9 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -648,6 +650,19 @@ void seedAttrs(
 /** The custom attribute names seedAttrs would create for @p cloud (the
  *  lanes that are not builtins), in a stable order. */
 std::vector<std::string> seedCustomNames(const Cloud& cloud);
+
+/** PARAMETER ADDRESSING: an operator's numeric fields by name, the way
+ *  a control surface or an animation lane reaches into a chain without
+ *  knowing the operator's type. Names are the struct's own field names,
+ *  vector components dotted (`"center.x"`, `"add.w"`, `"from.g"`) —
+ *  every float, int, bool and enum field an operator has, and nothing a
+ *  string, a lane name, a mesh, a cloud or a matrix (those are
+ *  descriptions, not dials). Ints truncate, bools read non-zero, enums
+ *  take their integer value. `setField` returns false and writes
+ *  nothing for a name the operator does not have; `getField` returns
+ *  nullopt for it. */
+bool setField(pop::Op& op, std::string_view field, float value);
+std::optional<float> getField(const pop::Op& op, std::string_view field);
 
 /** The frame a Deform runs in: its axis normalized, its bend direction
  *  made perpendicular to that axis and normalized (a direction parallel

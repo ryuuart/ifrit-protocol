@@ -114,6 +114,14 @@ chain as compute dispatches, and the two are required to agree bit for bit
 — which is what makes the hash helpers and the variant order load-bearing
 (see below).
 
+**Operator dials are addressable by name.** `popops::setField(op,
+"amount", v)` and `getField` reach every numeric field of every operator
+— vector components dotted (`"center.x"`, `"add.w"`, `"to.g"`), enums and
+bools as numbers, ints truncated — so a control surface, a preset file
+or an animation lane can drive a chain without knowing the operator's
+type. Strings, lane names, meshes, clouds and matrices are descriptions,
+not dials, and stay out of it.
+
 **`Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
 `pill`, `ring`) and four fluent value types over everything underneath:
 `Shape` (`offset`, `roughen`, `zigzag`, `bloat`, `pucker`, `twirl`,
