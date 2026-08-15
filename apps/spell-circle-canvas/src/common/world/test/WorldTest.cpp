@@ -550,6 +550,41 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
             world::textures::Role::BaseColor);
   EXPECT_EQ(world::textures::roleForUsage("wibble"),
             world::textures::Role::Unknown);
+
+  // The imported-part door: factors become the scalars, the pack and a
+  // separate occlusion naming the same bytes share one decode, glTF
+  // normals read as OpenGL, and the sampler tiles.
+  shape::import::Part part;
+  part.baseColor = {0.5f, 0.6f, 0.7f, 1};
+  part.metallic = 0.25f;
+  part.roughness = 0.8f;
+  part.textureBytes = {std::byte{1}};
+  part.textures["normal"].bytes = {std::byte{2}};
+  part.textures["orm"].bytes = {std::byte{3}};
+  part.textures["occlusion"].bytes = {std::byte{3}};
+  int decodes = 0;
+  std::map<int, sk_sp<SkImage>> byByte;
+  const auto decodeBytes = [&](const std::vector<std::byte>& bytes,
+                               std::string_view) {
+    ++decodes;
+    sk_sp<SkImage>& img = byByte[(int)bytes[0]];
+    if (!img) img = solidImage(SK_ColorWHITE, 2, 2);
+    return img;
+  };
+  const world::Material p = world::textures::material(part, decodeBytes);
+  EXPECT_EQ(p.texture.get(), byByte[1].get());
+  EXPECT_EQ(p.normalMap.get(), byByte[2].get());
+  EXPECT_FALSE(p.normalMapDirectX);
+  EXPECT_EQ(p.roughnessMap.get(), byByte[3].get());
+  EXPECT_EQ(p.roughnessChannel, 1);
+  EXPECT_EQ(p.metallicMap.get(), byByte[3].get());
+  EXPECT_EQ(p.metallicChannel, 2);
+  EXPECT_EQ(p.occlusionMap.get(), byByte[3].get());
+  EXPECT_EQ(p.occlusionChannel, 0);
+  EXPECT_FLOAT_EQ(p.metallic, 0.25f) << "the factor multiplies the map";
+  EXPECT_FLOAT_EQ(p.roughness, 0.8f);
+  EXPECT_FLOAT_EQ(p.baseColor.g, 0.6f);
+  EXPECT_TRUE(p.tile);
 }
 
 TEST(World, BakedVertexColorsTintBothPipelines) {

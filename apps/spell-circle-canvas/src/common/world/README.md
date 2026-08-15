@@ -169,7 +169,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/surface/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the five `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
-| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set or from usage-keyed images. |
+| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `shape::import::Part` (glTF's material, factors and all). |
 
 ## Conventions that will bite you
 
@@ -422,8 +422,9 @@ The demo renders a diegetic-panel scene headlessly:
 
 It writes a set of camera shots as PNGs — a material lab
 (`world_materials.png`: the fetched Poly Haven texture set on a floor,
-a sphere and a torus, plus — when the Substance SDK is installed — the
-SDK's sample archive rendered live at two parameter settings), a pop lab
+a sphere and a torus, the fetched Avocado wearing the material its glTF
+carries, plus — when the Substance SDK is installed — the SDK's sample
+archive rendered live at two parameter settings), a pop lab
 (`world_pops.png`: the fetched Avocado's surface scattered into a cloud
 that seeds a chain — a selected band twisted, the rest peaked, colour by
 height — cooked on the GPU as one instanced surface), a cockpit

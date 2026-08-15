@@ -20,6 +20,7 @@
  * SkImage for a path), exactly as SigilShape's importer takes a Resolver.
  */
 
+#include <sigilshape/Import.h>
 #include <sigilworld/World.h>
 
 #include <filesystem>
@@ -111,5 +112,19 @@ Material material(const TextureSet& set, const Decoder& decode,
  *  for @p normalDirectX. */
 Material material(const std::map<std::string, sk_sp<SkImage>>& byUsage,
                   Material base = {}, bool normalDirectX = true);
+
+/** Decodes encoded image bytes (a name hint sharpens format detection);
+ *  null when it cannot. */
+using BytesDecoder = std::function<sk_sp<SkImage>(
+    const std::vector<std::byte>& bytes, std::string_view nameHint)>;
+
+/** Build a Material from an imported model part: its base colour
+ *  texture and factor, its metallic / roughness / emissive factors, and
+ *  every map its `textures` carry (glTF's normal, packed
+ *  metallicRoughness, occlusion, emissive), decoded through @p decode.
+ *  glTF normals are OpenGL-convention; the sampler tiles. The part's
+ *  factors are kept as the scalars the maps multiply. */
+Material material(const shape::import::Part& part, const BytesDecoder& decode,
+                  Material base = {});
 
 }  // namespace sigil::world::textures

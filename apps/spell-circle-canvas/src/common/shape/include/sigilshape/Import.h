@@ -71,6 +71,24 @@ struct Part {
    *  or pulled through the resolver. Decode via SigilImage. */
   std::vector<std::byte> textureBytes;
 
+  /** The rest of a metallic-roughness material, as glTF carries it:
+   *  the scalar factors, and the other maps keyed by USAGE word —
+   *  "normal" (OpenGL convention, green up the image), "orm" (glTF's
+   *  metallicRoughness image: roughness in G, metallic in B, and by
+   *  convention occlusion in R), "occlusion" (its own image, or the
+   *  same bytes as "orm" when the file packs them), "emissive". Each
+   *  entry holds the encoded bytes when reachable and the URI as the
+   *  file spells it. Formats without a material model leave this
+   *  empty. These are the words SigilWorld's texture-set door reads. */
+  struct TextureRef {
+    std::string uri;
+    std::vector<std::byte> bytes;
+  };
+  std::map<std::string, TextureRef> textures;
+  float metallic = 1;   ///< glTF's factor default; multiplies the map
+  float roughness = 1;  ///< likewise
+  glm::vec4 emissive = {0, 0, 0, 1};
+
   /** Custom per-vertex attributes — the Houdini/Blender lanes glTF
    *  spells as _NAME accessors and PLY as extra properties. Names
    *  arrive verbatim (glTF's leading underscore stripped). Routing by

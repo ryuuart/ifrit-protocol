@@ -196,15 +196,16 @@ void cgltfRelease(const cgltf_memory_options*, const cgltf_file_options*,
 
 /** The encoded bytes of a glTF image, wherever they live: a buffer
  *  view (GLB), a data: URI, or an external file via the resolver.
- *  Also records the external URI (percent-decoded) in the part. */
+ *  Also records the external URI (percent-decoded). */
 void fetchGltfImage(const cgltf_options& options, const cgltf_image& image,
-                    const Resolver& resolve, Part& part) {
+                    const Resolver& resolve, std::string& uriOut,
+                    std::vector<std::byte>& bytesOut) {
   if (image.buffer_view && image.buffer_view->buffer &&
       image.buffer_view->buffer->data) {
     const auto* begin =
         static_cast<const std::byte*>(image.buffer_view->buffer->data) +
         image.buffer_view->offset;
-    part.textureBytes.assign(begin, begin + image.buffer_view->size);
+    bytesOut.assign(begin, begin + image.buffer_view->size);
     return;
   }
   if (!image.uri) return;
@@ -222,7 +223,7 @@ void fetchGltfImage(const cgltf_options& options, const cgltf_image& image,
     if (cgltf_load_buffer_base64(&options, decodedSize, encoded.c_str(),
                                  &decoded) == cgltf_result_success) {
       const auto* begin = static_cast<const std::byte*>(decoded);
-      part.textureBytes.assign(begin, begin + decodedSize);
+      bytesOut.assign(begin, begin + decodedSize);
       std::free(decoded);
     }
     return;
@@ -230,9 +231,9 @@ void fetchGltfImage(const cgltf_options& options, const cgltf_image& image,
   std::string decoded(uri);
   cgltf_decode_uri(decoded.data());
   decoded.resize(std::strlen(decoded.c_str()));
-  part.textureUri = decoded;
+  uriOut = decoded;
   if (resolve)
-    if (auto bytes = resolve(decoded)) part.textureBytes = std::move(*bytes);
+    if (auto bytes = resolve(decoded)) bytesOut = std::move(*bytes);
 }
 
 void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
@@ -345,15 +346,36 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
       for (size_t i = 0; i < count; ++i) mesh.indices[i] = (uint32_t)i;
     }
 
-    if (primitive.material && primitive.material->has_pbr_metallic_roughness) {
-      const cgltf_pbr_metallic_roughness& pbr =
-          primitive.material->pbr_metallic_roughness;
-      part.baseColor = {pbr.base_color_factor[0], pbr.base_color_factor[1],
-                        pbr.base_color_factor[2], pbr.base_color_factor[3]};
-      if (pbr.base_color_texture.texture &&
-          pbr.base_color_texture.texture->image)
-        fetchGltfImage(options, *pbr.base_color_texture.texture->image, resolve,
-                       part);
+    if (primitive.material) {
+      const cgltf_material& material = *primitive.material;
+      const auto fetch = [&](const cgltf_texture_view& view,
+                             const char* usage) {
+        if (!view.texture || !view.texture->image) return;
+        Part::TextureRef& ref = part.textures[usage];
+        fetchGltfImage(options, *view.texture->image, resolve, ref.uri,
+                       ref.bytes);
+      };
+      if (material.has_pbr_metallic_roughness) {
+        const cgltf_pbr_metallic_roughness& pbr =
+            material.pbr_metallic_roughness;
+        part.baseColor = {pbr.base_color_factor[0], pbr.base_color_factor[1],
+                          pbr.base_color_factor[2], pbr.base_color_factor[3]};
+        part.metallic = pbr.metallic_factor;
+        part.roughness = pbr.roughness_factor;
+        if (pbr.base_color_texture.texture &&
+            pbr.base_color_texture.texture->image)
+          fetchGltfImage(options, *pbr.base_color_texture.texture->image,
+                         resolve, part.textureUri, part.textureBytes);
+        // glTF packs roughness (G) and metallic (B) into one image;
+        // occlusion conventionally rides its R, and the occlusion
+        // texture below often names the same image.
+        fetch(pbr.metallic_roughness_texture, "orm");
+      }
+      fetch(material.normal_texture, "normal");
+      fetch(material.occlusion_texture, "occlusion");
+      fetch(material.emissive_texture, "emissive");
+      part.emissive = {material.emissive_factor[0], material.emissive_factor[1],
+                       material.emissive_factor[2], 1};
     }
 
     finishPart(part, normal && normal->count == count);

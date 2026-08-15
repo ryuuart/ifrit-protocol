@@ -3355,3 +3355,32 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   ASSERT_EQ(customs.size(), 1u);
   EXPECT_EQ(customs[0], "top");
 }
+
+TEST(Import, GltfCarriesTheWholeMaterial) {
+  // The fetched Khronos Avocado (skipped when the asset is absent):
+  // base colour, a normal map and a packed metallicRoughness image,
+  // with the occlusion slot naming the same bytes as the pack.
+  const std::filesystem::path glb = "assets/models/Avocado.glb";
+  std::filesystem::path found;
+  for (const std::filesystem::path candidate :
+       {glb, std::filesystem::path("build") / glb,
+        std::filesystem::path("../build") / glb,
+        std::filesystem::path("../../build") / glb})
+    if (std::filesystem::exists(candidate)) found = candidate;
+  if (found.empty()) GTEST_SKIP() << "Avocado.glb not fetched";
+  const std::optional<import::Model> model = import::model(found);
+  ASSERT_TRUE(model);
+  ASSERT_FALSE(model->parts.empty());
+  const import::Part& part = model->parts.front();
+  EXPECT_FALSE(part.textureBytes.empty());
+  ASSERT_TRUE(part.textures.count("normal"));
+  ASSERT_TRUE(part.textures.count("orm"));
+  EXPECT_FALSE(part.textures.at("normal").bytes.empty());
+  EXPECT_FALSE(part.textures.at("orm").bytes.empty());
+  EXPECT_FLOAT_EQ(part.metallic, 1.0f);
+  EXPECT_FLOAT_EQ(part.roughness, 1.0f);
+  if (part.textures.count("occlusion"))
+    EXPECT_EQ(part.textures.at("occlusion").bytes,
+              part.textures.at("orm").bytes)
+        << "the Avocado packs occlusion into the same image";
+}

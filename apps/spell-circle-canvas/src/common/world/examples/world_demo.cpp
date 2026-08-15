@@ -601,7 +601,28 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   }
 #endif
 
-  // 3. Scalar reference materials on the back row.
+  // 3. An imported model wearing the material its file carries: base
+  // colour, normal, packed metallicRoughness and occlusion, decoded from
+  // the bytes the importer kept.
+  if (std::optional<shape::import::Model> avocado =
+          shape::import::model(assetDir / "models/Avocado.glb")) {
+    const auto decodeBytes = [](const std::vector<std::byte>& bytes,
+                                std::string_view hint) -> sk_sp<SkImage> {
+      std::optional<image::ImageAsset> asset = image::decodeImage(
+          bytes.data(), bytes.size(), {}, std::filesystem::path(hint));
+      return asset ? asset->frameAt(0).image : nullptr;
+    };
+    const glm::mat4 fit = avocado->fitTransform(260);
+    for (const shape::import::Part& part : avocado->parts) {
+      world::Material m = world::textures::material(part, decodeBytes);
+      w->addSurface(part.mesh, shape::space::place({420, -60, 320}, 30) * fit,
+                    m);
+    }
+    std::printf("avocado: %zu parts with their glTF material\n",
+                avocado->parts.size());
+  }
+
+  // 4. Scalar reference materials on the back row.
   world::Material rubber;
   rubber.baseColor = {0.85f, 0.2f, 0.15f, 1};
   rubber.roughness = 0.9f;

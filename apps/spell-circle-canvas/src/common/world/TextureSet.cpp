@@ -226,9 +226,12 @@ Material fill(Material m, const std::function<sk_sp<SkImage>(Role)>& image,
     }
   }
   // A map's values must be able to reach the shader: the scalar it
-  // multiplies starts at 1 when the set carries that map.
-  if (m.metallicMap) m.metallic = 1;
-  if (m.roughnessMap) m.roughness = 1;
+  // multiplies starts at 1 when the set carries that map — unless the
+  // caller's base already says otherwise (a glTF factor, say), in
+  // which case the factor multiplies the map as authored.
+  const Material stock;
+  if (m.metallicMap && m.metallic == stock.metallic) m.metallic = 1;
+  if (m.roughnessMap && m.roughness == stock.roughness) m.roughness = 1;
   if (m.emissiveMap) {
     if (m.emissiveStrength <= 0) m.emissiveStrength = 1;
     if (m.emissive == glm::vec4{0, 0, 0, 1}) m.emissive = {1, 1, 1, 1};
@@ -263,6 +266,35 @@ Material material(const std::map<std::string, sk_sp<SkImage>>& byUsage,
         return nullptr;
       },
       normalDirectX);
+}
+
+Material material(const shape::import::Part& part, const BytesDecoder& decode,
+                  Material base) {
+  Material m = std::move(base);
+  m.baseColor = part.baseColor;
+  m.metallic = part.metallic;
+  m.roughness = part.roughness;
+  m.emissive = part.emissive;
+  if (part.emissive.r + part.emissive.g + part.emissive.b > 0 &&
+      m.emissiveStrength <= 0)
+    m.emissiveStrength = 1;
+  std::map<std::string, sk_sp<SkImage>> byUsage;
+  if (!part.textureBytes.empty() && decode)
+    if (sk_sp<SkImage> base = decode(part.textureBytes, part.textureUri))
+      byUsage["baseColor"] = base;
+  for (const auto& [usage, ref] : part.textures)
+    if (!ref.bytes.empty() && decode)
+      if (sk_sp<SkImage> image = decode(ref.bytes, ref.uri))
+        byUsage[usage] = image;
+  // A file may reference the same bytes for "orm" and "occlusion":
+  // decode once, share the image.
+  auto orm = part.textures.find("orm");
+  auto occ = part.textures.find("occlusion");
+  if (orm != part.textures.end() && occ != part.textures.end() &&
+      orm->second.bytes == occ->second.bytes && byUsage.count("orm"))
+    byUsage["occlusion"] = byUsage["orm"];
+  Material out = material(byUsage, std::move(m), /*normalDirectX=*/false);
+  return out;
 }
 
 }  // namespace sigil::world::textures
