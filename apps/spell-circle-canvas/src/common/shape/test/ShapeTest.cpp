@@ -3298,3 +3298,60 @@ TEST(Import, HoudiniGeoPointsBecomeAHonestCloud) {
   EXPECT_TRUE(cloud.colorIf("tint"));
   EXPECT_TRUE(cloud.scalarIf("id"));
 }
+
+TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
+  // A cloud with the conventional lanes and a custom one (a Houdini
+  // group, say) enters a chain as-is: positions become P, "size" Scale,
+  // "tint" Color, "normal" Dir, and "top" a custom attribute — usable
+  // straight away as a mask. Filters then run over it like any chain.
+  Cloud given;
+  for (int i = 0; i < 40; ++i) {
+    given.positions.push_back({(float)i * 10, i % 2 ? 100.0f : 0.0f, 0});
+  }
+  std::vector<float>& size = given.scalar("size", 1);
+  std::vector<glm::vec4>& tint = given.color("tint");
+  std::vector<glm::vec3>& normal = given.vector("normal");
+  std::vector<float>& top = given.scalar("top");
+  for (int i = 0; i < 40; ++i) {
+    size[(size_t)i] = 2.0f + (float)(i % 3);
+    tint[(size_t)i] = {1, 0, 0, 1};
+    normal[(size_t)i] = {0, 1, 0};
+    top[(size_t)i] = i % 2 ? 1.0f : 0.0f;
+  }
+  const pop::Chain chain = pop::on(given)
+                               .move({0, 0, 50})
+                               .masked("top")
+                               .peak(5)
+                               .fade({0, 1, 0, 1}, {0, 1, 0, 1});
+  const Cloud cooked = popops::cook(chain);
+  ASSERT_EQ(cooked.size(), 40u);
+  const std::vector<float>* outSize = cooked.scalarIf("size");
+  const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
+  const std::vector<glm::vec4>* outTint = cooked.colorIf("tint");
+  const std::vector<glm::vec4>* outTop = cooked.colorIf("top");
+  ASSERT_TRUE(outSize && dir && outTint && outTop);
+  for (size_t i = 0; i < 40; ++i) {
+    // The mask came in with the cloud: only odd points moved in z.
+    EXPECT_NEAR(cooked.positions[i].z, (i % 2 ? 50.0f : 0.0f), 1e-4f) << i;
+    // Peak rides Dir, seeded from "normal": +5 in y for everyone.
+    EXPECT_NEAR(cooked.positions[i].y, (i % 2 ? 105.0f : 5.0f), 1e-4f) << i;
+    EXPECT_FLOAT_EQ((*outSize)[i], 2.0f + (float)(i % 3));
+    EXPECT_FLOAT_EQ((*outTint)[i].g, 1.0f);  // recoloured by the fade
+    EXPECT_FLOAT_EQ((*outTop)[i].x, i % 2 ? 1.0f : 0.0f);
+    EXPECT_FLOAT_EQ((*dir)[i].y, 1.0f);
+  }
+  // count() and window() are inert on a point set: the count is the
+  // cloud's.
+  EXPECT_EQ(popops::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(),
+            40u);
+  // The layout the GPU executor uploads is the same function.
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
+  popops::seedAttrs(given, lanes);
+  EXPECT_EQ(lanes.count("P"), 1u);
+  EXPECT_EQ(lanes.count("Scale"), 1u);
+  EXPECT_EQ(lanes.count("top"), 1u);
+  EXPECT_EQ(lanes.count("size"), 0u);
+  const std::vector<std::string> customs = popops::seedCustomNames(given);
+  ASSERT_EQ(customs.size(), 1u);
+  EXPECT_EQ(customs[0], "top");
+}

@@ -65,6 +65,73 @@ struct Attrs {
 
 namespace popops {
 
+void seedAttrs(
+    const Cloud& cloud,
+    std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes) {
+  const size_t n = cloud.size();
+  const auto lane = [&](const std::string& name, glm::vec4 fill) -> auto& {
+    auto [it, inserted] = lanes.try_emplace(name);
+    if (inserted || it->second.size() != n) it->second.assign(n, fill);
+    return it->second;
+  };
+  std::vector<glm::vec4>& P = lane("P", {0, 0, 0, 0});
+  for (size_t i = 0; i < n; ++i)
+    P[i] = {cloud.positions[i].x, cloud.positions[i].y, cloud.positions[i].z,
+            0};
+  lane("T", {0, 0, 0, 0});
+  lane("Dir", {0, 0, 1, 0});
+  lane("Scale", {1, 1, 1, 1});
+  lane("Color", {1, 1, 1, 1});
+  lane("Tex", {0, 0, 1, 1});
+  for (const auto& [name, values] : cloud.scalars) {
+    if (values.size() != n) continue;
+    const std::string target = name == "t"      ? "T"
+                               : name == "size" ? "Scale"
+                                                : name;
+    std::vector<glm::vec4>& out = lane(target, {0, 0, 0, 0});
+    for (size_t i = 0; i < n; ++i)
+      out[i] = target == "Scale"
+                   ? glm::vec4{values[i], values[i], values[i], values[i]}
+                   : glm::vec4{values[i], 0, 0, 0};
+  }
+  for (const auto& [name, values] : cloud.vectors) {
+    if (values.size() != n) continue;
+    // "dir" is the cook's own export; "normal" is what generators and
+    // importers write. Either seeds Dir, "dir" winning when both exist.
+    const bool isDir =
+        name == "dir" || (name == "normal" && !cloud.vectorIf("dir"));
+    const std::string target = isDir ? "Dir" : name;
+    std::vector<glm::vec4>& out = lane(target, {0, 0, 1, 0});
+    for (size_t i = 0; i < n; ++i)
+      out[i] = {values[i].x, values[i].y, values[i].z, 0};
+  }
+  for (const auto& [name, values] : cloud.colors) {
+    if (values.size() != n) continue;
+    const std::string target = name == "tint" ? "Color" : name;
+    lane(target, {1, 1, 1, 1}) = values;
+  }
+}
+
+std::vector<std::string> seedCustomNames(const Cloud& cloud) {
+  std::vector<std::string> names;
+  const auto note = [&](const std::string& name) {
+    if (pop::builtinIndex(name) >= 0) return;
+    for (const std::string& existing : names)
+      if (existing == name) return;
+    names.push_back(name);
+  };
+  const size_t n = cloud.size();
+  for (const auto& [name, values] : cloud.scalars)
+    if (values.size() == n && name != "t" && name != "size") note(name);
+  for (const auto& [name, values] : cloud.vectors)
+    if (values.size() == n && name != "dir" &&
+        !(name == "normal" && !cloud.vectorIf("dir")))
+      note(name);
+  for (const auto& [name, values] : cloud.colors)
+    if (values.size() == n && name != "tint") note(name);
+  return names;
+}
+
 void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
                  glm::vec3* side) {
   glm::vec3 a = op.axis;
@@ -89,12 +156,16 @@ Cloud cook(const pop::Chain& chain) {
   if (chain.empty()) return out;
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
   const auto* surface = std::get_if<pop::MeshScatter>(&chain.front());
+  const auto* given = std::get_if<pop::PointSet>(&chain.front());
   if (scatter && (scatter->loop.size() < 3 || scatter->count < 1)) return out;
   if (surface && (surface->mesh.indices.empty() || surface->count < 1))
     return out;
-  if (!scatter && !surface) return out;
+  if (given && given->cloud.positions.empty()) return out;
+  if (!scatter && !surface && !given) return out;
 
-  const size_t count = (size_t)(scatter ? scatter->count : surface->count);
+  const size_t count = (size_t)(scatter   ? scatter->count
+                                : surface ? surface->count
+                                          : (int)given->cloud.size());
   Attrs attrs;
   attrs.count = count;
   std::vector<glm::vec4>& laneP = attrs.ensure("P", {0, 0, 0, 0});
@@ -102,6 +173,8 @@ Cloud cook(const pop::Chain& chain) {
   std::vector<glm::vec4>& laneDir = attrs.ensure("Dir", {0, 0, 1, 0});
   attrs.ensure("Scale", {1, 1, 1, 1});
   attrs.ensure("Color", {1, 1, 1, 1});
+
+  if (given) popops::seedAttrs(given->cloud, attrs.lanes);
 
   if (surface) {
     const Cloud seeds =
@@ -173,7 +246,8 @@ Cloud cook(const pop::Chain& chain) {
         [&](const auto& op) {
           using T = std::decay_t<decltype(op)>;
           if constexpr (std::is_same_v<T, pop::SplineScatter> ||
-                        std::is_same_v<T, pop::MeshScatter>) {
+                        std::is_same_v<T, pop::MeshScatter> ||
+                        std::is_same_v<T, pop::PointSet>) {
             // generators only lead a chain; ignore mid-chain
           } else if constexpr (std::is_same_v<T, pop::Promote>) {
             // The PRIMITIVE class: nothing to do on the point sink —

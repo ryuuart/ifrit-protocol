@@ -698,6 +698,10 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
             note(o.to);
             if (!o.factorLane.empty()) note(World::pop::AttrRef{o.factorLane});
           }
+          if constexpr (std::is_same_v<T, World::pop::PointSet>)
+            for (const std::string& name :
+                 shape::popops::seedCustomNames(o.cloud))
+              note(World::pop::AttrRef{name});
           // The mask is a lane read like any other; an unnamed mask
           // (empty) is "everyone" and owns no slot.
           if constexpr (requires { o.mask; })
@@ -1419,10 +1423,10 @@ namespace {
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
 constexpr const char* kPopEntries[] = {
-    "CSSplineScatter", "CSJitter",   "CSNoise",     "CSRamp", "CSVary",
-    "CSLookAt",        "CSMath",     "CSRelax",     "CSSet",  "CSAtlas",
-    "CSLookup",        "CSGroup",    "CSTransform", "CSPeak", "CSDeform",
-    "CSMix",           "CSCopyBack", "CSPopPack",
+    "CSSplineScatter", "CSJitter",   "CSNoise",     "CSRamp",    "CSVary",
+    "CSLookAt",        "CSMath",     "CSRelax",     "CSSet",     "CSAtlas",
+    "CSLookup",        "CSGroup",    "CSTransform", "CSPeak",    "CSDeform",
+    "CSMix",           "CSPointSet", "CSCopyBack",  "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
@@ -1467,6 +1471,8 @@ constexpr size_t kPopOpPso[] = {
     13,            // 16 Peak
     14,            // 17 Deform
     15,            // 18 Mix
+    16,            // 19 PointSet — its lanes are the arena's initial
+                   //             upload; the kernel is empty
 };
 static_assert(
     std::size(kPopOpPso) == std::variant_size_v<World::pop::Op>,
@@ -1899,17 +1905,53 @@ int popChainCount(const World::pop::Chain& chain) {
   if (const auto* scatter =
           std::get_if<World::pop::SplineScatter>(&chain.front()))
     return scatter->loop.size() >= 3 ? scatter->count : 0;
+  if (const auto* given = std::get_if<World::pop::PointSet>(&chain.front()))
+    return (int)given->cloud.size();
   return 0;
 }
 
-dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice* device,
-                                                int count, int slots,
-                                                const char* name) {
+/** The arena's initial contents for a chain led by a PointSet: the
+ *  cloud laid out by shape::popops::seedAttrs into the builtin slots and
+ *  the chain's custom slots, in the same slot order slotFor() reads. */
+std::vector<float> seededLanes(const shape::Cloud& cloud, int count,
+                               const std::vector<std::string>& customNames) {
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
+  shape::popops::seedAttrs(cloud, lanes);
+  const int slots = World::pop::kBuiltinSlots + (int)customNames.size();
+  std::vector<float> data((size_t)count * (size_t)slots * 4, 0.0f);
+  const auto pour = [&](int slot, const std::vector<glm::vec4>& lane) {
+    for (int i = 0; i < count && (size_t)i < lane.size(); ++i) {
+      float* dst = &data[((size_t)slot * (size_t)count + (size_t)i) * 4];
+      dst[0] = lane[(size_t)i].x;
+      dst[1] = lane[(size_t)i].y;
+      dst[2] = lane[(size_t)i].z;
+      dst[3] = lane[(size_t)i].w;
+    }
+  };
+  for (const auto& [name, lane] : lanes) {
+    const int32_t builtin = World::pop::builtinIndex(name);
+    if (builtin >= 0) {
+      pour(builtin, lane);
+      continue;
+    }
+    for (size_t c = 0; c < customNames.size(); ++c)
+      if (customNames[c] == name)
+        pour(World::pop::kBuiltinSlots + (int)c, lane);
+  }
+  return data;
+}
+
+dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(
+    dg::IRenderDevice* device, int count, int slots, const char* name,
+    const std::vector<float>* initial = nullptr) {
   using namespace dg;
   // Zero-filled so custom lanes start at {0,0,0,0}, matching the CPU
   // executor's default for an untouched attribute; the builtin lanes are
-  // initialized by the generator kernel before anything reads them.
-  const std::vector<float> zeros((size_t)count * (size_t)slots * 4, 0.0f);
+  // initialized by the generator kernel before anything reads them — or
+  // uploaded here outright when the chain is led by a point set.
+  const std::vector<float> zeros(
+      initial ? *initial
+              : std::vector<float>((size_t)count * (size_t)slots * 4, 0.0f));
   BufferDesc desc;
   desc.Name = name;
   desc.Usage = USAGE_DEFAULT;
@@ -1962,12 +2004,23 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   PopComponent points;
   points.chain = chain;
   points.count = count;
-  const auto& scatter = std::get<pop::SplineScatter>(chain.front());
-  points.loopCount = (int)scatter.loop.size();
-  points.loop = impl.createLoopBuffer(scatter.loop);
   points.customNames = popCustomNames(chain);
   const int slots = pop::kBuiltinSlots + (int)points.customNames.size();
-  points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  if (const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front())) {
+    points.loopCount = (int)scatter->loop.size();
+    points.loop = impl.createLoopBuffer(scatter->loop);
+    points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  } else {
+    // A point set: no loop to walk (the binding still wants a buffer),
+    // and the arena arrives filled.
+    const auto& given = std::get<pop::PointSet>(chain.front());
+    points.loopCount = 0;
+    points.loop = impl.createLoopBuffer({{0, 0, 0}});
+    const std::vector<float> seeded =
+        seededLanes(given.cloud, count, points.customNames);
+    points.lanes =
+        createLaneBuffer(impl.device, count, slots, "pop lanes", &seeded);
+  }
   points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
   points.tableData = popTable(chain);
   points.table = createTableBuffer(impl.device, points.tableData);
@@ -2096,8 +2149,11 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   // immutable buffer — the same reason the loop-content check below
   // treats moved control points as structural.
   const std::vector<glm::vec4> table = popTable(chain);
+  // A point set's cloud IS the arena's contents: any re-describe of such
+  // a chain re-uploads, so it always takes the structural path.
+  const auto* given = std::get_if<pop::PointSet>(&chain.front());
   const bool sameShape =
-      count == points.count && chain.size() == points.chain.size() &&
+      !given && count == points.count && chain.size() == points.chain.size() &&
       popCustomNames(chain) == points.customNames &&
       table == points.tableData &&
       std::equal(chain.begin(), chain.end(), points.chain.begin(),
@@ -2125,9 +2181,11 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   if (!sameShape) {
     points.count = count;
     points.customNames = popCustomNames(chain);
+    std::vector<float> seeded;
+    if (given) seeded = seededLanes(given->cloud, count, points.customNames);
     points.lanes = createLaneBuffer(
         impl.device, count, pop::kBuiltinSlots + (int)points.customNames.size(),
-        "pop lanes");
+        "pop lanes", given ? &seeded : nullptr);
     points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
     points.tableData = table;
     points.table = createTableBuffer(impl.device, points.tableData);

@@ -313,7 +313,12 @@ nothing rather than silently cooking a chain with an operator missing.
 Everything else runs here: the selectors (`Group`), the deformers
 (`Transform`, `Peak`, `Deform`), `Mix`, and every filter's `mask` —
 a mask lane is just one more slot in the lane arena, and the masked
-blend is the same expression the CPU cook uses.
+blend is the same expression the CPU cook uses. A chain led by a
+`PointSet` runs too: its cloud is uploaded as the arena's initial
+contents (laid out by `popops::seedAttrs`, custom lanes in the chain's
+custom slots), its kernel is empty, `setPointsWindow` has nothing to
+slide, and every `setPoints` on such a chain takes the structural path
+because the cloud *is* the data.
 
 **A `Deform`'s frame is computed once, on the CPU.** `popops::deformFrame`
 normalizes the axis and orthogonalizes the bend direction for both

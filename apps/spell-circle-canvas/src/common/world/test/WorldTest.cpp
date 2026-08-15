@@ -1880,6 +1880,93 @@ TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
   EXPECT_GT(partial, 8) << "the feather must grade";
 }
 
+TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
+  // A chain that starts from an existing cloud — the imported-points
+  // door — cooks on the GPU from an arena uploaded with the cloud's
+  // lanes, custom ones included, and agrees with the CPU cook. A
+  // re-describe with a different cloud re-uploads.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  shape::Cloud given;
+  for (int i = 0; i < 300; ++i)
+    given.positions.push_back({(float)(i % 20) * 12 - 120,
+                               (float)(i / 20) * 12 - 90,
+                               std::sin((float)i * 0.3f) * 30});
+  std::vector<float>& size = given.scalar("size", 1);
+  std::vector<float>& top = given.scalar("top");
+  std::vector<glm::vec3>& normal = given.vector("normal");
+  std::vector<glm::vec4>& heat = given.color("heat");
+  for (int i = 0; i < 300; ++i) {
+    size[(size_t)i] = 1.0f + (float)(i % 4) * 0.5f;
+    top[(size_t)i] = given.positions[(size_t)i].y > 0 ? 1.0f : 0.0f;
+    normal[(size_t)i] = {0, 0, 1};
+    heat[(size_t)i] = {(float)i / 300.0f, 0, 0, 1};
+  }
+  const shape::pop::Chain chain =
+      shape::pop::on(given)
+          .move({0, 25, 0})
+          .masked("top")
+          .peak(8)
+          .rampBy("heat", 0, {{0, 0, 1, 1}, {1, 1, 0, 1}})
+          .vary(0.3f)
+          .masked("top");
+  const uint32_t id =
+      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  shape::Cloud gpu = w->readPoints(id);
+  shape::Cloud cpu = shape::popops::cook(chain);
+  ASSERT_EQ(gpu.size(), 300u);
+  ASSERT_EQ(cpu.size(), 300u);
+  const auto compare = [&](const shape::Cloud& a, const shape::Cloud& b) {
+    const std::vector<float>* aSize = a.scalarIf("size");
+    const std::vector<float>* bSize = b.scalarIf("size");
+    const std::vector<glm::vec4>* aTint = a.colorIf("tint");
+    const std::vector<glm::vec4>* bTint = b.colorIf("tint");
+    const std::vector<glm::vec4>* aTop = a.colorIf("top");
+    const std::vector<glm::vec4>* bTop = b.colorIf("top");
+    ASSERT_TRUE(aSize && bSize && aTint && bTint && aTop && bTop);
+    for (size_t i = 0; i < a.size(); i += 7) {
+      EXPECT_NEAR(a.positions[i].x, b.positions[i].x, 1e-3f) << i;
+      EXPECT_NEAR(a.positions[i].y, b.positions[i].y, 1e-3f) << i;
+      EXPECT_NEAR(a.positions[i].z, b.positions[i].z, 1e-3f) << i;
+      EXPECT_NEAR((*aSize)[i], (*bSize)[i], 1e-4f) << i;
+      EXPECT_NEAR((*aTint)[i].r, (*bTint)[i].r, 1e-4f) << i;
+      EXPECT_NEAR((*aTop)[i].x, (*bTop)[i].x, 1e-5f) << i;
+    }
+  };
+  compare(gpu, cpu);
+  // The mask really came from the cloud: the top half moved up 25 and
+  // was varied, the bottom half kept y and size.
+  int moved = 0;
+  for (size_t i = 0; i < 300; ++i)
+    moved += gpu.positions[i].y > given.positions[i].y + 20;
+  EXPECT_GT(moved, 100);
+  EXPECT_LT(moved, 200);
+
+  // Re-describe with a different cloud (fewer points, another custom
+  // lane): the arena is rebuilt and re-uploaded.
+  shape::Cloud other;
+  for (int i = 0; i < 64; ++i) other.positions.push_back({(float)i * 3, 0, 0});
+  other.scalar("top", 1);
+  other.color("heat", {0.5f, 0, 0, 1});
+  other.scalar("extra", 7);
+  shape::pop::Chain again = chain;
+  again.front() = shape::pop::PointSet{other};
+  w->setPoints(id, again);
+  ASSERT_TRUE(w->render());
+  gpu = w->readPoints(id);
+  cpu = shape::popops::cook(again);
+  ASSERT_EQ(gpu.size(), 64u);
+  compare(gpu, cpu);
+  const std::vector<glm::vec4>* extra = gpu.colorIf("extra");
+  ASSERT_TRUE(extra);
+  EXPECT_FLOAT_EQ((*extra)[3].x, 7.0f);
+}
+
 TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
   // The same boundary, for the same structural reason: a sort permutes
   // the whole point set, which is not a per-point map and so has no

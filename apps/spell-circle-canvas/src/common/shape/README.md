@@ -191,10 +191,12 @@ The rest build on those:
 
 ### The operators
 
-`pop::Op` is a variant over nineteen operator values, and `pop::Chain` is
+`pop::Op` is a variant over twenty operator values, and `pop::Chain` is
 a vector of them. Generators seed a chain: `SplineScatter` (points along a
-window of a closed loop) and `MeshScatter` (points on a formed model's
-faces). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
+window of a closed loop), `MeshScatter` (points on a formed model's
+faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
+previous cook — every lane riding in as an attribute, so a Houdini group
+arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
 `Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Transform`
 (any `mat4` on a position or a direction lane), `Peak` (push along a
 direction lane), `Deform` (twist, taper or bend about an axis) and `Mix`
@@ -217,7 +219,8 @@ way to write such a lane; a `Lookup`, a `Math` on a custom lane, or an
 importer's attribute serve just as well. Both executors apply the mask
 with the same expression.
 
-`pop::on()` returns a `Builder` whose chained verbs (`count`, `window`,
+`pop::on()` — over a loop, a `Mesh`, a `Chain` or a `Cloud` — returns a
+`Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
 `move`, `set`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
 `select`, `masked`, `transform`, `orient`, `peak`, `twist`, `taper`,
@@ -303,6 +306,14 @@ is silently, plausibly wrong rather than obviously broken.
   should follow the bend. Points outside the band `[low, high]` ride the
   arc's end tangents rigidly, so the geometry past the band keeps its
   shape rather than being stretched.
+- **A `PointSet` lays its cloud out by name, and the layout is shared.**
+  `popops::seedAttrs()` is the one function that maps a cloud onto the
+  attribute store — positions to `P`, `"t"`/`"size"`/`"tint"` to
+  `T`/`Scale`/`Color`, `"dir"` (or, failing that, `"normal"`) to `Dir`,
+  `"Tex"` to `Tex`, everything else under its own name — and the GPU
+  executor uploads exactly what it produces. `count()`, `window()`,
+  `spread()` and `seed()` are inert on a point-set-led chain: the cloud
+  is the count.
 - **`Group` sizes are radii per axis in both shapes.** A box of `size`
   `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
   an ellipsoid. `feather` is a fraction of that extent, not a distance.

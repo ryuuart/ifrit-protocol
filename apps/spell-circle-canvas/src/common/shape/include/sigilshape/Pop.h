@@ -12,6 +12,7 @@
  */
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <variant>
 #include <vector>
@@ -299,11 +300,24 @@ struct pop {
     std::string factorLane;
     std::string mask;
   };
+  /** Generator: seed the chain from an EXISTING point set — an imported
+   *  .geo or PLY poured through asCloud(), a cooked Cloud, anything with
+   *  positions — every lane riding along as an attribute. The
+   *  conventional lanes land on the builtins: positions → P, "t" → T,
+   *  "dir" (or "normal") → Dir, "size" → Scale, "tint" → Color, "Tex"
+   *  → Tex; every other lane becomes a custom attribute of the same
+   *  name (scalars in .x, vectors with w = 0, colours as they are). A
+   *  Houdini group therefore arrives as a mask lane under its own name.
+   *  The count is the cloud's; the cloud is the data, so re-describing
+   *  with a different cloud re-uploads it on the GPU executor. */
+  struct PointSet {
+    Cloud cloud;
+  };
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */
   using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt,
                           Math, Relax, MeshScatter, Set, Atlas, Promote, Lookup,
-                          Sort, Group, Transform, Peak, Deform, Mix>;
+                          Sort, Group, Transform, Peak, Deform, Mix, PointSet>;
   using Chain = std::vector<Op>;
 
   /** The artist's spelling — TouchDesigner ergonomics over the same
@@ -331,6 +345,8 @@ struct pop {
     explicit Builder(MeshScatter scatter) {
       m_chain.push_back(std::move(scatter));
     }
+    explicit Builder(PointSet given) { m_chain.push_back(std::move(given)); }
+    /** Loop and surface entries only: a point set's count is its own. */
     Builder& count(int n) {
       if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
         s->count = n;
@@ -594,9 +610,23 @@ struct pop {
     scatter.count = count;
     return Builder(std::move(scatter));
   }
+  /** The given entry: an existing point set, lanes and all. */
+  static Builder on(Cloud given) { return Builder(PointSet{std::move(given)}); }
 };
 
 namespace popops {
+
+/** How a PointSet's cloud lays out as attributes: the conventional
+ *  lanes onto the builtins, everything else under its own name — one
+ *  function, so the CPU cook and the GPU executor's initial upload
+ *  agree lane for lane. @p lanes gains or overwrites the seeded names,
+ *  every lane sized to the cloud. */
+void seedAttrs(
+    const Cloud& cloud,
+    std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes);
+/** The custom attribute names seedAttrs would create for @p cloud (the
+ *  lanes that are not builtins), in a stable order. */
+std::vector<std::string> seedCustomNames(const Cloud& cloud);
 
 /** The frame a Deform runs in: its axis normalized, its bend direction
  *  made perpendicular to that axis and normalized (a direction parallel

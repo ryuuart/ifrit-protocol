@@ -395,6 +395,16 @@ void CSMix(uint3 id: SV_DispatchThreadID)
     storeMasked(int(PopParams.d.y), id.x, a + (b - a) * f);
 }
 
+// The point-set generator has no arithmetic: its lanes are uploaded as
+// the arena's initial contents (shape::popops::seedAttrs decides the
+// layout). The kernel exists so the generator has a row like every
+// other operator and the dispatch loop stays uniform.
+[shader("compute")]
+[numthreads(64, 1, 1)]
+void CSPointSet(uint3 id: SV_DispatchThreadID)
+{
+}
+
 [shader("compute")]
 [numthreads(64, 1, 1)]
 void CSCopyBack(uint3 id: SV_DispatchThreadID)
