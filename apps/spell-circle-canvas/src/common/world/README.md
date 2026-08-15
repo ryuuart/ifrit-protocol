@@ -389,8 +389,10 @@ count-changing operators.
 
 ## Build and test
 
-Targets are `SigilWorld`, `world_test` (registered with ctest), and
-`world_demo`. From `apps/spell-circle-canvas`:
+Targets are `SigilWorld`, `world_test` (registered with ctest),
+`world_demo`, and `world_bench` (Google Benchmark: GPU cooks per frame by
+count and operator mix, `readPoints`, and a point-set re-upload; skips
+without a Vulkan runtime — run it from a Release build). From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug

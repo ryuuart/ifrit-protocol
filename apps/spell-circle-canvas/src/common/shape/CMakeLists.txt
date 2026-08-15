@@ -84,3 +84,9 @@ add_executable(shape_demo
 target_link_libraries(shape_demo PRIVATE SigilShape SigilLoader
   SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
+
+# The CPU pop executor and the .geo reader under load (Google Benchmark;
+# use a Release build):
+#   ./build/bin/Release/shape_bench
+add_executable(shape_bench bench/ShapeBench.cpp)
+target_link_libraries(shape_bench PRIVATE SigilShape benchmark::benchmark)

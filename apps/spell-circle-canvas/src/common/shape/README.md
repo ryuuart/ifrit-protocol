@@ -382,7 +382,9 @@ cmake --build build --config Debug
 ```
 
 Targets: `SigilShape` (static library), `shape_test` (registered with
-ctest), and `shape_demo`.
+ctest), `shape_demo`, and `shape_bench` (Google Benchmark: the pop cook by
+count and operator mix, the stamping sink, and the `.geo` reader — run
+it from a Release build).
 
 ```sh
 ctest --test-dir build -C Debug -R shape_test --output-on-failure

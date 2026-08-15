@@ -90,6 +90,12 @@ if(SPELLCIRCLE_ENABLE_SUBSTANCE)
     SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS="${SUBSTANCE_SDK_DIR}/assets")
 endif()
 
+# The GPU pop executor under load (Google Benchmark; needs a Vulkan
+# runtime, skips without one; use a Release build):
+#   ./build/bin/Release/world_bench
+add_executable(world_bench bench/WorldBench.cpp)
+target_link_libraries(world_bench PRIVATE SigilWorld benchmark::benchmark)
+
 # --- Slang kernels ---------------------------------------------------------
 # The pop kernel is authored ONCE in Slang (shaders/pop.slang over the
 # shaders/sigilspline.slang module), compiled to SPIRV at build time by

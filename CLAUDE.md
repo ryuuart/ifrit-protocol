@@ -46,7 +46,8 @@ reader who has never opened any other document.
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
 - **No performance measurements.** Benchmarks own numbers — `compose_bench`,
-  `weave_bench`, `scry_bench`, and the plate ledger. A behavioral constant
+  `weave_bench`, `scry_bench`, `shape_bench`, `world_bench`, and the plate
+  ledger. A behavioral constant
   is different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
