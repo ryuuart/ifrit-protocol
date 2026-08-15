@@ -118,3 +118,53 @@ TEST(Substance, RejectsGarbage) {
   EXPECT_FALSE(substance::Package::load(
       std::filesystem::path("/nonexistent/x.sbsar"), &error));
 }
+
+TEST(Substance, GraphsComposeThroughImageInputs) {
+  // The SDK's second sample is a FILTER: it takes a diffuse and a
+  // height image and returns a lit diffuse. Feed it the leaves graph's
+  // own outputs — one package's render is another's input — and the
+  // result differs from the filter run on nothing.
+  std::string error;
+  std::unique_ptr<substance::Package> leaves =
+      substance::Package::load(sampleArchive(), &error);
+  ASSERT_TRUE(leaves) << error;
+  substance::Graph& source = leaves->graph(0);
+  ASSERT_TRUE(source.setResolution(7, 7));
+  ASSERT_TRUE(source.render());
+  sk_sp<SkImage> diffuse = source.output("diffuse");
+  sk_sp<SkImage> height = source.output("height");
+  ASSERT_TRUE(diffuse && height);
+
+  const std::filesystem::path filterArchive =
+      std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
+      "Post_Illumination.sbsar";
+  std::unique_ptr<substance::Package> filter =
+      substance::Package::load(filterArchive, &error);
+  ASSERT_TRUE(filter) << error;
+  substance::Graph& post = filter->graph(0);
+  std::vector<std::string> imageInputs;
+  for (const substance::Parameter& p : post.parameters())
+    if (p.kind == substance::Parameter::Kind::Image)
+      imageInputs.push_back(p.identifier);
+  ASSERT_GE(imageInputs.size(), 2u) << "the filter takes two images";
+  ASSERT_TRUE(post.setResolution(7, 7));
+  ASSERT_TRUE(post.render());
+  sk_sp<SkImage> empty = post.output("diffuse");
+  ASSERT_TRUE(empty);
+
+  ASSERT_TRUE(post.setImage(imageInputs[0], diffuse));
+  ASSERT_TRUE(post.setImage(imageInputs[1], height));
+  ASSERT_TRUE(post.render());
+  sk_sp<SkImage> lit = post.output("diffuse");
+  ASSERT_TRUE(lit);
+  EXPECT_EQ(lit->width(), 128);
+  // Different pixels somewhere: the inputs reached the graph.
+  int differing = 0;
+  for (int y = 8; y < 128; y += 24)
+    for (int x = 8; x < 128; x += 24)
+      differing += pixel(lit, x, y) != pixel(empty, x, y);
+  EXPECT_GT(differing, 3);
+  // A non-image parameter refuses an image; a null image resets.
+  EXPECT_FALSE(post.setImage("SpecularIntensity", diffuse));
+  EXPECT_TRUE(post.setImage(imageInputs[0], nullptr));
+}
