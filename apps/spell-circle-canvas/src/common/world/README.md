@@ -471,7 +471,11 @@ rasterization path works normally. What is unavailable in that build is
 the compute generators: `placeSweep`, `placeChain` and
 `placeChainOn` return 0.
 
-Deliberately absent: a clock or timeline of its own; any dependency on
+Deliberately absent: any EXPORT of materials — no bake of a layered
+material to a texture set, no writing of maps or scene files; this
+library imports and renders, and the shader is the material language's
+one executor (unlike `pop`, whose CPU reference the Skia painter needs);
+a clock or timeline of its own; any dependency on
 SigilCompose or SigilWeave (both are test and demo links only); text
 layout; windowing and swapchains; an image decoder (`textures::material`
 takes a decode callback, `sigilworld/TextureSet.h` classifies names and
