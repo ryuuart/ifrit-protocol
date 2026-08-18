@@ -300,4 +300,18 @@ Material material(const shape::import::Part& part, const BytesDecoder& decode,
   return out;
 }
 
+std::vector<Material> materials(const shape::import::Model& model,
+                                const BytesDecoder& decode, Material base) {
+  std::vector<Material> slots((size_t)model.materialSlotCount(), base);
+  std::vector<bool> filled(slots.size(), false);
+  for (const shape::import::Part& part : model.parts) {
+    if (part.materialIndex < 0 || (size_t)part.materialIndex >= slots.size() ||
+        filled[(size_t)part.materialIndex])
+      continue;
+    slots[(size_t)part.materialIndex] = material(part, decode, base);
+    filled[(size_t)part.materialIndex] = true;
+  }
+  return slots;
+}
+
 }  // namespace sigil::world::textures

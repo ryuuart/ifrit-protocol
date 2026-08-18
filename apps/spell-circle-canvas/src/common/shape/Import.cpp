@@ -383,13 +383,19 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
       if (material.alpha_mode == cgltf_alpha_mode_mask)
         part.alphaCutoff = material.alpha_cutoff;
       if (part.opaque) part.baseColor.a = 1;  // OPAQUE ignores base alpha
+      part.materialIndex = (int)(primitive.material - data.materials);
     }
 
     finishPart(part, normal && normal->count == count);
     part.mesh.transform(world);
+    // The material slot every triangle of this part wears, on the
+    // primitive class, so a merged model keeps per-face materials.
+    if (part.materialIndex >= 0)
+      part.mesh.prim("Material", {0, 0, 0, 0})
+          .assign(part.mesh.triangleCount(),
+                  {(float)part.materialIndex, 0, 0, 0});
     if (!part.mesh.indices.empty()) out.parts.push_back(std::move(part));
   }
-  (void)data;
 }
 
 std::optional<Model> importGltf(const void* bytes, size_t size,
@@ -1298,7 +1304,13 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
       }
     };
     for (const GeoAttribute& a : primAttrs) {
-      if (a.isString) continue;
+      if (a.isString) {
+        // Houdini's material assignment is a string per primitive; the
+        // string table's index is the material slot, and the table's
+        // order is the slot order.
+        if (a.name == "shop_materialpath") primLane("Material", a);
+        continue;
+      }
       primLane(a.name == "Cd" ? "Color" : a.name, a);
     }
     if (const Json* groups = root.get("primitivegroups"))
@@ -2127,6 +2139,13 @@ Cloud Part::asCloud() const {
   for (const auto& [name, lane] : colorLanes)
     if (lane.size() == n) out.colors[name] = lane;
   return out;
+}
+
+int Model::materialSlotCount() const {
+  int slots = 0;
+  for (const Part& part : parts)
+    slots = std::max(slots, part.materialIndex + 1);
+  return slots;
 }
 
 Cloud Model::mergedCloud() const {

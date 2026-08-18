@@ -40,7 +40,13 @@ struct TransformComponent {
 };
 
 struct MaterialComponent {
+  /** What the prop is made of — slot 0. */
   Material material;
+  /** Further material slots, when the prop was placed with several: slot
+   *  i is `slots[i - 1]`, and the mesh's "Material" prim lane says which
+   *  slot each triangle wears. Empty for a single-material prop. Every
+   *  slot is as live as `material`. */
+  std::vector<Material> slots;
 };
 
 /** render() gathers at most this many LightComponent entities per

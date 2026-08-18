@@ -582,10 +582,20 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   weathered = weathered.over(moss, world::Mask::slope({0, 1, 0}, 0.55f, 0.9f));
   w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
            shape::space::place({-470, -10, 200}, 20), weathered);
+  // The torus wears TWO material slots: its "Material" prim lane
+  // alternates around the ring, so every other segment is the plate and
+  // the rest a plain dark rubber — one prop, one transform, per-face
+  // materials.
   world::Material band = plate;
   band.uvScale = {6, 1.5f};
-  w->place(shape::mesh::torus(150, 60, 96, 48),
-           shape::space::place({420, 20, 0}, 0, -20), band);
+  world::Material rubber2;
+  rubber2.baseColor = {0.09f, 0.09f, 0.1f, 1};
+  rubber2.roughness = 0.85f;
+  shape::Mesh torus = shape::mesh::torus(150, 60, 96, 48);
+  std::vector<glm::vec4>& slotLane = torus.prim("Material", {0, 0, 0, 0});
+  for (size_t t = 0; t < slotLane.size(); ++t)
+    slotLane[t] = {(float)((t / (48 * 2 * 8)) % 2), 0, 0, 0};
+  w->place(torus, shape::space::place({420, 20, 0}, 0, -20), {band, rubber2});
 
 #ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
   // 2. A Substance archive rendered here and now: the SDK's own sample,
@@ -705,7 +715,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     frosted.ior = 1.45f;
     frosted.thickness = 12;
     w->place(shape::mesh::quad(300, 210),
-             shape::space::place({420, 40, 250}, -24), frosted);
+             shape::space::place({120, 300, -260}, -12), frosted);
 
     // Fluted (reeded) glass: refraction goes through the shaded normal,
     // so a normal map of vertical half-cylinders ribbons whatever is
@@ -757,13 +767,15 @@ void renderMaterialLab(const std::filesystem::path& outDir,
           bytes.data(), bytes.size(), {}, std::filesystem::path(hint));
       return asset ? asset->frameAt(0).image : nullptr;
     };
+    // Merged into one mesh, placed with the file's material slots — the
+    // per-triangle "Material" lane picks each triangle's.
     const glm::mat4 fit = avocado->fitTransform(260);
-    for (const shape::import::Part& part : avocado->parts) {
-      world::Material m = world::textures::material(part, decodeBytes);
-      w->place(part.mesh, shape::space::place({420, -60, 320}, 30) * fit, m);
-    }
-    std::printf("avocado: %zu parts with their glTF material\n",
-                avocado->parts.size());
+    const std::vector<world::Material> slots =
+        world::textures::materials(*avocado, decodeBytes);
+    w->place(avocado->merged(), shape::space::place({420, -60, 320}, 30) * fit,
+             slots);
+    std::printf("avocado: %zu parts, %zu material slots\n",
+                avocado->parts.size(), slots.size());
   }
 
   // 4. Scalar reference materials on the back row.

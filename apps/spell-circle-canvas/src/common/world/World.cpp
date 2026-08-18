@@ -835,10 +835,53 @@ std::vector<std::string> materialTextureNames() {
 struct GpuGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
-  MaterialBinding bound;
+  /** One index range per material slot, in slot order: range 0 wears
+   *  MaterialComponent::material, range i its slots[i - 1]. A mesh with
+   *  no "Material" prim lane is one range. The index buffer is uploaded
+   *  in this order, triangles grouped by slot. */
+  struct Range {
+    uint32_t first = 0;
+    uint32_t count = 0;
+    dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+    MaterialBinding bound;
+  };
+  std::vector<Range> ranges;
   uint32_t indexCount = 0;
 };
+
+/** The mesh's triangles grouped by material slot: @p order receives the
+ *  index buffer contents (triangles reordered so each slot's are
+ *  contiguous) and the returned ranges say where each slot's begin. The
+ *  slot of a triangle is the .x of the mesh's "Material" prim lane,
+ *  clamped into [0, slotCount); without that lane, or with one slot,
+ *  everything is slot 0. */
+std::vector<std::pair<uint32_t, uint32_t>> groupBySlot(
+    const shape::Mesh& mesh, int slotCount, std::vector<uint32_t>& order) {
+  const std::vector<glm::vec4>* lane = mesh.primIf("Material");
+  const size_t tris = mesh.triangleCount();
+  slotCount = std::max(slotCount, 1);
+  if (!lane || lane->size() != tris || slotCount == 1) {
+    order = mesh.indices;
+    return {{0u, (uint32_t)mesh.indices.size()}};
+  }
+  std::vector<std::vector<uint32_t>> buckets((size_t)slotCount);
+  for (size_t t = 0; t < tris; ++t) {
+    int slot = (int)std::floor((*lane)[t].x + 0.5f);
+    slot = std::clamp(slot, 0, slotCount - 1);
+    buckets[(size_t)slot].push_back((uint32_t)t);
+  }
+  order.clear();
+  order.reserve(mesh.indices.size());
+  std::vector<std::pair<uint32_t, uint32_t>> ranges;
+  for (const std::vector<uint32_t>& bucket : buckets) {
+    const uint32_t first = (uint32_t)order.size();
+    for (uint32_t t : bucket)
+      for (int k = 0; k < 3; ++k)
+        order.push_back(mesh.indices[t * 3 + (size_t)k]);
+    ranges.emplace_back(first, (uint32_t)order.size() - first);
+  }
+  return ranges;
+}
 
 /** The instanced sibling: one stamp's buffers plus the per-instance
  *  stream (placeStamps). instanceBuffer is null while the stamps are
@@ -1920,24 +1963,44 @@ std::unique_ptr<World> World::create(const WorldConfig& config,
 
 uint32_t World::place(const shape::Mesh& mesh, const glm::mat4& model,
                       const Material& material) {
+  return place(mesh, model, std::vector<Material>{material});
+}
+
+uint32_t World::place(const shape::Mesh& mesh, const glm::mat4& model,
+                      const std::vector<Material>& slots) {
   using namespace dg;
   Impl& impl = *m_impl;
-  if (mesh.positions.empty() || mesh.indices.empty()) return 0;
+  if (mesh.positions.empty() || mesh.indices.empty() || slots.empty()) return 0;
+
+  // Triangles grouped by slot; the index buffer holds them in that
+  // order and each range draws with its slot's material.
+  std::vector<uint32_t> order;
+  const std::vector<std::pair<uint32_t, uint32_t>> ranges =
+      groupBySlot(mesh, (int)slots.size(), order);
+  shape::Mesh grouped = mesh;
+  grouped.indices = std::move(order);
 
   GpuGeometry geometry;
-  geometry.indexCount = (uint32_t)mesh.indices.size();
-  if (!impl.createMeshBuffers(mesh, geometry.vertexBuffer,
+  geometry.indexCount = (uint32_t)grouped.indices.size();
+  if (!impl.createMeshBuffers(grouped, geometry.vertexBuffer,
                               geometry.indexBuffer))
     return 0;
+  for (size_t i = 0; i < ranges.size(); ++i) {
+    GpuGeometry::Range range;
+    range.first = ranges[i].first;
+    range.count = ranges[i].second;
+    if (!impl.bindMaterial(impl.opaquePso, slots[i], range.srb, range.bound))
+      return 0;
+    geometry.ranges.push_back(std::move(range));
+  }
 
-  if (!impl.bindMaterial(impl.opaquePso, material, geometry.srb,
-                         geometry.bound))
-    return 0;
-
+  MaterialComponent component;
+  component.material = slots.front();
+  component.slots.assign(slots.begin() + 1, slots.end());
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
   impl.registry.emplace<TransformComponent>(id, model);
-  impl.registry.emplace<MaterialComponent>(id, material);
+  impl.registry.emplace<MaterialComponent>(id, std::move(component));
   return (uint32_t)id;
 }
 
@@ -2007,8 +2070,18 @@ void World::setMesh(uint32_t id, const shape::Mesh& mesh) {
   if (!impl.registry.valid(e) || !impl.registry.all_of<GpuGeometry>(e)) return;
   if (mesh.positions.empty() || mesh.indices.empty()) return;
   GpuGeometry& geometry = impl.registry.get<GpuGeometry>(e);
+  // The new mesh's triangles grouped by the slots the prop already
+  // wears; a slot count that stays put keeps its bindings.
+  const int slotCount = (int)geometry.ranges.size();
+  std::vector<uint32_t> order;
+  const std::vector<std::pair<uint32_t, uint32_t>> ranges =
+      groupBySlot(mesh, slotCount, order);
+  for (size_t i = 0; i < ranges.size() && i < geometry.ranges.size(); ++i) {
+    geometry.ranges[i].first = ranges[i].first;
+    geometry.ranges[i].count = ranges[i].second;
+  }
   const Uint64 vertexBytes = (Uint64)(mesh.positions.size() * sizeof(Vertex));
-  const Uint64 indexBytes = (Uint64)(mesh.indices.size() * sizeof(uint32_t));
+  const Uint64 indexBytes = (Uint64)(order.size() * sizeof(uint32_t));
   if (geometry.vertexBuffer && geometry.indexBuffer &&
       geometry.vertexBuffer->GetDesc().Size == vertexBytes &&
       geometry.indexBuffer->GetDesc().Size == indexBytes) {
@@ -2017,14 +2090,16 @@ void World::setMesh(uint32_t id, const shape::Mesh& mesh) {
                                vertices.data(),
                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     impl.context->UpdateBuffer(geometry.indexBuffer, 0, indexBytes,
-                               mesh.indices.data(),
+                               order.data(),
                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     return;
   }
-  geometry.indexCount = (uint32_t)mesh.indices.size();
+  shape::Mesh grouped = mesh;
+  grouped.indices = std::move(order);
+  geometry.indexCount = (uint32_t)grouped.indices.size();
   geometry.vertexBuffer.Release();
   geometry.indexBuffer.Release();
-  impl.createMeshBuffers(mesh, geometry.vertexBuffer, geometry.indexBuffer);
+  impl.createMeshBuffers(grouped, geometry.vertexBuffer, geometry.indexBuffer);
 }
 
 uint32_t World::placeSweep(const SweepDesc& desc, const Material& material) {
@@ -2081,9 +2156,12 @@ uint32_t World::placeSweep(const SweepDesc& desc, const Material& material) {
     var->Set(
         geometry.vertexBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
-  if (!impl.bindMaterial(impl.opaquePso, material, geometry.srb,
-                         geometry.bound))
+  GpuGeometry::Range whole;
+  whole.first = 0;
+  whole.count = geometry.indexCount;
+  if (!impl.bindMaterial(impl.opaquePso, material, whole.srb, whole.bound))
     return 0;
+  geometry.ranges.push_back(std::move(whole));
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
@@ -2903,16 +2981,25 @@ bool World::render() {
     GpuInstancedGeometry* instanced = nullptr;
     const glm::mat4* model = nullptr;
     const Material* material = nullptr;
+    size_t range = 0;  ///< which slot's index range, for GpuGeometry
   };
   std::vector<DrawItem> opaque, blended;
   for (auto [e, geometry, transform, material] :
        impl.registry.view<GpuGeometry, TransformComponent, MaterialComponent>()
            .each()) {
-    DrawItem item;
-    item.geometry = &geometry;
-    item.model = &transform.model;
-    item.material = &material.material;
-    (material.material.blended() ? blended : opaque).push_back(item);
+    // One item per slot range, each routed by its own material.
+    for (size_t r = 0; r < geometry.ranges.size(); ++r) {
+      if (geometry.ranges[r].count == 0) continue;
+      DrawItem item;
+      item.geometry = &geometry;
+      item.model = &transform.model;
+      item.material =
+          r == 0 ? &material.material
+                 : (r - 1 < material.slots.size() ? &material.slots[r - 1]
+                                                  : &material.material);
+      item.range = r;
+      (item.material->blended() ? blended : opaque).push_back(item);
+    }
   }
   for (auto [e, geometry, transform, material] :
        impl.registry
@@ -2957,9 +3044,10 @@ bool World::render() {
       if (item.instanced && !(item.instanced->bound == want))
         impl.bindMaterial(impl.opaqueInstancedPso, *item.material,
                           item.instanced->srb, item.instanced->bound);
-      if (item.geometry && !(item.geometry->bound == want))
-        impl.bindMaterial(impl.opaquePso, *item.material, item.geometry->srb,
-                          item.geometry->bound);
+      if (item.geometry && !(item.geometry->ranges[item.range].bound == want))
+        impl.bindMaterial(impl.opaquePso, *item.material,
+                          item.geometry->ranges[item.range].srb,
+                          item.geometry->ranges[item.range].bound);
       DrawIndexedAttribs attribs;
       attribs.IndexType = VT_UINT32;
       attribs.Flags = DRAW_FLAG_VERIFY_ALL;
@@ -2978,8 +3066,9 @@ bool World::render() {
         attribs.NumInstances = geometry.instanceCount;
       } else {
         const GpuGeometry& geometry = *item.geometry;
+        const GpuGeometry::Range& range = geometry.ranges[item.range];
         impl.context->CommitShaderResources(
-            geometry.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            range.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         IBuffer* vb = geometry.vertexBuffer;
         const Uint64 offset = 0;
         impl.context->SetVertexBuffers(
@@ -2987,7 +3076,8 @@ bool World::render() {
             SET_VERTEX_BUFFERS_FLAG_RESET);
         impl.context->SetIndexBuffer(geometry.indexBuffer, 0,
                                      RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        attribs.NumIndices = geometry.indexCount;
+        attribs.FirstIndexLocation = range.first;
+        attribs.NumIndices = range.count;
       }
       impl.context->DrawIndexed(attribs);
     }

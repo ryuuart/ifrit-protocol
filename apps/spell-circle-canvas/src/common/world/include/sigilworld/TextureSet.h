@@ -128,4 +128,12 @@ using BytesDecoder = std::function<sk_sp<SkImage>(
 Material material(const shape::import::Part& part, const BytesDecoder& decode,
                   Material base = {});
 
+/** The model's material SLOTS: one Material per index the parts name
+ *  (`Part::materialIndex`), built from the first part wearing each, a
+ *  default for any index no part wears — the list `World::place(mesh,
+ *  model, slots)` takes beside `Model::merged()`. Empty when no part
+ *  names a material. */
+std::vector<Material> materials(const shape::import::Model& model,
+                                const BytesDecoder& decode, Material base = {});
+
 }  // namespace sigil::world::textures

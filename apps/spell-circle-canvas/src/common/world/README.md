@@ -131,6 +131,16 @@ is its **material**; where a mask over it says is a **mask** — the same
 word `pop` uses. "Surface" is deliberately not an API word here: in
 shading it means the material side, so it is left to prose.
 
+**A prop can wear several materials, by face.** `place(mesh, model,
+slots)` takes a `std::vector<Material>`; the mesh's `"Material"` prim
+lane (its `.x` per triangle) says which slot each triangle wears — glTF
+material indices and Houdini's `shop_materialpath` both arrive on that
+lane through import, and `textures::materials(model, decode)` builds
+the slot list a `Model::merged()` mesh expects. One entity, one
+transform, one draw per slot; slot 0 is `MaterialComponent::material`,
+the rest `MaterialComponent::slots`, all as live as each other. A mesh
+without the lane, or placed with one material, wears slot 0 throughout.
+
 **A prop id is an entity.** `place()` returns a `uint32_t` that
 `world::entity(id)` casts to an `entt::entity`, and `registry()` hands
 out the registry itself. Attach your own components to a prop, run
@@ -207,7 +217,7 @@ what makes a headless frame sequence reproducible.
 | Header | What it is for |
 | --- | --- |
 | `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `StampLanes`. Device bring-up, every `place*` door, camera and lighting setters, `render`/`readback`/`savePng`. |
-| `sigilworld/Components.h` | The registry face: `TransformComponent`, `MaterialComponent`, `LightComponent`, `CameraComponent`, the `kLightBudget` constant, and `entity(id)`. |
+| `sigilworld/Components.h` | The registry face: `TransformComponent`, `MaterialComponent` (`material` and further `slots`), `LightComponent`, `CameraComponent`, the `kLightBudget` constant, and `entity(id)`. |
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
@@ -510,7 +520,8 @@ It writes a set of camera shots as PNGs — a material lab, twice
 `world_materials_dark.png` with no panorama, no sun and a faint ambient,
 where the emissive props are the light: the fetched Poly Haven texture set on a floor,
 a layered sphere (steel, rust in its grooves by its own occlusion map,
-moss on its upward faces by slope) and a torus, a dark sphere lit only
+moss on its upward faces by slope), a torus wearing two material slots
+by face, a dark sphere lit only
 by its emissive map (a
 drawn circuit, tinted by the emissive colour), a clear glass sphere, a
 frosted pane and a fluted edge-lit pane, the fetched Avocado

@@ -96,6 +96,13 @@ struct Part {
   float ior = 1.5f;
   float alphaCutoff = 0;
   bool opaque = true;
+  /** The file's material SLOT this part wears (glTF: the material's
+   *  index in the file; -1 when the part names none). The same number
+   *  is written across the part's `mesh.prims["Material"]` lane, so a
+   *  merged model keeps per-triangle slots. Houdini's `.geo` writes the
+   *  lane from `shop_materialpath` (its string table's index) and
+   *  leaves this -1. */
+  int materialIndex = -1;
 
   /** Custom per-vertex attributes — the Houdini/Blender lanes glTF
    *  spells as _NAME accessors and PLY as extra properties. Names
@@ -150,6 +157,11 @@ struct Model {
   /** Every part's asCloud() appended into one Cloud (shared lanes
    *  concatenate, missing ones pad with defaults). */
   Cloud mergedCloud() const;
+
+  /** How many material slots the parts name: max `materialIndex` + 1
+   *  (0 when none does). `merged()` keeps the "Material" lane, so a
+   *  merged mesh placed with that many slots wears them per face. */
+  int materialSlotCount() const;
 };
 
 /** Alembic import knobs — which moment of the cache to bake. */

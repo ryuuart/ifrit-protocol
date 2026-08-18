@@ -344,7 +344,11 @@ is silently, plausibly wrong rather than obviously broken.
   (`"orm"`), occlusion and emissive images by usage word, beside the
   `metallic`/`roughness`/`emissive` factors, the transmission and ior
   extensions and the alpha mode — words SigilWorld's texture-set door
-  reads directly. Likewise, `import::model()` never touches the filesystem for
+  reads directly. A part's material SLOT (`materialIndex`, glTF's material
+  index; a `.geo`'s `shop_materialpath` string index) is also written
+  across its `mesh.prims["Material"]` lane, so `Model::merged()` keeps
+  per-triangle materials and `materialSlotCount()` says how many.
+  Likewise, `import::model()` never touches the filesystem for
   external references unless you gave it a `Resolver` or used the path
   overload.
 - **Alembic support is Ogawa-only and nearest-sample.**

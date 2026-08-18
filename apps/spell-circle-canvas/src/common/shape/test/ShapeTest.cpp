@@ -3429,3 +3429,49 @@ TEST(Pop, FieldsAreAddressableByName) {
   pop::Op given = pop::PointSet{};
   EXPECT_FALSE(popops::getField(given, "count"));
 }
+
+TEST(Import, MaterialSlotsRideThePrimitiveClass) {
+  // A .geo with a string shop_materialpath per primitive lands as the
+  // "Material" prim lane by string-table index; the fetched Avocado (one
+  // material) names slot 0 and merged() keeps the lane.
+  const char* geo = R"([
+    "fileversion","20.5.278","pointcount",4,"vertexcount",6,"primitivecount",2,
+    "topology",["pointref",["indices",[0,1,2,0,2,3]]],
+    "attributes",["pointattributes",[
+      [["scope","public","type","numeric","name","P","options",{}],
+       ["size",3,"storage","fpreal32","values",["size",3,"storage","fpreal32",
+        "tuples",[[0,0,0],[1,0,0],[1,1,0],[0,1,0]]]]]],
+     "primitiveattributes",[
+      [["scope","public","type","string","name","shop_materialpath","options",{}],
+       ["size",1,"storage","int32","strings",["/mat/steel","/mat/glass"],
+        "indices",["size",1,"storage","int32","arrays",[[1,0]]]]]]],
+    "primitives",[[["type","Polygon"],["vertex",[0,1,2],"closed",true]],
+                  [["type","Polygon"],["vertex",[3,4,5],"closed",true]]]
+  ])";
+  const std::optional<import::Model> model =
+      import::model(geo, std::strlen(geo), "slots.geo");
+  ASSERT_TRUE(model);
+  const std::vector<glm::vec4>* lane =
+      model->parts.front().mesh.primIf("Material");
+  ASSERT_TRUE(lane);
+  ASSERT_EQ(lane->size(), 2u);
+  EXPECT_FLOAT_EQ((*lane)[0].x, 1.0f);  // "/mat/glass"
+  EXPECT_FLOAT_EQ((*lane)[1].x, 0.0f);  // "/mat/steel"
+
+  std::filesystem::path found;
+  for (const std::filesystem::path candidate :
+       {std::filesystem::path("assets/models/Avocado.glb"),
+        std::filesystem::path("build/assets/models/Avocado.glb"),
+        std::filesystem::path("../build/assets/models/Avocado.glb"),
+        std::filesystem::path("../../build/assets/models/Avocado.glb")})
+    if (std::filesystem::exists(candidate)) found = candidate;
+  if (found.empty()) return;  // the .geo half already stands
+  const std::optional<import::Model> avocado = import::model(found);
+  ASSERT_TRUE(avocado);
+  EXPECT_EQ(avocado->materialSlotCount(), 1);
+  EXPECT_EQ(avocado->parts.front().materialIndex, 0);
+  const Mesh merged = avocado->merged();
+  const std::vector<glm::vec4>* slots = merged.primIf("Material");
+  ASSERT_TRUE(slots);
+  EXPECT_EQ(slots->size(), merged.triangleCount());
+}

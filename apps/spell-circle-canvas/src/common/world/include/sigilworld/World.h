@@ -392,6 +392,14 @@ class World {
    *  whether its geometry was uploaded, stamped or cooked. */
   uint32_t place(const shape::Mesh& mesh, const glm::mat4& model,
                  const Material& material);
+  /** Place a prop with SEVERAL materials — Blender's material slots: the
+   *  mesh's "Material" prim lane (its .x, per triangle) picks which of
+   *  @p slots each triangle wears, clamped into range; a mesh without
+   *  the lane wears slot 0 throughout. One entity, one transform, one
+   *  draw per slot. Slot 0 lands on MaterialComponent::material, the
+   *  rest on MaterialComponent::slots. 0 on failure or empty slots. */
+  uint32_t place(const shape::Mesh& mesh, const glm::mat4& model,
+                 const std::vector<Material>& slots);
   void setTransform(uint32_t id, const glm::mat4& model);
   /** Replace a prop's geometry in place. Matching vertex and index
    *  counts update the GPU buffers directly, so geometry that keeps its

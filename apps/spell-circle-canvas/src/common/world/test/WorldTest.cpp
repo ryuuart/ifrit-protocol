@@ -636,6 +636,71 @@ TEST(World, SlopeHeightAndVertexColorMasksReadTheGeometry) {
   EXPECT_GT(SkColorGetG(bm.getColor(50, 32)), 200) << "right: painted";
 }
 
+TEST(World, MaterialSlotsPickPerTriangleAndStayLive) {
+  // One quad, two triangles, a "Material" prim lane saying 0 and 1: the
+  // lower-left triangle wears slot 0 (red), the upper-right slot 1
+  // (blue), unlit for exact colours. Editing slot 1 on the component
+  // is live; a slot index past the end clamps.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  shape::Mesh quad = shape::mesh::quad(240, 240);
+  ASSERT_EQ(quad.triangleCount(), 2u);
+  std::vector<glm::vec4>& lane = quad.prim("Material");
+  lane[0] = {0, 0, 0, 0};
+  lane[1] = {1, 0, 0, 0};
+  world::Material red, blue, green;
+  red.unlit = blue.unlit = green.unlit = true;
+  red.baseColor = {1, 0, 0, 1};
+  blue.baseColor = {0, 0, 1, 1};
+  green.baseColor = {0, 1, 0, 1};
+  const uint32_t id = w->place(quad, glm::mat4(1.0f), {red, blue});
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  // The quad's diagonal runs top-left to bottom-right; the two
+  // opposite corners sit on different triangles. Which is which is the
+  // grid's business — both colours must be present, one per corner.
+  const SkColor a = bm.getColor(10, 10), b = bm.getColor(54, 54);
+  const bool aRed = SkColorGetR(a) > 200 && SkColorGetB(a) < 30;
+  const bool aBlue = SkColorGetB(a) > 200 && SkColorGetR(a) < 30;
+  const bool bRed = SkColorGetR(b) > 200 && SkColorGetB(b) < 30;
+  const bool bBlue = SkColorGetB(b) > 200 && SkColorGetR(b) < 30;
+  EXPECT_TRUE((aRed && bBlue) || (aBlue && bRed))
+      << "one triangle per slot, both slots drawn";
+
+  world::MaterialComponent& component =
+      w->registry().get<world::MaterialComponent>(world::entity(id));
+  ASSERT_EQ(component.slots.size(), 1u);
+  component.slots[0] = green;
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  const SkColor a2 = bm.getColor(10, 10), b2 = bm.getColor(54, 54);
+  EXPECT_TRUE(SkColorGetG(a2) > 200 || SkColorGetG(b2) > 200)
+      << "slot 1 edited live";
+  EXPECT_TRUE(SkColorGetR(a2) > 200 || SkColorGetR(b2) > 200)
+      << "slot 0 untouched";
+
+  // Out-of-range indices clamp to the last slot; no lane means slot 0.
+  lane[1] = {7, 0, 0, 0};
+  w->setMesh(id, quad);
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  const SkColor a3 = bm.getColor(10, 10), b3 = bm.getColor(54, 54);
+  EXPECT_TRUE(SkColorGetG(a3) > 200 || SkColorGetG(b3) > 200);
+  quad.prims.clear();
+  w->setMesh(id, quad);
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_GT(SkColorGetR(bm.getColor(10, 10)), 200) << "no lane: slot 0";
+  EXPECT_GT(SkColorGetR(bm.getColor(54, 54)), 200);
+}
+
 TEST(World, PackedMapChannelsReachTheirSlots) {
   // One RGB image standing in for an occlusion-roughness-metallic pack:
   // occlusion in R, roughness in G, metallic in B. Metallic 1 through
@@ -870,6 +935,23 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
   EXPECT_FLOAT_EQ(p.roughness, 0.8f);
   EXPECT_FLOAT_EQ(p.baseColor.g, 0.6f);
   EXPECT_TRUE(p.tile);
+
+  // The slots door: parts naming indices 0 and 2 (1 unnamed) give three
+  // slots, the gap a default.
+  shape::import::Model model;
+  shape::import::Part first;
+  first.materialIndex = 0;
+  first.baseColor = {1, 0, 0, 1};
+  shape::import::Part third;
+  third.materialIndex = 2;
+  third.baseColor = {0, 0, 1, 1};
+  model.parts = {first, third};
+  const std::vector<world::Material> slots =
+      world::textures::materials(model, decodeBytes);
+  ASSERT_EQ(slots.size(), 3u);
+  EXPECT_FLOAT_EQ(slots[0].baseColor.r, 1.0f);
+  EXPECT_FLOAT_EQ(slots[1].baseColor.r, world::Material{}.baseColor.r);
+  EXPECT_FLOAT_EQ(slots[2].baseColor.b, 1.0f);
 }
 
 TEST(World, BakedVertexColorsTintBothPipelines) {
