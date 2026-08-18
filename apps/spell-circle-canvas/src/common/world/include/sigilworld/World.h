@@ -81,9 +81,8 @@ struct WorldConfig {
  *  HEIGHT, the world position against an axis (a tide line, dust on the
  *  top shelf). Shaping: `fit(low, high)` remaps the raw value onto 0..1
  *  and clamps (a slope or height mask is meaningless without it, so the
- *  factories take the range), `invert()` flips. Both executors that
- *  will read masks — the shader today, a bake tomorrow — apply the same
- *  order: source, fit, invert. */
+ *  factories take the range), `invert()` flips. The shader applies them
+ *  in that order: source, fit, invert. */
 struct Mask {
   enum class Source : uint8_t { Constant, Map, VertexColor, Slope, Height };
   Source source = Source::Constant;
