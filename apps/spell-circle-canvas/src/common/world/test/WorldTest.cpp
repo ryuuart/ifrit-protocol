@@ -500,6 +500,142 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   EXPECT_GT(SkColorGetR(bm.getColor(48, 32)), 240) << "kept: white";
 }
 
+TEST(World, LayersBlendWhereTheirMasksSay) {
+  // Unlit, so colours read back exactly. A white base; a blue layer
+  // masked by a two-column image (0 | 1): left stays white, right goes
+  // blue. Then a red layer by a constant 0.5: both halves shift halfway
+  // to red. Add and Multiply combine colours their own way.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Material white;
+  white.unlit = true;
+  white.baseColor = {1, 1, 1, 1};
+  world::Material blue;
+  blue.unlit = true;
+  blue.baseColor = {0, 0, 1, 1};
+  world::Material red;
+  red.unlit = true;
+  red.baseColor = {1, 0, 0, 1};
+  const sk_sp<SkImage> halves = solidImage(SK_ColorBLACK, 8, 8, SK_ColorWHITE);
+
+  world::Material layered = white.over(blue, world::Mask::fromMap(halves, 0));
+  const uint32_t id =
+      w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), layered);
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  SkColor l = bm.getColor(16, 32), r = bm.getColor(48, 32);
+  EXPECT_GT(SkColorGetR(l), 240) << "left: the base";
+  EXPECT_GT(SkColorGetB(l), 240);
+  EXPECT_LT(SkColorGetR(r), 15) << "right: the blue layer";
+  EXPECT_GT(SkColorGetB(r), 240);
+
+  // A second layer, constant half mask: everything moves halfway to red
+  // (in linear light; the encode makes 0.5 read as ~188).
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(id)).material;
+  live = layered.over(red, world::Mask::constant(0.5f));
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  l = bm.getColor(16, 32);
+  r = bm.getColor(48, 32);
+  EXPECT_GT(SkColorGetR(l), 240);
+  EXPECT_NEAR(SkColorGetB(l), 188, 12) << "white -> half red: blue halves";
+  EXPECT_NEAR(SkColorGetR(r), 188, 12) << "blue -> half red";
+  EXPECT_NEAR(SkColorGetB(r), 188, 12);
+
+  // Add: 0.2 + 0.5 = 0.7 linear; Multiply: 0.2 * 0.5 = 0.1 linear.
+  world::Material grey;
+  grey.unlit = true;
+  grey.baseColor = {0.2f, 0.2f, 0.2f, 1};
+  world::Material half;
+  half.unlit = true;
+  half.baseColor = {0.5f, 0.5f, 0.5f, 1};
+  const auto encoded = [](float linear) {
+    return (int)std::lround(
+        255.0f * (linear <= 0.0031308f
+                      ? linear * 12.92f
+                      : 1.055f * std::pow(linear, 1 / 2.4f) - 0.055f));
+  };
+  live = grey.over(half, world::Mask::constant(1), world::Blend::Add);
+  ASSERT_TRUE(w->render());
+  EXPECT_NEAR(SkColorGetR(readFrame(*w).getColor(32, 32)), encoded(0.7f), 4);
+  live = grey.over(half, world::Mask::constant(1), world::Blend::Multiply);
+  ASSERT_TRUE(w->render());
+  EXPECT_NEAR(SkColorGetR(readFrame(*w).getColor(32, 32)), encoded(0.1f), 4);
+  live = grey.over(half, world::Mask::constant(1), world::Blend::Mix);
+  ASSERT_TRUE(w->render());
+  EXPECT_NEAR(SkColorGetR(readFrame(*w).getColor(32, 32)), encoded(0.5f), 4);
+}
+
+TEST(World, SlopeHeightAndVertexColorMasksReadTheGeometry) {
+  // A sphere: a green layer where the normal points up (slope) shows on
+  // top and not below; a height mask puts a layer above y = 0 only; a
+  // vertex-colour mask reads the mesh's own colour lane.
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 300};
+  w->setCamera(camera);
+  world::Material red;
+  red.unlit = true;
+  red.baseColor = {1, 0, 0, 1};
+  world::Material green;
+  green.unlit = true;
+  green.baseColor = {0, 1, 0, 1};
+
+  shape::Mesh ball = shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48);
+  const uint32_t id =
+      w->place(ball, glm::mat4(1.0f),
+               red.over(green, world::Mask::slope({0, 1, 0}, 0.2f, 0.4f)));
+  ASSERT_NE(id, 0u);
+  ASSERT_TRUE(w->render());
+  SkBitmap bm = readFrame(*w);
+  // This close, the pixel near the top of the sphere sees a normal
+  // with n.y about 0.5 (perspective), the one near the bottom -0.5.
+  EXPECT_GT(SkColorGetG(bm.getColor(32, 8)), 200) << "the top faces up";
+  EXPECT_LT(SkColorGetG(bm.getColor(32, 56)), 30) << "the bottom faces down";
+
+  world::Material& live =
+      w->registry().get<world::MaterialComponent>(world::entity(id)).material;
+  live = red.over(green, world::Mask::height(-1, 1));  // above y = 0
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_GT(SkColorGetG(bm.getColor(32, 12)), 200);
+  EXPECT_LT(SkColorGetG(bm.getColor(32, 52)), 30);
+  live = red.over(green, world::Mask::height(-1, 1).invert());
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_LT(SkColorGetG(bm.getColor(32, 12)), 30) << "inverted";
+  EXPECT_GT(SkColorGetG(bm.getColor(32, 52)), 200);
+
+  // Vertex colour: paint the mesh's colour lane blue channel 1 where
+  // x > 0 (colours stay white so the base is untinted), and mask by it.
+  ball.colors.assign(ball.positions.size(), {1, 1, 1, 1});
+  for (size_t i = 0; i < ball.positions.size(); ++i)
+    ball.colors[i].b = ball.positions[i].x > 0 ? 1.0f : 0.0f;
+  // Blue channel 0 on the left tints the base's blue away — red stays
+  // red, so it is a fine test lane.
+  w->remove(id);
+  const uint32_t painted =
+      w->place(ball, glm::mat4(1.0f),
+               red.over(green, world::Mask::vertexColor(2).fit(0.4f, 0.6f)));
+  ASSERT_NE(painted, 0u);
+  ASSERT_TRUE(w->render());
+  bm = readFrame(*w);
+  EXPECT_LT(SkColorGetG(bm.getColor(14, 32)), 30) << "left: no blue, no layer";
+  EXPECT_GT(SkColorGetG(bm.getColor(50, 32)), 200) << "right: painted";
+}
+
 TEST(World, PackedMapChannelsReachTheirSlots) {
   // One RGB image standing in for an occlusion-roughness-metallic pack:
   // occlusion in R, roughness in G, metallic in B. Metallic 1 through

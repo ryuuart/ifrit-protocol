@@ -116,7 +116,13 @@ Mat4 normalMatrix(const glm::mat4& model) {
 // ---------------------------------------------------------------------------
 // Shaders
 
-constexpr char kShaderSource[] = R"(
+// The graphics shader is assembled at pipeline creation: the fixed text
+// below, with the per-slot texture declarations and samplers generated
+// for kSlots material slots (the base and up to Material::kMaxLayers
+// layers), so the layer count lives in one constant.
+constexpr int kSlots = 1 + Material::kMaxLayers;
+
+constexpr char kShaderHead[] = R"(
 cbuffer FrameConstants
 {
     float4x4 g_ViewProj;
@@ -131,47 +137,74 @@ cbuffer FrameConstants
     float4 g_Env;         // x intensity, y rotation (radians), z top mip, w 1 = present
 };
 
+// One material's dials — the base's in slot 0, each layer's in the
+// slots after it.
+struct SlotConstants
+{
+    float4 BaseColor;
+    float4 Emissive;      // rgb emissive, a unused
+    float4 MatParams;     // x metallic, y roughness, z emissiveStrength, w unlit (slot 0)
+    float4 UvScaleOffset; // xy uv scale, zw uv offset
+    float4 MapParams;     // x normalScale, y occlusionStrength, z 1 = DirectX normal, w transmission
+    float4 Channels;      // x roughness, y metallic, z occlusion, w opacity channel index
+    float4 Glass;         // x ior, y thickness, z alphaCutoff (slot 0), w scene-colour top mip (slot 0)
+    float4 Flags;         // x 1 = tile (repeat) the slot's maps
+};
+
 cbuffer DrawConstants
 {
     float4x4 g_Model;
     float4x4 g_NormalMat;
-    float4 g_BaseColor;
-    float4 g_Emissive;    // rgb emissive, a unused
-    float4 g_MatParams;   // x metallic, y roughness, z emissiveStrength, w unlit
-    float4 g_UvScaleOffset; // xy uv scale, zw uv offset
-    float4 g_MapParams;   // x normalScale, y occlusionStrength, z 1 = DirectX normal, w transmission
-    float4 g_Channels;    // x roughness, y metallic, z occlusion, w opacity channel index
-    float4 g_Glass;       // x ior, y thickness, z alphaCutoff, w scene-colour top mip
+    SlotConstants g_Slot[SLOTS];
+    // Layer i (1..) reads g_Layer*[i - 1]:
+    float4 g_LayerA[LAYERS];  // x mask source, y channel or constant, z low, w high
+    float4 g_LayerB[LAYERS];  // xyz mask axis, w invert
+    float4 g_LayerC[LAYERS];  // xy mask uv scale, zw mask uv offset
+    float4 g_LayerD[LAYERS];  // x blend mode, y 1 = layer present, z 1 = tile the mask
 };
 
-// The texture set. Every slot is bound — a 1x1 white (or flat-normal)
-// stand-in where the material has no map — so the shader multiplies
-// unconditionally and never branches on presence.
-Texture2D    g_Texture;
-SamplerState g_Texture_sampler;
-Texture2D    g_NormalMap;
-SamplerState g_NormalMap_sampler;
-Texture2D    g_RoughnessMap;
-SamplerState g_RoughnessMap_sampler;
-Texture2D    g_MetallicMap;
-SamplerState g_MetallicMap_sampler;
-Texture2D    g_OcclusionMap;
-SamplerState g_OcclusionMap_sampler;
-Texture2D    g_EmissiveMap;
-SamplerState g_EmissiveMap_sampler;
-Texture2D    g_OpacityMap;
-SamplerState g_OpacityMap_sampler;
+// Three samplers serve every texture (the device caps samplers per
+// stage far below textures): clamp, repeat, and the panorama's
+// wrap-u/clamp-v with mips. Which one a map takes is a per-slot flag.
+SamplerState g_Clamp;
+SamplerState g_Wrap;
+SamplerState g_Panorama;
+
 // The frame's OPAQUE pass, resolved and mipped, for glass to look
-// through. Bound to every surface (a 1x1 black stand-in until a
-// transmissive surface exists in the frame).
+// through. Bound to every prop (a 1x1 black stand-in until a
+// transmissive prop exists in the frame).
 Texture2D    g_SceneColor;
-SamplerState g_SceneColor_sampler;
 // The environment panorama, bound like a material map (a 1x1 black
 // stand-in when the lighting has none) so the frame's light rides the
 // same binding shape as everything else.
 Texture2D    g_Environment;
-SamplerState g_Environment_sampler;
 
+float4 sampleMap(Texture2D t, float2 uv, float tile)
+{
+    if (tile > 0.5) return t.Sample(g_Wrap, uv);
+    return t.Sample(g_Clamp, uv);
+}
+)";
+
+// Per slot k: the texture set. Every slot is bound — a 1x1 white (or
+// flat-normal) stand-in where the material has no map — so the shader
+// multiplies unconditionally and never branches on presence.
+constexpr char kShaderSlotTextures[] = R"(
+Texture2D    g_Texture$;
+Texture2D    g_NormalMap$;
+Texture2D    g_RoughnessMap$;
+Texture2D    g_MetallicMap$;
+Texture2D    g_OcclusionMap$;
+Texture2D    g_EmissiveMap$;
+Texture2D    g_OpacityMap$;
+)";
+
+// Per layer i: its mask image (white when the mask is not a map).
+constexpr char kShaderLayerTextures[] = R"(
+Texture2D    g_Mask$;
+)";
+
+constexpr char kShaderCommon[] = R"(
 // Equirectangular lookup: u = 0.5 faces -Z, v = 0 is straight up, with
 // the panorama turned about +Y by g_Env.y.
 float3 envSample(float3 d, float lod)
@@ -180,7 +213,7 @@ float3 envSample(float3 d, float lod)
     float3 r = float3(c * d.x - s * d.z, d.y, s * d.x + c * d.z);
     float u = atan2(r.x, -r.z) / 6.2831853 + 0.5;
     float v = acos(clamp(r.y, -1.0, 1.0)) / 3.1415926;
-    return g_Environment.SampleLevel(g_Environment_sampler, float2(u, v), lod).rgb
+    return g_Environment.SampleLevel(g_Panorama, float2(u, v), lod).rgb
            * g_Env.x;
 }
 
@@ -192,9 +225,10 @@ float pick(float4 v, float channel)
 
 // The tangent frame from screen-space derivatives — no vertex tangents.
 // T follows increasing u, B increasing v; with v running DOWN the image
-// (uv origin top-left) an OpenGL-convention map's green axis is -B, and a
-// DirectX map's is +B.
-float3 perturbNormal(float3 N, float3 P, float2 uv, float3 mapN, float dx)
+// (uv origin top-left) an OpenGL-convention map's green axis is -B.
+// Every slot's map is brought to the OpenGL convention before blending,
+// so one frame serves the blended normal.
+float3 perturbNormal(float3 N, float3 P, float2 uv, float3 mapN)
 {
     // Solve the 2x2 for dP/du and dP/dv outright rather than through
     // the cross-product shortcut: the direct solve is invariant to the
@@ -216,10 +250,117 @@ float3 perturbNormal(float3 N, float3 P, float2 uv, float3 mapN, float dx)
         return N;
     T /= tl;
     B /= bl;
-    float3 up = dx > 0.5 ? B : -B;
-    return normalize(T * mapN.x + up * mapN.y + N * mapN.z);
+    return normalize(T * mapN.x - B * mapN.y + N * mapN.z);
 }
 
+// The parameters a pixel is shaded with — one slot's, or several
+// slots' blended. Blending happens HERE, before shading, which is what
+// makes a layered material one material rather than several drawn over
+// each other.
+struct Surf
+{
+    float4 base;        // linear rgb, alpha
+    float3 nTS;         // tangent-space normal, OpenGL convention
+    float  rough;
+    float  metal;
+    float  occ;
+    float3 emissive;
+    float  transmission;
+    float  ior;
+    float  thickness;
+};
+
+Surf blendSurf(Surf a, Surf b, float m, int mode)
+{
+    Surf r = a;
+    if (mode == 1)       // Add
+    {
+        r.base.rgb = a.base.rgb + b.base.rgb * m;
+        r.emissive = a.emissive + b.emissive * m;
+    }
+    else if (mode == 2)  // Multiply
+    {
+        r.base.rgb = a.base.rgb * lerp(float3(1.0, 1.0, 1.0), b.base.rgb, m);
+        r.emissive = lerp(a.emissive, b.emissive, m);
+    }
+    else                 // Mix
+    {
+        r.base.rgb = lerp(a.base.rgb, b.base.rgb, m);
+        r.emissive = lerp(a.emissive, b.emissive, m);
+    }
+    r.base.a       = lerp(a.base.a, b.base.a, m);
+    r.nTS          = normalize(lerp(a.nTS, b.nTS, m));
+    r.rough        = lerp(a.rough, b.rough, m);
+    r.metal        = lerp(a.metal, b.metal, m);
+    r.occ          = lerp(a.occ, b.occ, m);
+    r.transmission = lerp(a.transmission, b.transmission, m);
+    r.ior          = lerp(a.ior, b.ior, m);
+    r.thickness    = lerp(a.thickness, b.thickness, m);
+    return r;
+}
+
+// A mask's shaping, shared by every source: fit the raw value onto
+// [low, high] and clamp (low == high steps at low), then invert.
+float shapeMask(float raw, float4 A, float4 B)
+{
+    float m = A.w != A.z ? saturate((raw - A.z) / (A.w - A.z))
+                         : (raw >= A.z ? 1.0 : 0.0);
+    return B.w > 0.5 ? 1.0 - m : m;
+}
+)";
+
+// Per slot k: sample the slot's texture set into a Surf.
+constexpr char kShaderSlotSample[] = R"(
+Surf sampleSlot$(float2 uvIn, float4 tint)
+{
+    SlotConstants c = g_Slot[$];
+    float2 uv = uvIn * c.UvScaleOffset.xy + c.UvScaleOffset.zw;
+    float tile = c.Flags.x;
+    Surf s;
+    s.base = sampleMap(g_Texture$, uv, tile) * c.BaseColor * tint;
+    s.base.a *= pick(sampleMap(g_OpacityMap$, uv, tile), c.Channels.w);
+    float3 n = sampleMap(g_NormalMap$, uv, tile).xyz * 2.0 - 1.0;
+    n.xy *= c.MapParams.x;
+    if (c.MapParams.z > 0.5) n.y = -n.y;   // DirectX green down -> OpenGL up
+    s.nTS = n;
+    s.rough = c.MatParams.y *
+        pick(sampleMap(g_RoughnessMap$, uv, tile), c.Channels.x);
+    s.metal = c.MatParams.x *
+        pick(sampleMap(g_MetallicMap$, uv, tile), c.Channels.y);
+    s.occ = lerp(1.0, pick(sampleMap(g_OcclusionMap$, uv, tile), c.Channels.z),
+                 c.MapParams.y);
+    s.emissive = c.Emissive.rgb * c.MatParams.z *
+        sampleMap(g_EmissiveMap$, uv, tile).rgb;
+    s.transmission = c.MapParams.w;
+    s.ior = c.Glass.x;
+    s.thickness = c.Glass.y;
+    return s;
+}
+)";
+
+// Per layer i (1-based; reads g_Layer*[i-1] and g_Mask$ where $ = i):
+// the mask's raw value from its source, then shaped.
+constexpr char kShaderLayerMask[] = R"(
+float maskValue$(float2 uvIn, float4 vcolor, float3 Ngeom, float3 P)
+{
+    float4 A = g_LayerA[$ - 1];
+    float4 B = g_LayerB[$ - 1];
+    float4 C = g_LayerC[$ - 1];
+    int source = (int)(A.x + 0.5);
+    float raw = A.y;                                             // Constant
+    if (source == 1)
+        raw = pick(sampleMap(g_Mask$, uvIn * C.xy + C.zw, g_LayerD[$ - 1].z), A.y);  // Map
+    else if (source == 2)
+        raw = pick(vcolor, A.y);                                 // VertexColor
+    else if (source == 3)
+        raw = dot(Ngeom, normalize(B.xyz));                      // Slope
+    else if (source == 4)
+        raw = dot(P, B.xyz);                                     // Height
+    return shapeMask(raw, A, B);
+}
+)";
+
+constexpr char kShaderBody[] = R"(
 struct VSIn
 {
     float3 Pos    : ATTRIB0;
@@ -249,7 +390,8 @@ struct PSIn
     float3 World  : WORLDPOS;
     float3 Normal : NORMALX;
     float2 UV     : TEXCOORD0;
-    float4 Tint   : COLOR0;
+    float4 Tint   : COLOR0;   // mesh colour x instance tint: multiplies base
+    float4 VColor : COLOR1;   // the mesh's own colour lane, raw: mask source
 };
 
 void VSMain(in VSIn IN, out PSIn OUT)
@@ -260,6 +402,7 @@ void VSMain(in VSIn IN, out PSIn OUT)
     OUT.Normal = normalize(mul(g_NormalMat, float4(IN.Normal, 0.0)).xyz);
     OUT.UV     = IN.UV;
     OUT.Tint   = IN.Color;
+    OUT.VColor = IN.Color;
 }
 
 void VSInstanced(in VSInstIn IN, out PSIn OUT)
@@ -278,6 +421,7 @@ void VSInstanced(in VSInstIn IN, out PSIn OUT)
     OUT.Normal = normalize(mul(g_NormalMat, float4(nrm, 0.0)).xyz);
     OUT.UV   = IN.UV * IN.Tex.zw + IN.Tex.xy;
     OUT.Tint = IN.Color * IN.Tint;
+    OUT.VColor = IN.Color;
 }
 
 // The EXACT inverse of the hardware sRGB decode, and it must stay exact.
@@ -300,17 +444,26 @@ float3 LinearToSrgb(float3 c)
 
 float4 PSMain(in PSIn IN) : SV_TARGET
 {
-    float2 uv   = IN.UV * g_UvScaleOffset.xy + g_UvScaleOffset.zw;
-    float4 tex  = g_Texture.Sample(g_Texture_sampler, uv);
-    float4 base = tex * g_BaseColor * IN.Tint;
-    base.a *= pick(g_OpacityMap.Sample(g_OpacityMap_sampler, uv), g_Channels.w);
-    // The cutout: below the cutoff the fragment is not there at all.
-    if (g_Glass.z > 0.0 && base.a < g_Glass.z)
-        discard;
-    float3 emissiveMap = g_EmissiveMap.Sample(g_EmissiveMap_sampler, uv).rgb;
-    float3 emissive = g_Emissive.rgb * g_MatParams.z * emissiveMap;
+    float3 Ngeom = normalize(IN.Normal);
+    float3 V = normalize(g_CamPos.xyz - IN.World);
+    // Culling is off, so every prop is two-sided. Flip a backfacing
+    // normal rather than dropping the fragment: winding does not decide
+    // visibility here, and a single-sided panel would go black from
+    // behind.
+    if (dot(Ngeom, V) < 0.0)
+        Ngeom = -Ngeom;
 
-    if (g_MatParams.w > 0.5)
+    // The material: slot 0, then each present layer blended in where
+    // its mask says.
+    Surf s = sampleSlot0(IN.UV, IN.Tint);
+LAYER_BLENDS
+    float4 base = s.base;
+    // The cutout: below the cutoff the fragment is not there at all.
+    if (g_Slot[0].Glass.z > 0.0 && base.a < g_Slot[0].Glass.z)
+        discard;
+    float3 emissive = s.emissive;
+
+    if (g_Slot[0].MatParams.w > 0.5)
     {
         // Unlit screens: skip lighting and tonemapping, but still
         // re-encode the linearized sample for the UNORM target — the
@@ -322,29 +475,13 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         return float4(LinearToSrgb(unlit), base.a);
     }
 
-    float3 N = normalize(IN.Normal);
-    float3 V = normalize(g_CamPos.xyz - IN.World);
-    // Culling is off, so every surface is two-sided. Flip a backfacing
-    // normal rather than dropping the fragment: winding does not decide
-    // visibility here, and a single-sided panel would go black from
-    // behind.
-    if (dot(N, V) < 0.0)
-        N = -N;
+    // The blended tangent-space normal, applied once in the derivative
+    // frame.
+    float3 N = perturbNormal(Ngeom, IN.World, IN.UV, s.nTS);
 
-    // The normal map: decoded from [0,1] to [-1,1], its tilt scaled by
-    // normalScale (0 = flat), applied in the derivative frame.
-    float3 mapN = g_NormalMap.Sample(g_NormalMap_sampler, uv).xyz * 2.0 - 1.0;
-    mapN.xy *= g_MapParams.x;
-    N = perturbNormal(N, IN.World, uv, mapN, g_MapParams.z);
-
-    float  metallic = g_MatParams.x *
-        pick(g_MetallicMap.Sample(g_MetallicMap_sampler, uv), g_Channels.y);
-    float  rough    = clamp(g_MatParams.y *
-        pick(g_RoughnessMap.Sample(g_RoughnessMap_sampler, uv), g_Channels.x),
-        0.045, 1.0);
-    float  occlusion = lerp(1.0,
-        pick(g_OcclusionMap.Sample(g_OcclusionMap_sampler, uv), g_Channels.z),
-        g_MapParams.y);
+    float  metallic = s.metal;
+    float  rough    = clamp(s.rough, 0.045, 1.0);
+    float  occlusion = s.occ;
     float3 F0       = lerp(float3(0.04, 0.04, 0.04), base.rgb, metallic);
     float3 albedo   = base.rgb * (1.0 - metallic);
 
@@ -453,7 +590,7 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float3 encoded = LinearToSrgb(color / (color + 1.0));
     float  alpha = base.a;
 
-    float transmission = g_MapParams.w;
+    float transmission = s.transmission;
     if (transmission > 0.0)
     {
         // Glass: what lies behind, read from the opaque pass where the
@@ -463,13 +600,13 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         // scene colour is already encoded and tonemapped, so the mix
         // happens in encoded space and the pixel is written opaque —
         // the background has been composed here.
-        float3 rd = refract(-V, N, 1.0 / max(g_Glass.x, 1.0));
-        float3 exitP = IN.World + rd * g_Glass.y;
+        float3 rd = refract(-V, N, 1.0 / max(s.ior, 1.0));
+        float3 exitP = IN.World + rd * s.thickness;
         float4 clip = mul(g_ViewProj, float4(exitP, 1.0));
         float2 suv = clip.xy / max(clip.w, 1e-4) * float2(0.5, -0.5) + 0.5;
         suv = clamp(suv, 0.0, 1.0);
-        float3 seen = g_SceneColor.SampleLevel(g_SceneColor_sampler, suv,
-                                               rough * g_Glass.w).rgb;
+        float3 seen = g_SceneColor.SampleLevel(g_Clamp, suv,
+                                               rough * g_Slot[0].Glass.w).rgb;
         float3 tinted = seen * base.rgb;
         // Specular AND emission ride on top of what is transmitted:
         // glass shines, and edge-lit or neon glass glows, at any
@@ -484,6 +621,48 @@ float4 PSMain(in PSIn IN) : SV_TARGET
 }
 )";
 
+/** The graphics shader with its slot and layer sections generated. */
+std::string buildShaderSource() {
+  const auto stamp = [](const char* text, int index) {
+    std::string out;
+    for (const char* p = text; *p; ++p)
+      if (*p == '$')
+        out += std::to_string(index);
+      else
+        out += *p;
+    return out;
+  };
+  std::string head = kShaderHead;
+  const auto replaceAll = [](std::string& s, const std::string& from,
+                             const std::string& to) {
+    for (size_t at = s.find(from); at != std::string::npos;
+         at = s.find(from, at + to.size()))
+      s.replace(at, from.size(), to);
+  };
+  replaceAll(head, "SLOTS", std::to_string(kSlots));
+  replaceAll(head, "LAYERS", std::to_string(Material::kMaxLayers));
+  std::string source = head;
+  for (int k = 0; k < kSlots; ++k) source += stamp(kShaderSlotTextures, k);
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    source += stamp(kShaderLayerTextures, i);
+  source += kShaderCommon;
+  for (int k = 0; k < kSlots; ++k) source += stamp(kShaderSlotSample, k);
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    source += stamp(kShaderLayerMask, i);
+  std::string body = kShaderBody;
+  std::string blends;
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    blends += "    if (g_LayerD[" + std::to_string(i - 1) +
+              "].y > 0.5)\n        s = blendSurf(s, sampleSlot" +
+              std::to_string(i) + "(IN.UV, IN.Tint), maskValue" +
+              std::to_string(i) +
+              "(IN.UV, IN.VColor, Ngeom, IN.World), (int)(g_LayerD[" +
+              std::to_string(i - 1) + "].x + 0.5));\n";
+  replaceAll(body, "LAYER_BLENDS\n", blends);
+  source += body;
+  return source;
+}
+
 struct FrameConstants {
   Mat4 viewProj;
   float camPos[4];
@@ -497,9 +676,9 @@ struct FrameConstants {
   float env[4];  // x intensity, y rotation, z top mip, w present
 };
 
-struct DrawConstants {
-  Mat4 model;
-  Mat4 normalMat;
+/** One material slot's dials — the SlotConstants struct of the shader,
+ *  member for member. */
+struct SlotConstants {
   float baseColor[4];
   float emissive[4];
   float matParams[4];
@@ -507,6 +686,18 @@ struct DrawConstants {
   float mapParams[4];
   float channels[4];
   float glass[4];  // x ior, y thickness, z alphaCutoff, w scene top mip
+  float flags[4];  // x tile
+};
+
+struct DrawConstants {
+  Mat4 model;
+  Mat4 normalMat;
+  SlotConstants slot[kSlots];
+  float layerA[Material::kMaxLayers]
+              [4];  // mask source, channel/const, low, high
+  float layerB[Material::kMaxLayers][4];  // mask axis, invert
+  float layerC[Material::kMaxLayers][4];  // mask uv scale, offset
+  float layerD[Material::kMaxLayers][4];  // blend mode, present
 };
 
 struct Vertex {
@@ -593,32 +784,53 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
  *  live MaterialComponent and rebinds when a pointer moved, which is
  *  what makes swapping a material's texture live. */
 struct MaterialBinding {
-  const SkImage* base = nullptr;
-  const SkImage* normal = nullptr;
-  const SkImage* roughness = nullptr;
-  const SkImage* metallic = nullptr;
-  const SkImage* occlusion = nullptr;
-  const SkImage* emissive = nullptr;
-  const SkImage* opacity = nullptr;
-  bool tile = false;
-  bool valid = false;  ///< false until the first bind
-  /** The panorama the binding was built against; the frame's light is
-   *  bound per surface, so a new panorama rebinds every surface once. */
+  /** Every image the binding was built from, in slot order — the base's
+   *  maps, then each layer's maps and its mask — plus each slot's tile
+   *  flag, and the panorama (the frame's light is bound per prop, so a
+   *  new panorama rebinds every prop once). */
+  std::vector<const SkImage*> images;
+  std::vector<bool> tiles;
   const SkImage* environment = nullptr;
+  bool valid = false;  ///< false until the first bind
   static MaterialBinding of(const Material& m, const SkImage* environment) {
-    return {m.texture.get(),
-            m.normalMap.get(),
-            m.roughnessMap.get(),
-            m.metallicMap.get(),
-            m.occlusionMap.get(),
-            m.emissiveMap.get(),
-            m.opacityMap.get(),
-            m.tile,
-            true,
-            environment};
+    MaterialBinding b;
+    const auto one = [&](const Material& slot) {
+      for (const sk_sp<SkImage>* image :
+           {&slot.texture, &slot.normalMap, &slot.roughnessMap,
+            &slot.metallicMap, &slot.occlusionMap, &slot.emissiveMap,
+            &slot.opacityMap})
+        b.images.push_back(image->get());
+      b.tiles.push_back(slot.tile);
+    };
+    one(m);
+    for (const Material::Layer& layer : m.layers) {
+      one(layer.material);
+      b.images.push_back(layer.mask.map.get());
+      b.tiles.push_back(layer.mask.tile);
+    }
+    b.environment = environment;
+    b.valid = true;
+    return b;
   }
   bool operator==(const MaterialBinding&) const = default;
 };
+
+/** Every texture variable the pixel shader declares, in the generated
+ *  scheme buildShaderSource() uses: seven maps per slot, one mask per
+ *  layer, the panorama, the scene colour. */
+std::vector<std::string> materialTextureNames() {
+  std::vector<std::string> names;
+  for (int k = 0; k < kSlots; ++k)
+    for (const char* base :
+         {"g_Texture", "g_NormalMap", "g_RoughnessMap", "g_MetallicMap",
+          "g_OcclusionMap", "g_EmissiveMap", "g_OpacityMap"})
+      names.push_back(std::string(base) + std::to_string(k));
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    names.push_back("g_Mask" + std::to_string(i));
+  names.emplace_back("g_Environment");
+  names.emplace_back("g_SceneColor");
+  return names;
+}
 
 struct GpuGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
@@ -920,8 +1132,11 @@ bool World::Impl::createPipelines(std::string* error) {
 
   ShaderCreateInfo shaderCI;
   shaderCI.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
-  shaderCI.Desc.UseCombinedTextureSamplers = true;
-  shaderCI.Source = kShaderSource;
+  // Separate samplers: three shared ones for every texture, because
+  // the device caps samplers per stage far below textures.
+  shaderCI.Desc.UseCombinedTextureSamplers = false;
+  const std::string shaderSource = buildShaderSource();
+  shaderCI.Source = shaderSource.c_str();
 
   RefCntAutoPtr<IShader> vs;
   shaderCI.Desc.ShaderType = SHADER_TYPE_VERTEX;
@@ -997,31 +1212,18 @@ bool World::Impl::createPipelines(std::string* error) {
 
   psoCI.pPS = ps;
 
-  ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_NormalMap", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_RoughnessMap",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_MetallicMap",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_OcclusionMap",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_EmissiveMap",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_Environment",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_OpacityMap",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_PIXEL, "g_SceneColor",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-  };
-  psoCI.PSODesc.ResourceLayout.Variables = variables;
-  psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)std::size(variables);
+  // Every texture the pixel shader samples is a mutable variable: the
+  // per-slot sets, the per-layer masks, the panorama and the scene
+  // colour. Named here in the same generated scheme the shader source
+  // uses.
+  const std::vector<std::string> textureNames = materialTextureNames();
+  std::vector<ShaderResourceVariableDesc> variables;
+  for (const std::string& name : textureNames)
+    variables.push_back({SHADER_TYPE_PIXEL, name.c_str(),
+                         SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE});
+  psoCI.PSODesc.ResourceLayout.Variables = variables.data();
+  psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)variables.size();
 
-  // No immutable samplers: each texture VIEW carries its own sampler
-  // (clamp or repeat, per Material::tile), and the combined
-  // texture-sampler variables pick it up from the view. Two samplers
-  // exist in the whole device.
   {
     SamplerDesc samplerDesc;
     samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
@@ -1048,6 +1250,27 @@ bool World::Impl::createPipelines(std::string* error) {
     sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
         ->SetSampler(clampSampler);
   }
+  // The three samplers are immutable on every graphics pipeline, under
+  // the names the shader declares; a map picks clamp or repeat by a
+  // per-slot flag at sample time.
+  SamplerDesc clampDesc;
+  clampDesc.MinFilter = FILTER_TYPE_LINEAR;
+  clampDesc.MagFilter = FILTER_TYPE_LINEAR;
+  clampDesc.MipFilter = FILTER_TYPE_LINEAR;
+  clampDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
+  clampDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+  SamplerDesc wrapDesc = clampDesc;
+  wrapDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+  wrapDesc.AddressV = TEXTURE_ADDRESS_WRAP;
+  SamplerDesc panoramaDesc = clampDesc;
+  panoramaDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+  const ImmutableSamplerDesc immutableSamplers[] = {
+      {SHADER_TYPE_PIXEL, "g_Clamp", clampDesc},
+      {SHADER_TYPE_PIXEL, "g_Wrap", wrapDesc},
+      {SHADER_TYPE_PIXEL, "g_Panorama", panoramaDesc},
+  };
+  psoCI.PSODesc.ResourceLayout.ImmutableSamplers = immutableSamplers;
+  psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 3;
 
   // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
   // shader and resource layout are identical across all four, so one
@@ -1217,21 +1440,39 @@ bool World::Impl::bindMaterial(
   srb.Release();
   pso->CreateShaderResourceBinding(&srb, true);
   if (!srb) return false;
-  const auto set = [&](const char* name, const sk_sp<SkImage>& image, bool srgb,
-                       ITexture* standIn) {
-    RefCntAutoPtr<ITexture> texture =
-        image ? uploadTexture(image, srgb, material.tile)
-              : RefCntAutoPtr<ITexture>(standIn);
-    if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, name))
+  const auto set = [&](const std::string& name, const sk_sp<SkImage>& image,
+                       bool srgb, bool tile, ITexture* standIn) {
+    RefCntAutoPtr<ITexture> texture = image ? uploadTexture(image, srgb, tile)
+                                            : RefCntAutoPtr<ITexture>(standIn);
+    if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, name.c_str()))
       var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
   };
-  set("g_Texture", material.texture, true, whiteTexture);
-  set("g_NormalMap", material.normalMap, false, flatNormalTexture);
-  set("g_RoughnessMap", material.roughnessMap, false, whiteTexture);
-  set("g_MetallicMap", material.metallicMap, false, whiteTexture);
-  set("g_OcclusionMap", material.occlusionMap, false, whiteTexture);
-  set("g_EmissiveMap", material.emissiveMap, true, whiteTexture);
-  set("g_OpacityMap", material.opacityMap, false, whiteTexture);
+  // Slot k: the base (k = 0) or layer k - 1; unused slots take the
+  // stand-ins so every variable is bound.
+  for (int k = 0; k < kSlots; ++k) {
+    const Material* slot = k == 0
+                               ? &material
+                               : (k - 1 < (int)material.layers.size()
+                                      ? &material.layers[(size_t)k - 1].material
+                                      : nullptr);
+    static const Material kNone;
+    const Material& m = slot ? *slot : kNone;
+    const std::string sk = std::to_string(k);
+    set("g_Texture" + sk, m.texture, true, m.tile, whiteTexture);
+    set("g_NormalMap" + sk, m.normalMap, false, m.tile, flatNormalTexture);
+    set("g_RoughnessMap" + sk, m.roughnessMap, false, m.tile, whiteTexture);
+    set("g_MetallicMap" + sk, m.metallicMap, false, m.tile, whiteTexture);
+    set("g_OcclusionMap" + sk, m.occlusionMap, false, m.tile, whiteTexture);
+    set("g_EmissiveMap" + sk, m.emissiveMap, true, m.tile, whiteTexture);
+    set("g_OpacityMap" + sk, m.opacityMap, false, m.tile, whiteTexture);
+  }
+  for (int i = 1; i <= Material::kMaxLayers; ++i) {
+    const Mask* mask = i - 1 < (int)material.layers.size()
+                           ? &material.layers[(size_t)i - 1].mask
+                           : nullptr;
+    set("g_Mask" + std::to_string(i), mask ? mask->map : nullptr, false,
+        mask ? mask->tile : false, whiteTexture);
+  }
   if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_SceneColor"))
     var->Set(sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
   if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Environment"))
@@ -1248,35 +1489,80 @@ void World::Impl::writeDrawConstants(const glm::mat4& model,
                                      MAP_FLAG_DISCARD);
   constants->model = colMajor(model);
   constants->normalMat = normalMatrix(model);
-  constants->baseColor[0] = m.baseColor.x;
-  constants->baseColor[1] = m.baseColor.y;
-  constants->baseColor[2] = m.baseColor.z;
-  constants->baseColor[3] = m.baseColor.w;
-  constants->emissive[0] = m.emissive.x;
-  constants->emissive[1] = m.emissive.y;
-  constants->emissive[2] = m.emissive.z;
-  constants->emissive[3] = 1;
-  constants->matParams[0] = m.metallic;
-  constants->matParams[1] = m.roughness;
-  constants->matParams[2] = m.emissiveStrength;
-  constants->matParams[3] = m.unlit ? 1.0f : 0.0f;
-  constants->uvScaleOffset[0] = m.uvScale.x;
-  constants->uvScaleOffset[1] = m.uvScale.y;
-  constants->uvScaleOffset[2] = m.uvOffset.x;
-  constants->uvScaleOffset[3] = m.uvOffset.y;
-  constants->mapParams[0] = m.normalMap ? m.normalScale : 0.0f;
-  constants->mapParams[1] = m.occlusionMap ? m.occlusionStrength : 0.0f;
-  constants->mapParams[2] = m.normalMapDirectX ? 1.0f : 0.0f;
-  constants->mapParams[3] = std::clamp(m.transmission, 0.0f, 1.0f);
   const auto channel = [](int c) { return (float)std::clamp(c, 0, 3); };
-  constants->channels[0] = channel(m.roughnessChannel);
-  constants->channels[1] = channel(m.metallicChannel);
-  constants->channels[2] = channel(m.occlusionChannel);
-  constants->channels[3] = channel(m.opacityChannel);
-  constants->glass[0] = m.ior;
-  constants->glass[1] = m.thickness;
-  constants->glass[2] = m.alphaCutoff;
-  constants->glass[3] = (float)std::max(sceneColorMips - 1, 0);
+  const auto writeSlot = [&](SlotConstants& c, const Material& s) {
+    c.baseColor[0] = s.baseColor.x;
+    c.baseColor[1] = s.baseColor.y;
+    c.baseColor[2] = s.baseColor.z;
+    c.baseColor[3] = s.baseColor.w;
+    c.emissive[0] = s.emissive.x;
+    c.emissive[1] = s.emissive.y;
+    c.emissive[2] = s.emissive.z;
+    c.emissive[3] = 1;
+    c.matParams[0] = s.metallic;
+    c.matParams[1] = s.roughness;
+    c.matParams[2] = s.emissiveStrength;
+    c.matParams[3] = 0;
+    c.uvScaleOffset[0] = s.uvScale.x;
+    c.uvScaleOffset[1] = s.uvScale.y;
+    c.uvScaleOffset[2] = s.uvOffset.x;
+    c.uvScaleOffset[3] = s.uvOffset.y;
+    c.mapParams[0] = s.normalMap ? s.normalScale : 0.0f;
+    c.mapParams[1] = s.occlusionMap ? s.occlusionStrength : 0.0f;
+    c.mapParams[2] = s.normalMapDirectX ? 1.0f : 0.0f;
+    c.mapParams[3] = std::clamp(s.transmission, 0.0f, 1.0f);
+    c.channels[0] = channel(s.roughnessChannel);
+    c.channels[1] = channel(s.metallicChannel);
+    c.channels[2] = channel(s.occlusionChannel);
+    c.channels[3] = channel(s.opacityChannel);
+    c.glass[0] = s.ior;
+    c.glass[1] = s.thickness;
+    c.glass[2] = 0;
+    c.glass[3] = 0;
+    c.flags[0] = s.tile ? 1.0f : 0.0f;
+    c.flags[1] = c.flags[2] = c.flags[3] = 0;
+  };
+  static const Material kNone;
+  for (int k = 0; k < kSlots; ++k) {
+    const Material& slot = k == 0 ? m
+                                  : (k - 1 < (int)m.layers.size()
+                                         ? m.layers[(size_t)k - 1].material
+                                         : kNone);
+    writeSlot(constants->slot[k], slot);
+  }
+  // Prop-wide dials ride slot 0.
+  constants->slot[0].matParams[3] = m.unlit ? 1.0f : 0.0f;
+  constants->slot[0].glass[2] = m.alphaCutoff;
+  constants->slot[0].glass[3] = (float)std::max(sceneColorMips - 1, 0);
+  for (int i = 0; i < Material::kMaxLayers; ++i) {
+    float* A = constants->layerA[i];
+    float* B = constants->layerB[i];
+    float* C = constants->layerC[i];
+    float* D = constants->layerD[i];
+    A[0] = A[1] = A[2] = A[3] = 0;
+    B[0] = B[1] = B[2] = B[3] = 0;
+    C[0] = C[1] = C[2] = C[3] = 0;
+    D[0] = D[1] = D[2] = D[3] = 0;
+    if (i >= (int)m.layers.size()) continue;
+    const Material::Layer& layer = m.layers[(size_t)i];
+    const Mask& mask = layer.mask;
+    A[0] = (float)mask.source;
+    A[1] = mask.source == Mask::Source::Constant ? mask.value
+                                                 : channel(mask.channel);
+    A[2] = mask.low;
+    A[3] = mask.high;
+    B[0] = mask.axis.x;
+    B[1] = mask.axis.y;
+    B[2] = mask.axis.z;
+    B[3] = mask.inverted ? 1.0f : 0.0f;
+    C[0] = mask.uvScale.x;
+    C[1] = mask.uvScale.y;
+    C[2] = mask.uvOffset.x;
+    C[3] = mask.uvOffset.y;
+    D[0] = (float)layer.blend;
+    D[1] = 1;
+    D[2] = mask.tile ? 1.0f : 0.0f;
+  }
 }
 
 namespace {

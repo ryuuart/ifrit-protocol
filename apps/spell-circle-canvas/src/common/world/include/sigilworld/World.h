@@ -70,6 +70,100 @@ struct WorldConfig {
   glm::vec4 clearColor = {0.028f, 0.03f, 0.045f, 1};
 };
 
+/** WHERE on a prop something applies: a scalar over its surface, read
+ *  per pixel from one of a few sources and then shaped — the same idea a
+ *  pop mask is over points, with the sources a shaded surface has.
+ *
+ *  Sources: a constant; a channel of an image sampled at the prop's uv
+ *  (through the mask's own uv window); a channel of the mesh's vertex
+ *  colour lane (painted in Houdini or Blender, or a pop Color lane);
+ *  SLOPE, the surface normal against an axis (moss on upward faces);
+ *  HEIGHT, the world position against an axis (a tide line, dust on the
+ *  top shelf). Shaping: `fit(low, high)` remaps the raw value onto 0..1
+ *  and clamps (a slope or height mask is meaningless without it, so the
+ *  factories take the range), `invert()` flips. Both executors that
+ *  will read masks — the shader today, a bake tomorrow — apply the same
+ *  order: source, fit, invert. */
+struct Mask {
+  enum class Source : uint8_t { Constant, Map, VertexColor, Slope, Height };
+  Source source = Source::Constant;
+  float value = 1;     ///< Source::Constant
+  sk_sp<SkImage> map;  ///< Source::Map: sampled at uv * uvScale + uvOffset
+  int channel = 0;     ///< Map and VertexColor: 0 red .. 3 alpha
+  SkV2 uvScale = {1, 1};
+  SkV2 uvOffset = {0, 0};
+  bool tile = true;
+  glm::vec3 axis = {
+      0, 1,
+      0};  ///< Slope: compared with the normal; Height: dotted with position
+  float low = 0, high = 1;  ///< the raw range that maps onto 0..1
+  bool inverted = false;
+
+  static Mask constant(float v) {
+    Mask m;
+    m.value = v;
+    return m;
+  }
+  static Mask fromMap(sk_sp<SkImage> image, int channel = 0) {
+    Mask m;
+    m.source = Source::Map;
+    m.map = std::move(image);
+    m.channel = channel;
+    return m;
+  }
+  static Mask vertexColor(int channel = 0) {
+    Mask m;
+    m.source = Source::VertexColor;
+    m.channel = channel;
+    return m;
+  }
+  /** 1 where the normal points along @p up (dot = 1), falling to 0 as
+   *  it turns away: raw = dot(N, up), fitted onto [low, high]. */
+  static Mask slope(glm::vec3 up, float low = 0.5f, float high = 0.9f) {
+    Mask m;
+    m.source = Source::Slope;
+    m.axis = up;
+    m.low = low;
+    m.high = high;
+    return m;
+  }
+  /** raw = dot(worldPosition, axis), fitted onto [low, high]. */
+  static Mask height(float low, float high, glm::vec3 axis = {0, 1, 0}) {
+    Mask m;
+    m.source = Source::Height;
+    m.axis = axis;
+    m.low = low;
+    m.high = high;
+    return m;
+  }
+  Mask fit(float lo, float hi) const {
+    Mask m = *this;
+    m.low = lo;
+    m.high = hi;
+    return m;
+  }
+  Mask invert() const {
+    Mask m = *this;
+    m.inverted = !m.inverted;
+    return m;
+  }
+  Mask window(SkV2 scale, SkV2 offset = {0, 0}) const {
+    Mask m = *this;
+    m.uvScale = scale;
+    m.uvOffset = offset;
+    return m;
+  }
+  bool operator==(const Mask&) const = default;
+};
+
+/** How a layered material's parameters combine where its mask says. */
+enum class Blend : uint8_t {
+  Mix,  ///< every parameter lerps to the layer's by the mask
+  Add,  ///< base colour and emission add (scaled by the mask); the rest lerp
+  Multiply,  ///< base colour multiplies (toward the layer's, by the mask); the
+             ///< rest lerp
+};
+
 /** Surface shading: a metallic-roughness material with the full
  *  texture set the authoring tools export — base colour, normal,
  *  roughness, metallic, occlusion and emissive maps, each optional and
@@ -159,17 +253,85 @@ struct Material {
   SkV2 uvOffset = {0, 0};
   bool tile = false;
 
+  /** LAYERS. A material can carry others on top of it, each applied
+   *  where its Mask says with a Blend: the material a pixel is shaded
+   *  with is the base's parameters, then each layer's blended in, then
+   *  ONE shading pass. `over()` appends a layer and returns the result,
+   *  so composition reads top-down: `steel.over(rust, Mask::fromMap(ao)
+   *  .invert()).over(moss, Mask::slope({0, 1, 0}))`. Up to kMaxLayers
+   *  are evaluated live on the GPU; further layers are ignored (a
+   *  warning once). A layer's own layers are flattened onto it — a
+   *  layer is one material, not a tree. */
+  struct Layer;
+  std::vector<Layer> layers;
+  static constexpr int kMaxLayers = 3;
+  Material over(Material top, Mask mask, Blend blend = Blend::Mix) const;
+  /** This material's own parameters, without its layers. */
+  Material flat() const;
+
   /** Textures compare by POINTER, so two identical images decoded
    *  separately are different materials. The scene reconciler tests reuse
-   *  with this operator; share one sk_sp to keep a surface. */
-  bool operator==(const Material&) const = default;
+   *  with this operator; share one sk_sp to keep a prop. */
+  bool operator==(const Material&) const;
 
-  /** Whether the surface draws in the blended pass: alpha below 1, an
-   *  opacity map, or any transmission. */
-  bool blended() const {
-    return baseColor.w < 1.0f || opacityMap != nullptr || transmission > 0.0f;
-  }
+  /** Whether the prop draws in the blended pass: alpha below 1, an
+   *  opacity map, or any transmission — on the base or on any layer. */
+  bool blended() const;
 };
+
+struct Material::Layer {
+  Material material;
+  Mask mask;
+  Blend blend = Blend::Mix;
+  bool operator==(const Layer&) const = default;
+};
+
+inline bool Material::operator==(const Material& o) const {
+  return baseColor == o.baseColor && metallic == o.metallic &&
+         roughness == o.roughness && emissive == o.emissive &&
+         emissiveStrength == o.emissiveStrength && texture == o.texture &&
+         unlit == o.unlit && normalMap == o.normalMap &&
+         normalScale == o.normalScale &&
+         normalMapDirectX == o.normalMapDirectX &&
+         roughnessMap == o.roughnessMap &&
+         roughnessChannel == o.roughnessChannel &&
+         metallicMap == o.metallicMap && metallicChannel == o.metallicChannel &&
+         occlusionMap == o.occlusionMap &&
+         occlusionChannel == o.occlusionChannel &&
+         occlusionStrength == o.occlusionStrength &&
+         emissiveMap == o.emissiveMap && opacityMap == o.opacityMap &&
+         opacityChannel == o.opacityChannel && alphaCutoff == o.alphaCutoff &&
+         transmission == o.transmission && ior == o.ior &&
+         thickness == o.thickness && uvScale == o.uvScale &&
+         uvOffset == o.uvOffset && tile == o.tile && layers == o.layers;
+}
+
+inline Material Material::flat() const {
+  Material m = *this;
+  m.layers.clear();
+  return m;
+}
+
+inline Material Material::over(Material top, Mask mask, Blend blend) const {
+  Material m = *this;
+  Layer layer;
+  layer.material = top.flat();  // a layer is one material, not a tree
+  layer.mask = std::move(mask);
+  layer.blend = blend;
+  m.layers.push_back(std::move(layer));
+  return m;
+}
+
+inline bool Material::blended() const {
+  const auto one = [](const Material& m) {
+    return m.baseColor.w < 1.0f || m.opacityMap != nullptr ||
+           m.transmission > 0.0f;
+  };
+  if (one(*this)) return true;
+  for (const Layer& layer : layers)
+    if (one(layer.material)) return true;
+  return false;
+}
 
 /** Per-stamp lanes a stamps prop reads from its Cloud. The stamp mesh
  *  uploads ONCE and the points ride a per-instance vertex stream, rather

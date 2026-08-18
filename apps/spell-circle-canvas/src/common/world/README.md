@@ -69,6 +69,16 @@ screen.unlit = true;  // self-lit UI, no shading applied
 w->place(shape::mesh::quad(380, 252), placement, screen);
 ```
 
+A material can wear others on top of it, each where a mask says — one
+value, shaded once:
+
+```cpp
+world::Material hull = steel
+    .over(rust, world::Mask::fromMap(steel.occlusionMap).invert().fit(0.35f, 0.75f))
+    .over(moss, world::Mask::slope({0, 1, 0}, 0.55f, 0.9f));
+w->place(mesh, placement, hull);
+```
+
 A scanned or authored material is the full texture set, read from the
 folder a tool exported by its file names:
 
@@ -92,6 +102,23 @@ whatever produced it. The camera comes in as a
 renderer uses, so a Skia-composited image and a SigilWorld render agree
 about where things sit. Frames leave as raster `SkImage`s. There is no
 window, no swapchain, and no scene file format.
+
+**Three nouns for what a prop is made of.** A **texture set** is raw
+maps by usage word (`baseColor`, `normal`, `orm`…), from any source. A
+**material** is what a prop is made of — the parameters a pixel is shaded
+with — and a texture set becomes one through `textures::material()`. A
+**mask** is *where*: a scalar over the prop's surface from a constant, an
+image channel, the mesh's vertex colour, the slope against an axis or the
+height along one, shaped by `fit` and `invert`. One verb joins them:
+`Material::over(material, mask, blend)` puts a material on top of another
+where the mask says, and the result is a `Material` — so layering never
+introduces a type, and every door that takes a material takes a layered
+one. Up to `Material::kMaxLayers` layers are evaluated live per pixel:
+each slot's maps are sampled to a parameter set, the sets are blended in
+order (`Mix` lerps everything; `Add` and `Multiply` do so to base colour
+and emission), the blended tangent-space normal is applied once, and one
+shading pass follows. A layer is one material, not a tree — a layered
+material placed as a layer contributes only its base.
 
 **The vocabulary is small and used at every layer.** A **prop** is a
 thing in the world: geometry, a placement and a material, one entity.
@@ -219,6 +246,12 @@ runs off the texture smears its edge texels, with `tile` true every map
 on the material repeats. Two samplers exist on the device and each
 uploaded texture's view carries one of them.
 
+**Samplers are three, shared.** Every map is a separate texture; the
+sampler it takes — clamp, repeat, or the panorama's wrap-u/clamp-v — is
+chosen in the shader by the slot's `tile` flag. The device caps samplers
+per stage far below textures, which is why the choice is a flag and not
+a sampler per map.
+
 **The texture set is a metallic-roughness set, one channel per scalar
 map.** `roughnessMap`, `metallicMap` and `occlusionMap` each read ONE
 channel, chosen by their `*Channel` index, so a packed
@@ -229,6 +262,14 @@ maps. A missing map reads as 1, so the scalar next to it (`roughness`,
 `metallic`) is the whole value; a present map is *multiplied* by that
 scalar, which is why the loader sets the scalar to 1 when the set
 carries the map.
+
+**Layer masks read the geometry as the prop shows it.** A `Slope` mask
+dots the shaded normal (before the normal map) with its axis, so what a
+pixel sees is what the mask sees — a sphere viewed from close has few
+pixels whose normal points straight up. `Height` dots the world position.
+`VertexColor` reads the mesh's own colour lane raw, before it multiplies
+the base colour. `Map` masks sample at the prop's uv through the mask's
+own uv window and tile flag.
 
 **Normal maps need no vertex tangents.** The tangent frame is solved per
 pixel from the position and uv screen-space derivatives — the direct 2x2
@@ -468,7 +509,9 @@ It writes a set of camera shots as PNGs — a material lab, twice
 (`world_materials.png` under the studio panorama and
 `world_materials_dark.png` with no panorama, no sun and a faint ambient,
 where the emissive props are the light: the fetched Poly Haven texture set on a floor,
-a sphere and a torus, a dark sphere lit only by its emissive map (a
+a layered sphere (steel, rust in its grooves by its own occlusion map,
+moss on its upward faces by slope) and a torus, a dark sphere lit only
+by its emissive map (a
 drawn circuit, tinted by the emissive colour), a clear glass sphere, a
 frosted pane and a fluted edge-lit pane, the fetched Avocado
 wearing the material its glTF carries, plus — when the Substance SDK is installed — the SDK's sample

@@ -558,11 +558,30 @@ void renderMaterialLab(const std::filesystem::path& outDir,
                                        (v - 0.5f) * 1200};
                              }),
            glm::mat4(1.0f), floor);
-  // A sphere and a torus wearing it once around.
+  // A sphere wearing it once around — LAYERED: rust where the plate's
+  // own occlusion runs deep (the AO map, inverted and fitted, as the
+  // mask), then moss on the faces that look up. One material, read
+  // top-down: steel, over that rust where the mask says, over that moss
+  // where the slope says.
   world::Material once = plate;
   once.uvScale = {2, 1};
+  world::Material rust;
+  rust.baseColor = {0.42f, 0.16f, 0.06f, 1};
+  rust.roughness = 0.95f;
+  rust.metallic = 0;
+  world::Material moss;
+  moss.baseColor = {0.16f, 0.32f, 0.08f, 1};
+  moss.roughness = 1;
+  world::Material weathered = once;
+  if (plate.occlusionMap)
+    weathered = weathered.over(
+        rust, world::Mask::fromMap(plate.occlusionMap, plate.occlusionChannel)
+                  .window(once.uvScale, once.uvOffset)
+                  .invert()
+                  .fit(0.35f, 0.75f));
+  weathered = weathered.over(moss, world::Mask::slope({0, 1, 0}, 0.55f, 0.9f));
   w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-           shape::space::place({-420, 20, 0}, 20), once);
+           shape::space::place({-470, -10, 200}, 20), weathered);
   world::Material band = plate;
   band.uvScale = {6, 1.5f};
   w->place(shape::mesh::torus(150, 60, 96, 48),
@@ -724,7 +743,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
     fluted.emissiveStrength = 0.12f;
     w->place(shape::mesh::quad(300, 230),
-             shape::space::place({-330, 150, 80}, 26), fluted);
+             shape::space::place({-380, 190, -40}, 26), fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base
