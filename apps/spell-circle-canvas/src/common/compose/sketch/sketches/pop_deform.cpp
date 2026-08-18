@@ -135,7 +135,7 @@ shape::pop::Builder base() {
       .spread(28)
       .seed(3)
       .vary(0.5f)
-      .select("band", shape::pop::Group::Shape::Box, {0, 20, 0}, {80, 55, 80},
+      .select("band", shape::pop::Select::Shape::Box, {0, 20, 0}, {80, 55, 80},
               kFeather)
       .rampBy("band", 0, stops);
 }

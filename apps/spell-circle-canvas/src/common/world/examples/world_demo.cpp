@@ -419,17 +419,17 @@ void renderPopLab(const std::filesystem::path& outDir,
   }
   const shape::pop::Chain chain =
       shape::pop::on(seed)
-          .select("band", shape::pop::Group::Shape::Box,
+          .select("band", shape::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
           .rampBy(shape::pop::Lane::P, 1, heightStops, lo.y, hi.y)
           .peak(14)
-          .select("band", shape::pop::Group::Shape::Box,
+          .select("band", shape::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f,
-                  shape::pop::Group::Combine::Replace, true)
+                  shape::pop::Select::Combine::Replace, true)
           .masked("band")  // the peak: everyone OUTSIDE the band
-          .select("band", shape::pop::Group::Shape::Box,
+          .select("band", shape::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
           .twist(90, {0, 1, 0}, lo.y, hi.y, {60, 0, 0})
@@ -441,7 +441,7 @@ void renderPopLab(const std::filesystem::path& outDir,
   world::Material flake;
   flake.baseColor = {1, 1, 1, 1};
   flake.roughness = 0.85f;
-  const uint32_t id = w->addPoints(shape::mesh::quad(5, 5), chain, flake);
+  const uint32_t id = w->placeChain(shape::mesh::quad(5, 5), chain, flake);
   if (id == 0) {
     std::fprintf(stderr, "pop lab: the executor declined the chain\n");
     return;
@@ -451,12 +451,12 @@ void renderPopLab(const std::filesystem::path& outDir,
   floor.baseColor = {0.12f, 0.12f, 0.14f, 1};
   floor.roughness = 0.5f;
   floor.metallic = 0.3f;
-  w->addSurface(shape::mesh::grid(2, 2,
-                                  [&](float u, float v) -> glm::vec3 {
-                                    return {(u - 0.5f) * 1800, lo.y - 40,
-                                            (v - 0.5f) * 1200};
-                                  }),
-                glm::mat4(1.0f), floor);
+  w->place(shape::mesh::grid(2, 2,
+                             [&](float u, float v) -> glm::vec3 {
+                               return {(u - 0.5f) * 1800, lo.y - 40,
+                                       (v - 0.5f) * 1200};
+                             }),
+           glm::mat4(1.0f), floor);
   world::Lighting lighting;
   lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
   lighting.sunIntensity = 2.6f;
@@ -520,7 +520,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     // Inside the camera's far plane all round.
     shape::Mesh dome =
         shape::mesh::superellipsoid({2400, 2400, 2400}, 2, 96, 48);
-    w->addSurface(dome, shape::space::place({0, 0, 0}, 200 + 180), sky);
+    w->place(dome, shape::space::place({0, 0, 0}, 200 + 180), sky);
     std::printf("environment: %dx%d\n", hdri->width(), hdri->height());
   }
   w->setLighting(lighting);
@@ -552,21 +552,21 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   // The floor: the plate laid down four times across.
   world::Material floor = plate;
   floor.uvScale = {4, 4};
-  w->addSurface(shape::mesh::grid(2, 2,
-                                  [](float u, float v) -> glm::vec3 {
-                                    return {(u - 0.5f) * 1800, -150,
-                                            (v - 0.5f) * 1200};
-                                  }),
-                glm::mat4(1.0f), floor);
+  w->place(shape::mesh::grid(2, 2,
+                             [](float u, float v) -> glm::vec3 {
+                               return {(u - 0.5f) * 1800, -150,
+                                       (v - 0.5f) * 1200};
+                             }),
+           glm::mat4(1.0f), floor);
   // A sphere and a torus wearing it once around.
   world::Material once = plate;
   once.uvScale = {2, 1};
-  w->addSurface(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-                shape::space::place({-420, 20, 0}, 20), once);
+  w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+           shape::space::place({-420, 20, 0}, 20), once);
   world::Material band = plate;
   band.uvScale = {6, 1.5f};
-  w->addSurface(shape::mesh::torus(150, 60, 96, 48),
-                shape::space::place({420, 20, 0}, 0, -20), band);
+  w->place(shape::mesh::torus(150, 60, 96, 48),
+           shape::space::place({420, 20, 0}, 0, -20), band);
 
 #ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
   // 2. A Substance archive rendered here and now: the SDK's own sample,
@@ -592,8 +592,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       m.normalScale = 1.4f;
       return m;
     };
-    w->addSurface(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-                  shape::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
+    w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+             shape::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
     // ...and a leaning panel wearing the late-season cook, tiled twice.
     world::Material late = leaves(1.0f, 1.0f);
     late.uvScale = {2, 2};
@@ -604,8 +604,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       late.emissive = {0.9f, 0.55f, 0.3f, 1};
       late.emissiveStrength = 1.4f;
     }
-    w->addSurface(shape::mesh::quad(560, 340),
-                  shape::space::place({0, -30, 330}, 0, -62), late);
+    w->place(shape::mesh::quad(560, 340),
+             shape::space::place({0, -30, 330}, 0, -62), late);
     std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
                 substance::Package::engineVersion().c_str());
   } else {
@@ -651,8 +651,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     circuit.emissiveStrength = 3.5f;
     circuit.uvScale = {4, 2};
     circuit.tile = true;
-    w->addSurface(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
-                  shape::space::place({-460, 250, -320}, 20), circuit);
+    w->place(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
+             shape::space::place({-460, 250, -320}, 20), circuit);
     if (dark) {
       // Emission does not light its neighbours by itself; in the dark a
       // dim point light of the same hue sits inside the sphere so the
@@ -677,16 +677,16 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     clear.transmission = 1;
     clear.ior = 1.5f;
     clear.thickness = 140;
-    w->addSurface(shape::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
-                  shape::space::place({-150, 40, 260}), clear);
+    w->place(shape::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
+             shape::space::place({-150, 40, 260}), clear);
     world::Material frosted;
     frosted.baseColor = {0.85f, 0.93f, 1.0f, 1};
     frosted.roughness = 0.45f;
     frosted.transmission = 1;
     frosted.ior = 1.45f;
     frosted.thickness = 12;
-    w->addSurface(shape::mesh::quad(300, 210),
-                  shape::space::place({420, 40, 250}, -24), frosted);
+    w->place(shape::mesh::quad(300, 210),
+             shape::space::place({420, 40, 250}, -24), frosted);
 
     // Fluted (reeded) glass: refraction goes through the shaded normal,
     // so a normal map of vertical half-cylinders ribbons whatever is
@@ -723,8 +723,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     fluted.tile = true;
     fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
     fluted.emissiveStrength = 0.12f;
-    w->addSurface(shape::mesh::quad(300, 230),
-                  shape::space::place({-330, 150, 80}, 26), fluted);
+    w->place(shape::mesh::quad(300, 230),
+             shape::space::place({-330, 150, 80}, 26), fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base
@@ -741,8 +741,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     const glm::mat4 fit = avocado->fitTransform(260);
     for (const shape::import::Part& part : avocado->parts) {
       world::Material m = world::textures::material(part, decodeBytes);
-      w->addSurface(part.mesh, shape::space::place({420, -60, 320}, 30) * fit,
-                    m);
+      w->place(part.mesh, shape::space::place({420, -60, 320}, 30) * fit, m);
     }
     std::printf("avocado: %zu parts with their glTF material\n",
                 avocado->parts.size());
@@ -752,14 +751,14 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   world::Material rubber;
   rubber.baseColor = {0.85f, 0.2f, 0.15f, 1};
   rubber.roughness = 0.9f;
-  w->addSurface(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-                shape::space::place({-200, 260, -300}), rubber);
+  w->place(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+           shape::space::place({-200, 260, -300}), rubber);
   world::Material chrome;
   chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
   chrome.metallic = 1;
   chrome.roughness = 0.08f;
-  w->addSurface(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-                shape::space::place({200, 260, -300}), chrome);
+  w->place(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+           shape::space::place({200, 260, -300}), chrome);
 
   shape::space::Camera camera;
   camera.eye = {60, 330, 1150};
@@ -807,7 +806,7 @@ int main(int argc, char** argv) {
     floor.metallic = 0.85f;
     floor.roughness = 0.4f;
     shape::Mesh slab = shape::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
-    w->addSurface(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}), floor);
+    w->place(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}), floor);
   }
 
   // Three self-lit UI cards, arranged on an arc facing the viewer.
@@ -815,14 +814,14 @@ int main(int argc, char** argv) {
     world::Material screen;
     screen.unlit = true;
     screen.texture = uiCard(512, 340, {0.25f, 0.85f, 1.0f, 1}, 0.72f);
-    w->addSurface(shape::mesh::quad(380, 252),
-                  shape::space::place({-420, 60, -40}, 30), screen);
+    w->place(shape::mesh::quad(380, 252),
+             shape::space::place({-420, 60, -40}, 30), screen);
     screen.texture = uiCard(512, 340, {1.0f, 0.62f, 0.22f, 1}, 0.45f);
-    w->addSurface(shape::mesh::quad(380, 252),
-                  shape::space::place({0, 70, 30}, 0, -4), screen);
+    w->place(shape::mesh::quad(380, 252),
+             shape::space::place({0, 70, 30}, 0, -4), screen);
     screen.texture = uiCard(512, 340, {0.72f, 0.5f, 1.0f, 1}, 0.9f);
-    w->addSurface(shape::mesh::quad(380, 252),
-                  shape::space::place({420, 55, -40}, -30), screen);
+    w->place(shape::mesh::quad(380, 252),
+             shape::space::place({420, 55, -40}, -30), screen);
   }
 
   // Curved ticker panel below the cards.
@@ -830,8 +829,8 @@ int main(int argc, char** argv) {
     world::Material screen;
     screen.unlit = true;
     screen.texture = uiCard(1024, 220, {0.3f, 1.0f, 0.6f, 1}, 0.6f);
-    w->addSurface(shape::mesh::cylinderPanel(880, 170, 560, 64, 12),
-                  shape::space::place({0, -96, 90}, 0, 8), screen);
+    w->place(shape::mesh::cylinderPanel(880, 170, 560, 64, 12),
+             shape::space::place({0, -96, 90}, 0, 8), screen);
   }
 
   // Props: gold star (extruded), chrome blob, glass pane.
@@ -841,21 +840,21 @@ int main(int argc, char** argv) {
     gold.metallic = 1;
     gold.roughness = 0.3f;
     shape::Mesh star = shape::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
-    w->addSurface(star, shape::space::place({-560, 280, -220}, 36, -10), gold);
+    w->place(star, shape::space::place({-560, 280, -220}, 36, -10), gold);
 
     world::Material chrome;
     chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
     chrome.metallic = 1;
     chrome.roughness = 0.08f;
-    w->addSurface(shape::mesh::superellipsoid({110, 95, 80}, 2.4f, 64, 48),
-                  shape::space::place({590, 300, -200}, 15, 0, -6), chrome);
+    w->place(shape::mesh::superellipsoid({110, 95, 80}, 2.4f, 64, 48),
+             shape::space::place({590, 300, -200}, 15, 0, -6), chrome);
 
     world::Material glass;
     glass.baseColor = {0.75f, 0.9f, 0.95f, 0.32f};
     glass.metallic = 0;
     glass.roughness = 0.05f;
-    w->addSurface(shape::mesh::quad(360, 240),
-                  shape::space::place({210, 40, 150}, -12, -3), glass);
+    w->place(shape::mesh::quad(360, 240),
+             shape::space::place({210, 40, 150}, -12, -3), glass);
   }
 
   // An optional poster, decoded from SVG at panel resolution through
@@ -871,8 +870,8 @@ int main(int argc, char** argv) {
       world::Material poster;
       poster.unlit = true;
       poster.texture = tiger->frameAt(0).image;
-      w->addSurface(shape::mesh::quad(300, 300),
-                    shape::space::place({-780, 60, 120}, 42), poster);
+      w->place(shape::mesh::quad(300, 300),
+               shape::space::place({-780, 60, 120}, 42), poster);
       std::printf("tiger poster: %dx%d\n", poster.texture->width(),
                   poster.texture->height());
     }
@@ -881,7 +880,7 @@ int main(int argc, char** argv) {
   // The stream: a spline crossing the space above the set, carrying a
   // chrome wire and camera-facing UI cards at its arc-length stations.
   // Declared through the scene layer — describe and reconcile — rather
-  // than through imperative addSurface calls.
+  // than through imperative place calls.
   //
   // The cards are live billboards: every shot re-describes them through
   // space::faceCamera() against that shot's actual camera eye, so the
@@ -929,7 +928,7 @@ int main(int argc, char** argv) {
     faceStream = [&stream, wireMesh, wireMat, cardMat,
                   positions = stations.positions](glm::vec3 eye) {
       world::scene::Node root = world::scene::group().key("stream");
-      root.child(world::scene::surface(wireMesh, wireMat).key("wire"));
+      root.child(world::scene::place(wireMesh, wireMat).key("wire"));
       for (size_t i = 0; i < positions.size(); ++i)
         root.child(world::scene::panel(cardMat.texture, 170, 112)
                        .material(cardMat)
@@ -943,7 +942,7 @@ int main(int argc, char** argv) {
   }
 
   // The set dressing, declared through the world easel (Easel.h): two
-  // coloured point lights pooling on the floor by the props, and a swarm
+  // coloured point lights pooling on the floor by the props, and stamps
   // of sparks riding the stream arc, GPU-instanced as one draw call with
   // tint ramping along the "t" lane and size varying through the scale
   // lane.
@@ -962,14 +961,15 @@ int main(int argc, char** argv) {
     world::Material sparkMat;
     sparkMat.unlit = true;
     sparkMat.baseColor = {1, 1, 1, 0.85f};  // alpha < 1: the blended pass
-    world::InstanceLanes sparkLanes;
+    world::StampLanes sparkLanes;
     sparkLanes.tintLane = "tint";
     sparkLanes.scaleLane = "size";
 
     world::easel::Stage dressing = world::easel::stage(*w);
     dressing.light({-520, 60, -80}, {1.0f, 0.25f, 0.85f, 1}, 7, 760)
         .light({540, 80, -50}, {0.2f, 0.85f, 1.0f, 1}, 7, 760)
-        .swarm(std::move(sparks), shape::mesh::quad(6, 6), sparkMat, sparkLanes)
+        .placeStamps(std::move(sparks), shape::mesh::quad(6, 6), sparkMat,
+                     sparkLanes)
         .key("sparks");
     const world::scene::Scene::Stats stats = dressing.commit();
     std::printf("easel dressing: %d added\n", stats.added);
@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
       arc.sections = kSectionsPerTile;
       arc.head = wrap01(kFlagHome + (float)(k + 1) / (float)kTiles);
       arc.span = 1.0f / (float)kTiles;
-      stripIds.push_back(w->addSweep(arc, segment));
+      stripIds.push_back(w->placeSweep(arc, segment));
     }
 
     world::Material chromeDart;
@@ -1050,8 +1050,8 @@ int main(int argc, char** argv) {
     chromeDart.roughness = 0.12f;
     const std::vector<glm::vec2> dartProfile = {
         {0, 95}, {26, 30}, {34, -20}, {18, -52}, {0, -60}};
-    dartId = w->addSurface(shape::mesh::revolve(dartProfile),
-                           dartTransform(flightLoop, kFlagHome), chromeDart);
+    dartId = w->place(shape::mesh::revolve(dartProfile),
+                      dartTransform(flightLoop, kFlagHome), chromeDart);
 
     // The comet, COMPOSED ON DEVICE: a small guide chain rides the
     // ribbon's window, and the comet chain rides the guide — its
@@ -1066,7 +1066,7 @@ int main(int argc, char** argv) {
     world::Material guideMat;
     guideMat.unlit = true;
     guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f};  // faint beads
-    guideId = w->addPoints(shape::mesh::quad(4, 4), guideChain, guideMat);
+    guideId = w->placeChain(shape::mesh::quad(4, 4), guideChain, guideMat);
     const world::World::pop::Chain cometChain =
         shape::pop::on(std::vector<glm::vec3>{})  // loop comes from the guide
             .count(300000)
@@ -1081,8 +1081,8 @@ int main(int argc, char** argv) {
     world::Material sparkle;
     sparkle.unlit = true;
     sparkle.baseColor = {1, 1, 1, 0.8f};  // blended
-    cometId = w->addPointsOn(guideId, shape::mesh::quad(2.6f, 2.6f), cometChain,
-                             sparkle);
+    cometId = w->placeChainOn(guideId, shape::mesh::quad(2.6f, 2.6f),
+                              cometChain, sparkle);
     std::printf(
         "comet: %d GPU particles riding a %d-point guide "
         "chain, composed on device\n",
@@ -1157,12 +1157,12 @@ int main(int argc, char** argv) {
   }
   // --- reading GPU-cooked points back out ---------------------------------
   // The comet's particles exist only as GPU lanes, cooked by compute and
-  // never touched by the CPU. readPoints() pulls those lanes back as a
+  // never touched by the CPU. readChain() pulls those lanes back as a
   // Cloud, and save::ply() writes a binary PLY that a DCC application
   // opens directly — positions plus the scalar, vector and colour lanes
   // the chain named, all riding along.
   if (cometId) {
-    const shape::Cloud comet = w->readPoints(cometId);
+    const shape::Cloud comet = w->readChain(cometId);
     const auto file = outDir / "comet_points.ply";
     if (shape::save::ply(file, comet, {.binary = true}))
       std::printf(
@@ -1190,7 +1190,7 @@ int main(int argc, char** argv) {
                           1.0f / (float)kTiles);
       w->setTransform(dartId, dartTransform(flightLoop, shift));
       // Two floats on the GUIDE only; the comet re-cooks by cascade.
-      w->setPointsWindow(guideId, shift, kCometSpan);
+      w->setChainWindow(guideId, shift, kCometSpan);
     };
 
     const int kTimed = 240;

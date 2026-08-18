@@ -45,7 +45,7 @@ void warnComputeKernelsUnavailable() {
   SkDebugf(
       "[world] compute kernels unavailable: this build was configured "
       "without slangc, so no SPIR-V compute shaders were embedded. "
-      "addSweep, addFlock, addPoints and addPointsOn return 0; surface "
+      "placeSweep, placeChain and placeChainOn return 0; prop "
       "rendering is unaffected.\n");
 }
 }  // namespace
@@ -533,7 +533,7 @@ struct InstanceAttribs {
 using shape::detail::basisFor;
 
 std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
-                                            const InstanceLanes& lanes) {
+                                            const StampLanes& lanes) {
   const std::vector<float>* scaleLane =
       lanes.scaleLane.empty() ? nullptr : cloud.scalarIf(lanes.scaleLane);
   const std::vector<glm::vec4>* tintLane =
@@ -629,8 +629,8 @@ struct GpuGeometry {
 };
 
 /** The instanced sibling: one stamp's buffers plus the per-instance
- *  stream (addInstanced). instanceBuffer is null while the flock is
- *  empty; setInstances() refreshes or recreates it. */
+ *  stream (placeStamps). instanceBuffer is null while the stamps are
+ *  empty; setStamps() refreshes or recreates it. */
 struct GpuInstancedGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
@@ -641,7 +641,7 @@ struct GpuInstancedGeometry {
   uint32_t instanceCount = 0;
 };
 
-/** addSweep()'s private state: the loop resident on the GPU and the
+/** placeSweep()'s private state: the loop resident on the GPU and the
  *  compute binding that lets the sweep kernel rewrite the surface's
  *  vertex buffer in place. `dirty` batches any number of window moves
  *  into one dispatch at the next render(). */
@@ -659,25 +659,7 @@ struct SweepComponent {
 // views of these structs cannot drift apart.
 using SweepParams = shaderparams::SweepParamsData;
 
-/** addFlock()'s private state, the flock counterpart of SweepComponent:
- *  the loop on the GPU plus the compute binding that packs the instanced
- *  draw stream in place. */
-struct FlockComponent {
-  dg::RefCntAutoPtr<dg::IBuffer> points;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
-  float head = 1, span = 1;
-  float radius = 0, scale = 1;
-  float noiseAmplitude = 0, noiseFrequency = 0.01f, seed = 7;
-  float tintTail[4] = {1, 1, 1, 1};
-  float tintHead[4] = {1, 1, 1, 1};
-  int count = 0;
-  int pointCount = 0;
-  bool dirty = true;
-};
-
-using FlockParams = shaderparams::FlockParamsData;
-
-/** addPoints()'s private state: the chain (a value — the
+/** placeChain()'s private state: the chain (a value — the
  *  nondestructive description), the GPU attribute lanes it cooks into,
  *  and one shader resource binding per operator. The bindings cannot be
  *  shared: they are pipeline-specific, and dead-resource elimination
@@ -729,14 +711,14 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
         [&](const auto& o) {
           using T = std::decay_t<decltype(o)>;
           if constexpr (requires { o.lane; }) note(o.lane);
-          if constexpr (std::is_same_v<T, World::pop::Set>) note(o.attr);
+          if constexpr (std::is_same_v<T, World::pop::Fill>) note(o.attr);
           if constexpr (std::is_same_v<T, World::pop::Lookup>) {
             // Both ends: a lookup may read one custom lane and write
             // another, and each needs its own slot.
             note(o.from);
             note(o.to);
           }
-          if constexpr (std::is_same_v<T, World::pop::Group>) {
+          if constexpr (std::is_same_v<T, World::pop::Select>) {
             note(o.from);
             note(World::pop::AttrRef{o.to});
           }
@@ -787,14 +769,10 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::IPipelineState> blendInstancedPso;
   dg::RefCntAutoPtr<dg::IBuffer> frameCB;
   dg::RefCntAutoPtr<dg::IBuffer> drawCB;
-  // The sweep generator, created lazily on the first addSweep().
+  // The sweep generator, created lazily on the first placeSweep().
   dg::RefCntAutoPtr<dg::IPipelineState> sweepPso;
   dg::RefCntAutoPtr<dg::IBuffer> sweepCB;
   bool ensureSweepPipeline();
-  // The flock generator, created lazily on the first addFlock().
-  dg::RefCntAutoPtr<dg::IPipelineState> flockPso;
-  dg::RefCntAutoPtr<dg::IBuffer> flockCB;
-  bool ensureFlockPipeline();
   dg::RefCntAutoPtr<dg::IBuffer> createLoopBuffer(
       const std::vector<glm::vec3>& loop);
   // The pop kernel: one PSO per operator entry point (index = the
@@ -1336,7 +1314,7 @@ bool World::Impl::createMeshBuffers(
   using namespace dg;
   const std::vector<Vertex> vertices = packVertices(mesh);
 
-  // DEFAULT rather than IMMUTABLE usage, so setSurfaceMesh() can update
+  // DEFAULT rather than IMMUTABLE usage, so setMesh() can update
   // these buffers in place when the topology is unchanged.
   BufferDesc vbDesc;
   vbDesc.Name = "sigilworld vertices";
@@ -1362,7 +1340,7 @@ dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createInstanceBuffer(
   using namespace dg;
   RefCntAutoPtr<IBuffer> buffer;
   if (instances.empty()) return buffer;
-  // DEFAULT usage, so setInstances() can update it in place when the
+  // DEFAULT usage, so setStamps() can update it in place when the
   // instance count is unchanged.
   BufferDesc desc;
   desc.Name = "sigilworld instances";
@@ -1426,58 +1404,6 @@ bool World::Impl::ensureSweepPipeline() {
 #endif
 }
 
-bool World::Impl::ensureFlockPipeline() {
-  using namespace dg;
-  if (flockPso) return true;
-
-#ifndef SIGILWORLD_POP_SPIRV
-  // The compute generators exist only as SPIR-V compiled at build time;
-  // they have no fallback shader. The graphics path still works — this
-  // door fails to create and the caller returns 0.
-  warnComputeKernelsUnavailable();
-  return false;
-#else
-  ShaderCreateInfo shaderCI;
-  size_t byteCodeSize = 0;
-  shaderCI.ByteCode = findSpirv("CSFlock", &byteCodeSize);
-  shaderCI.ByteCodeSize = byteCodeSize;
-  if (!shaderCI.ByteCode) return false;
-  shaderCI.EntryPoint = "CSFlock";
-  shaderCI.Desc.ShaderType = SHADER_TYPE_COMPUTE;
-  shaderCI.Desc.Name = "sigilworld flock cs";
-  RefCntAutoPtr<IShader> cs;
-  device->CreateShader(shaderCI, &cs);
-  if (!cs) return false;
-
-  BufferDesc cbDesc;
-  cbDesc.Name = "sigilworld flock params";
-  cbDesc.Usage = USAGE_DYNAMIC;
-  cbDesc.BindFlags = BIND_UNIFORM_BUFFER;
-  cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
-  cbDesc.Size = sizeof(FlockParams);
-  device->CreateBuffer(cbDesc, nullptr, &flockCB);
-  if (!flockCB) return false;
-
-  ComputePipelineStateCreateInfo psoCI;
-  psoCI.PSODesc.Name = "sigilworld flock";
-  psoCI.PSODesc.PipelineType = PIPELINE_TYPE_COMPUTE;
-  ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_COMPUTE, "g_Points", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_COMPUTE, "g_Instances",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-  };
-  psoCI.PSODesc.ResourceLayout.Variables = variables;
-  psoCI.PSODesc.ResourceLayout.NumVariables = 2;
-  psoCI.pCS = cs;
-  device->CreateComputePipelineState(psoCI, &flockPso);
-  if (!flockPso) return false;
-  if (auto* var =
-          flockPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE, "FlockParams"))
-    var->Set(flockCB);
-  return true;
-#endif
-}
-
 dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createLoopBuffer(
     const std::vector<glm::vec3>& loop) {
   using namespace dg;
@@ -1507,10 +1433,10 @@ namespace {
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
 constexpr const char* kPopEntries[] = {
-    "CSSplineScatter", "CSJitter",   "CSNoise",     "CSRamp",    "CSVary",
-    "CSLookAt",        "CSMath",     "CSRelax",     "CSSet",     "CSAtlas",
-    "CSLookup",        "CSGroup",    "CSTransform", "CSPeak",    "CSDeform",
-    "CSMix",           "CSPointSet", "CSCopyBack",  "CSPopPack",
+    "CSSplineScatter", "CSJitter",   "CSNoise",    "CSRamp",    "CSVary",
+    "CSLookAt",        "CSMath",     "CSRelax",    "CSFill",    "CSAtlas",
+    "CSLookup",        "CSSelect",   "CSAffine",   "CSPeak",    "CSDeform",
+    "CSMix",           "CSPointSet", "CSCopyBack", "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
@@ -1706,8 +1632,8 @@ std::unique_ptr<World> World::create(const WorldConfig& config,
   return world;
 }
 
-uint32_t World::addSurface(const shape::Mesh& mesh, const glm::mat4& model,
-                           const Material& material) {
+uint32_t World::place(const shape::Mesh& mesh, const glm::mat4& model,
+                      const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   if (mesh.positions.empty() || mesh.indices.empty()) return 0;
@@ -1729,10 +1655,8 @@ uint32_t World::addSurface(const shape::Mesh& mesh, const glm::mat4& model,
   return (uint32_t)id;
 }
 
-uint32_t World::addInstanced(const shape::Mesh& stamp,
-                             const shape::Cloud& cloud,
-                             const Material& material,
-                             const InstanceLanes& lanes) {
+uint32_t World::placeStamps(const shape::Mesh& stamp, const shape::Cloud& cloud,
+                            const Material& material, const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
   if (stamp.positions.empty() || stamp.indices.empty()) return 0;
@@ -1754,7 +1678,7 @@ uint32_t World::addInstanced(const shape::Mesh& stamp,
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
-  // One transform for the whole flock, starting at identity: the points
+  // One transform for all the stamps, starting at identity: the points
   // carry their own placement, and setTransform moves all of them
   // together.
   impl.registry.emplace<TransformComponent>(id, glm::mat4(1.0f));
@@ -1762,8 +1686,8 @@ uint32_t World::addInstanced(const shape::Mesh& stamp,
   return (uint32_t)id;
 }
 
-void World::setInstances(uint32_t id, const shape::Cloud& cloud,
-                         const InstanceLanes& lanes) {
+void World::setStamps(uint32_t id, const shape::Cloud& cloud,
+                      const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -1790,7 +1714,7 @@ void World::setTransform(uint32_t id, const glm::mat4& model) {
     registry.get<TransformComponent>(e).model = model;
 }
 
-void World::setSurfaceMesh(uint32_t id, const shape::Mesh& mesh) {
+void World::setMesh(uint32_t id, const shape::Mesh& mesh) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -1817,7 +1741,7 @@ void World::setSurfaceMesh(uint32_t id, const shape::Mesh& mesh) {
   impl.createMeshBuffers(mesh, geometry.vertexBuffer, geometry.indexBuffer);
 }
 
-uint32_t World::addSweep(const SweepDesc& desc, const Material& material) {
+uint32_t World::placeSweep(const SweepDesc& desc, const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   if (desc.loop.size() < 3 || desc.sections < 2) return 0;
@@ -1894,88 +1818,6 @@ void World::setSweepWindow(uint32_t id, float head, float span) {
   sweep.dirty = true;
 }
 
-uint32_t World::addFlock(const shape::Mesh& stamp, const FlockDesc& desc,
-                         const Material& material) {
-  using namespace dg;
-  Impl& impl = *m_impl;
-  if (stamp.positions.empty() || stamp.indices.empty() ||
-      desc.loop.size() < 3 || desc.count < 1)
-    return 0;
-  if (!impl.ensureFlockPipeline()) return 0;
-
-  FlockComponent flock;
-  flock.head = desc.head;
-  flock.span = desc.span;
-  flock.radius = desc.radius;
-  flock.scale = desc.scale;
-  flock.noiseAmplitude = desc.noiseAmplitude;
-  flock.noiseFrequency = desc.noiseFrequency;
-  flock.seed = desc.seed;
-  flock.count = desc.count;
-  flock.pointCount = (int)desc.loop.size();
-  const glm::vec4& tail = desc.tintTail;
-  const glm::vec4& headTint = desc.tintHead;
-  flock.tintTail[0] = tail.x;
-  flock.tintTail[1] = tail.y;
-  flock.tintTail[2] = tail.z;
-  flock.tintTail[3] = tail.w;
-  flock.tintHead[0] = headTint.x;
-  flock.tintHead[1] = headTint.y;
-  flock.tintHead[2] = headTint.z;
-  flock.tintHead[3] = headTint.w;
-  flock.points = impl.createLoopBuffer(desc.loop);
-
-  GpuInstancedGeometry geometry;
-  geometry.indexCount = (uint32_t)stamp.indices.size();
-  geometry.instanceCount = (uint32_t)desc.count;
-  if (!impl.createMeshBuffers(stamp, geometry.vertexBuffer,
-                              geometry.indexBuffer))
-    return 0;
-
-  // The instanced stream the compute kernel packs: bound both as an
-  // unordered-access view and as a per-instance vertex buffer.
-  BufferDesc ibDesc;
-  ibDesc.Name = "sigilworld flock instances";
-  ibDesc.Usage = USAGE_DEFAULT;
-  ibDesc.BindFlags = BIND_VERTEX_BUFFER | BIND_UNORDERED_ACCESS;
-  ibDesc.Mode = BUFFER_MODE_STRUCTURED;
-  ibDesc.ElementByteStride = sizeof(InstanceAttribs);
-  ibDesc.Size = (Uint64)desc.count * sizeof(InstanceAttribs);
-  impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
-  if (!flock.points || !geometry.instanceBuffer) return 0;
-
-  impl.flockPso->CreateShaderResourceBinding(&flock.srb, true);
-  if (!flock.srb) return 0;
-  if (auto* var = flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Points"))
-    var->Set(flock.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
-  if (auto* var =
-          flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Instances"))
-    var->Set(
-        geometry.instanceBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
-
-  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
-                         geometry.bound))
-    return 0;
-
-  const entt::entity id = impl.registry.create();
-  impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
-  impl.registry.emplace<TransformComponent>(id, glm::mat4(1.0f));
-  impl.registry.emplace<MaterialComponent>(id, material);
-  impl.registry.emplace<FlockComponent>(id, std::move(flock));
-  return (uint32_t)id;
-}
-
-void World::setFlockWindow(uint32_t id, float head, float span) {
-  Impl& impl = *m_impl;
-  const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) || !impl.registry.all_of<FlockComponent>(e))
-    return;
-  FlockComponent& flock = impl.registry.get<FlockComponent>(e);
-  flock.head = head;
-  flock.span = span;
-  flock.dirty = true;
-}
-
 namespace {
 
 /** A chain's point count comes from its generator head. Answers 0 for a
@@ -2040,7 +1882,7 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(
   desc.Name = name;
   desc.Usage = USAGE_DEFAULT;
   // SHADER_RESOURCE as well as UAV, because a downstream chain built
-  // with addPointsOn reads this arena's position slot as its own loop.
+  // with placeChainOn reads this arena's position slot as its own loop.
   desc.BindFlags = BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE;
   desc.Mode = BUFFER_MODE_STRUCTURED;
   desc.ElementByteStride = 4 * sizeof(float);
@@ -2053,7 +1895,7 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(
 
 /** The Lookup stop tables, concatenated. IMMUTABLE, because the stops
  *  are part of the chain value: editing them is a re-describe, and
- *  setPoints takes the structural path when it sees a different table
+ *  setChain takes the structural path when it sees a different table
  *  even if every operator kind still lines up. A chain with no Lookup
  *  still gets a one-element placeholder, since the binding is not
  *  optional and a null buffer view is not legal. */
@@ -2077,8 +1919,8 @@ dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
 
 }  // namespace
 
-uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
-                          const Material& material) {
+uint32_t World::placeChain(const shape::Mesh& stamp, const pop::Chain& chain,
+                           const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   const int count = popChainCount(chain);
@@ -2140,8 +1982,9 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   return (uint32_t)id;
 }
 
-uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
-                            const pop::Chain& chain, const Material& material) {
+uint32_t World::placeChainOn(uint32_t upstream, const shape::Mesh& stamp,
+                             const pop::Chain& chain,
+                             const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity up = entity(upstream);
@@ -2203,7 +2046,7 @@ uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
   return (uint32_t)id;
 }
 
-void World::setPointsWindow(uint32_t id, float head, float span) {
+void World::setChainWindow(uint32_t id, float head, float span) {
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
   if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e)) return;
@@ -2216,7 +2059,7 @@ void World::setPointsWindow(uint32_t id, float head, float span) {
   points.dirty = true;
 }
 
-void World::setPoints(uint32_t id, const pop::Chain& chain) {
+void World::setChain(uint32_t id, const pop::Chain& chain) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -2247,7 +2090,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   // The loop rides its own immutable buffer, uploaded when the surface
   // was added, so a re-describe with MOVED control points must recreate
   // it or the kernels go on cooking the old loop. Compared before the
-  // chain is overwritten. A surface created with addPointsOn carries an
+  // chain is overwritten. A surface created with placeChainOn carries an
   // empty loop — its generator reads the upstream arena instead — and so
   // never takes this path.
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
@@ -2285,7 +2128,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
     impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
     if (!points.lanes || !points.scratch || !points.table ||
         !geometry.instanceBuffer) {
-      // Allocation failed partway. Zero the count so readPoints() cannot
+      // Allocation failed partway. Zero the count so readChain() cannot
       // later size a copy against lanes that do not exist.
       points.count = 0;
       return;
@@ -2299,7 +2142,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   points.dirty = true;
 }
 
-shape::Cloud World::readPoints(uint32_t id) {
+shape::Cloud World::readChain(uint32_t id) {
   using namespace dg;
   Impl& impl = *m_impl;
   shape::Cloud out;
@@ -2359,7 +2202,7 @@ shape::Cloud World::readPoints(uint32_t id) {
   return out;
 }
 
-void World::removeSurface(uint32_t id) {
+void World::remove(uint32_t id) {
   entt::registry& registry = m_impl->registry;
   const entt::entity e = entity(id);
   if (registry.valid(e) &&
@@ -2367,7 +2210,7 @@ void World::removeSurface(uint32_t id) {
     registry.destroy(e);
 }
 
-size_t World::surfaceCount() const {
+size_t World::propCount() const {
   return m_impl->registry.view<GpuGeometry>().size() +
          m_impl->registry.view<GpuInstancedGeometry>().size();
 }
@@ -2433,7 +2276,7 @@ bool World::render() {
         params->window[3] = (float)sweep.sections;
         params->loop[0] = (float)sweep.pointCount;
         // Parameter step the kernel uses for its centred-difference
-        // tangent; must match the flock and point kernels' value below.
+        // tangent; must match the point kernels' value below.
         params->loop[1] = 0.002f;
         params->loop[2] = 0;
         params->loop[3] = 0;
@@ -2444,41 +2287,6 @@ bool World::render() {
                                       1);
       impl.context->DispatchCompute(dispatch);
       sweep.dirty = false;
-    }
-  }
-  {
-    auto flocks = impl.registry.view<FlockComponent>();
-    bool bound = false;
-    for (entt::entity e : flocks) {
-      FlockComponent& flock = flocks.get<FlockComponent>(e);
-      if (!flock.dirty) continue;
-      if (!bound) {
-        impl.context->SetPipelineState(impl.flockPso);
-        bound = true;
-      }
-      {
-        MapHelper<FlockParams> params(impl.context, impl.flockCB, MAP_WRITE,
-                                      MAP_FLAG_DISCARD);
-        params->windowA[0] = flock.head;
-        params->windowA[1] = flock.span;
-        params->windowA[2] = flock.radius;
-        params->windowA[3] = (float)flock.count;
-        params->windowB[0] = flock.scale;
-        params->windowB[1] = flock.noiseAmplitude;
-        params->windowB[2] = flock.noiseFrequency;
-        params->windowB[3] = flock.seed;
-        std::memcpy(params->tintTail, flock.tintTail, sizeof(flock.tintTail));
-        std::memcpy(params->tintHead, flock.tintHead, sizeof(flock.tintHead));
-        params->loop[0] = (float)flock.pointCount;
-        params->loop[1] = 0.002f;
-        params->loop[2] = 0;
-        params->loop[3] = 0;
-      }
-      impl.context->CommitShaderResources(
-          flock.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-      DispatchComputeAttribs dispatch((Uint32)((flock.count + 63) / 64), 1, 1);
-      impl.context->DispatchCompute(dispatch);
-      flock.dirty = false;
     }
   }
   {
@@ -2499,7 +2307,7 @@ bool World::render() {
           impl.registry.all_of<PopComponent>(points.upstream)) {
         PopComponent& up = impl.registry.get<PopComponent>(points.upstream);
         if (up.dirty) cookOne(points.upstream);
-        // Refreshed every cook, so a setPoints() on the upstream that
+        // Refreshed every cook, so a setChain() on the upstream that
         // changed its point count cannot leave this one reading a stale
         // length.
         points.loopCount = up.count;
@@ -2602,7 +2410,7 @@ bool World::render() {
               } else if constexpr (std::is_same_v<T, pop::Relax>) {
                 params.a[0] = op.strength;
                 params.d[1] = (float)points.slotFor(op.lane);
-              } else if constexpr (std::is_same_v<T, pop::Set>) {
+              } else if constexpr (std::is_same_v<T, pop::Fill>) {
                 params.a[0] = op.value.x;
                 params.a[1] = op.value.y;
                 params.a[2] = op.value.z;
@@ -2634,7 +2442,7 @@ bool World::render() {
                 params.b[2] = op.add.z;
                 params.b[3] = op.add.w;
                 params.d[1] = (float)points.slotFor(op.lane);
-              } else if constexpr (std::is_same_v<T, pop::Group>) {
+              } else if constexpr (std::is_same_v<T, pop::Select>) {
                 put3(params.a, op.center);
                 put3(params.b, op.size);
                 params.c[0] = op.feather;
@@ -2643,7 +2451,7 @@ bool World::render() {
                 params.c[3] = (float)op.combine;
                 params.d[1] = (float)points.slotFor(pop::AttrRef{op.to});
                 params.m[1] = (float)points.slotFor(op.from);
-              } else if constexpr (std::is_same_v<T, pop::Transform>) {
+              } else if constexpr (std::is_same_v<T, pop::Affine>) {
                 params.a[0] = op.direction ? 1.0f : 0.0f;
                 put4(params.e, op.matrix[0]);
                 put4(params.f, op.matrix[1]);

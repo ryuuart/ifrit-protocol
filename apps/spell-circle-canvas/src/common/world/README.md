@@ -7,8 +7,8 @@ physically-based shading pass, and it gives frames back as CPU-side
 raster images or PNG files. Scene objects are entities in an entity
 registry, so transforms, materials, lights and cameras are ordinary data
 you can read, mutate, or drive from your own systems. Geometry
-*generation* can run on the GPU too: swept ribbons, particle flocks and
-a general point-operator chain execute as compute dispatches whose
+*generation* can run on the GPU too: swept ribbons and a general
+point-operator chain execute as compute dispatches whose
 results never travel back through the CPU.
 
 Namespace `sigil::world`, target `SigilWorld`, headers under
@@ -43,7 +43,7 @@ gold.metallic = 1;
 gold.roughness = 0.25f;
 
 const uint32_t ring =
-    w->addSurface(shape::mesh::torus(140, 40), glm::mat4(1.0f), gold);
+    w->place(shape::mesh::torus(140, 40), glm::mat4(1.0f), gold);
 
 shape::space::Camera camera;
 camera.eye = {0, 220, 620};
@@ -54,7 +54,7 @@ w->render();
 w->savePng("frame.png");
 sk_sp<SkImage> frame = w->readback();  // raster RGBA, opaque
 
-// The surface id IS an entity. Move it and render again.
+// The prop id IS an entity. Move it and render again.
 w->registry().get<world::TransformComponent>(world::entity(ring)).model =
     glm::rotate(glm::mat4(1.0f), 0.4f, glm::vec3{0, 1, 0});
 w->render();
@@ -66,7 +66,7 @@ A textured panel is the same call with an image in the material:
 world::Material screen;
 screen.texture = someSkImage;
 screen.unlit = true;  // self-lit UI, no shading applied
-w->addSurface(shape::mesh::quad(380, 252), placement, screen);
+w->place(shape::mesh::quad(380, 252), placement, screen);
 ```
 
 A scanned or authored material is the full texture set, read from the
@@ -79,7 +79,7 @@ for (const world::textures::TextureSet& set :
      world::textures::discover("assets/textures/metal_plate")) {
   world::Material plate = world::textures::material(set, decodeImage);
   plate.uvScale = {4, 4};  // the set tiles; lay it down four times
-  w->addSurface(shape::mesh::torus(150, 60), placement, plate);
+  w->place(shape::mesh::torus(150, 60), placement, plate);
 }
 ```
 
@@ -93,53 +93,65 @@ renderer uses, so a Skia-composited image and a SigilWorld render agree
 about where things sit. Frames leave as raster `SkImage`s. There is no
 window, no swapchain, and no scene file format.
 
-**A surface id is an entity.** `addSurface()` returns a `uint32_t` that
+**The vocabulary is small and used at every layer.** A **prop** is a
+thing in the world: geometry, a placement and a material, one entity.
+**place** is the verb that puts one there, in every layer — `World::place`,
+`scene::place`, `stage.place` — and its variants say what the geometry
+is: `placeStamps` (one stamp mesh drawn at every point of a cloud),
+`placeChain` (a `pop::Chain` cooked on the GPU and stamped), `placeSweep`
+(a ribbon swept along a loop by a compute kernel). What a prop is made of
+is its **material**; where a mask over it says is a **mask** — the same
+word `pop` uses. "Surface" is deliberately not an API word here: in
+shading it means the material side, so it is left to prose.
+
+**A prop id is an entity.** `place()` returns a `uint32_t` that
 `world::entity(id)` casts to an `entt::entity`, and `registry()` hands
-out the registry itself. Attach your own components to a surface, run
+out the registry itself. Attach your own components to a prop, run
 your own views over the same entities, mutate `TransformComponent` and
 `MaterialComponent` directly — the next `render()` reads them. Entity 0
-is consumed during initialization, so a valid surface id is never 0 and
+is consumed during initialization, so a valid prop id is never 0 and
 0 always means failure. Lights and cameras are entities too
 (`LightComponent`, `CameraComponent`).
 
 **Four ways to get geometry onto the GPU, increasingly device-resident.**
 
-1. `addSurface()` uploads a CPU-built `shape::Mesh`.
-   `setSurfaceMesh()` replaces it in place — matching vertex and index
+1. `place()` uploads a CPU-built `shape::Mesh`.
+   `setMesh()` replaces it in place — matching vertex and index
    counts update the existing buffers, a different shape recreates them.
-2. `addInstanced()` uploads one stamp mesh plus a per-instance stream
+2. `placeStamps()` uploads one stamp mesh plus a per-instance stream
    built from a `shape::Cloud`, drawing every point in one call.
-   `setInstances()` refreshes the points.
-3. `addSweep()` and `addFlock()` build their geometry with compute
-   kernels: control points live in a device buffer, and the vertex or
-   instance stream is written on the GPU. The points never exist on the
-   CPU at all.
-4. `addPoints()` cooks a whole `shape::pop::Chain` — a generator plus a
+   `setStamps()` refreshes the points.
+3. `placeSweep()` builds its geometry with a compute kernel: control
+   points live in a device buffer, and the vertex stream is written on
+   the GPU. The points never exist on the CPU at all.
+4. `placeChain()` cooks a whole `shape::pop::Chain` — a generator plus a
    list of filter operators — as one compute dispatch per operator over
-   GPU-resident attribute lanes. `addPointsOn()` feeds one cooked chain
-   into another without a CPU round trip. `readPoints()` copies the
-   cooked lanes back as a `shape::Cloud` when you want them.
+   GPU-resident attribute lanes. `placeChainOn()` feeds one cooked chain
+   into another without a CPU round trip. `readChain()` copies the
+   cooked lanes back as a `shape::Cloud` when you want them. A scattered,
+   drifting, tinted flock is a chain (`pop::on(loop).spread().noise().fade()`),
+   not a door of its own.
 
 **Windows are the animation primitive.** Every GPU generator takes a
 `head` and `span` window into a closed loop. Sliding that window is two
-floats and a re-dispatch — `setSweepWindow()`, `setFlockWindow()`,
-`setPointsWindow()` — so a comet marching along a curve costs two
-numbers per frame and no geometry work on the CPU.
+floats and a re-dispatch — `setSweepWindow()`, `setChainWindow()` — so a
+comet marching along a curve costs two numbers per frame and no geometry
+work on the CPU.
 
 **Three stacked authoring layers, and you can mix them.**
 
 - *Imperative*: the `World` methods above. Call, get an id, mutate.
 - *Declarative*: `Scene.h`. Describe the scene as a value tree of
-  `scene::group()` / `scene::surface()` / `scene::panel()` nodes with
+  `scene::group()` / `scene::place()` / `scene::panel()` nodes with
   keys, call `Scene::render(root)`, and a reconciler diffs it against
   the previous description. Transform-only changes become
   `setTransform`; identical leaves are kept; only genuinely new or
-  changed surfaces upload. `render()` returns
+  changed props upload. `render()` returns
   `Stats{added, removed, moved, kept}`, and `Scene::find(keyPath)`
   resolves a node's key path to its entity.
 - *Fluent*: `Easel.h`. `easel::stage(world)` chains one sentence per
   thing on the set — `sun()`, `light()`, `place()`, `panel()`,
-  `swarm()`, `points()` (a GPU-cooked `pop::Chain`, compared by value
+  `placeStamps()`, `placeChain()` (a GPU-cooked `pop::Chain`, compared by value
   on the next commit) — with `at()/turned()/sized()/key()` styling the
   last declared item, and `commit()` reconciling the lot through the
   Scene layer.
@@ -151,7 +163,7 @@ numbers per frame and no geometry work on the CPU.
 lanes from SigilMotion. `AnimatedChain` reaches any operator dial of a
 point chain by (operator index, field name) — `"amount"`, `"center.x"`,
 `"seed"` — through SigilShape's `popops::setField`, and re-describes the
-surface only when a lane moved. Attach them and the values follow whatever
+prop only when a lane moved. Attach them and the values follow whatever
 `choreograph::Output` they are bound to. `resolveAnimation()` has two
 overloads: one taking a bare `entt::registry`, which touches no GPU
 state at all and is therefore usable and testable with no device
@@ -167,9 +179,9 @@ what makes a headless frame sequence reproducible.
 
 | Header | What it is for |
 | --- | --- |
-| `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `InstanceLanes`. Device bring-up, every surface-creating call, camera and lighting setters, `render`/`readback`/`savePng`. |
+| `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `StampLanes`. Device bring-up, every `place*` door, camera and lighting setters, `render`/`readback`/`savePng`. |
 | `sigilworld/Components.h` | The registry face: `TransformComponent`, `MaterialComponent`, `LightComponent`, `CameraComponent`, the `kLightBudget` constant, and `entity(id)`. |
-| `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/surface/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
+| `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
 | `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `shape::import::Part` (glTF's material, factors and all). |
@@ -239,7 +251,7 @@ specular from the reflection direction at a roughness-chosen level,
 weighted by the analytic split-sum environment BRDF; `ambient` scales
 the whole term and occlusion darkens it. The sun and the registry lights
 add on top exactly as before. The panorama is compared by pointer like a
-material image and bound per surface, so a new one rebinds every surface
+material image and bound per prop, so a new one rebinds every prop
 once; the mip levels are a *box-filtered* chain, not a proper
 convolution — good for reflections and the look of a lit set, not a
 radiometric irradiance.
@@ -259,9 +271,8 @@ determine visibility, so a mesh with inconsistent winding still renders.
 
 **A translucent material routes into a separate blended pass sorted back
 to front** — alpha below 1 in `baseColor`, an `opacityMap`, or any
-`transmission` (`Material::blended()` is the rule). An instanced surface
-is one item in that sort — its instances are not sorted against each
-other.
+`transmission` (`Material::blended()` is the rule). A stamps prop is one
+item in that sort — its stamps are not sorted against each other.
 
 **Opacity is a channel; a cutoff makes it a cutout.** `opacityMap` reads
 one channel (`opacityChannel`) into alpha alongside `baseColor.a` and the
@@ -287,10 +298,10 @@ mip chain, not a scattering model.
 
 **Swapping an image on a `MaterialComponent` is live, and costs an
 upload.** `render()` compares the image pointers and the tile flag a
-surface's binding was built from against the live component and rebuilds
+prop's binding was built from against the live component and rebuilds
 the binding when any moved. Colours, scalars and the uv window are read
 every draw and cost nothing; an image swap re-uploads every map on that
-surface, so it is a change-of-scene operation, not a per-frame one.
+prop, so it is a change-of-scene operation, not a per-frame one.
 
 **An `Animated*` component owns its entity's corresponding component.**
 Do not also drive that component by hand: the next resolve overwrites
@@ -305,7 +316,7 @@ destroy the entity to hand control back. With several active cameras,
 whichever the registry iterates first wins — keep one active.
 
 **An `AnimatedChain` re-describes; an `AnimatedWindow` slides.** Both
-are change-detected, but a moved chain lane goes through `setPoints`
+are change-detected, but a moved chain lane goes through `setChain`
 (a parameter re-cook — cheap, but a re-dispatch of the whole chain, and
 a full rebuild when the lane it edits is a lookup table or a loop),
 while head and span through `AnimatedWindow` are two floats. Drive the
@@ -343,16 +354,16 @@ variant index to its compute pipeline, one row per alternative, guarded
 by a `static_assert` against `std::variant_size_v`. Append new operators
 to the variant; never insert. Operators with no GPU counterpart —
 `MeshScatter`, `Promote`, `Sort` — cause the whole chain to be
-**declined**: `addPoints`, `addPointsOn` and `setPoints` return 0 or do
+**declined**: `placeChain`, `placeChainOn` and `setChain` return 0 or do
 nothing rather than silently cooking a chain with an operator missing.
-Everything else runs here: the selectors (`Group`), the deformers
-(`Transform`, `Peak`, `Deform`), `Mix`, and every filter's `mask` —
+Everything else runs here: the selector (`Select`), the deformers
+(`Affine`, `Peak`, `Deform`), `Mix`, and every filter's `mask` —
 a mask lane is just one more slot in the lane arena, and the masked
 blend is the same expression the CPU cook uses. A chain led by a
 `PointSet` runs too: its cloud is uploaded as the arena's initial
 contents (laid out by `popops::seedAttrs`, custom lanes in the chain's
-custom slots), its kernel is empty, `setPointsWindow` has nothing to
-slide, and every `setPoints` on such a chain takes the structural path
+custom slots), its kernel is empty, `setChainWindow` has nothing to
+slide, and every `setChain` on such a chain takes the structural path
 because the cloud *is* the data.
 
 **A `Deform`'s frame is computed once, on the CPU.** `popops::deformFrame`
@@ -361,7 +372,7 @@ executors, and the kernel receives that frame rather than recomputing it,
 so a degenerate axis or direction falls back the same way on both sides.
 
 **A lookup-table edit is structural.** `pop::Lookup` stops ride an
-immutable device buffer, so `setPoints()` with a changed table takes the
+immutable device buffer, so `setChain()` with a changed table takes the
 full rebuild path instead of the cheap parameter re-cook. Same for a
 generator's loop points.
 
@@ -370,7 +381,7 @@ generator's loop points.
 shader translator's naming. Give each lane a distinct struct type, and
 write whole elements rather than individual members.
 
-**`readPoints()` is synchronous** — a copy and a wait. It is a query
+**`readChain()` is synchronous** — a copy and a wait. It is a query
 door, not a per-frame path, and it is only valid after a `render()` has
 cooked the chain.
 
@@ -402,13 +413,12 @@ surgery. `SIGILWORLD_VULKAN_LIBRARY` overrides the candidate list.
 
 The graphics vertex and pixel shaders are one HLSL source compiled at
 runtime by the compiler Diligent ships. The compute kernels are separate:
-they are authored in Slang under `shaders/` (`pop.slang`, `sweep.slang`,
-`flock.slang`, over the shared `sigilspline.slang` module), compiled to
+they are authored in Slang under `shaders/` (`pop.slang` and `sweep.slang`, over the shared `sigilspline.slang` module), compiled to
 SPIR-V at build time by `slangc`, and embedded. `slangc` is optional —
 the build configures, compiles and links without it, and the whole
 rasterization path works normally. What is unavailable in that build is
-the compute generators: `addSweep`, `addFlock`, `addPoints` and
-`addPointsOn` return 0.
+the compute generators: `placeSweep`, `placeChain` and
+`placeChainOn` return 0.
 
 Deliberately absent: a clock or timeline of its own; any dependency on
 SigilCompose or SigilWeave (both are test and demo links only); text
@@ -425,7 +435,7 @@ count-changing operators.
 
 Targets are `SigilWorld`, `world_test` (registered with ctest),
 `world_demo`, and `world_bench` (Google Benchmark: GPU cooks per frame by
-count and operator mix, `readPoints`, and a point-set re-upload; skips
+count and operator mix, `readChain`, and a point-set re-upload; skips
 without a Vulkan runtime — run it from a Release build). From `apps/spell-circle-canvas`:
 
 ```sh
@@ -463,9 +473,9 @@ drawn circuit, tinted by the emissive colour), a clear glass sphere, a
 frosted pane and a fluted edge-lit pane, the fetched Avocado
 wearing the material its glTF carries, plus — when the Substance SDK is installed — the SDK's sample
 archive rendered live at two parameter settings), a pop lab
-(`world_pops.png`: the fetched Avocado's surface scattered into a cloud
+(`world_pops.png`: the fetched Avocado's skin scattered into a cloud
 that seeds a chain — a selected band twisted, the rest peaked, colour by
-height — cooked on the GPU as one instanced surface), a cockpit
+height — cooked on the GPU as one stamps prop), a cockpit
 view, a low orbit, a close panel, a poster panel, the stream, and the
 marquee — plus a short
 marquee flight sequence, a declared-camera flight frame

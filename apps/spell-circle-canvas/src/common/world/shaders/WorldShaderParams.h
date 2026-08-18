@@ -21,14 +21,6 @@ struct SweepParamsData {
   SIGIL_FLOAT4(loop);    // x point count, y tangent epsilon
 };
 
-struct FlockParamsData {
-  SIGIL_FLOAT4(windowA);  // x head, y span, z radius, w count
-  SIGIL_FLOAT4(windowB);  // x scale, y noise amp, z noise freq, w seed
-  SIGIL_FLOAT4(tintTail);
-  SIGIL_FLOAT4(tintHead);
-  SIGIL_FLOAT4(loop);  // x point count, y tangent epsilon
-};
-
 struct PopParamsData {
   SIGIL_FLOAT4(a);
   SIGIL_FLOAT4(b);
@@ -44,8 +36,6 @@ struct PopParamsData {
 #ifdef __cplusplus
 }  // namespace sigil::world::shaderparams
 static_assert(sizeof(sigil::world::shaderparams::SweepParamsData) == 32,
-              "cbuffer packing is 16-byte rows");
-static_assert(sizeof(sigil::world::shaderparams::FlockParamsData) == 80,
               "cbuffer packing is 16-byte rows");
 static_assert(sizeof(sigil::world::shaderparams::PopParamsData) == 144,
               "cbuffer packing is 16-byte rows");

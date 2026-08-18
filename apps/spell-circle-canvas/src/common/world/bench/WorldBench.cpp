@@ -55,7 +55,7 @@ void cookFrames(benchmark::State& state, const shape::pop::Chain& chain) {
     return;
   }
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
@@ -64,12 +64,12 @@ void cookFrames(benchmark::State& state, const shape::pop::Chain& chain) {
   float head = 1;
   for (auto _ : state) {
     head = head > 0.0f ? head - 0.01f : 1.0f;
-    w->setPointsWindow(id, head, 0.7f);
+    w->setChainWindow(id, head, 0.7f);
     w->render();
   }
   // A readback at the end waits for the device, so the timings above
   // include the frames actually finishing.
-  benchmark::DoNotOptimize(w->readPoints(id));
+  benchmark::DoNotOptimize(w->readChain(id));
   state.SetItemsProcessed(state.iterations() * (int64_t)chain.size());
 }
 
@@ -101,14 +101,14 @@ void BM_GpuReadPoints(benchmark::State& state) {
     state.SkipWithMessage("no 3D backend");
     return;
   }
-  const uint32_t id = w->addPoints(
+  const uint32_t id = w->placeChain(
       shape::mesh::quad(4, 4), plain((int)state.range(0)), world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
   }
   w->render();
-  for (auto _ : state) benchmark::DoNotOptimize(w->readPoints(id));
+  for (auto _ : state) benchmark::DoNotOptimize(w->readChain(id));
   state.SetItemsProcessed(state.iterations() * state.range(0));
 }
 BENCHMARK(BM_GpuReadPoints)->Arg(10000)->Arg(100000)->Arg(1000000);
@@ -126,7 +126,7 @@ void BM_GpuPointSet_Reupload(benchmark::State& state) {
   shape::pop::Chain chain =
       shape::pop::on(seed).move({0, 10, 0}).vary(0.3f).lookAt({0, 0, 900});
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
@@ -136,10 +136,10 @@ void BM_GpuPointSet_Reupload(benchmark::State& state) {
   for (auto _ : state) {
     y += 1;
     std::get<shape::pop::PointSet>(chain.front()).cloud.positions[0].y = y;
-    w->setPoints(id, chain);
+    w->setChain(id, chain);
     w->render();
   }
-  benchmark::DoNotOptimize(w->readPoints(id));
+  benchmark::DoNotOptimize(w->readChain(id));
   state.SetItemsProcessed(state.iterations() * state.range(0));
 }
 BENCHMARK(BM_GpuPointSet_Reupload)->Arg(10000)->Arg(100000);

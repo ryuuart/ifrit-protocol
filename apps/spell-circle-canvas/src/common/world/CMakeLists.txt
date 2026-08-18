@@ -103,15 +103,15 @@ target_link_libraries(world_bench PRIVATE SigilWorld benchmark::benchmark)
 # directly, no glslang in the loop. Without slangc the build still
 # configures and surface rendering still works (the graphics
 # vertex/pixel shader ships as an HLSL source string in World.cpp), but
-# the compute generators have no fallback: addSweep/addFlock/addPoints/
-# addPointsOn return 0 and log a one-time diagnostic.
+# the compute generators have no fallback: placeSweep/placeChain/
+# placeChainOn return 0 and log a one-time diagnostic.
 find_program(SLANGC_EXECUTABLE slangc
   PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/shader-slang")
 if(SLANGC_EXECUTABLE)
   set(_slang_dir ${CMAKE_CURRENT_LIST_DIR}/shaders)
   set(_spirv_dir ${CMAKE_CURRENT_BINARY_DIR}/spirv)
   set(_pop_entries CSSplineScatter CSJitter CSNoise CSRamp CSVary
-      CSLookAt CSMath CSRelax CSSet CSAtlas CSLookup CSGroup CSTransform
+      CSLookAt CSMath CSRelax CSFill CSAtlas CSLookup CSSelect CSAffine
       CSPeak CSDeform CSMix CSPointSet CSCopyBack CSPopPack)
   set(_spv_files)
   macro(_sigil_slang _file _entry)
@@ -130,7 +130,6 @@ if(SLANGC_EXECUTABLE)
     _sigil_slang(pop ${_entry})
   endforeach()
   _sigil_slang(sweep CSSweep)
-  _sigil_slang(flock CSFlock)
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/world_pop_spirv.h
     COMMAND ${CMAKE_COMMAND} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/world_pop_spirv.h
             "-DSPV_FILES=${_spv_files}"

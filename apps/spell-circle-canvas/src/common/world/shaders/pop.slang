@@ -191,7 +191,7 @@ void CSRelax(uint3 id: SV_DispatchThreadID)
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void CSSet(uint3 id: SV_DispatchThreadID)
+void CSFill(uint3 id: SV_DispatchThreadID)
 {
     if (id.x >= pointTotal()) return;
     storeMasked(int(PopParams.d.y), id.x, PopParams.a);
@@ -252,7 +252,7 @@ void CSLookup(uint3 id: SV_DispatchThreadID)
 //   combine), d.y = destination slot, m.y = source slot
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void CSGroup(uint3 id: SV_DispatchThreadID)
+void CSSelect(uint3 id: SV_DispatchThreadID)
 {
     if (id.x >= pointTotal()) return;
     float4 s = loadSlot(int(PopParams.m.y), id.x);
@@ -290,7 +290,7 @@ void CSGroup(uint3 id: SV_DispatchThreadID)
 // operator*. a.x > 0.5 selects the direction form (w = 0, renormalized).
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void CSTransform(uint3 id: SV_DispatchThreadID)
+void CSAffine(uint3 id: SV_DispatchThreadID)
 {
     if (id.x >= pointTotal()) return;
     int slot = int(PopParams.d.y);

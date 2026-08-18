@@ -7,7 +7,7 @@
  * The imperative door computes a value per frame and calls a setter:
  * `setTransform`, `setSweepWindow`, a field on a MaterialComponent. It
  * is still the right tool for a one-off poke. What it cannot do is
- * DECLARE — say once that this surface's uv window rides that phase
+ * DECLARE — say once that this prop's uv window rides that phase
  * through that curve, and then stop thinking about it. The `Animated*`
  * components here are that declaration, built on
  * `motion::Animatable<float>`.
@@ -104,9 +104,9 @@ namespace ease = motion::ease;
  *  Unlike the material and light components below, the lanes here are
  *  NOT optional, because this component describes the whole transform
  *  rather than overriding part of one: an unmentioned lane genuinely
- *  means "no translation" or "unit scale". A surface that already has a
+ *  means "no translation" or "unit scale". A prop that already has a
  *  static placement puts it in @ref base and animates around it, so the
- *  TRS lanes read in that surface's own parent frame.
+ *  TRS lanes read in that prop's own parent frame.
  *
  *  This component OWNS its entity's TransformComponent. Do not also
  *  drive that component by hand — with `setTransform()` or otherwise —
@@ -126,7 +126,7 @@ struct AnimatedTransform {
  *  slam a pane authored at alpha 0.4 back to 1.
  *
  *  `opacity` writes `Material::baseColor.w`, so it also routes the
- *  surface between the opaque and the blended pass, live, exactly as a
+ *  prop between the opaque and the blended pass, live, exactly as a
  *  hand-written alpha does.
  *
  *  Colour is deliberately absent. Three independent linear-RGB float
@@ -284,20 +284,20 @@ struct AnimatedCamera {
 };
 
 /** The GPU generator window — the `(head, span)` pair taken by
- *  `addSweep`, `addFlock` and `addPoints`.
+ *  `placeSweep` and `placeChain`.
  *
  *  This is the one lane in this header sitting in front of a GPU
  *  RE-COOK rather than in front of a live shader parameter, which makes
  *  it the one lane that could be a trap: writing unconditionally would
- *  mark the surface dirty every frame and re-dispatch the compute pass
+ *  mark the prop dirty every frame and re-dispatch the compute pass
  *  forever, even while the bound Output sits still. So this lane — and,
  *  for one rule everywhere, every other lane too — is CHANGE-DETECTED.
  *  A resolve writes only what actually moved and reports it in
  *  AnimationStats, so a constant lane costs exactly one re-cook, ever.
  *
  *  Resolution routes through all three public window setters, each of
- *  which is a no-op on a surface of the wrong kind. That lets one
- *  component cover sweeps, flocks and point chains without World having
+ *  which is a no-op on a prop of the wrong kind. That lets one
+ *  component cover sweeps and point chains without World having
  *  to publish which kind an entity is. */
 struct AnimatedWindow {
   Animatable<float> head = 1.0f;
@@ -312,9 +312,9 @@ struct AnimatedWindow {
  *  amount, the noise's seed, a selector's centre, a mix factor: any
  *  numeric field `shape::popops::setField` addresses, each a float lane
  *  bound to (operator index, field name). The component holds its own
- *  copy of the chain (the surface's value lives inside World); a resolve
+ *  copy of the chain (the prop's value lives inside World); a resolve
  *  writes every lane into that copy and, when any lane MOVED, pushes it
- *  through `World::setPoints`, which is a parameter re-cook — buffers
+ *  through `World::setChain`, which is a parameter re-cook — buffers
  *  and bindings stay — for everything but a lookup-table or loop edit.
  *  Change-detected like AnimatedWindow: a still lane costs nothing per
  *  frame. The chain is also the door for edits that are not lanes —
@@ -573,7 +573,7 @@ inline AnimationStats resolveAnimation(entt::registry& registry) {
  *
  *  `World::render()` calls this before anything else it does, so the
  *  cook and draw passes see this frame's values. Call it yourself when
- *  you want the resolved state WITHOUT a frame — before a `readPoints()`
+ *  you want the resolved state WITHOUT a frame — before a `readChain()`
  *  query, say — or when you want the Stats. Idempotent: a second call
  *  with unmoved Outputs writes nothing and reports zeros. */
 inline AnimationStats resolveAnimation(World& world) {
@@ -586,11 +586,10 @@ inline AnimationStats resolveAnimation(World& world) {
         span == window.appliedSpan)
       continue;
     const uint32_t id = (uint32_t)e;
-    // At most one of these three does anything; the others are the
-    // documented no-op on a surface of another kind.
+    // At most one of these two does anything; the other is the
+    // documented no-op on a prop of another kind.
     world.setSweepWindow(id, head, span);
-    world.setFlockWindow(id, head, span);
-    world.setPointsWindow(id, head, span);
+    world.setChainWindow(id, head, span);
     window.appliedHead = head;
     window.appliedSpan = span;
     window.applied = true;
@@ -608,7 +607,7 @@ inline AnimationStats resolveAnimation(World& world) {
       lane.wasApplied = true;
     }
     if (!moved) continue;
-    world.setPoints((uint32_t)e, animated.chain);
+    world.setChain((uint32_t)e, animated.chain);
     ++stats.chains;
   }
   return stats;

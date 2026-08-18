@@ -121,7 +121,7 @@ TEST(World, RendersLitQuadCoveringCenter) {
   material.baseColor = {0.9f, 0.2f, 0.2f, 1};
   material.roughness = 0.6f;
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(200, 200), glm::mat4(1.0f), material);
+      w->place(shape::mesh::quad(200, 200), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   ASSERT_TRUE(w->render());
@@ -161,9 +161,8 @@ TEST(World, TexturedUnlitPanelShowsTexture) {
   world::Material material;
   material.unlit = true;
   material.texture = surface->makeImageSnapshot();
-  ASSERT_NE(
-      w->addSurface(shape::mesh::quad(220, 160), glm::mat4(1.0f), material),
-      0u);
+  ASSERT_NE(w->place(shape::mesh::quad(220, 160), glm::mat4(1.0f), material),
+            0u);
 
   ASSERT_TRUE(w->render());
   sk_sp<SkImage> frame = w->readback();
@@ -227,7 +226,7 @@ TEST(World, SwappingATextureIsLive) {
   material.unlit = true;
   material.texture = solidImage(SK_ColorRED);
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(400, 400), glm::mat4(1.0f), material);
+      w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkColor c = readFrame(*w).getColor(32, 32);
@@ -248,9 +247,8 @@ TEST(World, SwappingATextureIsLive) {
   world::Material inst;
   inst.unlit = true;
   inst.texture = solidImage(SK_ColorGREEN);
-  w->removeSurface(id);
-  const uint32_t flock =
-      w->addInstanced(shape::mesh::quad(400, 400), one, inst);
+  w->remove(id);
+  const uint32_t flock = w->placeStamps(shape::mesh::quad(400, 400), one, inst);
   ASSERT_NE(flock, 0u);
   ASSERT_TRUE(w->render());
   c = readFrame(*w).getColor(32, 32);
@@ -283,7 +281,7 @@ TEST(World, TileRepeatsWhereClampSmears) {
   material.uvScale = {2, 1};
   material.tile = true;
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(1000, 1000), glm::mat4(1.0f), material);
+      w->place(shape::mesh::quad(1000, 1000), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   // The quad fills the frame; x = 40 of 64 is u = 0.625.
@@ -332,11 +330,11 @@ TEST(World, NormalMapTiltsShadingInItsConvention) {
 
   const auto lumaOf = [&](const world::Material& m) {
     const uint32_t id =
-        w->addSurface(shape::mesh::quad(400, 400), glm::mat4(1.0f), m);
+        w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), m);
     EXPECT_NE(id, 0u);
     EXPECT_TRUE(w->render());
     const float l = luma(readFrame(*w).getColor(32, 32));
-    w->removeSurface(id);
+    w->remove(id);
     return l;
   };
   const float lFlat = lumaOf(flat);
@@ -374,8 +372,7 @@ TEST(World, EmissiveMapGlowsWhereItIsLit) {
   m.emissiveMap = solidImage(SK_ColorGREEN, 8, 8, SK_ColorBLACK);
   // The quad just fills the frame, so x = 16 and 48 read u = 0.25 and
   // 0.75 — well inside each column, clear of the bilinear seam.
-  const uint32_t id =
-      w->addSurface(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id = w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -420,8 +417,8 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   world::Material red;
   red.baseColor = {1, 0, 0, 1};
   red.roughness = 1;
-  ASSERT_NE(w->addSurface(shape::mesh::quad(400, 400),
-                          glm::translate(glm::mat4(1.0f), {0, 0, -100}), red),
+  ASSERT_NE(w->place(shape::mesh::quad(400, 400),
+                     glm::translate(glm::mat4(1.0f), {0, 0, -100}), red),
             0u);
   world::Material glass;
   glass.baseColor = {1, 1, 1, 1};
@@ -429,8 +426,8 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   glass.transmission = 1;
   glass.ior = 1;
   const uint32_t pane =
-      w->addSurface(shape::mesh::quad(400, 400),
-                    glm::translate(glm::mat4(1.0f), {0, 0, 50}), glass);
+      w->place(shape::mesh::quad(400, 400),
+               glm::translate(glm::mat4(1.0f), {0, 0, 50}), glass);
   ASSERT_NE(pane, 0u);
   ASSERT_TRUE(w->render());
   SkColor c = readFrame(*w).getColor(20, 44);  // off the specular centre
@@ -478,8 +475,7 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   m.baseColor = {1, 1, 1, 1};
   m.opacityMap = solidImage(SK_ColorBLACK, 8, 8, SK_ColorWHITE);
   EXPECT_TRUE(m.blended());
-  const uint32_t id =
-      w->addSurface(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id = w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -491,8 +487,8 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   world::Material green;
   green.unlit = true;
   green.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(w->addSurface(shape::mesh::quad(240, 240),
-                          glm::translate(glm::mat4(1.0f), {0, 0, -50}), green),
+  ASSERT_NE(w->place(shape::mesh::quad(240, 240),
+                     glm::translate(glm::mat4(1.0f), {0, 0, -50}), green),
             0u);
   world::Material& live =
       w->registry().get<world::MaterialComponent>(world::entity(id)).material;
@@ -530,13 +526,13 @@ TEST(World, PackedMapChannelsReachTheirSlots) {
   world::Material metal = dielectric;
   metal.metallicChannel = 2;  // reads blue = 1 -> metallic 1
   const auto lumaOf = [&](const world::Material& m) {
-    const uint32_t id = w->addSurface(
-        shape::mesh::superellipsoid({90, 90, 90}, 1), glm::mat4(1.0f), m);
+    const uint32_t id = w->place(shape::mesh::superellipsoid({90, 90, 90}, 1),
+                                 glm::mat4(1.0f), m);
     EXPECT_NE(id, 0u);
     EXPECT_TRUE(w->render());
     // Off-centre, away from the specular highlight.
     const float l = luma(readFrame(*w).getColor(22, 40));
-    w->removeSurface(id);
+    w->remove(id);
     return l;
   };
   EXPECT_GT(lumaOf(dielectric), lumaOf(metal) + 10);
@@ -565,10 +561,9 @@ TEST(World, EnvironmentPanoramaLightsFromItsBrightSide) {
   world::Material white;
   white.baseColor = {1, 1, 1, 1};
   white.roughness = 0.9f;
-  ASSERT_NE(
-      w->addSurface(shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48),
-                    glm::mat4(1.0f), white),
-      0u);
+  ASSERT_NE(w->place(shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48),
+                     glm::mat4(1.0f), white),
+            0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
   const float left = luma(bm.getColor(24, 32));
@@ -769,7 +764,7 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
         mesh.positions[i].x < 0 ? glm::vec4{1, 0, 0, 1} : glm::vec4{0, 0, 1, 1};
   world::Material material;
   material.unlit = true;
-  const uint32_t id = w->addSurface(mesh, glm::mat4(1.0f), material);
+  const uint32_t id = w->place(mesh, glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   SkBitmap bm;
@@ -778,7 +773,7 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
   const SkColor right = bm.getColor(140, 75);
   EXPECT_GT(SkColorGetR(left), SkColorGetB(left));
   EXPECT_GT(SkColorGetB(right), SkColorGetR(right));
-  w->removeSurface(id);
+  w->remove(id);
 
   // Instanced pipeline: a stamp's baked colour MULTIPLIES the
   // per-instance tint. Yellow stamp times cyan tint is green — a colour
@@ -789,9 +784,9 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
   shape::Cloud field =
       shape::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 10, 8);
   field.color("tint", {0, 1, 1, 1});
-  world::InstanceLanes lanes;
+  world::StampLanes lanes;
   lanes.tintLane = "tint";
-  ASSERT_NE(w->addInstanced(stamp, field, material, lanes), 0u);
+  ASSERT_NE(w->placeStamps(stamp, field, material, lanes), 0u);
 
   ASSERT_TRUE(grab(&bm));
   int green = 0, passthrough = 0;
@@ -823,10 +818,9 @@ TEST(World, QuadAtPositiveYAppearsInTopHalf) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(
-      w->addSurface(shape::mesh::quad(100, 100),
-                    glm::translate(glm::mat4(1.0f), {0, 150, 0}), material),
-      0u);
+  ASSERT_NE(w->place(shape::mesh::quad(100, 100),
+                     glm::translate(glm::mat4(1.0f), {0, 150, 0}), material),
+            0u);
   ASSERT_TRUE(w->render());
   sk_sp<SkImage> frame = w->readback();
   ASSERT_TRUE(frame);
@@ -868,13 +862,13 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
   auto describe = [&](float x) {
     return world::scene::group().key("root").child(
         world::scene::group().key("rig").at({x, 0, 0}).child(
-            world::scene::surface(mesh, red).key("card")));
+            world::scene::place(mesh, red).key("card")));
   };
 
   world::scene::Scene scene(*w);
   world::scene::Scene::Stats first = scene.render(describe(0));
   EXPECT_EQ(first.added, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   // Same description: everything kept, nothing touched.
   world::scene::Scene::Stats second = scene.render(describe(0));
@@ -886,7 +880,7 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
   world::scene::Scene::Stats third = scene.render(describe(40));
   EXPECT_EQ(third.added, 0);
   EXPECT_EQ(third.moved, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   // A material change rebuilds that one surface.
   world::Material blue = red;
@@ -895,7 +889,7 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
       world::scene::group()
           .key("rig")
           .at({40, 0, 0})
-          .child(world::scene::surface(mesh, blue).key("card")));
+          .child(world::scene::place(mesh, blue).key("card")));
   world::scene::Scene::Stats fourth = scene.render(swapped);
   EXPECT_EQ(fourth.removed, 1);
   EXPECT_EQ(fourth.added, 1);
@@ -904,7 +898,7 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
   world::scene::Scene::Stats fifth =
       scene.render(world::scene::group().key("root"));
   EXPECT_EQ(fifth.removed, 1);
-  EXPECT_EQ(w->surfaceCount(), 0u);
+  EXPECT_EQ(w->propCount(), 0u);
 }
 
 TEST(Scene, PanelsAreIdentityStable) {
@@ -953,9 +947,8 @@ TEST(World, PointLightBrightensAndTintsItsSide) {
   world::Material material;
   material.baseColor = {0.9f, 0.9f, 0.9f, 1};
   material.roughness = 0.8f;
-  ASSERT_NE(
-      w->addSurface(shape::mesh::quad(600, 300), glm::mat4(1.0f), material),
-      0u);
+  ASSERT_NE(w->place(shape::mesh::quad(600, 300), glm::mat4(1.0f), material),
+            0u);
 
   // A red point light hovering near the quad's LEFT half.
   world::LightComponent light;
@@ -1008,9 +1001,8 @@ TEST(World, ActiveCameraComponentOverridesSetCamera) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(
-      w->addSurface(shape::mesh::quad(200, 200), glm::mat4(1.0f), material),
-      0u);
+  ASSERT_NE(w->place(shape::mesh::quad(200, 200), glm::mat4(1.0f), material),
+            0u);
 
   // An active camera entity faces it; that one must drive the frame.
   shape::space::Camera facing;
@@ -1043,7 +1035,7 @@ TEST(World, ActiveCameraComponentOverridesSetCamera) {
   EXPECT_EQ(greenPixels(), 0);
 }
 
-TEST(World, InstancedFieldRendersAndCounts) {
+TEST(World, StampsRenderAndCount) {
   world::WorldConfig config;
   config.width = 200;
   config.height = 150;
@@ -1062,13 +1054,13 @@ TEST(World, InstancedFieldRendersAndCounts) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {1, 1, 1, 1};
-  world::InstanceLanes lanes;
+  world::StampLanes lanes;
   lanes.tintLane = "tint";
   const uint32_t id =
-      w->addInstanced(shape::mesh::quad(14, 14), field, material, lanes);
+      w->placeStamps(shape::mesh::quad(14, 14), field, material, lanes);
   ASSERT_NE(id, 0u);
   // The whole flock is ONE surface.
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   auto redPixels = [&](int* quadrants) {
     sk_sp<SkImage> frame = w->readback();
@@ -1096,24 +1088,24 @@ TEST(World, InstancedFieldRendersAndCounts) {
   for (int i = 0; i < 4; ++i)
     EXPECT_GT(quadrants[i], 0) << "instances must spread quadrant " << i;
 
-  // setInstances with a different count recreates the stream.
+  // setStamps with a different count recreates the stream.
   shape::Cloud fewer =
       shape::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 2, 2);
   fewer.color("tint", {1, 0, 0, 1});
-  w->setInstances(id, fewer, lanes);
+  w->setStamps(id, fewer, lanes);
   ASSERT_TRUE(w->render());
   const int sparse = redPixels(quadrants);
   EXPECT_GT(sparse, 0);
   EXPECT_LT(sparse, covered);
 
-  // removeSurface tears the flock down like any surface.
-  w->removeSurface(id);
-  EXPECT_EQ(w->surfaceCount(), 0u);
+  // remove tears the flock down like any surface.
+  w->remove(id);
+  EXPECT_EQ(w->propCount(), 0u);
   ASSERT_TRUE(w->render());
   EXPECT_EQ(redPixels(quadrants), 0);
 }
 
-TEST(World, SurfacesAreEntities) {
+TEST(World, PropsAreEntities) {
   world::WorldConfig config;
   config.width = 100;
   config.height = 100;
@@ -1127,7 +1119,7 @@ TEST(World, SurfacesAreEntities) {
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
+      w->place(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   // The id is an entity carrying the public components.
@@ -1184,7 +1176,7 @@ TEST(Easel, CommitReconciles) {
   // First commit: the card and the light arrive.
   world::scene::Scene::Stats first = describe(0);
   EXPECT_EQ(first.added, 2);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
   EXPECT_EQ(w->registry().view<world::LightComponent>().size(), 1u);
   ASSERT_TRUE(w->render());
 
@@ -1194,23 +1186,23 @@ TEST(Easel, CommitReconciles) {
   EXPECT_EQ(second.added, 0);
   EXPECT_EQ(second.moved, 0);
   EXPECT_EQ(second.kept, 2);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   // A moved .at() is a move, not a rebuild; the light stays kept.
   world::scene::Scene::Stats third = describe(40);
   EXPECT_EQ(third.added, 0);
   EXPECT_EQ(third.moved, 1);
   EXPECT_EQ(third.kept, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   // An empty description clears the stage's things from the world.
   world::scene::Scene::Stats fourth = stage.commit();
   EXPECT_EQ(fourth.removed, 2);
-  EXPECT_EQ(w->surfaceCount(), 0u);
+  EXPECT_EQ(w->propCount(), 0u);
   EXPECT_EQ(w->registry().view<world::LightComponent>().size(), 0u);
 }
 
-TEST(Easel, SwarmsAreKeyStable) {
+TEST(Easel, StampsAreKeyStable) {
   world::WorldConfig config;
   config.width = 96;
   config.height = 64;
@@ -1223,7 +1215,7 @@ TEST(Easel, SwarmsAreKeyStable) {
   auto describe = [&](float y) {
     shape::Cloud cloud =
         shape::points::grid({-40, -20, 0}, {80, 0, 0}, {0, 40, 0}, 6, 4);
-    stage.swarm(cloud, shape::mesh::quad(5, 5), glow)
+    stage.placeStamps(cloud, shape::mesh::quad(5, 5), glow)
         .key("sparks")
         .at({0, y, 0});
     return stage.commit();
@@ -1232,7 +1224,7 @@ TEST(Easel, SwarmsAreKeyStable) {
   // One flock, one surface.
   world::scene::Scene::Stats first = describe(0);
   EXPECT_EQ(first.added, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
   ASSERT_TRUE(w->render());
 
   // Unchanged cloud + placement: kept, no re-upload.
@@ -1244,16 +1236,16 @@ TEST(Easel, SwarmsAreKeyStable) {
   world::scene::Scene::Stats third = describe(30);
   EXPECT_EQ(third.added, 0);
   EXPECT_EQ(third.moved, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
 
   // Dropping it removes the instanced surface.
   world::scene::Scene::Stats fourth = stage.commit();
   EXPECT_EQ(fourth.removed, 1);
-  EXPECT_EQ(w->surfaceCount(), 0u);
+  EXPECT_EQ(w->propCount(), 0u);
 }
 
-TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
-  // The case SwarmsAreKeyStable leaves untested: the SAME key with
+TEST(Easel, StampsCloudEditsRefreshInPlace) {
+  // The case StampsAreKeyStable leaves untested: the SAME key with
   // CHANGED cloud content must refresh the instance stream in place,
   // never tear the surface down and re-add it.
   world::WorldConfig config;
@@ -1268,13 +1260,13 @@ TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
   auto describe = [&](float originX) {
     shape::Cloud cloud = shape::points::grid({originX - 40, -20, 0}, {80, 0, 0},
                                              {0, 40, 0}, 6, 4);
-    stage.swarm(cloud, shape::mesh::quad(5, 5), glow).key("sparks");
+    stage.placeStamps(cloud, shape::mesh::quad(5, 5), glow).key("sparks");
     return stage.commit();
   };
 
   world::scene::Scene::Stats first = describe(0);
   EXPECT_EQ(first.added, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
   ASSERT_TRUE(w->render());
 
   // The grid's origin slid +15 in x: a content edit, not a rebuild.
@@ -1282,11 +1274,11 @@ TEST(Easel, SwarmCloudEditsRefreshInstancesInPlace) {
   EXPECT_EQ(second.added, 0);
   EXPECT_EQ(second.removed, 0);
   EXPECT_EQ(second.moved, 1);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  EXPECT_EQ(w->propCount(), 1u);
   ASSERT_TRUE(w->render());
 }
 
-TEST(Easel, PointsReconcileByChainValue) {
+TEST(Easel, ChainsReconcileByValue) {
   // A declared point chain is a keep while its value stands, a move
   // when a parameter (the window) changes, and a re-add when its stamp
   // changes; an undeclared one leaves.
@@ -1303,14 +1295,14 @@ TEST(Easel, PointsReconcileByChainValue) {
   const shape::Mesh stamp = shape::mesh::quad(6, 6);
   const auto declare = [&](float head, const shape::Mesh& withStamp) {
     return stage
-        .points(shape::pop::on(loop).count(300).window(head, 0.5f).noise(9),
-                withStamp, world::Material{})
+        .placeChain(shape::pop::on(loop).count(300).window(head, 0.5f).noise(9),
+                    withStamp, world::Material{})
         .key("comet")
         .commit();
   };
   world::scene::Scene::Stats stats = declare(1.0f, stamp);
   EXPECT_EQ(stats.added, 1);
-  ASSERT_EQ(w->surfaceCount(), 1u);
+  ASSERT_EQ(w->propCount(), 1u);
   stats = declare(1.0f, stamp);
   EXPECT_EQ(stats.kept, 1);
   EXPECT_EQ(stats.added + stats.removed, 0);
@@ -1322,7 +1314,7 @@ TEST(Easel, PointsReconcileByChainValue) {
   EXPECT_EQ(stats.removed, 1);
   stats = stage.commit();  // nothing declared: it leaves
   EXPECT_EQ(stats.removed, 1);
-  EXPECT_EQ(w->surfaceCount(), 0u);
+  EXPECT_EQ(w->propCount(), 0u);
 }
 
 TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
@@ -1354,7 +1346,7 @@ TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
   screen.uvScale = {0, 0};
   screen.uvOffset = {0.25f, 0.5f};
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(400, 400), glm::mat4(1.0f), screen);
+      w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), screen);
   ASSERT_NE(id, 0u);
 
   const auto centerColor = [&]() {
@@ -1421,7 +1413,7 @@ TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
   screen.uvScale = {0, 0};
   screen.uvOffset = {0.5f / (float)count, 0.5f};
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(600, 600), glm::mat4(1.0f), screen);
+      w->place(shape::mesh::quad(600, 600), glm::mat4(1.0f), screen);
   ASSERT_NE(id, 0u);
   auto& material =
       w->registry().get<world::MaterialComponent>(world::entity(id));
@@ -1460,7 +1452,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
   const uint32_t id =
-      w->addSurface(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
+      w->place(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   const auto greenRows = [&](int* top, int* bottom) {
@@ -1484,14 +1476,14 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   // Same topology, vertices moved up: the in-place update path.
   shape::Mesh moved = shape::mesh::quad(100, 100);
   moved.transform(glm::translate(glm::mat4(1.0f), {0, 150, 0}));
-  w->setSurfaceMesh(id, moved);
+  w->setMesh(id, moved);
   ASSERT_TRUE(w->render());
   greenRows(&top, &bottom);
   EXPECT_GT(top, 0);
   EXPECT_EQ(bottom, 0) << "geometry must have moved to the top half";
 
   // Different topology: the recreate path still renders.
-  w->setSurfaceMesh(id, shape::mesh::torus(80, 24));
+  w->setMesh(id, shape::mesh::torus(80, 24));
   ASSERT_TRUE(w->render());
   greenRows(&top, &bottom);
   EXPECT_GT(top + bottom, 0);
@@ -1524,7 +1516,7 @@ TEST(World, GpuSweepGeneratesAndSlidesOnTheGpu) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
-  const uint32_t id = w->addSweep(desc, material);
+  const uint32_t id = w->placeSweep(desc, material);
   ASSERT_NE(id, 0u);
 
   const auto greenHalves = [&](int* left, int* right) {
@@ -1549,61 +1541,6 @@ TEST(World, GpuSweepGeneratesAndSlidesOnTheGpu) {
   ASSERT_TRUE(w->render());
   greenHalves(&left, &right);
   EXPECT_GT(left, 0) << "slid window must land on the -x side";
-  EXPECT_EQ(right, 0);
-}
-
-TEST(World, GpuFlockStreamsAlongTheLoop) {
-  // A flock's points never exist on the CPU. A window of instances lands
-  // on one side of the loop; sliding it with two floats streams the
-  // whole flock to the other side.
-  world::WorldConfig config;
-  config.width = 64;
-  config.height = 64;
-  config.clearColor = {0, 0, 0, 1};
-  MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
-  camera.eye = {0, 0, 500};
-  camera.target = {0, 0, 0};
-  w->setCamera(camera);
-
-  world::World::FlockDesc desc;
-  for (int i = 0; i < 12; ++i) {
-    const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
-    desc.loop.push_back({160.0f * std::cos(a), 160.0f * std::sin(a), 0});
-  }
-  desc.count = 3000;
-  desc.head = 0.25f;
-  desc.span = 0.25f;
-  desc.radius = 0;  // points exactly on the arc: a deterministic side
-  desc.scale = 1;
-  world::Material material;
-  material.unlit = true;
-  material.baseColor = {0, 1, 0, 1};
-  const uint32_t id = w->addFlock(shape::mesh::quad(10, 10), desc, material);
-  ASSERT_NE(id, 0u);
-
-  const auto greenHalves = [&](int* left, int* right) {
-    sk_sp<SkImage> frame = w->readback();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
-    ASSERT_TRUE(frame && frame->readPixels(nullptr, bm.pixmap(), 0, 0));
-    *left = *right = 0;
-    for (int y = 0; y < 64; ++y)
-      for (int x = 0; x < 64; ++x)
-        if (SkColorGetG(bm.getColor(x, y)) > 100)
-          (x < 32 ? *left : *right) += 1;
-  };
-
-  ASSERT_TRUE(w->render());
-  int left = 0, right = 0;
-  greenHalves(&left, &right);
-  EXPECT_GT(right, 0) << "the window t in [0, 0.25] starts at +x";
-  EXPECT_EQ(left, 0);
-
-  w->setFlockWindow(id, 0.75f, 0.25f);
-  ASSERT_TRUE(w->render());
-  greenHalves(&left, &right);
-  EXPECT_GT(left, 0) << "slid flock must stream to the -x side";
   EXPECT_EQ(right, 0);
 }
 
@@ -1637,7 +1574,7 @@ TEST(World, PopChainCooksAndRedescribes) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {1, 1, 1, 1};  // tint carries the green
-  const uint32_t id = w->addPoints(shape::mesh::quad(10, 10), chain, material);
+  const uint32_t id = w->placeChain(shape::mesh::quad(10, 10), chain, material);
   ASSERT_NE(id, 0u);
 
   const auto greenHalves = [&](int* left, int* right) {
@@ -1662,7 +1599,7 @@ TEST(World, PopChainCooksAndRedescribes) {
   // x. The chain's shape changed, so the lanes rebind before the re-cook
   // runs it.
   chain.push_back(pop::Math{pop::Lane::P, {-1, 1, 1, 1}, {0, 0, 0, 0}});
-  w->setPoints(id, chain);
+  w->setChain(id, chain);
   ASSERT_TRUE(w->render());
   greenHalves(&left, &right);
   EXPECT_GT(left, 0) << "Math mul {-1,1,1} must mirror the arc to -x";
@@ -1714,15 +1651,15 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
         (*out)[(size_t)(y * 64 + x)] = SkColorGetG(bm.getColor(x, y)) > 100;
   };
 
-  const uint32_t gpu = w->addPoints(stamp, chain, material);
+  const uint32_t gpu = w->placeChain(stamp, chain, material);
   ASSERT_NE(gpu, 0u);
   ASSERT_TRUE(w->render());
   std::vector<bool> gpuMask;
   mask(&gpuMask);
-  w->removeSurface(gpu);
+  w->remove(gpu);
 
   const shape::Mesh cpuModel = shape::popops::cookMesh(chain, stamp);
-  ASSERT_NE(w->addSurface(cpuModel, glm::mat4(1.0f), material), 0u);
+  ASSERT_NE(w->place(cpuModel, glm::mat4(1.0f), material), 0u);
   ASSERT_TRUE(w->render());
   std::vector<bool> cpuMask;
   mask(&cpuMask);
@@ -1765,11 +1702,11 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
                                       .atlas(2, 2)
                                       .fade({1, 0, 0, 1}, {0, 0, 1, 1});
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());  // the cook
 
-  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud gpu = w->readChain(id);
   const shape::Cloud cpu = shape::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 500u);
   ASSERT_EQ(cpu.size(), 500u);
@@ -1816,19 +1753,19 @@ TEST(World, SetPointsWindowSlidesLikeAFullRedescribe) {
         .vary(0.3f);
   };
 
-  const uint32_t id = w->addPoints(shape::mesh::quad(3, 3), chainAt(1.0f, 0.5f),
-                                   world::Material{});
+  const uint32_t id = w->placeChain(shape::mesh::quad(3, 3),
+                                    chainAt(1.0f, 0.5f), world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readPoints(id);
+  const shape::Cloud before = w->readChain(id);
 
-  w->setPointsWindow(id, 0.35f, 0.2f);
+  w->setChainWindow(id, 0.35f, 0.2f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readPoints(id);
+  const shape::Cloud slid = w->readChain(id);
 
-  w->setPoints(id, chainAt(0.35f, 0.2f));
+  w->setChain(id, chainAt(0.35f, 0.2f));
   ASSERT_TRUE(w->render());
-  const shape::Cloud redescribed = w->readPoints(id);
+  const shape::Cloud redescribed = w->readChain(id);
 
   ASSERT_EQ(slid.size(), 128u);
   ASSERT_EQ(redescribed.size(), 128u);
@@ -1859,16 +1796,16 @@ TEST(World, CustomAttributesCookOnTheGpu) {
   const shape::pop::Chain chain =
       shape::pop::on(loop)
           .count(256)
-          .set("energy", {0.5f, 0, 0, 0})
+          .fill("energy", {0.5f, 0, 0, 0})
           .op(shape::pop::Jitter{"energy", 0.25f, 5})
           .op(shape::pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u)
       << "a chain with custom attribute lanes must cook on the GPU";
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud gpu = w->readChain(id);
   const shape::Cloud cpu = shape::popops::cook(chain);
   const std::vector<glm::vec4>* gpuEnergy = gpu.colorIf("energy");
   const std::vector<glm::vec4>* cpuEnergy = cpu.colorIf("energy");
@@ -1903,20 +1840,20 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
 
   // The control: the same chain WITHOUT that operator cooks fine.
   const uint32_t plain =
-      w->addPoints(stamp, describe(false), world::Material{});
+      w->placeChain(stamp, describe(false), world::Material{});
   ASSERT_NE(plain, 0u);
 
-  EXPECT_EQ(w->addPoints(stamp, describe(true), world::Material{}), 0u);
-  const uint32_t upstream =
-      w->addPointsOn(plain, stamp,
-                     (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
-                         .count(32)
-                         .promote(shape::pop::Lane::Color),
-                     world::Material{});
+  EXPECT_EQ(w->placeChain(stamp, describe(true), world::Material{}), 0u);
+  const uint32_t upstream = w->placeChainOn(
+      plain, stamp,
+      (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
+          .count(32)
+          .promote(shape::pop::Lane::Color),
+      world::Material{});
   EXPECT_EQ(upstream, 0u) << "the composing entry declines too";
 
-  // setPoints refuses the re-describe rather than half-applying it.
-  w->setPoints(plain, describe(true));
+  // setChain refuses the re-describe rather than half-applying it.
+  w->setChain(plain, describe(true));
   EXPECT_TRUE(w->render());
 
   // ...and the CPU executor still builds the primitive lanes the GPU
@@ -1955,7 +1892,7 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
           .jitter(6)
           .noise(14, 0.012f)
           .smooth(0.4f, 2)
-          .set("energy", {0.5f, 0, 0, 0})
+          .fill("energy", {0.5f, 0, 0, 0})
           .op(shape::pop::Math{"energy", {3, 1, 1, 1}, {0.25f, 0, 0, 0}})
           .vary(0.35f)
           .lookAt({0, 220, 0})
@@ -1964,11 +1901,11 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
           .rampBy(shape::pop::Lane::P, 1,
                   {{0, 0, 0, 0}, {1, 0, 0, 0}, {4, 0, 0, 0}}, -60, 60, "heat");
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
   ASSERT_TRUE(w->render());  // the cook
 
-  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud gpu = w->readChain(id);
   const shape::Cloud cpu = shape::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 384u);
   ASSERT_EQ(cpu.size(), 384u);
@@ -2011,16 +1948,16 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   }
   EXPECT_GT(heatSpan, 0.5f) << "the lookup must vary across the cloud";
 
-  // A table EDIT is a re-describe: setPoints must notice the stops
+  // A table EDIT is a re-describe: setChain must notice the stops
   // moved even though every op kind lines up, and re-cook against the
   // new table rather than the buffer it uploaded first.
   shape::pop::Chain edited = chain;
   for (shape::pop::Op& op : edited)
     if (auto* lookup = std::get_if<shape::pop::Lookup>(&op))
       lookup->stops = {{100, 0, 0, 0}, {110, 0, 0, 0}, {140, 0, 0, 0}};
-  w->setPoints(id, edited);
+  w->setChain(id, edited);
   ASSERT_TRUE(w->render());
-  const shape::Cloud reheated = w->readPoints(id);
+  const shape::Cloud reheated = w->readChain(id);
   const shape::Cloud cpuReheated = shape::popops::cook(edited);
   const std::vector<glm::vec4>* gpuHeat2 = reheated.colorIf("heat");
   const std::vector<glm::vec4>* cpuHeat2 = cpuReheated.colorIf("heat");
@@ -2054,29 +1991,29 @@ TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
           .count(512)
           .seed(4)
           .select("east", {180, 0, 0}, 140, 0.5f)
-          .select("east", shape::pop::Group::Shape::Box, {-180, 0, 0},
-                  {90, 300, 90}, 0.2f, shape::pop::Group::Combine::Union)
+          .select("east", shape::pop::Select::Shape::Box, {-180, 0, 0},
+                  {90, 300, 90}, 0.2f, shape::pop::Select::Combine::Union)
           .move({0, 40, 0})
           .masked("east")
           .jitter(9)
           .smooth(0.5f, 2)
           .masked("east")
-          .transform(shape::space::place({10, 0, -5}, 35, 10))
+          .affine(shape::space::place({10, 0, -5}, 35, 10))
           .orient(shape::space::place({}, 35, 10))
           .peak(12)
           .twist(120, {0, 1, 0}, -40, 40)
           .taper(0.4f, {0, 1, 0}, -40, 40)
           .bend(60, {0, 1, 0}, {1, 0, 0}, -40, 40)
-          .set("warm", {1, 0.5f, 0.2f, 1})
+          .fill("warm", {1, 0.5f, 0.2f, 1})
           .fade({0, 0, 1, 1}, {0, 1, 0, 1})
           .mixBy("Color", "warm", "Color", "east")
           .copy("east", "sel2");
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud gpu = w->readChain(id);
   const shape::Cloud cpu = shape::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 512u);
   ASSERT_EQ(cpu.size(), 512u);
@@ -2142,10 +2079,10 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
           .vary(0.3f)
           .masked("top");
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
-  shape::Cloud gpu = w->readPoints(id);
+  shape::Cloud gpu = w->readChain(id);
   shape::Cloud cpu = shape::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 300u);
   ASSERT_EQ(cpu.size(), 300u);
@@ -2184,9 +2121,9 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
   other.scalar("extra", 7);
   shape::pop::Chain again = chain;
   again.front() = shape::pop::PointSet{other};
-  w->setPoints(id, again);
+  w->setChain(id, again);
   ASSERT_TRUE(w->render());
-  gpu = w->readPoints(id);
+  gpu = w->readChain(id);
   cpu = shape::popops::cook(again);
   ASSERT_EQ(gpu.size(), 64u);
   compare(gpu, cpu);
@@ -2223,27 +2160,27 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
 
   // The control: the same chain WITHOUT the sort cooks fine.
   const uint32_t plain =
-      w->addPoints(stamp, describe(false), world::Material{});
+      w->placeChain(stamp, describe(false), world::Material{});
   ASSERT_NE(plain, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud cooked = w->readPoints(plain);
+  const shape::Cloud cooked = w->readChain(plain);
   ASSERT_EQ(cooked.size(), 64u);
 
-  EXPECT_EQ(w->addPoints(stamp, describe(true), world::Material{}), 0u);
-  EXPECT_EQ(
-      w->addPointsOn(plain, stamp,
-                     (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
-                         .count(32)
-                         .order({0, 1, 0}),
-                     world::Material{}),
-      0u)
+  EXPECT_EQ(w->placeChain(stamp, describe(true), world::Material{}), 0u);
+  EXPECT_EQ(w->placeChainOn(
+                plain, stamp,
+                (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
+                    .count(32)
+                    .order({0, 1, 0}),
+                world::Material{}),
+            0u)
       << "the composing entry declines too";
 
-  // setPoints refuses the re-describe rather than half-applying it:
+  // setChain refuses the re-describe rather than half-applying it:
   // the surface keeps cooking the chain it had.
-  w->setPoints(plain, describe(true));
+  w->setChain(plain, describe(true));
   ASSERT_TRUE(w->render());
-  const shape::Cloud after = w->readPoints(plain);
+  const shape::Cloud after = w->readChain(plain);
   ASSERT_EQ(after.size(), 64u);
   for (size_t i = 0; i < after.size(); i += 13)
     EXPECT_NEAR(after.positions[i].y, cooked.positions[i].y, 1e-4f)
@@ -2281,14 +2218,14 @@ TEST(World, ChainsComposeOnDevice) {
           .vary(0.3f);
 
   const uint32_t a =
-      w->addPoints(shape::mesh::quad(4, 4), chainA, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chainA, world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->addPointsOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readPoints(b);
+  const shape::Cloud gpu = w->readChain(b);
   // The same composition, done on the CPU.
   shape::pop::Chain cpuB = chainB;
   std::get<shape::pop::SplineScatter>(cpuB.front()).loop =
@@ -2323,15 +2260,15 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
   };
 
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(3, 3), chainOn(150), world::Material{});
+      w->placeChain(shape::mesh::quad(3, 3), chainOn(150), world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
 
   // Same operators, same count; only the loop shrank. The re-cook must
   // land where a fresh describe of the smaller circle lands.
-  w->setPoints(id, chainOn(60));
+  w->setChain(id, chainOn(60));
   ASSERT_TRUE(w->render());
-  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud gpu = w->readChain(id);
   const shape::Cloud cpu = shape::popops::cook(chainOn(60));
   ASSERT_EQ(gpu.size(), 128u);
   ASSERT_EQ(cpu.size(), 128u);
@@ -2366,19 +2303,19 @@ TEST(World, RemovingUpstreamLeavesDependentsCookedAndAlive) {
           .vary(0.3f);
 
   const uint32_t a =
-      w->addPoints(shape::mesh::quad(4, 4), chainA, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chainA, world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->addPointsOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readPoints(b);
+  const shape::Cloud before = w->readChain(b);
   ASSERT_EQ(before.size(), 300u);
 
-  w->removeSurface(a);
-  EXPECT_EQ(w->surfaceCount(), 1u);
+  w->remove(a);
+  EXPECT_EQ(w->propCount(), 1u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud after = w->readPoints(b);
+  const shape::Cloud after = w->readChain(b);
   ASSERT_EQ(after.size(), 300u);
   // Frozen at the last cook — not recooked over garbage, not zeroed.
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
@@ -2416,19 +2353,19 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
           .seed(9)
           .vary(0.3f);
 
-  const uint32_t a = w->addPoints(shape::mesh::quad(4, 4), chainAt(1.0f, 0.4f),
-                                  world::Material{});
+  const uint32_t a = w->placeChain(shape::mesh::quad(4, 4), chainAt(1.0f, 0.4f),
+                                   world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->addPointsOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readPoints(b);
+  const shape::Cloud before = w->readChain(b);
   ASSERT_EQ(before.size(), 300u);
 
-  w->setPointsWindow(a, 0.5f, 0.4f);
+  w->setChainWindow(a, 0.5f, 0.4f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readPoints(b);
+  const shape::Cloud slid = w->readChain(b);
   ASSERT_EQ(slid.size(), 300u);
 
   // (i) The dependent actually followed the upstream arc.
@@ -2575,7 +2512,7 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
                                       .window(0.5f, 0.5f)
                                       .twist(0, {0, 1, 0}, -100, 100);
   const uint32_t id =
-      w->addPoints(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   choreograph::Output<float> amount{0.0f};
   world::AnimatedChain animated;
@@ -2593,11 +2530,11 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   stats = world::resolveAnimation(*w);
   EXPECT_EQ(stats.chains, 0) << "a still lane costs nothing";
   ASSERT_TRUE(w->render());
-  const shape::Cloud flat = w->readPoints(id);
+  const shape::Cloud flat = w->readChain(id);
 
   amount = 180.0f;
   ASSERT_TRUE(w->render());  // render resolves; a moved lane re-cooks
-  const shape::Cloud twisted = w->readPoints(id);
+  const shape::Cloud twisted = w->readChain(id);
   ASSERT_EQ(flat.size(), twisted.size());
   // At the top of the column (u = 1) a 180 twist about +Y sends x = 40
   // to x = -40; at the bottom (u = 0) nothing moves.
@@ -2887,8 +2824,8 @@ TEST(WorldAnimation, RenderResolvesTheLanesItself) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  const uint32_t id = w->addSurface(shape::mesh::quad(40, 40), glm::mat4(1.0f),
-                                    world::Material{});
+  const uint32_t id =
+      w->place(shape::mesh::quad(40, 40), glm::mat4(1.0f), world::Material{});
   ASSERT_NE(id, 0u);
   choreograph::Output<float> fade{0.25f};
   w->registry().emplace<world::AnimatedMaterial>(world::entity(id)).opacity =
@@ -2917,8 +2854,8 @@ TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
     camera.eye = {0, 0, 260};
     camera.target = {0, 0, 0};
     w->setCamera(camera);
-    const uint32_t id = w->addSurface(shape::mesh::quad(90, 90),
-                                      glm::mat4(1.0f), world::Material{});
+    const uint32_t id =
+        w->place(shape::mesh::quad(90, 90), glm::mat4(1.0f), world::Material{});
     ASSERT_NE(id, 0u);
 
     motion::Ticker ticker;
@@ -2980,9 +2917,9 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
         .vary(0.3f);
   };
   const uint32_t animatedId =
-      w->addPoints(shape::mesh::quad(3, 3), chain(), world::Material{});
+      w->placeChain(shape::mesh::quad(3, 3), chain(), world::Material{});
   const uint32_t manualId =
-      w->addPoints(shape::mesh::quad(3, 3), chain(), world::Material{});
+      w->placeChain(shape::mesh::quad(3, 3), chain(), world::Material{});
   ASSERT_NE(animatedId, 0u);
   ASSERT_NE(manualId, 0u);
 
@@ -2998,10 +2935,10 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
   stats = world::resolveAnimation(*w);
   EXPECT_EQ(stats.windows, 0) << "an unmoved lane must not re-cook";
 
-  w->setPointsWindow(manualId, 0.35f, 0.2f);
+  w->setChainWindow(manualId, 0.35f, 0.2f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud animatedCloud = w->readPoints(animatedId);
-  const shape::Cloud manualCloud = w->readPoints(manualId);
+  const shape::Cloud animatedCloud = w->readChain(animatedId);
+  const shape::Cloud manualCloud = w->readChain(manualId);
   ASSERT_EQ(animatedCloud.size(), 128u);
   ASSERT_EQ(manualCloud.size(), 128u);
   for (size_t i : {size_t(0), size_t(64), size_t(127)}) {
@@ -3018,7 +2955,7 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
   stats = world::resolveAnimation(*w);
   EXPECT_EQ(stats.windows, 1);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readPoints(animatedId);
+  const shape::Cloud slid = w->readChain(animatedId);
   float moved = 0;
   for (size_t i : {size_t(0), size_t(64), size_t(127)})
     moved += glm::length(slid.positions[i] - animatedCloud.positions[i]);
@@ -3182,8 +3119,8 @@ TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
     far.eye = {0, 0, 900};
     far.target = {0, 0, 0};
     w->setCamera(far);
-    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
-                            world::Material{}),
+    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                       world::Material{}),
               0u);
     if (animate) {
       entt::registry& registry = w->registry();
@@ -3236,8 +3173,8 @@ TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
 
   const auto runTo = [&](int frames, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
-                            world::Material{}),
+    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                       world::Material{}),
               0u);
     entt::registry& registry = w->registry();
     const entt::entity cam = registry.create();
@@ -3634,8 +3571,8 @@ TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
 
   const auto runTo = [&](int frames, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
-                            world::Material{}),
+    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                       world::Material{}),
               0u);
     entt::registry& registry = w->registry();
     const entt::entity cam = registry.create();
@@ -3718,7 +3655,7 @@ TEST(WorldSceneAnimation, KeptLeavesRideTheirEntityAndTheirLanesOutrankIt) {
   auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group().key("set").child(
-        world::scene::surface(mesh, world::Material{})
+        world::scene::place(mesh, world::Material{})
             .key("card")
             .at({100, 0, 0}));
   };
@@ -3762,7 +3699,7 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
   auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
-        world::scene::surface(mesh, material).key("card"));
+        world::scene::place(mesh, material).key("card"));
   };
   world::scene::Scene scene(*w);
   ASSERT_EQ(scene.render(describe({})).added, 1);
@@ -3814,7 +3751,7 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
   world::scene::Scene scene(*w);
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
-        world::scene::surface(mesh, material).key("card"));
+        world::scene::place(mesh, material).key("card"));
   };
   ASSERT_EQ(scene.render(describe({})).added, 1);
 
@@ -3860,7 +3797,7 @@ TEST(WorldSceneAnimation, FindResolvesANestedPathAcrossAKeep) {
         world::scene::group()
             .key("hud")
             .at({0, 60, 0})
-            .child(world::scene::surface(mesh, world::Material{})
+            .child(world::scene::place(mesh, world::Material{})
                        .key("card")
                        .at({-420, 0, 0})));
   };
@@ -3900,7 +3837,7 @@ TEST(WorldSceneAnimation, FindReturnsTheNewEntityAfterARecreate) {
   auto meshB = std::make_shared<const shape::Mesh>(shape::mesh::quad(60, 20));
   const auto describe = [&](std::shared_ptr<const shape::Mesh> mesh) {
     return world::scene::group().key("set").child(
-        world::scene::surface(std::move(mesh), world::Material{}).key("card"));
+        world::scene::place(std::move(mesh), world::Material{}).key("card"));
   };
   world::scene::Scene scene(*w);
   ASSERT_EQ(scene.render(describe(meshA)).added, 1);
@@ -3942,7 +3879,7 @@ TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
   world::scene::Scene scene(*w);
   ASSERT_EQ(scene
                 .render(world::scene::group().key("set").child(
-                    world::scene::surface(mesh, world::Material{}).key("card")))
+                    world::scene::place(mesh, world::Material{}).key("card")))
                 .added,
             1);
 
@@ -3972,10 +3909,10 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
   const auto describe = [&] {
     return world::scene::group()
         .key("set")
-        .child(world::scene::surface(mesh, world::Material{})
+        .child(world::scene::place(mesh, world::Material{})
                    .key("card")
                    .at({100, 0, 0}))
-        .child(world::scene::surface(mesh, world::Material{})
+        .child(world::scene::place(mesh, world::Material{})
                    .key("clean")
                    .at({-100, 0, 0}));
   };
@@ -4018,11 +3955,11 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
   scene.render(describe());
   ASSERT_EQ(fresh
                 .render(world::scene::group().key("solo").child(
-                    world::scene::surface(mesh, world::Material{}).key("pane")))
+                    world::scene::place(mesh, world::Material{}).key("pane")))
                 .added,
             1);
   fresh.render(world::scene::group().key("solo").child(
-      world::scene::surface(mesh, world::Material{}).key("pane")));
+      world::scene::place(mesh, world::Material{}).key("pane")));
   const std::string silent = ::testing::internal::GetCapturedStderr();
   EXPECT_EQ(count(silent, "OUTRANKS"), 0u) << silent;
 }

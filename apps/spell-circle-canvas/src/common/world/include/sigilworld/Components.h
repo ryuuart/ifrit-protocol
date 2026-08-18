@@ -2,7 +2,7 @@
 
 /** @file
  * SigilWorld's public components — the EnTT face of the world. Every
- * surface addSurface()/scene:: creates IS an entity in an
+ * prop place()/scene:: creates IS an entity in an
  * entt::registry (the proven ECS the repo already runs its scene
  * decoding on), carrying:
  *
@@ -18,7 +18,7 @@
  * World::registry() hands out the registry itself, so systems compose
  * the EnTT way: animate transforms in a view, tag entities with your
  * own components, drive gameplay state alongside rendering state —
- * surface ids returned by addSurface() are entt entity values, usable
+ * prop ids returned by place() are entt entity values, usable
  * with the registry directly (convert with the free function
  * sigil::world::entity() at the bottom of this header).
  *
@@ -74,9 +74,7 @@ struct CameraComponent {
   bool active = true;
 };
 
-/** A surface id as the entity it is. */
-inline entt::entity entity(uint32_t surfaceId) {
-  return (entt::entity)surfaceId;
-}
+/** A prop id as the entity it is. */
+inline entt::entity entity(uint32_t propId) { return (entt::entity)propId; }
 
 }  // namespace sigil::world
