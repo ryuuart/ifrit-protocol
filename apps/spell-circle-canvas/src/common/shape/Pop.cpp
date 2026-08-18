@@ -190,7 +190,7 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::MeshScatter>) {
           f("count", o.count);
           f("seed", o.seed);
-        } else if constexpr (std::is_same_v<T, pop::Set>) {
+        } else if constexpr (std::is_same_v<T, pop::Fill>) {
           vec4("value", o.value);
         } else if constexpr (std::is_same_v<T, pop::Atlas>) {
           f("cols", o.cols);
@@ -203,14 +203,14 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::Sort>) {
           vec4("weights", o.weights);
           f("descending", o.descending);
-        } else if constexpr (std::is_same_v<T, pop::Group>) {
+        } else if constexpr (std::is_same_v<T, pop::Select>) {
           f("shape", o.shape);
           vec3("center", o.center);
           vec3("size", o.size);
           f("feather", o.feather);
           f("invert", o.invert);
           f("combine", o.combine);
-        } else if constexpr (std::is_same_v<T, pop::Transform>) {
+        } else if constexpr (std::is_same_v<T, pop::Affine>) {
           f("direction", o.direction);
         } else if constexpr (std::is_same_v<T, pop::Peak>) {
           f("distance", o.distance);
@@ -464,7 +464,7 @@ Cloud cook(const pop::Chain& chain) {
               for (size_t i = 0; i < count; ++i) next[i] = lane[order[i]];
               lane = next;
             }
-          } else if constexpr (std::is_same_v<T, pop::Set>) {
+          } else if constexpr (std::is_same_v<T, pop::Fill>) {
             for (size_t i = 0; i < count; ++i)
               storeMasked(op.attr.name, i, op.mask, op.value);
           } else if constexpr (std::is_same_v<T, pop::Atlas>) {
@@ -484,7 +484,7 @@ Cloud cook(const pop::Chain& chain) {
                           {(float)(cell % cols) * du, (float)(cell / cols) * dv,
                            du, dv});
             }
-          } else if constexpr (std::is_same_v<T, pop::Group>) {
+          } else if constexpr (std::is_same_v<T, pop::Select>) {
             // The selector: distance in the region's own units, a
             // smoothstep band across the outer `feather` fraction, an
             // optional flip, then combined into the lane. The
@@ -502,7 +502,7 @@ Cloud cook(const pop::Chain& chain) {
                                    (s.y - op.center.y) / size.y,
                                    (s.z - op.center.z) / size.z};
               const float d =
-                  op.shape == pop::Group::Shape::Sphere
+                  op.shape == pop::Select::Shape::Sphere
                       ? std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z)
                       : std::max(std::abs(q.x),
                                  std::max(std::abs(q.y), std::abs(q.z)));
@@ -518,21 +518,21 @@ Cloud cook(const pop::Chain& chain) {
               const glm::vec4 old = attrs.load(op.to, i);
               float v = inside;
               switch (op.combine) {
-                case pop::Group::Combine::Replace:
+                case pop::Select::Combine::Replace:
                   break;
-                case pop::Group::Combine::Union:
+                case pop::Select::Combine::Union:
                   v = std::max(old.x, inside);
                   break;
-                case pop::Group::Combine::Intersect:
+                case pop::Select::Combine::Intersect:
                   v = std::min(old.x, inside);
                   break;
-                case pop::Group::Combine::Subtract:
+                case pop::Select::Combine::Subtract:
                   v = old.x * (1.0f - inside);
                   break;
               }
               attrs.store(op.to, i, {v, v, v, v});
             }
-          } else if constexpr (std::is_same_v<T, pop::Transform>) {
+          } else if constexpr (std::is_same_v<T, pop::Affine>) {
             for (size_t i = 0; i < count; ++i) {
               const glm::vec4 v = attrs.load(op.lane.name, i);
               glm::vec4 r;

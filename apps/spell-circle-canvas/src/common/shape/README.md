@@ -184,7 +184,7 @@ The rest build on those:
 - **`Points.h`** needs `Curves`, `Mesh` and `Space`. `Cloud` and its lane
   accessors; the generators `onSpline()`, `grid()`, `ring()`,
   `scatterBox()` and `onMesh()`; the modifiers `jitter()` and
-  `displaceNoise()`; the consumers `instance()` and `panels()` (stamp a
+  `displaceNoise()`; the consumers `instance()` and `quads()` (stamp a
   mesh at every point into one merged mesh) and `drawBillboards()`
   (camera-facing sprites); and `promoteToPrims()`.
 - **`Pop.h`** needs `Curves` and `Points`. The operator chain language and
@@ -207,10 +207,10 @@ window of a closed loop), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
 previous cook — every lane riding in as an attribute, so a Houdini group
 arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
-`Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Transform`
+`Vary`, `LookAt`, `Math`, `Relax`, `Fill`, `Atlas`, `Lookup`, `Affine`
 (any `mat4` on a position or a direction lane), `Peak` (push along a
 direction lane), `Deform` (twist, taper or bend about an axis) and `Mix`
-(blend two lanes into a third by a constant or a lane). `Group` is the
+(blend two lanes into a third by a constant or a lane). `Select` is the
 selector: it writes a mask lane from a sphere or box region, feathered at
 its edge and combined into what the lane already holds (replace, union,
 intersect, subtract). `Promote` and `Sort` are the primitive-class and
@@ -224,7 +224,7 @@ names and anything else creating a custom lane on first write.
 field naming a lane; that lane's `.x`, clamped to `[0, 1]`, is how much of
 the operator's write each point receives — `old + (new - old) * mask`. An
 empty name (the default) is every point in full; naming a lane nothing has
-written selects nobody, the way an empty group is empty. `Group` is one
+written selects nobody, the way an empty group is empty. `Select` is one
 way to write such a lane; a `Lookup`, a `Math` on a custom lane, or an
 importer's attribute serve just as well. Both executors apply the mask
 with the same expression.
@@ -232,8 +232,8 @@ with the same expression.
 `pop::on()` — over a loop, a `Mesh`, a `Chain` or a `Cloud` — returns a
 `Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
-`move`, `set`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
-`select`, `masked`, `transform`, `orient`, `peak`, `twist`, `taper`,
+`move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
+`select`, `masked`, `affine`, `orient`, `peak`, `twist`, `taper`,
 `bend`, `mix`, `mixBy`, `copy`, `op`) append operators — `masked()` sets
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
@@ -312,7 +312,7 @@ is silently, plausibly wrong rather than obviously broken.
   reassigns every operator after it to the wrong kernel.
 - **`Deform` bends positions only.** `Dir` is left where it was, so a bent
   column's stamps still point the way the loop's tangent did; re-derive a
-  direction afterwards (`LookAt`, `Transform` on `Dir`) when the stamps
+  direction afterwards (`LookAt`, `Affine` on `Dir`) when the stamps
   should follow the bend. Points outside the band `[low, high]` ride the
   arc's end tangents rigidly, so the geometry past the band keeps its
   shape rather than being stretched.
@@ -324,7 +324,7 @@ is silently, plausibly wrong rather than obviously broken.
   executor uploads exactly what it produces. `count()`, `window()`,
   `spread()` and `seed()` are inert on a point-set-led chain: the cloud
   is the count.
-- **`Group` sizes are radii per axis in both shapes.** A box of `size`
+- **`Select` sizes are radii per axis in both shapes.** A box of `size`
   `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
   an ellipsoid. `feather` is a fraction of that extent, not a distance.
 - **Mesh indices are 32-bit.** Skia's `SkVertices` 16-bit index limit is

@@ -461,7 +461,7 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   EXPECT_LT(glm::dot(glm::vec3{0, 0, 1}, offAxis), 0.99f);
 
   // The two ways of orienting a quad must agree: a one-point cloud whose
-  // "facing" lane holds the eye direction, stamped through points::panels(),
+  // "facing" lane holds the eye direction, stamped through points::quads(),
   // produces the same vertices as transforming a quad by faceCamera. If they
   // drift apart, a scene mixing billboards with instanced panels shows two
   // different orientations for the same direction.
@@ -471,7 +471,7 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   one.vector("facing") = {glm::normalize(eye - at)};
   points::InstanceOptions options;
   options.orientLane = "facing";
-  const Mesh stamped = points::panels(one, 170, 112, options);
+  const Mesh stamped = points::quads(one, 170, 112, options);
   const Mesh quad = mesh::quad(170, 112);
   const glm::mat4 m = space::faceCamera(eye, at);
   ASSERT_EQ(stamped.positions.size(), quad.positions.size());
@@ -2445,7 +2445,7 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   const pop::Chain chain =
       pop::on(loop)
           .count(64)
-          .set("energy", {0.5f, 0, 0, 0})
+          .fill("energy", {0.5f, 0, 0, 0})
           .op(pop::Jitter{"energy", 0.25f, 5})
           .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const Cloud cooked = popops::cook(chain);
@@ -2484,7 +2484,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
     const pop::Chain chain =
         pop::on(loop)
             .count(4)
-            .set(pop::Lane::P, {0, y, 0, 0})
+            .fill(pop::Lane::P, {0, y, 0, 0})
             .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100, 100);
     const Cloud cooked = popops::cook(chain);
     const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
@@ -2517,7 +2517,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
   const pop::Chain custom =
       pop::on(loop)
           .count(16)
-          .set("energy", {0.25f, 0, 0, 0})
+          .fill("energy", {0.25f, 0, 0, 0})
           .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1, "heat");
   const Cloud cooked = popops::cook(custom);
   const std::vector<glm::vec4>* heat = cooked.colorIf("heat");
@@ -2616,7 +2616,7 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
   }
   const Cloud cooked = popops::cook(pop::on(loop)
                                         .count(6)
-                                        .set("h", {0, 0, 0, 0})
+                                        .fill("h", {0, 0, 0, 0})
                                         .op(pop::Jitter{"h", 0.5f, 0}));
   const std::vector<glm::vec4>* h = cooked.colorIf("h");
   ASSERT_TRUE(h);
@@ -2952,13 +2952,13 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
 
   // Combine: a second box selector UNIONS the west side in.
   pop::Chain both = chain;
-  both.insert(both.begin() + 2, pop::Group{"east",
-                                           pop::Group::Shape::Box,
-                                           {-200, 0, 0},
-                                           {120, 400, 120},
-                                           0,
-                                           false,
-                                           pop::Group::Combine::Union});
+  both.insert(both.begin() + 2, pop::Select{"east",
+                                            pop::Select::Shape::Box,
+                                            {-200, 0, 0},
+                                            {120, 400, 120},
+                                            0,
+                                            false,
+                                            pop::Select::Combine::Union});
   const Cloud unioned = popops::cook(both);
   int liftedBoth = 0;
   for (const glm::vec3& p : unioned.positions) liftedBoth += p.y > 25.0f;
@@ -2975,7 +2975,7 @@ TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
   // A pure translation on P is Math's move; a rotation is not, and Dir
   // follows through orient() renormalized.
   const glm::mat4 turn = space::place({0, 30, 0}, 90);
-  const Cloud a = popops::cook(pop::on(loop).count(60).transform(turn));
+  const Cloud a = popops::cook(pop::on(loop).count(60).affine(turn));
   const Cloud b = popops::cook(pop::on(loop).count(60));
   ASSERT_EQ(a.size(), b.size());
   for (size_t i = 0; i < a.size(); ++i) {
@@ -3081,8 +3081,8 @@ TEST(Pop, MixBlendsCopiesAndFadesByALane) {
   const std::vector<glm::vec3> loop = flatRing(8, 100);
   const pop::Chain chain = pop::on(loop)
                                .count(40)
-                               .set("a", {1, 0, 0, 1})
-                               .set("b", {0, 0, 1, 1})
+                               .fill("a", {1, 0, 0, 1})
+                               .fill("b", {0, 0, 1, 1})
                                .mix("a", "b", "half", 0.5f)
                                .copy("a", "again")
                                .mixBy("a", "b", "byT", "T");
@@ -3402,15 +3402,15 @@ TEST(Pop, FieldsAreAddressableByName) {
   EXPECT_FLOAT_EQ(*popops::getField(twist, "kind"), 2.0f);
   EXPECT_FALSE(popops::getField(twist, "mask"));  // a string, not a dial
 
-  pop::Op group = pop::Group{};
+  pop::Op group = pop::Select{};
   EXPECT_TRUE(popops::setField(group, "center.y", 80.0f));
   EXPECT_TRUE(popops::setField(group, "invert", 1.0f));
   EXPECT_TRUE(
-      popops::setField(group, "combine", (float)pop::Group::Combine::Union));
-  const auto& g = std::get<pop::Group>(group);
+      popops::setField(group, "combine", (float)pop::Select::Combine::Union));
+  const auto& g = std::get<pop::Select>(group);
   EXPECT_FLOAT_EQ(g.center.y, 80.0f);
   EXPECT_TRUE(g.invert);
-  EXPECT_EQ(g.combine, pop::Group::Combine::Union);
+  EXPECT_EQ(g.combine, pop::Select::Combine::Union);
 
   pop::Op ramp = pop::Ramp{};
   EXPECT_TRUE(popops::setField(ramp, "to.g", 0.25f));  // colour spelling

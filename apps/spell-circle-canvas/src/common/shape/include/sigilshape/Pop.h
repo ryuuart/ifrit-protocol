@@ -141,11 +141,11 @@ struct pop {
   };
   /** Creator (TD's Attribute Create): fill an attribute — customs
    *  spring into being on first write. */
-  struct Set {
+  struct Fill {
     AttrRef attr = "Tex";
     glm::vec4 value = {0, 0, 1, 1};
     std::string mask;
-    bool operator==(const Set&) const = default;
+    bool operator==(const Fill&) const = default;
   };
   /** Texture hint: pick a sprite-atlas cell per point (stable hash)
    *  and write "Tex" = {uOffset, vOffset, uScale, vScale}. The
@@ -224,8 +224,8 @@ struct pop {
    *  rather than a lane. Fractional values feather; 0 and 1 select.
    *  Naming a lane nothing has written yet selects NOBODY (an untouched
    *  custom lane is all zeros), the same way an empty group is empty.
-   *  Group below is the operator that writes such a lane from a shape;
-   *  any operator that writes .x — Lookup, Math, Set, a custom lane
+   *  Select below is the operator that writes such a lane from a shape;
+   *  any operator that writes .x — Lookup, Math, Fill, a custom lane
    *  from an importer — writes a mask too. Both executors apply the
    *  mask with the same expression, so a masked chain cooks identically
    *  on the CPU and the GPU. */
@@ -239,7 +239,7 @@ struct pop {
    *  old * (1 - new)) so several regions build one selection. `invert`
    *  flips inside and outside before combining. Reads any lane's xyz —
    *  P by default, but "select by direction" is one field away. */
-  struct Group {
+  struct Select {
     enum class Shape : int32_t { Sphere = 0, Box = 1 };
     enum class Combine : int32_t {
       Replace = 0,
@@ -255,20 +255,20 @@ struct pop {
     bool invert = false;
     Combine combine = Combine::Replace;
     AttrRef from = Lane::P;
-    bool operator==(const Group&) const = default;
+    bool operator==(const Select&) const = default;
   };
   /** Filter: lane = matrix * lane — the whole affine vocabulary in one
    *  op (Math is the diagonal case). As a POSITION (w = 1) the
    *  translation applies; as a DIRECTION (`direction`, w = 0) only the
-   *  upper 3x3 acts and the result is renormalized, so a Transform on
+   *  upper 3x3 acts and the result is renormalized, so an Affine on
    *  P and a second on Dir keep a stamp's basis honest under rotation.
    *  .w of the lane passes through untouched either way. */
-  struct Transform {
+  struct Affine {
     AttrRef lane = Lane::P;
     glm::mat4 matrix = glm::mat4(1.0f);
     bool direction = false;
     std::string mask;
-    bool operator==(const Transform&) const = default;
+    bool operator==(const Affine&) const = default;
   };
   /** Filter: lane.xyz += normalize(along.xyz) * distance — push every
    *  point out along its own direction (Dir by default: the tangent on
@@ -295,7 +295,7 @@ struct pop {
    *            tangent there — the arc's length is preserved. Amount 0
    *            is the identity.
    *  Only positions bend (Dir is untouched); re-derive a direction
-   *  downstream with LookAt or a Transform when it matters. */
+   *  downstream with LookAt or an Affine when it matters. */
   struct Deform {
     enum class Kind : int32_t { Twist = 0, Taper = 1, Bend = 2 };
     Kind kind = Kind::Twist;
@@ -338,9 +338,10 @@ struct pop {
   };
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */
-  using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt,
-                          Math, Relax, MeshScatter, Set, Atlas, Promote, Lookup,
-                          Sort, Group, Transform, Peak, Deform, Mix, PointSet>;
+  using Op =
+      std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math,
+                   Relax, MeshScatter, Fill, Atlas, Promote, Lookup, Sort,
+                   Select, Affine, Peak, Deform, Mix, PointSet>;
   using Chain = std::vector<Op>;
 
   /** The artist's spelling — TouchDesigner ergonomics over the same
@@ -426,8 +427,8 @@ struct pop {
       return *this;
     }
     /** Create/fill any attribute — customs included. */
-    Builder& set(AttrRef attr, glm::vec4 value) {
-      m_chain.push_back(Set{std::move(attr), value});
+    Builder& fill(AttrRef attr, glm::vec4 value) {
+      m_chain.push_back(Fill{std::move(attr), value});
       return *this;
     }
     /** Texture hint: a stable per-point sprite-atlas cell in "Tex". */
@@ -479,14 +480,14 @@ struct pop {
       return *this;
     }
     /** SELECT: write a mask lane from a region. `.select("top",
-     *  Group::Shape::Box, {0, 200, 0}, {400, 60, 400})` names the
+     *  Select::Shape::Box, {0, 200, 0}, {400, 60, 400})` names the
      *  points inside a slab; feather softens its edge. Later filters
      *  take it with `.masked("top")`. */
-    Builder& select(std::string to, Group::Shape shape, glm::vec3 center,
+    Builder& select(std::string to, Select::Shape shape, glm::vec3 center,
                     glm::vec3 size, float feather = 0,
-                    Group::Combine combine = Group::Combine::Replace,
+                    Select::Combine combine = Select::Combine::Replace,
                     bool invert = false) {
-      Group g;
+      Select g;
       g.to = std::move(to);
       g.shape = shape;
       g.center = center;
@@ -500,13 +501,13 @@ struct pop {
     /** ...the loud-default sphere. */
     Builder& select(std::string to, glm::vec3 center, float radius,
                     float feather = 0) {
-      return select(std::move(to), Group::Shape::Sphere, center,
+      return select(std::move(to), Select::Shape::Sphere, center,
                     {radius, radius, radius}, feather);
     }
     /** MASK the operator just added: it writes each point only as far
      *  as `lane`.x says (0 none, 1 whole, between = a blend). Applies
      *  to the last filter on the chain; a no-op after a generator, a
-     *  Sort, a Promote or a Group. */
+     *  Sort, a Promote or a Select. */
     Builder& masked(std::string lane) {
       if (m_chain.empty()) return *this;
       std::visit(
@@ -518,14 +519,14 @@ struct pop {
     }
     /** The affine vocabulary on P (or any lane): pass a matrix from
      *  space::place or glm. */
-    Builder& transform(const glm::mat4& matrix, AttrRef lane = Lane::P) {
-      m_chain.push_back(Transform{std::move(lane), matrix, false});
+    Builder& affine(const glm::mat4& matrix, AttrRef lane = Lane::P) {
+      m_chain.push_back(Affine{std::move(lane), matrix, false});
       return *this;
     }
     /** ...and its direction twin: rotate Dir (or any direction lane)
      *  by the same matrix's upper 3x3, renormalized. */
     Builder& orient(const glm::mat4& matrix, AttrRef lane = Lane::Dir) {
-      m_chain.push_back(Transform{std::move(lane), matrix, true});
+      m_chain.push_back(Affine{std::move(lane), matrix, true});
       return *this;
     }
     /** Push every point along its own Dir. */
@@ -680,7 +681,7 @@ Cloud cook(const pop::Chain& chain);
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
  *  point into ONE Mesh (dir orients, size scales, tint colors) — a
  *  pop-DESCRIBED 3D model, drawable by space::drawMesh on the Skia
- *  painter and addSurface in SigilWorld alike. */
+ *  painter and place in SigilWorld alike. */
 Mesh cookMesh(const pop::Chain& chain, const Mesh& stamp);
 
 /** Swept sinks: the chain's cooked points become the PATH — a

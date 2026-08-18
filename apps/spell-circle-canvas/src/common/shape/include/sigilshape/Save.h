@@ -21,7 +21,7 @@
  * exactly instead of through a decimal spelling, the file carries no
  * token text, and neither writer nor reader formats or parses numbers.
  *
- * A typical use: World::readPoints() a GPU-cooked pop surface and
+ * A typical use: World::readChain() a GPU-cooked pop surface and
  * save::ply() it — compute-shader geometry, attributes and all,
  * opened in Houdini or Blender.
  */

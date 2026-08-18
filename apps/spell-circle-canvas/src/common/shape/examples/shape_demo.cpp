@@ -652,7 +652,7 @@ void panelSplines(SkCanvas& canvas) {
   screen.baseColor = {1, 1, 1, 1};
   screen.ambient = {0.85f, 0.85f, 0.9f, 1};
   screen.specular = 0;
-  space::drawMesh(canvas, points::panels(stations, 96, 64, cards),
+  space::drawMesh(canvas, points::quads(stations, 96, 64, cards),
                   glm::mat4(1.0f), camera, viewport, screen);
 
   // Particles: a drifting halo around the wire, additive.

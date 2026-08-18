@@ -7,10 +7,10 @@
  * surface, a box), modifiers perturb them, and two consumers turn them
  * into pictures:
  *
- *  - instance()/panels(): stamp a Mesh (or a quad) onto every point —
+ *  - instance()/quads(): stamp a Mesh (or a quad) onto every point —
  *    scale/tint/orientation read from lanes — producing ONE merged
  *    Mesh for space::drawMesh or world::World. "Instance planes
- *    across points" is panels() + a normal lane (or leave normals off
+ *    across points" is quads() + a normal lane (or leave normals off
  *    and let billboarding face the camera at draw time).
  *  - drawBillboards(): the UI-particle path — camera-facing sprites
  *    (an SkImage, or a soft procedural dot) with perspective size,
@@ -119,8 +119,8 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
 /** Stamp w x h quads — "instance planes across points". With an
  *  orient lane the planes stand in the world; without one they lie in
  *  xy facing +z (billboard-ready). */
-Mesh panels(const Cloud& cloud, float width, float height,
-            const InstanceOptions& options = {});
+Mesh quads(const Cloud& cloud, float width, float height,
+           const InstanceOptions& options = {});
 
 /** The point class -> PRIMITIVE class bridge (Houdini's Attribute
  *  Promote), the instancing companion: an instanced @p mesh lays each

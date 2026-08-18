@@ -1478,7 +1478,7 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
     if (isVertex) {
       mesh.positions.resize(element.count, glm::vec3{0});
       // "s"/"t" and "u"/"v" are texture coordinates only as PAIRS. A
-      // lone "t" — the scalar every readPoints/cook/asCloud cloud
+      // lone "t" — the scalar every readChain/cook/asCloud cloud
       // carries — must stay a lane, not clobber uv.y.
       const auto hasProp = [&element](std::string_view want) {
         for (const PlyProperty& p : element.properties)
