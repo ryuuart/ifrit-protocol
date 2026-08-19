@@ -84,6 +84,11 @@ target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
 # when the Substance SDK was found, with .sbsar materials rendered by
 # SigilSubstance from the SDK's own sample archives. Without the SDK the
 # lab still renders; the Substance props are simply absent.
+if(SPELLCIRCLE_ENABLE_USD)
+  # The lit material lab is also written out as a USD crate.
+  target_link_libraries(world_demo PRIVATE SigilUsd)
+  target_compile_definitions(world_demo PRIVATE SIGIL_WORLD_DEMO_USD)
+endif()
 if(SPELLCIRCLE_ENABLE_SUBSTANCE)
   target_link_libraries(world_demo PRIVATE SigilSubstance)
   target_compile_definitions(world_demo PRIVATE

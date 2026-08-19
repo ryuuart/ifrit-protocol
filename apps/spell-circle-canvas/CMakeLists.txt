@@ -58,6 +58,10 @@ option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilScry Ultralight HTML-layout
 # SUBSTANCE_SDK_DIR into CMakeUserPresets.json. Auto-disables with a
 # warning when the SDK is not there.
 option(SPELLCIRCLE_ENABLE_SUBSTANCE "Build the SigilSubstance .sbsar material renderer" ON)
+# Builds SigilUsd (src/common/usd): the world's data written to and read
+# from USD (OpenUSD core from vcpkg — tbb and zlib only). Auto-disables
+# with a warning when the pxr package is not found.
+option(SPELLCIRCLE_ENABLE_USD "Build the SigilUsd writer/reader over OpenUSD" ON)
 set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds substance-config.cmake)")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -82,6 +86,14 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   if(NOT Ultralight_FOUND)
     message(WARNING "Ultralight SDK not found; disabling the SigilScry backend")
     set(SPELLCIRCLE_ENABLE_ULTRALIGHT OFF)
+  endif()
+endif()
+
+if(SPELLCIRCLE_ENABLE_USD)
+  find_package(pxr CONFIG QUIET)
+  if(NOT pxr_FOUND)
+    message(WARNING "OpenUSD (pxr) not found; disabling SigilUsd")
+    set(SPELLCIRCLE_ENABLE_USD OFF)
   endif()
 endif()
 

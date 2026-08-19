@@ -21,6 +21,8 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
 - `src/common/substance/README.md` — Substance `.sbsar` materials rendered
   to images (needs the Adobe SDK; optional)
+- `src/common/usd/README.md` — the world's data written to and read from
+  USD (OpenUSD from vcpkg; optional)
 - `src/common/motion/README.md` — animation clock and animatable values
 - `src/common/image/README.md` — image decoding
 - `src/common/loader/README.md` — resource access: URIs, caching, reload
@@ -70,7 +72,10 @@ ctest --test-dir build -C Debug --output-on-failure
 3D SDK, and writes the uncommitted `CMakeUserPresets.json`. Hand-installed
 SDKs live under `~/.local/opt/<name>/<version>/` (Qt and Substance both);
 without the Substance SDK the `SigilSubstance` targets are simply left
-out with a configure warning. Custom ports (`choreograph`, `skia`,
+out with a configure warning. OpenUSD comes from vcpkg's `usd` port; the project's overlay triplet
+(`cmake/triplets/arm64-osx.cmake`, wired through `CMakePresets.json`)
+builds oneTBB as a shared library, because USD's many dylibs each linking
+a static TBB deadlock on the first stage open. Custom ports (`choreograph`, `skia`,
 `diligent-engine`) come from the sigil-vcpkg-registry via
 `vcpkg-configuration.json` — **its `repository` currently points at a
 local checkout, `/Users/long/REI/sigil-vcpkg-registry`.** Update the URL

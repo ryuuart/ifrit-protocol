@@ -519,7 +519,10 @@ The demo renders a diegetic-panel scene headlessly:
 ./build/bin/Debug/world_demo [outdir] [assetdir] [frameCount]
 ```
 
-It writes a set of camera shots as PNGs — a material lab, twice
+It writes a set of camera shots as PNGs (and, when SigilUsd is built,
+the lit material lab as `world_materials.usdc` with its images beside it
+— every prop, its slots and materials, the sun, the camera) — a material
+lab, twice
 (`world_materials.png` under the studio panorama and
 `world_materials_dark.png` with no panorama, no sun and a faint ambient,
 where the emissive props are the light: the fetched Poly Haven texture set on a floor,

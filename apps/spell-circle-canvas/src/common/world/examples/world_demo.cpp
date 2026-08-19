@@ -57,6 +57,9 @@
 #ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
 #include <sigilsubstance/Substance.h>
 #endif
+#ifdef SIGIL_WORLD_DEMO_USD
+#include <sigilusd/Usd.h>
+#endif
 
 using namespace sigil;
 
@@ -492,6 +495,30 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   std::unique_ptr<world::World> w = world::World::create(config, &error);
   if (!w) return;
 
+  // Every prop placed here is also remembered as the VALUES it was made
+  // of, so the lit lab can be written out as USD after the shot.
+  struct Placed {
+    std::string name;
+    shape::Mesh mesh;
+    glm::mat4 model;
+    std::vector<world::Material> slots;
+  };
+  std::vector<Placed> placed;
+  int propIndex = 0;
+  const auto add = [&](const shape::Mesh& mesh, const glm::mat4& model,
+                       auto materialOrSlots) {
+    std::vector<world::Material> slots;
+    if constexpr (std::is_same_v<std::decay_t<decltype(materialOrSlots)>,
+                                 world::Material>)
+      slots = {materialOrSlots};
+    else
+      slots = std::vector<world::Material>(materialOrSlots.begin(),
+                                           materialOrSlots.end());
+    placed.push_back(
+        {"prop" + std::to_string(propIndex++), mesh, model, slots});
+    return w->place(mesh, model, slots);
+  };
+
   world::Lighting lighting;
   lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
   lighting.sunIntensity = dark ? 0.0f : 2.4f;
@@ -520,7 +547,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     // Inside the camera's far plane all round.
     shape::Mesh dome =
         shape::mesh::superellipsoid({2400, 2400, 2400}, 2, 96, 48);
-    w->place(dome, shape::space::place({0, 0, 0}, 200 + 180), sky);
+    add(dome, shape::space::place({0, 0, 0}, 200 + 180), sky);
     std::printf("environment: %dx%d\n", hdri->width(), hdri->height());
   }
   w->setLighting(lighting);
@@ -552,12 +579,11 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   // The floor: the plate laid down four times across.
   world::Material floor = plate;
   floor.uvScale = {4, 4};
-  w->place(shape::mesh::grid(2, 2,
-                             [](float u, float v) -> glm::vec3 {
-                               return {(u - 0.5f) * 1800, -150,
-                                       (v - 0.5f) * 1200};
-                             }),
-           glm::mat4(1.0f), floor);
+  add(shape::mesh::grid(2, 2,
+                        [](float u, float v) -> glm::vec3 {
+                          return {(u - 0.5f) * 1800, -150, (v - 0.5f) * 1200};
+                        }),
+      glm::mat4(1.0f), floor);
   // A sphere wearing it once around — LAYERED: rust where the plate's
   // own occlusion runs deep (the AO map, inverted and fitted, as the
   // mask), then moss on the faces that look up. One material, read
@@ -580,8 +606,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
                   .invert()
                   .fit(0.35f, 0.75f));
   weathered = weathered.over(moss, world::Mask::slope({0, 1, 0}, 0.55f, 0.9f));
-  w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-           shape::space::place({-470, -10, 200}, 20), weathered);
+  add(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+      shape::space::place({-470, -10, 200}, 20), weathered);
   // The torus wears TWO material slots: its "Material" prim lane
   // alternates around the ring, so every other segment is the plate and
   // the rest a plain dark rubber — one prop, one transform, per-face
@@ -595,7 +621,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   std::vector<glm::vec4>& slotLane = torus.prim("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < slotLane.size(); ++t)
     slotLane[t] = {(float)((t / (48 * 2 * 8)) % 2), 0, 0, 0};
-  w->place(torus, shape::space::place({420, 20, 0}, 0, -20), {band, rubber2});
+  add(torus, shape::space::place({420, 20, 0}, 0, -20),
+      std::vector<world::Material>{band, rubber2});
 
 #ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
   // 2. A Substance archive rendered here and now: the SDK's own sample,
@@ -621,8 +648,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       m.normalScale = 1.4f;
       return m;
     };
-    w->place(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-             shape::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
+    add(shape::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
+        shape::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
     // ...and a leaning panel wearing the late-season cook, tiled twice.
     world::Material late = leaves(1.0f, 1.0f);
     late.uvScale = {2, 2};
@@ -633,8 +660,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       late.emissive = {0.9f, 0.55f, 0.3f, 1};
       late.emissiveStrength = 1.4f;
     }
-    w->place(shape::mesh::quad(560, 340),
-             shape::space::place({0, -30, 330}, 0, -62), late);
+    add(shape::mesh::quad(560, 340), shape::space::place({0, -30, 330}, 0, -62),
+        late);
     std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
                 substance::Package::engineVersion().c_str());
   } else {
@@ -680,8 +707,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     circuit.emissiveStrength = 3.5f;
     circuit.uvScale = {4, 2};
     circuit.tile = true;
-    w->place(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
-             shape::space::place({-460, 250, -320}, 20), circuit);
+    add(shape::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
+        shape::space::place({-460, 250, -320}, 20), circuit);
     if (dark) {
       // Emission does not light its neighbours by itself; in the dark a
       // dim point light of the same hue sits inside the sphere so the
@@ -706,16 +733,16 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     clear.transmission = 1;
     clear.ior = 1.5f;
     clear.thickness = 140;
-    w->place(shape::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
-             shape::space::place({-150, 40, 260}), clear);
+    add(shape::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
+        shape::space::place({-150, 40, 260}), clear);
     world::Material frosted;
     frosted.baseColor = {0.85f, 0.93f, 1.0f, 1};
     frosted.roughness = 0.45f;
     frosted.transmission = 1;
     frosted.ior = 1.45f;
     frosted.thickness = 12;
-    w->place(shape::mesh::quad(300, 210),
-             shape::space::place({120, 300, -260}, -12), frosted);
+    add(shape::mesh::quad(300, 210), shape::space::place({120, 300, -260}, -12),
+        frosted);
 
     // Fluted (reeded) glass: refraction goes through the shaded normal,
     // so a normal map of vertical half-cylinders ribbons whatever is
@@ -752,8 +779,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     fluted.tile = true;
     fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
     fluted.emissiveStrength = 0.12f;
-    w->place(shape::mesh::quad(300, 230),
-             shape::space::place({-380, 190, -40}, 26), fluted);
+    add(shape::mesh::quad(300, 230), shape::space::place({-380, 190, -40}, 26),
+        fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base
@@ -772,8 +799,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     const glm::mat4 fit = avocado->fitTransform(260);
     const std::vector<world::Material> slots =
         world::textures::materials(*avocado, decodeBytes);
-    w->place(avocado->merged(), shape::space::place({420, -60, 320}, 30) * fit,
-             slots);
+    add(avocado->merged(), shape::space::place({420, -60, 320}, 30) * fit,
+        slots);
     std::printf("avocado: %zu parts, %zu material slots\n",
                 avocado->parts.size(), slots.size());
   }
@@ -782,14 +809,14 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   world::Material rubber;
   rubber.baseColor = {0.85f, 0.2f, 0.15f, 1};
   rubber.roughness = 0.9f;
-  w->place(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-           shape::space::place({-200, 260, -300}), rubber);
+  add(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+      shape::space::place({-200, 260, -300}), rubber);
   world::Material chrome;
   chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
   chrome.metallic = 1;
   chrome.roughness = 0.08f;
-  w->place(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-           shape::space::place({200, 260, -300}), chrome);
+  add(shape::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
+      shape::space::place({200, 260, -300}), chrome);
 
   shape::space::Camera camera;
   camera.eye = {60, 330, 1150};
@@ -798,6 +825,22 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   w->setCamera(camera);
   const char* name = dark ? "world_materials_dark.png" : "world_materials.png";
   if (w->render() && w->savePng(outDir / name)) std::printf("wrote %s\n", name);
+#ifdef SIGIL_WORLD_DEMO_USD
+  // The lit lab as a USD crate: every prop with its slots and materials
+  // (images written beside it), the sun and a light, the camera.
+  if (!dark) {
+    usd::Writer writer(outDir / "world_materials.usdc");
+    for (const Placed& p : placed)
+      writer.mesh(p.name, p.mesh, p.model, p.slots);
+    writer.sun("sun", lighting);
+    writer.camera("camera", camera);
+    std::string usdError;
+    if (writer.save(&usdError))
+      std::printf("wrote world_materials.usdc\n");
+    else
+      std::fprintf(stderr, "usd: %s\n", usdError.c_str());
+  }
+#endif
 }
 
 }  // namespace
