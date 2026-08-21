@@ -249,8 +249,11 @@ state.
   position the layout placed it at, its span's whole `PaintStyle`, and the
   identity an effect selects on — position in the walk, index within the
   shaped run, UTF-16 cluster, the same cluster as a text offset, and word,
-  line, style-span and sentence indices. Displace, rotate and fade from
-  there, accumulate into `GlyphRSXformBatches`, and draw.
+  line, style-span and sentence indices. A glyph the layout TURNED — one on
+  a contour, one on a rotated interval — carries the tangent it faces and
+  the interval and pen coordinate it was placed at, so it can be re-placed
+  at draw time from the same geometry. Displace, rotate and fade from there,
+  accumulate into `GlyphRSXformBatches`, and draw.
 - **Line metrics** — `lineMetrics()` derives per-line baseline, ascent and
   descent band, advance extent, and character range from the placed runs.
   Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
@@ -316,12 +319,34 @@ configured penalty per hyphenated line.
 baseline point, not by its origin — with the offsets HarfBuzz applied on top
 of the pen position backed out first, or accented glyphs drift off the curve.
 Closed contours wrap their arc positions, so animating an interval's
-`contourStart` gives an infinite marquee around the loop. Tangents are
-quantized to a fixed number of directions by default, because every distinct
-rotation mints a fresh glyph-atlas strike, and continuously varying per-glyph
-rotations turn animated curved text into a per-frame mask-rasterization
-storm. Set `pathText.tangentRotationSteps = 0` for exact rotations on static
-artwork.
+`contourStart` gives an infinite marquee around the loop; an interval that is
+closed in geometry without being *flagged* closed says so with
+`LineInterval::wrapContour`, and a negative `advanceScale` walks the contour
+backwards so a run can read right way up along the lower half of a ring.
+Tangents are quantized to a fixed number of directions by default, because
+every distinct rotation mints a fresh glyph-atlas strike, and continuously
+varying per-glyph rotations turn animated curved text into a per-frame
+mask-rasterization storm. Set `pathText.tangentRotationSteps = 0` for exact
+rotations on static artwork.
+
+`LineInterval::placeAt` is that mapping, and it is public: a pen coordinate
+on the interval, plus a phase, gives the baseline point and the unit tangent.
+The layout bakes its blobs through it, so a caller that re-places those
+glyphs at draw time — to run a marquee, or to compose per-glyph effects on
+top of curved lettering — reads the same function the blob was built from and
+the two cannot disagree. It reports whether the pen fell outside an open
+contour, so a caller may drop a glyph that ran off the end rather than pile
+it on the last point.
+
+**A transformed run is not opaque to choreography.** The layout keeps
+the intervals it consumed (`ParagraphLayout::intervals`) and each run reports
+which one it landed on and where its pen started, so `forEachPlacedGlyph`
+gives a glyph on a curve its true `rest` position, the `tangent` it was
+turned to, and the `pen`/`intervalIndex` pair that re-places it. Every
+per-glyph dressing — a fade, a tint, a driven variable-font axis, a
+substituted code point — therefore reaches curved lettering exactly as it
+reaches straight lettering. What still draws from baked blobs, and still
+ignores the override, is `ParagraphLayout::LiveVariations`.
 
 ## Conventions and gotchas
 

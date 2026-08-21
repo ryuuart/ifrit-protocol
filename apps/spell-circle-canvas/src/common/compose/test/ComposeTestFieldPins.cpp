@@ -249,7 +249,8 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   // non-Bespoke row must answer with a pointer, and that pointer must be at
   // the field's own default value.
   cd::ElementNode node;
-  node.motionData.ensure();  // travel(): carries kMotionT
+  node.motionData.ensure();                 // travel(): carries kMotionT
+  node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
 
   std::vector<const Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;

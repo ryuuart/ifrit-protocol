@@ -433,7 +433,7 @@ struct ElementNode {
 //
 // NO PIN IS NEEDED for a struct whose equality is `= default`
 // (LayoutProps, Corners, MarkLabel, Echo, Anchor, Across, Parts, Span,
-// TextPath, ContentScalars): the compiler writes the exhaustive comparison
+// ContentScalars): the compiler writes the exhaustive comparison
 // and cannot forget a field. A pin exists only for a comparator a human
 // wrote by hand — and the honest way to retire a pin is to give the struct
 // a defaulted `operator==`.
@@ -528,6 +528,10 @@ inline auto fields(ElementNode& v) {
 inline auto fields(MotionPath& v) {
   auto& [path, t, lookAhead] = v;
   return std::tie(path, t, lookAhead);
+}
+inline auto fields(TextPath& v) {
+  auto& [path, at, align, offset, autoFlip, orient, exactTangent] = v;
+  return std::tie(path, at, align, offset, autoFlip, orient, exactTangent);
 }
 inline auto fields(BoundFloat& v) {
   auto& [source, inScale, inOffset, curve, clampInput, steps, scale, offset,

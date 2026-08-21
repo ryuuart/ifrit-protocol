@@ -1060,6 +1060,21 @@ RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
   return *this;
 }
 
+RichText& RichText::slot(std::string key, SkSize size, float baselineDrop) {
+  Run run;
+  // U+FFFC OBJECT REPLACEMENT CHARACTER. The slot is CONTENT: it occupies
+  // one code point, so it counts as a cluster, falls inside the ranges a
+  // selector names, and takes its beat in a cascade exactly as a letter
+  // does. The engine matches its reserved box to this occurrence by order.
+  run.utf8 = u8"￼";
+  run.style = m_base;
+  run.slotKey = std::move(key);
+  run.slotSize = size;
+  run.slotBaselineDrop = baselineDrop;
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
 RichText& RichText::styles(sigil::weave::StyleSet set) {
   m_styles = std::move(set);
   m_hasStyles = true;

@@ -289,6 +289,157 @@ TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
   EXPECT_GT(flowedBounds->height(), plainBounds->height());
 }
 
+namespace {
+/** How tall the paragraph came out. It is the one number that reads
+ *  "how much room the geometry offered": the same words in the same box
+ *  need fewer lines when the exclusion gives room back. */
+float flowedHeight(Host& host, const char* key) {
+  std::optional<SkRect> bounds = host.composer.bounds(key);
+  return bounds ? bounds->height() : 0.0f;
+}
+
+/** Words placed on the line band the caller names — the direct reading of
+ *  "this line's intervals were longer". */
+int inkInBand(Host& host, SkIRect band) {
+  int lit = 0;
+  for (int y = band.top(); y < band.bottom(); ++y)
+    for (int x = band.left(); x < band.right(); ++x)
+      if (host.pixel(x, y) == SK_ColorWHITE) ++lit;
+  return lit;
+}
+
+const std::u8string& flowBody() {
+  // Long enough to run past the obstacle on every geometry, so a height
+  // comparison reads room-per-line and not "the text stopped early".
+  static const std::u8string body = [] {
+    std::u8string one =
+        u8"the quick brown fox jumps over the lazy dog and keeps running "
+        u8"through the tall summer grass until the river bend appears and "
+        u8"the evening light settles over the water in long amber bands "
+        u8"while the swallows turn above the reeds and the mill wheel "
+        u8"grinds on into the blue hour without hurry or complaint ";
+    std::u8string all;
+    for (int i = 0; i < 4; ++i) all += one;
+    return all;
+  }();
+  return body;
+}
+
+/** One paragraph flowing around one keyed target of the caller's making. */
+Element flowScene(Element target, float margin) {
+  return stack()
+      .child(std::move(target))
+      .child(box()
+                 .inset(0)
+                 .child(text(flowBody(), whiteStyle(15))
+                            .key("body")
+                            .flowAround("obstacle", margin))
+                 .zIndex(1));
+}
+
+Element obstacleBox(Shape silhouette) {
+  Element el = box()
+                   .key("obstacle")
+                   .width(160)
+                   .height(160)
+                   .left(100)
+                   .top(40)
+                   .fill(Fill::color({0, 0.4f, 0, 1}));
+  if (silhouette) el.shape(std::move(silhouette));
+  return el;
+}
+}  // namespace
+
+TEST(ComposeDerive, FlowAroundShapelessTargetKeepsItsBox) {
+  // The pin: a target with no silhouette of its own is subtracted by its
+  // BOX, exactly as it always was. Every line the box crosses is cut to
+  // the box's full width, whatever the type does.
+  Host host(360, 460);
+  host.composer.render(flowScene(obstacleBox({}), 6));
+  host.frame();
+  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(106, 46, 254, 194)));
+}
+
+TEST(ComposeDerive, FlowAroundFollowsACircleSilhouette) {
+  // A round target gives back the four corners its bounding box was
+  // eating, so the same paragraph in the same box gets measurably more
+  // room — and the corners themselves take type.
+  Host boxed(360, 460), disc(360, 460);
+  boxed.composer.render(flowScene(obstacleBox({}), 6));
+  boxed.frame();
+  disc.composer.render(flowScene(obstacleBox(shapes::circle()), 6));
+  disc.frame();
+
+  EXPECT_LT(flowedHeight(disc, "body"), flowedHeight(boxed, "body"));
+  // The corner: inside the box, outside the circle. Type reaches it only
+  // under the silhouette.
+  const SkIRect corner = SkIRect::MakeLTRB(103, 43, 127, 67);
+  EXPECT_FALSE(anyWhiteIn(boxed, corner));
+  EXPECT_TRUE(anyWhiteIn(disc, corner));
+  // The middle of the disc stays clear either way.
+  EXPECT_FALSE(anyWhiteIn(disc, SkIRect::MakeLTRB(150, 100, 210, 140)));
+}
+
+TEST(ComposeDerive, FlowAroundFollowsAStarSilhouette) {
+  // A concave silhouette is the case a bounding box cannot approximate:
+  // text runs INTO the notches between the points.
+  Host boxed(360, 460), star(360, 460);
+  boxed.composer.render(flowScene(obstacleBox({}), 6));
+  boxed.frame();
+  star.composer.render(flowScene(obstacleBox(shapes::star(5)), 6));
+  star.frame();
+
+  EXPECT_LT(flowedHeight(star, "body"), flowedHeight(boxed, "body"));
+  // The concave half: a star leaves far more of its bounding box open
+  // than a disc does, so the notches and corners take more type than the
+  // round silhouette can.
+  const SkIRect band = SkIRect::MakeLTRB(103, 43, 257, 197);
+  EXPECT_GT(inkInBand(star, band), inkInBand(boxed, band));
+  // The star's own body still refuses type at its centre.
+  EXPECT_FALSE(anyWhiteIn(star, SkIRect::MakeLTRB(165, 105, 195, 135)));
+}
+
+TEST(ComposeDerive, FlowAroundMarginHoldsOffTheSilhouette) {
+  // The margin means one thing on a silhouette and on a box alike: a
+  // standoff from whatever edge is being subtracted. A wider one buys the
+  // paragraph less room, never more.
+  Host tight(360, 460), wide(360, 460);
+  tight.composer.render(flowScene(obstacleBox(shapes::circle()), 2));
+  tight.frame();
+  wide.composer.render(flowScene(obstacleBox(shapes::circle()), 26));
+  wide.frame();
+  EXPECT_LT(flowedHeight(tight, "body"), flowedHeight(wide, "body"));
+}
+
+TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
+  // Moving targets already re-derive; a silhouette target must too.
+  auto scene = [](float left) {
+    return stack()
+        .child(box()
+                   .key("obstacle")
+                   .width(160)
+                   .height(160)
+                   .left(left)
+                   .top(40)
+                   .shape(shapes::circle())
+                   .fill(Fill::color({0, 0.4f, 0, 1})))
+        .child(box()
+                   .inset(0)
+                   .child(text(flowBody(), whiteStyle(15))
+                              .key("body")
+                              .flowAround("obstacle", 6))
+                   .zIndex(1));
+  };
+  Host host(360, 460);
+  host.composer.render(scene(100));
+  host.frame();
+  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
+  host.composer.render(scene(20));
+  host.frame();
+  EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeLTRB(85, 105, 115, 135)));
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
+}
+
 TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
   Host host;
   host.composer.render(box().child(
@@ -3214,8 +3365,8 @@ TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sel::regex(u8"[0-9]+"), sigil::weave::PaintStyle(
-                                                 SK_ColorRED))
+          .spanPaint(sel::regex(u8"[0-9]+"),
+                     sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
@@ -3258,8 +3409,7 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
   host.composer.render(box().padding(10).child(
       text(body, base)
           .spanPaint(sel::text(u8"beta"), sigil::weave::PaintStyle(SK_ColorRED))
-          .spanPaint(sel::words(0, 2),
-                     sigil::weave::PaintStyle(SK_ColorGREEN))
+          .spanPaint(sel::words(0, 2), sigil::weave::PaintStyle(SK_ColorGREEN))
           .key("t")));
   host.frame();
   EXPECT_EQ(countColor(host, band, SK_ColorRED), 0)
@@ -3322,8 +3472,11 @@ TEST(TextOptionSetters, HyphenationRendersTheHyphenAtASoftBreak) {
   // which shows up as one extra run on the broken line.
   const std::u8string body = u8"short extraordi\u00adnarily";
   const auto runsOnFirstLineWith = [&](bool enabled) {
-    host.composer.render(box().padding(4).child(
-        text(body, base).width(150).hyphenation({.enabled = enabled}).key("t")));
+    host.composer.render(
+        box().padding(4).child(text(body, base)
+                                   .width(150)
+                                   .hyphenation({.enabled = enabled})
+                                   .key("t")));
     host.frame();
     const auto* layout = host.composer.paragraphLayout("t");
     if (!layout) return 0;
@@ -3347,8 +3500,8 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   sigil::weave::ParagraphLayoutOptions passed;
   passed.alignment = sigil::weave::TextAlignment::kCenter;
   passed.overflow.maxLines = 5;
-  host.composer.render(box().child(
-      text(para, passed).width(200).maxLines(2).key("t")));
+  host.composer.render(
+      box().child(text(para, passed).width(200).maxLines(2).key("t")));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
@@ -3388,4 +3541,125 @@ TEST(TextOptionSetters, KnuthPlassBreaksARaggedParagraphDifferently) {
       lineStartsUnder(sigil::weave::LineBreakStrategy::kKnuthPlass);
   ASSERT_GT(greedy.size(), 1u);
   EXPECT_NE(greedy, optimal) << "the break strategy setter changed nothing";
+}
+
+// ---------------------------------------------------------------------------
+// INLINE SLOTS — rich().slot() reserves the room, a keyed child fills it
+
+namespace {
+/** A caption with one reserved slot, and a pill child keyed for it. */
+Element pillCaption(std::string childKey, float width, SkSize size = {34, 16}) {
+  // The width lives on an inner box: the render root is always resized to
+  // the composer's own size, so a width written there is overwritten.
+  return box().child(box().padding(8).width(width).child(
+      text(rich(coloredStyle(18, SK_ColorWHITE))
+               .add(u8"press the archive key ")
+               .slot("pill", size, 4)
+               .add(u8" to continue the long descent"))
+          .key("caption")
+          .child(box().key(std::move(childKey)).fill(red()))));
+}
+}  // namespace
+
+TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
+  Host host(300, 200);
+  host.composer.render(pillCaption("pill", 280));
+  host.frame();
+
+  const std::optional<SkRect> rect = host.composer.bounds("pill");
+  ASSERT_TRUE(rect);
+  // The box IS the size the content reserved — nothing about the child's
+  // own description decides it.
+  EXPECT_FLOAT_EQ(rect->width(), 34.0f);
+  EXPECT_FLOAT_EQ(rect->height(), 16.0f);
+  // …and the fill lands inside it.
+  EXPECT_EQ(host.pixel((int)rect->centerX(), (int)rect->centerY()),
+            SK_ColorRED);
+  // The reserved run is blank: the caption's own words sit either side of
+  // it, never through it.
+  EXPECT_GT(countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorWHITE),
+            20);
+}
+
+TEST(TextSlot, TheReservedRunIsUnbreakableAndMovesOnRelayout) {
+  // The placeholder re-resolves with the paragraph: narrow the box and the
+  // pill lands on a different line, at a different place on it.
+  Host wide(300, 200), narrow(300, 200);
+  wide.composer.render(pillCaption("pill", 280));
+  wide.frame();
+  narrow.composer.render(pillCaption("pill", 120));
+  narrow.frame();
+
+  const std::optional<SkRect> a = wide.composer.bounds("pill");
+  const std::optional<SkRect> b = narrow.composer.bounds("pill");
+  ASSERT_TRUE(a && b);
+  EXPECT_NE(a->top(), b->top());
+  // Same reserved size wherever it lands — the box travels, it does not
+  // stretch, and no line breaks inside it.
+  EXPECT_FLOAT_EQ(a->width(), b->width());
+  EXPECT_FLOAT_EQ(a->height(), b->height());
+  EXPECT_EQ(narrow.pixel((int)b->centerX(), (int)b->centerY()), SK_ColorRED);
+}
+
+TEST(TextSlot, ATallSlotOpensItsLine) {
+  // The breakers treat the reserved box as a word with a height, so a slot
+  // taller than the type pushes the whole paragraph down.
+  Host shortPill(300, 240), tallPill(300, 240);
+  shortPill.composer.render(pillCaption("pill", 280, {34, 16}));
+  shortPill.frame();
+  tallPill.composer.render(pillCaption("pill", 280, {34, 60}));
+  tallPill.frame();
+  const std::optional<SkRect> a = shortPill.composer.bounds("caption");
+  const std::optional<SkRect> b = tallPill.composer.bounds("caption");
+  ASSERT_TRUE(a && b);
+  EXPECT_GT(b->height(), a->height());
+}
+
+TEST(TextSlot, AnUnknownKeyDrawsNothing) {
+  // The loud-once member of the silent-no-op family: a child keyed for a
+  // slot the content never reserved lays out at zero and paints nothing.
+  Host host(300, 200);
+  host.composer.render(pillCaption("typo", 280));
+  host.frame();
+  const std::optional<SkRect> rect = host.composer.bounds("typo");
+  ASSERT_TRUE(rect);
+  EXPECT_TRUE(rect->isEmpty());
+  EXPECT_EQ(countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorRED),
+            0);
+}
+
+TEST(TextSlot, TheHitTestReachesThePillChild) {
+  Host host(300, 200);
+  host.composer.render(pillCaption("pill", 280));
+  host.frame();
+  const std::optional<SkRect> rect = host.composer.bounds("pill");
+  ASSERT_TRUE(rect);
+  const std::optional<std::string> hit =
+      host.composer.hitTest({rect->centerX(), rect->centerY()});
+  ASSERT_TRUE(hit);
+  EXPECT_EQ(*hit, "pill");
+}
+
+TEST(TextSlot, TheSlotNamespaceIsTheValuesOwnNotTheMountRegistry) {
+  // Two captions may both reserve "icon" without colliding, because a text
+  // slot is matched against THIS text node's children and nowhere else.
+  Host host(320, 240);
+  auto caption = [](SkColor ink, const char8_t* words) {
+    return text(rich(coloredStyle(16, SK_ColorWHITE))
+                    .slot("icon", {20, 12}, 2)
+                    .add(words))
+        .child(box().key("icon").fill(Fill::color(SkColor4f::FromColor(ink))));
+  };
+  host.composer.render(
+      box()
+          .column()
+          .padding(6)
+          .width(300)
+          .child(caption(SK_ColorRED, u8" first line of the pair").key("a"))
+          .child(
+              caption(SK_ColorGREEN, u8" second line of the pair").key("b")));
+  host.frame();
+  const SkIRect all = SkIRect::MakeXYWH(0, 0, 320, 240);
+  EXPECT_GT(countColor(host, all, SK_ColorRED), 20);
+  EXPECT_GT(countColor(host, all, SK_ColorGREEN), 20);
 }

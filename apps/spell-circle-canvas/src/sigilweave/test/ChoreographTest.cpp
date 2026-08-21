@@ -5,6 +5,8 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkContourMeasure.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
@@ -564,4 +566,185 @@ TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 32));
   EXPECT_EQ(batches.draw(surface->getCanvas()), 0)
       << "an emptied batch issues no draw";
+}
+
+// ---------------------------------------------------------------------------
+// TEXT ON A PATH — one placement function, read by the layout and by the
+// caller that re-places its glyphs
+
+namespace {
+/// A closed circle as one contour measure, plus its length.
+std::pair<sk_sp<SkContourMeasure>, float> circleContour(float radius) {
+  SkPathBuilder builder;
+  builder.addCircle(0, 0, radius);
+  const SkPath path = builder.detach();
+  SkContourMeasureIter iterator(path, false);
+  sk_sp<SkContourMeasure> contour = iterator.next();
+  return {contour, contour ? contour->length() : 0.0f};
+}
+
+/// One line whose whole measure is one contour.
+LineSetFlow ringFlow(const sk_sp<SkContourMeasure>& contour, float length,
+                     float start = 0, float advanceScale = 1.0f) {
+  LineInterval interval;
+  interval.contour = contour;
+  interval.length = length;
+  interval.contourStart = start;
+  interval.advanceScale = advanceScale;
+  LineSetFlow flow;
+  flow.lines().push_back({interval});
+  return flow;
+}
+}  // namespace
+
+TEST(PathText, APlacedGlyphReportsTheIntervalAndPenItWasPlacedAt) {
+  // The pair a caller needs to re-place a curved run at draw time. The pen
+  // is the glyph's ADVANCE CENTRE, in advance units, which is what
+  // placeAt() anchors — feed one straight back to the other and the answer
+  // must be the position the layout itself computed.
+  auto [contour, length] = circleContour(200.0f);
+  ASSERT_TRUE(contour);
+  Paragraph paragraph = ParagraphBuilder(basicStyle(20.0f))
+                            .addText(u8"round and round we go")
+                            .build();
+  FontContext& context = sharedContext();
+  LineSetFlow flow = ringFlow(contour, length);
+  ParagraphLayout layout = layoutParagraph(context, paragraph, flow);
+
+  ASSERT_EQ(layout.intervals.size(), 1u);
+  int seen = 0;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    ASSERT_TRUE(glyph.transformed);
+    ASSERT_EQ(glyph.intervalIndex, 0);
+    ++seen;
+    SkPoint centre;
+    SkVector tangent;
+    layout.intervals[0].placeAt(glyph.pen, 0.0f, layout.tangentRotationSteps,
+                                &centre, &tangent);
+    // The rest position is the glyph's ORIGIN; walking back from it by the
+    // same half-advance the placement walked forward lands on the centre.
+    const SkPoint fromRest{glyph.rest.x() + tangent.x() * glyph.advance * 0.5f,
+                           glyph.rest.y() + tangent.y() * glyph.advance * 0.5f};
+    EXPECT_NEAR(fromRest.x(), centre.x(), 0.75f);
+    EXPECT_NEAR(fromRest.y(), centre.y(), 0.75f);
+    EXPECT_NEAR(glyph.tangent.x(), tangent.x(), 1e-4f);
+    EXPECT_NEAR(glyph.tangent.y(), tangent.y(), 1e-4f);
+    // …and every one of them sits on the ring.
+    EXPECT_NEAR(std::hypot(centre.x(), centre.y()), 200.0f, 1.0f);
+  });
+  EXPECT_GT(seen, 10);
+}
+
+TEST(PathText, ThePenIsTheAccumulatedAdvanceNotTheShapedPosition) {
+  // The advance-centre contract, stated as a number. HarfBuzz's per-glyph
+  // offsets sit ON TOP of the pen position, and the arc coordinate must be
+  // taken from the pen — an accented glyph anchored by its shaped x drifts
+  // off the curve by exactly its own offset.
+  auto [contour, length] = circleContour(300.0f);
+  ASSERT_TRUE(contour);
+  Paragraph paragraph =
+      ParagraphBuilder(basicStyle(24.0f)).addText(u8"clockwise").build();
+  FontContext& context = sharedContext();
+  LineSetFlow flow = ringFlow(contour, length);
+  ParagraphLayout layout = layoutParagraph(context, paragraph, flow);
+
+  // Within a run the pen is the running sum of ADVANCES and nothing else:
+  // each glyph's centre sits half its own advance past the previous
+  // glyph's, whatever offsets the shaper applied on top.
+  float penStart = 0;
+  int checked = 0;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    if (glyph.glyphIndex == 0) {
+      penStart = glyph.pen - glyph.advance * 0.5f;  // the run's entry point
+    } else {
+      EXPECT_NEAR(glyph.pen, penStart + glyph.advance * 0.5f, 1e-3f);
+      ++checked;
+    }
+    penStart += glyph.advance;
+  });
+  EXPECT_GT(checked, 4) << "no glyphs were placed";
+}
+
+TEST(PathText, APhaseWalksTheRunRoundAClosedContourWithoutRelayout) {
+  // The marquee, at the level the geometry provides it: one layout, and a
+  // phase that re-places every glyph. Crossing the seam is the case that
+  // must not fall off — the run walks through fraction 1 and out the other
+  // side.
+  auto [contour, length] = circleContour(150.0f);
+  ASSERT_TRUE(contour);
+  LineInterval interval;
+  interval.contour = contour;
+  interval.length = length;
+
+  SkPoint atZero, nearSeam, pastSeam;
+  SkVector tangent;
+  EXPECT_TRUE(interval.placeAt(0.0f, 0.0f, 0, &atZero, &tangent));
+  EXPECT_TRUE(interval.placeAt(0.0f, length * 0.98f, 0, &nearSeam, &tangent));
+  EXPECT_TRUE(interval.placeAt(0.0f, length * 1.02f, 0, &pastSeam, &tangent));
+  // Every one of them is ON the circle…
+  for (const SkPoint& p : {atZero, nearSeam, pastSeam})
+    EXPECT_NEAR(std::hypot(p.x(), p.y()), 150.0f, 0.5f);
+  // …and a phase past the seam is a short step from the phase before it,
+  // not a jump back to the start.
+  EXPECT_LT(SkPoint::Distance(nearSeam, pastSeam), length * 0.1f);
+  EXPECT_GT(SkPoint::Distance(atZero, nearSeam), 1.0f);
+}
+
+TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
+  // A 359.9-degree arc is a common spelling of a ring and is NOT flagged
+  // closed. Without the opt-in it clamps; with it, it wraps.
+  SkPathBuilder arcBuilder;
+  arcBuilder.addArc(SkRect::MakeLTRB(-100, -100, 100, 100), 0, 359.9f);
+  const SkPath arc = arcBuilder.detach();
+  SkContourMeasureIter iterator(arc, false);
+  sk_sp<SkContourMeasure> contour = iterator.next();
+  ASSERT_TRUE(contour);
+  ASSERT_FALSE(contour->isClosed());
+
+  LineInterval clamping;
+  clamping.contour = contour;
+  clamping.length = contour->length();
+  LineInterval wrapping = clamping;
+  wrapping.wrapContour = true;
+
+  SkPoint clamped, wrapped;
+  SkVector tangent;
+  EXPECT_FALSE(clamping.placeAt(-40.0f, 0.0f, 0, &clamped, &tangent))
+      << "a pen before the start must report that it was clamped";
+  EXPECT_TRUE(wrapping.placeAt(-40.0f, 0.0f, 0, &wrapped, &tangent));
+  EXPECT_GT(SkPoint::Distance(clamped, wrapped), 10.0f);
+  EXPECT_NEAR(std::hypot(wrapped.x(), wrapped.y()), 100.0f, 1.0f);
+}
+
+TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
+  // How a run reads right way up along the lower half of a ring: the whole
+  // run turns round once, rather than each letter turning over.
+  auto [contour, length] = circleContour(120.0f);
+  ASSERT_TRUE(contour);
+  LineInterval forward;
+  forward.contour = contour;
+  forward.length = length;
+  LineInterval backward = forward;
+  backward.advanceScale = -1.0f;
+  backward.contourStart = 100.0f;
+
+  SkPoint forwardPoint, backwardPoint;
+  SkVector forwardTangent, backwardTangent;
+  forward.placeAt(100.0f, 0.0f, 0, &forwardPoint, &forwardTangent);
+  backward.placeAt(0.0f, 0.0f, 0, &backwardPoint, &backwardTangent);
+  // Same point on the contour…
+  EXPECT_NEAR(forwardPoint.x(), backwardPoint.x(), 0.01f);
+  EXPECT_NEAR(forwardPoint.y(), backwardPoint.y(), 0.01f);
+  // …faced the other way.
+  EXPECT_NEAR(backwardTangent.x(), -forwardTangent.x(), 1e-4f);
+  EXPECT_NEAR(backwardTangent.y(), -forwardTangent.y(), 1e-4f);
+  // And the pen still travels forward through the text: a later pen sits
+  // further BACK along the contour.
+  SkPoint later;
+  SkVector ignored;
+  backward.placeAt(30.0f, 0.0f, 0, &later, &ignored);
+  SkPoint earlierForward;
+  forward.placeAt(70.0f, 0.0f, 0, &earlierForward, &ignored);
+  EXPECT_NEAR(later.x(), earlierForward.x(), 0.01f);
+  EXPECT_NEAR(later.y(), earlierForward.y(), 0.01f);
 }

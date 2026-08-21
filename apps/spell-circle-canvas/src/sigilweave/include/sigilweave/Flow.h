@@ -48,6 +48,14 @@ struct LineInterval {
   sk_sp<SkContourMeasure> contour;
   float contourStart = 0;  ///< arc length where the pen enters the contour
 
+  /// Contour intervals only: WRAP at the contour's ends rather than stop at
+  /// them, so the pen may run round the loop forever. A contour the path
+  /// flagged closed wraps on its own; this is for one that is closed in
+  /// GEOMETRY without being flagged. A 359.9-degree arc is a common
+  /// spelling of a ring — losing half a centred caption off it over a tenth
+  /// of a degree is not a behaviour anyone wants.
+  bool wrapContour = false;
+
   /// Contour intervals only: arc length consumed per unit of glyph advance.
   /// Compensates curvature when the glyphs' optical centers ride at a
   /// different radius than the measured baseline contour — e.g. text on the
@@ -56,7 +64,40 @@ struct LineInterval {
   /// restores optical spacing. `length`, fitting, and alignment arithmetic
   /// all stay in unscaled advance units (set length = arcLength / scale to
   /// offer the whole contour), only the pen→arc mapping is scaled.
+  ///
+  /// NEGATIVE walks the contour BACKWARDS: the pen still travels forward
+  /// through the text, but its arc position decreases and every glyph faces
+  /// the other way. That is how a run reads right way up along the lower
+  /// half of a ring — the run turns round once, rather than each letter
+  /// turning over and reversing the reading order.
   float advanceScale = 1.0f;
+
+  /** Maps a PEN COORDINATE on this interval — travel in advance units from
+   * where the pen enters it — to the baseline point it lands on and the
+   * unit direction it is turned to.
+   *
+   * THIS IS THE PLACEMENT THE LAYOUT ITSELF BAKES. It is public so that a
+   * caller re-placing a transformed run at draw time reads the same
+   * function the blob was built from, and the two can never disagree about
+   * where a glyph on a curve belongs. Anchor the glyph's ADVANCE CENTRE at
+   * the returned point (the pen coordinate for glyph i is the pen at its
+   * start plus half its advance), or accented glyphs drift off the curve.
+   *
+   * `phase` shifts every glyph along the contour by the same arc length,
+   * which is how a marquee runs without laying the paragraph out again. A
+   * contour that WRAPS — flagged closed, or opted in through
+   * `wrapContour` — takes the phase forever and the pen may sit anywhere;
+   * one that does not clamps to its ends. `rotationSteps` snaps the
+   * direction to that many directions (0 keeps it exact) — every distinct
+   * rotation mints a glyph-atlas strike, so an animated curve that does not
+   * snap re-rasterizes every glyph every frame.
+   *
+   * Returns false when the pen fell OUTSIDE a non-wrapping contour and the
+   * result was clamped to its end, so a caller that would rather drop a
+   * glyph than pile it on the last point can. A straight interval and a
+   * wrapping contour always return true. */
+  bool placeAt(float pen, float phase, int rotationSteps, SkPoint* position,
+               SkVector* tangent) const;
 };
 
 /// Supplies the intervals available to each successive line. Implementations

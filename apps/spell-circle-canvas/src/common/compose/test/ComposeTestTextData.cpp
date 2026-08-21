@@ -242,11 +242,13 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   EXPECT_GT(plusR, overR + 60);  // additive stacks all three
 }
 
-TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
+TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
   // A path clipped to a frame commonly comes back as SEVERAL contours, so a
   // baseline that takes only the first one drops the rest of the run with no
-  // diagnostic. The baseline is one arc-length coordinate over the whole
-  // contour chain.
+  // diagnostic. Every contour is one INTERVAL of the run's one line: the
+  // words fill them in order, and a word that does not fit the contour it
+  // reached starts the next one rather than bending across the gap between
+  // two disconnected curves.
   auto twoSegments = [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(10, 40).lineTo(190, 40);    // contour 1: across the top
@@ -263,7 +265,7 @@ TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
   // A run long enough to overflow contour 1 must continue onto contour 2.
   Host host(200, 200);
   host.composer.render(
-      box().child(text(u8"HHHHHHHHHHHHHHHHHHHHHHHH", whiteStyle(20))
+      box().child(text(u8"HHHH HHHH HHHH HHHH HHHH HHHH", whiteStyle(20))
                       .width(200)
                       .height(200)
                       .absolute()
@@ -272,8 +274,41 @@ TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
                       .onPath({.path = twoSegments, .at = 0.0f})));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 200);    // ink on the first contour…
-  EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which used
-                                        // to be silently unreachable
+  EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which a
+                                        // first-contour-only walk would
+                                        // leave silently unreachable
+}
+
+TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
+  // The counterpart contract, pinned so it cannot drift back: a WORD is
+  // never split across two contours. The two segments here are far apart,
+  // and a word bent across the gap would land letters in the empty band
+  // between them.
+  auto twoSegments = [](SkSize) {
+    SkPathBuilder b;
+    b.moveTo(10, 40).lineTo(120, 40);
+    b.moveTo(10, 160).lineTo(190, 160);
+    return b.detach();
+  };
+  auto lit = [](Host& host, int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = 0; x < 200; ++x) count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+  Host host(200, 200);
+  host.composer.render(
+      box().child(text(u8"HHHH HHHHHHHHHH", whiteStyle(20))
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .onPath({.path = twoSegments, .at = 0.0f})));
+  host.frame();
+  EXPECT_GT(lit(host, 20, 60), 100);    // the short word on contour 1…
+  EXPECT_GT(lit(host, 140, 180), 200);  // …the long one whole on contour 2
+  EXPECT_EQ(lit(host, 70, 130), 0) << "a word bent across the gap";
 }
 
 TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {

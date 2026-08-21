@@ -31,6 +31,22 @@
 
 namespace sigil::compose::detail {
 
+struct Instance;
+
+/** WHETHER THE CHILDREN OF THIS NODE CARRY YOGA NODES. Stated once because
+ *  two places ask — the mount that creates the node and the patch that
+ *  decides a reused instance is in the wrong mode — and a drift between
+ *  them is a hard Yoga abort rather than a wrong pixel.
+ *
+ *  Two families answer no. A `positioned()` container's descendants carry
+ *  their rects in their own descriptions instead of in the flex engine. And
+ *  a TEXT node's children never can: Yoga forbids children under a node
+ *  that has a measure function, and the measure function is how text sizes
+ *  to its container. So text keeps measuring, and a `rich().slot()` pill
+ *  takes its box from the paragraph — which is the only thing that knows
+ *  where the reserved run landed. */
+inline bool childrenCarryYoga(const Instance& inst);
+
 /** One float property that can transition: the Choreograph output is the
  *  source of truth while a motion is connected. */
 struct AnimatedFloat {
@@ -39,6 +55,28 @@ struct AnimatedFloat {
   // Where the running motion is headed — lets a patch that does not change
   // this slot's target leave the motion ALONE (no hitch, no re-held delay).
   float target = 0.0f;
+};
+
+/** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
+ *
+ *  A target that resolves a SILHOUETTE of its own — a `shape()`, a routed
+ *  connector or rail — is subtracted by that outline, concavities and holes
+ *  included, so text runs into the notch of a star and through the hole of
+ *  a ring. A target that resolves none is subtracted by its BOX, which is
+ *  the whole of what it occupies. `circle` is the analytic case: a round
+ *  silhouette costs one square root per line band instead of a walk of a
+ *  flattened outline, and the answer is the same one.
+ *
+ *  Both forms are one value so the compare that decides whether the text
+ *  must be laid out again stays a plain vector compare. */
+struct Exclusion {
+  SkRect bounds = SkRect::MakeEmpty();  ///< the target's box (or the circle's)
+  SkPath path;          ///< the silhouette; empty when the target has none
+  bool circle = false;  ///< `bounds`'s inscribed circle IS the silhouette
+  bool operator==(const Exclusion& other) const {
+    return bounds == other.bounds && circle == other.circle &&
+           path == other.path;
+  }
 };
 
 struct Instance {
@@ -58,6 +96,28 @@ struct Instance {
   YGSize measuredSize{0, 0};
   uint32_t contentRev = 0;     // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
+  // rich().slot(): the slot names in the order the content declares them —
+  // which is the order weave matches its placeholder records in — and where
+  // the finished layout put each one, in this node's own space. A child
+  // keyed by one of these names takes that rect as its box.
+  std::vector<std::string> textSlotKeys;
+  std::vector<std::pair<std::string, SkRect>> textSlotRects;
+  // onPath(): the run broken across the baseline's contours, and the
+  // geometry it was broken across. A SECOND layout beside `textLayout`
+  // rather than a replacement for it — `textLayout` is still the node's
+  // MEASURE, the run laid straight, and the box it measures is what the
+  // baseline is resolved against. Rebuilt when the content, the box or the
+  // baseline value changes; the `at` phase is applied at PAINT and never
+  // touches it.
+  sigil::weave::ParagraphLayout pathLayout;
+  std::vector<sigil::weave::LineInterval> pathIntervals;
+  float pathTotalLength = 0;   // every contour's arc length together
+  float pathRestAt = 0;        // the `at` the layout's entry point baked in
+  SkPoint pathCentroid{0, 0};  // Orient::Radial's centre
+  bool pathValid = false;
+  uint32_t pathRev = ~0u;            // contentRev the path layout belongs to
+  SkSize pathSize = {-1, -1};        // the box the baseline resolved against
+  std::optional<TextPath> pathSpec;  // the value it was built from
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
@@ -80,13 +140,14 @@ struct Instance {
     kScaleX,
     kScaleY,
     kMotionT,
+    kTextPathAt,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo;  // endpoints for kFillLerp
 
   // Derive-phase state
-  std::vector<SkRect> exclusionsLocal;  // flowAround rects, text-local
+  std::vector<Exclusion> exclusionsLocal;  // flowAround targets, text-local
   SkPath connectorPath;  // routed path (connector OR rail), local
   SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
   std::vector<SkPoint> railPoints;  // last resolved rail waypoints
@@ -250,6 +311,11 @@ struct Instance {
      *  Instance::resolvePatternOffset(), so the guard cannot drift between
      *  the volatility walk, the released scan and the paint probe. */
     std::array<float, 2> pattern{};
+    /** onPath()'s resolved phase — WHERE ALONG the baseline the run sits
+     *  this frame. The recording bakes the glyph positions that phase
+     *  produced, so it is a content input exactly as a gate fraction is.
+     *  Zero when the node carries no path baseline. */
+    float pathAt = 0;
     bool operator==(const ContentScalars&) const = default;
   };
   ContentScalars bakedScalars;
@@ -434,6 +500,11 @@ struct Instance {
    *  ContentScalars::tracks stores them). Empty when the node carries no
    *  tracks. */
   std::vector<float> resolveTrackValues() const;
+  /** The same resolution over onPath()'s `at` phase — one float, or zero
+   *  when the node carries no path baseline. Every compare site reads this
+   *  one body, so the volatility walk, the released scan and the paint
+   *  probe cannot drift apart. */
+  float resolvePathAt() const;
   /** `resolveGateValues`'s sibling for the fill lane: the value a bound
    *  `fill(&output)` resolves to this frame — `binding()->value()`, exactly
    *  the read paint() bakes into the recording — or a default (None) Fill
@@ -473,6 +544,11 @@ struct Instance {
     }
   }
 };
+
+inline bool childrenCarryYoga(const Instance& inst) {
+  return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&
+         inst.desc->kind != Kind::Text;
+}
 
 // ---------------------------------------------------------------------------
 // THE SLOT TABLE — a slot added to Instance::Slot is a BUILD FAILURE
@@ -593,6 +669,18 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kMotionT, SlotRole::Geometric,
      [](const ElementNode& n) -> const Animatable<float>* {
        return n.motionData ? &n.motionData->t : nullptr;
+     },
+     0.0f, nullptr},
+    // onPath(): `at` is WHERE ALONG the baseline the run sits, so moving it
+    // re-places every glyph INSIDE the node's own box and leaves the box
+    // where it was. That is the CONTENT half, not the geometric one — the
+    // recording is rebuilt, the device rect is not — and the resolved value
+    // joins ContentScalars so a marquee that stops running releases like any
+    // other settled scalar.
+    {Instance::kTextPathAt, SlotRole::Content,
+     [](const ElementNode& n) -> const Animatable<float>* {
+       return n.textData && n.textData->onPath ? &n.textData->onPath->at
+                                               : nullptr;
      },
      0.0f, nullptr},
 };
@@ -1019,10 +1107,18 @@ struct Composer::Impl {
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f;  // device px per layout px at draw() entry
   void paint(detail::Instance& inst, SkCanvas& canvas);
-  void paintTextOnPath(detail::Instance& inst, SkCanvas& canvas,
-                       const TextPath& spec, SkSize size);
+  /** Breaks the run across the baseline's contours through SigilWeave's
+   *  contour-interval geometry, and caches the result on the instance. */
+  void ensurePathLayout(detail::Instance& inst, const TextPath& spec,
+                        SkSize size);
+  /** THE ONE GLYPH DRAW for text that is not simply resting on its own
+   *  straight baseline. The rest pose comes from the baseline — level on a
+   *  plain run, on the curve and turned to it on a path run — and every
+   *  fx() track's deviation applies ON TOP OF IT, in that pose's own frame.
+   *  `onPath` is null for text with no baseline path. */
   void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
-                   const sigil::weave::PaintStyle* override);
+                   const sigil::weave::PaintStyle* override,
+                   const TextPath* onPath, SkSize size);
   /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
    *  and by the fx() draw — a letter in flight is painted exactly as a

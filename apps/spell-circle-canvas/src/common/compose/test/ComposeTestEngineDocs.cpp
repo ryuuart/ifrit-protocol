@@ -1249,6 +1249,65 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
                          << gradeMax;  // visible thickening
 }
 
+TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
+  // The old baseline-on-a-path draw was its own path through the engine and
+  // took none of the per-glyph dressing with it, so a driven axis on a ring
+  // simply did nothing. One draw now places both, so it does.
+  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
+  sk_sp<SkTypeface> ui;
+  for (const char* family :
+       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
+    ui = manager->matchFamilyStyle(family, SkFontStyle());
+    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
+    ui = nullptr;
+  }
+  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
+  float gradeMin = 0, gradeMax = 0;
+  {
+    const int n = ui->getVariationDesignParameters({});
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
+    ui->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto& a : axes)
+      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+        gradeMin = a.min;
+        gradeMax = a.max;
+      }
+  }
+  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
+
+  choreograph::Output<float> grade{gradeMin};
+  Host host(240, 240);
+  sigil::weave::TextStyle style = styleAt(26);
+  style.shaping.typeface = ui;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  host.composer.render(box().child(
+      text(u8"GRADED RING", style)
+          .key("ring")
+          .width(200)
+          .height(200)
+          .absolute()
+          .left(20)
+          .top(20)
+          .onPath({.path = shapes::circle(), .align = TextPath::Align::Center})
+          .variationDrive("GRAD", &grade)));
+  host.frame();
+  SkBitmap lo;
+  lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
+  host.surface->readPixels(lo.pixmap(), 0, 0);
+
+  grade = gradeMax;
+  host.frame();  // paint-only: no re-describe, no relayout
+  SkBitmap hi;
+  hi.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
+  host.surface->readPixels(hi.pixmap(), 0, 0);
+
+  int changed = 0;
+  for (int y = 0; y < 240; y += 2)
+    for (int x = 0; x < 240; x += 2)
+      if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
+  EXPECT_GT(changed, 20) << "the drive did not reach the glyphs on the ring";
+}
+
 namespace {
 /** Does @p face DECLARE @p tag at all? `axisIsAdvanceInvariant` answers
  *  FALSE both for "the axis moves advances" and for "there is no such

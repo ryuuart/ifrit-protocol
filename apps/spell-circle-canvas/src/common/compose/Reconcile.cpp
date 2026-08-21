@@ -192,6 +192,18 @@ bool effectEqual(const std::optional<Effect>& a,
 // ---- block equality: presence must match first, then contents; a block
 // holding a callable stays conservatively unequal ---------------------------
 
+static_assert(kFieldCount<TextPath> == 7,
+              "TextPath gained or lost a field — rule on it in "
+              "textPathEqual() below, then bump this count. The comparator "
+              "is hand-written at all because `at` is an Animatable, and "
+              "an Animatable is compared where every other animated slot "
+              "is: through propEqual.");
+bool textPathEqual(const TextPath& a, const TextPath& b) {
+  return a.path == b.path && propEqual(a.at, b.at) && a.align == b.align &&
+         a.offset == b.offset && a.autoFlip == b.autoFlip &&
+         a.orient == b.orient && a.exactTangent == b.exactTangent;
+}
+
 static_assert(kFieldCount<TextData> == 13 && kFieldCount<TextOptions> == 8 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
@@ -246,7 +258,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // together. A raw-callable baseline makes the Shape compare false and
   // falls back to never pruning.
   if (ta.onPath.has_value() != tb.onPath.has_value()) return false;
-  if (ta.onPath && !(*ta.onPath == *tb.onPath)) return false;
+  if (ta.onPath && !textPathEqual(*ta.onPath, *tb.onPath)) return false;
   // textFill(): live never prunes, static compares by recipe.
   if (ta.metricFill.has_value() != tb.metricFill.has_value()) return false;
   if (ta.metricFill) {
@@ -656,10 +668,7 @@ std::unique_ptr<Instance> Composer::Impl::mount(
   // description, resolved by instanceRect() with no flex engine behind
   // it. The container itself keeps its node (it lives in its parent's
   // flow); its descendants never get one.
-  const bool positionedChild =
-      parent &&
-      (!parent->yoga || (parent->desc && parent->desc->layout.positioned));
-  if (!positionedChild) {
+  if (!parent || childrenCarryYoga(*parent)) {
     inst->yoga = YGNodeNewWithConfig(yogaConfig);
     YGNodeSetContext(inst->yoga, inst.get());
   }
@@ -803,8 +812,7 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
           prev && prev->textData ? &*prev->textData : nullptr;
       const bool textChanged =
           !prevText || kindChanged || prevText->utf8 != text.utf8 ||
-          !(prevText->style == text.style) ||
-          !(prevText->rich == text.rich) ||
+          !(prevText->style == text.style) || !(prevText->rich == text.rich) ||
           prevText->paragraphOverride != text.paragraphOverride ||
           !(prevText->options == text.options) ||
           prevText->spanRestyles != text.spanRestyles;
@@ -911,8 +919,7 @@ void Composer::Impl::patchChildren(Instance& inst,
   // Whether children of THIS parent carry Yoga nodes; a mismatch on a
   // reused instance (the container toggled positioned()) forces a fresh
   // mount below, because a Yoga node's existence is fixed at mount.
-  const bool childrenWantYoga =
-      inst.yoga != nullptr && !inst.desc->layout.positioned;
+  const bool childrenWantYoga = childrenCarryYoga(inst);
   for (auto& child : inst.children) {
     if (child) {
       oldOrder.push_back(child.get());
@@ -1013,13 +1020,28 @@ void Composer::Impl::materializeText(
     Instance& inst, std::span<const sigil::weave::LineMetrics> lines) {
   const TextData& text = *inst.desc->textData;
   inst.paragraph.emplace();
+  // Cleared for every content form, so the names a node answers for are
+  // exactly the ones its CURRENT content declares.
+  inst.textSlotKeys.clear();
+  inst.textSlotRects.clear();
   if (text.paragraphOverride) {
     *inst.paragraph = *text.paragraphOverride;
   } else if (!text.rich.empty()) {
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
-    for (const RichText::Run& run : text.rich.runs())
+    for (const RichText::Run& run : text.rich.runs()) {
+      if (!run.slotKey.empty()) {
+        // A slot run reserves a box instead of setting glyphs. The names go
+        // into one list in declaration order, which is the order weave
+        // matches its placeholder records to the U+FFFCs in the text.
+        inst.textSlotKeys.push_back(run.slotKey);
+        inst.paragraph->appendPlaceholder(
+            {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
+            run.style);
+        continue;
+      }
       inst.paragraph->appendText(run.utf8, run.style);
+    }
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }

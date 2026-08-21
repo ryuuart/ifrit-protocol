@@ -958,11 +958,18 @@ struct Track {
  *  depends on no scope that has since ended. */
 class RichText {
  public:
-  /** One run of text and the style it is set in. */
+  /** One run of text and the style it is set in — or one INLINE SLOT, which
+   *  is a run whose content is the single object-replacement character the
+   *  flow anchors a reserved box at. */
   struct Run {
     std::u8string utf8;
     sigil::weave::TextStyle style;  ///< resolved: its own, its name's, or base
     std::string styleName;          ///< the name it was written with, if any
+    /** Non-empty on a SLOT run: the name a child of this text node is laid
+     *  out into. */
+    std::string slotKey;
+    SkSize slotSize = {0, 0};    ///< the box the breakers reserve
+    float slotBaselineDrop = 0;  ///< the box's bottom, below the baseline
     bool operator==(const Run&) const = default;
   };
 
@@ -978,6 +985,34 @@ class RichText {
   RichText& add(std::u8string_view utf8, sigil::weave::TextStyle style);
   /** Appends a run in the style registered under @p styleName. */
   RichText& add(std::u8string_view utf8, std::string_view styleName);
+
+  /** Reserves an INLINE SLOT: `size` px of blank space woven into the flow,
+   *  and the name a child Element of this text node is laid out into.
+   *
+   *      text(rich(body).add(u8"press ").slot("key", {28, 18}).add(u8" now"))
+   *          .child(box().key("key").fill(ink).corners({4}))
+   *
+   *  The reserved box is ONE UNBREAKABLE WORD: a line never breaks inside
+   *  it, and it moves the line's height when it is taller than the type.
+   *  `baselineDrop` is how far the box's BOTTOM sits below the baseline —
+   *  0 stands it on the baseline like an inline image, and about the face's
+   *  descent centres a pill on the x-height.
+   *
+   *  The child is an ordinary subtree: it animates, caches and hit-tests
+   *  like any other element, and it re-lands wherever the placeholder lands
+   *  when the text reflows. It is a POSITIONED subtree — the placeholder
+   *  rect is its box, so flex layout does not run inside it and its own
+   *  children take explicit rects, exactly as under `positioned()`.
+   *
+   *  A TEXT SLOT IS NOT A MOUNT SLOT. `slot()` and `Composer::renderSlot`
+   *  name a hole a HOST fills from outside the description, and those names
+   *  live in one registry for the whole composition. These names live in
+   *  this rich-text value alone and are matched against the `key()` of this
+   *  text node's own children — so two captions may both reserve a slot
+   *  called "icon" without colliding, and neither is reachable by
+   *  `renderSlot`. A child keyed for a slot the content does not declare
+   *  draws nothing, and says so once. */
+  RichText& slot(std::string key, SkSize size, float baselineDrop = 0);
   /** Supplies the style set names resolve through, beating any the
    *  environment offers, and re-resolves every named run already added. */
   RichText& styles(sigil::weave::StyleSet set);
@@ -1003,7 +1038,7 @@ class RichText {
   sigil::weave::TextStyle m_base;
   std::vector<Run> m_runs;
   sigil::weave::StyleSet m_styles;
-  bool m_hasStyles = false;  // a set is in play (explicit or inherited)
+  bool m_hasStyles = false;       // a set is in play (explicit or inherited)
   bool m_stylesExplicit = false;  // styles() gave it; env cannot replace it
 };
 
@@ -1208,9 +1243,23 @@ struct TextPath {
    *  into a blob. Give the TEXT node the disc's width and height instead
    *  — the text leaf is the disc. */
   Shape path;
-  /** Where the run sits along the path, as a fraction of its length.
-   *  With Align::Center this is the run's midpoint. */
-  float at = 0.0f;
+  /** WHERE ALONG the path the run sits, as a fraction of its length. With
+   *  Align::Center this is the run's midpoint.
+   *
+   *  One float, so every `bind()`/`animate()` verb applies — and on a
+   *  CLOSED baseline the fraction WRAPS, which is the infinite marquee: a
+   *  phase output running 0→1 forever walks the whole run round the loop
+   *  and back to where it started, with no seam and no relayout. On an
+   *  open one the run simply slides, and glyphs pushed off either end are
+   *  dropped rather than piled on the last point.
+   *
+   *  Moving it is PAINT-ONLY. The run is shaped and broken across the
+   *  path's contours once; the phase re-places the glyphs it already
+   *  placed, so a marquee costs a repaint and never a reflow. It is
+   *  content volatility all the same — the glyphs move inside the node's
+   *  own box — so the node's recording is refused while the phase runs and
+   *  taken again once it provably holds still. */
+  Animatable<float> at = 0.0f;
   enum class Align { Start, Center, End };
   Align align = Align::Start;
   /** Perpendicular offset in px, positive to the LEFT of travel — which on
@@ -1247,11 +1296,15 @@ struct TextPath {
    *  bbox centre is not its circle's centre — so give a partial arc a
    *  full-circle baseline and place the run on it with `at`. */
   enum class Orient { Tangent, Radial, Upright } orient = Orient::Tangent;
-  /** Structural equality. The baseline is a `Shape`, so a run on a stock
-   *  generator — or any comparable scheme — PRUNES, and a ring of labels
-   *  costs nothing per describe. A raw-callable baseline compares unequal,
-   *  so every such label re-records on every render(). */
-  bool operator==(const TextPath&) const = default;
+  /** Turn every glyph to its EXACT tangent instead of snapping the angle.
+   *
+   *  Snapping is the default because each distinct rotation is a distinct
+   *  glyph-atlas strike: a curve whose glyphs turn continuously would
+   *  re-rasterize every letter on every frame. The steps are far under a
+   *  pixel of lean at label sizes on a ring whose letters sit further apart
+   *  than that. Set it for STATIC artwork set large, where the steps show
+   *  and nothing is paying per frame. */
+  bool exactTangent = false;
 };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effect
@@ -2936,11 +2989,21 @@ class Element {
   Element& zIndex(int z);
 
   // ---- derive phase (inputs are resolved geometry) ----
-  /** Text leaves only: flow this paragraph around the keyed node's
-   *  resolved bounds (SigilWeave ExclusionFlow), with @p margin px of
-   *  standoff. Resolved as a bounded second layout pass; a reference
-   *  to self or a descendant is ignored (cycle guard). Call repeatedly
-   *  to weave around several elements. */
+  /** Text leaves only: flow this paragraph around the keyed node, with
+   *  @p margin px of standoff.
+   *
+   *  A target that declares a SILHOUETTE — a `shape()`, or a routed
+   *  connector or rail — is subtracted by that outline, concavities and
+   *  holes included, so text runs into the notch of a star and through the
+   *  ring of an annulus. A target that declares none is subtracted by its
+   *  BOX, which is the whole of what it occupies. The margin is the same
+   *  standoff from whichever edge is being subtracted; corner radii round
+   *  the fill rather than the outline and do not count as a silhouette.
+   *
+   *  Resolved as a bounded second layout pass, so a target that moves
+   *  re-cuts the lines under it; a reference to self or a descendant is
+   *  ignored (cycle guard). Call repeatedly to weave around several
+   *  elements. */
   Element& flowAround(std::string_view key, float margin = 0.0f);
 
   // ---- content ----

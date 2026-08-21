@@ -90,7 +90,7 @@ here:
 - **Check the claim before ranking it.** FOUR entries turned out to be
   wrong — `PathFormat` has always carried its own trim window, there has
   always been a bound `Fill`, the whole brush vocabulary has always worked
-  on hand-built geometry via `decorations::paintOn`, and `onPath` walked
+  on hand-built geometry via `decorations::paintOn`, and `onPath` filled
   every contour hours before a doc comment said otherwise. In each case a
   capable author concluded "impossible", worked around it, and the
   workaround got recorded as a gap. An entry that reads "impossible"

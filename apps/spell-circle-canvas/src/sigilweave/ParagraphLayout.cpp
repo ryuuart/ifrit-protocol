@@ -103,24 +103,6 @@ float wordFontSize(const Word& word) {
   return word.segments.empty() ? 16.0f : word.segments.front().shaped->fontSize;
 }
 
-// Snaps a unit tangent to one of `steps` directions (512 → 0.7° steps —
-// invisible). Continuously varying per-glyph rotations would otherwise mint
-// a fresh glyph-atlas strike every frame for every glyph on a moving path,
-// turning animated curved text into a per-frame mask-rasterization storm.
-// See ParagraphLayoutOptions::pathText.tangentRotationSteps.
-SkVector quantizeTangent(SkVector tangent, int directionCount) {
-  if (directionCount <= 0) return tangent;
-  constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
-  const float angle = std::atan2(tangent.fY, tangent.fX);
-  int directionIndex =
-      static_cast<int>(std::lround(angle / kTwoPi * directionCount)) %
-      directionCount;
-  if (directionIndex < 0) directionIndex += directionCount;
-  const float snapped =
-      static_cast<float>(directionIndex) * kTwoPi / directionCount;
-  return {std::cos(snapped), std::sin(snapped)};
-}
-
 // Per-glyph RSXform blob for rotated straight intervals and path contours.
 sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
                                        const LineInterval& interval,
@@ -132,7 +114,6 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
   const int glyphCount = static_cast<int>(shapedWord.glyphs.size());
   const auto& run = builder.allocRunRSXform(font, glyphCount);
 
-  const float contourLength = interval.contour ? interval.contour->length() : 0;
   float penLocal = 0;
   for (int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
     const float advance = shapedWord.advances[glyphIndex];
@@ -140,33 +121,13 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
     const float glyphOffsetX = shapedWord.positions[glyphIndex].x() - penLocal;
     const float glyphOffsetY = shapedWord.positions[glyphIndex].y();
 
+    // The interval owns the pen→placement mapping, and it is the SAME
+    // function a caller re-placing these glyphs at draw time reads, so the
+    // baked blob and a live re-placement can never disagree.
     SkPoint position;
     SkVector tangent;
-    if (interval.contour) {
-      float contourPosition =
-          interval.contourStart +
-          (penOffset + penLocal + advance * 0.5f) * interval.advanceScale;
-      if (interval.contour->isClosed()) {
-        // Closed contours wrap: text can march around the loop forever
-        // (animate contourStart for an infinite marquee).
-        contourPosition = std::fmod(contourPosition, contourLength);
-        if (contourPosition < 0) contourPosition += contourLength;
-      } else {
-        contourPosition = std::clamp(contourPosition, 0.0f, contourLength);
-      }
-      if (!interval.contour->getPosTan(contourPosition, &position, &tangent)) {
-        position = {0, 0};
-        tangent = {1, 0};
-      }
-      // Rotation snaps; position stays exact.
-      tangent = quantizeTangent(tangent, rotationSteps);
-    } else {
-      tangent = interval.direction;
-      const float distance = penOffset + penLocal + advance * 0.5f;
-      position = interval.origin +
-                 SkVector{tangent.x() * distance, tangent.y() * distance};
-      tangent = quantizeTangent(tangent, rotationSteps);
-    }
+    interval.placeAt(penOffset + penLocal + advance * 0.5f, 0.0f, rotationSteps,
+                     &position, &tangent);
 
     // Anchor the glyph's advance-center on the baseline point `pos`,
     // rotated to the local tangent. Center in glyph-local coordinates:
@@ -194,6 +155,8 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   run.styleIndex = segment.styleIndex;
   run.wordIndex = wordIndex;
   run.lineIndex = flatInterval.sourceLineIndex;
+  run.intervalIndex = flatInterval.index;
+  run.penOffset = penOffset;
   const bool straight = !flatInterval.interval.contour;
   const bool horizontal = straight &&
                           flatInterval.interval.direction.x() == 1 &&
@@ -435,6 +398,8 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
                             flatInterval.interval.direction.y() * penPosition};
       run.wordIndex = wordIndex;
       run.lineIndex = flatInterval.sourceLineIndex;
+      run.intervalIndex = flatInterval.index;
+      run.penOffset = penPosition;
       run.placeholderIndex = word.placeholderIndex;
       result.runs.push_back(std::move(run));
     }
@@ -616,11 +581,24 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
           ? options.knuthPlass.minimumIntervalWidth
           : 0.0f);
 
+  // The geometry a caller needs to re-place a transformed run at draw time:
+  // the intervals the layout actually consumed, in the numbering the runs
+  // report, plus the snapping the placement used. Recorded on the way out
+  // of every breaker, because "which interval" is only meaningful next to
+  // the interval list it indexes.
+  const auto recordGeometry = [&](ParagraphLayout& layout) {
+    layout.tangentRotationSteps = options.pathText.tangentRotationSteps;
+    layout.intervals.reserve(intervalSequence.flattened().size());
+    for (const FlatInterval& flat : intervalSequence.flattened())
+      layout.intervals.push_back(flat.interval);
+  };
+
   if (options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass) {
     ParagraphLayout result =
         knuthPlassLayout(fontContext, paragraph, intervalSequence, options);
     if (!options.overflow.ellipsis.empty() && result.overflowed())
       applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
+    recordGeometry(result);
     return result;
   }
 
@@ -721,6 +699,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   result.lineCount = lastLineUsed + 1;
   if (!options.overflow.ellipsis.empty() && result.overflowed())
     applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
+  recordGeometry(result);
   return result;
 }
 

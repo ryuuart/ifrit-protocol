@@ -439,6 +439,13 @@ std::vector<float> detail::Instance::resolveGateValues() const {
   return values;
 }
 
+float detail::Instance::resolvePathAt() const {
+  if (!desc || !desc->textData) return 0.0f;
+  const std::optional<TextPath>& baseline = desc->textData->onPath;
+  if (!baseline) return 0.0f;
+  return resolveFloat(kTextPathAt, baseline->at);
+}
+
 std::vector<float> detail::Instance::resolveTrackValues() const {
   std::vector<float> values;
   const std::span<const Track> tracks =
@@ -625,6 +632,9 @@ void Composer::Impl::scanReleasedScalars() {
     // The bound tile pan: same argument, so a parked scroll re-declares
     // before its parked phase replays.
     now.pattern = inst->resolvePatternOffset();
+    // …and onPath()'s phase: a released marquee whose output is driven
+    // again must re-declare before its parked frame replays.
+    now.pathAt = inst->resolvePathAt();
     if (!(now == inst->settledScalars)) {
       inst->settleFrames = 0;  // the hold is over: warm up from scratch
       inst->settledScalars = std::move(now);
@@ -860,6 +870,7 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
     now.world = worldScalarsOf(inst);    // a held world matrix releases too
     now.fill = inst.resolveBoundFill();  // …and a held bound fill
     now.pattern = inst.resolvePatternOffset();  // …and a held bound pan
+    now.pathAt = inst.resolvePathAt();          // …and a held marquee phase
     if (now == inst.settledScalars) {
       scalarContent = false;  // released — provably holding still
       releasedScalars.push_back(&inst);
@@ -1036,43 +1047,72 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
 // Kinetic typography: master progress → stagger remap → per-glyph mods →
 // batched RSXform draws (one per font/color bucket — never per glyph).
 
-/** Text whose baseline is a path: shape ONCE (real kerning, real
- *  ligatures), then place every glyph by arc length and rotate it to the
- *  tangent, through the same batched RSXform draw kinetic text uses.
- *
- *  Every contour is walked in order. Glyphs past the end of the path are
- *  dropped rather than piled on the last point — running off the end of a
- *  ring should look like running off the end of a ring. */
-void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
-                                     const TextPath& spec, SkSize size) {
-  if (!spec.path) return;
-  const SkPath baseline = spec.path(size);
-  // ALL the contours, walked in order as one baseline. Walking only the
-  // first would silently drop text: a curve clipped to the frame comes back
-  // as several contours, and the run would simply stop at the end of the
-  // first one with no diagnostic.
-  static thread_local std::vector<sk_sp<SkContourMeasure>> contours;
-  contours.clear();
-  for (SkContourMeasureIter iter(baseline, false);;) {
-    sk_sp<SkContourMeasure> c = iter.next();
-    if (!c) break;
-    if (c->length() > 0) contours.push_back(std::move(c));
-  }
-  if (contours.empty()) return;
-  float length = 0;
-  for (const auto& c : contours) length += c->length();
-  // One arc-length coordinate over the whole chain.
-  auto posTan = [&](float d, SkPoint* pos, SkVector* tan) {
-    for (const auto& c : contours) {
-      if (d <= c->length()) return c->getPosTan(d, pos, tan);
-      d -= c->length();
-    }
-    const auto& last = contours.back();
-    return last->getPosTan(last->length(), pos, tan);
-  };
+namespace {
 
-  // The run's own width, from the shaped advances — this is what Align
-  // measures against, and it is why the run has to be shaped first.
+/** THE FIELDS OF A TextPath THAT DECIDE THE LAYOUT, as opposed to the
+ *  placement of glyphs the layout already made. How the baseline is shaped,
+ *  which way the run reads and where along it the run RESTS decide which
+ *  words land on which contour; the perpendicular offset, the orientation
+ *  and the tangent snapping are read per glyph at paint and move nothing
+ *  the breaker decided.
+ *
+ *  A BOUND phase rests at zero and is applied at paint, which is what makes
+ *  a marquee a repaint rather than a reflow. */
+bool samePathLayout(const TextPath& a, const TextPath& b) {
+  const float restA = a.at.plain() ? *a.at.plain() : 0.0f;
+  const float restB = b.at.plain() ? *b.at.plain() : 0.0f;
+  return a.path == b.path && a.align == b.align && a.autoFlip == b.autoFlip &&
+         restA == restB;
+}
+
+/** Directions a path tangent snaps to. Every distinct rotation is both a
+ *  batch bucket and a glyph-atlas strike, and 64 steps is 5.6 degrees —
+ *  under a pixel of lean at label sizes on a ring whose own letters sit
+ *  further apart than that. `TextPath::exactTangent` is the opt-out. */
+constexpr int kPathTangentSteps = 64;
+
+}  // namespace
+
+/** THE RUN BROKEN ACROSS ITS BASELINE'S CONTOURS.
+ *
+ *  Shaped once — real kerning, real ligatures, real advances — and then
+ *  laid out through SigilWeave's own contour-interval geometry: EVERY
+ *  contour becomes one interval of one line, so which words land on which
+ *  contour, how they fill it, and where each pen sits are the paragraph
+ *  engine's answers rather than a second implementation of them. A word
+ *  that does not fit the contour it reached starts the next one, and a run
+ *  that outlasts the last contour simply stops.
+ *
+ *  Cached against everything that decides it — the content, the box the
+ *  baseline resolves against, and the baseline value. The `at` phase is not
+ *  among them: it re-places glyphs the layout already placed, at paint. */
+void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
+                                      SkSize size) {
+  if (inst.pathValid && inst.pathRev == inst.contentRev &&
+      inst.pathSize.width() == size.width() &&
+      inst.pathSize.height() == size.height() && inst.pathSpec &&
+      samePathLayout(*inst.pathSpec, spec))
+    return;
+
+  if (!inst.paragraph) return;  // no content materialized: nothing to place
+  inst.pathValid = false;
+  inst.pathIntervals.clear();
+  inst.pathLayout = {};
+  inst.pathRev = inst.contentRev;
+  inst.pathSize = size;
+  inst.pathSpec = spec;
+  inst.pathTotalLength = 0;
+  if (!spec.path) return;
+
+  const SkPath baseline = spec.path(size);
+  // The centre Orient::Radial radiates from: the bounds of the resolved
+  // baseline, which for every dial-shaped path is its centre.
+  const SkRect baselineBounds = baseline.getBounds();
+  inst.pathCentroid = {baselineBounds.centerX(), baselineBounds.centerY()};
+
+  // The run's own width, from the shaped advances. This is what Align
+  // measures against, and it is why the run has to be shaped first — it
+  // comes from the straight MEASURE layout, which is also the node's box.
   float runWidth = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
@@ -1080,22 +1120,42 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
         runWidth = std::max(runWidth, placed.rest.x() + placed.advance);
       });
 
-  float start = spec.at * length;
-  if (spec.align == TextPath::Align::Center)
-    start -= runWidth * 0.5f;
-  else if (spec.align == TextPath::Align::End)
-    start -= runWidth;
+  static thread_local std::vector<sk_sp<SkContourMeasure>> contours;
+  const auto measureContours = [](const SkPath& path) {
+    contours.clear();
+    float total = 0;
+    for (SkContourMeasureIter iter(path, false);;) {
+      sk_sp<SkContourMeasure> contour = iter.next();
+      if (!contour) break;
+      if (contour->length() > 0) {
+        total += contour->length();
+        contours.push_back(std::move(contour));
+      }
+    }
+    return total;
+  };
+  const float length = measureContours(baseline);
+  if (contours.empty()) return;
+  inst.pathTotalLength = length;
 
-  // A CLOSED baseline has no ends: fraction 0 and 1 are the same point, so
-  // a centred run at at=0 must straddle the seam rather than lose the half
-  // that lands at a negative distance. (An open path keeps the drop — a
-  // run walking off the end of a line should look like it.)
-  //
+  // One arc-length coordinate over the whole chain, for the two questions
+  // that are about the BASELINE rather than about one glyph: is it closed,
+  // and which way does the run read along it.
+  const auto posTan = [](float distance, SkPoint* position, SkVector* tangent) {
+    for (const auto& contour : contours) {
+      if (distance <= contour->length())
+        return contour->getPosTan(distance, position, tangent);
+      distance -= contour->length();
+    }
+    const auto& last = contours.back();
+    return last->getPosTan(last->length(), position, tangent);
+  };
+
   // "Closed" here means geometrically closed, not flagged closed:
-  // shapes::arc() defaults to a 359.9-degree sweep and is the library's
-  // own spelling for a ring, but addArc leaves it open. Dropping half a
-  // centred caption off a ring because of a tenth of a degree is not a
-  // behaviour anyone wants.
+  // shapes::arc() defaults to a 359.9-degree sweep and is the library's own
+  // spelling for a ring, but addArc leaves it open. Dropping half a centred
+  // caption off a ring because of a tenth of a degree is not a behaviour
+  // anyone wants.
   bool closed = contours.size() == 1 && contours.front()->isClosed();
   if (!closed) {
     SkPoint head, tail;
@@ -1104,10 +1164,18 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
       closed = SkPoint::Distance(head, tail) <= std::max(1.0f, length * 0.002f);
   }
 
+  const float restAt = spec.at.plain() ? *spec.at.plain() : 0.0f;
+  inst.pathRestAt = restAt;
+  float start = restAt * length;
+  if (spec.align == TextPath::Align::Center)
+    start -= runWidth * 0.5f;
+  else if (spec.align == TextPath::Align::End)
+    start -= runWidth;
+
   // autoFlip is a decision about the RUN, not about each glyph. Turning
   // glyphs over one at a time reverses the reading order — a caption on the
   // lower half of a clockwise ring would come out mirrored — so the run
-  // decides once and then walks its along-path coordinate backwards.
+  // decides once and then reads along the reversed baseline.
   //
   // The decision is a MAJORITY over the run, not a reading at its midpoint.
   // A midpoint sample is exactly ambiguous where the tangent is vertical,
@@ -1124,86 +1192,81 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
   if (spec.autoFlip) {
     constexpr int kVotes = 9;
     int upsideDown = 0, upright = 0;
-    for (int i = 0; i < kVotes; ++i) {
-      float at = start + runWidth * ((float)i + 0.5f) / (float)kVotes;
+    for (int vote = 0; vote < kVotes; ++vote) {
+      float at = start + runWidth * ((float)vote + 0.5f) / (float)kVotes;
       if (closed) at = std::fmod(std::fmod(at, length) + length, length);
-      SkPoint pos;
-      SkVector tan;
-      if (!posTan(std::clamp(at, 0.0f, length), &pos, &tan)) continue;
-      if (tan.x() < 0)
+      SkPoint position;
+      SkVector tangent;
+      if (!posTan(std::clamp(at, 0.0f, length), &position, &tangent)) continue;
+      if (tangent.x() < 0)
         ++upsideDown;
-      else if (tan.x() > 0)
+      else if (tangent.x() > 0)
         ++upright;
     }
     flipRun = upsideDown > upright;
   }
 
-  // The centroid the Radial orientation faces away from: the bounds of
-  // the resolved baseline, which for every dial-shaped path is its centre.
-  const SkRect baselineBounds = baseline.getBounds();
-  const SkPoint centroid{baselineBounds.centerX(), baselineBounds.centerY()};
+  // A flipped run enters at the END of its stretch of baseline and walks
+  // BACKWARDS along it: its pen still travels the letters in reading order,
+  // but its arc position decreases and every tangent faces about. One
+  // decision for the whole run, expressed as the interval's own direction
+  // of travel — turning the letters over one at a time is what would
+  // reverse the reading order.
+  //
+  // ONE LINE, one interval per contour from the ENTRY POINT onwards. `at`
+  // is a fraction of the WHOLE baseline, contours chained end to end, which
+  // is what lets seven chords of a heptagon carry seven captions addressed
+  // by fraction alone. So the entry point picks the contour it falls in,
+  // enters it partway, and every contour after that is offered whole.
+  //
+  // What a contour boundary IS, on the other hand, is a break: a word that
+  // does not fit the contour it reached starts the next one rather than
+  // bending across the gap between two disconnected curves.
+  const float entry = flipRun ? start + runWidth : start;
+  size_t entryContour = 0;
+  float entryLocal = entry;
+  while (entryContour + 1 < contours.size() &&
+         entryLocal > contours[entryContour]->length()) {
+    entryLocal -= contours[entryContour]->length();
+    ++entryContour;
+  }
+  inst.pathIntervals.reserve(contours.size());
+  const auto pushInterval = [&](size_t index, float localStart) {
+    sigil::weave::LineInterval interval;
+    interval.contour = contours[index];
+    interval.contourStart = localStart;
+    interval.advanceScale = flipRun ? -1.0f : 1.0f;
+    interval.wrapContour = closed;
+    // How much baseline this contour still offers from where the pen
+    // entered it — the whole of it when the pen wraps, because a loop has
+    // no end to run out of.
+    const float contourLength = contours[index]->length();
+    interval.length =
+        closed
+            ? contourLength
+            : std::max(flipRun ? localStart : contourLength - localStart, 0.0f);
+    inst.pathIntervals.push_back(std::move(interval));
+  };
+  if (flipRun) {
+    pushInterval(entryContour, entryLocal);
+    for (size_t index = entryContour; index-- > 0;)
+      pushInterval(index, contours[index]->length());
+  } else {
+    pushInterval(entryContour, entryLocal);
+    for (size_t index = entryContour + 1; index < contours.size(); ++index)
+      pushInterval(index, 0.0f);
+  }
 
-  static thread_local sigil::weave::GlyphRSXformBatches batches;
-  batches.clear();
-  sigil::weave::forEachPlacedGlyph(
-      inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::PlacedGlyph& placed) {
-        // The glyph rides its own CENTRE along the path, so a wide glyph
-        // on a tight curve leans about its middle rather than its left
-        // sidebearing.
-        const float along = placed.rest.x() + placed.advance * 0.5f;
-        float d = flipRun ? start + runWidth - along : start + along;
-        if (closed)
-          d = std::fmod(std::fmod(d, length) + length, length);
-        else if (d < 0 || d > length)
-          return;
-        SkPoint pos;
-        SkVector tangent;
-        if (!posTan(d, &pos, &tangent)) return;
-        const float mag = std::hypot(tangent.x(), tangent.y());
-        if (mag <= 1e-6f) return;
-        float dirX = tangent.x() / mag, dirY = tangent.y() / mag;
-        if (flipRun) {
-          dirX = -dirX;
-          dirY = -dirY;
-        }
-        // Perpendicular offset, positive to the LEFT of travel (outward on
-        // a clockwise circle). The path replaces the glyph's own baseline.
-        // Measured along TRAVEL even under Radial orientation, so `offset`
-        // keeps meaning "how far off the baseline the type rides"
-        // regardless of which way the glyph ends up facing.
-        pos.offset(dirY * spec.offset, -dirX * spec.offset);
-        // Radial: the glyph's BASELINE runs along the radius, so the run
-        // reads outward from the centre like a spoke. That is how an
-        // astrolabe limb, a compass rose and a radial axis label their
-        // divisions — you turn the instrument to read them.
-        //
-        // Note this is genuinely a different thing from what Tangent
-        // already does. On a circle, "up points outward" IS the tangent
-        // orientation (a clock face's 6 is upside down for exactly that
-        // reason), so the only orientation onPath was missing is the one
-        // where the type radiates.
-        if (spec.orient == TextPath::Orient::Upright) {
-          dirX = 1.0f;
-          dirY = 0.0f;
-        } else if (spec.orient == TextPath::Orient::Radial) {
-          const float ox = pos.x() - centroid.x(), oy = pos.y() - centroid.y();
-          const float omag = std::hypot(ox, oy);
-          if (omag > 1e-6f) {
-            dirX = ox / omag;
-            dirY = oy / omag;
-          }
-        }
-        // Quantized for the same reason kinetic text quantizes: a
-        // continuous per-glyph angle mints a fresh glyph mask per letter
-        // in Skia's cache. 64 steps is 5.6 degrees, which on a ring whose
-        // own letters sit ~7 degrees apart is under a pixel of lean at
-        // label sizes.
-        float cosv = 1.0f, sinv = 0.0f;
-        sigil::weave::quantizeAngle(std::atan2(dirY, dirX), cosv, sinv);
-        batches.addGlyph(placed, pos, cosv, sinv);
-      });
-  batches.draw(&canvas);
+  sigil::weave::LineSetFlow flow({inst.pathIntervals});
+  sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  // The baseline places the run; an interval-relative alignment on top of
+  // that would fight `at` and Align for the same authority.
+  options.alignment = sigil::weave::TextAlignment::kStart;
+  options.pathText.tangentRotationSteps =
+      spec.exactTangent ? 0 : kPathTangentSteps;
+  inst.pathLayout =
+      sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+  inst.pathValid = true;
 }
 
 std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
@@ -1296,17 +1359,41 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
 }
 
 void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
-                                 const sigil::weave::PaintStyle* override) {
+                                 const sigil::weave::PaintStyle* override,
+                                 const TextPath* onPath, SkSize size) {
+  if (!inst.paragraph) return;  // no content materialized: nothing to draw
   const std::span<const Track> tracks = tracksOf(*inst.desc);
+
+  // ONE COMPOSITION ORDER, stated here because everything below assumes it:
+  // THE BASELINE PLACES THE GLYPH, THEN THE TRACKS DEVIATE FROM THAT
+  // PLACEMENT, IN THE FRAME THE BASELINE PUT IT IN. On a path run that
+  // means a rise lifts a letter off the curve along its own local
+  // perpendicular rather than straight up the canvas, and a track's
+  // rotation adds to the tangent it was already turned to. The two are not
+  // alternatives and neither wins: `fx()` and `onPath()` compose.
+  if (onPath) ensurePathLayout(inst, *onPath, size);
+  const bool ridesPath = onPath && inst.pathValid;
+  if (onPath && !ridesPath) return;  // no measurable baseline: nothing rides
+  const sigil::weave::ParagraphLayout& layout =
+      ridesPath ? inst.pathLayout : inst.textLayout;
 
   // ONE walk builds the structure every track selects and staggers over —
   // the glyph list with its word/line/cluster/sentence numbering. Held
   // thread-locally: a frame of animated text rebuilds it, but never
   // reallocates it.
   static thread_local detail::GlyphStructure structure;
-  structure.build(inst.textLayout, *inst.paragraph);
+  structure.build(layout, *inst.paragraph);
   const uint32_t count = (uint32_t)structure.glyphs.size();
   if (count == 0) return;
+
+  // WHERE ALONG the baseline the run sits this frame, as arc length. The
+  // layout was built at the phase's RESTING value, so this is the delta the
+  // paint applies on top — zero for a phase that never moves, and the whole
+  // marquee for one bound to an output. It shifts the run's ENTRY POINT,
+  // which is the same shift whichever way the run reads.
+  float phaseArc = 0;
+  if (ridesPath)
+    phaseArc = (inst.resolvePathAt() - inst.pathRestAt) * inst.pathTotalLength;
 
   // Selections, resolved once per (content, layout width, selector list).
   // A regular expression over the paragraph is a per-EDIT cost this way,
@@ -1407,18 +1494,94 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
     if (!track.stagger.inner) r.innerUnit.clear();
     r.cascade.build(track.stagger, outerCount, innerCount);
   }
-  if (used == 0) return;
+  // A path run with no tracks still draws: every glyph keeps the identity
+  // deviation and rests on the curve.
+  if (used == 0 && !ridesPath) return;
   const std::span<const Resolved> live(resolved.data(), used);
 
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
 
+  // THE REST POSE of one glyph: where the baseline put its advance centre,
+  // and which way it faces there. Plain text rests level on its own
+  // straight baseline; a path run rests on the curve. Returning false drops
+  // the glyph — a run walking off the end of an open baseline should look
+  // like it, rather than piling every remaining letter on the last point.
+  struct RestPose {
+    SkPoint centre{0, 0};
+    float cosine = 1, sine = 0;
+  };
+  const auto restPoseOf = [&](const sigil::weave::PlacedGlyph& placed,
+                              RestPose& pose) {
+    if (!ridesPath) {
+      pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
+      pose.cosine = 1.0f;
+      pose.sine = 0.0f;
+      return true;
+    }
+    if (placed.intervalIndex < 0 ||
+        (size_t)placed.intervalIndex >= inst.pathIntervals.size())
+      return false;
+    const sigil::weave::LineInterval& interval =
+        inst.pathIntervals[(size_t)placed.intervalIndex];
+    SkPoint position;
+    SkVector tangent;
+    // EXACT, not snapped: the snapping is a rasterization concession and
+    // belongs to the rotation alone. `offset` rides the type off the
+    // baseline along the perpendicular, so a tangent rounded onto a ladder
+    // step would slide it along the curve by however far the rounding was.
+    if (!interval.placeAt(placed.pen, phaseArc, 0, &position, &tangent))
+      return false;
+    const float magnitude = std::hypot(tangent.x(), tangent.y());
+    if (magnitude <= 1e-6f) return false;
+    float dirX = tangent.x() / magnitude, dirY = tangent.y() / magnitude;
+    // Perpendicular offset, positive to the LEFT of travel (outward on a
+    // clockwise circle). The path replaces the glyph's own baseline.
+    // Measured along TRAVEL even under Radial orientation, so `offset`
+    // keeps meaning "how far off the baseline the type rides" regardless of
+    // which way the glyph ends up facing.
+    position.offset(dirY * onPath->offset, -dirX * onPath->offset);
+    // Radial: the glyph's BASELINE runs along the radius, so the run reads
+    // outward from the centre like a spoke. That is how an astrolabe limb,
+    // a compass rose and a radial axis label their divisions — you turn the
+    // instrument to read them.
+    //
+    // Note this is genuinely a different thing from what Tangent already
+    // does. On a circle, "up points outward" IS the tangent orientation (a
+    // clock face's 6 is upside down for exactly that reason), so the only
+    // orientation a path baseline was missing is the one where the type
+    // radiates.
+    if (onPath->orient == TextPath::Orient::Upright) {
+      dirX = 1.0f;
+      dirY = 0.0f;
+    } else if (onPath->orient == TextPath::Orient::Radial) {
+      const float ox = position.x() - inst.pathCentroid.x();
+      const float oy = position.y() - inst.pathCentroid.y();
+      const float radius = std::hypot(ox, oy);
+      if (radius <= 1e-6f) return false;
+      dirX = ox / radius;
+      dirY = oy / radius;
+    }
+    // The ROTATION snaps, and only the rotation: a continuous per-glyph
+    // angle mints a fresh glyph mask per letter in Skia's cache. 64 steps
+    // is 5.6 degrees, which on a ring whose own letters sit further apart
+    // than that is under a pixel of lean at label sizes.
+    pose.centre = position;
+    pose.cosine = dirX;
+    pose.sine = dirY;
+    if (!onPath->exactTangent)
+      sigil::weave::quantizeAngle(std::atan2(dirY, dirX), pose.cosine,
+                                  pose.sine);
+    return true;
+  };
+
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
-      inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count) return;
+        RestPose pose;
+        if (!restPoseOf(placed, pose)) return;
         GlyphInfo info = structure.glyphs[g];
 
         // Every track that addresses this glyph, composed: offsets, shear
@@ -1473,8 +1636,18 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
           }
         }
         const float halfAdvance = placed.advance * 0.5f;
-        const SkPoint centre = {placed.rest.x() + mod.dx + halfAdvance,
-                                placed.rest.y() + mod.dy};
+        // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
+        // baseline that is the canvas frame and this is the identity, so a
+        // plain run is untouched; on a curve it is what makes `fx::rise`
+        // lift a letter off the CURVE rather than off the canvas, and what
+        // keeps a stagger's shove tangential to the lettering it belongs
+        // to. The rotations compose the same way: the track's angle turns
+        // the glyph from wherever the baseline had already turned it.
+        const SkPoint centre = {
+            pose.centre.x() + pose.cosine * mod.dx - pose.sine * mod.dy,
+            pose.centre.y() + pose.sine * mod.dx + pose.cosine * mod.dy};
+        const float turnCos = pose.cosine * cosv - pose.sine * sinv;
+        const float turnSin = pose.sine * cosv + pose.cosine * sinv;
 
         // The whole span style rides along, so a letter in flight keeps the
         // gradient, stroke and glow passes it was styled with — and the
@@ -1497,8 +1670,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         // not keeps the shared transform array untouched.
         SkMatrix matrix;
         if (mod.skewXDeg != 0 || mod.scaleX != 1 || mod.scaleY != 1) {
-          matrix.setAll(cosv, -sinv, centre.x(), sinv, cosv, centre.y(), 0, 0,
-                        1);
+          matrix.setAll(turnCos, -turnSin, centre.x(), turnSin, turnCos,
+                        centre.y(), 0, 0, 1);
           if (mod.skewXDeg != 0)
             matrix.preConcat(SkMatrix::MakeAll(
                 1, std::tan(mod.skewXDeg * 0.017453293f), 0, 0, 1, 0, 0, 0, 1));
@@ -1509,8 +1682,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
           dress.matrix = &matrix;
         } else {
           dress.center = centre;
-          dress.cosine = cosv * mod.scale;
-          dress.sine = sinv * mod.scale;
+          dress.cosine = turnCos * mod.scale;
+          dress.sine = turnSin * mod.scale;
         }
         batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
                          glyph, halfAdvance, dress);
@@ -2296,20 +2469,18 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           const TextPath* onPath =
               onPathRun ? &*node.textData->onPath : nullptr;
           // textFill()/textStroke() resolve to ONE glyph-paint override,
-          // and both draw paths that take one take the SAME one: a letter
-          // in flight is painted exactly as a resting letter is. The
-          // baseline-on-a-path draw is the exception — it paints the
-          // paragraph's own style — so it does not pay for the resolve.
-          const bool onPathDraws = onPath && !hasTextFx(node);
+          // and every draw that takes one takes the SAME one: a letter in
+          // flight, and a letter on a curve, are painted exactly as a
+          // resting letter is.
           const std::optional<sigil::weave::PaintStyle> metric =
-              onPathDraws ? std::nullopt : metricTextStyle(inst, paintCtx);
+              metricTextStyle(inst, paintCtx);
           const sigil::weave::PaintStyle* glyphPaint =
               metric ? &*metric : nullptr;
-          if (hasTextFx(node)) {
-            paintTextFx(inst, canvas, glyphPaint);
-          } else if (onPath) {
-            paintTextOnPath(inst, canvas, *onPath,
-                            {bounds.width(), bounds.height()});
+          // One draw for both: the baseline places the glyph and the tracks
+          // deviate from that placement. Neither wins over the other.
+          if (hasTextFx(node) || onPath) {
+            paintTextFx(inst, canvas, glyphPaint, onPath,
+                        {bounds.width(), bounds.height()});
           } else {
             inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
           }
@@ -2596,6 +2767,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // the fill shader translated by exactly this read, so the memo compares
     // the pan it was baked with.
     scalarsNow.pattern = inst.resolvePatternOffset();
+    // …and onPath()'s phase, on the same rule: the recording bakes the
+    // glyph positions this phase produced.
+    scalarsNow.pathAt = inst.resolvePathAt();
   }
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&

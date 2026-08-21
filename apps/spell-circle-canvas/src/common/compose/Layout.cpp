@@ -12,6 +12,7 @@
 #include <limits>
 #include <optional>
 #include <ranges>
+#include <set>
 
 #include "ComposeRuntime.h"
 
@@ -57,10 +58,23 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
       const float flowMargin = inst.desc->deriveData
                                    ? inst.desc->deriveData->flowAroundMargin
                                    : 0.0f;
-      for (const SkRect& exclusion : inst.exclusionsLocal)
-        flow.shapes().push_back(
-            sigil::weave::ExclusionFlow::Shape::fromRectangle(exclusion,
-                                                              flowMargin));
+      // One weave shape per resolved target, in the form the derive pass
+      // resolved it to: an outline for a target that declared a silhouette,
+      // an analytic circle for a round one, its box for a target that
+      // declared none. The margin is the same standoff in all three.
+      for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
+        if (exclusion.circle)
+          flow.shapes().push_back(
+              sigil::weave::ExclusionFlow::Shape::fromCircle(exclusion.bounds,
+                                                             flowMargin));
+        else if (!exclusion.path.isEmpty())
+          flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromPath(
+              exclusion.path, flowMargin));
+        else
+          flow.shapes().push_back(
+              sigil::weave::ExclusionFlow::Shape::fromRectangle(
+                  exclusion.bounds, flowMargin));
+      }
       inst.textLayout =
           sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
     } else {
@@ -90,6 +104,19 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
     materializeText(inst, inst.lines);
     layOut();
     inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  }
+  // rich().slot(): where the finished layout put each reserved box. Resolved
+  // once per layout rather than per read, and by NAME rather than by index,
+  // because a slot the geometry could not place is simply absent from the
+  // report and every later slot would otherwise shift up onto its rect.
+  if (inst.paragraph && !inst.textSlotKeys.empty()) {
+    inst.textSlotRects.clear();
+    for (const sigil::weave::ParagraphLayout::PlacedPlaceholder& placed :
+         inst.textLayout.placeholderRects(*inst.paragraph)) {
+      const size_t index = (size_t)placed.index;
+      if (index < inst.textSlotKeys.size())
+        inst.textSlotRects.emplace_back(inst.textSlotKeys[index], placed.rect);
+    }
   }
   inst.measuredForWidth = constraint;
   SkRect bounds = SkRect::MakeEmpty();
@@ -300,12 +327,54 @@ SkRect Composer::Impl::instanceRect(const Instance& inst) const {
   return positionedRect(inst);
 }
 
+namespace {
+
+/** A child keyed for a slot the text content DOES NOT DECLARE. Loud once,
+ *  because the symptom — a pill that simply is not there — points at the
+ *  child rather than at the misspelling in the caption that was supposed to
+ *  reserve room for it.
+ *
+ *  A key the content does declare but the geometry could not place is a
+ *  different answer and stays silent: it is the same "did not fit" a line
+ *  clamp, an ellipsis or an exclusion gives every other word. */
+void warnUnknownTextSlot(const Instance& text, const std::string& key) {
+  for (const std::string& declared : text.textSlotKeys)
+    if (declared == key)
+      return;  // declared; the layout just could not place it
+  static std::set<std::string> warned;  // once per name, not once per frame
+  if (!warned.insert(key).second) return;
+  std::string have;
+  for (const std::string& declared : text.textSlotKeys)
+    have += (have.empty() ? "" : ", ") + declared;
+  SkDebugf(
+      "[compose] a child keyed \"%s\" sits on text that reserves no slot by "
+      "that name, so it lays out at zero and draws nothing. Slots this "
+      "text DOES reserve: [%s]. Room for one is reserved in the CONTENT, "
+      "with rich(...).slot(name, size).\n",
+      key.c_str(), have.empty() ? "none" : have.c_str());
+}
+
+}  // namespace
+
 /** A positioned child's rect, straight from its description: px/pct
  *  left/top insets, px/pct dims, an open dim with an opposing
  *  right/bottom inset pinning the far edge, and text measuring against
  *  its resolved (or the parent's) width. O(depth) for pct/derived
  *  terms — arithmetic, no engine. */
 SkRect Composer::Impl::positionedRect(const Instance& inst) const {
+  // A TEXT SLOT child: its box is the placeholder rect the paragraph
+  // reserved for its key, and nothing in the child's own description
+  // decides it. Read here rather than written back into the tree because a
+  // slot child has no Yoga node to write to — the paragraph IS its layout,
+  // so a reflow that moves the placeholder moves the child with no second
+  // pass and no convergence round.
+  if (inst.parent && inst.parent->desc->kind == Kind::Text &&
+      !inst.parent->textSlotKeys.empty() && !inst.desc->key.empty()) {
+    for (const auto& [key, rect] : inst.parent->textSlotRects)
+      if (key == inst.desc->key) return rect;
+    warnUnknownTextSlot(*inst.parent, inst.desc->key);
+    return SkRect::MakeEmpty();
+  }
   const LayoutProps& l = inst.desc->layout;
   float parentW = 0, parentH = 0;
   if (inst.parent) {

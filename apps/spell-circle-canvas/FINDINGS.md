@@ -54,3 +54,26 @@ with the hyphen glyph on the first. `compose_test`'s
 `TextOptionSetters.HyphenationRendersTheHyphenAtASoftBreak` currently
 asserts only the hyphen-glyph half, which is what the code actually
 delivers; it should assert the break itself once intent is restored.
+
+## `onPath` does not grow the recording cull by its baseline
+
+**What the code does.** `Composer::Impl::ownPaintBounds` (`Paint.cpp`)
+grows a node's local paint bounds by the widest of its decoration bleeds,
+stroke half-widths, band profiles, echo offsets, material reserves and
+`Track::reachPx()`. A `TextPath` baseline contributes nothing. The
+baseline is resolved against the node's own box, so a `shapes::` generator
+normally stays inside it — but nothing requires that: a custom `Shape` may
+return a curve well outside the box, and `TextPath::offset` rides the type
+further off it again. A run placed outside the cull is truncated at the
+cached picture or texture bounds with no diagnostic, which is exactly the
+failure mode `bleed()` and `reach()` exist to prevent.
+
+**What it was evidently intended to do.** Every other producer of marks
+outside the node's box declares how far it reaches, on the stated
+over-reporting-is-safe contract. Text on a path is one of them.
+
+**What a test should assert.** A text node whose `TextPath::path` resolves
+to a curve outside its own box, inside a `Cache::Auto` parent that records:
+the glyphs sitting outside the box still paint after the recording is
+replayed. Today the same tree drawn with `Cache::None` and with the
+default differ, which is the shape of the bug.

@@ -161,6 +161,12 @@ struct PositionedRun {
   int lineIndex = 0;          ///< 0-based flow line the run landed on
   bool transformed = false;   ///< RSXform blob (positions baked into the blob)
   int placeholderIndex = -1;  ///< \>= 0: index into Paragraph::placeholders()
+  /// Which flow interval this run landed on — an index into
+  /// ParagraphLayout::intervals. With `penOffset` it is the whole of what a
+  /// caller needs to re-place a transformed run at draw time: the geometry
+  /// it was placed on, and where along that geometry its pen started.
+  int intervalIndex = -1;
+  float penOffset = 0;  ///< pen travel at the run's start, in advance units
 };
 
 /// Geometry of one laid-out line, derived on demand from its placed runs
@@ -187,7 +193,15 @@ struct LineMetrics {
 /** Positioned output of one paragraph layout pass. */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
-  int lineCount = 0;                ///< lines actually produced
+  /// Every flow interval the layout consumed, in the order the geometry
+  /// handed them over — the numbering PositionedRun::intervalIndex uses.
+  /// A caller that re-places transformed runs reads their geometry here
+  /// rather than rebuilding it and hoping the two agree.
+  std::vector<LineInterval> intervals;
+  /// The tangent snapping the placement used, carried so a re-placement can
+  /// match it (see LineInterval::placeAt).
+  int tangentRotationSteps = 0;
+  int lineCount = 0;  ///< lines actually produced
   /// First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended

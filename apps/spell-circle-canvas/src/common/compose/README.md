@@ -190,6 +190,11 @@ then up to three convergence rounds of custom `layout()` schemes,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
+`Element::flowAround` subtracts the target's SILHOUETTE when it declares one
+— a `shape()`, a routed connector or rail — so text runs into a star's
+notches and through an annulus, and its BOX when it declares none. A round
+silhouette is subtracted analytically. The margin means the same standoff in
+every case.
 Released scalars are scanned and volatility computed in one walk. Then
 paint runs, selecting a cache tier per node.
 
@@ -301,10 +306,72 @@ recording cull grows by it, on the same over-reporting-is-safe contract a
 decoration's `bleed()` carries. Under-report and cached output is
 truncated with no diagnostic.
 
-`Element::textFill` and `Element::textStroke` combine with tracks: a letter
-in flight is painted with the same glyph paint a resting one is.
-`Element::onPath` does not — `fx()` wins when both are set — and
-`Element::echo` skips fx text by contract.
+`Element::textFill` and `Element::textStroke` combine with tracks and with a
+path baseline alike: a letter in flight, and a letter on a curve, are painted
+with the same glyph paint a resting one is. `Element::echo` skips fx text by
+contract.
+
+### Text on a path
+
+`Element::onPath` makes a `TextPath` the run's BASELINE. The run is shaped
+once — real kerning, real ligatures, real advances — and then laid out
+through SigilWeave's own contour geometry: every contour of the resolved
+`TextPath::path` is one interval of the run's one line, and the words fill
+them in order.
+
+```cpp
+text(u8"SIGILLVM · DEI · AEMETH", inscription)
+    .width(320).height(320)
+    .onPath({.path = shapes::circle(),
+             .at = &phase,                       // the marquee
+             .align = TextPath::Align::Center,
+             .orient = TextPath::Orient::Tangent})
+    .fx({.effect = fx::rise(18), .stagger = stagger(unit::Cluster)});
+```
+
+**`at` is where along the baseline the run sits**, as a fraction of the whole
+path's length with the contours chained end to end — which is what lets seven
+chords of a heptagon carry seven captions addressed by fraction alone.
+`TextPath::align` measures the run against that point: `Start` begins there,
+`Center` centres on it, `End` finishes there. It is an `Animatable<float>`,
+so every `bind()` and `animate()` verb applies, and on a CLOSED baseline the
+fraction WRAPS — a phase output running 0→1 forever is the infinite marquee,
+with no seam. Moving it is PAINT-ONLY: the run is shaped and broken across
+the contours once, and the phase re-places glyphs that were already placed,
+so a marquee costs a repaint and never a reflow. It declares content
+volatility while it runs and releases once it provably holds still.
+
+**A CONTOUR BOUNDARY IS A BREAK.** A word that does not fit the contour it
+reached starts the next one, rather than bending across the gap between two
+disconnected curves. A run that outlasts the last contour simply stops, and a
+run pushed off the end of an open baseline by its phase drops the glyphs that
+ran off rather than piling them on the last point.
+
+**`fx()` and `onPath()` compose; neither wins.** THE BASELINE PLACES THE
+GLYPH, THEN THE TRACKS DEVIATE FROM THAT PLACEMENT, IN THE FRAME THE BASELINE
+PUT IT IN. On a curve that means `fx::rise` lifts a letter off the CURVE
+along its own local perpendicular rather than straight up the canvas, a
+stagger's shove stays tangential to the lettering it belongs to, and a
+track's rotation adds to the tangent the glyph was already turned to. Scale,
+alpha, the colour multiplier and both substitutions are per-glyph dressings
+and are untouched by the frame — so `variationDrive` and `fx::scramble` reach
+curved lettering exactly as they reach straight lettering.
+
+`Element::textFill` and `Element::textStroke` reach a path run like any
+other, with one caveat: a metric-mapped material maps its unit square to the
+run's STRAIGHT metric band, which is not where the type ended up. A flat
+colour and a stroke are exact; a gradient across a ring is not what it
+looks like.
+
+`TextPath::orient` is `Tangent` (running lettering), `Radial` (the baseline
+along the radius, for an astrolabe limb or a compass rose) or `Upright`
+(level everywhere, for a calendar ring). `autoFlip` turns the RUN over once
+so lettering on the lower half of a ring reads right way up — never each
+glyph, which would reverse the reading order. `TextPath::offset` rides the
+type off the baseline, positive to the LEFT of travel. Tangents snap to a
+fixed ladder of directions because each distinct rotation is a glyph-atlas
+strike; `TextPath::exactTangent` is the opt-out, for static artwork set
+large.
 
 ### Mixed text
 
@@ -325,6 +392,32 @@ text(p)
     .maxLines(3)
     .ellipsis(u8"…");
 ```
+
+`RichText::slot` reserves an INLINE SLOT in the run stream — a box of blank
+space the flow weaves in, and the name a child of this text node is laid out
+into:
+
+```cpp
+text(rich(body).add(u8"press ").slot("key", {28, 18}).add(u8" to continue"))
+    .child(box().key("key").fill(ink).corners({4}));
+```
+
+The reserved box is one UNBREAKABLE word: no line breaks inside it, and it
+opens its line when it is taller than the type. The child is an ordinary
+subtree — it animates, caches and hit-tests like any other element — and it
+re-lands wherever the placeholder lands when the text reflows. It is a
+POSITIONED subtree: the placeholder rect is its box, so flex layout does not
+run inside it and its own children take explicit rects, exactly as under
+`positioned()`.
+
+**A TEXT SLOT IS NOT A MOUNT SLOT.** `slot()` and `Composer::renderSlot` name
+a hole a HOST fills from outside the description, and those names live in one
+registry for the whole composition. These names live in the rich-text value
+alone and are matched against the `key()` of that text node's own children —
+so two captions may both reserve a slot called `"icon"` without colliding,
+and neither is reachable by `renderSlot`. A child keyed for a slot the
+content does not declare draws nothing and says so once; a slot the geometry
+could not place is silent, like every other word that did not fit.
 
 `RichText::add` takes a run in the base style, a run in its own
 `sigil::weave::TextStyle`, or a run under a NAME resolved through a
@@ -513,7 +606,9 @@ exactly like a layout bug.
 - **An unknown key resolves to nothing, everywhere in the derive family.**
   `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
   `connector` to a node not in the tree, a `strand::from` on a missing key
-  — every one draws nothing and says nothing. Check your keys first.
+  — every one draws nothing and says nothing. Check your keys first. (A
+  `rich().slot()` name is the one that is LOUD, once: it names a mount point
+  the author typed, not a geometry source.)
 - **Hit testing returns any keyed node whose box contains the point,
   painted or not.** A keyed full-bleed layout shell with no fill therefore
   swallows every hit in the frame, and the failure is total and silent.

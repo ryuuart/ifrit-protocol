@@ -18,6 +18,10 @@ namespace detail {
 struct FlatInterval {
   LineInterval interval;
   int sourceLineIndex = 0;
+  /// Position in the flattened sequence. Carried on the interval rather
+  /// than threaded through the placement calls, so the number a run
+  /// reports and the number the breakers used are the same number.
+  int index = 0;
 };
 
 // Flattens a FlowGeometry's lines into one ordered sequence of intervals,
@@ -44,6 +48,9 @@ class IntervalSequence {
   /** Returns whether every source line has the same single measure. */
   bool uniform() const { return m_geometry.uniformIntervals(); }
 
+  /** Returns every interval fetched so far, in index order. */
+  const std::vector<FlatInterval>& flattened() const { return m_flatIntervals; }
+
  private:
   /** Fetches and flattens the next source line into the interval cache. */
   void fetchLine() {
@@ -55,7 +62,8 @@ class IntervalSequence {
     }
     for (const LineInterval& interval : m_sourceLineIntervals)
       if (interval.length >= m_minimumWidth)
-        m_flatIntervals.push_back({interval, m_nextLineIndex});
+        m_flatIntervals.push_back({interval, m_nextLineIndex,
+                                   static_cast<int>(m_flatIntervals.size())});
     m_nextLineIndex++;
   }
 

@@ -81,6 +81,22 @@ struct PlacedGlyph {
   uint32_t styleIndex = 0;     ///< index into Paragraph::spans()
   uint32_t sentenceIndex = 0;  ///< 0-based sentence, per Paragraph::
                                ///< sentenceStarts(); 0 for empty text
+
+  /// The layout TURNED this glyph — it rides a contour, or a rotated
+  /// interval — rather than sitting on a horizontal baseline. `rest` is
+  /// still the absolute origin, and `tangent` is the direction the glyph
+  /// was turned to; an untransformed glyph reports (1, 0).
+  bool transformed = false;
+  SkVector tangent = {1, 0};  ///< unit direction, already snapped
+
+  /// WHERE ALONG ITS FLOW INTERVAL the glyph's ADVANCE CENTRE sits, in
+  /// advance units, together with which interval that is (an index into
+  /// ParagraphLayout::intervals). Feed the pair back to
+  /// LineInterval::placeAt to re-place the glyph — with a phase, to run a
+  /// marquee around a closed contour without laying the paragraph out
+  /// again. `intervalIndex` is -1 when the layout reported no geometry.
+  float pen = 0;
+  int intervalIndex = -1;
 };
 
 /** Callable accepted by forEachPlacedGlyph(): `fn(const PlacedGlyph &)`. */
@@ -131,6 +147,18 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     placed.wordIndex = run.wordIndex;
     placed.lineIndex = run.lineIndex;
     placed.styleIndex = run.styleIndex;
+    placed.transformed = run.transformed;
+    placed.intervalIndex = run.intervalIndex;
+    // The interval this run was placed on, when the layout kept one. A
+    // transformed run's rest position is READ BACK FROM IT rather than from
+    // run.origin, which such a run leaves at zero because its placement is
+    // baked per glyph.
+    const LineInterval* interval =
+        run.intervalIndex >= 0 &&
+                (size_t)run.intervalIndex < layout.intervals.size()
+            ? &layout.intervals[(size_t)run.intervalIndex]
+            : nullptr;
+    float penLocal = 0;
 
     const uint32_t textBegin = segment ? segment->textBegin : word.textBegin;
     const uint32_t textLimit =
@@ -139,7 +167,28 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
          ++glyphIndex) {
       placed.glyph = placed.shaped->glyphs[glyphIndex];
       placed.advance = placed.shaped->advances[glyphIndex];
-      placed.rest = run.origin + placed.shaped->positions[glyphIndex];
+      placed.pen = run.penOffset + penLocal + placed.advance * 0.5f;
+      if (run.transformed && interval) {
+        SkPoint centre;
+        interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
+                          &centre, &placed.tangent);
+        // From the advance CENTRE back to the glyph's origin, through the
+        // same back-out of HarfBuzz's offsets the blob was baked with —
+        // otherwise an accented glyph's rest drifts off the curve.
+        const float offsetX =
+            placed.shaped->positions[glyphIndex].x() - penLocal;
+        const float offsetY = placed.shaped->positions[glyphIndex].y();
+        const float centreX = placed.advance * 0.5f - offsetX;
+        const float centreY = -offsetY;
+        placed.rest = {centre.x() - (placed.tangent.x() * centreX -
+                                     placed.tangent.y() * centreY),
+                       centre.y() - (placed.tangent.y() * centreX +
+                                     placed.tangent.x() * centreY)};
+      } else {
+        placed.tangent = {1, 0};
+        placed.rest = run.origin + placed.shaped->positions[glyphIndex];
+      }
+      penLocal += placed.advance;
       placed.glyphIndex = static_cast<uint32_t>(glyphIndex);
       placed.cluster = glyphIndex < placed.shaped->clusters.size()
                            ? placed.shaped->clusters[glyphIndex]
