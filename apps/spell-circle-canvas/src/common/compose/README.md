@@ -356,9 +356,13 @@ gradients and blurs rather than shaders.
 
 **Components.** `TextFx.h` supplies the stock effects, and the `fx::seq`
 and `fx::mix` combinators, for the kernel's `Element::fx` seam.
-`Console.h` is a virtualized append-only log, built purely by composing
-the kernel. `Instances.h` renders thousands of sprites as one
-leaf, with the pool on your side of the seam. `Web.h` makes a live
+`Feed.h` is the streaming collection — a `feed::Ring` of rows, windowed to
+the newest `feed::Options::visible` and keyed by sequence id, so an append
+costs one mount and every surviving row keeps its cached picture; rows of
+text name their style in a `sigil::weave::StyleSet` (`feed::TextRow`,
+`feed::TextOptions`), and `feed::plate` is the bordered strip several feeds
+sit on. Built purely by composing the kernel. `Instances.h` renders
+thousands of sprites as one leaf, with the pool on your side of the seam. `Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 

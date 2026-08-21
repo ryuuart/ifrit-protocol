@@ -160,7 +160,7 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 
 | Header | What it is |
 |---|---|
-| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. |
+| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. `StyleSet` is a small ordered registry of named styles, comparable by value, whose lookup always answers — an unregistered name resolves to the set's base entry. |
 | `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones, the shape cache, observable `Stats`. |
 | `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, sentence boundaries, and the analysis entry points. |
 | `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |

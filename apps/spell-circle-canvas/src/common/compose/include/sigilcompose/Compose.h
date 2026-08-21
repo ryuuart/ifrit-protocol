@@ -3391,7 +3391,7 @@ SkSize measure(Element root, sigil::weave::FontContext& fonts,
 // SwiftUI's Environment and React's context, for a library whose describe
 // phase is an ordinary C++ call tree. Passing `const Theme&` is idiomatic
 // for your OWN components; what has no answer without this is the
-// library's own — a `console::`, a decoration nested four levels down —
+// library's own — a `feed::`, a decoration nested four levels down —
 // each of which must otherwise be handed its colours by whoever composes
 // it, so a theme change is a mechanical edit at every call site.
 //
@@ -3446,7 +3446,7 @@ SkSize measure(Element root, sigil::weave::FontContext& fonts,
 //
 // There is deliberately NO library-wide `Theme` type. Bindings are keyed
 // by C++ TYPE, and the key a library component uses is its own existing
-// props type (`console::Style`), so this is a transport channel rather
+// props type (`feed::TextOptions`), so this is a transport channel rather
 // than a design-token vocabulary.
 
 namespace detail {

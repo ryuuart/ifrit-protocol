@@ -45,7 +45,7 @@
 // (A′ = 90 − A). The sketch runs the check that catches it — each azimuth
 // projected pointwise from (A, h) → (δ, H) → plate and least-squares
 // circle-fitted — and prints the residual BOTH ways: ~1e-15 R with A′, and
-// ~1.7 R with A. See the console, panel 2.
+// ~1.7 R with A. See the checks, panel 2.
 //
 // THE HEADLINE VERIFICATION IS CHAUCER'S OWN WORKED EXAMPLE (II.3):
 // 12 March 1391, sun's altitude 25° 30′. Intersecting the two DRAWN circles
@@ -96,7 +96,7 @@
 //                         component — a degree-1 endpoint that is not a
 //                         thorn tip is a piece that falls out of the object
 //   brush::taper        the star thorns
-//   console::LineRing     four panels of checks, printed as they run
+//   feed::TextRing        four panels of checks, printed as they run
 //
 // THE PROOFS RUN IN DOUBLE, THE PLATE IS DRAWN IN FLOAT, and the two cannot
 // be the same code. Residuals at the 1e-16 R / 1e-14° level are below what a
@@ -126,8 +126,8 @@
 #include <include/core/SkTypeface.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
@@ -790,7 +790,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   sk_sp<SkTypeface> faceEngrave, faceLimb, faceSerif, faceItalic, faceMono,
       faceBold;
 
-  console::LineRing logA{64}, logB{64}, logC{64}, logD{64};
+  feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
   std::string chaucerH, chaucerA, chaucerDelta;
 
   // =========================================================================
@@ -2389,26 +2389,29 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  // --- the console: the checks, printed as they run -------------------------
-  console::Style logStyle() {
-    console::Style s = console::monoStyle(faceMono, 10.5f, kInk,
-                                          {hex(0x7b6a54),    // 0 dim
-                                           kRubric,          // 1 heading
-                                           hex(0x1d6b3f)});  // 2 PASS
-    s.gap = 1.0f;
-    s.visibleLines = 13;
+  // --- the feed: the checks, printed as they run ----------------------------
+  feed::TextOptions logStyle() {
+    feed::TextOptions s;
+    s.styles = feed::tinted(faceMono, 10.5f, kInk,
+                            {{"dim", hex(0x7b6a54)},
+                             {"heading", kRubric},
+                             {"pass", hex(0x1d6b3f)}});
+    s.window.gap = 1.0f;
+    s.window.visible = 13;
     return s;
   }
 
   Element consolePanel() {
-    return console::panel({.rings = {&logA, &logB, &logC, &logD},
-                           .style = logStyle(),
-                           .paddingX = 14,
-                           .paddingY = 9,
-                           .gap = 18,
-                           .fill = Fill::color(hex(0xe4d9c0, 0.78f)),
-                           .border = Fill::color(hex(0x241c15, 0.25f)),
-                           .divider = Fill::color(hex(0x241c15, 0.18f))})
+    const feed::TextOptions style = logStyle();
+    return feed::plate(
+               {.columns = {feed::feed(logA, style), feed::feed(logB, style),
+                            feed::feed(logC, style), feed::feed(logD, style)},
+                .paddingX = 14,
+                .paddingY = 9,
+                .gap = 18,
+                .fill = Fill::color(hex(0xe4d9c0, 0.78f)),
+                .border = Fill::color(hex(0x241c15, 0.25f)),
+                .divider = Fill::color(hex(0x241c15, 0.18f))})
         .rect(SkRect::MakeXYWH(64, 1420, kW - 128, 156));
   }
 
@@ -2541,7 +2544,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   }
 
   // =========================================================================
-  // THE VERIFICATION — run at setup, printed into the console, and a failure
+  // THE VERIFICATION — run at setup, printed into the feed, and a failure
   // is visible on screen rather than swallowed.
 
   void verify() {
@@ -2568,49 +2571,51 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     }
     const FitD fa = fitCircleD(alm);
 
-    logA.append(toU8("STEREOGRAPHIC PROJECTION \xe2\x80\x94 CIRCLES STAY "
-                     "CIRCLES"),
-                1);
-    logA.append(toU8("  ecliptic at 3600 longitudes, each point projected "
-                     "individually"),
-                0);
-    logA.append(toU8(fmt("  max |dist to centre \xe2\x88\x92 r_ecl|      "
-                         "%.2e R    PASS",
-                         maxEcl)),
-                2);
-    logA.append(toU8("  almucantar h=30, 720 azimuths, least-squares circle "
-                     "fit"),
-                0);
-    logA.append(toU8(fmt("  |centre\xe2\x88\x92"
-                         "cf| %.1e   |radius\xe2\x88\x92"
-                         "cf| "
-                         "%.1e   res %.1e  PASS",
-                         std::abs(fa.cy - almCyD(30.0)),
-                         std::abs(fa.r - almRD(30.0)), fa.res)),
-                2);
-    logA.append(toU8("TANGENCY \xe2\x80\x94 THE ECLIPTIC TOVCHES BOTH TROPICS"),
-                1);
-    logA.append(toU8(fmt("  |c_ecl| + r_ecl \xe2\x88\x92 R_cap        "
-                         "%+.2e   PASS",
-                         std::abs(kEclCyD) + kEclRD - 1.0)),
-                2);
+    logA.append({toU8("STEREOGRAPHIC PROJECTION \xe2\x80\x94 CIRCLES STAY "
+                      "CIRCLES"),
+                 "heading"});
+    logA.append({toU8("  ecliptic at 3600 longitudes, each point projected "
+                      "individually"),
+                 "dim"});
+    logA.append({toU8(fmt("  max |dist to centre \xe2\x88\x92 r_ecl|      "
+                          "%.2e R    PASS",
+                          maxEcl)),
+                 "pass"});
+    logA.append({toU8("  almucantar h=30, 720 azimuths, least-squares circle "
+                      "fit"),
+                 "dim"});
+    logA.append({toU8(fmt("  |centre\xe2\x88\x92"
+                          "cf| %.1e   |radius\xe2\x88\x92"
+                          "cf| "
+                          "%.1e   res %.1e  PASS",
+                          std::abs(fa.cy - almCyD(30.0)),
+                          std::abs(fa.r - almRD(30.0)), fa.res)),
+                 "pass"});
     logA.append(
-        toU8(fmt("  r_ecl \xe2\x88\x92 |c_ecl| \xe2\x88\x92 R_can       "
-                 "%+.2e   PASS",
-                 kEclRD - std::abs(kEclCyD) - kRcanD)),
-        2);
-    logA.append(toU8("THE HORIZON MEETS THE EQVATOR AT EAST AND WEST"), 1);
-    logA.append(toU8(fmt("  R_eq/sin \xcf\x86              %.15f",
-                         kReqD / std::sin(kPhiD * kDD))),
-                0);
-    logA.append(toU8(fmt("  dist((R_eq,0) \xe2\x86\x92 centre)  %.15f  PASS",
-                         std::hypot(kReqD, almCyD(0.0)))),
-                2);
-    logA.append(toU8(fmt("  the PRIME VERTICAL too: R_eq\xc2\xb2+cy\xc2\xb2"
-                         "\xe2\x88\x92"
-                         "a\xc2\xb2  %+.2e  PASS",
-                         kReqD * kReqD + kAzCyD * kAzCyD - kAzAD * kAzAD)),
-                2);
+        {toU8("TANGENCY \xe2\x80\x94 THE ECLIPTIC TOVCHES BOTH TROPICS"),
+         "heading"});
+    logA.append({toU8(fmt("  |c_ecl| + r_ecl \xe2\x88\x92 R_cap        "
+                          "%+.2e   PASS",
+                          std::abs(kEclCyD) + kEclRD - 1.0)),
+                 "pass"});
+    logA.append(
+        {toU8(fmt("  r_ecl \xe2\x88\x92 |c_ecl| \xe2\x88\x92 R_can       "
+                  "%+.2e   PASS",
+                  kEclRD - std::abs(kEclCyD) - kRcanD)),
+         "pass"});
+    logA.append(
+        {toU8("THE HORIZON MEETS THE EQVATOR AT EAST AND WEST"), "heading"});
+    logA.append({toU8(fmt("  R_eq/sin \xcf\x86              %.15f",
+                          kReqD / std::sin(kPhiD * kDD))),
+                 "dim"});
+    logA.append({toU8(fmt("  dist((R_eq,0) \xe2\x86\x92 centre)  %.15f  PASS",
+                          std::hypot(kReqD, almCyD(0.0)))),
+                 "pass"});
+    logA.append({toU8(fmt("  the PRIME VERTICAL too: R_eq\xc2\xb2+cy\xc2\xb2"
+                          "\xe2\x88\x92"
+                          "a\xc2\xb2  %+.2e  PASS",
+                          kReqD * kReqD + kAzCyD * kAzCyD - kAzAD * kAzAD)),
+                 "pass"});
 
     // --- the azimuth family, checked the hard way ------------------------
     double resPrime = 0, resNaive = 0, lineMax = 0;
@@ -2637,27 +2642,29 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
             std::max({resNaive, std::abs(f.cx - kAzAD * std::tan(A * kDD)),
                       std::abs(f.r - kAzAD / std::cos(A * kDD))});
     }
-    logB.append(toU8("THE AZIMVTH FAMILY, CHECKED THE HARD WAY"), 1);
-    logB.append(toU8("  each A projected pointwise (A,h)\xe2\x86\x92"
-                     "(\xce\xb4,H)\xe2\x86\x92plate, circle-fitted"),
-                0);
-    logB.append(toU8(fmt("  A\xe2\x80\xb2 = 90\xc2\xb0\xe2\x88\x92"
-                         "A  from the "
-                         "PRIME VERTICAL   res %.1e R  PASS",
-                         resPrime)),
-                2);
-    logB.append(toU8(fmt("  A         from NORTH, as published    res %.2f R  "
-                         "FAIL",
-                         resNaive)),
-                1);
-    logB.append(toU8(fmt("  A = 0/180 degenerates to a LINE: max|x| %.1e  PASS",
-                         lineMax)),
-                2);
-    logB.append(toU8("  \xe2\x86\x91 this is the check that catches it, and it "
-                     "is why the"),
-                0);
-    logB.append(toU8("    brief's formula needed correcting before drawing."),
-                0);
+    logB.append({toU8("THE AZIMVTH FAMILY, CHECKED THE HARD WAY"), "heading"});
+    logB.append({toU8("  each A projected pointwise (A,h)\xe2\x86\x92"
+                      "(\xce\xb4,H)\xe2\x86\x92plate, circle-fitted"),
+                 "dim"});
+    logB.append({toU8(fmt("  A\xe2\x80\xb2 = 90\xc2\xb0\xe2\x88\x92"
+                          "A  from the "
+                          "PRIME VERTICAL   res %.1e R  PASS",
+                          resPrime)),
+                 "pass"});
+    logB.append({toU8(fmt("  A         from NORTH, as published    res %.2f R  "
+                          "FAIL",
+                          resNaive)),
+                 "heading"});
+    logB.append(
+        {toU8(fmt("  A = 0/180 degenerates to a LINE: max|x| %.1e  PASS",
+                  lineMax)),
+         "pass"});
+    logB.append(
+        {toU8("  \xe2\x86\x91 this is the check that catches it, and it "
+              "is why the"),
+         "dim"});
+    logB.append(
+        {toU8("    brief's formula needed correcting before drawing."), "dim"});
 
     // --- the seasonal hours ---------------------------------------------
     double worst = 0, worstDec = 0;
@@ -2699,24 +2706,24 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         }
       }
     }
-    logB.append(toU8("THE SEASONAL HOVRES \xe2\x80\x94 AND THEIR DOCVMENTED "
-                     "ERROR"),
-                1);
-    logB.append(toU8(fmt("  spacing on the equator  %.4f\xc2\xb0   PASS "
-                         "(exact)",
-                         stepd(0.0))),
-                2);
-    logB.append(toU8(std::string("  k=6 is straight (3 points collinear)   ") +
-                     (sixStraight ? "PASS" : "FAIL")),
-                sixStraight ? 2 : 1);
-    logB.append(toU8(fmt("  3-point circle vs TRVE locus: %.5f R at "
-                         "\xce\xb4 %+.1f\xc2\xb0",
-                         worst, worstDec)),
-                0);
-    logB.append(toU8(fmt("  = %.3f mm on the real 132 mm object \xe2\x80\x94 "
-                         "one engraved line",
-                         worst * 60.0)),
-                2);
+    logB.append({toU8("THE SEASONAL HOVRES \xe2\x80\x94 AND THEIR DOCVMENTED "
+                      "ERROR"),
+                 "heading"});
+    logB.append({toU8(fmt("  spacing on the equator  %.4f\xc2\xb0   PASS "
+                          "(exact)",
+                          stepd(0.0))),
+                 "pass"});
+    logB.append({toU8(std::string("  k=6 is straight (3 points collinear)   ") +
+                      (sixStraight ? "PASS" : "FAIL")),
+                 sixStraight ? "pass" : "heading"});
+    logB.append({toU8(fmt("  3-point circle vs TRVE locus: %.5f R at "
+                          "\xce\xb4 %+.1f\xc2\xb0",
+                          worst, worstDec)),
+                 "dim"});
+    logB.append({toU8(fmt("  = %.3f mm on the real 132 mm object \xe2\x80\x94 "
+                          "one engraved line",
+                          worst * 60.0)),
+                 "pass"});
 
     // --- the zodiac cells tile the ring ---------------------------------
     {
@@ -2773,15 +2780,15 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       const debug::Coverage cov = debug::coverage(cells, reg, 256);
       const debug::Coverage ref =
           debug::coverage(std::span<const SkPath>(&ringPath, 1), reg, 256);
-      logC.append(toU8("THE ZODIAC CELLS TILE THE RING"), 1);
-      logC.append(toU8(fmt("  coverage(12 cells, grid 256): doubled %.0f",
-                           (double)cov.doubled)),
-                  cov.doubled == 0 ? 2 : 1);
-      logC.append(toU8(fmt("  uncovered %.0f \xe2\x88\x92 outside-the-ring "
-                           "%.0f = %.0f  PASS",
-                           (double)cov.uncovered, (double)ref.uncovered,
-                           (double)(cov.uncovered - ref.uncovered))),
-                  (cov.uncovered - ref.uncovered) == 0 ? 2 : 1);
+      logC.append({toU8("THE ZODIAC CELLS TILE THE RING"), "heading"});
+      logC.append({toU8(fmt("  coverage(12 cells, grid 256): doubled %.0f",
+                            (double)cov.doubled)),
+                   cov.doubled == 0 ? "pass" : "heading"});
+      logC.append({toU8(fmt("  uncovered %.0f \xe2\x88\x92 outside-the-ring "
+                            "%.0f = %.0f  PASS",
+                            (double)cov.uncovered, (double)ref.uncovered,
+                            (double)(cov.uncovered - ref.uncovered))),
+                   (cov.uncovered - ref.uncovered) == 0 ? "pass" : "heading"});
       double sum = 0;
       for (int i = 0; i < 12; ++i) {
         const float a0 = ringAngle((float)(i * 30));
@@ -2789,7 +2796,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         if (a1 < a0) a1 += 360.0f;
         sum += a1 - a0;
       }
-      logC.append(toU8(fmt("  \xce\xa3 spans = %.6f\xc2\xb0   PASS", sum)), 2);
+      logC.append(
+          {toU8(fmt("  \xce\xa3 spans = %.6f\xc2\xb0   PASS", sum)), "pass"});
     }
 
     // --- the rete is one piece of metal ---------------------------------
@@ -2835,19 +2843,20 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       int comps = 0;
       for (size_t i = 0; i < paths.size(); ++i)
         if (find((int)i) == (int)i) ++comps;
-      logC.append(toU8("THE RETE IS ONE PIECE OF METAL"), 1);
-      logC.append(toU8(fmt("  %.0f bars, arcs and thorns; tol 0.6 px",
-                           (double)paths.size())),
-                  0);
+      logC.append({toU8("THE RETE IS ONE PIECE OF METAL"), "heading"});
+      logC.append({toU8(fmt("  %.0f bars, arcs and thorns; tol 0.6 px",
+                            (double)paths.size())),
+                   "dim"});
       logC.append(
-          toU8("  spurs (degree 1, not a star's tip)   " +
-               std::to_string(spurs) + "   " + (spurs == 0 ? "PASS" : "FAIL")),
-          spurs == 0 ? 2 : 1);
+          {toU8("  spurs (degree 1, not a star's tip)   " +
+                std::to_string(spurs) + "   " + (spurs == 0 ? "PASS" : "FAIL")),
+           spurs == 0 ? "pass" : "heading"});
       logC.append(
-          toU8("  connected components                 " +
-               std::to_string(comps) + "   " + (comps == 1 ? "PASS" : "FAIL")),
-          comps == 1 ? 2 : 1);
-      logC.append(toU8("  a spur is a piece that falls out of the object."), 0);
+          {toU8("  connected components                 " +
+                std::to_string(comps) + "   " + (comps == 1 ? "PASS" : "FAIL")),
+           comps == 1 ? "pass" : "heading"});
+      logC.append(
+          {toU8("  a spur is a piece that falls out of the object."), "dim"});
     }
 
     // --- telling the time -----------------------------------------------
@@ -2877,48 +2886,53 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
           fmt("agreement  %.2e\xc2\xb0 \xe2\x80\x94 the DRAWN "
               "geometry encodes the trigonometry",
               std::abs(Hg - Ha));
-      logD.append(toU8("TELLING THE TIME \xe2\x80\x94 12 MARCH 1391, ALT "
-                       "25\xc2\xb0 30\xe2\x80\xb2"),
-                  1);
-      logD.append(toU8("  intersect the sun's dec circle with the 25.5\xc2\xb0 "
-                       "almucantar"),
-                  0);
-      logD.append(toU8(fmt("  graphical (DRAWN)  H = %.9f\xc2\xb0", Hg)), 0);
-      logD.append(toU8(fmt("  analytic  (sph.tr) H = %.9f\xc2\xb0", Ha)), 0);
+      logD.append({toU8("TELLING THE TIME \xe2\x80\x94 12 MARCH 1391, ALT "
+                        "25\xc2\xb0 30\xe2\x80\xb2"),
+                   "heading"});
       logD.append(
-          toU8(fmt("  agreement %.1e\xc2\xb0   PASS", std::abs(Hg - Ha))), 2);
-      logD.append(toU8("  08:53.8  lettre X (21st = 9 a.m.)  Chaucer 09:00 "
-                       "\xce\x94 6.2 min"),
-                  2);
+          {toU8("  intersect the sun's dec circle with the 25.5\xc2\xb0 "
+                "almucantar"),
+           "dim"});
+      logD.append(
+          {toU8(fmt("  graphical (DRAWN)  H = %.9f\xc2\xb0", Hg)), "dim"});
+      logD.append(
+          {toU8(fmt("  analytic  (sph.tr) H = %.9f\xc2\xb0", Ha)), "dim"});
+      logD.append(
+          {toU8(fmt("  agreement %.1e\xc2\xb0   PASS", std::abs(Hg - Ha))),
+           "pass"});
+      logD.append({toU8("  08:53.8  lettre X (21st = 9 a.m.)  Chaucer 09:00 "
+                        "\xce\x94 6.2 min"),
+                   "pass"});
     }
 
     // --- the instrument's own error --------------------------------------
     {
       const float kt = std::tan((90.0f - kEpsTrue1326) * 0.5f * kD);
-      logD.append(toU8("THE INSTRVMENT'S OWNE ERROVR"), 1);
+      logD.append({toU8("THE INSTRVMENT'S OWNE ERROVR"), "heading"});
       logD.append(
-          toU8(fmt("  \xce\xb5 Chaucer I.17  23\xc2\xb0 50.0\xe2\x80\xb2 "
-                   " R_eq %.6f  R_can %.6f",
-                   (double)kReq, (double)kRcan)),
-          0);
+          {toU8(fmt("  \xce\xb5 Chaucer I.17  23\xc2\xb0 50.0\xe2\x80\xb2 "
+                    " R_eq %.6f  R_can %.6f",
+                    (double)kReq, (double)kRcan)),
+           "dim"});
       logD.append(
-          toU8(fmt("  \xce\xb5 true 1326     23\xc2\xb0 31.6\xe2\x80\xb2 "
-                   " R_eq %.6f  R_can %.6f",
-                   (double)kt, (double)(kt * kt))),
-          0);
-      logD.append(toU8(fmt("  \xce\x94 18.4\xe2\x80\xb2  equator %+.3f%%  "
-                           "Cancer %+.3f%%",
-                           (double)((kReq - kt) / kt * 100.0f),
-                           (double)((kRcan - kt * kt) / (kt * kt) * 100.0f))),
-                  1);
-      logD.append(toU8("  = \xe2\x88\x92"
-                       "0.229 mm and \xe2\x88\x92"
-                       "0.299 mm on "
-                       "the 132 mm object."),
-                  0);
-      logD.append(toU8("  NOT crudely made \xe2\x80\x94 built on a number 1200 "
-                       "years old."),
-                  1);
+          {toU8(fmt("  \xce\xb5 true 1326     23\xc2\xb0 31.6\xe2\x80\xb2 "
+                    " R_eq %.6f  R_can %.6f",
+                    (double)kt, (double)(kt * kt))),
+           "dim"});
+      logD.append({toU8(fmt("  \xce\x94 18.4\xe2\x80\xb2  equator %+.3f%%  "
+                            "Cancer %+.3f%%",
+                            (double)((kReq - kt) / kt * 100.0f),
+                            (double)((kRcan - kt * kt) / (kt * kt) * 100.0f))),
+                   "heading"});
+      logD.append({toU8("  = \xe2\x88\x92"
+                        "0.229 mm and \xe2\x88\x92"
+                        "0.299 mm on "
+                        "the 132 mm object."),
+                   "dim"});
+      logD.append(
+          {toU8("  NOT crudely made \xe2\x80\x94 built on a number 1200 "
+                "years old."),
+           "heading"});
     }
   }
 

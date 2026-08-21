@@ -124,7 +124,7 @@
 //   shapes::chamfered / circle / star / parametric
 //   Material::linear + patterns::grain + speckle   the iron, under
 //                        Cache::Texture
-//   console::LineRing    four panels of checks, printed as they run
+//   feed::TextRing       four panels of checks, printed as they run
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -148,7 +148,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
@@ -708,7 +708,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   ch::Output<float> scribe{0.0f};
   double clockT = 0;
 
-  console::LineRing logA{64}, logB{64}, logC{64}, logD{64};
+  feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
 
   Material ironGrain;
   Pattern ironSpeck;
@@ -1561,29 +1561,31 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  console::Style logStyle() {
-    console::Style s;
-    s.text = type(faceMono, 9.6f, hex(0x9a8a68));
-    s.palette = {type(faceMono, 9.6f, hex(0x6d6249)),   // 0 dim
-                 type(faceMono, 9.6f, kGold),           // 1 heading
-                 type(faceMono, 9.6f, hex(0x5fae7f)),   // 2 PASS
-                 type(faceMono, 9.6f, hex(0xcf6a4a)),   // 3 number
-                 type(faceMono, 9.6f, hex(0xc4483a))};  // 4 FAIL
-    s.gap = 1.0f;
-    s.visibleLines = 13;
+  feed::TextOptions logStyle() {
+    feed::TextOptions s;
+    s.styles.base(type(faceMono, 9.6f, hex(0x9a8a68)))
+        .set("dim", type(faceMono, 9.6f, hex(0x6d6249)))
+        .set("heading", type(faceMono, 9.6f, kGold))
+        .set("pass", type(faceMono, 9.6f, hex(0x5fae7f)))
+        .set("number", type(faceMono, 9.6f, hex(0xcf6a4a)))
+        .set("fail", type(faceMono, 9.6f, hex(0xc4483a)));
+    s.window.gap = 1.0f;
+    s.window.visible = 13;
     return s;
   }
 
   Element consolePanel() {
-    return console::panel({.rings = {&logA, &logB, &logC},
-                           .style = logStyle(),
-                           .column = true,
-                           .paddingX = 11,
-                           .paddingY = 8,
-                           .gap = 7,
-                           .fill = Fill::color(hex(0x131215, 0.88f)),
-                           .border = Fill::color(hex(0xb2914f, 0.20f)),
-                           .divider = Fill::color(hex(0xb2914f, 0.14f))})
+    const feed::TextOptions style = logStyle();
+    return feed::plate(
+               {.columns = {feed::feed(logA, style), feed::feed(logB, style),
+                            feed::feed(logC, style)},
+                .column = true,
+                .paddingX = 11,
+                .paddingY = 8,
+                .gap = 7,
+                .fill = Fill::color(hex(0x131215, 0.88f)),
+                .border = Fill::color(hex(0xb2914f, 0.20f)),
+                .divider = Fill::color(hex(0xb2914f, 0.14f))})
         .rect(SkRect::MakeXYWH(1228, 768, 638, 420))
         .key("console");
   }
@@ -1995,9 +1997,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   void runChecks() {
     // --- panel A: the stroke data -----------------------------------------
-    logA.append(toU8("makemeahanzi graphics.txt \xe2\x80\x94 MEDIANS, 1024 em, "
-                     "DRAWING ORDER"),
-                1);
+    logA.append(
+        {toU8("makemeahanzi graphics.txt \xe2\x80\x94 MEDIANS, 1024 em, "
+              "DRAWING ORDER"),
+         "heading"});
     int totalPts = 0, totalStrokes = 0;
     for (const Glyph& g : kGlyphs) {
       const int16_t* p = g.data;
@@ -2007,53 +2010,59 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       }
       totalStrokes += g.strokes;
     }
-    logA.append(toU8(fmt("  11 characters, %d strokes, %d median points, "
-                         "verbatim",
-                         totalStrokes, totalPts)),
-                0);
+    logA.append({toU8(fmt("  11 characters, %d strokes, %d median points, "
+                          "verbatim",
+                          totalStrokes, totalPts)),
+                 "dim"});
     logA.append(
-        toU8(fmt("  GANG U+7F61 has %d strokes", kGlyphs[GANG].strokes)),
-        kGlyphs[GANG].strokes == 10 ? 2 : 4);
-    logA.append(toU8("  doctrine: 10 strokes = the ten Heavenly Stems"), 0);
-    logA.append(toU8("  JIA YI BING DING WU JI GENG XIN REN GUI \xe2\x80\x94 "
-                     "the count MATCHES"),
-                kGlyphs[GANG].strokes == 10 ? 2 : 4);
+        {toU8(fmt("  GANG U+7F61 has %d strokes", kGlyphs[GANG].strokes)),
+         kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
     logA.append(
-        toU8(fmt("  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
-                 kGlyphs[JI].strokes, kGlyphs[JI].strokes, kGlyphs[RU].strokes,
-                 kGlyphs[LV].strokes, kGlyphs[LING].strokes, nFootStrokes)),
-        nFootStrokes == 38 ? 2 : 4);
-    logA.append(toU8(fmt("    drawn as ONE contour: %d spans = %d strokes + "
-                         "%d ligatures",
-                         2 * nFootStrokes - 1, nFootStrokes, nFootStrokes - 1)),
-                2);
+        {toU8("  doctrine: 10 strokes = the ten Heavenly Stems"), "dim"});
+    logA.append({toU8("  JIA YI BING DING WU JI GENG XIN REN GUI \xe2\x80\x94 "
+                      "the count MATCHES"),
+                 kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
     logA.append(
-        toU8(fmt("  body YU+WU / YUN / GUI = %d cloud-seal strokes", nBody)),
-        nBody == 33 ? 2 : 4);
+        {toU8(fmt("  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
+                  kGlyphs[JI].strokes, kGlyphs[JI].strokes, kGlyphs[RU].strokes,
+                  kGlyphs[LV].strokes, kGlyphs[LING].strokes, nFootStrokes)),
+         nFootStrokes == 38 ? "pass" : "fail"});
     logA.append(
-        toU8(fmt("  ink strokes on the plate: %d nodes", (int)strokes.size())),
-        3);
+        {toU8(fmt("    drawn as ONE contour: %d spans = %d strokes + "
+                  "%d ligatures",
+                  2 * nFootStrokes - 1, nFootStrokes, nFootStrokes - 1)),
+         "pass"});
+    logA.append(
+        {toU8(fmt("  body YU+WU / YUN / GUI = %d cloud-seal strokes", nBody)),
+         nBody == 33 ? "pass" : "fail"});
+    logA.append(
+        {toU8(fmt("  ink strokes on the plate: %d nodes", (int)strokes.size())),
+         "number"});
 
     // --- panel B: the taxonomy --------------------------------------------
-    logB.append(toU8("KanjiVG kvg:type \xe2\x80\x94 THE STROKE CLASS, FOR w0"),
-                1);
-    logB.append(toU8("  kanji/07f61.svg (GANG) is a 14-byte 404. NOT A KANJI."),
-                4);
-    logB.append(toU8("  recovered instead from the median geometry: length,"),
-                0);
-    logB.append(toU8("  body chord angle over 14-86%, peak turn from entry"),
-                0);
+    logB.append({toU8("KanjiVG kvg:type \xe2\x80\x94 THE STROKE CLASS, FOR w0"),
+                 "heading"});
     logB.append(
-        toU8(fmt("  vs KanjiVG over the %d strokes it does carry: %d/%d",
-                 kvgTotal, kvgAgree, kvgTotal)),
-        kvgAgree * 10 >= kvgTotal * 8 ? 2 : 4);
+        {toU8("  kanji/07f61.svg (GANG) is a 14-byte 404. NOT A KANJI."),
+         "fail"});
+    logB.append(
+        {toU8("  recovered instead from the median geometry: length,"), "dim"});
+    logB.append(
+        {toU8("  body chord angle over 14-86%, peak turn from entry"), "dim"});
+    logB.append(
+        {toU8(fmt("  vs KanjiVG over the %d strokes it does carry: %d/%d",
+                  kvgTotal, kvgAgree, kvgTotal)),
+         kvgAgree * 10 >= kvgTotal * 8 ? "pass" : "fail"});
     for (size_t i = 0; i < kvgMiss.size() && i < 3; ++i)
-      logB.append(toU8("    " + kvgMiss[i]), 0);
+      logB.append({toU8("    " + kvgMiss[i]), "dim"});
     logB.append(
-        toU8("  GUI U+9B3C: mmah 9, KanjiVG 10 \xe2\x80\x94 the Japanese"), 0);
+        {toU8("  GUI U+9B3C: mmah 9, KanjiVG 10 \xe2\x80\x94 the Japanese"),
+         "dim"});
     logB.append(
-        toU8("    form carries an extra PIE; and the two sources order"), 0);
-    logB.append(toU8("    TIAN's interior in LEI U+96F7 opposite ways"), 3);
+        {toU8("    form carries an extra PIE; and the two sources order"),
+         "dim"});
+    logB.append(
+        {toU8("    TIAN's interior in LEI U+96F7 opposite ways"), "number"});
     {
       std::string row = "  GANG recovered: ";
       for (int i = 0; i < 10; ++i) {
@@ -2061,18 +2070,19 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
         while (!n.empty() && n.back() == ' ') n.pop_back();
         row += n.substr(0, 2) + (i < 9 ? " " : "");
       }
-      logB.append(toU8(row), 3);
+      logB.append({toU8(row), "number"});
     }
 
     // --- panel C: the brush ------------------------------------------------
-    logC.append(toU8("THE BRUSH \xc2\xb7 QI / XING / SHOU, one law over arc "
-                     "length"),
-                1);
+    logC.append({toU8("THE BRUSH \xc2\xb7 QI / XING / SHOU, one law over arc "
+                      "length"),
+                 "heading"});
     logC.append(
-        toU8("  w(s)/w0 = 1.15e^-12s + 0.62 + 0.28s + 0.55e^-90(s-.88)^2"), 0);
-    logC.append(toU8(fmt("    ni feng (reverse entry) w(0)    = %.2f w0",
-                         (double)widthLaw(0.0f))),
-                3);
+        {toU8("  w(s)/w0 = 1.15e^-12s + 0.62 + 0.28s + 0.55e^-90(s-.88)^2"),
+         "dim"});
+    logC.append({toU8(fmt("    ni feng (reverse entry) w(0)    = %.2f w0",
+                          (double)widthLaw(0.0f))),
+                 "number"});
     {
       float minS = 0, minW = 1e9f;
       for (int i = 0; i <= 100; ++i) {
@@ -2082,29 +2092,33 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
           minS = s;
         }
       }
-      logC.append(toU8(fmt("    zhong feng belly  min %.2f w0 at s = %.2f",
-                           (double)minW, (double)minS)),
-                  3);
+      logC.append({toU8(fmt("    zhong feng belly  min %.2f w0 at s = %.2f",
+                            (double)minW, (double)minS)),
+                   "number"});
     }
-    logC.append(toU8(fmt("    dun (the press)   w(0.88) = %.2f w0",
-                         (double)widthLaw(0.88f))),
-                3);
-    logC.append(toU8(fmt("    shou (the cut)    w(1)    = %.2f w0",
-                         (double)widthLaw(1.0f))),
-                3);
-    logC.append(toU8("  brush::Ribbon::width takes exactly this law, as a"), 0);
-    logC.append(toU8("  comparable Profile. BUT under trim() a decoration is"),
-                0);
-    logC.append(toU8("  handed the REVEALED contour: a fraction is a fraction"),
-                0);
+    logC.append({toU8(fmt("    dun (the press)   w(0.88) = %.2f w0",
+                          (double)widthLaw(0.88f))),
+                 "number"});
+    logC.append({toU8(fmt("    shou (the cut)    w(1)    = %.2f w0",
+                          (double)widthLaw(1.0f))),
+                 "number"});
     logC.append(
-        toU8("  of what is drawn SO FAR, so the profile is keyed in PX"), 0);
-    logC.append(toU8("  or the dun press SLIDES down the stroke as it writes."),
-                2);
-    logC.append(toU8(fmt("  tempo: foot %.3f s/stroke vs body %.3f = %.1fx",
-                         (double)tFootEach, (double)tBodyEach,
-                         (double)(tBodyEach / tFootEach))),
-                3);
+        {toU8("  brush::Ribbon::width takes exactly this law, as a"), "dim"});
+    logC.append({toU8("  comparable Profile. BUT under trim() a decoration is"),
+                 "dim"});
+    logC.append(
+        {toU8("  handed the REVEALED contour: a fraction is a fraction"),
+         "dim"});
+    logC.append(
+        {toU8("  of what is drawn SO FAR, so the profile is keyed in PX"),
+         "dim"});
+    logC.append(
+        {toU8("  or the dun press SLIDES down the stroke as it writes."),
+         "pass"});
+    logC.append({toU8(fmt("  tempo: foot %.3f s/stroke vs body %.3f = %.1fx",
+                          (double)tFootEach, (double)tBodyEach,
+                          (double)(tBodyEach / tFootEach))),
+                 "number"});
   }
 
   void validateClassifier() {

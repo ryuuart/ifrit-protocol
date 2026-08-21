@@ -185,7 +185,7 @@ inline constexpr StudyInfo kStudies[] = {
      "diagonal beside the fix, and the amplitude bound at six octaves"},
     {"env_theme", "env theme", "Kit \xc2\xb7 API",
      "env::Provide / inherited \xe2\x80\x94 one tree, three environments; "
-     "console::Style is the worked library consumer"},
+     "feed::TextOptions is the worked library consumer"},
     {"material_child", "material child", "Kit \xc2\xb7 API",
      "Material::child() \xe2\x80\x94 an index texture through a palette LUT, "
      "with the LUT swapped live by update()"},

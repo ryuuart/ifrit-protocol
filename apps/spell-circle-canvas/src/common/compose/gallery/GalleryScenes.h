@@ -87,7 +87,7 @@ inline constexpr SceneInfo kScenes[] = {
     {"aero desktop", "Catalog \xc2\xb7 Chrome", "glass + window colorization"},
     {"y2k chrome", "Catalog \xc2\xb7 Chrome", "chrome presets A/B"},
     {"passive tree", "Catalog \xc2\xb7 Game UI", "linework + orbit router"},
-    {"daemon console", "Catalog \xc2\xb7 Game UI", "console() LineRing feed"},
+    {"daemon console", "Catalog \xc2\xb7 Game UI", "feed() over a TextRing"},
     {"motion poster", "Catalog \xc2\xb7 Type & grid",
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
     {"zellige", "Catalog \xc2\xb7 Tiling",

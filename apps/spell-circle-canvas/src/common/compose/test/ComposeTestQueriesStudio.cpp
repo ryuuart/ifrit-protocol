@@ -377,11 +377,11 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 }
 
 // ---------------------------------------------------------------------------
-// The extraction layer: placement, the prelude, the console plate, and the
+// The extraction layer: placement, the prelude, the feed plate, and the
 // proving primitive.
 
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Studio.h>
 #include <sigilcompose/Util.h>
 
@@ -641,33 +641,32 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   EXPECT_GT(measured.height(), 10.0f);
 }
 
-TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
-  // A bordered plate holding N rings with dividers between them. The plate
+TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
+  // A bordered plate holding N feeds with dividers between them. The plate
   // does NOT place itself: it takes the rect, following the same rule every
   // layout scheme does.
   Host host(240, 120);
-  console::LineRing a, b;
-  a.append(u8"alpha", 0);
-  b.append(u8"beta", 0);
+  feed::TextRing a, b;
+  a.append({u8"alpha"});
+  b.append({u8"beta"});
 
-  console::Style style;
-  style.text = studio::type({.size = 9, .color = {1, 1, 1, 1}});
-  style.palette = {studio::type({.size = 9, .color = {1, 1, 1, 1}})};
-  style.gap = 1.0f;
+  feed::TextOptions style;
+  style.styles.base(studio::type({.size = 9, .color = {1, 1, 1, 1}}));
+  style.window.gap = 1.0f;
 
-  auto plate = [&] {
-    return box().child(console::panel({.rings = {&a, &b},
-                                       .style = style,
-                                       .paddingX = 10,
-                                       .paddingY = 6,
-                                       .gap = 8,
-                                       .fill = Fill::color({0, 0, 0.5f, 1}),
-                                       .border = green(),
-                                       .divider = red()})
-                           .key("plate")
-                           .rect(SkRect::MakeXYWH(20, 20, 200, 80)));
+  auto strip = [&] {
+    return box().child(
+        feed::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                     .paddingX = 10,
+                     .paddingY = 6,
+                     .gap = 8,
+                     .fill = Fill::color({0, 0, 0.5f, 1}),
+                     .border = green(),
+                     .divider = red()})
+            .key("plate")
+            .rect(SkRect::MakeXYWH(20, 20, 200, 80)));
   };
-  host.composer.render(plate());
+  host.composer.render(strip());
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("plate").has_value());
@@ -683,28 +682,27 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
     if (SkColorGetR(host.pixel(x, 60)) > 180 &&
         SkColorGetG(host.pixel(x, 60)) < 80)
       ++redColumns;
-  EXPECT_EQ(redColumns, 1) << "a row panel of two rings has exactly one "
+  EXPECT_EQ(redColumns, 1) << "a row plate of two feeds has exactly one "
                               "divider between them";
 
-  // Re-describing an unchanged plate prunes: the panel is composition over
-  // the kernel and adds no volatility of its own.
-  host.composer.render(plate());
+  // Re-describing an unchanged plate prunes: it is composition over the
+  // kernel and adds no volatility of its own.
+  host.composer.render(strip());
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 
-  // A column panel puts the divider on the other axis, and the same call
+  // A column plate puts the divider on the other axis, and the same call
   // site says so with one field.
   Host col(240, 120);
-  col.composer.render(
-      box().child(console::panel({.rings = {&a, &b},
-                                  .style = style,
-                                  .column = true,
-                                  .paddingX = 10,
-                                  .paddingY = 6,
-                                  .gap = 8,
-                                  .fill = Fill::color({0, 0, 0.5f, 1}),
-                                  .divider = red()})
-                      .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
+  col.composer.render(box().child(
+      feed::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                   .column = true,
+                   .paddingX = 10,
+                   .paddingY = 6,
+                   .gap = 8,
+                   .fill = Fill::color({0, 0, 0.5f, 1}),
+                   .divider = red()})
+          .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
   col.frame();
   int redRows = 0;
   for (int y = 21; y < 99; ++y)
@@ -713,56 +711,60 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
       ++redRows;
   EXPECT_EQ(redRows, 1);
 
-  // monoStyle builds one TextStyle per palette colour from a single face and
-  // size. The palette entries carry no meaning to it, deliberately: what
-  // index 0 or 2 stands for is the caller's convention, not the library's.
-  const console::Style mono =
-      console::monoStyle(nullptr, 10.5f, {1, 1, 1, 1},
-                         {{0.5f, 0.5f, 0.5f, 1}, {0, 1, 0, 1}, {1, 0, 0, 1}});
-  EXPECT_FLOAT_EQ(mono.text.shaping.fontSize, 10.5f);
-  ASSERT_EQ(mono.palette.size(), 3u);
-  EXPECT_FLOAT_EQ(mono.palette[1].shaping.fontSize, 10.5f);
-  EXPECT_FLOAT_EQ(mono.palette[2].paint.foreground.getColor4f().fR, 1.0f);
-  EXPECT_FLOAT_EQ(mono.palette[2].paint.foreground.getColor4f().fG, 0.0f);
+  // tinted() builds one style per named colour from a single face and size.
+  // The names carry no meaning to it, deliberately: what a study calls its
+  // passing ink is the study's convention, not the library's.
+  const sigil::weave::StyleSet mono =
+      feed::tinted(nullptr, 10.5f, {1, 1, 1, 1},
+                   {{"dim", {0.5f, 0.5f, 0.5f, 1}},
+                    {"pass", {0, 1, 0, 1}},
+                    {"fail", {1, 0, 0, 1}}});
+  EXPECT_FLOAT_EQ(mono.base().shaping.fontSize, 10.5f);
+  ASSERT_EQ(mono.size(), 3u);
+  EXPECT_FLOAT_EQ(mono["pass"].shaping.fontSize, 10.5f);
+  EXPECT_FLOAT_EQ(mono["fail"].paint.foreground.getColor4f().fR, 1.0f);
+  EXPECT_FLOAT_EQ(mono["fail"].paint.foreground.getColor4f().fG, 0.0f);
+  // And a name nobody registered still sets: it takes the base ink.
+  EXPECT_TRUE(mono["passs"] == mono.base());
 }
 
-TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
-  // Fitting several LineRings with dividers into ONE fixed-height panel
-  // otherwise means hand-tuning that height against font size times line
-  // count. console::height() is that number, and the panel below is built
+TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
+  // Fitting several feeds with dividers into ONE fixed-height plate
+  // otherwise means hand-tuning that height against font size times row
+  // count. feed::height() is that number, and the plate below is built
   // from it with no slack at all.
-  console::Style st;
-  st.text = studio::type({.size = 9.2f, .color = {1, 1, 1, 1}});
-  st.gap = 1.0f;
-  st.visibleLines = 12;
+  feed::TextOptions st;
+  st.styles.base(studio::type({.size = 9.2f, .color = {1, 1, 1, 1}}));
+  st.window.gap = 1.0f;
+  st.window.visible = 12;
 
-  const float rows = console::height(st, fonts());
+  const float rows = feed::height(st, fonts());
   EXPECT_GT(rows, 12.0f * 9.2f) << "twelve 9.2 px rows plus eleven gaps";
   EXPECT_LT(rows, 12.0f * 9.2f * 3.0f);
 
-  // The window CLAMPS: the console shows the last visibleLines, so asking
-  // for more rows than the style shows is the same height.
-  EXPECT_FLOAT_EQ(console::height(st, 400, fonts()), rows);
-  EXPECT_LT(console::height(st, 6, fonts()), rows);
+  // The window CLAMPS: the feed shows the newest visible rows, so asking
+  // for more rows than the options show is the same height.
+  EXPECT_FLOAT_EQ(feed::height(st, 400, fonts()), rows);
+  EXPECT_LT(feed::height(st, 6, fonts()), rows);
 
   // The snapshot()/measure() rule — those size by the root's CHILDREN, not
-  // the root's own dims — is DEMONSTRATED, not assumed: console() returns a
-  // panel that sets neither width nor height, so the shell box the
+  // the root's own dims — is DEMONSTRATED, not assumed: feed() returns a
+  // column that sets neither width nor height, so the shell box the
   // implementation wraps it in cannot change the answer.
-  console::LineRing full;
-  for (int i = 0; i < 20; ++i) full.append(u8"the ring outruns its window");
-  EXPECT_FLOAT_EQ(measure(console::console(full, st), fonts()).height(), rows)
-      << "the un-shelled spelling disagrees — console() grew its own dims";
+  feed::TextRing full;
+  for (int i = 0; i < 20; ++i) full.append({u8"the ring outruns its window"});
+  EXPECT_FLOAT_EQ(measure(feed::feed(full, st), fonts()).height(), rows)
+      << "the un-shelled spelling disagrees — feed() grew its own dims";
 
-  // And it is the height the console ACTUALLY takes when laid out: three
-  // rings and two dividers in a column panel sized from the answer, with no
-  // room to spare, must not shrink. A wrong answer here is SILENT — flex
-  // shrink absorbs the deficit and every ring quietly loses rows.
-  console::LineRing a, b, c;
+  // And it is the height the feed ACTUALLY takes when laid out: three feeds
+  // and two dividers in a column plate sized from the answer, with no room
+  // to spare, must not shrink. A wrong answer here is SILENT — flex shrink
+  // absorbs the deficit and every feed quietly loses rows.
+  feed::TextRing a, b, c;
   for (int i = 0; i < 20; ++i) {
-    a.append(u8"alpha");
-    b.append(u8"beta");
-    c.append(u8"gamma");
+    a.append({u8"alpha"});
+    b.append({u8"beta"});
+    c.append({u8"gamma"});
   }
   const float padY = 9.0f, gap = 6.0f, div = 1.0f;
   const float panelH = 2 * padY + 3 * rows + 4 * gap + 2 * div;
@@ -775,82 +777,79 @@ TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
                       .padding(12.0f, padY)
                       .column()
                       .gap(gap)
-                      .child(console::console(a, st).key("ringA"))
+                      .child(feed::feed(a, st).key("feedA"))
                       .child(divider())
-                      .child(console::console(b, st).key("ringB"))
+                      .child(feed::feed(b, st).key("feedB"))
                       .child(divider())
-                      .child(console::console(c, st).key("ringC"))
+                      .child(feed::feed(c, st).key("feedC"))
                       .rect(SkRect::MakeXYWH(10, 10, 300, panelH))));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());
   EXPECT_FLOAT_EQ(host.composer.bounds("panel")->height(), panelH);
-  for (const char* k : {"ringA", "ringB", "ringC"}) {
+  for (const char* k : {"feedA", "feedB", "feedC"}) {
     ASSERT_TRUE(host.composer.bounds(k).has_value()) << k;
     EXPECT_FLOAT_EQ(host.composer.bounds(k)->height(), rows)
-        << k << " shrank: console::height() is not the laid-out height";
+        << k << " shrank: feed::height() is not the laid-out height";
   }
-  // The three rings tile the interior exactly — the last one ends on the
+  // The three feeds tile the interior exactly — the last one ends on the
   // padding, with nothing clipped and nothing left over.
-  EXPECT_FLOAT_EQ(host.composer.bounds("ringC")->bottom(),
+  EXPECT_FLOAT_EQ(host.composer.bounds("feedC")->bottom(),
                   10.0f + panelH - padY);
 }
 
-TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
-  // staggerChildren() on a console panel is a no-op, and correctly so: it
-  // delays the mount transitions a child DECLARES, and console() builds its
-  // rows internally as plain text(), which declare none. console::line()
-  // exposes one row so an author can declare the entrance themselves.
-  console::Style st;
-  st.text = studio::type({.size = 20, .color = {1, 1, 1, 1}});
-  st.palette = {studio::type({.size = 20, .color = {1, 0, 0, 1}})};
-  st.gap = 4.0f;
-  console::LineRing ring;
-  ring.append(u8"AAAA");
-  ring.append(u8"BBBB", 0);
+TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
+  // What a row IS belongs to the caller. feed() windows the ring and keys
+  // each row by its sequence id; everything else — the style, an entrance,
+  // an fx track — is whatever the factory returns. The hand-built column
+  // below IS what feed() builds, so it reconciles onto it with nothing
+  // patched, and an author who needs something the options do not carry can
+  // write that column themselves without losing the identity discipline.
+  feed::TextOptions st;
+  st.styles.base(studio::type({.size = 20, .color = {1, 1, 1, 1}}))
+      .set("alert", studio::type({.size = 20, .color = {1, 0, 0, 1}}));
+  st.window.gap = 4.0f;
+  feed::TextRing ring;
+  ring.append({u8"AAAA"});
+  ring.append({u8"BBBB", "alert"});
 
-  // (a) The hand-rebuild recipe line() documents IS the component: a panel
-  //     spelled column().gap(style.gap).clip() with one line() per row
-  //     reconciles onto console() with zero patched nodes. Note the limit —
-  //     console() DELEGATES to line(), so breaking line() breaks both sides
-  //     equally and leaves this arm green. What it pins is the PANEL
-  //     spelling an author has to reproduce; (b) and (c) hold line() itself.
   Host host(220, 90);
-  host.composer.render(box().child(console::console(ring, st)));
+  host.composer.render(box().child(feed::feed(ring, st)));
   host.frame();
   auto byHand = [&](bool staggered) {
-    auto p = box().column().gap(st.gap).clip();
-    if (staggered) p.staggerChildren(400ms);
-    for (const console::Line& l : ring.lines()) {
-      Element row = console::line(l, st);
+    auto column = box().column().gap(st.window.gap).clip();
+    if (staggered) column.staggerChildren(400ms);
+    for (const feed::Row<feed::TextRow>& r : ring.rows()) {
+      Element row = feed::textRow(r.value, st.styles);
+      row.key(feed::rowKey(r.seq));
       if (staggered)
         row.opacity(
             animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
-      p.child(std::move(row));
+      column.child(std::move(row));
     }
-    return box().child(std::move(p));
+    return box().child(std::move(column));
   };
   host.composer.render(byHand(false));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "console()'s panel is not the spelling line()'s doc tells "
-         "authors to write";
+      << "feed()'s column is not the spelling an author has to reproduce";
 
-  // (b) It carries the con#<seq> key and honours Line::paletteIndex.
-  ASSERT_TRUE(host.composer.bounds("con#1").has_value());
-  ASSERT_TRUE(host.composer.bounds("con#2").has_value());
-  const SkRect band = *host.composer.bounds("con#2");
+  // The row key is the sequence id, and the row's named style is the one it
+  // is set in.
+  ASSERT_TRUE(host.composer.bounds(feed::rowKey(1)).has_value());
+  ASSERT_TRUE(host.composer.bounds(feed::rowKey(2)).has_value());
+  const SkRect band = *host.composer.bounds(feed::rowKey(2));
   int redInk = 0;
   for (int y = (int)band.top(); y < (int)band.bottom(); ++y)
     for (int x = (int)band.left(); x < (int)band.right(); ++x) {
       const SkColor c = host.pixel(x, y);
       redInk += SkColorGetR(c) > 150 && SkColorGetG(c) < 80;
     }
-  EXPECT_GT(redInk, 10) << "the paletteIndex row did not take palette[0]";
+  EXPECT_GT(redInk, 10) << "the row did not take the style it named";
 
-  // (c) And now the console types out: each row's OWN mount animation is
-  //     what staggerChildren has to delay, so row 2 is still dark while
-  //     row 1 has finished.
+  // And now the feed types out: each row's OWN mount animation is what the
+  // container cascade has to delay, so row 2 is still dark while row 1 has
+  // finished.
   auto brightest = [](Host& h, SkRect r) {
     int best = 0;
     for (int y = (int)r.top(); y < (int)r.bottom(); ++y)
@@ -861,8 +860,8 @@ TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
   Host typed(220, 90);
   typed.composer.render(byHand(true));
   typed.frame(0.25);  // row 1's 200 ms is done; row 2 waits out its 400 ms
-  const SkRect r1 = *typed.composer.bounds("con#1");
-  const SkRect r2 = *typed.composer.bounds("con#2");
+  const SkRect r1 = *typed.composer.bounds(feed::rowKey(1));
+  const SkRect r2 = *typed.composer.bounds(feed::rowKey(2));
   EXPECT_GT(brightest(typed, r1), 150);
   EXPECT_LT(brightest(typed, r2), 40) << "the stagger did not delay row 2";
   typed.frame(0.5);  // t = 0.75 — row 2 is 350 ms into its own 200 ms
@@ -890,7 +889,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
       << bad.line();
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
-  // checks silently losing their units to a console column that clipped.
+  // checks silently losing their units to a feed column that clipped.
   const std::string wide = debug::check(std::string(80, 'L'), 1, 1).line(44);
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
@@ -910,26 +909,25 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_EQ(debug::failures(checks), 1);
   EXPECT_EQ(debug::failures(std::span<const debug::Check>{checks, 1}), 0);
 
-  // report() lands the line in the ring under the palette index the VERDICT
+  // report() lands the line in the feed under the style name the VERDICT
   // chose — that link is the whole primitive.
-  console::LineRing ring;
-  debug::report(ring, ok, 1, 2);
-  debug::report(ring, bad, 1, 2);
-  ASSERT_EQ(ring.lines().size(), 2u);
-  EXPECT_EQ(ring.lines()[0].paletteIndex, 1u);
-  EXPECT_EQ(ring.lines()[1].paletteIndex, 2u);
-  EXPECT_NE(ring.lines()[1].text.find(u8"FAIL"), std::u8string::npos);
+  feed::TextRing ring;
+  debug::report(ring, ok, "pass", "fail");
+  debug::report(ring, bad, "pass", "fail");
+  ASSERT_EQ(ring.size(), 2u);
+  EXPECT_EQ(ring.rows()[0].value.style, "pass");
+  EXPECT_EQ(ring.rows()[1].value.style, "fail");
+  EXPECT_NE(ring.rows()[1].value.text.find(u8"FAIL"), std::u8string::npos);
 
   // And it renders: a plate whose checks never reach the screen is the
   // situation this replaces.
   Host host(200, 60);
-  console::Style style;
-  style.text = studio::type({.size = 9, .color = {1, 1, 1, 1}});
-  style.palette = {studio::type({.size = 9, .color = {0, 1, 0, 1}}),
-                   studio::type({.size = 9, .color = {1, 0, 0, 1}})};
+  feed::TextOptions style;
+  style.styles = feed::tinted(nullptr, 9, {1, 1, 1, 1},
+                              {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
   host.composer.render(box()
                            .fill(Fill::color({0, 0, 0, 1}))
-                           .child(console::console(ring, style).at({4, 4})));
+                           .child(feed::feed(ring, style).at({4, 4})));
   host.frame();
   int inked = 0;
   for (int y = 0; y < 40; ++y)

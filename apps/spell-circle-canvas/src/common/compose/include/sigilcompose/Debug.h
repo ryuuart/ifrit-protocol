@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-#include "sigilcompose/Console.h"
+#include "sigilcompose/Feed.h"
 
 namespace sigil::compose::debug {
 
@@ -422,17 +422,20 @@ inline Check check(std::string label, bool condition) {
   return {std::move(label), "true", condition ? "true" : "false", condition};
 }
 
-/** Append a check to a console ring, palette index chosen by the verdict.
+/** Append a check to a feed of text rows, the row's style name chosen by the
+ *  verdict.
  *
- *  The two indices are parameters because `console::Style::palette` is an
- *  unnamed vector — nothing here knows which slot a given caller means by
- *  "pass" — so the defaults are only a convention, not a contract. */
-inline void report(console::LineRing& ring, const Check& c,
-                   size_t passPalette = 1, size_t failPalette = 2,
-                   int labelWidth = 44, int valueWidth = 8) {
+ *  The two names are parameters because the style set a plate reads is the
+ *  caller's — nothing here knows what a given study calls its passing ink.
+ *  The defaults are a convention; a set that registers neither name sets
+ *  both rows in its base style, which is legible but says nothing. */
+inline void report(feed::TextRing& ring, const Check& c,
+                   std::string passStyle = "pass",
+                   std::string failStyle = "fail", int labelWidth = 44,
+                   int valueWidth = 8) {
   const std::string text = c.line(labelWidth, valueWidth);
-  ring.append(std::u8string(text.begin(), text.end()),
-              c.pass ? passPalette : failPalette);
+  ring.append({std::u8string(text.begin(), text.end()),
+               c.pass ? std::move(passStyle) : std::move(failStyle)});
 }
 
 /** How many of @p checks failed — an exit code for a verification run, and

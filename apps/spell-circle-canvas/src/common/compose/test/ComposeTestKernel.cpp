@@ -2304,8 +2304,6 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u);  // fades with distance
 }
 
-// ---- console(): the streaming log ------------------------------------------
-
 // ---------------------------------------------------------------------------
 // Effect live uniforms: the same uniform(name, &output) contract Material
 // offers, on the effect seam.
@@ -3029,7 +3027,7 @@ struct EnvPalette {
 };
 
 /** A component four levels below whoever bound the value, handed nothing
- *  and reading the environment — the `console::`/decoration case. */
+ *  and reading the environment — the `feed::`/decoration case. */
 Element envThemedChip() {
   return box().width(20).height(20).fill(
       Fill::color(env::inheritedOr(EnvPalette{}).surface));
@@ -3205,35 +3203,36 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
 }
 
 TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
-  // The entry's actual complaint: `console::` had to be handed its colours
-  // by whoever composed it. The env key is console::Style — the component's
-  // OWN props type — so no library-wide Theme exists or needs to.
-  console::LineRing ring;
-  ring.append(u8"ready.");
+  // The entry's actual complaint: a library component had to be handed its
+  // colours by whoever composed it. The env key is feed::TextOptions — the
+  // component's OWN props type — so no library-wide Theme exists or needs
+  // to.
+  feed::TextRing ring;
+  ring.append({u8"ready."});
 
-  console::Style themed;
-  themed.text = whiteStyle(12);
-  themed.gap = 7.0f;
+  feed::TextOptions themed;
+  themed.styles.base(whiteStyle(12));
+  themed.window.gap = 7.0f;
 
   Element tree = [&] {
-    env::Provide<console::Style> style(themed);
-    return box().padding(4).child(box().child(console::console(ring)));
+    env::Provide<feed::TextOptions> style(themed);
+    return box().padding(4).child(box().child(feed::feed(ring)));
   }();
-  ASSERT_FALSE(env::bound<console::Style>());
+  ASSERT_FALSE(env::bound<feed::TextOptions>());
 
   Host host;
   host.composer.render(tree);
   host.frame();
-  const SkRect got = *host.composer.bounds("con#1");
+  const SkRect got = *host.composer.bounds(feed::rowKey(1));
   EXPECT_GT(got.width(), 0.0f);
 
   // The unbound spelling still compiles to the component's own default —
   // and a DIFFERENT default, which is what proves the binding was read.
   Host bare;
   bare.composer.render(box().padding(4).child(
-      box().child(console::console(ring, console::Style{}))));
+      box().child(feed::feed(ring, feed::TextOptions{}))));
   bare.frame();
-  EXPECT_NE(bare.composer.bounds("con#1")->width(), got.width());
+  EXPECT_NE(bare.composer.bounds(feed::rowKey(1))->width(), got.width());
 }
 
 // ---------------------------------------------------------------------------

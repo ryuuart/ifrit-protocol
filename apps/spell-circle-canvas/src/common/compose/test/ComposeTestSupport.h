@@ -22,9 +22,9 @@
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
 #include <sigilcompose/Decorations.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Layouts.h>

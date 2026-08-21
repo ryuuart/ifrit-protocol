@@ -787,3 +787,66 @@ TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
   EXPECT_FLOAT_EQ(band.position, -20.0f) << "band top at the ascent line";
   EXPECT_FLOAT_EQ(band.thickness, 26.0f) << "ascent + descent tall";
 }
+
+// ── StyleSet: styles fixed once, addressed by name ───────────────────────
+
+TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
+  TextStyle base;
+  base.shaping.fontSize = 12.0f;
+  TextStyle alert;
+  alert.shaping.fontSize = 12.0f;
+  alert.paint.foreground.setColor(SK_ColorRED);
+
+  StyleSet styles(base);
+  styles.set("alert", alert);
+
+  EXPECT_TRUE(styles["alert"] == alert);
+  EXPECT_TRUE(styles.contains("alert"));
+  ASSERT_NE(styles.find("alert"), nullptr);
+
+  // The unknown-name contract: a lookup ALWAYS returns a style, and the one
+  // it returns for a name nobody registered is the base. A misspelling is
+  // therefore visible as base-styled text, never as text that vanished.
+  EXPECT_TRUE(styles["alrt"] == base) << "an unknown name must fall back";
+  EXPECT_TRUE(styles[""] == base) << "the empty name is an unknown name";
+  EXPECT_FALSE(styles.contains("alrt"));
+  EXPECT_EQ(styles.find("alrt"), nullptr) << "find() reports absence";
+  EXPECT_EQ(styles.size(), 1u) << "a failed lookup must not register a name";
+
+  // A default-constructed set still answers: the base is a default style.
+  EXPECT_TRUE(StyleSet{}["anything"] == TextStyle{});
+}
+
+TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+  TextStyle small;
+  small.shaping.fontSize = 9.0f;
+  TextStyle large;
+  large.shaping.fontSize = 24.0f;
+
+  StyleSet a;
+  a.set("head", small).set("body", large);
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_EQ(a.entries()[0].first, "head") << "entries keep insertion order";
+
+  // Re-setting a registered name replaces it where it already sits.
+  a.set("head", large);
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_EQ(a.entries()[0].first, "head");
+  EXPECT_TRUE(a["head"] == large);
+
+  // Equality is what lets a StyleSet ride inside a larger comparable value:
+  // same base, same entries, same order.
+  StyleSet b;
+  b.set("head", large).set("body", large);
+  EXPECT_TRUE(a == b);
+  b.base(small);
+  EXPECT_FALSE(a == b) << "the base participates in equality";
+
+  StyleSet reordered;
+  reordered.set("body", large).set("head", large);
+  EXPECT_FALSE(a == reordered) << "equality is order-sensitive";
+
+  StyleSet extra = a;
+  extra.set("note", small);
+  EXPECT_FALSE(a == extra);
+}

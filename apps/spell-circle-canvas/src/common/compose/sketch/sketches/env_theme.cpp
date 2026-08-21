@@ -2,13 +2,13 @@
 // =============================================================================
 // The point is a value read where a component is COMPOSED, not where it is
 // written. `chip()` below takes NO arguments and is four calls down from the
-// nearest `Provide`; `console::console(ring)` — a library component nobody
-// here wrote — is themed by the same channel, keyed on its own props type.
+// nearest `Provide`; `feed::feed(ring)` — a library component nobody here
+// wrote — is themed by the same channel, keyed on its own props type.
 //
 // Three columns, one component tree, drawn three times:
 //   NO BINDING   inherited<Palette>() is null, so chip() uses its own
 //                default — exactly a React context's default value.
-//   OUTER        one Provide<Palette> + one Provide<console::Style> at the
+//   OUTER        one Provide<Palette> + one Provide<feed::TextOptions> at the
 //                top of the column. Nothing below is handed either.
 //   SHADOWED     the same column, with an INNER Provide<Palette> around
 //                only the bottom half. LIFO: the inner one wins there and
@@ -27,7 +27,7 @@
 // patches the nodes whose props moved. Bind the one property that scrubs
 // at 60 Hz, never the theme.
 
-#include <sigilcompose/Console.h>
+#include <sigilcompose/Feed.h>
 #include <sigilsketch/Sketch.h>
 
 #include <string>
@@ -113,17 +113,18 @@ Element boundLine() {
 }
 
 // -------------------------------------------------------------- the library
-// console::Style is the worked consumer: it is already a comparable props
-// type, so it is already an env key. `console::console(ring)` with no style
-// argument reads whatever is in scope.
+// feed::TextOptions is the worked consumer: it is already a comparable
+// props type, so it is already an env key. `feed::feed(ring)` with no
+// options argument reads whatever is in scope.
 
-console::Style consoleStyle(const Palette& c) {
-  console::Style style;
-  style.text = type(11, c.ink);
-  style.palette = {type(11, c.accent), type(11, kDim)};
-  style.gap = 3;
-  style.visibleLines = 5;
-  return style;
+feed::TextOptions feedOptions(const Palette& c) {
+  feed::TextOptions options;
+  options.styles.base(type(11, c.ink))
+      .set("accent", type(11, c.accent))
+      .set("dim", type(11, kDim));
+  options.window.gap = 3;
+  options.window.visible = 5;
+  return options;
 }
 
 Element panelColumn(const char* heading, const char* note, Element body) {
@@ -137,7 +138,7 @@ Element panelColumn(const char* heading, const char* note, Element body) {
 }
 
 /** The body every column shares — same code, three environments. */
-Element themedBody(const console::LineRing& ring) {
+Element themedBody(const feed::TextRing& ring) {
   return box()
       .width(340)
       .column()
@@ -146,25 +147,25 @@ Element themedBody(const console::LineRing& ring) {
       .stroke(stroke(1.0f, Fill::color(kFrame)))
       .child(handedNothing(kLevels))
       .child(boundLine())
-      .child(text(toU8("console::console(ring) \xc2\xb7 no style argument"),
+      .child(text(toU8("feed::feed(ring) \xc2\xb7 no options argument"),
                   type(10, kDim)))
-      .child(console::console(ring));
+      .child(feed::feed(ring));
 }
 
 }  // namespace
 
 struct EnvTheme : sigil::compose::sketch::Sketch {
-  console::LineRing ring{16};
+  feed::TextRing ring{16};
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1140, 470);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     ring.clear();
-    ring.append(u8"describe: env stack pushed", 0);
-    ring.append(u8"chip() read the nearest binding");
-    ring.append(u8"patchedNodes == 1 on a colour change", 1);
-    ring.append(u8"nothing was threaded through");
+    ring.append({u8"describe: env stack pushed", "accent"});
+    ring.append({u8"chip() read the nearest binding"});
+    ring.append({u8"patchedNodes == 1 on a colour change", "dim"});
+    ring.append({u8"nothing was threaded through"});
 
     // NO BINDING — no Provide anywhere. Every read returns its default.
     Element plain = themedBody(ring);
@@ -173,17 +174,17 @@ struct EnvTheme : sigil::compose::sketch::Sketch {
     // above and is unaffected: reads happen during DESCRIBE.
     Element outer = [&] {
       env::Provide<Palette> palette(kOuter);
-      env::Provide<console::Style> style(consoleStyle(kOuter));
+      env::Provide<feed::TextOptions> style(feedOptions(kOuter));
       return themedBody(ring);
     }();
 
     // SHADOWED — the same column, with an inner Provide around only the
     // second half. LIFO and per-TYPE: the inner Palette wins below it, the
-    // console::Style binding is untouched by it, and after the inner scope
+    // feed::TextOptions binding is untouched by it, and after the inner scope
     // ends the outer Palette is back.
     Element shadowed = [&] {
       env::Provide<Palette> palette(kOuter);
-      env::Provide<console::Style> style(consoleStyle(kOuter));
+      env::Provide<feed::TextOptions> style(feedOptions(kOuter));
       Element top = handedNothing(kLevels);
       Element inner = [&] {
         env::Provide<Palette> nested(kInner);
@@ -204,7 +205,7 @@ struct EnvTheme : sigil::compose::sketch::Sketch {
           .child(
               text(toU8("…and back OUT of the inner scope:"), type(10, kDim)))
           .child(handedNothing(kLevels))
-          .child(console::console(ring));
+          .child(feed::feed(ring));
     }();
 
     ctx.composer.render(
@@ -222,7 +223,7 @@ struct EnvTheme : sigil::compose::sketch::Sketch {
                     .gap(24)
                     .child(panelColumn("NO BINDING",
                                        "inheritedOr() default \xe2\x80\x94 the "
-                                       "console's own, at its own size",
+                                       "feed's own, at its own size",
                                        std::move(plain)))
                     .child(panelColumn("OUTER SCOPE",
                                        "one Provide, four levels up",

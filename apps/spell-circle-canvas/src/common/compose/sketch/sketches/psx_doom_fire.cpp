@@ -38,7 +38,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilcompose/Console.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
@@ -186,10 +186,10 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
 
   // --- bound outputs ---
   ch::Output<float> pulse{0.0f};  // swatch-36 energy strobe (τ ≈ 20 ms)
-  ch::Output<float> blink{1.0f};  // console cursor square wave
+  ch::Output<float> blink{1.0f};  // caret square wave
 
-  // --- console ---
-  console::LineRing ring{64};
+  // --- the boot feed ---
+  feed::TextRing ring{64};
   size_t bootLine = 0;
   double nextBoot = 0.20;  // first boot line lands at 200 ms
   bool bootDone = false;
@@ -535,18 +535,27 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                                mono(10, hex(0xEFEFC7), 1.2f))));
   }
 
-  console::Style consoleStyle() {
-    console::Style s;
-    s.text = mono(11.5f, kAmber);
-    s.palette = {mono(11.5f, hex(0x8A6A22)),  // 0: dim continuation
-                 mono(11.5f, kBone)};         // 1: emphasis
-    s.gap = 2;
-    s.visibleLines = 16;
-    s.cursorColor = kAmber;
-    s.cursorWidth = 8;
-    s.cursorHeight = 14;
-    s.cursorOpacity = &blink;
-    return s;
+  feed::TextOptions feedOptions() {
+    feed::TextOptions o;
+    o.styles.base(mono(11.5f, kAmber))
+        .set("dim", mono(11.5f, hex(0x8A6A22)))  // continuation lines
+        .set("emphasis", mono(11.5f, kBone));
+    o.window.gap = 2;
+    o.window.visible = 16;
+    return o;
+  }
+
+  /** The boot feed with the caret after it: the block is chrome, not a row,
+   *  so it goes in as an ordinary child of the column feed() returns. */
+  Element bootFeed() {
+    Element well = feed::feed(ring, feedOptions());
+    well.child(box()
+                   .width(8)
+                   .height(14)
+                   .fill(Fill::color(kAmber))
+                   .opacity(&blink)
+                   .key("caret"));
+    return well;
   }
 
   Element specPanel() {
@@ -571,7 +580,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                               .margin(0, 0, 6, 0))
                    .child(text(toU8("27 Hz"), mono(11, kSteel, 1.2f))))
         .child(box().height(1).fill(kKeyline))
-        .child(console::console(ring, consoleStyle()))
+        .child(bootFeed())
         .child(box().grow(1))
         .child(box().height(1).fill(kKeyline))
         // The decay curve: what the buffer looks like as DATA.
@@ -777,8 +786,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       };
       constexpr size_t kBootCount = sizeof(kBoot) / sizeof(kBoot[0]);
       if (bootLine < kBootCount && elapsed >= nextBoot) {
-        const size_t indented = kBoot[bootLine][2] == ' ' ? 0 : SIZE_MAX;
-        ring.append(toU8(kBoot[bootLine]), indented);
+        const char* level = kBoot[bootLine][2] == ' ' ? "dim" : "";
+        ring.append({toU8(kBoot[bootLine]), level});
         ++bootLine;
         nextBoot += 0.11;  // 110 ms between lines — a stagger, as data
         composer.render(describe());

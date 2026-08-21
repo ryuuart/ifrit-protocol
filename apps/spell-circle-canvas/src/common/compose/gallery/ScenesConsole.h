@@ -3,14 +3,20 @@
 // science-fiction console idiom: green phosphor, scanlines, a blinking block
 // cursor and a log that scrolls forever.
 //
-//   scrollback ..... console::LineRing + console(). Lines are keyed by
-//                    sequence id, so an append reconciles as ONE mount and
-//                    every line already on screen keeps its cached picture.
-//                    The ComposeConsole test pins that property.
-//   levels ......... palette-indexed line styles (info / dim / warn / alert)
-//   cursor ......... the ONLY volatile node: a block bound to a blink Output
-//   fade-out ....... a background-coloured gradient laid over the top of the
-//                    panel, so the oldest visible lines dim without any line
+//   scrollback ..... feed::TextRing + feed(). Rows are keyed by sequence id,
+//                    so an append reconciles as ONE mount and every row
+//                    already on screen keeps its cached picture. The
+//                    ComposeFeed tests pin that property.
+//   levels ......... row styles named in a weave::StyleSet (the base voice
+//                    plus dim / warn / alert)
+//   typing ......... each row enters on its own settling fx::typeOn track:
+//                    the glyphs appear left to right, the track settles, and
+//                    the row caches like every row above it. A glyph
+//                    entrance costs the feed nothing once it is over.
+//   cursor ......... the ONLY node volatile forever: a block bound to a
+//                    blink Output, appended after the rows
+//   fade-out ....... a ground-coloured gradient laid over the top of the
+//                    panel, so the oldest visible rows dim without any row
 //                    node being re-patched
 //   chrome ......... an SDF roundBox panel giving fill, border and glow in
 //                    one shader pass, plus a time-driven scanline overlay
@@ -21,9 +27,10 @@
 // one at a single mount. The retained instance tree is what makes that work;
 // there is no separate virtualizer.
 
-#include <sigilcompose/Console.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Sdf.h>
+#include <sigilcompose/TextFx.h>
 
 #include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
@@ -79,7 +86,7 @@ inline sk_sp<SkRuntimeEffect> scanEffect() {
 struct LogGen {
   std::mt19937 rng{2077};
   int packet = 41210;
-  uint64_t emitLine(sigil::compose::console::LineRing& ring) {
+  uint64_t emitRow(sigil::compose::feed::TextRing& ring) {
     char buf[96];
     const int roll = (int)(rng() % 100);
     packet += (int)(rng() % 97);
@@ -88,56 +95,56 @@ struct LogGen {
                     "!! WARD BREACH sector %02u \xe2\x80\x94 rerouting "
                     "through gate %u",
                     (unsigned)(rng() % 13), (unsigned)(rng() % 7));
-      return ring.append(toU8(buf), 2);  // alert
+      return ring.append({toU8(buf), "alert"});
     }
     if (roll < 22) {
       std::snprintf(buf, sizeof(buf),
                     " ~ sigil flux unstable: %0.2f mS, damping applied",
                     0.4 + (double)(rng() % 90) / 100.0);
-      return ring.append(toU8(buf), 1);  // warn
+      return ring.append({toU8(buf), "warn"});
     }
     if (roll < 55) {
       std::snprintf(buf, sizeof(buf),
                     "   trace %06x :: lattice ok \xc2\xb7 %u pts", packet,
                     (unsigned)(64 + rng() % 900));
-      return ring.append(toU8(buf), 0);  // dim
+      return ring.append({toU8(buf), "dim"});
     }
     std::snprintf(buf, sizeof(buf),
                   " > daemon[%u] bound port %u \xe2\x80\x94 handshake "
                   "%06x accepted",
                   (unsigned)(rng() % 9), (unsigned)(6000 + rng() % 999),
                   packet);
-    return ring.append(toU8(buf));
+    return ring.append({toU8(buf)});
   }
 };
 
 }  // namespace daemon_console
 
 struct DaemonConsoleScene final : Scene {
-  sigil::compose::console::LineRing ring{256};
+  sigil::compose::feed::TextRing ring{256};
   daemon_console::LogGen gen;
   choreograph::Output<float> blink{1.0f};
   double nextAppend = 0.0;
 
   const char* name() const override { return "daemon console"; }
 
-  sigil::compose::console::Style style() {
+  sigil::compose::feed::TextOptions options() {
     namespace dc = daemon_console;
-    sigil::compose::console::Style s;
-    s.text = dc::mono(14, dc::kGreen);
-    s.palette = {dc::mono(14, dc::kGreenDim), dc::mono(14, dc::kAmber),
-                 dc::mono(14, dc::kAlert)};
-    s.gap = 3;
+    sigil::compose::feed::TextOptions o;
+    o.styles.base(dc::mono(14, dc::kGreen))
+        .set("dim", dc::mono(14, dc::kGreenDim))
+        .set("warn", dc::mono(14, dc::kAmber))
+        .set("alert", dc::mono(14, dc::kAlert));
+    o.window.gap = 3;
     // Tuned to the panel: at the style's 17 px line pitch this is what the
     // well holds once the padding has cleared the drawn chrome. Setting it
     // lower leaves empty panel under the cursor while the feed scrolls
     // anyway, which reads as a terminal that has lost its own history.
-    s.visibleLines = 25;
-    s.cursorColor = dc::kGreen;
-    s.cursorWidth = 9;
-    s.cursorHeight = 15;
-    s.cursorOpacity = &blink;
-    return s;
+    o.window.visible = 25;
+    // The boot history cascades in; each later append is the only new mount
+    // in its patch, so a live row starts typing the instant it arrives.
+    o.window.entrance = {.eachMs = 26};
+    return o;
   }
 
   void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
@@ -151,16 +158,16 @@ struct DaemonConsoleScene final : Scene {
     composer.setView(ocio::exponent(1.08f));
 #endif
 
-    for (int i = 0; i < 8; ++i) gen.emitLine(ring);  // a little history at boot
+    for (int i = 0; i < 8; ++i) gen.emitRow(ring);  // a little history at boot
 
-    // The data-side feed: blink is the only bound Output; appends re-render
-    // and reconciliation prices each one at a single mount (O(1)).
+    // The data-side feed: blink is the only value bound forever; appends
+    // re-render and reconciliation prices each one at a single mount (O(1)).
     ticker.add([this, &composer, t = 0.0](double dt) mutable {
       t += dt;
       blink = std::fmod(t, 0.9) < 0.55 ? 1.0f : 0.12f;
       if (t >= nextAppend) {
         nextAppend = t + 0.055 + (double)(gen.rng() % 60) / 1000.0;
-        gen.emitLine(ring);
+        gen.emitRow(ring);
         composer.render(describe());
       }
       return true;
@@ -169,8 +176,21 @@ struct DaemonConsoleScene final : Scene {
     composer.render(describe());
   }
 
+  /** One log row: the line in the style it names, typed on by a track that
+   *  SETTLES — while it runs the row paints live, and the frame it reaches
+   *  the end the row goes back to being a cached static leaf. */
+  static Element row(const sigil::compose::feed::TextRow& r,
+                     const sigil::weave::StyleSet& styles) {
+    return text(r.text, styles[r.style])
+        .fx({.effect = fx::typeOn(),
+             .stagger = {.eachMs = 7, .durationMs = 40},
+             .progress = animate(from(0.0f).to(1.0f),
+                                 {300ms, &choreograph::easeNone})});
+  }
+
   Element describe() {
     namespace dc = daemon_console;
+    namespace feed = sigil::compose::feed;
 
     // Panel chrome: one-pass SDF (fill + border + glow), cached between
     // layouts (geometry tier).
@@ -181,13 +201,26 @@ struct DaemonConsoleScene final : Scene {
                             .glowRadius = 9,
                             .glowColor = {0.30f, 0.95f, 0.45f, 0.35f}});
 
-    // Fade the OLDEST visible lines: a bg-colored gradient painted over the
-    // panel top -- zero line nodes touched, fully cached. Coordinates are the
+    // Fade the OLDEST visible rows: a bg-colored gradient painted over the
+    // panel top -- zero row nodes touched, fully cached. Coordinates are the
     // OVERLAY's local space (its box is 90px tall).
     Material fade = Material::linear(
         {0, 0}, {0, 90},
         {{0.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 1.0f}},
          {1.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 0.0f}}});
+
+    const feed::TextOptions o = options();
+    // The cursor is chrome, not a row: it goes after the rows as an ordinary
+    // child of the column the feed returns.
+    Element well = feed::feed(ring, o.window, [&](const feed::TextRow& r) {
+      return row(r, o.styles);
+    });
+    well.child(box()
+                   .width(9)
+                   .height(15)
+                   .fill(Fill::color(dc::kGreen))
+                   .opacity(&blink)
+                   .key("caret"));
 
     return stack()
         .fill(Material::linear(
@@ -217,13 +250,12 @@ struct DaemonConsoleScene final : Scene {
                                             "\xc2\xb7"
                                             "7"),
                                        dc::mono(13, dc::kGreenDim))))
-                .child(
-                    box()
-                        .column()
-                        .grow(1)
-                        .clip()
-                        .child(sigil::compose::console::console(ring, style()))
-                        .zIndex(1))
+                .child(box()
+                           .column()
+                           .grow(1)
+                           .clip()
+                           .child(std::move(well))
+                           .zIndex(1))
                 .child(
                     box().height(90).inset(30, 58, 30, 0).fill(fade).zIndex(2)))
         // living scanlines across everything
