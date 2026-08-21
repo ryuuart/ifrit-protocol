@@ -748,3 +748,44 @@ TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
   EXPECT_NEAR(later.x(), earlierForward.x(), 0.01f);
   EXPECT_NEAR(later.y(), earlierForward.y(), 0.01f);
 }
+
+TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {
+  // The RSXform convention backs a glyph out from its pose centre by half
+  // its advance ALONG ITS OWN X. A vertical column's advance is not on x,
+  // so the dress carries the back-out instead — and it turns with the
+  // glyph, exactly as the default one does.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"H", 40.0f);
+  BlockFlow flow(SkRect::MakeWH(200, 60));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  const SkPoint centre{100, 30};
+  const SkVector offset{0, 12};
+  const auto placedAt = [&](float cosine, float sine, const SkVector* off) {
+    GlyphRSXformBatches batches;
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      GlyphDress dress;
+      dress.center = centre;
+      dress.cosine = cosine;
+      dress.sine = sine;
+      dress.centreOffset = off;
+      batches.addGlyph(glyph, dress);
+    });
+    return batches.batches.at(0).transforms.at(0);
+  };
+
+  const SkRSXform upright = placedAt(1, 0, &offset);
+  EXPECT_FLOAT_EQ(upright.fTx, centre.x());
+  EXPECT_FLOAT_EQ(upright.fTy, centre.y() - offset.y())
+      << "an unrotated glyph backs out along the offset itself";
+
+  // A quarter turn takes (0, 12) to (-12, 0).
+  const SkRSXform turned = placedAt(0, 1, &offset);
+  EXPECT_NEAR(turned.fTx, centre.x() + offset.y(), 1e-4f);
+  EXPECT_NEAR(turned.fTy, centre.y(), 1e-4f);
+
+  // Null keeps the horizontal convention.
+  const SkRSXform plain = placedAt(1, 0, nullptr);
+  EXPECT_LT(plain.fTx, centre.x()) << "backed out by half its advance";
+  EXPECT_FLOAT_EQ(plain.fTy, centre.y());
+}

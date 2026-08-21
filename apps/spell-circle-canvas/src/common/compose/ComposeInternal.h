@@ -134,10 +134,17 @@ struct TextOptions {
     kEllipsis = 1 << 3,
     kMaxLines = 1 << 4,
     kLastLine = 1 << 5,
+    kWritingMode = 1 << 6,
   };
   uint8_t set = 0;  ///< which fields below were written
 
   sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kStart;
+  /// Not a ParagraphLayoutOptions field — the writing mode belongs to the
+  /// Paragraph, so applyTo() cannot carry it and materializeText writes it
+  /// on the materialized paragraph instead. The mask rule is the same: an
+  /// unset mode leaves a passed-in paragraph's own mode alone.
+  sigil::weave::WritingMode writingMode =
+      sigil::weave::WritingMode::kHorizontal;
   sigil::weave::LineBreakStrategy lineBreak =
       sigil::weave::LineBreakStrategy::kGreedy;
   sigil::weave::HyphenationOptions hyphenation;
@@ -152,7 +159,7 @@ struct TextOptions {
 
   bool operator==(const TextOptions& other) const {
     return set == other.set && alignment == other.alignment &&
-           lineBreak == other.lineBreak &&
+           writingMode == other.writingMode && lineBreak == other.lineBreak &&
            hyphenation.enabled == other.hyphenation.enabled &&
            hyphenation.penalty == other.hyphenation.penalty &&
            ellipsis == other.ellipsis && maxLines == other.maxLines &&
@@ -465,10 +472,10 @@ inline auto fields(SpanRestyle& v) {
   return std::tie(where, style, paintOnly);
 }
 inline auto fields(TextOptions& v) {
-  auto& [set, alignment, lineBreak, hyphenation, ellipsis, maxLines,
-         lastLineAlignment, justifyLastLine] = v;
-  return std::tie(set, alignment, lineBreak, hyphenation, ellipsis, maxLines,
-                  lastLineAlignment, justifyLastLine);
+  auto& [set, alignment, writingMode, lineBreak, hyphenation, ellipsis,
+         maxLines, lastLineAlignment, justifyLastLine] = v;
+  return std::tie(set, alignment, writingMode, lineBreak, hyphenation, ellipsis,
+                  maxLines, lastLineAlignment, justifyLastLine);
 }
 inline auto fields(ImageData& v) {
   auto& [asset, region, sampling] = v;
@@ -684,6 +691,14 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
                                       const sigil::weave::Paragraph& paragraph);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
+/** The once-per-process diagnostic behind `onPath` plus a vertical
+ *  `writingMode`: a path run's baseline is its own geometry, so there are
+ *  no columns to advance and the path wins. */
+void warnWritingModeOnPath();
+/** The once-per-process diagnostic behind `flowAround` on vertical text:
+ *  exclusions are cut out of horizontal line bands, so the columns run
+ *  without them. */
+void warnFlowAroundVertical();
 
 /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
  *  the form span restyling needs, because a restyle happens on the
@@ -691,16 +706,18 @@ void warnBadSelectorPattern(const std::u8string& pattern);
  *
  *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
  *  arithmetic over the text; the complement is taken against the whole
- *  text. `sel::line` reads @p lines — the geometry a previous layout
+ *  text. `sel::line` reads @p lines, or @p columns where the passage is
+ *  vertical and a line IS a column — the geometry a previous layout
  *  produced, passed as plain values rather than as a layout because the
  *  paragraph that layout belongs to is the one being replaced — and
- *  addresses nothing when it is empty. `Selector::take`/`drop` slice glyphs
- *  inside a unit, which no text range can express: an `sel::each` selector
- *  answers with its whole units and the slice warns once. */
+ *  addresses nothing when both are empty. `Selector::take`/`drop` slice
+ *  glyphs inside a unit, which no text range can express: an `sel::each`
+ *  selector answers with its whole units and the slice warns once. */
 std::vector<sigil::weave::CharRange> resolveTextRanges(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
-    std::span<const sigil::weave::LineMetrics> lines);
+    std::span<const sigil::weave::LineMetrics> lines,
+    std::span<const sigil::weave::ColumnMetrics> columns = {});
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

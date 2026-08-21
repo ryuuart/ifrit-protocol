@@ -35,6 +35,7 @@
 #include "ScenesPoster.h"
 #include "ScenesScale.h"
 #include "ScenesSkillTree.h"
+#include "ScenesTategaki.h"
 #include "ScenesVeloren.h"
 #include "ScenesY2k.h"
 #include "ScenesZellige.h"
@@ -100,6 +101,8 @@ inline constexpr SceneInfo kScenes[] = {
      "Capital 1962 \xe2\x80\x94 the mobile grid, run"},
     {"cosmati", "Catalog \xc2\xb7 Tiling",
      "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone"},
+    {"tategaki", "Catalog \xc2\xb7 Type & grid",
+     "vertical-rl CJK \xe2\x80\x94 three forms, one paragraph"},
 };
 inline constexpr int kCatalogSceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -212,6 +215,8 @@ inline std::unique_ptr<Scene> makeCatalogScene(int index) {
       return std::make_unique<GerstnerGridScene>();
     case 21:
       return std::make_unique<CosmatiScene>();
+    case 22:
+      return std::make_unique<TategakiScene>();
     default:
       return nullptr;
   }

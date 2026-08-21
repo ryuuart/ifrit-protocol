@@ -1167,6 +1167,13 @@ Element& Element::textAlign(sigil::weave::TextAlignment a) {
   return *this;
 }
 
+Element& Element::writingMode(sigil::weave::WritingMode mode) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.writingMode = mode;
+  options.set |= detail::TextOptions::kWritingMode;
+  return *this;
+}
+
 Element& Element::lineBreak(sigil::weave::LineBreakStrategy strategy) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.lineBreak = strategy;

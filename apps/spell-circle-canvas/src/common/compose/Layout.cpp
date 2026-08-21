@@ -24,23 +24,59 @@ using namespace detail;
 // Text measurement
 
 YGSize detail::measureTextNode(YGNodeConstRef node, float width,
-                               YGMeasureMode widthMode, float, YGMeasureMode) {
+                               YGMeasureMode widthMode, float height,
+                               YGMeasureMode heightMode) {
   auto* inst =
       static_cast<Instance*>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
   const float constraint = widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
-  inst->owner->layoutText(*inst, constraint);
+  // The HEIGHT is a measure too once the text runs down the page: it is what
+  // a column may fill before the next one starts, the job the width does for
+  // a horizontal line. A horizontal leaf ignores it, exactly as it always
+  // has.
+  const float down = heightMode == YGMeasureModeUndefined ? 1.0e6f : height;
+  inst->owner->layoutText(*inst, constraint, down);
   return inst->measuredSize;
 }
+
+namespace {
+
+/** WHERE THE FIRST CHARACTER'S BASELINE SITS, down from the top of what the
+ *  layout placed — the one number `Align::Baseline` reads off a text leaf.
+ *
+ *  A horizontal leaf answers with its first line's ascent. A VERTICAL leaf
+ *  HAS NO BASELINE: its reading axis is y, and a column's glyphs centre
+ *  themselves ACROSS the axis instead of standing on one. It answers with
+ *  its first character's own baseline all the same, because that is the
+ *  same question asked of the same glyph — which lines a column's opening
+ *  character up with a horizontal neighbour's first line, and is the only
+ *  answer either writing mode can give the other. */
+float textBaseline(const Instance& inst, const SkRect& bounds) {
+  if (!inst.lines.empty()) {
+    const sigil::weave::LineMetrics& first = inst.lines.front();
+    return first.baseline - first.rect().top();
+  }
+  if (inst.columns.empty()) return 0.0f;
+  // Runs arrive in logical order, so the first one carrying glyphs holds the
+  // first character. A rotated run is skipped: its placement is baked per
+  // glyph and it has no upright baseline to report.
+  for (const sigil::weave::PositionedRun& run : inst.textLayout.runs) {
+    if (!run.shaped || run.transformed || run.shaped->positions.empty())
+      continue;
+    return run.origin.y() + run.shaped->positions.front().y() - bounds.top();
+  }
+  return 0.0f;
+}
+
+}  // namespace
 
 float detail::baselineOfTextNode(YGNodeConstRef node, float, float) {
   auto* inst =
       static_cast<Instance*>(YGNodeGetContext(const_cast<YGNodeRef>(node)));
-  if (inst->lines.empty()) return 0.0f;
-  const sigil::weave::LineMetrics& first = inst->lines.front();
-  return first.baseline - first.rect().top();
+  return inst->measuredBaseline;
 }
 
-void Composer::Impl::layoutText(Instance& inst, float constraint) {
+void Composer::Impl::layoutText(Instance& inst, float constraint,
+                                float downConstraint) {
   // onPath: the PATH is the measure, not the box. Laying the run out to
   // the node's width would wrap it, and every line after the first would
   // then be placed along the path from the start again — the glyphs pile
@@ -49,11 +85,29 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
   if (inst.desc && inst.desc->textData && inst.desc->textData->onPath)
     constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
+      downConstraint == inst.measuredForHeight &&
       inst.measuredRev == inst.contentRev)
-    return;  // layout is already valid for this content and width
+    return;  // layout is already valid for this content and measure
   const sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  // Vertical-RL: the geometry is columns, not bands, and they hang off the
+  // RIGHT edge of the measure — so the constraint is not just a wrap width
+  // here, it is where the first column stands. That is why a vertical leaf
+  // must be laid out again at its RESOLVED width before it paints, the way
+  // aligned horizontal text must (Paint.cpp).
+  const bool vertical =
+      inst.paragraph &&
+      inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
   const auto layOut = [&] {
-    if (!inst.exclusionsLocal.empty()) {
+    if (vertical) {
+      // Exclusions subtract HORIZONTAL extents from horizontal line bands;
+      // there is no column-flow spelling of them. Say so and run the
+      // columns clean rather than silently laying out over the target.
+      if (!inst.exclusionsLocal.empty()) detail::warnFlowAroundVertical();
+      sigil::weave::VerticalBlockFlow flow(
+          SkRect::MakeWH(constraint, downConstraint));
+      inst.textLayout =
+          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+    } else if (!inst.exclusionsLocal.empty()) {
       sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
       const float flowMargin = inst.desc->deriveData
                                    ? inst.desc->deriveData->flowAroundMargin
@@ -83,8 +137,20 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
           sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
     }
   };
+  // ONE of the two is populated, and which one is the writing mode: a
+  // column has no baseline to report and lineMetrics() answers with
+  // nothing there, while columnMetrics() answers with nothing in a
+  // horizontal passage.
+  const auto readGeometry = [&] {
+    inst.lines.clear();
+    inst.columns.clear();
+    if (vertical)
+      inst.columns = inst.textLayout.columnMetrics(*inst.paragraph);
+    else
+      inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  };
   layOut();
-  inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  readGeometry();
   // A sel::line span restyle needs line geometry to name a line at all, and
   // the materialization that ran at describe time had none. Re-materialize
   // against the lines just produced — plain values, so the paragraph they
@@ -101,9 +167,9 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
                           [](const detail::SpanRestyle& restyle) {
                             return detail::selectorNeedsLayout(restyle.where);
                           })) {
-    materializeText(inst, inst.lines);
+    materializeText(inst, inst.lines, inst.columns);
     layOut();
-    inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+    readGeometry();
   }
   // rich().slot(): where the finished layout put each reserved box. Resolved
   // once per layout rather than per read, and by NAME rather than by index,
@@ -119,10 +185,17 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
     }
   }
   inst.measuredForWidth = constraint;
+  inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
   for (const sigil::weave::LineMetrics& line : inst.lines)
     bounds.join(line.rect());
+  for (const sigil::weave::ColumnMetrics& column : inst.columns)
+    bounds.join(column.rect());
+  // THE AXES SWAP. A horizontal passage grows along x and stacks on y; a
+  // vertical one grows along y and stacks on x, so the same union answers
+  // both — one column of type measures tall and one pitch wide.
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
+  inst.measuredBaseline = textBaseline(inst, bounds);
   inst.measuredRev = inst.contentRev;
 }
 
@@ -410,7 +483,8 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // hence the casts.
   if (inst.desc->kind == Kind::Text && inst.paragraph && (!width || !height)) {
     const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
-                                                  width ? *width : parentW);
+                                                  width ? *width : parentW,
+                                                  height ? *height : 1.0e6f);
     if (!width) width = inst.measuredSize.width;
     if (!height) height = inst.measuredSize.height;
   }

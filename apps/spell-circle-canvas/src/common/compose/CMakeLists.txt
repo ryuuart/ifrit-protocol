@@ -116,6 +116,7 @@ add_executable(compose_test
   test/ComposeTestKernel.cpp
   test/ComposeTestContent.cpp
   test/ComposeTestLines.cpp
+  test/ComposeTestVertical.cpp
   test/ComposeTestBrushes.cpp
   test/ComposeTestEngineDocs.cpp
   test/ComposeTestTextData.cpp

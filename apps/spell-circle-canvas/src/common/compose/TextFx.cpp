@@ -459,14 +459,13 @@ using Ranges = std::vector<sigil::weave::CharRange>;
  *  in, so union, intersection and complement are honest interval
  *  arithmetic and not a pile of special cases. */
 Ranges normalize(Ranges ranges) {
-  std::erase_if(ranges, [](const sigil::weave::CharRange& r) {
-    return r.empty();
-  });
-  std::sort(ranges.begin(), ranges.end(),
-            [](const sigil::weave::CharRange& a,
-               const sigil::weave::CharRange& b) {
-              return a.start != b.start ? a.start < b.start : a.end < b.end;
-            });
+  std::erase_if(ranges,
+                [](const sigil::weave::CharRange& r) { return r.empty(); });
+  std::sort(
+      ranges.begin(), ranges.end(),
+      [](const sigil::weave::CharRange& a, const sigil::weave::CharRange& b) {
+        return a.start != b.start ? a.start < b.start : a.end < b.end;
+      });
   Ranges merged;
   for (const sigil::weave::CharRange& r : ranges) {
     if (!merged.empty() && r.start <= merged.back().end)
@@ -503,6 +502,30 @@ Ranges complementRanges(const Ranges& ranges, uint32_t length) {
   return out;
 }
 
+}  // namespace
+
+void warnWritingModeOnPath() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: onPath() and writingMode() on one text leaf — "
+               "a path run's baseline IS its geometry and has no columns to "
+               "advance, so the path stands and the writing mode is dropped\n");
+}
+
+void warnFlowAroundVertical() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: flowAround() on vertical text — exclusions are "
+               "cut out of horizontal line bands, so the columns run without "
+               "them\n");
+}
+
+namespace {
+
 /** Once per process: an `sel::each` slice asked of a text range. */
 void warnSliceIgnored() {
   static thread_local bool warned = false;
@@ -517,7 +540,8 @@ void warnSliceIgnored() {
 Ranges resolveTextRangesInto(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
-    std::span<const sigil::weave::LineMetrics> lines) {
+    std::span<const sigil::weave::LineMetrics> lines,
+    std::span<const sigil::weave::ColumnMetrics> columns) {
   const auto length = (uint32_t)paragraph.text().size();
   const Selector::State* s = selector.state();
   if (!s) return {{0, length}};  // default-constructed: everything
@@ -533,19 +557,25 @@ Ranges resolveTextRangesInto(
       return normalize(std::move(out));
     }
     case Selector::Kind::Line: {
+      // A vertical passage numbers COLUMNS where a horizontal one numbers
+      // lines, and only one of the two lists is ever populated.
       Ranges out;
       for (const sigil::weave::LineMetrics& line : lines)
         if ((uint32_t)line.lineIndex >= s->lo &&
             (uint32_t)line.lineIndex < s->hi)
           out.push_back({line.textBegin, line.textEnd});
+      for (const sigil::weave::ColumnMetrics& column : columns)
+        if ((uint32_t)column.lineIndex >= s->lo &&
+            (uint32_t)column.lineIndex < s->hi)
+          out.push_back({column.textBegin, column.textEnd});
       return normalize(std::move(out));
     }
     case Selector::Kind::Sentence: {
       const std::span<const uint32_t> starts = paragraph.sentenceStarts();
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < starts.size(); ++i)
-        out.push_back({starts[i],
-                       i + 1 < starts.size() ? starts[i + 1] : length});
+        out.push_back(
+            {starts[i], i + 1 < starts.size() ? starts[i + 1] : length});
       return normalize(std::move(out));
     }
     case Selector::Kind::Range:
@@ -573,6 +603,8 @@ Ranges resolveTextRangesInto(
           Ranges out;
           for (const sigil::weave::LineMetrics& line : lines)
             out.push_back({line.textBegin, line.textEnd});
+          for (const sigil::weave::ColumnMetrics& column : columns)
+            out.push_back({column.textBegin, column.textEnd});
           return normalize(std::move(out));
         }
         default:
@@ -580,21 +612,22 @@ Ranges resolveTextRangesInto(
       }
     }
     case Selector::Kind::Union: {
-      Ranges out =
-          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines);
-      Ranges rhs =
-          resolveTextRangesInto(s->operands[1], paragraph, fonts, lines);
+      Ranges out = resolveTextRangesInto(s->operands[0], paragraph, fonts,
+                                         lines, columns);
+      Ranges rhs = resolveTextRangesInto(s->operands[1], paragraph, fonts,
+                                         lines, columns);
       out.insert(out.end(), rhs.begin(), rhs.end());
       return normalize(std::move(out));
     }
     case Selector::Kind::Intersect:
-      return intersectRanges(
-          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines),
-          resolveTextRangesInto(s->operands[1], paragraph, fonts, lines));
+      return intersectRanges(resolveTextRangesInto(s->operands[0], paragraph,
+                                                   fonts, lines, columns),
+                             resolveTextRangesInto(s->operands[1], paragraph,
+                                                   fonts, lines, columns));
     case Selector::Kind::Complement:
-      return complementRanges(
-          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines),
-          length);
+      return complementRanges(resolveTextRangesInto(s->operands[0], paragraph,
+                                                    fonts, lines, columns),
+                              length);
   }
   return {};
 }
@@ -604,8 +637,9 @@ Ranges resolveTextRangesInto(
 std::vector<sigil::weave::CharRange> resolveTextRanges(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
-    std::span<const sigil::weave::LineMetrics> lines) {
-  return resolveTextRangesInto(selector, paragraph, fonts, lines);
+    std::span<const sigil::weave::LineMetrics> lines,
+    std::span<const sigil::weave::ColumnMetrics> columns) {
+  return resolveTextRangesInto(selector, paragraph, fonts, lines, columns);
 }
 
 bool selectorNeedsLayout(const Selector& selector) {

@@ -92,10 +92,16 @@ struct Instance {
   std::optional<sigil::weave::Paragraph> paragraph;
   sigil::weave::ParagraphLayout textLayout;
   std::vector<sigil::weave::LineMetrics> lines;
+  /// The same geometry for a VERTICAL passage, where a "line" is a column
+  /// and lineMetrics() answers with nothing. Exactly one of the two lists is
+  /// ever non-empty, and which one is the node's writing mode.
+  std::vector<sigil::weave::ColumnMetrics> columns;
   float measuredForWidth = -1.0f;
+  float measuredForHeight = -1.0f;
   YGSize measuredSize{0, 0};
-  uint32_t contentRev = 0;     // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
+  float measuredBaseline = 0.0f;  // first character's baseline, from the top
+  uint32_t contentRev = 0;        // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —
   // which is the order weave matches its placeholder records in — and where
   // the finished layout put each one, in this node's own space. A child
@@ -949,9 +955,12 @@ struct Composer::Impl {
    *  supplied Paragraph — and then applies the span restyles in
    *  declaration order. @p lines is the geometry a previous layout
    *  produced, which is what a `sel::line` restyle addresses; empty leaves
-   *  those selectors unresolved. */
-  void materializeText(detail::Instance& inst,
-                       std::span<const sigil::weave::LineMetrics> lines = {});
+   *  those selectors unresolved. @p columns carries the same geometry for a
+   *  vertical passage, where a line IS a column. */
+  void materializeText(
+      detail::Instance& inst,
+      std::span<const sigil::weave::LineMetrics> lines = {},
+      std::span<const sigil::weave::ColumnMetrics> columns = {});
   /** The options a text node actually lays out under: the full-control
    *  overload's value where it has one, with every field a fluent setter
    *  named written over it. */
@@ -1000,7 +1009,13 @@ struct Composer::Impl {
    *  matrix moved with the ancestor even though this node's
    *  parent-relative rect did not. */
   void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
-  void layoutText(detail::Instance& inst, float constraint);
+  /** Lays the node's text out inside @p constraint px across and
+   *  @p downConstraint px down. A horizontal passage reads the first as its
+   *  measure and ignores the second; a vertical one reads the first as
+   *  where its rightmost column stands and the second as how far a column
+   *  may run before the next one starts. */
+  void layoutText(detail::Instance& inst, float constraint,
+                  float downConstraint = 1.0e6f);
   SkRect instanceRect(const detail::Instance& inst) const;
   SkRect positionedRect(const detail::Instance& inst) const;
   SkRect absoluteRect(const detail::Instance& inst) const;

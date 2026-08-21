@@ -235,7 +235,9 @@ state.
   `wdth` axis).
 - **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
   orientation, `vert` forms, and per-span `VerticalForm` overrides (upright,
-  rotated, tate-chu-yoko).
+  rotated, tate-chu-yoko). `columnMetrics()` measures the result, and a
+  dressed glyph in a column sets `GlyphDress::centreOffset` because half its
+  advance is a step down the page rather than across it.
 - **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
   direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
   platform cascade; supply a `FontContext::FallbackResolver` to encode your
@@ -258,7 +260,11 @@ state.
   descent band, advance extent, and character range from the placed runs.
   Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
   plus ordinary canvas drawing; nothing is stored during layout and callers
-  who never ask pay nothing.
+  who never ask pay nothing. `columnMetrics()` is the same query for the
+  other writing mode: a column has no baseline, so it reports the axis, the
+  flow's pitch (also carried on `ParagraphLayout::linePitch`) and how far
+  down the axis the runs reached. Exactly one of the two answers in any
+  given layout.
 - **Tab stops, overflow ellipsis, line clamp** — see the options structs.
 
 ## The hard parts
@@ -456,7 +462,8 @@ directly.
 straight horizontal runs only — transformed and vertical runs skip them. The
 ellipsis marker requires the final interval to be straight, horizontal, and
 not a contour. `lineMetrics()` skips transformed and vertical runs, and omits
-lines whose geometry placed nothing. Tab stops are line-local and scoped to
+lines whose geometry placed nothing — `columnMetrics()` is what answers
+there. Tab stops are line-local and scoped to
 straight horizontal left-to-right intervals.
 
 **Geometry is re-queried on every layout pass and never cached between

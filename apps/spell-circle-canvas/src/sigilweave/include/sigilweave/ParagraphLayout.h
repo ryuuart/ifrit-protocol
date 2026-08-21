@@ -190,6 +190,29 @@ struct LineMetrics {
   }
 };
 
+/// Geometry of one laid-out COLUMN of a vertical paragraph — the counterpart
+/// of LineMetrics, derived on demand from the placed runs
+/// (ParagraphLayout::columnMetrics). A column has no baseline: its reading
+/// axis is y, and the glyphs of every form (upright, rotated, tate-chu-yoko)
+/// centre themselves ACROSS the column's central axis. So the band is the
+/// axis plus the flow's own column pitch, and the extent is how far down the
+/// axis the placed runs reached.
+struct ColumnMetrics {
+  int lineIndex = 0;       ///< matches PositionedRun::lineIndex
+  float axis = 0;          ///< the column's central axis, x
+  float pitch = 0;         ///< the column band's width (the flow's line pitch)
+  float top = 0;           ///< first placed pen position down the column
+  float bottom = 0;        ///< one past the last, trailing glue excluded
+  uint32_t textBegin = 0;  ///< first UTF-16 unit placed in the column
+  uint32_t textEnd = 0;    ///< one past the last unit, trailing glue included
+
+  /** Returns the column's bounding band (half the pitch either side). */
+  [[nodiscard]] SkRect rect() const {
+    return SkRect::MakeLTRB(axis - pitch * 0.5f, top, axis + pitch * 0.5f,
+                            bottom);
+  }
+};
+
 /** Positioned output of one paragraph layout pass. */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
@@ -201,6 +224,11 @@ struct ParagraphLayout {
   /// The tangent snapping the placement used, carried so a re-placement can
   /// match it (see LineInterval::placeAt).
   int tangentRotationSteps = 0;
+  /// The pitch every line was queried at — the resolved line height, which
+  /// is a vertical flow's COLUMN WIDTH. Carried because the flow's band is
+  /// not recoverable from an interval: a LineInterval states where the pen
+  /// travels, never how wide the band around it is.
+  float linePitch = 0;
   int lineCount = 0;  ///< lines actually produced
   /// First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
@@ -269,6 +297,19 @@ struct ParagraphLayout {
    * nothing do not appear.
    */
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
+      const Paragraph& paragraph) const;
+
+  /** Returns per-COLUMN geometry for a vertical layout, ascending by column
+   * index — what lineMetrics() is for a horizontal one, and the only one of
+   * the two that answers in a vertical paragraph.
+   *
+   * Derived, not stored: one pass over `runs`, with each run's extent down
+   * the column taken from the pen it was placed at. Every vertical form
+   * counts — upright, rotated and tate-chu-yoko alike — because all three
+   * consume column pitch. Columns that placed nothing do not appear, and a
+   * horizontal layout returns an empty list.
+   */
+  [[nodiscard]] std::vector<ColumnMetrics> columnMetrics(
       const Paragraph& paragraph) const;
 };
 

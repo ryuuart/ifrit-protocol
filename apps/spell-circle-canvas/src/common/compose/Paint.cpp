@@ -1324,7 +1324,21 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
                      ? metricMat->resolve(metricCtx)
                      : metricMat->toFill();
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.lines.empty()) {
+  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
+    // A VERTICAL passage has no cap band to hang the ramp on: a column's
+    // glyphs centre across its axis rather than standing on a baseline. The
+    // unit square maps onto the COLUMN BLOCK instead — x across the columns,
+    // y down them — so a ramp authored in [0,1]² still crosses the type,
+    // reading down the page rather than across it.
+    SkRect block = SkRect::MakeEmpty();
+    for (const sigil::weave::ColumnMetrics& column : inst.columns)
+      block.join(column.rect());
+    SkMatrix map = SkMatrix::Translate(block.left(), block.top());
+    map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
+    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    havePaint = true;
+  } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
+             !inst.lines.empty()) {
     const sigil::weave::ShapedWord* firstFont = nullptr;
     sigil::weave::forEachPlacedGlyph(
         inst.textLayout, *inst.paragraph,
@@ -1510,13 +1524,60 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   struct RestPose {
     SkPoint centre{0, 0};
     float cosine = 1, sine = 0;
+    /// Glyph-local vector from the draw origin to `centre`. The horizontal
+    /// convention, (halfAdvance, 0), is null here.
+    std::optional<SkVector> centreOffset;
   };
   const auto restPoseOf = [&](const sigil::weave::PlacedGlyph& placed,
                               RestPose& pose) {
     if (!ridesPath) {
-      pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
       pose.cosine = 1.0f;
       pose.sine = 0.0f;
+      pose.centreOffset.reset();
+      // A ROTATED run — Latin lying on its side in a CJK column — is placed
+      // per glyph off its interval exactly as a path run is, and deviates
+      // in the frame the interval turned it to.
+      if (placed.transformed) {
+        const sigil::weave::LineInterval* interval =
+            placed.intervalIndex >= 0 &&
+                    (size_t)placed.intervalIndex < layout.intervals.size()
+                ? &layout.intervals[(size_t)placed.intervalIndex]
+                : nullptr;
+        if (!interval) return false;
+        SkVector tangent;
+        if (!interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
+                               &pose.centre, &tangent))
+          return false;
+        const float magnitude = std::hypot(tangent.x(), tangent.y());
+        if (magnitude <= 1e-6f) return false;
+        pose.cosine = tangent.x() / magnitude;
+        pose.sine = tangent.y() / magnitude;
+        return true;
+      }
+      // An UPRIGHT run stands level in a column that runs down the page: its
+      // advance is vertical while the glyph is still drawn from a horizontal
+      // origin, so the pose centre is the point on the COLUMN AXIS the pen
+      // reached, and the back-out to the draw origin is whatever vector
+      // separates the two.
+      if (placed.shaped && placed.shaped->vertical) {
+        const sigil::weave::LineInterval* interval =
+            placed.intervalIndex >= 0 &&
+                    (size_t)placed.intervalIndex < layout.intervals.size()
+                ? &layout.intervals[(size_t)placed.intervalIndex]
+                : nullptr;
+        if (interval) {
+          SkVector tangent;
+          if (interval->placeAt(placed.pen, 0.0f, 0, &pose.centre, &tangent)) {
+            pose.centreOffset = SkVector{pose.centre.x() - placed.rest.x(),
+                                         pose.centre.y() - placed.rest.y()};
+            return true;
+          }
+        }
+      }
+      // Horizontal flow, and 縦中横 — a horizontally shaped run set upright
+      // across the column, whose advance runs across the page like any
+      // other horizontal run's.
+      pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
       return true;
     }
     if (placed.intervalIndex < 0 ||
@@ -1636,6 +1697,12 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
           }
         }
         const float halfAdvance = placed.advance * 0.5f;
+        // The glyph-local back-out from the pose centre to the draw origin.
+        // Horizontal type and tate-chu-yoko take the (halfAdvance, 0) the
+        // RSXform convention assumes; an upright glyph in a column does not,
+        // because half of ITS advance is a step down the page.
+        const SkVector local =
+            pose.centreOffset.value_or(SkVector{halfAdvance, 0});
         // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
         // baseline that is the canvas frame and this is the identity, so a
         // plain run is untouched; on a curve it is what makes `fx::rise`
@@ -1655,6 +1722,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
         dress.colorMul = tint;
+        if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (mod.axis && placed.shaped)
           dress.face =
               drivenFace(fonts, placed.shaped->typeface, *mod.axis, continuous);
@@ -1678,7 +1746,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
           matrix.preScale(mod.scale * mod.scaleX, mod.scale * mod.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it
           // does inside an RSXform.
-          matrix.preTranslate(-halfAdvance, 0);
+          matrix.preTranslate(-local.x(), -local.y());
           dress.matrix = &matrix;
         } else {
           dress.center = centre;
@@ -2448,12 +2516,21 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // lines place within the flow width, so a measure-time constraint
           // that differs from the resolved box would push them off target.
           const bool onPathRun = node.textData && node.textData->onPath;
+          // Vertical columns hang off the RIGHT edge of the measure, so the
+          // resolved width decides WHERE the first column stands and not
+          // only where the text wraps — the same reason aligned text is
+          // re-laid here, one axis over.
+          const bool verticalRun =
+              inst.paragraph && inst.paragraph->writingMode() !=
+                                    sigil::weave::WritingMode::kHorizontal;
           if (inst.measuredRev != inst.contentRev ||
               (!onPathRun && node.textData &&
-               node.textData->alignment() !=
-                   sigil::weave::TextAlignment::kStart &&
-               inst.measuredForWidth != bounds.width()))
-            layoutText(inst, bounds.width());
+               (verticalRun || node.textData->alignment() !=
+                                   sigil::weave::TextAlignment::kStart) &&
+               (inst.measuredForWidth != bounds.width() ||
+                (verticalRun && inst.measuredForHeight != bounds.height()))))
+            layoutText(inst, bounds.width(),
+                       verticalRun ? bounds.height() : 1.0e6f);
           // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
           if (!echoesOf(node).empty() && !hasTextFx(node)) {

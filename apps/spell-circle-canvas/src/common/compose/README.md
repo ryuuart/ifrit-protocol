@@ -470,6 +470,80 @@ the whole options value. **On that overload the setters override FIELD BY
 FIELD**, and only the fields actually set: everything a setter did not name
 keeps the value that was passed in.
 
+### Vertical CJK
+
+`Element::writingMode` sets the passage running down the page.
+`sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
+top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
+It is a field-masked override like every other layout setter, so it works on
+plain text, on `rich()` spans, and on the paragraph overload — where a mode
+nobody names leaves the paragraph's own mode standing.
+
+```cpp
+text(rich(mincho)
+         .add(u8"平成")
+         .add(u8"31", tateChuYoko)
+         .add(u8"年、縦組みに対応した。"))
+    .width(260).height(300)
+    .writingMode(sigil::weave::WritingMode::kVerticalRL)
+    .fx({.effect = fx::rise(24), .stagger = stagger(unit::Cluster)});
+```
+
+**BOTH AXES ARE MEASURES.** A horizontal passage reads its width as the
+measure and grows down; a vertical one reads its HEIGHT as how far a column
+runs before the next one starts, and grows LEFT. So a vertical leaf's
+intrinsic size swaps: one column of type measures tall and one column pitch
+wide, and giving the node no height gives it one endless column. It has no
+baseline — the reading axis is y and a column's glyphs centre themselves
+across the axis rather than standing on one — so `Align::Baseline` gets its
+first character's own baseline, which lines a column's opening character up
+with a horizontal neighbour's first line.
+
+**Per character the orientation is UTR#50's**: ideographs stand upright and
+take their `vert` forms, Latin lies on its side. A run that wants otherwise
+says so in its own style — `sigil::weave::VerticalForm` is `kAuto`,
+`kUpright`, `kRotated` or `kTateChuYoko` — set on a `rich()` run's
+`sigil::weave::TextStyle` or through `spanStyle`. It is a SHAPING field, so
+it re-shapes the words it covers and nothing else; there is no separate verb
+because there is no separate concept. 縦中横 is the one to know: a short run
+shaped horizontally and set upright across the column, which is how two-digit
+numbers read in vertical prose.
+
+**The engine runs in columns.** `unit::Line` IS A COLUMN here, so a
+`stagger(unit::Line)` beats column by column and `sel::line(0)` addresses
+the rightmost one; `unit::Cluster` runs down a column in reading order.
+`spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
+`maxLines` (which clamps COLUMNS), `lastLine`, `lineBreak`, `textStroke`,
+`variationDrive` and `feed()`'s text tier all work as they do across a line.
+`Element::textFill` maps its unit square onto the COLUMN BLOCK rather than
+onto a cap band — a column's glyphs centre across its axis instead of
+standing on a baseline, so there is no cap band to hang a ramp on — which
+means a gradient authored in [0,1]² crosses the type reading DOWN the page.
+
+**Track deviations apply in the frame the layout placed the glyph in**, the
+same rule a path baseline follows — and in a column the placed frame is the
+glyph's own vertical pose. An UPRIGHT glyph is not turned, so its frame is
+the canvas frame: `fx::rise` lifts it up the page. A ROTATED one is turned
+to the column, so its frame is turned with it and a rise lifts it off its own
+baseline, across the column. A glyph's pivot moves too: an upright glyph
+turns and scales about the point on the COLUMN AXIS its pen reached, not
+about a point half a column pitch to its right.
+
+**What does not follow the type down the page.** `onPath` ignores
+`writingMode` entirely — a path run's baseline is its own geometry and has
+no columns to advance — and setting both warns once and keeps the path.
+`flowAround` exclusions are cut out of horizontal line bands and have no
+column spelling: they warn once and the columns run clean. An `ellipsis`
+marker needs a straight horizontal final line to land on, so a clamped
+vertical passage reports its overflow without drawing one. Underlines and
+strikethroughs skip vertical runs for the same reason.
+
+**Ruby and kenten are not library features**, deliberately. Each is a few
+lines over the placed runs of a finished layout — read
+`Composer::paragraphLayout` and draw beside what it reports — and the shapes
+that annotation takes differ enough per passage that a verb would fit none of
+them. The SigilWeave gallery's vertical scene shows both.
+
 ---
 
 ## The header map

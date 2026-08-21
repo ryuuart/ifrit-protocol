@@ -284,6 +284,15 @@ struct GlyphDress {
   /// clone for a glyph whose effect drives a variable-font axis. It is part
   /// of the bucket key, so two faces are two buckets.
   sk_sp<SkTypeface> face;
+  /// Non-null: the glyph-local vector from the glyph's DRAW ORIGIN to the
+  /// pose centre `center` names — the point the rotation and the scale turn
+  /// about. Null keeps the horizontal convention, (halfAdvance, 0).
+  ///
+  /// A vertical column needs it: an upright glyph's advance runs down the
+  /// page while the glyph itself is drawn from a horizontal origin, so half
+  /// its advance to the RIGHT is half a column pitch away from anything the
+  /// eye would call its centre. Borrowed for the duration of the call.
+  const SkVector* centreOffset = nullptr;
   /// Non-null: draw this glyph under this MATRIX instead of an RSXform,
   /// which is the only way to place a shear or a non-uniform scale. It
   /// carries the whole placement — centre, rotation and scale included — so
@@ -406,9 +415,12 @@ struct GlyphRSXformBatches {
     const float alpha = dress.alphaScale * dress.colorMul.fA;
     const bool tinted = dress.colorMul.fR != 1.0f ||
                         dress.colorMul.fG != 1.0f || dress.colorMul.fB != 1.0f;
-    const SkRSXform transform = {dress.cosine, dress.sine,
-                                 dress.center.x() - dress.cosine * halfAdvance,
-                                 dress.center.y() - dress.sine * halfAdvance};
+    const SkVector local =
+        dress.centreOffset ? *dress.centreOffset : SkVector{halfAdvance, 0};
+    const SkRSXform transform = {
+        dress.cosine, dress.sine,
+        dress.center.x() - (dress.cosine * local.x() - dress.sine * local.y()),
+        dress.center.y() - (dress.sine * local.x() + dress.cosine * local.y())};
     auto place = [&](Batch& batch) {
       if (dress.matrix) {
         batch.matrixGlyphs.push_back(glyph);

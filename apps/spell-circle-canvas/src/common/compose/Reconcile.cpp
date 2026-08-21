@@ -204,7 +204,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 13 && kFieldCount<TextOptions> == 8 &&
+static_assert(kFieldCount<TextData> == 13 && kFieldCount<TextOptions> == 9 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -791,6 +791,7 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
     if (kindChanged) {
       inst.paragraph.reset();
       inst.lines.clear();
+      inst.columns.clear();
       if (inst.yoga) YGNodeSetMeasureFunc(inst.yoga, nullptr);
     }
 
@@ -1017,7 +1018,8 @@ void Composer::Impl::patchChildren(Instance& inst,
 }
 
 void Composer::Impl::materializeText(
-    Instance& inst, std::span<const sigil::weave::LineMetrics> lines) {
+    Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
+    std::span<const sigil::weave::ColumnMetrics> columns) {
   const TextData& text = *inst.desc->textData;
   inst.paragraph.emplace();
   // Cleared for every content form, so the names a node answers for are
@@ -1045,14 +1047,25 @@ void Composer::Impl::materializeText(
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
+  // The writing mode is the Paragraph's, not the layout options', so the
+  // field-masked override lands here: a mode nobody set leaves a passed-in
+  // paragraph's own mode standing. A path run has no columns to advance —
+  // its baseline IS the geometry — so the path wins and says so.
+  if (text.options.set & TextOptions::kWritingMode)
+    inst.paragraph->setWritingMode(text.options.writingMode);
+  if (text.onPath &&
+      inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
+    warnWritingModeOnPath();
+    inst.paragraph->setWritingMode(sigil::weave::WritingMode::kHorizontal);
+  }
 
   // The restyles run in DECLARATION ORDER over the finished paragraph, so a
   // later one simply overwrites the spans an earlier one wrote wherever the
   // two overlap — which is the "later wins" rule, spelled as span surgery
   // rather than as a merge nobody could predict.
   for (const SpanRestyle& restyle : text.spanRestyles) {
-    const std::vector<sigil::weave::CharRange> ranges =
-        resolveTextRanges(restyle.where, *inst.paragraph, fonts, lines);
+    const std::vector<sigil::weave::CharRange> ranges = resolveTextRanges(
+        restyle.where, *inst.paragraph, fonts, lines, columns);
     if (ranges.empty()) continue;
     if (restyle.paintOnly) {
       // The batch form: N ranges cost one span-list rebuild, and shaping

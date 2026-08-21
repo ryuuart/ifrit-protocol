@@ -588,6 +588,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   // the interval list it indexes.
   const auto recordGeometry = [&](ParagraphLayout& layout) {
     layout.tangentRotationSteps = options.pathText.tangentRotationSteps;
+    layout.linePitch = lineHeight;
     layout.intervals.reserve(intervalSequence.flattened().size());
     for (const FlatInterval& flat : intervalSequence.flattened())
       layout.intervals.push_back(flat.interval);
@@ -1074,6 +1075,87 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
               return left.lineIndex < right.lineIndex;
             });
   return lines;
+}
+
+std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
+    const Paragraph& paragraph) const {
+  std::vector<ColumnMetrics> columns;
+  // Memoized per font change, exactly as lineMetrics does it: a tate-chu-yoko
+  // run is the only form whose column extent is a font metric rather than an
+  // advance, and one column rarely holds more than a couple.
+  const SkTypeface* lastTypeface = nullptr;
+  float lastFontSize = 0;
+  SkFontMetrics fontMetrics{};
+
+  for (const PositionedRun& run : runs) {
+    if (run.intervalIndex < 0 ||
+        static_cast<size_t>(run.intervalIndex) >= intervals.size())
+      continue;
+    const LineInterval& interval =
+        intervals[static_cast<size_t>(run.intervalIndex)];
+    // A column is a straight interval whose pen travels straight down. Any
+    // other geometry belongs to lineMetrics or to nothing.
+    if (interval.contour || interval.direction.x() != 0 ||
+        interval.direction.y() != 1)
+      continue;
+
+    float top = interval.origin.y() + run.penOffset;
+    float bottom = top;
+    if (run.shaped) {
+      if (run.shaped->vertical || run.transformed) {
+        // Upright and rotated runs both advance ALONG the column, so the
+        // pen extent is the extent.
+        bottom = top + run.shaped->advance;
+      } else {
+        // 縦中横: the run is shaped horizontally and set upright across the
+        // column, and its pen offset lands on its BASELINE, so the column
+        // extent is the run's font height around that baseline.
+        if (run.shaped->typeface.get() != lastTypeface ||
+            run.shaped->fontSize != lastFontSize) {
+          lastTypeface = run.shaped->typeface.get();
+          lastFontSize = run.shaped->fontSize;
+          makeFont(run.shaped->typeface, run.shaped->fontSize)
+              .getMetrics(&fontMetrics);
+        }
+        top += fontMetrics.fAscent;  // negative: above the baseline
+        bottom += fontMetrics.fDescent;
+      }
+    } else if (run.placeholderIndex >= 0) {
+      bottom =
+          top +
+          paragraph.placeholders()[static_cast<size_t>(run.placeholderIndex)]
+              .width;
+    } else {
+      continue;
+    }
+
+    ColumnMetrics* column = nullptr;
+    if (!columns.empty() && columns.back().lineIndex == run.lineIndex) {
+      column = &columns.back();
+    } else {
+      for (ColumnMetrics& candidate : columns)
+        if (candidate.lineIndex == run.lineIndex) {
+          column = &candidate;
+          break;
+        }
+    }
+    const Word& word = paragraph.words()[run.wordIndex];
+    if (!column) {
+      columns.push_back({run.lineIndex, interval.origin.x(), linePitch, top,
+                         bottom, word.textBegin, word.whitespaceEnd});
+      continue;
+    }
+    column->top = std::min(column->top, top);
+    column->bottom = std::max(column->bottom, bottom);
+    column->textBegin = std::min(column->textBegin, word.textBegin);
+    column->textEnd = std::max(column->textEnd, word.whitespaceEnd);
+  }
+
+  std::sort(columns.begin(), columns.end(),
+            [](const ColumnMetrics& left, const ColumnMetrics& right) {
+              return left.lineIndex < right.lineIndex;
+            });
+  return columns;
 }
 
 std::vector<ParagraphLayout::PlacedPlaceholder>

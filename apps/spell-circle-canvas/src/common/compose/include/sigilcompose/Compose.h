@@ -3042,6 +3042,28 @@ class Element {
    *  intrinsic-width text has nothing to align within. */
   Element& textAlign(sigil::weave::TextAlignment a);
 
+  /** Text leaves only: lay this passage out in VERTICAL-RL CJK columns
+   *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal
+   *  lines. Characters run top to bottom, columns advance RIGHT TO LEFT
+   *  from the node's right edge, and the node's width is the measure the
+   *  columns wrap within.
+   *
+   *  Per character the mode is UTR#50's: ideographs stand upright and take
+   *  their `vert` forms, Latin lies on its side. A run that wants
+   *  otherwise says so in its own style — `TextStyle::shaping.verticalForm`
+   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `rich()` run or
+   *  through `spanStyle`.
+   *
+   *  A vertical leaf MEASURES ON THE OTHER AXIS: its main extent is its
+   *  HEIGHT, and its intrinsic width is one column pitch per column. It has
+   *  no baseline — the reading axis is y — so for `Align::Baseline` it
+   *  reports its first character's baseline, which lines a column's opening
+   *  character up with a horizontal neighbour's first line.
+   *
+   *  `onPath` IGNORES IT: a path run's baseline is its own geometry and has
+   *  no columns to advance. Setting both warns once and the path wins. */
+  Element& writingMode(sigil::weave::WritingMode mode);
+
   // ---- span restyling: the type treatment, addressed by selector -------
   //
   // The same `sel::` vocabulary the fx() tracks address glyphs with, used
