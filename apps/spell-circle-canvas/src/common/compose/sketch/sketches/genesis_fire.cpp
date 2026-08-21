@@ -129,10 +129,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1381,12 +1381,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // =========================================================================
 
   Element header() {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(22);
-    fx.stagger = {.eachMs = 26, .durationMs = 460};
-    fx.progress =
-        animate(from(0.0f).to(1.0f),
-                {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms});
+    Track rise{.effect = fx::rise(22),
+               .stagger = {.eachMs = 26, .durationMs = 460},
+               .progress = animate(
+                   from(0.0f).to(1.0f),
+                   {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms})};
     return box()
         .column()
         .height(102)
@@ -1399,7 +1398,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
         .child(t("THE GENESIS DEMO, 1982", type(heavyFace(), 46, kBone, -0.4f))
                    .key("title")
-                   .glyphFx(std::move(fx)))
+                   .fx(std::move(rise)))
         .child(t("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
                  "Systems: A Technique for Modeling a Class of Fuzzy "
                  "Objects\", SIGGRAPH '83 / ACM TOG 2(2) \xc2\xb7 sequence "

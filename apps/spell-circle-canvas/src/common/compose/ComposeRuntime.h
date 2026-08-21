@@ -64,9 +64,10 @@ struct Instance {
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
-  // count is a property of the KERNEL. Mask gates are deliberately not here:
-  // how many a node has is a property of its description, so they live in the
-  // maskAnims vector instead.
+  // count is a property of the KERNEL. Mask gates and fx() tracks are
+  // deliberately not here: how many a node has is a property of its
+  // description, so they live in the maskAnims and trackAnims vectors
+  // instead.
   //
   // ADDING A SLOT HERE IS A BUILD FAILURE until it also gets a row in
   // kSlotSpecs below, the one table every consumer of this enum walks.
@@ -77,7 +78,6 @@ struct Instance {
     kRotate,
     kScale,
     kFillLerp,
-    kGlyphProgress,
     kSkewX,
     kSkewY,
     kScaleX,
@@ -116,6 +116,26 @@ struct Instance {
   // mask list drops the running motions rather than carrying them onto
   // numbers that now mean something else.
   std::vector<std::unique_ptr<AnimatedFloat>> maskAnims;
+  // Animated fx() TRACK progresses, one per track in declaration order.
+  //
+  // Positional and separately indexed for the same reason mask gates are:
+  // three tracks on one text node may run at three rates, and a shared slot
+  // would make the third retarget the first. A description that changes the
+  // NUMBER of tracks drops the running motions rather than carrying them
+  // onto a progress that now drives a different effect.
+  std::vector<std::unique_ptr<AnimatedFloat>> trackAnims;
+
+  // ---- fx() selection, resolved once per (content, layout, selector) -------
+  //
+  // A selector answers one byte per glyph, and answering it can mean an ICU
+  // regular expression over the whole paragraph. That is a per-EDIT cost,
+  // not a per-frame one: the masks below are rebuilt when the text changes,
+  // when the layout reflows (a line selector moves with the break), or when
+  // the description's selectors themselves change.
+  std::vector<Selector> selectionKeys;
+  std::vector<std::vector<uint8_t>> selectionMasks;
+  uint32_t selectionRev = ~0u;
+  float selectionWidth = -1.0f;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -197,7 +217,9 @@ struct Instance {
    *  set of floats to compare. A node animated only by a per-pass span falls
    *  back to per-frame content volatility and does not cache. */
   struct ContentScalars {
-    float glyph = 1.0f;
+    /** Every fx() track's master progress, resolved, in the order
+     *  trackAnims indexes them. Empty on text carrying no tracks. */
+    std::vector<float> tracks;
     /** Every mask gate's animated floats, resolved, in the order
      *  maskAnims indexes them. */
     std::vector<float> gates;
@@ -410,6 +432,11 @@ struct Instance {
    *  the recording was BAKED with. Empty when the node carries no mask, or
    *  only shape/alpha gates, which have no numbers. */
   std::vector<float> resolveGateValues() const;
+  /** The same resolution over the fx() TRACKS: every track's master
+   *  progress this frame, in the order trackAnims indexes them (and
+   *  ContentScalars::tracks stores them). Empty when the node carries no
+   *  tracks. */
+  std::vector<float> resolveTrackValues() const;
   /** `resolveGateValues`'s sibling for the fill lane: the value a bound
    *  `fill(&output)` resolves to this frame — `binding()->value()`, exactly
    *  the read paint() bakes into the recording — or a default (None) Fill
@@ -556,12 +583,6 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kFillLerp, SlotRole::Bespoke, nullptr, 0.0f,
      "a progress scalar over paint.fill's Transitioned<Fill> — there is no "
      "Animatable<float> in the description to point at"},
-    {Instance::kGlyphProgress, SlotRole::Content,
-     [](const ElementNode& n) -> const Animatable<float>* {
-       return n.textData && n.textData->glyphFx ? &n.textData->glyphFx->progress
-                                                : nullptr;
-     },
-     1.0f, nullptr},
     {Instance::kSkewX, SlotRole::Geometric,
      [](const ElementNode& n) { return &n.paint.skewX; }, 0.0f, nullptr},
     {Instance::kSkewY, SlotRole::Geometric,
@@ -990,8 +1011,14 @@ struct Composer::Impl {
   void paint(detail::Instance& inst, SkCanvas& canvas);
   void paintTextOnPath(detail::Instance& inst, SkCanvas& canvas,
                        const TextPath& spec, SkSize size);
-  void paintKineticText(detail::Instance& inst, SkCanvas& canvas,
-                        const GlyphFx& fx);
+  void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
+                   const sigil::weave::PaintStyle* override);
+  /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
+   *  when the node asks for neither. ONE body, called by the resting draw
+   *  and by the fx() draw — a letter in flight is painted exactly as a
+   *  resting one is. */
+  std::optional<sigil::weave::PaintStyle> metricTextStyle(
+      detail::Instance& inst, const PaintContext& paintCtx);
   /** Which half of a node's paint to emit.
    *
    *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —

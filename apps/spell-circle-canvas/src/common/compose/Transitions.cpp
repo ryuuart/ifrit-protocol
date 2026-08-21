@@ -154,6 +154,20 @@ std::vector<const Animatable<float>*> gateEndpoints(const ElementNode& node) {
   return out;
 }
 
+/** Every fx() TRACK's master progress, in declaration order — the order
+ *  Instance::trackAnims is indexed by.
+ *
+ *  SEPARATE PER TRACK, which is the point: a rise and a loop on one text
+ *  node run at their own rates, so `animate(to(1))` on the second retargets
+ *  the second and leaves the first alone. */
+std::vector<const Animatable<float>*> trackEndpoints(const ElementNode& node) {
+  std::vector<const Animatable<float>*> out;
+  if (!node.textData) return out;
+  out.reserve(node.textData->tracks.size());
+  for (const Track& t : node.textData->tracks) out.push_back(&t.progress);
+  return out;
+}
+
 }  // namespace
 
 /** Mount entrances: an animate(from(a).to(b)) value plays `from → value` when
@@ -230,6 +244,14 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
     inst.maskAnims.resize(gates.size());
     for (size_t i = 0; i < gates.size(); ++i)
       entranceAt(inst.maskAnims[i], *gates[i]);
+  }
+  // fx() tracks: `.fx({.progress = animate(...)})` is a mount entrance like
+  // any other, and each track owns its slot.
+  {
+    const std::vector<const Animatable<float>*> tracks = trackEndpoints(node);
+    inst.trackAnims.resize(tracks.size());
+    for (size_t i = 0; i < tracks.size(); ++i)
+      entranceAt(inst.trackAnims[i], *tracks[i]);
   }
 
   // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
@@ -321,6 +343,29 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       for (size_t i = 0; i < nextGates.size(); ++i)
         transitionFloatAt(*this, inst, inst.maskAnims[i], *prevGates[i],
                           *nextGates[i], nd);
+    }
+  }
+
+  // fx() tracks, by the same positional rule. An element that writes the
+  // same NUMBER of tracks in both branches of an if/else keeps stable slot
+  // indices, so `animate(to(1))` on the second track ramps from wherever
+  // that track's progress is now. Add or remove a track and the shape
+  // changed — the motions drop rather than carrying onto a progress that
+  // now drives a different effect.
+  {
+    const std::vector<const Animatable<float>*> prevTracks =
+        trackEndpoints(prev);
+    const std::vector<const Animatable<float>*> nextTracks =
+        trackEndpoints(next);
+    if (prevTracks.size() != nextTracks.size()) {
+      inst.trackAnims.clear();
+      inst.trackAnims.resize(nextTracks.size());
+    } else {
+      if (inst.trackAnims.size() != nextTracks.size())
+        inst.trackAnims.resize(nextTracks.size());
+      for (size_t i = 0; i < nextTracks.size(); ++i)
+        transitionFloatAt(*this, inst, inst.trackAnims[i], *prevTracks[i],
+                          *nextTracks[i], nd);
     }
   }
 

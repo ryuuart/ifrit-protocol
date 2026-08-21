@@ -1035,8 +1035,8 @@ Element custom(std::string_view key, PaintProgram program) {
   return e;
 }
 
-Element& Element::glyphFx(GlyphFx fx) {
-  m_node->textData.ensure().glyphFx = std::move(fx);
+Element& Element::fx(Track track) {
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
 

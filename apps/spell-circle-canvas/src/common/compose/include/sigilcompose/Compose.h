@@ -489,20 +489,109 @@ class Effect {
 };
 
 // ---------------------------------------------------------------------------
-// Kinetic typography (the per-glyph seam; presets in <sigilcompose/Kinetic.h>)
+// TEXT FX — the multi-track per-glyph seam (presets in
+// <sigilcompose/TextFx.h>)
+//
+// A text() element carries an ordered list of TRACKS. One track is
+// (selector, effect, stagger, progress): WHICH glyphs it addresses, WHAT
+// deviation from rest it asks of them, HOW their start times spread, and
+// the master 0→1 that drives the whole thing. Several tracks on one
+// element compose per glyph — offsets and rotations ADD, scale and alpha
+// MULTIPLY — so a rise, a per-word wobble and a colour-independent fade
+// are three independent values rather than one hand-merged lambda.
+//
+// Everything on the seam is a COMPARABLE VALUE. That is not decoration:
+// the reconciler prunes a re-described element only when it can prove the
+// description is the same one, and a `std::function` cannot be compared.
+// A preset carries its name and its parameters; an ad-hoc lambda carries
+// the key its author gave it.
 
-/** What a glyph effect sees for one glyph. Enumeration order is stable
- *  across relayouts while the text is unchanged (SigilWeave contract). */
+/** The granularity a selector slices and a stagger beats over.
+ *
+ *  `Cluster` is the default and the one that keeps text correct: a base
+ *  letter and its combining marks, or the several glyphs an emoji
+ *  sequence shapes to, are ONE cluster and move together. `Glyph` is the
+ *  raw shaping unit and will separate those marks from what they sit on. */
+enum class Unit : uint8_t { Glyph, Cluster, Word, Line, Sentence };
+
+/** The granularity names, spelled the way tracks read: `unit::Word`. */
+namespace unit {
+inline constexpr Unit Glyph = Unit::Glyph;
+inline constexpr Unit Cluster = Unit::Cluster;
+inline constexpr Unit Word = Unit::Word;
+inline constexpr Unit Line = Unit::Line;
+inline constexpr Unit Sentence = Unit::Sentence;
+}  // namespace unit
+
+/** A deterministic generator, handed to every effect.
+ *
+ *  Seeded from the GLYPH's identity, so the same letter of the same text
+ *  draws the same random numbers on every frame and across every
+ *  relayout — a scatter that is stable is a scatter that can be cached,
+ *  and one reseeded per frame would jitter forever and never settle.
+ *  Reseeded fresh for each glyph, so an effect may draw as many values as
+ *  it likes without the sequence depending on how many its neighbours
+ *  drew.
+ *
+ *  Not a cryptographic generator and not a substitute for one. */
+class Rng {
+ public:
+  explicit Rng(uint64_t seed) : m_state(seed) {}
+  /** The next 32 bits (SplitMix64's finalizer over a 64-bit counter). */
+  uint32_t bits() {
+    m_state += 0x9e3779b97f4a7c15ull;
+    uint64_t z = m_state;
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+    z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+    return (uint32_t)((z ^ (z >> 31)) >> 32);
+  }
+  /** The next value in [0, 1). */
+  float unit() { return (float)(bits() >> 8) * (1.0f / 16777216.0f); }
+  /** The next value in [-1, 1). */
+  float signedUnit() { return unit() * 2.0f - 1.0f; }
+  /** The next value in [lo, hi). */
+  float range(float lo, float hi) { return lo + unit() * (hi - lo); }
+
+ private:
+  uint64_t m_state;
+};
+
+/** What an effect sees for one glyph.
+ *
+ *  Enumeration order is stable across relayouts while the text is
+ *  unchanged, and every index here is a fact about the glyph's place in
+ *  THIS layout of THIS text — which is what lets an effect address "the
+ *  third letter of its word" or "everything on line two" without the
+ *  author counting glyphs by hand. */
 struct GlyphInfo {
   size_t index = 0;    ///< glyph position in the paragraph
   size_t count = 1;    ///< total glyphs
   SkPoint rest;        ///< the glyph's laid-out origin (pen position)
   float advance = 0;   ///< the glyph's advance width
   float fontSize = 0;  ///< the glyph's font size (em-relative effects)
+
+  uint32_t glyphInWord = 0;     ///< index of this glyph within its word
+  uint32_t wordGlyphCount = 1;  ///< glyphs in that word
+  uint32_t cluster = 0;         ///< UTF-16 cluster offset inside its run;
+                                ///< a base and its marks share one value
+  uint32_t textIndex = 0;       ///< that cluster as an offset into the text
+  uint32_t wordIndex = 0;       ///< index of its word in the paragraph
+  uint32_t lineIndex = 0;       ///< the flow line it landed on
+  uint32_t styleIndex = 0;      ///< index of its style span
+  uint32_t sentenceIndex = 0;   ///< 0-based sentence
+  /** Which beat of the track's own stagger this glyph belongs to, and how
+   *  many beats there are — the unit numbering the track resolved, not a
+   *  paragraph-wide count. A per-word track sees word ordinals here. */
+  uint32_t unitIndex = 0;
+  uint32_t unitCount = 1;
 };
 
 /** One glyph's deviation from rest — what an effect returns for local
- *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely. */
+ *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely.
+ *
+ *  This is the type the composition algebra operates on: stacked tracks,
+ *  `fx::mix` and a `fx::seq` crossfade all combine GlyphMods the same
+ *  way — dx/dy and rotateDeg ADD, scale and alpha MULTIPLY. */
 struct GlyphMod {
   float dx = 0, dy = 0;
   float scale = 1;
@@ -510,23 +599,264 @@ struct GlyphMod {
   float alpha = 1;
 };
 
-/** A pure value: (glyph, local progress) → deviation. Compose freely. */
-using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo&, float)>;
+/** The raw callable behind an effect: (glyph, local progress, rng) →
+ *  deviation. Wrap one in a named `TextEffect` — the seam never holds a
+ *  bare function, because a bare function cannot be compared. */
+using GlyphModFn = std::function<GlyphMod(const GlyphInfo&, float, Rng&)>;
 
-/** The per-glyph time remap (the GSAP stagger model): the element's master
- *  progress [0,1] spans `durationMs + eachMs·(N−1)` of virtual time; glyph i
- *  starts after its delay and runs for durationMs. */
+/** THE EFFECT, as a comparable value: a name, its parameters, and any
+ *  operand effects it was built from.
+ *
+ *  Two effects are equal when they carry the same name, the same
+ *  parameters and equal operands — so `fx::rise(26) == fx::rise(26)`,
+ *  `fx::rise(26) != fx::rise(30)`, and a `fx::seq` of equal phases equals
+ *  another built the same way. That equality is what lets a re-described
+ *  element with unchanged tracks PRUNE instead of re-recording every
+ *  frame.
+ *
+ *  The name is a promise about the body: equal values must produce
+ *  identical deviations for identical inputs. Two different lambdas given
+ *  one key compare equal and one of them will silently never be used. */
+class TextEffect {
+ public:
+  TextEffect() = default;
+  /** A named effect over parameters. `reach` is how far, in pixels, this
+   *  effect may push a glyph outside the element's box — the number the
+   *  recording cull grows by, so a wide scatter is not truncated. */
+  TextEffect(std::string name, std::vector<float> params, GlyphModFn fn,
+             float reach);
+
+  /** Evaluates the deviation. An empty effect answers the identity. */
+  GlyphMod operator()(const GlyphInfo& g, float t, Rng& rng) const {
+    return m_state && m_state->fn ? m_state->fn(g, t, rng) : GlyphMod{};
+  }
+  explicit operator bool() const { return m_state && (bool)m_state->fn; }
+  /** Pixels beyond the element's box this effect may paint. */
+  [[nodiscard]] float reach() const { return m_state ? m_state->reach : 0.0f; }
+  [[nodiscard]] const std::string& name() const;
+  [[nodiscard]] std::span<const float> params() const;
+  [[nodiscard]] std::span<const TextEffect> operands() const;
+
+  bool operator==(const TextEffect& other) const;
+
+  /** A phase of `fx::seq` ending at local `t` — `a.until(0.35f)`. */
+  [[nodiscard]] class Phase until(float t) const;
+
+  /** Builds a composite (`fx::seq`, `fx::mix`) — the operands ride the
+   *  value so the result compares by structure. */
+  static TextEffect composite(std::string name, std::vector<float> params,
+                              std::vector<TextEffect> operands, GlyphModFn fn,
+                              float reach);
+
+ private:
+  struct State {
+    std::string name;
+    std::vector<float> params;
+    std::vector<TextEffect> operands;
+    GlyphModFn fn;
+    float reach = 0;
+  };
+  std::shared_ptr<const State> m_state;
+};
+
+/** One phase of a `fx::seq`: an effect, where it ends in local time, and
+ *  how long it crossfades into whatever follows. */
+class Phase {
+ public:
+  Phase(TextEffect e)  // NOLINT: implicit by design (seq(a.until(…), b))
+      : m_effect(std::move(e)) {}
+  Phase(TextEffect e, float endsAt)
+      : m_effect(std::move(e)), m_endsAt(endsAt) {}
+  /** Lerp this phase's deviation into the next one's over the last
+   *  `fraction` of local time before the joint. Default is a hard cut. */
+  Phase& xfade(float fraction) {
+    m_overlap = fraction;
+    return *this;
+  }
+  [[nodiscard]] const TextEffect& effect() const { return m_effect; }
+  [[nodiscard]] float endsAt() const { return m_endsAt; }
+  [[nodiscard]] float overlap() const { return m_overlap; }
+  bool operator==(const Phase&) const = default;
+
+ private:
+  TextEffect m_effect;
+  float m_endsAt = 1.0f;
+  float m_overlap = 0.0f;
+};
+
+/** WHICH GLYPHS a track addresses, as a comparable value.
+ *
+ *  Built from `sel::` (see below), combined with `|` (union), `&`
+ *  (intersection) and `!` (complement). A default-constructed selector
+ *  addresses EVERYTHING, which is what a track that names none gets.
+ *
+ *  Resolution happens once per (content, layout, selector) and is cached
+ *  on the element, so a regular expression over a paragraph is matched
+ *  when the text changes or reflows rather than once per frame. A pattern
+ *  that does not compile selects nothing and warns once. */
+class Selector {
+ public:
+  Selector() = default;  ///< everything
+
+  /** Within EACH unit of an `sel::each` selector, keep `n` glyphs from
+   *  wherever `drop()` left off. `take(n)` and `drop(n)` on their own
+   *  partition every unit exactly: no glyph is in both, none is in
+   *  neither. */
+  [[nodiscard]] Selector take(int n) const;
+  /** Within each unit, skip the first `n` glyphs and keep the rest. */
+  [[nodiscard]] Selector drop(int n) const;
+
+  [[nodiscard]] Selector operator|(const Selector& other) const;
+  [[nodiscard]] Selector operator&(const Selector& other) const;
+  [[nodiscard]] Selector operator!() const;
+  bool operator==(const Selector& other) const;
+
+  /** The forms a selector can take. Public because the resolver is a free
+   *  function over a paragraph rather than a member. */
+  enum class Kind : uint8_t {
+    All,
+    Word,
+    Words,
+    Line,
+    Sentence,
+    Range,
+    Regex,
+    Text,
+    Each,
+    Union,
+    Intersect,
+    Complement,
+  };
+  struct State {
+    Kind kind = Kind::All;
+    uint32_t lo = 0, hi = 0;  ///< Word/Words/Line/Sentence/Range bounds
+    std::u8string pattern;    ///< Regex/Text needle
+    Unit each = Unit::Glyph;  ///< Each granularity
+    int take = -1;            ///< Each: glyphs kept per unit (-1 = all)
+    int drop = 0;             ///< Each: glyphs skipped per unit
+    std::vector<Selector> operands;
+    bool operator==(const State&) const = default;
+  };
+  /** Null for a default-constructed (everything) selector. */
+  [[nodiscard]] const State* state() const { return m_state.get(); }
+  static Selector of(State s);
+
+ private:
+  std::shared_ptr<const State> m_state;
+};
+
+/** THE SELECTOR VOCABULARY. Absolute forms name a position in the text;
+ *  `each` slices every unit of one granularity the same way. */
+namespace sel {
+/** The i-th word of the paragraph (SigilWeave's line-break units). */
+[[nodiscard]] Selector word(uint32_t index);
+/** Words `[lo, hi)`. */
+[[nodiscard]] Selector words(uint32_t lo, uint32_t hi);
+/** The i-th flow line OF THE CURRENT LAYOUT — re-resolved when the text
+ *  reflows, so a narrower box moves the selection with the break. */
+[[nodiscard]] Selector line(uint32_t index);
+/** The i-th sentence (ICU sentence segmentation). */
+[[nodiscard]] Selector sentence(uint32_t index);
+/** Every glyph whose cluster falls inside a UTF-16 range of the text. */
+[[nodiscard]] Selector range(sigil::weave::CharRange chars);
+/** Every match of an ICU regular expression (the pattern is UTF-8). A
+ *  pattern that does not compile selects NOTHING and warns once. */
+[[nodiscard]] Selector regex(std::u8string_view utf8Pattern);
+/** Every occurrence of a literal substring. */
+[[nodiscard]] Selector text(std::u8string_view utf8Substring);
+/** Every unit of `granularity`, ready to be sliced with `.take()` /
+ *  `.drop()`. Unsliced it is the same as selecting everything. */
+[[nodiscard]] Selector each(Unit granularity);
+}  // namespace sel
+
+/** THE PER-UNIT TIME REMAP (the GSAP stagger model). The track's master
+ *  progress [0,1] spans `durationMs + eachMs·(N−1)` of virtual time,
+ *  where N is the number of UNITS the track's selection covers; unit i
+ *  starts after its delay and runs for durationMs.
+ *
+ *  The unit is what makes this more than per-glyph spacing: `over =
+ *  unit::Word` beats once per word, and every glyph of that word shares
+ *  its beat. The default, `unit::Cluster`, is per-glyph for ordinary
+ *  Latin text and keeps a base letter attached to its combining marks
+ *  everywhere else. */
 struct Stagger {
   float eachMs = 30;
   /** Amount-mode (mutually exclusive with eachMs; wins when > 0): the
-   *  TOTAL spread, divided across however many glyphs there are. Use it
+   *  TOTAL spread, divided across however many units there are. Use it
    *  when the budget for the whole entrance is fixed and the text may
-   *  change length — `eachMs` keeps per-glyph spacing and lets the total
+   *  change length — `eachMs` keeps per-unit spacing and lets the total
    *  grow, this keeps the total and shrinks the spacing. */
   float amountMs = 0;
   float durationMs = 450;
-  enum class From : uint8_t { Start, Center, End } from = From::Start;
-  bool operator==(const Stagger&) const = default;
+  /** Where the cascade starts. `Random` is seeded from the unit count, so
+   *  a scatter is the SAME scatter on every frame and after every
+   *  relayout; `Edges` starts at both ends and meets in the middle. */
+  enum class From : uint8_t {
+    Start,
+    Center,
+    End,
+    Random,
+    Edges
+  } from = From::Start;
+  /** Which units get a beat. */
+  Unit over = Unit::Cluster;
+  /** Shapes the START TIMES across the cascade (not the per-unit motion,
+   *  which the effect and the progress own): the linear ramp of delays is
+   *  passed through this curve, so an ease-in distribution crowds the
+   *  early units together and lets the tail spread out. Null is the
+   *  uniform spacing. */
+  choreograph::EaseFn distribution = nullptr;
+  /** A NESTED cascade inside each of this one's beats — see `then()`.
+   *  Held out of line because a Stagger cannot contain itself by value. */
+  std::shared_ptr<const Stagger> inner;
+
+  /** Compounds a second cascade inside every beat of this one:
+   *  `stagger(unit::Word, {…}).then(unit::Glyph, {…})` delays each word,
+   *  then delays each glyph within its word's beat. The outer
+   *  `durationMs` is ignored — a beat lasts exactly as long as the inner
+   *  cascade needs. */
+  Stagger& then(Unit granularity, Stagger nested);
+
+  bool operator==(const Stagger& other) const;
+};
+
+/** Names the units a cascade beats over: `stagger(unit::Word, {.eachMs =
+ *  60})`. Sugar for setting `Stagger::over`, and the spelling `then()`
+ *  reads against. */
+[[nodiscard]] Stagger stagger(Unit granularity, Stagger spec = {});
+
+/** ONE TRACK: which glyphs, what deviation, how the beats spread, and the
+ *  master progress that drives it.
+ *
+ *  `progress` takes the full Animatable treatment — a plain constant,
+ *  a `with()`/`animate()` transition (retarget-safe: each track owns its
+ *  own transition slot, so retargeting the second track leaves the first
+ *  alone), or a `ch::Output` binding. One-shot effects consume 0→1; loop
+ *  effects read a WRAPPING bound phase. While any track's progress moves
+ *  the element paints live; once every track settles it caches like a
+ *  static leaf. */
+struct Track {
+  Selector where;    ///< default: every glyph
+  TextEffect effect; /**< what it does */
+  Stagger stagger;
+  Animatable<float> progress = 1.0f;
+  /** Pixels beyond the element's box this track may paint, which the
+   *  recording cull grows by. Negative means "ask the effect", which is
+   *  what every preset answers for itself; set it when a keyed lambda
+   *  throws glyphs further than the default allows. Over-reporting is
+   *  safe, under-reporting truncates cached output with no diagnostic. */
+  float reach = -1.0f;
+
+  /** How far this track really reaches: its own number when it declares
+   *  one, otherwise its effect's. */
+  [[nodiscard]] float reachPx() const {
+    return reach >= 0 ? reach : effect.reach();
+  }
+  /** Structural equality, EXCLUDING `progress` — an Animatable is compared
+   *  where every other animated slot is, by the reconciler. */
+  bool sameShape(const Track& other) const;
+  /** Full equality: the shape above plus the progress. */
+  bool operator==(const Track& other) const;
 };
 
 // ---------------------------------------------------------------------------
@@ -771,18 +1101,6 @@ struct TextPath {
    *  costs nothing per describe. A raw-callable baseline compares unequal,
    *  so every such label re-records on every render(). */
   bool operator==(const TextPath&) const = default;
-};
-
-/** Kinetic text: attach to a text() element with Element::glyphFx(). The
- *  master `progress` takes the full Animatable treatment — plain, with()
- *  transitions (retarget-safe), or a ch::Output binding (loops: bind a
- *  wrapping phase). While progress moves the node paints live; settled
- *  kinetic text caches like any static leaf. All glyphs render through
- *  batched RSXform draws — one draw per (font, color), never per glyph. */
-struct GlyphFx {
-  GlyphEffectFn effect;
-  Stagger stagger;
-  Animatable<float> progress = 1.0f;
 };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effect
@@ -2367,7 +2685,8 @@ class Element {
   Element& style(LayerStyle s);
   /** Append a misprint echo (see Echo): the node's fill shape and text
    *  re-stamped offset+flat-colored beneath the real pass. Not applied to
-   *  glyphFx text (kinetic draws its own buckets) or image/custom content. */
+   *  text carrying `fx()` tracks (a moving letter draws its own batched
+   *  buckets) or to image/custom content. */
   Element& echo(SkVector offset, SkColor4f color);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
@@ -2479,9 +2798,15 @@ class Element {
    *  constrained — neighboring atlas cells never bleed in. */
   Element& region(SkRect sourceRect);
 
-  /** Kinetic typography on a text() element: a per-glyph effect staggered
-   *  across the glyphs and driven by a master progress (see GlyphFx). */
-  Element& glyphFx(GlyphFx fx);
+  /** APPENDS a text-fx track to a text() element (see Track): which
+   *  glyphs, what deviation from rest, how the beats spread, and the
+   *  master progress that drives it.
+   *
+   *  Call it once per track. Several tracks compose per glyph — dx/dy and
+   *  rotation ADD, scale and alpha MULTIPLY — in the order they were
+   *  declared, and each keeps its own transition slot, so retargeting one
+   *  track's progress leaves the others running. */
+  Element& fx(Track track);
   /** VariationDrive (text leaves): drive a variable-font axis from a
    *  bound Output at DRAW time — paint-only volatility, no reshape, no
    *  relayout. The paint phase probes the node's fonts once per content:
@@ -2506,8 +2831,9 @@ class Element {
    *  hand-positioned gradients.
    *
    *  Supersedes the style's foreground paint. A live material re-resolves
-   *  per frame. glyphFx wins when both are set, because kinetic text draws
-   *  its own batched glyph buckets. */
+   *  per frame. COMBINES with `fx()`: a letter in flight is painted with
+   *  the metric material exactly as a resting one is, so a chrome
+   *  wordmark can also be a staggered entrance. */
   Element& textFill(Material m);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
@@ -2517,8 +2843,9 @@ class Element {
    *  a different thing entirely. This one thickens the letterforms.
    *
    *  Composes with `textFill()` — the stroke is a pass beneath whatever
-   *  fills the letterforms — and with the style's own underlays and
-   *  overlays, which it joins rather than replaces. */
+   *  fills the letterforms — with the style's own underlays and overlays,
+   *  which it joins rather than replaces, and with `fx()`, which carries
+   *  every pass along as the glyph moves. */
   Element& textStroke(float width, Fill fill);
   /** Text leaves only: lay the run out along a PATH instead of a line.
    *  See TextPath. Single-line runs; the node's own box still sizes the
@@ -2527,7 +2854,8 @@ class Element {
    *
    *  Interacts with the rest of the text surface the way you would hope:
    *  the style's underlays, overlays and decorations all still draw, and
-   *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
+   *  `fx()` wins if both are set (a track draws its own batched buckets
+   *  along the flow, not along the curve). */
   Element& onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----

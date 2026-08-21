@@ -10,8 +10,8 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/Util.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -846,7 +846,7 @@ static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_DenseText_PictureReplay_Graphite);
 
-/** Kinetic typography on Graphite: a looping glyphFx reveal drives batched
+/** Kinetic typography on Graphite: a looping fx() reveal drives batched
  *  RSXform glyph draws every frame, which is the shape that stresses the
  *  glyph atlas hardest. The distinct glyph variants come from the kinetic
  *  path's own quantization (alpha to 32 steps, rotations snapped), so the
@@ -874,11 +874,8 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < 14; ++i) {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(24);
-    fx.progress = &progress;
     block.child(text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-                    .glyphFx(std::move(fx)));
+                    .fx({.effect = fx::rise(24), .progress = &progress}));
   }
   host.composer.render(block);
   host.composer.draw(*surface->getCanvas());

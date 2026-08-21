@@ -110,11 +110,10 @@
 //     decorations receive the already-trimmed outline, so the pen-tip
 //     highlight is not a second stroke() — it is a duplicate node that
 //     rebuilds and re-measures the same 2000-segment path.
-//  4. Kinetic text is solid-fill only. paintKineticText() reduces every
-//     glyph to (font, colour, RSXform) and drops the style's SkPaint, so
-//     hollow display caps and glyphFx are mutually exclusive. "VERTIGO"
-//     rebuilds pop() one tier up: seven letter nodes under
-//     staggerChildren(30ms). Element::onPath() has the same limitation.
+//  4. "VERTIGO" is a per-letter cascade rather than one fx() track: each
+//     capital is its own node under staggerChildren(30ms), which is what
+//     lets a letter carry its own legibility underlay and its own place in
+//     the row. A track would move the letters together over one text node.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -129,10 +128,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -417,14 +416,11 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     // VERTIGO — hollow Clarendon expanding out of the pupil.
     //
-    // This SHOULD be one text() with glyphFx(glyphfx::pop()). It can't be:
-    // paintKineticText() collapses every glyph to (font, color, RSXform)
-    // and drops the style's SkPaint entirely, so kinetic text is always a
-    // solid fill — the hollow register and per-glyph motion are mutually
-    // exclusive. pop() is therefore rebuilt one tier
-    // up: seven letter nodes in a row, staggerChildren() cascading their
-    // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the
-    // same curve glyphfx::pop() applies internally.
+    // pop() rebuilt one tier up: seven letter nodes in a row,
+    // staggerChildren() cascading their animate(from().to()) entrances,
+    // easeOutBack(1.70158) per letter — the same curve fx::pop() applies
+    // internally. Each letter is its own node because each carries its own
+    // legibility underlay over the cards beneath it.
     auto word = box()
                     .row()
                     .gap(3)
@@ -645,11 +641,10 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // ---- header ---------------------------------------------------
     auto head = box().row().height(104).alignItems(Align::End);
 
-    GlyphFx rise;
-    rise.effect = glyphfx::rise(18.0f);
-    rise.stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420};
-    rise.progress =
-        animate(from(0.0f).to(1.0f), ramp(140, 900, ch::easeOutExpo));
+    Track rise{.effect = fx::rise(18.0f),
+               .stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420},
+               .progress = animate(from(0.0f).to(1.0f),
+                                   ramp(140, 900, ch::easeOutExpo))};
 
     head.child(
         box()
@@ -665,7 +660,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             .child(
                 text(toU8("VERTIGO, 1958"), type(faceDisplay, 42, kBone, 1.0f))
                     .key("heading")
-                    .glyphFx(std::move(rise)))
+                    .fx(std::move(rise)))
             .child(text(toU8("Saul Bass, title design — John Whitney, "
                              "spirals — Paramount, dir. Alfred Hitchcock"),
                         type(faceGothic, 12, kSteel, 0.4f))

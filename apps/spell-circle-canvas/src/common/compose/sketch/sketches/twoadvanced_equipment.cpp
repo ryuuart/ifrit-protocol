@@ -40,9 +40,9 @@
 
 #include <include/core/SkFontMgr.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

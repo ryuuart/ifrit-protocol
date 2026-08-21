@@ -4,8 +4,10 @@
 
 #include <sigilweave/Paragraph.h>
 
+#include <array>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/Material.h"
@@ -112,8 +114,8 @@ struct TextData {
   // Full-control overload: identity (the pointer) is the change signal.
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
-  // Kinetic typography
-  std::optional<GlyphFx> glyphFx;
+  // Element::fx(): the ordered track list. Empty on ordinary text.
+  std::vector<Track> tracks;
   // VariationDrive: a variable-font axis driven at DRAW time (paint-only;
   // the paint phase probes advance-invariance per font and refuses axes
   // that would move advances — GRAD yes, wght no).
@@ -381,10 +383,10 @@ inline auto fields(PaintProps& v) {
 }
 inline auto fields(TextData& v) {
   auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-         paragraphOverride, layoutOptions, glyphFx, driveTag, driveValue,
+         paragraphOverride, layoutOptions, tracks, driveTag, driveValue,
          metricFill, onPath] = v;
   return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-                  paragraphOverride, layoutOptions, glyphFx, driveTag,
+                  paragraphOverride, layoutOptions, tracks, driveTag,
                   driveValue, metricFill, onPath);
 }
 inline auto fields(ImageData& v) {
@@ -483,6 +485,15 @@ inline auto fields(Mask& v) {
   auto& [what, with] = v;
   return std::tie(what, with);
 }
+inline auto fields(Stagger& v) {
+  auto& [eachMs, amountMs, durationMs, from, over, distribution, inner] = v;
+  return std::tie(eachMs, amountMs, durationMs, from, over, distribution,
+                  inner);
+}
+inline auto fields(Track& v) {
+  auto& [where, effect, stagger, progress, reach] = v;
+  return std::tie(where, effect, stagger, progress, reach);
+}
 
 /** How many direct non-static data members @p T has, as the pinned
  *  decomposition above sees them. `static_assert(kFieldCount<X> == N)` beside
@@ -551,5 +562,81 @@ ResolvedProp<T> resolveProp(const Animatable<T>& v,
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// TEXT FX — the runtime side of the fx() seam (TextFx.cpp)
+
+/** Equal only when PROVABLY identical: two easing curves compare equal when
+ *  both are the same plain function pointer. A lambda-valued curve compares
+ *  unequal, conservatively, because a std::function holding one cannot be
+ *  inspected. One body, because a second spelling of this rule would let
+ *  two comparators disagree about whether a node may prune. */
+bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
+
+/** ONE WALK'S GLYPHS, and which unit of each granularity they fall in.
+ *
+ *  Built once per paint from the finished layout and shared by every track
+ *  on the element, because the expensive parts — walking the placed glyphs,
+ *  numbering the words and lines — do not depend on which track is asking.
+ *  Reused across frames: build() keeps the allocations. */
+struct GlyphStructure {
+  static constexpr size_t kUnits = 5;  ///< one lane per Unit enumerator
+
+  std::vector<GlyphInfo> glyphs;  ///< in draw order, structure filled in
+  /** Per Unit: glyph index → the unit it belongs to, numbered from 0 in
+   *  draw order. */
+  std::array<std::vector<uint32_t>, kUnits> unitOf;
+  std::array<uint32_t, kUnits> unitCounts{};
+
+  void build(const sigil::weave::ParagraphLayout& layout,
+             const sigil::weave::Paragraph& paragraph);
+};
+
+/** Which glyphs a selector addresses: one byte per glyph, in walk order.
+ *  A pattern that does not compile answers all-zero and warns once. */
+std::vector<uint8_t> resolveSelection(const Selector& selector,
+                                      const GlyphStructure& structure,
+                                      const sigil::weave::Paragraph& paragraph);
+/** The once-per-pattern diagnostic behind an unresolvable selector. */
+void warnBadSelectorPattern(const std::u8string& pattern);
+
+/** WHERE INDEX `i` OF `count` SITS IN A CASCADE, in multiples of the
+ *  per-step delay — 0,1,2… from Start, reversed from End, the two
+ *  symmetric V shapes for Center and Edges, and a seeded permutation for
+ *  Random.
+ *
+ *  ONE BODY for two callers: an fx() track's units and a container's
+ *  staggered children. A second spelling would let `Stagger::From` mean
+ *  two different orders depending on what it was attached to. */
+void cascadeOrder(Stagger::From from, uint32_t count, std::vector<float>& out);
+
+/** ONE TRACK'S CASCADE, resolved for a frame's unit counts: the delay
+ *  ladder, the beat length, and the virtual span the master progress maps
+ *  onto. Built per track per paint; localTime() is then a few adds per
+ *  glyph. */
+struct Cascade {
+  std::vector<float> outerOrder;  ///< outer unit → its place in the cascade
+  std::vector<float> innerOrder;  ///< inner unit → the same, within a beat
+  choreograph::EaseFn outerDistribution, innerDistribution;
+  float outerEach = 0;  ///< ms between outer starts
+  float innerEach = 0;  ///< ms between inner starts
+  float duration = 1;   ///< ms one unit's own motion lasts
+  float beatMs = 1;     ///< ms one outer beat occupies
+  float totalMs = 1;    ///< ms the master progress spans
+
+  void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
+  /** The local 0→1 this unit sees at master progress `master`. */
+  [[nodiscard]] float localTime(float master, uint32_t outerUnit,
+                                uint32_t innerUnit) const;
+};
+
+/** The composition algebra, in one place: offsets and rotations ADD, scale
+ *  and alpha MULTIPLY. Stacked tracks, fx::mix and a seq crossfade all go
+ *  through these two, so they cannot drift apart. */
+void compose(GlyphMod& into, const GlyphMod& next);
+GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
+/** The seed an effect's Rng is constructed from — the glyph's identity plus
+ *  the operand lane inside a composite. */
+uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 
 }  // namespace sigil::compose::detail

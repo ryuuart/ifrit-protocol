@@ -208,6 +208,69 @@ forms on `zIndex`, opacity below 1, a blend mode, a transform, a clip, or a
 layer effect, and children cannot interleave outside it: a component cannot
 escape the z-order of the site it was composed into.
 
+### Text fx
+
+Motion inside a text leaf is a list of **tracks**. One `Track` is four
+values — *which* glyphs (`Selector`), *what* deviation from rest
+(`TextEffect`), *how* the beats spread (`Stagger`), and the master
+`Animatable<float>` progress that drives it. `Element::fx` appends one;
+several compose per glyph, with `GlyphMod` offsets and rotations adding
+and scale and alpha multiplying.
+
+```cpp
+text(u8"ONE LINE, TWO MOVES", display)
+    .fx({.effect = fx::rise(20), .stagger = stagger(unit::Word)})
+    .fx({.where = sel::text(u8"TWO"),
+         .effect = fx::waveLoop(),
+         .progress = &phase});
+```
+
+**Units.** `Unit` is the granularity a selector slices and a cascade beats
+over: `unit::Glyph`, `unit::Cluster`, `unit::Word`, `unit::Line`,
+`unit::Sentence`. `unit::Cluster` is the default, and it is the one that
+keeps text correct — a base letter and its combining marks are one unit
+and never separate under a stagger.
+
+**Selectors.** `sel::word`, `sel::words`, `sel::line`, `sel::sentence`,
+`sel::range`, `sel::text` and `sel::regex` name a position in the text;
+`sel::each` slices every unit of one granularity the same way, with
+`Selector::take` and `Selector::drop` partitioning each unit exactly.
+Combine with `|`, `&` and `!`. A default-constructed `Selector` addresses
+everything. Selection is resolved once per (content, layout, selector) and
+cached on the element; a pattern that does not compile selects nothing and
+warns once.
+
+**Cascades.** `Stagger` keeps the GSAP model — `eachMs` or `amountMs`,
+`durationMs`, and a `Stagger::From` origin: `Start`, `Center`, `End`, a
+seeded `Random` and a two-ended `Edges`. `Stagger::distribution` shapes
+the start times across the cascade, and `Stagger::then` nests a second cascade
+inside every beat of the first (`stagger(unit::Word, {…}).then(unit::Glyph,
+{…})`).
+
+**Effects are comparable values**, which is what lets text carrying tracks
+prune like any other static leaf. A preset compares by its name and its
+parameters; an ad-hoc body goes through `fx::effect`, which takes the key
+its author gives it — two different bodies under one key compare equal and
+one of them silently never draws. `fx::seq` remaps local time so each
+phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
+`Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
+one time and composes them by the same algebra stacked tracks use.
+
+**Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
+the same scatter on every frame and after every relayout — which is what
+lets it settle and cache instead of jittering forever.
+
+**Every track declares its `Track::reach`** — how far past the element's
+box it may throw a glyph — or takes the number its effect declares. The
+recording cull grows by it, on the same over-reporting-is-safe contract a
+decoration's `bleed()` carries. Under-report and cached output is
+truncated with no diagnostic.
+
+`Element::textFill` and `Element::textStroke` combine with tracks: a letter
+in flight is painted with the same glyph paint a resting one is.
+`Element::onPath` does not — `fx()` wins when both are set — and
+`Element::echo` skips fx text by contract.
+
 ---
 
 ## The header map
@@ -256,9 +319,10 @@ parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
 Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
 gradients and blurs rather than shaders.
 
-**Components.** `Kinetic.h` supplies stock per-glyph effects for the
-`GlyphFx` seam. `Console.h` is a virtualized append-only log, built purely
-by composing the kernel. `Instances.h` renders thousands of sprites as one
+**Components.** `TextFx.h` supplies the stock effects, and the `fx::seq`
+and `fx::mix` combinators, for the kernel's `Element::fx` seam.
+`Console.h` is a virtualized append-only log, built purely by composing
+the kernel. `Instances.h` renders thousands of sprites as one
 leaf, with the pool on your side of the seam. `Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.

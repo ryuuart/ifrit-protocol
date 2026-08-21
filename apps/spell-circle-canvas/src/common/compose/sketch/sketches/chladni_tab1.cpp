@@ -103,11 +103,11 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -363,9 +363,10 @@ const std::vector<Label>& labelsOf(int num) {
 
 // ---------------------------------------------------------------------------
 
-struct Rng {
+struct Xorshift {
   uint64_t s;
-  explicit Rng(uint64_t seed) : s(seed * 0x9e3779b97f4a7c15ull + 0xda3e39cbu) {}
+  explicit Xorshift(uint64_t seed)
+      : s(seed * 0x9e3779b97f4a7c15ull + 0xda3e39cbu) {}
   float next() {
     s ^= s << 13;
     s ^= s >> 7;
@@ -452,7 +453,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     for (size_t fi = 0; fi < kFigures.size(); ++fi) {
       const FigSpec& f = kFigures[fi];
       const SkPoint c = centreOf(f);
-      Rng rng(1787u + f.num * 61u);
+      Xorshift rng(1787u + f.num * 61u);
 
       // The bow strikes in plate order, which IS ascending pitch (see the
       // header). Where Chladni states an interval, it also sets how fast
@@ -733,14 +734,13 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     }
 
     // ---- "Tab. I.", swash italic, above the frame at the right ----
-    GlyphFx pen;
-    pen.effect = glyphfx::typeOn();
-    pen.stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60};
-    pen.progress =
-        animate(from(0.0f).to(1.0f), ramp(tTitle * 1000, 620, ch::easeNone));
+    Track pen{.effect = fx::typeOn(),
+              .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
+              .progress = animate(from(0.0f).to(1.0f),
+                                  ramp(tTitle * 1000, 620, ch::easeNone))};
     root.child(text(toU8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
                    .key("title")
-                   .glyphFx(std::move(pen))
+                   .fx(std::move(pen))
                    .centerAt({1436 * kScale, 106 * kScale}));
 
     // ---- the twelve figures ----

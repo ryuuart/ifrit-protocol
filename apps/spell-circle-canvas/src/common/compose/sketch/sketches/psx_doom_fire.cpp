@@ -39,8 +39,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/Console.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -146,7 +146,7 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
 }
 
 /** back.out with the standard 1.70158 overshoot, the same constant
- *  glyphfx::pop uses. choreograph ships no easeOutBack, so this file
+ *  fx::pop uses. choreograph ships no easeOutBack, so this file
  *  carries its own. */
 float easeOutBack(float t) {
   constexpr float s = 1.70158f;
@@ -338,16 +338,14 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   }
 
   Element title() {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(24);
-    fx.stagger = {.eachMs = 28, .durationMs = 480};  // Kinetic.h cadence
     // Master progress spans durationMs + eachMs·(N-1) of virtual time.
-    fx.progress =
-        animate(from(0.0f).to(1.0f),
-                {.duration = 872ms, .ease = &ch::easeNone, .delay = 120ms});
     return text(toU8("DOOM FIRE, 1995"), type(heavyFace(), 50, kBone, -0.6f))
         .key("title")
-        .glyphFx(std::move(fx));
+        .fx({.effect = fx::rise(24),
+             .stagger = {.eachMs = 28, .durationMs = 480},
+             .progress = animate(
+                 from(0.0f).to(1.0f),
+                 {.duration = 872ms, .ease = &ch::easeNone, .delay = 120ms})});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so

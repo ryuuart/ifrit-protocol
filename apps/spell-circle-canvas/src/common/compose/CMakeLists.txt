@@ -11,6 +11,7 @@ add_library(SigilCompose STATIC
   Derive.cpp
   Paint.cpp
   Transitions.cpp
+  TextFx.cpp
   Query.cpp
   Material.cpp
   ComposeInternal.h
@@ -19,7 +20,6 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Compose.h
   include/sigilcompose/Console.h
   include/sigilcompose/Instances.h
-  include/sigilcompose/Kinetic.h
   include/sigilcompose/LayerStyles.h
   include/sigilcompose/Material.h
   include/sigilcompose/Pattern.h
@@ -31,6 +31,7 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Routers.h
   include/sigilcompose/Shapes.h
   include/sigilcompose/Studio.h
+  include/sigilcompose/TextFx.h
   include/sigilcompose/Util.h
   include/sigilcompose/Web.h
 )

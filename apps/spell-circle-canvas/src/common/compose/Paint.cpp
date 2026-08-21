@@ -47,8 +47,18 @@ inline const Material* metricFillOf(const ElementNode& n) {
   return n.textData && n.textData->metricFill ? &*n.textData->metricFill
                                               : nullptr;
 }
-inline const GlyphFx* glyphFxOf(const ElementNode& n) {
-  return n.textData && n.textData->glyphFx ? &*n.textData->glyphFx : nullptr;
+/** The node's fx() tracks, or an empty span. */
+inline std::span<const Track> tracksOf(const ElementNode& n) {
+  return n.textData ? std::span<const Track>(n.textData->tracks)
+                    : std::span<const Track>();
+}
+/** Does this node draw its text through the fx() path? A track list whose
+ *  every effect is empty is not fx text — the same test the volatility
+ *  walk, the paint dispatch and the echo exclusion all read. */
+inline bool hasTextFx(const ElementNode& n) {
+  for (const Track& t : tracksOf(n))
+    if (t.effect) return true;
+  return false;
 }
 inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
@@ -183,6 +193,17 @@ void collectGroupScalars(const Instance& inst, bool root,
         pushGate(m.with.fraction);
     }
   }
+  // fx() track progresses: the same argument again, over the per-track
+  // vector. Only LIVE values are pushed, so the vector's LENGTH still
+  // carries a track's motion connecting or disconnecting.
+  if (node.textData)
+    for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
+      const Animatable<float>& v = node.textData->tracks[i].progress;
+      const AnimatedFloat* a =
+          i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
+      if (v.binding() || (a && a->value.isConnected()))
+        out.push_back(inst.resolveFloatAt(a, v));
+    }
   // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
   // Animatable in the description, so it is read straight off the motion.
   if (inst.anims[Instance::kFillLerp] &&
@@ -331,6 +352,20 @@ std::vector<float> detail::Instance::resolveGateValues() const {
       }
     else if (m.with.kind == Gate::Kind::Edge)
       push(m.with.fraction);
+  }
+  return values;
+}
+
+std::vector<float> detail::Instance::resolveTrackValues() const {
+  std::vector<float> values;
+  const std::span<const Track> tracks =
+      desc->textData ? std::span<const Track>(desc->textData->tracks)
+                     : std::span<const Track>();
+  values.reserve(tracks.size());
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    const AnimatedFloat* a =
+        i < trackAnims.size() ? trackAnims[i].get() : nullptr;
+    values.push_back(resolveFloatAt(a, tracks[i].progress));
   }
   return values;
 }
@@ -495,8 +530,7 @@ void Composer::Impl::scanReleasedScalars() {
   for (Instance* inst : releasedScalars) {
     Instance::ContentScalars now;
     now.gates = inst->resolveGateValues();
-    if (const GlyphFx* g = glyphFxOf(*inst->desc))
-      now.glyph = inst->resolveFloat(Instance::kGlyphProgress, g->progress);
+    now.tracks = inst->resolveTrackValues();
     // The node→root matrix: a released world-space node whose externally
     // driven transform resumes must re-declare THE FRAME it resumes, before
     // any recording carrying the old anchoring replays.
@@ -683,6 +717,17 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // GATES join here, because their count is a property of the description
   // and no fixed slot can hold them.
   scalarContent |= maskScalarLive;  // a moving gate re-cuts or re-clips
+  // fx() TRACKS: a moving master progress rebuilds glyph geometry, so it is
+  // content volatility — the memoizable half, because a progress is a float
+  // this frame can read back. Every track counts, so a settled entrance
+  // sitting under a live loop still declares.
+  if (node.textData)
+    for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
+      const Animatable<float>& v = node.textData->tracks[i].progress;
+      const AnimatedFloat* a =
+          i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
+      if (v.binding() || (a && a->value.isConnected())) scalarContent = true;
+    }
   // A world-space material under a CONNECTED transform — this node's own or
   // any ancestor's, threaded down this recursion as movingAbove — has its
   // node→root matrix changing off the describe clock, and that matrix is
@@ -729,8 +774,7 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   if (scalarContent && inst.settleFrames >= Instance::kScalarSettleFrames) {
     Instance::ContentScalars now;
     now.gates = inst.resolveGateValues();
-    if (const GlyphFx* g = glyphFxOf(node))
-      now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
+    now.tracks = inst.resolveTrackValues();
     now.world = worldScalarsOf(inst);    // a held world matrix releases too
     now.fill = inst.resolveBoundFill();  // …and a held bound fill
     now.pattern = inst.resolvePatternOffset();  // …and a held bound pan
@@ -1081,51 +1125,242 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
   batches.draw(&canvas);
 }
 
-void Composer::Impl::paintKineticText(Instance& inst, SkCanvas& canvas,
-                                      const GlyphFx& fx) {
-  const float master = std::clamp(
-      inst.resolveFloat(Instance::kGlyphProgress, fx.progress), 0.0f, 1.0f);
+std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
+    Instance& inst, const PaintContext& paintCtx) {
+  const ElementNode& node = *inst.desc;
+  const Material* metricMat = metricFillOf(node);
+  const bool stroked = node.textData && node.textData->hasTextStroke;
+  if (!metricMat && !stroked) return std::nullopt;
 
-  size_t count = 0;
-  sigil::weave::forEachPlacedGlyph(inst.textLayout, *inst.paragraph,
-                                   [&](auto&&...) { ++count; });
+  // Chrome type: the material's unit square mapped to the text's metric
+  // band — x across the widest line, y from the first line's cap top (real
+  // cap height when the face reports one) to the last line's baseline.
+  //
+  // The override replaces the whole PaintStyle for every run, so it starts
+  // as a COPY of the paragraph's own style and swaps only the foreground —
+  // textFill supersedes the fill, not the underlays, overlays and
+  // decorations around it (a chrome wordmark keeps its cast shadow and dark
+  // keyline).
+  sigil::weave::PaintStyle metric =
+      inst.paragraph->spans().empty()
+          ? sigil::weave::PaintStyle{}
+          : inst.paragraph->spans().front().style.paint;
+  metric.foreground.setShader(nullptr);
+  bool havePaint = false;
+  // textStroke(): a stroke pass on the glyphs, UNDER the fill. It joins the
+  // style's own underlays rather than replacing them, so an engraved face
+  // keeps its cast shadow.
+  if (stroked) {
+    sigil::weave::PaintLayer outline;
+    outline.paint.setAntiAlias(true);
+    outline.paint.setStyle(SkPaint::kStroke_Style);
+    outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
+    outline.paint.setStrokeJoin(SkPaint::kRound_Join);
+    const Fill& sf = node.textData->textStrokeFill;
+    if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
+      outline.paint.setShader(sf.shaderValue);
+    else
+      outline.paint.setColor4f(
+          sf.kind == Fill::Kind::Color ? sf.colorValue : SkColor4f{0, 0, 0, 1},
+          nullptr);
+    metric.addUnderlay(outline);
+    havePaint = true;
+  }
+  if (!metricMat) return havePaint ? std::optional(metric) : std::nullopt;
+
+  // Geometry-dependent materials resolve against a UNIT box here, not the
+  // node's. The local matrix below already maps the shader's [0,1]² onto
+  // the metric band, so uResolution baked from the node's layout size would
+  // divide a second time: a `linearUnit` ramp came out at t ≈ 0.003 and
+  // every glyph painted the first stop, flat and silently. Material.h
+  // advertises textFill and the Unit ramps as the same trick, and this is
+  // what makes that true.
+  PaintContext metricCtx = paintCtx;
+  metricCtx.size = {1.0f, 1.0f};
+  const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
+                     ? metricMat->resolve(metricCtx)
+                     : metricMat->toFill();
+  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.lines.empty()) {
+    const sigil::weave::ShapedWord* firstFont = nullptr;
+    sigil::weave::forEachPlacedGlyph(
+        inst.textLayout, *inst.paragraph,
+        [&](const sigil::weave::PlacedGlyph& placed) {
+          if (!firstFont) firstFont = placed.shaped;
+        });
+    float capH = 0;
+    if (firstFont && firstFont->typeface) {
+      SkFontMetrics fm;
+      sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
+          .getMetrics(&fm);
+      capH = fm.fCapHeight;
+    }
+    const sigil::weave::LineMetrics& first = inst.lines.front();
+    if (capH <= 0) capH = first.ascent;  // face reports none — the ascent band
+    float left = first.left, right = first.right;
+    for (const sigil::weave::LineMetrics& line : inst.lines) {
+      left = std::min(left, line.left);
+      right = std::max(right, line.right);
+    }
+    const float top = first.baseline - capH;
+    const float bottom = inst.lines.back().baseline;
+    SkMatrix map = SkMatrix::Translate(left, top);
+    map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
+    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    havePaint = true;
+  } else if (f.kind == Fill::Kind::Color) {
+    metric.foreground.setColor4f(f.colorValue, nullptr);
+    havePaint = true;
+  }
+  return havePaint ? std::optional(metric) : std::nullopt;
+}
+
+void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
+                                 const sigil::weave::PaintStyle* override) {
+  const std::span<const Track> tracks = tracksOf(*inst.desc);
+
+  // ONE walk builds the structure every track selects and staggers over —
+  // the glyph list with its word/line/cluster/sentence numbering. Held
+  // thread-locally: a frame of animated text rebuilds it, but never
+  // reallocates it.
+  static thread_local detail::GlyphStructure structure;
+  structure.build(inst.textLayout, *inst.paragraph);
+  const uint32_t count = (uint32_t)structure.glyphs.size();
   if (count == 0) return;
 
-  float each = std::max(fx.stagger.eachMs, 0.0f);
-  if (fx.stagger.amountMs > 0 && count > 1)
-    each = fx.stagger.amountMs / (float)(count - 1);  // GSAP amount mode
-  const float duration = std::max(fx.stagger.durationMs, 1.0f);
-  const float total = duration + each * (float)(count - 1);
+  // Selections, resolved once per (content, layout width, selector list).
+  // A regular expression over the paragraph is a per-EDIT cost this way,
+  // not a per-frame one.
+  bool selectionsStale = inst.selectionRev != inst.contentRev ||
+                         inst.selectionWidth != inst.measuredForWidth ||
+                         inst.selectionKeys.size() != tracks.size();
+  if (!selectionsStale)
+    for (size_t i = 0; i < tracks.size(); ++i)
+      if (!(inst.selectionKeys[i] == tracks[i].where)) {
+        selectionsStale = true;
+        break;
+      }
+  if (!selectionsStale)
+    for (const std::vector<uint8_t>& mask : inst.selectionMasks)
+      if (mask.size() != count) {
+        selectionsStale = true;
+        break;
+      }
+  if (selectionsStale) {
+    inst.selectionKeys.clear();
+    inst.selectionMasks.clear();
+    inst.selectionKeys.reserve(tracks.size());
+    inst.selectionMasks.reserve(tracks.size());
+    for (const Track& track : tracks) {
+      inst.selectionKeys.push_back(track.where);
+      inst.selectionMasks.push_back(
+          detail::resolveSelection(track.where, structure, *inst.paragraph));
+    }
+    inst.selectionRev = inst.contentRev;
+    inst.selectionWidth = inst.measuredForWidth;
+  }
+
+  // Each track's cascade, over ITS OWN selection's units: a track that
+  // addresses one word beats once, whatever the paragraph's word count is.
+  struct Resolved {
+    const Track* track = nullptr;
+    const std::vector<uint8_t>* selected = nullptr;
+    detail::Cascade cascade;
+    std::vector<uint32_t> outerUnit;  // glyph → its beat, renumbered
+    std::vector<uint32_t> innerUnit;  // glyph → its beat inside that beat
+    float master = 1.0f;
+  };
+  // Kept across frames and reused in place: clearing would drop the two
+  // per-glyph vectors' allocations, which is a fresh pair per track per
+  // text node per frame on a page full of animated type.
+  static thread_local std::vector<Resolved> resolved;
+  size_t used = 0;
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    const Track& track = tracks[i];
+    if (!track.effect) continue;
+    if (used == resolved.size()) resolved.emplace_back();
+    Resolved& r = resolved[used++];
+    r.track = &track;
+    r.selected = &inst.selectionMasks[i];
+    const AnimatedFloat* anim =
+        i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
+    r.master =
+        std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
+
+    // Renumber the units the SELECTION covers, from 0, in draw order —
+    // then a stagger's From, its amount-mode division and its distribution
+    // all read the count the author sees rather than the paragraph's.
+    const std::vector<uint32_t>& outerLane =
+        structure.unitOf[(size_t)track.stagger.over];
+    r.outerUnit.assign(count, 0);
+    uint32_t outerCount = 0;
+    uint32_t previous = ~0u;
+    for (uint32_t g = 0; g < count; ++g) {
+      if (!(*r.selected)[g]) continue;
+      if (outerLane[g] != previous) {
+        previous = outerLane[g];
+        ++outerCount;
+      }
+      r.outerUnit[g] = outerCount - 1;
+    }
+    uint32_t innerCount = 0;
+    if (track.stagger.inner) {
+      const std::vector<uint32_t>& innerLane =
+          structure.unitOf[(size_t)track.stagger.inner->over];
+      r.innerUnit.assign(count, 0);
+      uint32_t within = 0, previousOuter = ~0u, previousInner = ~0u;
+      for (uint32_t g = 0; g < count; ++g) {
+        if (!(*r.selected)[g]) continue;
+        if (r.outerUnit[g] != previousOuter) {
+          previousOuter = r.outerUnit[g];
+          previousInner = ~0u;
+          within = 0;
+        }
+        if (innerLane[g] != previousInner) {
+          previousInner = innerLane[g];
+          ++within;
+        }
+        r.innerUnit[g] = within - 1;
+        innerCount = std::max(innerCount, within);
+      }
+    }
+    if (!track.stagger.inner) r.innerUnit.clear();
+    r.cascade.build(track.stagger, outerCount, innerCount);
+  }
+  if (used == 0) return;
+  const std::span<const Resolved> live(resolved.data(), used);
 
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
 
-  size_t i = 0;
+  uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
       [&](const sigil::weave::PlacedGlyph& placed) {
-        float order = (float)i;
-        switch (fx.stagger.from) {
-          case Stagger::From::End:
-            order = (float)(count - 1 - i);
-            break;
-          case Stagger::From::Center:
-            order = std::abs((float)i - (float)(count - 1) * 0.5f) * 2.0f;
-            break;
-          case Stagger::From::Start:
-            break;
+        const uint32_t g = ordinal++;
+        if (g >= count) return;
+        GlyphInfo info = structure.glyphs[g];
+
+        // Every track that addresses this glyph, composed: offsets and
+        // rotations add, scale and alpha multiply.
+        // A glyph no track addresses keeps the identity deviation and
+        // draws at rest.
+        GlyphMod mod;
+        for (const Resolved& r : live) {
+          if (!(*r.selected)[g]) continue;
+          info.unitIndex = r.outerUnit[g];
+          info.unitCount =
+              std::max<uint32_t>((uint32_t)r.cascade.outerOrder.size(), 1u);
+          const float t =
+              r.cascade.localTime(r.master, r.outerUnit[g],
+                                  r.innerUnit.empty() ? 0u : r.innerUnit[g]);
+          Rng rng(detail::glyphSeed(info));
+          detail::compose(mod, r.track->effect(info, t, rng));
         }
-        const float t =
-            std::clamp((master * total - order * each) / duration, 0.0f, 1.0f);
-        const GlyphMod mod =
-            fx.effect(GlyphInfo{i, count, placed.rest, placed.advance,
-                                placed.shaped->fontSize},
-                      t);
-        ++i;
         if (mod.alpha <= 0.003f || mod.scale <= 0.001f) return;
         // Quantize alpha so fades don't mint a batch bucket per glyph. The
         // whole span style rides along, so a letter in flight keeps the
-        // gradient, stroke and glow passes it was styled with.
+        // gradient, stroke and glow passes it was styled with — and the
+        // textFill/textStroke override, when the node carries one.
         const float alpha =
             std::round(std::clamp(mod.alpha, 0.0f, 1.0f) * 32.0f) / 32.0f;
         float cosv = 1.0f, sinv = 0.0f;
@@ -1133,10 +1368,12 @@ void Composer::Impl::paintKineticText(Instance& inst, SkCanvas& canvas,
           sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv, sinv);
         cosv *= mod.scale;
         sinv *= mod.scale;
-        batches.addGlyph(placed,
-                         {placed.rest.x() + mod.dx + placed.advance * 0.5f,
-                          placed.rest.y() + mod.dy},
-                         cosv, sinv, alpha);
+        const SkPoint centre = {
+            placed.rest.x() + mod.dx + placed.advance * 0.5f,
+            placed.rest.y() + mod.dy};
+        batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
+                         placed.glyph, placed.advance * 0.5f, centre, cosv,
+                         sinv, alpha);
       });
   batches.draw(&canvas);
 }
@@ -1174,6 +1411,14 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   for (const Echo& e : echoesOf(node))
     bleed =
         std::max(bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
+  // An fx() track throws glyphs OUTSIDE the text's box — a rise starts
+  // below the line, a scatter starts anywhere in its disc — and a cull
+  // taken at the box truncates them at the cached picture or texture
+  // bounds, exactly as an under-reported decoration bleed does. Each track
+  // declares how far it reaches, the same over-report-is-safe contract
+  // `bleed()` and `reach()` carry.
+  for (const Track& t : tracksOf(node))
+    if (t.effect) bleed = std::max(bleed, t.reachPx());
   // A Material can declare a reserve too: a fill whose own outline escapes
   // the node's box is truncated at the cached picture or texture bounds
   // otherwise, exactly as an under-reported decoration bleed is. Both
@@ -1896,10 +2141,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                    sigil::weave::TextAlignment::kStart &&
                inst.measuredForWidth != bounds.width()))
             layoutText(inst, bounds.width());
-          // Misprint echoes of the TEXT, under the real pass (kinetic text
+          // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
-          const GlyphFx* glyphs = glyphFxOf(node);
-          if (!echoesOf(node).empty() && !(glyphs && glyphs->effect)) {
+          if (!echoesOf(node).empty() && !hasTextFx(node)) {
             for (const Echo& e : echoesOf(node)) {
               sigil::weave::PaintStyle stamp;
               stamp.foreground.setColor4f(e.color, nullptr);
@@ -1911,110 +2155,23 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           }
           const TextPath* onPath =
               onPathRun ? &*node.textData->onPath : nullptr;
-          if (glyphs && glyphs->effect) {
-            paintKineticText(inst, canvas, *glyphs);
+          // textFill()/textStroke() resolve to ONE glyph-paint override,
+          // and both draw paths that take one take the SAME one: a letter
+          // in flight is painted exactly as a resting letter is. The
+          // baseline-on-a-path draw is the exception — it paints the
+          // paragraph's own style — so it does not pay for the resolve.
+          const bool onPathDraws = onPath && !hasTextFx(node);
+          const std::optional<sigil::weave::PaintStyle> metric =
+              onPathDraws ? std::nullopt : metricTextStyle(inst, paintCtx);
+          const sigil::weave::PaintStyle* glyphPaint =
+              metric ? &*metric : nullptr;
+          if (hasTextFx(node)) {
+            paintTextFx(inst, canvas, glyphPaint);
           } else if (onPath) {
             paintTextOnPath(inst, canvas, *onPath,
                             {bounds.width(), bounds.height()});
-          } else if (const Material* metricMat = metricFillOf(node);
-                     metricMat ||
-                     (node.textData && node.textData->hasTextStroke)) {
-            // Chrome type: the material's unit square mapped to the text's
-            // metric band — x across the widest line, y from the first line's
-            // cap top (real cap height when the face reports one) to the last
-            // line's baseline.
-            //
-            // The override replaces the whole PaintStyle for every run, so it
-            // starts as a COPY of the paragraph's own style and swaps only the
-            // foreground — textFill supersedes the fill, not the underlays,
-            // overlays and decorations around it (a chrome wordmark keeps its
-            // cast shadow and dark keyline).
-            sigil::weave::PaintStyle metric =
-                inst.paragraph->spans().empty()
-                    ? sigil::weave::PaintStyle{}
-                    : inst.paragraph->spans().front().style.paint;
-            metric.foreground.setShader(nullptr);
-            bool havePaint = false;
-            // textStroke(): a stroke pass on the glyphs, UNDER the fill. It
-            // joins the style's own underlays rather than replacing them, so
-            // an engraved face keeps its cast shadow.
-            if (node.textData && node.textData->hasTextStroke) {
-              sigil::weave::PaintLayer outline;
-              outline.paint.setAntiAlias(true);
-              outline.paint.setStyle(SkPaint::kStroke_Style);
-              outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
-              outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-              const Fill& sf = node.textData->textStrokeFill;
-              if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
-                outline.paint.setShader(sf.shaderValue);
-              else
-                outline.paint.setColor4f(sf.kind == Fill::Kind::Color
-                                             ? sf.colorValue
-                                             : SkColor4f{0, 0, 0, 1},
-                                         nullptr);
-              metric.addUnderlay(outline);
-              havePaint = true;
-            }
-            if (!metricMat) {
-              inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                          havePaint ? &metric : nullptr,
-                                          liveDriveImpl(inst, node, fonts));
-              break;
-            }
-            // Geometry-dependent materials resolve against a UNIT box here,
-            // not the node's. The local matrix below already maps the
-            // shader's [0,1]² onto the metric band, so uResolution baked from
-            // the node's layout size would divide a second time: a
-            // `linearUnit` ramp came out at t ≈ 0.003 and every glyph painted
-            // the first stop, flat and silently. Material.h advertises
-            // textFill and the Unit ramps as the same trick, and this is what
-            // makes that true.
-            PaintContext metricCtx = paintCtx;
-            metricCtx.size = {1.0f, 1.0f};
-            const Fill f =
-                (metricMat->isAnimated() || metricMat->geometryDependent())
-                    ? metricMat->resolve(metricCtx)
-                    : metricMat->toFill();
-            if (f.kind == Fill::Kind::Shader && f.shaderValue &&
-                !inst.lines.empty()) {
-              const sigil::weave::ShapedWord* firstFont = nullptr;
-              sigil::weave::forEachPlacedGlyph(
-                  inst.textLayout, *inst.paragraph,
-                  [&](const sigil::weave::PlacedGlyph& placed) {
-                    if (!firstFont) firstFont = placed.shaped;
-                  });
-              float capH = 0;
-              if (firstFont && firstFont->typeface) {
-                SkFontMetrics fm;
-                sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
-                    .getMetrics(&fm);
-                capH = fm.fCapHeight;
-              }
-              const sigil::weave::LineMetrics& first = inst.lines.front();
-              if (capH <= 0)
-                capH = first.ascent;  // face reports none — the ascent band
-              float left = first.left, right = first.right;
-              for (const sigil::weave::LineMetrics& line : inst.lines) {
-                left = std::min(left, line.left);
-                right = std::max(right, line.right);
-              }
-              const float top = first.baseline - capH;
-              const float bottom = inst.lines.back().baseline;
-              SkMatrix map = SkMatrix::Translate(left, top);
-              map.preScale(std::max(right - left, 1.0f),
-                           std::max(bottom - top, 1.0f));
-              metric.foreground.setShader(
-                  f.shaderValue->makeWithLocalMatrix(map));
-              havePaint = true;
-            } else if (f.kind == Fill::Kind::Color) {
-              metric.foreground.setColor4f(f.colorValue, nullptr);
-              havePaint = true;
-            }
-            inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                        havePaint ? &metric : nullptr,
-                                        liveDriveImpl(inst, node, fonts));
           } else {
-            inst.textLayout.drawBatched(&canvas, *inst.paragraph, nullptr,
+            inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint,
                                         liveDriveImpl(inst, node, fonts));
           }
         }
@@ -2284,9 +2441,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // Every mask gate's animated numbers, as a bounded per-node list, so a
     // masked node can take this memo at all.
     scalarsNow.gates = inst.resolveGateValues();
-    if (const GlyphFx* g = glyphFxOf(node))
-      scalarsNow.glyph =
-          inst.resolveFloat(Instance::kGlyphProgress, g->progress);
+    scalarsNow.tracks = inst.resolveTrackValues();
     // The node→root matrix as of THIS paint — curToRoot is exactly it here,
     // and the walk-side compares (release, scan) recompute it
     // bit-identically.

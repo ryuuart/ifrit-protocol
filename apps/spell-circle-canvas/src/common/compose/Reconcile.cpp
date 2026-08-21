@@ -29,6 +29,19 @@ namespace sigil::compose {
 
 using namespace detail;
 
+// Declared in ComposeInternal.h and defined here, with the rest of the
+// library's hand-written comparators.
+bool detail::easeEqual(const choreograph::EaseFn& a,
+                       const choreograph::EaseFn& b) {
+  const bool aSet = (bool)a, bSet = (bool)b;
+  if (aSet != bSet) return false;
+  if (!aSet) return true;
+  using Ptr = float (*)(float);
+  const Ptr* pa = a.target<Ptr>();
+  const Ptr* pb = b.target<Ptr>();
+  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
+}
+
 namespace {
 
 YGAlign toYogaAlign(Align a) {
@@ -91,16 +104,6 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 // library cannot compare (custom programs, decorations, outlines, routers,
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
-
-bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet) return false;
-  if (!aSet) return true;
-  using Ptr = float (*)(float);
-  const Ptr* pa = a.target<Ptr>();
-  const Ptr* pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
-}
 
 static_assert(kFieldCount<Transition> == 3,
               "Transition gained or lost a field — rule on it in "
@@ -199,9 +202,16 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   if ((bool)a.textData != (bool)b.textData) return false;
   if (!a.textData) return true;
   const TextData &ta = *a.textData, &tb = *b.textData;
-  if (ta.glyphFx.has_value() != tb.glyphFx.has_value()) return false;
-  if (ta.glyphFx)
-    return false;  // effect is a callable — memo covers settled kinetic text
+  // fx() tracks are comparable VALUES — selector, effect (preset id plus
+  // parameters, or the key an ad-hoc lambda was given), cascade and reach
+  // — so text that re-describes the same tracks prunes like any other
+  // static leaf. The progress is an Animatable and is compared where every
+  // other animated slot is, through propEqual.
+  if (ta.tracks.size() != tb.tracks.size()) return false;
+  for (size_t i = 0; i < ta.tracks.size(); ++i)
+    if (!ta.tracks[i].sameShape(tb.tracks[i]) ||
+        !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
+      return false;
   // VariationDrive: BINDING identity, like Animatable bindings — same tag
   // and same Output pointer prune (the value lives outside the tree).
   if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
@@ -352,6 +362,38 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  The endpoint trio is compared only for the two rules that READ it
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
  *  nowhere else); every other field is unconditional. */
+// ---- the fx() seam's hand-written comparators ------------------------------
+
+static_assert(kFieldCount<Stagger> == 7,
+              "Stagger gained or lost a field — rule on it in "
+              "Stagger::operator== below, then bump this count. A field left "
+              "out makes two different cascades compare equal, the text node "
+              "prunes, and it keeps beating to the old ladder forever.");
+bool Stagger::operator==(const Stagger& other) const {
+  if (eachMs != other.eachMs || amountMs != other.amountMs ||
+      durationMs != other.durationMs || from != other.from ||
+      over != other.over)
+    return false;
+  if (!easeEqual(distribution, other.distribution)) return false;
+  if (inner == other.inner) return true;  // both absent, or one shared value
+  if (!inner || !other.inner) return false;
+  return *inner == *other.inner;
+}
+
+static_assert(kFieldCount<Track> == 5,
+              "Track gained or lost a field — rule on it in "
+              "Track::sameShape() below, then bump this count. `progress` is "
+              "deliberately NOT compared there: it is an Animatable, and "
+              "textEqual() compares it through propEqual with every other "
+              "animated slot.");
+bool Track::sameShape(const Track& other) const {
+  return where == other.where && effect == other.effect &&
+         stagger == other.stagger && reach == other.reach;
+}
+bool Track::operator==(const Track& other) const {
+  return sameShape(other) && propEqual(progress, other.progress);
+}
+
 static_assert(kFieldCount<Spans::Term> == 11,
               "Spans::Term gained or lost a field — rule on it below, then "
               "bump this count. A term field left out makes every claim of "
@@ -911,19 +953,13 @@ void Composer::Impl::patchChildren(Instance& inst,
         // the whole list, but one item appended to a LIVE list enters with
         // no extra delay (it is the only new mount) instead of inheriting
         // its full-list ordinal.
-        const float n = (float)newChildren.size();
-        float order = (float)mountOrdinal;
-        switch (inst.desc->fxData->staggerFrom) {
-          case Stagger::From::End:
-            order = n - 1.0f - order;
-            break;
-          case Stagger::From::Center:
-            order = std::abs(order - (n - 1.0f) * 0.5f) * 2.0f;
-            break;
-          case Stagger::From::Start:
-            break;
-        }
-        mountDelayCarryMs += staggerMs * order;
+        // The SAME ordering an fx() track's units take, so `From` means one
+        // thing wherever it is written.
+        static thread_local std::vector<float> order;
+        cascadeOrder(inst.desc->fxData->staggerFrom,
+                     (uint32_t)newChildren.size(), order);
+        if (mountOrdinal < order.size())
+          mountDelayCarryMs += staggerMs * order[mountOrdinal];
       }
       inst.children.push_back(mount(node, &inst));
       mountDelayCarryMs = saved;

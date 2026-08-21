@@ -2,6 +2,8 @@
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/Console.h>
 
+#include <numeric>
+
 #include "ComposeTestSupport.h"
 
 TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
@@ -1338,10 +1340,10 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   EXPECT_FALSE(host.composer.hitTest({97, 64}).has_value());
 }
 
-// ---- kinetic typography
+// ---- text fx
 // ------------------------------------------------------
 
-#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/TextFx.h>
 
 TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // The stagger law: at mid-progress the early glyphs are fully revealed
@@ -1349,12 +1351,12 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // rendered through batched RSXform draws.
   Host host;
   auto tree = [](Animatable<float> progress) {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(24);
-    fx.stagger = {.eachMs = 40, .durationMs = 200};
-    fx.progress = std::move(progress);
     return box().padding(10).child(
-        text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k").glyphFx(std::move(fx)));
+        text(u8"IIIIIIIIIIII", whiteStyle(32))
+            .key("k")
+            .fx({.effect = fx::rise(24),
+                 .stagger = {.eachMs = 40, .durationMs = 200},
+                 .progress = std::move(progress)}));
   };
   host.composer.render(tree(0.0f));
   host.frame();
@@ -1379,12 +1381,12 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   // transition animates the reveal and the node paints live while moving.
   Host host;
   auto tree = [](Animatable<float> progress) {
-    GlyphFx fx;
-    fx.effect = glyphfx::pop();
-    fx.stagger = {.eachMs = 20, .durationMs = 150};
-    fx.progress = std::move(progress);
     return box().padding(10).child(
-        text(u8"POP", whiteStyle(40)).key("k").glyphFx(std::move(fx)));
+        text(u8"POP", whiteStyle(40))
+            .key("k")
+            .fx({.effect = fx::pop(),
+                 .stagger = {.eachMs = 20, .durationMs = 150},
+                 .progress = std::move(progress)}));
   };
   host.composer.render(tree(0.001f));
   host.frame();
@@ -1415,12 +1417,12 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   // describe in between.
   Host host;
   choreograph::Output<float> progress{0.0f};
-  GlyphFx fx;
-  fx.effect = glyphfx::rise(24);
-  fx.stagger = {.eachMs = 40, .durationMs = 200};
-  fx.progress = &progress;
   host.composer.render(box().padding(10).child(
-      text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k").glyphFx(std::move(fx))));
+      text(u8"IIIIIIIIIIII", whiteStyle(32))
+          .key("k")
+          .fx({.effect = fx::rise(24),
+               .stagger = {.eachMs = 40, .durationMs = 200},
+               .progress = &progress})));
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());
@@ -1435,6 +1437,546 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   EXPECT_TRUE(anyWhiteIn(host, tail))
       << "the tail never appeared: the node replayed the recording it made at "
          "progress 0, so glyph progress is not invalidating its own picture";
+}
+
+// ---- text fx: tracks, selectors, cascades and the combinators -------------
+
+namespace {
+
+/** What one glyph's effect saw on one call. */
+struct FxSample {
+  GlyphInfo info;
+  float t = 0;
+  float random = 0;
+};
+
+/** An effect that draws nothing and RECORDS what it was asked. Every fx
+ *  question below — which glyphs a selector addressed, which beat a
+ *  cascade put them in, what local time they saw — is answerable from the
+ *  samples one frame collects, without reading a single pixel. */
+TextEffect probe(std::string key, std::vector<FxSample>* into) {
+  return fx::effect(std::move(key),
+                    [into](const GlyphInfo& g, float t, Rng& rng) {
+                      into->push_back({g, t, rng.unit()});
+                      return GlyphMod{};
+                    });
+}
+
+/** The walk-order indices the samples cover. */
+std::vector<size_t> addressed(const std::vector<FxSample>& samples) {
+  std::vector<size_t> out;
+  out.reserve(samples.size());
+  for (const FxSample& s : samples) out.push_back(s.info.index);
+  return out;
+}
+
+/** A track whose effect records, over the whole text unless told otherwise. */
+Track probeTrack(std::vector<FxSample>* into, Selector where = {},
+                 Stagger cascade = {.eachMs = 0, .durationMs = 100},
+                 float progress = 1.0f) {
+  return Track{.where = std::move(where),
+               .effect = probe("probe", into),
+               .stagger = std::move(cascade),
+               .progress = progress};
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
+  // The stagger runs over the track's UNITS, so a word-unit cascade gives
+  // every glyph of a word one shared local time and delays the next word by
+  // a whole beat. Per-glyph spacing inside a word would be a different
+  // effect entirely, and is what `unit::Glyph` is for.
+  Host host(300, 120);
+  std::vector<FxSample> samples;
+  host.composer.render(box().padding(10).child(
+      text(u8"AAA BBB CCC", whiteStyle(20))
+          .key("k")
+          .fx(probeTrack(
+              &samples, {},
+              stagger(unit::Word, {.eachMs = 100, .durationMs = 100}), 0.5f))));
+  host.frame();
+  ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
+
+  // Three words, three beats: 0..2 / 3..5 / 6..8.
+  for (size_t i = 0; i < 9; ++i)
+    EXPECT_EQ(samples[i].info.unitIndex, (uint32_t)(i / 3))
+        << "glyph " << i << " landed in the wrong beat";
+  EXPECT_EQ(samples[0].info.unitCount, 3u);
+  // Within a word every glyph shares its word's time…
+  EXPECT_FLOAT_EQ(samples[0].t, samples[2].t);
+  EXPECT_FLOAT_EQ(samples[3].t, samples[5].t);
+  // …and the cascade runs head-first.
+  EXPECT_GT(samples[0].t, samples[3].t);
+  EXPECT_GT(samples[3].t, samples[6].t);
+}
+
+TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
+  Host host(400, 160);
+  std::vector<FxSample> samples;
+  host.composer.render(box().padding(10).child(
+      text(u8"One two. Three four. Five.", whiteStyle(16))
+          .key("k")
+          .width(pct(100))
+          .fx(probeTrack(
+              &samples, {},
+              stagger(unit::Sentence, {.eachMs = 100, .durationMs = 100}),
+              0.5f))));
+  host.frame();
+  ASSERT_FALSE(samples.empty());
+  EXPECT_EQ(samples.front().info.unitCount, 3u)
+      << "ICU sentence segmentation did not produce three beats";
+  // Every glyph of a sentence shares one time, and the sentences cascade.
+  float previous = 2.0f;
+  uint32_t previousUnit = ~0u;
+  for (const FxSample& s : samples) {
+    if (s.info.unitIndex != previousUnit) {
+      EXPECT_LT(s.t, previous) << "sentence " << s.info.unitIndex
+                               << " did not start after its predecessor";
+      previous = s.t;
+      previousUnit = s.info.unitIndex;
+    } else {
+      EXPECT_FLOAT_EQ(s.t, previous) << "one sentence split into two beats";
+    }
+  }
+}
+
+TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
+  // The default unit is the CLUSTER, and that is the whole reason it is
+  // the default: a base letter and its combining mark are one thing on the
+  // page. Staggered per glyph the accent would fly on its own.
+  Host host(300, 120);
+  std::vector<FxSample> samples;
+  host.composer.render(box().padding(10).child(
+      text(u8"x́ýz", whiteStyle(28))
+          .key("k")
+          .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+                         0.5f))));
+  host.frame();
+  ASSERT_FALSE(samples.empty());
+  const uint32_t beats = samples.front().info.unitCount;
+  if (beats == samples.size())
+    GTEST_SKIP() << "this font composed the marks into single glyphs, so "
+                    "there is no multi-glyph cluster to keep together";
+  // Glyphs at one text offset are one cluster and must share one time.
+  for (size_t i = 1; i < samples.size(); ++i)
+    if (samples[i].info.textIndex == samples[i - 1].info.textIndex) {
+      EXPECT_EQ(samples[i].info.unitIndex, samples[i - 1].info.unitIndex);
+      EXPECT_FLOAT_EQ(samples[i].t, samples[i - 1].t)
+          << "a combining mark was staggered away from its base letter";
+    }
+
+  // THE CONTROL: unit::Glyph is the raw shaping unit and DOES separate
+  // them. Without this the check above is satisfied by a cascade that
+  // never beat at all.
+  std::vector<FxSample> raw;
+  host.composer.render(box().padding(10).child(
+      text(u8"x́ýz", whiteStyle(28))
+          .key("k")
+          .fx(probeTrack(
+              &raw, {},
+              stagger(unit::Glyph, {.eachMs = 100, .durationMs = 400}),
+              0.5f))));
+  host.frame();
+  ASSERT_EQ(raw.size(), samples.size());
+  EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
+  bool anySplit = false;
+  for (size_t i = 1; i < raw.size(); ++i)
+    if (raw[i].info.textIndex == raw[i - 1].info.textIndex &&
+        raw[i].t != raw[i - 1].t)
+      anySplit = true;
+  EXPECT_TRUE(anySplit)
+      << "unit::Glyph did not split the cluster, so the cluster case above "
+         "proves nothing";
+}
+
+TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
+  // A letter in flight is painted with the same glyph paint a resting one
+  // is: textFill's material is its foreground and textStroke's outline is
+  // an underlay, both carried through the batched draw. Shadowed instead,
+  // a chrome wordmark loses its chrome the moment it starts moving.
+  Host host(220, 140);
+  const auto tree = [](bool moving) {
+    Element t = text(u8"II", whiteStyle(48))
+                    .key("k")
+                    .textFill(Material::solid({0, 1, 0, 1}));
+    if (moving)
+      t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float, Rng&) {
+              return GlyphMod{};
+            })});
+    return box().padding(10).child(std::move(t));
+  };
+  const auto greenPixels = [&] {
+    auto b = host.composer.bounds("k");
+    EXPECT_TRUE(b.has_value());
+    int count = 0;
+    for (int y = (int)b->top(); y < (int)b->bottom(); ++y)
+      for (int x = (int)b->left(); x < (int)b->right(); ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetG(c) > 200 && SkColorGetR(c) < 80) ++count;
+      }
+    return count;
+  };
+  host.composer.render(tree(false));
+  host.frame();
+  const int resting = greenPixels();
+  ASSERT_GT(resting, 20) << "textFill did not paint the resting glyphs green";
+  host.composer.render(tree(true));
+  host.frame();
+  EXPECT_GT(greenPixels(), resting / 2)
+      << "the fx path dropped textFill's material and painted the style's "
+         "own foreground instead";
+}
+
+TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
+  // Absolute forms, the regular expression and the substring, all resolved
+  // against the paragraph and all comparable values.
+  Host host(300, 120);
+  const auto run = [&](Selector where) {
+    std::vector<FxSample> samples;
+    host.composer.render(box().padding(10).child(
+        text(u8"AAA BBB CCC", whiteStyle(20))
+            .key("k")
+            .fx(probeTrack(&samples, std::move(where)))));
+    host.frame();
+    return addressed(samples);
+  };
+  EXPECT_EQ(run(sel::word(1)), (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sel::words(1, 3)), (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
+  EXPECT_EQ(run(sel::text(u8"BBB")), (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sel::regex(u8"B+")), (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sel::line(0)).size(), 9u);  // one line, everything
+  EXPECT_EQ(run(Selector()).size(), 9u);    // default: everything
+  EXPECT_TRUE(run(sel::regex(u8"([")).empty())
+      << "a pattern that does not compile must select NOTHING rather than "
+         "everything — silently addressing the whole paragraph is the "
+         "failure this rule exists to prevent";
+}
+
+TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
+  Host host(300, 120);
+  const auto run = [&](Selector where) {
+    std::vector<FxSample> samples;
+    host.composer.render(box().padding(10).child(
+        text(u8"AAA BBB CCC", whiteStyle(20))
+            .key("k")
+            .fx(probeTrack(&samples, std::move(where)))));
+    host.frame();
+    return addressed(samples);
+  };
+  EXPECT_EQ(run(sel::word(0) | sel::word(2)),
+            (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+  EXPECT_EQ(run(sel::words(0, 2) & sel::word(1)),
+            (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(!sel::word(1)), (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+  EXPECT_TRUE(run(sel::word(0) & sel::word(1)).empty());
+}
+
+TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
+  // take(n) and drop(n) answer opposite sides of one cut inside every unit,
+  // so together they cover the text exactly once. A gap or an overlap here
+  // means a two-track composition double-counts letters it should split.
+  Host host(300, 120);
+  const auto run = [&](Selector where) {
+    std::vector<FxSample> samples;
+    host.composer.render(box().padding(10).child(
+        text(u8"AAA BBB CCC", whiteStyle(20))
+            .key("k")
+            .fx(probeTrack(&samples, std::move(where)))));
+    host.frame();
+    return addressed(samples);
+  };
+  const std::vector<size_t> firsts = run(sel::each(unit::Word).take(1));
+  const std::vector<size_t> rest = run(sel::each(unit::Word).drop(1));
+  EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
+  EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
+  std::vector<size_t> both = firsts;
+  both.insert(both.end(), rest.begin(), rest.end());
+  std::sort(both.begin(), both.end());
+  std::vector<size_t> all(9);
+  std::iota(all.begin(), all.end(), 0u);
+  EXPECT_EQ(both, all) << "take/drop is not a partition of the units";
+}
+
+TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
+  // A seeded cascade must give the SAME order every frame: a scatter that
+  // reshuffles can never settle, so it can never cache, and it flickers.
+  std::vector<FxSample> first, second;
+  const auto tree = [&](std::vector<FxSample>* into) {
+    return box().padding(10).child(
+        text(u8"AAA BBB CCC", whiteStyle(20))
+            .key("k")
+            .fx(probeTrack(into, {},
+                           {.eachMs = 100,
+                            .durationMs = 100,
+                            .from = Stagger::From::Random},
+                           0.5f)));
+  };
+  // TWO HOSTS, one paint each: re-describing the same tracks into one host
+  // prunes and replays the recording, which is the right behaviour and
+  // would leave this test measuring nothing.
+  Host hostA(300, 120), hostB(300, 120);
+  hostA.composer.render(tree(&first));
+  hostA.frame();
+  hostB.composer.render(tree(&second));
+  hostB.frame();
+  ASSERT_EQ(first.size(), second.size());
+  ASSERT_FALSE(first.empty());
+  for (size_t i = 0; i < first.size(); ++i)
+    EXPECT_FLOAT_EQ(first[i].t, second[i].t)
+        << "the seeded cascade reshuffled between frames";
+  // …and it really is a scatter, not the Start ladder wearing a new name.
+  bool anyOutOfOrder = false;
+  for (size_t i = 1; i < first.size(); ++i)
+    if (first[i].t > first[i - 1].t) anyOutOfOrder = true;
+  EXPECT_TRUE(anyOutOfOrder) << "Random produced the Start ordering";
+  // The Rng an effect draws from is seeded per glyph and is stable too.
+  for (size_t i = 0; i < first.size(); ++i)
+    EXPECT_FLOAT_EQ(first[i].random, second[i].random);
+}
+
+TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
+  // then() compounds: each word gets its beat, and inside that beat each
+  // glyph gets its own start. Two ladders, one master progress.
+  Host host(300, 120);
+  std::vector<FxSample> samples;
+  Stagger cascade = stagger(unit::Word, {.eachMs = 200, .durationMs = 100});
+  cascade.then(unit::Glyph, {.eachMs = 50, .durationMs = 100});
+  // A beat is 100 + 50·2 = 200 ms and the whole cascade spans 400; 0.3 of
+  // that lands inside the first word's beat, where the two ladders are
+  // both readable.
+  host.composer.render(box().padding(10).child(
+      text(u8"AAA BBB", whiteStyle(20))
+          .key("k")
+          .fx(probeTrack(&samples, {}, cascade, 0.3f))));
+  host.frame();
+  ASSERT_EQ(samples.size(), 6u);
+  // Inside a word the glyphs no longer share a time — the inner ladder ran.
+  EXPECT_GT(samples[0].t, samples[1].t);
+  EXPECT_GT(samples[1].t, samples[2].t);
+  // …and the second word still starts a whole beat behind the first.
+  EXPECT_GT(samples[0].t, samples[3].t);
+}
+
+TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
+  // The algebra: offsets add. Two tracks each pushing 30 px right put the
+  // glyph 60 px right of rest, which is the only reading under which
+  // stacking tracks is composition rather than replacement.
+  Host host(220, 120);
+  const auto shove = [](float dx) {
+    return fx::effect(
+        "shove" + std::to_string((int)dx),
+        [dx](const GlyphInfo&, float, Rng&) {
+          GlyphMod m;
+          m.dx = dx;
+          return m;
+        },
+        /*reach=*/80.0f);
+  };
+  host.composer.render(box().padding(10).child(text(u8"I", whiteStyle(40))
+                                                   .key("k")
+                                                   .fx({.effect = shove(30)})
+                                                   .fx({.effect = shove(30)})));
+  host.frame();
+  auto b = host.composer.bounds("k");
+  ASSERT_TRUE(b.has_value());
+  const int top = (int)b->top(), bottom = (int)b->bottom();
+  EXPECT_FALSE(anyWhiteIn(
+      host, SkIRect::MakeLTRB((int)b->left(), top, (int)b->right(), bottom)))
+      << "the glyph never left its rest position";
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left() + 55, top,
+                                                 (int)b->left() + 75, bottom)))
+      << "two 30 px tracks did not add to 60 px";
+}
+
+TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
+  // ownPaintBounds has no idea what an effect will do, so a track that
+  // throws a glyph out of the element's box must SAY how far. Under-report
+  // and the cached picture truncates it with no diagnostic — which is
+  // exactly the control below.
+  Host host(220, 200);
+  const auto drop = [](float reach) {
+    Track t{.effect = fx::effect(
+                "drop",
+                [](const GlyphInfo&, float, Rng&) {
+                  GlyphMod m;
+                  m.dy = 60;
+                  return m;
+                },
+                /*reach=*/0.0f)};
+    t.reach = reach;
+    return t;
+  };
+  const auto inkBelow = [&](float reach) {
+    host.composer.render(box().padding(10).child(text(u8"I", whiteStyle(40))
+                                                     .key("k")
+                                                     .cache(Cache::Texture)
+                                                     .fx(drop(reach))));
+    host.frame();
+    auto b = host.composer.bounds("k");
+    EXPECT_TRUE(b.has_value());
+    return anyWhiteIn(
+        host, SkIRect::MakeLTRB((int)b->left(), (int)b->bottom() + 20,
+                                (int)b->right(), (int)b->bottom() + 70));
+  };
+  EXPECT_TRUE(inkBelow(80.0f)) << "a declared reach did not reach the cull";
+  EXPECT_FALSE(inkBelow(0.0f))
+      << "the control did not truncate, so the check above proves nothing "
+         "about the cull";
+}
+
+TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
+  // Tracks are values, so a re-describe that says the same thing must not
+  // mark the node dirty. Without it every text node carrying fx re-records
+  // on every frame, whatever its progress is doing.
+  Host host(220, 120);
+  const auto tree = [](TextEffect effect) {
+    return box().padding(10).child(text(u8"AAA", whiteStyle(20))
+                                       .key("k")
+                                       .fx({.effect = std::move(effect)}));
+  };
+  host.composer.render(tree(fx::rise(20)));
+  host.frame();
+  host.composer.render(tree(fx::rise(20)));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an unchanged track list did not prune";
+  host.composer.render(tree(fx::rise(24)));
+  host.frame();
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u)
+      << "a changed preset parameter pruned anyway";
+
+  // A keyed lambda compares by its KEY: same key prunes, different key does
+  // not. That is the whole contract fx::effect() asks of its caller.
+  const auto body = [](const GlyphInfo&, float, Rng&) { return GlyphMod{}; };
+  host.composer.render(tree(fx::effect("mine", body)));
+  host.frame();
+  host.composer.render(tree(fx::effect("mine", body)));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "two effects under one key did not compare equal";
+  host.composer.render(tree(fx::effect("other", body)));
+  host.frame();
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u)
+      << "a re-keyed effect pruned onto the old one";
+}
+
+TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
+  // Two bound progresses that have held still for long enough release their
+  // volatility, exactly as one does — the settle machinery covers EVERY
+  // track's progress or a second track pins the node live forever.
+  Host host(220, 120);
+  choreograph::Output<float> a{0.0f}, b{0.0f};
+  host.composer.render(box().padding(10).child(
+      text(u8"AAA BBB", whiteStyle(20))
+          .key("k")
+          .fx({.effect = fx::rise(12), .progress = &a})
+          .fx({.effect = fx::slide(-8), .progress = &b})));
+  host.frame();
+  a = 1.0f;
+  b = 1.0f;
+  for (int i = 0; i < 12; ++i) host.frame(0.016);  // the release warms up
+  unsigned paints = 0, records = 0;
+  for (int i = 0; i < 5; ++i) {
+    host.frame(0.016);
+    paints += host.composer.stats().nodesPainted;
+    records += host.composer.stats().picturesRecorded;
+  }
+  EXPECT_EQ(paints, 0u) << "settled multi-track text kept painting live";
+  EXPECT_EQ(records, 0u) << "settled multi-track text kept re-recording";
+
+  // …and the frame either progress moves again, the node must re-declare
+  // before a stale recording replays.
+  b = 0.2f;
+  host.frame(0.016);
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u)
+      << "the second track moved and nothing re-declared";
+}
+
+// ---- the combinators, as pure values --------------------------------------
+
+namespace {
+/** An effect that reports a constant dy, so a composition's arithmetic is
+ *  readable straight off the returned GlyphMod. */
+TextEffect constantDy(float dy) {
+  return fx::effect("constantDy" + std::to_string((int)dy),
+                    [dy](const GlyphInfo&, float, Rng&) {
+                      GlyphMod m;
+                      m.dy = dy;
+                      return m;
+                    });
+}
+/** An effect that reports the local time it was handed. */
+TextEffect reportT() {
+  return fx::effect("reportT", [](const GlyphInfo&, float t, Rng&) {
+    GlyphMod m;
+    m.dy = t;
+    return m;
+  });
+}
+GlyphMod evaluate(const TextEffect& effect, float t) {
+  GlyphInfo g;
+  Rng rng(1);
+  return effect(g, t, rng);
+}
+}  // namespace
+
+TEST(ComposeTextFx, SeqRenormalizesEachPhaseOverItsOwnWindow) {
+  // Each phase sees a full 0→1 across its slice of local time — that is
+  // what makes a sequence a sequence rather than three effects sharing one
+  // clock and each playing a third of its curve.
+  const TextEffect sequence = fx::seq(reportT().until(0.5f), reportT());
+  EXPECT_FLOAT_EQ(evaluate(sequence, 0.0f).dy, 0.0f);
+  EXPECT_FLOAT_EQ(evaluate(sequence, 0.25f).dy, 0.5f);  // half of phase one
+  EXPECT_FLOAT_EQ(evaluate(sequence, 0.75f).dy, 0.5f);  // half of phase two
+  EXPECT_FLOAT_EQ(evaluate(sequence, 1.0f).dy, 1.0f);
+  // The last phase runs to the end whatever it was declared with.
+  const TextEffect short_ =
+      fx::seq(reportT().until(0.5f), reportT().until(0.6f));
+  EXPECT_FLOAT_EQ(evaluate(short_, 1.0f).dy, 1.0f);
+}
+
+TEST(ComposeTextFx, SeqCutsHardByDefaultAndLerpsAcrossAnXfade) {
+  const TextEffect cut = fx::seq(constantDy(10).until(0.5f), constantDy(0));
+  EXPECT_FLOAT_EQ(evaluate(cut, 0.49f).dy, 10.0f);
+  EXPECT_FLOAT_EQ(evaluate(cut, 0.51f).dy, 0.0f);
+
+  const TextEffect faded =
+      fx::seq(constantDy(10).until(0.5f).xfade(0.2f), constantDy(0));
+  EXPECT_FLOAT_EQ(evaluate(faded, 0.29f).dy, 10.0f);    // before the window
+  EXPECT_NEAR(evaluate(faded, 0.40f).dy, 5.0f, 1e-4f);  // halfway across
+  EXPECT_NEAR(evaluate(faded, 0.50f).dy, 0.0f, 1e-4f);  // at the joint
+  EXPECT_FLOAT_EQ(evaluate(faded, 0.60f).dy, 0.0f);     // past it
+}
+
+TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
+  const TextEffect both = fx::mix(constantDy(10), constantDy(4));
+  EXPECT_FLOAT_EQ(evaluate(both, 0.5f).dy, 14.0f);  // offsets add
+  const auto half = [](float scale) {
+    return fx::effect("half" + std::to_string((int)(scale * 10)),
+                      [scale](const GlyphInfo&, float, Rng&) {
+                        GlyphMod m;
+                        m.scale = scale;
+                        m.alpha = scale;
+                        return m;
+                      });
+  };
+  const TextEffect scaled = fx::mix(half(0.5f), half(0.5f));
+  EXPECT_FLOAT_EQ(evaluate(scaled, 0.5f).scale, 0.25f);  // scale multiplies
+  EXPECT_FLOAT_EQ(evaluate(scaled, 0.5f).alpha, 0.25f);  // …and so does alpha
+}
+
+TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
+  EXPECT_TRUE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
+              fx::seq(fx::rise(20).until(0.5f), fx::pop()));
+  EXPECT_FALSE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
+               fx::seq(fx::rise(20).until(0.6f), fx::pop()));
+  EXPECT_FALSE(fx::seq(fx::rise(20).until(0.5f), fx::pop()) ==
+               fx::seq(fx::rise(22).until(0.5f), fx::pop()));
+  EXPECT_TRUE(fx::mix(fx::rise(20), fx::slide()) ==
+              fx::mix(fx::rise(20), fx::slide()));
+  EXPECT_FALSE(fx::mix(fx::rise(20), fx::slide()) ==
+               fx::mix(fx::slide(), fx::rise(20)));
 }
 
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
