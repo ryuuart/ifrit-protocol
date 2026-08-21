@@ -178,6 +178,66 @@ inline constexpr float kNominalSizePx = 96.0f;
       std::abs(radiusPx) + detail::kNominalSizePx * 0.5f);
 }
 
+/** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
+ *  addresses — a grade, an optical size, a slant applied at draw time with
+ *  no reshape.
+ *
+ *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen
+ *  positions shaping gave them, so an axis that moves advances would leave
+ *  them sitting wrong. The runtime probes the face once per axis and
+ *  refuses one that does, drawing at the shaped face and warning once —
+ *  GRAD is the advance-invariant weight most faces carry, while wght
+ *  belongs in the shaping style, which re-shapes. */
+[[nodiscard]] inline TextEffect axis(const char (&tag)[5], float value) {
+  const sigil::weave::FontVariation coordinate(tag, value);
+  return TextEffect(
+      "axis",
+      {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
+       (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
+      [coordinate](const GlyphInfo&, float, Rng&) {
+        GlyphMod m;
+        m.axis = coordinate;
+        return m;
+      },
+      0.0f);
+}
+
+/** The same axis SWEPT across local progress: `from` at t = 0, `to` at
+ *  t = 1. Pair it with a stagger and a weight rolls along the line. */
+[[nodiscard]] inline TextEffect axis(const char (&tag)[5], float from,
+                                     float to) {
+  const sigil::weave::FontVariation coordinate(tag, from);
+  return TextEffect(
+      "axisSweep",
+      {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
+       (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], from, to},
+      [coordinate, from, to](const GlyphInfo&, float t, Rng&) {
+        GlyphMod m;
+        sigil::weave::FontVariation driven = coordinate;
+        driven.value = from + (to - from) * std::clamp(t, 0.0f, 1.0f);
+        m.axis = driven;
+        return m;
+      },
+      0.0f);
+}
+
+/** THE DECODING TEXT: every glyph churns through `charset` before landing
+ *  on the letter the text actually says.
+ *
+ *  A substitution keeps the ORIGINAL glyph's pen position, so it is only
+ *  honoured where the replacement has the original's advance — the runtime
+ *  measures both and refuses the rest, drawing the true letter. That makes
+ *  a monospaced face the natural home for this, and a charset of
+ *  same-width characters the way to get it out of a proportional one.
+ *
+ *  Each glyph resolves at its own seeded moment and all of them have
+ *  resolved by t = 1. `steps` is how many times a glyph re-rolls across its
+ *  whole local time; the churn is seeded from the glyph's identity, so it
+ *  is the same churn on every frame. */
+[[nodiscard]] TextEffect scramble(
+    std::u32string charset = U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    int steps = 14);
+
 /** THE ESCAPE HATCH: an ad-hoc effect body under an author-given key.
  *
  *  The key IS the identity — two effects with the same key compare equal

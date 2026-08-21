@@ -26,7 +26,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstring>
+#include <map>
+#include <tuple>
+#include <unordered_set>
+#include <utility>
 
 #include "ComposeRuntime.h"
 
@@ -78,49 +81,129 @@ inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// VariationDrive — the paint-side gate + per-frame coordinate
+// The two SUBSTITUTION gates a dressed glyph can ask for — a driven
+// variable-font axis, and a code-point swap. Both replace what the SHAPER
+// decided while keeping the pen positions it computed, so both are refused
+// wherever that would move a letter, and both memoize their verdict: a
+// verdict is a property of the face, and probing one costs metrics calls.
 
 namespace {
 
-/** The node's live font-variation override, or null: probes the layout's
- *  shaped typefaces ONCE per text content (advance-invariance on the
- *  driven axis) and refuses advance-variant axes with a one-time warning —
- *  the shaped positions must stay the truth. Returns a pointer to
- *  thread-local state consumed by the immediately following drawBatched. */
-const sigil::weave::ParagraphLayout::LiveVariations* liveDriveImpl(
-    Instance& inst, const ElementNode& node, sigil::weave::FontContext& fonts) {
-  const TextData* text = node.textData ? &*node.textData : nullptr;
-  if (!text || !text->driveValue) return nullptr;
-  if (inst.driveProbe < 0) {
-    char tag[5] = {text->driveTag[0], text->driveTag[1], text->driveTag[2],
-                   text->driveTag[3], 0};
-    bool invariant = false, sawTypeface = false;
-    for (const sigil::weave::PositionedRun& run : inst.textLayout.runs) {
-      if (!run.shaped || !run.shaped->typeface) continue;
-      sawTypeface = true;
-      if (!fonts.axisIsAdvanceInvariant(run.shaped->typeface, tag)) {
-        invariant = false;
-        break;
-      }
-      invariant = true;
-    }
-    inst.driveProbe = (sawTypeface && invariant) ? 1 : 0;
-    if (inst.driveProbe == 0)
-      SkDebugf(
-          "sigilcompose variationDrive: axis \"%s\" is absent or "
-          "moves advances on this font — drive refused (text draws at "
-          "its shaped coordinates; GRAD is the advance-invariant "
-          "weight, or re-render discretely)\n",
-          tag);
+/** What driving one axis on one face is allowed to do, and across what
+ *  range. `min`/`max` are the axis's own design range, which is what the
+ *  driven value is stepped across — a fixed step count over the range keeps
+ *  the varied-clone population bounded whatever numbers an effect feeds it.
+ */
+struct AxisGate {
+  bool allowed = false;
+  float min = 0, max = 0;
+};
+
+/** The gate for (face, axis), probed once and remembered. Probing samples
+ *  every glyph advance at both extremes of the axis, so it is a per-face
+ *  cost and never a per-frame one. */
+const AxisGate& axisGate(sigil::weave::FontContext& fonts,
+                         const sk_sp<SkTypeface>& face, const char (&tag)[5]) {
+  static thread_local std::map<std::pair<uint32_t, uint32_t>, AxisGate> table;
+  const uint32_t axisTag = SkSetFourByteTag(tag[0], tag[1], tag[2], tag[3]);
+  auto [entry, fresh] =
+      table.try_emplace({face ? face->uniqueID() : 0u, axisTag}, AxisGate{});
+  AxisGate& gate = entry->second;
+  if (!fresh) return gate;
+  gate.allowed = face && fonts.axisIsAdvanceInvariant(face, tag);
+  if (!gate.allowed) {
+    SkDebugf(
+        "sigilcompose variationDrive: axis \"%s\" is absent or "
+        "moves advances on this font — drive refused (text draws at "
+        "its shaped coordinates; GRAD is the advance-invariant "
+        "weight, or re-render discretely)\n",
+        tag);
+    return gate;
   }
-  if (inst.driveProbe != 1) return nullptr;
-  static thread_local sigil::weave::FontVariation coordinate;
-  static thread_local sigil::weave::ParagraphLayout::LiveVariations live;
-  std::memcpy(coordinate.tag, text->driveTag, 4);
-  coordinate.value = text->driveValue->value();
-  live.fonts = &fonts;
-  live.variations = {&coordinate, 1};
-  return &live;
+  const int count = face->getVariationDesignParameters({});
+  if (count > 0) {
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+    face->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto& axis : axes)
+      if (axis.tag == axisTag) {
+        gate.min = axis.min;
+        gate.max = axis.max;
+      }
+  }
+  return gate;
+}
+
+/** The face a driven axis asks for, or null when the gate refuses it — the
+ *  glyph then draws at its shaped face, which is the whole refusal. Off a
+ *  continuous track the coordinate is stepped across the axis's design
+ *  range, because every distinct coordinate is a distinct clone, a distinct
+ *  batch bucket and a distinct set of glyph-atlas strikes. */
+sk_sp<SkTypeface> drivenFace(sigil::weave::FontContext& fonts,
+                             const sk_sp<SkTypeface>& base,
+                             const sigil::weave::FontVariation& axis,
+                             bool continuous) {
+  const char tag[5] = {axis.tag[0], axis.tag[1], axis.tag[2], axis.tag[3], 0};
+  const AxisGate& gate = axisGate(fonts, base, tag);
+  if (!gate.allowed) return nullptr;
+  sigil::weave::FontVariation coordinate = axis;
+  coordinate.value = std::clamp(axis.value, gate.min, gate.max);
+  if (!continuous && gate.max > gate.min) {
+    constexpr float kAxisSteps = 64.0f;
+    const float span = gate.max - gate.min;
+    coordinate.value = gate.min + std::round((coordinate.value - gate.min) /
+                                             span * kAxisSteps) *
+                                      (span / kAxisSteps);
+  }
+  return fonts.variedTypeface(base, {&coordinate, 1});
+}
+
+/** The glyph a code-point substitution resolves to, or 0 when it is
+ *  refused.
+ *
+ *  A substitution draws its replacement at the ORIGINAL glyph's pen
+ *  position, so it is sound exactly when the two have the same advance: a
+ *  proportional swap would move every letter after it, which is a reshape
+ *  and not a redraw. The advances are measured at a canonical em with
+ *  hinting off, so the verdict is a property of the face rather than of the
+ *  size it happens to be drawn at, and is memoized per (face, original,
+ *  replacement). */
+SkGlyphID substituteGlyph(const sk_sp<SkTypeface>& face, SkGlyphID original,
+                          char32_t codepoint) {
+  if (!face) return 0;
+  using Key = std::tuple<uint32_t, SkGlyphID, uint32_t>;
+  static thread_local std::map<Key, SkGlyphID> table;
+  auto [entry, fresh] = table.try_emplace(
+      Key{face->uniqueID(), original, (uint32_t)codepoint}, SkGlyphID{0});
+  if (!fresh) return entry->second;
+
+  constexpr float kProbeEmPx = 100.0f;
+  // A tenth of a pixel on a hundred-pixel em: a thousandth of the em, which
+  // no face's same-width pair misses and no proportional pair meets.
+  constexpr float kAdvanceEpsilonPx = 0.1f;
+  SkFont probe(face, kProbeEmPx);
+  probe.setLinearMetrics(true);
+  probe.setHinting(SkFontHinting::kNone);
+  const SkGlyphID replacement =
+      probe.unicharToGlyph((SkUnichar)(uint32_t)codepoint);
+  if (replacement == 0) return 0;  // the face cannot draw it at all
+  const SkGlyphID pair[2] = {original, replacement};
+  float widths[2] = {0, 0};
+  probe.getWidths(pair, widths);
+  if (std::abs(widths[0] - widths[1]) <= kAdvanceEpsilonPx) {
+    entry->second = replacement;
+    return replacement;
+  }
+  // Once per face: a scramble over a proportional charset would otherwise
+  // report every character of it, one line each.
+  static thread_local std::unordered_set<uint32_t> warned;
+  if (warned.insert(face->uniqueID()).second)
+    SkDebugf(
+        "sigilcompose fx: a code-point substitution on this font is "
+        "proportional — refused (the replacement is drawn at the "
+        "original's pen position, so a different advance would move every "
+        "letter after it; substitute within an equal-advance charset, or "
+        "change the text and re-shape)\n");
+  return 0;
 }
 
 /** Every animated scalar under a `Cache::Group` root, in tree order.
@@ -703,7 +786,6 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
                          imageAssetOf(node)->animated();
-  const bool driveLive = node.textData && node.textData->driveValue != nullptr;
   // A LIVE effect: the filter is captured by the recording, so bound
   // uniforms on it are content volatility, exactly as they are on a fill
   // material.
@@ -802,8 +884,7 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // consumer below (the fill rides the memoized scalar lane, the live
   // material has its own memo). No consumer re-enumerates.
   const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
-                            driveLive || spanVolatile || maskOpaque ||
-                            liveEffect;
+                            spanVolatile || maskOpaque || liveEffect;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's
@@ -1340,11 +1421,13 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         if (g >= count) return;
         GlyphInfo info = structure.glyphs[g];
 
-        // Every track that addresses this glyph, composed: offsets and
-        // rotations add, scale and alpha multiply.
+        // Every track that addresses this glyph, composed: offsets, shear
+        // and rotations add, scale, alpha and the colour multiplier
+        // multiply, and the two substitutions are last-one-wins.
         // A glyph no track addresses keeps the identity deviation and
         // draws at rest.
         GlyphMod mod;
+        bool continuous = false;
         for (const Resolved& r : live) {
           if (!(*r.selected)[g]) continue;
           info.unitIndex = r.outerUnit[g];
@@ -1355,25 +1438,82 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                                   r.innerUnit.empty() ? 0u : r.innerUnit[g]);
           Rng rng(detail::glyphSeed(info));
           detail::compose(mod, r.track->effect(info, t, rng));
+          continuous |= r.track->continuous;
         }
         if (mod.alpha <= 0.003f || mod.scale <= 0.001f) return;
-        // Quantize alpha so fades don't mint a batch bucket per glyph. The
-        // whole span style rides along, so a letter in flight keeps the
+        // SNAP what an effect can drive continuously. Every distinct value
+        // below is a distinct batch bucket AND a distinct glyph-atlas
+        // strike, so a smooth sweep left alone would rasterize every
+        // addressed letter afresh on every frame. Track::continuous is the
+        // opt-out, and it buys smoothness with exactly that cost.
+        const auto snap = [continuous](float value, float ceiling) {
+          const float clamped = std::clamp(value, 0.0f, ceiling);
+          return continuous ? clamped : std::round(clamped * 32.0f) / 32.0f;
+        };
+        // The colour multiplier's ALPHA folds into the fade rather than
+        // snapping on a ladder of its own: two independent 32-step alphas
+        // would be a thousand buckets where one is thirty-two.
+        const float alpha = snap(mod.alpha * mod.colorMul.fA, 1.0f);
+        if (alpha <= 0.0f) return;
+        // A multiplier above 1 brightens, which is a legitimate tint; the
+        // ceiling is only there so a runaway number cannot mint buckets
+        // without bound.
+        constexpr float kTintCeiling = 4.0f;
+        const SkColor4f tint{snap(mod.colorMul.fR, kTintCeiling),
+                             snap(mod.colorMul.fG, kTintCeiling),
+                             snap(mod.colorMul.fB, kTintCeiling), 1.0f};
+        float cosv = 1.0f, sinv = 0.0f;
+        if (mod.rotateDeg != 0) {
+          const float radians = mod.rotateDeg * 0.017453293f;
+          if (continuous) {
+            cosv = std::cos(radians);
+            sinv = std::sin(radians);
+          } else {
+            sigil::weave::quantizeAngle(radians, cosv, sinv);
+          }
+        }
+        const float halfAdvance = placed.advance * 0.5f;
+        const SkPoint centre = {placed.rest.x() + mod.dx + halfAdvance,
+                                placed.rest.y() + mod.dy};
+
+        // The whole span style rides along, so a letter in flight keeps the
         // gradient, stroke and glow passes it was styled with — and the
         // textFill/textStroke override, when the node carries one.
-        const float alpha =
-            std::round(std::clamp(mod.alpha, 0.0f, 1.0f) * 32.0f) / 32.0f;
-        float cosv = 1.0f, sinv = 0.0f;
-        if (mod.rotateDeg != 0)
-          sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv, sinv);
-        cosv *= mod.scale;
-        sinv *= mod.scale;
-        const SkPoint centre = {
-            placed.rest.x() + mod.dx + placed.advance * 0.5f,
-            placed.rest.y() + mod.dy};
+        sigil::weave::GlyphDress dress;
+        dress.alphaScale = alpha;
+        dress.colorMul = tint;
+        if (mod.axis && placed.shaped)
+          dress.face =
+              drivenFace(fonts, placed.shaped->typeface, *mod.axis, continuous);
+        SkGlyphID glyph = placed.glyph;
+        if (mod.codepoint && placed.shaped)
+          if (const SkGlyphID substitute = substituteGlyph(
+                  placed.shaped->typeface, placed.glyph, mod.codepoint))
+            glyph = substitute;
+
+        // ROUTING, per glyph and not per node: an RSXform carries a
+        // rotation and ONE scale, so a glyph that shears or scales
+        // unevenly draws under its own matrix while every glyph that does
+        // not keeps the shared transform array untouched.
+        SkMatrix matrix;
+        if (mod.skewXDeg != 0 || mod.scaleX != 1 || mod.scaleY != 1) {
+          matrix.setAll(cosv, -sinv, centre.x(), sinv, cosv, centre.y(), 0, 0,
+                        1);
+          if (mod.skewXDeg != 0)
+            matrix.preConcat(SkMatrix::MakeAll(
+                1, std::tan(mod.skewXDeg * 0.017453293f), 0, 0, 1, 0, 0, 0, 1));
+          matrix.preScale(mod.scale * mod.scaleX, mod.scale * mod.scaleY);
+          // Innermost, so the pivot shift rides the scale exactly as it
+          // does inside an RSXform.
+          matrix.preTranslate(-halfAdvance, 0);
+          dress.matrix = &matrix;
+        } else {
+          dress.center = centre;
+          dress.cosine = cosv * mod.scale;
+          dress.sine = sinv * mod.scale;
+        }
         batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
-                         placed.glyph, placed.advance * 0.5f, centre, cosv,
-                         sinv, alpha);
+                         glyph, halfAdvance, dress);
       });
   batches.draw(&canvas);
 }
@@ -2171,8 +2311,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
             paintTextOnPath(inst, canvas, *onPath,
                             {bounds.width(), bounds.height()});
           } else {
-            inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint,
-                                        liveDriveImpl(inst, node, fonts));
+            inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
           }
         }
         break;

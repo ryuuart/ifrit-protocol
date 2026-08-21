@@ -115,12 +115,9 @@ struct TextData {
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
   // Element::fx(): the ordered track list. Empty on ordinary text.
+  // Element::variationDrive() appends one of these too — a driven axis is a
+  // per-glyph deviation like any other, and has no plumbing of its own.
   std::vector<Track> tracks;
-  // VariationDrive: a variable-font axis driven at DRAW time (paint-only;
-  // the paint phase probes advance-invariance per font and refuses axes
-  // that would move advances — GRAD yes, wght no).
-  char driveTag[4] = {0, 0, 0, 0};
-  const choreograph::Output<float>* driveValue = nullptr;
   // textFill(): glyph paint in text-metric space (unit square → cap band).
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
@@ -383,11 +380,9 @@ inline auto fields(PaintProps& v) {
 }
 inline auto fields(TextData& v) {
   auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-         paragraphOverride, layoutOptions, tracks, driveTag, driveValue,
-         metricFill, onPath] = v;
+         paragraphOverride, layoutOptions, tracks, metricFill, onPath] = v;
   return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-                  paragraphOverride, layoutOptions, tracks, driveTag,
-                  driveValue, metricFill, onPath);
+                  paragraphOverride, layoutOptions, tracks, metricFill, onPath);
 }
 inline auto fields(ImageData& v) {
   auto& [asset, region, sampling] = v;
@@ -491,8 +486,8 @@ inline auto fields(Stagger& v) {
                   inner);
 }
 inline auto fields(Track& v) {
-  auto& [where, effect, stagger, progress, reach] = v;
-  return std::tie(where, effect, stagger, progress, reach);
+  auto& [where, effect, stagger, progress, reach, continuous] = v;
+  return std::tie(where, effect, stagger, progress, reach, continuous);
 }
 
 /** How many direct non-static data members @p T has, as the pinned

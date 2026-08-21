@@ -14,7 +14,8 @@
 #include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
-#include <cmath>  // std::isfinite — the profileOffset non-finite guard
+#include <cmath>   // std::isfinite — the profileOffset non-finite guard
+#include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <set>
 
 #include "ComposeInternal.h"
@@ -1042,12 +1043,39 @@ Element& Element::fx(Track track) {
 
 Element& Element::variationDrive(const char (&tag)[5],
                                  const choreograph::Output<float>* value) {
-  detail::TextData& text = m_node->textData.ensure();
-  text.driveTag[0] = tag[0];
-  text.driveTag[1] = tag[1];
-  text.driveTag[2] = tag[2];
-  text.driveTag[3] = tag[3];
-  text.driveValue = value;
+  // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
+  // shove or a fade, so the drive is a whole-text track and composes with
+  // whatever other tracks the element carries. A second, parallel text path
+  // is what it used to be, and a track drawn over it hid it completely.
+  //
+  // The effect reads the Output DIRECTLY rather than through the track's
+  // progress, because an axis coordinate is a design-space number (GRAD
+  // runs to ±100 on the faces that have it) and a progress is a 0→1 ramp
+  // the cascade clamps. The progress is bound to the same Output for the
+  // one thing it is good for here: declaring the paint volatility, so the
+  // node repaints while the drive moves and settles when it stops.
+  const sigil::weave::FontVariation coordinate(tag, 0.0f);
+  // The effect's key IS its identity, and a drive is identified by its axis
+  // and by WHICH Output feeds it — the binding identity every bound value
+  // in the tree is compared by. Two drives of one axis from two Outputs
+  // must not prune onto each other.
+  char key[64];
+  std::snprintf(key, sizeof(key), "variationDrive:%.4s@%p", tag,
+                (const void*)value);
+  Track track;
+  track.effect = TextEffect(
+      key, {},
+      [coordinate, value](const GlyphInfo&, float, Rng&) {
+        GlyphMod mod;
+        if (!value) return mod;
+        sigil::weave::FontVariation driven = coordinate;
+        driven.value = value->value();
+        mod.axis = driven;
+        return mod;
+      },
+      /*reach=*/0.0f);
+  track.progress = value;
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
 

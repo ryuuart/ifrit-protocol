@@ -16,8 +16,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <numeric>
 #include <unordered_set>
+#include <utility>
 
 #include "ComposeRuntime.h"
 
@@ -505,8 +507,20 @@ void compose(GlyphMod& into, const GlyphMod& next) {
   into.dx += next.dx;
   into.dy += next.dy;
   into.rotateDeg += next.rotateDeg;
+  into.skewXDeg += next.skewXDeg;
   into.scale *= next.scale;
+  into.scaleX *= next.scaleX;
+  into.scaleY *= next.scaleY;
   into.alpha *= next.alpha;
+  into.colorMul = {
+      into.colorMul.fR * next.colorMul.fR, into.colorMul.fG * next.colorMul.fG,
+      into.colorMul.fB * next.colorMul.fB, into.colorMul.fA * next.colorMul.fA};
+  // The two SUBSTITUTIONS are last-one-wins rather than combined: two
+  // tracks naming two outlines for one glyph have no arithmetic between
+  // them, and averaging their numbers would draw a third thing neither
+  // asked for.
+  if (next.axis) into.axis = next.axis;
+  if (next.codepoint) into.codepoint = next.codepoint;
 }
 
 GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
@@ -514,8 +528,27 @@ GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
   out.dx = a.dx + (b.dx - a.dx) * w;
   out.dy = a.dy + (b.dy - a.dy) * w;
   out.rotateDeg = a.rotateDeg + (b.rotateDeg - a.rotateDeg) * w;
+  out.skewXDeg = a.skewXDeg + (b.skewXDeg - a.skewXDeg) * w;
   out.scale = a.scale + (b.scale - a.scale) * w;
+  out.scaleX = a.scaleX + (b.scaleX - a.scaleX) * w;
+  out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
   out.alpha = a.alpha + (b.alpha - a.alpha) * w;
+  out.colorMul = {a.colorMul.fR + (b.colorMul.fR - a.colorMul.fR) * w,
+                  a.colorMul.fG + (b.colorMul.fG - a.colorMul.fG) * w,
+                  a.colorMul.fB + (b.colorMul.fB - a.colorMul.fB) * w,
+                  a.colorMul.fA + (b.colorMul.fA - a.colorMul.fA) * w};
+  // An axis coordinate is the one substitution with a continuum: two
+  // phases driving the SAME axis blend their values and the face
+  // interpolates between them. Everything else CUTS at the middle of the
+  // window — there is no half-way glyph between two outlines, and lerping
+  // a code point would draw whatever letter happened to sit between them
+  // in the font's encoding.
+  out.axis = a.axis;
+  if (a.axis && b.axis && std::memcmp(a.axis->tag, b.axis->tag, 4) == 0)
+    out.axis->value = a.axis->value + (b.axis->value - a.axis->value) * w;
+  else if (w >= 0.5f)
+    out.axis = b.axis;
+  out.codepoint = w >= 0.5f ? b.codepoint : a.codepoint;
   return out;
 }
 
@@ -589,6 +622,42 @@ TextEffect seq(std::vector<Phase> phases) {
         return mod;
       },
       reach);
+}
+
+TextEffect scramble(std::u32string charset, int steps) {
+  // The charset rides the effect's PARAMETERS, one code point per float:
+  // every code point is exactly representable, so two scrambles over the
+  // same characters compare equal and two over different ones do not —
+  // structural equality, not a hash that could collide.
+  std::vector<float> params;
+  params.reserve(charset.size() + 1);
+  params.push_back((float)steps);
+  for (char32_t point : charset) params.push_back((float)(uint32_t)point);
+  const uint32_t ticks = (uint32_t)std::max(steps, 1);
+  return TextEffect(
+      "scramble", std::move(params),
+      [charset = std::move(charset), ticks](const GlyphInfo&, float t,
+                                            Rng& rng) {
+        GlyphMod mod;
+        if (charset.empty()) return mod;
+        // ONE draw from the glyph's own stream, and everything below is
+        // derived from it — so a glyph churns through the same characters
+        // at the same moments on every frame and after every relayout,
+        // which is what lets a settled scramble cache instead of boiling
+        // forever.
+        const uint32_t seed = rng.bits();
+        // Each glyph resolves at its own moment, and every one of them has
+        // resolved by t = 1: the point of the effect is that the true text
+        // is what the reader is left with.
+        const float settle = 0.35f + (float)(seed >> 24) * (0.6f / 255.0f);
+        if (t >= settle) return mod;
+        const uint32_t tick =
+            (uint32_t)(std::clamp(t, 0.0f, 1.0f) * (float)ticks);
+        mod.codepoint = charset[detail::mix64Value(seed + tick * 0x9e3779b9u) %
+                                charset.size()];
+        return mod;
+      },
+      0.0f);
 }
 
 TextEffect mix(std::vector<TextEffect> effects) {

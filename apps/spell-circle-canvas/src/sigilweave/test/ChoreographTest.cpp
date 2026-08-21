@@ -391,6 +391,164 @@ TEST(GlyphBatches, AlphaScaleFadesEveryPassAndDropsInvisibleOnes) {
   EXPECT_TRUE(gone.batches.empty());
 }
 
+TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
+  // The colour multiplier has to reach EVERY pass, and the two kinds of
+  // pass take it differently: a flat pass multiplies the colour it already
+  // carries, a shader pass cannot (its colour is decided downstream) and
+  // takes an equivalent modulating filter instead. Either way the glyph
+  // keeps the pass — a tinted letter is not a re-styled letter.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"HALO", 64.0f);
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), 1u);
+  paragraph.setPaint(0, 4, outlinedGradient(lines[0].left, lines[0].right));
+
+  // Green only: the blue outline underlay must go black, and the red end of
+  // the gradient foreground must go black too, while its green end holds.
+  GlyphDress dress;
+  dress.colorMul = {0, 1, 0, 1};
+  GlyphRSXformBatches batches;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    GlyphDress placed = dress;
+    placed.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    batches.addGlyph(glyph, placed);
+  });
+  ASSERT_EQ(batches.batches.size(), 2u) << "the tint dropped a pass";
+  EXPECT_EQ(batches.batches[0].paint.getStyle(), SkPaint::kStroke_Style);
+  EXPECT_EQ(batches.batches[0].paint.getColor4f().fB, 0.0f)
+      << "a flat pass takes the tint in its own colour";
+  EXPECT_NE(batches.batches[1].paint.getColorFilter(), nullptr)
+      << "a shader pass takes the tint as a modulating filter";
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 120));
+  SkCanvas* canvas = surface->getCanvas();
+  canvas->clear(SK_ColorBLACK);
+  batches.draw(canvas);
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  bool sawGreen = false;
+  for (int y = 0; y < pixmap.height(); ++y)
+    for (int x = 0; x < pixmap.width(); ++x) {
+      const SkColor pixel = pixmap.getColor(x, y);
+      EXPECT_LT(SkColorGetB(pixel), 40u)
+          << "blue survived a tint that multiplies it by zero, at " << x << ","
+          << y;
+      EXPECT_LT(SkColorGetR(pixel), 40u) << "red survived it too";
+      if (SkColorGetG(pixel) > 120) sawGreen = true;
+    }
+  EXPECT_TRUE(sawGreen) << "the tint painted nothing at all";
+}
+
+TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
+  // A bucket's key is a whole SkPaint and SkPaint compares its colour
+  // filter by POINTER, so the modulating filter has to be memoized: a fresh
+  // one per glyph would mint a bucket per glyph and undo the batching that
+  // is the entire point of this file.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"many many letters here", 24.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 200));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  PaintStyle shaded;
+  const SkPoint ends[2] = {{0, 0}, {400, 0}};
+  const SkColor4f ramp[2] = {SkColor4f::FromColor(SK_ColorRED),
+                             SkColor4f::FromColor(SK_ColorGREEN)};
+  shaded.foreground.setShader(SkShaders::LinearGradient(
+      ends, SkGradient(SkGradient::Colors({ramp, 2}, SkTileMode::kClamp),
+                       SkGradient::Interpolation())));
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()), shaded);
+
+  GlyphRSXformBatches batches;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    GlyphDress dress;
+    dress.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    dress.colorMul = {0.5f, 0.75f, 1.0f, 1.0f};
+    batches.addGlyph(glyph, dress);
+  });
+  EXPECT_EQ(batches.batches.size(), 1u)
+      << "one tint over one style must stay one bucket";
+  EXPECT_GT(batches.batches[0].glyphs.size(), 10u);
+}
+
+TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
+  // A glyph drawn through a varied clone cannot share a bucket with one
+  // drawn through the base face: the face is what the draw call carries.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"AB", 32.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 100));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  const SkTypeface* shapedFace = nullptr;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    if (!shapedFace && glyph.shaped) shapedFace = glyph.shaped->typeface.get();
+  });
+  ASSERT_NE(shapedFace, nullptr);
+  // A second face stands in for a varied clone — the bucket key cares that
+  // the typeface differs, not how it was made.
+  sk_sp<SkTypeface> other;
+  for (const char* family :
+       {"Courier New", "Times New Roman", "Georgia", "Menlo", "Monaco"}) {
+    other = fontContext.fontManager()->matchFamilyStyle(family, SkFontStyle());
+    if (other && other.get() != shapedFace) break;
+    other = nullptr;
+  }
+  if (!other) GTEST_SKIP() << "no second face on this system";
+  bool first = true;
+  GlyphRSXformBatches batches;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    GlyphDress dress;
+    dress.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    if (!first) dress.face = other;
+    first = false;
+    batches.addGlyph(glyph, dress);
+  });
+  ASSERT_EQ(batches.batches.size(), 2u);
+  EXPECT_NE(batches.batches[0].typeface.get(),
+            batches.batches[1].typeface.get());
+}
+
+TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {
+  // A shear cannot be an RSXform, so that glyph draws under its own matrix
+  // — in the SAME bucket, so it keeps its pass order and its paint, and
+  // without disturbing the shared transform array its neighbours ride.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"HH", 48.0f);
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  SkMatrix sheared;
+  GlyphRSXformBatches batches;
+  bool first = true;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    GlyphDress dress;
+    const SkPoint center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    if (first) {
+      dress.center = center;
+    } else {
+      sheared = SkMatrix::Translate(center.x(), center.y());
+      sheared.preConcat(SkMatrix::MakeAll(1, -0.5f, 0, 0, 1, 0, 0, 0, 1));
+      sheared.preTranslate(-glyph.advance * 0.5f, 0);
+      dress.matrix = &sheared;
+    }
+    first = false;
+    batches.addGlyph(glyph, dress);
+  });
+  ASSERT_EQ(batches.batches.size(), 1u) << "the matrix lane split the bucket";
+  EXPECT_EQ(batches.batches[0].glyphs.size(), 1u);
+  EXPECT_EQ(batches.batches[0].matrixGlyphs.size(), 1u);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 100));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  EXPECT_EQ(batches.draw(surface->getCanvas()), 2)
+      << "both lanes must reach the canvas";
+  batches.clear();
+  EXPECT_TRUE(batches.batches[0].matrixGlyphs.empty())
+      << "clear() left the matrix lane behind";
+}
+
 TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"reuse", 20.0f);

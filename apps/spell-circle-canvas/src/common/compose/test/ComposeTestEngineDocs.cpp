@@ -1319,5 +1319,82 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
       ASSERT_EQ(base.getColor(x, y), after.getColor(x, y));
 }
 
+TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
+  // variationDrive() is sugar over fx(): the same axis coordinate reached by
+  // hand as a track must draw the same pixels. The equivalence is the point
+  // — if the verb kept a text path of its own, a track drawn over it would
+  // hide the drive entirely, which is exactly what it used to do.
+  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
+  sk_sp<SkTypeface> ui;
+  for (const char* family :
+       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
+    ui = manager->matchFamilyStyle(family, SkFontStyle());
+    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
+    ui = nullptr;
+  }
+  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
+  float gradeMax = 0;
+  {
+    const int n = ui->getVariationDesignParameters({});
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
+    ui->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto& a : axes)
+      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) gradeMax = a.max;
+  }
+
+  sigil::weave::TextStyle style = styleAt(48);
+  style.shaping.typeface = ui;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  choreograph::Output<float> grade{gradeMax};
+
+  Host verb;
+  verb.composer.render(box().child(text(u8"GRADE", style)
+                                       .key("t")
+                                       .variationDrive("GRAD", &grade)
+                                       .absolute()
+                                       .inset(20, 60, 20, 60)));
+  verb.frame();
+
+  Host byHand;
+  byHand.composer.render(
+      box().child(text(u8"GRADE", style)
+                      .key("t")
+                      .fx({.effect = fx::axis("GRAD", gradeMax)})
+                      .absolute()
+                      .inset(20, 60, 20, 60)));
+  byHand.frame();
+
+  SkBitmap fromVerb, fromTrack;
+  fromVerb.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  fromTrack.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  verb.surface->readPixels(fromVerb.pixmap(), 0, 0);
+  byHand.surface->readPixels(fromTrack.pixmap(), 0, 0);
+  constexpr size_t kRowBytes = 200 * sizeof(uint32_t);
+  for (int y = 0; y < 200; ++y)
+    ASSERT_EQ(std::memcmp(fromVerb.getAddr32(0, y), fromTrack.getAddr32(0, y),
+                          kRowBytes),
+              0)
+        << "the verb and the hand-built axis track disagreed on row " << y;
+
+  // …and the drive is no longer hidden by a track drawn over it: a second
+  // track that moves the glyphs leaves the grade in place.
+  Host stacked;
+  stacked.composer.render(box().child(text(u8"GRADE", style)
+                                          .key("t")
+                                          .variationDrive("GRAD", &grade)
+                                          .fx({.effect = fx::rise(0)})
+                                          .absolute()
+                                          .inset(20, 60, 20, 60)));
+  stacked.frame();
+  SkBitmap composed;
+  composed.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  stacked.surface->readPixels(composed.pixmap(), 0, 0);
+  for (int y = 0; y < 200; ++y)
+    ASSERT_EQ(std::memcmp(fromVerb.getAddr32(0, y), composed.getAddr32(0, y),
+                          kRowBytes),
+              0)
+        << "a stacked track dropped the driven axis, at row " << y;
+}
+
 // ---------------------------------------------------------------------------
 // Shaped bindings — bind(&out).from().map().to().clamp()

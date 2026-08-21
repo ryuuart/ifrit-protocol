@@ -591,12 +591,49 @@ struct GlyphInfo {
  *
  *  This is the type the composition algebra operates on: stacked tracks,
  *  `fx::mix` and a `fx::seq` crossfade all combine GlyphMods the same
- *  way — dx/dy and rotateDeg ADD, scale and alpha MULTIPLY. */
+ *  way — dx/dy, rotateDeg and skewXDeg ADD; scale, scaleX, scaleY, alpha
+ *  and colorMul MULTIPLY; and the two SUBSTITUTIONS, `axis` and
+ *  `codepoint`, are last-one-wins. Substitutions do not blend because
+ *  there is no half-way glyph between two outlines: a later track that
+ *  names one replaces what an earlier one named, and a `fx::seq`
+ *  crossfade cuts them at the middle of its window rather than lerping.
+ *  (An axis coordinate is the exception inside a crossfade: two phases
+ *  driving the SAME axis lerp their values, because the face does have a
+ *  continuum between them.) */
 struct GlyphMod {
   float dx = 0, dy = 0;
-  float scale = 1;
+  float scale = 1;  ///< uniform; multiplies scaleX and scaleY below
   float rotateDeg = 0;
   float alpha = 1;
+  /** A per-channel multiplier over EVERY pass the glyph's style draws. A
+   *  pass painting a flat colour multiplies it; a pass painting a shader
+   *  takes the equivalent modulation, so a gradient keeps its ramp and
+   *  wears the tint over it. White is no tint. */
+  SkColor4f colorMul = {1, 1, 1, 1};
+  /** Non-uniform scale and horizontal shear (degrees, positive leans the
+   *  top toward −x, as `Element::skewX` does). An RSXform encodes a
+   *  rotation and ONE scale and no shear at all, so a glyph whose composed
+   *  deviation uses either draws under its own matrix — same passes, same
+   *  paint, one canvas concat — while its neighbours keep the shared
+   *  transform array. */
+  float scaleX = 1, scaleY = 1;
+  float skewXDeg = 0;
+  /** A variable-font axis coordinate, applied at DRAW time by swapping the
+   *  glyph's face for a varied clone. The shaped positions are reused as
+   *  they are, so this is sound only for an ADVANCE-INVARIANT axis: the
+   *  runtime probes the glyph's face once per axis and REFUSES one that
+   *  moves advances, drawing the glyph at its shaped face instead (GRAD is
+   *  the advance-invariant weight; wght moves advances on most faces and
+   *  belongs in the shaping style, which re-shapes). Unset: the shaped
+   *  face. */
+  std::optional<sigil::weave::FontVariation> axis;
+  /** Draw a different code point in this glyph's place, resolved through
+   *  the glyph's own shaped font and drawn at the original's pen position.
+   *  Sound only for an EQUAL-ADVANCE replacement — a proportional
+   *  substitution would move every letter after it and needs a reshape, not
+   *  a redraw — so the runtime measures both and refuses the ones that
+   *  differ, drawing the original. 0 is no substitution. */
+  char32_t codepoint = 0;
 };
 
 /** The raw callable behind an effect: (glyph, local progress, rng) →
@@ -846,6 +883,16 @@ struct Track {
    *  throws glyphs further than the default allows. Over-reporting is
    *  safe, under-reporting truncates cached output with no diagnostic. */
   float reach = -1.0f;
+  /** SKIP THE SNAPPING for the glyphs this track addresses. A driven
+   *  rotation, alpha, colour multiplier and axis coordinate are quantized
+   *  before they reach the draw, because each distinct value is both a
+   *  distinct batch bucket and a distinct glyph-atlas strike. Continuous
+   *  values buy smoothness with exactly that: one strike minted per value
+   *  and every addressed glyph rasterized again every frame. Set it where
+   *  the steps show — a slow lift at display size, a tint sweeping along a
+   *  wordmark — and nowhere else. A glyph any addressing track declares
+   *  continuous is continuous. */
+  bool continuous = false;
 
   /** How far this track really reaches: its own number when it declares
    *  one, otherwise its effect's. */
@@ -2809,10 +2856,16 @@ class Element {
   Element& fx(Track track);
   /** VariationDrive (text leaves): drive a variable-font axis from a
    *  bound Output at DRAW time — paint-only volatility, no reshape, no
-   *  relayout. The paint phase probes the node's fonts once per content:
+   *  relayout. The paint phase probes the node's fonts once per axis:
    *  an advance-variant axis (wght on most fonts) is REFUSED with a debug
    *  warning and the text draws at its shaped coordinates — drive GRAD
-   *  (the advance-invariant weight) or re-render discretely instead. */
+   *  (the advance-invariant weight) or re-render discretely instead.
+   *
+   *  SUGAR over `fx()`: it appends a whole-text track whose deviation is
+   *  `GlyphMod::axis`, so a driven axis composes with entrances, loops and
+   *  every other track instead of being a second text path they would hide.
+   *  Being a track, it also draws through the batched glyph path, which
+   *  paints glyphs and not a span's underline or strikethrough. */
   Element& variationDrive(const char (&tag)[5],
                           const choreograph::Output<float>* value);
 

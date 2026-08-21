@@ -167,7 +167,7 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 | `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
 | `Shaper.h` | `ShapedWord`, `shapeWord()`, `wordBlob()`, `makeFont()`. Reach for it to inspect or reuse individual glyph runs. |
 | `Query.h` | Optional: find ranges by substring, word, or ICU regex; `MarkerSet` tracks named ranges across edits, DOM-Range style. |
-| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls. |
+| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls, each glyph dressed by a `GlyphDress` (placement, fade, tint, face, matrix). |
 | `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
 | `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
 | `InlineVector.h` | The small-buffer vector `Word::segments` uses, so no third-party container appears in a public header. |
@@ -383,6 +383,17 @@ effect drives it continuously, because distinct alphas are distinct buckets.
 Batched glyphs draw with subpixel positioning off and rotations quantized: a
 continuous per-letter angle or phase mints a fresh glyph-atlas strike per
 letter per frame.
+
+**A `GlyphDress` carries what varies per glyph** rather than per pass — the
+placement, the fade, a `colorMul` tint, a `face` override for a glyph drawn
+through a varied clone, and a `matrix` for the placements an RSXform cannot
+express (a shear, a non-uniform scale). The face joins the bucket key; the
+fade and the tint change only each pass's resolved paint, and a tinted
+shader pass takes a memoized modulating colour filter, because a batch's key
+is a whole `SkPaint` and `SkPaint` compares its colour filter by pointer. A
+matrix glyph draws in its own bucket's lane, after that bucket's RSXform
+glyphs — same font, same paint, same place in the pass order, at the cost of
+one canvas concat and one draw each.
 
 **Shaping style versus paint style.** Any change to a shaping field re-shapes
 the words it covers. Paint changes never re-shape and never relayout, and

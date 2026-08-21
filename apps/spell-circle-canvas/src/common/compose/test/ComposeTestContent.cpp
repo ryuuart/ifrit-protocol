@@ -1,4 +1,5 @@
 #include <include/core/SkBBHFactory.h>
+#include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/Console.h>
 
@@ -1977,6 +1978,341 @@ TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
               fx::mix(fx::rise(20), fx::slide()));
   EXPECT_FALSE(fx::mix(fx::rise(20), fx::slide()) ==
                fx::mix(fx::slide(), fx::rise(20)));
+}
+
+// ---- the second wave of deviations: tint, axis, substitution, matrix ------
+
+namespace {
+
+/** An effect under `key` returning one fixed deviation — the readable way
+ *  to drive a single GlyphMod field from a test. */
+TextEffect fixed(std::string key, GlyphMod mod) {
+  return fx::effect(
+      std::move(key), [mod](const GlyphInfo&, float, Rng&) { return mod; },
+      /*reach=*/120.0f);
+}
+
+/** The bounding box of everything that is not the cleared background. */
+SkIRect inkBounds(Host& host, int w, int h) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(bitmap.pixmap(), 0, 0);
+  SkIRect bounds = SkIRect::MakeEmpty();
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x)
+      if (bitmap.getColor(x, y) != SK_ColorBLACK) {
+        const SkIRect pixel = SkIRect::MakeXYWH(x, y, 1, 1);
+        if (bounds.isEmpty())
+          bounds = pixel;
+        else
+          bounds.join(pixel);
+      }
+  return bounds;
+}
+
+/** The mean x of the inked pixels on rows [top, bottom). */
+float inkCentroidX(Host& host, int w, int top, int bottom) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(w, bottom - top));
+  host.surface->readPixels(bitmap.pixmap(), 0, top);
+  double sum = 0;
+  int count = 0;
+  for (int y = 0; y < bottom - top; ++y)
+    for (int x = 0; x < w; ++x)
+      if (bitmap.getColor(x, y) != SK_ColorBLACK) {
+        sum += x;
+        ++count;
+      }
+  return count ? (float)(sum / count) : 0.0f;
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
+  // The multiplier is a statement about the GLYPH, not about its fill: it
+  // has to reach the underlays and overlays a span was styled with too.
+  // Reaching only the foreground would leave a tinted letter wearing its
+  // old drop shadow, which is the bug this test exists to name.
+  sigil::weave::TextStyle shadowed = whiteStyle(52);
+  shadowed.paint.addUnderlay(sigil::weave::PaintLayer(SK_ColorRED, {16, 0}));
+
+  const auto render = [&](Host& host, std::string key, SkColor4f tint) {
+    GlyphMod mod;
+    mod.colorMul = tint;
+    host.composer.render(box().padding(10).child(
+        text(u8"I", shadowed)
+            .key("k")
+            .fx({.effect = fixed(std::move(key), mod)})));
+    host.frame();
+  };
+  const auto count = [](Host& host, auto&& predicate) {
+    int hits = 0;
+    for (int y = 0; y < 140; ++y)
+      for (int x = 0; x < 140; ++x)
+        if (predicate(host.pixel(x, y))) ++hits;
+    return hits;
+  };
+  const auto reddish = [](SkColor c) {
+    return SkColorGetR(c) > 150 && SkColorGetG(c) < 80 && SkColorGetB(c) < 80;
+  };
+  const auto greenish = [](SkColor c) {
+    return SkColorGetG(c) > 150 && SkColorGetR(c) < 80 && SkColorGetB(c) < 80;
+  };
+  const auto whitish = [](SkColor c) {
+    return SkColorGetR(c) > 200 && SkColorGetG(c) > 200 && SkColorGetB(c) > 200;
+  };
+
+  Host plain(140, 140);
+  render(plain, "plain", {1, 1, 1, 1});
+  ASSERT_GT(count(plain, reddish), 10) << "the underlay pass never painted";
+  ASSERT_GT(count(plain, whitish), 10) << "the foreground pass never painted";
+
+  Host tinted(140, 140);
+  render(tinted, "greenOnly", {0, 1, 0, 1});
+  EXPECT_EQ(count(tinted, reddish), 0)
+      << "the underlay kept its red under a tint that multiplies red by zero";
+  EXPECT_EQ(count(tinted, whitish), 0) << "the foreground kept its white";
+  EXPECT_GT(count(tinted, greenish), 10)
+      << "the tint painted nothing at all — the glyph vanished instead";
+}
+
+TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
+  // The churn is seeded from the glyph's identity, so the same local time
+  // gives the same character every time it is asked — which is what lets a
+  // settled scramble cache instead of boiling forever. And every glyph is
+  // the letter the text actually says by the end: a decode that never
+  // decodes is not the effect.
+  const TextEffect churn = fx::scramble(U"ABC");
+  GlyphInfo glyph;
+  glyph.index = 3;
+  glyph.textIndex = 3;
+  const auto at = [&](float t) {
+    Rng rng(90210);  // one glyph's stream, replayed
+    return churn(glyph, t, rng).codepoint;
+  };
+  EXPECT_EQ(at(0.1f), at(0.1f)) << "the same moment gave two characters";
+  EXPECT_EQ(at(1.0f), (char32_t)0) << "the glyph never resolved";
+  bool churned = false, inCharset = true;
+  for (int step = 0; step < 40; ++step) {
+    const char32_t point = at((float)step / 40.0f);
+    if (point == 0) continue;
+    churned = true;
+    if (point != U'A' && point != U'B' && point != U'C') inCharset = false;
+  }
+  EXPECT_TRUE(churned) << "nothing was substituted at any moment";
+  EXPECT_TRUE(inCharset) << "the churn left the charset it was given";
+
+  // A value like any other preset: comparable by its parameters, and the
+  // charset is one of them.
+  EXPECT_TRUE(fx::scramble(U"ABC") == fx::scramble(U"ABC"));
+  EXPECT_FALSE(fx::scramble(U"ABC") == fx::scramble(U"ABD"));
+  EXPECT_FALSE(fx::scramble(U"ABC") == fx::scramble(U"ABC", 7));
+}
+
+TEST(ComposeTextFx, OnlyAnEqualAdvanceSubstitutionIsDrawn) {
+  // A substitution draws at the ORIGINAL glyph's pen position, so it is
+  // sound exactly when the advances agree. Refusing is not cosmetic: a
+  // wider replacement would overlap the letter after it while every letter
+  // after that stayed where shaping put it.
+  sk_sp<SkTypeface> face = fonts().defaultTypeface();
+  if (!face) GTEST_SKIP() << "no default face on this system";
+  SkFont probe(face, 100.0f);
+  probe.setLinearMetrics(true);
+  probe.setHinting(SkFontHinting::kNone);
+  const SkGlyphID base = probe.unicharToGlyph('X');
+  if (!base) GTEST_SKIP() << "the default face cannot draw X";
+  const float baseWidth = probe.getWidth(base);
+  char32_t twin = 0, proportional = 0;
+  for (char32_t point = U'!'; point <= U'~'; ++point) {
+    const SkGlyphID glyph = probe.unicharToGlyph((SkUnichar)point);
+    if (!glyph || glyph == base) continue;
+    const float width = probe.getWidth(glyph);
+    if (!twin && std::abs(width - baseWidth) <= 0.05f) twin = point;
+    if (!proportional && std::abs(width - baseWidth) > 8.0f)
+      proportional = point;
+  }
+
+  const auto render = [&](Host& host, std::string key, char32_t point) {
+    GlyphMod mod;
+    mod.codepoint = point;
+    host.composer.render(box().padding(10).child(
+        text(u8"XXX", whiteStyle(44))
+            .key("k")
+            .fx({.effect = fixed(std::move(key), mod)})));
+    host.frame();
+  };
+  Host rest(200, 120);
+  render(rest, "none", 0);
+
+  if (proportional) {
+    Host refused(200, 120);
+    render(refused, "wide", proportional);
+    EXPECT_TRUE(identicalPixels(rest, refused, 200, 120))
+        << "a proportional substitution was drawn instead of refused";
+  }
+  if (twin) {
+    Host swapped(200, 120);
+    render(swapped, "twin", twin);
+    EXPECT_FALSE(identicalPixels(rest, swapped, 200, 120))
+        << "an equal-advance substitution was refused, so the gate refuses "
+           "everything and the case above proves nothing";
+  }
+  if (!twin && !proportional)
+    GTEST_SKIP() << "the default face offered neither an equal-advance nor a "
+                    "proportional partner for X";
+}
+
+TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
+  // Neither a shear nor an uneven scale is expressible as an RSXform, so
+  // these glyphs route through a per-glyph matrix. The assertions are about
+  // the SHAPE that appears, because the route is only worth having if it
+  // paints what it promises.
+  // Room on every side: a doubled glyph and a leaning one both grow past
+  // the box, and a clipped measurement would compare two surface edges.
+  const auto render = [&](Host& host, std::string key, GlyphMod mod) {
+    host.composer.render(box().padding(60).child(
+        text(u8"H", whiteStyle(60))
+            .key("k")
+            .fx({.effect = fixed(std::move(key), mod)})));
+    host.frame();
+  };
+  Host upright(200, 200);
+  render(upright, "upright", GlyphMod{});
+  const SkIRect rest = inkBounds(upright, 200, 200);
+  ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
+
+  GlyphMod leaning;
+  leaning.skewXDeg = 30;
+  Host sheared(200, 200);
+  render(sheared, "sheared", leaning);
+  const SkIRect leant = inkBounds(sheared, 200, 200);
+  EXPECT_GT(leant.width(), rest.width() + 4)
+      << "a 30-degree shear did not widen the glyph's footprint";
+  // …and it leans the way Element::skewX does: the top toward −x.
+  const int band = std::max(leant.height() / 4, 2);
+  EXPECT_LT(inkCentroidX(sheared, 200, leant.top(), leant.top() + band),
+            inkCentroidX(sheared, 200, leant.bottom() - band, leant.bottom()))
+      << "the shear leant the wrong way, or not at all";
+
+  GlyphMod tall;
+  tall.scaleY = 2.0f;
+  Host stretched(200, 200);
+  render(stretched, "tall", tall);
+  const SkIRect grown = inkBounds(stretched, 200, 200);
+  EXPECT_GT(grown.height(), rest.height() * 3 / 2)
+      << "scaleY did not stretch the glyph";
+  EXPECT_LE(grown.width(), rest.width() + 2)
+      << "scaleY widened the glyph, so the scale was not non-uniform";
+}
+
+TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
+  // The route is decided PER GLYPH. A glyph whose deviation is an RSXform
+  // draws exactly as it would if no glyph in the node needed a matrix —
+  // otherwise adding a shear to one line would silently re-rasterize every
+  // other line through a different code path.
+  sigil::weave::TextStyle style = whiteStyle(30);
+  const auto tree = [&](bool shearSecondLine) {
+    GlyphMod lift;
+    lift.dy = -4;
+    Element t = text(u8"AAAA BBBB", style)
+                    .key("k")
+                    .width(70)
+                    .fx({.effect = fixed("lift", lift)});
+    if (shearSecondLine) {
+      GlyphMod lean;
+      lean.skewXDeg = 25;
+      t.fx({.where = sel::line(1), .effect = fixed("lean", lean)});
+    }
+    return box().padding(10).child(std::move(t));
+  };
+  Host plain(200, 200), mixed(200, 200);
+  plain.composer.render(tree(false));
+  plain.frame();
+  mixed.composer.render(tree(true));
+  mixed.frame();
+
+  // The empty rows between the two lines: everything above them belongs to
+  // the line no track sheared.
+  SkBitmap reference;
+  reference.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  plain.surface->readPixels(reference.pixmap(), 0, 0);
+  const auto rowInked = [&](int y) {
+    for (int x = 0; x < 200; ++x)
+      if (reference.getColor(x, y) != SK_ColorBLACK) return true;
+    return false;
+  };
+  int firstInked = -1, split = -1;
+  for (int y = 0; y < 200; ++y) {
+    if (rowInked(y)) {
+      if (firstInked < 0) firstInked = y;
+    } else if (firstInked >= 0) {
+      split = y;
+      break;
+    }
+  }
+  ASSERT_GT(split, 0) << "the text did not wrap into two lines, so there is "
+                         "no unsheared line to compare";
+
+  SkBitmap sheared;
+  sheared.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  mixed.surface->readPixels(sheared.pixmap(), 0, 0);
+  constexpr size_t kRowBytes = 200 * sizeof(uint32_t);
+  for (int y = 0; y < split; ++y)
+    ASSERT_EQ(std::memcmp(reference.getAddr32(0, y), sheared.getAddr32(0, y),
+                          kRowBytes),
+              0)
+        << "row " << y
+        << " of the fast-path line changed when a NEIGHBOURING "
+           "line took the matrix route";
+  // The control: the sheared line really did change, so the rows above it
+  // holding still is a fact about the routing and not about a track that
+  // did nothing.
+  bool below = false;
+  for (int y = split; y < 200 && !below; ++y)
+    below = std::memcmp(reference.getAddr32(0, y), sheared.getAddr32(0, y),
+                        kRowBytes) != 0;
+  EXPECT_TRUE(below) << "the shear track changed nothing anywhere";
+}
+
+TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
+  // Rotations are snapped to a 64-step table, so a two-degree lean rounds
+  // to no lean at all. `continuous` is the opt-out, and it must actually
+  // change what is drawn or it is a field that does nothing.
+  const auto render = [](Host& host, bool continuous) {
+    GlyphMod lean;
+    lean.rotateDeg = 2.0f;
+    Track track{.effect = fixed("lean2", lean)};
+    track.continuous = continuous;
+    host.composer.render(box().padding(20).child(
+        text(u8"HH", whiteStyle(64)).key("k").fx(std::move(track))));
+    host.frame();
+  };
+  Host snapped(200, 200), smooth(200, 200);
+  render(snapped, false);
+  render(smooth, true);
+  EXPECT_FALSE(identicalPixels(snapped, smooth, 200, 200))
+      << "continuous drew exactly what the snapped ladder did, so the "
+         "opt-out is inert";
+
+  // …and it is an opt-out of SNAPPING, not of caching: a continuous track
+  // whose progress has stopped moving settles like any other.
+  Host settling(200, 200);
+  choreograph::Output<float> progress{0.0f};
+  Track track{.effect = fx::rise(14), .progress = &progress};
+  track.continuous = true;
+  settling.composer.render(box().padding(20).child(
+      text(u8"SETTLE", whiteStyle(24)).key("k").fx(std::move(track))));
+  settling.frame();
+  progress = 1.0f;
+  for (int i = 0; i < 12; ++i) settling.frame(0.016);
+  unsigned paints = 0, records = 0;
+  for (int i = 0; i < 5; ++i) {
+    settling.frame(0.016);
+    paints += settling.composer.stats().nodesPainted;
+    records += settling.composer.stats().picturesRecorded;
+  }
+  EXPECT_EQ(paints, 0u) << "settled continuous text kept painting live";
+  EXPECT_EQ(records, 0u) << "settled continuous text kept re-recording";
 }
 
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {

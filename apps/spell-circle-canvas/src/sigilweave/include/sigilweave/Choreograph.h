@@ -9,9 +9,11 @@
  * includes this.
  *
  * The recipe: lay the paragraph out normally, walk every placed glyph with
- * forEachPlacedGlyph, displace/rotate/fade it however the effect wants, and
- * accumulate into GlyphRSXformBatches — one drawGlyphsRSXform call per
- * (font, paint pass) instead of thousands of per-glyph draws.
+ * forEachPlacedGlyph, dress it however the effect wants — displaced,
+ * rotated, faded, tinted, drawn through another face, or placed by a full
+ * matrix where an RSXform cannot reach — and accumulate into
+ * GlyphRSXformBatches, which is one drawGlyphsRSXform call per (font, paint
+ * pass) instead of thousands of per-glyph draws.
  *
  * A PlacedGlyph carries the identity an effect selects and staggers on —
  * which glyph of which word, line, style span and sentence it is — beside
@@ -21,16 +23,22 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
+#include <include/effects/SkColorMatrix.h>
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
+#include <map>
 #include <numbers>
 #include <span>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -174,6 +182,67 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
   sine = angleTable[static_cast<size_t>(stepIndex)].second;
 }
 
+/** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
+ * `tint`, composed over whatever filter the pass already carried (that one
+ * runs first, so the tint modulates the finished colour). Alpha is left
+ * alone: a per-glyph fade rides the paint's own alpha instead.
+ *
+ * MEMOIZED, and that is a correctness requirement rather than a saving: a
+ * batch's key is a whole SkPaint, and SkPaint compares its colour filter by
+ * POINTER, so a freshly built filter per glyph would mint a bucket per glyph
+ * and undo the batching entirely. Callers quantize the tint for the same
+ * reason they quantize alpha; the table is dropped wholesale past its cap so
+ * a caller that does not cannot grow it without bound.
+ */
+inline sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
+                                       sk_sp<SkColorFilter> under) {
+  using Key = std::tuple<uint32_t, uint32_t, uint32_t, const void*>;
+  static thread_local std::map<Key, sk_sp<SkColorFilter>> table;
+  const Key key{std::bit_cast<uint32_t>(tint.fR),
+                std::bit_cast<uint32_t>(tint.fG),
+                std::bit_cast<uint32_t>(tint.fB), (const void*)under.get()};
+  const auto found = table.find(key);
+  if (found != table.end()) return found->second;
+  constexpr size_t kTintCap = 512;
+  if (table.size() >= kTintCap) table.clear();
+  SkColorMatrix scale;
+  scale.setScale(tint.fR, tint.fG, tint.fB, 1.0f);
+  sk_sp<SkColorFilter> filter = SkColorFilters::Matrix(scale);
+  if (under) filter = SkColorFilters::Compose(filter, std::move(under));
+  table.emplace(key, filter);
+  return filter;
+}
+
+/// How one glyph is DRESSED for a batched draw: where it lands, what it is
+/// faded and tinted by, and which face it draws with.
+///
+/// Everything here is per-GLYPH and nothing here is per-pass: a dressed glyph
+/// still draws its span's whole PaintStyle, one bucket per pass.
+struct GlyphDress {
+  SkPoint center = {0, 0};  ///< where the glyph's advance-centre lands
+  float cosine = 1;         ///< rotation with the uniform scale folded in,
+  float sine = 0;           ///< the RSXform convention
+  /// Multiplies every pass's alpha. Quantize it if an effect drives it
+  /// continuously — distinct alphas are distinct buckets.
+  float alphaScale = 1.0f;
+  /// Multiplies every pass's colour, channel by channel. A pass painting a
+  /// flat colour multiplies that colour; a pass painting a shader (or
+  /// already carrying a colour filter) gets the equivalent modulating
+  /// filter, so a gradient keeps its ramp and takes the tint over it.
+  /// Alpha here folds into `alphaScale`. White is no tint.
+  SkColor4f colorMul = {1, 1, 1, 1};
+  /// The face to draw with, or null for the shaped word's own — a varied
+  /// clone for a glyph whose effect drives a variable-font axis. It is part
+  /// of the bucket key, so two faces are two buckets.
+  sk_sp<SkTypeface> face;
+  /// Non-null: draw this glyph under this MATRIX instead of an RSXform,
+  /// which is the only way to place a shear or a non-uniform scale. It
+  /// carries the whole placement — centre, rotation and scale included — so
+  /// `center`, `cosine` and `sine` are unread when it is set. Borrowed for
+  /// the duration of the addGlyph call.
+  const SkMatrix* matrix = nullptr;
+};
+
 /// Glyphs grouped by (font, paint pass): a frame of thousands of animated
 /// letters collapses into a handful of drawGlyphsRSXform calls. Reuse one
 /// instance across frames — clear() keeps the allocations.
@@ -184,6 +253,11 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
 /// stroke, blend mode and mask filter — animating letters and styling them
 /// are not alternatives. Batches draw in creation order, so within a style
 /// every underlay lands beneath every foreground.
+///
+/// A GlyphDress carries what varies per glyph rather than per pass — the
+/// placement, the fade, the tint, a varied face, and the matrix a shear or a
+/// non-uniform scale needs. The face joins the bucket key; the fade and the
+/// tint change only the resolved paint.
 struct GlyphRSXformBatches {
   /// One (font, paint pass) bucket: parallel glyph/transform arrays that feed
   /// a single drawGlyphsRSXform call. The font is held as the identity
@@ -201,6 +275,13 @@ struct GlyphRSXformBatches {
                                         ///< translation (shadows, echoes)
     std::vector<SkGlyphID> glyphs;      ///< parallel to `transforms`
     std::vector<SkRSXform> transforms;  ///< per-glyph scale/rotate/translate
+    /// The glyphs of this bucket that an RSXform cannot place — a shear, a
+    /// non-uniform scale — with the matrix each draws under. They cost one
+    /// canvas concat and one draw apiece and are the reason to keep them a
+    /// separate lane: a glyph whose deviation IS an RSXform never pays for
+    /// a neighbour that is not.
+    std::vector<SkGlyphID> matrixGlyphs;  ///< parallel to `matrices`
+    std::vector<SkMatrix> matrices;
   };
   std::vector<Batch> batches;  ///< one entry per distinct (font, pass) pair
   /// Where the last pass landed. Neighbouring glyphs repeat a pass, and a
@@ -208,11 +289,16 @@ struct GlyphRSXformBatches {
   /// where it last succeeded. Bounds-checked: callers own `batches`.
   size_t recentBatch = 0;
 
-  /** Returns the batch for one shaped word's font and one resolved pass. */
+  /** Returns the batch for one shaped word's font and one resolved pass.
+   * `face` overrides the shaped word's own typeface when it is non-null —
+   * the varied clone a driven variable-font axis asks for — and is part of
+   * the key, so the same word set at two axis coordinates is two buckets. */
   [[nodiscard]] Batch& batchForPass(const ShapedWord* font,
+                                    const sk_sp<SkTypeface>& face,
                                     const SkPaint& paint, SkVector offset) {
+    const sk_sp<SkTypeface>& resolved = face ? face : font->typeface;
     auto matches = [&](const Batch& batch) {
-      return batch.typeface.get() == font->typeface.get() &&
+      return batch.typeface.get() == resolved.get() &&
              batch.fontSize == font->fontSize && batch.scaleX == font->scaleX &&
              batch.aliased == font->aliased && batch.offset == offset &&
              batch.paint == paint;
@@ -225,12 +311,14 @@ struct GlyphRSXformBatches {
         return batches[index];
       }
     recentBatch = batches.size();
-    batches.push_back({font->typeface,
+    batches.push_back({resolved,
                        font->fontSize,
                        font->scaleX,
                        font->aliased,
                        paint,
                        offset,
+                       {},
+                       {},
                        {},
                        {}});
     return batches.back();
@@ -249,23 +337,63 @@ struct GlyphRSXformBatches {
   void addGlyph(const ShapedWord* font, const PaintStyle& style,
                 SkGlyphID glyph, float halfAdvance, SkPoint centerPosition,
                 float cosine = 1, float sine = 0, float alphaScale = 1.0f) {
-    const SkRSXform transform = {cosine, sine,
-                                 centerPosition.x() - cosine * halfAdvance,
-                                 centerPosition.y() - sine * halfAdvance};
-    auto addPass = [&](const SkPaint& source, SkVector offset) {
-      if (alphaScale >= 1.0f) {
-        if (source.nothingToDraw()) return;
-        Batch& batch = batchForPass(font, source, offset);
+    addGlyph(font, style, glyph, halfAdvance,
+             GlyphDress{.center = centerPosition,
+                        .cosine = cosine,
+                        .sine = sine,
+                        .alphaScale = alphaScale});
+  }
+
+  /** Appends one dressed glyph — once per pass of `style` — placed, faded,
+   * tinted and faced as `dress` says.
+   *
+   * The tint and the fade never touch the style itself: only the RESOLVED
+   * paint of each pass differs, which is what keeps a coloured, faded letter
+   * in the same handful of buckets as its neighbours. Passes with nothing to
+   * draw are skipped, so a fully faded glyph costs no bucket at all.
+   */
+  void addGlyph(const ShapedWord* font, const PaintStyle& style,
+                SkGlyphID glyph, float halfAdvance, const GlyphDress& dress) {
+    const float alpha = dress.alphaScale * dress.colorMul.fA;
+    const bool tinted = dress.colorMul.fR != 1.0f ||
+                        dress.colorMul.fG != 1.0f || dress.colorMul.fB != 1.0f;
+    const SkRSXform transform = {dress.cosine, dress.sine,
+                                 dress.center.x() - dress.cosine * halfAdvance,
+                                 dress.center.y() - dress.sine * halfAdvance};
+    auto place = [&](Batch& batch) {
+      if (dress.matrix) {
+        batch.matrixGlyphs.push_back(glyph);
+        batch.matrices.push_back(*dress.matrix);
+      } else {
         batch.glyphs.push_back(glyph);
         batch.transforms.push_back(transform);
+      }
+    };
+    auto addPass = [&](const SkPaint& source, SkVector offset) {
+      if (alpha >= 1.0f && !tinted) {
+        if (source.nothingToDraw()) return;
+        place(batchForPass(font, dress.face, source, offset));
         return;
       }
-      SkPaint faded = source;
-      faded.setAlphaf(source.getAlphaf() * alphaScale);
-      if (faded.nothingToDraw()) return;
-      Batch& batch = batchForPass(font, faded, offset);
-      batch.glyphs.push_back(glyph);
-      batch.transforms.push_back(transform);
+      SkPaint dressed = source;
+      if (alpha != 1.0f) dressed.setAlphaf(source.getAlphaf() * alpha);
+      if (tinted) {
+        // A flat pass takes the tint in its colour; a pass whose colour is
+        // decided downstream — by a shader, or by a filter already on it —
+        // takes the equivalent modulation as a filter over that colour.
+        if (dressed.getShader() || dressed.getColorFilter()) {
+          dressed.setColorFilter(
+              tintFilter(dress.colorMul, dressed.refColorFilter()));
+        } else {
+          const SkColor4f base = dressed.getColor4f();
+          dressed.setColor4f(
+              {base.fR * dress.colorMul.fR, base.fG * dress.colorMul.fG,
+               base.fB * dress.colorMul.fB, base.fA},
+              nullptr);
+        }
+      }
+      if (dressed.nothingToDraw()) return;
+      place(batchForPass(font, dress.face, dressed, offset));
     };
     for (const PaintLayer& layer : style.underlays)
       addPass(layer.paint, layer.offset);
@@ -284,6 +412,18 @@ struct GlyphRSXformBatches {
              centerPosition, cosine, sine, alphaScale);
   }
 
+  /** Appends a visited glyph dressed as `dress` says, taking its font,
+   * advance and span paint from the walk. `glyph` overrides the walk's own
+   * glyph ID, which is how a code-point substitution draws a different
+   * letter at the original's pen position. */
+  void addGlyph(const PlacedGlyph& placed, const GlyphDress& dress,
+                SkGlyphID glyph) {
+    addGlyph(placed.shaped, *placed.paint, glyph, placed.advance * 0.5f, dress);
+  }
+  void addGlyph(const PlacedGlyph& placed, const GlyphDress& dress) {
+    addGlyph(placed, dress, placed.glyph);
+  }
+
   /** Clears glyph data while retaining batch allocations for the next frame.
    *
    * A frame that minted a pathological number of buckets releases them
@@ -300,6 +440,8 @@ struct GlyphRSXformBatches {
     for (Batch& batch : batches) {
       batch.glyphs.clear();
       batch.transforms.clear();
+      batch.matrixGlyphs.clear();
+      batch.matrices.clear();
     }
   }
 
@@ -308,19 +450,37 @@ struct GlyphRSXformBatches {
   int draw(SkCanvas* canvas) const {
     int total = 0;
     for (const Batch& batch : batches) {
-      if (batch.glyphs.empty()) continue;
-      total += static_cast<int>(batch.glyphs.size());
+      if (batch.glyphs.empty() && batch.matrixGlyphs.empty()) continue;
       SkFont font =
           makeFont(batch.typeface, batch.fontSize, batch.scaleX, batch.aliased);
       // Tumbling letters move whole pixels every frame; subpixel phases
       // would only multiply each (glyph, angle) into fresh atlas strikes —
       // per-frame mask rasterization is exactly what caps these effects.
       font.setSubpixel(false);
-      canvas->drawGlyphsRSXform(
-          SkSpan<const SkGlyphID>(batch.glyphs.data(), batch.glyphs.size()),
-          SkSpan<const SkRSXform>(batch.transforms.data(),
-                                  batch.transforms.size()),
-          {batch.offset.x(), batch.offset.y()}, font, batch.paint);
+      if (!batch.glyphs.empty()) {
+        total += static_cast<int>(batch.glyphs.size());
+        canvas->drawGlyphsRSXform(
+            SkSpan<const SkGlyphID>(batch.glyphs.data(), batch.glyphs.size()),
+            SkSpan<const SkRSXform>(batch.transforms.data(),
+                                    batch.transforms.size()),
+            {batch.offset.x(), batch.offset.y()}, font, batch.paint);
+      }
+      // The bucket's matrix lane, inside the bucket's own place in the pass
+      // order: one save/concat and one draw per glyph, but still one font
+      // and one paint, and still beneath whatever this style's later passes
+      // put over it.
+      constexpr SkPoint kAtTheMatrixOrigin{0, 0};
+      for (size_t index = 0; index < batch.matrixGlyphs.size(); ++index) {
+        canvas->save();
+        canvas->translate(batch.offset.x(), batch.offset.y());
+        canvas->concat(batch.matrices[index]);
+        canvas->drawGlyphs(
+            SkSpan<const SkGlyphID>(&batch.matrixGlyphs[index], 1),
+            SkSpan<const SkPoint>(&kAtTheMatrixOrigin, 1), {0, 0}, font,
+            batch.paint);
+        canvas->restore();
+        ++total;
+      }
     }
     return total;
   }

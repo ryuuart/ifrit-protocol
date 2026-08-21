@@ -260,6 +260,41 @@ one time and composes them by the same algebra stacked tracks use.
 the same scatter on every frame and after every relayout — which is what
 lets it settle and cache instead of jittering forever.
 
+**What a `GlyphMod` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
+`alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
+pass multiplies its colour, a shader pass takes an equivalent modulation,
+so a gradient keeps its ramp and wears the tint over it); `scaleX`,
+`scaleY` and `skewXDeg` place the glyph with a full matrix, because an
+RSXform carries a rotation and one scale and no shear at all; `axis` drives
+a variable-font axis at draw time; and `codepoint` draws a different letter
+in this one's place. The last two are SUBSTITUTIONS and compose
+last-one-wins — a `fx::seq` crossfade cuts them at the middle of its window
+rather than lerping, because there is no half-way glyph between two
+outlines. (Two phases driving the *same* axis are the exception, and lerp.)
+
+Both substitutions are GATED, because both keep the pen positions shaping
+computed. `axis` is honoured only for an advance-invariant axis — the
+runtime probes the face once per axis and refuses one that moves advances,
+drawing at the shaped face and warning once. `codepoint` is honoured only
+where the replacement has the original's advance; a proportional swap would
+move every letter after it, which is a reshape and not a redraw.
+`fx::axis` sets a coordinate (or sweeps between two across local progress)
+and `fx::scramble` is the decoding-text preset built on the substitution:
+each glyph churns through a charset and resolves to the true letter by
+`t = 1`, seeded per glyph so it is the same churn on every frame.
+
+`Element::variationDrive` is sugar over a whole-text `axis` track, so a
+driven axis composes with entrances and loops instead of being a second
+text path they would hide.
+
+**Snapping, and `Track::continuous`.** Rotation, alpha, the colour
+multiplier and the axis coordinate are quantized before they reach the
+draw: each distinct value is a distinct batch bucket *and* a distinct
+glyph-atlas strike. Set `Track::continuous` where the steps show and pay
+for it — a continuous track mints a strike per value and rasterizes its
+glyphs afresh every frame. A glyph any addressing track declares continuous
+is continuous.
+
 **Every track declares its `Track::reach`** — how far past the element's
 box it may throw a glyph — or takes the number its effect declares. The
 recording cull grows by it, on the same over-reporting-is-safe contract a

@@ -192,7 +192,7 @@ bool effectEqual(const std::optional<Effect>& a,
 // ---- block equality: presence must match first, then contents; a block
 // holding a callable stays conservatively unequal ---------------------------
 
-static_assert(kFieldCount<TextData> == 12,
+static_assert(kFieldCount<TextData> == 10,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
               "field compared in PART, and only because the full-control "
@@ -203,20 +203,20 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   if (!a.textData) return true;
   const TextData &ta = *a.textData, &tb = *b.textData;
   // fx() tracks are comparable VALUES — selector, effect (preset id plus
-  // parameters, or the key an ad-hoc lambda was given), cascade and reach
-  // — so text that re-describes the same tracks prunes like any other
-  // static leaf. The progress is an Animatable and is compared where every
-  // other animated slot is, through propEqual.
+  // parameters, or the key an ad-hoc lambda was given), cascade, reach and
+  // the continuous opt-out — so text that re-describes the same tracks
+  // prunes like any other static leaf. The progress is an Animatable and is
+  // compared where every other animated slot is, through propEqual.
+  //
+  // variationDrive()'s track rides this comparison too: its effect's key
+  // carries the axis tag AND the driven Output's address, so a re-describe
+  // naming the same drive prunes and one naming another does not — the
+  // binding identity every bound value in the tree is compared by.
   if (ta.tracks.size() != tb.tracks.size()) return false;
   for (size_t i = 0; i < ta.tracks.size(); ++i)
     if (!ta.tracks[i].sameShape(tb.tracks[i]) ||
         !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
-  // VariationDrive: BINDING identity, like Animatable bindings — same tag
-  // and same Output pointer prune (the value lives outside the tree).
-  if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
-      ta.driveValue != tb.driveValue)
-    return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
   if (ta.hasTextStroke != tb.hasTextStroke ||
       (ta.hasTextStroke && (ta.textStrokeWidth != tb.textStrokeWidth ||
@@ -380,7 +380,7 @@ bool Stagger::operator==(const Stagger& other) const {
   return *inner == *other.inner;
 }
 
-static_assert(kFieldCount<Track> == 5,
+static_assert(kFieldCount<Track> == 6,
               "Track gained or lost a field — rule on it in "
               "Track::sameShape() below, then bump this count. `progress` is "
               "deliberately NOT compared there: it is an Animatable, and "
@@ -388,7 +388,8 @@ static_assert(kFieldCount<Track> == 5,
               "animated slot.");
 bool Track::sameShape(const Track& other) const {
   return where == other.where && effect == other.effect &&
-         stagger == other.stagger && reach == other.reach;
+         stagger == other.stagger && reach == other.reach &&
+         continuous == other.continuous;
 }
 bool Track::operator==(const Track& other) const {
   return sameShape(other) && propEqual(progress, other.progress);
@@ -798,7 +799,6 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
           prevText->layoutOptions.alignment != text.layoutOptions.alignment;
       if (textChanged) {
         inst.contentRev++;
-        inst.driveProbe = -1;  // new content → re-probe the drive gate
         if (text.paragraphOverride)
           inst.paragraph.emplace(*text.paragraphOverride);
         else {
