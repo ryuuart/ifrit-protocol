@@ -951,8 +951,9 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
   float runWidth = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord*, SkGlyphID, float advance, SkColor,
-          SkPoint rest) { runWidth = std::max(runWidth, rest.x() + advance); });
+      [&](const sigil::weave::PlacedGlyph& placed) {
+        runWidth = std::max(runWidth, placed.rest.x() + placed.advance);
+      });
 
   float start = spec.at * length;
   if (spec.align == TextPath::Align::Center)
@@ -1021,12 +1022,11 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
   batches.clear();
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord* font, SkGlyphID glyph, float advance,
-          SkColor color, SkPoint rest) {
+      [&](const sigil::weave::PlacedGlyph& placed) {
         // The glyph rides its own CENTRE along the path, so a wide glyph
         // on a tight curve leans about its middle rather than its left
         // sidebearing.
-        const float along = rest.x() + advance * 0.5f;
+        const float along = placed.rest.x() + placed.advance * 0.5f;
         float d = flipRun ? start + runWidth - along : start + along;
         if (closed)
           d = std::fmod(std::fmod(d, length) + length, length);
@@ -1076,7 +1076,7 @@ void Composer::Impl::paintTextOnPath(Instance& inst, SkCanvas& canvas,
         // label sizes.
         float cosv = 1.0f, sinv = 0.0f;
         sigil::weave::quantizeAngle(std::atan2(dirY, dirX), cosv, sinv);
-        batches.addGlyph(font, color, glyph, advance * 0.5f, pos, cosv, sinv);
+        batches.addGlyph(placed, pos, cosv, sinv);
       });
   batches.draw(&canvas);
 }
@@ -1103,8 +1103,7 @@ void Composer::Impl::paintKineticText(Instance& inst, SkCanvas& canvas,
   size_t i = 0;
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
-      [&](const sigil::weave::ShapedWord* font, SkGlyphID glyph, float advance,
-          SkColor color, SkPoint rest) {
+      [&](const sigil::weave::PlacedGlyph& placed) {
         float order = (float)i;
         switch (fx.stagger.from) {
           case Stagger::From::End:
@@ -1119,23 +1118,25 @@ void Composer::Impl::paintKineticText(Instance& inst, SkCanvas& canvas,
         const float t =
             std::clamp((master * total - order * each) / duration, 0.0f, 1.0f);
         const GlyphMod mod =
-            fx.effect(GlyphInfo{i, count, rest, advance, font->fontSize}, t);
+            fx.effect(GlyphInfo{i, count, placed.rest, placed.advance,
+                                placed.shaped->fontSize},
+                      t);
         ++i;
         if (mod.alpha <= 0.003f || mod.scale <= 0.001f) return;
-        // Quantize alpha so fades don't mint a batch bucket per glyph.
+        // Quantize alpha so fades don't mint a batch bucket per glyph. The
+        // whole span style rides along, so a letter in flight keeps the
+        // gradient, stroke and glow passes it was styled with.
         const float alpha =
             std::round(std::clamp(mod.alpha, 0.0f, 1.0f) * 32.0f) / 32.0f;
-        const SkColor tinted = SkColorSetA(
-            color, (U8CPU)((float)SkColorGetA(color) * alpha + 0.5f));
         float cosv = 1.0f, sinv = 0.0f;
         if (mod.rotateDeg != 0)
           sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv, sinv);
         cosv *= mod.scale;
         sinv *= mod.scale;
-        batches.addGlyph(
-            font, tinted, glyph, advance * 0.5f,
-            {rest.x() + mod.dx + advance * 0.5f, rest.y() + mod.dy}, cosv,
-            sinv);
+        batches.addGlyph(placed,
+                         {placed.rest.x() + mod.dx + placed.advance * 0.5f,
+                          placed.rest.y() + mod.dy},
+                         cosv, sinv, alpha);
       });
   batches.draw(&canvas);
 }
@@ -1979,9 +1980,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               const sigil::weave::ShapedWord* firstFont = nullptr;
               sigil::weave::forEachPlacedGlyph(
                   inst.textLayout, *inst.paragraph,
-                  [&](const sigil::weave::ShapedWord* font, SkGlyphID, float,
-                      SkColor, SkPoint) {
-                    if (!firstFont) firstFont = font;
+                  [&](const sigil::weave::PlacedGlyph& placed) {
+                    if (!firstFont) firstFont = placed.shaped;
                   });
               float capH = 0;
               if (firstFont && firstFont->typeface) {

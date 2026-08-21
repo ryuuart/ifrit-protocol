@@ -152,9 +152,9 @@ std::vector<float> measureRun(std::u8string_view utf8,
   sigil::weave::ParagraphLayout layout =
       sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
   sigil::weave::forEachPlacedGlyph(
-      layout, paragraph,
-      [&](const sigil::weave::ShapedWord*, SkGlyphID, float advance, SkColor,
-          SkPoint) { advances.push_back(advance); });
+      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        advances.push_back(placed.advance);
+      });
   return advances;
 }
 

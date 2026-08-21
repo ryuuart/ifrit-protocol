@@ -145,6 +145,7 @@ add_executable(weave_test
   test/TypographyTest.cpp
   test/OverflowTest.cpp
   test/QueryTest.cpp
+  test/ChoreographTest.cpp
   test/VerticalTest.cpp
   test/StressTest.cpp
   test/InlineVectorTest.cpp

@@ -66,6 +66,12 @@ struct WordSegment {
                             ///< kTateChuYoko this lands on the run's baseline)
   SegmentForm form = SegmentForm::kFlow;  ///< vertical-text placement; always
                                           ///< kFlow in horizontal paragraphs
+  /// First UTF-16 unit of the text this segment shaped, so a glyph's cluster
+  /// (ShapedWord::clusters, an offset inside that text) maps back to a
+  /// position in Paragraph::text(). Length-changing case mapping
+  /// (ShapingStyle::textTransform) makes the mapping approximate, exactly as
+  /// it does for the clusters themselves.
+  uint32_t textBegin = 0;
 };
 
 /// An inline object slot woven into the flow (SkParagraph's placeholder
@@ -245,6 +251,18 @@ class Paragraph {
   /** Returns the analyzed line-break units in logical text order. */
   const std::vector<Word>& words() const { return m_words; }
 
+  /** Returns the UTF-16 offset where each sentence of the text starts,
+   * ascending, the first entry always 0 (empty for empty text). The sentence
+   * containing an offset is the last entry not greater than it.
+   *
+   * ICU sentence segmentation, run on first call and reused until the text
+   * changes: a paragraph nobody asks never runs the pass, and one whose text
+   * is unchanged runs it once no matter how many frames read it. Style and
+   * paint edits leave it valid. Independent of ensureAnalyzed() — no shaping,
+   * no words, no fonts are involved.
+   */
+  [[nodiscard]] std::span<const uint32_t> sentenceStarts() const;
+
   /// Line-height inputs from the first span's font (the "strut"): returns
   /// {ascent (positive), height} for a default single-spaced line.
   struct Strut {
@@ -301,6 +319,11 @@ class Paragraph {
   uint32_t m_cachedWhitespaceStyleIndex = ~0u;
   std::u16string m_cachedWhitespaceText;
   float m_cachedWhitespaceWidth = 0;
+
+  // Sentence starts are derived from the text alone, so they survive every
+  // style edit and are rebuilt only when recordEdit() fires.
+  mutable std::vector<uint32_t> m_sentenceStarts;
+  mutable bool m_sentenceStartsValid = false;
 
   uint64_t m_revision = 0;
   std::vector<TextEdit> m_editHistory;

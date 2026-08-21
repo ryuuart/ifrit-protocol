@@ -162,12 +162,12 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 |---|---|
 | `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. |
 | `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones, the shape cache, observable `Stats`. |
-| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, and the analysis entry points. |
+| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, sentence boundaries, and the analysis entry points. |
 | `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |
 | `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
 | `Shaper.h` | `ShapedWord`, `shapeWord()`, `wordBlob()`, `makeFont()`. Reach for it to inspect or reuse individual glyph runs. |
 | `Query.h` | Optional: find ranges by substring, word, or ICU regex; `MarkerSet` tracks named ranges across edits, DOM-Range style. |
-| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs with their rest positions, and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls. |
+| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls. |
 | `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
 | `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
 | `InlineVector.h` | The small-buffer vector `Word::segments` uses, so no third-party container appears in a public header. |
@@ -243,6 +243,14 @@ state.
 - **Inline placeholders** — pills, icons, and images woven into the flow. The
   breakers treat each as an unbreakable word; `placeholderRects()` reports
   where they landed.
+- **Per-glyph choreography** — `forEachPlacedGlyph()` (`Choreograph.h`) hands
+  every glyph of a finished layout to a visitor as one `PlacedGlyph`: the
+  shaped run it came from, its glyph ID and advance, the absolute rest
+  position the layout placed it at, its span's whole `PaintStyle`, and the
+  identity an effect selects on — position in the walk, index within the
+  shaped run, UTF-16 cluster, the same cluster as a text offset, and word,
+  line, style-span and sentence indices. Displace, rotate and fade from
+  there, accumulate into `GlyphRSXformBatches`, and draw.
 - **Line metrics** — `lineMetrics()` derives per-line baseline, ascent and
   descent band, advance extent, and character range from the placed runs.
   Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
@@ -357,6 +365,24 @@ shaper measured against — or glyphs drift off their shaped positions. Related:
 Skia takes glyph edging from the *font*, never the paint, so
 `paint.setAntiAlias(false)` is silently ignored for text. Ask for hard edges
 with `ShapingStyle::aliased` instead.
+
+**A per-glyph walk is stable, and its batches are keyed by paint.**
+`forEachPlacedGlyph()` enumerates in draw order, and that order does not
+change across relayouts while the text is unchanged — which is what lets an
+effect key particle state on a glyph's position in the walk. Sentence indices
+come from an ICU pass over the text that runs on the first walk after an edit
+and is reused by every walk after it; a paint edit does not invalidate it.
+`GlyphRSXformBatches` buckets on (typeface, size, condensation, edging,
+resolved paint pass), and a glyph is added once per pass of its `PaintStyle`
+— each underlay in order, then the foreground, then each overlay — so an
+animated letter keeps its gradients, strokes and mask filters, and each pass
+costs one more `drawGlyphsRSXform` call. Buckets draw in creation order, so
+within one style every underlay lands beneath every foreground. A per-glyph
+fade rides `alphaScale` instead of a per-glyph style; quantize it when an
+effect drives it continuously, because distinct alphas are distinct buckets.
+Batched glyphs draw with subpixel positioning off and rotations quantized: a
+continuous per-letter angle or phase mints a fresh glyph-atlas strike per
+letter per frame.
 
 **Shaping style versus paint style.** Any change to a shaping field re-shapes
 the words it covers. Paint changes never re-shape and never relayout, and
