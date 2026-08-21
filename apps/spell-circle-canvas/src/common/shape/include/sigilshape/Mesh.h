@@ -85,6 +85,9 @@ struct Mesh {
   void computeNormals();
   /** Axis-aligned bounds. */
   void bounds(glm::vec3* lo, glm::vec3* hi) const;
+
+  /** Content equality, lane for lane. */
+  bool operator==(const Mesh&) const = default;
 };
 
 namespace mesh {

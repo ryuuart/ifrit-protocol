@@ -4,12 +4,18 @@
     {
       "name": "ninja",
       "binaryDir": "${sourceDir}/build",
-      "generator": "Ninja Multi-Config"
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets"
+      }
     },
     {
       "name": "xcode",
       "binaryDir": "${sourceDir}/build-xcode",
-      "generator": "Xcode"
+      "generator": "Xcode",
+      "cacheVariables": {
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets"
+      }
     }
   ]
 }

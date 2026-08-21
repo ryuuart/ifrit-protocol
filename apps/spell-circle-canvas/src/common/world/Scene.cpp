@@ -28,9 +28,9 @@ glm::mat4 Node::localMatrix() const {
   return m;
 }
 
-Node surface(std::shared_ptr<const shape::Mesh> mesh, Material material) {
+Node place(std::shared_ptr<const shape::Mesh> mesh, Material material) {
   Node node;
-  node.m_kind = Node::Kind::Surface;
+  node.m_kind = Node::Kind::Prop;
   node.m_mesh = std::move(mesh);
   node.m_material = std::move(material);
   return node;
@@ -98,13 +98,13 @@ Scene::Stats Scene::render(const Node& root) {
           warnIfOutranked(path, entry.id);
         } else {
           if (it != m_entries.end()) {
-            m_world.removeSurface(it->second.id);
+            m_world.remove(it->second.id);
             m_entries.erase(it);
             m_warnedOutranked.erase(path);
             ++stats.removed;
           }
           Entry entry;
-          entry.id = m_world.addSurface(*mesh, world, material);
+          entry.id = m_world.place(*mesh, world, material);
           entry.mesh = mesh;
           entry.material = std::move(material);
           entry.world = world;
@@ -129,7 +129,7 @@ Scene::Stats Scene::render(const Node& root) {
   // Anything not revisited left the description.
   for (auto it = m_entries.begin(); it != m_entries.end();) {
     if (!it->second.visited) {
-      m_world.removeSurface(it->second.id);
+      m_world.remove(it->second.id);
       m_warnedOutranked.erase(it->first);
       it = m_entries.erase(it);
       ++stats.removed;
@@ -184,7 +184,7 @@ void Scene::warnIfOutranked(const std::string& path, uint32_t id) {
 }
 
 void Scene::clear() {
-  for (auto& [key, entry] : m_entries) m_world.removeSurface(entry.id);
+  for (auto& [key, entry] : m_entries) m_world.remove(entry.id);
   m_entries.clear();
   m_warnedOutranked.clear();
 }

@@ -333,8 +333,8 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
   return out;
 }
 
-Mesh panels(const Cloud& cloud, float width, float height,
-            const InstanceOptions& options) {
+Mesh quads(const Cloud& cloud, float width, float height,
+           const InstanceOptions& options) {
   return instance(cloud, mesh::quad(width, height), options);
 }
 

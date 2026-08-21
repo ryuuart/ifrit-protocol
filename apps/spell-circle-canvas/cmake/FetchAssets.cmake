@@ -67,6 +67,17 @@ set(SIGIL_ASSET_URL_MANIFEST
     # panel picks up anything under models/).
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/glTF-Binary/Avocado.glb|models/Avocado.glb|ccc9c3ce56423720b09399c2351537207cd5a65f859f9e6e2f30922762f3abd4"
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/LICENSE.md|models/Avocado.LICENSE.md|15aa885ef74db3dce103da85abb568476378a815ca46db0cf7667a1a795b4194"
+    # Poly Haven "metal_plate" PBR texture set (CC0), one file per map in
+    # the site's own naming (_diff, _nor_gl, _rough, _metal, _ao, and the
+    # packed _arm) — SigilWorld's texture-set loader recognizes these
+    # names, and world_demo dresses its material lab with them.
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_diff_1k.png|textures/metal_plate/metal_plate_diff_1k.png|00401b4ce56f0ffa8b2c1e10366fa36a7a9b839199b3abac2678790a9883c2e9"
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_nor_gl_1k.png|textures/metal_plate/metal_plate_nor_gl_1k.png|d858021ebc0a2a01ec13e574bc47ed58795e129904cda2868b3fb2dfd02d6741"
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_rough_1k.png|textures/metal_plate/metal_plate_rough_1k.png|aa6e4947c33559a7012e275d1600bfa6e00c2824271726a94de69f1a7b7fed2e"
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_metal_1k.png|textures/metal_plate/metal_plate_metal_1k.png|394ee114df29630336322edbbd3ca9a7782b040deea58f620b0e298c973c6ace"
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_ao_1k.png|textures/metal_plate/metal_plate_ao_1k.png|70653401fb0f992daf58c7b51cc4aef469bf0e4eed484c6ad1d57c93e50ae361"
+    "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_arm_1k.png|textures/metal_plate/metal_plate_arm_1k.png|d568d7ef7c206b3737b4fa38ba7984037f1ee2afbfd2ef03dd4418e8975eec04"
+    "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt|textures/metal_plate/CC0.LICENSE.txt|a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
 )
 
 # The fetch itself runs at BUILD time in script mode, so configuring the

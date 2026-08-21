@@ -45,7 +45,7 @@ void warnComputeKernelsUnavailable() {
   SkDebugf(
       "[world] compute kernels unavailable: this build was configured "
       "without slangc, so no SPIR-V compute shaders were embedded. "
-      "addSweep, addFlock, addPoints and addPointsOn return 0; surface "
+      "placeSweep, placeChain and placeChainOn return 0; prop "
       "rendering is unaffected.\n");
 }
 }  // namespace
@@ -116,7 +116,13 @@ Mat4 normalMatrix(const glm::mat4& model) {
 // ---------------------------------------------------------------------------
 // Shaders
 
-constexpr char kShaderSource[] = R"(
+// The graphics shader is assembled at pipeline creation: the fixed text
+// below, with the per-slot texture declarations and samplers generated
+// for kSlots material slots (the base and up to Material::kMaxLayers
+// layers), so the layer count lives in one constant.
+constexpr int kSlots = 1 + Material::kMaxLayers;
+
+constexpr char kShaderHead[] = R"(
 cbuffer FrameConstants
 {
     float4x4 g_ViewProj;
@@ -125,24 +131,236 @@ cbuffer FrameConstants
     float4 g_SunColor;
     float4 g_SkyColor;
     float4 g_GroundColor;
-    float4 g_Params;      // x ambient, y light count
+    float4 g_Params;      // x ambient, y light count, zw 1/target size
     float4 g_LightPos[8];   // xyz position (point) / direction (dir), w 1=point
     float4 g_LightColor[8]; // rgb color * intensity, w range (point)
+    float4 g_Env;         // x intensity, y rotation (radians), z top mip, w 1 = present
+};
+
+// One material's dials — the base's in slot 0, each layer's in the
+// slots after it.
+struct SlotConstants
+{
+    float4 BaseColor;
+    float4 Emissive;      // rgb emissive, a unused
+    float4 MatParams;     // x metallic, y roughness, z emissiveStrength, w unlit (slot 0)
+    float4 UvScaleOffset; // xy uv scale, zw uv offset
+    float4 MapParams;     // x normalScale, y occlusionStrength, z 1 = DirectX normal, w transmission
+    float4 Channels;      // x roughness, y metallic, z occlusion, w opacity channel index
+    float4 Glass;         // x ior, y thickness, z alphaCutoff (slot 0), w scene-colour top mip (slot 0)
+    float4 Flags;         // x 1 = tile (repeat) the slot's maps
 };
 
 cbuffer DrawConstants
 {
     float4x4 g_Model;
     float4x4 g_NormalMat;
-    float4 g_BaseColor;
-    float4 g_Emissive;    // rgb emissive, a unused
-    float4 g_MatParams;   // x metallic, y roughness, z emissiveStrength, w unlit
-    float4 g_UvScaleOffset; // xy uv scale, zw uv offset
+    SlotConstants g_Slot[SLOTS];
+    // Layer i (1..) reads g_Layer*[i - 1]:
+    float4 g_LayerA[LAYERS];  // x mask source, y channel or constant, z low, w high
+    float4 g_LayerB[LAYERS];  // xyz mask axis, w invert
+    float4 g_LayerC[LAYERS];  // xy mask uv scale, zw mask uv offset
+    float4 g_LayerD[LAYERS];  // x blend mode, y 1 = layer present, z 1 = tile the mask
 };
 
-Texture2D    g_Texture;
-SamplerState g_Texture_sampler;
+// Three samplers serve every texture (the device caps samplers per
+// stage far below textures): clamp, repeat, and the panorama's
+// wrap-u/clamp-v with mips. Which one a map takes is a per-slot flag.
+SamplerState g_Clamp;
+SamplerState g_Wrap;
+SamplerState g_Panorama;
 
+// The frame's OPAQUE pass, resolved and mipped, for glass to look
+// through. Bound to every prop (a 1x1 black stand-in until a
+// transmissive prop exists in the frame).
+Texture2D    g_SceneColor;
+// The environment panorama, bound like a material map (a 1x1 black
+// stand-in when the lighting has none) so the frame's light rides the
+// same binding shape as everything else.
+Texture2D    g_Environment;
+
+float4 sampleMap(Texture2D t, float2 uv, float tile)
+{
+    if (tile > 0.5) return t.Sample(g_Wrap, uv);
+    return t.Sample(g_Clamp, uv);
+}
+)";
+
+// Per slot k: the texture set. Every slot is bound — a 1x1 white (or
+// flat-normal) stand-in where the material has no map — so the shader
+// multiplies unconditionally and never branches on presence.
+constexpr char kShaderSlotTextures[] = R"(
+Texture2D    g_Texture$;
+Texture2D    g_NormalMap$;
+Texture2D    g_RoughnessMap$;
+Texture2D    g_MetallicMap$;
+Texture2D    g_OcclusionMap$;
+Texture2D    g_EmissiveMap$;
+Texture2D    g_OpacityMap$;
+)";
+
+// Per layer i: its mask image (white when the mask is not a map).
+constexpr char kShaderLayerTextures[] = R"(
+Texture2D    g_Mask$;
+)";
+
+constexpr char kShaderCommon[] = R"(
+// Equirectangular lookup: u = 0.5 faces -Z, v = 0 is straight up, with
+// the panorama turned about +Y by g_Env.y.
+float3 envSample(float3 d, float lod)
+{
+    float c = cos(g_Env.y), s = sin(g_Env.y);
+    float3 r = float3(c * d.x - s * d.z, d.y, s * d.x + c * d.z);
+    float u = atan2(r.x, -r.z) / 6.2831853 + 0.5;
+    float v = acos(clamp(r.y, -1.0, 1.0)) / 3.1415926;
+    return g_Environment.SampleLevel(g_Panorama, float2(u, v), lod).rgb
+           * g_Env.x;
+}
+
+float pick(float4 v, float channel)
+{
+    int c = (int)(channel + 0.5);
+    return c == 0 ? v.x : (c == 1 ? v.y : (c == 2 ? v.z : v.w));
+}
+
+// The tangent frame from screen-space derivatives — no vertex tangents.
+// T follows increasing u, B increasing v; with v running DOWN the image
+// (uv origin top-left) an OpenGL-convention map's green axis is -B.
+// Every slot's map is brought to the OpenGL convention before blending,
+// so one frame serves the blended normal.
+float3 perturbNormal(float3 N, float3 P, float2 uv, float3 mapN)
+{
+    // Solve the 2x2 for dP/du and dP/dv outright rather than through
+    // the cross-product shortcut: the direct solve is invariant to the
+    // handedness of the screen-space derivative pair, so the frame's
+    // signs do not depend on which way the backend's ddy points.
+    float3 dp1 = ddx(P);
+    float3 dp2 = ddy(P);
+    float2 duv1 = ddx(uv);
+    float2 duv2 = ddy(uv);
+    float det = duv1.x * duv2.y - duv2.x * duv1.y;
+    if (abs(det) < 1e-12)
+        return N;  // no uv gradient here: keep the geometric normal
+    float3 dPdu = (dp1 * duv2.y - dp2 * duv1.y) / det;
+    float3 dPdv = (dp2 * duv1.x - dp1 * duv2.x) / det;
+    float3 T = dPdu - N * dot(N, dPdu);
+    float3 B = dPdv - N * dot(N, dPdv);
+    float tl = length(T), bl = length(B);
+    if (tl < 1e-12 || bl < 1e-12)
+        return N;
+    T /= tl;
+    B /= bl;
+    return normalize(T * mapN.x - B * mapN.y + N * mapN.z);
+}
+
+// The parameters a pixel is shaded with — one slot's, or several
+// slots' blended. Blending happens HERE, before shading, which is what
+// makes a layered material one material rather than several drawn over
+// each other.
+struct Surf
+{
+    float4 base;        // linear rgb, alpha
+    float3 nTS;         // tangent-space normal, OpenGL convention
+    float  rough;
+    float  metal;
+    float  occ;
+    float3 emissive;
+    float  transmission;
+    float  ior;
+    float  thickness;
+};
+
+Surf blendSurf(Surf a, Surf b, float m, int mode)
+{
+    Surf r = a;
+    if (mode == 1)       // Add
+    {
+        r.base.rgb = a.base.rgb + b.base.rgb * m;
+        r.emissive = a.emissive + b.emissive * m;
+    }
+    else if (mode == 2)  // Multiply
+    {
+        r.base.rgb = a.base.rgb * lerp(float3(1.0, 1.0, 1.0), b.base.rgb, m);
+        r.emissive = lerp(a.emissive, b.emissive, m);
+    }
+    else                 // Mix
+    {
+        r.base.rgb = lerp(a.base.rgb, b.base.rgb, m);
+        r.emissive = lerp(a.emissive, b.emissive, m);
+    }
+    r.base.a       = lerp(a.base.a, b.base.a, m);
+    r.nTS          = normalize(lerp(a.nTS, b.nTS, m));
+    r.rough        = lerp(a.rough, b.rough, m);
+    r.metal        = lerp(a.metal, b.metal, m);
+    r.occ          = lerp(a.occ, b.occ, m);
+    r.transmission = lerp(a.transmission, b.transmission, m);
+    r.ior          = lerp(a.ior, b.ior, m);
+    r.thickness    = lerp(a.thickness, b.thickness, m);
+    return r;
+}
+
+// A mask's shaping, shared by every source: fit the raw value onto
+// [low, high] and clamp (low == high steps at low), then invert.
+float shapeMask(float raw, float4 A, float4 B)
+{
+    float m = A.w != A.z ? saturate((raw - A.z) / (A.w - A.z))
+                         : (raw >= A.z ? 1.0 : 0.0);
+    return B.w > 0.5 ? 1.0 - m : m;
+}
+)";
+
+// Per slot k: sample the slot's texture set into a Surf.
+constexpr char kShaderSlotSample[] = R"(
+Surf sampleSlot$(float2 uvIn, float4 tint)
+{
+    SlotConstants c = g_Slot[$];
+    float2 uv = uvIn * c.UvScaleOffset.xy + c.UvScaleOffset.zw;
+    float tile = c.Flags.x;
+    Surf s;
+    s.base = sampleMap(g_Texture$, uv, tile) * c.BaseColor * tint;
+    s.base.a *= pick(sampleMap(g_OpacityMap$, uv, tile), c.Channels.w);
+    float3 n = sampleMap(g_NormalMap$, uv, tile).xyz * 2.0 - 1.0;
+    n.xy *= c.MapParams.x;
+    if (c.MapParams.z > 0.5) n.y = -n.y;   // DirectX green down -> OpenGL up
+    s.nTS = n;
+    s.rough = c.MatParams.y *
+        pick(sampleMap(g_RoughnessMap$, uv, tile), c.Channels.x);
+    s.metal = c.MatParams.x *
+        pick(sampleMap(g_MetallicMap$, uv, tile), c.Channels.y);
+    s.occ = lerp(1.0, pick(sampleMap(g_OcclusionMap$, uv, tile), c.Channels.z),
+                 c.MapParams.y);
+    s.emissive = c.Emissive.rgb * c.MatParams.z *
+        sampleMap(g_EmissiveMap$, uv, tile).rgb;
+    s.transmission = c.MapParams.w;
+    s.ior = c.Glass.x;
+    s.thickness = c.Glass.y;
+    return s;
+}
+)";
+
+// Per layer i (1-based; reads g_Layer*[i-1] and g_Mask$ where $ = i):
+// the mask's raw value from its source, then shaped.
+constexpr char kShaderLayerMask[] = R"(
+float maskValue$(float2 uvIn, float4 vcolor, float3 Ngeom, float3 P)
+{
+    float4 A = g_LayerA[$ - 1];
+    float4 B = g_LayerB[$ - 1];
+    float4 C = g_LayerC[$ - 1];
+    int source = (int)(A.x + 0.5);
+    float raw = A.y;                                             // Constant
+    if (source == 1)
+        raw = pick(sampleMap(g_Mask$, uvIn * C.xy + C.zw, g_LayerD[$ - 1].z), A.y);  // Map
+    else if (source == 2)
+        raw = pick(vcolor, A.y);                                 // VertexColor
+    else if (source == 3)
+        raw = dot(Ngeom, normalize(B.xyz));                      // Slope
+    else if (source == 4)
+        raw = dot(P, B.xyz);                                     // Height
+    return shapeMask(raw, A, B);
+}
+)";
+
+constexpr char kShaderBody[] = R"(
 struct VSIn
 {
     float3 Pos    : ATTRIB0;
@@ -172,7 +390,8 @@ struct PSIn
     float3 World  : WORLDPOS;
     float3 Normal : NORMALX;
     float2 UV     : TEXCOORD0;
-    float4 Tint   : COLOR0;
+    float4 Tint   : COLOR0;   // mesh colour x instance tint: multiplies base
+    float4 VColor : COLOR1;   // the mesh's own colour lane, raw: mask source
 };
 
 void VSMain(in VSIn IN, out PSIn OUT)
@@ -183,6 +402,7 @@ void VSMain(in VSIn IN, out PSIn OUT)
     OUT.Normal = normalize(mul(g_NormalMat, float4(IN.Normal, 0.0)).xyz);
     OUT.UV     = IN.UV;
     OUT.Tint   = IN.Color;
+    OUT.VColor = IN.Color;
 }
 
 void VSInstanced(in VSInstIn IN, out PSIn OUT)
@@ -201,6 +421,7 @@ void VSInstanced(in VSInstIn IN, out PSIn OUT)
     OUT.Normal = normalize(mul(g_NormalMat, float4(nrm, 0.0)).xyz);
     OUT.UV   = IN.UV * IN.Tex.zw + IN.Tex.xy;
     OUT.Tint = IN.Color * IN.Tint;
+    OUT.VColor = IN.Color;
 }
 
 // The EXACT inverse of the hardware sRGB decode, and it must stay exact.
@@ -223,11 +444,26 @@ float3 LinearToSrgb(float3 c)
 
 float4 PSMain(in PSIn IN) : SV_TARGET
 {
-    float2 uv   = IN.UV * g_UvScaleOffset.xy + g_UvScaleOffset.zw;
-    float4 tex  = g_Texture.Sample(g_Texture_sampler, uv);
-    float4 base = tex * g_BaseColor * IN.Tint;
+    float3 Ngeom = normalize(IN.Normal);
+    float3 V = normalize(g_CamPos.xyz - IN.World);
+    // Culling is off, so every prop is two-sided. Flip a backfacing
+    // normal rather than dropping the fragment: winding does not decide
+    // visibility here, and a single-sided panel would go black from
+    // behind.
+    if (dot(Ngeom, V) < 0.0)
+        Ngeom = -Ngeom;
 
-    if (g_MatParams.w > 0.5)
+    // The material: slot 0, then each present layer blended in where
+    // its mask says.
+    Surf s = sampleSlot0(IN.UV, IN.Tint);
+LAYER_BLENDS
+    float4 base = s.base;
+    // The cutout: below the cutoff the fragment is not there at all.
+    if (g_Slot[0].Glass.z > 0.0 && base.a < g_Slot[0].Glass.z)
+        discard;
+    float3 emissive = s.emissive;
+
+    if (g_Slot[0].MatParams.w > 0.5)
     {
         // Unlit screens: skip lighting and tonemapping, but still
         // re-encode the linearized sample for the UNORM target — the
@@ -235,21 +471,17 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         // function for the whole target. With the exact inverse curve
         // this branch is a true pass-through: an untinted texel lands in
         // the readback as its own byte.
-        float3 unlit = base.rgb + g_Emissive.rgb * g_MatParams.z;
+        float3 unlit = base.rgb + emissive;
         return float4(LinearToSrgb(unlit), base.a);
     }
 
-    float3 N = normalize(IN.Normal);
-    float3 V = normalize(g_CamPos.xyz - IN.World);
-    // Culling is off, so every surface is two-sided. Flip a backfacing
-    // normal rather than dropping the fragment: winding does not decide
-    // visibility here, and a single-sided panel would go black from
-    // behind.
-    if (dot(N, V) < 0.0)
-        N = -N;
+    // The blended tangent-space normal, applied once in the derivative
+    // frame.
+    float3 N = perturbNormal(Ngeom, IN.World, IN.UV, s.nTS);
 
-    float  metallic = g_MatParams.x;
-    float  rough    = clamp(g_MatParams.y, 0.045, 1.0);
+    float  metallic = s.metal;
+    float  rough    = clamp(s.rough, 0.045, 1.0);
+    float  occlusion = s.occ;
     float3 F0       = lerp(float3(0.04, 0.04, 0.04), base.rgb, metallic);
     float3 albedo   = base.rgb * (1.0 - metallic);
 
@@ -269,7 +501,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     float  Vis = 0.5 / max(lerp(2.0 * ndl * ndv, ndl + ndv, a), 1e-4);
 
     float3 sun    = g_SunColor.rgb * g_SunDir.w;
-    float3 direct = (albedo / 3.1415926 + D * F * Vis) * sun * ndl;
+    // Diffuse and specular kept apart: glass keeps its specular on top
+    // of what it transmits and gives up its diffuse.
+    float3 diffuse  = (albedo / 3.1415926) * sun * ndl;
+    float3 specular = (D * F * Vis) * sun * ndl;
 
     // Registry lights: the same GGX lobe per light, with point lights on
     // a windowed falloff — (1 - (d/range)^2)^2 — rather than a physical
@@ -303,25 +538,130 @@ float4 PSMain(in PSIn IN) : SV_TARGET
         float  Di   = a2 / max(3.1415926 * ddi * ddi, 1e-4);
         float3 Fi   = F0 + (1.0 - F0) * pow(1.0 - hdvi, 5.0);
         float  Visi = 0.5 / max(lerp(2.0 * ndli * ndv, ndli + ndv, a), 1e-4);
-        direct += (albedo / 3.1415926 + Di * Fi * Visi) *
-                  g_LightColor[i].rgb * (atten * ndli);
+        diffuse  += (albedo / 3.1415926) * g_LightColor[i].rgb * (atten * ndli);
+        specular += (Di * Fi * Visi) * g_LightColor[i].rgb * (atten * ndli);
     }
 
-    // Hemisphere ambient, with a reflection-oriented lobe for spec.
-    float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
-    float3 R     = reflect(-V, N);
-    float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
-    float3 ambient = g_Params.x *
-        (hemiN * albedo + hemiR * F0 * (1.0 - rough) * (0.4 + 0.6 * pow(1.0 - ndv, 2.0)));
-
-    float3 color = direct + ambient + g_Emissive.rgb * g_MatParams.z;
+    // Ambient: the panorama when the lighting carries one, otherwise the
+    // sky/ground hemisphere with a reflection-oriented lobe for spec.
+    float3 R = reflect(-V, N);
+    float3 ambientDiffuse, ambientSpecular;
+    if (g_Env.w > 0.5)
+    {
+        // Diffuse: a five-tap cosine-weighted hemisphere read from a
+        // blurred level (the top levels of a panorama's mip chain are
+        // too few texels to stand in for a convolution on their own);
+        // specular along R at a roughness-chosen level, weighted by the
+        // split-sum environment BRDF (the analytic fit, no lookup
+        // texture).
+        float dlod = max(g_Env.z - 3.0, 0.0);
+        float3 tN = abs(N.y) < 0.9 ? cross(N, float3(0.0, 1.0, 0.0))
+                                   : cross(N, float3(1.0, 0.0, 0.0));
+        tN = normalize(tN);
+        float3 bN = cross(N, tN);
+        float3 irradiance = envSample(N, dlod) * 0.36;
+        irradiance += envSample(normalize(N * 0.5 + tN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 - tN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 + bN * 0.866), dlod) * 0.16;
+        irradiance += envSample(normalize(N * 0.5 - bN * 0.866), dlod) * 0.16;
+        float3 prefiltered = envSample(R, rough * g_Env.z);
+        float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+        float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+        float4 rr = rough * c0 + c1;
+        float a004 = min(rr.x * rr.x, exp2(-9.28 * ndv)) * rr.x + rr.y;
+        float2 AB = float2(-1.04, 1.04) * a004 + rr.zw;
+        ambientDiffuse  = g_Params.x * occlusion * irradiance * albedo;
+        ambientSpecular = g_Params.x * occlusion * prefiltered * (F0 * AB.x + AB.y);
+    }
+    else
+    {
+        float3 hemiN = lerp(g_GroundColor.rgb, g_SkyColor.rgb, N.y * 0.5 + 0.5);
+        float3 hemiR = lerp(g_GroundColor.rgb, g_SkyColor.rgb, R.y * 0.5 + 0.5);
+        ambientDiffuse  = g_Params.x * occlusion * hemiN * albedo;
+        ambientSpecular = g_Params.x * occlusion * hemiR * F0 * (1.0 - rough) *
+                          (0.4 + 0.6 * pow(1.0 - ndv, 2.0));
+    }
+    diffuse  += ambientDiffuse;
+    specular += ambientSpecular;
 
     // Tonemap, then the same sRGB encode the unlit branch uses — one
     // transfer function for the whole target.
-    color = color / (color + 1.0);
-    return float4(LinearToSrgb(color), base.a);
+    float3 color = diffuse + specular + emissive;
+    float3 encoded = LinearToSrgb(color / (color + 1.0));
+    float  alpha = base.a;
+
+    float transmission = s.transmission;
+    if (transmission > 0.0)
+    {
+        // Glass: what lies behind, read from the opaque pass where the
+        // refracted view ray exits a slab `thickness` deep, blurred by
+        // roughness, tinted by the base colour; the surface's own
+        // diffuse gives way to it and its specular rides on top. The
+        // scene colour is already encoded and tonemapped, so the mix
+        // happens in encoded space and the pixel is written opaque —
+        // the background has been composed here.
+        float3 rd = refract(-V, N, 1.0 / max(s.ior, 1.0));
+        float3 exitP = IN.World + rd * s.thickness;
+        float4 clip = mul(g_ViewProj, float4(exitP, 1.0));
+        float2 suv = clip.xy / max(clip.w, 1e-4) * float2(0.5, -0.5) + 0.5;
+        suv = clamp(suv, 0.0, 1.0);
+        float3 seen = g_SceneColor.SampleLevel(g_Clamp, suv,
+                                               rough * g_Slot[0].Glass.w).rgb;
+        float3 tinted = seen * base.rgb;
+        // Specular AND emission ride on top of what is transmitted:
+        // glass shines, and edge-lit or neon glass glows, at any
+        // transmission. Only the diffuse gives way.
+        float3 specE = LinearToSrgb(specular / (specular + 1.0));
+        float3 emitE = LinearToSrgb(emissive / (emissive + 1.0));
+        float3 ownE = LinearToSrgb(diffuse / (diffuse + 1.0));
+        encoded = lerp(ownE, tinted, transmission) + specE + emitE;
+        alpha = lerp(alpha, 1.0, transmission);
+    }
+    return float4(encoded, alpha);
 }
 )";
+
+/** The graphics shader with its slot and layer sections generated. */
+std::string buildShaderSource() {
+  const auto stamp = [](const char* text, int index) {
+    std::string out;
+    for (const char* p = text; *p; ++p)
+      if (*p == '$')
+        out += std::to_string(index);
+      else
+        out += *p;
+    return out;
+  };
+  std::string head = kShaderHead;
+  const auto replaceAll = [](std::string& s, const std::string& from,
+                             const std::string& to) {
+    for (size_t at = s.find(from); at != std::string::npos;
+         at = s.find(from, at + to.size()))
+      s.replace(at, from.size(), to);
+  };
+  replaceAll(head, "SLOTS", std::to_string(kSlots));
+  replaceAll(head, "LAYERS", std::to_string(Material::kMaxLayers));
+  std::string source = head;
+  for (int k = 0; k < kSlots; ++k) source += stamp(kShaderSlotTextures, k);
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    source += stamp(kShaderLayerTextures, i);
+  source += kShaderCommon;
+  for (int k = 0; k < kSlots; ++k) source += stamp(kShaderSlotSample, k);
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    source += stamp(kShaderLayerMask, i);
+  std::string body = kShaderBody;
+  std::string blends;
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    blends += "    if (g_LayerD[" + std::to_string(i - 1) +
+              "].y > 0.5)\n        s = blendSurf(s, sampleSlot" +
+              std::to_string(i) + "(IN.UV, IN.Tint), maskValue" +
+              std::to_string(i) +
+              "(IN.UV, IN.VColor, Ngeom, IN.World), (int)(g_LayerD[" +
+              std::to_string(i - 1) + "].x + 0.5));\n";
+  replaceAll(body, "LAYER_BLENDS\n", blends);
+  source += body;
+  return source;
+}
 
 struct FrameConstants {
   Mat4 viewProj;
@@ -333,15 +673,31 @@ struct FrameConstants {
   float params[4];                    // x ambient, y light count
   float lightPos[kLightBudget][4];    // xyz pos/dir, w 1=point
   float lightColor[kLightBudget][4];  // rgb premultiplied intensity, w range
+  float env[4];  // x intensity, y rotation, z top mip, w present
+};
+
+/** One material slot's dials — the SlotConstants struct of the shader,
+ *  member for member. */
+struct SlotConstants {
+  float baseColor[4];
+  float emissive[4];
+  float matParams[4];
+  float uvScaleOffset[4];
+  float mapParams[4];
+  float channels[4];
+  float glass[4];  // x ior, y thickness, z alphaCutoff, w scene top mip
+  float flags[4];  // x tile
 };
 
 struct DrawConstants {
   Mat4 model;
   Mat4 normalMat;
-  float baseColor[4];
-  float emissive[4];
-  float matParams[4];
-  float uvScaleOffset[4];
+  SlotConstants slot[kSlots];
+  float layerA[Material::kMaxLayers]
+              [4];  // mask source, channel/const, low, high
+  float layerB[Material::kMaxLayers][4];  // mask axis, invert
+  float layerC[Material::kMaxLayers][4];  // mask uv scale, offset
+  float layerD[Material::kMaxLayers][4];  // blend mode, present
 };
 
 struct Vertex {
@@ -368,7 +724,7 @@ struct InstanceAttribs {
 using shape::detail::basisFor;
 
 std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
-                                            const InstanceLanes& lanes) {
+                                            const StampLanes& lanes) {
   const std::vector<float>* scaleLane =
       lanes.scaleLane.empty() ? nullptr : cloud.scalarIf(lanes.scaleLane);
   const std::vector<glm::vec4>* tintLane =
@@ -423,26 +779,124 @@ std::vector<InstanceAttribs> buildInstances(const shape::Cloud& cloud,
 /** The private GPU component: device objects for one surface entity.
  *  Public state (transform, material) lives in the public components —
  *  see Components.h. */
+/** Which images (by pointer) and which addressing a surface's shader
+ *  resource binding was built from. render() compares this against the
+ *  live MaterialComponent and rebinds when a pointer moved, which is
+ *  what makes swapping a material's texture live. */
+struct MaterialBinding {
+  /** Every image the binding was built from, in slot order — the base's
+   *  maps, then each layer's maps and its mask — plus each slot's tile
+   *  flag, and the panorama (the frame's light is bound per prop, so a
+   *  new panorama rebinds every prop once). */
+  std::vector<const SkImage*> images;
+  std::vector<bool> tiles;
+  const SkImage* environment = nullptr;
+  bool valid = false;  ///< false until the first bind
+  static MaterialBinding of(const Material& m, const SkImage* environment) {
+    MaterialBinding b;
+    const auto one = [&](const Material& slot) {
+      for (const sk_sp<SkImage>* image :
+           {&slot.texture, &slot.normalMap, &slot.roughnessMap,
+            &slot.metallicMap, &slot.occlusionMap, &slot.emissiveMap,
+            &slot.opacityMap})
+        b.images.push_back(image->get());
+      b.tiles.push_back(slot.tile);
+    };
+    one(m);
+    for (const Material::Layer& layer : m.layers) {
+      one(layer.material);
+      b.images.push_back(layer.mask.map.get());
+      b.tiles.push_back(layer.mask.tile);
+    }
+    b.environment = environment;
+    b.valid = true;
+    return b;
+  }
+  bool operator==(const MaterialBinding&) const = default;
+};
+
+/** Every texture variable the pixel shader declares, in the generated
+ *  scheme buildShaderSource() uses: seven maps per slot, one mask per
+ *  layer, the panorama, the scene colour. */
+std::vector<std::string> materialTextureNames() {
+  std::vector<std::string> names;
+  for (int k = 0; k < kSlots; ++k)
+    for (const char* base :
+         {"g_Texture", "g_NormalMap", "g_RoughnessMap", "g_MetallicMap",
+          "g_OcclusionMap", "g_EmissiveMap", "g_OpacityMap"})
+      names.push_back(std::string(base) + std::to_string(k));
+  for (int i = 1; i <= Material::kMaxLayers; ++i)
+    names.push_back("g_Mask" + std::to_string(i));
+  names.emplace_back("g_Environment");
+  names.emplace_back("g_SceneColor");
+  return names;
+}
+
 struct GpuGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+  /** One index range per material slot, in slot order: range 0 wears
+   *  MaterialComponent::material, range i its slots[i - 1]. A mesh with
+   *  no "Material" prim lane is one range. The index buffer is uploaded
+   *  in this order, triangles grouped by slot. */
+  struct Range {
+    uint32_t first = 0;
+    uint32_t count = 0;
+    dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+    MaterialBinding bound;
+  };
+  std::vector<Range> ranges;
   uint32_t indexCount = 0;
 };
 
+/** The mesh's triangles grouped by material slot: @p order receives the
+ *  index buffer contents (triangles reordered so each slot's are
+ *  contiguous) and the returned ranges say where each slot's begin. The
+ *  slot of a triangle is the .x of the mesh's "Material" prim lane,
+ *  clamped into [0, slotCount); without that lane, or with one slot,
+ *  everything is slot 0. */
+std::vector<std::pair<uint32_t, uint32_t>> groupBySlot(
+    const shape::Mesh& mesh, int slotCount, std::vector<uint32_t>& order) {
+  const std::vector<glm::vec4>* lane = mesh.primIf("Material");
+  const size_t tris = mesh.triangleCount();
+  slotCount = std::max(slotCount, 1);
+  if (!lane || lane->size() != tris || slotCount == 1) {
+    order = mesh.indices;
+    return {{0u, (uint32_t)mesh.indices.size()}};
+  }
+  std::vector<std::vector<uint32_t>> buckets((size_t)slotCount);
+  for (size_t t = 0; t < tris; ++t) {
+    int slot = (int)std::floor((*lane)[t].x + 0.5f);
+    slot = std::clamp(slot, 0, slotCount - 1);
+    buckets[(size_t)slot].push_back((uint32_t)t);
+  }
+  order.clear();
+  order.reserve(mesh.indices.size());
+  std::vector<std::pair<uint32_t, uint32_t>> ranges;
+  for (const std::vector<uint32_t>& bucket : buckets) {
+    const uint32_t first = (uint32_t)order.size();
+    for (uint32_t t : bucket)
+      for (int k = 0; k < 3; ++k)
+        order.push_back(mesh.indices[t * 3 + (size_t)k]);
+    ranges.emplace_back(first, (uint32_t)order.size() - first);
+  }
+  return ranges;
+}
+
 /** The instanced sibling: one stamp's buffers plus the per-instance
- *  stream (addInstanced). instanceBuffer is null while the flock is
- *  empty; setInstances() refreshes or recreates it. */
+ *  stream (placeStamps). instanceBuffer is null while the stamps are
+ *  empty; setStamps() refreshes or recreates it. */
 struct GpuInstancedGeometry {
   dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
   dg::RefCntAutoPtr<dg::IBuffer> instanceBuffer;
   dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+  MaterialBinding bound;
   uint32_t indexCount = 0;
   uint32_t instanceCount = 0;
 };
 
-/** addSweep()'s private state: the loop resident on the GPU and the
+/** placeSweep()'s private state: the loop resident on the GPU and the
  *  compute binding that lets the sweep kernel rewrite the surface's
  *  vertex buffer in place. `dirty` batches any number of window moves
  *  into one dispatch at the next render(). */
@@ -460,25 +914,7 @@ struct SweepComponent {
 // views of these structs cannot drift apart.
 using SweepParams = shaderparams::SweepParamsData;
 
-/** addFlock()'s private state, the flock counterpart of SweepComponent:
- *  the loop on the GPU plus the compute binding that packs the instanced
- *  draw stream in place. */
-struct FlockComponent {
-  dg::RefCntAutoPtr<dg::IBuffer> points;
-  dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
-  float head = 1, span = 1;
-  float radius = 0, scale = 1;
-  float noiseAmplitude = 0, noiseFrequency = 0.01f, seed = 7;
-  float tintTail[4] = {1, 1, 1, 1};
-  float tintHead[4] = {1, 1, 1, 1};
-  int count = 0;
-  int pointCount = 0;
-  bool dirty = true;
-};
-
-using FlockParams = shaderparams::FlockParamsData;
-
-/** addPoints()'s private state: the chain (a value — the
+/** placeChain()'s private state: the chain (a value — the
  *  nondestructive description), the GPU attribute lanes it cooks into,
  *  and one shader resource binding per operator. The bindings cannot be
  *  shared: they are pipeline-specific, and dead-resource elimination
@@ -529,16 +965,33 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
     std::visit(
         [&](const auto& o) {
           using T = std::decay_t<decltype(o)>;
-          if constexpr (requires { o.lane; })
-            note(o.lane);
-          else if constexpr (std::is_same_v<T, World::pop::Set>)
-            note(o.attr);
-          else if constexpr (std::is_same_v<T, World::pop::Lookup>) {
+          if constexpr (requires { o.lane; }) note(o.lane);
+          if constexpr (std::is_same_v<T, World::pop::Fill>) note(o.attr);
+          if constexpr (std::is_same_v<T, World::pop::Lookup>) {
             // Both ends: a lookup may read one custom lane and write
             // another, and each needs its own slot.
             note(o.from);
             note(o.to);
           }
+          if constexpr (std::is_same_v<T, World::pop::Select>) {
+            note(o.from);
+            note(World::pop::AttrRef{o.to});
+          }
+          if constexpr (std::is_same_v<T, World::pop::Peak>) note(o.along);
+          if constexpr (std::is_same_v<T, World::pop::Mix>) {
+            note(o.a);
+            note(o.b);
+            note(o.to);
+            if (!o.factorLane.empty()) note(World::pop::AttrRef{o.factorLane});
+          }
+          if constexpr (std::is_same_v<T, World::pop::PointSet>)
+            for (const std::string& name :
+                 shape::popops::seedCustomNames(o.cloud))
+              note(World::pop::AttrRef{name});
+          // The mask is a lane read like any other; an unnamed mask
+          // (empty) is "everyone" and owns no slot.
+          if constexpr (requires { o.mask; })
+            if (!o.mask.empty()) note(World::pop::AttrRef{o.mask});
         },
         op);
   return names;
@@ -558,6 +1011,11 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::ITexture> resolveTarget;  // single-sample
   dg::RefCntAutoPtr<dg::ITexture> depthTarget;
   dg::RefCntAutoPtr<dg::ITexture> stagingTarget;
+  /** The opaque pass, resolved and mipped, for transmissive surfaces
+   *  to read; refreshed between the passes only in frames that have
+   *  one. */
+  dg::RefCntAutoPtr<dg::ITexture> sceneColor;
+  int sceneColorMips = 1;
   int sampleCount = 1;
 
   dg::RefCntAutoPtr<dg::IPipelineState> opaquePso;
@@ -566,14 +1024,10 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::IPipelineState> blendInstancedPso;
   dg::RefCntAutoPtr<dg::IBuffer> frameCB;
   dg::RefCntAutoPtr<dg::IBuffer> drawCB;
-  // The sweep generator, created lazily on the first addSweep().
+  // The sweep generator, created lazily on the first placeSweep().
   dg::RefCntAutoPtr<dg::IPipelineState> sweepPso;
   dg::RefCntAutoPtr<dg::IBuffer> sweepCB;
   bool ensureSweepPipeline();
-  // The flock generator, created lazily on the first addFlock().
-  dg::RefCntAutoPtr<dg::IPipelineState> flockPso;
-  dg::RefCntAutoPtr<dg::IBuffer> flockCB;
-  bool ensureFlockPipeline();
   dg::RefCntAutoPtr<dg::IBuffer> createLoopBuffer(
       const std::vector<glm::vec3>& loop);
   // The pop kernel: one PSO per operator entry point (index = the
@@ -583,6 +1037,25 @@ struct World::Impl {
   bool ensurePopPipelines();
   bool bindPopSrbs(PopComponent& points, dg::IBuffer* instanceBuffer);
   dg::RefCntAutoPtr<dg::ITexture> whiteTexture;
+  dg::RefCntAutoPtr<dg::ITexture> flatNormalTexture;  // (0.5, 0.5, 1)
+  // The two addressing modes a material can ask for. Assigned to each
+  // uploaded texture's view, which is how a combined texture-sampler
+  // shader variable picks its sampler here.
+  dg::RefCntAutoPtr<dg::ISampler> clampSampler;
+  dg::RefCntAutoPtr<dg::ISampler> wrapSampler;
+  dg::RefCntAutoPtr<dg::ISampler> panoramaSampler;  // wrap u, clamp v, mips
+  dg::RefCntAutoPtr<dg::ITexture> blackTexture;
+  /** The uploaded panorama and the image it came from (by pointer):
+   *  setLighting compares and re-uploads only on a new image. */
+  dg::RefCntAutoPtr<dg::ITexture> environmentTexture;
+  const SkImage* environmentKey = nullptr;
+  int environmentMips = 1;
+  bool uploadEnvironment(const sk_sp<SkImage>& image);
+  /** Upload every map of @p material into a fresh binding on @p pso and
+   *  record what was bound in @p bound. */
+  bool bindMaterial(dg::IPipelineState* pso, const Material& material,
+                    dg::RefCntAutoPtr<dg::IShaderResourceBinding>& srb,
+                    MaterialBinding& bound);
 
   /** Surfaces are entities, and the ids handed to callers are entity
    *  values. Entity 0 is reserved at init so that a valid surface id is
@@ -593,7 +1066,11 @@ struct World::Impl {
   bool init(std::string* error);
   bool createTargets(std::string* error);
   bool createPipelines(std::string* error);
-  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image);
+  /** @p srgb decodes the image as display-encoded colour (base colour,
+   *  emissive); data maps (normal, roughness, metallic, occlusion) pass
+   *  false. @p tile picks the repeat sampler over clamp. */
+  dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image,
+                                                bool srgb, bool tile);
   void writeDrawConstants(const glm::mat4& model, const Material& material);
   bool createMeshBuffers(const shape::Mesh& mesh,
                          dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
@@ -661,6 +1138,22 @@ bool World::Impl::createTargets(std::string* error) {
   desc.SampleCount = (Uint32)sampleCount;
   device->CreateTexture(desc, nullptr, &depthTarget);
 
+  desc.Name = "sigilworld scene colour";
+  desc.Format = colorFormat;
+  desc.BindFlags = BIND_SHADER_RESOURCE | BIND_RENDER_TARGET;
+  desc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.SampleCount = 1;
+  sceneColorMips = 1;
+  for (int mw = config.width, mh = config.height; mw > 1 || mh > 1;
+       ++sceneColorMips) {
+    mw = std::max(mw / 2, 1);
+    mh = std::max(mh / 2, 1);
+  }
+  desc.MipLevels = (Uint32)sceneColorMips;
+  device->CreateTexture(desc, nullptr, &sceneColor);
+  desc.MiscFlags = MISC_TEXTURE_FLAG_NONE;
+  desc.MipLevels = 1;
+
   desc.Name = "sigilworld staging";
   desc.Format = colorFormat;
   desc.BindFlags = BIND_NONE;
@@ -669,7 +1162,8 @@ bool World::Impl::createTargets(std::string* error) {
   desc.CPUAccessFlags = CPU_ACCESS_READ;
   device->CreateTexture(desc, nullptr, &stagingTarget);
 
-  if (!colorTarget || !resolveTarget || !depthTarget || !stagingTarget) {
+  if (!colorTarget || !resolveTarget || !depthTarget || !stagingTarget ||
+      !sceneColor) {
     if (error) *error = "offscreen target creation failed";
     return false;
   }
@@ -681,8 +1175,11 @@ bool World::Impl::createPipelines(std::string* error) {
 
   ShaderCreateInfo shaderCI;
   shaderCI.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
-  shaderCI.Desc.UseCombinedTextureSamplers = true;
-  shaderCI.Source = kShaderSource;
+  // Separate samplers: three shared ones for every texture, because
+  // the device caps samplers per stage far below textures.
+  shaderCI.Desc.UseCombinedTextureSamplers = false;
+  const std::string shaderSource = buildShaderSource();
+  shaderCI.Source = shaderSource.c_str();
 
   RefCntAutoPtr<IShader> vs;
   shaderCI.Desc.ShaderType = SHADER_TYPE_VERTEX;
@@ -758,27 +1255,65 @@ bool World::Impl::createPipelines(std::string* error) {
 
   psoCI.pPS = ps;
 
-  ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-  };
-  psoCI.PSODesc.ResourceLayout.Variables = variables;
-  psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+  // Every texture the pixel shader samples is a mutable variable: the
+  // per-slot sets, the per-layer masks, the panorama and the scene
+  // colour. Named here in the same generated scheme the shader source
+  // uses.
+  const std::vector<std::string> textureNames = materialTextureNames();
+  std::vector<ShaderResourceVariableDesc> variables;
+  for (const std::string& name : textureNames)
+    variables.push_back({SHADER_TYPE_PIXEL, name.c_str(),
+                         SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE});
+  psoCI.PSODesc.ResourceLayout.Variables = variables.data();
+  psoCI.PSODesc.ResourceLayout.NumVariables = (Uint32)variables.size();
 
-  // One immutable sampler for every pipeline. CLAMP on both axes is the
-  // only addressing mode surfaces get: a Material's uv window that runs
-  // off the texture smears edge texels rather than tiling, and there is
-  // no way for a caller to ask for repeat.
-  SamplerDesc samplerDesc;
-  samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.MipFilter = FILTER_TYPE_LINEAR;
-  samplerDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
-  samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
-  ImmutableSamplerDesc samplers[] = {
-      {SHADER_TYPE_PIXEL, "g_Texture", samplerDesc},
+  {
+    SamplerDesc samplerDesc;
+    samplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+    samplerDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.Name = "sigilworld clamp";
+    device->CreateSampler(samplerDesc, &clampSampler);
+    samplerDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.Name = "sigilworld wrap";
+    device->CreateSampler(samplerDesc, &wrapSampler);
+    // The panorama: seamless around (wrap u), pinned at the poles
+    // (clamp v), and its mip chain is the roughness blur.
+    samplerDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.Name = "sigilworld panorama";
+    device->CreateSampler(samplerDesc, &panoramaSampler);
+    if (!clampSampler || !wrapSampler || !panoramaSampler) {
+      if (error) *error = "sampler creation failed";
+      return false;
+    }
+    sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+        ->SetSampler(clampSampler);
+  }
+  // The three samplers are immutable on every graphics pipeline, under
+  // the names the shader declares; a map picks clamp or repeat by a
+  // per-slot flag at sample time.
+  SamplerDesc clampDesc;
+  clampDesc.MinFilter = FILTER_TYPE_LINEAR;
+  clampDesc.MagFilter = FILTER_TYPE_LINEAR;
+  clampDesc.MipFilter = FILTER_TYPE_LINEAR;
+  clampDesc.AddressU = TEXTURE_ADDRESS_CLAMP;
+  clampDesc.AddressV = TEXTURE_ADDRESS_CLAMP;
+  SamplerDesc wrapDesc = clampDesc;
+  wrapDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+  wrapDesc.AddressV = TEXTURE_ADDRESS_WRAP;
+  SamplerDesc panoramaDesc = clampDesc;
+  panoramaDesc.AddressU = TEXTURE_ADDRESS_WRAP;
+  const ImmutableSamplerDesc immutableSamplers[] = {
+      {SHADER_TYPE_PIXEL, "g_Clamp", clampDesc},
+      {SHADER_TYPE_PIXEL, "g_Wrap", wrapDesc},
+      {SHADER_TYPE_PIXEL, "g_Panorama", panoramaDesc},
   };
-  psoCI.PSODesc.ResourceLayout.ImmutableSamplers = samplers;
-  psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+  psoCI.PSODesc.ResourceLayout.ImmutableSamplers = immutableSamplers;
+  psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 3;
 
   // Four pipelines: {plain, instanced} x {opaque, blended}. The pixel
   // shader and resource layout are identical across all four, so one
@@ -834,12 +1369,78 @@ bool World::Impl::createPipelines(std::string* error) {
     TextureSubResData subres{&white, 4};
     TextureData data{&subres, 1};
     device->CreateTexture(desc, &data, &whiteTexture);
+    // ...and its normal-map twin: (0.5, 0.5, 1) decodes to the
+    // unperturbed normal, so a material without a normal map shades
+    // exactly as if the map path were not there.
+    desc.Name = "sigilworld flat normal";
+    const Uint32 flat = 0xffff8080u;  // ABGR in memory: R=0x80 G=0x80 B=0xff
+    TextureSubResData flatSub{&flat, 4};
+    TextureData flatData{&flatSub, 1};
+    device->CreateTexture(desc, &flatData, &flatNormalTexture);
+    desc.Name = "sigilworld black";
+    const Uint32 black = 0xff000000u;
+    TextureSubResData blackSub{&black, 4};
+    TextureData blackData{&blackSub, 1};
+    device->CreateTexture(desc, &blackData, &blackTexture);
   }
-  return whiteTexture != nullptr;
+  if (!whiteTexture || !flatNormalTexture || !blackTexture) return false;
+  whiteTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  flatNormalTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  blackTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(clampSampler);
+  return true;
+}
+
+bool World::Impl::uploadEnvironment(const sk_sp<SkImage>& image) {
+  using namespace dg;
+  environmentTexture.Release();
+  environmentKey = image.get();
+  environmentMips = 1;
+  if (!image) return true;
+  // Half float keeps an HDR panorama's range; the full mip chain is the
+  // roughness blur the shader walks. Only level 0 is supplied; the
+  // device generates the rest.
+  const int w = image->width(), h = image->height();
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::Make(w, h, kRGBA_F16_SkColorType, kUnpremul_SkAlphaType));
+  if (!image->readPixels(nullptr, bitmap.pixmap(), 0, 0)) return false;
+  int mips = 1;
+  for (int mw = w, mh = h; mw > 1 || mh > 1; ++mips) {
+    mw = std::max(mw / 2, 1);
+    mh = std::max(mh / 2, 1);
+  }
+  TextureDesc desc;
+  desc.Name = "sigilworld environment";
+  desc.Type = RESOURCE_DIM_TEX_2D;
+  desc.Width = (Uint32)w;
+  desc.Height = (Uint32)h;
+  desc.Format = TEX_FORMAT_RGBA16_FLOAT;
+  desc.BindFlags = BIND_SHADER_RESOURCE | BIND_RENDER_TARGET;
+  desc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.MipLevels = (Uint32)mips;
+  device->CreateTexture(desc, nullptr, &environmentTexture);
+  if (!environmentTexture) return false;
+  // Level 0 is written after creation, then the chain is generated —
+  // creating with partial initial data (only level 0 supplied) is not a
+  // path the device takes.
+  TextureSubResData subres{bitmap.getPixels(), (Uint64)bitmap.rowBytes()};
+  Box box(0, (Uint32)w, 0, (Uint32)h);
+  context->UpdateTexture(environmentTexture, 0, 0, box, subres,
+                         RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                         RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  ITextureView* view =
+      environmentTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+  view->SetSampler(panoramaSampler);
+  context->GenerateMips(view);
+  environmentMips = mips;
+  return true;
 }
 
 dg::RefCntAutoPtr<dg::ITexture> World::Impl::uploadTexture(
-    const sk_sp<SkImage>& image) {
+    const sk_sp<SkImage>& image, bool srgb, bool tile) {
   using namespace dg;
   if (!image) return whiteTexture;
   // Every source flattens to 8-bit unpremultiplied RGBA here, so a float
@@ -856,17 +1457,72 @@ dg::RefCntAutoPtr<dg::ITexture> World::Impl::uploadTexture(
   desc.Type = RESOURCE_DIM_TEX_2D;
   desc.Width = (Uint32)w;
   desc.Height = (Uint32)h;
-  // Panel content is authored in sRGB, so an sRGB view linearizes it on
-  // sample and the shader can work in linear throughout. The pixel
-  // shader's own encode is the exact inverse of this decode.
-  desc.Format = TEX_FORMAT_RGBA8_UNORM_SRGB;
+  // Colour content is authored in sRGB, so an sRGB view linearizes it
+  // on sample and the shader can work in linear throughout. The pixel
+  // shader's own encode is the exact inverse of this decode. Data maps
+  // (normals, roughness, metallic, occlusion) are numbers, not colours,
+  // and upload as plain UNORM.
+  desc.Format = srgb ? TEX_FORMAT_RGBA8_UNORM_SRGB : TEX_FORMAT_RGBA8_UNORM;
   desc.BindFlags = BIND_SHADER_RESOURCE;
   desc.MipLevels = 1;
   TextureSubResData subres{bitmap.getPixels(), (Uint64)bitmap.rowBytes()};
   TextureData data{&subres, 1};
   RefCntAutoPtr<ITexture> texture;
   device->CreateTexture(desc, &data, &texture);
-  return texture ? texture : whiteTexture;
+  if (!texture) return whiteTexture;
+  texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+      ->SetSampler(tile ? wrapSampler : clampSampler);
+  return texture;
+}
+
+bool World::Impl::bindMaterial(
+    dg::IPipelineState* pso, const Material& material,
+    dg::RefCntAutoPtr<dg::IShaderResourceBinding>& srb,
+    MaterialBinding& bound) {
+  using namespace dg;
+  srb.Release();
+  pso->CreateShaderResourceBinding(&srb, true);
+  if (!srb) return false;
+  const auto set = [&](const std::string& name, const sk_sp<SkImage>& image,
+                       bool srgb, bool tile, ITexture* standIn) {
+    RefCntAutoPtr<ITexture> texture = image ? uploadTexture(image, srgb, tile)
+                                            : RefCntAutoPtr<ITexture>(standIn);
+    if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, name.c_str()))
+      var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  };
+  // Slot k: the base (k = 0) or layer k - 1; unused slots take the
+  // stand-ins so every variable is bound.
+  for (int k = 0; k < kSlots; ++k) {
+    const Material* slot = k == 0
+                               ? &material
+                               : (k - 1 < (int)material.layers.size()
+                                      ? &material.layers[(size_t)k - 1].material
+                                      : nullptr);
+    static const Material kNone;
+    const Material& m = slot ? *slot : kNone;
+    const std::string sk = std::to_string(k);
+    set("g_Texture" + sk, m.texture, true, m.tile, whiteTexture);
+    set("g_NormalMap" + sk, m.normalMap, false, m.tile, flatNormalTexture);
+    set("g_RoughnessMap" + sk, m.roughnessMap, false, m.tile, whiteTexture);
+    set("g_MetallicMap" + sk, m.metallicMap, false, m.tile, whiteTexture);
+    set("g_OcclusionMap" + sk, m.occlusionMap, false, m.tile, whiteTexture);
+    set("g_EmissiveMap" + sk, m.emissiveMap, true, m.tile, whiteTexture);
+    set("g_OpacityMap" + sk, m.opacityMap, false, m.tile, whiteTexture);
+  }
+  for (int i = 1; i <= Material::kMaxLayers; ++i) {
+    const Mask* mask = i - 1 < (int)material.layers.size()
+                           ? &material.layers[(size_t)i - 1].mask
+                           : nullptr;
+    set("g_Mask" + std::to_string(i), mask ? mask->map : nullptr, false,
+        mask ? mask->tile : false, whiteTexture);
+  }
+  if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_SceneColor"))
+    var->Set(sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (auto* var = srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Environment"))
+    var->Set((environmentTexture ? environmentTexture : blackTexture)
+                 ->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  bound = MaterialBinding::of(material, environmentKey);
+  return true;
 }
 
 void World::Impl::writeDrawConstants(const glm::mat4& model,
@@ -876,22 +1532,80 @@ void World::Impl::writeDrawConstants(const glm::mat4& model,
                                      MAP_FLAG_DISCARD);
   constants->model = colMajor(model);
   constants->normalMat = normalMatrix(model);
-  constants->baseColor[0] = m.baseColor.x;
-  constants->baseColor[1] = m.baseColor.y;
-  constants->baseColor[2] = m.baseColor.z;
-  constants->baseColor[3] = m.baseColor.w;
-  constants->emissive[0] = m.emissive.x;
-  constants->emissive[1] = m.emissive.y;
-  constants->emissive[2] = m.emissive.z;
-  constants->emissive[3] = 1;
-  constants->matParams[0] = m.metallic;
-  constants->matParams[1] = m.roughness;
-  constants->matParams[2] = m.emissiveStrength;
-  constants->matParams[3] = m.unlit ? 1.0f : 0.0f;
-  constants->uvScaleOffset[0] = m.uvScale.x;
-  constants->uvScaleOffset[1] = m.uvScale.y;
-  constants->uvScaleOffset[2] = m.uvOffset.x;
-  constants->uvScaleOffset[3] = m.uvOffset.y;
+  const auto channel = [](int c) { return (float)std::clamp(c, 0, 3); };
+  const auto writeSlot = [&](SlotConstants& c, const Material& s) {
+    c.baseColor[0] = s.baseColor.x;
+    c.baseColor[1] = s.baseColor.y;
+    c.baseColor[2] = s.baseColor.z;
+    c.baseColor[3] = s.baseColor.w;
+    c.emissive[0] = s.emissive.x;
+    c.emissive[1] = s.emissive.y;
+    c.emissive[2] = s.emissive.z;
+    c.emissive[3] = 1;
+    c.matParams[0] = s.metallic;
+    c.matParams[1] = s.roughness;
+    c.matParams[2] = s.emissiveStrength;
+    c.matParams[3] = 0;
+    c.uvScaleOffset[0] = s.uvScale.x;
+    c.uvScaleOffset[1] = s.uvScale.y;
+    c.uvScaleOffset[2] = s.uvOffset.x;
+    c.uvScaleOffset[3] = s.uvOffset.y;
+    c.mapParams[0] = s.normalMap ? s.normalScale : 0.0f;
+    c.mapParams[1] = s.occlusionMap ? s.occlusionStrength : 0.0f;
+    c.mapParams[2] = s.normalMapDirectX ? 1.0f : 0.0f;
+    c.mapParams[3] = std::clamp(s.transmission, 0.0f, 1.0f);
+    c.channels[0] = channel(s.roughnessChannel);
+    c.channels[1] = channel(s.metallicChannel);
+    c.channels[2] = channel(s.occlusionChannel);
+    c.channels[3] = channel(s.opacityChannel);
+    c.glass[0] = s.ior;
+    c.glass[1] = s.thickness;
+    c.glass[2] = 0;
+    c.glass[3] = 0;
+    c.flags[0] = s.tile ? 1.0f : 0.0f;
+    c.flags[1] = c.flags[2] = c.flags[3] = 0;
+  };
+  static const Material kNone;
+  for (int k = 0; k < kSlots; ++k) {
+    const Material& slot = k == 0 ? m
+                                  : (k - 1 < (int)m.layers.size()
+                                         ? m.layers[(size_t)k - 1].material
+                                         : kNone);
+    writeSlot(constants->slot[k], slot);
+  }
+  // Prop-wide dials ride slot 0.
+  constants->slot[0].matParams[3] = m.unlit ? 1.0f : 0.0f;
+  constants->slot[0].glass[2] = m.alphaCutoff;
+  constants->slot[0].glass[3] = (float)std::max(sceneColorMips - 1, 0);
+  for (int i = 0; i < Material::kMaxLayers; ++i) {
+    float* A = constants->layerA[i];
+    float* B = constants->layerB[i];
+    float* C = constants->layerC[i];
+    float* D = constants->layerD[i];
+    A[0] = A[1] = A[2] = A[3] = 0;
+    B[0] = B[1] = B[2] = B[3] = 0;
+    C[0] = C[1] = C[2] = C[3] = 0;
+    D[0] = D[1] = D[2] = D[3] = 0;
+    if (i >= (int)m.layers.size()) continue;
+    const Material::Layer& layer = m.layers[(size_t)i];
+    const Mask& mask = layer.mask;
+    A[0] = (float)mask.source;
+    A[1] = mask.source == Mask::Source::Constant ? mask.value
+                                                 : channel(mask.channel);
+    A[2] = mask.low;
+    A[3] = mask.high;
+    B[0] = mask.axis.x;
+    B[1] = mask.axis.y;
+    B[2] = mask.axis.z;
+    B[3] = mask.inverted ? 1.0f : 0.0f;
+    C[0] = mask.uvScale.x;
+    C[1] = mask.uvScale.y;
+    C[2] = mask.uvOffset.x;
+    C[3] = mask.uvOffset.y;
+    D[0] = (float)layer.blend;
+    D[1] = 1;
+    D[2] = mask.tile ? 1.0f : 0.0f;
+  }
 }
 
 namespace {
@@ -929,7 +1643,7 @@ bool World::Impl::createMeshBuffers(
   using namespace dg;
   const std::vector<Vertex> vertices = packVertices(mesh);
 
-  // DEFAULT rather than IMMUTABLE usage, so setSurfaceMesh() can update
+  // DEFAULT rather than IMMUTABLE usage, so setMesh() can update
   // these buffers in place when the topology is unchanged.
   BufferDesc vbDesc;
   vbDesc.Name = "sigilworld vertices";
@@ -955,7 +1669,7 @@ dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createInstanceBuffer(
   using namespace dg;
   RefCntAutoPtr<IBuffer> buffer;
   if (instances.empty()) return buffer;
-  // DEFAULT usage, so setInstances() can update it in place when the
+  // DEFAULT usage, so setStamps() can update it in place when the
   // instance count is unchanged.
   BufferDesc desc;
   desc.Name = "sigilworld instances";
@@ -1019,58 +1733,6 @@ bool World::Impl::ensureSweepPipeline() {
 #endif
 }
 
-bool World::Impl::ensureFlockPipeline() {
-  using namespace dg;
-  if (flockPso) return true;
-
-#ifndef SIGILWORLD_POP_SPIRV
-  // The compute generators exist only as SPIR-V compiled at build time;
-  // they have no fallback shader. The graphics path still works — this
-  // door fails to create and the caller returns 0.
-  warnComputeKernelsUnavailable();
-  return false;
-#else
-  ShaderCreateInfo shaderCI;
-  size_t byteCodeSize = 0;
-  shaderCI.ByteCode = findSpirv("CSFlock", &byteCodeSize);
-  shaderCI.ByteCodeSize = byteCodeSize;
-  if (!shaderCI.ByteCode) return false;
-  shaderCI.EntryPoint = "CSFlock";
-  shaderCI.Desc.ShaderType = SHADER_TYPE_COMPUTE;
-  shaderCI.Desc.Name = "sigilworld flock cs";
-  RefCntAutoPtr<IShader> cs;
-  device->CreateShader(shaderCI, &cs);
-  if (!cs) return false;
-
-  BufferDesc cbDesc;
-  cbDesc.Name = "sigilworld flock params";
-  cbDesc.Usage = USAGE_DYNAMIC;
-  cbDesc.BindFlags = BIND_UNIFORM_BUFFER;
-  cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
-  cbDesc.Size = sizeof(FlockParams);
-  device->CreateBuffer(cbDesc, nullptr, &flockCB);
-  if (!flockCB) return false;
-
-  ComputePipelineStateCreateInfo psoCI;
-  psoCI.PSODesc.Name = "sigilworld flock";
-  psoCI.PSODesc.PipelineType = PIPELINE_TYPE_COMPUTE;
-  ShaderResourceVariableDesc variables[] = {
-      {SHADER_TYPE_COMPUTE, "g_Points", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-      {SHADER_TYPE_COMPUTE, "g_Instances",
-       SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
-  };
-  psoCI.PSODesc.ResourceLayout.Variables = variables;
-  psoCI.PSODesc.ResourceLayout.NumVariables = 2;
-  psoCI.pCS = cs;
-  device->CreateComputePipelineState(psoCI, &flockPso);
-  if (!flockPso) return false;
-  if (auto* var =
-          flockPso->GetStaticVariableByName(SHADER_TYPE_COMPUTE, "FlockParams"))
-    var->Set(flockCB);
-  return true;
-#endif
-}
-
 dg::RefCntAutoPtr<dg::IBuffer> World::Impl::createLoopBuffer(
     const std::vector<glm::vec3>& loop) {
   using namespace dg;
@@ -1100,9 +1762,10 @@ namespace {
 /** Every compute entry point, in pipeline order. The copy-back and pack
  *  sinks come last because they belong to no operator. */
 constexpr const char* kPopEntries[] = {
-    "CSSplineScatter", "CSJitter",   "CSNoise",   "CSRamp", "CSVary",
-    "CSLookAt",        "CSMath",     "CSRelax",   "CSSet",  "CSAtlas",
-    "CSLookup",        "CSCopyBack", "CSPopPack",
+    "CSSplineScatter", "CSJitter",   "CSNoise",    "CSRamp",    "CSVary",
+    "CSLookAt",        "CSMath",     "CSRelax",    "CSFill",    "CSAtlas",
+    "CSLookup",        "CSSelect",   "CSAffine",   "CSPeak",    "CSDeform",
+    "CSMix",           "CSPointSet", "CSCopyBack", "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
@@ -1142,6 +1805,13 @@ constexpr size_t kPopOpPso[] = {
     kPopNoKernel,  // 13 Sort        — CPU only: a permutation of the
                    //                  whole point set is not a per-point
                    //                  map, so no kernel can express it
+    11,            // 14 Group
+    12,            // 15 Transform
+    13,            // 16 Peak
+    14,            // 17 Deform
+    15,            // 18 Mix
+    16,            // 19 PointSet — its lanes are the arena's initial
+                   //             upload; the kernel is empty
 };
 static_assert(
     std::size(kPopOpPso) == std::variant_size_v<World::pop::Op>,
@@ -1276,7 +1946,12 @@ bool World::Impl::bindPopSrbs(PopComponent& points,
 // ---------------------------------------------------------------------------
 
 World::World() : m_impl(std::make_unique<Impl>()) {}
-World::~World() = default;
+World::~World() {
+  // Anything recorded but not submitted (an add with no render after it)
+  // is flushed before the context goes, so teardown never leaves
+  // commands behind.
+  if (m_impl && m_impl->context) m_impl->context->Flush();
+}
 
 std::unique_ptr<World> World::create(const WorldConfig& config,
                                      std::string* error) {
@@ -1286,37 +1961,51 @@ std::unique_ptr<World> World::create(const WorldConfig& config,
   return world;
 }
 
-uint32_t World::addSurface(const shape::Mesh& mesh, const glm::mat4& model,
-                           const Material& material) {
+uint32_t World::place(const shape::Mesh& mesh, const glm::mat4& model,
+                      const Material& material) {
+  return place(mesh, model, std::vector<Material>{material});
+}
+
+uint32_t World::place(const shape::Mesh& mesh, const glm::mat4& model,
+                      const std::vector<Material>& slots) {
   using namespace dg;
   Impl& impl = *m_impl;
-  if (mesh.positions.empty() || mesh.indices.empty()) return 0;
+  if (mesh.positions.empty() || mesh.indices.empty() || slots.empty()) return 0;
+
+  // Triangles grouped by slot; the index buffer holds them in that
+  // order and each range draws with its slot's material.
+  std::vector<uint32_t> order;
+  const std::vector<std::pair<uint32_t, uint32_t>> ranges =
+      groupBySlot(mesh, (int)slots.size(), order);
+  shape::Mesh grouped = mesh;
+  grouped.indices = std::move(order);
 
   GpuGeometry geometry;
-  geometry.indexCount = (uint32_t)mesh.indices.size();
-  if (!impl.createMeshBuffers(mesh, geometry.vertexBuffer,
+  geometry.indexCount = (uint32_t)grouped.indices.size();
+  if (!impl.createMeshBuffers(grouped, geometry.vertexBuffer,
                               geometry.indexBuffer))
     return 0;
+  for (size_t i = 0; i < ranges.size(); ++i) {
+    GpuGeometry::Range range;
+    range.first = ranges[i].first;
+    range.count = ranges[i].second;
+    if (!impl.bindMaterial(impl.opaquePso, slots[i], range.srb, range.bound))
+      return 0;
+    geometry.ranges.push_back(std::move(range));
+  }
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
-
+  MaterialComponent component;
+  component.material = slots.front();
+  component.slots.assign(slots.begin() + 1, slots.end());
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
   impl.registry.emplace<TransformComponent>(id, model);
-  impl.registry.emplace<MaterialComponent>(id, material);
+  impl.registry.emplace<MaterialComponent>(id, std::move(component));
   return (uint32_t)id;
 }
 
-uint32_t World::addInstanced(const shape::Mesh& stamp,
-                             const shape::Cloud& cloud,
-                             const Material& material,
-                             const InstanceLanes& lanes) {
+uint32_t World::placeStamps(const shape::Mesh& stamp, const shape::Cloud& cloud,
+                            const Material& material, const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
   if (stamp.positions.empty() || stamp.indices.empty()) return 0;
@@ -1332,17 +2021,13 @@ uint32_t World::addInstanced(const shape::Mesh& stamp,
   geometry.instanceBuffer = impl.createInstanceBuffer(instances);
   if (geometry.instanceCount > 0 && !geometry.instanceBuffer) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
-  // One transform for the whole flock, starting at identity: the points
+  // One transform for all the stamps, starting at identity: the points
   // carry their own placement, and setTransform moves all of them
   // together.
   impl.registry.emplace<TransformComponent>(id, glm::mat4(1.0f));
@@ -1350,8 +2035,8 @@ uint32_t World::addInstanced(const shape::Mesh& stamp,
   return (uint32_t)id;
 }
 
-void World::setInstances(uint32_t id, const shape::Cloud& cloud,
-                         const InstanceLanes& lanes) {
+void World::setStamps(uint32_t id, const shape::Cloud& cloud,
+                      const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -1378,15 +2063,25 @@ void World::setTransform(uint32_t id, const glm::mat4& model) {
     registry.get<TransformComponent>(e).model = model;
 }
 
-void World::setSurfaceMesh(uint32_t id, const shape::Mesh& mesh) {
+void World::setMesh(uint32_t id, const shape::Mesh& mesh) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
   if (!impl.registry.valid(e) || !impl.registry.all_of<GpuGeometry>(e)) return;
   if (mesh.positions.empty() || mesh.indices.empty()) return;
   GpuGeometry& geometry = impl.registry.get<GpuGeometry>(e);
+  // The new mesh's triangles grouped by the slots the prop already
+  // wears; a slot count that stays put keeps its bindings.
+  const int slotCount = (int)geometry.ranges.size();
+  std::vector<uint32_t> order;
+  const std::vector<std::pair<uint32_t, uint32_t>> ranges =
+      groupBySlot(mesh, slotCount, order);
+  for (size_t i = 0; i < ranges.size() && i < geometry.ranges.size(); ++i) {
+    geometry.ranges[i].first = ranges[i].first;
+    geometry.ranges[i].count = ranges[i].second;
+  }
   const Uint64 vertexBytes = (Uint64)(mesh.positions.size() * sizeof(Vertex));
-  const Uint64 indexBytes = (Uint64)(mesh.indices.size() * sizeof(uint32_t));
+  const Uint64 indexBytes = (Uint64)(order.size() * sizeof(uint32_t));
   if (geometry.vertexBuffer && geometry.indexBuffer &&
       geometry.vertexBuffer->GetDesc().Size == vertexBytes &&
       geometry.indexBuffer->GetDesc().Size == indexBytes) {
@@ -1395,17 +2090,19 @@ void World::setSurfaceMesh(uint32_t id, const shape::Mesh& mesh) {
                                vertices.data(),
                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     impl.context->UpdateBuffer(geometry.indexBuffer, 0, indexBytes,
-                               mesh.indices.data(),
+                               order.data(),
                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     return;
   }
-  geometry.indexCount = (uint32_t)mesh.indices.size();
+  shape::Mesh grouped = mesh;
+  grouped.indices = std::move(order);
+  geometry.indexCount = (uint32_t)grouped.indices.size();
   geometry.vertexBuffer.Release();
   geometry.indexBuffer.Release();
-  impl.createMeshBuffers(mesh, geometry.vertexBuffer, geometry.indexBuffer);
+  impl.createMeshBuffers(grouped, geometry.vertexBuffer, geometry.indexBuffer);
 }
 
-uint32_t World::addSweep(const SweepDesc& desc, const Material& material) {
+uint32_t World::placeSweep(const SweepDesc& desc, const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   if (desc.loop.size() < 3 || desc.sections < 2) return 0;
@@ -1459,13 +2156,12 @@ uint32_t World::addSweep(const SweepDesc& desc, const Material& material) {
     var->Set(
         geometry.vertexBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  GpuGeometry::Range whole;
+  whole.first = 0;
+  whole.count = geometry.indexCount;
+  if (!impl.bindMaterial(impl.opaquePso, material, whole.srb, whole.bound))
+    return 0;
+  geometry.ranges.push_back(std::move(whole));
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
@@ -1486,92 +2182,6 @@ void World::setSweepWindow(uint32_t id, float head, float span) {
   sweep.dirty = true;
 }
 
-uint32_t World::addFlock(const shape::Mesh& stamp, const FlockDesc& desc,
-                         const Material& material) {
-  using namespace dg;
-  Impl& impl = *m_impl;
-  if (stamp.positions.empty() || stamp.indices.empty() ||
-      desc.loop.size() < 3 || desc.count < 1)
-    return 0;
-  if (!impl.ensureFlockPipeline()) return 0;
-
-  FlockComponent flock;
-  flock.head = desc.head;
-  flock.span = desc.span;
-  flock.radius = desc.radius;
-  flock.scale = desc.scale;
-  flock.noiseAmplitude = desc.noiseAmplitude;
-  flock.noiseFrequency = desc.noiseFrequency;
-  flock.seed = desc.seed;
-  flock.count = desc.count;
-  flock.pointCount = (int)desc.loop.size();
-  const glm::vec4& tail = desc.tintTail;
-  const glm::vec4& headTint = desc.tintHead;
-  flock.tintTail[0] = tail.x;
-  flock.tintTail[1] = tail.y;
-  flock.tintTail[2] = tail.z;
-  flock.tintTail[3] = tail.w;
-  flock.tintHead[0] = headTint.x;
-  flock.tintHead[1] = headTint.y;
-  flock.tintHead[2] = headTint.z;
-  flock.tintHead[3] = headTint.w;
-  flock.points = impl.createLoopBuffer(desc.loop);
-
-  GpuInstancedGeometry geometry;
-  geometry.indexCount = (uint32_t)stamp.indices.size();
-  geometry.instanceCount = (uint32_t)desc.count;
-  if (!impl.createMeshBuffers(stamp, geometry.vertexBuffer,
-                              geometry.indexBuffer))
-    return 0;
-
-  // The instanced stream the compute kernel packs: bound both as an
-  // unordered-access view and as a per-instance vertex buffer.
-  BufferDesc ibDesc;
-  ibDesc.Name = "sigilworld flock instances";
-  ibDesc.Usage = USAGE_DEFAULT;
-  ibDesc.BindFlags = BIND_VERTEX_BUFFER | BIND_UNORDERED_ACCESS;
-  ibDesc.Mode = BUFFER_MODE_STRUCTURED;
-  ibDesc.ElementByteStride = sizeof(InstanceAttribs);
-  ibDesc.Size = (Uint64)desc.count * sizeof(InstanceAttribs);
-  impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
-  if (!flock.points || !geometry.instanceBuffer) return 0;
-
-  impl.flockPso->CreateShaderResourceBinding(&flock.srb, true);
-  if (!flock.srb) return 0;
-  if (auto* var = flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Points"))
-    var->Set(flock.points->GetDefaultView(BUFFER_VIEW_SHADER_RESOURCE));
-  if (auto* var =
-          flock.srb->GetVariableByName(SHADER_TYPE_COMPUTE, "g_Instances"))
-    var->Set(
-        geometry.instanceBuffer->GetDefaultView(BUFFER_VIEW_UNORDERED_ACCESS));
-
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
-
-  const entt::entity id = impl.registry.create();
-  impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
-  impl.registry.emplace<TransformComponent>(id, glm::mat4(1.0f));
-  impl.registry.emplace<MaterialComponent>(id, material);
-  impl.registry.emplace<FlockComponent>(id, std::move(flock));
-  return (uint32_t)id;
-}
-
-void World::setFlockWindow(uint32_t id, float head, float span) {
-  Impl& impl = *m_impl;
-  const entt::entity e = entity(id);
-  if (!impl.registry.valid(e) || !impl.registry.all_of<FlockComponent>(e))
-    return;
-  FlockComponent& flock = impl.registry.get<FlockComponent>(e);
-  flock.head = head;
-  flock.span = span;
-  flock.dirty = true;
-}
-
 namespace {
 
 /** A chain's point count comes from its generator head. Answers 0 for a
@@ -1585,22 +2195,58 @@ int popChainCount(const World::pop::Chain& chain) {
   if (const auto* scatter =
           std::get_if<World::pop::SplineScatter>(&chain.front()))
     return scatter->loop.size() >= 3 ? scatter->count : 0;
+  if (const auto* given = std::get_if<World::pop::PointSet>(&chain.front()))
+    return (int)given->cloud.size();
   return 0;
 }
 
-dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice* device,
-                                                int count, int slots,
-                                                const char* name) {
+/** The arena's initial contents for a chain led by a PointSet: the
+ *  cloud laid out by shape::popops::seedAttrs into the builtin slots and
+ *  the chain's custom slots, in the same slot order slotFor() reads. */
+std::vector<float> seededLanes(const shape::Cloud& cloud, int count,
+                               const std::vector<std::string>& customNames) {
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
+  shape::popops::seedAttrs(cloud, lanes);
+  const int slots = World::pop::kBuiltinSlots + (int)customNames.size();
+  std::vector<float> data((size_t)count * (size_t)slots * 4, 0.0f);
+  const auto pour = [&](int slot, const std::vector<glm::vec4>& lane) {
+    for (int i = 0; i < count && (size_t)i < lane.size(); ++i) {
+      float* dst = &data[((size_t)slot * (size_t)count + (size_t)i) * 4];
+      dst[0] = lane[(size_t)i].x;
+      dst[1] = lane[(size_t)i].y;
+      dst[2] = lane[(size_t)i].z;
+      dst[3] = lane[(size_t)i].w;
+    }
+  };
+  for (const auto& [name, lane] : lanes) {
+    const int32_t builtin = World::pop::builtinIndex(name);
+    if (builtin >= 0) {
+      pour(builtin, lane);
+      continue;
+    }
+    for (size_t c = 0; c < customNames.size(); ++c)
+      if (customNames[c] == name)
+        pour(World::pop::kBuiltinSlots + (int)c, lane);
+  }
+  return data;
+}
+
+dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(
+    dg::IRenderDevice* device, int count, int slots, const char* name,
+    const std::vector<float>* initial = nullptr) {
   using namespace dg;
   // Zero-filled so custom lanes start at {0,0,0,0}, matching the CPU
   // executor's default for an untouched attribute; the builtin lanes are
-  // initialized by the generator kernel before anything reads them.
-  const std::vector<float> zeros((size_t)count * (size_t)slots * 4, 0.0f);
+  // initialized by the generator kernel before anything reads them — or
+  // uploaded here outright when the chain is led by a point set.
+  const std::vector<float> zeros(
+      initial ? *initial
+              : std::vector<float>((size_t)count * (size_t)slots * 4, 0.0f));
   BufferDesc desc;
   desc.Name = name;
   desc.Usage = USAGE_DEFAULT;
   // SHADER_RESOURCE as well as UAV, because a downstream chain built
-  // with addPointsOn reads this arena's position slot as its own loop.
+  // with placeChainOn reads this arena's position slot as its own loop.
   desc.BindFlags = BIND_UNORDERED_ACCESS | BIND_SHADER_RESOURCE;
   desc.Mode = BUFFER_MODE_STRUCTURED;
   desc.ElementByteStride = 4 * sizeof(float);
@@ -1613,7 +2259,7 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice* device,
 
 /** The Lookup stop tables, concatenated. IMMUTABLE, because the stops
  *  are part of the chain value: editing them is a re-describe, and
- *  setPoints takes the structural path when it sees a different table
+ *  setChain takes the structural path when it sees a different table
  *  even if every operator kind still lines up. A chain with no Lookup
  *  still gets a one-element placeholder, since the binding is not
  *  optional and a null buffer view is not legal. */
@@ -1637,8 +2283,8 @@ dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
 
 }  // namespace
 
-uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
-                          const Material& material) {
+uint32_t World::placeChain(const shape::Mesh& stamp, const pop::Chain& chain,
+                           const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   const int count = popChainCount(chain);
@@ -1648,12 +2294,23 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   PopComponent points;
   points.chain = chain;
   points.count = count;
-  const auto& scatter = std::get<pop::SplineScatter>(chain.front());
-  points.loopCount = (int)scatter.loop.size();
-  points.loop = impl.createLoopBuffer(scatter.loop);
   points.customNames = popCustomNames(chain);
   const int slots = pop::kBuiltinSlots + (int)points.customNames.size();
-  points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  if (const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front())) {
+    points.loopCount = (int)scatter->loop.size();
+    points.loop = impl.createLoopBuffer(scatter->loop);
+    points.lanes = createLaneBuffer(impl.device, count, slots, "pop lanes");
+  } else {
+    // A point set: no loop to walk (the binding still wants a buffer),
+    // and the arena arrives filled.
+    const auto& given = std::get<pop::PointSet>(chain.front());
+    points.loopCount = 0;
+    points.loop = impl.createLoopBuffer({{0, 0, 0}});
+    const std::vector<float> seeded =
+        seededLanes(given.cloud, count, points.customNames);
+    points.lanes =
+        createLaneBuffer(impl.device, count, slots, "pop lanes", &seeded);
+  }
   points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
   points.tableData = popTable(chain);
   points.table = createTableBuffer(impl.device, points.tableData);
@@ -1677,13 +2334,9 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   if (!geometry.instanceBuffer) return 0;
   if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -1693,8 +2346,9 @@ uint32_t World::addPoints(const shape::Mesh& stamp, const pop::Chain& chain,
   return (uint32_t)id;
 }
 
-uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
-                            const pop::Chain& chain, const Material& material) {
+uint32_t World::placeChainOn(uint32_t upstream, const shape::Mesh& stamp,
+                             const pop::Chain& chain,
+                             const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity up = entity(upstream);
@@ -1744,13 +2398,9 @@ uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
   if (!geometry.instanceBuffer) return 0;
   if (!impl.bindPopSrbs(points, geometry.instanceBuffer)) return 0;
 
-  dg::RefCntAutoPtr<dg::ITexture> texture =
-      impl.uploadTexture(material.texture);
-  impl.opaqueInstancedPso->CreateShaderResourceBinding(&geometry.srb, true);
-  if (!geometry.srb) return 0;
-  if (auto* var =
-          geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-    var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+  if (!impl.bindMaterial(impl.opaqueInstancedPso, material, geometry.srb,
+                         geometry.bound))
+    return 0;
 
   const entt::entity id = impl.registry.create();
   impl.registry.emplace<GpuInstancedGeometry>(id, std::move(geometry));
@@ -1760,7 +2410,7 @@ uint32_t World::addPointsOn(uint32_t upstream, const shape::Mesh& stamp,
   return (uint32_t)id;
 }
 
-void World::setPointsWindow(uint32_t id, float head, float span) {
+void World::setChainWindow(uint32_t id, float head, float span) {
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
   if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e)) return;
@@ -1773,7 +2423,7 @@ void World::setPointsWindow(uint32_t id, float head, float span) {
   points.dirty = true;
 }
 
-void World::setPoints(uint32_t id, const pop::Chain& chain) {
+void World::setChain(uint32_t id, const pop::Chain& chain) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -1790,8 +2440,11 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   // immutable buffer — the same reason the loop-content check below
   // treats moved control points as structural.
   const std::vector<glm::vec4> table = popTable(chain);
+  // A point set's cloud IS the arena's contents: any re-describe of such
+  // a chain re-uploads, so it always takes the structural path.
+  const auto* given = std::get_if<pop::PointSet>(&chain.front());
   const bool sameShape =
-      count == points.count && chain.size() == points.chain.size() &&
+      !given && count == points.count && chain.size() == points.chain.size() &&
       popCustomNames(chain) == points.customNames &&
       table == points.tableData &&
       std::equal(chain.begin(), chain.end(), points.chain.begin(),
@@ -1801,7 +2454,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   // The loop rides its own immutable buffer, uploaded when the surface
   // was added, so a re-describe with MOVED control points must recreate
   // it or the kernels go on cooking the old loop. Compared before the
-  // chain is overwritten. A surface created with addPointsOn carries an
+  // chain is overwritten. A surface created with placeChainOn carries an
   // empty loop — its generator reads the upstream arena instead — and so
   // never takes this path.
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
@@ -1819,9 +2472,11 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   if (!sameShape) {
     points.count = count;
     points.customNames = popCustomNames(chain);
+    std::vector<float> seeded;
+    if (given) seeded = seededLanes(given->cloud, count, points.customNames);
     points.lanes = createLaneBuffer(
         impl.device, count, pop::kBuiltinSlots + (int)points.customNames.size(),
-        "pop lanes");
+        "pop lanes", given ? &seeded : nullptr);
     points.scratch = createLaneBuffer(impl.device, count, 1, "pop scratch");
     points.tableData = table;
     points.table = createTableBuffer(impl.device, points.tableData);
@@ -1837,7 +2492,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
     impl.device->CreateBuffer(ibDesc, nullptr, &geometry.instanceBuffer);
     if (!points.lanes || !points.scratch || !points.table ||
         !geometry.instanceBuffer) {
-      // Allocation failed partway. Zero the count so readPoints() cannot
+      // Allocation failed partway. Zero the count so readChain() cannot
       // later size a copy against lanes that do not exist.
       points.count = 0;
       return;
@@ -1851,7 +2506,7 @@ void World::setPoints(uint32_t id, const pop::Chain& chain) {
   points.dirty = true;
 }
 
-shape::Cloud World::readPoints(uint32_t id) {
+shape::Cloud World::readChain(uint32_t id) {
   using namespace dg;
   Impl& impl = *m_impl;
   shape::Cloud out;
@@ -1911,7 +2566,7 @@ shape::Cloud World::readPoints(uint32_t id) {
   return out;
 }
 
-void World::removeSurface(uint32_t id) {
+void World::remove(uint32_t id) {
   entt::registry& registry = m_impl->registry;
   const entt::entity e = entity(id);
   if (registry.valid(e) &&
@@ -1919,7 +2574,7 @@ void World::removeSurface(uint32_t id) {
     registry.destroy(e);
 }
 
-size_t World::surfaceCount() const {
+size_t World::propCount() const {
   return m_impl->registry.view<GpuGeometry>().size() +
          m_impl->registry.view<GpuInstancedGeometry>().size();
 }
@@ -1941,6 +2596,8 @@ void World::setCamera(const shape::space::Camera& camera) {
 
 void World::setLighting(const Lighting& lighting) {
   m_impl->lighting = lighting;
+  if (lighting.environment.get() != m_impl->environmentKey)
+    m_impl->uploadEnvironment(lighting.environment);
 }
 
 bool World::render() {
@@ -1983,7 +2640,7 @@ bool World::render() {
         params->window[3] = (float)sweep.sections;
         params->loop[0] = (float)sweep.pointCount;
         // Parameter step the kernel uses for its centred-difference
-        // tangent; must match the flock and point kernels' value below.
+        // tangent; must match the point kernels' value below.
         params->loop[1] = 0.002f;
         params->loop[2] = 0;
         params->loop[3] = 0;
@@ -1994,41 +2651,6 @@ bool World::render() {
                                       1);
       impl.context->DispatchCompute(dispatch);
       sweep.dirty = false;
-    }
-  }
-  {
-    auto flocks = impl.registry.view<FlockComponent>();
-    bool bound = false;
-    for (entt::entity e : flocks) {
-      FlockComponent& flock = flocks.get<FlockComponent>(e);
-      if (!flock.dirty) continue;
-      if (!bound) {
-        impl.context->SetPipelineState(impl.flockPso);
-        bound = true;
-      }
-      {
-        MapHelper<FlockParams> params(impl.context, impl.flockCB, MAP_WRITE,
-                                      MAP_FLAG_DISCARD);
-        params->windowA[0] = flock.head;
-        params->windowA[1] = flock.span;
-        params->windowA[2] = flock.radius;
-        params->windowA[3] = (float)flock.count;
-        params->windowB[0] = flock.scale;
-        params->windowB[1] = flock.noiseAmplitude;
-        params->windowB[2] = flock.noiseFrequency;
-        params->windowB[3] = flock.seed;
-        std::memcpy(params->tintTail, flock.tintTail, sizeof(flock.tintTail));
-        std::memcpy(params->tintHead, flock.tintHead, sizeof(flock.tintHead));
-        params->loop[0] = (float)flock.pointCount;
-        params->loop[1] = 0.002f;
-        params->loop[2] = 0;
-        params->loop[3] = 0;
-      }
-      impl.context->CommitShaderResources(
-          flock.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-      DispatchComputeAttribs dispatch((Uint32)((flock.count + 63) / 64), 1, 1);
-      impl.context->DispatchCompute(dispatch);
-      flock.dirty = false;
     }
   }
   {
@@ -2049,7 +2671,7 @@ bool World::render() {
           impl.registry.all_of<PopComponent>(points.upstream)) {
         PopComponent& up = impl.registry.get<PopComponent>(points.upstream);
         if (up.dirty) cookOne(points.upstream);
-        // Refreshed every cook, so a setPoints() on the upstream that
+        // Refreshed every cook, so a setChain() on the upstream that
         // changed its point count cannot leave this one reading a stale
         // length.
         points.loopCount = up.count;
@@ -2060,11 +2682,15 @@ bool World::render() {
           points.srbs.empty())
         return;
       const auto laneBarrier = [&] {
+        // Old state UNKNOWN: taken from the resource itself. The scratch
+        // buffer sits in the copy state its upload left it in until the
+        // first Relax touches it, so a fixed "was UAV" would be wrong
+        // for every chain without one.
         StateTransitionDesc barriers[] = {
-            {points.lanes, RESOURCE_STATE_UNORDERED_ACCESS,
+            {points.lanes, RESOURCE_STATE_UNKNOWN,
              RESOURCE_STATE_UNORDERED_ACCESS,
              STATE_TRANSITION_FLAG_UPDATE_STATE},
-            {points.scratch, RESOURCE_STATE_UNORDERED_ACCESS,
+            {points.scratch, RESOURCE_STATE_UNKNOWN,
              RESOURCE_STATE_UNORDERED_ACCESS,
              STATE_TRANSITION_FLAG_UPDATE_STATE},
         };
@@ -2089,7 +2715,20 @@ bool World::render() {
         params.d[0] = (float)points.count;
         params.d[2] = (float)points.loopCount;
         params.d[3] = 0.002f;
+        params.m[0] = -1;  // no mask
         return params;
+      };
+      const auto put4 = [](float* dst, const glm::vec4& v) {
+        dst[0] = v.x;
+        dst[1] = v.y;
+        dst[2] = v.z;
+        dst[3] = v.w;
+      };
+      const auto put3 = [](float* dst, const glm::vec3& v) {
+        dst[0] = v.x;
+        dst[1] = v.y;
+        dst[2] = v.z;
+        dst[3] = 0;
       };
       // Walks the chain in the SAME order popTable() concatenated in, so
       // each Lookup dispatch gets the offset its own stops landed at.
@@ -2135,7 +2774,7 @@ bool World::render() {
               } else if constexpr (std::is_same_v<T, pop::Relax>) {
                 params.a[0] = op.strength;
                 params.d[1] = (float)points.slotFor(op.lane);
-              } else if constexpr (std::is_same_v<T, pop::Set>) {
+              } else if constexpr (std::is_same_v<T, pop::Fill>) {
                 params.a[0] = op.value.x;
                 params.a[1] = op.value.y;
                 params.a[2] = op.value.z;
@@ -2167,7 +2806,54 @@ bool World::render() {
                 params.b[2] = op.add.z;
                 params.b[3] = op.add.w;
                 params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Select>) {
+                put3(params.a, op.center);
+                put3(params.b, op.size);
+                params.c[0] = op.feather;
+                params.c[1] = (float)op.shape;
+                params.c[2] = op.invert ? 1.0f : 0.0f;
+                params.c[3] = (float)op.combine;
+                params.d[1] = (float)points.slotFor(pop::AttrRef{op.to});
+                params.m[1] = (float)points.slotFor(op.from);
+              } else if constexpr (std::is_same_v<T, pop::Affine>) {
+                params.a[0] = op.direction ? 1.0f : 0.0f;
+                put4(params.e, op.matrix[0]);
+                put4(params.f, op.matrix[1]);
+                put4(params.g, op.matrix[2]);
+                put4(params.h, op.matrix[3]);
+                params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Peak>) {
+                params.a[0] = op.distance;
+                params.d[1] = (float)points.slotFor(op.lane);
+                params.m[1] = (float)points.slotFor(op.along);
+              } else if constexpr (std::is_same_v<T, pop::Deform>) {
+                glm::vec3 axis, dir, side;
+                shape::popops::deformFrame(op, &axis, &dir, &side);
+                params.a[0] = (float)op.kind;
+                params.a[1] = op.amount;
+                params.a[2] = op.low;
+                params.a[3] = op.high;
+                params.b[0] = op.amount * 3.14159265f / 180.0f;
+                params.b[1] = op.high - op.low;
+                put3(params.e, axis);
+                put3(params.f, op.origin);
+                put3(params.g, dir);
+                put3(params.h, side);
+                params.d[1] = (float)points.slotFor(op.lane);
+              } else if constexpr (std::is_same_v<T, pop::Mix>) {
+                params.a[0] = op.factor;
+                params.b[0] = (float)points.slotFor(op.a);
+                params.b[1] = (float)points.slotFor(op.b);
+                params.b[2] =
+                    op.factorLane.empty()
+                        ? -1.0f
+                        : (float)points.slotFor(pop::AttrRef{op.factorLane});
+                params.d[1] = (float)points.slotFor(op.to);
               }
+              // The mask slot rides every filter that carries one.
+              if constexpr (requires { op.mask; })
+                if (!op.mask.empty())
+                  params.m[0] = (float)points.slotFor(pop::AttrRef{op.mask});
             },
             points.chain[i]);
         if (const auto* relax = std::get_if<pop::Relax>(&points.chain[i])) {
@@ -2248,7 +2934,9 @@ bool World::render() {
     putColor(constants->skyColor, impl.lighting.skyColor, 1);
     putColor(constants->groundColor, impl.lighting.groundColor, 1);
     constants->params[0] = impl.lighting.ambient;
-    constants->params[1] = constants->params[2] = constants->params[3] = 0;
+    constants->params[1] = 0;
+    constants->params[2] = 1.0f / (float)impl.config.width;
+    constants->params[3] = 1.0f / (float)impl.config.height;
 
     // Registry lights: the first kLightBudget the view yields, in
     // registry iteration order. Any beyond that are silently ignored.
@@ -2275,6 +2963,11 @@ bool World::render() {
       ++lightCount;
     }
     constants->params[1] = (float)lightCount;
+    constants->env[0] = impl.lighting.environmentIntensity;
+    constants->env[1] =
+        impl.lighting.environmentRotationDeg * (float)M_PI / 180.0f;
+    constants->env[2] = (float)std::max(impl.environmentMips - 1, 0);
+    constants->env[3] = impl.environmentTexture ? 1.0f : 0.0f;
   }
 
   // Gather from the registry: opaque first, then blended, sorted back to
@@ -2284,20 +2977,29 @@ bool World::render() {
   // routes as a whole and counts as ONE sorted item, so its instances
   // are not sorted against each other.
   struct DrawItem {
-    const GpuGeometry* geometry = nullptr;
-    const GpuInstancedGeometry* instanced = nullptr;
+    GpuGeometry* geometry = nullptr;
+    GpuInstancedGeometry* instanced = nullptr;
     const glm::mat4* model = nullptr;
     const Material* material = nullptr;
+    size_t range = 0;  ///< which slot's index range, for GpuGeometry
   };
   std::vector<DrawItem> opaque, blended;
   for (auto [e, geometry, transform, material] :
        impl.registry.view<GpuGeometry, TransformComponent, MaterialComponent>()
            .each()) {
-    DrawItem item;
-    item.geometry = &geometry;
-    item.model = &transform.model;
-    item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
+    // One item per slot range, each routed by its own material.
+    for (size_t r = 0; r < geometry.ranges.size(); ++r) {
+      if (geometry.ranges[r].count == 0) continue;
+      DrawItem item;
+      item.geometry = &geometry;
+      item.model = &transform.model;
+      item.material =
+          r == 0 ? &material.material
+                 : (r - 1 < material.slots.size() ? &material.slots[r - 1]
+                                                  : &material.material);
+      item.range = r;
+      (item.material->blended() ? blended : opaque).push_back(item);
+    }
   }
   for (auto [e, geometry, transform, material] :
        impl.registry
@@ -2308,7 +3010,7 @@ bool World::render() {
     item.instanced = &geometry;
     item.model = &transform.model;
     item.material = &material.material;
-    (material.material.baseColor.w < 1.0f ? blended : opaque).push_back(item);
+    (material.material.blended() ? blended : opaque).push_back(item);
   }
   if (!blended.empty()) {
     const glm::mat4 view = cam.view();
@@ -2332,6 +3034,20 @@ bool World::render() {
         bound = pso;
       }
       impl.writeDrawConstants(*item.model, *item.material);
+      // A material whose images moved since the binding was built gets
+      // a fresh binding here — the live half of "every field is live".
+      // The bindings are pipeline-compatible across all four PSOs, so
+      // the plain PSO builds every plain one and the instanced PSO
+      // every instanced one.
+      const MaterialBinding want =
+          MaterialBinding::of(*item.material, impl.environmentKey);
+      if (item.instanced && !(item.instanced->bound == want))
+        impl.bindMaterial(impl.opaqueInstancedPso, *item.material,
+                          item.instanced->srb, item.instanced->bound);
+      if (item.geometry && !(item.geometry->ranges[item.range].bound == want))
+        impl.bindMaterial(impl.opaquePso, *item.material,
+                          item.geometry->ranges[item.range].srb,
+                          item.geometry->ranges[item.range].bound);
       DrawIndexedAttribs attribs;
       attribs.IndexType = VT_UINT32;
       attribs.Flags = DRAW_FLAG_VERIFY_ALL;
@@ -2350,8 +3066,9 @@ bool World::render() {
         attribs.NumInstances = geometry.instanceCount;
       } else {
         const GpuGeometry& geometry = *item.geometry;
+        const GpuGeometry::Range& range = geometry.ranges[item.range];
         impl.context->CommitShaderResources(
-            geometry.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            range.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         IBuffer* vb = geometry.vertexBuffer;
         const Uint64 offset = 0;
         impl.context->SetVertexBuffers(
@@ -2359,12 +3076,42 @@ bool World::render() {
             SET_VERTEX_BUFFERS_FLAG_RESET);
         impl.context->SetIndexBuffer(geometry.indexBuffer, 0,
                                      RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        attribs.NumIndices = geometry.indexCount;
+        attribs.FirstIndexLocation = range.first;
+        attribs.NumIndices = range.count;
       }
       impl.context->DrawIndexed(attribs);
     }
   };
   drawList(opaque, impl.opaquePso, impl.opaqueInstancedPso);
+  bool anyGlass = false;
+  for (const DrawItem& item : blended)
+    anyGlass |= item.material->transmission > 0;
+  if (anyGlass) {
+    // Glass looks through the opaque pass: resolve (or copy) it into
+    // the scene-colour texture, build its mip chain for the roughness
+    // blur, and rebind the targets — the resolve unbinds them.
+    if (opaque.empty()) impl.context->Flush();
+    if (msaa) {
+      ResolveTextureSubresourceAttribs resolve;
+      resolve.SrcTextureTransitionMode =
+          RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      resolve.DstTextureTransitionMode =
+          RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      impl.context->ResolveTextureSubresource(impl.colorTarget, impl.sceneColor,
+                                              resolve);
+    } else {
+      CopyTextureAttribs copy;
+      copy.pSrcTexture = impl.resolveTarget;
+      copy.pDstTexture = impl.sceneColor;
+      copy.SrcTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      copy.DstTextureTransitionMode = RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+      impl.context->CopyTexture(copy);
+    }
+    impl.context->GenerateMips(
+        impl.sceneColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+    impl.context->SetRenderTargets(1, &rtv, dsv,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  }
   drawList(blended, impl.blendPso, impl.blendInstancedPso);
 
   // A frame with no draws never begins a render pass, so the backend

@@ -7,7 +7,7 @@
  * describe, diff, apply.
  *
  *   scene::Node root = scene::group().key("set")
- *     .child(scene::surface(floorMesh, steel).key("floor").at({0,-190,0}))
+ *     .child(scene::place(floorMesh, steel).key("floor").at({0,-190,0}))
  *     .child(scene::group().key("hud").at({0,60,0}).rotated(spin)
  *       .child(scene::panel(cardImage, 380, 252).key("left").at({-420,0,0})
  *         ...
@@ -15,7 +15,7 @@
  *
  * Identity is the KEY PATH: a node's key joined to its parents' keys,
  * with an index fallback for unkeyed children. A leaf reuses its device
- * surface when its mesh POINTER and its material compare equal, so hold
+ * prop when its mesh POINTER and its material compare equal, so hold
  * meshes in shared_ptrs and a transform-only change costs a setTransform
  * rather than a re-upload. panel() quads get per-size cached meshes
  * inside the Scene, which makes panels identity-stable by construction.
@@ -40,7 +40,7 @@ namespace sigil::world::scene {
 
 class Node {
  public:
-  enum class Kind : uint8_t { Group, Surface, Panel };
+  enum class Kind : uint8_t { Group, Prop, Panel };
 
   Node& key(std::string value) {
     m_key = std::move(value);
@@ -81,7 +81,7 @@ class Node {
 
  private:
   friend Node group();
-  friend Node surface(std::shared_ptr<const shape::Mesh>, Material);
+  friend Node place(std::shared_ptr<const shape::Mesh>, Material);
   friend Node panel(sk_sp<SkImage>, float, float);
   friend class Scene;
 
@@ -92,8 +92,8 @@ class Node {
   float m_scale = 1;
   glm::mat4 m_extra{1.0f};
   bool m_hasExtra = false;
-  std::shared_ptr<const shape::Mesh> m_mesh;  // Surface
-  Material m_material;                        // Surface + Panel
+  std::shared_ptr<const shape::Mesh> m_mesh;  // Prop
+  Material m_material;                        // Prop + Panel
   float m_panelWidth = 0, m_panelHeight = 0;  // Panel
   std::vector<Node> m_children;
 };
@@ -104,10 +104,10 @@ inline Node group() { return Node(); }
  *  its contents, so share one shared_ptr across renders; the overload
  *  below allocates a fresh mesh and therefore a fresh identity every
  *  call. */
-Node surface(std::shared_ptr<const shape::Mesh> mesh, Material material);
-inline Node surface(shape::Mesh mesh, Material material) {
-  return surface(std::make_shared<const shape::Mesh>(std::move(mesh)),
-                 std::move(material));
+Node place(std::shared_ptr<const shape::Mesh> mesh, Material material);
+inline Node place(shape::Mesh mesh, Material material) {
+  return place(std::make_shared<const shape::Mesh>(std::move(mesh)),
+               std::move(material));
 }
 
 /** An unlit textured quad — the diegetic UI card. The quad mesh is
@@ -122,7 +122,7 @@ Node panel(sk_sp<SkImage> image, float width, float height);
  *
  *  This is arithmetic, not a new node kind: `Stack::panel(image)` builds
  *  exactly the `panel(image, w, h)` a caller would write by hand with
- *  the same numbers, so the reconciler sees the same surface and
+ *  the same numbers, so the reconciler sees the same prop and
  *  swapping one spelling for the other is a keep. */
 struct Stack {
   float pxPerWu = 1;
@@ -165,13 +165,13 @@ class Scene {
    *  the index fallback in that spelling ("#<index>" for the hop, "@"
    *  for the unkeyed node itself), but key anything you intend to
    *  animate. Only leaves have an entity: a group path, an unknown path,
-   *  or a leaf whose surface creation failed answers an empty optional,
+   *  or a leaf whose prop creation failed answers an empty optional,
    *  never a throw.
    *
    *  Returns `entt::entity` because that is what the Animated*
    *  components take:
    *  `registry().emplace<AnimatedTransform>(*scene.find("comp/sky"))`.
-   *  A World surface id is the same value one cast away (Components.h),
+   *  A World prop id is the same value one cast away (Components.h),
    *  so the imperative setters are equally reachable.
    *
    *  LIFETIME: the entity stays valid until the next render() that
@@ -184,7 +184,7 @@ class Scene {
    *  render() warns once for that node. */
   std::optional<entt::entity> find(std::string_view keyPath) const;
 
-  /** Forget everything (removes all scene-owned surfaces). */
+  /** Forget everything (removes all scene-owned props). */
   void clear();
 
  private:

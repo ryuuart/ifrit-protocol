@@ -12,12 +12,14 @@ enable_language(C)
 
 add_library(SigilWorld STATIC
   Scene.cpp
+  TextureSet.cpp
   VolkShim.c
   World.cpp
   include/sigilworld/Animation.h
   include/sigilworld/Components.h
   include/sigilworld/Easel.h
   include/sigilworld/Scene.h
+  include/sigilworld/TextureSet.h
   include/sigilworld/World.h
 )
 
@@ -78,6 +80,27 @@ target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
   SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
 
+# The material lab shot dresses its props with a fetched texture set and,
+# when the Substance SDK was found, with .sbsar materials rendered by
+# SigilSubstance from the SDK's own sample archives. Without the SDK the
+# lab still renders; the Substance props are simply absent.
+if(SPELLCIRCLE_ENABLE_USD)
+  # The lit material lab is also written out as a USD crate.
+  target_link_libraries(world_demo PRIVATE SigilUsd)
+  target_compile_definitions(world_demo PRIVATE SIGIL_WORLD_DEMO_USD)
+endif()
+if(SPELLCIRCLE_ENABLE_SUBSTANCE)
+  target_link_libraries(world_demo PRIVATE SigilSubstance)
+  target_compile_definitions(world_demo PRIVATE
+    SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS="${SUBSTANCE_SDK_DIR}/assets")
+endif()
+
+# The GPU pop executor under load (Google Benchmark; needs a Vulkan
+# runtime, skips without one; use a Release build):
+#   ./build/bin/Release/world_bench
+add_executable(world_bench bench/WorldBench.cpp)
+target_link_libraries(world_bench PRIVATE SigilWorld benchmark::benchmark)
+
 # --- Slang kernels ---------------------------------------------------------
 # The pop kernel is authored ONCE in Slang (shaders/pop.slang over the
 # shaders/sigilspline.slang module), compiled to SPIRV at build time by
@@ -85,16 +108,16 @@ target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
 # directly, no glslang in the loop. Without slangc the build still
 # configures and surface rendering still works (the graphics
 # vertex/pixel shader ships as an HLSL source string in World.cpp), but
-# the compute generators have no fallback: addSweep/addFlock/addPoints/
-# addPointsOn return 0 and log a one-time diagnostic.
+# the compute generators have no fallback: placeSweep/placeChain/
+# placeChainOn return 0 and log a one-time diagnostic.
 find_program(SLANGC_EXECUTABLE slangc
   PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/shader-slang")
 if(SLANGC_EXECUTABLE)
   set(_slang_dir ${CMAKE_CURRENT_LIST_DIR}/shaders)
   set(_spirv_dir ${CMAKE_CURRENT_BINARY_DIR}/spirv)
   set(_pop_entries CSSplineScatter CSJitter CSNoise CSRamp CSVary
-      CSLookAt CSMath CSRelax CSSet CSAtlas CSLookup CSCopyBack
-      CSPopPack)
+      CSLookAt CSMath CSRelax CSFill CSAtlas CSLookup CSSelect CSAffine
+      CSPeak CSDeform CSMix CSPointSet CSCopyBack CSPopPack)
   set(_spv_files)
   macro(_sigil_slang _file _entry)
     set(_spv ${_spirv_dir}/${_file}_${_entry}.spv)
@@ -112,7 +135,6 @@ if(SLANGC_EXECUTABLE)
     _sigil_slang(pop ${_entry})
   endforeach()
   _sigil_slang(sweep CSSweep)
-  _sigil_slang(flock CSFlock)
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/world_pop_spirv.h
     COMMAND ${CMAKE_COMMAND} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/world_pop_spirv.h
             "-DSPV_FILES=${_spv_files}"

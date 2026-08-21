@@ -106,11 +106,21 @@ directly to a GPU renderer downstream. Nothing renderer-shaped lives in the
 struct.
 
 **`pop::Chain` is a backend-neutral description.** It is a vector of
-operator variants, not a program. The CPU executor in `popops::cook()` is
+operator variants, not a program — and a value: every operator, `Mesh`
+and `Cloud` compares by content with `==`, so a reconciler can ask
+whether a chain changed. The CPU executor in `popops::cook()` is
 the reference implementation; a GPU consumer can execute the identical
 chain as compute dispatches, and the two are required to agree bit for bit
 — which is what makes the hash helpers and the variant order load-bearing
 (see below).
+
+**Operator dials are addressable by name.** `popops::setField(op,
+"amount", v)` and `getField` reach every numeric field of every operator
+— vector components dotted (`"center.x"`, `"add.w"`, `"to.g"`), enums and
+bools as numbers, ints truncated — so a control surface, a preset file
+or an animation lane can drive a chain without knowing the operator's
+type. Strings, lane names, meshes, clouds and matrices are descriptions,
+not dials, and stay out of it.
 
 **`Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
 `pill`, `ring`) and four fluent value types over everything underneath:
@@ -174,41 +184,62 @@ The rest build on those:
 - **`Points.h`** needs `Curves`, `Mesh` and `Space`. `Cloud` and its lane
   accessors; the generators `onSpline()`, `grid()`, `ring()`,
   `scatterBox()` and `onMesh()`; the modifiers `jitter()` and
-  `displaceNoise()`; the consumers `instance()` and `panels()` (stamp a
+  `displaceNoise()`; the consumers `instance()` and `quads()` (stamp a
   mesh at every point into one merged mesh) and `drawBillboards()`
   (camera-facing sprites); and `promoteToPrims()`.
 - **`Pop.h`** needs `Curves` and `Points`. The operator chain language and
   its CPU executor.
 - **`Import.h`** and **`Save.h`** need `Mesh` and `Points`. Import reads
   OBJ (with MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL,
-  ascii and binary-little-endian PLY, and Ogawa Alembic, producing a
-  `Model` of `Part`s; external references resolve through a caller-supplied
-  `Resolver`. Save writes PLY back out — `save::ply()` over a `Cloud` or a
-  `Mesh`, ascii by default or binary via `PlyOptions`.
+  ascii and binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON
+  `.geo`, producing a `Model` of `Part`s; external references resolve
+  through a caller-supplied `Resolver`. Save writes PLY back out —
+  `save::ply()` over a `Cloud` or a `Mesh`, ascii by default or binary via
+  `PlyOptions`.
 - **`Easel.h`** needs `Blend`, `Curves`, `Materials`, `Mesh`, `Ops`,
   `Points` and `Space`. It does not pull in `Pop`, `Import` or `Save`.
 
 ### The operators
 
-`pop::Op` is a variant over fourteen operator values, and `pop::Chain` is a
-vector of them. Generators seed a chain: `SplineScatter` (points along a
-window of a closed loop) and `MeshScatter` (points on a formed model's
-faces). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
-`Vary`, `LookAt`, `Math`, `Relax`, `Set`, `Atlas`, `Lookup`, `Promote` and
-`Sort`.
+`pop::Op` is a variant over twenty operator values, and `pop::Chain` is
+a vector of them. Generators seed a chain: `SplineScatter` (points along a
+window of a closed loop), `MeshScatter` (points on a formed model's
+faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
+previous cook — every lane riding in as an attribute, so a Houdini group
+arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
+`Vary`, `LookAt`, `Math`, `Relax`, `Fill`, `Atlas`, `Lookup`, `Affine`
+(any `mat4` on a position or a direction lane), `Peak` (push along a
+direction lane), `Deform` (twist, taper or bend about an axis) and `Mix`
+(blend two lanes into a third by a constant or a lane). `Select` is the
+selector: it writes a mask lane from a sphere or box region, feathered at
+its edge and combined into what the lane already holds (replace, union,
+intersect, subtract). `Promote` and `Sort` are the primitive-class and
+permutation-class operators.
 
 Every operator addresses attributes by name through `pop::AttrRef`, with
 `"P"`, `"T"`, `"Dir"`, `"Scale"`, `"Color"` and `"Tex"` as the well-known
 names and anything else creating a custom lane on first write.
 
-`pop::on()` returns a `Builder` whose chained verbs (`count`, `window`,
+**Every filter takes a mask.** Each per-point filter carries a `mask`
+field naming a lane; that lane's `.x`, clamped to `[0, 1]`, is how much of
+the operator's write each point receives — `old + (new - old) * mask`. An
+empty name (the default) is every point in full; naming a lane nothing has
+written selects nobody, the way an empty group is empty. `Select` is one
+way to write such a lane; a `Lookup`, a `Math` on a custom lane, or an
+importer's attribute serve just as well. Both executors apply the mask
+with the same expression.
+
+`pop::on()` — over a loop, a `Mesh`, a `Chain` or a `Cloud` — returns a
+`Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
-`move`, `set`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
-`op`) append operators; the builder converts to a `Chain`, so you can reach
-into any operator afterwards and re-cook. Sinks turn a chain into geometry:
-`cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps, and
-`cookTube()`/`cookRibbon()`/`cookSweep()` treating the cooked points as a
-path to sweep along.
+`move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
+`select`, `masked`, `affine`, `orient`, `peak`, `twist`, `taper`,
+`bend`, `mix`, `mixBy`, `copy`, `op`) append operators — `masked()` sets
+the mask on the filter just added — and the builder converts to a
+`Chain`, so you can reach into any operator afterwards and re-cook. Sinks
+turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
+mesh of stamps, and `cookTube()`/`cookRibbon()`/`cookSweep()` treating the
+cooked points as a path to sweep along.
 
 ## Conventions that will bite you
 
@@ -279,6 +310,23 @@ is silently, plausibly wrong rather than obviously broken.
   GPU consumer maps each operator's variant *index* to a compute pipeline.
   New operators are appended; inserting one in the middle silently
   reassigns every operator after it to the wrong kernel.
+- **`Deform` bends positions only.** `Dir` is left where it was, so a bent
+  column's stamps still point the way the loop's tangent did; re-derive a
+  direction afterwards (`LookAt`, `Affine` on `Dir`) when the stamps
+  should follow the bend. Points outside the band `[low, high]` ride the
+  arc's end tangents rigidly, so the geometry past the band keeps its
+  shape rather than being stretched.
+- **A `PointSet` lays its cloud out by name, and the layout is shared.**
+  `popops::seedAttrs()` is the one function that maps a cloud onto the
+  attribute store — positions to `P`, `"t"`/`"size"`/`"tint"` to
+  `T`/`Scale`/`Color`, `"dir"` (or, failing that, `"normal"`) to `Dir`,
+  `"Tex"` to `Tex`, everything else under its own name — and the GPU
+  executor uploads exactly what it produces. `count()`, `window()`,
+  `spread()` and `seed()` are inert on a point-set-led chain: the cloud
+  is the count.
+- **`Select` sizes are radii per axis in both shapes.** A box of `size`
+  `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
+  an ellipsoid. `feather` is a fraction of that extent, not a distance.
 - **Mesh indices are 32-bit.** Skia's `SkVertices` 16-bit index limit is
   handled by chunking inside `space::drawMesh()`, not by the data — you do
   not need to split meshes yourself.
@@ -291,12 +339,33 @@ is silently, plausibly wrong rather than obviously broken.
   construction, so a face-camera'd quad and an instanced facing lane agree.
 - **Imported textures are not decoded.** `import::Part` carries the encoded
   bytes (or the unresolved URI); turning them into pixels is a separate
-  concern. Likewise, `import::model()` never touches the filesystem for
+  concern. glTF's whole metallic-roughness material rides along the same
+  way: `Part::textures` keys the normal, packed metallicRoughness
+  (`"orm"`), occlusion and emissive images by usage word, beside the
+  `metallic`/`roughness`/`emissive` factors, the transmission and ior
+  extensions and the alpha mode — words SigilWorld's texture-set door
+  reads directly. A part's material SLOT (`materialIndex`, glTF's material
+  index; a `.geo`'s `shop_materialpath` string index) is also written
+  across its `mesh.prims["Material"]` lane, so `Model::merged()` keeps
+  per-triangle materials and `materialSlotCount()` says how many.
+  Likewise, `import::model()` never touches the filesystem for
   external references unless you gave it a `Resolver` or used the path
   overload.
 - **Alembic support is Ogawa-only and nearest-sample.**
   `AlembicOptions::time` picks the closest stored sample; nothing is
   interpolated, and HDF5-cored archives return `nullopt`.
+- **A `.geo` import is unwelded, and its groups are lanes.** Every polygon
+  vertex becomes its own mesh vertex (so a vertex-class `uv` or `N`
+  survives seams and hard edges; the vertex class outranks the point
+  class for the conventional names), the `uv` v axis is flipped to the
+  top-left convention, primitive `Cd` becomes the `"Color"` prim lane and
+  every other primitive attribute a prim lane under its own name. Point
+  and primitive *groups* arrive as 0/1 lanes named after the group — the
+  shape a `pop` mask expects — so a Houdini group named `top` is
+  `.masked("top")` downstream. Detail (global) attributes and string
+  attributes have no lane to land in and are dropped; only the JSON
+  `.geo` spelling is read, not `.bgeo` or the blosc-compressed `.sc`
+  variants.
 
 ## Boundaries
 
@@ -330,7 +399,9 @@ cmake --build build --config Debug
 ```
 
 Targets: `SigilShape` (static library), `shape_test` (registered with
-ctest), and `shape_demo`.
+ctest), `shape_demo`, and `shape_bench` (Google Benchmark: the pop cook by
+count and operator mix, the stamping sink, and the `.geo` reader — run
+it from a Release build).
 
 ```sh
 ctest --test-dir build -C Debug -R shape_test --output-on-failure

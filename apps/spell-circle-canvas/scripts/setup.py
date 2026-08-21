@@ -32,6 +32,17 @@ QT_SEARCH_ROOTS = [
     Path("/opt/Qt"),
 ]
 
+# Search roots for the Adobe Substance 3D SDK (the "substance-<os>-<arch>-
+# v<version>-<hash>" download, unpacked). Each root holds one directory
+# per version; the highest wins. Optional: without it the SigilSubstance
+# library and everything that links it are left out of the build.
+SUBSTANCE_SEARCH_ROOTS = [
+    Path.home() / ".local" / "opt" / "substance",
+    Path("/usr/local/opt/substance"),
+    Path("/opt/homebrew/opt/substance"),
+    Path("/opt/substance"),
+]
+
 # Search roots for vcpkg
 VCPKG_SEARCH_ROOTS = [
     Path.home() / ".local" / "share" / "vcpkg",
@@ -56,9 +67,7 @@ def _version_tuple(version_text: str) -> tuple[int, ...]:
 def find_qt(platform: str = "macos") -> Path | None:
     """Return the best Qt installation path for the given platform suffix."""
     environment_root = (
-        os.environ.get("Qt6_DIR")
-        or os.environ.get("QT_DIR")
-        or os.environ.get("QTDIR")
+        os.environ.get("Qt6_DIR") or os.environ.get("QT_DIR") or os.environ.get("QTDIR")
     )
     if environment_root:
         environment_path = Path(environment_root)
@@ -96,9 +105,7 @@ def find_vcpkg() -> Path | None:
     environment_root = os.environ.get("VCPKG_ROOT")
     if environment_root:
         environment_path = Path(environment_root)
-        toolchain = (
-            environment_path / "scripts" / "buildsystems" / "vcpkg.cmake"
-        )
+        toolchain = environment_path / "scripts" / "buildsystems" / "vcpkg.cmake"
         if toolchain.exists():
             print(f"  vcpkg: found via VCPKG_ROOT at {environment_path}")
             return environment_path
@@ -111,47 +118,89 @@ def find_vcpkg() -> Path | None:
     return None
 
 
-def write_user_presets(qt_installation: Path, vcpkg_root: Path) -> None:
-    """Writes the local Qt/vcpkg CMake preset composition."""
+def find_substance() -> Path | None:
+    """Return the Substance 3D SDK directory (the one holding
+    substance-config.cmake), or None when it is not installed."""
+    environment_dir = os.environ.get("SUBSTANCE_SDK_DIR")
+    if environment_dir:
+        environment_path = Path(environment_dir)
+        if (environment_path / "substance-config.cmake").exists():
+            print(f"  Substance SDK: found via env var at {environment_path}")
+            return environment_path
+
+    best: tuple[tuple[int, ...], Path] | None = None
+    for root in SUBSTANCE_SEARCH_ROOTS:
+        if not root.is_dir():
+            continue
+        for candidate in root.iterdir():
+            if not (candidate / "substance-config.cmake").exists():
+                continue
+            version = _version_tuple(candidate.name.lstrip("v").split("-")[0])
+            if best is None or version > best[0]:
+                best = (version, candidate)
+    if best is None:
+        print("  Substance SDK: not found (optional; SigilSubstance skipped)")
+        return None
+    print(f"  Substance SDK: {best[1]}")
+    return best[1]
+
+
+def write_user_presets(
+    qt_installation: Path, vcpkg_root: Path, substance_sdk: Path | None
+) -> None:
+    """Writes the local Qt/vcpkg(/Substance) CMake preset composition."""
+    main_inherits = ["vcpkg", "qt"] + (
+        ["substance"] if substance_sdk is not None else []
+    )
     presets = {
         "version": 4,
         "configurePresets": [
             {
                 "name": "vcpkg",
                 "cacheVariables": {
-                    "CMAKE_TOOLCHAIN_FILE": str(vcpkg_root / "scripts" / "buildsystems" / "vcpkg.cmake")
+                    "CMAKE_TOOLCHAIN_FILE": str(
+                        vcpkg_root / "scripts" / "buildsystems" / "vcpkg.cmake"
+                    )
                 },
-                "environment": {
-                    "VCPKG_ROOT": str(vcpkg_root)
-                },
+                "environment": {"VCPKG_ROOT": str(vcpkg_root)},
             },
             {
                 "name": "qt",
-                "cacheVariables": {
-                    "CMAKE_PREFIX_PATH": str(qt_installation)
-                },
-                "environment": {
-                    "PATH": f"{qt_installation / 'bin'}:$penv{{PATH}}"
-                },
+                "cacheVariables": {"CMAKE_PREFIX_PATH": str(qt_installation)},
+                "environment": {"PATH": f"{qt_installation / 'bin'}:$penv{{PATH}}"},
             },
             {
                 "name": "main",
-                "inherits": ["vcpkg", "qt", "ninja"],
+                "inherits": main_inherits + ["ninja"],
             },
             {
                 "name": "main-xcode",
-                "inherits": ["vcpkg", "qt", "xcode"],
-            }
+                "inherits": main_inherits + ["xcode"],
+            },
         ],
         "buildPresets": [
             {
                 "name": "main",
                 "configurePreset": "main",
-            }
+            },
+            {
+                "name": "main-xcode",
+                "configurePreset": "main-xcode",
+            },
         ],
     }
+    if substance_sdk is not None:
+        presets["configurePresets"].insert(
+            2,
+            {
+                "name": "substance",
+                "cacheVariables": {"SUBSTANCE_SDK_DIR": str(substance_sdk)},
+            },
+        )
     USER_PRESETS.write_text(json.dumps(presets, indent=2) + "\n")
-    print(f"  Wrote {USER_PRESETS.relative_to(Path.cwd()) if USER_PRESETS.is_relative_to(Path.cwd()) else USER_PRESETS}")
+    print(
+        f"  Wrote {USER_PRESETS.relative_to(Path.cwd()) if USER_PRESETS.is_relative_to(Path.cwd()) else USER_PRESETS}"
+    )
 
 
 def run(command: list[str], working_directory: Path) -> int:
@@ -205,10 +254,7 @@ def main() -> int:
     argument_parser.add_argument(
         "--force",
         action="store_true",
-        help=(
-            "Overwrite existing CMakeUserPresets.json even if it already "
-            "exists"
-        ),
+        help=("Overwrite existing CMakeUserPresets.json even if it already exists"),
     )
     arguments = argument_parser.parse_args()
 
@@ -243,13 +289,11 @@ def main() -> int:
                 )
                 return 1
 
-            write_user_presets(qt_installation, vcpkg_root)
+            write_user_presets(qt_installation, vcpkg_root, find_substance())
 
         return_code = configure()
         if return_code != 0:
-            print(
-                f"\nConfigure failed (exit {return_code}).", file=sys.stderr
-            )
+            print(f"\nConfigure failed (exit {return_code}).", file=sys.stderr)
             return return_code
 
         if arguments.configure_only:

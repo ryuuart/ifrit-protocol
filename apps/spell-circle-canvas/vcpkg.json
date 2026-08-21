@@ -52,13 +52,17 @@
       ]
     },
     "spdlog",
-    "tinyobjloader",
     {
       "name": "spout2",
       "features": [
         "dx"
       ],
       "platform": "windows & !uwp & !arm64"
+    },
+    "tinyobjloader",
+    {
+      "name": "usd",
+      "default-features": false
     },
     "vulkan-headers",
     "yoga"

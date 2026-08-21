@@ -62,7 +62,7 @@ set(SIGIL_SKETCH_STUDIES
   # One sketch per API — legible over pretty. Each is a place to stand:
   # small, single-purpose, and captioned with the call that made it.
   travel_path wiggle_shake env_theme material_child matte_luma pop_lanes
-  blur_falloff
+  pop_deform geo_groups blur_falloff
   # §38's measured fixture as a living scene: one never-moving bound fill
   # over 512 cells — the reproduction of the 19.6× and the demonstration
   # that the settle/release extension retires it.

@@ -461,7 +461,7 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   EXPECT_LT(glm::dot(glm::vec3{0, 0, 1}, offAxis), 0.99f);
 
   // The two ways of orienting a quad must agree: a one-point cloud whose
-  // "facing" lane holds the eye direction, stamped through points::panels(),
+  // "facing" lane holds the eye direction, stamped through points::quads(),
   // produces the same vertices as transforming a quad by faceCamera. If they
   // drift apart, a scene mixing billboards with instanced panels shows two
   // different orientations for the same direction.
@@ -471,7 +471,7 @@ TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
   one.vector("facing") = {glm::normalize(eye - at)};
   points::InstanceOptions options;
   options.orientLane = "facing";
-  const Mesh stamped = points::panels(one, 170, 112, options);
+  const Mesh stamped = points::quads(one, 170, 112, options);
   const Mesh quad = mesh::quad(170, 112);
   const glm::mat4 m = space::faceCamera(eye, at);
   ASSERT_EQ(stamped.positions.size(), quad.positions.size());
@@ -2445,7 +2445,7 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   const pop::Chain chain =
       pop::on(loop)
           .count(64)
-          .set("energy", {0.5f, 0, 0, 0})
+          .fill("energy", {0.5f, 0, 0, 0})
           .op(pop::Jitter{"energy", 0.25f, 5})
           .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const Cloud cooked = popops::cook(chain);
@@ -2484,7 +2484,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
     const pop::Chain chain =
         pop::on(loop)
             .count(4)
-            .set(pop::Lane::P, {0, y, 0, 0})
+            .fill(pop::Lane::P, {0, y, 0, 0})
             .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100, 100);
     const Cloud cooked = popops::cook(chain);
     const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
@@ -2517,7 +2517,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
   const pop::Chain custom =
       pop::on(loop)
           .count(16)
-          .set("energy", {0.25f, 0, 0, 0})
+          .fill("energy", {0.25f, 0, 0, 0})
           .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1, "heat");
   const Cloud cooked = popops::cook(custom);
   const std::vector<glm::vec4>* heat = cooked.colorIf("heat");
@@ -2616,7 +2616,7 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
   }
   const Cloud cooked = popops::cook(pop::on(loop)
                                         .count(6)
-                                        .set("h", {0, 0, 0, 0})
+                                        .fill("h", {0, 0, 0, 0})
                                         .op(pop::Jitter{"h", 0.5f, 0}));
   const std::vector<glm::vec4>* h = cooked.colorIf("h");
   ASSERT_TRUE(h);
@@ -2889,4 +2889,589 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   ASSERT_TRUE(back.has_value());
   ASSERT_EQ(back->parts.size(), 1u);
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
+}
+
+namespace {
+
+std::vector<glm::vec3> flatRing(int n, float radius) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < n; ++i) {
+    const float a = (float)i / (float)n * 2.0f * (float)M_PI;
+    loop.push_back({radius * std::cos(a), 0, radius * std::sin(a)});
+  }
+  return loop;
+}
+
+}  // namespace
+
+TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
+  // A ring in the xz plane; a sphere selector around +x picks the points
+  // on that side and nowhere else; a masked Math then lifts ONLY those,
+  // and an unmasked point stays on the floor. Feather grades the edge.
+  const std::vector<glm::vec3> loop = flatRing(12, 200);
+  const pop::Chain chain = pop::on(loop)
+                               .count(400)
+                               .select("east", {200, 0, 0}, 120)
+                               .move({0, 50, 0})
+                               .masked("east");
+  const Cloud cooked = popops::cook(chain);
+  const std::vector<glm::vec4>* east = cooked.colorIf("east");
+  ASSERT_TRUE(east);
+  int lifted = 0, grounded = 0;
+  for (size_t i = 0; i < cooked.size(); ++i) {
+    const float sel = (*east)[i].x;
+    EXPECT_TRUE(sel == 0.0f || sel == 1.0f) << "hard edge selects 0/1";
+    if (sel == 1.0f) {
+      EXPECT_NEAR(cooked.positions[i].y, 50.0f, 1e-3f);
+      EXPECT_GT(cooked.positions[i].x, 80.0f);
+      ++lifted;
+    } else {
+      EXPECT_NEAR(cooked.positions[i].y, 0.0f, 1e-3f);
+      ++grounded;
+    }
+  }
+  EXPECT_GT(lifted, 40);
+  EXPECT_GT(grounded, 200);
+
+  // Feathered: values in between exist, and the blend is proportional.
+  const pop::Chain soft = pop::on(loop)
+                              .count(400)
+                              .select("east", {200, 0, 0}, 160, 0.6f)
+                              .move({0, 50, 0})
+                              .masked("east");
+  const Cloud softCooked = popops::cook(soft);
+  const std::vector<glm::vec4>* softEast = softCooked.colorIf("east");
+  ASSERT_TRUE(softEast);
+  int partial = 0;
+  for (size_t i = 0; i < softCooked.size(); ++i) {
+    const float sel = (*softEast)[i].x;
+    EXPECT_NEAR(softCooked.positions[i].y, 50.0f * sel, 1e-3f);
+    if (sel > 0.05f && sel < 0.95f) ++partial;
+  }
+  EXPECT_GT(partial, 10) << "the feather band must grade";
+
+  // Combine: a second box selector UNIONS the west side in.
+  pop::Chain both = chain;
+  both.insert(both.begin() + 2, pop::Select{"east",
+                                            pop::Select::Shape::Box,
+                                            {-200, 0, 0},
+                                            {120, 400, 120},
+                                            0,
+                                            false,
+                                            pop::Select::Combine::Union});
+  const Cloud unioned = popops::cook(both);
+  int liftedBoth = 0;
+  for (const glm::vec3& p : unioned.positions) liftedBoth += p.y > 25.0f;
+  EXPECT_GT(liftedBoth, lifted + 40);
+
+  // A mask naming a lane nothing wrote selects nobody.
+  const Cloud nobody =
+      popops::cook(pop::on(loop).count(50).move({0, 50, 0}).masked("ghost"));
+  for (const glm::vec3& p : nobody.positions) EXPECT_NEAR(p.y, 0.0f, 1e-4f);
+}
+
+TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
+  const std::vector<glm::vec3> loop = flatRing(12, 100);
+  // A pure translation on P is Math's move; a rotation is not, and Dir
+  // follows through orient() renormalized.
+  const glm::mat4 turn = space::place({0, 30, 0}, 90);
+  const Cloud a = popops::cook(pop::on(loop).count(60).affine(turn));
+  const Cloud b = popops::cook(pop::on(loop).count(60));
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i) {
+    const glm::vec4 expected = turn * glm::vec4(b.positions[i], 1.0f);
+    EXPECT_NEAR(a.positions[i].x, expected.x, 1e-3f);
+    EXPECT_NEAR(a.positions[i].y, expected.y, 1e-3f);
+    EXPECT_NEAR(a.positions[i].z, expected.z, 1e-3f);
+  }
+  const Cloud oriented =
+      popops::cook(pop::on(loop).count(60).orient(space::place({}, 90)));
+  const std::vector<glm::vec3>* dirA = oriented.vectorIf("dir");
+  const std::vector<glm::vec3>* dirB = b.vectorIf("dir");
+  ASSERT_TRUE(dirA && dirB);
+  for (size_t i = 0; i < 60; ++i) {
+    EXPECT_NEAR(glm::length((*dirA)[i]), 1.0f, 1e-4f);
+    // Yaw by 90 about +Y: (x, y, z) -> (z, y, -x).
+    EXPECT_NEAR((*dirA)[i].x, (*dirB)[i].z, 1e-3f);
+    EXPECT_NEAR((*dirA)[i].z, -(*dirB)[i].x, 1e-3f);
+  }
+
+  // Peak: on a loop scatter Dir is the tangent, so peaking slides every
+  // point along the ring by the same distance — the radius holds.
+  const Cloud peaked = popops::cook(pop::on(loop).count(60).peak(25));
+  for (size_t i = 0; i < 60; ++i) {
+    const float moved = glm::length(peaked.positions[i] - b.positions[i]);
+    EXPECT_NEAR(moved, 25.0f, 1e-3f);
+  }
+  // Peak along a custom zero lane moves nothing.
+  const Cloud still = popops::cook(pop::on(loop).count(60).peak(25, "nowhere"));
+  for (size_t i = 0; i < 60; ++i)
+    EXPECT_NEAR(glm::length(still.positions[i] - b.positions[i]), 0.0f, 1e-4f);
+}
+
+TEST(Pop, DeformersTwistTaperAndBend) {
+  // A vertical column: points along y from 0 to 200, all at x = 50.
+  std::vector<glm::vec3> loop = {
+      {50, 0, 0}, {50, 200, 0}, {50, 200, 1}, {50, 0, 1}};
+  const auto column = [&] {
+    return pop::on(loop).count(200).window(0.5f, 0.5f);
+  };
+  const Cloud base = popops::cook(column());
+
+  // Twist 180 degrees over 0..200: a point at the top lands at x = -50.
+  const Cloud twisted = popops::cook(column().twist(180, {0, 1, 0}, 0, 200));
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = base.positions[i];
+    const glm::vec3& p1 = twisted.positions[i];
+    EXPECT_NEAR(p1.y, p0.y, 1e-3f);
+    EXPECT_NEAR(glm::length(glm::vec2{p1.x, p1.z}),
+                glm::length(glm::vec2{p0.x, p0.z}), 1e-3f)
+        << "twist preserves the radius";
+    const float u = std::clamp(p0.y / 200.0f, 0.0f, 1.0f);
+    const float ang = (float)M_PI * u;
+    // Rodrigues about +Y: x' = x cos + z sin.
+    EXPECT_NEAR(p1.x, p0.x * std::cos(ang) + p0.z * std::sin(ang), 1e-2f);
+  }
+
+  // Taper to 0.2 at the top: the radius shrinks linearly.
+  const Cloud tapered = popops::cook(column().taper(0.2f, {0, 1, 0}, 0, 200));
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = base.positions[i];
+    const glm::vec3& p1 = tapered.positions[i];
+    const float u = std::clamp(p0.y / 200.0f, 0.0f, 1.0f);
+    EXPECT_NEAR(p1.x, p0.x * (1.0f + (0.2f - 1.0f) * u), 1e-2f);
+    EXPECT_NEAR(p1.y, p0.y, 1e-3f);
+  }
+
+  // Bend 90 degrees toward +x over 0..200: the band's centreline
+  // becomes a quarter circle of radius 200 * 2 / pi; the top of the
+  // column ends up pointing along +x, at height R and x = R + offset
+  // adjustment. Arc length is preserved for the x = 0 fibre.
+  const std::vector<glm::vec3> spine = {
+      {0, 0, 0}, {0, 200, 0}, {0, 200, 1}, {0, 0, 1}};
+  const Cloud bent = popops::cook(pop::on(spine)
+                                      .count(200)
+                                      .window(0.5f, 0.5f)
+                                      .bend(90, {0, 1, 0}, {1, 0, 0}, 0, 200));
+  const Cloud spineBase =
+      popops::cook(pop::on(spine).count(200).window(0.5f, 0.5f));
+  const float R = 200.0f / ((float)M_PI * 0.5f);
+  for (size_t i = 0; i < 200; ++i) {
+    const glm::vec3& p0 = spineBase.positions[i];
+    const glm::vec3& p1 = bent.positions[i];
+    // The spline overshoots its control points a little at both ends;
+    // points outside the band ride the end tangents rigidly, so only
+    // the band itself is on the arc.
+    if (p0.y < 0.0f || p0.y > 200.0f) continue;
+    const float theta = p0.y / R;
+    EXPECT_NEAR(p1.y, R * std::sin(theta), 1e-2f);
+    EXPECT_NEAR(p1.x, R - R * std::cos(theta), 1e-2f);
+    // Distance from the arc centre (x = R, y = 0) is R everywhere.
+    EXPECT_NEAR(std::hypot(p1.x - R, p1.y), R, 1e-2f);
+  }
+  // Amount 0 is the identity.
+  const Cloud unbent = popops::cook(
+      pop::on(spine).count(200).window(0.5f, 0.5f).bend(0, {0, 1, 0}));
+  for (size_t i = 0; i < 200; ++i)
+    EXPECT_NEAR(glm::length(unbent.positions[i] - spineBase.positions[i]), 0.0f,
+                1e-4f);
+}
+
+TEST(Pop, MixBlendsCopiesAndFadesByALane) {
+  const std::vector<glm::vec3> loop = flatRing(8, 100);
+  const pop::Chain chain = pop::on(loop)
+                               .count(40)
+                               .fill("a", {1, 0, 0, 1})
+                               .fill("b", {0, 0, 1, 1})
+                               .mix("a", "b", "half", 0.5f)
+                               .copy("a", "again")
+                               .mixBy("a", "b", "byT", "T");
+  const Cloud cooked = popops::cook(chain);
+  const std::vector<glm::vec4>* half = cooked.colorIf("half");
+  const std::vector<glm::vec4>* again = cooked.colorIf("again");
+  const std::vector<glm::vec4>* byT = cooked.colorIf("byT");
+  const std::vector<float>* t = cooked.scalarIf("t");
+  ASSERT_TRUE(half && again && byT && t);
+  for (size_t i = 0; i < 40; ++i) {
+    EXPECT_NEAR((*half)[i].r, 0.5f, 1e-5f);
+    EXPECT_NEAR((*half)[i].b, 0.5f, 1e-5f);
+    EXPECT_NEAR((*again)[i].r, 1.0f, 1e-5f);
+    EXPECT_NEAR((*byT)[i].b, (*t)[i], 1e-5f);
+    EXPECT_NEAR((*byT)[i].r, 1.0f - (*t)[i], 1e-5f);
+  }
+}
+
+TEST(Import, HoudiniGeoPolygonsUnweldWithVertexAndPrimitiveClasses) {
+  // A quad and a triangle over five points, written the way Houdini
+  // saves ASCII .geo: alternating key/value arrays, paged attribute
+  // storage for P, a plain tuple list for a point N, a VERTEX uv (which
+  // outranks any point uv), a primitive Cd, a point group and a
+  // primitive group. Points 0-3 are the quad (y = 0 and y = 100),
+  // point 4 sits above and forms a triangle with points 2 and 3.
+  const char* geo = R"([
+    "fileversion","20.5.278",
+    "hasindex",false,
+    "pointcount",5,
+    "vertexcount",7,
+    "primitivecount",2,
+    "info",{"software":"Houdini 20.5.278"},
+    "topology",["pointref",["indices",[0,1,2,3,3,2,4]]],
+    "attributes",[
+      "vertexattributes",[
+        [
+          ["scope","public","type","numeric","name","uv","options",{}],
+          ["size",3,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[0]],
+           "values",["size",3,"storage","fpreal32","tuples",
+             [[0,0,0],[1,0,0],[1,1,0],[0,1,0],[0,1,0],[1,1,0],[0.5,1,0]]]]
+        ]
+      ],
+      "pointattributes",[
+        [
+          ["scope","public","type","numeric","name","P","options",{"type":{"type":"string","value":"point"}}],
+          ["size",3,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[0]],
+           "values",["size",3,"storage","fpreal32","packing",[3],"pagesize",1024,
+             "constantpageflags",[[false]],
+             "rawpagedata",[0,0,0, 100,0,0, 100,100,0, 0,100,0, 50,180,0]]]
+        ],
+        [
+          ["scope","public","type","numeric","name","N","options",{"type":{"type":"string","value":"normal"}}],
+          ["size",3,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[0]],
+           "values",["size",3,"storage","fpreal32","tuples",
+             [[0,0,1],[0,0,1],[0,0,1],[0,0,1],[0,0,1]]]]
+        ],
+        [
+          ["scope","public","type","numeric","name","pscale","options",{}],
+          ["size",1,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[1]],
+           "values",["size",1,"storage","fpreal32","arrays",[[1,2,3,4,5]]]]
+        ]
+      ],
+      "primitiveattributes",[
+        [
+          ["scope","public","type","numeric","name","Cd","options",{"type":{"type":"string","value":"color"}}],
+          ["size",3,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[1]],
+           "values",["size",3,"storage","fpreal32","tuples",[[1,0,0],[0,0,1]]]]
+        ]
+      ],
+      "globalattributes",[
+        [
+          ["scope","public","type","numeric","name","frame","options",{}],
+          ["size",1,"storage","fpreal32","defaults",["size",1,"storage","fpreal64","values",[0]],
+           "values",["size",1,"storage","fpreal32","arrays",[[12]]]]
+        ]
+      ]
+    ],
+    "primitives",[
+      [["type","Polygon"],["vertex",[0,1,2,3],"closed",true]],
+      [["type","Polygon"],["vertex",[4,5,6],"closed",true]]
+    ],
+    "pointgroups",[
+      [["name","top"],["selection",["unordered",["boolRLE",[2,false,2,true,1,true]]]]]
+    ],
+    "primitivegroups",[
+      [["name","front"],["selection",["unordered",["i8",[1,0]]]]]
+    ]
+  ])";
+  const std::optional<import::Model> model =
+      import::model(geo, std::strlen(geo), "scene.geo");
+  ASSERT_TRUE(model);
+  ASSERT_EQ(model->parts.size(), 1u);
+  const import::Part& part = model->parts.front();
+  const Mesh& mesh = part.mesh;
+  // Unwelded: 4 + 3 vertices; the quad fans into two triangles.
+  EXPECT_EQ(mesh.vertexCount(), 7u);
+  EXPECT_EQ(mesh.triangleCount(), 3u);
+  EXPECT_EQ(mesh.positions[2].x, 100.0f);
+  EXPECT_EQ(mesh.positions[2].y, 100.0f);
+  EXPECT_EQ(mesh.positions[6].y, 180.0f);  // vertex 6 -> point 4
+  ASSERT_EQ(mesh.normals.size(), 7u);
+  EXPECT_FLOAT_EQ(mesh.normals[0].z, 1.0f);
+  ASSERT_EQ(mesh.uvs.size(), 7u);
+  // Vertex uv, v flipped to the top-left convention.
+  EXPECT_FLOAT_EQ(mesh.uvs[2].x, 1.0f);
+  EXPECT_FLOAT_EQ(mesh.uvs[2].y, 0.0f);
+  EXPECT_FLOAT_EQ(mesh.uvs[6].x, 0.5f);
+  // Primitive Cd -> the "Color" prim lane, replicated over the fan.
+  const std::vector<glm::vec4>* color = mesh.primIf("Color");
+  ASSERT_TRUE(color);
+  ASSERT_EQ(color->size(), 3u);
+  EXPECT_FLOAT_EQ((*color)[0].r, 1.0f);
+  EXPECT_FLOAT_EQ((*color)[1].r, 1.0f);
+  EXPECT_FLOAT_EQ((*color)[2].b, 1.0f);
+  // Primitive group -> a 0/1 prim lane.
+  const std::vector<glm::vec4>* front = mesh.primIf("front");
+  ASSERT_TRUE(front);
+  EXPECT_FLOAT_EQ((*front)[0].x, 1.0f);
+  EXPECT_FLOAT_EQ((*front)[1].x, 1.0f);
+  EXPECT_FLOAT_EQ((*front)[2].x, 0.0f);
+  // Point attributes ride to the Part through the owning point;
+  // point groups are 0/1 scalar lanes.
+  const auto pscale = part.scalarLanes.find("pscale");
+  ASSERT_NE(pscale, part.scalarLanes.end());
+  ASSERT_EQ(pscale->second.size(), 7u);
+  EXPECT_FLOAT_EQ(pscale->second[6], 5.0f);
+  const auto top = part.scalarLanes.find("top");
+  ASSERT_NE(top, part.scalarLanes.end());
+  EXPECT_FLOAT_EQ(top->second[0], 0.0f);
+  EXPECT_FLOAT_EQ(top->second[2], 1.0f);
+  EXPECT_FLOAT_EQ(top->second[6], 1.0f);
+  // Sniffed without an extension too.
+  EXPECT_TRUE(import::model(geo, std::strlen(geo), ""));
+  // ...and it feeds the pop system through asCloud like any import.
+  const Cloud cloud = part.asCloud();
+  EXPECT_EQ(cloud.size(), 7u);
+  EXPECT_TRUE(cloud.scalarIf("top"));
+}
+
+TEST(Import, HoudiniGeoPointsBecomeAHonestCloud) {
+  // No primitives: a particle-style file. P in a paged layout whose
+  // second page is CONSTANT (every point on it shares one tuple), an
+  // int id, a float4 orient, a string name (kept out of the lanes), and
+  // a Cd point colour that lands on the mesh colour lane.
+  const char* geo = R"([
+    "fileversion","20.5.278",
+    "pointcount",6,
+    "vertexcount",0,
+    "primitivecount",0,
+    "topology",["pointref",["indices",[]]],
+    "attributes",[
+      "pointattributes",[
+        [
+          ["scope","public","type","numeric","name","P","options",{}],
+          ["size",3,"storage","fpreal32",
+           "values",["size",3,"storage","fpreal32","packing",[3],"pagesize",4,
+             "constantpageflags",[[false,true]],
+             "rawpagedata",[0,0,0, 1,0,0, 2,0,0, 3,0,0,  9,9,9]]]
+        ],
+        [
+          ["scope","public","type","numeric","name","id","options",{}],
+          ["size",1,"storage","int32",
+           "values",["size",1,"storage","int32","arrays",[[10,11,12,13,14,15]]]]
+        ],
+        [
+          ["scope","public","type","numeric","name","orient","options",{}],
+          ["size",4,"storage","fpreal32",
+           "values",["size",4,"storage","fpreal32","tuples",
+             [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]]]
+        ],
+        [
+          ["scope","public","type","numeric","name","Cd","options",{}],
+          ["size",3,"storage","fpreal32",
+           "values",["size",3,"storage","fpreal32","packing",[1,1,1],"pagesize",8,
+             "constantpageflags",[[true],[true],[false]],
+             "rawpagedata",[0.5, 0.25, 0,0.2,0.4,0.6,0.8,1.0]]]
+        ],
+        [
+          ["scope","public","type","string","name","name","options",{}],
+          ["size",1,"storage","int32","strings",["a","b"],
+           "indices",["size",1,"storage","int32","arrays",[[0,1,0,1,0,1]]]]
+        ]
+      ]
+    ],
+    "primitives",[]
+  ])";
+  const std::optional<import::Model> model =
+      import::model(geo, std::strlen(geo), "particles.geo");
+  ASSERT_TRUE(model);
+  const import::Part& part = model->parts.front();
+  const Mesh& mesh = part.mesh;
+  EXPECT_EQ(mesh.vertexCount(), 6u);
+  EXPECT_EQ(mesh.triangleCount(), 0u);
+  EXPECT_FLOAT_EQ(mesh.positions[3].x, 3.0f);
+  // The constant page: points 4 and 5 both read the one tuple.
+  EXPECT_FLOAT_EQ(mesh.positions[4].x, 9.0f);
+  EXPECT_FLOAT_EQ(mesh.positions[5].z, 9.0f);
+  // Split packing [1,1,1]: R and G constant pages, B a full page.
+  ASSERT_EQ(mesh.colors.size(), 6u);
+  EXPECT_FLOAT_EQ(mesh.colors[0].r, 0.5f);
+  EXPECT_FLOAT_EQ(mesh.colors[5].g, 0.25f);
+  EXPECT_FLOAT_EQ(mesh.colors[2].b, 0.4f);
+  EXPECT_FLOAT_EQ(mesh.colors[5].b, 1.0f);
+  const auto id = part.scalarLanes.find("id");
+  ASSERT_NE(id, part.scalarLanes.end());
+  EXPECT_FLOAT_EQ(id->second[5], 15.0f);
+  const auto orient = part.colorLanes.find("orient");
+  ASSERT_NE(orient, part.colorLanes.end());
+  EXPECT_FLOAT_EQ(orient->second[0].w, 1.0f);
+  EXPECT_EQ(part.scalarLanes.count("name"), 0u);
+  const Cloud cloud = part.asCloud();
+  EXPECT_EQ(cloud.size(), 6u);
+  EXPECT_TRUE(cloud.colorIf("tint"));
+  EXPECT_TRUE(cloud.scalarIf("id"));
+}
+
+TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
+  // A cloud with the conventional lanes and a custom one (a Houdini
+  // group, say) enters a chain as-is: positions become P, "size" Scale,
+  // "tint" Color, "normal" Dir, and "top" a custom attribute — usable
+  // straight away as a mask. Filters then run over it like any chain.
+  Cloud given;
+  for (int i = 0; i < 40; ++i) {
+    given.positions.push_back({(float)i * 10, i % 2 ? 100.0f : 0.0f, 0});
+  }
+  std::vector<float>& size = given.scalar("size", 1);
+  std::vector<glm::vec4>& tint = given.color("tint");
+  std::vector<glm::vec3>& normal = given.vector("normal");
+  std::vector<float>& top = given.scalar("top");
+  for (int i = 0; i < 40; ++i) {
+    size[(size_t)i] = 2.0f + (float)(i % 3);
+    tint[(size_t)i] = {1, 0, 0, 1};
+    normal[(size_t)i] = {0, 1, 0};
+    top[(size_t)i] = i % 2 ? 1.0f : 0.0f;
+  }
+  const pop::Chain chain = pop::on(given)
+                               .move({0, 0, 50})
+                               .masked("top")
+                               .peak(5)
+                               .fade({0, 1, 0, 1}, {0, 1, 0, 1});
+  const Cloud cooked = popops::cook(chain);
+  ASSERT_EQ(cooked.size(), 40u);
+  const std::vector<float>* outSize = cooked.scalarIf("size");
+  const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
+  const std::vector<glm::vec4>* outTint = cooked.colorIf("tint");
+  const std::vector<glm::vec4>* outTop = cooked.colorIf("top");
+  ASSERT_TRUE(outSize && dir && outTint && outTop);
+  for (size_t i = 0; i < 40; ++i) {
+    // The mask came in with the cloud: only odd points moved in z.
+    EXPECT_NEAR(cooked.positions[i].z, (i % 2 ? 50.0f : 0.0f), 1e-4f) << i;
+    // Peak rides Dir, seeded from "normal": +5 in y for everyone.
+    EXPECT_NEAR(cooked.positions[i].y, (i % 2 ? 105.0f : 5.0f), 1e-4f) << i;
+    EXPECT_FLOAT_EQ((*outSize)[i], 2.0f + (float)(i % 3));
+    EXPECT_FLOAT_EQ((*outTint)[i].g, 1.0f);  // recoloured by the fade
+    EXPECT_FLOAT_EQ((*outTop)[i].x, i % 2 ? 1.0f : 0.0f);
+    EXPECT_FLOAT_EQ((*dir)[i].y, 1.0f);
+  }
+  // count() and window() are inert on a point set: the count is the
+  // cloud's.
+  EXPECT_EQ(popops::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(),
+            40u);
+  // The layout the GPU executor uploads is the same function.
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
+  popops::seedAttrs(given, lanes);
+  EXPECT_EQ(lanes.count("P"), 1u);
+  EXPECT_EQ(lanes.count("Scale"), 1u);
+  EXPECT_EQ(lanes.count("top"), 1u);
+  EXPECT_EQ(lanes.count("size"), 0u);
+  const std::vector<std::string> customs = popops::seedCustomNames(given);
+  ASSERT_EQ(customs.size(), 1u);
+  EXPECT_EQ(customs[0], "top");
+}
+
+TEST(Import, GltfCarriesTheWholeMaterial) {
+  // The fetched Khronos Avocado (skipped when the asset is absent):
+  // base colour, a normal map and a packed metallicRoughness image,
+  // with the occlusion slot naming the same bytes as the pack.
+  const std::filesystem::path glb = "assets/models/Avocado.glb";
+  std::filesystem::path found;
+  for (const std::filesystem::path candidate :
+       {glb, std::filesystem::path("build") / glb,
+        std::filesystem::path("../build") / glb,
+        std::filesystem::path("../../build") / glb})
+    if (std::filesystem::exists(candidate)) found = candidate;
+  if (found.empty()) GTEST_SKIP() << "Avocado.glb not fetched";
+  const std::optional<import::Model> model = import::model(found);
+  ASSERT_TRUE(model);
+  ASSERT_FALSE(model->parts.empty());
+  const import::Part& part = model->parts.front();
+  EXPECT_FALSE(part.textureBytes.empty());
+  ASSERT_TRUE(part.textures.count("normal"));
+  ASSERT_TRUE(part.textures.count("orm"));
+  EXPECT_FALSE(part.textures.at("normal").bytes.empty());
+  EXPECT_FALSE(part.textures.at("orm").bytes.empty());
+  EXPECT_FLOAT_EQ(part.metallic, 1.0f);
+  EXPECT_FLOAT_EQ(part.roughness, 1.0f);
+  if (part.textures.count("occlusion"))
+    EXPECT_EQ(part.textures.at("occlusion").bytes,
+              part.textures.at("orm").bytes)
+        << "the Avocado packs occlusion into the same image";
+}
+
+TEST(Pop, FieldsAreAddressableByName) {
+  // The dial door: any operator's numeric field by its own name, vector
+  // components dotted, enums and bools as numbers; a name the operator
+  // lacks is refused and leaves it untouched.
+  pop::Op twist = pop::Deform{};
+  EXPECT_TRUE(popops::setField(twist, "amount", 45.0f));
+  EXPECT_TRUE(popops::setField(twist, "origin.x", 12.0f));
+  EXPECT_TRUE(popops::setField(twist, "kind", (float)pop::Deform::Kind::Bend));
+  EXPECT_FALSE(popops::setField(twist, "wibble", 1.0f));
+  const auto& d = std::get<pop::Deform>(twist);
+  EXPECT_FLOAT_EQ(d.amount, 45.0f);
+  EXPECT_FLOAT_EQ(d.origin.x, 12.0f);
+  EXPECT_EQ(d.kind, pop::Deform::Kind::Bend);
+  EXPECT_FLOAT_EQ(*popops::getField(twist, "amount"), 45.0f);
+  EXPECT_FLOAT_EQ(*popops::getField(twist, "kind"), 2.0f);
+  EXPECT_FALSE(popops::getField(twist, "mask"));  // a string, not a dial
+
+  pop::Op group = pop::Select{};
+  EXPECT_TRUE(popops::setField(group, "center.y", 80.0f));
+  EXPECT_TRUE(popops::setField(group, "invert", 1.0f));
+  EXPECT_TRUE(
+      popops::setField(group, "combine", (float)pop::Select::Combine::Union));
+  const auto& g = std::get<pop::Select>(group);
+  EXPECT_FLOAT_EQ(g.center.y, 80.0f);
+  EXPECT_TRUE(g.invert);
+  EXPECT_EQ(g.combine, pop::Select::Combine::Union);
+
+  pop::Op ramp = pop::Ramp{};
+  EXPECT_TRUE(popops::setField(ramp, "to.g", 0.25f));  // colour spelling
+  EXPECT_FLOAT_EQ(std::get<pop::Ramp>(ramp).to.y, 0.25f);
+  EXPECT_FLOAT_EQ(*popops::getField(ramp, "to.y"), 0.25f);
+
+  pop::Op scatter = pop::SplineScatter{};
+  EXPECT_TRUE(popops::setField(scatter, "count", 250.7f));  // int truncates
+  EXPECT_EQ(std::get<pop::SplineScatter>(scatter).count, 250);
+  EXPECT_TRUE(popops::setField(scatter, "seed", 9.0f));
+  EXPECT_EQ(std::get<pop::SplineScatter>(scatter).seed, 9u);
+
+  // Operators without dials say no to everything.
+  pop::Op promote = pop::Promote{};
+  EXPECT_FALSE(popops::setField(promote, "to", 1.0f));
+  pop::Op given = pop::PointSet{};
+  EXPECT_FALSE(popops::getField(given, "count"));
+}
+
+TEST(Import, MaterialSlotsRideThePrimitiveClass) {
+  // A .geo with a string shop_materialpath per primitive lands as the
+  // "Material" prim lane by string-table index; the fetched Avocado (one
+  // material) names slot 0 and merged() keeps the lane.
+  const char* geo = R"([
+    "fileversion","20.5.278","pointcount",4,"vertexcount",6,"primitivecount",2,
+    "topology",["pointref",["indices",[0,1,2,0,2,3]]],
+    "attributes",["pointattributes",[
+      [["scope","public","type","numeric","name","P","options",{}],
+       ["size",3,"storage","fpreal32","values",["size",3,"storage","fpreal32",
+        "tuples",[[0,0,0],[1,0,0],[1,1,0],[0,1,0]]]]]],
+     "primitiveattributes",[
+      [["scope","public","type","string","name","shop_materialpath","options",{}],
+       ["size",1,"storage","int32","strings",["/mat/steel","/mat/glass"],
+        "indices",["size",1,"storage","int32","arrays",[[1,0]]]]]]],
+    "primitives",[[["type","Polygon"],["vertex",[0,1,2],"closed",true]],
+                  [["type","Polygon"],["vertex",[3,4,5],"closed",true]]]
+  ])";
+  const std::optional<import::Model> model =
+      import::model(geo, std::strlen(geo), "slots.geo");
+  ASSERT_TRUE(model);
+  const std::vector<glm::vec4>* lane =
+      model->parts.front().mesh.primIf("Material");
+  ASSERT_TRUE(lane);
+  ASSERT_EQ(lane->size(), 2u);
+  EXPECT_FLOAT_EQ((*lane)[0].x, 1.0f);  // "/mat/glass"
+  EXPECT_FLOAT_EQ((*lane)[1].x, 0.0f);  // "/mat/steel"
+
+  std::filesystem::path found;
+  for (const std::filesystem::path candidate :
+       {std::filesystem::path("assets/models/Avocado.glb"),
+        std::filesystem::path("build/assets/models/Avocado.glb"),
+        std::filesystem::path("../build/assets/models/Avocado.glb"),
+        std::filesystem::path("../../build/assets/models/Avocado.glb")})
+    if (std::filesystem::exists(candidate)) found = candidate;
+  if (found.empty()) return;  // the .geo half already stands
+  const std::optional<import::Model> avocado = import::model(found);
+  ASSERT_TRUE(avocado);
+  EXPECT_EQ(avocado->materialSlotCount(), 1);
+  EXPECT_EQ(avocado->parts.front().materialIndex, 0);
+  const Mesh merged = avocado->merged();
+  const std::vector<glm::vec4>* slots = merged.primIf("Material");
+  ASSERT_TRUE(slots);
+  EXPECT_EQ(slots->size(), merged.triangleCount());
 }

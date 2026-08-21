@@ -19,6 +19,10 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/compose/README.md` — data-driven drawable components
 - `src/common/shape/README.md` — higher-level drawing over Skia
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
+- `src/common/substance/README.md` — Substance `.sbsar` materials rendered
+  to images (needs the Adobe SDK; optional)
+- `src/common/usd/README.md` — the world's data written to and read from
+  USD (OpenUSD from vcpkg; optional)
 - `src/common/motion/README.md` — animation clock and animatable values
 - `src/common/image/README.md` — image decoding
 - `src/common/loader/README.md` — resource access: URIs, caching, reload
@@ -44,7 +48,8 @@ reader who has never opened any other document.
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
 - **No performance measurements.** Benchmarks own numbers — `compose_bench`,
-  `weave_bench`, `scry_bench`, and the plate ledger. A behavioral constant
+  `weave_bench`, `scry_bench`, `shape_bench`, `world_bench`, and the plate
+  ledger. A behavioral constant
   is different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
@@ -63,8 +68,14 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-`setup.py` discovers Qt 6.11+ and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`. Custom ports (`choreograph`, `skia`,
+`setup.py` discovers Qt 6.11+, vcpkg and (optionally) the Adobe Substance
+3D SDK, and writes the uncommitted `CMakeUserPresets.json`. Hand-installed
+SDKs live under `~/.local/opt/<name>/<version>/` (Qt and Substance both);
+without the Substance SDK the `SigilSubstance` targets are simply left
+out with a configure warning. OpenUSD comes from vcpkg's `usd` port; the project's overlay triplet
+(`cmake/triplets/arm64-osx.cmake`, wired through `CMakePresets.json`)
+builds oneTBB as a shared library, because USD's many dylibs each linking
+a static TBB deadlock on the first stage open. Custom ports (`choreograph`, `skia`,
 `diligent-engine`) come from the sigil-vcpkg-registry via
 `vcpkg-configuration.json` — **its `repository` currently points at a
 local checkout, `/Users/long/REI/sigil-vcpkg-registry`.** Update the URL

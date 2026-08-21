@@ -1,10 +1,10 @@
 #pragma once
 
 /** @file
- * SigilWorld easel — the artist surface for PLACING things in a World.
+ * SigilWorld easel — the artist's stage for PLACING things in a World.
  * SigilShape's easel (sigilshape/Easel.h) covers 2D marks; this one
  * covers the stage: a sun, an eye, registry lights, props, panels,
- * swarms — every call reads like a sentence, defaults are loud, and
+ * stamps, chains — every call reads like a sentence, defaults are loud, and
  * the whole description reconciles through the Scene layer on
  * commit().
  *
@@ -13,7 +13,9 @@
  *        .light({200, 300, 0}, cyan, 3)
  *        .place(mesh, gold).at({0, 0, 0}).turned(30).key("star")
  *        .panel(image, 380, 252).at({0, 60, 0}).key("hud")
- *        .swarm(cloud, quadStamp, glowMat).key("sparks")
+ *        .placeStamps(cloud, quadStamp, glowMat).key("sparks")
+ *        .points(pop::on(loop).count(9000).noise(18), quadStamp, glowMat)
+ *            .key("comet")
  *        .commit();
  *
  * at()/turned()/sized()/key() style the LAST declared placement — the
@@ -22,17 +24,20 @@
  * commit() reconciles against the previous commit and returns
  * scene::Scene::Stats: place()/panel() ride the Scene reconciler
  * (key-path identity; by-value meshes get content-hash identity, so
- * re-declaring the same mesh is a keep, not a re-upload), swarm() maps
- * to addInstanced/setInstances by key, light()/beam() to
- * LightComponent entities by declaration order. The description is
- * consumed by commit(): re-declare everything you want kept, and KEEP
- * the Stage alive across commits — a fresh Stage forgets what it
- * placed. sun()/sky()/look() are set-level state, applied on commit
- * only when you called them.
+ * re-declaring the same mesh is a keep, not a re-upload), placeStamps()
+ * maps to World::placeStamps/setStamps by key, placeChain() to
+ * placeChain/setChain by key (an unchanged chain is a keep; a changed one
+ * re-cooks, and World decides whether that is a parameter edit or a rebuild),
+ * light()/beam() to LightComponent entities by declaration order. The
+ * description is consumed by commit(): re-declare everything you want kept, and
+ * KEEP the Stage alive across commits — a fresh Stage forgets what it placed.
+ * sun()/sky()/look() are set-level state, applied on commit only when you
+ * called them.
  */
 
 #include <sigilshape/Mesh.h>
 #include <sigilshape/Points.h>
+#include <sigilshape/Pop.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -73,10 +78,10 @@ inline uint64_t fingerprint(const shape::Mesh& mesh) {
   return h;
 }
 
-/** Content identity for a swarm's points AS SEEN through its lanes —
+/** Content identity for a stamps prop's points AS SEEN through its lanes —
  *  an unchanged cloud skips the instance re-upload entirely. */
 inline uint64_t fingerprint(const shape::Cloud& cloud,
-                            const InstanceLanes& lanes) {
+                            const StampLanes& lanes) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, cloud.positions.data(),
                 cloud.positions.size() * sizeof(glm::vec3));
@@ -157,17 +162,17 @@ class Stage {
    *  commits and only transforms are ever touched. */
   Stage& place(std::shared_ptr<const shape::Mesh> mesh, Material material) {
     Placement p;
-    p.kind = Placement::Kind::Surface;
+    p.kind = Placement::Kind::Prop;
     p.mesh = std::move(mesh);
     p.material = std::move(material);
     m_pending.push_back(std::move(p));
     return *this;
   }
   /** A prop by value — content-hashed, so re-declaring the same mesh
-   *  keeps its surface; a changed mesh re-uploads. */
+   *  keeps its prop; a changed mesh re-uploads. */
   Stage& place(shape::Mesh mesh, Material material) {
     Placement p;
-    p.kind = Placement::Kind::Surface;
+    p.kind = Placement::Kind::Prop;
     p.fingerprint = detail::fingerprint(mesh);
     p.value = std::move(mesh);
     p.material = std::move(material);
@@ -185,17 +190,34 @@ class Stage {
     return *this;
   }
   /** @p stamp instanced at every point of @p cloud in ONE draw
-   *  (World::addInstanced). An unchanged cloud is a keep; a changed
-   *  one refreshes instances in place (setInstances). */
-  Stage& swarm(shape::Cloud cloud, shape::Mesh stamp, Material material,
-               InstanceLanes lanes = {}) {
+   *  (World::placeStamps). An unchanged cloud is a keep; a changed
+   *  one refreshes instances in place (setStamps). */
+  Stage& placeStamps(shape::Cloud cloud, shape::Mesh stamp, Material material,
+                     StampLanes lanes = {}) {
     Placement p;
-    p.kind = Placement::Kind::Swarm;
+    p.kind = Placement::Kind::Stamps;
     p.cloud = std::move(cloud);
     p.value = std::move(stamp);
     p.fingerprint = detail::fingerprint(p.value);
     p.material = std::move(material);
     p.lanes = std::move(lanes);
+    m_pending.push_back(std::move(p));
+    return *this;
+  }
+
+  /** A GPU-cooked point chain, @p stamp drawn at every cooked point
+   *  (World::placeChain). The chain is compared by value on the next
+   *  commit: unchanged is a keep, changed goes to setChain — the
+   *  window slide, the deformer amount, the mask, whatever moved. A
+   *  chain the GPU executor declines is not placed at all. */
+  Stage& placeChain(shape::pop::Chain chain, shape::Mesh stamp,
+                    Material material) {
+    Placement p;
+    p.kind = Placement::Kind::Chain;
+    p.chain = std::move(chain);
+    p.value = std::move(stamp);
+    p.fingerprint = detail::fingerprint(p.value);
+    p.material = std::move(material);
     m_pending.push_back(std::move(p));
     return *this;
   }
@@ -227,8 +249,8 @@ class Stage {
   // -- the reconcile --------------------------------------------------------
 
   /** Apply pending sun/sky/look, then reconcile lights, placements,
-   *  and swarms against the previous commit. Returns the merged Stats
-   *  (lights and swarms count in the same added/removed/moved/kept
+   *  stamps and chains against the previous commit. Returns the merged Stats
+   *  (lights, stamps and chains count in the same added/removed/moved/kept
    *  vocabulary). Consumes the description — re-declare next frame. */
   scene::Scene::Stats commit() {
     if (m_lightingDirty) {
@@ -248,11 +270,12 @@ class Stage {
     scene::Node root = scene::group().key("easel");
     int childIndex = 0;
     for (Placement& p : m_pending) {
-      if (p.kind == Placement::Kind::Swarm) continue;
+      if (p.kind == Placement::Kind::Stamps || p.kind == Placement::Kind::Chain)
+        continue;
       scene::Node node =
           p.kind == Placement::Kind::Panel
               ? scene::panel(p.image, p.width, p.height)
-              : scene::surface(resolveMesh(p, childIndex), p.material);
+              : scene::place(resolveMesh(p, childIndex), p.material);
       node.key(p.key)
           .at(p.position)
           .rotated(p.yawDeg, p.pitchDeg, p.rollDeg)
@@ -266,18 +289,21 @@ class Stage {
     stats.moved += sceneStats.moved;
     stats.kept += sceneStats.kept;
 
-    reconcileSwarms(stats);
+    reconcileStamps(stats);
+    reconcilePoints(stats);
 
     m_pending.clear();
     m_pendingLights.clear();
     return stats;
   }
 
-  /** Forget everything the stage placed (surfaces, swarms, lights). */
+  /** Forget everything the stage placed (props, stamps, chains, lights). */
   void clear() {
     m_scene.clear();
-    for (auto& [key, entry] : m_swarms) m_world.removeSurface(entry.id);
-    m_swarms.clear();
+    for (auto& [key, entry] : m_stamps) m_world.remove(entry.id);
+    m_stamps.clear();
+    for (auto& [key, entry] : m_points) m_world.remove(entry.id);
+    m_points.clear();
     for (uint32_t id : m_lightIds)
       if (m_world.registry().valid(entity(id)))
         m_world.registry().destroy(entity(id));
@@ -289,29 +315,38 @@ class Stage {
 
  private:
   struct Placement {
-    enum class Kind : uint8_t { Surface, Panel, Swarm };
-    Kind kind = Kind::Surface;
+    enum class Kind : uint8_t { Prop, Panel, Stamps, Chain };
+    Kind kind = Kind::Prop;
     std::string key;
     glm::vec3 position = {0, 0, 0};
     float yawDeg = 0, pitchDeg = 0, rollDeg = 0;
     float scale = 1;
-    std::shared_ptr<const shape::Mesh> mesh;  // Surface, shared identity
-    shape::Mesh value;                        // Surface by value / Swarm stamp
+    std::shared_ptr<const shape::Mesh> mesh;  // Prop, shared identity
+    shape::Mesh value;                        // Prop by value / stamp
     uint64_t fingerprint = 0;
     Material material;
     sk_sp<SkImage> image;  // Panel
     float width = 0, height = 0;
-    shape::Cloud cloud;   // Swarm
-    InstanceLanes lanes;  // Swarm
+    shape::Cloud cloud;       // Stamps
+    StampLanes lanes;         // Stamps
+    shape::pop::Chain chain;  // Points
   };
   struct CachedMesh {
     uint64_t fingerprint = 0;
     std::shared_ptr<const shape::Mesh> mesh;
   };
-  struct SwarmEntry {
+  struct StampsEntry {
     uint32_t id = 0;
     uint64_t stampFingerprint = 0;
     uint64_t cloudFingerprint = 0;
+    Material material;
+    glm::mat4 world{1.0f};
+    bool visited = false;
+  };
+  struct PointsEntry {
+    uint32_t id = 0;
+    uint64_t stampFingerprint = 0;
+    shape::pop::Chain chain;
     Material material;
     glm::mat4 world{1.0f};
     bool visited = false;
@@ -363,15 +398,15 @@ class Stage {
     }
   }
 
-  void reconcileSwarms(scene::Scene::Stats& stats) {
-    for (auto& [key, entry] : m_swarms) entry.visited = false;
+  void reconcileStamps(scene::Scene::Stats& stats) {
+    for (auto& [key, entry] : m_stamps) entry.visited = false;
 
-    int swarmIndex = 0;
+    int stampsIndex = 0;
     for (Placement& p : m_pending) {
-      if (p.kind != Placement::Kind::Swarm) continue;
+      if (p.kind != Placement::Kind::Stamps) continue;
       const std::string key =
-          p.key.empty() ? "~#" + std::to_string(swarmIndex) : p.key;
-      ++swarmIndex;
+          p.key.empty() ? "~#" + std::to_string(stampsIndex) : p.key;
+      ++stampsIndex;
       const uint64_t cloudFp = detail::fingerprint(p.cloud, p.lanes);
       const glm::mat4 world = scene::group()
                                   .at(p.position)
@@ -379,15 +414,15 @@ class Stage {
                                   .scaled(p.scale)
                                   .localMatrix();
 
-      auto it = m_swarms.find(key);
-      if (it != m_swarms.end() &&
+      auto it = m_stamps.find(key);
+      if (it != m_stamps.end() &&
           it->second.stampFingerprint == p.fingerprint &&
           it->second.material == p.material) {
-        SwarmEntry& entry = it->second;
+        StampsEntry& entry = it->second;
         entry.visited = true;
         bool touched = false;
         if (entry.cloudFingerprint != cloudFp) {
-          m_world.setInstances(entry.id, p.cloud, p.lanes);
+          m_world.setStamps(entry.id, p.cloud, p.lanes);
           entry.cloudFingerprint = cloudFp;
           touched = true;
         }
@@ -399,13 +434,13 @@ class Stage {
         touched ? ++stats.moved : ++stats.kept;
         continue;
       }
-      if (it != m_swarms.end()) {  // stamp or material changed: rebuild
-        m_world.removeSurface(it->second.id);
-        m_swarms.erase(it);
+      if (it != m_stamps.end()) {  // stamp or material changed: rebuild
+        m_world.remove(it->second.id);
+        m_stamps.erase(it);
         ++stats.removed;
       }
-      SwarmEntry entry;
-      entry.id = m_world.addInstanced(p.value, p.cloud, p.material, p.lanes);
+      StampsEntry entry;
+      entry.id = m_world.placeStamps(p.value, p.cloud, p.material, p.lanes);
       if (entry.id == 0) continue;
       m_world.setTransform(entry.id, world);
       entry.stampFingerprint = p.fingerprint;
@@ -413,14 +448,77 @@ class Stage {
       entry.material = p.material;
       entry.world = world;
       entry.visited = true;
-      m_swarms.emplace(key, std::move(entry));
+      m_stamps.emplace(key, std::move(entry));
       ++stats.added;
     }
 
-    for (auto it = m_swarms.begin(); it != m_swarms.end();) {
+    for (auto it = m_stamps.begin(); it != m_stamps.end();) {
       if (!it->second.visited) {
-        m_world.removeSurface(it->second.id);
-        it = m_swarms.erase(it);
+        m_world.remove(it->second.id);
+        it = m_stamps.erase(it);
+        ++stats.removed;
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  void reconcilePoints(scene::Scene::Stats& stats) {
+    for (auto& [key, entry] : m_points) entry.visited = false;
+
+    int index = 0;
+    for (Placement& p : m_pending) {
+      if (p.kind != Placement::Kind::Chain) continue;
+      const std::string key =
+          p.key.empty() ? "~pop#" + std::to_string(index) : p.key;
+      ++index;
+      const glm::mat4 world = scene::group()
+                                  .at(p.position)
+                                  .rotated(p.yawDeg, p.pitchDeg, p.rollDeg)
+                                  .scaled(p.scale)
+                                  .localMatrix();
+      auto it = m_points.find(key);
+      if (it != m_points.end() &&
+          it->second.stampFingerprint == p.fingerprint &&
+          it->second.material == p.material) {
+        PointsEntry& entry = it->second;
+        entry.visited = true;
+        bool touched = false;
+        if (!(entry.chain == p.chain)) {
+          m_world.setChain(entry.id, p.chain);
+          entry.chain = p.chain;
+          touched = true;
+        }
+        if (!(entry.world == world)) {
+          m_world.setTransform(entry.id, world);
+          entry.world = world;
+          touched = true;
+        }
+        touched ? ++stats.moved : ++stats.kept;
+        continue;
+      }
+      if (it != m_points.end()) {  // stamp or material changed: rebuild
+        m_world.remove(it->second.id);
+        m_points.erase(it);
+        ++stats.removed;
+      }
+      PointsEntry entry;
+      entry.id = m_world.placeChain(p.value, p.chain, p.material);
+      if (entry.id == 0) continue;  // declined by the executor
+      m_world.setTransform(entry.id, world);
+      entry.stampFingerprint = p.fingerprint;
+      entry.chain = p.chain;
+      entry.material = p.material;
+      entry.world = world;
+      entry.visited = true;
+      m_points.emplace(key, std::move(entry));
+      ++stats.added;
+    }
+
+    for (auto it = m_points.begin(); it != m_points.end();) {
+      if (!it->second.visited) {
+        m_world.remove(it->second.id);
+        it = m_points.erase(it);
         ++stats.removed;
       } else {
         ++it;
@@ -438,7 +536,8 @@ class Stage {
   std::vector<LightComponent> m_pendingLights;
   std::vector<uint32_t> m_lightIds;
   std::map<std::string, CachedMesh> m_meshes;
-  std::map<std::string, SwarmEntry> m_swarms;
+  std::map<std::string, StampsEntry> m_stamps;
+  std::map<std::string, PointsEntry> m_points;
 };
 
 inline Stage stage(World& world) { return Stage(world); }

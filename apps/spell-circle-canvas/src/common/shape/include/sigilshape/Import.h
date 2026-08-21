@@ -3,7 +3,7 @@
 /** @file
  * SigilShape model import — files into the Mesh currency.
  *
- * Five formats cover the practical interchange world:
+ * Six formats cover the practical interchange world:
  *  - Wavefront OBJ (+ MTL): the classic text workhorse (tinyobjloader);
  *  - glTF 2.0, .gltf and .glb: the modern standard (cgltf) — node
  *    transforms baked, base-color material honored, buffers reachable
@@ -14,12 +14,19 @@
  *    every FACE property a primitive lane on Mesh::prims, and
  *    faceless files are honest point clouds;
  *  - Alembic, .abc Ogawa: the vfx cache — meshes and point clouds at
- *    a chosen time, arbGeomParams as lanes (Alembic library).
+ *    a chosen time, arbGeomParams as lanes (Alembic library);
+ *  - Houdini .geo (JSON): the SOP network's own save — polygons
+ *    unwelded so vertex-class uv and N survive, point attributes as
+ *    lanes, primitive attributes on Mesh::prims, point and primitive
+ *    GROUPS as 0/1 lanes under the group's name (a pop mask, ready
+ *    made), and a primitive-less file as a point cloud (parsed by
+ *    hand; the binary .bgeo and blosc .sc variants are not read).
  *
  * ATTRIBUTES flow through: glTF's custom _NAME accessors (what Blender
- * and Houdini exporters write) and PLY's extra properties land on the
- * Part as named lanes, and asCloud() pours a part into a shape::Cloud
- * — scatter in Houdini, cook in pops, stamp with points:: here.
+ * and Houdini exporters write), PLY's extra properties and .geo's
+ * point class land on the Part as named lanes, and asCloud() pours a
+ * part into a shape::Cloud — scatter in Houdini, cook in pops, stamp
+ * with points:: here.
  *
  * Import stays ACCESS-agnostic: bytes in, Model out. External
  * references (.mtl libraries, .bin buffers, texture files) are pulled
@@ -63,6 +70,39 @@ struct Part {
   /** The texture's ENCODED bytes when reachable — embedded in the file
    *  or pulled through the resolver. Decode via SigilImage. */
   std::vector<std::byte> textureBytes;
+
+  /** The rest of a metallic-roughness material, as glTF carries it:
+   *  the scalar factors, and the other maps keyed by USAGE word —
+   *  "normal" (OpenGL convention, green up the image), "orm" (glTF's
+   *  metallicRoughness image: roughness in G, metallic in B, and by
+   *  convention occlusion in R), "occlusion" (its own image, or the
+   *  same bytes as "orm" when the file packs them), "emissive". Each
+   *  entry holds the encoded bytes when reachable and the URI as the
+   *  file spells it. Formats without a material model leave this
+   *  empty. These are the words SigilWorld's texture-set door reads. */
+  struct TextureRef {
+    std::string uri;
+    std::vector<std::byte> bytes;
+  };
+  std::map<std::string, TextureRef> textures;
+  float metallic = 1;   ///< glTF's factor default; multiplies the map
+  float roughness = 1;  ///< likewise
+  glm::vec4 emissive = {0, 0, 0, 1};
+  /** glTF's transmission and index of refraction extensions (0 and 1.5
+   *  when absent), and its alpha mode: `alphaCutoff` above 0 is MASK
+   *  (cut out below it), 0 with a base alpha or texture alpha is
+   *  BLEND, and `opaque` says the file declared OPAQUE regardless. */
+  float transmission = 0;
+  float ior = 1.5f;
+  float alphaCutoff = 0;
+  bool opaque = true;
+  /** The file's material SLOT this part wears (glTF: the material's
+   *  index in the file; -1 when the part names none). The same number
+   *  is written across the part's `mesh.prims["Material"]` lane, so a
+   *  merged model keeps per-triangle slots. Houdini's `.geo` writes the
+   *  lane from `shop_materialpath` (its string table's index) and
+   *  leaves this -1. */
+  int materialIndex = -1;
 
   /** Custom per-vertex attributes — the Houdini/Blender lanes glTF
    *  spells as _NAME accessors and PLY as extra properties. Names
@@ -117,6 +157,11 @@ struct Model {
   /** Every part's asCloud() appended into one Cloud (shared lanes
    *  concatenate, missing ones pad with defaults). */
   Cloud mergedCloud() const;
+
+  /** How many material slots the parts name: max `materialIndex` + 1
+   *  (0 when none does). `merged()` keeps the "Material" lane, so a
+   *  merged mesh placed with that many slots wears them per face. */
+  int materialSlotCount() const;
 };
 
 /** Alembic import knobs — which moment of the cache to bake. */
