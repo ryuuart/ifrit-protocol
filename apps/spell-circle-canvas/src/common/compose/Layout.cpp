@@ -11,6 +11,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <ranges>
 
 #include "ComposeRuntime.h"
 
@@ -49,25 +50,47 @@ void Composer::Impl::layoutText(Instance& inst, float constraint) {
   if (constraint == inst.measuredForWidth &&
       inst.measuredRev == inst.contentRev)
     return;  // layout is already valid for this content and width
-  static const sigil::weave::ParagraphLayoutOptions kDefaultOptions;
-  const sigil::weave::ParagraphLayoutOptions& options =
-      inst.desc->textData ? inst.desc->textData->layoutOptions
-                          : kDefaultOptions;
-  if (!inst.exclusionsLocal.empty()) {
-    sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    const float flowMargin =
-        inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
-    for (const SkRect& exclusion : inst.exclusionsLocal)
-      flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromRectangle(
-          exclusion, flowMargin));
-    inst.textLayout =
-        sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
-  } else {
-    sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    inst.textLayout =
-        sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
-  }
+  const sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  const auto layOut = [&] {
+    if (!inst.exclusionsLocal.empty()) {
+      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+      const float flowMargin = inst.desc->deriveData
+                                   ? inst.desc->deriveData->flowAroundMargin
+                                   : 0.0f;
+      for (const SkRect& exclusion : inst.exclusionsLocal)
+        flow.shapes().push_back(
+            sigil::weave::ExclusionFlow::Shape::fromRectangle(exclusion,
+                                                              flowMargin));
+      inst.textLayout =
+          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+    } else {
+      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+      inst.textLayout =
+          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+    }
+  };
+  layOut();
   inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  // A sel::line span restyle needs line geometry to name a line at all, and
+  // the materialization that ran at describe time had none. Re-materialize
+  // against the lines just produced — plain values, so the paragraph they
+  // came from is free to go — and lay out once more. The WHOLE restyle list
+  // runs again in declaration order, so the "later wins" rule holds across
+  // the line-scoped ones and the rest alike.
+  //
+  // It resolves against THE TEXT BEFORE THE RESTYLE and stops there: a
+  // spanStyle that moves the line breaks does not chase its own result,
+  // which is what keeps this two passes rather than a fixed-point search
+  // that may not have a fixed point.
+  if (inst.desc->textData &&
+      std::ranges::any_of(inst.desc->textData->spanRestyles,
+                          [](const detail::SpanRestyle& restyle) {
+                            return detail::selectorNeedsLayout(restyle.where);
+                          })) {
+    materializeText(inst, inst.lines);
+    layOut();
+    inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  }
   inst.measuredForWidth = constraint;
   SkRect bounds = SkRect::MakeEmpty();
   for (const sigil::weave::LineMetrics& line : inst.lines)

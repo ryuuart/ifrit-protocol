@@ -3062,3 +3062,330 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   EXPECT_NEAR(center("r2").y(), 180, 1);  // bottom, fallback 0.8
   EXPECT_NEAR(center("r3").x(), 20, 1);   // left, fallback 0.8
 }
+
+// ---------------------------------------------------------------------------
+// MIXED TEXT — rich() spans, selector restyling, and the layout-option
+// setters. The three together are the authoring surface for text that is not
+// all set the same way, with no markup language anywhere in it.
+
+namespace {
+/** How many pixels of exactly this colour a region holds. */
+int countColor(Host& host, SkIRect region, SkColor color) {
+  int hits = 0;
+  for (int y = region.top(); y < region.bottom(); ++y)
+    for (int x = region.left(); x < region.right(); ++x)
+      if (host.pixel(x, y) == color) ++hits;
+  return hits;
+}
+/** The shaped-word identity behind every placed run. The shape cache is
+ *  content-addressed, so an unchanged pointer is proof that nothing about
+ *  that word's shaping inputs moved. */
+std::vector<const void*> runShapes(Host& host, const char* key) {
+  std::vector<const void*> out;
+  const auto* layout = host.composer.paragraphLayout(key);
+  if (!layout) return out;
+  for (const sigil::weave::PositionedRun& run : layout->runs)
+    out.push_back(run.shaped.get());
+  return out;
+}
+std::vector<SkPoint> runOrigins(Host& host, const char* key) {
+  std::vector<SkPoint> out;
+  const auto* layout = host.composer.paragraphLayout(key);
+  if (!layout) return out;
+  for (const sigil::weave::PositionedRun& run : layout->runs)
+    out.push_back(run.origin);
+  return out;
+}
+sigil::weave::TextStyle coloredStyle(float size, SkColor color) {
+  sigil::weave::TextStyle s = styleAt(size);
+  s.paint.foreground.setColor(color);
+  return s;
+}
+}  // namespace
+
+TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
+  Host host(400, 120);
+  const sigil::weave::TextStyle base = coloredStyle(36, SK_ColorWHITE);
+  const sigil::weave::TextStyle accent = coloredStyle(36, SK_ColorRED);
+  host.composer.render(box().padding(10).child(
+      text(rich(base).add(u8"AAA ").add(u8"BBB", accent)).key("t")));
+  host.frame();
+  const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
+  EXPECT_GT(countColor(host, band, SK_ColorWHITE), 20) << "the base run";
+  EXPECT_GT(countColor(host, band, SK_ColorRED), 20) << "the accented run";
+}
+
+TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
+  // The whole reason rich() is a value: a component that rebuilds its spans
+  // every describe must prune like a static leaf. The shared_ptr overload
+  // cannot answer the question — a fresh make_shared is a fresh identity —
+  // which is exactly the difference this pins.
+  Host host(400, 120);
+  const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
+  const sigil::weave::TextStyle accent = coloredStyle(20, SK_ColorRED);
+  auto describe = [&](std::u8string_view tail) {
+    return box().child(
+        text(rich(base).add(u8"Signal ").add(tail, accent)).key("t"));
+  };
+  host.composer.render(describe(u8"woven"));
+  host.frame();
+  host.composer.render(describe(u8"woven"));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical rich text did not prune";
+  host.composer.render(describe(u8"noise"));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "a changed run pruned — equality is lying";
+
+  auto byPointer = [&] {
+    auto para = std::make_shared<sigil::weave::Paragraph>();
+    para->appendText(std::u8string(u8"Signal woven"), base);
+    return box().child(text(para).key("p"));
+  };
+  host.composer.render(byPointer());
+  host.frame();
+  host.composer.render(byPointer());
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "the pointer overload claimed a prune it cannot prove";
+}
+
+TEST(TextRich, AChangedRunStylePatchesToo) {
+  Host host(400, 120);
+  auto describe = [&](SkColor accentColor) {
+    return box().child(text(rich(coloredStyle(20, SK_ColorWHITE))
+                                .add(u8"Signal ")
+                                .add(u8"woven", coloredStyle(20, accentColor)))
+                           .key("t"));
+  };
+  host.composer.render(describe(SK_ColorRED));
+  host.frame();
+  host.composer.render(describe(SK_ColorRED));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.composer.render(describe(SK_ColorGREEN));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(TextRich, NamedRunsResolveThroughAStyleSet) {
+  const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
+  sigil::weave::StyleSet reds;
+  reds.set("accent", coloredStyle(20, SK_ColorRED));
+  sigil::weave::StyleSet greens;
+  greens.set("accent", coloredStyle(20, SK_ColorGREEN));
+
+  const auto colorOf = [](const RichText& value, size_t run) {
+    return value.runs()[run].style.paint.foreground.getColor();
+  };
+
+  const RichText supplied = rich(base).add(u8"x", "accent").styles(reds);
+  EXPECT_EQ(colorOf(supplied, 0), SK_ColorRED);
+
+  // styles() before the named run resolves identically: the order the two
+  // are written in must not matter.
+  const RichText suppliedFirst = rich(base).styles(reds).add(u8"x", "accent");
+  EXPECT_EQ(colorOf(suppliedFirst, 0), SK_ColorRED);
+  EXPECT_TRUE(supplied == suppliedFirst);
+
+  {
+    env::Provide<sigil::weave::StyleSet> ambient(reds);
+    const RichText inherited = rich(base).add(u8"x", "accent");
+    EXPECT_EQ(colorOf(inherited, 0), SK_ColorRED) << "the env set was ignored";
+    const RichText overridden = rich(base).add(u8"x", "accent").styles(greens);
+    EXPECT_EQ(colorOf(overridden, 0), SK_ColorGREEN)
+        << "an explicit style set must beat the inherited one";
+  }
+  // Out of scope again: nothing is inherited, so the base answers.
+  const RichText unbound = rich(base).add(u8"x", "accent");
+  EXPECT_EQ(colorOf(unbound, 0), SK_ColorWHITE);
+  // A name the set does not register resolves to rich()'s own base.
+  const RichText unknown = rich(base).add(u8"x", "nope").styles(reds);
+  EXPECT_EQ(colorOf(unknown, 0), SK_ColorWHITE);
+}
+
+TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
+  // Paint-only means paint-only: the glyphs are the glyphs the unrestyled
+  // text shaped, at the positions it shaped them, drawn in another colour.
+  Host host(400, 120);
+  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+  const std::u8string body = u8"Count 1234 now";
+  host.composer.render(box().padding(10).child(text(body, base).key("t")));
+  host.frame();
+  const std::vector<const void*> shapesBefore = runShapes(host, "t");
+  const std::vector<SkPoint> originsBefore = runOrigins(host, "t");
+  ASSERT_FALSE(shapesBefore.empty());
+
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanPaint(sel::regex(u8"[0-9]+"), sigil::weave::PaintStyle(
+                                                 SK_ColorRED))
+          .key("t")));
+  host.frame();
+  EXPECT_EQ(runShapes(host, "t"), shapesBefore)
+      << "a paint-only restyle re-shaped a word";
+  EXPECT_EQ(runOrigins(host, "t"), originsBefore)
+      << "a paint-only restyle moved a glyph";
+  const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
+  EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the digits";
+  EXPECT_GT(countColor(host, band, SK_ColorWHITE), 10) << "everything else";
+}
+
+TEST(TextSpans, SpanStyleReshapesOnlyTheWordsItCovers) {
+  Host host(400, 160);
+  const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);
+  const std::u8string body = u8"alpha beta gamma";
+  host.composer.render(box().padding(10).child(text(body, base).key("t")));
+  host.frame();
+  const std::vector<const void*> before = runShapes(host, "t");
+  ASSERT_EQ(before.size(), 3u);
+
+  // The LAST word, so the two ahead of it keep their pen positions too.
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanStyle(sel::text(u8"gamma"), coloredStyle(40, SK_ColorRED))
+          .key("t")));
+  host.frame();
+  const std::vector<const void*> after = runShapes(host, "t");
+  ASSERT_EQ(after.size(), 3u);
+  EXPECT_EQ(after[0], before[0]) << "an uncovered word re-shaped";
+  EXPECT_EQ(after[1], before[1]) << "an uncovered word re-shaped";
+  EXPECT_NE(after[2], before[2]) << "the covered word did not re-shape";
+}
+
+TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
+  Host host(400, 120);
+  const sigil::weave::TextStyle base = coloredStyle(28, SK_ColorWHITE);
+  const std::u8string body = u8"alpha beta";
+  const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
+
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanPaint(sel::text(u8"beta"), sigil::weave::PaintStyle(SK_ColorRED))
+          .spanPaint(sel::words(0, 2),
+                     sigil::weave::PaintStyle(SK_ColorGREEN))
+          .key("t")));
+  host.frame();
+  EXPECT_EQ(countColor(host, band, SK_ColorRED), 0)
+      << "the earlier narrow rule survived a later broad one";
+  EXPECT_GT(countColor(host, band, SK_ColorGREEN), 20);
+
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanPaint(sel::words(0, 2), sigil::weave::PaintStyle(SK_ColorGREEN))
+          .spanPaint(sel::text(u8"beta"), sigil::weave::PaintStyle(SK_ColorRED))
+          .key("t")));
+  host.frame();
+  EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the narrow exception";
+  EXPECT_GT(countColor(host, band, SK_ColorGREEN), 10) << "the broad rule";
+}
+
+TEST(TextSpans, ALineSelectorAddressesTheLayout) {
+  Host host(240, 200);
+  const sigil::weave::TextStyle base = coloredStyle(24, SK_ColorWHITE);
+  const std::u8string body = u8"one two three four five six seven eight";
+  host.composer.render(
+      box().padding(10).child(text(body, base).width(200).key("t")));
+  host.frame();
+  const auto* plain = host.composer.paragraphLayout("t");
+  ASSERT_NE(plain, nullptr);
+  ASSERT_GT(plain->lineCount, 1);
+
+  host.composer.render(box().padding(10).child(
+      text(body, base)
+          .width(200)
+          .spanPaint(sel::line(0), sigil::weave::PaintStyle(SK_ColorRED))
+          .key("t")));
+  host.frame();
+  const SkIRect all = SkIRect::MakeXYWH(0, 0, 240, 200);
+  EXPECT_GT(countColor(host, all, SK_ColorRED), 10) << "the first line";
+  EXPECT_GT(countColor(host, all, SK_ColorWHITE), 10) << "the rest";
+}
+
+TEST(TextOptionSetters, MaxLinesAndEllipsisClampTheText) {
+  Host host(240, 200);
+  const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
+  const std::u8string body =
+      u8"one two three four five six seven eight nine ten eleven twelve";
+  host.composer.render(box().padding(10).child(
+      text(body, base).width(180).maxLines(2).ellipsis(u8"...").key("t")));
+  host.frame();
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  EXPECT_EQ(layout->lineCount, 2);
+  EXPECT_TRUE(layout->overflowed());
+  EXPECT_TRUE(layout->ellipsized) << "the marker never landed";
+}
+
+TEST(TextOptionSetters, HyphenationRendersTheHyphenAtASoftBreak) {
+  Host host(260, 220);
+  const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
+  // A short word, then a long one carrying a discretionary break, in a
+  // measure that cannot hold both whole. The line breaks at the soft hyphen
+  // either way; what the option controls is whether the hyphen is DRAWN,
+  // which shows up as one extra run on the broken line.
+  const std::u8string body = u8"short extraordi\u00adnarily";
+  const auto runsOnFirstLineWith = [&](bool enabled) {
+    host.composer.render(box().padding(4).child(
+        text(body, base).width(150).hyphenation({.enabled = enabled}).key("t")));
+    host.frame();
+    const auto* layout = host.composer.paragraphLayout("t");
+    if (!layout) return 0;
+    int runs = 0;
+    for (const sigil::weave::PositionedRun& run : layout->runs)
+      if (run.lineIndex == 0) ++runs;
+    return runs;
+  };
+  const int without = runsOnFirstLineWith(false);
+  const int with = runsOnFirstLineWith(true);
+  EXPECT_GT(with, without) << "the hyphenation setting never reached layout";
+}
+
+TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
+  // The contract for the full-control overload: a setter names one field and
+  // leaves every other field of the passed options standing.
+  Host host(300, 220);
+  auto para = std::make_shared<sigil::weave::Paragraph>();
+  para->appendText(std::u8string(u8"one two three four five six seven eight"),
+                   coloredStyle(20, SK_ColorWHITE));
+  sigil::weave::ParagraphLayoutOptions passed;
+  passed.alignment = sigil::weave::TextAlignment::kCenter;
+  passed.overflow.maxLines = 5;
+  host.composer.render(box().child(
+      text(para, passed).width(200).maxLines(2).key("t")));
+  host.frame();
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  EXPECT_EQ(layout->lineCount, 2) << "the setter did not override maxLines";
+  ASSERT_FALSE(layout->runs.empty());
+  EXPECT_GT(layout->runs.front().origin.fX, 1.0f)
+      << "the passed alignment was clobbered rather than left alone";
+}
+
+TEST(TextOptionSetters, KnuthPlassBreaksARaggedParagraphDifferently) {
+  Host host(320, 260);
+  const sigil::weave::TextStyle base = coloredStyle(18, SK_ColorWHITE);
+  // Deliberately uneven word lengths: the greedy breaker fills each line as
+  // far as it goes, and the optimal one trades an early line short to keep
+  // the whole paragraph even.
+  const std::u8string body =
+      u8"a longer word then tiny bits of text and an extraordinarily "
+      u8"lengthy one to finish the measure";
+  const auto lineStartsUnder = [&](sigil::weave::LineBreakStrategy strategy) {
+    host.composer.render(box().padding(4).child(
+        text(body, base).width(240).lineBreak(strategy).key("t")));
+    host.frame();
+    std::vector<uint32_t> starts;
+    const auto* layout = host.composer.paragraphLayout("t");
+    if (!layout) return starts;
+    int previous = -1;
+    for (const sigil::weave::PositionedRun& run : layout->runs)
+      if (run.lineIndex != previous) {
+        starts.push_back(run.wordIndex);
+        previous = run.lineIndex;
+      }
+    return starts;
+  };
+  const std::vector<uint32_t> greedy =
+      lineStartsUnder(sigil::weave::LineBreakStrategy::kGreedy);
+  const std::vector<uint32_t> optimal =
+      lineStartsUnder(sigil::weave::LineBreakStrategy::kKnuthPlass);
+  ASSERT_GT(greedy.size(), 1u);
+  EXPECT_NE(greedy, optimal) << "the break strategy setter changed nothing";
+}

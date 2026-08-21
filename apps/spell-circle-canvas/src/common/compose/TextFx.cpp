@@ -391,6 +391,246 @@ std::vector<uint8_t> resolveSelection(
 }
 
 // ---------------------------------------------------------------------------
+// Selection as TEXT RANGES — what span restyling addresses
+//
+// The glyph resolver above answers "which of the placed glyphs", which is
+// the only question a per-glyph deviation can ask. A restyle runs on the
+// Paragraph instead, before shaping, so it needs the same selectors
+// answered in UTF-16 ranges. One vocabulary, two resolvers, because the two
+// consumers genuinely address different things.
+
+std::u16string toUtf16(std::u8string_view utf8) {
+  // Hand-rolled rather than borrowed from the weave layer: compose speaks
+  // UTF-8 at its surface and UTF-16 at exactly this boundary, and a full
+  // Unicode library for that is a dependency the kernel does not otherwise
+  // need. Ill-formed input yields U+FFFD, never a silent truncation.
+  std::u16string out;
+  out.reserve(utf8.size());
+  for (size_t i = 0; i < utf8.size();) {
+    const auto byte = (unsigned char)utf8[i];
+    char32_t code = 0xFFFD;
+    size_t length = 1;
+    if (byte < 0x80) {
+      code = byte;
+    } else if ((byte & 0xE0) == 0xC0) {
+      length = 2;
+      code = byte & 0x1Fu;
+    } else if ((byte & 0xF0) == 0xE0) {
+      length = 3;
+      code = byte & 0x0Fu;
+    } else if ((byte & 0xF8) == 0xF0) {
+      length = 4;
+      code = byte & 0x07u;
+    }
+    if (length > 1) {
+      if (i + length > utf8.size()) {
+        code = 0xFFFD;
+        length = utf8.size() - i;
+      } else {
+        for (size_t k = 1; k < length; ++k) {
+          const auto continuation = (unsigned char)utf8[i + k];
+          if ((continuation & 0xC0) != 0x80) {
+            code = 0xFFFD;
+            length = k;
+            break;
+          }
+          code = (code << 6) | (continuation & 0x3Fu);
+        }
+      }
+    }
+    if (code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) code = 0xFFFD;
+    if (code >= 0x10000) {
+      const char32_t rest = code - 0x10000;
+      out.push_back((char16_t)(0xD800 + (rest >> 10)));
+      out.push_back((char16_t)(0xDC00 + (rest & 0x3FF)));
+    } else {
+      out.push_back((char16_t)code);
+    }
+    i += length;
+  }
+  return out;
+}
+
+namespace {
+
+using Ranges = std::vector<sigil::weave::CharRange>;
+
+/** Sorted, merged, empties dropped — the one normal form every answer is
+ *  in, so union, intersection and complement are honest interval
+ *  arithmetic and not a pile of special cases. */
+Ranges normalize(Ranges ranges) {
+  std::erase_if(ranges, [](const sigil::weave::CharRange& r) {
+    return r.empty();
+  });
+  std::sort(ranges.begin(), ranges.end(),
+            [](const sigil::weave::CharRange& a,
+               const sigil::weave::CharRange& b) {
+              return a.start != b.start ? a.start < b.start : a.end < b.end;
+            });
+  Ranges merged;
+  for (const sigil::weave::CharRange& r : ranges) {
+    if (!merged.empty() && r.start <= merged.back().end)
+      merged.back().end = std::max(merged.back().end, r.end);
+    else
+      merged.push_back(r);
+  }
+  return merged;
+}
+
+Ranges intersectRanges(const Ranges& a, const Ranges& b) {
+  Ranges out;
+  size_t i = 0, j = 0;
+  while (i < a.size() && j < b.size()) {
+    const uint32_t start = std::max(a[i].start, b[j].start);
+    const uint32_t end = std::min(a[i].end, b[j].end);
+    if (start < end) out.push_back({start, end});
+    if (a[i].end < b[j].end)
+      ++i;
+    else
+      ++j;
+  }
+  return out;
+}
+
+Ranges complementRanges(const Ranges& ranges, uint32_t length) {
+  Ranges out;
+  uint32_t cursor = 0;
+  for (const sigil::weave::CharRange& r : ranges) {
+    if (r.start > cursor) out.push_back({cursor, r.start});
+    cursor = std::max(cursor, r.end);
+  }
+  if (cursor < length) out.push_back({cursor, length});
+  return out;
+}
+
+/** Once per process: an `sel::each` slice asked of a text range. */
+void warnSliceIgnored() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: Selector::take/drop slice GLYPHS inside a "
+               "unit, which a text range cannot express — this span restyle "
+               "covers whole units\n");
+}
+
+Ranges resolveTextRangesInto(
+    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    sigil::weave::FontContext& fonts,
+    std::span<const sigil::weave::LineMetrics> lines) {
+  const auto length = (uint32_t)paragraph.text().size();
+  const Selector::State* s = selector.state();
+  if (!s) return {{0, length}};  // default-constructed: everything
+  switch (s->kind) {
+    case Selector::Kind::All:
+      return {{0, length}};
+    case Selector::Kind::Word:
+    case Selector::Kind::Words: {
+      Ranges words = sigil::weave::wordRanges(paragraph, fonts);
+      Ranges out;
+      for (uint32_t i = s->lo; i < s->hi && i < words.size(); ++i)
+        out.push_back(words[i]);
+      return normalize(std::move(out));
+    }
+    case Selector::Kind::Line: {
+      Ranges out;
+      for (const sigil::weave::LineMetrics& line : lines)
+        if ((uint32_t)line.lineIndex >= s->lo &&
+            (uint32_t)line.lineIndex < s->hi)
+          out.push_back({line.textBegin, line.textEnd});
+      return normalize(std::move(out));
+    }
+    case Selector::Kind::Sentence: {
+      const std::span<const uint32_t> starts = paragraph.sentenceStarts();
+      Ranges out;
+      for (uint32_t i = s->lo; i < s->hi && i < starts.size(); ++i)
+        out.push_back({starts[i],
+                       i + 1 < starts.size() ? starts[i + 1] : length});
+      return normalize(std::move(out));
+    }
+    case Selector::Kind::Range:
+      return normalize({{std::min(s->lo, length), std::min(s->hi, length)}});
+    case Selector::Kind::Text:
+      return normalize(sigil::weave::findAllOccurrences(paragraph, s->pattern));
+    case Selector::Kind::Regex: {
+      std::optional<Ranges> matches =
+          sigil::weave::findRegexMatches(paragraph, s->pattern);
+      if (!matches) {
+        warnBadSelectorPattern(s->pattern);
+        return {};
+      }
+      return normalize(*std::move(matches));
+    }
+    case Selector::Kind::Each: {
+      // A unit's whole extent. The glyph slice has no text-range meaning;
+      // saying so once beats a restyle that silently covers more than the
+      // author asked for.
+      if (s->take >= 0 || s->drop > 0) warnSliceIgnored();
+      switch (s->each) {
+        case Unit::Word:
+          return normalize(sigil::weave::wordRanges(paragraph, fonts));
+        case Unit::Line: {
+          Ranges out;
+          for (const sigil::weave::LineMetrics& line : lines)
+            out.push_back({line.textBegin, line.textEnd});
+          return normalize(std::move(out));
+        }
+        default:
+          return {{0, length}};
+      }
+    }
+    case Selector::Kind::Union: {
+      Ranges out =
+          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines);
+      Ranges rhs =
+          resolveTextRangesInto(s->operands[1], paragraph, fonts, lines);
+      out.insert(out.end(), rhs.begin(), rhs.end());
+      return normalize(std::move(out));
+    }
+    case Selector::Kind::Intersect:
+      return intersectRanges(
+          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines),
+          resolveTextRangesInto(s->operands[1], paragraph, fonts, lines));
+    case Selector::Kind::Complement:
+      return complementRanges(
+          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines),
+          length);
+  }
+  return {};
+}
+
+}  // namespace
+
+std::vector<sigil::weave::CharRange> resolveTextRanges(
+    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    sigil::weave::FontContext& fonts,
+    std::span<const sigil::weave::LineMetrics> lines) {
+  return resolveTextRangesInto(selector, paragraph, fonts, lines);
+}
+
+bool selectorNeedsLayout(const Selector& selector) {
+  const Selector::State* s = selector.state();
+  if (!s) return false;
+  if (s->kind == Selector::Kind::Line) return true;
+  if (s->kind == Selector::Kind::Each && s->each == Unit::Line) return true;
+  for (const Selector& operand : s->operands)
+    if (selectorNeedsLayout(operand)) return true;
+  return false;
+}
+
+void TextOptions::applyTo(sigil::weave::ParagraphLayoutOptions& options) const {
+  if (set & kAlignment) options.alignment = alignment;
+  if (set & kLineBreak) options.lineBreakStrategy = lineBreak;
+  if (set & kHyphenation) options.hyphenation = hyphenation;
+  if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
+  if (set & kMaxLines) options.overflow.maxLines = maxLines;
+  if (set & kLastLine) {
+    options.justification.lastLineAlignment = lastLineAlignment;
+    options.justification.justifyLastLine = justifyLastLine;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The cascade
 
 namespace {

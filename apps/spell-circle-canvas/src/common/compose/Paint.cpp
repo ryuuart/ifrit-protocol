@@ -2277,7 +2277,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           const bool onPathRun = node.textData && node.textData->onPath;
           if (inst.measuredRev != inst.contentRev ||
               (!onPathRun && node.textData &&
-               node.textData->layoutOptions.alignment !=
+               node.textData->alignment() !=
                    sigil::weave::TextAlignment::kStart &&
                inst.measuredForWidth != bounds.width()))
             layoutText(inst, bounds.width());

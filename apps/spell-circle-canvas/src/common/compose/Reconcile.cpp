@@ -192,12 +192,14 @@ bool effectEqual(const std::optional<Effect>& a,
 // ---- block equality: presence must match first, then contents; a block
 // holding a callable stays conservatively unequal ---------------------------
 
-static_assert(kFieldCount<TextData> == 10,
+static_assert(kFieldCount<TextData> == 13 && kFieldCount<TextOptions> == 8 &&
+                  kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
-              "field compared in PART, and only because the full-control "
-              "overload that can set the rest also sets paragraphOverride, "
-              "which is unconditionally conservative.)");
+              "field NOT compared, and only because the full-control "
+              "overload that sets it also sets paragraphOverride, which is "
+              "unconditionally conservative. The fluent setters are "
+              "comparable in full and live in `options`.)");
 bool textEqual(const ElementNode& a, const ElementNode& b) {
   if ((bool)a.textData != (bool)b.textData) return false;
   if (!a.textData) return true;
@@ -218,16 +220,23 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
         !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
+  // rich(): a whole mixed paragraph as one comparable value — same base,
+  // same runs, same resolved styles — so a component that rebuilds its
+  // spans every describe prunes like a static leaf. This is exactly what
+  // the shared_ptr<Paragraph> overload below cannot answer.
+  if (!(ta.rich == tb.rich)) return false;
   if (ta.hasTextStroke != tb.hasTextStroke ||
       (ta.hasTextStroke && (ta.textStrokeWidth != tb.textStrokeWidth ||
                             !(ta.textStrokeFill == tb.textStrokeFill))))
     return false;
-  // layoutOptions aren't comparable in full, but alignment is the one knob
-  // the simple text() path exposes (textAlign) — compare it so an alignment
-  // change actually patches.
-  if (a.kind == Kind::Text &&
-      ta.layoutOptions.alignment != tb.layoutOptions.alignment)
-    return false;
+  // The fluent layout-option setters ARE comparable — value plus the mask
+  // of which fields were written — so a changed alignment, break strategy,
+  // clamp or ellipsis patches on every content form.
+  if (a.kind == Kind::Text && !(ta.options == tb.options)) return false;
+  // spanPaint()/spanStyle(): comparable selectors and comparable styles, in
+  // declaration order, so a re-described restyle list prunes and a changed
+  // one re-resolves.
+  if (ta.spanRestyles != tb.spanRestyles) return false;
   if (ta.paragraphOverride != tb.paragraphOverride) return false;
   if (ta.paragraphOverride)
     return false;  // layoutOptions aren't comparable — memo these
@@ -795,16 +804,16 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
       const bool textChanged =
           !prevText || kindChanged || prevText->utf8 != text.utf8 ||
           !(prevText->style == text.style) ||
+          !(prevText->rich == text.rich) ||
           prevText->paragraphOverride != text.paragraphOverride ||
-          prevText->layoutOptions.alignment != text.layoutOptions.alignment;
+          !(prevText->options == text.options) ||
+          prevText->spanRestyles != text.spanRestyles;
       if (textChanged) {
         inst.contentRev++;
-        if (text.paragraphOverride)
-          inst.paragraph.emplace(*text.paragraphOverride);
-        else {
-          inst.paragraph.emplace();
-          inst.paragraph->appendText(text.utf8, text.style);
-        }
+        // No layout yet at describe time, so a sel::line restyle resolves
+        // against nothing here; layoutText() re-materializes against the
+        // fresh line geometry when one is asked for.
+        materializeText(inst);
         if (inst.yoga) {
           YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
           YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
@@ -998,6 +1007,52 @@ void Composer::Impl::patchChildren(Instance& inst,
     needsLayout = true;
   }
   // Unmatched old children unmount here (destructors cancel motions).
+}
+
+void Composer::Impl::materializeText(
+    Instance& inst, std::span<const sigil::weave::LineMetrics> lines) {
+  const TextData& text = *inst.desc->textData;
+  inst.paragraph.emplace();
+  if (text.paragraphOverride) {
+    *inst.paragraph = *text.paragraphOverride;
+  } else if (!text.rich.empty()) {
+    // The runs concatenate with nothing between them: a rich text's spacing
+    // is the author's own, exactly as it is in the strings they wrote.
+    for (const RichText::Run& run : text.rich.runs())
+      inst.paragraph->appendText(run.utf8, run.style);
+  } else {
+    inst.paragraph->appendText(text.utf8, text.style);
+  }
+
+  // The restyles run in DECLARATION ORDER over the finished paragraph, so a
+  // later one simply overwrites the spans an earlier one wrote wherever the
+  // two overlap — which is the "later wins" rule, spelled as span surgery
+  // rather than as a merge nobody could predict.
+  for (const SpanRestyle& restyle : text.spanRestyles) {
+    const std::vector<sigil::weave::CharRange> ranges =
+        resolveTextRanges(restyle.where, *inst.paragraph, fonts, lines);
+    if (ranges.empty()) continue;
+    if (restyle.paintOnly) {
+      // The batch form: N ranges cost one span-list rebuild, and shaping
+      // keys are untouched, so nothing re-shapes and nothing relayouts.
+      inst.paragraph->setPaint(ranges, restyle.style.paint);
+    } else {
+      for (const sigil::weave::CharRange& range : ranges)
+        inst.paragraph->setStyle(range.start, range.end, restyle.style);
+    }
+  }
+}
+
+sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
+    const Instance& inst) const {
+  sigil::weave::ParagraphLayoutOptions options;
+  if (!inst.desc || !inst.desc->textData) return options;
+  const TextData& text = *inst.desc->textData;
+  // The passed value is the ground the setters are written over, so a
+  // full-control caller keeps every field no setter named.
+  options = text.layoutOptions;
+  text.options.applyTo(options);
+  return options;
 }
 
 void Composer::Impl::applyLayoutProps(Instance& inst) {

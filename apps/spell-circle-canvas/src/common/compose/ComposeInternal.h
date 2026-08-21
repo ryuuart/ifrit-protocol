@@ -104,6 +104,63 @@ class Box {
 // caps sizeof(ElementNode) with a static assertion, which is the rule that
 // keeps a rare field from being added inline.
 
+/** One Element::spanPaint() / Element::spanStyle() declaration: a selector
+ *  and what it does to the range it finds. Ordered — later declarations win
+ *  on overlap — and comparable, so a re-described list prunes. */
+struct SpanRestyle {
+  Selector where;
+  sigil::weave::TextStyle style;  ///< paintOnly reads `style.paint` alone
+  /** setPaint (never re-shapes) rather than setStyle. */
+  bool paintOnly = false;
+  bool operator==(const SpanRestyle& other) const {
+    return where == other.where && paintOnly == other.paintOnly &&
+           (paintOnly ? style.paint == other.style.paint
+                      : style == other.style);
+  }
+};
+
+/** The Element layout-option setters, as a comparable value plus a record
+ *  of WHICH of them the description actually set.
+ *
+ *  The mask is what makes the setters override a full-control overload's
+ *  ParagraphLayoutOptions field by field: an unset field leaves whatever
+ *  the caller passed alone, and there is no way to tell "never asked for"
+ *  from "asked for the default value" without it. */
+struct TextOptions {
+  enum Field : uint8_t {
+    kAlignment = 1 << 0,
+    kLineBreak = 1 << 1,
+    kHyphenation = 1 << 2,
+    kEllipsis = 1 << 3,
+    kMaxLines = 1 << 4,
+    kLastLine = 1 << 5,
+  };
+  uint8_t set = 0;  ///< which fields below were written
+
+  sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kStart;
+  sigil::weave::LineBreakStrategy lineBreak =
+      sigil::weave::LineBreakStrategy::kGreedy;
+  sigil::weave::HyphenationOptions hyphenation;
+  std::u16string ellipsis;
+  int maxLines = 0;
+  sigil::weave::TextAlignment lastLineAlignment =
+      sigil::weave::TextAlignment::kStart;
+  bool justifyLastLine = false;
+
+  /** Writes every SET field over @p options, leaving the rest alone. */
+  void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
+
+  bool operator==(const TextOptions& other) const {
+    return set == other.set && alignment == other.alignment &&
+           lineBreak == other.lineBreak &&
+           hyphenation.enabled == other.hyphenation.enabled &&
+           hyphenation.penalty == other.hyphenation.penalty &&
+           ellipsis == other.ellipsis && maxLines == other.maxLines &&
+           lastLineAlignment == other.lastLineAlignment &&
+           justifyLastLine == other.justifyLastLine;
+  }
+};
+
 struct TextData {
   // Element::textStroke(): a stroke pass on the GLYPHS, under the fill.
   bool hasTextStroke = false;
@@ -111,9 +168,18 @@ struct TextData {
   Fill textStrokeFill;
   std::u8string utf8;
   sigil::weave::TextStyle style;
+  // text(RichText): several runs, several styles, one comparable value. Empty
+  // on every other content form.
+  RichText rich;
   // Full-control overload: identity (the pointer) is the change signal.
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
+  // The fluent setters (textAlign, lineBreak, hyphenation, ellipsis,
+  // maxLines, lastLine), which override `layoutOptions` field by field.
+  TextOptions options;
+  // spanPaint()/spanStyle(): the type treatment, addressed by selector and
+  // applied to the materialized paragraph in declaration order.
+  std::vector<SpanRestyle> spanRestyles;
   // Element::fx(): the ordered track list. Empty on ordinary text.
   // Element::variationDrive() appends one of these too — a driven axis is a
   // per-glyph deviation like any other, and has no plumbing of its own.
@@ -125,6 +191,14 @@ struct TextData {
   // onPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
+
+  /** The alignment this leaf actually lays out under: `textAlign()`'s value
+   *  where it was written, otherwise whatever the full-control overload's
+   *  options carry. */
+  sigil::weave::TextAlignment alignment() const {
+    return (options.set & TextOptions::kAlignment) ? options.alignment
+                                                   : layoutOptions.alignment;
+  }
 };
 
 struct ImageData {
@@ -379,10 +453,22 @@ inline auto fields(PaintProps& v) {
                   originPx, zIndex);
 }
 inline auto fields(TextData& v) {
-  auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-         paragraphOverride, layoutOptions, tracks, metricFill, onPath] = v;
+  auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style, rich,
+         paragraphOverride, layoutOptions, options, spanRestyles, tracks,
+         metricFill, onPath] = v;
   return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-                  paragraphOverride, layoutOptions, tracks, metricFill, onPath);
+                  rich, paragraphOverride, layoutOptions, options, spanRestyles,
+                  tracks, metricFill, onPath);
+}
+inline auto fields(SpanRestyle& v) {
+  auto& [where, style, paintOnly] = v;
+  return std::tie(where, style, paintOnly);
+}
+inline auto fields(TextOptions& v) {
+  auto& [set, alignment, lineBreak, hyphenation, ellipsis, maxLines,
+         lastLineAlignment, justifyLastLine] = v;
+  return std::tie(set, alignment, lineBreak, hyphenation, ellipsis, maxLines,
+                  lastLineAlignment, justifyLastLine);
 }
 inline auto fields(ImageData& v) {
   auto& [asset, region, sampling] = v;
@@ -594,6 +680,30 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
                                       const sigil::weave::Paragraph& paragraph);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
+
+/** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
+ *  the form span restyling needs, because a restyle happens on the
+ *  Paragraph, before there are glyphs to point at.
+ *
+ *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
+ *  arithmetic over the text; the complement is taken against the whole
+ *  text. `sel::line` reads @p lines — the geometry a previous layout
+ *  produced, passed as plain values rather than as a layout because the
+ *  paragraph that layout belongs to is the one being replaced — and
+ *  addresses nothing when it is empty. `Selector::take`/`drop` slice glyphs
+ *  inside a unit, which no text range can express: an `sel::each` selector
+ *  answers with its whole units and the slice warns once. */
+std::vector<sigil::weave::CharRange> resolveTextRanges(
+    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    sigil::weave::FontContext& fonts,
+    std::span<const sigil::weave::LineMetrics> lines);
+
+/** Does this selector reach for a LINE, and therefore need a layout to
+ *  resolve against? The question the second layout pass is gated on. */
+bool selectorNeedsLayout(const Selector& selector);
+
+/** UTF-8 to the UTF-16 the weave layer speaks. */
+std::u16string toUtf16(std::u8string_view utf8);
 
 /** WHERE INDEX `i` OF `count` SITS IN A CASCADE, in multiples of the
  *  per-step delay — 0,1,2… from Start, reversed from End, the two

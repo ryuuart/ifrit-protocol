@@ -856,6 +856,19 @@ struct Composer::Impl {
   void patchChildren(detail::Instance& inst,
                      const std::vector<Element>& newChildren);
   void applyLayoutProps(detail::Instance& inst);
+  /** Builds the instance's Paragraph from whichever content form its
+   *  description carries — plain utf8, `rich()` runs, or a copy of a
+   *  supplied Paragraph — and then applies the span restyles in
+   *  declaration order. @p lines is the geometry a previous layout
+   *  produced, which is what a `sel::line` restyle addresses; empty leaves
+   *  those selectors unresolved. */
+  void materializeText(detail::Instance& inst,
+                       std::span<const sigil::weave::LineMetrics> lines = {});
+  /** The options a text node actually lays out under: the full-control
+   *  overload's value where it has one, with every field a fluent setter
+   *  named written over it. */
+  sigil::weave::ParagraphLayoutOptions textLayoutOptions(
+      const detail::Instance& inst) const;
   void applyTransitions(detail::Instance& inst, const detail::ElementNode& prev,
                         const detail::ElementNode& next);
   void applyMountTransitions(detail::Instance& inst,

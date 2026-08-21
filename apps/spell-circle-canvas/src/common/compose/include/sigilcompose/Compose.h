@@ -907,6 +907,110 @@ struct Track {
 };
 
 // ---------------------------------------------------------------------------
+// MIXED TEXT — one value, several styles
+//
+// A paragraph whose words are not all set the same way is a VALUE here, not
+// a document to be marked up. There is no markup language: a run of text
+// carries a style, or the name of one, and that is the whole vocabulary.
+// Whatever else a passage needs — a colour on the numbers, a weight on one
+// phrase — is asked for by SELECTOR after the fact
+// (`Element::spanPaint` / `Element::spanStyle`), so the content stays
+// content and the type treatment stays in one place.
+//
+// The escape hatch is unchanged: `text(std::shared_ptr<Paragraph>, options)`
+// hands the engine a document built by hand, for the passage too custom for
+// either of these.
+
+/** MIXED-STYLE TEXT AS A COMPARABLE VALUE — the builder `text()` takes.
+ *
+ *      auto p = rich(base)
+ *                   .add(u8"Signal ")
+ *                   .add(u8"woven", accent)
+ *                   .add(u8" through ")
+ *                   .add(u8"noise", mono);
+ *      text(p).fx(track(unit::Word, fx::slide(-60), {.eachMs = 120}));
+ *
+ *  `add(utf8)` sets a run in the base style; `add(utf8, style)` sets it in
+ *  its own; `add(utf8, name)` sets it in a style looked up by NAME (see
+ *  below). Runs are appended in order and concatenate into one paragraph —
+ *  nothing is inserted between them, so the spaces are the author's.
+ *
+ *  WHY IT IS A VALUE, and what that buys over the `shared_ptr<Paragraph>`
+ *  overload: two rich texts describing the same runs in the same styles are
+ *  EQUAL, so a component that rebuilds its text every describe prunes
+ *  exactly like a static leaf. The pointer overload cannot answer that
+ *  question — a fresh `make_shared` is a fresh identity and reads as
+ *  changed content every time. Internally the runs materialize into one
+ *  weave `Paragraph` on the instance, rebuilt only when the described value
+ *  changes; the shaping cache is content-addressed, so a rebuild that
+ *  changed one run re-shapes one run.
+ *
+ *  NAMES resolve through a `weave::StyleSet`, which comes from one of two
+ *  places: `styles()` supplies one explicitly, and `env::Provide<StyleSet>`
+ *  supplies one ambiently to everything described in its scope. AN EXPLICIT
+ *  SET ALWAYS WINS, whichever order the two are written in. A name the set
+ *  does not register resolves to the base handed to `rich()` — the base is
+ *  this text's one default, and a misspelled name shows as content set in
+ *  it rather than as content that did not draw.
+ *
+ *  Resolution happens as the run is added (and again over every named run
+ *  when `styles()` arrives), so the finished value holds real styles and
+ *  depends on no scope that has since ended. */
+class RichText {
+ public:
+  /** One run of text and the style it is set in. */
+  struct Run {
+    std::u8string utf8;
+    sigil::weave::TextStyle style;  ///< resolved: its own, its name's, or base
+    std::string styleName;          ///< the name it was written with, if any
+    bool operator==(const Run&) const = default;
+  };
+
+  RichText() = default;
+  /** Starts a value whose unstyled runs — and unregistered names — are set
+   *  in @p baseStyle. */
+  explicit RichText(sigil::weave::TextStyle baseStyle)
+      : m_base(std::move(baseStyle)) {}
+
+  /** Appends a run in the base style. */
+  RichText& add(std::u8string_view utf8);
+  /** Appends a run in its own style. */
+  RichText& add(std::u8string_view utf8, sigil::weave::TextStyle style);
+  /** Appends a run in the style registered under @p styleName. */
+  RichText& add(std::u8string_view utf8, std::string_view styleName);
+  /** Supplies the style set names resolve through, beating any the
+   *  environment offers, and re-resolves every named run already added. */
+  RichText& styles(sigil::weave::StyleSet set);
+
+  /** The style unstyled runs and unregistered names are set in. */
+  [[nodiscard]] const sigil::weave::TextStyle& base() const { return m_base; }
+  /** The runs, in the order they were added. */
+  [[nodiscard]] std::span<const Run> runs() const { return m_runs; }
+  [[nodiscard]] bool empty() const { return m_runs.empty(); }
+
+  /** Equal when the base, the runs, their resolved styles and the names
+   *  they were written with all match — the question the prune asks.
+   *
+   *  The style SET is deliberately not compared: a name is resolved as it
+   *  is added, so two values that resolved to the same styles describe the
+   *  same paragraph however they got there, and an entry neither of them
+   *  names cannot make them differ. */
+  bool operator==(const RichText& other) const {
+    return m_base == other.m_base && m_runs == other.m_runs;
+  }
+
+ private:
+  sigil::weave::TextStyle m_base;
+  std::vector<Run> m_runs;
+  sigil::weave::StyleSet m_styles;
+  bool m_hasStyles = false;  // a set is in play (explicit or inherited)
+  bool m_stylesExplicit = false;  // styles() gave it; env cannot replace it
+};
+
+/** Starts a mixed-text value whose default is @p base — see RichText. */
+[[nodiscard]] RichText rich(sigil::weave::TextStyle base = {});
+
+// ---------------------------------------------------------------------------
 // The shape seam — a COMPARABLE silhouette value
 
 /** A shape scheme: `SkPath path(SkSize) const`, plus equality.
@@ -2875,6 +2979,76 @@ class Element {
    *  intrinsic-width text has nothing to align within. */
   Element& textAlign(sigil::weave::TextAlignment a);
 
+  // ---- span restyling: the type treatment, addressed by selector -------
+  //
+  // The same `sel::` vocabulary the fx() tracks address glyphs with, used
+  // to say what a range LOOKS LIKE rather than how it moves. Both verbs
+  // take an ordered list — call either as many times as the passage needs
+  // — and a LATER DECLARATION WINS wherever two overlap, so a broad rule
+  // followed by a narrow exception reads in the order it is written.
+  //
+  // They apply to every content form alike: plain `text(utf8, style)`,
+  // `rich()` spans, and the `shared_ptr<Paragraph>` overload, because all
+  // three are one materialized paragraph by the time a restyle runs.
+  //
+  // Selection is resolved as TEXT RANGES, not glyphs: `sel::text` and
+  // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
+  // `sel::sentence` and `sel::range` through the paragraph's own structure,
+  // and `sel::line` through the layout. `Selector::take` and
+  // `Selector::drop` slice GLYPHS inside a unit, which a text range cannot
+  // express — an `sel::each` selector restyles its whole units here, and
+  // the slice is ignored with a warning.
+  //
+  // A `sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
+  // RESTYLE, and costs a second layout pass. It does not chase its own
+  // result: a `spanStyle` on a line that moves the line breaks leaves the
+  // selection where the first breaking put it.
+
+  /** Text leaves only: repaint the range this selector finds — a colour, a
+   *  shader, an underline, an added glow pass. PAINT ONLY, so it NEVER
+   *  re-shapes and never relayouts: the glyphs are exactly the glyphs the
+   *  unrestyled text shaped, drawn differently. */
+  Element& spanPaint(Selector where, sigil::weave::PaintStyle paint);
+  /** Text leaves only: restyle the range this selector finds with a
+   *  complete TextStyle — a different face, size, weight or tracking as
+   *  well as paint. Re-shapes, and only the words the range covers: the
+   *  shaping cache is content-addressed, so the rest of the paragraph is
+   *  reused as it stands. */
+  Element& spanStyle(Selector where, sigil::weave::TextStyle style);
+
+  // ---- layout options, fluently ----------------------------------------
+  //
+  // The general knobs of `weave::ParagraphLayoutOptions`, as setters that
+  // work on every content form. The rest of that struct — justification
+  // elasticity, Knuth-Plass tolerance, tab stops, line-metric overrides —
+  // stays behind the `shared_ptr<Paragraph>` overload, which takes the
+  // whole options value.
+  //
+  // ON THE PARAGRAPH OVERLOAD THESE OVERRIDE FIELD BY FIELD, and only the
+  // fields actually set: options passed to `text(paragraph, options)` stand
+  // for everything a setter did not name. Setting none of them leaves the
+  // passed options untouched.
+
+  /** Text leaves only: greedy (the fast default) or Knuth-Plass optimal
+   *  line breaking. */
+  Element& lineBreak(sigil::weave::LineBreakStrategy strategy);
+  /** Text leaves only: whether soft-hyphen break opportunities are taken,
+   *  and what Knuth-Plass charges for taking them. */
+  Element& hyphenation(sigil::weave::HyphenationOptions options);
+  /** Text leaves only: the marker appended to the last line when the text
+   *  overflows its geometry. Empty disables it. */
+  Element& ellipsis(std::u8string_view marker);
+  /** Text leaves only: use at most this many lines (CSS line-clamp); the
+   *  rest reports as overflow and `ellipsis()`, when set, lands on the
+   *  clamped line. 0 is unclamped. */
+  Element& maxLines(int lines);
+  /** Text leaves only: how a paragraph-final or hard-break-final line sits
+   *  under `TextAlignment::kJustify` — its own alignment, or `justify` to
+   *  stretch it to the full measure like every other line. Inert under the
+   *  other alignments, which have no special last line. */
+  Element& lastLine(sigil::weave::TextAlignment alignment,
+                    bool justify = false);
+
   /** Text leaves only: paint the GLYPHS with this material, mapped to
    *  TEXT-METRIC space — the material's unit square lands with x across
    *  the widest line and y from the first line's CAP TOP (real cap height
@@ -3031,6 +3205,10 @@ Element stack();
  *  world. */
 Element positioned();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
+/** Mixed-style text as a COMPARABLE VALUE — see RichText. A re-described
+ *  identical value prunes, which is the whole difference between this and
+ *  the pointer overload below. */
+Element text(RichText spans);
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
  *  overflow…). The paragraph is shared by reference: reuse one

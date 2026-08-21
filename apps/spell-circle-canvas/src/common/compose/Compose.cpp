@@ -996,6 +996,19 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   return e;
 }
 
+Element text(RichText spans) {
+  Element e;
+  e.node()->kind = Kind::Text;
+  detail::TextData& text = e.node()->textData.ensure();
+  // The base rides along as `style` because everything downstream that asks
+  // a text leaf what it is set in — the strut a line height comes from, the
+  // metric band textFill() maps into — reads one style, and a mixed
+  // paragraph's answer to that question is the style its unstyled runs use.
+  text.style = spans.base();
+  text.rich = std::move(spans);
+  return e;
+}
+
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
@@ -1004,6 +1017,59 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
   text.paragraphOverride = std::move(paragraph);
   text.layoutOptions = std::move(options);
   return e;
+}
+
+// ---------------------------------------------------------------------------
+// rich() — mixed text as a value
+
+RichText rich(sigil::weave::TextStyle base) {
+  return RichText(std::move(base));
+}
+
+RichText& RichText::add(std::u8string_view utf8) {
+  m_runs.push_back(Run{std::u8string(utf8), m_base, {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8,
+                        sigil::weave::TextStyle style) {
+  m_runs.push_back(Run{std::u8string(utf8), std::move(style), {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
+  // The inherited set is captured on the FIRST named run rather than at
+  // rich(), so an unnamed value costs nothing and the capture still happens
+  // inside the author's describe scope. styles() overrides it whichever way
+  // round the two are written.
+  if (!m_hasStyles && !m_stylesExplicit) {
+    if (const sigil::weave::StyleSet* ambient =
+            env::inherited<sigil::weave::StyleSet>()) {
+      m_styles = *ambient;
+      m_hasStyles = true;
+    }
+  }
+  Run run{std::u8string(utf8), m_base, std::string(styleName)};
+  if (m_hasStyles) {
+    // find(), not operator[]: an unregistered name resolves to the base
+    // handed to rich(), which is this text's one default.
+    if (const sigil::weave::TextStyle* named = m_styles.find(run.styleName))
+      run.style = *named;
+  }
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
+RichText& RichText::styles(sigil::weave::StyleSet set) {
+  m_styles = std::move(set);
+  m_hasStyles = true;
+  m_stylesExplicit = true;
+  for (Run& run : m_runs) {
+    if (run.styleName.empty()) continue;
+    const sigil::weave::TextStyle* named = m_styles.find(run.styleName);
+    run.style = named ? *named : m_base;
+  }
+  return *this;
 }
 
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
@@ -1080,7 +1146,63 @@ Element& Element::variationDrive(const char (&tag)[5],
 }
 
 Element& Element::textAlign(sigil::weave::TextAlignment a) {
-  m_node->textData.ensure().layoutOptions.alignment = a;
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.alignment = a;
+  options.set |= detail::TextOptions::kAlignment;
+  return *this;
+}
+
+Element& Element::lineBreak(sigil::weave::LineBreakStrategy strategy) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.lineBreak = strategy;
+  options.set |= detail::TextOptions::kLineBreak;
+  return *this;
+}
+
+Element& Element::hyphenation(sigil::weave::HyphenationOptions spec) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.hyphenation = spec;
+  options.set |= detail::TextOptions::kHyphenation;
+  return *this;
+}
+
+Element& Element::ellipsis(std::u8string_view marker) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.ellipsis = detail::toUtf16(marker);
+  options.set |= detail::TextOptions::kEllipsis;
+  return *this;
+}
+
+Element& Element::maxLines(int lines) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.maxLines = lines;
+  options.set |= detail::TextOptions::kMaxLines;
+  return *this;
+}
+
+Element& Element::lastLine(sigil::weave::TextAlignment alignment,
+                           bool justify) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.lastLineAlignment = alignment;
+  options.justifyLastLine = justify;
+  options.set |= detail::TextOptions::kLastLine;
+  return *this;
+}
+
+Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
+  detail::SpanRestyle restyle;
+  restyle.where = std::move(where);
+  restyle.style.paint = std::move(paint);
+  restyle.paintOnly = true;
+  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
+  return *this;
+}
+
+Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
+  detail::SpanRestyle restyle;
+  restyle.where = std::move(where);
+  restyle.style = std::move(style);
+  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
   return *this;
 }
 

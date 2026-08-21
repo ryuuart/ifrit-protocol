@@ -27,3 +27,30 @@ instrumented side disagrees on (as done for Abseil) or by routing the
 booleans through an entry point that does not realloc across the
 boundary. Until then the sanitizer lane's `shape_test` verdict excludes
 this one case.
+
+## `HyphenationOptions::enabled = false` still breaks at soft hyphens
+
+**What the code does.** `Paragraph::analyze` splits a word at a trailing
+U+00AD into two `Word`s and marks the first `hyphenBreak`
+(`Paragraph.cpp`), and the greedy breaker then treats that boundary like
+any other word boundary. `options.hyphenation.enabled` is read in exactly
+two places — the hyphen-width reserve in `layoutParagraph`'s greedy loop
+and the Knuth-Plass demerit — so disabling it drops the *visible hyphen*
+while the line still breaks there. Observable through compose:
+`text(u8"short extraordi­narily", …).width(150)` breaks after
+`extraordi` with `.hyphenation({.enabled = false})`, one run shorter than
+with it enabled, rather than keeping the long word whole.
+
+**What it was evidently intended to do.** `HyphenationOptions::enabled`
+is documented as "false ignores soft-hyphen break opportunities" — the
+CSS `hyphens: none` behaviour, where a soft hyphen contributes no break at
+all and the word wraps or overflows as one unit.
+
+**What a test should assert.** In `weave_test`, one paragraph containing a
+soft hyphen, laid out in a measure too narrow for the whole word: with
+`hyphenation.enabled = false` the layout produces ONE line whose words are
+the untruncated word (overflowing or forced), and with it true, two lines
+with the hyphen glyph on the first. `compose_test`'s
+`TextOptionSetters.HyphenationRendersTheHyphenAtASoftBreak` currently
+asserts only the hyphen-glyph half, which is what the code actually
+delivers; it should assert the break itself once intent is restored.

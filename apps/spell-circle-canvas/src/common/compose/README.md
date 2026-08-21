@@ -306,6 +306,77 @@ in flight is painted with the same glyph paint a resting one is.
 `Element::onPath` does not — `fx()` wins when both are set — and
 `Element::echo` skips fx text by contract.
 
+### Mixed text
+
+**There is no markup language.** Text that is not all set the same way is a
+`RichText` value plus selector styling, and the two cover different halves
+of the problem: `rich()` says what the CONTENT is, and `spanPaint` /
+`spanStyle` say what a RANGE of it looks like.
+
+```cpp
+auto p = rich(base)
+             .add(u8"Signal ")
+             .add(u8"woven", accent)
+             .add(u8" through ")
+             .add(u8"noise", mono);
+
+text(p)
+    .spanPaint(sel::regex(u8"[0-9]+"), sigil::weave::PaintStyle(SK_ColorRED))
+    .maxLines(3)
+    .ellipsis(u8"…");
+```
+
+`RichText::add` takes a run in the base style, a run in its own
+`sigil::weave::TextStyle`, or a run under a NAME resolved through a
+`sigil::weave::StyleSet` — supplied by `RichText::styles` or inherited
+through `env::Provide`. An explicit set beats the inherited one whichever
+order the two are written in, and a name the set does not register resolves
+to the base `rich()` was given, so a misspelling shows as content set in
+the default rather than as content that did not draw. `RichText::runs` and
+`RichText::base` read the finished value back.
+
+**It is a comparable value, and that is the point.** Two rich texts with
+the same base and the same runs in the same styles are equal, so a
+component that rebuilds its spans every describe prunes exactly like a
+static leaf. The `text(std::shared_ptr<sigil::weave::Paragraph>, options)`
+overload cannot answer that question — a fresh pointer is a fresh identity
+and reads as changed content every time — which is why it stays the escape
+hatch for the passage too custom for either verb, not the way to set two
+colours in a sentence.
+
+**Selector styling.** `Element::spanPaint` and `Element::spanStyle` restyle
+whatever the SAME `sel::` selectors the tracks use address, on every
+content form alike — plain text, `rich()` spans and the paragraph overload.
+`spanPaint` is paint only and NEVER re-shapes: the glyphs are the glyphs
+the unrestyled text shaped, at the positions it shaped them. `spanStyle`
+takes a complete style and re-shapes only the words its range covers.
+Both are ordered lists — a LATER DECLARATION WINS on overlap, so a broad
+rule followed by a narrow exception reads in the order it is written — and
+both are comparable values, so a re-described restyle list prunes and only
+a changed one re-resolves.
+
+Selection resolves as TEXT RANGES rather than glyphs, because a restyle
+runs on the paragraph before there are glyphs to point at: `sel::text` and
+`sel::regex` through weave's query layer, `sel::word`, `sel::words`,
+`sel::sentence` and `sel::range` through the paragraph's own structure, and
+`sel::line` through the layout. Two consequences follow. `Selector::take`
+and `Selector::drop` slice glyphs inside a unit, which no text range can
+express — an `sel::each` selector restyles its whole units and the slice
+warns once. And a `sel::line` restyle costs a second layout pass and
+addresses the layout of the text BEFORE the restyle: it does not chase its
+own result, so a `spanStyle` that moves the line breaks leaves the
+selection where the first breaking put it.
+
+**Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
+(greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,
+`Element::maxLines` and `Element::lastLine` set the general knobs of
+`sigil::weave::ParagraphLayoutOptions` on any content form. The rest of
+that struct — justification elasticity, Knuth-Plass tolerance, tab stops,
+line-metric overrides — stays behind the paragraph overload, which takes
+the whole options value. **On that overload the setters override FIELD BY
+FIELD**, and only the fields actually set: everything a setter did not name
+keeps the value that was passed in.
+
 ---
 
 ## The header map
@@ -318,7 +389,8 @@ outside the library.
 **Kernel — `Compose.h`.** `Element` and its builders; the factories `box`,
 `stack`, `positioned`, `text`, `image`, `custom`, `slot`, `connector`,
 `rail`, `band`, `layout`; `Composer`; `memo`; the `env::` inherited-value
-channel; the comparable seam values (`Shape`, `Shaper`, `Profile`,
+channel; the mixed-text value `rich` and the span-restyling verbs; the
+comparable seam values (`Shape`, `Shaper`, `Profile`,
 `Decoration`, `CrossingRule`); the stroke grammar (`spans::` and
 `Element::stroke`); the masking family (`parts::`, `by::`, `Region`);
 `Effect`; the one-shot verbs `snapshot`, `measure`, `metrics`,
