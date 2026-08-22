@@ -43,11 +43,11 @@
 //
 // The rects are the other hand-walk, and it leaves compose entirely. Nothing
 // on compose's seam answers "the rect of unit k": `measureRun` reports
-// advances with no positions and drops the gaps between words, and
-// `Composer::paragraphLayout` answers only for a keyed text node that is in
-// the tree and only after a layout, which the sampler's baked line is not. So
-// the units below are walked out of SigilWeave's own laid-out paragraph, and
-// a unit that is a WORD is a merge the caller performs on that walk.
+// advances and no word boundaries, and `Composer::paragraphLayout` answers
+// only for a keyed text node that is in the tree and only after a layout,
+// which the sampler's baked line is not. So the units below are walked out of
+// SigilWeave's own laid-out paragraph, and a unit that is a WORD is a merge
+// the caller performs on that walk.
 //
 // EDIT THESE FIRST
 //   kEach     — start-to-start between units. 0 decodes the whole line at
@@ -144,9 +144,9 @@ struct Line {
  *  A unit's box is where the layout PUT the glyphs, so the walk needs
  *  positions and a word index, which is SigilWeave's `forEachPlacedGlyph`
  *  over a laid-out paragraph. Compose's own one-shot answer, `measureRun`,
- *  reports the glyphs' advances and no positions — and an inter-word space
- *  is a gap the flow leaves rather than a glyph, so it is absent from that
- *  list and prefix sums of it walk a multi-word line off to the left.
+ *  reports advances whose prefix sums are the pen positions — enough to
+ *  place glyphs, not enough to say which word one belongs to, and a unit
+ *  that is a word is exactly that question.
  *
  *  Each unit spans the line box's full height: a letter's own ink box is
  *  narrower than that, but neighbouring units are separated horizontally and

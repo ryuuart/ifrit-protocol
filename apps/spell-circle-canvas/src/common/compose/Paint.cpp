@@ -1766,8 +1766,9 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
  *  excluded; recordBounds() below adds the child union. The node's box,
  *  grown by every declared bleed (decorations, stroke passes, echo offsets,
  *  band width profiles, material reserves), then joined with the geometry a
- *  layout rect does not bound at all: a routed connector/rail path and a
- *  borrowed band spine, each outset by its own reach. */
+ *  layout rect does not bound at all: a routed connector/rail path, a text
+ *  run's path baseline, and a borrowed band spine, each outset by its own
+ *  reach. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   const ElementNode& node = *inst.desc;
   const SkRect rect = instanceRect(inst);
@@ -1821,6 +1822,27 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
     SkRect route = inst.connectorPath.getBounds();
     route.outset(bleed + 8.0f, bleed + 8.0f);
     local.join(route);
+  }
+  // A PATH BASELINE is the same problem once more. The baseline resolves
+  // against the node's own box, so a `shapes::` generator normally stays
+  // inside it — but nothing requires that: a Shape may return a curve well
+  // outside the box, and `TextPath::offset` rides the type further off it
+  // again. The glyphs then stand an ascent above that curve and a descent
+  // below it, plus whatever the tracks reach, so the cull holds the curve
+  // outset by the whole band. Over-reporting is safe here as everywhere;
+  // under-reporting truncates the run at the cached picture or texture
+  // bounds with no diagnostic.
+  if (node.textData && node.textData->onPath) {
+    const TextPath& spec = *node.textData->onPath;
+    const SkPath baseline = spec.path({rect.width(), rect.height()});
+    if (!baseline.isEmpty()) {
+      const TextMetrics band = metrics(node.textData->style, fonts);
+      const float reach =
+          std::max(band.ascent, band.descent) + std::abs(spec.offset) + bleed;
+      SkRect curve = baseline.getBounds();
+      curve.outset(reach, reach);
+      local.join(curve);
+    }
   }
   // A BAND is the same problem: the bleed above covers the width axis, but
   // a BORROWED spine (band(around(key))) can sit anywhere relative to this

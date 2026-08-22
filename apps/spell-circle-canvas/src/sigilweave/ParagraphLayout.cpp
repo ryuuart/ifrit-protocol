@@ -559,6 +559,12 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
           ? static_cast<FlowGeometry&>(clampedGeometry)
           : geometry;
 
+  // Whether a soft hyphen is a break opportunity is decided during
+  // segmentation, so the option reaches the paragraph before it analyzes;
+  // disabled, the two halves fuse into one unbreakable word. Setting it to
+  // what the paragraph already holds is free.
+  paragraph.setSoftHyphenBreaks(options.hyphenation.enabled);
+
   // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
   // their own frontier, so text past the geometry never shapes at all.
   paragraph.ensureAnalyzed(fontContext);

@@ -299,7 +299,12 @@ class Effect {
  public:
   static Effect filter(sk_sp<SkImageFilter> f);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
-   *  the layer arrives as the child shader named "content". */
+   *  the layer arrives as the child shader named "content".
+   *
+   *  A name the effect does not declare as a float uniform — a typo, or a
+   *  float2/float4/array, none of which this door can fill — is warned
+   *  about once and IGNORED, never a debug abort: one typo in a
+   *  live-reloaded sketch must not take the host process down. */
   static Effect shader(
       sk_sp<SkRuntimeEffect> effect,
       std::vector<std::pair<std::string, float>> uniforms = {});
@@ -380,8 +385,11 @@ class Effect {
    *  directionalBlur() ("sigma" / "angle" / "across") or a blur()
    *  ("maxSigma"). A filter() has no uniform to receive the value: the
    *  binding warns and is ignored there, and no volatility is declared, so
-   *  nothing animates. Unknown recipe names on the other kinds warn and
-   *  are ignored, as does a null @p value. */
+   *  nothing animates. Every other rejection behaves the same way — a name
+   *  a shader() effect does not declare as a float uniform, an unknown
+   *  recipe name on the other kinds, a null @p value: warned about once,
+   *  not recorded, and no volatility declared for it, because a binding
+   *  nothing reads must not cost a repaint per frame forever. */
   Effect& uniform(std::string name, const choreograph::Output<float>* value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
@@ -3630,7 +3638,11 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
  *
  *  Pen positions are the running prefix sums, so hand-placing N glyphs
  *  costs one layout here rather than N text() leaves and N `measure()`
- *  calls.
+ *  calls. A space between two words is a gap the flow leaves rather than a
+ *  glyph, so it rides the advance of the glyph before it and the sums stay
+ *  true across a whole sentence; the sums therefore add up to the run's
+ *  laid-out extent, not to the ink alone. The pen starts at the FIRST
+ *  GLYPH, so leading whitespace is no part of the run.
  *
  *  Single style, no wrapping: the run is laid on one unbounded line. A
  *  '\n' starts a new line and resets the positions after it, so pass a

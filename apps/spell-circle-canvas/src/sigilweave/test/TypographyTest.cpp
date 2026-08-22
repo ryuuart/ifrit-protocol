@@ -99,6 +99,79 @@ TEST(SoftHyphen, KnuthPlassTakesDiscretionaryBreaks) {
   EXPECT_GT(layout.lineCount, 2);
 }
 
+TEST(SoftHyphen, DisabledRemovesTheBreakOpportunity) {
+  FontContext& fontContext = sharedContext();
+  // One word, one soft hyphen, and a measure too narrow for the whole word:
+  // the only thing that can decide the line count is whether the hyphen is a
+  // break opportunity.
+  Paragraph paragraph = makeParagraph(u8"extra­ordinarily");
+  BlockFlow flow(SkRect::MakeWH(90, 300));
+
+  ParagraphLayoutOptions hyphenating;
+  hyphenating.hyphenation.enabled = true;
+  ParagraphLayout broken =
+      layoutParagraph(fontContext, paragraph, flow, hyphenating);
+  ASSERT_EQ(paragraph.words().size(), 2u);  // "extra·" + "ordinarily"
+  ASSERT_TRUE(paragraph.words()[0].hyphenBreak);
+  EXPECT_EQ(broken.lineCount, 2);
+  const SkTextBlob* hyphenBlob =
+      wordBlob(*paragraph.words()[0].hyphenGlyph).get();
+  bool hyphenOnFirstLine = false;
+  for (const PositionedRun& run : broken.runs)
+    hyphenOnFirstLine |= run.blob.get() == hyphenBlob && run.lineIndex == 0;
+  EXPECT_TRUE(hyphenOnFirstLine);
+
+  ParagraphLayoutOptions whole;
+  whole.hyphenation.enabled = false;
+  ParagraphLayout unbroken =
+      layoutParagraph(fontContext, paragraph, flow, whole);
+  // The halves fuse: one word, no discretionary break, one line — and it
+  // overflows the measure rather than splitting, which is the whole point.
+  ASSERT_EQ(paragraph.words().size(), 1u);
+  EXPECT_FALSE(paragraph.words()[0].hyphenBreak);
+  EXPECT_EQ(unbroken.lineCount, 1);
+  ASSERT_FALSE(unbroken.runs.empty());
+  float extent = 0;
+  for (const PositionedRun& run : unbroken.runs)
+    extent = std::max(extent, runEnd(paragraph, run));
+  EXPECT_GT(extent, 90.0f);
+
+  // Turning it back on restores the break, so the decision is not sticky.
+  ParagraphLayout again =
+      layoutParagraph(fontContext, paragraph, flow, hyphenating);
+  EXPECT_EQ(paragraph.words().size(), 2u);
+  EXPECT_EQ(again.lineCount, 2);
+}
+
+TEST(SoftHyphen, DisabledRemovesTheBreakOpportunityForKnuthPlass) {
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(
+      u8"the as­ton­ish­ing­ly in­com­pre­hen"
+      "­si­ble hy­phen­ation ma­chin­ery works");
+  BlockFlow flow(SkRect::MakeWH(120, 600));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  options.alignment = TextAlignment::kJustify;
+
+  ParagraphLayout hyphenated =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  EXPECT_FALSE(hyphenated.overflowed());
+  const size_t hyphenatedWordCount = paragraph.words().size();
+  size_t hyphenBreakCount = 0;
+  for (const Word& word : paragraph.words())
+    hyphenBreakCount += word.hyphenBreak;
+  ASSERT_GT(hyphenBreakCount, 0u);
+
+  options.hyphenation.enabled = false;
+  ParagraphLayout whole =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  // Every fused pair is one word fewer, and nothing left in the list can be
+  // broken at a hyphen — Knuth-Plass has no discretionary breaks to weigh.
+  EXPECT_LT(paragraph.words().size(), hyphenatedWordCount);
+  for (const Word& word : paragraph.words()) EXPECT_FALSE(word.hyphenBreak);
+  EXPECT_FALSE(whole.overflowed());
+}
+
 TEST(Typography, SpanRestyleAcrossLines) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(

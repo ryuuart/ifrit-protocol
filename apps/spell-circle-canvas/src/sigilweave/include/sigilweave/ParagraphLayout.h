@@ -47,7 +47,12 @@ struct LineMetricsOptions {
 
 /** Controls soft-hyphen handling independently from the break strategy. */
 struct HyphenationOptions {
-  bool enabled = true;  ///< false ignores soft-hyphen break opportunities
+  /// False removes the break opportunity, not just the hyphen glyph: the
+  /// halves either side of a soft hyphen fuse into one unbreakable word
+  /// during segmentation, so the word wraps or overflows whole. Reaching
+  /// the paragraph is what makes that happen — see
+  /// Paragraph::setSoftHyphenBreaks, which layoutParagraph sets from here.
+  bool enabled = true;
   /// Added as squared demerits by Knuth-Plass to discourage repeated
   /// discretionary hyphen breaks.
   float penalty = 50.0f;

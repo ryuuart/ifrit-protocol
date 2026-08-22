@@ -373,6 +373,13 @@ fixed ladder of directions because each distinct rotation is a glyph-atlas
 strike; `TextPath::exactTangent` is the opt-out, for static artwork set
 large.
 
+**The baseline declares its own reach.** A resolved path is not bounded by
+the node's box — a custom `Shape` may return a curve well outside it, and
+`offset` rides the type further off again — so the cull grows by the curve's
+bounds plus the glyph band and whatever the tracks reach, the same
+over-reporting-is-safe contract `bleed()` and `reach()` carry. Nothing to
+declare by hand; it follows from the baseline you gave it.
+
 ### Mixed text
 
 **There is no markup language.** Text that is not all set the same way is a

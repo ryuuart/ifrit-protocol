@@ -151,9 +151,34 @@ std::vector<float> measureRun(std::u8string_view utf8,
   sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
   sigil::weave::ParagraphLayout layout =
       sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
+  // An inter-word space is a GAP the flow leaves between positioned runs,
+  // not a glyph, so it visits nothing here. Left out, every glyph after a
+  // space would be placed short by the accumulated space advances and the
+  // error would grow with each word. Whatever the layout left between one
+  // glyph's pen end and the next one's origin therefore rides the advance
+  // of the glyph it follows, which is what makes the prefix sums reproduce
+  // the pen positions the layout used.
+  //
+  // Two steps are not glue and are not folded: a line change (a '\n' in the
+  // run) restarts the pen, and a BACKWARDS step between two words is
+  // bidi reordering rather than a gap — visual order runs the other way
+  // there and no prefix sum can express it. Inside one word a backwards
+  // step is ordinary kerning and counts.
+  float pen = 0;
+  int lineIndex = -1;
+  uint32_t wordIndex = 0;
   sigil::weave::forEachPlacedGlyph(
       layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const float step = placed.rest.x() - pen;
+        if (placed.lineIndex != lineIndex) {
+          lineIndex = placed.lineIndex;
+        } else if (!advances.empty() &&
+                   (placed.wordIndex == wordIndex || step > 0)) {
+          advances.back() += step;
+        }
         advances.push_back(placed.advance);
+        pen = placed.rest.x() + placed.advance;
+        wordIndex = placed.wordIndex;
       });
   return advances;
 }

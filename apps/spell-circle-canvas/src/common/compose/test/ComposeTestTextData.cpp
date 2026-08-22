@@ -1758,3 +1758,53 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
   EXPECT_TRUE(measureRun(u8"", style, fonts()).empty());
   EXPECT_EQ(advances.size(), 15u);
 }
+
+TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
+  // The header's contract is that the prefix sums ARE the pen positions. An
+  // inter-word space is a gap the flow leaves rather than a glyph, so it
+  // visits nothing in the glyph walk; left out of the advances, every glyph
+  // after a space is placed short and the error grows with each word. The
+  // ground truth is the same layout's own placements, so one word, two words
+  // and a leading space are all checked against it — a fix that satisfies
+  // only the single-word case fails here.
+  const sigil::weave::TextStyle style = whiteStyle(40);
+  const auto lastPenEnd = [&](std::u8string_view utf8) {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(utf8, style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    const sigil::weave::ParagraphLayout layout =
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow);
+    // The right edge of the last glyph, and the pen the first one starts at:
+    // measureRun's sums are relative to that first pen.
+    float first = 0, end = 0;
+    bool seen = false;
+    sigil::weave::forEachPlacedGlyph(
+        layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+          if (!seen) first = placed.rest.x();
+          seen = true;
+          end = placed.rest.x() + placed.advance;
+        });
+    return end - first;
+  };
+  for (std::u8string_view run :
+       {std::u8string_view(u8"ONE"), std::u8string_view(u8"A B"),
+        std::u8string_view(u8" A B"),
+        std::u8string_view(u8"ONE PASS PER WORD PHASE")}) {
+    const std::vector<float> advances = measureRun(run, style, fonts());
+    ASSERT_FALSE(advances.empty());
+    float sum = 0;
+    for (float a : advances) sum += a;
+    EXPECT_NEAR(sum, lastPenEnd(run), 0.01f)
+        << "prefix sums mis-place the last glyph of \""
+        << std::string(reinterpret_cast<const char*>(run.data()), run.size())
+        << "\"";
+  }
+  // The glyph count is untouched: a space still contributes no entry, it
+  // only lends its advance to the glyph before it.
+  const std::vector<float> spaced = measureRun(u8"A B", style, fonts());
+  ASSERT_EQ(spaced.size(), 2u);
+  EXPECT_GT(spaced[0], measureRun(u8"A", style, fonts())[0])
+      << "the gap must ride the advance of the glyph it follows";
+  EXPECT_FLOAT_EQ(spaced[1], measureRun(u8"B", style, fonts())[0])
+      << "the last glyph carries no trailing gap";
+}

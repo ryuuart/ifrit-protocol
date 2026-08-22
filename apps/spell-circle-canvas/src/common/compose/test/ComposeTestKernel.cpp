@@ -2802,6 +2802,73 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
   EXPECT_FALSE(nulled.isAnimated());
 }
 
+TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
+  // The shader() path is the one that takes arbitrary names, and the builder
+  // answers a name the effect does not declare — or one declared at another
+  // type — with a debug abort and no write. This Skia has no SK_DEBUG, so
+  // without a check the value is dropped, the effect paints with a zeroed
+  // uniform, and nothing says so. Material's discipline is the standard:
+  // validate at store time, warn, ignore.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform shader content;"
+      "uniform float uK;"
+      "uniform float2 uV;"
+      "half4 main(float2 p) { return content.eval(p) * (uK + uV.x); }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  choreograph::Output<float> k{0.5f};
+
+  // Control: the declared float binds, silently, on both doors.
+  ::testing::internal::CaptureStderr();
+  const Effect good = Effect::shader(effect, {{"uK", 0.5f}});
+  Effect goodBound = Effect::shader(effect);
+  goodBound.uniform("uK", &k);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a declared float uniform must bind without a word";
+  EXPECT_TRUE(goodBound.isAnimated());
+  EXPECT_TRUE(good.imageFilter() != nullptr);
+
+  // (a) a typo'd constant on shader(): warned, and the filter it builds is
+  // the one it would have built with no binding at all.
+  ::testing::internal::CaptureStderr();
+  const Effect typoConst = Effect::shader(effect, {{"noSuchConst", 1.0f}});
+  const std::string constLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(constLog.find("Effect::shader"), std::string::npos) << constLog;
+  EXPECT_NE(constLog.find("noSuchConst"), std::string::npos) << constLog;
+  EXPECT_EQ(typoConst, Effect::shader(effect))
+      << "a rejected constant must leave no trace in the recipe";
+
+  // (b) a typo'd binding on uniform(): warned, ignored, and — the part that
+  // costs a repaint every frame if it is got wrong — NOT declared live.
+  ::testing::internal::CaptureStderr();
+  Effect typoBound = Effect::shader(effect);
+  typoBound.uniform("noSuchBinding", &k);
+  const std::string boundLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(boundLog.find("Effect::uniform"), std::string::npos) << boundLog;
+  EXPECT_NE(boundLog.find("noSuchBinding"), std::string::npos) << boundLog;
+  EXPECT_FALSE(typoBound.isAnimated())
+      << "an ignored binding must not mark the node live forever";
+  EXPECT_EQ(typoBound, Effect::shader(effect));
+
+  // (c) a name the effect DOES declare, at another type: a float2 is not a
+  // float, and assigning it is the same abort.
+  ::testing::internal::CaptureStderr();
+  Effect wrongType = Effect::shader(effect, {{"uV", 1.0f}});
+  wrongType.uniform("uV", &k);
+  const std::string typeLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(typeLog.find("uV"), std::string::npos) << typeLog;
+  EXPECT_FALSE(wrongType.isAnimated());
+  EXPECT_EQ(wrongType, Effect::shader(effect));
+
+  // Once per name, not once per call: a description is rebuilt every frame
+  // in a live-coding host and a per-call warning would bury the console.
+  ::testing::internal::CaptureStderr();
+  (void)Effect::shader(effect, {{"noSuchConst", 1.0f}});
+  Effect again = Effect::shader(effect);
+  again.uniform("noSuchBinding", &k);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "the same rejected name must not warn twice";
+}
+
 // ---------------------------------------------------------------------------
 // Material::amount(): a blend layer's strength.
 

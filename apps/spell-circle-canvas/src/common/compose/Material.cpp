@@ -141,12 +141,11 @@ RampArrays split(const std::vector<Stop>& stops) {
 // assigning an undeclared or mis-sized uniform SkDEBUGFAILs (aborts debug
 // builds), which would let one typo kill the ComposeSketch hot-reload host.
 // Unknown names warn-and-ignore instead (validated at sksl()/uniform() time,
-// so build() never touches an invalid entry).
+// so build() never touches an invalid entry). The rule itself lives in
+// detail:: because Effect's uniform doors answer to it too.
 bool validUniform(const sk_sp<SkRuntimeEffect>& effect, std::string_view name,
                   size_t bytes) {
-  if (!effect) return false;
-  const SkRuntimeEffect::Uniform* u = effect->findUniform(name);
-  return u && u->sizeInBytes() == bytes;
+  return detail::declaresUniform(effect, name, bytes);
 }
 
 void warnUnknownUniform(const char* what, const std::string& name) {
@@ -178,6 +177,16 @@ bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
   if (!effect) return false;
   const SkRuntimeEffect::Child* c = effect->findChild(name);
   return c && c->type == SkRuntimeEffect::ChildType::kShader;
+}
+
+// The uniform half of the same guardrail, shared with Effect::shader and
+// Effect::uniform so the two doors that take an author's uniform name cannot
+// disagree about what the effect will accept.
+bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
+                     std::string_view name, size_t bytes) {
+  if (!effect) return false;
+  const SkRuntimeEffect::Uniform* u = effect->findUniform(name);
+  return u && u->sizeInBytes() == bytes;
 }
 
 // The Material→SkShader conversion every child slot performs (declared in

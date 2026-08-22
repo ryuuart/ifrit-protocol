@@ -299,6 +299,12 @@ void Paragraph::setWritingMode(WritingMode mode) {
   markDirty();
 }
 
+void Paragraph::setSoftHyphenBreaks(bool enabled) {
+  if (m_softHyphenBreaks == enabled) return;
+  m_softHyphenBreaks = enabled;
+  markDirty();  // break opportunities are decided in analyze()
+}
+
 void Paragraph::appendText(std::u16string_view utf16, const TextStyle& style) {
   if (utf16.empty()) return;
   const uint32_t start = static_cast<uint32_t>(m_text.size());
@@ -682,6 +688,26 @@ void Paragraph::analyze(FontContext& fontContext) {
     boundaries.push_back(boundary);
   if (boundaries.empty() || boundaries.back() != textLength)
     boundaries.push_back(textLength);
+
+  // A soft hyphen (U+00AD) is the one discretionary break opportunity the
+  // word list carries. When it is turned off, the boundary UAX#14 opened
+  // right after the hyphen is dropped here so the two halves fuse into a
+  // single unbreakable Word: no breaker can split there, and the hyphen —
+  // now interior to the word — shapes as the zero-advance default-ignorable
+  // it is, so the word wraps or overflows whole and unmarked. A hyphen
+  // followed by whitespace keeps its boundary either way, because the break
+  // belongs to the space and not to the hyphen.
+  if (!m_softHyphenBreaks) {
+    size_t keptCount = 0;
+    for (const int32_t boundary : boundaries) {
+      if (boundary < textLength &&
+          m_text[static_cast<size_t>(boundary) - 1] == 0x00AD)
+        continue;
+      boundaries[keptCount++] = boundary;
+    }
+    boundaries.resize(keptCount);
+    if (boundaries.empty()) boundaries.push_back(textLength);
+  }
 
   // ── Script runs (also detects whether bidi is needed at all) ──────────
   bool hasRightToLeftText = false;

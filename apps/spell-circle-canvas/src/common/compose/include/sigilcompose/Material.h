@@ -130,6 +130,16 @@ sk_sp<SkShader> childShader(const Material& source, const PaintContext* ctx);
  *  process down. */
 bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
                          std::string_view name);
+
+/** Does @p effect declare @p name as a uniform of exactly @p bytes? The
+ *  same guardrail one paragraph up, for the other kind of slot: assigning
+ *  an undeclared uniform — or one whose declared size is not the caller's,
+ *  which is every float2, float4 and array — aborts a debug build and drops
+ *  the value silently in a release one. Every door that takes a uniform
+ *  name from an author validates here at STORE time, so the builder is
+ *  never handed an entry it would refuse. */
+bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
+                     std::string_view name, size_t bytes);
 }  // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to

@@ -319,7 +319,13 @@ patterns in this library. Soft hyphens (U+00AD) must already be in the text;
 feed it through any hyphenator that inserts them. Both breakers then treat
 them as break opportunities that are invisible unless a line actually breaks
 there, in which case a styled hyphen is rendered, and Knuth-Plass charges the
-configured penalty per hyphenated line.
+configured penalty per hyphenated line. `hyphenation.enabled = false` removes
+the opportunity rather than just the glyph: the two halves fuse into one
+unbreakable word during segmentation — `Paragraph::setSoftHyphenBreaks` is
+that switch, and `layoutParagraph` throws it from the option — so the word
+wraps or overflows whole, the way `hyphens: none` does. It changes the word
+list, so it re-runs the analysis, and the fused word is its own
+content-addressed shaping entry.
 
 **Text on a path.** Each glyph is anchored by its *advance center* on the
 baseline point, not by its origin — with the offsets HarfBuzz applied on top

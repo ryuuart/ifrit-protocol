@@ -394,10 +394,42 @@ Effect Effect::filter(sk_sp<SkImageFilter> f) {
   return e;
 }
 
+namespace {
+/** A uniform name this effect will not take, said once per name.
+ *
+ *  Once, because a description is rebuilt every frame in a live-coding host:
+ *  a per-call warning would bury the console under one typo. The ledger is
+ *  capped so a program that mints names cannot grow it without bound. */
+void warnUndeclaredEffectUniform(const char* door, const std::string& name) {
+  static std::vector<std::string> seen;
+  for (const std::string& s : seen)
+    if (s == name) return;
+  if (seen.size() >= 16) return;
+  seen.push_back(name);
+  SkDebugf(
+      "[compose] Effect::%s(\"%s\"): the effect declares no float uniform "
+      "by that name — ignored (warned once)\n",
+      door, name.c_str());
+}
+}  // namespace
+
 Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
                       std::vector<std::pair<std::string, float>> uniforms) {
   Effect e;
   if (!effect) return e;
+  // Material's guardrail, and for the same reason: SkRuntimeShaderBuilder
+  // answers a name the effect does not declare — or one whose declared size
+  // is not four bytes, which is every float2, float4 and array — with a
+  // debug abort and no write, and this Skia is built without SK_DEBUG, so
+  // the value is dropped and the effect paints with a zeroed uniform. Drop
+  // the entry here instead, loudly, and keep the recipe free of anything
+  // buildFilter would have to re-check.
+  std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
+    if (detail::declaresUniform(effect, entry.first, sizeof(float)))
+      return false;
+    warnUndeclaredEffectUniform("shader", entry.first);
+    return true;
+  });
   SkRuntimeShaderBuilder builder(effect);
   for (const auto& [name, value] : uniforms)
     builder.uniform(name.c_str()) = value;
@@ -613,6 +645,15 @@ Effect& Effect::uniform(std::string name,
     return *this;
   }
   if (m_effect) {
+    // The shader() path is the one that takes arbitrary names, so it is the
+    // one that must ask the effect. A rejected binding is not recorded at
+    // all, which also means it declares no volatility: an ignored binding
+    // that still marked the node live would cost a repaint every frame
+    // forever, for a value nothing reads.
+    if (!detail::declaresUniform(m_effect, name, sizeof(float))) {
+      warnUndeclaredEffectUniform("uniform", name);
+      return *this;
+    }
     m_bound.emplace_back(std::move(name), value);
     return *this;
   }

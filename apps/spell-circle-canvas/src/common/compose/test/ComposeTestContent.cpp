@@ -3188,6 +3188,60 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
 
+namespace {
+/** A baseline that deliberately leaves the node's box: a ring centred well
+ *  to the right of it. A comparable scheme rather than a raw callable, so
+ *  the node can still prune and the cache under test is really reached. */
+struct RingBesideTheBox {
+  SkPath path(SkSize) const {
+    SkPathBuilder builder;
+    builder.addCircle(200, 100, 60);
+    return builder.detach();
+  }
+  bool operator==(const RingBesideTheBox&) const = default;
+};
+
+/** How many pixels of `host` right of `fromX` carry ink. */
+int litPixelsRightOf(Host& host, int fromX, int width, int height) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  host.surface->readPixels(bitmap.pixmap(), 0, 0);
+  int lit = 0;
+  for (int y = 0; y < height; ++y)
+    for (int x = fromX; x < width; ++x)
+      if (SkColorGetR(*bitmap.getAddr32(x, y)) > 40) ++lit;
+  return lit;
+}
+}  // namespace
+
+TEST(ComposeCache, TextOnAPathOutsideItsBoxSurvivesTheCull) {
+  // A TextPath baseline resolves against the node's box but is not bounded
+  // by it: this ring sits entirely beside the box, and `offset` would ride
+  // the type further off it again. If the paint bounds stop at the box, the
+  // bake surface is sized to the box and every glyph is truncated with no
+  // diagnostic — the failure `bleed()` and `reach()` exist to prevent.
+  // Cache::None is the ground truth: it re-paints straight to the canvas
+  // with no surface to truncate against.
+  const auto plate = [](Cache cache) {
+    auto host = std::make_unique<Host>(300, 200);
+    host->composer.render(box().child(text(u8"CIRCVMFERENTIA", whiteStyle(18))
+                                          .width(100)
+                                          .height(100)
+                                          .onPath({.path = RingBesideTheBox{}})
+                                          .cache(cache)
+                                          .key("ring")));
+    for (int i = 0; i < 4; ++i) host->frame(1.0 / 60.0);
+    return host;
+  };
+  std::unique_ptr<Host> truth = plate(Cache::None);
+  const int expected = litPixelsRightOf(*truth, 110, 300, 200);
+  ASSERT_GT(expected, 40) << "the run never left the box: nothing is proven";
+
+  std::unique_ptr<Host> baked = plate(Cache::Texture);
+  EXPECT_GT(litPixelsRightOf(*baked, 110, 300, 200), expected * 9 / 10)
+      << "the baked plate lost the glyphs the baseline put outside the box";
+}
+
 TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   // `radiusAt` gives each child its own ring radius, so one Radial can draw
   // nested orbits rather than a single circle. The list may be shorter than

@@ -117,7 +117,9 @@ struct Word {
   bool ideographic = false;
   /// Content ended with a soft hyphen (U+00AD, stripped from shaping): a
   /// discretionary break. `hyphenGlyph` is the cached shaped "-" to render
-  /// when a breaker actually breaks here.
+  /// when a breaker actually breaks here. A hyphen the analysis refused to
+  /// break at (see Paragraph::setSoftHyphenBreaks) is interior to its word
+  /// and sets nothing.
   bool hyphenBreak = false;
   ShapedWordRef hyphenGlyph;  ///< only set alongside `hyphenBreak`
 
@@ -158,6 +160,28 @@ class Paragraph {
   /** Returns the direction in which this paragraph is shaped. */
   [[nodiscard]] WritingMode writingMode() const noexcept {
     return m_writingMode;
+  }
+
+  /** Sets whether a soft hyphen (U+00AD) opens a break opportunity.
+   *
+   * True (the default) splits the word there, so a breaker may end a line at
+   * the hyphen and render `Word::hyphenGlyph`. False fuses the word back into
+   * one unbreakable `Word` whose text spans the hyphen: no breaker can split
+   * it, no hyphen is ever rendered, and the word wraps or overflows whole.
+   *
+   * Break opportunities are decided during analysis, so this belongs to the
+   * paragraph rather than to a layout pass — changing it re-runs the ICU
+   * segmentation and re-derives the word list. The fused word is a different
+   * string from either half, so it is a different content-addressed shaping
+   * entry; toggling back finds both sets of entries warm.
+   *
+   * `layoutParagraph` sets this from `HyphenationOptions::enabled` before it
+   * analyzes, so callers who go through it never call this directly.
+   */
+  void setSoftHyphenBreaks(bool enabled);
+  /** Returns whether a soft hyphen opens a break opportunity. */
+  [[nodiscard]] bool softHyphenBreaks() const noexcept {
+    return m_softHyphenBreaks;
   }
 
   // ── Inline placeholders (pills, icons, images in the flow) ────────────
@@ -298,6 +322,8 @@ class Paragraph {
   std::vector<Word> m_words;
   std::vector<Placeholder> m_placeholders;
   WritingMode m_writingMode = WritingMode::kHorizontal;
+  // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
+  bool m_softHyphenBreaks = true;
   bool m_dirty = true;
   bool m_paintDirty = false;
 

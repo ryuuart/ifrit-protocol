@@ -40,6 +40,7 @@
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilimage/ImageAsset.h>
+#include <sigilweave/Choreograph.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
