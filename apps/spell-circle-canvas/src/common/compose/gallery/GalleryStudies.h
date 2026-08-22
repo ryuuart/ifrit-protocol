@@ -204,6 +204,9 @@ inline constexpr StudyInfo kStudies[] = {
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "
      "falloffs: constant, depth of field, a lens edge, a rack focus"},
+    {"ember_decode", "ember decode", "Kit \xc2\xb7 API",
+     "text as a sampler \xe2\x80\x94 one SkSL pass burns a line in, reading "
+     "each unit's rect, progress and seed out of uniform arrays"},
     {"still_accent", "still accent", "Kit \xc2\xb7 API",
      "one bound fill() held still over hundreds of cells \xe2\x80\x94 "
      "the case the settle/release memo exists for"},

@@ -77,3 +77,63 @@ to a curve outside its own box, inside a `Cache::Auto` parent that records:
 the glyphs sitting outside the box still paint after the recording is
 replayed. Today the same tree drawn with `Cache::None` and with the
 default differ, which is the shape of the bug.
+
+## `measureRun` drops the gaps between words, so its prefix sums mis-place
+
+**What the code does.** `measureRun` (`Composer.cpp`) lays the run out
+through the real path — one `Paragraph`, one unconstrained `BlockFlow`,
+`forEachPlacedGlyph` — and pushes each placed glyph's advance. An
+inter-word space is a gap the flow leaves between positioned runs rather
+than a glyph, so it contributes no entry: at 40 px Helvetica Neue,
+`measureRun(u8"A B", …)` returns TWO advances summing 53.36 px while the
+laid-out line's last pen reaches 64.47 px, and
+`u8"ONE PASS PER WORD PHASE"` returns 19 advances summing 534.94 px
+against a laid-out 579.39 px. Every glyph after a space is therefore
+placed short by the accumulated space advances, and the error grows with
+each word.
+
+**What it was evidently intended to do.** The header states it plainly:
+"Pen positions are the running prefix sums, so hand-placing N glyphs costs
+one layout here rather than N text() leaves and N measure() calls." That
+contract holds for a single word and silently fails for a sentence — the
+caller gets numbers that look right, are right at the left end, and drift
+further wrong to the right. The two candidate repairs are opposite: report
+the gap as an advance so the prefix sums reproduce the layout's pen
+positions, or return positions rather than advances so the question cannot
+be asked wrongly.
+
+**What a test should assert.** In `compose_test`: for a run containing a
+space, the prefix sums of `measureRun` place the last glyph's right edge
+at the same x as `forEachPlacedGlyph`'s last `rest.x + advance` over the
+same style and text — checked for one word, two words and a leading
+space, so a fix cannot satisfy the single-word case alone.
+
+## `Effect::shader` and `Effect::uniform` drop an undeclared uniform silently
+
+**What the code does.** `Effect::shader` writes its constants straight
+onto an `SkRuntimeShaderBuilder`, and `Effect::uniform` on a `shader()`
+effect appends any name at all to `m_bound` for `buildFilter` to write the
+same way (`Compose.cpp`). `SkRuntimeEffectBuilder::BuilderUniform::
+operator=` answers a name the effect does not declare — or one whose
+declared size is not four bytes, which is every `float2`, `float4` and
+array uniform — with `SkDEBUGFAIL` and no write. This Skia is built
+without `SK_DEBUG` (`SkUserConfig.h` leaves it commented out and nothing
+in the build defines it), so `SkDEBUGFAIL` expands to nothing: the value
+is dropped, the effect paints with a zeroed uniform, and no diagnostic is
+produced anywhere.
+
+**What it was evidently intended to do.** The seam documents Material's
+guardrail and claims it for itself: "a name the effect doesn't declare as
+a float uniform is warned and IGNORED (never a debug abort — one sketch
+typo must not kill the hot-reload host)", and `Effect::uniform` performs
+exactly that check for `directionalBlur()` and `blur()` recipe names and
+for a null Output. The `shader()` path is the one that takes arbitrary
+names, and it is the one with no check.
+
+**What a test should assert.** In `compose_test`: `Effect::shader(fx,
+{{"nope", 1.0f}})` and `Effect::shader(fx).uniform("nope", &out)` each
+emit one diagnostic and leave the built filter equal to the one built
+without the binding; the same for a name the effect declares at another
+type. `Effect::uniform` on a `shader()` effect should also declare no
+volatility for a binding it rejected, since an ignored binding that still
+marks the node live costs a repaint per frame forever.
