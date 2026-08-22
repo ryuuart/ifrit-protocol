@@ -285,17 +285,18 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // The swell. GRAD is the advance-invariant weight axis — it thickens a
     // letter without moving the letter after it — so it can be driven at
     // DRAW time over glyphs that were shaped once. A small per-glyph offset
-    // makes the swell roll along the line instead of pulsing as a block,
-    // and `continuous` is set because at this size the quantized ladder of
-    // grades is plainly visible as stepping.
+    // makes the swell roll along the line instead of pulsing as a block.
+    // The track is NOT continuous: the snapping ladder is cut per rendered
+    // size, so a hero this large gets a ladder fine enough that the steps do
+    // not show — and the swell keeps the memoized faces a bounded ladder
+    // buys instead of minting one per frame.
     Track swell{
         .effect = fx::axis("GRAD", 400.0f, 880.0f),
         .stagger = {.eachMs = 34, .durationMs = 620},
         // A swell, not an arrival: `cosine()` is 0 at both ends of
         // its period and 1 in the middle, which is what a window —
         // one-way by construction — cannot say.
-        .progress = bind(&secs).source(0.0f, (float)kBreathPeriod).cosine(),
-        .continuous = true};
+        .progress = bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
     return box().clip().width(pct(100)).child(
         text(toU8(words), studio::type({.face = faceDisplay,

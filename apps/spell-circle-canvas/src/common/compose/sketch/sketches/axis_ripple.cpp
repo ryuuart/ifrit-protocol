@@ -50,10 +50,15 @@
 // glyph reads ONE master phase and the travelling wave comes from the glyph's
 // own index inside the effect body rather than from the cascade.
 //
-// The track is `continuous`. A driven axis coordinate is quantized before it
-// reaches the draw, because each distinct value is its own glyph-atlas
-// strike; at 64 px the ladder shows as a visible stepping in the middle of
-// the ramp, which is exactly the case that knob exists for.
+// The track is NOT continuous, and that is worth knowing about a wave this
+// large. A driven axis coordinate is snapped before it reaches the draw,
+// because each distinct value is its own clone and its own glyph-atlas
+// strike — and the ladder it snaps to is cut per rendered size, since one
+// step in design units displaces an outline by more pixels the larger the
+// glyph is. So the 64 px hero here gets a ladder several times finer than a
+// caption's, and the ramp reads smooth off the memoized faces. `continuous`
+// is the opt-out for where that still is not enough, and it costs a face
+// built and rasterized fresh every frame.
 //
 // EDIT THESE FIRST
 //   kRadPerGlyph — the wavelength. 0 makes the whole line pulse together;
@@ -226,8 +231,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
                     .key("ripple")
                     .fx({.effect = gradWave(kGradLo, kGradHi, kRadPerGlyph),
                          .stagger = {.eachMs = 0, .durationMs = 400},
-                         .progress = &phase,
-                         .continuous = true}));
+                         .progress = &phase}));
     panel.child(meter(width));
     char line[160];
     // One line, deliberately: the panel is the run's own width, so a

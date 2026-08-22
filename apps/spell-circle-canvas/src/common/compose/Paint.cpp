@@ -91,8 +91,9 @@ namespace {
 
 /** What driving one axis on one face is allowed to do, and across what
  *  range. `min`/`max` are the axis's own design range, which is what the
- *  driven value is stepped across — a fixed step count over the range keeps
- *  the varied-clone population bounded whatever numbers an effect feeds it.
+ *  driven value is stepped across — a bounded step count over the range
+ *  keeps the varied-clone population bounded whatever numbers an effect
+ *  feeds it.
  */
 struct AxisGate {
   bool allowed = false;
@@ -133,13 +134,46 @@ const AxisGate& axisGate(sigil::weave::FontContext& fonts,
   return gate;
 }
 
+/** How many steps the driven-axis ladder offers a glyph rendered at
+ *  `pixelSize`.
+ *
+ *  A driven coordinate is snapped so a smooth sweep lands on a BOUNDED set
+ *  of faces: every distinct coordinate is a distinct clone, a distinct batch
+ *  bucket and a distinct set of glyph-atlas strikes.
+ *
+ *  How coarse that ladder may be is a visual question, and the answer
+ *  depends on the size the glyph is rendered at. One step is a fixed
+ *  distance in the axis's own design units; a design unit displaces an
+ *  outline by a fixed fraction of the em; and a fixed fraction of the em is
+ *  MORE PIXELS the larger the em is drawn. So one step's visible effect
+ *  grows in proportion to the rendered size, and a step count that does not
+ *  grow with it is a ladder that disappears on a caption and shows on a
+ *  headline. It rises in proportion instead.
+ *
+ *  Both ends are clamped. Below the floor a finer ladder buys nothing the
+ *  eye can use at any size the type is still legible at; the ceiling is what
+ *  makes the retained clone population bounded at all, which is the only
+ *  reason a ladder exists rather than the raw coordinate. */
+int axisLadderSteps(float pixelSize) {
+  constexpr float kStepsPerPixel = 4.0f;
+  constexpr int kMinSteps = 64, kMaxSteps = 512;
+  return std::clamp((int)std::lround(pixelSize * kStepsPerPixel), kMinSteps,
+                    kMaxSteps);
+}
+
 /** The face a driven axis asks for, or null when the gate refuses it — the
- *  glyph then draws at its shaped face, which is the whole refusal. Off a
- *  continuous track the coordinate is stepped across the axis's design
- *  range, because every distinct coordinate is a distinct clone, a distinct
- *  batch bucket and a distinct set of glyph-atlas strikes. */
+ *  glyph then draws at its shaped face, which is the whole refusal.
+ *
+ *  Off a continuous track the coordinate is snapped to the ladder above and
+ *  the clone is memoized, so the faces a scene can reach are bounded and
+ *  each is rasterized once. ON one, the coordinate passes through raw and
+ *  the clone is TRANSIENT: an unsnapped value has no bounded set to memoize,
+ *  so retaining it would add a permanently held clone per frame for as long
+ *  as the process runs. The price of the opt-out is therefore a fresh face
+ *  and fresh glyph rasterization every frame — constant per frame, and
+ *  exactly what "continuous" is asking for. */
 sk_sp<SkTypeface> drivenFace(sigil::weave::FontContext& fonts,
-                             const sk_sp<SkTypeface>& base,
+                             const sk_sp<SkTypeface>& base, float pixelSize,
                              const sigil::weave::FontVariation& axis,
                              bool continuous) {
   const char tag[5] = {axis.tag[0], axis.tag[1], axis.tag[2], axis.tag[3], 0};
@@ -147,13 +181,17 @@ sk_sp<SkTypeface> drivenFace(sigil::weave::FontContext& fonts,
   if (!gate.allowed) return nullptr;
   sigil::weave::FontVariation coordinate = axis;
   coordinate.value = std::clamp(axis.value, gate.min, gate.max);
-  if (!continuous && gate.max > gate.min) {
-    constexpr float kAxisSteps = 64.0f;
+  if (gate.max > gate.min) {
+    if (continuous)
+      return fonts.variedTypefaceTransient(base, {&coordinate, 1});
+    const float steps = (float)axisLadderSteps(pixelSize);
     const float span = gate.max - gate.min;
-    coordinate.value = gate.min + std::round((coordinate.value - gate.min) /
-                                             span * kAxisSteps) *
-                                      (span / kAxisSteps);
+    coordinate.value =
+        gate.min + std::round((coordinate.value - gate.min) / span * steps) *
+                       (span / steps);
   }
+  // A degenerate range offers one reachable coordinate, which is a ladder of
+  // one whether or not the track asked for a ladder.
   return fonts.variedTypeface(base, {&coordinate, 1});
 }
 
@@ -1725,7 +1763,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (mod.axis && placed.shaped)
           dress.face =
-              drivenFace(fonts, placed.shaped->typeface, *mod.axis, continuous);
+              drivenFace(fonts, placed.shaped->typeface,
+                         placed.shaped->fontSize, *mod.axis, continuous);
         SkGlyphID glyph = placed.glyph;
         if (mod.codepoint && placed.shaped)
           if (const SkGlyphID substitute = substituteGlyph(

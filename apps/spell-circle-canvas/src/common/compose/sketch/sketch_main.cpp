@@ -11,6 +11,11 @@
 // write a PNG, exit nonzero on compile/load failure (doubles as the CI
 // smoke test for the whole reload pipeline).
 //
+// --jitter-dt: --bench steps a varying frame interval rather than a fixed
+// one. A fixed step makes every time-derived value repeat on the scene's
+// own period, which hides any cost that grows per distinct value; a live
+// host never repeats one. It touches no capture path.
+//
 // --bench: headless frame-time measurement against the 60 FPS gate. The
 // distinction that matters — and the reason this is a separate mode
 // rather than a number printed by --frame — is the SURFACE. The capture
@@ -40,6 +45,7 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -76,7 +82,15 @@ struct CaptureOptions {
   double fps = 60.0;   // fixed-step rate
   bool bench = false;  // --bench: measure, don't write
   int benchFrames = 120;
+  // --jitter-dt: fractional amplitude of the varying frame interval the
+  // bench steps. 0 keeps the fixed dt every other path here uses.
+  double jitterDt = 0.0;
 };
+
+/** The default `--jitter-dt` amplitude: ±35% around the nominal interval,
+ *  which is the spread a windowed host delivers when it is comfortably
+ *  inside its budget and the compositor is merely uneven. */
+constexpr double kDefaultJitter = 0.35;
 
 /** The 60 FPS gate, in milliseconds per frame. */
 constexpr double kFrameBudgetMs = 16.6;
@@ -156,11 +170,33 @@ int runBench(sigil::compose::sketch::SketchHost& host,
   const auto flush = [&] { (void)surface->readPixels(probe.pixmap(), 0, 0); };
 
   const double dt = 1.0 / options.fps;
+  // --jitter-dt: step the frame interval a live host actually delivers.
+  //
+  // A FIXED dt is not a neutral simplification for anything that memoizes on
+  // a per-frame value. Every animated value is a function of elapsed time, so
+  // under a fixed step the values a scene visits repeat on the scene's own
+  // period — a memo keyed on one of them saturates within a period and a
+  // per-distinct-value cost that grows without bound then reads as free. A
+  // wall-clock host never revisits a value, so the regime the harness
+  // measures is one the running application never enters.
+  //
+  // The sequence is a golden-ratio rotation: irrational, so it never returns
+  // to a step it already took, and deterministic, so two runs of one sketch
+  // measure the same frames. It is off unless asked for, because every other
+  // stepping path in this repository — the captures, the gallery sweep, the
+  // plate ledger's byte identity — depends on the fixed step.
+  double jitterPhase = 0.0;
+  const auto nextDt = [&] {
+    if (options.jitterDt <= 0.0) return dt;
+    constexpr double kGolden = 0.6180339887498949;
+    jitterPhase = std::fmod(jitterPhase + kGolden, 1.0);
+    return dt * (1.0 + options.jitterDt * (2.0 * jitterPhase - 1.0));
+  };
   const auto step = [&] {
     sk.clear(background);
     sk.save();
     sk.scale(scale, scale);
-    host.frame(sk, dt);
+    host.frame(sk, nextDt());
     sk.restore();
     flush();
   };
@@ -211,18 +247,22 @@ int runBench(sigil::compose::sketch::SketchHost& host,
   std::vector<double> sorted = frames;
   std::sort(sorted.begin(), sorted.end());
   const double p50 = percentile(sorted, 0.50);
+  const double p95 = percentile(sorted, 0.95);
   const double p99 = percentile(sorted, 0.99);
   const double avg = mean(frames);
   const double worst = sorted.empty() ? 0.0 : sorted.back();
   const bool pass = p99 < kFrameBudgetMs;
 
   // One machine-readable line, prefixed "BENCH " so collectors can grep it.
+  // The step regime is on the line rather than only in the invocation: a
+  // jittered number and a fixed-dt number answer different questions and
+  // must not be compared as though they were the same measurement.
   std::printf(
-      "BENCH %s %dx%d frames=%d p50=%.2fms p99=%.2fms mean=%.2fms "
-      "max=%.2fms fps50=%.1f VERDICT=%s\n",
+      "BENCH %s %dx%d frames=%d step=%s p50=%.2fms p95=%.2fms p99=%.2fms "
+      "mean=%.2fms max=%.2fms fps50=%.1f VERDICT=%s\n",
       sketchPath.stem().string().c_str(), width, height, (int)frames.size(),
-      p50, p99, avg, worst, p50 > 0 ? 1000.0 / p50 : 0.0,
-      pass ? "PASS" : "FAIL");
+      options.jitterDt > 0.0 ? "jittered" : "fixed", p50, p95, p99, avg, worst,
+      p50 > 0 ? 1000.0 / p50 : 0.0, pass ? "PASS" : "FAIL");
   // …and the human one: which phase dominates is the first question asked
   // of any of these runs.
   std::printf(
@@ -415,7 +455,20 @@ int main(int argc, char* argv[]) {
       deterministic = false;
     else if (arg == "--bench-frames" && i + 1 < argc)
       capture.benchFrames = std::max(1, std::stoi(argv[++i]));
-    else if (sketchPath.empty())
+    else if (arg == "--jitter-dt") {
+      // The amplitude is optional: a bare flag takes the default. Only a
+      // following token that actually reads as a number is consumed, so
+      // `--jitter-dt --bench` does not eat the next flag.
+      capture.jitterDt = kDefaultJitter;
+      if (i + 1 < argc) {
+        const std::string next = argv[i + 1];
+        if (!next.empty() &&
+            (std::isdigit((unsigned char)next[0]) || next[0] == '.')) {
+          capture.jitterDt = std::stod(next);
+          ++i;
+        }
+      }
+    } else if (sketchPath.empty())
       sketchPath = arg;
   }
   if (sketchPath.empty() || !std::filesystem::exists(sketchPath)) {
@@ -424,6 +477,11 @@ int main(int argc, char* argv[]) {
                  "         [--frame <out.png>] [--at <sec>] [--scale <n>]\n"
                  "         [--frames <count>] [--fps <n>]\n"
                  "         [--bench] [--bench-frames <n>]\n"
+                 "         [--jitter-dt [amplitude]]\n"
+                 "             --bench only: step a VARYING frame interval\n"
+                 "             instead of the fixed one, so a cost that\n"
+                 "             grows per distinct per-frame value cannot\n"
+                 "             hide behind a repeating fixed-dt sequence.\n"
                  "         [--deterministic | --no-deterministic]\n"
                  "             pin numbers a sketch measured about its own\n"
                  "             execution, so captures are diffable. ON by\n"

@@ -149,8 +149,9 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem* item) {
                    m_stage->stats.presentPercentile(0.99));
     metrics.insert(QStringLiteral("presentWorstMs"),
                    m_stage->stats.presentWorstMs());
-    metrics.insert(QStringLiteral("workMs"), m_stage->stats.average());
-    metrics.insert(QStringLiteral("p99Ms"), m_stage->stats.percentile(0.99));
+    metrics.insert(QStringLiteral("workMs"), m_stage->stats.workAverage());
+    metrics.insert(QStringLiteral("p99Ms"),
+                   m_stage->stats.workPercentile(0.99));
     metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
     metrics.insert(QStringLiteral("reconcileMs"), cs.reconcileMs);
     metrics.insert(QStringLiteral("layoutMs"), cs.layoutMs);

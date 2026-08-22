@@ -1455,5 +1455,112 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
         << "a stacked track dropped the driven axis, at row " << y;
 }
 
+TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
+  // THE REGRESSION THIS PINS: a varied clone that the font context RETAINS
+  // is retained forever, so a driven axis fed a value that never repeats
+  // must not put one there per frame. It reads as free under a fixed-dt
+  // harness — where an animated value cycles on the scene's own period and
+  // the memo saturates — and as a frame time growing linearly with uptime
+  // in any host that steps wall-clock dt.
+  //
+  // So the coordinates here NEVER REPEAT: a golden-ratio rotation across
+  // the axis's design range, which is irrational and therefore visits a
+  // distinct value on every one of the frames below.
+  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
+  sk_sp<SkTypeface> ui;
+  for (const char* family :
+       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
+    ui = manager->matchFamilyStyle(family, SkFontStyle());
+    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
+    ui = nullptr;
+  }
+  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
+  float gradeMin = 0, gradeMax = 0;
+  {
+    const int n = ui->getVariationDesignParameters({});
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
+    ui->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto& a : axes)
+      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+        gradeMin = a.min;
+        gradeMax = a.max;
+      }
+  }
+  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
+
+  constexpr float kSize = 48.0f;
+  constexpr int kHalf = 200;  // frames per half; the run is two of them
+  // The population is read TWICE — once half way, once at the end — so the
+  // assertions can speak about GROWTH and not only about a number. Each run
+  // gets its own context, so both readings are absolute populations rather
+  // than deltas against whatever the rest of this file left behind.
+  struct Retained {
+    size_t half = 0, full = 0;
+  };
+  const auto retainedAfter = [&](bool continuous) {
+    sigil::weave::FontContext local(sigil::weave::ports::systemFontManager());
+    sigil::motion::Ticker ticker;
+    Composer composer(ticker, local);
+    composer.setSize({200, 200});
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
+    sigil::weave::TextStyle style = styleAt(kSize);
+    style.shaping.typeface = ui;
+    style.paint.foreground.setColor(SK_ColorWHITE);
+    choreograph::Output<float> phase{0.0f};
+    // eachMs = 0: every glyph reads the one master phase, so the coordinate
+    // is exactly the sequence driven below and nothing else.
+    Track track{.effect = fx::axis("GRAD", gradeMin, gradeMax),
+                .stagger = {.eachMs = 0, .durationMs = 100},
+                .progress = &phase};
+    track.continuous = continuous;
+    composer.render(box().padding(10).child(
+        text(u8"GRADE", style).key("t").fx(std::move(track))));
+    Retained out;
+    double walk = 0.0;
+    for (int f = 0; f < 2 * kHalf; ++f) {
+      constexpr double kGolden = 0.6180339887498949;
+      walk = std::fmod(walk + kGolden, 1.0);
+      phase = (float)walk;
+      ticker.tick(1.0 / 60.0);
+      surface->getCanvas()->clear(SK_ColorBLACK);
+      composer.draw(*surface->getCanvas());
+      if (f + 1 == kHalf) out.half = local.variedTypefaceCount();
+    }
+    out.full = local.variedTypefaceCount();
+    return out;
+  };
+
+  // A snapped track lands on the ladder, and the ladder is what bounds the
+  // population: at this rendered size it offers a few hundred rungs, and no
+  // number of frames can reach past them. The count that must never come
+  // back is one per frame.
+  const Retained snapped = retainedAfter(false);
+  EXPECT_GT(snapped.full, 0u)
+      << "the drive retained nothing at all, so this measures a track that "
+         "never reached the face";
+  EXPECT_LT(snapped.full, (size_t)(2 * kHalf))
+      << "the snapped ladder retained a clone per frame — the coordinate is "
+         "reaching the memo unsnapped";
+  // Four rungs per rendered pixel of em, plus the two clones an advance
+  // probe adds when this run is the one that pays for it.
+  EXPECT_LE(snapped.full, 4u * (size_t)kSize + 2u)
+      << "more clones than the ladder at " << kSize << " px has rungs";
+
+  // A continuous track has no ladder, so it has nothing bounded to retain
+  // and must retain nothing: the clone is transient and dies with the frame
+  // that drew it. Stated as growth as well as as a count, because that is
+  // the property — 200 further frames, every one asking for a coordinate no
+  // earlier frame asked for, must add exactly zero.
+  const Retained smooth = retainedAfter(true);
+  EXPECT_EQ(smooth.full, smooth.half)
+      << "a continuous coordinate grew the retained population between "
+         "frame "
+      << kHalf << " and frame " << 2 * kHalf;
+  EXPECT_LE(smooth.full, 2u)
+      << "a continuous coordinate was retained; only the advance probe's "
+         "own two clones can belong in the memo";
+}
+
 // ---------------------------------------------------------------------------
 // Shaped bindings — bind(&out).from().map().to().clamp()

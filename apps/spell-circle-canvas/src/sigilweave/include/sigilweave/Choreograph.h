@@ -35,6 +35,7 @@
 #include <cmath>
 #include <concepts>
 #include <cstdint>
+#include <list>
 #include <map>
 #include <numbers>
 #include <span>
@@ -240,25 +241,52 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
  * batch's key is a whole SkPaint, and SkPaint compares its colour filter by
  * POINTER, so a freshly built filter per glyph would mint a bucket per glyph
  * and undo the batching entirely. Callers quantize the tint for the same
- * reason they quantize alpha; the table is dropped wholesale past its cap so
- * a caller that does not cannot grow it without bound.
+ * reason they quantize alpha; the cap is what keeps a caller that does not
+ * from growing the table without bound.
+ *
+ * Past the cap the LEAST RECENTLY USED entry goes, one at a time. What that
+ * buys over emptying the table is the case where the cap is reached at all:
+ * a caller whose live tints sit just over the cap would, with a wholesale
+ * drop, lose every filter it is still using — including the ones it asks for
+ * again on the same frame — and rebuild them all, repeatedly. Evicting the
+ * coldest entry instead costs a caller only the tints it has stopped using,
+ * so a working set at the cap keeps its identities stable and its batching
+ * intact.
+ *
+ * The composed filter holds a reference to `under`, and the table holds the
+ * composed filter, so the address `under` contributes to the key cannot be
+ * recycled underneath a live entry.
  */
 inline sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
                                        sk_sp<SkColorFilter> under) {
   using Key = std::tuple<uint32_t, uint32_t, uint32_t, const void*>;
-  static thread_local std::map<Key, sk_sp<SkColorFilter>> table;
+  struct Entry {
+    Key key;
+    sk_sp<SkColorFilter> filter;
+  };
+  // Most recently used at the front. The map holds iterators into the list,
+  // which std::list keeps valid across splice and across every insertion.
+  static thread_local std::list<Entry> order;
+  static thread_local std::map<Key, std::list<Entry>::iterator> table;
   const Key key{std::bit_cast<uint32_t>(tint.fR),
                 std::bit_cast<uint32_t>(tint.fG),
                 std::bit_cast<uint32_t>(tint.fB), (const void*)under.get()};
   const auto found = table.find(key);
-  if (found != table.end()) return found->second;
-  constexpr size_t kTintCap = 512;
-  if (table.size() >= kTintCap) table.clear();
+  if (found != table.end()) {
+    order.splice(order.begin(), order, found->second);
+    return found->second->filter;
+  }
   SkColorMatrix scale;
   scale.setScale(tint.fR, tint.fG, tint.fB, 1.0f);
   sk_sp<SkColorFilter> filter = SkColorFilters::Matrix(scale);
   if (under) filter = SkColorFilters::Compose(filter, std::move(under));
-  table.emplace(key, filter);
+  constexpr size_t kTintCap = 512;
+  if (table.size() >= kTintCap) {
+    table.erase(order.back().key);
+    order.pop_back();
+  }
+  order.push_front({key, filter});
+  table.emplace(key, order.begin());
   return filter;
 }
 

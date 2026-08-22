@@ -476,6 +476,48 @@ TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
       << "repeated variations must hit the shape cache";
 }
 
+TEST(Shaper, TransientVariedTypefacesAreNotRetained) {
+  // The memo has no cap and no eviction, so a coordinate that varies
+  // continuously must not go into it: one retained clone per frame, forever,
+  // is a leak whether or not the value ever repeats. The transient entry
+  // point is what such a caller asks for, and the property it promises is
+  // that the retained population does not move.
+  FontContext fontContext(ports::systemFontManager());
+  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
+      "Noto Sans", SkFontStyle::Normal());
+  if (!base || base->getVariationDesignPosition({}) < 1)
+    GTEST_SKIP() << "no variable Noto Sans installed";
+
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 0u);
+  for (int step = 0; step < 300; ++step) {
+    const std::vector<FontVariation> axes = {
+        {"wght", 100.0f + 0.0031f * (float)step}};  // never the same twice
+    ASSERT_TRUE(fontContext.variedTypefaceTransient(base, axes));
+  }
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 0u)
+      << "the transient path put clones in the permanent memo";
+
+  // Repeating one coordinate does not resurrect it into the memo either.
+  // (Whether the two calls hand back the same object is Skia's business —
+  // its own typeface cache may satisfy a clone — and is exactly why the
+  // transient face promises no stable identity to key anything on.)
+  const std::vector<FontVariation> fixed = {{"wght", 640.0f}};
+  ASSERT_TRUE(fontContext.variedTypefaceTransient(base, fixed));
+  ASSERT_TRUE(fontContext.variedTypefaceTransient(base, fixed));
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 0u);
+
+  // …and the retaining entry point still retains, one per distinct
+  // coordinate, which is what a bounded ladder of coordinates relies on.
+  EXPECT_TRUE(fontContext.variedTypeface(base, fixed));
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
+  EXPECT_TRUE(fontContext.variedTypeface(base, fixed));
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
+
+  // An empty variation list is the base either way, and retains nothing.
+  EXPECT_EQ(fontContext.variedTypefaceTransient(base, {}).get(), base.get());
+  EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
+}
+
 TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
   // weight()/opticalSize()/variation() replace in place when the axis is
   // already present — repeated fluent chains keep one order (one memoized

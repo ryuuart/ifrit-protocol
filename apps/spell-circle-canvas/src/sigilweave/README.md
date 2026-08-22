@@ -161,7 +161,7 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 | Header | What it is |
 |---|---|
 | `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. `StyleSet` is a small ordered registry of named styles, comparable by value, whose lookup always answers — an unregistered name resolves to the set's base entry. |
-| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones, the shape cache, observable `Stats`. |
+| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones (retained, or transient for a continuously varying coordinate), the shape cache, observable `Stats`. |
 | `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, sentence boundaries, and the analysis entry points. |
 | `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |
 | `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
@@ -375,12 +375,26 @@ context must not migrate between threads mid-use.
 **Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
 Typefaces must outlive the context, or be consistently owned by it.
 
-**Cache eviction is a wholesale clear**, not LRU: past its cap the shape
-cache empties in one go and re-fills, costing one cold frame. The
+**Shape-cache eviction is a wholesale clear**, not LRU: past its cap the
+shape cache empties in one go and re-fills, costing one cold frame. The
 per-typeface, fallback, and varied-typeface maps are never pruned at all —
 `purgeAllCaches()` is the manual reset for a long-lived process whose
 typeface population churns. It is safe to call while shaped-word references
-are outstanding, because a `ShapedWord` owns its own data.
+are outstanding, because a `ShapedWord` owns its own data. (The tint-filter
+table behind `GlyphRSXformBatches` is the one LRU: past its cap it drops
+its coldest entry rather than everything, so a working set sitting at the
+cap keeps the filter identities its batching depends on.)
+
+**A varied clone from `variedTypeface()` is retained forever.** The memo is
+keyed on the coordinate's exact bytes, has no cap and no eviction, and
+`purgeAllCaches()` is the only thing that empties it. That is right for a
+coordinate drawn from a bounded set and wrong for one that varies
+continuously, which would add a permanently held clone per frame for the
+life of the process. `variedTypefaceTransient()` is the entry point for the
+latter: it builds the clone and retains nothing, so the cost is constant
+per frame instead of growing, and the face has no stable identity — which
+rules it out of `ShapingStyle::variations` and suits a draw-time drive,
+where the identity is only a batch key inside one frame.
 
 **All range APIs are UTF-16 code-unit offsets, end-exclusive.** UTF-8 entry
 points take `std::u8string_view` specifically, so the encoding contract rides

@@ -14,6 +14,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -90,6 +91,41 @@ class FontContext {
    */
   [[nodiscard]] sk_sp<SkTypeface> variedTypeface(
       const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations);
+
+  /** Returns a varied clone of `base` for `variations` that this context does
+   * NOT retain — it lives exactly as long as the caller's reference.
+   *
+   * For a coordinate that is not on a ladder. `variedTypeface()`'s memo is
+   * keyed on the coordinate's exact bytes and has no cap and no eviction, so
+   * a caller that feeds it a continuously varying value adds a permanently
+   * retained clone per frame forever; that is a leak whether or not the
+   * caller ever asks for the same value twice. The cost model here is the
+   * honest one for such a caller: the face is built fresh on every call and
+   * its glyphs are rasterized fresh, and the price is CONSTANT per frame
+   * rather than growing with how long the process has been running.
+   *
+   * What that bounds and what it does not:
+   *   - Bounded: this context retains nothing. The clone and everything
+   *     hanging off it are released when the last caller reference drops.
+   *   - NOT bounded by this class: Skia's own strike cache sits underneath
+   *     and keys on the face, so a distinct coordinate still mints distinct
+   *     glyph strikes. That cache evicts against its own byte budget, so the
+   *     memory stays capped, but the rasterization is genuinely repeated.
+   *
+   * A face from here has no stable identity — two calls with the same
+   * coordinate return different objects — so it must never be used where an
+   * identity is a cache key that outlives the frame. That rules out
+   * ShapingStyle::variations, whose whole point is a stable shape-cache
+   * identity; it suits a draw-time drive, where the identity is only a
+   * batch key within one frame's draw.
+   */
+  [[nodiscard]] sk_sp<SkTypeface> variedTypefaceTransient(
+      const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations);
+
+  /** Returns how many varied clones this context is retaining — the memo
+   * `variedTypeface()` fills and `variedTypefaceTransient()` does not.
+   * Tests assert a bound on it; nothing else should read it. */
+  [[nodiscard]] size_t variedTypefaceCount() const;
 
   /** TRUE iff driving @p axisTag anywhere in its design range leaves every
    *  glyph advance of @p base unchanged (advances sampled at both axis

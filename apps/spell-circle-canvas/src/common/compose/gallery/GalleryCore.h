@@ -47,13 +47,30 @@ constexpr SkSize kSceneSize = {900, 640};
 // Frame statistics (the FPS measurement)
 
 struct FrameStats {
-  std::deque<double> frameMs;    // rolling window of FULL frame work
+  /// End-to-end: everything between the top of the frame and the point the
+  /// backend has finished with it, the backend flush included.
+  std::deque<double> frameMs;
+  /// The frame's OWN work — the same window with the backend flush taken
+  /// out. On a backend with no flush the two lanes are the same numbers.
+  ///
+  /// They are separate because they answer different questions and a
+  /// headless sweep needs both. A synchronous GPU drain is not work the
+  /// frame does; it is a serialization the harness imposes so a frame's cost
+  /// cannot hide in queue depth. Charging it to "what the frame's work would
+  /// allow" would understate the headroom of every GPU scene, and leaving it
+  /// out of the end-to-end number would understate what the machine actually
+  /// spent. So neither number is derived from the other.
+  std::deque<double> workMs;
   std::deque<double> presentMs;  // wall deltas between presented frames
   static constexpr size_t kWindow = 120;
 
   void add(double ms) {
     frameMs.push_back(ms);
     if (frameMs.size() > kWindow) frameMs.pop_front();
+  }
+  void addWork(double ms) {
+    workMs.push_back(ms);
+    if (workMs.size() > kWindow) workMs.pop_front();
   }
   void addPresent(double ms) {
     presentMs.push_back(ms);
@@ -67,10 +84,7 @@ struct FrameStats {
                            (size_t)((double)sorted.size() * p))];
   }
   double presentedFps() const {
-    if (presentMs.empty()) return 0;
-    const double avg =
-        std::accumulate(presentMs.begin(), presentMs.end(), 0.0) /
-        (double)presentMs.size();
+    const double avg = mean(presentMs);
     return avg > 0 ? 1000.0 / avg : 0;
   }
   /** The tail of the PRESENTED interval, which is the only lane that can see
@@ -86,18 +100,25 @@ struct FrameStats {
                ? 0
                : *std::max_element(presentMs.begin(), presentMs.end());
   }
-  double average() const {
-    if (frameMs.empty()) return 0;
-    return std::accumulate(frameMs.begin(), frameMs.end(), 0.0) /
-           (double)frameMs.size();
+  static double mean(const std::deque<double>& window) {
+    if (window.empty()) return 0;
+    return std::accumulate(window.begin(), window.end(), 0.0) /
+           (double)window.size();
   }
+  /** Mean END-TO-END frame time, backend flush included. */
+  double average() const { return mean(frameMs); }
   double percentile(double p) const { return quantile(frameMs, p); }
+  /** Mean of the frame's own work, without the backend flush. */
+  double workAverage() const { return mean(workMs); }
+  double workPercentile(double p) const { return quantile(workMs, p); }
   /** NOT a frame rate: 1000 / mean(work ms) is the rate the frame's work
-   *  alone would allow, with nothing said about presenting it. It is a
-   *  ceiling, and it stays high exactly when a stutter is caused by
-   *  something outside the measured work. */
+   *  alone would allow, with nothing said about presenting it, and nothing
+   *  said about the backend flush either. It is a ceiling, and it stays high
+   *  exactly when a stutter is caused by something outside the measured
+   *  work — which is why it is reported beside the end-to-end time rather
+   *  than instead of it. */
   double fps() const {
-    const double avg = average();
+    const double avg = workAverage();
     return avg > 0 ? 1000.0 / avg : 0;
   }
 };
@@ -253,11 +274,19 @@ struct GalleryStage {
       overlay.setSize(sceneSize);
     }
     composer->draw(canvas);
+    // Two marks, one window: the frame's own work ends here, and the backend
+    // flush that follows is charged only to the end-to-end lane. See
+    // FrameStats for why neither number is derived from the other.
+    const auto composed = std::chrono::steady_clock::now();
     if (flushHook) flushHook();
-    const double ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - start)
-                          .count();
-    stats.add(ms + pendingOverlayMs);
+    const auto finished = std::chrono::steady_clock::now();
+    const auto elapsedMs = [](auto from, auto to) {
+      return std::chrono::duration<double, std::milli>(to - from).count();
+    };
+    // The overlay is charged to both lanes: it is work this frame did, and
+    // no backend flush stands between it and the scene.
+    stats.addWork(elapsedMs(start, composed) + pendingOverlayMs);
+    stats.add(elapsedMs(start, finished) + pendingOverlayMs);
     pendingOverlayMs = 0.0;
     drawOverlay(canvas);
   }
@@ -275,6 +304,12 @@ struct GalleryStage {
     stats.presentMs.clear();
   }
 
+  /** The live HUD, which reads the WORK lane throughout — mean, tail and
+   *  headroom all off the same numbers, so the three agree with each other.
+   *  A host that draws this presents its frames rather than draining them
+   *  synchronously, so it sets no flush hook and the end-to-end lane holds
+   *  the same values; the headless table is where the two are separated and
+   *  both reported. */
   void drawOverlay(SkCanvas& canvas) {
     if (!showStats) return;
     const auto overlayStart = std::chrono::steady_clock::now();
@@ -285,14 +320,14 @@ struct GalleryStage {
       std::snprintf(line, sizeof(line),
                     "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps"
                     "   presented %.1f fps (p99 %5.2f, worst %5.2f ms)",
-                    scene->name(), stats.average(), stats.percentile(0.99),
-                    stats.fps(), presented, stats.presentPercentile(0.99),
-                    stats.presentWorstMs());
+                    scene->name(), stats.workAverage(),
+                    stats.workPercentile(0.99), stats.fps(), presented,
+                    stats.presentPercentile(0.99), stats.presentWorstMs());
     else
       std::snprintf(line, sizeof(line),
                     "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps",
-                    scene->name(), stats.average(), stats.percentile(0.99),
-                    stats.fps());
+                    scene->name(), stats.workAverage(),
+                    stats.workPercentile(0.99), stats.fps());
     char line2[160];
     std::snprintf(line2, sizeof(line2),
                   "instances %zu   pictures %zu   textures %zu   live %zu",

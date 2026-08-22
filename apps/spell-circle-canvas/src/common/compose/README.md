@@ -295,10 +295,15 @@ text path they would hide.
 **Snapping, and `Track::continuous`.** Rotation, alpha, the colour
 multiplier and the axis coordinate are quantized before they reach the
 draw: each distinct value is a distinct batch bucket *and* a distinct
-glyph-atlas strike. Set `Track::continuous` where the steps show and pay
-for it — a continuous track mints a strike per value and rasterizes its
-glyphs afresh every frame. A glyph any addressing track declares continuous
-is continuous.
+glyph-atlas strike. The axis ladder is cut per RENDERED SIZE — one step is
+a fixed distance in the axis's design units, a design unit displaces an
+outline by a fixed fraction of the em, and that fraction is more pixels the
+larger the glyph is drawn — so a headline gets a proportionally finer
+ladder than a caption and does not have to reach for the opt-out to look
+smooth. Set `Track::continuous` where the steps still show and pay for it:
+a continuous coordinate has no bounded set of faces, so its clone is built
+fresh and its glyphs rasterized fresh every frame, and nothing retains it.
+A glyph any addressing track declares continuous is continuous.
 
 **Every track declares its `Track::reach`** — how far past the element's
 box it may throw a glyph — or takes the number its effect declares. The
