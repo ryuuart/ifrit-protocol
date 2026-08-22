@@ -158,6 +158,21 @@ inline constexpr StudyInfo kStudies[] = {
      "684) reprojected from "
      "1,460 real stars \xe2\x80\x94 and it refuses to answer"},
 
+    // ---- Type in motion: one sheet, and the patterns it is made of ----
+    {"shipping_forecast", "shipping forecast", "Study \xc2\xb7 Type",
+     "BBC Radio 4's 0048 bulletin as a sheet that performs itself "
+     "\xe2\x80\x94 a fixed vocabulary, a ring of sea areas, one dominant "
+     "move"},
+    {"karaoke_wipe", "karaoke wipe", "Study \xc2\xb7 Type",
+     "Fleischer's bouncing ball (1924) and the CD+G wipe (1985) on one "
+     "schedule \xe2\x80\x94 the point against the boundary"},
+    {"axis_ripple", "axis ripple", "Study \xc2\xb7 Type",
+     "The variable-font weight wave \xe2\x80\x94 driven on GRAD, with the "
+     "wght advance drift measured and printed beside it"},
+    {"elastic_type", "elastic type", "Study \xc2\xb7 Type",
+     "animate.css rubberBand and jello, transcribed number for number and "
+     "run per glyph \xe2\x80\x94 with the tables plotted"},
+
     // ---- The kit itself ----
     {"stroke_atlas", "stroke atlas", "Kit",
      "The line, border and corner specimen plate \xe2\x80\x94 every rule "
