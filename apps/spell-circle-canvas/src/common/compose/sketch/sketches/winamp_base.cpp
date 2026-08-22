@@ -1370,7 +1370,9 @@ struct WinampBase : sigil::compose::sketch::Sketch {
   // The frame loop. Nothing here re-describes.
 
   static float hash(int a, int b) {
-    uint32_t h = (uint32_t)(a * 374761393 + b * 668265263);
+    // The multiplies are meant to wrap; unsigned operands make that wrap
+    // the defined kind, where signed ones overflow. Same bits either way.
+    uint32_t h = (uint32_t)a * 374761393u + (uint32_t)b * 668265263u;
     h = (h ^ (h >> 13)) * 1274126177u;
     return (float)((h ^ (h >> 16)) & 0xffffff) / (float)0xffffff;
   }

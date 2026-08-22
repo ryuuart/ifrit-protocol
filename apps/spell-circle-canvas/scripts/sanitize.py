@@ -20,8 +20,11 @@ the sanitizer runtimes ship with the compiler, and vcpkg's manifest
 install is disabled here — the dependency archives are read from the
 primary tree's vcpkg_installed/ as-is. Those archives are uninstrumented,
 which still catches this repository's bugs (the interceptors wrap every
-allocation and libc call regardless of who compiled the caller); the one
-casualty is noted at ASAN_OPTIONS below.
+allocation and libc call regardless of who compiled the caller); the
+casualties are two, both of them the same boundary: a check that needs
+both sides instrumented, disabled at ASAN_OPTIONS below, and dependency
+headers that change their own layout under instrumentation, which the
+build pins back to what the archives were compiled with.
 
 With --filter, only the targets those tests need are built (derived from
 the filtered test list; override with --targets). A failing test prints

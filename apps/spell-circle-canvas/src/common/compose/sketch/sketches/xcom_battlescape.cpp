@@ -383,7 +383,10 @@ struct Ink {
  *  scenario — everything random in this file comes through here, so the map is
  *  the same map on every run. */
 inline uint32_t hash3(int a, int b, int c) {
-  uint32_t h = (uint32_t)(a * 374761393 + b * 668265263 + c * 2147483647);
+  // The multiplies are meant to wrap; unsigned operands make that wrap
+  // the defined kind, where signed ones overflow. Same bits either way.
+  uint32_t h = (uint32_t)a * 374761393u + (uint32_t)b * 668265263u +
+               (uint32_t)c * 2147483647u;
   h = (h ^ (h >> 13)) * 1274126177u;
   return h ^ (h >> 16);
 }
