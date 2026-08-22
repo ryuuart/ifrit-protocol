@@ -138,7 +138,7 @@ namespace detail {
  *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
  *       — the end-to-end check, through a real re-describe of the same node,
  *       for the wiggle parameters. */
-static_assert(kFieldCount<BoundFloat> == 17,
+static_assert(kFieldCount<BoundFloat> == 22,
               "BoundFloat gained or lost a field. boundMapEqual() below "
               "compares it BY HAND: rule on the new field (participate, or "
               "a stated reason not to), then bump this count. A miss is "
@@ -147,9 +147,11 @@ static_assert(kFieldCount<BoundFloat> == 17,
 bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
   return a.source == b.source && a.inScale == b.inScale &&
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
-         a.steps == b.steps && a.scale == b.scale && a.offset == b.offset &&
-         a.clamped == b.clamped && a.lo == b.lo && a.hi == b.hi &&
-         a.wiggleAmount == b.wiggleAmount &&
+         a.envelope == b.envelope && a.riseStart == b.riseStart &&
+         a.holdStart == b.holdStart && a.holdEnd == b.holdEnd &&
+         a.fallEnd == b.fallEnd && a.steps == b.steps && a.scale == b.scale &&
+         a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
+         a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
          a.wiggleFrequency == b.wiggleFrequency &&
          a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
          a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&

@@ -5,7 +5,8 @@
  * it: a transition spec, the house easing curves as EaseFn values, the
  * `animate(from(a).to(b))` / `animate(through({…}))` keyframe builders,
  * `bind(&output)` — a live choreograph::Output shaped through
- * normalise → curve → affine chain on its way to whatever consumes it —
+ * normalise → envelope → curve → affine chain on its way to whatever
+ * consumes it —
  * and `Animatable<T>`, the property SLOT that holds any one of them.
  *
  * Nothing here touches Skia, Yoga, or any drawing library: it is
@@ -335,6 +336,16 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
 
 }  // namespace detail
 
+/** WHICH SHAPE the normalised phase takes on its way through — the
+ *  envelope stage of the binding chain below.
+ *
+ *  One per binding, because a phase has one shape: naming a second
+ *  REPLACES the first, exactly as a second `map()` replaces the first
+ *  curve. The alternative — three independent flags — would have to
+ *  define what a raised cosine of a trapezoid means, and there is no
+ *  such thing. */
+enum class Envelope : uint8_t { kNone, kPingPong, kCosine, kTrapezoid };
+
 /** A live binding, SHAPED on its way to the property.
  *
  *  A bare `&output` binding lands on the property RAW, so a phase living
@@ -350,15 +361,18 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
  *  in:
  *
  *    1. `source(lo, hi)` normalises the SOURCE range onto [0,1];
- *    2. `map(ease)` shapes it (any `choreograph::EaseFn`, so the whole
+ *    2. the ENVELOPE — `pingPong`/`cosine`/`trapezoid` — turns the
+ *       one-way phase into a SHAPE across that span: there and back, a
+ *       swell, or a hold between two ramps;
+ *    3. `map(ease)` shapes it (any `choreograph::EaseFn`, so the whole
  *       `ease::` namespace and every choreograph curve fits);
- *    3. the affine chain — `scale`/`offset`/`target`/`invert` — composes
+ *    4. the affine chain — `scale`/`offset`/`target`/`invert` — composes
  *       in CALL ORDER, so `.scale(240).offset(-70)` is `v*240 - 70` and
  *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
  *       it looks. `clamp` always applies last.
- *    4. `wrap(period)` folds the post-affine value into [0, period) —
+ *    5. `wrap(period)` folds the post-affine value into [0, period) —
  *       the looping-phase stage.
- *    5. `wiggle(amount, …)` adds smooth procedural noise in OUTPUT
+ *    6. `wiggle(amount, …)` adds smooth procedural noise in OUTPUT
  *       units, after the affine chain and any wrap, and before `clamp`.
  *       Phased off the normalised input rather than off a clock; see the
  *       verb for what that buys.
@@ -372,8 +386,13 @@ struct BoundFloat {
   float inScale = 1.0f, inOffset = 0.0f;  // source(): pre-curve normalise
   choreograph::EaseFn curve;              // map()
   bool clampInput = false;                // window(): clamp before the curve
-  int steps = 0;                          // quantize(): 0 = continuous
-  float scale = 1.0f, offset = 0.0f;      // the affine chain
+  // The envelope stage: the shape, and the trapezoid's four corners in
+  // NORMALISED phase. The corners are stored non-decreasing, so a zero-length
+  // shoulder is an instant cut rather than a division by zero.
+  Envelope envelope = Envelope::kNone;
+  float riseStart = 0.0f, holdStart = 0.0f, holdEnd = 1.0f, fallEnd = 1.0f;
+  int steps = 0;                      // quantize(): 0 = continuous
+  float scale = 1.0f, offset = 0.0f;  // the affine chain
   bool clamped = false;
   float lo = 0.0f, hi = 1.0f;
   // wiggle(): the procedural noise stage. amount == 0 disengages it
@@ -394,6 +413,49 @@ struct BoundFloat {
     // units. Phase from the schedule, amplitude in output units; see
     // Bound::wiggle for why that pairing is the useful one.
     const float phase = v;
+    // THE ENVELOPE, on the phase and before the curve. It sits after the
+    // noise phase is read for the same reason `wrap` does: the shake reads
+    // the SCHEDULE, so a ping-ponged phase does not retrace the identical
+    // shake on the way back and a trapezoid's dark stretch does not freeze
+    // it. It sits before `map` so the curve shapes what the envelope
+    // PRODUCED — any curve through (0,0) and (1,1) rounds a trapezoid's
+    // shoulders while leaving its hold at exactly 1 and its dark at exactly
+    // 0 — and before the affine chain, which is what puts the shape into
+    // the property's own units.
+    switch (envelope) {
+      case Envelope::kNone:
+        break;
+      case Envelope::kPingPong: {
+        // A triangle of period 1: there and back across the span, and then
+        // again, so a phase that keeps climbing keeps bouncing.
+        const float u = v - std::floor(v);
+        v = u < 0.5f ? u + u : 2.0f - (u + u);
+        break;
+      }
+      case Envelope::kCosine:
+        // Periodic by construction — the same repeat, from the cosine
+        // itself rather than from a fold.
+        v = 0.5f - 0.5f * std::cos(6.28318530717958648f * v);
+        break;
+      case Envelope::kTrapezoid:
+        // Dark outside [riseStart, fallEnd] — NOT folded into one span,
+        // because `window()` clamps its input to exactly 1 and a fold would
+        // read that as the START of the next pass, turning a settled beat
+        // dark. A repeating trapezoid rides a phase that already wraps.
+        if (v <= riseStart || v >= fallEnd)
+          v = 0.0f;
+        else if (v < holdStart)
+          // Reachable only when the corners differ, because the test above
+          // already answered every v at or below riseStart — which is what
+          // makes a zero-length shoulder an instant cut rather than a
+          // division by zero.
+          v = (v - riseStart) / (holdStart - riseStart);
+        else if (v <= holdEnd)
+          v = 1.0f;
+        else
+          v = (fallEnd - v) / (fallEnd - holdEnd);
+        break;
+    }
     if (curve) v = curve(v);
     if (steps > 1) v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
     v = v * scale + offset;
@@ -448,6 +510,67 @@ class Bound {
   Bound& window(float lo, float hi) {
     source(lo, hi);
     m_b.clampInput = true;
+    return *this;
+  }
+  /** THERE AND BACK: the value runs 0 → 1 → 0 across the source span, so
+   *  a sweep, a marquee or a highlight RETURNS instead of jumping back to
+   *  the start.
+   *
+   *  A triangle of period 1 in the normalised phase, so it also repeats:
+   *  bind a phase that climbs forever and `.source(0, period).pingPong()`
+   *  bounces forever, while `.window(a, b).pingPong()` gives one out-and-
+   *  back inside that beat and rests dark on either side.
+   *
+   *  The peak is at the MIDDLE of the span, which is where a there-and-
+   *  back turns around; `cosine()` is the same journey eased. */
+  Bound& pingPong() {
+    m_b.envelope = Envelope::kPingPong;
+    return *this;
+  }
+  /** THE SWELL: a raised cosine — 0 at both ends of the source span, 1 at
+   *  its middle, eased into and out of both. The breath.
+   *
+   *      .opacity(bind(&seconds).source(0, 7.2f).cosine())
+   *
+   *  This is what a beat that comes BACK needs and a window cannot give:
+   *  `window()` is one-way, so a swell written with one arrives and stays.
+   *  Periodic in the normalised phase, so a monotonic seconds Output
+   *  breathes for as long as it runs rather than for one span only.
+   *
+   *  Shaped like `pingPong()` but smooth at the turn: use this when the
+   *  value is a swell and that one when it is a traverse. */
+  Bound& cosine() {
+    m_b.envelope = Envelope::kCosine;
+    return *this;
+  }
+  /** RAMP UP, HOLD, RAMP DOWN — the loop envelope, so a cycle can CUT
+   *  while it is dark.
+   *
+   *      .opacity(bind(&cycle).source(0, 15.f).trapezoid(0, .03f, .84f, 1))
+   *
+   *  All four corners are positions in the NORMALISED phase, read in
+   *  order: 0 before @p riseStart, ramping 0→1 across
+   *  [@p riseStart, @p holdStart], exactly 1 across
+   *  [@p holdStart, @p holdEnd], ramping 1→0 across
+   *  [@p holdEnd, @p fallEnd], and 0 after. Each corner is held to at
+   *  least the one before it, so a shoulder of zero length is an instant
+   *  cut and out-of-order corners cannot ask for a negative ramp.
+   *
+   *  The ramps are LINEAR, and `map()` runs on what this produced: any
+   *  curve through (0,0) and (1,1) rounds both shoulders while leaving
+   *  the hold at exactly 1 and the dark at exactly 0, so the shoulder
+   *  shape is a separate decision from where the corners are.
+   *
+   *  Not periodic, unlike the other two envelopes: it names positions
+   *  inside ONE pass, and a repeating sheet rides a phase that already
+   *  wraps. */
+  Bound& trapezoid(float riseStart, float holdStart, float holdEnd,
+                   float fallEnd) {
+    m_b.envelope = Envelope::kTrapezoid;
+    m_b.riseStart = riseStart;
+    m_b.holdStart = holdStart < riseStart ? riseStart : holdStart;
+    m_b.holdEnd = holdEnd < m_b.holdStart ? m_b.holdStart : holdEnd;
+    m_b.fallEnd = fallEnd < m_b.holdEnd ? m_b.holdEnd : fallEnd;
     return *this;
   }
   /** Shape the (normalised) value — any choreograph easing, including the

@@ -77,11 +77,31 @@ whatever order things were registered in.
 `Animatable<T>` holds one of four forms, discriminated by `index()`: `0`
 plain constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
 binding. `Bound` is the builder and `BoundFloat::apply` runs a fixed
-pipeline: pre-normalise (`source`/`window`), optional input clamp, ease
-curve (`map`), `quantize`, the affine chain (`scale`/`offset`/`target`/
-`invert`, composed in call order), `wrap`, `wiggle` noise, output `clamp`.
-The wiggle phase is read from the *normalised* value, before the curve, so
-easing the signal does not ease the shake.
+pipeline: pre-normalise (`source`/`window`), optional input clamp, the
+envelope (`pingPong`/`cosine`/`trapezoid`), ease curve (`map`),
+`quantize`, the affine chain (`scale`/`offset`/`target`/`invert`, composed
+in call order), `wrap`, `wiggle` noise, output `clamp`. The wiggle phase
+is read from the *normalised* value, before the envelope and the curve, so
+easing or folding the signal does not ease or fold the shake.
+
+The envelope is the shape a one-way phase takes across its span, and it is
+the answer to the three loop signals every study otherwise hand-steps into
+its ticker:
+
+```cpp
+bind(&secs).source(0, 7.2f).cosine()                  // the breath
+bind(&secs).source(0, 4.0f).pingPong().target(0, 240) // there and back
+bind(&cycle).source(0, 15.f).trapezoid(0, .03f, .84f, .95f)  // hold, cut
+```
+
+`cosine` and `pingPong` are periodic in the normalised phase, so a
+monotonic seconds Output keeps breathing or bouncing; `trapezoid` names
+positions inside one pass and stays dark past its last corner, so a
+repeating sheet rides a phase that already wraps. Because the envelope
+runs *before* `map`, any curve through (0,0) and (1,1) rounds a
+trapezoid's shoulders while leaving its hold at exactly 1 and its dark at
+exactly 0 — where the corners are and what shape the shoulders take are
+separate decisions.
 
 ## Gotchas
 
@@ -94,6 +114,13 @@ produces no catch-up spike, because the paused span was consumed as it
 went. A single tick reports at most `FrameClockOptions::maxDelta` (0.25 s
 by default), so a suspended app or a debugger break yields a clamped step
 rather than a giant one.
+
+A binding carries ONE envelope. `pingPong`, `cosine` and `trapezoid` write
+the same slot, so naming a second replaces the first exactly as a second
+`map()` replaces the first curve — there is no raised cosine of a
+trapezoid. `trapezoid`'s four corners are held non-decreasing, so a
+zero-length shoulder is an instant cut rather than a division by zero and
+corners given out of order collapse onto the one before them.
 
 `Ticker::elapsed()` accumulates the deltas handed to `tick()`. It is not
 wall time — a paused or time-scaled clock changes it accordingly.

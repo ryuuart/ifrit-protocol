@@ -62,6 +62,9 @@ void perturb(Shape& v) {
 }
 void perturb(std::optional<Transition>& v) { v = Transition{}; }
 void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(sigil::motion::Envelope& v) {
+  v = sigil::motion::Envelope::kCosine;
+}
 void perturb(const choreograph::Output<float>*& v) {
   static choreograph::Output<float> other;
   v = &other;
@@ -148,28 +151,18 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // Against boundMapEqual() directly. Every stage of a bound float's shaping
   // map is read live at paint, so every one of them participates — including
-  // the wiggle parameters and `wrapPeriod`, which are easy to add to the
-  // struct and forget in the comparator.
-  static const char* const kNames[] = {"source",
-                                       "inScale",
-                                       "inOffset",
-                                       "curve",
-                                       "clampInput",
-                                       "steps",
-                                       "scale",
-                                       "offset",
-                                       "clamped",
-                                       "lo",
-                                       "hi",
-                                       "wiggleAmount",
-                                       "wiggleFrequency",
-                                       "wiggleSeed",
-                                       "wiggleOctaves",
-                                       "wiggleFalloff",
-                                       "wrapPeriod"};
-  static const bool kParticipates[] = {true, true, true, true, true, true,
-                                       true, true, true, true, true, true,
-                                       true, true, true, true, true};
+  // the wiggle parameters, `wrapPeriod` and the envelope's corners, which are
+  // easy to add to the struct and forget in the comparator.
+  static const char* const kNames[] = {
+      "source",        "inScale",         "inOffset",   "curve",
+      "clampInput",    "envelope",        "riseStart",  "holdStart",
+      "holdEnd",       "fallEnd",         "steps",      "scale",
+      "offset",        "clamped",         "lo",         "hi",
+      "wiggleAmount",  "wiggleFrequency", "wiggleSeed", "wiggleOctaves",
+      "wiggleFalloff", "wrapPeriod"};
+  static const bool kParticipates[] = {
+      true, true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, true, true, true, true};
   walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
 }
 

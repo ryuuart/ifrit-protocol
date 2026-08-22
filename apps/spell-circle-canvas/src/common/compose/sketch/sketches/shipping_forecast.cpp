@@ -54,15 +54,18 @@
 // -----------------------------------------------------------------------------
 // THE COMPOSITION, as choreography
 //
-// ONE CLOCK. A ticker lambda steps four scalars and nothing else:
+// ONE CLOCK. A ticker lambda steps two scalars and nothing else:
 //   cycle   — seconds within one 15 s bulletin, wrapping
 //   secs    — seconds since start, never wrapping (the ring's marquee)
-//   breath  — a raised cosine over 7.2 s, so its peak is the capture moment
-//   sheet   — the trapezoid envelope that lets the loop CUT while dark
 // Every beat in the piece is then `bind(&cycle).window(lo, hi)`, which is a
 // beat on a timeline and not a second timeline: the window clamps outside
 // its range, so a track that has not started reads 0 and one that has
 // finished reads 1, and the whole sheet re-performs on the wrap.
+//
+// The two shapes a window cannot make are stages on the same chain: the GRAD
+// swell is `.cosine()` over its own period, and the sheet's own fade is a
+// `.trapezoid()` that holds and then leaves before the wrap. Neither is a
+// scalar this file steps.
 //
 // THE DOMINANT MOVE is the area name. Two hero lines rise through their own
 // clipped line boxes on an amount-budgeted per-letter cascade, and then keep
@@ -113,15 +116,11 @@
 //     so a track that has not started yet is churning rather than absent,
 //     and the node needs its own opacity beat to be dark before its turn.
 //     An effect cannot say "leave the glyph alone until t rises".
-//  4. The envelope and the breath are hand-stepped scalars. A window is a
-//     one-way ramp, so "hold, then leave" is two windows or one lambda, and
-//     a raised cosine is neither — there is no periodic Animatable and no
-//     way to say "this beat, mirrored".
-//  5. The ring's own composition is invisible to the sheet. Nothing reports
+//  4. The ring's own composition is invisible to the sheet. Nothing reports
 //     where along the circle a given sea area landed, so a tick mark under
 //     the area being read has no way to find it; the hairline ring under
 //     the type is plain.
-//  6. `spanPaint` cannot reach a variable-font axis or a face. Picking the
+//  5. `spanPaint` cannot reach a variable-font axis or a face. Picking the
 //     Beaufort numerals out in a heavier grade would be a `spanStyle`, and
 //     that re-shapes the words it covers — so the numerals are picked out
 //     in colour alone, which is the honest half of what was wanted.
@@ -177,7 +176,10 @@ constexpr float kColW = 556.0f;  // the left column
 constexpr double kLoop = 15.0;
 constexpr double kBreathPeriod = 7.2;  // peak at 3.6 s — the capture moment
 constexpr double kRingPeriod = 46.0;   // one lap of the sea areas
-constexpr float kOutFrom = 12.6f, kOutTo = 14.2f;
+// The sheet's own envelope, as fractions of the loop: up, held, and out
+// while there is still time to be dark before the cut.
+constexpr float kInFrom = 0.04f / (float)kLoop, kInTo = 0.42f / (float)kLoop;
+constexpr float kOutFrom = 12.6f / (float)kLoop, kOutTo = 14.2f / (float)kLoop;
 
 /** The sea areas, in the order they are read. The ring is this string and
  *  nothing else: sixteen areas and their separators, laid on a circle. */
@@ -187,24 +189,16 @@ const char* kAreas =
     "FISHER \xc2\xb7 GERMAN BIGHT \xc2\xb7 HUMBER \xc2\xb7 THAMES \xc2\xb7 "
     "DOVER \xc2\xb7 WIGHT \xc2\xb7 PORTLAND \xc2\xb7 PLYMOUTH \xc2\xb7 ";
 
-/** Smooth 0→1 across [a, b]; the envelope's two shoulders. */
-float ramp01(double t, double a, double b) {
-  const double u = (t - a) / (b - a);
-  const float c = (float)(u < 0 ? 0 : (u > 1 ? 1 : u));
-  return c * c * (3.0f - 2.0f * c);
-}
-
 }  // namespace
 
 // ===========================================================================
 
 struct ShippingForecast : sigil::compose::sketch::Sketch {
-  // The four hand-stepped scalars. Everything else is a WINDOW onto one of
-  // them, which is why there are four rather than a dozen.
-  ch::Output<float> cycle{0};   // 0 → kLoop, wrapping: the bulletin
-  ch::Output<float> secs{0};    // monotonic: the ring's marquee
-  ch::Output<float> breath{0};  // raised cosine: the GRAD swell
-  ch::Output<float> sheet{0};   // trapezoid: the loop's own fade
+  // The two hand-stepped scalars. Everything else is a SHAPE of one of
+  // them — a window, a swell, an envelope — which is why there are two
+  // rather than a dozen.
+  ch::Output<float> cycle{0};  // 0 → kLoop, wrapping: the bulletin
+  ch::Output<float> secs{0};   // monotonic: the ring's marquee
 
   sk_sp<SkTypeface> faceDisplay, faceBody, faceBold, faceTerm, faceMono;
   Material heroInk;
@@ -215,6 +209,17 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  independent animations. */
   [[nodiscard]] Animatable<float> beat(float from, float to) {
     return bind(&cycle).window(from, to);
+  }
+
+  /** The sheet's own envelope: up at the head of the bulletin, held, and
+   *  out before the wrap, so the loop's cut happens on a dark sheet. The
+   *  curve is what rounds the two shoulders — the corners stay exactly
+   *  where the constants put them. */
+  [[nodiscard]] Animatable<float> envelope() {
+    return bind(&cycle)
+        .source(0.0f, (float)kLoop)
+        .trapezoid(kInFrom, kInTo, kOutFrom, kOutTo)
+        .map(&ch::easeInOutQuad);
   }
 
   // ------------------------------------------------------------------
@@ -283,10 +288,14 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // makes the swell roll along the line instead of pulsing as a block,
     // and `continuous` is set because at this size the quantized ladder of
     // grades is plainly visible as stepping.
-    Track swell{.effect = fx::axis("GRAD", 400.0f, 880.0f),
-                .stagger = {.eachMs = 34, .durationMs = 620},
-                .progress = &breath,
-                .continuous = true};
+    Track swell{
+        .effect = fx::axis("GRAD", 400.0f, 880.0f),
+        .stagger = {.eachMs = 34, .durationMs = 620},
+        // A swell, not an arrival: `cosine()` is 0 at both ends of
+        // its period and 1 in the middle, which is what a window —
+        // one-way by construction — cannot say.
+        .progress = bind(&secs).source(0.0f, (float)kBreathPeriod).cosine(),
+        .continuous = true};
 
     return box().clip().width(pct(100)).child(
         text(toU8(words), studio::type({.face = faceDisplay,
@@ -748,7 +757,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
             // The whole performance under one envelope: it rises once at
             // the head of the bulletin and leaves before the wrap, so the
             // loop's cut happens on a dark sheet.
-            .opacity(&sheet)
+            .opacity(envelope())
             .child(header())
             .child(box().height(1).fill(Fill::color(kKeyline)))
             .child(box()
@@ -783,7 +792,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
         .fill(Material::linear(
             {0, 0}, {0, kH},
             {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, studio::hex(0x05080C)}}))
-        .child(spine().opacity(&sheet))
+        .child(spine().opacity(envelope()))
         .child(std::move(column));
   }
 
@@ -817,12 +826,8 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      const double c = std::fmod(t, kLoop);
-      cycle = (float)c;
+      cycle = (float)std::fmod(t, kLoop);
       secs = (float)t;
-      // A raised cosine, because a window is one-way and a swell is not.
-      breath = (float)(0.5 - 0.5 * std::cos(6.283185307 * t / kBreathPeriod));
-      sheet = ramp01(c, 0.04, 0.42) * (1.0f - ramp01(c, kOutFrom, kOutTo));
       return true;
     });
 

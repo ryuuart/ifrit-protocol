@@ -419,6 +419,253 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
 }
 
 // ---------------------------------------------------------------------------
+// The ENVELOPE stage — pingPong / cosine / trapezoid, the three SHAPES a
+// one-way phase can take on its way through the chain.
+
+TEST(AnimationValues, PingPongRunsThereAndBackAcrossTheSpan) {
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat pp = bind(&phase).pingPong().value();
+
+  // The characteristic points: dark at both ends of the span, peak at the
+  // middle, linear in between.
+  EXPECT_FLOAT_EQ(pp.apply(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(pp.apply(0.25f), 0.5f);
+  EXPECT_FLOAT_EQ(pp.apply(0.5f), 1.0f);
+  EXPECT_FLOAT_EQ(pp.apply(0.75f), 0.5f);
+  EXPECT_FLOAT_EQ(pp.apply(1.0f), 0.0f);
+
+  // The RETURN is the point: the outbound and inbound halves mirror, so a
+  // sweep comes back instead of jumping.
+  for (int i = 0; i <= 64; ++i) {
+    const float u = (float)i / 128.0f;
+    EXPECT_NEAR(pp.apply(u), pp.apply(1.0f - u), 1e-6f) << "at " << u;
+  }
+
+  // Periodic, so a phase that keeps climbing keeps bouncing rather than
+  // running off — and a descending one bounces too.
+  EXPECT_FLOAT_EQ(pp.apply(2.5f), 1.0f);
+  EXPECT_FLOAT_EQ(pp.apply(3.25f), 0.5f);
+  EXPECT_FLOAT_EQ(pp.apply(-0.25f), 0.5f);
+  EXPECT_FLOAT_EQ(pp.apply(-0.5f), 1.0f);
+
+  // Bounded whatever the phase does: the stage cannot hand a curve or a
+  // target range a value outside [0,1].
+  for (int i = -400; i <= 400; ++i) {
+    const float v = pp.apply((float)i / 37.0f);
+    EXPECT_GE(v, 0.0f);
+    EXPECT_LE(v, 1.0f);
+  }
+}
+
+TEST(AnimationValues, CosineIsTheRaisedCosineBreath) {
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat breath = bind(&phase).cosine().value();
+
+  // 0 at the extremes, 1 at the middle — the swell a one-way window
+  // cannot give.
+  EXPECT_NEAR(breath.apply(0.0f), 0.0f, 1e-6f);
+  EXPECT_NEAR(breath.apply(0.5f), 1.0f, 1e-6f);
+  EXPECT_NEAR(breath.apply(1.0f), 0.0f, 1e-6f);
+  EXPECT_NEAR(breath.apply(0.25f), 0.5f, 1e-6f);
+  EXPECT_NEAR(breath.apply(0.75f), 0.5f, 1e-6f);
+
+  // It IS 0.5 − 0.5·cos(2πv), which is the arithmetic every hand-rolled
+  // breath in the corpus writes out.
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 100.0f;
+    EXPECT_NEAR(breath.apply(v),
+                (float)(0.5 - 0.5 * std::cos(6.283185307179586 * (double)v)),
+                1e-6f)
+        << "at " << v;
+  }
+
+  // EASED AT BOTH ENDS, where pingPong turns on a corner: the same
+  // journey, but the derivative vanishes at the extremes and at the peak.
+  const BoundFloat corner = bind(&phase).pingPong().value();
+  const float d = 1e-3f;
+  EXPECT_LT(std::fabs(breath.apply(d) - breath.apply(0.0f)),
+            std::fabs(corner.apply(d) - corner.apply(0.0f)));
+  EXPECT_LT(std::fabs(breath.apply(0.5f + d) - breath.apply(0.5f - d)), 1e-4f);
+
+  // Periodic and bounded, for the same reason: a monotonic seconds Output
+  // breathes for as long as it runs.
+  EXPECT_NEAR(breath.apply(2.5f), 1.0f, 1e-6f);
+  for (int i = -400; i <= 400; ++i) {
+    const float v = breath.apply((float)i / 37.0f);
+    EXPECT_GE(v, -1e-6f);
+    EXPECT_LE(v, 1.0f + 1e-6f);
+  }
+}
+
+TEST(AnimationValues, TrapezoidHoldsAtOneAndCutsWhileDark) {
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat sheet =
+      bind(&phase).trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value();
+
+  // THE FOUR CORNERS, each exactly on its number.
+  EXPECT_FLOAT_EQ(sheet.apply(0.1f), 0.0f);  // riseStart: still dark
+  EXPECT_FLOAT_EQ(sheet.apply(0.3f), 1.0f);  // holdStart: fully up
+  EXPECT_FLOAT_EQ(sheet.apply(0.7f), 1.0f);  // holdEnd: still up
+  EXPECT_FLOAT_EQ(sheet.apply(0.9f), 0.0f);  // fallEnd: dark again
+
+  // Dark OUTSIDE the envelope — which is what lets a loop cut there.
+  EXPECT_FLOAT_EQ(sheet.apply(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(sheet.apply(0.05f), 0.0f);
+  EXPECT_FLOAT_EQ(sheet.apply(0.95f), 0.0f);
+  EXPECT_FLOAT_EQ(sheet.apply(1.0f), 0.0f);
+
+  // Linear shoulders, and a FLAT hold: every sample between the two inner
+  // corners is exactly 1, not merely close.
+  EXPECT_NEAR(sheet.apply(0.2f), 0.5f, 1e-6f);
+  EXPECT_NEAR(sheet.apply(0.8f), 0.5f, 1e-6f);
+  for (int i = 1; i < 40; ++i)
+    EXPECT_FLOAT_EQ(sheet.apply(0.3f + 0.4f * (float)i / 40.0f), 1.0f);
+
+  // A ZERO-LENGTH SHOULDER is an instant cut, not a division by zero.
+  const BoundFloat cut =
+      bind(&phase).trapezoid(0.25f, 0.25f, 0.75f, 0.75f).value();
+  EXPECT_FLOAT_EQ(cut.apply(0.2f), 0.0f);
+  EXPECT_FLOAT_EQ(cut.apply(0.5f), 1.0f);
+  EXPECT_FLOAT_EQ(cut.apply(0.8f), 0.0f);
+  for (int i = -100; i <= 300; ++i)
+    EXPECT_TRUE(std::isfinite(cut.apply((float)i / 100.0f)));
+
+  // Corners are held non-decreasing, so out-of-order ones cannot ask for
+  // a negative ramp — they collapse onto the corner before them. A rise
+  // that ends before it starts becomes an instant one.
+  const BoundFloat instant =
+      bind(&phase).trapezoid(0.2f, 0.1f, 0.8f, 0.9f).value();
+  EXPECT_FLOAT_EQ(instant.apply(0.19f), 0.0f);
+  EXPECT_FLOAT_EQ(instant.apply(0.21f), 1.0f);
+  EXPECT_NEAR(instant.apply(0.85f), 0.5f, 1e-6f);
+
+  // …and corners that collapse ONTO EACH OTHER ask for nothing and get
+  // nothing: dark everywhere, rather than a spike or a division.
+  const BoundFloat nothing =
+      bind(&phase).trapezoid(0.6f, 0.2f, 0.1f, 0.4f).value();
+  for (int i = -100; i <= 200; ++i)
+    EXPECT_FLOAT_EQ(nothing.apply((float)i / 100.0f), 0.0f);
+
+  // NOT periodic, unlike the other two envelopes: it names positions
+  // inside ONE pass, and a phase past its last corner stays dark rather
+  // than starting the sheet again.
+  EXPECT_FLOAT_EQ(sheet.apply(1.3f), 0.0f);
+  EXPECT_FLOAT_EQ(sheet.apply(2.5f), 0.0f);
+}
+
+TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
+  ch::Output<float> phase = 0.0f;
+
+  // THE FIXED ORDER, stage by stage. Each pair below names the same
+  // stages in a different order and must agree bit for bit.
+  const auto same = [](const BoundFloat& a, const BoundFloat& b) {
+    for (int i = -50; i <= 250; ++i) {
+      const float v = (float)i / 100.0f;
+      EXPECT_EQ(a.apply(v), b.apply(v)) << "at " << v;
+    }
+  };
+  same(bind(&phase).cosine().target(400.f, 880.f).value(),
+       bind(&phase).target(400.f, 880.f).cosine().value());
+  same(bind(&phase).window(0.2f, 0.8f).pingPong().value(),
+       bind(&phase).pingPong().window(0.2f, 0.8f).value());
+  same(bind(&phase)
+           .trapezoid(0.1f, 0.2f, 0.8f, 0.9f)
+           .map(&ch::easeInQuad)
+           .value(),
+       bind(&phase)
+           .map(&ch::easeInQuad)
+           .trapezoid(0.1f, 0.2f, 0.8f, 0.9f)
+           .value());
+  same(bind(&phase).cosine().clamp(0.f, 0.5f).value(),
+       bind(&phase).clamp(0.f, 0.5f).cosine().value());
+
+  // ONE SHAPE PER BINDING: naming a second replaces the first, the way a
+  // second map() replaces the first curve.
+  same(bind(&phase).pingPong().cosine().value(), bind(&phase).cosine().value());
+  same(bind(&phase).cosine().trapezoid(0.f, 0.25f, 0.75f, 1.f).value(),
+       bind(&phase).trapezoid(0.f, 0.25f, 0.75f, 1.f).value());
+
+  // AFTER source/window: the span the envelope shapes is the one source()
+  // named, so a beat on a longer timeline swells inside its own window
+  // and rests outside it.
+  const BoundFloat beat = bind(&phase).window(2.0f, 4.0f).cosine().value();
+  EXPECT_NEAR(beat.apply(3.0f), 1.0f, 1e-6f);
+  EXPECT_NEAR(beat.apply(2.5f), 0.5f, 1e-6f);
+  EXPECT_NEAR(beat.apply(0.0f), 0.0f, 1e-6f);  // clamped to the span's start
+  EXPECT_NEAR(beat.apply(9.0f), 0.0f, 1e-6f);  // …and to its end
+
+  // BEFORE map: the curve shapes what the envelope PRODUCED. Any curve
+  // through (0,0) and (1,1) therefore rounds a trapezoid's shoulders and
+  // leaves its hold at exactly 1 and its dark at exactly 0 — the property
+  // that makes the shoulder shape a separate decision from the corners.
+  const BoundFloat eased = bind(&phase)
+                               .trapezoid(0.1f, 0.3f, 0.7f, 0.9f)
+                               .map(&ch::easeInOutQuad)
+                               .value();
+  EXPECT_FLOAT_EQ(eased.apply(0.5f), 1.0f);
+  EXPECT_FLOAT_EQ(eased.apply(0.05f), 0.0f);
+  EXPECT_LT(
+      eased.apply(0.15f),
+      bind(&phase).trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value().apply(0.15f));
+
+  // BEFORE the affine chain: the shape lands in the property's own units.
+  const BoundFloat grad = bind(&phase).cosine().target(400.f, 880.f).value();
+  EXPECT_NEAR(grad.apply(0.5f), 880.f, 1e-3f);
+  EXPECT_NEAR(grad.apply(0.0f), 400.f, 1e-3f);
+
+  // COMPOSED WITH wrap, which is on the far side of the affine chain: the
+  // envelope shapes the phase, wrap folds the output.
+  const BoundFloat spun =
+      bind(&phase).pingPong().scale(720.f).wrap(360.f).value();
+  EXPECT_FLOAT_EQ(spun.apply(0.25f), 0.0f);  // 0.5 · 720 = 360 → 0
+  EXPECT_FLOAT_EQ(spun.apply(0.125f), 180.f);
+
+  // AFTER the wiggle phase is read, for the same reason wrap is: the
+  // shake reads the SCHEDULE, so a ping-ponged phase does not retrace the
+  // identical shake on the way back.
+  const BoundFloat shaken =
+      bind(&phase).pingPong().scale(0.f).wiggle(5.f, 4.f, 3).value();
+  EXPECT_NE(shaken.apply(0.25f), shaken.apply(0.75f));
+  const BoundFloat bare = bind(&phase).scale(0.f).wiggle(5.f, 4.f, 3).value();
+  for (int i = 0; i <= 100; ++i) {
+    const float v = (float)i / 50.0f;
+    EXPECT_FLOAT_EQ(shaken.apply(v), bare.apply(v)) << "at " << v;
+  }
+}
+
+TEST(AnimationValues, EnvelopeStagesReproduceTheHandRolledEnvelopes) {
+  // Against the arithmetic the studies wrote by hand, at the precision a
+  // migration needs.
+  ch::Output<float> cycle = 0.0f;
+
+  // The BREATH: a raised cosine over a 7.2 s period, peaking at 3.6 s.
+  const BoundFloat swell = bind(&cycle).source(0.0f, 7.2f).cosine().value();
+  // The tolerance is float noise on the phase, not a shape difference:
+  // the chain divides once in float where the hand-written line divides
+  // in double, so the two agree to a few units in the last place of the
+  // angle and to that much of the swell.
+  for (double t : {0.0, 0.5, 1.8, 3.6, 5.0, 7.2, 9.9})
+    EXPECT_NEAR(swell.apply((float)t),
+                (float)(0.5 - 0.5 * std::cos(6.283185307 * t / 7.2)), 1e-5f)
+        << "at " << t;
+
+  // The SHEET: up over [0.04, 0.42] s of a 15 s loop, held, and down over
+  // [12.6, 14.2] — the trapezoid that lets the loop cut while dark.
+  const BoundFloat sheet =
+      bind(&cycle)
+          .source(0.0f, 15.0f)
+          .trapezoid(0.04f / 15.0f, 0.42f / 15.0f, 12.6f / 15.0f, 14.2f / 15.0f)
+          .value();
+  EXPECT_FLOAT_EQ(sheet.apply(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(sheet.apply(2.0f), 1.0f);   // the quick capture moment
+  EXPECT_FLOAT_EQ(sheet.apply(3.6f), 1.0f);   // …and the declared one
+  EXPECT_FLOAT_EQ(sheet.apply(12.0f), 1.0f);  // still lit, late in the loop
+  EXPECT_FLOAT_EQ(sheet.apply(14.6f), 0.0f);  // dark, and the loop can cut
+  EXPECT_GT(sheet.apply(0.3f), 0.0f);
+  EXPECT_LT(sheet.apply(0.3f), 1.0f);
+}
+
+// ---------------------------------------------------------------------------
 // derive() — the bind() chain reaching an OUTPUT instead of a property
 // slot, plus the wrap stage it composes with and the stepping-order
 // contract that makes a derived cell current rather than one frame late.

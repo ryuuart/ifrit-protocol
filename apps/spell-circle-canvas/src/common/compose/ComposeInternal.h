@@ -541,12 +541,14 @@ inline auto fields(TextPath& v) {
   return std::tie(path, at, align, offset, autoFlip, orient, exactTangent);
 }
 inline auto fields(BoundFloat& v) {
-  auto& [source, inScale, inOffset, curve, clampInput, steps, scale, offset,
-         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
-         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
-  return std::tie(source, inScale, inOffset, curve, clampInput, steps, scale,
-                  offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
-                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
+  auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
+         holdStart, holdEnd, fallEnd, steps, scale, offset, clamped, lo, hi,
+         wiggleAmount, wiggleFrequency, wiggleSeed, wiggleOctaves,
+         wiggleFalloff, wrapPeriod] = v;
+  return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
+                  riseStart, holdStart, holdEnd, fallEnd, steps, scale, offset,
+                  clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
+                  wiggleOctaves, wiggleFalloff, wrapPeriod);
 }
 inline auto fields(Transition& v) {
   auto& [duration, ease, delay] = v;
