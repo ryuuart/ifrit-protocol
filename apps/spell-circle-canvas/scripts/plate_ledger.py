@@ -171,7 +171,7 @@ def fps_gate(binary, scenes, budget_ms, timeout):
             failures.append(row)
         print(f"  {'PASS' if ok else 'FAIL'}  {scene:<24} "
               f"{row['work_ms']:8.2f} ms  (p99 {row['p99_ms']:7.2f}, "
-              f"{row['fps']:5.0f} fps)")
+              f"{row['headroom_fps']:5.0f} fps headroom)")
     rows.sort(key=lambda r: -r["work_ms"])
     print(f"\n{len(rows) - len(failures)} under budget, {len(failures)} "
           f"over, {len(errors)} failed to render")
@@ -179,7 +179,7 @@ def fps_gate(binary, scenes, budget_ms, timeout):
         print(f"OVER {budget_ms} ms (steady frame, GPU):")
         for row in sorted(failures, key=lambda r: -r["work_ms"]):
             print(f"  {row['scene']:<24} {row['work_ms']:8.2f} ms "
-                  f"({row['fps']:.0f} fps)")
+                  f"({row['headroom_fps']:.0f} fps headroom)")
     return 1 if failures or errors else 0
 
 

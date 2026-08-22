@@ -59,6 +59,13 @@ struct FrameStats {
     presentMs.push_back(ms);
     if (presentMs.size() > kWindow) presentMs.pop_front();
   }
+  static double quantile(const std::deque<double>& window, double p) {
+    if (window.empty()) return 0;
+    std::vector<double> sorted(window.begin(), window.end());
+    std::sort(sorted.begin(), sorted.end());
+    return sorted[std::min(sorted.size() - 1,
+                           (size_t)((double)sorted.size() * p))];
+  }
   double presentedFps() const {
     if (presentMs.empty()) return 0;
     const double avg =
@@ -66,18 +73,29 @@ struct FrameStats {
         (double)presentMs.size();
     return avg > 0 ? 1000.0 / avg : 0;
   }
+  /** The tail of the PRESENTED interval, which is the only lane that can see
+   *  a stutter. An average present rate cannot: a window of frames that mostly
+   *  hit the vsync and occasionally miss several in a row averages to very
+   *  near the display rate, so the number a viewer would call "lagging" and
+   *  the number a viewer would call "smooth" are the same number. What
+   *  separates them is the worst interval, so it is reported beside the mean
+   *  rather than folded into it. */
+  double presentPercentile(double p) const { return quantile(presentMs, p); }
+  double presentWorstMs() const {
+    return presentMs.empty()
+               ? 0
+               : *std::max_element(presentMs.begin(), presentMs.end());
+  }
   double average() const {
     if (frameMs.empty()) return 0;
     return std::accumulate(frameMs.begin(), frameMs.end(), 0.0) /
            (double)frameMs.size();
   }
-  double percentile(double p) const {
-    if (frameMs.empty()) return 0;
-    std::vector<double> sorted(frameMs.begin(), frameMs.end());
-    std::sort(sorted.begin(), sorted.end());
-    return sorted[std::min(sorted.size() - 1,
-                           (size_t)((double)sorted.size() * p))];
-  }
+  double percentile(double p) const { return quantile(frameMs, p); }
+  /** NOT a frame rate: 1000 / mean(work ms) is the rate the frame's work
+   *  alone would allow, with nothing said about presenting it. It is a
+   *  ceiling, and it stays high exactly when a stutter is caused by
+   *  something outside the measured work. */
   double fps() const {
     const double avg = average();
     return avg > 0 ? 1000.0 / avg : 0;
@@ -266,9 +284,10 @@ struct GalleryStage {
     if (presented > 0)
       std::snprintf(line, sizeof(line),
                     "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps"
-                    "   presented %.1f fps",
+                    "   presented %.1f fps (p99 %5.2f, worst %5.2f ms)",
                     scene->name(), stats.average(), stats.percentile(0.99),
-                    stats.fps(), presented);
+                    stats.fps(), presented, stats.presentPercentile(0.99),
+                    stats.presentWorstMs());
     else
       std::snprintf(line, sizeof(line),
                     "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps",
