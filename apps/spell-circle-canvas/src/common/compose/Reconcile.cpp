@@ -1029,6 +1029,7 @@ void Composer::Impl::materializeText(
   // exactly the ones its CURRENT content declares.
   inst.textSlotKeys.clear();
   inst.textSlotRects.clear();
+  inst.textNamedRuns.clear();
   if (text.paragraphOverride) {
     *inst.paragraph = *text.paragraphOverride;
   } else if (!text.rich.empty()) {
@@ -1045,7 +1046,15 @@ void Composer::Impl::materializeText(
             run.style);
         continue;
       }
+      // The extent a named run occupies, read off the text as it grows: a
+      // name is a handle on THIS run's characters, not on the style span it
+      // produced, so the restyles below may cut the spans to pieces and
+      // sel::style still answers with the run.
+      const auto begin = (uint32_t)inst.paragraph->text().size();
       inst.paragraph->appendText(run.utf8, run.style);
+      if (!run.styleName.empty())
+        inst.textNamedRuns.push_back(
+            {run.styleName, {begin, (uint32_t)inst.paragraph->text().size()}});
     }
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
@@ -1067,8 +1076,9 @@ void Composer::Impl::materializeText(
   // two overlap — which is the "later wins" rule, spelled as span surgery
   // rather than as a merge nobody could predict.
   for (const SpanRestyle& restyle : text.spanRestyles) {
-    const std::vector<sigil::weave::CharRange> ranges = resolveTextRanges(
-        restyle.where, *inst.paragraph, fonts, lines, columns);
+    const std::vector<sigil::weave::CharRange> ranges =
+        resolveTextRanges(restyle.where, *inst.paragraph, fonts, lines, columns,
+                          inst.textNamedRuns);
     if (ranges.empty()) continue;
     if (restyle.paintOnly) {
       // The batch form: N ranges cost one span-list rebuild, and shaping

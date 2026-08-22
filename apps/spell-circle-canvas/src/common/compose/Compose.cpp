@@ -19,7 +19,9 @@
 #include <set>
 
 #include "ComposeInternal.h"
-#include "sigilcompose/Lines.h"  // the ONE corner scanner (spans::corners)
+#include "sigilcompose/Lines.h"   // the ONE corner scanner (spans::corners)
+#include "sigilcompose/TextFx.h"  // fx::axis — the one axis effect spanAxis
+                                  // and a hand-written track both name
 
 namespace sigil::compose {
 
@@ -1266,6 +1268,27 @@ Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
   restyle.where = std::move(where);
   restyle.style = std::move(style);
   m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
+  return *this;
+}
+
+Element& Element::spanAxis(Selector where, const char (&tag)[5], float value) {
+  // SUGAR over fx(), for the same reason variationDrive is: an axis
+  // coordinate IS a per-glyph deviation, so the one that a span asks for and
+  // the one a track asks for must be the same deviation reaching the same
+  // gate, the same snapping ladder and the same composition. A second path
+  // that restyled the paragraph instead would have to re-shape to carry the
+  // coordinate — which is exactly what this verb exists not to do.
+  //
+  // The track's progress stays at its default 1: a static coordinate is
+  // there from the first frame and never moves, so the leaf settles and
+  // caches like the static text it is. `continuous` stays false for the same
+  // reason — a value that does not sweep has nothing to be smooth about, and
+  // the ladder is what keeps its varied clone memoized rather than minted
+  // per frame.
+  Track track;
+  track.where = std::move(where);
+  track.effect = fx::axis(tag, value);
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
 

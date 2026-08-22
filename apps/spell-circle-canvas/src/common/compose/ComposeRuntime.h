@@ -108,6 +108,11 @@ struct Instance {
   // keyed by one of these names takes that rect as its box.
   std::vector<std::string> textSlotKeys;
   std::vector<std::pair<std::string, SkRect>> textSlotRects;
+  // rich().add(text, styleName): each named run and the text it occupies, in
+  // declaration order — what sel::style resolves against. Cleared and
+  // rebuilt with the paragraph, so the names a node answers for are exactly
+  // the ones its current content declares.
+  std::vector<detail::NamedRun> textNamedRuns;
   // onPath(): the run broken across the baseline's contours, and the
   // geometry it was broken across. A SECOND layout beside `textLayout`
   // rather than a replacement for it — `textLayout` is still the node's

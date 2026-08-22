@@ -113,11 +113,15 @@ const AxisGate& axisGate(sigil::weave::FontContext& fonts,
   if (!fresh) return gate;
   gate.allowed = face && fonts.axisIsAdvanceInvariant(face, tag);
   if (!gate.allowed) {
+    // ONE REFUSAL FOR EVERY VERB THAT REACHES A DRAW-TIME AXIS —
+    // variationDrive, an fx::axis track, spanAxis — because it is one gate
+    // and they all fail it for the same reason. Naming a verb here would
+    // send an author reading about the one they did not write.
     SkDebugf(
-        "sigilcompose variationDrive: axis \"%s\" is absent or "
-        "moves advances on this font — drive refused (text draws at "
-        "its shaped coordinates; GRAD is the advance-invariant "
-        "weight, or re-render discretely)\n",
+        "sigilcompose: axis \"%s\" is absent or moves advances on this font "
+        "— refused (the glyphs keep the pen positions shaping gave them, so "
+        "the text draws at its shaped coordinates; GRAD is the "
+        "advance-invariant weight, or re-shape through a style)\n",
         tag);
     return gate;
   }
@@ -1615,8 +1619,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
     inst.selectionMasks.reserve(tracks.size());
     for (const Track& track : tracks) {
       inst.selectionKeys.push_back(track.where);
-      inst.selectionMasks.push_back(
-          detail::resolveSelection(track.where, structure, *inst.paragraph));
+      inst.selectionMasks.push_back(detail::resolveSelection(
+          track.where, structure, *inst.paragraph, inst.textNamedRuns));
     }
     inst.selectionRev = inst.contentRev;
     inst.selectionWidth = inst.measuredForWidth;
@@ -1898,8 +1902,8 @@ std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
   const auto count = (uint32_t)structure.glyphs.size();
   if (count == 0) return {};
 
-  const std::vector<uint8_t> selected =
-      detail::resolveSelection(track.where, structure, *inst.paragraph);
+  const std::vector<uint8_t> selected = detail::resolveSelection(
+      track.where, structure, *inst.paragraph, inst.textNamedRuns);
   detail::TrackCascade resolved;
   resolved.build(track.stagger, structure, selected);
 

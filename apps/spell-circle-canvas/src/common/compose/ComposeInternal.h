@@ -687,13 +687,35 @@ struct GlyphStructure {
              const sigil::weave::Paragraph& paragraph);
 };
 
+/** ONE `rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
+ *  occupies — what `sel::style` resolves against.
+ *
+ *  The name is tied to the run's TEXT rather than to the style span it
+ *  produced, and that is the whole reason the answer holds up. Spans are
+ *  cut and merged by every `spanPaint` and `spanStyle` the leaf declares,
+ *  so a span index is a number about the paragraph's current normal form;
+ *  a run's extent is a fact about the content that only new content
+ *  changes. Re-registering the name against a different style, or a restyle
+ *  slicing across the run, leaves this untouched.
+ *
+ *  Built by materializeText as the runs are appended, in declaration order.
+ *  Empty for every content form that carries no names. */
+struct NamedRun {
+  std::string name;
+  sigil::weave::CharRange chars;
+};
+
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
- *  A pattern that does not compile answers all-zero and warns once. */
+ *  A pattern that does not compile answers all-zero and warns once, and so
+ *  does an `sel::style` name @p named does not carry. */
 std::vector<uint8_t> resolveSelection(const Selector& selector,
                                       const GlyphStructure& structure,
-                                      const sigil::weave::Paragraph& paragraph);
+                                      const sigil::weave::Paragraph& paragraph,
+                                      std::span<const NamedRun> named);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
+/** The once-per-name diagnostic behind an `sel::style` no run answers to. */
+void warnNoSuchStyleName(const std::u8string& name);
 /** The once-per-shape diagnostic behind a cue table that does not have one
  *  entry per unit: the tail either piles on the last cue or goes unread,
  *  and both are a table cut against the wrong text. */
@@ -719,12 +741,15 @@ void warnFlowAroundVertical();
  *  paragraph that layout belongs to is the one being replaced — and
  *  addresses nothing when both are empty. `Selector::take`/`drop` slice
  *  glyphs inside a unit, which no text range can express: an `sel::each`
- *  selector answers with its whole units and the slice warns once. */
+ *  selector answers with its whole units and the slice warns once.
+ *  `sel::style` reads @p named, which is why the table is built before the
+ *  restyles that consume it run. */
 std::vector<sigil::weave::CharRange> resolveTextRanges(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
-    std::span<const sigil::weave::ColumnMetrics> columns = {});
+    std::span<const sigil::weave::ColumnMetrics> columns,
+    std::span<const NamedRun> named);
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

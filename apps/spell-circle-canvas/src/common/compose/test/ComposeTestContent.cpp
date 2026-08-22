@@ -4051,6 +4051,441 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
   EXPECT_GT(countColor(host, all, SK_ColorWHITE), 10) << "the rest";
 }
 
+// ---------------------------------------------------------------------------
+// sel::style — the runs addressed by the NAME they were dressed in.
+//
+// The paragraph below is built so that the name and the words can disagree:
+// two runs are written under "term", and a THIRD run says the same word with
+// no name at all. Anything that resolves the name by matching text catches
+// three; the selector must catch two.
+
+namespace {
+
+sigil::weave::StyleSet glossarySet(SkColor termColor, float termSize) {
+  sigil::weave::StyleSet set{coloredStyle(24, SK_ColorWHITE)};
+  set.set("term", coloredStyle(termSize, termColor));
+  return set;
+}
+
+/** "alpha beta gamma beta delta beta", where the first and last `beta` are
+ *  written under the name and the middle one is not. */
+RichText glossaryCopy(const sigil::weave::StyleSet& set) {
+  RichText copy = rich(set.base());
+  copy.styles(set)
+      .add(u8"alpha ")
+      .add(u8"beta", "term")
+      .add(u8" gamma ")
+      .add(u8"beta")
+      .add(u8" delta ")
+      .add(u8"beta", "term");
+  return copy;
+}
+
+}  // namespace
+
+TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
+  Host host(760, 140);
+  const RichText copy = glossaryCopy(glossarySet(SK_ColorRED, 24));
+  // Beats at WORD granularity number the units the track's own selection
+  // resolved, so the beat list IS the addressed word list — and each beat's
+  // rect says which word it is.
+  const auto wordsAddressed = [&](Selector where) {
+    host.composer.render(box().padding(10).child(text(copy).key("t").fx(
+        {.where = std::move(where),
+         .effect = fx::rise(0),
+         .stagger = stagger(unit::Word, {.eachMs = 1, .durationMs = 1})})));
+    host.frame();
+    return host.composer.beatsOf("t", 0);
+  };
+
+  const std::vector<Beat> byName = wordsAddressed(sel::style("term"));
+  const std::vector<Beat> byWords = wordsAddressed(sel::text(u8"beta"));
+  ASSERT_EQ(byWords.size(), 3u) << "the three literal betas";
+  ASSERT_EQ(byName.size(), 2u)
+      << "the name caught a run nobody wrote it on — sel::style is matching "
+         "text rather than the runs the content named";
+  // …and they are the FIRST and THIRD of them, in place: the middle beta is
+  // the one the name skips.
+  EXPECT_EQ(byName[0].rect, byWords[0].rect);
+  EXPECT_EQ(byName[1].rect, byWords[2].rect);
+}
+
+TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
+  Host host(760, 140);
+  const RichText copy = glossaryCopy(glossarySet(SK_ColorRED, 24));
+  // Beats at GLYPH granularity: one per addressed glyph, so the count is the
+  // selection's size and the algebra can be checked as arithmetic.
+  const auto glyphsAddressed = [&](Selector where) {
+    host.composer.render(box().padding(10).child(text(copy).key("t").fx(
+        {.where = std::move(where),
+         .effect = fx::rise(0),
+         .stagger = stagger(unit::Glyph, {.eachMs = 1, .durationMs = 1})})));
+    host.frame();
+    return host.composer.beatsOf("t", 0).size();
+  };
+
+  const size_t whole = glyphsAddressed(Selector{});
+  const size_t named = glyphsAddressed(sel::style("term"));
+  ASSERT_EQ(named, 8u) << "two four-letter runs";
+  EXPECT_EQ(glyphsAddressed(sel::text(u8"beta")), 12u) << "three of them";
+
+  // The three operators, against the same two runs.
+  EXPECT_EQ(glyphsAddressed(sel::style("term") | sel::word(0)), named + 5u)
+      << "alpha joined the union";
+  EXPECT_EQ(glyphsAddressed(sel::style("term") & sel::word(1)), 4u)
+      << "the intersection is the first named run alone";
+  EXPECT_EQ(glyphsAddressed(!sel::style("term")), whole - named);
+}
+
+TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
+  // Only a named rich() run carries a name. Plain text has none, so the
+  // selector addresses nothing — the silent-no-op rule, made audible.
+  Host host(400, 120);
+  ::testing::internal::CaptureStderr();
+  const auto describe = [] {
+    return box().padding(10).child(
+        text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
+            .key("t")
+            .fx({.where = sel::style("unregistered-register"),
+                 .effect = fx::rise(0),
+                 .stagger = stagger(unit::Glyph, {.durationMs = 1})}));
+  };
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_TRUE(host.composer.beatsOf("t", 0).empty())
+      << "a name no run was written with addressed glyphs anyway";
+
+  // A selector is re-resolved on every reflow, so a name that is wrong is
+  // wrong every time — and must not report itself every time.
+  host.composer.render(box().padding(11).child(
+      text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
+          .key("t")
+          .fx({.where = sel::style("unregistered-register"),
+               .effect = fx::rise(0),
+               .stagger = stagger(unit::Glyph, {.durationMs = 1})})));
+  host.frame();
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  size_t seen = 0;
+  for (size_t at = log.find("unregistered-register"); at != std::string::npos;
+       at = log.find("unregistered-register", at + 1))
+    ++seen;
+  EXPECT_EQ(seen, 1u) << log;
+}
+
+TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
+  // The span verbs resolve their selection as TEXT RANGES through a second
+  // resolver. One vocabulary means one answer: the name must address the
+  // same two runs there.
+  Host host(760, 140);
+  const RichText copy = glossaryCopy(glossarySet(SK_ColorWHITE, 24));
+
+  // Where the three betas actually sit, read off the layout rather than
+  // guessed, so the assertions below can name one of them.
+  host.composer.render(box().padding(10).child(text(copy).key("t").fx(
+      {.where = sel::text(u8"beta"),
+       .effect = fx::rise(0),
+       .stagger = stagger(unit::Word, {.eachMs = 1, .durationMs = 1})})));
+  host.frame();
+  const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
+  ASSERT_EQ(betas.size(), 3u);
+  const auto bandOf = [](const Beat& b) {
+    return SkIRect::MakeLTRB((int)std::floor(b.rect.left()), 0,
+                             (int)std::ceil(b.rect.right()), 140);
+  };
+
+  const auto redsIn = [&](Selector where, const Beat& beat) {
+    host.composer.render(box().padding(10).child(text(copy).key("t").spanPaint(
+        std::move(where), sigil::weave::PaintStyle(SK_ColorRED))));
+    host.frame();
+    return countColor(host, bandOf(beat), SK_ColorRED);
+  };
+
+  EXPECT_GT(redsIn(sel::style("term"), betas[0]), 5) << "the first named run";
+  EXPECT_GT(redsIn(sel::style("term"), betas[2]), 5) << "the last named run";
+  EXPECT_EQ(redsIn(sel::style("term"), betas[1]), 0)
+      << "the unnamed beta was repainted, so the restyle resolver matched "
+         "the word rather than the run";
+  EXPECT_GT(redsIn(sel::text(u8"beta"), betas[1]), 5)
+      << "…which the literal selector does catch, as it must";
+
+  // And through spanStyle, which re-shapes: exactly the named runs do.
+  host.composer.render(box().padding(10).child(text(copy).key("t")));
+  host.frame();
+  const std::vector<const void*> before = runShapes(host, "t");
+  ASSERT_FALSE(before.empty());
+  const auto reshapedUnder = [&](Selector where) {
+    host.composer.render(box().padding(10).child(text(copy).key("t").spanStyle(
+        std::move(where), coloredStyle(34, SK_ColorGREEN))));
+    host.frame();
+    const std::vector<const void*> after = runShapes(host, "t");
+    // A run list of a different LENGTH is not a re-shape count at all — the
+    // restyle re-broke the passage, and the comparison below would be
+    // pairing runs that are not each other's.
+    if (after.size() != before.size()) return SIZE_MAX;
+    size_t moved = 0;
+    for (size_t i = 0; i < after.size(); ++i) moved += after[i] != before[i];
+    return moved;
+  };
+  EXPECT_EQ(reshapedUnder(sel::style("term")), 2u);
+  EXPECT_EQ(reshapedUnder(sel::text(u8"beta")), 3u);
+}
+
+TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
+  // The name is a handle on the RUN, not on the style span it produced — so
+  // re-registering it against a different style, at a different size that
+  // re-shapes and re-places everything, leaves the same runs addressed.
+  Host host(760, 140);
+  const auto namedGlyphs = [&](const sigil::weave::StyleSet& set) {
+    host.composer.render(box().padding(10).child(
+        text(glossaryCopy(set))
+            .key("t")
+            .fx({.where = sel::style("term"),
+                 .effect = fx::rise(0),
+                 .stagger =
+                     stagger(unit::Glyph, {.eachMs = 1, .durationMs = 1})})));
+    host.frame();
+    return host.composer.beatsOf("t", 0).size();
+  };
+  EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorRED, 24)), 8u);
+  EXPECT_EQ(namedGlyphs(glossarySet(SK_ColorGREEN, 36)), 8u)
+      << "a re-registered name stopped resolving, so the selector is keyed "
+         "on the style rather than on the run that wears it";
+}
+
+// ---------------------------------------------------------------------------
+// spanAxis — the advance-invariant middle between spanPaint and spanStyle
+
+namespace {
+
+/** A face carrying the advance-invariant GRAD axis, and that axis's own
+ *  design range — null when this machine has none, or has one whose varied
+ *  clone renders identically, because a test that cannot see the axis move
+ *  would pass while checking nothing. */
+sk_sp<SkTypeface> gradFace(float& lo, float& hi) {
+  lo = hi = 0;
+  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
+  sk_sp<SkTypeface> face;
+  for (const char* family :
+       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
+    face = manager->matchFamilyStyle(family, SkFontStyle());
+    if (face && fonts().axisIsAdvanceInvariant(face, "GRAD")) break;
+    face = nullptr;
+  }
+  if (!face) return nullptr;
+  const int count = face->getVariationDesignParameters({});
+  if (count <= 0) return nullptr;
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+  face->getVariationDesignParameters({axes.data(), axes.size()});
+  for (const auto& axis : axes)
+    if (axis.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+      lo = axis.min;
+      hi = axis.max;
+    }
+  if (hi <= lo) return nullptr;
+
+  // The advance probe proves advances HOLD; it cannot prove the clone
+  // RESPONDS. Rasterize one glyph at both ends and insist it does.
+  const sigil::weave::FontVariation vLo("GRAD", lo), vHi("GRAD", hi);
+  const auto ink = [&](const sigil::weave::FontVariation& v) {
+    SkFont font(fonts().variedTypeface(face, {&v, 1}), 48);
+    const SkGlyphID glyph = font.unicharToGlyph('W');
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 80));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    SkPaint paint;
+    paint.setColor(SK_ColorWHITE);
+    paint.setAntiAlias(true);
+    const SkPoint at{10, 60};
+    surface->getCanvas()->drawGlyphs(SkSpan(&glyph, 1), SkSpan(&at, 1), {0, 0},
+                                     font, paint);
+    SkBitmap bitmap;
+    bitmap.allocPixels(surface->imageInfo());
+    surface->readPixels(bitmap.pixmap(), 0, 0);
+    return bitmap;
+  };
+  const SkBitmap light = ink(vLo), heavy = ink(vHi);
+  for (int y = 0; y < 80; ++y)
+    for (int x = 0; x < 100; ++x)
+      if (light.getColor(x, y) != heavy.getColor(x, y)) return face;
+  return nullptr;
+}
+
+/** The whole surface, for a byte comparison against another frame. */
+SkBitmap grab(Host& host, int w, int h) {
+  SkBitmap out;
+  out.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(out.pixmap(), 0, 0);
+  return out;
+}
+
+int pixelsDiffering(const SkBitmap& a, const SkBitmap& b, int w, int h) {
+  int changed = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) changed += a.getColor(x, y) != b.getColor(x, y);
+  return changed;
+}
+
+}  // namespace
+
+TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
+  float lo = 0, hi = 0;
+  const sk_sp<SkTypeface> face = gradFace(lo, hi);
+  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+
+  Host host(400, 120);
+  sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
+  base.shaping.typeface = face;
+  const std::u8string body = u8"Count 1234 now";
+  host.composer.render(box().padding(10).child(text(body, base).key("t")));
+  host.frame();
+  const std::vector<const void*> shapesBefore = runShapes(host, "t");
+  const std::vector<SkPoint> originsBefore = runOrigins(host, "t");
+  ASSERT_FALSE(shapesBefore.empty());
+  const SkBitmap plain = grab(host, 400, 120);
+
+  host.composer.render(box().padding(10).child(
+      text(body, base).spanAxis(sel::regex(u8"[0-9]+"), "GRAD", hi).key("t")));
+  host.frame();
+  EXPECT_EQ(runShapes(host, "t"), shapesBefore)
+      << "spanAxis re-shaped a word — the axis went into the shaping style";
+  EXPECT_EQ(runOrigins(host, "t"), originsBefore) << "spanAxis moved a glyph";
+  EXPECT_GT(pixelsDiffering(plain, grab(host, 400, 120), 400, 120), 20)
+      << "the graded numerals are drawing exactly as the ungraded ones did";
+}
+
+TEST(TextSpanAxis, AnAdvanceVariantAxisIsRefusedAndSaysSoOnce) {
+  // The instrument face whose wght genuinely interpolates advances, so the
+  // gate has something to refuse. Loaded here rather than shared, so this
+  // face's verdict is this test's own to observe.
+  const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
+  const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
+      SIGILCOMPOSE_TEST_ASSET_DIR "/AdvanceVariant.ttf");
+  ASSERT_TRUE(face) << "test asset AdvanceVariant.ttf failed to load";
+  ASSERT_GT(face->getVariationDesignParameters({}), 0);
+  ASSERT_FALSE(fonts().axisIsAdvanceInvariant(face, "wght"))
+      << "the instrument face's wght must move advances";
+  (void)wght;
+
+  Host host(400, 120);
+  sigil::weave::TextStyle base = coloredStyle(44, SK_ColorWHITE);
+  base.shaping.typeface = face;
+  const std::u8string body = u8"WEIGHT";
+  // EVERY FRAME CARRIES A spanAxis, and they differ only in the coordinate.
+  // A leaf carrying a track draws through the batched glyph path and one
+  // without it draws through the paragraph's own, and the two round subpixel
+  // coverage differently — so a bare paragraph as the baseline would measure
+  // the path change and call it a weight.
+  ::testing::internal::CaptureStderr();
+  const auto at = [&](float weight) {
+    host.composer.render(box().padding(10).child(
+        text(body, base).spanAxis(Selector{}, "wght", weight).key("t")));
+    host.frame();
+    return grab(host, 400, 120);
+  };
+  const SkBitmap light = at(400.0f);
+  const SkBitmap heavy = at(900.0f);
+  const SkBitmap heavier = at(950.0f);
+  const std::string log = ::testing::internal::GetCapturedStderr();
+
+  int inked = 0;
+  for (int y = 0; y < 120; y += 2)
+    for (int x = 0; x < 400; x += 2)
+      inked += light.getColor(x, y) != SK_ColorBLACK;
+  ASSERT_GT(inked, 20) << "the text never drew";
+
+  EXPECT_EQ(pixelsDiffering(light, heavy, 400, 120), 0)
+      << "an advance-variant axis reached the draw — the glyphs kept the pen "
+         "positions shaping gave them and wore an outline that does not fit "
+         "them";
+  EXPECT_EQ(pixelsDiffering(light, heavier, 400, 120), 0);
+  // The warning is also the liveness proof: it can only have been written by
+  // the gate this verb's coordinate reached. And the verdict is a property
+  // of the face, probed once and remembered, so the two refusals after the
+  // first must be silent.
+  size_t said = 0;
+  for (size_t found = log.find("moves advances"); found != std::string::npos;
+       found = log.find("moves advances", found + 1))
+    ++said;
+  EXPECT_EQ(said, 1u) << log;
+}
+
+TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
+  float lo = 0, hi = 0;
+  const sk_sp<SkTypeface> face = gradFace(lo, hi);
+  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+
+  // A FIXED WINDOW of design space, swept at a fixed number of samples, at
+  // two rendered sizes. The ladder is cut per rendered size, so the same
+  // window holds more rungs on the larger type — and a rung is a retained
+  // varied clone, which is countable where a pixel difference of one rung
+  // is not. Both sizes sit inside the ladder's proportional band, away from
+  // its floor and its ceiling, so this reads the proportion and not a clamp.
+  constexpr float kSmallPx = 24.0f, kLargePx = 112.0f;
+  constexpr int kSamples = 61;
+  const float window = (hi - lo) / 32.0f;
+  const auto clonesAcrossTheWindow = [&](float pixelSize) {
+    sigil::weave::FontContext local(sigil::weave::ports::systemFontManager());
+    sigil::motion::Ticker ticker;
+    Composer composer(ticker, local);
+    composer.setSize({200, 200});
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
+    sigil::weave::TextStyle style = coloredStyle(pixelSize, SK_ColorWHITE);
+    style.shaping.typeface = face;
+    for (int i = 0; i < kSamples; ++i) {
+      const float value =
+          lo + (hi - lo) * 0.5f + window * (float)i / (float)(kSamples - 1);
+      composer.render(box().padding(4).child(
+          // A default-constructed selector addresses every glyph.
+          text(u8"888", style).key("t").spanAxis(Selector{}, "GRAD", value)));
+      ticker.tick(1.0 / 60.0);
+      surface->getCanvas()->clear(SK_ColorBLACK);
+      composer.draw(*surface->getCanvas());
+    }
+    return local.variedTypefaceCount();
+  };
+
+  const size_t coarse = clonesAcrossTheWindow(kSmallPx);
+  const size_t fine = clonesAcrossTheWindow(kLargePx);
+  EXPECT_GT(coarse, 0u) << "the coordinate never reached a face at all";
+  EXPECT_LT(coarse, (size_t)kSamples)
+      << "every sample minted its own clone — the value is reaching the memo "
+         "unsnapped";
+  EXPECT_LT(coarse, fine)
+      << "the same window of design space resolved to no more rungs at "
+      << kLargePx << " px than at " << kSmallPx
+      << " px, so the ladder is not cut by the rendered size";
+}
+
+TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
+  float lo = 0, hi = 0;
+  const sk_sp<SkTypeface> face = gradFace(lo, hi);
+  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+
+  Host host(400, 120);
+  sigil::weave::TextStyle base = coloredStyle(46, SK_ColorWHITE);
+  base.shaping.typeface = face;
+  const auto drawn = [&](const std::function<Element(Element)>& dress) {
+    host.composer.render(
+        box().padding(10).child(dress(text(u8"GRADE", base).key("t"))));
+    host.frame();
+    return grab(host, 400, 120);
+  };
+  const SkBitmap light =
+      drawn([&](Element t) { return t.spanAxis(Selector{}, "GRAD", lo); });
+  const SkBitmap heavy =
+      drawn([&](Element t) { return t.spanAxis(Selector{}, "GRAD", hi); });
+  ASSERT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
+      << "the two ends of the axis draw the same, so nothing below is a test";
+
+  const SkBitmap both = drawn([&](Element t) {
+    return t.spanAxis(Selector{}, "GRAD", lo).spanAxis(Selector{}, "GRAD", hi);
+  });
+  EXPECT_EQ(pixelsDiffering(both, heavy, 400, 120), 0)
+      << "the earlier declaration survived the later one — an axis is a "
+         "substitution, and overlapping substitutions are last-one-wins";
+}
+
 TEST(TextOptionSetters, MaxLinesAndEllipsisClampTheText) {
   Host host(240, 200);
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);

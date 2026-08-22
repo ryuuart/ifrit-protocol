@@ -91,7 +91,9 @@
 //            numerals are found by pattern afterwards and painted, never
 //            re-shaped.
 //   synopsis the coarsest cascade the engine has: one beat per LINE of the
-//            current layout, which re-breaks with the column.
+//            current layout, which re-breaks with the column — and the
+//            millibar readings picked out in colour and in GRADE by span,
+//            neither of which moves a letter the breaking placed.
 //   pressure a monospaced readout that decodes into place. The substitution
 //            keeps the original pen positions, so a proportional face would
 //            refuse it and this one does not; and the decode is HELD, so a
@@ -101,19 +103,22 @@
 //            rotated baseline.
 //
 // -----------------------------------------------------------------------------
-// WHERE THE LIBRARY MADE THIS AWKWARD
+// WHERE THIS STILL COSTS SOMETHING
 //
-//  1. NO SELECTOR ADDRESSES A STYLE SPAN. A grade is an axis one face
-//     carries and another does not, and the only handle on "the runs set in
-//     `term`" is their literal TEXT. Naming the two words works, and costs
-//     nothing now that a cascade can be numbered over the PARAGRAPH — but
-//     it is the words that are addressable, not the treatment they wear, so
-//     a third glossary word means a third string here. Every glyph knows
-//     its `styleIndex`; nothing can select on it.
-//  2. `spanPaint` cannot reach a variable-font axis or a face. Picking the
-//     Beaufort numerals out in a heavier grade would be a `spanStyle`, and
-//     that re-shapes the words it covers — so the numerals are picked out
-//     in colour alone, which is the honest half of what was wanted.
+//  1. A grade is an axis one face carries and another does not, and the
+//     forecast paragraph is set in three faces. The glossary is kept out of
+//     the drive by `sel::style("term")` — the runs addressed by the name
+//     they were written in — so the copy can gain a fourth defined term
+//     without a fourth string in this file. The one thing still spelled
+//     twice is the name itself: once in `forecastStyles` and once in the
+//     selector, which is what naming anything costs.
+//  2. A number picked out by pattern can now be picked out in weight as
+//     well as in colour: `spanAxis` sets an advance-invariant axis over a
+//     range without re-shaping it, which is what the synopsis's millibar
+//     readings take. The forecast paragraph does NOT, and the reason is
+//     composition rather than a missing verb — every initial there is
+//     already inside a grade sweep, and a static span axis over the
+//     numerals would replace a moving coordinate with a still one.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -474,14 +479,15 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // arrives on beat ten whatever any one selection turns out to cover.
     //
     // That is what makes the third track affordable. GRAD is an axis THIS
-    // face carries and the serif does not, and no selector addresses a
-    // style span, so the drive is kept off the two glossary words by naming
-    // their text — while the LIFT still reaches every initial, because it
-    // is a separate track over the whole set. Numbered over each track's
-    // own selection the two would run cascades of different lengths, and
-    // the grade would arrive on a different beat from the letter it grades.
+    // face carries and the serif does not, so the drive is kept off the
+    // glossary by addressing the runs' NAME — the treatment they were
+    // written in, which is exactly the thing that decides whether the axis
+    // is there — while the LIFT still reaches every initial, because it is
+    // a separate track over the whole set. Numbered over each track's own
+    // selection the two would run cascades of different lengths, and the
+    // grade would arrive on a different beat from the letter it grades.
     const Selector everyInitial = sel::each(unit::Word).take(1);
-    const Selector glossary = sel::text(u8"later") | sel::text(u8"poor");
+    const Selector glossary = sel::style("term");
     const auto wordClock = [](float durationMs) {
       return stagger(
           unit::Word,
@@ -561,7 +567,15 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  take and the right one here: a synopsis is read as a sequence of
    *  clauses, and a line is as close to a clause as a laid-out paragraph
    *  gets. The lines are found in the CURRENT layout, so a narrower column
-   *  would re-break the passage and the cascade would follow it. */
+   *  would re-break the passage and the cascade would follow it.
+   *
+   *  THE PRESSURES ARE PICKED OUT TWICE, and neither pick moves a letter: a
+   *  colour by `spanPaint` and a grade by `spanAxis`. A millibar reading is
+   *  the one quantity in a synopsis a reader looks for rather than reads,
+   *  and it wants the weight a colour alone cannot carry. GRAD is
+   *  advance-invariant, so the whole numeral thickens where the paragraph
+   *  already set it — a heavier FACE would be a `spanStyle`, and would
+   *  re-break the passage the line cascade is beating over. */
   [[nodiscard]] Element synopsis() {
     const sigil::weave::StyleSet set = forecastStyles();
     RichText copy = rich(set.base());
@@ -588,6 +602,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
                    .spanPaint(sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
+                   .spanAxis(sel::regex(u8"[0-9]+"), "GRAD", 800.0f)
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = stagger(unit::Line,
                                            {.eachMs = 150, .durationMs = 620}),

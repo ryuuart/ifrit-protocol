@@ -174,6 +174,13 @@ Selector regex(std::u8string_view utf8Pattern) {
 Selector text(std::u8string_view utf8Substring) {
   return needle(Selector::Kind::Text, utf8Substring);
 }
+Selector style(std::string_view name) {
+  // A style name is ASCII-or-whatever the author typed, and the needle slot
+  // holds UTF-8 bytes; both resolvers compare it against the same bytes a
+  // run's name was written with, so no transcoding is involved either way.
+  return needle(Selector::Kind::Style,
+                std::u8string_view((const char8_t*)name.data(), name.size()));
+}
 Selector each(Unit granularity) {
   Selector::State s;
   s.kind = Selector::Kind::Each;
@@ -299,9 +306,21 @@ void markRanges(const std::vector<sigil::weave::CharRange>& ranges,
         out[i] = 1;
 }
 
+/** The extents a named-run table gives one name, in declaration order —
+ *  each caller puts them in the form it needs. Empty when no run answers to
+ *  the name, which is the one case the callers warn about. */
+std::vector<sigil::weave::CharRange> namedRunRanges(
+    std::span<const NamedRun> named, const std::u8string& name) {
+  std::vector<sigil::weave::CharRange> out;
+  const std::string_view wanted((const char*)name.data(), name.size());
+  for (const NamedRun& run : named)
+    if (run.name == wanted) out.push_back(run.chars);
+  return out;
+}
+
 void resolveInto(const Selector& selector, const GlyphStructure& structure,
                  const sigil::weave::Paragraph& paragraph,
-                 std::vector<uint8_t>& out) {
+                 std::span<const NamedRun> named, std::vector<uint8_t>& out) {
   const size_t count = structure.glyphs.size();
   out.assign(count, 0);
   const Selector::State* s = selector.state();
@@ -346,6 +365,16 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(*matches, structure, out);
       break;
     }
+    case Selector::Kind::Style: {
+      const std::vector<sigil::weave::CharRange> runs =
+          namedRunRanges(named, s->pattern);
+      if (runs.empty()) {
+        warnNoSuchStyleName(s->pattern);
+        break;  // content that carries no such name selects nothing
+      }
+      markRanges(runs, structure, out);
+      break;
+    }
     case Selector::Kind::Each: {
       // Every unit sliced the same way, at GLYPH granularity inside it.
       // `drop(n)` and `take(n)` partition a unit exactly: the two answer
@@ -367,8 +396,8 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
     case Selector::Kind::Union:
     case Selector::Kind::Intersect: {
       std::vector<uint8_t> lhs, rhs;
-      resolveInto(s->operands[0], structure, paragraph, lhs);
-      resolveInto(s->operands[1], structure, paragraph, rhs);
+      resolveInto(s->operands[0], structure, paragraph, named, lhs);
+      resolveInto(s->operands[1], structure, paragraph, named, rhs);
       for (size_t i = 0; i < count; ++i)
         out[i] = s->kind == Selector::Kind::Union ? (lhs[i] | rhs[i])
                                                   : (lhs[i] & rhs[i]);
@@ -376,7 +405,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
     }
     case Selector::Kind::Complement: {
       std::vector<uint8_t> inner;
-      resolveInto(s->operands[0], structure, paragraph, inner);
+      resolveInto(s->operands[0], structure, paragraph, named, inner);
       for (size_t i = 0; i < count; ++i) out[i] = inner[i] ? 0 : 1;
       break;
     }
@@ -397,11 +426,25 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
                key.c_str());
 }
 
-std::vector<uint8_t> resolveSelection(
-    const Selector& selector, const GlyphStructure& structure,
-    const sigil::weave::Paragraph& paragraph) {
+void warnNoSuchStyleName(const std::u8string& name) {
+  // Once per distinct name, for the reason the pattern warning is: this
+  // resolves on every reflow, and a name that is wrong is wrong every time.
+  static thread_local std::unordered_set<std::string> seen;
+  std::string key((const char*)name.data(), name.size());
+  if (!seen.insert(key).second) return;
+  std::fprintf(stderr,
+               "SigilCompose: sel::style(\"%s\") — no run of this text was "
+               "written under that name, so it addresses nothing (only a "
+               "rich() run added with add(text, styleName) carries one)\n",
+               key.c_str());
+}
+
+std::vector<uint8_t> resolveSelection(const Selector& selector,
+                                      const GlyphStructure& structure,
+                                      const sigil::weave::Paragraph& paragraph,
+                                      std::span<const NamedRun> named) {
   std::vector<uint8_t> out;
-  resolveInto(selector, structure, paragraph, out);
+  resolveInto(selector, structure, paragraph, named, out);
   return out;
 }
 
@@ -556,7 +599,8 @@ Ranges resolveTextRangesInto(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
-    std::span<const sigil::weave::ColumnMetrics> columns) {
+    std::span<const sigil::weave::ColumnMetrics> columns,
+    std::span<const NamedRun> named) {
   const auto length = (uint32_t)paragraph.text().size();
   const Selector::State* s = selector.state();
   if (!s) return {{0, length}};  // default-constructed: everything
@@ -606,6 +650,11 @@ Ranges resolveTextRangesInto(
       }
       return normalize(*std::move(matches));
     }
+    case Selector::Kind::Style: {
+      Ranges runs = namedRunRanges(named, s->pattern);
+      if (runs.empty()) warnNoSuchStyleName(s->pattern);
+      return normalize(std::move(runs));
+    }
     case Selector::Kind::Each: {
       // A unit's whole extent. The glyph slice has no text-range meaning;
       // saying so once beats a restyle that silently covers more than the
@@ -628,21 +677,23 @@ Ranges resolveTextRangesInto(
     }
     case Selector::Kind::Union: {
       Ranges out = resolveTextRangesInto(s->operands[0], paragraph, fonts,
-                                         lines, columns);
+                                         lines, columns, named);
       Ranges rhs = resolveTextRangesInto(s->operands[1], paragraph, fonts,
-                                         lines, columns);
+                                         lines, columns, named);
       out.insert(out.end(), rhs.begin(), rhs.end());
       return normalize(std::move(out));
     }
     case Selector::Kind::Intersect:
-      return intersectRanges(resolveTextRangesInto(s->operands[0], paragraph,
-                                                   fonts, lines, columns),
-                             resolveTextRangesInto(s->operands[1], paragraph,
-                                                   fonts, lines, columns));
+      return intersectRanges(
+          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
+                                columns, named),
+          resolveTextRangesInto(s->operands[1], paragraph, fonts, lines,
+                                columns, named));
     case Selector::Kind::Complement:
-      return complementRanges(resolveTextRangesInto(s->operands[0], paragraph,
-                                                    fonts, lines, columns),
-                              length);
+      return complementRanges(
+          resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
+                                columns, named),
+          length);
   }
   return {};
 }
@@ -653,8 +704,10 @@ std::vector<sigil::weave::CharRange> resolveTextRanges(
     const Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
-    std::span<const sigil::weave::ColumnMetrics> columns) {
-  return resolveTextRangesInto(selector, paragraph, fonts, lines, columns);
+    std::span<const sigil::weave::ColumnMetrics> columns,
+    std::span<const NamedRun> named) {
+  return resolveTextRangesInto(selector, paragraph, fonts, lines, columns,
+                               named);
 }
 
 bool selectorNeedsLayout(const Selector& selector) {

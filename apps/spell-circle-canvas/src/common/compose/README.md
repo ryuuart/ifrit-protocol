@@ -245,6 +245,25 @@ everything. Selection is resolved once per (content, layout, selector) and
 cached on the element; a pattern that does not compile selects nothing and
 warns once.
 
+`sel::style` is the odd one out and addresses the TREATMENT rather than a
+position: every run a `rich()` value added under a style name
+(`RichText::add` with a name resolved through a `sigil::weave::StyleSet`).
+
+```cpp
+text(rich(base).styles(set)
+         .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
+    .fx({.where = !sel::style("term"), .effect = fx::axis("GRAD", 900)});
+```
+
+A glossary set in one registered style stays addressable when the copy
+changes, where naming the literal words means editing the selector every
+time an author edits a sentence. It resolves through the run's TEXT, so
+re-registering the name against a different style — or a `spanPaint` or
+`spanStyle` cutting across the run — leaves the same runs selected. Only a
+named `rich()` run carries a name: plain text, a run given a style
+directly, and the paragraph overload have none, so there it selects nothing
+and warns once per name, as does a name no run was written with.
+
 **Cascades.** `Stagger` keeps the GSAP model — `eachMs` or `amountMs`,
 `durationMs`, and a `Stagger::From` origin: `Start`, `Center`, `End`, a
 seeded `Random` and a two-ended `Edges`. `Stagger::distribution` shapes
@@ -539,28 +558,55 @@ and reads as changed content every time — which is why it stays the escape
 hatch for the passage too custom for either verb, not the way to set two
 colours in a sentence.
 
-**Selector styling.** `Element::spanPaint` and `Element::spanStyle` restyle
-whatever the SAME `sel::` selectors the tracks use address, on every
-content form alike — plain text, `rich()` spans and the paragraph overload.
-`spanPaint` is paint only and NEVER re-shapes: the glyphs are the glyphs
-the unrestyled text shaped, at the positions it shaped them. `spanStyle`
-takes a complete style and re-shapes only the words its range covers.
-Both are ordered lists — a LATER DECLARATION WINS on overlap, so a broad
-rule followed by a narrow exception reads in the order it is written — and
-both are comparable values, so a re-described restyle list prunes and only
-a changed one re-resolves.
+**Selector styling.** `Element::spanPaint`, `Element::spanAxis` and
+`Element::spanStyle` restyle whatever the SAME `sel::` selectors the tracks
+use address, on every content form alike — plain text, `rich()` spans and
+the paragraph overload. They are ordered by **what they are allowed to
+disturb**:
 
-Selection resolves as TEXT RANGES rather than glyphs, because a restyle
-runs on the paragraph before there are glyphs to point at: `sel::text` and
-`sel::regex` through weave's query layer, `sel::word`, `sel::words`,
-`sel::sentence` and `sel::range` through the paragraph's own structure, and
-`sel::line` through the layout. Two consequences follow. `Selector::take`
-and `Selector::drop` slice glyphs inside a unit, which no text range can
-express — an `sel::each` selector restyles its whole units and the slice
-warns once. And a `sel::line` restyle costs a second layout pass and
-addresses the layout of the text BEFORE the restyle: it does not chase its
-own result, so a `spanStyle` that moves the line breaks leaves the
-selection where the first breaking put it.
+| verb | changes | re-shapes |
+| --- | --- | --- |
+| `spanPaint` | paint alone — a colour, a shader, an underline, a glow pass | never |
+| `spanAxis` | one advance-invariant variable-font axis | never |
+| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers |
+
+All three are ordered lists — a LATER DECLARATION WINS on overlap, so a
+broad rule followed by a narrow exception reads in the order it is written
+— and all three are comparable values, so a re-described list prunes and
+only a changed one re-resolves.
+
+`spanAxis` is the advance-invariant middle the other two leave out.
+`spanPaint` cannot carry a face or an axis at all; `spanStyle` can and
+re-shapes to do it. A grade is advance-invariant *by construction* — it
+thickens a letter without moving the letter after it — so it is exactly the
+restyle that can keep the layout the paragraph already has:
+
+```cpp
+text(copy).spanAxis(sel::regex(u8"[0-9]+"), "GRAD", 780);
+```
+
+It is sugar over `fx()` and inherits what that means. The coordinate is a
+`GlyphMod::axis` on a track, so it goes through the same gate and the same
+size-scaled ladder a driven axis does, an advance-variant axis is refused
+with the same one-per-face warning, and it composes with entrances and
+loops instead of being hidden by them. Being a track it runs on the GLYPHS,
+which is why it takes the selector vocabulary whole where the two
+paragraph-side verbs cannot; and the leaf then draws through the batched
+glyph path, which paints glyphs and not a span style's underline or
+strikethrough.
+
+`spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
+than glyphs, because a restyle runs on the paragraph before there are
+glyphs to point at: `sel::text` and `sel::regex` through weave's query
+layer, `sel::word`, `sel::words`, `sel::sentence` and `sel::range` through
+the paragraph's own structure, `sel::style` through the named runs the
+content declared, and `sel::line` through the layout. Two consequences
+follow. `Selector::take` and `Selector::drop` slice glyphs inside a unit,
+which no text range can express — an `sel::each` selector restyles its
+whole units and the slice warns once. And a `sel::line` restyle costs a
+second layout pass and addresses the layout of the text BEFORE the restyle:
+it does not chase its own result, so a `spanStyle` that moves the line
+breaks leaves the selection where the first breaking put it.
 
 **Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
 (greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,

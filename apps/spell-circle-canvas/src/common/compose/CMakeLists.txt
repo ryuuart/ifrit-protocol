@@ -138,7 +138,7 @@ target_link_libraries(compose_test PRIVATE
 # harness by name, like every hand-written slice does.
 target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 # Committed test assets (the SigilImage test/assets convention): today one
-# generated variable font, the §35.3 advance-variant wght instrument. Not
+# generated variable font, an advance-variant wght instrument. Not
 # fetch_assets — a TEST must never depend on an opt-in target.
 target_compile_definitions(compose_test PRIVATE
   SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")

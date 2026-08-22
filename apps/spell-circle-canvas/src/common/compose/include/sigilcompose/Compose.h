@@ -585,8 +585,17 @@ struct GlyphInfo {
   uint32_t textIndex = 0;       ///< that cluster as an offset into the text
   uint32_t wordIndex = 0;       ///< index of its word in the paragraph
   uint32_t lineIndex = 0;       ///< the flow line it landed on
-  uint32_t styleIndex = 0;      ///< index of its style span
-  uint32_t sentenceIndex = 0;   ///< 0-based sentence
+  /** Index of its style span in the materialized paragraph.
+   *
+   *  A NUMBER FOR AN EFFECT TO READ, NOT A HANDLE TO ADDRESS BY: spans are
+   *  cut and merged by every span restyle the leaf declares, so this
+   *  renumbers when a `spanPaint` anywhere ahead of it splits one — and the
+   *  restyle resolver runs while that list is being edited, so the two
+   *  resolvers could not be made to agree on what a given index names. The
+   *  handle on a treatment is the NAME the run was written under, which
+   *  `sel::style` addresses and which only new content changes. */
+  uint32_t styleIndex = 0;
+  uint32_t sentenceIndex = 0;  ///< 0-based sentence
   /** Which beat of the track's own stagger this glyph belongs to, and how
    *  many beats there are — the unit numbering the track resolved, not a
    *  paragraph-wide count. A per-word track sees word ordinals here. */
@@ -782,6 +791,7 @@ class Selector {
     Range,
     Regex,
     Text,
+    Style,
     Each,
     Union,
     Intersect,
@@ -790,7 +800,10 @@ class Selector {
   struct State {
     Kind kind = Kind::All;
     uint32_t lo = 0, hi = 0;  ///< Word/Words/Line/Sentence/Range bounds
-    std::u8string pattern;    ///< Regex/Text needle
+    /** Regex/Text needle, or the style NAME an `sel::style` addresses — one
+     *  slot, because no selector carries two of them and a second string
+     *  would ride on every selector in the tree to serve one form. */
+    std::u8string pattern;
     Unit each = Unit::Glyph;  ///< Each granularity
     int take = -1;            ///< Each: glyphs kept per unit (-1 = all)
     int drop = 0;             ///< Each: glyphs skipped per unit
@@ -824,6 +837,25 @@ namespace sel {
 [[nodiscard]] Selector regex(std::u8string_view utf8Pattern);
 /** Every occurrence of a literal substring. */
 [[nodiscard]] Selector text(std::u8string_view utf8Substring);
+/** EVERY RUN DRESSED UNDER THIS NAME — the runs a `rich()` value added with
+ *  `add(utf8, styleName)`, addressed by the name rather than by the words
+ *  they happen to contain.
+ *
+ *  This is the treatment as a handle: a glossary set in one registered
+ *  style stays addressable when the copy changes, where naming the literal
+ *  text means editing the selector every time an author edits a sentence.
+ *
+ *  It addresses the run's TEXT, so it survives everything that changes what
+ *  that text looks like: re-registering the name against a different
+ *  `weave::StyleSet` entry, or a `spanPaint`/`spanStyle` cutting across it,
+ *  leaves the same runs selected.
+ *
+ *  ONLY A NAMED `rich()` RUN CARRIES A NAME. Plain `text(utf8, style)`, a
+ *  `rich()` run given a style directly, and the `shared_ptr<Paragraph>`
+ *  overload have none, so this addresses nothing there — as does a name no
+ *  run was written with. Either way it selects nothing and warns once per
+ *  name. */
+[[nodiscard]] Selector style(std::string_view name);
 /** Every unit of `granularity`, ready to be sliced with `.take()` /
  *  `.drop()`. Unsliced it is the same as selecting everything. */
 [[nodiscard]] Selector each(Unit granularity);
@@ -3191,16 +3223,22 @@ class Element {
   // ---- span restyling: the type treatment, addressed by selector -------
   //
   // The same `sel::` vocabulary the fx() tracks address glyphs with, used
-  // to say what a range LOOKS LIKE rather than how it moves. Both verbs
-  // take an ordered list — call either as many times as the passage needs
-  // — and a LATER DECLARATION WINS wherever two overlap, so a broad rule
-  // followed by a narrow exception reads in the order it is written.
+  // to say what a range LOOKS LIKE rather than how it moves. Each verb
+  // takes an ordered list — call any of them as many times as the passage
+  // needs — and a LATER DECLARATION WINS wherever two overlap, so a broad
+  // rule followed by a narrow exception reads in the order it is written.
   //
   // They apply to every content form alike: plain `text(utf8, style)`,
   // `rich()` spans, and the `shared_ptr<Paragraph>` overload, because all
   // three are one materialized paragraph by the time a restyle runs.
   //
-  // Selection is resolved as TEXT RANGES, not glyphs: `sel::text` and
+  // The three are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
+  // repaints and nothing else. `spanAxis` also changes the outline, but
+  // only along an advance-invariant axis, so the pen positions stand.
+  // `spanStyle` may change anything and re-shapes to do it.
+  //
+  // The two that run on the PARAGRAPH — `spanPaint` and `spanStyle` —
+  // resolve their selection as TEXT RANGES, not glyphs: `sel::text` and
   // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
   // `sel::sentence` and `sel::range` through the paragraph's own structure,
   // and `sel::line` through the layout. `Selector::take` and
@@ -3212,6 +3250,10 @@ class Element {
   // RESTYLE, and costs a second layout pass. It does not chase its own
   // result: a `spanStyle` on a line that moves the line breaks leaves the
   // selection where the first breaking put it.
+  //
+  // `spanAxis` runs on the GLYPHS instead, being a track, so it takes the
+  // selector vocabulary whole: a slice addresses the glyphs it names rather
+  // than widening to their units.
 
   /** Text leaves only: repaint the range this selector finds — a colour, a
    *  shader, an underline, an added glow pass. PAINT ONLY, so it NEVER
@@ -3224,6 +3266,30 @@ class Element {
    *  shaping cache is content-addressed, so the rest of the paragraph is
    *  reused as it stands. */
   Element& spanStyle(Selector where, sigil::weave::TextStyle style);
+  /** Text leaves only: hold a VARIABLE-FONT AXIS at one coordinate over the
+   *  range this selector finds, WITHOUT reshaping it.
+   *
+   *  The advance-invariant middle the other two verbs leave out. `spanPaint`
+   *  cannot carry a face or an axis at all; `spanStyle` can, and re-shapes
+   *  the words it touches to do it. A grade (GRAD) is advance-invariant BY
+   *  CONSTRUCTION — it thickens a letter without moving the letter after it
+   *  — so it is exactly the restyle that can keep the layout the paragraph
+   *  already has, and this is the verb that says so.
+   *
+   *  GATED like every draw-time axis: the runtime probes the range's faces
+   *  once per axis and REFUSES one that moves advances, drawing at the
+   *  shaped coordinates and warning once. An axis that moves advances is a
+   *  reshape, which is what `spanStyle` is for.
+   *
+   *  SUGAR over `fx()`, and it inherits what that means. The coordinate is a
+   *  `GlyphMod::axis` on a track addressing @p where, so it goes through the
+   *  same size-scaled snapping ladder a driven axis does; it composes with
+   *  entrances and loops rather than being hidden by them; two declarations
+   *  overlapping resolve LATER-WINS, as the other two span verbs do, because
+   *  an axis coordinate is a substitution and substitutions are
+   *  last-one-wins; and the leaf draws through the batched glyph path, which
+   *  paints glyphs and not a span style's underline or strikethrough. */
+  Element& spanAxis(Selector where, const char (&tag)[5], float value);
 
   // ---- layout options, fluently ----------------------------------------
   //
