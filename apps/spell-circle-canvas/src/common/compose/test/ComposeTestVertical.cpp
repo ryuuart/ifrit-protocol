@@ -405,3 +405,48 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
       << "a scaled column drifted off its axis — the pivot took half a "
          "VERTICAL advance sideways";
 }
+
+TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
+  // A cascade's read-back has to speak the geometry the column is in. A
+  // vertical glyph advances DOWN its column and stands about an em across
+  // it, so beats descend inside a column and step LEFT to the next one —
+  // the reading order kVerticalRL puts them in, and the exact opposite of
+  // what a horizontal rect built from the same numbers would say.
+  Host host(220, 300);
+  host.composer.render(box().padding(10).child(
+      text(kProse, jp(20, SK_ColorWHITE))
+          .key("col")
+          .width(180)
+          .height(240)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .fx({.effect = fx::rise(10),
+               .stagger = stagger(unit::Cluster, {.eachMs = 40})})));
+  host.frame();
+
+  const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
+  ASSERT_GT(beats.size(), 12u);
+  const SkRect block =
+      host.composer.bounds("col").value_or(SkRect::MakeEmpty());
+  ASSERT_FALSE(block.isEmpty()) << "the column block was never laid out";
+  for (const Beat& beat : beats) {
+    EXPECT_FALSE(beat.rect.isEmpty());
+    EXPECT_GT(beat.rect.height(), 4.0f)
+        << "a vertical glyph's beat has no extent along its own advance";
+  }
+  // Down a column: consecutive beats descend until the column breaks.
+  int descents = 0, columnBreaks = 0;
+  for (size_t i = 1; i < beats.size(); ++i) {
+    if (beats[i].rect.centerY() > beats[i - 1].rect.centerY() + 1.0f)
+      ++descents;
+    else if (beats[i].rect.centerX() < beats[i - 1].rect.centerX() - 1.0f)
+      ++columnBreaks;
+  }
+  EXPECT_GT(descents, (int)beats.size() / 2)
+      << "the beats do not run down the column";
+  EXPECT_GT(columnBreaks, 0)
+      << "the passage never broke to a second column: nothing is proven";
+  // …and the whole schedule stays inside the node it belongs to.
+  for (const Beat& beat : beats)
+    EXPECT_TRUE(block.intersects(beat.rect))
+        << "a beat landed outside the column block";
+}

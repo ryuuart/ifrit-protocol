@@ -1134,6 +1134,11 @@ struct Composer::Impl {
   void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
                    const sigil::weave::PaintStyle* override,
                    const TextPath* onPath, SkSize size);
+  /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
+   *  last draw() produced — the read-back behind Composer::beatsOf. Rects
+   *  come out in the NODE's own space; the caller offsets them into the
+   *  composer's, as the bounds query does. */
+  std::vector<Beat> beatsOfTrack(detail::Instance& inst, size_t trackIndex);
   /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
    *  and by the fx() draw — a letter in flight is painted exactly as a

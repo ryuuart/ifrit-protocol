@@ -83,11 +83,13 @@
 //   gale     a two-phase sequence with a crossfade: the strip slides in,
 //            and lerps out of the slide into an elastic settle rather than
 //            cutting between them.
-//   forecast one paragraph, three faces, and two tracks that partition it
-//            exactly — the first letter of every word on one cascade, the
-//            rest of every word on the other, both numbering the same
-//            beats. The numerals are found by pattern afterwards and
-//            painted, never re-shaped.
+//   forecast one paragraph, three faces, and three tracks numbered over the
+//            PARAGRAPH — the first letter of every word, the rest of every
+//            word, and a grade over the initials the face can carry it on.
+//            Word ten is beat ten in all three, so a track may address as
+//            little as it likes without moving anyone else's beat. The
+//            numerals are found by pattern afterwards and painted, never
+//            re-shaped.
 //   synopsis the coarsest cascade the engine has: one beat per LINE of the
 //            current layout, which re-breaks with the column.
 //   pressure a monospaced readout that decodes into place. The substitution
@@ -100,27 +102,18 @@
 // -----------------------------------------------------------------------------
 // WHERE THE LIBRARY MADE THIS AWKWARD
 //
-//  1. A CASCADE NUMBERS ITS OWN SELECTION, so two tracks over one
-//     paragraph share a timeline only while their selections resolve the
-//     same units. take(1) and drop(1) do, which is why the paragraph reads
-//     as one cascade; anything narrower does not. Excluding two words from
-//     one of the two tracks renumbers it, and from there on each word's
-//     initial and its body arrive hundreds of milliseconds apart.
-//  2. NO SELECTOR ADDRESSES A STYLE SPAN. A grade is an axis one face
+//  1. NO SELECTOR ADDRESSES A STYLE SPAN. A grade is an axis one face
 //     carries and another does not, and the only handle on "the runs set in
-//     `term`" is their literal TEXT — which, by 1, is not a handle that can
-//     be used. So the axis track reaches the serif initials, the runtime
-//     refuses the drive there and warns once. Every glyph knows its
-//     `styleIndex`; nothing can select on it.
-//  3. A DECODE HAS NO "NOT YET". `fx::scramble` substitutes from local 0,
+//     `term`" is their literal TEXT. Naming the two words works, and costs
+//     nothing now that a cascade can be numbered over the PARAGRAPH — but
+//     it is the words that are addressable, not the treatment they wear, so
+//     a third glossary word means a third string here. Every glyph knows
+//     its `styleIndex`; nothing can select on it.
+//  2. A DECODE HAS NO "NOT YET". `fx::scramble` substitutes from local 0,
 //     so a track that has not started yet is churning rather than absent,
 //     and the node needs its own opacity beat to be dark before its turn.
 //     An effect cannot say "leave the glyph alone until t rises".
-//  4. The ring's own composition is invisible to the sheet. Nothing reports
-//     where along the circle a given sea area landed, so a tick mark under
-//     the area being read has no way to find it; the hairline ring under
-//     the type is plain.
-//  5. `spanPaint` cannot reach a variable-font axis or a face. Picking the
+//  3. `spanPaint` cannot reach a variable-font axis or a face. Picking the
 //     Beaufort numerals out in a heavier grade would be a `spanStyle`, and
 //     that re-shapes the words it covers — so the numerals are picked out
 //     in colour alone, which is the honest half of what was wanted.
@@ -448,12 +441,19 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
   /** The forecast itself: one paragraph, three faces, two tracks and one
    *  pattern.
    *
-   *  THE TWO TRACKS PARTITION IT EXACTLY. `each(Word).take(1)` is the first
+   *  TWO TRACKS PARTITION IT EXACTLY. `each(Word).take(1)` is the first
    *  letter of every word; `each(Word).drop(1)` is everything else. No
    *  glyph is in both and none is in neither, so the paragraph is covered
    *  twice over by two different moves rather than once by a compromise
-   *  between them — the initials arrive with a grade swell and a longer
-   *  lift, the bodies of the words follow them in flat.
+   *  between them — the initials arrive with a longer lift, the bodies of
+   *  the words follow them in flat — and a THIRD track lays the grade swell
+   *  over the initials the face can carry it on.
+   *
+   *  ALL THREE CASCADES ARE NUMBERED OVER THE PARAGRAPH, which is what
+   *  makes that a partition in TIME and not only in space: every glyph of
+   *  word ten is on beat ten in every track, whatever any one selection
+   *  turns out to cover. Without it a track could not narrow at all without
+   *  dragging every word after the gap onto a different beat.
    *
    *  THE NUMERALS ARE FOUND, NOT DECLARED. A Beaufort force is a number
    *  wherever it appears, so it is addressed by pattern after the fact.
@@ -471,30 +471,37 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
         .add(u8"poor", "term")
         .add(u8".");
 
-    // TWO TRACKS, AND THEY MUST COVER THE SAME UNITS. A cascade numbers
-    // only the units ITS OWN selector resolved, so two tracks share one
-    // timeline exactly when their selections beat over the same list.
-    // take(1) and drop(1) both resolve every word, in order, so word ten's
-    // initial and word ten's body are beat ten in both — which is what
-    // makes the paragraph read as one cascade wearing two moves.
+    // THREE TRACKS OVER ONE PARAGRAPH, ON ONE CLOCK. `beats::Text` numbers
+    // each cascade by the word's place in the PARAGRAPH rather than by its
+    // place in that track's own selection, so every glyph of word ten
+    // arrives on beat ten whatever any one selection turns out to cover.
     //
-    // The grade is the price of that. GRAD is an axis THIS face carries and
-    // the serif does not, and no selector addresses a style span, so the
-    // track necessarily reaches the two glossary words' initials — where
-    // the runtime measures the face, refuses the drive and says so once.
-    // Narrowing the selection to spare it is worse than the warning:
-    // subtracting two words renumbers this cascade against the other one,
-    // and the two halves of every word after them stop arriving together.
-    Track initials{
-        .where = sel::each(unit::Word).take(1),
-        .effect = fx::mix(fx::rise(16.0f), fx::axis("GRAD", 400.0f, 900.0f)),
-        .stagger = stagger(unit::Word, {.eachMs = 46, .durationMs = 460}),
-        .progress = beat(1.75f, 4.10f)};
-    Track bodies{
-        .where = sel::each(unit::Word).drop(1),
-        .effect = fx::rise(9.0f),
-        .stagger = stagger(unit::Word, {.eachMs = 46, .durationMs = 500}),
-        .progress = beat(1.83f, 4.30f)};
+    // That is what makes the third track affordable. GRAD is an axis THIS
+    // face carries and the serif does not, and no selector addresses a
+    // style span, so the drive is kept off the two glossary words by naming
+    // their text — while the LIFT still reaches every initial, because it
+    // is a separate track over the whole set. Numbered over each track's
+    // own selection the two would run cascades of different lengths, and
+    // the grade would arrive on a different beat from the letter it grades.
+    const Selector everyInitial = sel::each(unit::Word).take(1);
+    const Selector glossary = sel::text(u8"later") | sel::text(u8"poor");
+    const auto wordClock = [](float durationMs) {
+      return stagger(
+          unit::Word,
+          {.eachMs = 46, .durationMs = durationMs, .beatsOver = beats::Text});
+    };
+    Track initials{.where = everyInitial,
+                   .effect = fx::rise(16.0f),
+                   .stagger = wordClock(460.0f),
+                   .progress = beat(1.75f, 4.10f)};
+    Track grade{.where = everyInitial & !glossary,
+                .effect = fx::axis("GRAD", 400.0f, 900.0f),
+                .stagger = wordClock(460.0f),
+                .progress = beat(1.75f, 4.10f)};
+    Track bodies{.where = sel::each(unit::Word).drop(1),
+                 .effect = fx::rise(9.0f),
+                 .stagger = wordClock(500.0f),
+                 .progress = beat(1.83f, 4.30f)};
 
     return box()
         .column()
@@ -509,6 +516,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .spanPaint(sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx(std::move(initials))
+                   .fx(std::move(grade))
                    .fx(std::move(bodies)));
   }
 

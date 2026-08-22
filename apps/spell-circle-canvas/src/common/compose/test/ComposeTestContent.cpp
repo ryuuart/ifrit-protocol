@@ -2642,6 +2642,307 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   EXPECT_EQ(records, 0u) << "settled continuous text kept re-recording";
 }
 
+// ---- the schedule as a value: beats::Text, cues(), beatsOf ----------------
+
+namespace {
+/** The startMs of the beat covering unit @p unitIndex, or -1 where the
+ *  track runs no beat there. */
+float startOfUnit(const std::vector<Beat>& beats, uint32_t unitIndex) {
+  for (const Beat& beat : beats)
+    if (beat.unitIndex == unitIndex) return beat.startMs;
+  return -1.0f;
+}
+
+/** WHERE THE LAYOUT ACTUALLY PUT EACH WORD, straight off the positioned
+ *  runs — the ground truth a beat's rect is checked against, so the check
+ *  cannot pass by both sides re-measuring the text the same wrong way. */
+std::vector<SkRect> wordExtents(const sigil::weave::ParagraphLayout& layout,
+                                size_t words, SkPoint origin) {
+  std::vector<SkRect> out(words, SkRect::MakeEmpty());
+  for (const sigil::weave::PositionedRun& run : layout.runs) {
+    if (!run.shaped || run.wordIndex >= words) continue;
+    SkRect extent = SkRect::MakeXYWH(run.origin.x() + origin.x(),
+                                     run.origin.y() + origin.y() - 0.5f,
+                                     run.shaped->advance, 1.0f);
+    if (out[run.wordIndex].isEmpty())
+      out[run.wordIndex] = extent;
+    else
+      out[run.wordIndex].join(extent);
+  }
+  return out;
+}
+
+/** A baseline that leaves the node's box entirely: a ring centred well to
+ *  the right of it, as a comparable scheme so the node still prunes. */
+struct BeatRing {
+  SkPath path(SkSize) const {
+    SkPathBuilder builder;
+    builder.addCircle(200, 100, 60);
+    return builder.detach();
+  }
+  bool operator==(const BeatRing&) const = default;
+};
+}  // namespace
+
+TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
+  // THE FLAGSHIP DEFECT. Two tracks split one paragraph — a track on the
+  // words' initials and a track on their bodies — and the initials track
+  // additionally spares the first word. Under the default numbering each
+  // track counts only the units ITS OWN selector resolved, so the two lists
+  // are three long and four long and every word after the first has its
+  // initial on one beat and its body on another. Under beats::Text both
+  // count the paragraph's words, so word three is beat three in both.
+  const auto beatsUnder = [](Beats numbering) {
+    Host host(400, 120);
+    const Stagger spec{.eachMs = 100,
+                       .durationMs = 100,
+                       .over = unit::Word,
+                       .beatsOver = numbering};
+    host.composer.render(box().padding(6).child(
+        text(u8"AA BB CC DD", whiteStyle(16))
+            .key("p")
+            .width(360)
+            .fx({.where = sel::each(unit::Word).take(1) & sel::words(1, 4),
+                 .effect = fx::rise(6),
+                 .stagger = spec})
+            .fx({.where = sel::each(unit::Word).drop(1),
+                 .effect = fx::rise(6),
+                 .stagger = spec})));
+    host.frame();
+    return std::pair(host.composer.beatsOf("p", 0),
+                     host.composer.beatsOf("p", 1));
+  };
+
+  const auto [initialsText, bodiesText] = beatsUnder(beats::Text);
+  ASSERT_EQ(initialsText.size(), 3u) << "three words carry a spared initial";
+  ASSERT_EQ(bodiesText.size(), 4u) << "four words carry a body";
+  // The paragraph numbers the beats, so the initial of word k and the body
+  // of word k open together — for every word the two tracks share.
+  for (uint32_t word = 1; word <= 3; ++word)
+    EXPECT_FLOAT_EQ(startOfUnit(initialsText, word),
+                    startOfUnit(bodiesText, word))
+        << "word " << word << " arrives in two pieces under beats::Text";
+  EXPECT_FLOAT_EQ(startOfUnit(bodiesText, 3), 300.0f);
+
+  // …and the default really is the other thing, or the setting is inert.
+  const auto [initialsSel, bodiesSel] = beatsUnder(beats::Selection);
+  ASSERT_EQ(initialsSel.size(), 3u);
+  ASSERT_EQ(bodiesSel.size(), 4u);
+  // The initials track renumbered its three words from zero: its LAST beat
+  // is word three's and opens at 200 ms, while word three's body opens at
+  // 300 ms. That hundred milliseconds is the defect, stated.
+  EXPECT_FLOAT_EQ(initialsSel.back().startMs, 200.0f);
+  EXPECT_FLOAT_EQ(bodiesSel.back().startMs, 300.0f);
+  EXPECT_NE(initialsSel.back().startMs, bodiesSel.back().startMs)
+      << "the two numberings produced the same schedule, so beats::Text is "
+         "not doing anything";
+}
+
+TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
+  // Real caption timing is a table cut against a recording, not a spacing.
+  // Unit k starts at table[k], exactly, and nothing about `eachMs` survives
+  // beside it.
+  const std::vector<float> table{0.0f, 340.0f, 720.0f, 1180.0f};
+  Host host(400, 120);
+  host.composer.render(box().padding(6).child(
+      text(u8"AA BB CC DD", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6),
+               .stagger =
+                   stagger(unit::Word,
+                           cues(table, {.eachMs = 999, .durationMs = 180}))})));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+  ASSERT_EQ(beats.size(), table.size());
+  for (size_t k = 0; k < table.size(); ++k) {
+    EXPECT_EQ(beats[k].unitIndex, (uint32_t)k);
+    EXPECT_FLOAT_EQ(beats[k].startMs, table[k])
+        << "unit " << k << " did not start at its own cue";
+  }
+  // cues() is a Stagger, so it compares like one — and a different table is
+  // a different cascade, or a re-described track would prune onto the old
+  // schedule and keep singing the previous line's timing.
+  EXPECT_TRUE(cues(table) == cues(table));
+  EXPECT_FALSE(cues(table) == cues({0.0f, 340.0f, 720.0f}));
+  EXPECT_FALSE(cues(table) == Stagger{});
+}
+
+TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
+  // A table that does not have one time per unit is a table cut against the
+  // wrong text. The tail holds on the last cue — visible as a pile, rather
+  // than times its author never wrote — and it says so once.
+  ::testing::internal::CaptureStderr();
+  Host host(400, 120);
+  host.composer.render(box().padding(6).child(
+      text(u8"AA BB CC DD", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6),
+               .stagger = stagger(
+                   unit::Word, cues({0.0f, 200.0f}, {.durationMs = 100}))})));
+  host.frame();
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("cue table"), std::string::npos) << log;
+  EXPECT_NE(log.find("last time"), std::string::npos) << log;
+
+  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+  ASSERT_EQ(beats.size(), 4u);
+  EXPECT_FLOAT_EQ(beats[0].startMs, 0.0f);
+  EXPECT_FLOAT_EQ(beats[1].startMs, 200.0f);
+  EXPECT_FLOAT_EQ(beats[2].startMs, 200.0f) << "the tail must hold, not run on";
+  EXPECT_FLOAT_EQ(beats[3].startMs, 200.0f);
+
+  // Once per shape: the same mismatch again is silent.
+  ::testing::internal::CaptureStderr();
+  host.frame();
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "the cue-table warning is not once per shape";
+}
+
+TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
+  // The read-back has to agree with the placement, not with a second
+  // measurement: cross-check every beat's rect against the glyphs the
+  // layout placed, over a paragraph that WRAPS and carries two sizes, where
+  // a re-measured line would land in the wrong place twice over.
+  Host host(240, 240);
+  choreograph::Output<float> progress{0.5f};
+  RichText copy = rich(whiteStyle(15));
+  copy.add(u8"alpha bravo ").add(u8"charlie", whiteStyle(24)).add(u8" delta");
+  host.composer.render(
+      box().padding(10).child(text(copy).key("p").width(120).fx(
+          {.effect = fx::rise(8),
+           .stagger = stagger(unit::Word, {.eachMs = 100, .durationMs = 200}),
+           .progress = &progress})));
+  host.frame();
+
+  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+  ASSERT_EQ(beats.size(), 4u) << "one beat per word of the paragraph";
+  const sigil::weave::ParagraphLayout* layout =
+      host.composer.paragraphLayout("p");
+  ASSERT_NE(layout, nullptr);
+  const std::optional<SkRect> box_ = host.composer.bounds("p");
+  ASSERT_TRUE(box_.has_value());
+
+  const std::vector<SkRect> placed =
+      wordExtents(*layout, beats.size(), {box_->left(), box_->top()});
+  bool wrapped = false;
+  for (size_t i = 1; i < beats.size(); ++i)
+    if (beats[i].rect.centerY() > beats[i - 1].rect.centerY() + 4)
+      wrapped = true;
+  EXPECT_TRUE(wrapped) << "the paragraph never wrapped: nothing is proven";
+  for (size_t i = 0; i < beats.size(); ++i) {
+    ASSERT_FALSE(placed[i].isEmpty()) << "word " << i << " was never placed";
+    EXPECT_NEAR(beats[i].rect.left(), placed[i].left(), 1.0f) << "word " << i;
+    EXPECT_GE(beats[i].rect.right(), placed[i].right() - 2.0f)
+        << "word " << i << "'s beat stops short of its own last letter";
+    EXPECT_LE(beats[i].rect.top(), placed[i].centerY()) << "word " << i;
+    EXPECT_GE(beats[i].rect.bottom(), placed[i].centerY()) << "word " << i;
+  }
+  EXPECT_GT(beats[2].rect.height(), beats[0].rect.height())
+      << "the 24 px run's beat is no taller than the 15 px runs', so the "
+         "rect is not reading the placement";
+
+  // …and the LOCAL TIME is the number the glyphs are being handed. The
+  // cascade spans 200 + 100·3 = 500 ms of virtual time, so at master 0.5
+  // the front stands at 250 ms: word 0 is done, word 1 is three quarters
+  // through its own 200 ms beat, word 2 has just started and word 3 has not
+  // opened at all.
+  EXPECT_FLOAT_EQ(beats[0].startMs, 0.0f);
+  EXPECT_FLOAT_EQ(beats[3].startMs, 300.0f);
+  EXPECT_FLOAT_EQ(beats[0].localT, 1.0f);
+  EXPECT_FLOAT_EQ(beats[1].localT, 0.75f);
+  EXPECT_FLOAT_EQ(beats[2].localT, 0.25f);
+  EXPECT_FLOAT_EQ(beats[3].localT, 0.0f);
+  EXPECT_FALSE(beats[0].active) << "a finished beat is not running";
+  EXPECT_TRUE(beats[1].active);
+  EXPECT_TRUE(beats[2].active);
+  EXPECT_FALSE(beats[3].active) << "a beat that has not opened is not running";
+}
+
+TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
+  // A path run's letters are not on the node's straight baseline at all,
+  // and a mark placed from anything but the placement would sit in the
+  // node's box while the type rides a circle beside it.
+  Host host(300, 200);
+  host.composer.render(box().child(
+      text(u8"CIRCVMFERENTIA", whiteStyle(18))
+          .key("ring")
+          .width(100)
+          .height(100)
+          .onPath({.path = BeatRing{}})
+          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Cluster)})));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
+  ASSERT_GT(beats.size(), 8u);
+  // The ring is centred at (200, 100) with radius 60, and the node's box is
+  // the 100x100 at the origin: every beat must be OUT there, on the curve.
+  SkRect union_ = SkRect::MakeEmpty();
+  for (const Beat& beat : beats) {
+    const float radius =
+        std::hypot(beat.rect.centerX() - 200.0f, beat.rect.centerY() - 100.0f);
+    EXPECT_NEAR(radius, 60.0f, 14.0f)
+        << "a beat left the baseline it was supposed to be reading";
+    union_.join(beat.rect);
+  }
+  EXPECT_GT(union_.right(), 200.0f)
+      << "every beat stayed inside the node's box, so the rects are the "
+         "straight baseline's rather than the curve's";
+  // …and they go ROUND the ring rather than piling at its entry point: the
+  // run sweeps a real arc, which only a rect read off the curve can show.
+  const auto angleOf = [](const Beat& beat) {
+    return std::atan2(beat.rect.centerY() - 100.0f,
+                      beat.rect.centerX() - 200.0f);
+  };
+  float swept = 0;
+  for (size_t i = 1; i < beats.size(); ++i) {
+    float step = angleOf(beats[i]) - angleOf(beats[i - 1]);
+    while (step > 3.14159265f) step -= 6.2831853f;
+    while (step < -3.14159265f) step += 6.2831853f;
+    swept += std::abs(step);
+  }
+  EXPECT_GT(swept, 1.0f) << "the beats never went round the ring";
+}
+
+TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
+  // The case the karaoke study had to give up: a nested beat lasts exactly
+  // as long as its inner ladder needs, so no author can restate the start
+  // times. Word w's letter i opens at w·outerEach + i·innerEach, and the
+  // read-back is the only place that is true without being retyped.
+  Host host(400, 120);
+  Stagger cascade = stagger(unit::Word, {.eachMs = 300});
+  cascade.then(unit::Cluster, {.eachMs = 40, .durationMs = 100});
+  host.composer.render(box().padding(6).child(
+      text(u8"AB CD", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6), .stagger = cascade})));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+  ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
+  // Two beats per outer unit, each carrying its own compounded start.
+  EXPECT_EQ(beats[0].unitIndex, 0u);
+  EXPECT_EQ(beats[1].unitIndex, 0u);
+  EXPECT_EQ(beats[2].unitIndex, 1u);
+  EXPECT_EQ(beats[3].unitIndex, 1u);
+  EXPECT_FLOAT_EQ(beats[0].startMs, 0.0f);
+  EXPECT_FLOAT_EQ(beats[1].startMs, 40.0f);
+  EXPECT_FLOAT_EQ(beats[2].startMs, 300.0f);
+  EXPECT_FLOAT_EQ(beats[3].startMs, 340.0f);
+}
+
+TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
+  Host host(200, 120);
+  host.composer.render(box().padding(6).child(
+      text(u8"AA BB", whiteStyle(16))
+          .key("p")
+          .fx({.effect = fx::rise(6), .stagger = stagger(unit::Word)})));
+  host.frame();
+  EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
+  EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
+  EXPECT_TRUE(host.composer.beatsOf("p", 7).empty()) << "no such track";
+}
+
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
   // Text inside a BaselineGrid, nested in an absolute column, inside a
   // stack(). A custom layout scheme writes back into Yoga out of band, and

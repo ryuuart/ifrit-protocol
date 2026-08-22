@@ -580,9 +580,10 @@ inline auto fields(Mask& v) {
   return std::tie(what, with);
 }
 inline auto fields(Stagger& v) {
-  auto& [eachMs, amountMs, durationMs, from, over, distribution, inner] = v;
-  return std::tie(eachMs, amountMs, durationMs, from, over, distribution,
-                  inner);
+  auto& [eachMs, amountMs, cueMs, durationMs, from, over, beatsOver,
+         distribution, inner] = v;
+  return std::tie(eachMs, amountMs, cueMs, durationMs, from, over, beatsOver,
+                  distribution, inner);
 }
 inline auto fields(Track& v) {
   auto& [where, effect, stagger, progress, reach, continuous] = v;
@@ -693,6 +694,10 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
                                       const sigil::weave::Paragraph& paragraph);
 /** The once-per-pattern diagnostic behind an unresolvable selector. */
 void warnBadSelectorPattern(const std::u8string& pattern);
+/** The once-per-shape diagnostic behind a cue table that does not have one
+ *  entry per unit: the tail either piles on the last cue or goes unread,
+ *  and both are a table cut against the wrong text. */
+void warnCueTableMismatch(size_t cueCount, size_t unitCount);
 /** The once-per-process diagnostic behind `onPath` plus a vertical
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
@@ -745,6 +750,10 @@ void cascadeOrder(Stagger::From from, uint32_t count, std::vector<float>& out);
 struct Cascade {
   std::vector<float> outerOrder;  ///< outer unit → its place in the cascade
   std::vector<float> innerOrder;  ///< inner unit → the same, within a beat
+  /** The author's start-time table at each level, in ms, or empty for the
+   *  even ladder above. A table names delays outright, so the order, the
+   *  spacing and the distribution curve have nothing left to say. */
+  std::vector<float> outerCue, innerCue;
   choreograph::EaseFn outerDistribution, innerDistribution;
   float outerEach = 0;  ///< ms between outer starts
   float innerEach = 0;  ///< ms between inner starts
@@ -753,9 +762,33 @@ struct Cascade {
   float totalMs = 1;    ///< ms the master progress spans
 
   void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
+  /** When this unit's beat opens, in ms from the start of the master
+   *  progress — the outer delay plus, under a nested cascade, the inner
+   *  one. THE one place the schedule is arithmetic; everything that reports
+   *  a start time reads it here. */
+  [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
   /** The local 0→1 this unit sees at master progress `master`. */
   [[nodiscard]] float localTime(float master, uint32_t outerUnit,
                                 uint32_t innerUnit) const;
+};
+
+/** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
+ *  every glyph falls in at each level, and the ladder those beats run on.
+ *
+ *  ONE BODY for the painter and for the `beatsOf` query. A second spelling
+ *  would let a mark travelling beside a cascade be told a different
+ *  schedule from the glyphs it is marking, which is the whole defect the
+ *  query exists to close. Reused in place across frames: build() assigns
+ *  into the per-glyph lanes rather than clearing them, so a page of
+ *  animated type does not mint a pair of vectors per track per frame. */
+struct TrackCascade {
+  Cascade cascade;
+  std::vector<uint32_t> outerUnit;  ///< glyph → its beat
+  std::vector<uint32_t> innerUnit;  ///< glyph → its beat inside that beat;
+                                    ///< empty without a nested cascade
+
+  void build(const Stagger& spec, const GlyphStructure& structure,
+             const std::vector<uint8_t>& selected);
 };
 
 /** The composition algebra, in one place: offsets and rotations ADD, scale

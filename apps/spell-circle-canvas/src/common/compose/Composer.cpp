@@ -555,6 +555,29 @@ const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
   return &it->second->textLayout;
 }
 
+std::vector<Beat> Composer::beatsOf(std::string_view key,
+                                    size_t trackIndex) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end()) return {};
+  // Logically const: resolving a schedule fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  std::vector<Beat> beats = impl.beatsOfTrack(*it->second, trackIndex);
+  if (beats.empty()) return beats;
+  // Rects come out in the node's own space. Lift them into the composer's,
+  // by the same walk up the tree the bounds query takes — a beat is a place
+  // on the SHEET, so it can be read beside `bounds()` and `hitTest()`
+  // without the caller knowing which node the glyphs belong to.
+  SkPoint origin{0, 0};
+  for (Instance* node = it->second; node; node = node->parent) {
+    const SkRect rect = impl.instanceRect(*node);
+    if (!rect.isFinite()) return {};  // laid out by nothing yet
+    origin.offset(rect.left(), rect.top());
+  }
+  for (Beat& beat : beats) beat.rect.offset(origin.x(), origin.y());
+  return beats;
+}
+
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).

@@ -252,6 +252,56 @@ the start times across the cascade, and `Stagger::then` nests a second cascade
 inside every beat of the first (`stagger(unit::Word, {…}).then(unit::Glyph,
 {…})`).
 
+**Irregular timing.** `cues` replaces the even spread with a TABLE — one
+start time per unit, in ms — which is what caption, lyric and lip-sync
+timing actually is:
+
+```cpp
+text(lyric).fx({.effect = fx::rise(12),
+                .stagger = stagger(unit::Word,
+                                   cues({0, 340, 720, 1180},
+                                        {.durationMs = 180}))});
+```
+
+It returns a `Stagger`, so it goes anywhere one goes and compares like one.
+A table says only *when unit k starts*; `over`, `durationMs` and `then` are
+untouched by it, while `eachMs`, `amountMs`, `from` and `distribution` have
+nothing left to say and are ignored. A unit past the end of `Stagger::cueMs`
+starts at the last entry (the tail piles, visibly, rather than being given
+times nobody wrote), entries past the last unit go unread, and either
+mismatch warns once.
+
+**Which list the beats are numbered against.** `Stagger::beatsOver` takes
+`beats::Selection` — the default, numbering only the units the track's own
+selector resolved — or `beats::Text`, numbering every unit of that
+granularity in the paragraph, addressed or not. Two tracks that partition
+one paragraph share a clock *by construction* only under `beats::Text`;
+under the default they line up while their selections happen to resolve
+lists of the same length and silently drift apart when they stop. A nested
+cascade takes the outer one's answer, as it already takes the outer
+`durationMs`.
+
+**Reading the schedule back.** `Composer::beatsOf` reports the cascade one
+track is actually running, after layout:
+
+```cpp
+for (const Beat& b : composer.beatsOf("lyric", 0))
+  if (b.active) markTheWordAt(b.rect, b.localT);
+```
+
+`Beat::rect` is the unit's laid-out rect in the composer's coordinate space
+— read off the placement, so it follows a wrapped line, a mixed-style run's
+own size, a path baseline and a vertical column; `Beat::unitIndex` is the
+outer unit the beat belongs to (a nested cascade reports several beats
+sharing one, one per inner unit); `Beat::startMs` is the compounded delay;
+`Beat::localT` and `Beat::active` are that beat's own progress right now.
+This is what anything travelling WITH a cascade and made of something other
+than glyphs — a bouncing ball, a playhead, an underline, a caret, a
+per-unit meter — reads instead of restating `i * eachMs`, which stops
+agreeing with the engine the moment the cascade nests or takes a table.
+An unknown key or track index resolves to an empty vector, silently, like
+the rest of the query family.
+
 **Effects are comparable values**, which is what lets text carrying tracks
 prune like any other static leaf. A preset compares by its name and its
 parameters; an ad-hoc body goes through `fx::effect`, which takes the key

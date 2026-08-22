@@ -36,42 +36,40 @@
 // which is the whole effect. It is a multiplier rather than a colour
 // because that is what a `GlyphMod` carries — every pass the glyph's style
 // draws is modulated, so the same track would tint a gradient-filled line
-// without knowing it was a gradient. The cascade is FLAT (one beat per
-// glyph, `eachMs` apart) rather than nested, for a reason the ball needs:
-// see below.
+// without knowing it was a gradient.
+//
+// THE CASCADE IS TWO DEEP AND ITS OUTER LEVEL IS A TABLE. A real disc
+// carries a time for every syllable, cut against the recording: a held note
+// holds and a fast line races, and nothing evenly spaced sounds like
+// singing. `cues()` is that table — one start time per WORD, in the shape
+// the tune has — and `then(unit::Cluster)` sweeps the letters of each word
+// evenly inside its beat, which is how a syllable's own wipe behaves. The
+// table gives the line its uneven shape; the progress window gives it its
+// tempo, so the same table sings faster or slower without being recut.
 //
 // THE BALL IS NOT PART OF THE TEXT AT ALL. It is an ordinary box, and to
-// put it over the right letter this sketch has to know where the letters
-// are and when each one's beat starts — which means reproducing, in its own
-// arithmetic, two things the track engine already knows:
+// put it over the right letter it has to know where the letters are and how
+// far each one's beat has run. Both come back from `Composer::beatsOf`,
+// which reports the schedule the track is actually running: one `Beat` per
+// letter, carrying that letter's laid-out `rect`, the `unitIndex` of the
+// word it belongs to, and its own `localT` right now. The ruler is the same
+// list drawn — one tick per beat at the rect the engine placed, taller
+// where a new word begins — so its pitch is the cascade's real, uneven
+// pitch and not a picture of an even one.
 //
-//   * WHERE. `measureRun` shapes the line once and hands back per-glyph
-//     advances, whose prefix sums are the pen positions. That is the
-//     supported door and it works. (Note a space is not a glyph: it rides
-//     the advance of the letter before it, so a glyph index is an index
-//     among NON-SPACE characters.)
-//   * WHEN. Nothing reports the schedule. A flat cascade is reproducible in
-//     one line — glyph i starts at `i * eachMs` — and a NESTED one is not,
-//     because a nested beat lasts exactly as long as its inner cascade
-//     needs and that length is the engine's business. So the wipe here is
-//     flat, and the study is honest about why: the prettier cascade would
-//     have made the ball impossible to place.
+// Nothing here restates the cascade's arithmetic, which is the point: a
+// nested beat lasts exactly as long as its inner ladder needs, and a cue
+// table can be recut between takes. Neither is reproducible in the sketch,
+// and neither has to be.
 //
 // -----------------------------------------------------------------------------
-// WHAT IS NOT REPRODUCED, AND SHOULD BE SAID
-//
-// REAL KARAOKE TIMING IS NOT UNIFORM. A CD+G disc carries a time for every
-// syllable, cut against the recording; a held note holds and a fast line
-// races. A `Stagger` is one spacing and one duration for the whole line,
-// with an easing over the START TIMES and nothing else — there is no way to
-// hand a track a table of per-unit times. The wipe below is therefore
-// EVENLY spaced, which is the one thing a real caption never is.
-//
 // EDIT THESE FIRST
-//   kEachMs   — start-to-start between letters. Raise it and the wipe
-//               crawls; drop it to 0 and the line lights all at once.
+//   wordCues() — the sung shape, one time per word of kLine1. Type a real
+//               line's syllable times here and the caption follows them.
+//   kEachMs   — start-to-start between the LETTERS inside one word.
 //   kSwitchMs — how long ONE letter takes to change colour. Small is the
 //               CD+G hard edge; large is a soft gradient crossing the word.
+//   kLineSeconds — how long the whole line takes. The tempo, not the shape.
 //   kHopHeight — the ball's arc. Fleischer's is high and slow.
 //
 // Run:
@@ -114,11 +112,21 @@ constexpr float kLyricSize = 46.0f;
 constexpr float kTrack = 2.0f;
 
 // ---- the schedule ---------------------------------------------------------
-constexpr float kEachMs = 78.0f;     // start-to-start, per glyph
-constexpr float kSwitchMs = 190.0f;  // one glyph's own change
-constexpr double kLeadIn = 0.55;     // silence before the line starts
-constexpr double kHold = 1.90;       // the sung line held before the loop cuts
-constexpr float kHopHeight = 44.0f;  // the 1924 arc
+/** ONE TIME PER WORD of kLine1, in ms — the shape the tune has, not a
+ *  spacing. "COME TAKE A" runs on, "A" is short, "AIRSHIP" is held. */
+std::vector<float> wordCues() {
+  return {0.0f, 430.0f, 900.0f, 1120.0f, 1560.0f, 1900.0f, 2210.0f};
+}
+constexpr float kEachMs = 46.0f;      // start-to-start, per letter of a word
+constexpr float kSwitchMs = 190.0f;   // one letter's own change
+constexpr double kLeadIn = 0.55;      // silence before the line starts
+constexpr double kLineSeconds = 2.9;  // the whole line, tempo only
+constexpr double kHold = 1.40;        // the sung line held before the loop cuts
+constexpr float kHopHeight = 44.0f;   // the 1924 arc
+/** How much of a word's own beat the ball SITS on it before leaving. The
+ *  1924 ball rests on the word it is naming and crosses in a hurry; a value
+ *  of 0 would make it slide continuously and name nothing. */
+constexpr float kBallHold = 0.62f;
 
 /** The pale line as a MULTIPLIER of the sung line: what the wipe divides
  *  the colour down to before a glyph's beat. A GlyphMod carries a
@@ -150,21 +158,43 @@ TextEffect wipe() {
                     0.0f, {floor.fR, floor.fG, floor.fB});
 }
 
-/** Where each glyph of @p utf8 starts, in px from the run's own origin,
- *  plus one past-the-end entry — the prefix sums of `measureRun`. */
-std::vector<float> penPositions(const char* utf8,
-                                const sigil::weave::TextStyle& style,
-                                sigil::weave::FontContext& fonts) {
-  const std::vector<float> advances = measureRun(toU8(utf8), style, fonts);
-  std::vector<float> pens;
-  pens.reserve(advances.size() + 1);
-  float x = 0;
-  for (const float a : advances) {
-    pens.push_back(x);
-    x += a;
+/** THE CASCADE: the sung times per word, the letters swept inside each. */
+Stagger wipeCascade() {
+  Stagger cascade = stagger(unit::Word, cues(wordCues()));
+  cascade.then(unit::Cluster, {.eachMs = kEachMs, .durationMs = kSwitchMs});
+  return cascade;
+}
+
+/** One word's own share of the wipe, 0 to 1: the mean of its letters'
+ *  beats. Summed across the line it gives a continuous word front, whose
+ *  whole part is the word the ball is on and whose fraction is how far it
+ *  has to travel to the next. */
+std::vector<float> wordCoverage(const std::vector<Beat>& schedule) {
+  std::vector<float> total, count;
+  for (const Beat& beat : schedule) {
+    if (beat.unitIndex >= total.size()) {
+      total.resize(beat.unitIndex + 1, 0.0f);
+      count.resize(beat.unitIndex + 1, 0.0f);
+    }
+    total[beat.unitIndex] += beat.localT;
+    count[beat.unitIndex] += 1.0f;
   }
-  pens.push_back(x);
-  return pens;
+  for (size_t w = 0; w < total.size(); ++w)
+    total[w] = count[w] > 0 ? total[w] / count[w] : 0.0f;
+  return total;
+}
+
+/** Where each word sits, as the union of its letters' laid-out rects. */
+std::vector<SkRect> wordRects(const std::vector<Beat>& schedule) {
+  std::vector<SkRect> out;
+  for (const Beat& beat : schedule) {
+    if (beat.unitIndex >= out.size()) out.resize(beat.unitIndex + 1);
+    if (out[beat.unitIndex].isEmpty())
+      out[beat.unitIndex] = beat.rect;
+    else
+      out[beat.unitIndex].join(beat.rect);
+  }
+  return out;
 }
 
 }  // namespace
@@ -179,43 +209,37 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
 
   sk_sp<SkTypeface> face;
   sigil::weave::TextStyle lyric;
-  std::vector<float> pens;     // per glyph, plus one past the end
-  std::vector<int> wordFirst;  // glyph index of each word's first letter
-  std::vector<int> wordLast;   // glyph index of each word's last letter
-  int glyphs = 0;
-  double lineSeconds = 0;  // the whole cascade, in seconds
-  double loop = 0;
+  /** THE SCHEDULE, read back after the first layout — one beat per letter,
+   *  in the line's own coordinates. Everything that points AT the type is
+   *  placed from this and from nothing else. */
+  std::vector<Beat> schedule;
+  std::vector<SkRect> words;  // per word, from the same list
+  float lineWidth = 0;
+  double loop = kLeadIn + kLineSeconds + kHold;
 
-  /** The cascade's own arithmetic, restated. A flat stagger spans
-   *  `durationMs + eachMs·(N−1)` of virtual time and unit i starts at
-   *  `i · eachMs`, so this is the only line in the sketch that has to agree
-   *  with the engine — and the only reason the wipe is not nested. */
-  [[nodiscard]] double glyphStart(int i) const {
-    return kLeadIn + (double)i * kEachMs / 1000.0;
-  }
-
-  [[nodiscard]] Element lyricLine() {
+  [[nodiscard]] Element lyricLine() const {
     return text(toU8(kLine1), lyric)
         .key("line1")
         .fx({.effect = wipe(),
-             .stagger = {.eachMs = kEachMs, .durationMs = kSwitchMs},
+             .stagger = wipeCascade(),
              .progress = bind(&cycle).window((float)kLeadIn,
-                                             (float)(kLeadIn + lineSeconds))});
+                                             (float)(kLeadIn + kLineSeconds))});
   }
 
-  /** The ruler: one tick per glyph at the pitch the cascade actually beats,
-   *  a taller tick where a word begins, and the playhead riding the same
-   *  number the ball does. It is the schedule, drawn — which is the only
-   *  way to see that the spacing is uniform and that a real caption's would
-   *  not be. */
-  [[nodiscard]] Element ruler(float width) {
-    Element strip = box().width(width).height(22);
-    for (int i = 0; i < glyphs; ++i) {
-      const bool starts =
-          std::find(wordFirst.begin(), wordFirst.end(), i) != wordFirst.end();
+  /** The ruler: one tick per BEAT, at the rect the engine placed it in, and
+   *  a taller tick where a new word begins. It is the schedule, drawn —
+   *  which is the only way to see that the pitch is uneven, that a held
+   *  word is held, and that the letters inside a word run at their own
+   *  even step. */
+  [[nodiscard]] Element ruler() const {
+    Element strip = box().width(pct(100)).height(22);
+    uint32_t previousWord = ~0u;
+    for (size_t i = 0; i < schedule.size(); ++i) {
+      const bool starts = schedule[i].unitIndex != previousWord;
+      previousWord = schedule[i].unitIndex;
       strip.child(box()
                       .key("t" + std::to_string(i))
-                      .left(pens[(size_t)i])
+                      .left(schedule[i].rect.left())
                       .top(starts ? 0.0f : 7.0f)
                       .width(1)
                       .height(starts ? 15.0f : 8.0f)
@@ -232,8 +256,7 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
     return strip;
   }
 
-  [[nodiscard]] Element describe() {
-    const float lineW = pens.back();
+  [[nodiscard]] Element describe() const {
     const sigil::weave::TextStyle small = studio::type(
         {.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
     const sigil::weave::TextStyle note = studio::type(
@@ -242,12 +265,11 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
     Element stage =
         box()
             .column()
-            .width(lineW)
             .gap(0)
             // The ball's lane. It is a sibling of the line, not a part of
             // it: nothing in a text node can carry a mark that is not a
             // glyph, so anything pointing AT the type lives beside it and
-            // is placed from the same numbers.
+            // is placed from the schedule the type is running.
             .child(box()
                        .width(pct(100))
                        .height(kHopHeight + 18.0f)
@@ -262,7 +284,7 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
                                   .translateX(&ballX)
                                   .translateY(&ballY)))
             .child(lyricLine())
-            .child(ruler(lineW).margin(0, 12, 0, 0))
+            .child(ruler().margin(0, 12, 0, 0))
             .child(text(toU8(kLine2), studio::type({.face = face,
                                                     .size = kLyricSize * 0.78f,
                                                     .color = kNext,
@@ -289,12 +311,14 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
         .child(box().grow(1))
-        // The number is read off the constant rather than typed beside
-        // it: a caption that can disagree with the schedule it describes is
-        // the one thing worse than no caption.
+        // The numbers are read off the table rather than typed beside it:
+        // a caption that can disagree with the schedule it describes is the
+        // one thing worse than no caption.
         .child(text(toU8("THE BALL MARKS THE POINT, THE WIPE MARKS THE "
-                         "BOUNDARY \xc2\xb7 ONE SCHEDULE, " +
-                         std::to_string((int)kEachMs) + " MS PER LETTER, " +
+                         "BOUNDARY \xc2\xb7 " +
+                         std::to_string(wordCues().size()) + " SUNG TIMES, " +
+                         std::to_string((int)kEachMs) +
+                         " MS PER LETTER INSIDE A WORD, " +
                          std::to_string((int)kSwitchMs) + " MS TO CHANGE"),
                     note));
   }
@@ -307,75 +331,77 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
     face = studio::pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
     lyric = studio::type(
         {.face = face, .size = kLyricSize, .color = kSung, .track = kTrack});
-    pens = penPositions(kLine1, lyric, *ctx.fonts);
-    glyphs = (int)pens.size() - 1;
+    schedule.clear();
+    words.clear();
+    lineWidth = 0;
 
-    // A space is not a glyph — it rides the advance of the letter before
-    // it — so a word's bounds are indices among the NON-SPACE characters.
-    {
-      const std::string s = kLine1;
-      int g = 0;
-      bool open = false;
-      for (const char c : s) {
-        if (c == ' ') {
-          open = false;
-          continue;
-        }
-        if (!open) {
-          wordFirst.push_back(g);
-          wordLast.push_back(g);
-          open = true;
-        } else {
-          wordLast.back() = g;
-        }
-        ++g;
-      }
-    }
-
-    lineSeconds = (double)(kSwitchMs + kEachMs * (float)(glyphs - 1)) / 1000.0;
-    loop = kLeadIn + lineSeconds + kHold;
     // Mid-line: the wipe has crossed four words, the ball is in the air
     // between two, and the ruler shows both.
-    ctx.captureAt(kLeadIn + lineSeconds * 0.55);
+    ctx.captureAt(kLeadIn + kLineSeconds * 0.55);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      const double c = std::fmod(t, loop);
-      cycle = (float)c;
-
-      // The playhead reads the cascade's own front: the glyph whose beat is
-      // opening right now, interpolated between its neighbours' pens.
-      const double f =
-          std::clamp((c - kLeadIn) * 1000.0 / kEachMs, 0.0, (double)glyphs);
-      const int i = std::min((int)f, glyphs - 1);
-      const float u = (float)(f - (double)i);
-      playhead = pens[(size_t)i] + u * (pens[(size_t)i + 1] - pens[(size_t)i]);
-
-      // The ball hops WORD to WORD over the same schedule: it leaves one
-      // word's centre when that word's last letter has lit and lands on the
-      // next word's centre as its first letter does.
-      const size_t words = wordFirst.size();
-      auto centre = [&](size_t w) {
-        const int a = wordFirst[w], b = wordLast[w];
-        return 0.5f * (pens[(size_t)a] + pens[(size_t)b + 1]) - 7.5f;
-      };
-      size_t w = 0;
-      while (w + 1 < words && c >= glyphStart(wordFirst[w + 1])) ++w;
-      if (w + 1 >= words) {
-        ballX = centre(words - 1);
-        ballY = 0;
-      } else {
-        const double a = glyphStart(wordLast[w]);
-        const double b = glyphStart(wordFirst[w + 1]);
-        const float p =
-            (float)std::clamp((c - a) / std::max(b - a, 1.0e-3), 0.0, 1.0);
-        ballX = centre(w) + p * (centre(w + 1) - centre(w));
-        ballY = -kHopHeight * 4.0f * p * (1.0f - p);
-      }
+      cycle = (float)std::fmod(t, loop);
       return true;
     });
 
     ctx.composer.render(describe());
+  }
+
+  /** THE READ-BACK, every frame. `beatsOf` resolves against the layout the
+   *  last draw produced and the progress the ticker has just moved, so the
+   *  ball and the playhead are placed from the same numbers the glyphs are
+   *  drawn from — not from a second copy of the cascade's arithmetic that
+   *  a nested beat or a recut table would silently invalidate. */
+  void update(double, sketch::SketchContext& ctx) override {
+    const std::vector<Beat> now = ctx.composer.beatsOf("line1", 0);
+    if (now.empty()) return;  // nothing laid out yet
+    const std::optional<SkRect> line = ctx.composer.bounds("line1");
+    if (!line) return;
+
+    // The rects come back in the composer's space; the marks beside the
+    // line are placed in the line's. One subtraction, taken from the same
+    // query family.
+    if (schedule.size() != now.size()) {
+      schedule = now;
+      for (Beat& beat : schedule) beat.rect.offset(-line->left(), -line->top());
+      words = wordRects(schedule);
+      lineWidth = line->width();
+      ctx.composer.render(describe());  // the ruler now knows its ticks
+      return;
+    }
+    for (size_t i = 0; i < schedule.size(); ++i)
+      schedule[i].localT = now[i].localT;
+
+    // THE PLAYHEAD is the wipe's own coverage, in pixels: every beat
+    // contributes its share of the distance to the next one. It is exact
+    // however many letters are mid-change at once, which a "which letter is
+    // opening now" cursor is not once beats overlap.
+    float x = 0;
+    for (size_t i = 0; i < schedule.size(); ++i) {
+      const float next =
+          i + 1 < schedule.size() ? schedule[i + 1].rect.left() : lineWidth;
+      x += schedule[i].localT * (next - schedule[i].rect.left());
+    }
+    playhead = x;
+
+    // THE BALL hops word to word on the same list. Summed word coverage is
+    // a continuous front: its whole part is the word being sung, its
+    // fraction is how far that word has left to go, and the ball sits still
+    // for the first `kBallHold` of it before crossing to the next.
+    const std::vector<float> coverage = wordCoverage(schedule);
+    float front = 0;
+    for (const float share : coverage) front += share;
+    const auto centre = [this](size_t w) {
+      const size_t clamped = std::min(w, words.size() - 1);
+      return words[clamped].centerX() - 7.5f;
+    };
+    const auto w = (size_t)std::floor(front);
+    const float within = front - (float)w;
+    const float p =
+        std::clamp((within - kBallHold) / (1.0f - kBallHold), 0.0f, 1.0f);
+    ballX = centre(w) + p * (centre(w + 1) - centre(w));
+    ballY = -kHopHeight * 4.0f * p * (1.0f - p);
   }
 };
 

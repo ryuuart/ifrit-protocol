@@ -387,7 +387,7 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  nowhere else); every other field is unconditional. */
 // ---- the fx() seam's hand-written comparators ------------------------------
 
-static_assert(kFieldCount<Stagger> == 7,
+static_assert(kFieldCount<Stagger> == 9,
               "Stagger gained or lost a field — rule on it in "
               "Stagger::operator== below, then bump this count. A field left "
               "out makes two different cascades compare equal, the text node "
@@ -395,7 +395,8 @@ static_assert(kFieldCount<Stagger> == 7,
 bool Stagger::operator==(const Stagger& other) const {
   if (eachMs != other.eachMs || amountMs != other.amountMs ||
       durationMs != other.durationMs || from != other.from ||
-      over != other.over)
+      over != other.over || beatsOver != other.beatsOver ||
+      cueMs != other.cueMs)
     return false;
   if (!easeEqual(distribution, other.distribution)) return false;
   if (inner == other.inner) return true;  // both absent, or one shared value

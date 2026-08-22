@@ -80,6 +80,13 @@ void perturb(std::vector<Decoration>& v) {
 }
 void perturb(std::vector<Element>& v) { v.push_back(box()); }
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
+void perturb(Unit& v) { v = Unit::Line; }
+void perturb(Beats& v) { v = Beats::Text; }
+void perturb(Stagger::From& v) { v = Stagger::From::End; }
+void perturb(std::vector<float>& v) { v.push_back(1.0f); }
+void perturb(std::shared_ptr<const Stagger>& v) {
+  v = std::make_shared<const Stagger>();
+}
 template <class T>
 void perturb(cd::Box<T>& v) {
   v.ensure();
@@ -146,6 +153,22 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
         return cd::propsEqual(na, nb);
       },
       kNames, kParticipates);
+}
+
+TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
+  // A cascade is a comparable value, and its equality is what lets text
+  // carrying tracks prune. Miss a field here and a re-described track keeps
+  // the OLD schedule with no diagnostic — a re-cut cue table that never
+  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
+  // beating over each half's own selection. Both are silent, and both look
+  // exactly like the engine ignoring the author.
+  static const char* const kNames[] = {"eachMs",     "amountMs",     "cueMs",
+                                       "durationMs", "from",         "over",
+                                       "beatsOver",  "distribution", "inner"};
+  static const bool kParticipates[] = {true, true, true, true, true,
+                                       true, true, true, true};
+  walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
+                      kNames, kParticipates);
 }
 
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {

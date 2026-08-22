@@ -186,6 +186,11 @@ Stagger stagger(Unit granularity, Stagger spec) {
   return spec;
 }
 
+Stagger cues(std::vector<float> startMs, Stagger spec) {
+  spec.cueMs = std::move(startMs);
+  return spec;
+}
+
 // ---------------------------------------------------------------------------
 // The per-walk structure every track shares
 
@@ -724,7 +729,41 @@ float spacingMs(const Stagger& spec, uint32_t count) {
   if (spec.amountMs > 0 && count > 1) return spec.amountMs / (float)(count - 1);
   return std::max(spec.eachMs, 0.0f);
 }
+
+/** The table entry unit `index` reads. Past the end it is the LAST entry:
+ *  a short table piles its tail on one beat, which is visible, rather than
+ *  extrapolating times its author never wrote. */
+float cueAt(const std::vector<float>& table, uint32_t index) {
+  return table[std::min<size_t>(index, table.size() - 1)];
+}
+
+/** The latest start any of `count` units reads out of `table` — what the
+ *  master progress has to span for the last beat to open. A table is not
+ *  required to ascend, so this is a max and not the final entry. */
+float lastCueMs(const std::vector<float>& table, uint32_t count) {
+  float latest = 0.0f;
+  const size_t read = std::min<size_t>(count, table.size());
+  for (size_t i = 0; i < read; ++i) latest = std::max(latest, table[i]);
+  return latest;
+}
 }  // namespace
+
+void warnCueTableMismatch(size_t cueCount, size_t unitCount) {
+  // Once per distinct shape: a cascade is rebuilt every frame, and one
+  // mistyped table would otherwise scroll the same line past its author
+  // forever. Distinct shapes still each get their say, because two tracks
+  // can be wrong in two different ways.
+  static thread_local std::unordered_set<uint64_t> seen;
+  const uint64_t key = ((uint64_t)cueCount << 32) | (uint32_t)unitCount;
+  if (!seen.insert(key).second) return;
+  std::fprintf(stderr,
+               "SigilCompose: a cue table of %zu times against %zu units — "
+               "%s\n",
+               cueCount, unitCount,
+               cueCount < unitCount
+                   ? "every unit past the table's end starts at its last time"
+                   : "the times past the last unit are never read");
+}
 
 void Cascade::build(const Stagger& spec, uint32_t outerCount,
                     uint32_t innerCount) {
@@ -732,30 +771,38 @@ void Cascade::build(const Stagger& spec, uint32_t outerCount,
   const uint32_t outer = std::max(outerCount, 1u);
   cascadeOrder(spec.from, outer, outerOrder);
   outerEach = spacingMs(spec, outer);
+  outerCue = spec.cueMs;
+  if (!outerCue.empty() && outerCue.size() != outer)
+    warnCueTableMismatch(outerCue.size(), outer);
 
   if (spec.inner) {
     const uint32_t inner = std::max(innerCount, 1u);
     cascadeOrder(spec.inner->from, inner, innerOrder);
     innerEach = spacingMs(*spec.inner, inner);
+    innerCue = spec.inner->cueMs;
+    if (!innerCue.empty() && innerCue.size() != inner)
+      warnCueTableMismatch(innerCue.size(), inner);
     // A NESTED cascade owns the beat: its own duration is what one unit's
     // motion lasts, and a beat is exactly as long as the inner ladder
     // needs. The outer durationMs would otherwise be a second, conflicting
     // statement about the same span.
     duration = std::max(spec.inner->durationMs, 1.0f);
-    beatMs = duration + innerEach * (float)(inner - 1);
+    beatMs = duration + (innerCue.empty() ? innerEach * (float)(inner - 1)
+                                          : lastCueMs(innerCue, inner));
     innerDistribution = spec.inner->distribution;
   } else {
     innerOrder.clear();
+    innerCue.clear();
     innerEach = 0.0f;
     beatMs = duration;
     innerDistribution = nullptr;
   }
   outerDistribution = spec.distribution;
-  totalMs = beatMs + outerEach * (float)(outer - 1);
+  totalMs = beatMs + (outerCue.empty() ? outerEach * (float)(outer - 1)
+                                       : lastCueMs(outerCue, outer));
 }
 
-float Cascade::localTime(float master, uint32_t outerUnit,
-                         uint32_t innerUnit) const {
+float Cascade::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
   // Without a distribution curve the delay is the plain product the flat
   // cascade has always been — NOT the same product routed through a
   // normalise-and-rescale, which would differ in the last bit and move
@@ -768,10 +815,79 @@ float Cascade::localTime(float master, uint32_t outerUnit,
     const float last = order.size() > 1 ? (float)(order.size() - 1) : 1.0f;
     return shape(order[clamped] / last) * (each * last);
   };
-  const float delay =
-      delayOf(outerOrder, outerUnit, outerEach, outerDistribution) +
-      delayOf(innerOrder, innerUnit, innerEach, innerDistribution);
-  return std::clamp((master * totalMs - delay) / duration, 0.0f, 1.0f);
+  // A table states the delay; the ladder computes one. Nothing else about
+  // the cascade changes between the two.
+  return (outerCue.empty()
+              ? delayOf(outerOrder, outerUnit, outerEach, outerDistribution)
+              : cueAt(outerCue, outerUnit)) +
+         (innerCue.empty()
+              ? delayOf(innerOrder, innerUnit, innerEach, innerDistribution)
+              : cueAt(innerCue, innerUnit));
+}
+
+float Cascade::localTime(float master, uint32_t outerUnit,
+                         uint32_t innerUnit) const {
+  return std::clamp(
+      (master * totalMs - startMs(outerUnit, innerUnit)) / duration, 0.0f,
+      1.0f);
+}
+
+void TrackCascade::build(const Stagger& spec, const GlyphStructure& structure,
+                         const std::vector<uint8_t>& selected) {
+  const auto count = (uint32_t)structure.glyphs.size();
+  const std::vector<uint32_t>& outerLane = structure.unitOf[(size_t)spec.over];
+  outerUnit.assign(count, 0);
+  uint32_t outerCount = 0;
+  if (spec.beatsOver == Beats::Text) {
+    // THE PARAGRAPH'S OWN NUMBERING, which is the whole point of the
+    // setting: a unit's beat does not depend on which of its glyphs this
+    // track happens to address, so two tracks that split one paragraph run
+    // one clock however differently their selections resolve.
+    for (uint32_t g = 0; g < count; ++g) outerUnit[g] = outerLane[g];
+    outerCount = structure.unitCounts[(size_t)spec.over];
+  } else {
+    // Renumber the units the SELECTION covers, from 0, in draw order — then
+    // a stagger's From, its amount-mode division and its distribution all
+    // read the count the author sees rather than the paragraph's.
+    uint32_t previous = ~0u;
+    for (uint32_t g = 0; g < count; ++g) {
+      if (!selected[g]) continue;
+      if (outerLane[g] != previous) {
+        previous = outerLane[g];
+        ++outerCount;
+      }
+      outerUnit[g] = outerCount - 1;
+    }
+  }
+
+  uint32_t innerCount = 0;
+  if (spec.inner) {
+    // The nested level is numbered against the same list as the outer one:
+    // one setting governs the cascade, so a nested beat cannot be counted
+    // one way at the top and another underneath.
+    const bool overText = spec.beatsOver == Beats::Text;
+    const std::vector<uint32_t>& innerLane =
+        structure.unitOf[(size_t)spec.inner->over];
+    innerUnit.assign(count, 0);
+    uint32_t within = 0, previousOuter = ~0u, previousInner = ~0u;
+    for (uint32_t g = 0; g < count; ++g) {
+      if (!overText && !selected[g]) continue;
+      if (outerUnit[g] != previousOuter) {
+        previousOuter = outerUnit[g];
+        previousInner = ~0u;
+        within = 0;
+      }
+      if (innerLane[g] != previousInner) {
+        previousInner = innerLane[g];
+        ++within;
+      }
+      innerUnit[g] = within - 1;
+      innerCount = std::max(innerCount, within);
+    }
+  } else {
+    innerUnit.clear();
+  }
+  cascade.build(spec, outerCount, innerCount);
 }
 
 // ---------------------------------------------------------------------------

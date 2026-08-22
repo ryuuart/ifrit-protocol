@@ -1410,6 +1410,149 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   return havePaint ? std::optional(metric) : std::nullopt;
 }
 
+// ---------------------------------------------------------------------------
+// THE REST POSE of one glyph: where the baseline put its advance centre, and
+// which way it faces there. Plain text rests level on its own straight
+// baseline; a path run rests on the curve; a vertical column's glyph rests on
+// the column axis. Returning false DROPS the glyph — a run walking off the end
+// of an open baseline should look like it, rather than piling every remaining
+// letter on the last point.
+//
+// ONE BODY for the painter and for the beatsOf query, because a mark placed
+// beside a cascade must land where the letters land: on the curve where they
+// ride a curve, down the column where they stand in a column.
+
+namespace {
+
+/** Everything the pose depends on beyond the glyph itself. */
+struct PoseContext {
+  const Instance* inst = nullptr;
+  const sigil::weave::ParagraphLayout* layout = nullptr;
+  const TextPath* onPath = nullptr;
+  bool ridesPath = false;
+  /** Where along the baseline the run sits this frame, as arc length — the
+   *  delta on top of the `at` the path layout baked in. */
+  float phaseArc = 0;
+};
+
+struct RestPose {
+  SkPoint centre{0, 0};
+  float cosine = 1, sine = 0;
+  /// Glyph-local vector from the draw origin to `centre`. The horizontal
+  /// convention, (halfAdvance, 0), is null here.
+  std::optional<SkVector> centreOffset;
+};
+
+bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
+                RestPose& pose) {
+  const sigil::weave::ParagraphLayout& layout = *ctx.layout;
+  if (!ctx.ridesPath) {
+    pose.cosine = 1.0f;
+    pose.sine = 0.0f;
+    pose.centreOffset.reset();
+    // A ROTATED run — Latin lying on its side in a CJK column — is placed
+    // per glyph off its interval exactly as a path run is, and deviates
+    // in the frame the interval turned it to.
+    if (placed.transformed) {
+      const sigil::weave::LineInterval* interval =
+          placed.intervalIndex >= 0 &&
+                  (size_t)placed.intervalIndex < layout.intervals.size()
+              ? &layout.intervals[(size_t)placed.intervalIndex]
+              : nullptr;
+      if (!interval) return false;
+      SkVector tangent;
+      if (!interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
+                             &pose.centre, &tangent))
+        return false;
+      const float magnitude = std::hypot(tangent.x(), tangent.y());
+      if (magnitude <= 1e-6f) return false;
+      pose.cosine = tangent.x() / magnitude;
+      pose.sine = tangent.y() / magnitude;
+      return true;
+    }
+    // An UPRIGHT run stands level in a column that runs down the page: its
+    // advance is vertical while the glyph is still drawn from a horizontal
+    // origin, so the pose centre is the point on the COLUMN AXIS the pen
+    // reached, and the back-out to the draw origin is whatever vector
+    // separates the two.
+    if (placed.shaped && placed.shaped->vertical) {
+      const sigil::weave::LineInterval* interval =
+          placed.intervalIndex >= 0 &&
+                  (size_t)placed.intervalIndex < layout.intervals.size()
+              ? &layout.intervals[(size_t)placed.intervalIndex]
+              : nullptr;
+      if (interval) {
+        SkVector tangent;
+        if (interval->placeAt(placed.pen, 0.0f, 0, &pose.centre, &tangent)) {
+          pose.centreOffset = SkVector{pose.centre.x() - placed.rest.x(),
+                                       pose.centre.y() - placed.rest.y()};
+          return true;
+        }
+      }
+    }
+    // Horizontal flow, and 縦中横 — a horizontally shaped run set upright
+    // across the column, whose advance runs across the page like any
+    // other horizontal run's.
+    pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
+    return true;
+  }
+  if (placed.intervalIndex < 0 ||
+      (size_t)placed.intervalIndex >= ctx.inst->pathIntervals.size())
+    return false;
+  const sigil::weave::LineInterval& interval =
+      ctx.inst->pathIntervals[(size_t)placed.intervalIndex];
+  SkPoint position;
+  SkVector tangent;
+  // EXACT, not snapped: the snapping is a rasterization concession and
+  // belongs to the rotation alone. `offset` rides the type off the
+  // baseline along the perpendicular, so a tangent rounded onto a ladder
+  // step would slide it along the curve by however far the rounding was.
+  if (!interval.placeAt(placed.pen, ctx.phaseArc, 0, &position, &tangent))
+    return false;
+  const float magnitude = std::hypot(tangent.x(), tangent.y());
+  if (magnitude <= 1e-6f) return false;
+  float dirX = tangent.x() / magnitude, dirY = tangent.y() / magnitude;
+  // Perpendicular offset, positive to the LEFT of travel (outward on a
+  // clockwise circle). The path replaces the glyph's own baseline.
+  // Measured along TRAVEL even under Radial orientation, so `offset`
+  // keeps meaning "how far off the baseline the type rides" regardless of
+  // which way the glyph ends up facing.
+  position.offset(dirY * ctx.onPath->offset, -dirX * ctx.onPath->offset);
+  // Radial: the glyph's BASELINE runs along the radius, so the run reads
+  // outward from the centre like a spoke. That is how an astrolabe limb,
+  // a compass rose and a radial axis label their divisions — you turn the
+  // instrument to read them.
+  //
+  // Note this is genuinely a different thing from what Tangent already
+  // does. On a circle, "up points outward" IS the tangent orientation (a
+  // clock face's 6 is upside down for exactly that reason), so the only
+  // orientation a path baseline was missing is the one where the type
+  // radiates.
+  if (ctx.onPath->orient == TextPath::Orient::Upright) {
+    dirX = 1.0f;
+    dirY = 0.0f;
+  } else if (ctx.onPath->orient == TextPath::Orient::Radial) {
+    const float ox = position.x() - ctx.inst->pathCentroid.x();
+    const float oy = position.y() - ctx.inst->pathCentroid.y();
+    const float radius = std::hypot(ox, oy);
+    if (radius <= 1e-6f) return false;
+    dirX = ox / radius;
+    dirY = oy / radius;
+  }
+  // The ROTATION snaps, and only the rotation: a continuous per-glyph
+  // angle mints a fresh glyph mask per letter in Skia's cache. 64 steps
+  // is 5.6 degrees, which on a ring whose own letters sit further apart
+  // than that is under a pixel of lean at label sizes.
+  pose.centre = position;
+  pose.cosine = dirX;
+  pose.sine = dirY;
+  if (!ctx.onPath->exactTangent)
+    sigil::weave::quantizeAngle(std::atan2(dirY, dirX), pose.cosine, pose.sine);
+  return true;
+}
+
+}  // namespace
+
 void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                                  const sigil::weave::PaintStyle* override,
                                  const TextPath* onPath, SkSize size) {
@@ -1479,14 +1622,12 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
     inst.selectionWidth = inst.measuredForWidth;
   }
 
-  // Each track's cascade, over ITS OWN selection's units: a track that
-  // addresses one word beats once, whatever the paragraph's word count is.
+  // Each track's cascade, numbered against whichever list its stagger names
+  // — its own selection by default, the whole paragraph under beats::Text.
   struct Resolved {
     const Track* track = nullptr;
     const std::vector<uint8_t>* selected = nullptr;
-    detail::Cascade cascade;
-    std::vector<uint32_t> outerUnit;  // glyph → its beat, renumbered
-    std::vector<uint32_t> innerUnit;  // glyph → its beat inside that beat
+    detail::TrackCascade resolved;
     float master = 1.0f;
   };
   // Kept across frames and reused in place: clearing would drop the two
@@ -1505,46 +1646,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
     r.master =
         std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
-
-    // Renumber the units the SELECTION covers, from 0, in draw order —
-    // then a stagger's From, its amount-mode division and its distribution
-    // all read the count the author sees rather than the paragraph's.
-    const std::vector<uint32_t>& outerLane =
-        structure.unitOf[(size_t)track.stagger.over];
-    r.outerUnit.assign(count, 0);
-    uint32_t outerCount = 0;
-    uint32_t previous = ~0u;
-    for (uint32_t g = 0; g < count; ++g) {
-      if (!(*r.selected)[g]) continue;
-      if (outerLane[g] != previous) {
-        previous = outerLane[g];
-        ++outerCount;
-      }
-      r.outerUnit[g] = outerCount - 1;
-    }
-    uint32_t innerCount = 0;
-    if (track.stagger.inner) {
-      const std::vector<uint32_t>& innerLane =
-          structure.unitOf[(size_t)track.stagger.inner->over];
-      r.innerUnit.assign(count, 0);
-      uint32_t within = 0, previousOuter = ~0u, previousInner = ~0u;
-      for (uint32_t g = 0; g < count; ++g) {
-        if (!(*r.selected)[g]) continue;
-        if (r.outerUnit[g] != previousOuter) {
-          previousOuter = r.outerUnit[g];
-          previousInner = ~0u;
-          within = 0;
-        }
-        if (innerLane[g] != previousInner) {
-          previousInner = innerLane[g];
-          ++within;
-        }
-        r.innerUnit[g] = within - 1;
-        innerCount = std::max(innerCount, within);
-      }
-    }
-    if (!track.stagger.inner) r.innerUnit.clear();
-    r.cascade.build(track.stagger, outerCount, innerCount);
+    r.resolved.build(track.stagger, structure, *r.selected);
   }
   // A path run with no tracks still draws: every glyph keeps the identity
   // deviation and rests on the curve.
@@ -1554,125 +1656,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
 
-  // THE REST POSE of one glyph: where the baseline put its advance centre,
-  // and which way it faces there. Plain text rests level on its own
-  // straight baseline; a path run rests on the curve. Returning false drops
-  // the glyph — a run walking off the end of an open baseline should look
-  // like it, rather than piling every remaining letter on the last point.
-  struct RestPose {
-    SkPoint centre{0, 0};
-    float cosine = 1, sine = 0;
-    /// Glyph-local vector from the draw origin to `centre`. The horizontal
-    /// convention, (halfAdvance, 0), is null here.
-    std::optional<SkVector> centreOffset;
-  };
-  const auto restPoseOf = [&](const sigil::weave::PlacedGlyph& placed,
-                              RestPose& pose) {
-    if (!ridesPath) {
-      pose.cosine = 1.0f;
-      pose.sine = 0.0f;
-      pose.centreOffset.reset();
-      // A ROTATED run — Latin lying on its side in a CJK column — is placed
-      // per glyph off its interval exactly as a path run is, and deviates
-      // in the frame the interval turned it to.
-      if (placed.transformed) {
-        const sigil::weave::LineInterval* interval =
-            placed.intervalIndex >= 0 &&
-                    (size_t)placed.intervalIndex < layout.intervals.size()
-                ? &layout.intervals[(size_t)placed.intervalIndex]
-                : nullptr;
-        if (!interval) return false;
-        SkVector tangent;
-        if (!interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
-                               &pose.centre, &tangent))
-          return false;
-        const float magnitude = std::hypot(tangent.x(), tangent.y());
-        if (magnitude <= 1e-6f) return false;
-        pose.cosine = tangent.x() / magnitude;
-        pose.sine = tangent.y() / magnitude;
-        return true;
-      }
-      // An UPRIGHT run stands level in a column that runs down the page: its
-      // advance is vertical while the glyph is still drawn from a horizontal
-      // origin, so the pose centre is the point on the COLUMN AXIS the pen
-      // reached, and the back-out to the draw origin is whatever vector
-      // separates the two.
-      if (placed.shaped && placed.shaped->vertical) {
-        const sigil::weave::LineInterval* interval =
-            placed.intervalIndex >= 0 &&
-                    (size_t)placed.intervalIndex < layout.intervals.size()
-                ? &layout.intervals[(size_t)placed.intervalIndex]
-                : nullptr;
-        if (interval) {
-          SkVector tangent;
-          if (interval->placeAt(placed.pen, 0.0f, 0, &pose.centre, &tangent)) {
-            pose.centreOffset = SkVector{pose.centre.x() - placed.rest.x(),
-                                         pose.centre.y() - placed.rest.y()};
-            return true;
-          }
-        }
-      }
-      // Horizontal flow, and 縦中横 — a horizontally shaped run set upright
-      // across the column, whose advance runs across the page like any
-      // other horizontal run's.
-      pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
-      return true;
-    }
-    if (placed.intervalIndex < 0 ||
-        (size_t)placed.intervalIndex >= inst.pathIntervals.size())
-      return false;
-    const sigil::weave::LineInterval& interval =
-        inst.pathIntervals[(size_t)placed.intervalIndex];
-    SkPoint position;
-    SkVector tangent;
-    // EXACT, not snapped: the snapping is a rasterization concession and
-    // belongs to the rotation alone. `offset` rides the type off the
-    // baseline along the perpendicular, so a tangent rounded onto a ladder
-    // step would slide it along the curve by however far the rounding was.
-    if (!interval.placeAt(placed.pen, phaseArc, 0, &position, &tangent))
-      return false;
-    const float magnitude = std::hypot(tangent.x(), tangent.y());
-    if (magnitude <= 1e-6f) return false;
-    float dirX = tangent.x() / magnitude, dirY = tangent.y() / magnitude;
-    // Perpendicular offset, positive to the LEFT of travel (outward on a
-    // clockwise circle). The path replaces the glyph's own baseline.
-    // Measured along TRAVEL even under Radial orientation, so `offset`
-    // keeps meaning "how far off the baseline the type rides" regardless of
-    // which way the glyph ends up facing.
-    position.offset(dirY * onPath->offset, -dirX * onPath->offset);
-    // Radial: the glyph's BASELINE runs along the radius, so the run reads
-    // outward from the centre like a spoke. That is how an astrolabe limb,
-    // a compass rose and a radial axis label their divisions — you turn the
-    // instrument to read them.
-    //
-    // Note this is genuinely a different thing from what Tangent already
-    // does. On a circle, "up points outward" IS the tangent orientation (a
-    // clock face's 6 is upside down for exactly that reason), so the only
-    // orientation a path baseline was missing is the one where the type
-    // radiates.
-    if (onPath->orient == TextPath::Orient::Upright) {
-      dirX = 1.0f;
-      dirY = 0.0f;
-    } else if (onPath->orient == TextPath::Orient::Radial) {
-      const float ox = position.x() - inst.pathCentroid.x();
-      const float oy = position.y() - inst.pathCentroid.y();
-      const float radius = std::hypot(ox, oy);
-      if (radius <= 1e-6f) return false;
-      dirX = ox / radius;
-      dirY = oy / radius;
-    }
-    // The ROTATION snaps, and only the rotation: a continuous per-glyph
-    // angle mints a fresh glyph mask per letter in Skia's cache. 64 steps
-    // is 5.6 degrees, which on a ring whose own letters sit further apart
-    // than that is under a pixel of lean at label sizes.
-    pose.centre = position;
-    pose.cosine = dirX;
-    pose.sine = dirY;
-    if (!onPath->exactTangent)
-      sigil::weave::quantizeAngle(std::atan2(dirY, dirX), pose.cosine,
-                                  pose.sine);
-    return true;
-  };
+  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
 
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
@@ -1680,7 +1664,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         const uint32_t g = ordinal++;
         if (g >= count) return;
         RestPose pose;
-        if (!restPoseOf(placed, pose)) return;
+        if (!restPoseOf(poseCtx, placed, pose)) return;
         GlyphInfo info = structure.glyphs[g];
 
         // Every track that addresses this glyph, composed: offsets, shear
@@ -1692,12 +1676,13 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         bool continuous = false;
         for (const Resolved& r : live) {
           if (!(*r.selected)[g]) continue;
-          info.unitIndex = r.outerUnit[g];
+          const detail::TrackCascade& rc = r.resolved;
+          info.unitIndex = rc.outerUnit[g];
           info.unitCount =
-              std::max<uint32_t>((uint32_t)r.cascade.outerOrder.size(), 1u);
+              std::max<uint32_t>((uint32_t)rc.cascade.outerOrder.size(), 1u);
           const float t =
-              r.cascade.localTime(r.master, r.outerUnit[g],
-                                  r.innerUnit.empty() ? 0u : r.innerUnit[g]);
+              rc.cascade.localTime(r.master, rc.outerUnit[g],
+                                   rc.innerUnit.empty() ? 0u : rc.innerUnit[g]);
           Rng rng(detail::glyphSeed(info));
           detail::compose(mod, r.track->effect(info, t, rng));
           continuous |= r.track->continuous;
@@ -1796,6 +1781,171 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                          glyph, halfAdvance, dress);
       });
   batches.draw(&canvas);
+}
+
+// ---------------------------------------------------------------------------
+// THE SCHEDULE, READ BACK
+//
+// Resolved out of the same three pieces the painter uses and in the same
+// order — the glyph structure, the track's selection, and TrackCascade — so
+// a mark placed from this is on the beat the glyphs are on by construction
+// rather than by an author keeping two sets of numbers in step.
+//
+// Computed on demand rather than recorded during paint. A settled text node
+// stops painting and replays a picture, and a query that read a paint-time
+// buffer would answer with whatever the last live frame left behind; a query
+// that resolves against the current layout and the current progress answers
+// for the frame being asked about.
+
+namespace {
+
+/** The band a glyph occupies either side of its own baseline, from the
+ *  face's own metrics. Memoized per (face, size) across the walk: a
+ *  paragraph is a handful of distinct fonts however many letters it has. */
+struct GlyphBand {
+  float ascent = 0, descent = 0;
+};
+
+/** The memo key is the face AND the size: metrics scale with the size, and
+ *  a mixed-style paragraph is one face at several of them — keyed on the
+ *  face alone, every run after the first would wear the first one's band. */
+using BandKey = std::pair<const void*, float>;
+
+GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
+                 std::vector<std::pair<BandKey, GlyphBand>>& memo) {
+  if (!shaped || !shaped->typeface) return {};
+  const BandKey key{shaped->typeface.get(), shaped->fontSize};
+  for (const auto& [seen, band] : memo)
+    if (seen == key) return band;
+  SkFontMetrics metrics;
+  sigil::weave::makeFont(shaped->typeface, shaped->fontSize)
+      .getMetrics(&metrics);
+  // Skia reports the ascent as a NEGATIVE offset from the baseline; the band
+  // wants both halves positive.
+  const GlyphBand band{-metrics.fAscent, metrics.fDescent};
+  memo.emplace_back(key, band);
+  return band;
+}
+
+/** One glyph's advance box, placed and turned the way the layout placed and
+ *  turned it, as an axis-aligned bound.
+ *
+ *  The box is taken around the ADVANCE CENTRE the rest pose reports, which
+ *  is what makes one rule cover all four baselines: a wrapped line and a
+ *  mixed-style run differ only in where the centre and the band are, a path
+ *  run and a rotated column run differ only in which way the box is turned,
+ *  and an upright vertical glyph's advance runs down the column instead of
+ *  across it. */
+SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
+                const GlyphBand& band) {
+  const float size = placed.shaped ? placed.shaped->fontSize : 0.0f;
+  const bool upright = placed.shaped && placed.shaped->vertical;
+  const float halfAlong = std::abs(placed.advance) * 0.5f;
+  // Along the advance, then across it. An upright vertical glyph advances
+  // DOWN its column and is about one em wide across it; everything else
+  // advances along its baseline and stands `band` tall across it.
+  const float x0 = upright ? -size * 0.5f : -halfAlong;
+  const float x1 = upright ? size * 0.5f : halfAlong;
+  const float y0 = upright ? -halfAlong : -band.ascent;
+  const float y1 = upright ? halfAlong : band.descent;
+  SkRect box = SkRect::MakeEmpty();
+  bool first = true;
+  for (const SkPoint corner :
+       {SkPoint{x0, y0}, SkPoint{x1, y0}, SkPoint{x1, y1}, SkPoint{x0, y1}}) {
+    const SkPoint at{
+        pose.centre.x() + corner.x() * pose.cosine - corner.y() * pose.sine,
+        pose.centre.y() + corner.x() * pose.sine + corner.y() * pose.cosine};
+    if (first) {
+      box = SkRect::MakeLTRB(at.x(), at.y(), at.x(), at.y());
+      first = false;
+    } else {
+      box.fLeft = std::min(box.fLeft, at.x());
+      box.fTop = std::min(box.fTop, at.y());
+      box.fRight = std::max(box.fRight, at.x());
+      box.fBottom = std::max(box.fBottom, at.y());
+    }
+  }
+  return box;
+}
+
+}  // namespace
+
+std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
+                                               size_t trackIndex) {
+  if (!inst.desc || !inst.paragraph) return {};
+  const std::span<const Track> tracks = tracksOf(*inst.desc);
+  if (trackIndex >= tracks.size()) return {};
+  const Track& track = tracks[trackIndex];
+  if (!track.effect) return {};
+
+  // The layout the last draw() left standing — the path one where the run
+  // rides a curve, so the beats are on the curve the letters are on.
+  const TextPath* onPath = nullptr;
+  if (inst.desc->textData && inst.desc->textData->onPath.has_value())
+    onPath = &inst.desc->textData->onPath.value();
+  const bool ridesPath = onPath && inst.pathValid;
+  if (onPath && !ridesPath) return {};
+  const sigil::weave::ParagraphLayout& layout =
+      ridesPath ? inst.pathLayout : inst.textLayout;
+
+  static thread_local detail::GlyphStructure structure;
+  structure.build(layout, *inst.paragraph);
+  const auto count = (uint32_t)structure.glyphs.size();
+  if (count == 0) return {};
+
+  const std::vector<uint8_t> selected =
+      detail::resolveSelection(track.where, structure, *inst.paragraph);
+  detail::TrackCascade resolved;
+  resolved.build(track.stagger, structure, selected);
+
+  const AnimatedFloat* anim = trackIndex < inst.trackAnims.size()
+                                  ? inst.trackAnims[trackIndex].get()
+                                  : nullptr;
+  const float master =
+      std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
+
+  float phaseArc = 0;
+  if (ridesPath)
+    phaseArc = (inst.resolvePathAt() - inst.pathRestAt) * inst.pathTotalLength;
+  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
+
+  // ONE BEAT PER (outer, inner) PAIR THE TRACK ACTUALLY RUNS, in draw order,
+  // and the rect is the union of the glyphs THIS track addresses in it: a
+  // partitioning track reports where its own half of each unit sits, which
+  // is the half its effect moves.
+  std::vector<Beat> beats;
+  std::vector<std::pair<uint32_t, uint32_t>> keys;
+  std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
+  uint32_t ordinal = 0;
+  sigil::weave::forEachPlacedGlyph(
+      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const uint32_t g = ordinal++;
+        if (g >= count || !selected[g]) return;
+        RestPose pose;
+        if (!restPoseOf(poseCtx, placed, pose)) return;
+        const uint32_t outer = resolved.outerUnit[g];
+        const uint32_t inner =
+            resolved.innerUnit.empty() ? 0u : resolved.innerUnit[g];
+        const SkRect box =
+            glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
+        for (size_t i = keys.size(); i-- > 0;)
+          if (keys[i].first == outer && keys[i].second == inner) {
+            beats[i].rect.join(box);
+            return;
+          }
+        Beat beat;
+        beat.rect = box;
+        beat.unitIndex = outer;
+        beat.startMs = resolved.cascade.startMs(outer, inner);
+        beat.localT = resolved.cascade.localTime(master, outer, inner);
+        // A beat that has begun and not finished. The clamped local time
+        // reads 0 both before the beat opens and exactly as it does, and 1
+        // for the whole of the rest of the track's life.
+        beat.active = beat.localT > 0.0f && beat.localT < 1.0f;
+        keys.emplace_back(outer, inner);
+        beats.push_back(beat);
+      });
+  return beats;
 }
 
 // ---------------------------------------------------------------------------
