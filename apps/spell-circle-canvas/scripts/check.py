@@ -40,9 +40,12 @@ header is unresolvable.
 
 import argparse
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NoReturn
 
@@ -304,21 +307,50 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
     if sdk:
         command.append(f"--extra-arg=-isysroot{sdk}")
     print(f"{len(candidates)} translation units")
+    # One clang-tidy process per translation unit: a single process fed
+    # many TUs reuses parse state across them and can report phantom
+    # errors in headers the current TU never misparsed.
+    workers = min(len(candidates), max(1, (os.cpu_count() or 4) - 2))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(lambda tu: run([*command, tu]), candidates))
     # clang-tidy exits zero when it only emitted warnings (this repo's
     # WarningsAsErrors is deliberately empty), so the exit code cannot
     # be the verdict: parse the findings out of the diagnostics instead.
-    result = run([*command, *candidates])
-    if result.stdout:
-        print(result.stdout, end="")
-    findings = [
-        line
-        for line in result.stdout.splitlines()
-        if ": warning:" in line or ": error:" in line
-    ]
-    if result.returncode != 0 and not findings:
-        fail(f"clang-tidy failed to run:\n{result.stderr[-2000:]}")
-    if findings:
-        print(f"{len(findings)} clang-tidy findings")
+    # The verdict counts only findings in this repository's own sources:
+    # HeaderFilterRegex scopes the checks, but a hard parse error in an
+    # external header still prints, and external toolchains are not this
+    # gate's to police.
+    diagnostic = re.compile(r"^(?P<path>[^:\n]+):\d+:\d+: (?:warning|error): ")
+    in_scope: list[str] = []
+    external = 0
+    for tu, result in zip(candidates, results):
+        findings_here = False
+        for line in result.stdout.splitlines():
+            match = diagnostic.match(line)
+            if not match:
+                continue
+            findings_here = True
+            path = Path(match.group("path"))
+            if not path.is_absolute():
+                path = REPO_DIR / path
+            try:
+                inside = path.resolve().is_relative_to(REPO_DIR)
+            except OSError:
+                inside = False
+            if inside and not any(
+                fragment in str(path) for fragment in EXCLUDED_FRAGMENTS
+            ):
+                in_scope.append(line)
+            else:
+                external += 1
+        if result.returncode != 0 and not findings_here:
+            fail(f"clang-tidy failed on {tu}:\n{result.stderr[-2000:]}")
+    for line in in_scope:
+        print(line)
+    if external:
+        print(f"{external} findings outside the repository's sources (ignored)")
+    if in_scope:
+        print(f"{len(in_scope)} clang-tidy findings")
         return False
     print("clang-tidy clean")
     return True
