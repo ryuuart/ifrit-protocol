@@ -23,7 +23,7 @@
 // -----------------------------------------------------------------------------
 // THE TABLES, VERBATIM
 //
-//   rubberBand      scaleX  scaleY          jello        skewX
+//   rubberBand      scaleX  scaleY          jello     skewX = skewY
 //     0%             1.00    1.00             0.0%        0
 //    30%             1.25    0.75            11.1%        0
 //    40%             0.75    1.25            22.2%      -12.5°
@@ -35,27 +35,33 @@
 //                                            88.8%       -0.1953125°
 //                                           100.0%        0
 //
-// WHAT IS NOT REPRODUCED, and it matters twice:
+// The table is ALL this file states. `fx::keys` takes the entries and does
+// the sampling, so the numbers above and the numbers below are the same
+// list read twice rather than a transcription and a sampler that have to
+// agree — and the graphs at the bottom plot the EFFECT, not the table, so
+// the picture draws whatever the motion is actually doing.
+//
+// TWO THINGS THE TRANSCRIPTION GETS RIGHT, both of which take a browser to
+// notice and both of which change the shape of the motion:
 //
 //  * `jello` shears on BOTH axes — the published rule is
-//    `skewX(a) skewY(a)`, the same angle on each. A `GlyphMod` carries
-//    `skewXDeg` and no Y counterpart, so only half the shear is here. The
-//    difference is visible: the real thing rocks on a diagonal, this rocks
-//    horizontally.
-//  * CSS interpolates each keyframe segment with its own timing function,
-//    `ease` by default. The segments below are LINEAR between the published
-//    numbers, so the corners of the curve are sharper than a browser's. The
-//    graphs at the bottom draw exactly what the effects evaluate, which is
-//    the point of drawing them.
+//    `skewX(a) skewY(a)`, the same angle on each — so the word rocks on a
+//    diagonal. The two angles ride one `GlyphMod` and reach the glyph as a
+//    single shear pair.
+//  * CSS crosses EACH KEYFRAME SEGMENT with its own timing function, `ease`
+//    by default, rather than running one curve across the whole list. That
+//    is what `fx::keys` means by a per-segment curve, and `cssEase` below is
+//    the curve itself: every segment eases in and out of its own endpoints,
+//    which rounds the corners a linear reading leaves sharp.
 //
 // -----------------------------------------------------------------------------
 // WHAT THIS PUTS UNDER LOAD
 //
 // A non-uniform scale and a shear are the ONE deviation an RSXform cannot
 // carry: that transform encodes a rotation, one scale and no shear at all.
-// A glyph whose composed deviation uses `scaleX`, `scaleY` or `skewXDeg`
-// therefore leaves the shared transform array and draws under its own
-// matrix — same passes, same paint, one canvas concat — while its
+// A glyph whose composed deviation uses `scaleX`, `scaleY`, `skewXDeg` or
+// `skewYDeg` therefore leaves the shared transform array and draws under its
+// own matrix — same passes, same paint, one canvas concat — while its
 // neighbours stay batched. Both rows here are a whole line of such glyphs,
 // which is the worst case for that split and the reason it is worth having
 // a study of.
@@ -79,9 +85,9 @@
 #include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 
-#include <array>
-#include <cmath>
 #include <string>
+#include <utility>
+#include <vector>
 
 using namespace sigil::compose;
 using namespace sigil::compose::util;
@@ -105,83 +111,74 @@ constexpr float kDurMs = 900.0f;
 constexpr double kLoop = 3.4;  // one pass of both rows, then a rest
 
 // ---------------------------------------------------------------------------
-// The tables. One definition each, read by the EFFECT and by the GRAPH, so
-// the picture cannot disagree with the motion.
+// The tables, and the curve every segment of one is crossed with.
 
-struct Key {
-  float at;  // local time, 0..1
-  float x;   // scaleX, or skewX in degrees
-  float y;   // scaleY
-};
+using Table = std::vector<fx::Key>;
 
-constexpr std::array<Key, 7> kRubber = {{{0.00f, 1.00f, 1.00f},
-                                         {0.30f, 1.25f, 0.75f},
-                                         {0.40f, 0.75f, 1.25f},
-                                         {0.50f, 1.15f, 0.85f},
-                                         {0.65f, 0.95f, 1.05f},
-                                         {0.75f, 1.05f, 0.95f},
-                                         {1.00f, 1.00f, 1.00f}}};
-
-constexpr std::array<Key, 10> kJello = {{{0.000f, 0.0f, 0},
-                                         {0.111f, 0.0f, 0},
-                                         {0.222f, -12.5f, 0},
-                                         {0.333f, 6.25f, 0},
-                                         {0.444f, -3.125f, 0},
-                                         {0.555f, 1.5625f, 0},
-                                         {0.666f, -0.78125f, 0},
-                                         {0.777f, 0.390625f, 0},
-                                         {0.888f, -0.1953125f, 0},
-                                         {1.000f, 0.0f, 0}}};
-
-/** Linear interpolation across a keyframe table — what a browser does with
- *  `animation-timing-function: linear`, and not what it does by default. */
-template <size_t N>
-Key sample(const std::array<Key, N>& table, float t) {
-  t = t < 0 ? 0 : (t > 1 ? 1 : t);
-  for (size_t i = 1; i < N; ++i) {
-    if (t > table[i].at) continue;
-    const Key& a = table[i - 1];
-    const Key& b = table[i];
-    const float span = b.at - a.at;
-    const float u = span > 0 ? (t - a.at) / span : 0.0f;
-    return {t, a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u};
+/** CSS's default `animation-timing-function`: cubic-bezier(0.25, 0.1, 0.25,
+ *  1). A keyframe list that names no timing function is crossed with this
+ *  ONE SEGMENT AT A TIME, which is why it belongs beside the tables rather
+ *  than over them.
+ *
+ *  A plain function and not a lambda, so the two effects below compare by
+ *  their tables and their curve and prune like any other value.
+ *
+ *  x is monotonic in the parameter for control points inside the unit
+ *  square, so bisecting on x lands on the one parameter whose x is the time
+ *  asked for, and y at that parameter is the answer. */
+float cssEase(float t) {
+  if (t <= 0.0f) return 0.0f;
+  if (t >= 1.0f) return 1.0f;
+  const auto bezier = [](float u, float a, float b) {
+    const float v = 1.0f - u;
+    return 3.0f * v * v * u * a + 3.0f * v * u * u * b + u * u * u;
+  };
+  float lo = 0.0f, hi = 1.0f, u = t;
+  for (int i = 0; i < 24; ++i) {
+    u = 0.5f * (lo + hi);
+    (bezier(u, 0.25f, 0.25f) < t ? lo : hi) = u;
   }
-  return table[N - 1];
+  return bezier(u, 0.1f, 1.0f);
 }
 
-/** rubberBand, per glyph. The two scales are independent, so the glyph
- *  leaves the batched RSXform array and draws under its own matrix. */
-TextEffect rubberBand() {
-  return fx::effect(
-      "animateCss.rubberBand",
-      [](const GlyphInfo&, float t, Rng&) {
-        const Key k = sample(kRubber, t);
-        GlyphMod m;
-        m.scaleX = k.x;
-        m.scaleY = k.y;
-        return m;
-      },
-      // The widest keyframe grows a glyph by a quarter about its own pivot.
-      kWordSize * 0.5f);
+/** rubberBand: a squash and a stretch on the two scale axes. They are
+ *  independent, so every glyph leaves the batched RSXform array and draws
+ *  under its own matrix. */
+Table rubberTable() {
+  return {{0.00f, {}},
+          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
+          {0.40f, {.scaleX = 0.75f, .scaleY = 1.25f}},
+          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
+          {0.65f, {.scaleX = 0.95f, .scaleY = 1.05f}},
+          {0.75f, {.scaleX = 1.05f, .scaleY = 0.95f}},
+          {1.00f, {}}};
 }
 
-/** jello, per glyph — the X half of it. The published rule shears on both
- *  axes by the same angle; there is no `skewYDeg` on a GlyphMod, so this is
- *  the horizontal component alone and the motion rocks rather than wobbles. */
-TextEffect jello() {
-  return fx::effect(
-      "animateCss.jello",
-      [](const GlyphInfo&, float t, Rng&) {
-        GlyphMod m;
-        m.skewXDeg = sample(kJello, t).x;
-        return m;
-      },
-      kWordSize * 0.5f);
+/** jello: a halving, alternating shear, THE SAME ANGLE ON BOTH AXES, which
+ *  is what makes the word rock on a diagonal rather than side to side. */
+Table jelloTable() {
+  const auto shear = [](float at, float deg) {
+    return fx::Key{at, {.skewXDeg = deg, .skewYDeg = deg}};
+  };
+  return {shear(0.000f, 0.0f),        shear(0.111f, 0.0f),
+          shear(0.222f, -12.5f),      shear(0.333f, 6.25f),
+          shear(0.444f, -3.125f),     shear(0.555f, 1.5625f),
+          shear(0.666f, -0.78125f),   shear(0.777f, 0.390625f),
+          shear(0.888f, -0.1953125f), shear(1.000f, 0.0f)};
+}
+
+/** The deviation at one moment, for the graphs: the effects are pure
+ *  functions of local time here, so the picture is read out of the same
+ *  value the glyphs are drawn from. */
+GlyphMod at(const TextEffect& effect, float t) {
+  GlyphInfo glyph;
+  Rng rng(1);
+  return effect(glyph, t, rng);
 }
 
 // ---------------------------------------------------------------------------
-// The graphs — the same tables, plotted. Pure functions of local time, so
-// they are static leaves and nothing here reads a clock.
+// The graphs — the EFFECTS, plotted. Pure functions of local time, so they
+// are static leaves and nothing here reads a clock.
 
 void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
                 float width) {
@@ -193,41 +190,41 @@ void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
   canvas.drawPath(path, paint);
 }
 
-/** One lane of a table, over local time, with a dot at every published
- *  keyframe. @p lo and @p hi are the value range the plot's height spans. */
-template <size_t N>
-Element graph(const char* key, const std::array<Key, N>& table, bool useX,
-              SkColor4f color, float lo, float hi, float rest) {
-  return custom(key,
-                [&table, useX, color, lo, hi, rest](SkCanvas& canvas,
-                                                    const PaintContext& ctx) {
-                  const float w = ctx.size.width(), h = ctx.size.height();
-                  const auto toY = [&](float v) {
-                    return h - (v - lo) / (hi - lo) * h;
-                  };
-                  SkPaint rule;
-                  rule.setStyle(SkPaint::kStroke_Style);
-                  rule.setStrokeWidth(1);
-                  rule.setColor4f(kRest, nullptr);
-                  canvas.drawLine(0, toY(rest), w, toY(rest), rule);
+/** One lane of one effect, over local time, with a dot at every published
+ *  keyframe. `lane` picks the field out of the deviation; @p lo and @p hi
+ *  are the value range the plot's height spans. */
+Element graph(const char* key, TextEffect effect, Table table,
+              float (*lane)(const GlyphMod&), SkColor4f color, float lo,
+              float hi, float rest) {
+  return custom(
+             key,
+             [effect = std::move(effect), table = std::move(table), lane, color,
+              lo, hi, rest](SkCanvas& canvas, const PaintContext& ctx) {
+               const float w = ctx.size.width(), h = ctx.size.height();
+               const auto toY = [&](float v) {
+                 return h - (v - lo) / (hi - lo) * h;
+               };
+               SkPaint rule;
+               rule.setStyle(SkPaint::kStroke_Style);
+               rule.setStrokeWidth(1);
+               rule.setColor4f(kRest, nullptr);
+               canvas.drawLine(0, toY(rest), w, toY(rest), rule);
 
-                  SkPathBuilder trace;
-                  for (int i = 0; i <= 240; ++i) {
-                    const float t = (float)i / 240.0f;
-                    const Key k = sample(table, t);
-                    const float v = useX ? k.x : k.y;
-                    const SkPoint at{w * t, toY(v)};
-                    i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-                  }
-                  strokePath(canvas, trace.detach(), color, 1.6f);
+               SkPathBuilder trace;
+               for (int i = 0; i <= 240; ++i) {
+                 const float t = (float)i / 240.0f;
+                 const SkPoint point{w * t, toY(lane(at(effect, t)))};
+                 i == 0 ? (void)trace.moveTo(point) : (void)trace.lineTo(point);
+               }
+               strokePath(canvas, trace.detach(), color, 1.6f);
 
-                  SkPaint dot;
-                  dot.setAntiAlias(true);
-                  dot.setColor4f(color, nullptr);
-                  for (const Key& k : table)
-                    canvas.drawCircle(w * k.at, toY(useX ? k.x : k.y), 2.6f,
-                                      dot);
-                })
+               SkPaint dot;
+               dot.setAntiAlias(true);
+               dot.setColor4f(color, nullptr);
+               for (const fx::Key& key : table)
+                 canvas.drawCircle(w * key.at, toY(lane(at(effect, key.at))),
+                                   2.6f, dot);
+             })
       .width(pct(100))
       .height(pct(100));
 }
@@ -313,26 +310,35 @@ struct ElasticType : sigil::compose::sketch::Sketch {
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(row("RUBBERBAND",
                    "rubberBand \xc2\xb7 SIX KEYFRAMES ON TWO SCALE AXES",
-                   rubberBand()))
+                   fx::keys(rubberTable(), &cssEase)))
         .child(row("JELLO",
                    "jello \xc2\xb7 A HALVING, ALTERNATING SHEAR \xc2\xb7 "
-                   "X ONLY",
-                   jello()))
+                   "BOTH AXES",
+                   fx::keys(jelloTable(), &cssEase)))
         .child(box().grow(1))
         .child(box()
                    .row()
                    .gap(28)
                    .height(146)
-                   .child(plot(
-                       "rubberBand \xe2\x80\x94 scaleX 0.75 TO 1.25",
-                       graph("g-rx", kRubber, true, kX, 0.62f, 1.38f, 1.0f)))
-                   .child(plot(
-                       "rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
-                       graph("g-ry", kRubber, false, kY, 0.62f, 1.38f, 1.0f)))
-                   .child(plot(
-                       "jello \xe2\x80\x94 skewX \xc2\xb1"
-                       "12.5\xc2\xb0, HALVING",
-                       graph("g-j", kJello, true, kX, -14.0f, 14.0f, 0.0f))))
+                   .child(plot("rubberBand \xe2\x80\x94 scaleX 0.75 TO 1.25",
+                               graph(
+                                   "g-rx", fx::keys(rubberTable(), &cssEase),
+                                   rubberTable(),
+                                   [](const GlyphMod& m) { return m.scaleX; },
+                                   kX, 0.62f, 1.38f, 1.0f)))
+                   .child(plot("rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
+                               graph(
+                                   "g-ry", fx::keys(rubberTable(), &cssEase),
+                                   rubberTable(),
+                                   [](const GlyphMod& m) { return m.scaleY; },
+                                   kY, 0.62f, 1.38f, 1.0f)))
+                   .child(plot("jello \xe2\x80\x94 skewX = skewY \xc2\xb1"
+                               "12.5\xc2\xb0, HALVING",
+                               graph(
+                                   "g-j", fx::keys(jelloTable(), &cssEase),
+                                   jelloTable(),
+                                   [](const GlyphMod& m) { return m.skewXDeg; },
+                                   kX, -14.0f, 14.0f, 0.0f))))
         .child(text(toU8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
                          "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
                          "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "

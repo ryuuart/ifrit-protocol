@@ -791,11 +791,14 @@ struct TrackCascade {
              const std::vector<uint8_t>& selected);
 };
 
-/** The composition algebra, in one place: offsets and rotations ADD, scale
- *  and alpha MULTIPLY. Stacked tracks, fx::mix and a seq crossfade all go
- *  through these two, so they cannot drift apart. */
+/** The composition algebra, in one place: offsets, rotations and shears ADD,
+ *  scale and alpha MULTIPLY. Stacked tracks, fx::mix, a seq crossfade and a
+ *  keys segment all go through these two, so they cannot drift apart. */
 void compose(GlyphMod& into, const GlyphMod& next);
 GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
+/** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside
+ *  the two functions it guards, never called. */
+void glyphModFieldPin(GlyphMod& v);
 /** The seed an effect's Rng is constructed from — the glyph's identity plus
  *  the operand lane inside a composite. */
 uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);

@@ -598,9 +598,10 @@ struct GlyphInfo {
  *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely.
  *
  *  This is the type the composition algebra operates on: stacked tracks,
- *  `fx::mix` and a `fx::seq` crossfade all combine GlyphMods the same
- *  way — dx/dy, rotateDeg and skewXDeg ADD; scale, scaleX, scaleY, alpha
- *  and colorMul MULTIPLY; and the two SUBSTITUTIONS, `axis` and
+ *  `fx::mix`, a `fx::seq` crossfade and a `fx::keys` segment all combine
+ *  GlyphMods the same way — dx/dy, rotateDeg, skewXDeg and skewYDeg ADD;
+ *  scale, scaleX, scaleY, alpha and colorMul MULTIPLY; and the two
+ *  SUBSTITUTIONS, `axis` and
  *  `codepoint`, are last-one-wins. Substitutions do not blend because
  *  there is no half-way glyph between two outlines: a later track that
  *  names one replaces what an earlier one named, and a `fx::seq`
@@ -618,14 +619,19 @@ struct GlyphMod {
    *  takes the equivalent modulation, so a gradient keeps its ramp and
    *  wears the tint over it. White is no tint. */
   SkColor4f colorMul = {1, 1, 1, 1};
-  /** Non-uniform scale and horizontal shear (degrees, positive leans the
-   *  top toward −x, as `Element::skewX` does). An RSXform encodes a
-   *  rotation and ONE scale and no shear at all, so a glyph whose composed
-   *  deviation uses either draws under its own matrix — same passes, same
-   *  paint, one canvas concat — while its neighbours keep the shared
-   *  transform array. */
+  /** Non-uniform scale and shear on each axis (degrees). An RSXform encodes
+   *  a rotation and ONE scale and no shear at all, so a glyph whose composed
+   *  deviation uses any of these draws under its own matrix — same passes,
+   *  same paint, one canvas concat — while its neighbours keep the shared
+   *  transform array.
+   *
+   *  The two angles read as `Element::skewX` and `Element::skewY` do:
+   *  positive `skewXDeg` leans the top toward −x, positive `skewYDeg`
+   *  pushes the right side toward +y, and a glyph naming both takes the
+   *  single shear pair `(tan x, tan y)` rather than one shear applied after
+   *  the other. */
   float scaleX = 1, scaleY = 1;
-  float skewXDeg = 0;
+  float skewXDeg = 0, skewYDeg = 0;
   /** A variable-font axis coordinate, applied at DRAW time by swapping the
    *  glyph's face for a varied clone. The shaped positions are reused as
    *  they are, so this is sound only for an ADVANCE-INVARIANT axis: the
@@ -653,7 +659,8 @@ using GlyphModFn = std::function<GlyphMod(const GlyphInfo&, float, Rng&)>;
  *  operand effects it was built from.
  *
  *  Two effects are equal when they carry the same name, the same
- *  parameters and equal operands — so `fx::rise(26) == fx::rise(26)`,
+ *  parameters, equal operands and the same curves — so `fx::rise(26) ==
+ *  fx::rise(26)`,
  *  `fx::rise(26) != fx::rise(30)`, and a `fx::seq` of equal phases equals
  *  another built the same way. That equality is what lets a re-described
  *  element with unchanged tracks PRUNE instead of re-recording every
@@ -667,9 +674,16 @@ class TextEffect {
   TextEffect() = default;
   /** A named effect over parameters. `reach` is how far, in pixels, this
    *  effect may push a glyph outside the element's box — the number the
-   *  recording cull grows by, so a wide scatter is not truncated. */
+   *  recording cull grows by, so a wide scatter is not truncated.
+   *
+   *  `curves` are the easing functions the body reads, carried on the value
+   *  so they reach the comparison: a named curve is compared by identity and
+   *  a lambda compares UNEQUAL, which is the rule every other curve slot in
+   *  the library follows. Leaving a curve out of this list would make an
+   *  effect that reshapes its motion compare equal to the one it replaced,
+   *  and the reconciler would keep drawing the old one. */
   TextEffect(std::string name, std::vector<float> params, GlyphModFn fn,
-             float reach);
+             float reach, std::vector<choreograph::EaseFn> curves = {});
 
   /** Evaluates the deviation. An empty effect answers the identity. */
   GlyphMod operator()(const GlyphInfo& g, float t, Rng& rng) const {
@@ -698,6 +712,7 @@ class TextEffect {
     std::string name;
     std::vector<float> params;
     std::vector<TextEffect> operands;
+    std::vector<choreograph::EaseFn> curves;
     GlyphModFn fn;
     float reach = 0;
   };

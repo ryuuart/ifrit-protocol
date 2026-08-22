@@ -2307,6 +2307,147 @@ TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
                fx::mix(fx::slide(), fx::rise(20)));
 }
 
+TEST(ComposeTextFx, KeysReproducesEveryEntryAtItsOwnPosition) {
+  // A published table is a promise about the moments it names. Whatever the
+  // curve between them, the deviation AT an entry is the entry.
+  const std::vector<fx::Key> table = {
+      {0.00f, {}},
+      {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
+      {0.65f, {.scaleX = 0.95f, .scaleY = 1.05f}},
+      {1.00f, {}}};
+  const TextEffect rubber = fx::keys(table, &choreograph::easeInOutCubic);
+  for (const fx::Key& key : table) {
+    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleX, key.mod.scaleX)
+        << "scaleX at " << key.at;
+    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleY, key.mod.scaleY)
+        << "scaleY at " << key.at;
+  }
+  // Outside the table's own span it HOLDS at the ends rather than
+  // extrapolating numbers nobody published.
+  EXPECT_FLOAT_EQ(evaluate(rubber, -0.5f).scaleX, 1.0f);
+  EXPECT_FLOAT_EQ(evaluate(rubber, 2.0f).scaleX, 1.0f);
+}
+
+TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
+  // THE WHOLE CURVE, EVERY SEGMENT — which is what a keyframe list means
+  // and what one curve stretched across the table would not be. Three
+  // entries are the fewest that can tell the two apart.
+  const std::vector<fx::Key> ramp = {
+      {0.0f, {}}, {0.5f, {.dy = 10.0f}}, {1.0f, {}}};
+  const TextEffect linear = fx::keys(ramp);
+  EXPECT_FLOAT_EQ(evaluate(linear, 0.125f).dy, 2.5f);
+
+  const TextEffect eased = fx::keys(ramp, &choreograph::easeInOutCubic);
+  EXPECT_FLOAT_EQ(evaluate(eased, 0.5f).dy, 10.0f);  // the entry is still exact
+  EXPECT_LT(evaluate(eased, 0.125f).dy, 1.5f)  // …the middle is not linear
+      << "a quarter of the way into the first segment the reading is the "
+         "linear one, so the curve was not applied to the segment";
+  // The second segment runs the same curve over its own span: a quarter in
+  // and a quarter from the end of the two segments are mirror readings.
+  EXPECT_NEAR(evaluate(eased, 0.375f).dy, evaluate(eased, 0.625f).dy, 1e-4f);
+
+  // A per-entry curve governs the segment that OPENS at that entry, and no
+  // other.
+  std::vector<fx::Key> mixed = ramp;
+  mixed[0].ease = &choreograph::easeNone;
+  const TextEffect part = fx::keys(mixed, &choreograph::easeInOutCubic);
+  EXPECT_FLOAT_EQ(evaluate(part, 0.125f).dy, 2.5f);
+  EXPECT_NEAR(evaluate(part, 0.625f).dy, evaluate(eased, 0.625f).dy, 1e-4f);
+}
+
+TEST(ComposeTextFx, KeysCutsASubstitutionAndLerpsAMatchingAxis) {
+  // The seq crossfade's rules, because it is the same arithmetic: there is
+  // no half-way glyph between two outlines, and an axis is the one
+  // substitution with a continuum — and only between two entries naming the
+  // SAME axis.
+  const TextEffect letters =
+      fx::keys({{0.0f, {.codepoint = U'A'}}, {1.0f, {.codepoint = U'B'}}});
+  EXPECT_EQ(evaluate(letters, 0.40f).codepoint, U'A');
+  EXPECT_EQ(evaluate(letters, 0.60f).codepoint, U'B');
+
+  const sigil::weave::FontVariation light("GRAD", 400.0f);
+  const sigil::weave::FontVariation heavy("GRAD", 800.0f);
+  const TextEffect swept =
+      fx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = heavy}}});
+  const GlyphMod midway = evaluate(swept, 0.5f);
+  ASSERT_TRUE(midway.axis.has_value());
+  EXPECT_FLOAT_EQ(midway.axis.value_or(sigil::weave::FontVariation()).value,
+                  600.0f);
+
+  const sigil::weave::FontVariation slant("slnt", -10.0f);
+  const TextEffect crossed =
+      fx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = slant}}});
+  const auto tagOf = [](const GlyphMod& mod) {
+    return mod.axis ? std::string(mod.axis->tag, 4) : std::string("(unset)");
+  };
+  EXPECT_EQ(tagOf(evaluate(crossed, 0.4f)), "GRAD");
+  EXPECT_EQ(tagOf(evaluate(crossed, 0.6f)), "slnt")
+      << "two different axes were averaged, which names a coordinate on "
+         "neither of them";
+}
+
+TEST(ComposeTextFx, AKeyTableIsComparableByItsNumbersAndItsCurves) {
+  const auto table = [](float peak) {
+    return std::vector<fx::Key>{
+        {0.0f, {}}, {0.5f, {.scaleY = peak}}, {1.0f, {}}};
+  };
+  EXPECT_TRUE(fx::keys(table(1.25f)) == fx::keys(table(1.25f)));
+  EXPECT_FALSE(fx::keys(table(1.25f)) == fx::keys(table(1.30f)));
+  // The curve is part of the identity. A table re-eased is a different
+  // motion, and an effect comparing equal to the one it replaced would go
+  // on drawing the old one with no diagnostic.
+  EXPECT_FALSE(fx::keys(table(1.25f)) ==
+               fx::keys(table(1.25f), &choreograph::easeInOutCubic));
+  EXPECT_FALSE(fx::keys(table(1.25f), &choreograph::easeOutQuad) ==
+               fx::keys(table(1.25f), &choreograph::easeInOutCubic));
+  EXPECT_TRUE(fx::keys(table(1.25f), &choreograph::easeInOutCubic) ==
+              fx::keys(table(1.25f), &choreograph::easeInOutCubic));
+}
+
+TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
+  Host host;
+  const auto tree = [] {
+    return box().padding(10).child(
+        text(u8"KEYS", whiteStyle(28))
+            .key("k")
+            .fx({.effect =
+                     fx::keys({{0.0f, {}}, {0.5f, {.dy = -8.0f}}, {1.0f, {}}},
+                              &choreograph::easeInOutCubic)}));
+  };
+  host.composer.render(tree());
+  for (int i = 0; i < 4; ++i) host.frame(0.016);
+  host.composer.render(tree());  // fresh Elements, an identical table
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame(0.016);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+
+  // The control: a table with one number moved is a different value, and
+  // the node it describes has to be patched.
+  host.composer.render(box().padding(10).child(
+      text(u8"KEYS", whiteStyle(28))
+          .key("k")
+          .fx({.effect =
+                   fx::keys({{0.0f, {}}, {0.5f, {.dy = -9.0f}}, {1.0f, {}}},
+                            &choreograph::easeInOutCubic)})));
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u);
+}
+
+TEST(ComposeTextFx, HoldWithholdsTheEffectUntilTheBeatOpens) {
+  const TextEffect held = fx::hold(constantDy(10));
+  EXPECT_FLOAT_EQ(evaluate(held, 0.0f).alpha, 0.0f);
+  EXPECT_FLOAT_EQ(evaluate(held, 0.0f).dy, 0.0f)
+      << "the wrapped effect ran on a beat that had not opened";
+  // …and the moment it opens, EXACTLY the wrapped effect.
+  EXPECT_FLOAT_EQ(evaluate(held, 0.001f).alpha, 1.0f);
+  EXPECT_FLOAT_EQ(evaluate(held, 0.001f).dy, 10.0f);
+  EXPECT_FLOAT_EQ(evaluate(held, 1.0f).dy, 10.0f);
+
+  EXPECT_TRUE(fx::hold(fx::rise(20)) == fx::hold(fx::rise(20)));
+  EXPECT_FALSE(fx::hold(fx::rise(20)) == fx::hold(fx::rise(22)));
+  EXPECT_FALSE(fx::hold(fx::rise(20)) == fx::rise(20));
+  EXPECT_FLOAT_EQ(fx::hold(fx::rise(20)).reach(), fx::rise(20).reach());
+}
+
 // ---- the second wave of deviations: tint, axis, substitution, matrix ------
 
 namespace {
@@ -2335,6 +2476,22 @@ SkIRect inkBounds(Host& host, int w, int h) {
           bounds.join(pixel);
       }
   return bounds;
+}
+
+/** The mean y of the inked pixels on columns [left, right). */
+float inkCentroidY(Host& host, int h, int left, int right) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(right - left, h));
+  host.surface->readPixels(bitmap.pixmap(), left, 0);
+  double sum = 0;
+  int count = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < right - left; ++x)
+      if (bitmap.getColor(x, y) != SK_ColorBLACK) {
+        sum += y;
+        ++count;
+      }
+  return count ? (float)(sum / count) : 0.0f;
 }
 
 /** The mean x of the inked pixels on rows [top, bottom). */
@@ -2532,7 +2689,84 @@ TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
       << "scaleY widened the glyph, so the scale was not non-uniform";
 }
 
-TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
+TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
+  // The end-to-end half of the hold: not "the effect returns alpha 0" but
+  // "no ink reaches the surface" — and it holds against a SECOND track whose
+  // own progress is long settled, because alpha multiplies and a glyph that
+  // has not arrived has not arrived.
+  choreograph::Output<float> progress{0.0f};
+  GlyphMod lift;
+  lift.dy = -3;
+  const auto render = [&](Host& host, TextEffect decode) {
+    host.composer.render(box().padding(20).child(
+        text(u8"HOLD", whiteStyle(36))
+            .key("k")
+            .fx({.effect = std::move(decode),
+                 .stagger = {.eachMs = 40, .durationMs = 200},
+                 .progress = &progress})
+            .fx({.effect = fixed("lift", lift)})));
+    host.frame();
+  };
+  // The control first: unheld, the same tree at the same moment paints —
+  // wrong letters, but it paints — so an empty surface below is the hold's
+  // doing and not a scene that never drew.
+  Host unheld(240, 140);
+  render(unheld, fx::scramble(U"XYZ", 6));
+  ASSERT_FALSE(inkBounds(unheld, 240, 140).isEmpty())
+      << "the unheld decode drew nothing, so this test proves nothing";
+
+  Host host(240, 140);
+  render(host, fx::hold(fx::scramble(U"XYZ", 6)));
+  EXPECT_TRUE(inkBounds(host, 240, 140).isEmpty())
+      << "a decode drew before any of its beats had opened — either the "
+         "hold let the effect through, or the second track's open beat "
+         "overrode it";
+
+  progress = 1.0f;
+  host.frame();
+  EXPECT_FALSE(inkBounds(host, 240, 140).isEmpty())
+      << "the hold never released";
+}
+
+TEST(ComposeTextFx, SkewYShearsTheOtherAxisAndTakesTheMatrixPath) {
+  // The Y counterpart, probed on the axis skewX leaves alone: an X shear
+  // moves the top sideways, a Y shear pushes the right side DOWN. Reading
+  // the same asymmetry on the same axis for both would pass for a `skewY`
+  // that was quietly wired to `skewXDeg`.
+  const auto render = [&](Host& host, std::string key, GlyphMod mod) {
+    host.composer.render(box().padding(60).child(
+        text(u8"H", whiteStyle(60))
+            .key("k")
+            .fx({.effect = fixed(std::move(key), mod)})));
+    host.frame();
+  };
+  Host upright(200, 200);
+  render(upright, "upright", GlyphMod{});
+  const SkIRect rest = inkBounds(upright, 200, 200);
+  ASSERT_FALSE(rest.isEmpty()) << "the resting glyph never painted";
+
+  GlyphMod leaning;
+  leaning.skewYDeg = 30;
+  Host sheared(200, 200);
+  render(sheared, "shearedY", leaning);
+  const SkIRect leant = inkBounds(sheared, 200, 200);
+  EXPECT_GT(leant.height(), rest.height() + 4)
+      << "a 30-degree Y shear did not deepen the glyph's footprint";
+  EXPECT_LE(leant.width(), rest.width() + 2)
+      << "the Y shear widened the glyph, which is what an X shear does";
+  // …and it leans the way Element::skewY does: the right side toward +y.
+  const int band = std::max(leant.width() / 4, 2);
+  EXPECT_LT(inkCentroidY(sheared, 200, leant.left(), leant.left() + band),
+            inkCentroidY(sheared, 200, leant.right() - band, leant.right()))
+      << "the shear leant the wrong way, or not at all";
+}
+
+namespace {
+
+/** Runs the fast-path/matrix-neighbour check with one line sheared on the
+ *  axis @p lean names — the SAME assertion for each shear axis, so a routing
+ *  condition that learns about one and not the other fails here. */
+void expectFastPathLineUntouched(GlyphMod lean) {
   // The route is decided PER GLYPH. A glyph whose deviation is an RSXform
   // draws exactly as it would if no glyph in the node needed a matrix —
   // otherwise adding a shear to one line would silently re-rasterize every
@@ -2545,11 +2779,8 @@ TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
                     .key("k")
                     .width(70)
                     .fx({.effect = fixed("lift", lift)});
-    if (shearSecondLine) {
-      GlyphMod lean;
-      lean.skewXDeg = 25;
+    if (shearSecondLine)
       t.fx({.where = sel::line(1), .effect = fixed("lean", lean)});
-    }
     return box().padding(10).child(std::move(t));
   };
   Host plain(200, 200), mixed(200, 200);
@@ -2599,6 +2830,23 @@ TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
     below = std::memcmp(reference.getAddr32(0, y), sheared.getAddr32(0, y),
                         kRowBytes) != 0;
   EXPECT_TRUE(below) << "the shear track changed nothing anywhere";
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, AGlyphOnTheFastPathIsUntouchedByAMatrixNeighbour) {
+  GlyphMod leanX;
+  leanX.skewXDeg = 25;
+  expectFastPathLineUntouched(leanX);
+}
+
+TEST(ComposeTextFx, AGlyphWithNoYShearKeepsTheFastPathBesideOneThatHasIt) {
+  // The same assertion on the axis the routing condition learned LAST: a
+  // glyph whose `skewYDeg` is 0 must stay on the shared transform array
+  // however its neighbours lean.
+  GlyphMod leanY;
+  leanY.skewYDeg = 25;
+  expectFastPathLineUntouched(leanY);
 }
 
 TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {

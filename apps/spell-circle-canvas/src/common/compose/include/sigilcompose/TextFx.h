@@ -22,6 +22,11 @@
  *            .effect = fx::waveLoop(),
  *            .progress = &phase});
  *
+ * A published keyframe list is a value here too: `fx::keys` takes the
+ * table, `fx::seq` and `fx::mix` put whole effects in sequence and in
+ * parallel, and `fx::hold` keeps one from performing before its unit's
+ * beat opens.
+ *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
  * WRAPPING bound phase (an Output stepped mod 1). Everything renders
  * through batched RSXform draws — moving text is never per-glyph draw
@@ -255,6 +260,73 @@ inline constexpr float kNominalSizePx = 96.0f;
                     reach);
 }
 
+/** ONE ENTRY OF A `fx::keys` TABLE: where it sits in local time, the
+ *  deviation there, and — optionally — the curve for the segment that
+ *  STARTS at it. */
+struct Key {
+  float at = 0;  ///< local time, 0→1
+  GlyphMod mod;  ///< the deviation at that moment
+  /** The curve this entry's own segment is interpolated with, overriding
+   *  the table's. Unset takes the table's; the LAST entry's is never read,
+   *  because no segment starts there. */
+  choreograph::EaseFn ease;
+};
+
+/** THE KEYFRAME TABLE: a list of (local time, deviation) entries, and the
+ *  curve between them.
+ *
+ *      const TextEffect rubberBand = fx::keys({
+ *          {0.00f, {}},
+ *          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
+ *          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
+ *          {1.00f, {}},
+ *      }, &choreograph::easeInOutCubic);
+ *
+ *  Entries are read IN ORDER and each pair is one segment; local time
+ *  before the first entry holds the first entry's deviation and time after
+ *  the last holds the last's. Two entries at the same moment are a STEP,
+ *  and the later one is what the step lands on.
+ *
+ *  THE CURVE APPLIES PER SEGMENT, not across the table: `at` says where a
+ *  segment ends, the curve says how it is crossed, and every segment runs
+ *  the whole curve. That is what a published keyframe list means — a table
+ *  crossed by one curve end to end would ease into the first entry and out
+ *  of the last and run the middle at whatever slope the curve happened to
+ *  have there. Unset, a segment is linear.
+ *
+ *  Interpolation is COMPONENTWISE and follows the `fx::seq` crossfade
+ *  exactly, because it is the same arithmetic: `codepoint` cuts at the
+ *  middle of the segment rather than lerping, since there is no half-way
+ *  glyph between two outlines; `axis` lerps only when the two entries name
+ *  the SAME tag, and otherwise cuts the same way.
+ *
+ *  The table IS the identity — two `keys` over the same numbers and the
+ *  same named curves compare equal and prune — and it declares its own
+ *  reach from the offsets, growths and leans it publishes. */
+[[nodiscard]] TextEffect keys(std::vector<Key> table,
+                              choreograph::EaseFn ease = nullptr);
+
+/** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit
+ *  whose beat has not begun paints nothing at all.
+ *
+ *  A cascade hands every unit a local time clamped to [0,1], so a unit
+ *  waiting its turn is handed 0 — and an effect that deviates at 0 is
+ *  already performing before its beat. A substitution is the case that
+ *  shows: `fx::scramble` churns from local 0, so a glyph still waiting
+ *  shows a WRONG letter rather than no letter. This says "not yet".
+ *
+ *  The hold is ALPHA 0, not the identity: the point is a glyph that has not
+ *  arrived, and the identity is a glyph sitting at rest, which for a
+ *  substitution is the answer the effect exists to withhold. Alpha
+ *  multiplies across tracks, so this is a VETO — a glyph whose held track
+ *  has not opened paints nothing however many other tracks have opened on
+ *  it. Put the hold on the track that owns the glyph's arrival.
+ *
+ *  A ONE-SHOT effect is what this is for. A loop reads a wrapping phase
+ *  that passes through 0 on every cycle, and a held loop would blink its
+ *  glyphs out each time it did. */
+[[nodiscard]] TextEffect hold(TextEffect effect);
+
 /** PHASES IN LOCAL TIME: each phase sees a renormalized 0→1 over its own
  *  window, so `fx::seq(a.until(0.35f), b.until(0.75f).xfade(0.10f), c)`
  *  plays `a` over the first 35% of every unit's beat, `b` over the next
@@ -262,7 +334,14 @@ inline constexpr float kNominalSizePx = 96.0f;
  *
  *  The default joint is a hard cut. `.xfade(f)` on the ENDING phase lerps
  *  its deviation into the next one's, componentwise, over the last `f` of
- *  local time before the joint. */
+ *  local time before the joint.
+ *
+ *  A sequence is NOT a keyframe table over effects, and neither combinator
+ *  is the other's special case: a phase is an EFFECT re-clocked over its
+ *  window and free to move throughout it, where a key is one deviation
+ *  standing still and lerped toward. What they do share is the
+ *  componentwise interpolation — the crossfade here and a segment there run
+ *  the same arithmetic, so the substitutions cut the same way in both. */
 [[nodiscard]] TextEffect seq(std::vector<Phase> phases);
 template <typename... Rest>
 [[nodiscard]] TextEffect seq(Phase first, Rest&&... rest) {

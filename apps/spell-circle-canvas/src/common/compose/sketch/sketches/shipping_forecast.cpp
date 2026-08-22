@@ -94,7 +94,8 @@
 //            current layout, which re-breaks with the column.
 //   pressure a monospaced readout that decodes into place. The substitution
 //            keeps the original pen positions, so a proportional face would
-//            refuse it and this one does not.
+//            refuse it and this one does not; and the decode is HELD, so a
+//            character waiting its turn is absent rather than churning.
 //   spine    the same engine running DOWN the page: a column whose Latin
 //            lies on its side, entering cluster by cluster off its own
 //            rotated baseline.
@@ -109,11 +110,7 @@
 //     it is the words that are addressable, not the treatment they wear, so
 //     a third glossary word means a third string here. Every glyph knows
 //     its `styleIndex`; nothing can select on it.
-//  2. A DECODE HAS NO "NOT YET". `fx::scramble` substitutes from local 0,
-//     so a track that has not started yet is churning rather than absent,
-//     and the node needs its own opacity beat to be dark before its turn.
-//     An effect cannot say "leave the glyph alone until t rises".
-//  3. `spanPaint` cannot reach a variable-font axis or a face. Picking the
+//  2. `spanPaint` cannot reach a variable-font axis or a face. Picking the
 //     Beaufort numerals out in a heavier grade would be a `spanStyle`, and
 //     that re-shapes the words it covers — so the numerals are picked out
 //     in colour alone, which is the honest half of what was wanted.
@@ -537,13 +534,15 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .opacity(beat(2.10f, 2.65f)))
         .child(text(toU8("1003 FALLING SLOWLY"), mono)
                    .key("baro")
-                   // A decode is churning at local 0, not absent: the
-                   // substitution is in force from the first frame of the
-                   // track. Nothing in the effect says "not yet", so the
-                   // node is dark until its own beat opens.
-                   .opacity(beat(2.10f, 2.45f))
-                   .fx({.effect = fx::scramble(
-                            U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16),
+                   // HELD, because a decode is otherwise churning at local
+                   // 0: the substitution is in force from the track's first
+                   // frame, so a glyph waiting its turn would show a wrong
+                   // letter rather than no letter. The hold is per GLYPH,
+                   // which is what a node-wide fade cannot be — each
+                   // character of the readout arrives on its own beat and
+                   // is simply absent before it.
+                   .fx({.effect = fx::hold(fx::scramble(
+                            U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
                         .stagger = {.eachMs = 26,
                                     .durationMs = 520,
                                     .from = Stagger::From::Start},

@@ -1761,12 +1761,17 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         // unevenly draws under its own matrix while every glyph that does
         // not keeps the shared transform array untouched.
         SkMatrix matrix;
-        if (mod.skewXDeg != 0 || mod.scaleX != 1 || mod.scaleY != 1) {
+        if (mod.skewXDeg != 0 || mod.skewYDeg != 0 || mod.scaleX != 1 ||
+            mod.scaleY != 1) {
           matrix.setAll(turnCos, -turnSin, centre.x(), turnSin, turnCos,
                         centre.y(), 0, 0, 1);
-          if (mod.skewXDeg != 0)
-            matrix.preConcat(SkMatrix::MakeAll(
-                1, std::tan(mod.skewXDeg * 0.017453293f), 0, 0, 1, 0, 0, 0, 1));
+          // ONE shear carrying both angles, as the node's own skew lanes
+          // take them — not an x shear applied after a y one, which would
+          // put a product of the two tangents on the diagonal and scale the
+          // glyph as well as leaning it.
+          if (mod.skewXDeg != 0 || mod.skewYDeg != 0)
+            matrix.preSkew(std::tan(mod.skewXDeg * 0.017453293f),
+                           std::tan(mod.skewYDeg * 0.017453293f));
           matrix.preScale(mod.scale * mod.scaleX, mod.scale * mod.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it
           // does inside an RSXform.

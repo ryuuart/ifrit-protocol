@@ -311,6 +311,44 @@ phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
 `Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
 one time and composes them by the same algebra stacked tracks use.
 
+**Keyframe tables.** Every published web or motion reference is a list of
+(position, value) entries, and `fx::keys` is that list as an effect. A
+`fx::Key` is a moment in local time, a `GlyphMod` at it, and optionally a
+curve of its own:
+
+```cpp
+const TextEffect rubberBand = fx::keys({
+    {0.00f, {}},
+    {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
+    {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
+    {1.00f, {}},
+}, &choreograph::easeInOutCubic);
+```
+
+The curve applies **per segment** — every pair of entries runs the whole
+curve over its own span, which is what a keyframe list means and what one
+curve stretched across the table would not be. `fx::Key::ease` overrides it
+for the segment that *opens* at that entry; unset segments are linear.
+Interpolation is componentwise through the same arithmetic a `fx::seq`
+crossfade uses, so `codepoint` cuts at the middle of a segment and `axis`
+lerps only between entries naming the same tag. The table is the identity:
+two `fx::keys` over the same numbers and the same named curves compare equal
+and prune, and a table declares its own reach from the offsets, growths and
+leans it publishes. A sequence is not a table over effects and neither is the
+other's special case — a `Phase` is an effect re-clocked over its window, a
+`fx::Key` is one deviation standing still.
+
+**Holding a beat.** `fx::hold` wraps an effect so a unit whose beat has not
+opened paints *nothing*: a cascade hands a waiting unit a local time clamped
+to 0, and an effect that deviates at 0 is already performing out of turn.
+`fx::scramble` is the case that shows — it substitutes from local 0, so an
+unheld glyph still waiting shows a *wrong* letter rather than no letter. The
+hold is alpha 0 and not the identity, because the identity is a glyph sitting
+at rest, which for a substitution is exactly the answer the effect exists to
+withhold. Alpha multiplies, so a hold is a **veto**: a glyph whose held track
+has not opened paints nothing however many other tracks have opened on it.
+Put it on the track that owns the glyph's arrival.
+
 **Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
 the same scatter on every frame and after every relayout — which is what
 lets it settle and cache instead of jittering forever.
@@ -319,10 +357,12 @@ lets it settle and cache instead of jittering forever.
 `alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
 pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `scaleX`,
-`scaleY` and `skewXDeg` place the glyph with a full matrix, because an
-RSXform carries a rotation and one scale and no shear at all; `axis` drives
-a variable-font axis at draw time; and `codepoint` draws a different letter
-in this one's place. The last two are SUBSTITUTIONS and compose
+`scaleY`, `skewXDeg` and `skewYDeg` place the glyph with a full matrix,
+because an RSXform carries a rotation and one scale and no shear at all —
+the two shear angles read as `Element::skewX` and `Element::skewY` do, and a
+glyph naming both takes one shear pair rather than one shear after the
+other; `axis` drives a variable-font axis at draw time; and `codepoint`
+draws a different letter in this one's place. The last two are SUBSTITUTIONS and compose
 last-one-wins — a `fx::seq` crossfade cuts them at the middle of its window
 rather than lerping, because there is no half-way glyph between two
 outlines. (Two phases driving the *same* axis are the exception, and lerp.)
@@ -655,8 +695,9 @@ parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
 Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
 gradients and blurs rather than shaders.
 
-**Components.** `TextFx.h` supplies the stock effects, and the `fx::seq`
-and `fx::mix` combinators, for the kernel's `Element::fx` seam.
+**Components.** `TextFx.h` supplies the stock effects, the `fx::keys`
+keyframe table, and the `fx::seq`, `fx::mix` and `fx::hold` combinators, for
+the kernel's `Element::fx` seam.
 `Feed.h` is the streaming collection — a `feed::Ring` of rows, windowed to
 the newest `feed::Options::visible` and keyed by sequence id, so an append
 costs one mount and every surviving row keeps its cached picture; rows of

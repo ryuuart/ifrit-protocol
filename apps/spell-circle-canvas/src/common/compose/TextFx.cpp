@@ -10,6 +10,8 @@
  * time and composing the deviations.
  */
 
+#include "sigilcompose/TextFx.h"
+
 #include <sigilweave/Choreograph.h>
 #include <sigilweave/Query.h>
 
@@ -29,10 +31,12 @@ namespace sigil::compose {
 // TextEffect
 
 TextEffect::TextEffect(std::string name, std::vector<float> params,
-                       GlyphModFn fn, float reach) {
+                       GlyphModFn fn, float reach,
+                       std::vector<choreograph::EaseFn> curves) {
   auto state = std::make_shared<State>();
   state->name = std::move(name);
   state->params = std::move(params);
+  state->curves = std::move(curves);
   state->fn = std::move(fn);
   state->reach = reach;
   m_state = std::move(state);
@@ -70,9 +74,15 @@ std::span<const TextEffect> TextEffect::operands() const {
 bool TextEffect::operator==(const TextEffect& other) const {
   if (m_state == other.m_state) return true;  // copies of one value
   if (!m_state || !other.m_state) return false;
-  return m_state->name == other.m_state->name &&
-         m_state->params == other.m_state->params &&
-         m_state->operands == other.m_state->operands;
+  if (m_state->name != other.m_state->name ||
+      m_state->params != other.m_state->params ||
+      m_state->operands != other.m_state->operands)
+    return false;
+  if (m_state->curves.size() != other.m_state->curves.size()) return false;
+  for (size_t i = 0; i < m_state->curves.size(); ++i)
+    if (!detail::easeEqual(m_state->curves[i], other.m_state->curves[i]))
+      return false;
+  return true;
 }
 
 Phase TextEffect::until(float t) const { return Phase(*this, t); }
@@ -893,11 +903,30 @@ void TrackCascade::build(const Stagger& spec, const GlyphStructure& structure,
 // ---------------------------------------------------------------------------
 // Composition
 
+/** FIELD PIN. `compose()` and `lerpMod()` below are hand-written exhaustive
+ *  lists over GlyphMod's members, and so is the routing decision in
+ *  Paint.cpp that sends a glyph down the matrix path. All three fail the
+ *  same way when a field is added and one of them is not told: silently, by
+ *  drawing the deviation of some other track or some other moment. */
+void glyphModFieldPin(GlyphMod& v) {
+  auto& [dx, dy, scale, rotateDeg, alpha, colorMul, scaleX, scaleY, skewXDeg,
+         skewYDeg, axis, codepoint] = v;
+  static_assert(
+      std::tuple_size_v<decltype(std::tie(dx, dy, scale, rotateDeg, alpha,
+                                          colorMul, scaleX, scaleY, skewXDeg,
+                                          skewYDeg, axis, codepoint))> == 12,
+      "GlyphMod gained or lost a field — rule on it in compose() and "
+      "lerpMod() below, and in the matrix ROUTING in Paint.cpp (a field an "
+      "RSXform cannot carry has to send its glyph down the matrix path), "
+      "then bump this count.");
+}
+
 void compose(GlyphMod& into, const GlyphMod& next) {
   into.dx += next.dx;
   into.dy += next.dy;
   into.rotateDeg += next.rotateDeg;
   into.skewXDeg += next.skewXDeg;
+  into.skewYDeg += next.skewYDeg;
   into.scale *= next.scale;
   into.scaleX *= next.scaleX;
   into.scaleY *= next.scaleY;
@@ -919,6 +948,7 @@ GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
   out.dy = a.dy + (b.dy - a.dy) * w;
   out.rotateDeg = a.rotateDeg + (b.rotateDeg - a.rotateDeg) * w;
   out.skewXDeg = a.skewXDeg + (b.skewXDeg - a.skewXDeg) * w;
+  out.skewYDeg = a.skewYDeg + (b.skewYDeg - a.skewYDeg) * w;
   out.scale = a.scale + (b.scale - a.scale) * w;
   out.scaleX = a.scaleX + (b.scaleX - a.scaleX) * w;
   out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
@@ -997,7 +1027,7 @@ TextEffect seq(std::vector<Phase> phases) {
         const float width = end - begin;
         const float local =
             width > 0 ? std::clamp((t - begin) / width, 0.0f, 1.0f) : 1.0f;
-        Rng own(detail::glyphSeed(g, (uint32_t)index));
+        Rng own(compose::detail::glyphSeed(g, (uint32_t)index));
         GlyphMod mod = phases[index].effect()(g, local, own);
         // The crossfade window sits at the END of this phase, so at the
         // joint the blend has already reached the next phase's own start.
@@ -1005,11 +1035,114 @@ TextEffect seq(std::vector<Phase> phases) {
         if (overlap > 0 && index + 1 < phases.size() && t > end - overlap) {
           const float w =
               std::clamp((t - (end - overlap)) / overlap, 0.0f, 1.0f);
-          Rng nextRng(detail::glyphSeed(g, (uint32_t)index + 1));
+          Rng nextRng(compose::detail::glyphSeed(g, (uint32_t)index + 1));
           const GlyphMod next = phases[index + 1].effect()(g, 0.0f, nextRng);
-          mod = detail::lerpMod(mod, next, w);
+          mod = compose::detail::lerpMod(mod, next, w);
         }
         return mod;
+      },
+      reach);
+}
+
+namespace {
+
+/** One entry's numbers, laid end to end. Every field of a GlyphMod is here,
+ *  at a fixed stride, so two tables compare exactly when they say the same
+ *  thing — structural equality over the whole table rather than a digest of
+ *  it. The two substitutions ride along as numbers: a code point IS one, and
+ *  an axis is its four tag bytes, its value, and whether it was set at all. */
+void appendKeyParams(std::vector<float>& out, const Key& key) {
+  const GlyphMod& m = key.mod;
+  out.insert(out.end(), {key.at, m.dx, m.dy, m.scale, m.rotateDeg, m.alpha,
+                         m.colorMul.fR, m.colorMul.fG, m.colorMul.fB,
+                         m.colorMul.fA, m.scaleX, m.scaleY, m.skewXDeg,
+                         m.skewYDeg, (float)m.codepoint, m.axis ? 1.0f : 0.0f});
+  const sigil::weave::FontVariation axis =
+      m.axis.value_or(sigil::weave::FontVariation());
+  for (const char byte : axis.tag) out.push_back((float)(unsigned char)byte);
+  out.push_back(axis.value);
+}
+
+/** How far past its box a table may throw a glyph. Every published entry is
+ *  read: the offsets outright, and a growth or a lean as the fraction of the
+ *  glyph it displaces, against the nominal display size no effect knows at
+ *  construction. Over-reporting is safe, so the two are added rather than
+ *  reasoned about. */
+float keysReach(const std::vector<Key>& table) {
+  float reach = 0;
+  for (const Key& key : table) {
+    const GlyphMod& m = key.mod;
+    const float grown = std::max({std::abs(m.scale * m.scaleX),
+                                  std::abs(m.scale * m.scaleY), 1.0f}) -
+                        1.0f;
+    const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
+    reach = std::max(reach, std::abs(m.dx) + std::abs(m.dy) +
+                                (grown + (leans ? 0.5f : 0.0f)) *
+                                    fx::detail::kNominalSizePx);
+  }
+  return reach;
+}
+
+}  // namespace
+
+TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
+  if (table.empty()) return TextEffect();
+  std::vector<float> params;
+  params.reserve(table.size() * 21);
+  // The table-wide curve first, then one slot per entry whether or not that
+  // entry overrode it: equal tables then always compare curve lists of equal
+  // length, and a curve moved from one entry to another is a difference.
+  std::vector<choreograph::EaseFn> curves;
+  curves.reserve(table.size() + 1);
+  curves.push_back(ease);
+  for (const Key& key : table) {
+    appendKeyParams(params, key);
+    curves.push_back(key.ease);
+  }
+  const float reach = keysReach(table);
+  return TextEffect(
+      "keys", std::move(params),
+      [table = std::move(table), ease = std::move(ease)](const GlyphInfo&,
+                                                         float t, Rng&) {
+        t = std::clamp(t, 0.0f, 1.0f);
+        if (t <= table.front().at) return table.front().mod;
+        for (size_t i = 1; i < table.size(); ++i) {
+          if (t > table[i].at) continue;
+          const Key& from = table[i - 1];
+          const Key& to = table[i];
+          const float span = to.at - from.at;
+          // A zero-width segment is a STEP, and the later entry is what a
+          // step lands on.
+          const float u = span > 0 ? (t - from.at) / span : 1.0f;
+          // The curve is the one named on the segment's OPENING entry, which
+          // is where a keyframe list states it.
+          const choreograph::EaseFn& curve = from.ease ? from.ease : ease;
+          return compose::detail::lerpMod(from.mod, to.mod,
+                                          curve ? curve(u) : u);
+        }
+        return table.back().mod;
+      },
+      reach, std::move(curves));
+}
+
+TextEffect hold(TextEffect effect) {
+  const float reach = effect.reach();
+  std::vector<TextEffect> operands{effect};
+  return TextEffect::composite(
+      "hold", {}, std::move(operands),
+      [effect = std::move(effect)](const GlyphInfo& g, float t, Rng& rng) {
+        // Local time is CLAMPED at both ends, so a unit whose beat has not
+        // opened is handed 0 and one whose beat is over is handed 1 — which
+        // makes t at its floor the whole signal there is that a beat is
+        // still to come.
+        if (t <= 0.0f) {
+          GlyphMod mod;
+          mod.alpha = 0.0f;
+          return mod;
+        }
+        // The glyph's OWN stream, not a lane of its own: a held effect draws
+        // exactly the numbers it would have drawn unheld.
+        return effect(g, t, rng);
       },
       reach);
 }
@@ -1043,8 +1176,9 @@ TextEffect scramble(std::u32string charset, int steps) {
         if (t >= settle) return mod;
         const uint32_t tick =
             (uint32_t)(std::clamp(t, 0.0f, 1.0f) * (float)ticks);
-        mod.codepoint = charset[detail::mix64Value(seed + tick * 0x9e3779b9u) %
-                                charset.size()];
+        mod.codepoint =
+            charset[compose::detail::mix64Value(seed + tick * 0x9e3779b9u) %
+                    charset.size()];
         return mod;
       },
       0.0f);
@@ -1060,8 +1194,8 @@ TextEffect mix(std::vector<TextEffect> effects) {
       [effects = std::move(effects)](const GlyphInfo& g, float t, Rng&) {
         GlyphMod out;
         for (size_t i = 0; i < effects.size(); ++i) {
-          Rng own(detail::glyphSeed(g, (uint32_t)i));
-          detail::compose(out, effects[i](g, t, own));
+          Rng own(compose::detail::glyphSeed(g, (uint32_t)i));
+          compose::detail::compose(out, effects[i](g, t, own));
         }
         return out;
       },
