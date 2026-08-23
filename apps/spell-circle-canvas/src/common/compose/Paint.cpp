@@ -804,6 +804,7 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
     }
   }
   inst.transformLive = moving;
+  inst.placementUnderMotion = moving || movingAbove;
   ownPaint |= moving;
 
   // Content volatility: what actually invalidates the node's own recording
@@ -1142,28 +1143,34 @@ bool samePathLayout(const TextPath& a, const TextPath& b) {
  *  size-cut ladder below). `TextPath::exactTangent` is the opt-out. */
 constexpr int kPathTangentSteps = 64;
 
-/** How many directions the path-tangent ladder offers a glyph rendered at
+/** How many directions the rotation ladder offers a glyph rendered at
  *  `pixelSize`.
  *
- *  A path glyph's rotation is snapped so a turning ring lands on a BOUNDED
- *  set of directions: every distinct rotation is both a batch bucket and a
- *  glyph-atlas strike. How coarse the ladder may be is a visual question
- *  whose answer scales with rendered size: one step turns the outline by a
- *  fixed angle, a fixed angle sweeps a glyph's extremity through more
- *  pixels the larger the em is drawn — at eight steps per pixel of em, one
- *  step's sweep at the extremity stays near a third of a pixel at EVERY
- *  size, where a size-blind ladder that vanishes on a caption ring makes
- *  display lettering visibly tick letter by letter as a marquee turns
- *  (each glyph crosses a step boundary at its own moment).
+ *  A turning glyph's rotation is snapped so it lands on a BOUNDED set of
+ *  directions: every distinct rotation is both a batch bucket and a
+ *  glyph-atlas strike, and lifting the ladder entirely mints a fresh strike
+ *  per letter per frame for several times the price of any ladder measured
+ *  here. How FINE the ladder must be is a visual question, and it has an
+ *  exact answer.
+ *
+ *  One step turns the glyph by 2π/N, which sweeps a point `r` from the
+ *  rotation centre through r·2π/N pixels. Take `r` as the glyph's own
+ *  half-em — the far edge of its ink — and cut the ladder at sixteen steps
+ *  per pixel of em, and that sweep is (px/2)·2π/(16·px) = π/16 ≈ 0.20 px AT
+ *  EVERY SIZE. The number to stay under is a QUARTER of a pixel, because
+ *  that is the phase grid a moving run's origins sit on: a ladder whose
+ *  step sweeps further than the grid is the coarsest thing left in the
+ *  motion and ticks letter by letter as each glyph crosses a step at its
+ *  own moment, while one that sweeps less disappears underneath it.
  *
  *  Both ends are clamped. The floor keeps small rings on the ladder they
- *  have always had; the ceiling is what bounds the strike population at
- *  all — the ladder's whole reason to exist — and it still does: the
- *  reachable directions per (face, size) stay at most the step count that
- *  size cuts. */
+ *  have always had. The ceiling is what bounds the strike population at
+ *  all — the ladder's whole reason to exist — and it binds from 128 px of
+ *  em upward, where a step's sweep begins to pass the grid again;
+ *  `TextPath::exactTangent` is the escape for artwork set that large. */
 int tangentLadderSteps(float pixelSize) {
-  constexpr float kStepsPerPixel = 8.0f;
-  constexpr int kMinSteps = 64, kMaxSteps = 1024;
+  constexpr float kStepsPerPixel = 16.0f;
+  constexpr int kMinSteps = 64, kMaxSteps = 2048;
   return std::clamp((int)std::lround(pixelSize * kStepsPerPixel), kMinSteps,
                     kMaxSteps);
 }
@@ -1823,6 +1830,30 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
 
+  // WHERE THIS RUN'S GLYPHS LAND MOVES FROM FRAME TO FRAME, which is what
+  // decides whether their origins go on Skia's subpixel phase grid or on
+  // whole pixels. Two ways a run creeps: a driven baseline phase (the
+  // marquee runs under the type) and a driven transform at or above the
+  // node (the figure turns under the type). Both make every letter's device
+  // position advance by a fraction of a pixel per frame, which whole-pixel
+  // origins cannot express — each letter stands still and then hops a whole
+  // pixel at its own moment.
+  //
+  // Read off the DECLARATION rather than off a frame-to-frame diff, so a
+  // marquee parked at a phase keeps the placement it was turning with. A
+  // diff would hand a stopping ring one last quarter-pixel shift at the
+  // moment it settled, which is a tick in exactly the place a tick is most
+  // visible.
+  const bool pathDriven =
+      ridesPath && (onPath->at.binding() ||
+                    (inst.anims[Instance::kTextPathAt] &&
+                     inst.anims[Instance::kTextPathAt]->value.isConnected()));
+  batches.subpixel = pathDriven || inst.placementUnderMotion;
+  // A pass lane draws the same run into its own layer, and a letter must
+  // not sit one place inside a pass and another outside it.
+  for (const std::unique_ptr<PassLane>& lane : passes)
+    lane->batches.subpixel = batches.subpixel;
+
   const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
 
   uint32_t ordinal = 0;
@@ -1898,7 +1929,18 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
             cosv = std::cos(radians);
             sinv = std::sin(radians);
           } else {
-            sigil::weave::quantizeAngle(radians, cosv, sinv);
+            // The SAME size-cut ladder the baseline's tangent takes, and
+            // for the same reason: a track's rotation composes with that
+            // tangent onto one glyph, so a coarser ladder here would be the
+            // coarsest thing in the letter's motion and would tick where the
+            // baseline no longer does. Track::continuous is still the opt-out
+            // that buys the exact angle at a fresh strike per letter per
+            // frame.
+            sigil::weave::quantizeAngle(
+                radians,
+                tangentLadderSteps(placed.shaped ? placed.shaped->fontSize
+                                                 : 0.0f),
+                cosv, sinv);
           }
         }
         const float halfAdvance = placed.advance * 0.5f;

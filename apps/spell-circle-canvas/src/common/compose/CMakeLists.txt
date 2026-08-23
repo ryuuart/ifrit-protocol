@@ -122,6 +122,7 @@ add_executable(compose_test
   test/ComposeTestEngineDocs.cpp
   test/ComposeTestTextData.cpp
   test/ComposeTestTextPass.cpp
+  test/ComposeTestPathMotion.cpp
   test/ComposeTestQueriesStudio.cpp
   test/ComposeTestGrammar.cpp
   test/ComposeTestMask.cpp

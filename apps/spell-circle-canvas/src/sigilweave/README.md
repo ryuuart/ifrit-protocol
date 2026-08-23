@@ -439,9 +439,26 @@ creation order alone would lay a late-fading letter's halo over its
 neighbour's stroke. A per-glyph fade rides `alphaScale` instead of a
 per-glyph style; quantize it when an effect drives it continuously, because
 distinct alphas are distinct buckets.
-Batched glyphs draw with subpixel positioning off and rotations quantized: a
-continuous per-letter angle or phase mints a fresh glyph-atlas strike per
-letter per frame.
+Batched glyphs draw with their rotations quantized: a continuous per-letter
+angle mints a fresh glyph-atlas strike per letter per frame.
+
+**`GlyphRSXformBatches::subpixel` is the caller's declaration that the
+glyphs it is adding MOVE between frames**, and it decides whether their
+origins land on Skia's subpixel phase grid or on whole pixels. It is off by
+default, because the phases are the second factor in a product: every mask
+is a (glyph, rotation, phase) triple, and the phases multiply what a
+rotation ladder has already multiplied, on both axes for an off-axis run. A
+run at REST gains nothing — its letters are not creeping anywhere — and
+would pay that multiplied population for a placement no one can see move. A
+MOVING run's arithmetic runs the other way: its masks were never going to be
+re-used, since the rotation it needs this frame is a different rotation next
+frame, so the phase grid only refines a mask it was going to rasterize
+regardless. Left on whole pixels, a run creeping by a fraction of a pixel
+per frame does not creep at all — each letter stands still until its own
+origin crosses a pixel boundary and then hops a whole one. This is the same
+trade the rotation ladder makes and not a competing one: the ladder still
+bounds the rotations, and dropping it in exchange costs several times what
+the grid does.
 
 **A `GlyphDress` carries what varies per glyph** rather than per pass — the
 placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`

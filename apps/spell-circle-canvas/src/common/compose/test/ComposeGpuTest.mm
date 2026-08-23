@@ -508,3 +508,70 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
   EXPECT_GT(bandWide, 0) << "the reach band was not painted";
   EXPECT_EQ(bandSnug, 0) << "a zero reach painted beyond the box";
 }
+
+// A TURNING RING ON GRAPHITE moves as smoothly as it does on the raster
+// backend. The rounding a glyph's device origin takes is decided by the
+// strike rather than by the backend, so this is the same measure the raster
+// suite makes and it must reach the same verdict: one letter on a ring, its
+// ink centroid tracked across consecutive frames, and the step between them
+// — which goes exactly to zero on whole-pixel origins, the letter standing
+// still for a frame before hopping a whole pixel.
+TEST(ComposeGpu, ATurningRingAdvancesSmoothly) {
+  REQUIRE_GPU();
+  constexpr int kField = 400;
+  constexpr float kPhaseStep = 1.0f / 2400.0f;
+  constexpr int kFrames = 60;
+  for (const float size : {14.0f, 44.0f}) {
+    sigil::motion::Ticker ticker;
+    Composer composer(ticker, fonts());
+    composer.setSize({kField, kField});
+    sigil::weave::TextStyle style;
+    style.shaping.fontSize = size;
+    style.paint.foreground.setColor(SK_ColorWHITE);
+    // Bound, which is how a marquee declares that it is turning.
+    choreograph::Output<float> phase{0.05f};
+    std::vector<SkPoint> track;
+    for (int i = 0; i < kFrames; ++i) {
+      phase = 0.05f + kPhaseStep * (float)i;
+      composer.render(box().child(
+          text(u8"H", style)
+              .key("ring")
+              .width(kField)
+              .height(kField)
+              .absolute()
+              .left(0)
+              .top(0)
+              .onPath({.path = shapes::circle(), .at = &phase, .align = TextPath::Align::Center})));
+      SkBitmap bm = drawOnGpu(composer, kField, kField);
+      ASSERT_FALSE(bm.isNull());
+      double sx = 0, sy = 0, sw = 0;
+      for (int y = 0; y < kField; ++y)
+        for (int x = 0; x < kField; ++x) {
+          const double w = SkColorGetG(bm.getColor(x, y)) / 255.0;
+          sx += w * x;
+          sy += w * y;
+          sw += w;
+        }
+      ASSERT_GT(sw, 0);
+      track.push_back({(float)(sx / sw), (float)(sy / sw)});
+    }
+    double sumSq = 0, meanStep = 0, minStep = 1e9;
+    for (size_t i = 1; i + 1 < track.size(); ++i) {
+      const double jerk = std::hypot(track[i + 1].x() - 2 * track[i].x() + track[i - 1].x(),
+                                     track[i + 1].y() - 2 * track[i].y() + track[i - 1].y());
+      sumSq += jerk * jerk;
+    }
+    for (size_t i = 1; i < track.size(); ++i) {
+      const double d = std::hypot(track[i].x() - track[i - 1].x(), track[i].y() - track[i - 1].y());
+      minStep = std::min(minStep, d);
+      meanStep += d;
+    }
+    meanStep /= (double)(track.size() - 1);
+    const double rmsJerk = std::sqrt(sumSq / (double)(track.size() - 2));
+    SCOPED_TRACE(testing::Message() << "size " << size << " meanStep " << meanStep << " minStep "
+                                    << minStep << " rmsJerk " << rmsJerk);
+    ASSERT_GT(meanStep, 0.1) << "the ring did not turn";
+    EXPECT_GT(minStep, 0.25 * meanStep) << "a frame the letter stood still";
+    EXPECT_LT(rmsJerk, 0.5 * meanStep) << "the letter's advance ticks";
+  }
+}

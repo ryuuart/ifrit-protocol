@@ -692,6 +692,22 @@ turning ring gets a proportionally finer ladder and does not tick letter
 by letter as a marquee turns; `TextPath::exactTangent` is the opt-out,
 for artwork that must hold the exact angle.
 
+**A RUN IN MOTION PLACES ITS GLYPHS ON THE SUBPIXEL GRID; a run at rest
+keeps whole-pixel origins.** A glyph mask is rasterized for a quantized
+origin, so a ring creeping along by a fraction of a pixel per frame does
+not creep at all on whole pixels: every letter stands still until its own
+origin crosses a pixel boundary and then hops a whole one, at its own
+moment. Nothing about the placement arithmetic causes it and no ladder
+fixes it. Two declarations put a run on the finer grid, both of them the
+question "does what this run draws land somewhere else next frame": a
+BOUND or animated `TextPath::at`, and a bound or animated `rotate()` (or
+any other geometric transform) at or above the text node. A phase written
+as a plain number, or a figure turned by re-describing a literal angle,
+declares nothing and is treated as type at rest. The grid is read off the
+declaration and never off a frame-to-frame difference, so a marquee parked
+at a phase keeps the placement it was turning with rather than taking one
+last quarter-pixel shift the moment it settles.
+
 **The baseline declares its own reach.** A resolved path is not bounded by
 the node's box — a custom `Shape` may return a curve well outside it, and
 `offset` rides the type further off again — so the cull grows by the curve's

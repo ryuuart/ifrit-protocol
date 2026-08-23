@@ -437,6 +437,33 @@ struct GlyphRSXformBatches {
     std::vector<SkGlyphID> matrixGlyphs;  ///< parallel to `matrices`
     std::vector<SkMatrix> matrices;
   };
+  /** THE GLYPHS ADDED HERE MOVE BETWEEN FRAMES, so their origins are placed
+   *  on Skia's SUBPIXEL PHASE GRID instead of on whole pixels.
+   *
+   *  A glyph mask is rasterized for a quantized origin. Left on whole
+   *  pixels, a run creeping along by a fraction of a pixel per frame does
+   *  not creep at all: each letter stands still until its own origin
+   *  crosses a pixel boundary and then HOPS a whole pixel, at its own
+   *  moment, which is exactly the unsteadiness a turning ring shows. On the
+   *  phase grid the same creep advances a quarter pixel at a time, and the
+   *  hop is a quarter of what it was.
+   *
+   *  IT IS OFF BY DEFAULT because the grid is the second factor in a
+   *  product. Every mask is a (glyph, rotation, phase) triple: the phases
+   *  multiply what a rotation ladder has already multiplied, on both axes
+   *  for an off-axis run. A run at REST gains nothing from it — its letters
+   *  are not creeping anywhere — and would pay the multiplied population
+   *  for a placement no one can see move, which is why settled type keeps
+   *  whole-pixel origins.
+   *
+   *  A MOVING run's arithmetic is the other way round. Its masks were never
+   *  going to be reused: the rotation it needs this frame is a different
+   *  rotation next frame, so the population it mints is per-frame either
+   *  way, and the phase grid only refines a mask it was going to rasterize
+   *  regardless. This is the same trade the rotation ladder makes and not a
+   *  competing one — the ladder still bounds the ROTATIONS, and dropping it
+   *  in exchange costs several times what the grid does. */
+  bool subpixel = false;
   std::vector<Batch> batches;  ///< one entry per distinct (font, pass) pair
   /// Where the last pass landed. Neighbouring glyphs repeat a pass, and a
   /// full SkPaint is dearer to compare than a color, so the scan starts
@@ -610,6 +637,9 @@ struct GlyphRSXformBatches {
   void clear() {
     constexpr size_t kRetainedBucketCap = 256;
     recentBatch = 0;
+    // Back to whole-pixel origins: the motion declaration belongs to the run
+    // that is about to be added, never to the one that just drew.
+    subpixel = false;
     if (batches.size() > kRetainedBucketCap) {
       batches.clear();
       return;
@@ -633,22 +663,21 @@ struct GlyphRSXformBatches {
          {PassBand::Underlay, PassBand::Foreground, PassBand::Overlay})
       for (const Batch& batch : batches) {
         if (batch.band != band) continue;
-        total += drawBatch(canvas, batch);
+        total += drawBatch(canvas, batch, subpixel);
       }
     return total;
   }
 
  private:
   /** One bucket's draws: the shared RSXform lane, then its matrix lane. */
-  static int drawBatch(SkCanvas* canvas, const Batch& batch) {
+  static int drawBatch(SkCanvas* canvas, const Batch& batch, bool subpixel) {
     if (batch.glyphs.empty() && batch.matrixGlyphs.empty()) return 0;
     int total = 0;
     SkFont font =
         makeFont(batch.typeface, batch.fontSize, batch.scaleX, batch.aliased);
-    // Tumbling letters move whole pixels every frame; subpixel phases
-    // would only multiply each (glyph, angle) into fresh atlas strikes —
-    // per-frame mask rasterization is exactly what caps these effects.
-    font.setSubpixel(false);
+    // Whole-pixel origins unless the run declared itself in motion — see
+    // `subpixel` above for which way that trade runs.
+    font.setSubpixel(subpixel);
     if (!batch.glyphs.empty()) {
       total += static_cast<int>(batch.glyphs.size());
       canvas->drawGlyphsRSXform(

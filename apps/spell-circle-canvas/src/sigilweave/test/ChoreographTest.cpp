@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPixmap.h>
@@ -871,4 +872,67 @@ TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {
   const SkRSXform plain = placedAt(1, 0, nullptr);
   EXPECT_LT(plain.fTx, centre.x()) << "backed out by half its advance";
   EXPECT_FLOAT_EQ(plain.fTy, centre.y());
+}
+
+TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
+  // The declaration a moving run makes, and its whole observable meaning.
+  // Slide one letter through a pixel and a half and count the DISTINCT
+  // frames: whole-pixel origins re-use one rasterization until the origin
+  // crosses a boundary, so the count is the number of crossings, while the
+  // subpixel grid answers a fresh one nearly every step. The hop a turning
+  // ring shows is the first of those, one letter at a time as each origin
+  // reaches its own boundary.
+  //
+  // Counted over a sweep rather than compared between two placements, so
+  // neither verdict can be an accident of where inside a pixel the run
+  // happened to start.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"H", 44.0f);
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  PaintStyle white;
+  white.foreground.setColor(SK_ColorWHITE);
+  paragraph.setPaint(0, 1, white);
+
+  auto render = [&](bool subpixel, float nudge) {
+    GlyphRSXformBatches batches;
+    batches.subpixel = subpixel;
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      batches.addGlyph(glyph,
+                       glyph.rest + SkVector{glyph.advance * 0.5f + nudge, 0});
+    });
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 100));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    batches.draw(surface->getCanvas());
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(200, 100));
+    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
+    return bitmap;
+  };
+  auto distinctAcrossOnePixel = [&](bool subpixel) {
+    constexpr int kSteps = 8;
+    std::vector<SkBitmap> frames;
+    frames.reserve(kSteps);
+    for (int i = 0; i < kSteps; ++i)
+      frames.push_back(render(subpixel, 1.5f * (float)i / (float)(kSteps - 1)));
+    auto same = [](const SkBitmap& a, const SkBitmap& b) {
+      for (int y = 0; y < 100; ++y)
+        for (int x = 0; x < 200; ++x)
+          if (a.getColor(x, y) != b.getColor(x, y)) return false;
+      return true;
+    };
+    int distinct = 0;
+    for (size_t i = 0; i < frames.size(); ++i) {
+      bool seen = false;
+      for (size_t j = 0; j < i; ++j) seen |= same(frames[i], frames[j]);
+      distinct += !seen;
+    }
+    return distinct;
+  };
+
+  EXPECT_LE(distinctAcrossOnePixel(false), 3)
+      << "whole-pixel origins moved on a fraction of a pixel";
+  EXPECT_GE(distinctAcrossOnePixel(true), 5)
+      << "the subpixel grid ignored fractions of a pixel";
 }
