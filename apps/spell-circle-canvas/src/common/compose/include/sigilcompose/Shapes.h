@@ -180,14 +180,24 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
  *  strict superset. Changing that default would silently move every label
  *  placed by arc-length fraction.
  *
+ *  @p inset pulls the circle concentrically inside the box by that many
+ *  px — the spelling for a ring that must stand CLEAR of the box edge: a
+ *  text baseline whose glyphs straddle the circle and need room on both
+ *  sides, a band drawn inside a frame. Zero is the inscribed circle;
+ *  negative pushes it outside the box, which every consumer that clips
+ *  at the box will truncate.
+ *
  *  Exact conics either way — this is `addOval`, not a sampled polyline. */
 struct Circle {
   SkPathDirection direction = SkPathDirection::kCW;
   unsigned startIndex = 1;
+  float inset = 0.0f;
   bool operator==(const Circle&) const = default;
   SkPath path(SkSize s) const {
+    SkRect r = SkRect::MakeWH(s.width(), s.height());
+    r.inset(inset, inset);
     SkPathBuilder b;
-    b.addOval(SkRect::MakeWH(s.width(), s.height()), direction, startIndex);
+    b.addOval(r, direction, startIndex);
     return b.detach();
   }
   SkPath operator()(SkSize s) const { return path(s); }
@@ -197,8 +207,10 @@ struct Circle {
  *  point); this is the shape value, which is what onPath, the mask gates
  *  and the decorations take. */
 inline Circle circle() { return Circle{}; }
-inline Circle circle(SkPathDirection direction, unsigned startIndex = 1) {
-  return Circle{direction, startIndex};
+inline Circle circle(float inset) { return Circle{.inset = inset}; }
+inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
+                     float inset = 0.0f) {
+  return Circle{direction, startIndex, inset};
 }
 
 /** A ring: the inscribed circle with a concentric hole at @p innerRatio

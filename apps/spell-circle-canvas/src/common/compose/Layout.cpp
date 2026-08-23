@@ -187,8 +187,12 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // mark(): where each anchored child's selector landed, resolved here for
   // the same reason the slot rects are — the layout has just finished and
   // is the only thing that knows, and resolving once per layout rather than
-  // once per read keeps a mark's box as cheap as a slot's.
-  resolveTextMarks(inst);
+  // once per read keeps a mark's box as cheap as a slot's. A PATH-laid
+  // run's marks are the one exception: their curve resolves against the
+  // node's final box, which this measure does not know, so they resolve in
+  // ensureLayout's post-layout pass instead.
+  if (!inst.desc->textData || !inst.desc->textData->onPath)
+    resolveTextMarks(inst);
   inst.measuredForWidth = constraint;
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
@@ -237,6 +241,14 @@ void Composer::Impl::ensureLayout() {
     if (hasDerived)
       resolveDerived();  // refresh routes against the moved geometry
   }
+  // mark() on a path-laid run resolves HERE, not in measure with the flow
+  // runs: the curve resolves against the node's final box, and only the
+  // finished layout knows that box. The path layout underneath is memoized
+  // against the box and the content; the mark walk itself is one pass over
+  // the run's glyphs per layout. Runs before syncLayoutRects so a
+  // mark-anchored child whose rect moved is seen by the same invalidation
+  // walk as everything else.
+  for (detail::Instance* marked : pathMarkInstances) resolveTextMarks(*marked);
   // Post-layout invalidation: recordings bake geometry (child offsets, text
   // lines, geometry-material uResolution), so any rect that moved or resized
   // must stale the recordings that captured it — even when NO prop changed

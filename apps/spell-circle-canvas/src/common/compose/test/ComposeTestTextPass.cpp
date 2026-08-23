@@ -166,6 +166,69 @@ TEST(TextPass, BoundedByBoxPlusReach) {
   EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.top() - 20), SK_ColorBLACK);
 }
 
+TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
+  // `Track::reach` grows the pass's painted BOUNDS and touches nothing
+  // else: the layer's pixels land exactly where the glyphs were placed,
+  // and the band beyond the box is the pass's to paint. Both halves are
+  // asserted against ONE pair of renders, because either alone is
+  // satisfiable by a broken mapping — a layer stretched or shifted into
+  // the grown rect still covers the band, and a rect never grown keeps
+  // the content in place — and only the pair pins the contract. The lift
+  // deviation stands each glyph's top proud of the box, so the box edge
+  // separates the two assertions cleanly.
+  const TextEffect lift =
+      fx::effect("test-lift", [](const GlyphInfo&, float, Rng&) {
+        GlyphMod m;
+        m.dy = -14.0f;
+        return m;
+      });
+  const auto describe = [&](float reach) {
+    return box().padding(60).child(
+        text(u8"HOIST", whiteStyle(34))
+            .key("hoist")
+            .fx({.effect = lift})
+            .fx({.effect = fx::pass(Material::sksl(kIdentitySksl)),
+                 .reach = reach}));
+  };
+  Host snug;
+  snug.composer.render(describe(0.0f));
+  snug.frame();
+  Host wide;
+  wide.composer.render(describe(40.0f));
+  wide.frame();
+  const std::optional<SkRect> laidOut = wide.composer.bounds("hoist");
+  ASSERT_TRUE(laidOut.has_value());
+  const SkRect box = laidOut.value_or(SkRect::MakeEmpty());
+
+  // Inside the box, byte for byte the same picture: the reach must not
+  // move, scale or resample what the glyphs painted. Probed per pixel —
+  // and there must BE glyph pixels here, or the equality proved nothing.
+  const std::vector<SkColor> snugPx = grab(snug);
+  const std::vector<SkColor> widePx = grab(wide);
+  SkIRect inside = box.round();
+  inside.inset(1, 1);
+  int mismatches = 0;
+  int glyphPixels = 0;
+  for (int y = inside.top(); y < inside.bottom(); ++y)
+    for (int x = inside.left(); x < inside.right(); ++x) {
+      const size_t i = (size_t)y * 200 + (size_t)x;
+      if (snugPx[i] != widePx[i]) ++mismatches;
+      if (snugPx[i] == SK_ColorWHITE) ++glyphPixels;
+    }
+  EXPECT_EQ(mismatches, 0) << "reach moved the layer's content";
+  EXPECT_GT(glyphPixels, 0) << "no glyph pixels inside the box — the "
+                               "placement comparison compared nothing";
+
+  // And the band beyond the box is painted: the lifted glyph tops the
+  // snug pass clips at the box edge survive under the wide one.
+  const SkIRect band = SkIRect::MakeLTRB((int)box.left(), (int)box.top() - 16,
+                                         (int)box.right(), (int)box.top() - 1);
+  EXPECT_TRUE(anyWhiteIn(wide, band));
+  EXPECT_FALSE(anyWhiteIn(snug, band));
+  // Beyond box + reach stays the pass's hard edge, reach or no reach.
+  EXPECT_EQ(wide.pixel((int)box.centerX(), (int)box.top() - 50), SK_ColorBLACK);
+}
+
 TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
   // The pass's per-unit times ride the track's progress: a transition
   // moves them frame over frame, and once it settles the picture holds

@@ -375,7 +375,10 @@ one rect, the union of all of them; one resolving nothing places nothing and
 warns once. The rect is the **rest** rect — where the layout put those
 glyphs, not where a track has thrown them this frame — so a mark follows a
 reflow and stands still under a cascade; read `Composer::beatsOf` and drive
-the mark's own transform for one that must ride the motion. A mark needs no
+the mark's own transform for one that must ride the motion. On a path run
+(`onPath`) the rect is on the curve, at the run's *resting* placement — a
+run driven along its baseline is a paint-time deviation like any track's.
+A mark needs no
 `reach`, being a child: the recording cull already grows by the union of a
 node's children.
 

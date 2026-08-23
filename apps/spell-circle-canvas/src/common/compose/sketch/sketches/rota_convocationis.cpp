@@ -261,26 +261,6 @@ half4 main(float2 xy) {
 
 // ---- helpers --------------------------------------------------------------
 
-/** The inscribed circle, INSET from the node's box — a comparable shape
- *  value, so the node prunes. The names' node wears a box larger than its
- *  own ring on purpose: a pass paints the node's box and nothing outside
- *  it, and a ring run's glyphs stand proud of a snug box at its four
- *  extremes, where the layer's edge would shear their outer halves off.
- *  The margin keeps every glyph, and the charge's visible wash, inside
- *  the painted bounds. */
-struct InsetCircle {
-  float inset = 0.0f;
-  bool operator==(const InsetCircle&) const = default;
-  SkPath path(SkSize s) const {
-    SkRect r = SkRect::MakeWH(s.width(), s.height());
-    r.inset(inset, inset);
-    SkPathBuilder b;
-    b.addOval(r, SkPathDirection::kCW, 1);
-    return b.detach();
-  }
-  SkPath operator()(SkSize s) const { return path(s); }
-};
-
 /** Wheel-frame polar → canvas px. θ clockwise from 12 o'clock, the
  *  direction every band on this wheel is written in. */
 SkPoint P(float thDeg, float rNorm) {
@@ -479,14 +459,19 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         fx::seq(fx::axis("GRAD", 400.0f, 860.0f).until(0.45f).xfade(0.25f),
                 fx::axis("GRAD", 860.0f, 400.0f));
 
-    constexpr float kMargin = 90.0f;  // the pass-bounds allowance
+    // How far past the ring's snug box the pass may paint: the glyphs
+    // straddle the baseline circle and stand proud of the box at its four
+    // extremes, the forming rise carries them further, and the charge's
+    // wash spreads around each name's rect. Over-reporting is safe;
+    // under-reporting shears the outer halves off at the layer's edge.
+    constexpr float kReach = 90.0f;
     Element names =
         text(toU8(nominaText), ring(nominaSize, kGold, 4.2f))
             .key("nomina")
             .centerAt(kEye)
-            .width(2 * (rNomina * kR + kMargin))
-            .height(2 * (rNomina * kR + kMargin))
-            .onPath({.path = InsetCircle{kMargin},
+            .width(2 * rNomina * kR)
+            .height(2 * rNomina * kR)
+            .onPath({.path = shapes::circle(),
                      .at = &nominaDrift,
                      .align = TextPath::Align::Start,
                      .offset = -nominaSize * 0.34f,
@@ -503,11 +488,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
           {.effect =
                fx::pass(Material::sksl(kChargeSksl).uniform("uGold", kGold)),
            .stagger = stagger(unit::Word, {.eachMs = 170, .durationMs = 820}),
-           .progress = beat(tIgnite, tIgnite + 2.6)});
-    // NOT `.reach` on the pass track, though that is the documented verb
-    // for growing a pass's painted bounds: an explicit reach composites
-    // the whole layer at the wrong scale (FINDINGS.md). The node's own
-    // margin above buys the same allowance.
+           .progress = beat(tIgnite, tIgnite + 2.6),
+           .reach = kReach});
     return names;
   }
 
@@ -515,12 +497,9 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  band that never orbits: the commentary stands still while the wheel
    *  turns.
    *
-   *  A gap found here, recorded as the API this study wanted: `mark()` on
-   *  a path-laid run places nothing — the mark resolves at layout and the
-   *  curve at paint, and the engine says so once. The natural spelling
-   *  would be the curved rect `beatsOf` already reports. The lozenges
-   *  that were to stand at three of these words live on the colophon
-   *  instead, where the baseline is straight and the mark lands. */
+   *  The lozenges that stand at three words live on the colophon, whose
+   *  straight baseline suits them; a mark on THIS ring would land on the
+   *  curved rect, the same placement `beatsOf` reports. */
   [[nodiscard]] Element smaragdina() {
     return text(toU8(glossText), ital(glossSize, kVerdigris, 1.1f))
         .key("smaragdina")

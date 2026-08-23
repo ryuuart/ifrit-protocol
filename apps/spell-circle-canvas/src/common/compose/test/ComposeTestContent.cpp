@@ -5188,6 +5188,49 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
   EXPECT_NEAR(early.left(), settled.left(), 0.01f);
 }
 
+TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
+  // A path-laid run's marks stand on the CURVE the letters stand on: the
+  // rect is the union of the advance boxes where the baseline placed them,
+  // the same placement beatsOf reports — so a caret and a beat cannot
+  // disagree on a ring any more than they can on a line. Resolved after
+  // layout, because the curve resolves against the node's final box.
+  Host host;
+  host.composer.render(box().padding(10).child(
+      text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+          .key("ring")
+          .width(180)
+          .height(180)
+          .onPath({.path = shapes::circle()})
+          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .mark(sel::word(2), box().key("caret").fill(green()))));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
+  ASSERT_GT(beats.size(), 2u);
+  const SkRect caret = markRect(host, "caret");
+  ASSERT_FALSE(caret.isEmpty()) << "the mark placed nothing on the curve";
+  EXPECT_NEAR(caret.left(), beats[2].rect.left(), 0.01f);
+  EXPECT_NEAR(caret.top(), beats[2].rect.top(), 0.01f);
+  EXPECT_NEAR(caret.width(), beats[2].rect.width(), 0.01f);
+  EXPECT_NEAR(caret.height(), beats[2].rect.height(), 0.01f);
+  // And it IS the curved placement, not the straight flow line the run
+  // does not use: the same content laid straight puts the word somewhere
+  // else entirely.
+  Host straight;
+  straight.composer.render(box().padding(10).child(
+      text(u8"AROUND THE RING IT GOES", whiteStyle(18))
+          .key("ring")
+          .width(180)
+          .height(180)
+          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .mark(sel::word(2), box().key("caret").fill(green()))));
+  straight.frame();
+  const SkRect flow = markRect(straight, "caret");
+  EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
+              std::abs(caret.top() - flow.top()) > 1.0f)
+      << "the curved rect matched the straight one — the probe proves "
+         "nothing at this size";
+}
+
 TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
   // The silent-no-op family's terms, with the warning that goes with them:
   // a style name no run carries selects nothing, and a mark on nothing must

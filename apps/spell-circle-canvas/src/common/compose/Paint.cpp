@@ -1957,8 +1957,21 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
     const float reach = lane->source->track->reachPx();
     const SkRect bounds =
         SkRect::MakeWH(size.width(), size.height()).makeOutset(reach, reach);
+    // THE LAYER'S OWN FRAME is tile space — `bounds` translated so its
+    // reach corner is the origin — and this is the ONE place node px and
+    // tile px meet: the recording translates the glyphs in, and the local
+    // matrix below translates the sampling back out. Skia's picture shader
+    // anchors its rasterized tile at the local origin whatever the tile
+    // rect's own origin says (the tile's offset survives into neither
+    // backend's sampling matrix), so a tile handed to it starting at
+    // (-reach, -reach) would land the whole layer a reach away from the
+    // glyphs. Everything outside this pairing — main(xy), uUnitRect, the
+    // rect drawn — stays in the node's own px and never sees tile space.
+    const SkRect tile = SkRect::MakeWH(bounds.width(), bounds.height());
     SkPictureRecorder recorder;
-    lane->batches.draw(recorder.beginRecording(bounds));
+    SkCanvas* layerCanvas = recorder.beginRecording(tile);
+    layerCanvas->translate(reach, reach);
+    lane->batches.draw(layerCanvas);
     const sk_sp<SkPicture> layer = recorder.finishRecordingAsPicture();
     static thread_local std::vector<float> rects, phases;
     rects.clear();
@@ -1972,8 +1985,9 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
       phases.push_back(passUnitSeed(lane->keys[i].first, lane->keys[i].second));
     }
     detail::TextPassInputs inputs;
+    const SkMatrix toTile = SkMatrix::Translate(-reach, -reach);
     inputs.content = layer->makeShader(SkTileMode::kDecal, SkTileMode::kDecal,
-                                       SkFilterMode::kLinear, nullptr, &bounds);
+                                       SkFilterMode::kLinear, &toTile, &tile);
     inputs.rects = rects.data();
     inputs.phases = phases.data();
     inputs.units = n;
@@ -2008,18 +2022,6 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
 
 namespace {
 
-/** Once per text node that asks for a mark it cannot have. */
-void warnMarkOnPath(const std::string& key) {
-  static std::set<std::string> warned;
-  if (!warned.insert(key).second) return;
-  SkDebugf(
-      "[compose] mark() on text laid on a path (key \"%s\") places nothing: "
-      "the curve is resolved at paint and a mark is placed during layout, so "
-      "the only rect available here would be the straight baseline the run "
-      "does not use. Composer::beatsOf reports the curve.\n",
-      key.empty() ? "" : key.c_str());
-}
-
 /** Once per (mark key) whose selector found no glyphs. */
 void warnMarkSelectsNothing(const std::string& key) {
   static std::set<std::string> warned;
@@ -2037,22 +2039,34 @@ void warnMarkSelectsNothing(const std::string& key) {
 void Composer::Impl::resolveTextMarks(Instance& inst) {
   inst.textMarkRects.clear();
   if (!inst.desc || !inst.desc->textData || !inst.paragraph) return;
-  const std::vector<detail::MarkAnchor>& marks = inst.desc->textData->marks;
+  const detail::TextData& textData = *inst.desc->textData;
+  const std::vector<detail::MarkAnchor>& marks = textData.marks;
   if (marks.empty()) return;
-  if (inst.desc->textData->onPath) {
-    warnMarkOnPath(inst.desc->key);
-    return;
+  // A PATH-laid run's marks stand on the curve the letters stand on: the
+  // baseline resolves against the node's box (so the caller must not ask
+  // before layout has settled that box), and the pose below then places
+  // each advance box exactly where the paint places its glyph. A mark is a
+  // LAYOUT answer, so it stands where the run RESTS on the curve — a run
+  // driven along its baseline (`at` bound) is a paint-time deviation, and
+  // a layout rect that chased it would be stale by the next frame.
+  const TextPath* onPath = textData.onPath ? &*textData.onPath : nullptr;
+  if (onPath) {
+    const SkRect rect = instanceRect(inst);
+    ensurePathLayout(inst, *onPath, {rect.width(), rect.height()});
+    if (!inst.pathValid) return;  // no measurable baseline: nothing lands
   }
 
-  // The FLOW layout, the one this node measures by — the same placement
-  // `paragraphLayout()` reports and the letters are drawn from.
-  const sigil::weave::ParagraphLayout& layout = inst.textLayout;
+  // The layout the letters are drawn from — the path one where the run
+  // rides a curve, otherwise the flow one this node measures by, the same
+  // placement `paragraphLayout()` reports.
+  const sigil::weave::ParagraphLayout& layout =
+      onPath ? inst.pathLayout : inst.textLayout;
   static thread_local detail::GlyphStructure structure;
   structure.build(layout, *inst.paragraph);
   if (structure.glyphs.empty()) return;
   const auto count = (uint32_t)structure.glyphs.size();
 
-  const PoseContext poseCtx{&inst, &layout, nullptr, false, 0.0f};
+  const PoseContext poseCtx{&inst, &layout, onPath, onPath != nullptr, 0.0f};
   std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
   for (const detail::MarkAnchor& anchor : marks) {
     const std::vector<uint8_t> selected = detail::resolveSelection(

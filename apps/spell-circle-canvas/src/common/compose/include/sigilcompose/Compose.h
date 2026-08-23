@@ -3351,10 +3351,12 @@ class Element {
    *  recording cull already grows by the union of its children, so a mark
    *  hanging above the line is not truncated.
    *
-   *  ON A PATH RUN (`onPath`) marks are refused, and say so once: the curve
-   *  is resolved at paint and a mark is placed during layout, so the only
-   *  answer available here would be the straight baseline the run does not
-   *  use. `beatsOf` reports the curve, and rides it. */
+   *  ON A PATH RUN (`onPath`) the rect is on the CURVE: the axis-aligned
+   *  bound of the advance boxes where the baseline placed them, the same
+   *  placement `beatsOf` reports. The rest rect there is where the run
+   *  RESTS on the curve — a run driven along its baseline (`at` bound) is
+   *  a paint-time deviation like any track's, and the same rule applies:
+   *  read `beatsOf` to ride it. */
   Element& mark(Selector where, Element what);
 
   /** Text leaves only: how lines sit inside the node's width (SigilWeave

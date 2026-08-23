@@ -857,6 +857,11 @@ struct Composer::Impl {
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
   std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  // Text nodes carrying mark() on a path-laid run. Their curve resolves
+  // against the node's FINAL box, which measurement never sees, so their
+  // marks resolve in a post-layout pass over this flat list instead of
+  // inside measure like a flow run's.
+  std::vector<detail::Instance*> pathMarkInstances;
   std::unordered_map<std::string, std::vector<detail::Instance*>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
@@ -1159,10 +1164,12 @@ struct Composer::Impl {
    *  0 wherever beatsOfTrack answers empty. */
   float cascadeSpanOfTrack(detail::Instance& inst, size_t trackIndex);
   /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
-   *  just produced: one rect per anchor, the union of the advance boxes of
-   *  the glyphs its selector addressed. Runs during LAYOUT, off the flow
-   *  layout, which is why a path run's marks are refused rather than
-   *  answered from the straight baseline it does not use. */
+   *  the letters are drawn from: one rect per anchor, the union of the
+   *  advance boxes of the glyphs its selector addressed. A flow run's
+   *  marks resolve during measure; a PATH run's resolve in ensureLayout's
+   *  post-layout pass, because the curve resolves against the node's
+   *  final box and the marks then stand on it — at the run's resting
+   *  placement, since a layout rect cannot chase a paint-time `at`. */
   void resolveTextMarks(detail::Instance& inst);
   /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw

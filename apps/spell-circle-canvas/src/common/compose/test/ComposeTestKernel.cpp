@@ -704,6 +704,27 @@ TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
   EXPECT_LT(SkColorGetR(host.pixel(60, 60)), 60u);   // and so is the middle
 }
 
+TEST(ComposeShapes, CircleInsetStandsConcentricallyInsideTheBox) {
+  // circle(inset) is the ring baseline that stands clear of the box edge —
+  // the same concentric geometry, pulled in by px, so glyphs straddling
+  // the circle keep both halves inside whatever clips at the box.
+  const SkSize size{200, 200};
+  const SkRect inscribed = shapes::circle()(size).getBounds();
+  const SkRect drawn = shapes::circle(24.0f)(size).getBounds();
+  EXPECT_FLOAT_EQ(drawn.left(), inscribed.left() + 24.0f);
+  EXPECT_FLOAT_EQ(drawn.top(), inscribed.top() + 24.0f);
+  EXPECT_FLOAT_EQ(drawn.right(), inscribed.right() - 24.0f);
+  EXPECT_FLOAT_EQ(drawn.bottom(), inscribed.bottom() - 24.0f);
+  // Zero inset IS the inscribed circle, byte for byte, and the value form
+  // compares by its parameters — the prune contract every generator keeps.
+  EXPECT_EQ(shapes::circle()(size), shapes::circle(0.0f)(size));
+  EXPECT_TRUE(shapes::circle() == shapes::circle(0.0f));
+  EXPECT_FALSE(shapes::circle() == shapes::circle(24.0f));
+  // The oriented overload carries the same trailing inset.
+  EXPECT_EQ(shapes::circle(SkPathDirection::kCCW, 1, 24.0f)(size).getBounds(),
+            drawn);
+}
+
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
   host.composer.render(box().child(box()

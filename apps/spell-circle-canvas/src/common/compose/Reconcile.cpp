@@ -1217,6 +1217,7 @@ void Composer::Impl::rebuildKeyIndex() {
   bySlot.clear();
   routedInstances.clear();
   flowInstances.clear();
+  pathMarkInstances.clear();
   routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
@@ -1265,6 +1266,9 @@ void Composer::Impl::indexKeys(Instance& inst) {
     }
     if (derive.placeFn) hasCustomLayout = true;
   }
+  if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
+      !node.textData->marks.empty())
+    pathMarkInstances.push_back(&inst);
   if (node.layout.centerAt) hasCenterPins = true;
   for (auto& child : inst.children) indexKeys(*child);
 }

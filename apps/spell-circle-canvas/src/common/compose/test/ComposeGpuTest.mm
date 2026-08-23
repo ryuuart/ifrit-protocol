@@ -435,3 +435,76 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
          "underlay composited over it";
   EXPECT_LT(mismatched, w * h / 200) << "GPU render diverges from the CPU render of the same node";
 }
+
+// `Track::reach` on an fx::pass grows the pass's painted bounds and
+// nothing else, on Graphite exactly as on the CPU. The GPU backend turns
+// the pass's layer into an image through its own picture-to-image door, so
+// the CPU regression alone does not cover it: the layer's pixels must land
+// exactly where the glyphs were placed, and the band beyond the box must
+// hold the lifted glyph tops a zero reach clips at the box edge.
+TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
+  REQUIRE_GPU();
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 34.0f;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  const TextEffect lift = fx::effect("gpu-lift", [](const GlyphInfo &, float, Rng &) {
+    GlyphMod m;
+    m.dy = -14.0f;
+    return m;
+  });
+  const char *identity = "half4 main(float2 xy) { return uContent.eval(xy); }";
+  const auto describe = [&](float reach) {
+    return box().padding(60).child(
+        text(u8"HOIST", style)
+            .key("hoist")
+            .fx({.effect = lift})
+            .fx({.effect = fx::pass(Material::sksl(identity)), .reach = reach}));
+  };
+  const int w = 200, h = 200;
+  sigil::motion::Ticker snugTicker;
+  Composer snug(snugTicker, fonts());
+  snug.setSize({(float)w, (float)h});
+  snug.render(describe(0.0f));
+  const SkBitmap snugPx = drawOnGpu(snug, w, h);
+  ASSERT_FALSE(snugPx.empty());
+  sigil::motion::Ticker wideTicker;
+  Composer wide(wideTicker, fonts());
+  wide.setSize({(float)w, (float)h});
+  wide.render(describe(40.0f));
+  const SkBitmap widePx = drawOnGpu(wide, w, h);
+  ASSERT_FALSE(widePx.empty());
+  const std::optional<SkRect> laidOut = wide.bounds("hoist");
+  ASSERT_TRUE(laidOut.has_value());
+  const SkRect box = laidOut.value_or(SkRect::MakeEmpty());
+
+  // Inside the box the two renders agree pixel for pixel (an AA-width
+  // tolerance, same as every backend comparison here) — and glyph pixels
+  // must exist there, or the agreement proved nothing.
+  SkIRect inside = box.round();
+  inside.inset(1, 1);
+  int mismatched = 0;
+  int glyphPixels = 0;
+  for (int y = inside.top(); y < inside.bottom(); ++y)
+    for (int x = inside.left(); x < inside.right(); ++x) {
+      const SkColor a = snugPx.getColor(x, y);
+      const SkColor b = widePx.getColor(x, y);
+      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 8 ||
+          std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) > 8 ||
+          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 8)
+        ++mismatched;
+      if (SkColorGetR(a) > 200 && SkColorGetG(a) > 200 && SkColorGetB(a) > 200) ++glyphPixels;
+    }
+  EXPECT_EQ(mismatched, 0) << "reach moved the pass's layer on Graphite";
+  EXPECT_GT(glyphPixels, 0) << "no glyph pixels inside the box";
+
+  // The band above the box: lifted tops under the wide reach, bare under
+  // the snug one.
+  int bandWide = 0, bandSnug = 0;
+  for (int y = (int)box.top() - 16; y < (int)box.top() - 1; ++y)
+    for (int x = (int)box.left(); x < (int)box.right(); ++x) {
+      if (SkColorGetR(widePx.getColor(x, y)) > 200) ++bandWide;
+      if (SkColorGetR(snugPx.getColor(x, y)) > 200) ++bandSnug;
+    }
+  EXPECT_GT(bandWide, 0) << "the reach band was not painted";
+  EXPECT_EQ(bandSnug, 0) << "a zero reach painted beyond the box";
+}
