@@ -204,48 +204,62 @@ sk_sp<SkTypeface> drivenFace(sigil::weave::FontContext& fonts,
  *  refused.
  *
  *  A substitution draws its replacement at the ORIGINAL glyph's pen
- *  position, so it is sound exactly when the two have the same advance: a
- *  proportional swap would move every letter after it, which is a reshape
- *  and not a redraw. The advances are measured at a canonical em with
- *  hinting off, so the verdict is a property of the face rather than of the
- *  size it happens to be drawn at, and is memoized per (face, original,
- *  replacement). */
-SkGlyphID substituteGlyph(const sk_sp<SkTypeface>& face, SkGlyphID original,
-                          char32_t codepoint) {
+ *  position, so it is sound exactly when the two advance the pen equally
+ *  ALONG THE AXIS THAT PEN STEPS ON: a level run steps by the horizontal
+ *  advance, an upright column by the vertical one. Reading the wrong axis
+ *  refuses a kana-to-digit churn down a column whose glyphs all step one em
+ *  down it, and admits a pair that really would shift the column below the
+ *  swap. A mismatch on the measured axis is a reshape and not a redraw, so
+ *  it is refused.
+ *
+ *  Both advances are a property of the FACE — em fractions, not pixels — so
+ *  one probe answers for every size the pair is ever drawn at, and BOTH
+ *  axes are read on that one probe. The axis therefore stays out of the
+ *  memo key: a pair's replacement glyph is the same glyph whichever way the
+ *  run flows, and only the verdict differs, so the entry carries a verdict
+ *  per axis and the lookup picks the one the run asked for. Keying on the
+ *  axis instead would probe the same pair twice for two facts one probe
+ *  already has. */
+SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
+                          const sk_sp<SkTypeface>& face, SkGlyphID original,
+                          char32_t codepoint, bool vertical) {
   if (!face) return 0;
+  struct Verdict {
+    SkGlyphID replacement = 0;       ///< 0: the face cannot draw the code point
+    bool alike[2] = {false, false};  ///< indexed by the axis: level, upright
+  };
   using Key = std::tuple<uint32_t, SkGlyphID, uint32_t>;
-  static thread_local std::map<Key, SkGlyphID> table;
+  static thread_local std::map<Key, Verdict> table;
   auto [entry, fresh] = table.try_emplace(
-      Key{face->uniqueID(), original, (uint32_t)codepoint}, SkGlyphID{0});
-  if (!fresh) return entry->second;
-
-  constexpr float kProbeEmPx = 100.0f;
-  // A tenth of a pixel on a hundred-pixel em: a thousandth of the em, which
-  // no face's same-width pair misses and no proportional pair meets.
-  constexpr float kAdvanceEpsilonPx = 0.1f;
-  SkFont probe(face, kProbeEmPx);
-  probe.setLinearMetrics(true);
-  probe.setHinting(SkFontHinting::kNone);
-  const SkGlyphID replacement =
-      probe.unicharToGlyph((SkUnichar)(uint32_t)codepoint);
-  if (replacement == 0) return 0;  // the face cannot draw it at all
-  const SkGlyphID pair[2] = {original, replacement};
-  float widths[2] = {0, 0};
-  probe.getWidths(pair, widths);
-  if (std::abs(widths[0] - widths[1]) <= kAdvanceEpsilonPx) {
-    entry->second = replacement;
-    return replacement;
+      Key{face->uniqueID(), original, (uint32_t)codepoint}, Verdict{});
+  Verdict& verdict = entry->second;
+  if (fresh) {
+    verdict.replacement = face->unicharToGlyph((SkUnichar)(uint32_t)codepoint);
+    for (int axis = 0; verdict.replacement && axis < 2; ++axis) {
+      // A thousandth of the em: no face's equal-advance pair misses it and
+      // no proportional pair meets it.
+      constexpr float kAdvanceEpsilonEm = 0.001f;
+      const bool down = axis == 1;
+      verdict.alike[axis] =
+          std::abs(fonts.glyphAdvanceEm(face, original, down) -
+                   fonts.glyphAdvanceEm(face, verdict.replacement, down)) <=
+          kAdvanceEpsilonEm;
+    }
   }
-  // Once per face: a scramble over a proportional charset would otherwise
-  // report every character of it, one line each.
-  static thread_local std::unordered_set<uint32_t> warned;
-  if (warned.insert(face->uniqueID()).second)
+  if (verdict.replacement == 0) return 0;
+  const int axis = vertical ? 1 : 0;
+  if (verdict.alike[axis]) return verdict.replacement;
+  // Once per face and axis: a scramble over a proportional charset would
+  // otherwise report every character of it, one line each.
+  static thread_local std::unordered_set<uint64_t> warned;
+  if (warned.insert(((uint64_t)face->uniqueID() << 1) | (uint64_t)axis).second)
     SkDebugf(
         "sigilcompose fx: a code-point substitution on this font is "
-        "proportional — refused (the replacement is drawn at the "
+        "proportional %s — refused (the replacement is drawn at the "
         "original's pen position, so a different advance would move every "
         "letter after it; substitute within an equal-advance charset, or "
-        "change the text and re-shape)\n");
+        "change the text and re-shape)\n",
+        vertical ? "down a column" : "along a line");
   return 0;
 }
 
@@ -1922,8 +1936,9 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                          placed.shaped->fontSize, *mod.axis, continuous);
         SkGlyphID glyph = placed.glyph;
         if (mod.codepoint && placed.shaped)
-          if (const SkGlyphID substitute = substituteGlyph(
-                  placed.shaped->typeface, placed.glyph, mod.codepoint))
+          if (const SkGlyphID substitute =
+                  substituteGlyph(fonts, placed.shaped->typeface, placed.glyph,
+                                  mod.codepoint, placed.shaped->vertical))
             glyph = substitute;
 
         // ROUTING, per glyph and not per node: an RSXform carries a

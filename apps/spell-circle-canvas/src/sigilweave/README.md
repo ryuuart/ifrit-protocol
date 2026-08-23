@@ -238,6 +238,9 @@ state.
   rotated, tate-chu-yoko). `columnMetrics()` measures the result, and a
   dressed glyph in a column sets `GlyphDress::centreOffset` because half its
   advance is a step down the page rather than across it.
+  `FontContext::glyphAdvanceEm()` reports either axis's advance in ems, for a
+  caller asking whether two glyphs step the pen alike — the vertical advance
+  is a fact Skia's glyph metrics do not carry at all.
 - **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
   direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
   platform cascade; supply a `FontContext::FallbackResolver` to encode your

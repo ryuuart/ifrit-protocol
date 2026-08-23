@@ -272,6 +272,21 @@ bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
   return true;
 }
 
+float FontContext::glyphAdvanceEm(const sk_sp<SkTypeface>& base,
+                                  SkGlyphID glyph, bool vertical) {
+  const sk_sp<SkTypeface>& face = base ? base : defaultTypeface();
+  if (!face) return 0;
+  Impl::TypefaceRecord& record = m_impl->recordForTypeface(face);
+  // HarfBuzz points y up, so a vertical advance comes back negative for a
+  // pen that runs down the page; the shaper negates it for the same reason.
+  const hb_position_t advance =
+      vertical ? -hb_font_get_glyph_v_advance(record.harfBuzzFont, glyph)
+               : hb_font_get_glyph_h_advance(record.harfBuzzFont, glyph);
+  // The font is scaled to its own units per em, so the raw position IS the
+  // design-unit advance.
+  return (float)advance / (float)record.unitsPerEm;
+}
+
 void FontContext::purgeShapeCache() { m_impl->shapeCache.clear(); }
 
 void FontContext::purgeAllCaches() {

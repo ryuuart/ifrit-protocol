@@ -589,8 +589,10 @@ Both substitutions are GATED, because both keep the pen positions shaping
 computed. `axis` is honoured only for an advance-invariant axis — the
 runtime probes the face once per axis and refuses one that moves advances,
 drawing at the shaped face and warning once. `codepoint` is honoured only
-where the replacement has the original's advance; a proportional swap would
-move every letter after it, which is a reshape and not a redraw.
+where the replacement has the original's advance ALONG THE AXIS ITS RUN
+ADVANCES ON — the width along a line, the height down an upright column; a
+swap that differs there would move every letter after it, which is a
+reshape and not a redraw.
 `fx::axis` sets a coordinate (or sweeps between two across local progress)
 and `fx::scramble` is the decoding-text preset built on the substitution:
 each glyph churns through a charset and resolves to the true letter by

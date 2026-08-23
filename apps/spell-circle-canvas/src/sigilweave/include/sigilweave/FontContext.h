@@ -136,6 +136,25 @@ class FontContext {
   [[nodiscard]] bool axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
                                             const char (&axisTag)[5]);
 
+  /** The pen travel @p glyph adds in @p base, as a fraction of the em, along
+   *  the axis a run of the given orientation steps on: the horizontal
+   *  advance for a level run, the VERTICAL advance for an upright column.
+   *
+   *  Read from the same font the shaper reads, so it is the number the pen
+   *  actually moves by — Skia's glyph metrics carry no vertical advance at
+   *  all. A face with no vertical metrics table answers with the one
+   *  vertical advance it gives every glyph, which is a fact about that face
+   *  and not a failure: in it, every glyph does step the same distance down
+   *  a column.
+   *
+   *  Ems rather than pixels because the pixel advance scales with the size
+   *  the glyph is drawn at, and a caller comparing two advances is asking
+   *  about the FACE. Zero when @p base and the context default are both
+   *  null.
+   */
+  [[nodiscard]] float glyphAdvanceEm(const sk_sp<SkTypeface>& base,
+                                     SkGlyphID glyph, bool vertical);
+
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
   void purgeShapeCache();
 

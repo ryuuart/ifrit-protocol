@@ -450,3 +450,74 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
     EXPECT_TRUE(block.intersects(beat.rect))
         << "a beat landed outside the column block";
 }
+
+TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
+  // A code-point substitution draws its replacement at the ORIGINAL glyph's
+  // pen position, so it is sound exactly when the two advance the pen
+  // equally along the axis THAT PEN STEPS ON — and a column's pen steps
+  // down. The instrument face is authored so the two axes disagree about
+  // both pairs: B advances as A does down a column and not along a line, C
+  // along a line and not down a column. A gate reading one axis for both
+  // orientations therefore reaches the wrong verdict on every case here.
+  const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
+      SIGILCOMPOSE_TEST_ASSET_DIR "/VerticalAdvance.ttf");
+  ASSERT_TRUE(face) << "test asset VerticalAdvance.ttf failed to load";
+  const SkGlyphID a = face->unicharToGlyph(U'A');
+  const SkGlyphID b = face->unicharToGlyph(U'B');
+  const SkGlyphID c = face->unicharToGlyph(U'C');
+  ASSERT_TRUE(a && b && c) << "the instrument face is missing a letter";
+  const auto advance = [&](SkGlyphID glyph, bool vertical) {
+    return fonts().glyphAdvanceEm(face, glyph, vertical);
+  };
+  ASSERT_FLOAT_EQ(advance(a, true), advance(b, true));
+  ASSERT_NE(advance(a, false), advance(b, false));
+  ASSERT_FLOAT_EQ(advance(a, false), advance(c, false));
+  ASSERT_NE(advance(a, true), advance(c, true));
+
+  sigil::weave::TextStyle style;
+  style.shaping.typeface = face;
+  style.shaping.fontSize = 40.0f;
+  // Latin stands upright in a column only when told to; left on kAuto it
+  // would lie on its side, which is a rotated HORIZONTAL run and would put
+  // the horizontal verdict back under the test.
+  style.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  style.paint.foreground.setAntiAlias(true);
+
+  const auto render = [&](Host& host, sigil::weave::WritingMode mode,
+                          char32_t point) {
+    GlyphMod mod;
+    mod.codepoint = point;
+    host.composer.render(box().padding(10).child(
+        text(u8"AAA", style)
+            .key("k")
+            .writingMode(mode)
+            .fx({.effect = fx::effect(
+                     point ? "sub" : "rest",
+                     [mod](const GlyphInfo&, float, Rng&) { return mod; },
+                     /*reach=*/120.0f)})));
+    host.frame();
+  };
+  const auto drawn = [&](sigil::weave::WritingMode mode, char32_t point) {
+    Host rest(220, 260), swapped(220, 260);
+    render(rest, mode, 0);
+    render(swapped, mode, point);
+    return !identicalPixels(rest, swapped, 220, 260);
+  };
+
+  const sigil::weave::WritingMode column =
+      sigil::weave::WritingMode::kVerticalRL;
+  const sigil::weave::WritingMode line = sigil::weave::WritingMode::kHorizontal;
+  EXPECT_TRUE(drawn(column, U'B'))
+      << "a column refused a replacement that steps exactly as far down it "
+         "as the glyph it replaces — the gate measured the advance ACROSS "
+         "the column instead of along it";
+  EXPECT_FALSE(drawn(column, U'C'))
+      << "a column admitted a replacement with a shorter vertical advance, "
+         "which moves every glyph below it";
+  EXPECT_TRUE(drawn(line, U'C'))
+      << "a level run refused an equal-width replacement";
+  EXPECT_FALSE(drawn(line, U'B'))
+      << "a level run admitted a wider replacement, which moves every glyph "
+         "after it";
+}
