@@ -393,6 +393,89 @@ TEST(GlyphBatches, AlphaScaleFadesEveryPassAndDropsInvisibleOnes) {
   EXPECT_TRUE(gone.batches.empty());
 }
 
+TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
+  // Distinct per-glyph fades mint distinct buckets. The draw must still put
+  // EVERY underlay beneath EVERY foreground: a blurred halo reaches past its
+  // own glyph, and a cascade mid-flight (each letter at its own fade) must
+  // not lay a later letter's halo over an earlier letter's stroke.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"OO", 64.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 120));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  SkPaint stroke;
+  stroke.setAntiAlias(true);
+  stroke.setStyle(SkPaint::kStroke_Style);
+  stroke.setStrokeWidth(4.0f);
+  stroke.setColor(0xFFDED8CC);
+  SkPaint halo;
+  halo.setAntiAlias(true);
+  halo.setStyle(SkPaint::kStroke_Style);
+  halo.setStrokeWidth(8.0f);
+  halo.setColor(0xFF000000);
+  const PaintLayer blurredHalo = PaintLayer::blurred(halo, 5.0f);
+
+  PaintStyle hollow;
+  hollow.foreground = stroke;
+  hollow.underlays.push_back(blurredHalo);
+  paragraph.setPaint(0, 2, hollow);
+
+  // One fade class per glyph — the second differs just enough to be its own
+  // bucket pair while staying visually opaque.
+  const auto batchFaded = [&](const PaintStyle* override) {
+    GlyphRSXformBatches batches;
+    uint32_t index = 0;
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      const float alpha = index++ == 0 ? 0.995f : 1.0f;
+      batches.addGlyph(glyph.shaped, override ? *override : *glyph.paint,
+                       glyph.glyph, glyph.advance * 0.5f,
+                       glyph.rest + SkVector{glyph.advance * 0.5f, 0}, 1.0f,
+                       0.0f, alpha);
+    });
+    return batches;
+  };
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(300, 120);
+  sk_sp<SkSurface> actualSurface = SkSurfaces::Raster(info);
+  actualSurface->getCanvas()->clear(SK_ColorWHITE);
+  batchFaded(nullptr).draw(actualSurface->getCanvas());
+
+  // Ground truth: the same glyphs as two single-pass styles, every halo
+  // drawn before any stroke.
+  PaintStyle haloOnly;
+  haloOnly.foreground = blurredHalo.paint;
+  PaintStyle strokeOnly;
+  strokeOnly.foreground = stroke;
+  sk_sp<SkSurface> expectedSurface = SkSurfaces::Raster(info);
+  expectedSurface->getCanvas()->clear(SK_ColorWHITE);
+  batchFaded(&haloOnly).draw(expectedSurface->getCanvas());
+  batchFaded(&strokeOnly).draw(expectedSurface->getCanvas());
+
+  SkPixmap actual, expected;
+  ASSERT_TRUE(actualSurface->peekPixels(&actual));
+  ASSERT_TRUE(expectedSurface->peekPixels(&expected));
+  int worst = 0, worstX = -1, worstY = -1;
+  for (int y = 0; y < info.height(); ++y)
+    for (int x = 0; x < info.width(); ++x) {
+      const SkColor a = actual.getColor(x, y);
+      const SkColor b = expected.getColor(x, y);
+      const int diff =
+          std::max({std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+                    std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+                    std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
+      if (diff > worst) {
+        worst = diff;
+        worstX = x;
+        worstY = y;
+      }
+    }
+  // The two fade classes differ by 1/255 at most, so anything past a couple
+  // of counts is a compositing-order divergence, not the fade.
+  EXPECT_LE(worst, 4) << "batched draw diverges from underlays-then-"
+                         "foregrounds at ("
+                      << worstX << ", " << worstY << ")";
+}
+
 TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
   // The colour multiplier has to reach EVERY pass, and the two kinds of
   // pass take it differently: a flat pass multiplies the colour it already

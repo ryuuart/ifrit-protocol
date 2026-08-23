@@ -424,13 +424,18 @@ effect key particle state on a glyph's position in the walk. Sentence indices
 come from an ICU pass over the text that runs on the first walk after an edit
 and is reused by every walk after it; a paint edit does not invalidate it.
 `GlyphRSXformBatches` buckets on (typeface, size, condensation, edging,
-resolved paint pass), and a glyph is added once per pass of its `PaintStyle`
-— each underlay in order, then the foreground, then each overlay — so an
-animated letter keeps its gradients, strokes and mask filters, and each pass
-costs one more `drawGlyphsRSXform` call. Buckets draw in creation order, so
-within one style every underlay lands beneath every foreground. A per-glyph
-fade rides `alphaScale` instead of a per-glyph style; quantize it when an
-effect drives it continuously, because distinct alphas are distinct buckets.
+resolved paint pass, pass band), and a glyph is added once per pass of its
+`PaintStyle` — each underlay in order, then the foreground, then each
+overlay — so an animated letter keeps its gradients, strokes and mask
+filters, and each pass costs one more `drawGlyphsRSXform` call. Buckets
+draw band by band — every underlay bucket, then every foreground bucket,
+then every overlay bucket, each band in creation order — so every underlay
+lands beneath every foreground even when per-glyph fades split one style
+into several buckets; a blurred halo reaches past its own glyph, so
+creation order alone would lay a late-fading letter's halo over its
+neighbour's stroke. A per-glyph fade rides `alphaScale` instead of a
+per-glyph style; quantize it when an effect drives it continuously, because
+distinct alphas are distinct buckets.
 Batched glyphs draw with subpixel positioning off and rotations quantized: a
 continuous per-letter angle or phase mints a fresh glyph-atlas strike per
 letter per frame.

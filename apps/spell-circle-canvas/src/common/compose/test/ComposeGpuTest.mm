@@ -1,16 +1,20 @@
 // GPU-backend behavior tests: the raster suite proves semantics, THIS
-// suite proves the same pixels arrive on Graphite — the class of gap it
-// exists for is direct-image draws (drawImageLattice / drawAtlas) that
-// bypass the Recorder's ImageProvider and silently vanish (found as
-// invisible nine-slice frames and instance stamps in the GPU gallery).
+// suite proves the same pixels arrive on Graphite. Two classes of gap live
+// here: direct-image draws (drawImageLattice / drawAtlas) that bypass the
+// Recorder's ImageProvider and silently vanish (found as invisible
+// nine-slice frames and instance stamps in the GPU gallery), and
+// multi-pass glyph compositing (a blurred underlay beneath a stroked
+// foreground) that must land identically on both backends.
 
 #import <Metal/Metal.h>
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
+#include <sigilcompose/TextFx.h>
 
 #include <sigilweave/FontContext.h>
+#include <sigilweave/SigilWeave.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include "SkiaGraphiteContext.h"
@@ -82,6 +86,42 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
   const auto *src = static_cast<const uint8_t *>(read.result->data(0));
   const size_t srcRB = read.result->rowBytes(0);
   for (int y = 0; y < h; ++y)
+    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRB,
+                std::min(srcRB, bm.rowBytes()));
+  return bm;
+}
+
+/** Reads a Graphite surface back to CPU pixels: snap, insert, async read. */
+SkBitmap readbackGpu(SkiaGraphiteContext *ctx, SkSurface *surface, const SkImageInfo &info) {
+  SkBitmap bm;
+  if (auto recording = ctx->recorder()->snap()) {
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    ctx->context()->insertRecording(insert);
+  }
+  struct Read {
+    std::unique_ptr<const SkImage::AsyncReadResult> result;
+    bool called = false;
+  } read;
+  ctx->context()->asyncRescaleAndReadPixels(
+      surface, info, SkIRect::MakeWH(info.width(), info.height()), SkImage::RescaleGamma::kSrc,
+      SkImage::RescaleMode::kNearest,
+      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
+        auto *read = static_cast<Read *>(c);
+        read->result = std::move(r);
+        read->called = true;
+      },
+      &read);
+  skgpu::graphite::SubmitInfo submitInfo;
+  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
+  ctx->context()->submit(submitInfo);
+  for (int spin = 0; spin < 5000 && !read.called; ++spin)
+    ctx->context()->checkAsyncWorkCompletion();
+  if (!read.result) return bm;
+  bm.allocPixels(info);
+  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
+  const size_t srcRB = read.result->rowBytes(0);
+  for (int y = 0; y < info.height(); ++y)
     std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRB,
                 std::min(srcRB, bm.rowBytes()));
   return bm;
@@ -219,4 +259,179 @@ TEST(ComposeGpu, DirectPrimitiveMatrix) {
   std::printf("lattice+raster  (50,50):  %08x\n", bm.getColor(50, 50));
   std::printf("lattice+texture (150,50): %08x\n", bm.getColor(150, 50));
   std::printf("atlas+texture   (250,50): %08x\n", bm.getColor(250, 50));
+}
+
+namespace {
+
+// A "hollow" letter: a light stroked foreground over a dark blurred stroke
+// underlay. The underlay must land BENEATH the stroke — a halo that keeps
+// the letterform's own colour intact — on every backend.
+constexpr SkColor kHollowForeground = 0xFFDED8CC;
+
+sigil::weave::Paragraph hollowParagraph() {
+  using namespace sigil::weave;
+  TextStyle style;
+  style.shaping.fontSize = 96.0f;
+  style.paint.foreground.setAntiAlias(true);
+  style.paint.foreground.setStyle(SkPaint::kStroke_Style);
+  style.paint.foreground.setStrokeWidth(4.0f);
+  style.paint.foreground.setColor(kHollowForeground);
+  SkPaint halo;
+  halo.setAntiAlias(true);
+  halo.setStyle(SkPaint::kStroke_Style);
+  halo.setStrokeWidth(7.0f);
+  halo.setColor(0xA6000000);
+  style.paint.underlays.push_back(PaintLayer::blurred(halo, 3.5f));
+  ParagraphBuilder builder(style);
+  builder.addText(u8"O");
+  return builder.build();
+}
+
+/** Batches every glyph of `layout` at its rest pose, whole style. */
+sigil::weave::GlyphRSXformBatches batchAtRest(const sigil::weave::ParagraphLayout &layout,
+                                              const sigil::weave::Paragraph &paragraph) {
+  sigil::weave::GlyphRSXformBatches batches;
+  sigil::weave::forEachPlacedGlyph(layout, paragraph, [&](const sigil::weave::PlacedGlyph &glyph) {
+    batches.addGlyph(glyph, glyph.rest + SkVector{glyph.advance * 0.5f, 0});
+  });
+  return batches;
+}
+
+/// Pixels within `tolerance` per channel of `color`.
+int countNear(const SkBitmap &bm, SkColor color, int tolerance) {
+  int count = 0;
+  for (int y = 0; y < bm.height(); ++y)
+    for (int x = 0; x < bm.width(); ++x) {
+      const SkColor c = bm.getColor(x, y);
+      if (std::abs((int)SkColorGetR(c) - (int)SkColorGetR(color)) <= tolerance &&
+          std::abs((int)SkColorGetG(c) - (int)SkColorGetG(color)) <= tolerance &&
+          std::abs((int)SkColorGetB(c) - (int)SkColorGetB(color)) <= tolerance)
+        ++count;
+    }
+  return count;
+}
+
+}  // namespace
+
+// A batched glyph's blurred underlay must composite BENEATH its stroked
+// foreground on Graphite exactly as it does on the CPU: the stroke keeps
+// its colour, and the two backends agree pixel for pixel within blur and
+// AA tolerance.
+TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
+  REQUIRE_GPU();
+  using namespace sigil::weave;
+  FontContext &fontContext = fonts();
+  Paragraph paragraph = hollowParagraph();
+  ParagraphLayout layout = layoutSingleLine(fontContext, paragraph, {40, 120});
+  GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
+  ASSERT_EQ(batches.batches.size(), 2u) << "underlay pass + foreground pass";
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(180, 160);
+
+  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+  raster->getCanvas()->clear(SK_ColorBLACK);
+  batches.draw(raster->getCanvas());
+  SkBitmap cpu;
+  cpu.allocPixels(info);
+  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+
+  SkiaGraphiteContext *ctx = graphite();
+  sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_TRUE(gpuSurface);
+  gpuSurface->getCanvas()->clear(SK_ColorBLACK);
+  batches.draw(gpuSurface->getCanvas());
+  SkBitmap gpu = readbackGpu(ctx, gpuSurface.get(), info);
+  ASSERT_FALSE(gpu.empty());
+
+  // (a) The foreground stroke keeps its colour on both backends. A dimmed
+  // stroke (the underlay compositing over it) leaves ZERO pixels near the
+  // foreground colour, so a generous AA tolerance still separates the two.
+  const int cpuStroke = countNear(cpu, kHollowForeground, 24);
+  const int gpuStroke = countNear(gpu, kHollowForeground, 24);
+  ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
+  EXPECT_GT(gpuStroke, cpuStroke / 2)
+      << "foreground stroke lost its colour on Graphite: the blurred "
+         "underlay composited over it";
+
+  // (b) The backends agree within blur/AA tolerance everywhere.
+  int mismatched = 0;
+  for (int y = 0; y < info.height(); ++y)
+    for (int x = 0; x < info.width(); ++x) {
+      const SkColor a = cpu.getColor(x, y);
+      const SkColor b = gpu.getColor(x, y);
+      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 48 ||
+          std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) > 48 ||
+          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 48)
+        ++mismatched;
+    }
+  std::printf("stroke-coloured pixels cpu=%d gpu=%d, mismatched=%d\n", cpuStroke, gpuStroke,
+              mismatched);
+  EXPECT_LT(mismatched, info.width() * info.height() / 200)
+      << "GPU render diverges from the CPU render of the same batches";
+}
+
+// The same guarantee through the fx track path: a text node whose style
+// carries the blurred underlay, drawn mid-cascade (per-glyph scale and
+// fade in flight), must composite underlay -> foreground identically on
+// both backends.
+TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
+  REQUIRE_GPU();
+  using namespace sigil::weave;
+  TextStyle style;
+  style.shaping.fontSize = 64.0f;
+  style.paint.foreground.setAntiAlias(true);
+  style.paint.foreground.setStyle(SkPaint::kStroke_Style);
+  style.paint.foreground.setStrokeWidth(3.0f);
+  style.paint.foreground.setColor(kHollowForeground);
+  SkPaint halo;
+  halo.setAntiAlias(true);
+  halo.setStyle(SkPaint::kStroke_Style);
+  halo.setStrokeWidth(7.0f);
+  halo.setColor(0xA6000000);
+  style.paint.underlays.push_back(PaintLayer::blurred(halo, 3.5f));
+
+  const int w = 420, h = 160;
+  auto tree = [&] {
+    return box().padding(20).child(text(u8"VERTIGO", style)
+                                       .key("word")
+                                       .fx({.effect = fx::pop(),
+                                            .stagger = {.eachMs = 30, .durationMs = 480},
+                                            .progress = 0.55f}));
+  };
+
+  sigil::motion::Ticker ticker;
+  Composer composer(ticker, fonts());
+  composer.setSize({(float)w, (float)h});
+  composer.render(tree());
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
+  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+  raster->getCanvas()->clear(SK_ColorBLACK);
+  composer.draw(*raster->getCanvas());
+  SkBitmap cpu;
+  cpu.allocPixels(info);
+  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+
+  SkBitmap gpu = drawOnGpu(composer, w, h);
+  ASSERT_FALSE(gpu.empty());
+
+  const int cpuStroke = countNear(cpu, kHollowForeground, 24);
+  const int gpuStroke = countNear(gpu, kHollowForeground, 24);
+  int mismatched = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor a = cpu.getColor(x, y);
+      const SkColor b = gpu.getColor(x, y);
+      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 48 ||
+          std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) > 48 ||
+          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 48)
+        ++mismatched;
+    }
+  std::printf("fx-track stroke pixels cpu=%d gpu=%d, mismatched=%d\n", cpuStroke, gpuStroke,
+              mismatched);
+  ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
+  EXPECT_GT(gpuStroke, cpuStroke / 2)
+      << "foreground stroke lost its colour on Graphite: the blurred "
+         "underlay composited over it";
+  EXPECT_LT(mismatched, w * h / 200) << "GPU render diverges from the CPU render of the same node";
 }

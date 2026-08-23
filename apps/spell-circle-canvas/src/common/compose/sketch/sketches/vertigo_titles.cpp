@@ -110,13 +110,6 @@
 //     decorations receive the already-trimmed outline, so the pen-tip
 //     highlight is not a second stroke() — it is a duplicate node that
 //     rebuilds and re-measures the same 2000-segment path.
-//  4. "VERTIGO" is a per-letter cascade rather than one fx() track. The
-//     track path can dress the hollow face — a batched draw carries the
-//     style's whole paint, underlays included — but on the GPU backend a
-//     track-drawn glyph's blurred stroke underlay composites over the
-//     letterform instead of beneath it, muddying the stroke the hollow
-//     register lives on. The per-node painter composites halo-under-
-//     stroke on both backends, so each capital stays its own node.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -417,27 +410,14 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
-    // VERTIGO — hollow Clarendon expanding out of the pupil.
-    //
-    // pop() rebuilt one tier up: seven letter nodes in a row,
-    // staggerChildren() cascading their animate(from().to()) entrances,
-    // easeOutBack(1.70158) per letter — the same curve fx::pop() applies
-    // internally. One text node under one fx() track draws this same
-    // dressed style — a track's batched draw carries a glyph's whole
-    // paint, underlays included — but on the GPU backend a track-drawn
-    // glyph's blurred stroke underlay composites over the letterform
-    // instead of beneath it, muddying the hollow stroke. The per-NODE
-    // painter keeps the halo under the stroke on both backends, so the
-    // letters stay nodes.
-    auto word = box()
-                    .row()
-                    .gap(3)
-                    .alignItems(Align::Baseline)
-                    .centerAt(kEye)
-                    .key("vertigo")
-                    .staggerChildren(30ms);
+    // VERTIGO — hollow Clarendon expanding out of the pupil: one text
+    // node, one fx::pop() track cascading the capitals 30 ms apart. The
+    // track's batched draw carries the style's whole paint — the blurred
+    // stroke underlay stays beneath the hollow stroke while the letters
+    // pop. The 3 px the letter row used to open between nodes is tracking
+    // now, because with one node the spacing IS letterspacing.
     {
-      auto face = hollow(faceDisplay, 76, kBone, 2.2f);
+      auto face = hollow(faceDisplay, 76, kBone, 2.2f, 3.0f);
       // Legibility underlay over the busiest cards. NOT dropShadow() —
       // that is a FILLED blurred copy and would plug the counters, which
       // is the one thing the outline register exists to keep open. A
@@ -452,15 +432,17 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         face.paint.underlays.push_back(
             sigil::weave::PaintLayer::blurred(halo, 3.5f));
       }
-      const char* letters[] = {"V", "E", "R", "T", "I", "G", "O"};
-      for (const char* letter : letters)
-        word.child(text(toU8(letter), face)
-                       .key(std::string("v") + letter)
-                       .scale(animate(from(0.30f).to(1.0f),
-                                      ramp(780, 480, ease::outBack())))
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(780, 220))));
+      // The entrance ramp covers the cascade's own span, so the last
+      // capital lands exactly when the master progress does.
+      const sigil::compose::Stagger cascade{.eachMs = 30, .durationMs = 480};
+      panel.child(text(toU8("VERTIGO"), face)
+                      .key("vertigo")
+                      .centerAt(kEye)
+                      .fx({.effect = fx::pop(0.30f),
+                           .stagger = cascade,
+                           .progress = animate(from(0.0f).to(1.0f),
+                                               ramp(780, cascade.spanMs(7)))}));
     }
-    panel.child(std::move(word));
 
     // the other register — "solid black capitals of the SAME typeface"
     // (Typotheque), so Clarendon again, not the gothic. Deliberately

@@ -337,28 +337,42 @@ struct GlyphDress {
 /// it draws: each underlay in order, then the foreground, then each overlay.
 /// Because a batch's key is a complete SkPaint, a pass keeps its gradient,
 /// stroke, blend mode and mask filter — animating letters and styling them
-/// are not alternatives. Batches draw in creation order, so within a style
-/// every underlay lands beneath every foreground.
+/// are not alternatives. Batches draw band by band — every underlay batch,
+/// then every foreground batch, then every overlay batch, each band in
+/// creation order — so every underlay lands beneath every foreground even
+/// when per-glyph fades split one style into several buckets. Creation order
+/// alone cannot promise that: the first glyph at a new fade mints its
+/// underlay bucket after every earlier fade's foreground bucket, and a
+/// blurred halo reaches past its own glyph onto its neighbours' strokes.
 ///
 /// A GlyphDress carries what varies per glyph rather than per pass — the
 /// placement, the fade, the tint, a varied face, and the matrix a shear or a
 /// non-uniform scale needs. The face joins the bucket key; the fade and the
 /// tint change only the resolved paint.
 struct GlyphRSXformBatches {
+  /// Which stratum of a PaintStyle a bucket's pass came from. The draw
+  /// walks these in declaration order, so a bucket's band — not when it was
+  /// minted — decides what it composites over.
+  enum class PassBand : uint8_t { Underlay, Foreground, Overlay };
+
   /// One (font, paint pass) bucket: parallel glyph/transform arrays that feed
   /// a single drawGlyphsRSXform call. The font is held as the identity
   /// makeFont() needs rather than as the shaped word it came from, so words
   /// set in the same face and size share one bucket — and so a bucket kept
   /// across frames never outlives a shaped word the cache has since evicted.
   struct Batch {
-    sk_sp<SkTypeface> typeface;         ///< bucket key: the face to draw with
-    float fontSize = 0;                 ///< bucket key: px size
-    float scaleX = 1.0f;                ///< bucket key: horizontal
-                                        ///< condensation baked into shaping
-    bool aliased = false;               ///< bucket key: hard-edged raster
-    SkPaint paint;                      ///< bucket key: the complete pass
-    SkVector offset = {0, 0};           ///< bucket key: the pass's own
-                                        ///< translation (shadows, echoes)
+    sk_sp<SkTypeface> typeface;  ///< bucket key: the face to draw with
+    float fontSize = 0;          ///< bucket key: px size
+    float scaleX = 1.0f;         ///< bucket key: horizontal
+                                 ///< condensation baked into shaping
+    bool aliased = false;        ///< bucket key: hard-edged raster
+    SkPaint paint;               ///< bucket key: the complete pass
+    SkVector offset = {0, 0};    ///< bucket key: the pass's own
+                                 ///< translation (shadows, echoes)
+    /// Bucket key: the stratum this pass draws in. The same paint used as
+    /// one style's underlay and another's foreground is two buckets,
+    /// because the two composite differently.
+    PassBand band = PassBand::Foreground;
     std::vector<SkGlyphID> glyphs;      ///< parallel to `transforms`
     std::vector<SkRSXform> transforms;  ///< per-glyph scale/rotate/translate
     /// The glyphs of this bucket that an RSXform cannot place — a shear, a
@@ -381,13 +395,14 @@ struct GlyphRSXformBatches {
    * the key, so the same word set at two axis coordinates is two buckets. */
   [[nodiscard]] Batch& batchForPass(const ShapedWord* font,
                                     const sk_sp<SkTypeface>& face,
-                                    const SkPaint& paint, SkVector offset) {
+                                    const SkPaint& paint, SkVector offset,
+                                    PassBand band) {
     const sk_sp<SkTypeface>& resolved = face ? face : font->typeface;
     auto matches = [&](const Batch& batch) {
       return batch.typeface.get() == resolved.get() &&
              batch.fontSize == font->fontSize && batch.scaleX == font->scaleX &&
              batch.aliased == font->aliased && batch.offset == offset &&
-             batch.paint == paint;
+             batch.band == band && batch.paint == paint;
     };
     if (recentBatch < batches.size() && matches(batches[recentBatch]))
       return batches[recentBatch];
@@ -403,6 +418,7 @@ struct GlyphRSXformBatches {
                        font->aliased,
                        paint,
                        offset,
+                       band,
                        {},
                        {},
                        {},
@@ -458,10 +474,10 @@ struct GlyphRSXformBatches {
         batch.transforms.push_back(transform);
       }
     };
-    auto addPass = [&](const SkPaint& source, SkVector offset) {
+    auto addPass = [&](const SkPaint& source, SkVector offset, PassBand band) {
       if (alpha >= 1.0f && !tinted) {
         if (source.nothingToDraw()) return;
-        place(batchForPass(font, dress.face, source, offset));
+        place(batchForPass(font, dress.face, source, offset, band));
         return;
       }
       SkPaint dressed = source;
@@ -482,13 +498,13 @@ struct GlyphRSXformBatches {
         }
       }
       if (dressed.nothingToDraw()) return;
-      place(batchForPass(font, dress.face, dressed, offset));
+      place(batchForPass(font, dress.face, dressed, offset, band));
     };
     for (const PaintLayer& layer : style.underlays)
-      addPass(layer.paint, layer.offset);
-    addPass(style.foreground, {0, 0});
+      addPass(layer.paint, layer.offset, PassBand::Underlay);
+    addPass(style.foreground, {0, 0}, PassBand::Foreground);
     for (const PaintLayer& layer : style.overlays)
-      addPass(layer.paint, layer.offset);
+      addPass(layer.paint, layer.offset, PassBand::Overlay);
   }
 
   /** Appends a visited glyph at `centerPosition`, taking its font, advance
@@ -534,42 +550,55 @@ struct GlyphRSXformBatches {
     }
   }
 
-  /** Draws every batch and returns the number of glyph draws it issued —
-   * one per glyph per pass. */
+  /** Draws every batch — underlay buckets, then foreground buckets, then
+   * overlay buckets, each band in creation order — and returns the number
+   * of glyph draws it issued, one per glyph per pass. The band walk is what
+   * keeps a blurred halo beneath a neighbouring letter's stroke when
+   * per-glyph fades have split the style across several buckets. */
   int draw(SkCanvas* canvas) const {
     int total = 0;
-    for (const Batch& batch : batches) {
-      if (batch.glyphs.empty() && batch.matrixGlyphs.empty()) continue;
-      SkFont font =
-          makeFont(batch.typeface, batch.fontSize, batch.scaleX, batch.aliased);
-      // Tumbling letters move whole pixels every frame; subpixel phases
-      // would only multiply each (glyph, angle) into fresh atlas strikes —
-      // per-frame mask rasterization is exactly what caps these effects.
-      font.setSubpixel(false);
-      if (!batch.glyphs.empty()) {
-        total += static_cast<int>(batch.glyphs.size());
-        canvas->drawGlyphsRSXform(
-            SkSpan<const SkGlyphID>(batch.glyphs.data(), batch.glyphs.size()),
-            SkSpan<const SkRSXform>(batch.transforms.data(),
-                                    batch.transforms.size()),
-            {batch.offset.x(), batch.offset.y()}, font, batch.paint);
+    for (const PassBand band :
+         {PassBand::Underlay, PassBand::Foreground, PassBand::Overlay})
+      for (const Batch& batch : batches) {
+        if (batch.band != band) continue;
+        total += drawBatch(canvas, batch);
       }
-      // The bucket's matrix lane, inside the bucket's own place in the pass
-      // order: one save/concat and one draw per glyph, but still one font
-      // and one paint, and still beneath whatever this style's later passes
-      // put over it.
-      constexpr SkPoint kAtTheMatrixOrigin{0, 0};
-      for (size_t index = 0; index < batch.matrixGlyphs.size(); ++index) {
-        canvas->save();
-        canvas->translate(batch.offset.x(), batch.offset.y());
-        canvas->concat(batch.matrices[index]);
-        canvas->drawGlyphs(
-            SkSpan<const SkGlyphID>(&batch.matrixGlyphs[index], 1),
-            SkSpan<const SkPoint>(&kAtTheMatrixOrigin, 1), {0, 0}, font,
-            batch.paint);
-        canvas->restore();
-        ++total;
-      }
+    return total;
+  }
+
+ private:
+  /** One bucket's draws: the shared RSXform lane, then its matrix lane. */
+  static int drawBatch(SkCanvas* canvas, const Batch& batch) {
+    if (batch.glyphs.empty() && batch.matrixGlyphs.empty()) return 0;
+    int total = 0;
+    SkFont font =
+        makeFont(batch.typeface, batch.fontSize, batch.scaleX, batch.aliased);
+    // Tumbling letters move whole pixels every frame; subpixel phases
+    // would only multiply each (glyph, angle) into fresh atlas strikes —
+    // per-frame mask rasterization is exactly what caps these effects.
+    font.setSubpixel(false);
+    if (!batch.glyphs.empty()) {
+      total += static_cast<int>(batch.glyphs.size());
+      canvas->drawGlyphsRSXform(
+          SkSpan<const SkGlyphID>(batch.glyphs.data(), batch.glyphs.size()),
+          SkSpan<const SkRSXform>(batch.transforms.data(),
+                                  batch.transforms.size()),
+          {batch.offset.x(), batch.offset.y()}, font, batch.paint);
+    }
+    // The bucket's matrix lane, inside the bucket's own place in the pass
+    // order: one save/concat and one draw per glyph, but still one font
+    // and one paint, and still beneath whatever this style's later passes
+    // put over it.
+    constexpr SkPoint kAtTheMatrixOrigin{0, 0};
+    for (size_t index = 0; index < batch.matrixGlyphs.size(); ++index) {
+      canvas->save();
+      canvas->translate(batch.offset.x(), batch.offset.y());
+      canvas->concat(batch.matrices[index]);
+      canvas->drawGlyphs(SkSpan<const SkGlyphID>(&batch.matrixGlyphs[index], 1),
+                         SkSpan<const SkPoint>(&kAtTheMatrixOrigin, 1), {0, 0},
+                         font, batch.paint);
+      canvas->restore();
+      ++total;
     }
     return total;
   }

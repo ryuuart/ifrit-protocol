@@ -1704,6 +1704,79 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   EXPECT_TRUE(anyWhiteIn(host, rightEdge));  // everything landed
 }
 
+TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
+  // A dressed style through the track's batched draw: a dark blurred
+  // stroke underlay must stay BENEATH the light stroked foreground — the
+  // halo hugs the letterform, the stroke keeps its colour — including
+  // mid-cascade, when each glyph's own fade splits the style across
+  // several paint buckets and a later letter's halo reaches a landed
+  // letter's stroke. The reference is the same cascade with the style cut
+  // into two tracked nodes, halo under stroke by stacking order: the one
+  // dressed node must composite exactly as that split does.
+  SkPaint stroke;
+  stroke.setAntiAlias(true);
+  stroke.setStyle(SkPaint::kStroke_Style);
+  stroke.setStrokeWidth(4.0f);
+  stroke.setColor(SK_ColorWHITE);
+  SkPaint halo;
+  halo.setAntiAlias(true);
+  halo.setStyle(SkPaint::kStroke_Style);
+  halo.setStrokeWidth(8.0f);
+  halo.setColor(0xFF000000);
+  const sigil::weave::PaintLayer blurredHalo =
+      sigil::weave::PaintLayer::blurred(halo, 4);
+
+  sigil::weave::TextStyle dressed;
+  dressed.shaping.fontSize = 64.0f;
+  dressed.paint.foreground = stroke;
+  dressed.paint.underlays.push_back(blurredHalo);
+  sigil::weave::TextStyle haloOnly = dressed;
+  haloOnly.paint.foreground = blurredHalo.paint;
+  haloOnly.paint.underlays.clear();
+  sigil::weave::TextStyle strokeOnly = dressed;
+  strokeOnly.paint.underlays.clear();
+
+  constexpr float kMidCascade = 0.45f;
+  const auto tracked = [&](const sigil::weave::TextStyle& style,
+                           const char* key) {
+    return text(u8"OOOOO", style)
+        .key(key)
+        .absolute()
+        .inset(20, 20, 20, 20)
+        .fx({.effect = fx::pop(),
+             .stagger = {.eachMs = 30, .durationMs = 480},
+             .progress = kMidCascade});
+  };
+
+  Host actual(420, 140);
+  actual.composer.render(box().child(tracked(dressed, "word")));
+  actual.frame();
+  Host expected(420, 140);
+  expected.composer.render(box()
+                               .child(tracked(haloOnly, "halos"))
+                               .child(tracked(strokeOnly, "strokes")));
+  expected.frame();
+
+  int worst = 0, worstX = -1, worstY = -1;
+  for (int y = 0; y < 140; ++y)
+    for (int x = 0; x < 420; ++x) {
+      const SkColor a = actual.pixel(x, y);
+      const SkColor b = expected.pixel(x, y);
+      const int diff =
+          std::max({std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+                    std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+                    std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
+      if (diff > worst) {
+        worst = diff;
+        worstX = x;
+        worstY = y;
+      }
+    }
+  EXPECT_LE(worst, 4) << "the dressed node's underlay left its place under "
+                         "the strokes at ("
+                      << worstX << ", " << worstY << ")";
+}
+
 TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   // The master progress takes the full Animatable treatment: a with()
   // transition animates the reveal and the node paints live while moving.
