@@ -1833,6 +1833,18 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         const SkColor4f tint{snap(mod.colorMul.fR, kTintCeiling),
                              snap(mod.colorMul.fG, kTintCeiling),
                              snap(mod.colorMul.fB, kTintCeiling), 1.0f};
+        // The additive and screen terms ride the same 32-step ladder,
+        // ceilinged at 1: an add past full is clamped at the draw anyway,
+        // and a screen past full has no headroom left to lift. RGB only —
+        // their alpha components state nothing at a draw. The snap is what
+        // bounds the memoized filter population, and Track::continuous
+        // lifts it here exactly as it does for the multiplier.
+        const SkColor4f flash{snap(mod.colorAdd.fR, 1.0f),
+                              snap(mod.colorAdd.fG, 1.0f),
+                              snap(mod.colorAdd.fB, 1.0f), 0.0f};
+        const SkColor4f glow{snap(mod.colorScreen.fR, 1.0f),
+                             snap(mod.colorScreen.fG, 1.0f),
+                             snap(mod.colorScreen.fB, 1.0f), 0.0f};
         float cosv = 1.0f, sinv = 0.0f;
         if (mod.rotateDeg != 0) {
           const float radians = mod.rotateDeg * 0.017453293f;
@@ -1869,6 +1881,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         sigil::weave::GlyphDress dress;
         dress.alphaScale = alpha;
         dress.colorMul = tint;
+        dress.colorAdd = flash;
+        dress.colorScreen = glow;
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (mod.axis && placed.shaped)
           dress.face =

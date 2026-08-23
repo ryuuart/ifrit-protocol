@@ -595,10 +595,10 @@ inline auto fields(Mask& v) {
   return std::tie(what, with);
 }
 inline auto fields(Stagger& v) {
-  auto& [eachMs, amountMs, cueMs, durationMs, from, over, beatsOver,
+  auto& [eachMs, amountMs, cueMs, durationMs, loopMs, from, over, beatsOver,
          distribution, inner] = v;
-  return std::tie(eachMs, amountMs, cueMs, durationMs, from, over, beatsOver,
-                  distribution, inner);
+  return std::tie(eachMs, amountMs, cueMs, durationMs, loopMs, from, over,
+                  beatsOver, distribution, inner);
 }
 inline auto fields(Track& v) {
   auto& [where, effect, stagger, progress, reach, continuous] = v;
@@ -799,7 +799,14 @@ struct Cascade {
   float innerEach = 0;  ///< ms between inner starts
   float duration = 1;   ///< ms one unit's own motion lasts
   float beatMs = 1;     ///< ms one outer beat occupies
-  float totalMs = 1;    ///< ms the master progress spans
+  /** Ms the master progress spans: the one-shot closing span, or the loop
+   *  PERIOD when the cascade loops — either way, `master · totalMs` is the
+   *  virtual time every local clock reads. */
+  float totalMs = 1;
+  /** The wrapping period (`Stagger::loopMs`), or 0 for a one-shot cascade.
+   *  When set, `totalMs` IS this period and localTime() folds each unit's
+   *  elapsed time mod it, so every beat re-opens once per cycle. */
+  float loopMs = 0;
 
   void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
   /** When this unit's beat opens, in ms from the start of the master
@@ -807,7 +814,10 @@ struct Cascade {
    *  one. THE one place the schedule is arithmetic; everything that reports
    *  a start time reads it here. */
   [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
-  /** The local 0→1 this unit sees at master progress `master`. */
+  /** The local 0→1 this unit sees at master progress `master`. Clamped at
+   *  both ends for a one-shot cascade; a looping one folds the unit's
+   *  elapsed time mod `loopMs` first, so the answer re-opens at 0 once per
+   *  cycle and rests at 1 between its beat's close and its next opening. */
   [[nodiscard]] float localTime(float master, uint32_t outerUnit,
                                 uint32_t innerUnit) const;
 };
@@ -832,8 +842,10 @@ struct TrackCascade {
 };
 
 /** The composition algebra, in one place: offsets, rotations and shears ADD,
- *  scale and alpha MULTIPLY. Stacked tracks, fx::mix, a seq crossfade and a
- *  keys segment all go through these two, so they cannot drift apart. */
+ *  scale, alpha and the colour multiplier MULTIPLY, the additive colour term
+ *  ADDS and the screen term SCREENS. Stacked tracks, fx::mix, a seq
+ *  crossfade and a keys segment all go through these two, so they cannot
+ *  drift apart. */
 void compose(GlyphMod& into, const GlyphMod& next);
 GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
 /** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside

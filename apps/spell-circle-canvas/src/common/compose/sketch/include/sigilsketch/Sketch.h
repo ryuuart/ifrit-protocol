@@ -176,6 +176,17 @@ struct Sketch {
 /// exactly as a reload does.
 using SketchFactory = Sketch* (*)();
 
+/** The factory SIGIL_SKETCH registers — a named template whose ADDRESS the
+ *  registration initializer takes, rather than a lambda whose body it would
+ *  carry: taking a function's address cannot throw, so with the
+ *  registration seam noexcept the whole static initializer is
+ *  non-throwing, whatever the sketch's constructor does. Construction
+ *  itself runs at activation time, where a host can hold it. */
+template <class SketchType>
+[[nodiscard]] Sketch* makeStaticSketch() {
+  return new SketchType();
+}
+
 struct StaticSketch {
   const char* key = nullptr;  ///< SIGIL_SKETCH_STATIC, i.e. the file stem
   SketchFactory factory = nullptr;
@@ -186,9 +197,20 @@ struct StaticSketch {
  *  should look up by key). */
 [[nodiscard]] std::vector<StaticSketch>& staticSketches();
 
-/** Registers `factory` under `key`. Returns true so it can initialize a
- *  namespace-scope bool; SIGIL_SKETCH is the only intended caller. */
-bool registerStaticSketch(const char* key, SketchFactory factory);
+/** Registers `factory` under `key`. Returns whether the registration was
+ *  recorded, so it can initialize a namespace-scope bool either way;
+ *  SIGIL_SKETCH is the only intended caller.
+ *
+ *  GENUINELY NON-THROWING, and that is the registration seam's contract
+ *  rather than a hint: the call runs during static initialization, where
+ *  no handler can exist and an unwinding exception is fatal. The one
+ *  thing inside that could throw — the registry vector growing under
+ *  memory exhaustion — is contained in the body and answered as false,
+ *  because a process that cannot allocate a few pointers before main() is
+ *  about to fail loudly anyway. This is what lets every
+ *  statically-compiled sketch's registration initializer be non-throwing
+ *  without a per-file suppression. */
+bool registerStaticSketch(const char* key, SketchFactory factory) noexcept;
 
 /** The factory registered under `key`, or nullptr when this binary was not
  *  built with that sketch. */
@@ -198,14 +220,19 @@ bool registerStaticSketch(const char* key, SketchFactory factory);
 
 #ifdef SIGIL_SKETCH_STATIC
 
-/** Register the sketch with the host it is compiled into. */
-#define SIGIL_SKETCH(SketchType)                                           \
-  namespace {                                                              \
-  [[maybe_unused]] const bool sigilSketchRegistered =                      \
-      ::sigil::compose::sketch::registerStaticSketch(                      \
-          SIGIL_SKETCH_STATIC, []() -> ::sigil::compose::sketch::Sketch* { \
-            return new SketchType();                                       \
-          });                                                              \
+/** Register the sketch with the host it is compiled into.
+ *
+ *  The whole expansion is NON-THROWING: the initializer is one call to the
+ *  noexcept registration seam, handed the ADDRESS of the factory template
+ *  — no lambda body, no construction, nothing that could need the handler
+ *  static initialization cannot have. That is what keeps every
+ *  statically-compiled sketch free of a per-file suppression. */
+#define SIGIL_SKETCH(SketchType)                                    \
+  namespace {                                                       \
+  [[maybe_unused]] const bool sigilSketchRegistered =               \
+      ::sigil::compose::sketch::registerStaticSketch(               \
+          SIGIL_SKETCH_STATIC,                                      \
+          &::sigil::compose::sketch::makeStaticSketch<SketchType>); \
   }
 
 #else

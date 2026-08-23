@@ -441,12 +441,16 @@ continuous per-letter angle or phase mints a fresh glyph-atlas strike per
 letter per frame.
 
 **A `GlyphDress` carries what varies per glyph** rather than per pass — the
-placement, the fade, a `colorMul` tint, a `face` override for a glyph drawn
-through a varied clone, and a `matrix` for the placements an RSXform cannot
-express (a shear, a non-uniform scale). The face joins the bucket key; the
-fade and the tint change only each pass's resolved paint, and a tinted
-shader pass takes a memoized modulating colour filter, because a batch's key
-is a whole `SkPaint` and `SkPaint` compares its colour filter by pointer. A
+placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`
+flash added after it, and a `colorScreen` glow screened over both — the two
+brightening terms a multiplier cannot say), a `face` override for a glyph
+drawn through a varied clone, and a `matrix` for the placements an RSXform
+cannot express (a shear, a non-uniform scale). The face joins the bucket
+key; the fade and the colour terms change only each pass's resolved paint,
+and on a shader pass all three terms fold into one memoized modulating
+colour filter — screening against a constant is affine per channel — because
+a batch's key is a whole `SkPaint` and `SkPaint` compares its colour filter
+by pointer. A
 matrix glyph draws in its own bucket's lane, after that bucket's RSXform
 glyphs — same font, same paint, same place in the pass order, at the cost of
 one canvas concat and one draw each.

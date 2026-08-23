@@ -684,7 +684,8 @@ struct GlyphInfo {
  *  This is the type the composition algebra operates on: stacked tracks,
  *  `fx::mix`, a `fx::seq` crossfade and a `fx::keys` segment all combine
  *  GlyphMods the same way — dx/dy, rotateDeg, skewXDeg and skewYDeg ADD;
- *  scale, scaleX, scaleY, alpha and colorMul MULTIPLY; and the two
+ *  scale, scaleX, scaleY, alpha and colorMul MULTIPLY; colorAdd ADDS and
+ *  colorScreen SCREENS, each channelwise; and the two
  *  SUBSTITUTIONS, `axis` and
  *  `codepoint`, are last-one-wins. Substitutions do not blend because
  *  there is no half-way glyph between two outlines: a later track that
@@ -703,6 +704,25 @@ struct GlyphMod {
    *  takes the equivalent modulation, so a gradient keeps its ramp and
    *  wears the tint over it. White is no tint. */
   SkColor4f colorMul = {1, 1, 1, 1};
+  /** A per-channel ADDITIVE term over every pass the glyph's style draws —
+   *  the hard flash a multiplier cannot say, because a multiplier only
+   *  moves a colour toward black and moves a zero channel not at all. The
+   *  glyph's painted colour becomes `colour·colorMul + colorAdd`, then
+   *  `colorScreen` below, clamped to [0,1] at the draw. Adds ACROSS TRACKS
+   *  channelwise and clamps once at the draw, so two half flashes make one
+   *  full one. RGB only: the alpha component rides the algebra but reaches
+   *  no draw — coverage is the multiplicative lane's (`alpha`,
+   *  `colorMul.fA`). Zero is no flash and costs nothing. */
+  SkColor4f colorAdd = {0, 0, 0, 0};
+  /** A per-channel SCREEN term — the painted colour c becomes
+   *  1 − (1 − c)(1 − colorScreen) — the phosphor glow that lifts each
+   *  channel in proportion to its headroom and never clips. Screens
+   *  COMMUTATIVELY across tracks (1 − (1−a)(1−b) reads the same both
+   *  ways), so stacked glows compose order-free; applied after `colorMul`
+   *  and `colorAdd`, which is what makes one colour-matrix carry all
+   *  three. RGB only, as `colorAdd` is. Zero is no glow and costs
+   *  nothing. */
+  SkColor4f colorScreen = {0, 0, 0, 0};
   /** Non-uniform scale and shear on each axis (degrees). An RSXform encodes
    *  a rotation and ONE scale and no shear at all, so a glyph whose composed
    *  deviation uses any of these draws under its own matrix — same passes,
@@ -1013,6 +1033,42 @@ struct Stagger {
    *  with `cues()`. */
   std::vector<float> cueMs;
   float durationMs = 450;
+  /** THE PER-UNIT WRAPPING BEAT: set above 0 and the cascade LOOPS — every
+   *  unit's beat RE-OPENS on its own cycle of this period, phase-offset by
+   *  the unit's start time (even ladder and cue table alike), so steady
+   *  continuous motion — rain re-dropping column by column, arrivals that
+   *  never stop arriving — is DECLARED rather than faked by re-running a
+   *  one-shot.
+   *
+   *  THE MASTER STILL CLOCKS IT, and one full sweep 0→1 is exactly ONE
+   *  CYCLE: the master maps onto `loopMs` of virtual time instead of the
+   *  one-shot span, and unit i reads
+   *  `clamp(((master·loopMs − startMs_i) mod loopMs) / durationMs)`.
+   *  Master 0 and master 1 name the same instant of the cycle, so a
+   *  WRAPPING bound phase — an Output stepped mod 1, the clock
+   *  `fx::waveLoop` already reads — drives it seamlessly forever, and
+   *  driving that phase is what keeps the element painting live: a looping
+   *  cascade at a CONSTANT master is one still frame of the cycle, exactly
+   *  as a wave at one phase is.
+   *
+   *  BETWEEN a beat's close and its next opening the unit rests at local 1
+   *  — its landed deviation — and returns to 0 the instant its beat
+   *  re-opens, so an effect that loops cleanly ends where nothing shows.
+   *  Start offsets FOLD mod the period: two units whose starts differ by
+   *  exactly `loopMs` share a phase, and a period shorter than
+   *  `durationMs` re-opens a beat before it lands. The fold also means
+   *  every unit is ALWAYS somewhere in its cycle — there is no "before
+   *  the first beat" — so `fx::hold` has nothing left to veto (its t ≤ 0
+   *  test is true only at the instant of re-opening); an effect on a
+   *  looping cascade gates its own arrival instead.
+   *
+   *  `spanMs` and `Composer::cascadeSpanMs` answer the PERIOD — still the
+   *  ms the master maps onto, and the number a driver needs: wrap the
+   *  phase every `loopMs` of wall time and the schedule runs at its
+   *  authored ms. ONE loop governs the whole cascade, read off the OUTER
+   *  spec under `then()` as `beatsOver` is; a nested loopMs is ignored.
+   *  0 — the default — is the one-shot cascade. */
+  float loopMs = 0;
   /** Where the cascade starts. `Random` is seeded from the unit count, so
    *  a scatter is the SAME scatter on every frame and after every
    *  relayout; `Edges` starts at both ends and meets in the middle. */
@@ -1058,6 +1114,10 @@ struct Stagger {
    *  the compounded extent under `then()`, where @p innerUnitCount is how
    *  many inner units one beat holds (the widest beat's count, where they
    *  vary). Zero units answer as one unit does: `durationMs` alone.
+   *
+   *  A LOOPING cascade (`loopMs` > 0) answers its PERIOD, whatever the
+   *  counts: the master maps onto one cycle, so the period is what a
+   *  driver's wrap must span for the schedule to run at its authored ms.
    *
    *  This is the DECLARE-TIME form, for the number a description needs
    *  before any node exists — above all a progress transition whose
@@ -1164,9 +1224,14 @@ struct Beat {
    *  the COMPOUNDED delay, outer plus inner, under a nested cascade. */
   float startMs = 0;
   /** This beat's own 0→1 at the track's progress right now — the same
-   *  number the effect is being handed for these glyphs. */
+   *  number the effect is being handed for these glyphs. Under a looping
+   *  cascade (`Stagger::loopMs`) it is the WRAPPED local time of the
+   *  current cycle, and no cycle index rides beside it: the master is a
+   *  phase mod 1 and carries no cycle count into the composer, so cycle
+   *  identity lives with whoever steps the phase. */
   float localT = 0;
-  /** The beat is running: it has begun and has not finished. */
+  /** The beat is running: it has begun and has not finished — under a
+   *  looping cascade, mid-beat in its current cycle. */
   bool active = false;
 
   bool operator==(const Beat&) const = default;
@@ -4394,6 +4459,11 @@ class Composer {
    *  what anything sequenced after the cascade offsets from. It is
    *  computed by the same resolved cascade `beatsOf` and the glyphs read,
    *  so the three cannot disagree about the schedule.
+   *
+   *  A LOOPING track (`Stagger::loopMs`) answers its PERIOD: the master
+   *  maps onto one cycle rather than a one-shot span, so the period is
+   *  what a wrapping phase's wall time must span for the schedule to run
+   *  at its authored ms.
    *
    *  Valid after a draw(), like `beatsOf`. `Stagger::spanMs` is the
    *  DECLARE-TIME form of the same number, for the site that needs it

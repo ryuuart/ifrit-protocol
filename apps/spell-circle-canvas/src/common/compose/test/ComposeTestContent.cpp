@@ -2708,6 +2708,193 @@ TEST(ComposeTextFx, ColorMulTintsEveryPassOfADressedGlyph) {
       << "the tint painted nothing at all — the glyph vanished instead";
 }
 
+// ---- the two brightening colour terms: colorAdd and colorScreen -----------
+
+namespace {
+
+/** Every pixel of the host's surface, for a byte-for-byte compare. */
+std::vector<uint8_t> surfaceBytes(Host& host, int w, int h) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(bitmap.pixmap(), 0, 0);
+  const auto* data = (const uint8_t*)bitmap.getPixels();
+  return {data, data + bitmap.computeByteSize()};
+}
+
+/** A style whose ink is one flat grey — headroom in every channel, so an
+ *  added or screened term has somewhere to go. */
+sigil::weave::TextStyle greyStyle(float size, float level) {
+  sigil::weave::TextStyle s = styleAt(size);
+  s.paint.foreground.setColor4f({level, level, level, 1.0f}, nullptr);
+  return s;
+}
+
+/** One glyph under one or two colour-term tracks, drawn and read back. */
+std::vector<uint8_t> renderColorTracks(
+    std::vector<std::pair<std::string, GlyphMod>> tracks,
+    float greyLevel = 0.25f, bool continuous = false) {
+  Host host(140, 140);
+  Element leaf = text(u8"I", greyStyle(52, greyLevel)).key("k");
+  for (auto& [key, mod] : tracks)
+    leaf.fx({.effect = fixed(key, mod), .continuous = continuous});
+  host.composer.render(box().padding(10).child(std::move(leaf)));
+  host.frame();
+  return surfaceBytes(host, 140, 140);
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, ColorAddAddsAcrossTracksAndClampsAtTheDraw) {
+  // One flash brightens: an added half-red over a quarter-grey glyph reads
+  // red-forward where the untouched glyph reads flat grey.
+  GlyphMod addHalfRed;
+  addHalfRed.colorAdd = {0.5f, 0, 0, 0};
+  const std::vector<uint8_t> flashed =
+      renderColorTracks({{"addHalfRed", addHalfRed}});
+  const std::vector<uint8_t> plain = renderColorTracks({});
+  EXPECT_NE(flashed, plain) << "an added term changed nothing";
+
+  // TWO tracks ADD — 0.5 + 0.75 — and the sum clamps ONCE at the draw, so
+  // the pair is byte-identical to a single track adding full red. Clamping
+  // per track instead would land at 1.25-before-snap only by accident; the
+  // law is sum-then-clamp, and byte identity against the saturated single
+  // track is that law observed.
+  GlyphMod addMoreRed;
+  addMoreRed.colorAdd = {0.75f, 0, 0, 0};
+  GlyphMod addFullRed;
+  addFullRed.colorAdd = {1.0f, 0, 0, 0};
+  EXPECT_EQ(renderColorTracks(
+                {{"addHalfRed", addHalfRed}, {"addMoreRed", addMoreRed}}),
+            renderColorTracks({{"addFullRed", addFullRed}}))
+      << "0.5 + 0.75 across two tracks must draw as a clamped 1.0";
+}
+
+TEST(ComposeTextFx, ColorScreenScreensCommutativelyAcrossTracks) {
+  GlyphMod screenRed;
+  screenRed.colorScreen = {0.5f, 0, 0, 0};
+  GlyphMod screenGreen;
+  screenGreen.colorScreen = {0, 0.5f, 0, 0};
+  // Order-free: 1 − (1−a)(1−b) reads the same both ways, so two glow
+  // tracks land identically whichever is declared first.
+  EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sG", screenGreen}}),
+            renderColorTracks({{"sG", screenGreen}, {"sR", screenRed}}))
+      << "screen composition depended on track order";
+  // …and the arithmetic is the screen blend itself: half screened twice is
+  // 1 − 0.5·0.5 = 0.75 screened once. Both sides land on the snap ladder
+  // (16/32 and 24/32), so the compare is exact.
+  GlyphMod screenThreeQuarters;
+  screenThreeQuarters.colorScreen = {0.75f, 0, 0, 0};
+  EXPECT_EQ(renderColorTracks({{"sR", screenRed}, {"sR2", screenRed}}),
+            renderColorTracks({{"s34", screenThreeQuarters}}))
+      << "two half screens must compose to one three-quarter screen";
+}
+
+TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
+  // A keys segment interpolates the two terms channel by channel, so the
+  // table's midpoint draws exactly as a constant half-strength term does.
+  // Local t is pinned at 0.5 by a zero-spread cascade and progress 0.5;
+  // 0.5 sits on the snap ladder, so the compare is byte-exact.
+  const auto renderKeysAt = [](TextEffect effect) {
+    Host host(140, 140);
+    host.composer.render(
+        box().padding(10).child(text(u8"I", greyStyle(52, 0.25f))
+                                    .key("k")
+                                    .fx({.effect = std::move(effect),
+                                         .stagger = {.eachMs = 0},
+                                         .progress = 0.5f})));
+    host.frame();
+    return surfaceBytes(host, 140, 140);
+  };
+  GlyphMod fullAdd;
+  fullAdd.colorAdd = {1.0f, 0, 0, 0};
+  GlyphMod halfAdd;
+  halfAdd.colorAdd = {0.5f, 0, 0, 0};
+  EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullAdd}})),
+            renderKeysAt(fixed("halfAddK", halfAdd)))
+      << "colorAdd did not lerp componentwise across a keys segment";
+  GlyphMod fullScreen;
+  fullScreen.colorScreen = {0, 1.0f, 0, 0};
+  GlyphMod halfScreen;
+  halfScreen.colorScreen = {0, 0.5f, 0, 0};
+  EXPECT_EQ(renderKeysAt(fx::keys({{0.0f, {}}, {1.0f, fullScreen}})),
+            renderKeysAt(fixed("halfScreenK", halfScreen)))
+      << "colorScreen did not lerp componentwise across a keys segment";
+  // The terms are part of a table's identity: two tables differing only in
+  // a colour term are two different effects, and must not prune onto each
+  // other.
+  EXPECT_FALSE(fx::keys({{0.0f, {}}, {1.0f, fullAdd}}) ==
+               fx::keys({{0.0f, {}}, {1.0f, halfAdd}}));
+  EXPECT_FALSE(fx::keys({{0.0f, {}}, {1.0f, fullScreen}}) ==
+               fx::keys({{0.0f, {}}, {1.0f, halfScreen}}));
+}
+
+TEST(ComposeTextFx, NeutralColourTermsKeepTheFastPathByteIdentical) {
+  // A deviation that spells the neutral terms outright must draw the very
+  // bytes one that never mentions them draws: neutral means the untouched
+  // source paint, not an identity-shaped filter over it.
+  GlyphMod spelled;
+  spelled.dy = -4.0f;
+  spelled.colorAdd = {0, 0, 0, 0};
+  spelled.colorScreen = {0, 0, 0, 0};
+  GlyphMod silent;
+  silent.dy = -4.0f;
+  EXPECT_EQ(renderColorTracks({{"spelledNeutral", spelled}}),
+            renderColorTracks({{"silentNeutral", silent}}));
+}
+
+TEST(ComposeTextFx, TheSnapLadderBoundsTheColourTermsAndContinuousLiftsIt) {
+  // Below half a ladder step the snapped term rounds to neutral — that
+  // rounding is what bounds the memoized filter population — and
+  // Track::continuous lifts it, letting the raw value through at the cost
+  // the opt-out names.
+  GlyphMod faint;
+  faint.colorAdd = {0.01f, 0.01f, 0.01f, 0};
+  EXPECT_EQ(renderColorTracks({{"faintAdd", faint}}, 0.5f),
+            renderColorTracks({}, 0.5f))
+      << "a term below half a snap step must round to neutral";
+  EXPECT_NE(renderColorTracks({{"faintAdd", faint}}, 0.5f,
+                              /*continuous=*/true),
+            renderColorTracks({}, 0.5f, /*continuous=*/true))
+      << "continuous must lift the snap and let the faint term through";
+}
+
+TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
+  // A pass whose colour is decided by a shader takes the colour terms as a
+  // memoized matrix filter; a flat pass takes them in its colour. Same
+  // arithmetic by contract — multiply, add, clamp, then screen — so the
+  // two paths must land within rounding of each other.
+  GlyphMod mod;
+  mod.colorMul = {0.5f, 1.0f, 1.0f, 1.0f};
+  mod.colorAdd = {0.25f, 0.25f, 0, 0};
+  mod.colorScreen = {0, 0.5f, 0.5f, 0};
+  const auto render = [&](Host& host, bool shaderFill) {
+    sigil::weave::TextStyle style = greyStyle(52, 0.5f);
+    if (shaderFill)
+      style.paint.foreground.setShader(
+          SkShaders::Color({0.5f, 0.5f, 0.5f, 1.0f}, nullptr));
+    host.composer.render(box().padding(10).child(
+        text(u8"I", style).key("k").fx({.effect = fixed("both", mod)})));
+    host.frame();
+  };
+  Host flat(140, 140);
+  render(flat, false);
+  Host filtered(140, 140);
+  render(filtered, true);
+  int worst = 0;
+  for (int y = 0; y < 140; ++y)
+    for (int x = 0; x < 140; ++x) {
+      const SkColor a = flat.pixel(x, y);
+      const SkColor b = filtered.pixel(x, y);
+      worst =
+          std::max({worst, std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+                    std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+                    std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
+    }
+  EXPECT_LE(worst, 2)
+      << "the matrix-filter path and the flat-colour path disagree about "
+         "the colour-term arithmetic";
+}
+
 TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
   // The churn is seeded from the glyph's identity, so the same local time
   // gives the same character every time it is asked — which is what lets a
@@ -3435,6 +3622,222 @@ TEST(ComposeTextFx, CascadeSpanMsResolvesZeroRatherThanGuessing) {
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("p", 7), 0.0f) << "no such track";
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("b", 0), 0.0f)
       << "a node that is not text";
+}
+
+// ---- the looping cascade: Stagger::loopMs ---------------------------------
+
+namespace {
+
+/** Three words on a looping word cascade at one master value, with the
+ *  schedule read back. eachMs 100, durationMs 200, loopMs 400 — starts 0,
+ *  100, 200, each beat re-opening every 400 virtual ms. */
+std::vector<Beat> loopBeatsAt(Host& host, float master, float loopMs = 400) {
+  host.composer.render(box().padding(6).child(
+      text(u8"AA BB CC", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6),
+               .stagger = stagger(
+                   unit::Word,
+                   {.eachMs = 100, .durationMs = 200, .loopMs = loopMs}),
+               .progress = master})));
+  host.frame();
+  return host.composer.beatsOf("p", 0);
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
+  Host host(400, 120);
+  // Master 0.25 of a 400ms period is virtual 100: the first word is
+  // halfway through its 200ms beat, the second opens this instant, and the
+  // third — 100ms short of its start in one-shot terms — is MID-CYCLE at
+  // elapsed 300, resting at 1. The fold leaves no unit waiting.
+  {
+    const std::vector<Beat> beats = loopBeatsAt(host, 0.25f);
+    ASSERT_EQ(beats.size(), 3u);
+    EXPECT_FLOAT_EQ(beats[0].localT, 0.5f);
+    EXPECT_FLOAT_EQ(beats[1].localT, 0.0f);
+    EXPECT_FLOAT_EQ(beats[2].localT, 1.0f)
+        << "a unit short of its start must rest at 1 mid-cycle, not wait "
+           "at 0";
+    EXPECT_TRUE(beats[0].active);
+    EXPECT_FALSE(beats[2].active) << "resting between beats is not active";
+  }
+  // Three quarters on: the ladder has rolled through — the tail is now the
+  // one mid-beat.
+  {
+    const std::vector<Beat> beats = loopBeatsAt(host, 0.75f);
+    ASSERT_EQ(beats.size(), 3u);
+    EXPECT_FLOAT_EQ(beats[0].localT, 1.0f);
+    EXPECT_FLOAT_EQ(beats[1].localT, 1.0f);
+    EXPECT_FLOAT_EQ(beats[2].localT, 0.5f);
+  }
+  // THE SEAM: master 0 and master 1 are the same instant of the cycle, so
+  // a wrapping bound phase crosses its own wrap with no jump — every beat
+  // answers identically at both ends.
+  {
+    const std::vector<Beat> low = loopBeatsAt(host, 0.0f);
+    const std::vector<Beat> high = loopBeatsAt(host, 1.0f);
+    ASSERT_EQ(low.size(), high.size());
+    for (size_t i = 0; i < low.size(); ++i)
+      EXPECT_FLOAT_EQ(low[i].localT, high[i].localT)
+          << "beat " << i << " jumps across the master's wrap";
+  }
+  // The period is what the master maps onto, so the span queries answer it
+  // — mounted and at declare time alike.
+  EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("p", 0), 400.0f);
+  const Stagger looping =
+      stagger(unit::Word, {.eachMs = 100, .durationMs = 200, .loopMs = 400});
+  EXPECT_FLOAT_EQ(looping.spanMs(3), 400.0f);
+
+  // A start PAST the period folds mod it — the beat still re-opens once
+  // per cycle — while Beat::startMs keeps reporting the authored delay.
+  {
+    host.composer.render(box().padding(6).child(
+        text(u8"AA BB CC", whiteStyle(16))
+            .key("p")
+            .width(360)
+            .fx({.effect = fx::rise(6),
+                 .stagger =
+                     stagger(unit::Word,
+                             {.eachMs = 300, .durationMs = 200, .loopMs = 400}),
+                 .progress = 0.75f})));  // virtual 300
+    host.frame();
+    const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+    ASSERT_EQ(beats.size(), 3u);
+    EXPECT_FLOAT_EQ(beats[2].startMs, 600.0f)
+        << "the schedule stays authored; only the clock folds";
+    // Elapsed mod 400 of (300 − 600) is 100: halfway through a 200ms beat.
+    EXPECT_FLOAT_EQ(beats[2].localT, 0.5f);
+  }
+}
+
+TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
+  // 0 — the default — is the one-shot path: a spelled-out zero is the same
+  // value, the same schedule and the same bytes as never mentioning it,
+  // and a unit short of its start WAITS at 0 rather than resting at 1.
+  EXPECT_TRUE((Stagger{.eachMs = 100, .durationMs = 200}) ==
+              (Stagger{.eachMs = 100, .durationMs = 200, .loopMs = 0}));
+  EXPECT_FALSE((Stagger{.eachMs = 100, .durationMs = 200}) ==
+               (Stagger{.eachMs = 100, .durationMs = 200, .loopMs = 400}));
+
+  const auto render = [](Stagger cascade) {
+    Host host(400, 120);
+    host.composer.render(
+        box().padding(6).child(text(u8"AA BB CC", whiteStyle(16))
+                                   .key("p")
+                                   .width(360)
+                                   .fx({.effect = fx::rise(6),
+                                        .stagger = std::move(cascade),
+                                        .progress = 0.25f})));
+    host.frame();
+    return std::pair(host.composer.beatsOf("p", 0),
+                     surfaceBytes(host, 400, 120));
+  };
+  const auto [defaulted, defaultedBytes] =
+      render(stagger(unit::Word, {.eachMs = 100, .durationMs = 200}));
+  const auto [spelled, spelledBytes] = render(
+      stagger(unit::Word, {.eachMs = 100, .durationMs = 200, .loopMs = 0}));
+  EXPECT_EQ(defaultedBytes, spelledBytes);
+  ASSERT_EQ(defaulted.size(), 3u);
+  ASSERT_EQ(spelled.size(), 3u);
+  // One-shot semantics, for contrast with the fold: span 400 covers the
+  // ladder, so master 0.25 is virtual 100 here too — but the un-started
+  // tail reads 0, where the loop above rests it at 1.
+  EXPECT_FLOAT_EQ(defaulted[2].localT, 0.0f);
+  for (size_t i = 0; i < defaulted.size(); ++i) {
+    EXPECT_FLOAT_EQ(defaulted[i].localT, spelled[i].localT);
+    EXPECT_FLOAT_EQ(defaulted[i].startMs, spelled[i].startMs);
+  }
+}
+
+TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
+  // fx::hold blanks a unit whose beat has not opened — and a looping
+  // cascade HAS no such unit: the fold keeps every beat somewhere in its
+  // cycle, so the word a one-shot hold still withholds paints under a
+  // loop, at the rest its cycle has reached. The veto survives only as
+  // the single instant of re-opening (local 0), which is exactly where
+  // the existing hold law already blanks.
+  const auto tree = [](float loopMs) {
+    return box().padding(10).child(
+        text(u8"AA BB", whiteStyle(28))
+            .key("p")
+            .fx({.effect = fx::hold(fx::rise(24)),
+                 .stagger = stagger(
+                     unit::Word,
+                     {.eachMs = 300, .durationMs = 100, .loopMs = loopMs}),
+                 .progress = 0.25f}));
+  };
+  const auto rightHalfInk = [](Host& host) {
+    auto b = host.composer.bounds("p");
+    EXPECT_TRUE(b.has_value());
+    // The right word's whole travel: its rest box plus the rise's reach
+    // below it, clamped to the host.
+    return anyWhiteIn(host,
+                      SkIRect::MakeLTRB((int)(b->centerX() + 4), (int)b->top(),
+                                        std::min((int)b->right(), 239),
+                                        std::min((int)b->bottom() + 24, 119)));
+  };
+  Host oneShot(240, 120);
+  oneShot.composer.render(tree(0));
+  oneShot.frame();
+  EXPECT_FALSE(rightHalfInk(oneShot))
+      << "one-shot control: the held word's beat (start 300, virtual 100) "
+         "has not opened, so it must paint nothing";
+  Host looping(240, 120);
+  looping.composer.render(tree(400));
+  looping.frame();
+  EXPECT_TRUE(rightHalfInk(looping))
+      << "under the loop the same word is mid-cycle (elapsed 200 of 400) "
+         "and must paint at its rest";
+}
+
+TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
+  // The loop's permanent volatility is DECLARED by its driver, the way
+  // waveLoop's already is: a wrapping bound phase is live on every frame,
+  // so the element paints live forever — across the wrap included — while
+  // the same reveal as a one-shot transition settles and goes back to a
+  // cached picture.
+  Host live(240, 120);
+  choreograph::Output<float> phase{0.0f};
+  live.composer.render(box().padding(10).child(
+      text(u8"LOOP", whiteStyle(28))
+          .key("p")
+          .fx({.effect = fx::rise(24),
+               .stagger =
+                   stagger(unit::Cluster,
+                           {.eachMs = 100, .durationMs = 200, .loopMs = 400}),
+               .progress = &phase})));
+  live.frame();
+  double clock = 0.0;
+  for (int i = 0; i < 24; ++i) {  // three settle windows, several wraps
+    clock += 0.07;
+    phase = (float)std::fmod(clock, 1.0);
+    live.frame(0.016);
+    EXPECT_GE(live.composer.stats().nodesPainted, 1u)
+        << "frame " << i << ": a driven looping cascade stopped painting "
+        << "live";
+  }
+
+  Host still(240, 120);
+  still.composer.render(box().padding(10).child(
+      text(u8"LOOP", whiteStyle(28))
+          .key("p")
+          .fx({.effect = fx::rise(24),
+               .stagger =
+                   stagger(unit::Cluster, {.eachMs = 100, .durationMs = 200}),
+               .progress = animate(from(0.0f).to(1.0f),
+                                   {200ms, &choreograph::easeNone})})));
+  for (int i = 0; i < 24; ++i) still.frame(0.016);
+  unsigned settledPaints = 0;
+  for (int i = 0; i < 4; ++i) {
+    still.frame(0.016);
+    settledPaints += still.composer.stats().nodesPainted;
+  }
+  EXPECT_EQ(settledPaints, 0u)
+      << "the one-shot control kept painting live after its entrance "
+         "settled";
 }
 
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {

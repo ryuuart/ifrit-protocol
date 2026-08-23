@@ -233,9 +233,17 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
 }
 
 /** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
- * `tint`, composed over whatever filter the pass already carried (that one
- * runs first, so the tint modulates the finished colour). Alpha is left
- * alone: a per-glyph fade rides the paint's own alpha instead.
+ * `tint`, then adds `add` and screens `screen` over the result — composed
+ * over whatever filter the pass already carried (that one runs first, so
+ * the modulation applies to the finished colour). Alpha is left alone: a
+ * per-glyph fade rides the paint's own alpha instead.
+ *
+ * ALL THREE TERMS RIDE ONE COLOUR MATRIX, because screening against a
+ * constant is affine per channel — c → c(1−s) + s — so multiply, add and
+ * screen fold into one scale-and-bias: c·tint·(1−s) + (add·(1−s) + s).
+ * The matrix filter clamps its output, which is where "added, clamped"
+ * happens on this path. Neutral add and screen (all zero) contribute a
+ * zero bias, leaving exactly the scale-only matrix a bare tint builds.
  *
  * MEMOIZED, and that is a correctness requirement rather than a saving: a
  * batch's key is a whole SkPaint, and SkPaint compares its colour filter by
@@ -258,8 +266,10 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
  * recycled underneath a live entry.
  */
 inline sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
-                                       sk_sp<SkColorFilter> under) {
-  using Key = std::tuple<uint32_t, uint32_t, uint32_t, const void*>;
+                                       sk_sp<SkColorFilter> under,
+                                       const SkColor4f& add = {0, 0, 0, 0},
+                                       const SkColor4f& screen = {0, 0, 0, 0}) {
+  using Key = std::pair<std::array<uint32_t, 9>, const void*>;
   struct Entry {
     Key key;
     sk_sp<SkColorFilter> filter;
@@ -268,16 +278,28 @@ inline sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
   // which std::list keeps valid across splice and across every insertion.
   static thread_local std::list<Entry> order;
   static thread_local std::map<Key, std::list<Entry>::iterator> table;
-  const Key key{std::bit_cast<uint32_t>(tint.fR),
-                std::bit_cast<uint32_t>(tint.fG),
-                std::bit_cast<uint32_t>(tint.fB), (const void*)under.get()};
+  const Key key{
+      {std::bit_cast<uint32_t>(tint.fR), std::bit_cast<uint32_t>(tint.fG),
+       std::bit_cast<uint32_t>(tint.fB), std::bit_cast<uint32_t>(add.fR),
+       std::bit_cast<uint32_t>(add.fG), std::bit_cast<uint32_t>(add.fB),
+       std::bit_cast<uint32_t>(screen.fR), std::bit_cast<uint32_t>(screen.fG),
+       std::bit_cast<uint32_t>(screen.fB)},
+      (const void*)under.get()};
   const auto found = table.find(key);
   if (found != table.end()) {
     order.splice(order.begin(), order, found->second);
     return found->second->filter;
   }
+  // The one affine map: scale by tint·(1−screen), bias by add·(1−screen) +
+  // screen. Translate rides the matrix in the same normalized [0,1] units
+  // the scale reads.
+  const float headroom[3] = {1 - screen.fR, 1 - screen.fG, 1 - screen.fB};
   SkColorMatrix scale;
-  scale.setScale(tint.fR, tint.fG, tint.fB, 1.0f);
+  scale.setScale(tint.fR * headroom[0], tint.fG * headroom[1],
+                 tint.fB * headroom[2], 1.0f);
+  scale.postTranslate(add.fR * headroom[0] + screen.fR,
+                      add.fG * headroom[1] + screen.fG,
+                      add.fB * headroom[2] + screen.fB, 0.0f);
   sk_sp<SkColorFilter> filter = SkColorFilters::Matrix(scale);
   if (under) filter = SkColorFilters::Compose(filter, std::move(under));
   constexpr size_t kTintCap = 512;
@@ -308,6 +330,17 @@ struct GlyphDress {
   /// filter, so a gradient keeps its ramp and takes the tint over it.
   /// Alpha here folds into `alphaScale`. White is no tint.
   SkColor4f colorMul = {1, 1, 1, 1};
+  /// Added to every pass's colour after the multiply, clamped at the draw
+  /// — the flash a multiplier cannot brighten into. RGB only; the alpha
+  /// component is never read, coverage being `alphaScale`'s lane. Zero is
+  /// no flash, and keeps the untouched-paint fast path.
+  SkColor4f colorAdd = {0, 0, 0, 0};
+  /// Screened over every pass's colour after the add — c becomes
+  /// 1 − (1 − c)(1 − screen) — the glow that lifts each channel by its
+  /// headroom and never clips. RGB only, as `colorAdd`. Zero is no glow.
+  /// Screening against a constant is affine per channel, so all three
+  /// colour terms ride the one memoized matrix filter together.
+  SkColor4f colorScreen = {0, 0, 0, 0};
   /// The face to draw with, or null for the shaped word's own — a varied
   /// clone for a glyph whose effect drives a variable-font axis. It is part
   /// of the bucket key, so two faces are two buckets.
@@ -457,8 +490,14 @@ struct GlyphRSXformBatches {
   void addGlyph(const ShapedWord* font, const PaintStyle& style,
                 SkGlyphID glyph, float halfAdvance, const GlyphDress& dress) {
     const float alpha = dress.alphaScale * dress.colorMul.fA;
+    // Any of the three colour terms off neutral takes the modulated path;
+    // all neutral leaves the source paint untouched, byte for byte.
     const bool tinted = dress.colorMul.fR != 1.0f ||
-                        dress.colorMul.fG != 1.0f || dress.colorMul.fB != 1.0f;
+                        dress.colorMul.fG != 1.0f ||
+                        dress.colorMul.fB != 1.0f || dress.colorAdd.fR != 0 ||
+                        dress.colorAdd.fG != 0 || dress.colorAdd.fB != 0 ||
+                        dress.colorScreen.fR != 0 ||
+                        dress.colorScreen.fG != 0 || dress.colorScreen.fB != 0;
     const SkVector local =
         dress.centreOffset ? *dress.centreOffset : SkVector{halfAdvance, 0};
     const SkRSXform transform = {
@@ -483,18 +522,30 @@ struct GlyphRSXformBatches {
       SkPaint dressed = source;
       if (alpha != 1.0f) dressed.setAlphaf(source.getAlphaf() * alpha);
       if (tinted) {
-        // A flat pass takes the tint in its colour; a pass whose colour is
-        // decided downstream — by a shader, or by a filter already on it —
-        // takes the equivalent modulation as a filter over that colour.
+        // A flat pass takes the modulation in its colour; a pass whose
+        // colour is decided downstream — by a shader, or by a filter
+        // already on it — takes the equivalent modulation as a filter over
+        // that colour. Same arithmetic both ways: multiply, add, clamp,
+        // then screen.
         if (dressed.getShader() || dressed.getColorFilter()) {
-          dressed.setColorFilter(
-              tintFilter(dress.colorMul, dressed.refColorFilter()));
+          dressed.setColorFilter(tintFilter(dress.colorMul,
+                                            dressed.refColorFilter(),
+                                            dress.colorAdd, dress.colorScreen));
         } else {
+          const auto channel = [&](float base, float mul, float add,
+                                   float screen) {
+            const float lit = std::clamp(base * mul + add, 0.0f, 1.0f);
+            return lit + (1.0f - lit) * screen;
+          };
           const SkColor4f base = dressed.getColor4f();
-          dressed.setColor4f(
-              {base.fR * dress.colorMul.fR, base.fG * dress.colorMul.fG,
-               base.fB * dress.colorMul.fB, base.fA},
-              nullptr);
+          dressed.setColor4f({channel(base.fR, dress.colorMul.fR,
+                                      dress.colorAdd.fR, dress.colorScreen.fR),
+                              channel(base.fG, dress.colorMul.fG,
+                                      dress.colorAdd.fG, dress.colorScreen.fG),
+                              channel(base.fB, dress.colorMul.fB,
+                                      dress.colorAdd.fB, dress.colorScreen.fB),
+                              base.fA},
+                             nullptr);
         }
       }
       if (dressed.nothingToDraw()) return;

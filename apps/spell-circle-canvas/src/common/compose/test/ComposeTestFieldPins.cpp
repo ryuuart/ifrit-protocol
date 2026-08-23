@@ -162,11 +162,11 @@ TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
   // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
   // beating over each half's own selection. Both are silent, and both look
   // exactly like the engine ignoring the author.
-  static const char* const kNames[] = {"eachMs",     "amountMs",     "cueMs",
-                                       "durationMs", "from",         "over",
-                                       "beatsOver",  "distribution", "inner"};
+  static const char* const kNames[] = {
+      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs",
+      "from",   "over",     "beatsOver", "distribution", "inner"};
   static const bool kParticipates[] = {true, true, true, true, true,
-                                       true, true, true, true};
+                                       true, true, true, true, true};
   walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
                       kNames, kParticipates);
 }

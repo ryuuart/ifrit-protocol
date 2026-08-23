@@ -28,7 +28,9 @@
  * beat opens.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
- * WRAPPING bound phase (an Output stepped mod 1). Everything renders
+ * WRAPPING bound phase (an Output stepped mod 1), and a looping CASCADE
+ * (`Stagger::loopMs`) reads the same wrapping phase and re-opens every
+ * unit's beat once per wrap. Everything renders
  * through batched RSXform draws — moving text is never per-glyph draw
  * calls — and every preset declares the reach its motion needs so the
  * recording cull does not truncate it.
@@ -244,7 +246,10 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  image-filled line without knowing what fills it. Its cost is that a
  *  DESTINATION CHANNEL OF ZERO cannot be departed from — nothing multiplies
  *  0 into anything else — so that channel holds at 0 for the whole ramp
- *  whatever @p from says there.
+ *  whatever @p from says there. The way UP is the other two colour terms:
+ *  `GlyphMod::colorAdd` is the hard flash over whatever the style paints,
+ *  `GlyphMod::colorScreen` the glow that brightens toward white without
+ *  clipping — both usually spoken through a `fx::keys` table.
  *
  *  Alpha is untouched: a reveal that also fades wants an alpha track, which
  *  composes with this one. The ramp is a smoothstep because a hard cut at
@@ -426,9 +431,14 @@ struct Key {
  *  has not opened paints nothing however many other tracks have opened on
  *  it. Put the hold on the track that owns the glyph's arrival.
  *
- *  A ONE-SHOT effect is what this is for. A loop reads a wrapping phase
- *  that passes through 0 on every cycle, and a held loop would blink its
- *  glyphs out each time it did. */
+ *  A ONE-SHOT effect is what this is for. A loop effect reads a wrapping
+ *  phase that passes through 0 on every cycle, and a held loop would blink
+ *  its glyphs out each time it did. A LOOPING CASCADE (`Stagger::loopMs`)
+ *  has nothing for this to withhold either: its fold keeps every unit
+ *  somewhere in its cycle — there is no "not yet" — and local time touches
+ *  0 only at the instant a beat re-opens, so the veto blanks that single
+ *  instant and nothing else. An effect on a looping cascade gates its own
+ *  arrival, the way a streak table's head is its own entrance. */
 [[nodiscard]] TextEffect hold(TextEffect effect);
 
 /** PHASES IN LOCAL TIME: each phase sees a renormalized 0→1 over its own

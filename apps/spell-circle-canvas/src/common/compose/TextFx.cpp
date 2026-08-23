@@ -911,6 +911,13 @@ void Cascade::build(const Stagger& spec, uint32_t outerCount,
   outerDistribution = spec.distribution;
   totalMs = beatMs + (outerCue.empty() ? outerEach * (float)(outer - 1)
                                        : lastCueMs(outerCue, outer));
+  // ONE loop for the whole cascade, read off the OUTER spec as beatsOver
+  // is: a nested loopMs would be a second, conflicting period over the same
+  // clock. Looping, the master maps onto the PERIOD rather than the
+  // one-shot closing span — one sweep 0→1 is one cycle — so totalMs IS the
+  // period and localTime() folds each unit's elapsed time mod it.
+  loopMs = std::max(spec.loopMs, 0.0f);
+  if (loopMs > 0) totalMs = loopMs;
 }
 
 float Cascade::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
@@ -938,6 +945,19 @@ float Cascade::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
 
 float Cascade::localTime(float master, uint32_t outerUnit,
                          uint32_t innerUnit) const {
+  if (loopMs > 0) {
+    // The wrapping beat: elapsed time since this unit's start, folded into
+    // [0, loopMs). The fold is what re-opens the beat once per cycle, keeps
+    // master 0 and master 1 the same instant (so a wrapping bound phase
+    // crosses its own seam with no jump), and puts every unit somewhere in
+    // its cycle from the first frame — a start past the period lands at
+    // start mod period rather than waiting. Past its duration a beat rests
+    // at 1 until the fold brings it back to 0.
+    float elapsed =
+        std::fmod(master * totalMs - startMs(outerUnit, innerUnit), loopMs);
+    if (elapsed < 0) elapsed += loopMs;
+    return std::clamp(elapsed / duration, 0.0f, 1.0f);
+  }
   return std::clamp(
       (master * totalMs - startMs(outerUnit, innerUnit)) / duration, 0.0f,
       1.0f);
@@ -1010,16 +1030,17 @@ void TrackCascade::build(const Stagger& spec, const GlyphStructure& structure,
  *  same way when a field is added and one of them is not told: silently, by
  *  drawing the deviation of some other track or some other moment. */
 void glyphModFieldPin(GlyphMod& v) {
-  auto& [dx, dy, scale, rotateDeg, alpha, colorMul, scaleX, scaleY, skewXDeg,
-         skewYDeg, axis, codepoint] = v;
+  auto& [dx, dy, scale, rotateDeg, alpha, colorMul, colorAdd, colorScreen,
+         scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint] = v;
   static_assert(
-      std::tuple_size_v<decltype(std::tie(dx, dy, scale, rotateDeg, alpha,
-                                          colorMul, scaleX, scaleY, skewXDeg,
-                                          skewYDeg, axis, codepoint))> == 12,
+      std::tuple_size_v<decltype(std::tie(
+              dx, dy, scale, rotateDeg, alpha, colorMul, colorAdd, colorScreen,
+              scaleX, scaleY, skewXDeg, skewYDeg, axis, codepoint))> == 14,
       "GlyphMod gained or lost a field — rule on it in compose() and "
-      "lerpMod() below, and in the matrix ROUTING in Paint.cpp (a field an "
-      "RSXform cannot carry has to send its glyph down the matrix path), "
-      "then bump this count.");
+      "lerpMod() below, in appendKeyParams() (a field a keys table cannot "
+      "spell makes two different tables compare equal), and in the matrix "
+      "ROUTING in Paint.cpp (a field an RSXform cannot carry has to send "
+      "its glyph down the matrix path), then bump this count.");
 }
 
 void compose(GlyphMod& into, const GlyphMod& next) {
@@ -1035,6 +1056,18 @@ void compose(GlyphMod& into, const GlyphMod& next) {
   into.colorMul = {
       into.colorMul.fR * next.colorMul.fR, into.colorMul.fG * next.colorMul.fG,
       into.colorMul.fB * next.colorMul.fB, into.colorMul.fA * next.colorMul.fA};
+  // The additive term ADDS unclamped — the clamp happens once, at the draw,
+  // so two half flashes make one full one rather than each clamping alone.
+  into.colorAdd = {
+      into.colorAdd.fR + next.colorAdd.fR, into.colorAdd.fG + next.colorAdd.fG,
+      into.colorAdd.fB + next.colorAdd.fB, into.colorAdd.fA + next.colorAdd.fA};
+  // The screen term SCREENS: 1 − (1−a)(1−b), commutative and associative,
+  // so stacked glows compose in any track order and never leave [0,1].
+  const auto screen = [](float a, float b) { return 1 - (1 - a) * (1 - b); };
+  into.colorScreen = {screen(into.colorScreen.fR, next.colorScreen.fR),
+                      screen(into.colorScreen.fG, next.colorScreen.fG),
+                      screen(into.colorScreen.fB, next.colorScreen.fB),
+                      screen(into.colorScreen.fA, next.colorScreen.fA)};
   // The two SUBSTITUTIONS are last-one-wins rather than combined: two
   // tracks naming two outlines for one glyph have no arithmetic between
   // them, and averaging their numbers would draw a third thing neither
@@ -1058,6 +1091,15 @@ GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w) {
                   a.colorMul.fG + (b.colorMul.fG - a.colorMul.fG) * w,
                   a.colorMul.fB + (b.colorMul.fB - a.colorMul.fB) * w,
                   a.colorMul.fA + (b.colorMul.fA - a.colorMul.fA) * w};
+  // The two colour terms lerp componentwise like every other continuous
+  // field — a flash decays through straight interpolation of its own
+  // channels, not through the compose() arithmetic, which is for stacking.
+  const auto lerpColor = [w](const SkColor4f& x, const SkColor4f& y) {
+    return SkColor4f{x.fR + (y.fR - x.fR) * w, x.fG + (y.fG - x.fG) * w,
+                     x.fB + (y.fB - x.fB) * w, x.fA + (y.fA - x.fA) * w};
+  };
+  out.colorAdd = lerpColor(a.colorAdd, b.colorAdd);
+  out.colorScreen = lerpColor(a.colorScreen, b.colorScreen);
   // An axis coordinate is the one substitution with a continuum: two
   // phases driving the SAME axis blend their values and the face
   // interpolates between them. Everything else CUTS at the middle of the
@@ -1154,10 +1196,30 @@ namespace {
  *  an axis is its four tag bytes, its value, and whether it was set at all. */
 void appendKeyParams(std::vector<float>& out, const Key& key) {
   const GlyphMod& m = key.mod;
-  out.insert(out.end(), {key.at, m.dx, m.dy, m.scale, m.rotateDeg, m.alpha,
-                         m.colorMul.fR, m.colorMul.fG, m.colorMul.fB,
-                         m.colorMul.fA, m.scaleX, m.scaleY, m.skewXDeg,
-                         m.skewYDeg, (float)m.codepoint, m.axis ? 1.0f : 0.0f});
+  out.insert(out.end(), {key.at,
+                         m.dx,
+                         m.dy,
+                         m.scale,
+                         m.rotateDeg,
+                         m.alpha,
+                         m.colorMul.fR,
+                         m.colorMul.fG,
+                         m.colorMul.fB,
+                         m.colorMul.fA,
+                         m.colorAdd.fR,
+                         m.colorAdd.fG,
+                         m.colorAdd.fB,
+                         m.colorAdd.fA,
+                         m.colorScreen.fR,
+                         m.colorScreen.fG,
+                         m.colorScreen.fB,
+                         m.colorScreen.fA,
+                         m.scaleX,
+                         m.scaleY,
+                         m.skewXDeg,
+                         m.skewYDeg,
+                         (float)m.codepoint,
+                         m.axis ? 1.0f : 0.0f});
   const sigil::weave::FontVariation axis =
       m.axis.value_or(sigil::weave::FontVariation());
   for (const char byte : axis.tag) out.push_back((float)(unsigned char)byte);
@@ -1189,7 +1251,7 @@ float keysReach(const std::vector<Key>& table) {
 TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
   if (table.empty()) return TextEffect();
   std::vector<float> params;
-  params.reserve(table.size() * 21);
+  params.reserve(table.size() * 29);
   // The table-wide curve first, then one slot per entry whether or not that
   // entry overrode it: equal tables then always compare curve lists of equal
   // length, and a curve moved from one entry to another is a difference.
@@ -1235,7 +1297,11 @@ TextEffect hold(TextEffect effect) {
         // Local time is CLAMPED at both ends, so a unit whose beat has not
         // opened is handed 0 and one whose beat is over is handed 1 — which
         // makes t at its floor the whole signal there is that a beat is
-        // still to come.
+        // still to come. A LOOPING cascade has no such state: its fold
+        // keeps every unit somewhere in its cycle and touches 0 only at
+        // the instant of re-opening, so there this veto blanks that one
+        // instant and nothing else — a looping effect gates its own
+        // arrival instead of borrowing this one.
         if (t <= 0.0f) {
           GlyphMod mod;
           mod.alpha = 0.0f;

@@ -355,6 +355,46 @@ For a nested cascade the second argument is how many inner units one beat
 holds (the widest beat's count, where they vary), and an amount-mode span
 is the same for every count past one, because the amount *is* the spread.
 
+**The looping cascade.** `Stagger::loopMs` makes the schedule wrap: above 0,
+every unit's beat re-opens on its own cycle of that period, phase-offset by
+the unit's start time — even ladder and cue table alike — so steady
+continuous motion (rain re-dropping column by column, arrivals that never
+stop) is *declared* rather than faked by re-running a one-shot. The master
+stays the one clock, and one sweep 0→1 is exactly one cycle: unit *i* reads
+`clamp(((master·loopMs − startᵢ) mod loopMs) / durationMs)`, so master 0
+and master 1 name the same instant of the cycle and a **wrapping bound
+phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
+— drives it seamlessly forever:
+
+```cpp
+Stagger cascade = stagger(unit::Line, cues(columnStartsMs));
+cascade.then(unit::Cluster, {.eachMs = 80, .durationMs = 1400});
+cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
+text(field, rain).fx({.effect = streak, .stagger = cascade,
+                      .progress = &phase});  // phase wraps every 5 s
+```
+
+Between its beat's close and its next opening a unit rests at local 1 — its
+landed deviation — and returns to 0 the instant the beat re-opens, so an
+effect that loops cleanly ends where nothing shows. Start offsets fold mod
+the period (a start past `loopMs` lands at start mod `loopMs`), and the
+fold means every unit is *always* somewhere in its cycle: there is no
+"before the first beat", which leaves `fx::hold` nothing to veto (local
+time touches 0 only at the instant of re-opening) — an effect on a looping
+cascade gates its own arrival instead, the way a streak table's head is its
+own entrance. `Composer::cascadeSpanMs` and `Stagger::spanMs` answer the
+**period** — still the ms the master maps onto, and the number a driver's
+wrap must span for the schedule to run at its authored ms. One loop governs
+the whole cascade, read off the outer spec under `Stagger::then` as
+`Stagger::beatsOver` is; `Beat::localT` reports the wrapped local time (the
+same number the effect is handed) and no cycle index rides beside it — the
+master is a phase mod 1, so cycle identity lives with whoever steps the
+phase. Driving that phase is also what keeps the element live: a looping
+cascade at a *constant* master is one still frame of its cycle, exactly as
+a wave at one phase is, so permanent volatility is declared by the wrapping
+binding, never by the field, and `loopMs = 0` — the default — is the
+one-shot cascade.
+
 **Marking the type.** `Element::mark` anchors a child to the rect a selector
 resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
@@ -427,7 +467,10 @@ hold is alpha 0 and not the identity, because the identity is a glyph sitting
 at rest, which for a substitution is exactly the answer the effect exists to
 withhold. Alpha multiplies, so a hold is a **veto**: a glyph whose held track
 has not opened paints nothing however many other tracks have opened on it.
-Put it on the track that owns the glyph's arrival.
+Put it on the track that owns the glyph's arrival. A *looping* cascade
+leaves it nothing to veto — every unit is always somewhere in its cycle —
+so there an effect gates its own arrival instead (the looping-cascade
+passage above).
 
 **Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
 the same scatter on every frame and after every relayout — which is what
@@ -486,10 +529,30 @@ with no diagnostic. Multiplying is also what lets it tint a gradient-filled
 line without knowing what fills it, and why a destination channel of zero
 cannot be departed from.
 
+The way *up* is the other two colour terms. `GlyphMod::colorAdd` is the
+**hard flash**: added to whatever the style paints — after the multiply,
+clamped at the draw — it brightens where a multiplier can only darken, and
+it *adds across tracks*, the sum clamping once, so two half flashes make one
+full one. `GlyphMod::colorScreen` is the **phosphor glow that never clips**:
+the painted colour c becomes 1 − (1 − c)(1 − s), lifting each channel in
+proportion to its headroom, and screens combine *commutatively* across
+tracks — stacked glows compose order-free. Both are RGB-only (coverage
+stays the multiplicative lane's — `alpha` and the multiplier's own alpha),
+both lerp componentwise in a `fx::keys` table like every other continuous
+field, and both are usually spoken through one: a keys table that opens
+bright and decays to zero is the flash-then-settle an entrance wants.
+Because screening against a constant is affine per channel, multiply, add
+and screen ride *one* memoized colour-matrix filter on a shader-filled
+pass — no second filter form — and a flat pass takes the same arithmetic in
+its colour. Neutral values (all zero) cost nothing: the untouched-paint
+fast path is byte-identical to a deviation that never mentions them.
+
 **What a `GlyphMod` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
 `alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
 pass multiplies its colour, a shader pass takes an equivalent modulation,
-so a gradient keeps its ramp and wears the tint over it); `scaleX`,
+so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
+`colorScreen` brighten over every pass the same way — the flash and the
+glow of the tint section above; `scaleX`,
 `scaleY`, `skewXDeg` and `skewYDeg` place the glyph with a full matrix,
 because an RSXform carries a rotation and one scale and no shear at all —
 the two shear angles read as `Element::skewX` and `Element::skewY` do, and a
@@ -515,8 +578,9 @@ each glyph churns through a charset and resolves to the true letter by
 driven axis composes with entrances and loops instead of being a second
 text path they would hide.
 
-**Snapping, and `Track::continuous`.** Rotation, alpha, the colour
-multiplier and the axis coordinate are quantized before they reach the
+**Snapping, and `Track::continuous`.** Rotation, alpha, the colour terms
+(`colorMul`, `colorAdd`, `colorScreen`) and the axis coordinate are
+quantized before they reach the
 draw: each distinct value is a distinct batch bucket *and* a distinct
 glyph-atlas strike. The axis ladder is cut per RENDERED SIZE — one step is
 a fixed distance in the axis's design units, a design unit displaces an

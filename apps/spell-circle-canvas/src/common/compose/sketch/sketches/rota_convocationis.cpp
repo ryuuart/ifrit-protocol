@@ -1061,5 +1061,4 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   }
 };
 
-// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 SIGIL_SKETCH(RotaConvocationis)

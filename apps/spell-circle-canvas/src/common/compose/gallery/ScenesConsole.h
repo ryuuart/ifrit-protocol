@@ -15,7 +15,8 @@
 //                    stripe, the tag's ink, and a wash behind a breach line.
 //   entrances ...... chosen PER SEVERITY, and every one SETTLES: traces fade,
 //                    info types on, warnings rise glyph by glyph, breaches
-//                    slam in whole. A cipher field is vetoed by fx::hold
+//                    slam in whole with a screened flash that decays to the
+//                    ink's own red. A cipher field is vetoed by fx::hold
 //                    until its beat opens, churns hex, and resolves. The
 //                    frame a track ends, its row is a cached static leaf
 //                    again.
@@ -402,11 +403,23 @@ struct DaemonConsoleScene final : Scene {
         break;
       case dc::kBreach:
         // A breach does not type: the whole line slams in at once, wide and
-        // flat, and snaps to rest.
-        leaf.fx({.effect = fx::keys(
-                     {{0.0f, {.alpha = 0, .scaleX = 1.45f, .scaleY = 0.62f}},
-                      {0.35f, {.scaleX = 0.97f}},
-                      {1.0f, {}}}),
+        // flat, FLASHES hot at impact, and settles to its own red as it
+        // snaps to rest. The flash is a SCREEN term, not an add: the ink is
+        // already at the red primary, so an added flash could only clip
+        // that channel and shove the hue — where a screen lifts each
+        // channel by its headroom, so the line blooms toward white and
+        // decays back through its own colour, which is this console's
+        // phosphor idiom (the glow underlays, the screen-blended scanline
+        // pass) spoken per glyph.
+        leaf.fx({.effect = fx::keys({{0.0f,
+                                      {.alpha = 0,
+                                       .colorScreen = {0.9f, 0.85f, 0.8f, 0},
+                                       .scaleX = 1.45f,
+                                       .scaleY = 0.62f}},
+                                     {0.35f,
+                                      {.colorScreen = {0.4f, 0.28f, 0.22f, 0},
+                                       .scaleX = 0.97f}},
+                                     {1.0f, {}}}),
                  .progress = animate(from(0.0f).to(1.0f),
                                      {240ms, &choreograph::easeOutQuad})});
         break;

@@ -1,6 +1,6 @@
 // matrix_rain.cpp — THE DIGITAL RAIN of The Matrix (1999), run as a stress
-// field: four overlapping curtains of vertical type, thousands of glyphs
-// churning and fading at once.
+// field: three overlapping curtains of vertical type over a churning bed,
+// thousands of glyphs churning and fading at once.
 // =============================================================================
 // SUBJECT  The most recognisable piece of kinetic typography ever shipped,
 //          and a natural worst case for a text engine: it is nothing BUT
@@ -28,10 +28,9 @@
 //     does.
 //
 // THIS STUDY'S OWN, flagged rather than smuggled:
-//   * Every colour, size, rate and cue. Seven planes — a dim churning bed
-//     and three falling depths, each depth a pair of curtains half a loop
-//     out of phase — are this study's composition; the film's screens are
-//     a single plane.
+//   * Every colour, size, rate and cue. Four planes — a dim churning bed
+//     and three falling depths, one leaf each — are this study's
+//     composition; the film's screens are a single plane.
 //   * The charset keeps to the half-width kana and leaves the record's
 //     digits out, on purpose: a substitution is honoured only where the
 //     replacement has the original's advance, and the kana block is
@@ -48,7 +47,7 @@
 // -----------------------------------------------------------------------------
 // THE MACHINE, and what it puts under load
 //
-//   * ONE TEXT LEAF PER FIELD, running down the page: `writingMode`
+//   * ONE TEXT LEAF PER DEPTH, running down the page: `writingMode`
 //     vertical-RL, the kana held UPRIGHT by their style (their default
 //     vertical orientation is rotated, which is not what the screens
 //     show). A column is a LINE unit there, so "each column on its own
@@ -56,13 +55,24 @@
 //     with a nested cluster cascade running the glyphs down inside each
 //     column's beat. The whole schedule is declared; nothing steps
 //     per-column state by hand.
-//   * THE STREAK is one keyframe table, held: `fx::hold(fx::keys(...))`
-//     over alpha and `colorMul`. A glyph is nothing until its beat opens
-//     (the hold), flashes in near-white (the table's head), decays through
-//     phosphor green, and is gone by local 1 — so the head, the tail and
-//     the dark between streaks are ONE effect read at different local
-//     times, and a whole column costs no more declarations than one glyph.
-//   * THE CHURN is `fx::scramble` on a second track with a wrapping
+//   * THE RAIN NEVER STOPS because the cascade LOOPS: `Stagger::loopMs`
+//     re-opens every glyph's beat once per period, phase-offset by its
+//     column's cue, and the cues are drawn across the whole period — so at
+//     any instant every age of streak is on screen somewhere and each
+//     column re-drops forever on its own offset. The master is a wrapping
+//     phase whose wall period IS the declared loop, so the drive and the
+//     schedule cannot drift. Where a column's ladder outruns the period,
+//     successive drops share the column, spaced one period apart — the
+//     screens do that too.
+//   * THE STREAK is one keyframe table: a glyph flashes in near-white (the
+//     table's head), decays through phosphor green, and is gone by local
+//     1 — so the head, the tail and the dark between streaks are ONE
+//     effect read at different local times, and a whole column costs no
+//     more declarations than one glyph. No `fx::hold`: a looping cascade
+//     has no waiting units to withhold — between beats a glyph rests at
+//     local 1, which this table paints dark — and the bright head IS the
+//     arrival.
+//   * THE CHURN is `fx::scramble` on a second track with its own wrapping
 //     progress, composing with the streak by the track algebra — the
 //     substitution from one track, alpha and tint from the other.
 //   * THE LOAD, deliberately: thousands of glyphs whose alpha and tint
@@ -74,17 +84,13 @@
 //     classes. Every underlay must land beneath every foreground however
 //     the buckets split; a halo drawn over a neighbouring glyph's body is
 //     this study failing.
-//   * The loop is read off the engine, not restated: each field's master
-//     progress runs over `cascadeSpanMs` — the span the mounted cue table
-//     and its nested cascade actually resolve to — plus a rest, so the
-//     wrap lands while that field is dark and the timing cannot drift
-//     from the schedule the glyphs are on.
 //
 // EDIT THESE FIRST
 //   kFields   — each curtain's size, head rate (eachMs), trail life
-//               (durationMs) and cue spread. eachMs is the speed the light
-//               runs down a column; durationMs / eachMs is the trail's
-//               length in glyphs.
+//               (durationMs) and loop period. eachMs is the speed the
+//               light runs down a column; durationMs / eachMs is the
+//               trail's length in glyphs; loopMs is how often a column
+//               re-drops.
 //   kMeter    — true draws the near field's resolved schedule over the
 //               frame (one cell per column beat), which is the instrument
 //               for tuning the cue table.
@@ -128,35 +134,27 @@ constexpr SkColor4f kHead = {0.90f, 1.0f, 0.92f, 1};
 constexpr SkColor4f kBedInk = {0.055f, 0.17f, 0.075f, 1};
 constexpr SkColor4f kLabel = {0.24f, 0.42f, 0.28f, 1};
 
-/** One falling curtain. The three differ in size (depth), rate and phase,
+/** One falling curtain. The three differ in size (depth), rate and period,
  *  so no column of one ever keeps step with a column of another. */
 struct FieldSpec {
   const char* key;
   float size;        ///< px — also the depth cue
   float eachMs;      ///< head step, glyph to glyph down the column
   float durationMs;  ///< one glyph's whole life: flash, decay, gone
-  float spreadMs;    ///< the cue window the column starts scatter over
-  float restMs;      ///< dark time between a field's loops
-  float phaseMs;     ///< offsets the loops so the fields never sync
+  float loopMs;      ///< the period every column re-drops on
   float alpha;       ///< element opacity — the depth haze
   float glowSigma;   ///< blurred underlay beneath the foreground; 0 = none
   uint32_t seed;     ///< the field's own text and cue draw
   double churnSecs;  ///< one full re-roll cycle of the substitution
 };
 constexpr FieldSpec kFields[] = {
-    {"rain-far", 16.0f, 130.0f, 1900.0f, 7600.0f, 1300.0f, 4400.0f, 0.55f, 0.0f,
-     0x5157A3B1u, 9.2},
-    {"rain-mid", 23.0f, 105.0f, 1650.0f, 6300.0f, 1000.0f, 2100.0f, 0.80f, 4.0f,
-     0xA70F3C55u, 7.6},
-    {"rain-near", 32.0f, 80.0f, 1400.0f, 5100.0f, 800.0f, 0.0f, 1.0f, 7.0f,
-     0x2F81D9E7u, 6.4},
+    {"rain-far", 16.0f, 130.0f, 1900.0f, 8400.0f, 0.55f, 0.0f, 0x5157A3B1u,
+     9.2},
+    {"rain-mid", 23.0f, 105.0f, 1650.0f, 6200.0f, 0.80f, 4.0f, 0xA70F3C55u,
+     7.6},
+    {"rain-near", 32.0f, 80.0f, 1400.0f, 4600.0f, 1.0f, 7.0f, 0x2F81D9E7u, 6.4},
 };
 constexpr int kFieldCount = 3;
-/** Two curtains per depth, half a loop out of phase: a field's schedule is
- *  a burst — columns start across the cue window, then the tail runs out
- *  and the field rests dark before the wrap — so its twin carries the
- *  frame through that quiet, and the rain never stops anywhere. */
-constexpr int kCurtainCount = kFieldCount * 2;
 
 constexpr float kBedSize = 20.0f;
 constexpr double kBedChurnSecs = 11.0;
@@ -193,20 +191,20 @@ void appendUtf8(std::string& out, char32_t c) {
   out.push_back((char)(0x80 | (c & 0x3F)));
 }
 
-/** THE STREAK, as one keyframe table over local time, held. The hold makes
- *  a glyph whose beat has not opened paint NOTHING — without it the table's
- *  head would light every waiting glyph white. Then: the near-white flash
+/** THE STREAK, as one keyframe table over local time: the near-white flash
  *  (the table's own first segment, multiplier 1 over the head colour), the
- *  decay to phosphor green, the long dim, and gone by 1 — so a wrap of the
- *  master progress lands dark-to-dark and the loop has no seam. */
+ *  decay to phosphor green, the long dim, and gone by 1. Between beats a
+ *  looping glyph rests at local 1, which this table paints dark — so the
+ *  dark between streaks is the table's own tail, no hold needed, and the
+ *  re-opening flash is its head. */
 TextEffect streak() {
-  return fx::hold(fx::keys({
+  return fx::keys({
       {0.000f, {}},
       {0.090f, {}},
       {0.220f, {.colorMul = {0.27f, 0.96f, 0.42f, 1}}},
       {0.600f, {.colorMul = {0.09f, 0.50f, 0.16f, 1}}},
       {1.000f, {.alpha = 0.0f, .colorMul = {0.02f, 0.20f, 0.06f, 1}}},
-  }));
+  });
 }
 
 }  // namespace
@@ -216,20 +214,17 @@ TextEffect streak() {
 struct MatrixRain : sigil::compose::sketch::Sketch {
   sk_sp<SkTypeface> faceKana, faceLabel;
 
-  // One text, one cue table and one landed-column count per curtain, built
-  // once against measured metrics so the cue table and the laid-out
-  // columns agree entry for entry.
-  std::string fieldText[kCurtainCount];
-  std::vector<float> fieldCues[kCurtainCount];
+  // One text and one cue table per curtain, built once against measured
+  // metrics so the cue table and the laid-out columns agree entry for
+  // entry.
+  std::string fieldText[kFieldCount];
+  std::vector<float> fieldCues[kFieldCount];
   std::string bedText;
   int totalGlyphs = 0;
 
-  ch::Output<float> fall[kCurtainCount];
-  ch::Output<float> churn[kCurtainCount];
+  ch::Output<float> fall[kFieldCount];
+  ch::Output<float> churn[kFieldCount];
   ch::Output<float> bedChurn{0.0f};
-  /// Each curtain's real schedule, read back from the mounted cascade
-  /// after the first draw; <= 1 means "not read yet".
-  float spanMs[kCurtainCount] = {};
 
   /** The vertical style all four fields share the shape of: the kana held
    *  UPRIGHT — their default vertical orientation is rotated, and the
@@ -249,10 +244,13 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
    *  is ended by an explicit newline every `rows` glyphs, with exactly as
    *  many columns as fit the width — so the landed lines and the cue
    *  table match by construction, and the cascade warns about neither a
-   *  short table nor unread entries. */
+   *  short table nor unread entries. Cues are drawn across the WHOLE loop
+   *  period: the fold phase-offsets each column's re-drop by its cue, so a
+   *  full-period spread is what keeps every age of streak on screen at
+   *  once — rain, not surges. */
   void buildField(sigil::compose::sketch::SketchContext& ctx,
                   const std::u32string& set, float size, uint32_t seed,
-                  float spreadMs, std::string& outText,
+                  float loopMs, std::string& outText,
                   std::vector<float>* outCues) {
     // An 8-glyph probe of one column: height/8 is the step down the
     // column, width is the column pitch the next one advances left by.
@@ -276,31 +274,27 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     if (outCues) {
       outCues->clear();
       outCues->reserve((size_t)cols);
-      for (int c = 0; c < cols; ++c)
-        outCues->push_back(rng.uniform() * spreadMs);
+      for (int c = 0; c < cols; ++c) outCues->push_back(rng.uniform() * loopMs);
     }
     totalGlyphs += rows * cols;
   }
 
-  /// Curtain j is instance j%2 of field j/2; its key carries both.
-  [[nodiscard]] static std::string curtainKey(int j) {
-    return std::string(kFields[j / 2].key) + (j % 2 ? "-b" : "-a");
-  }
-
-  /** One falling curtain: the streak on the declared schedule, the churn
-   *  on its own wrapping clock, the record's mirror as one flip of the
-   *  leaf. */
+  /** One falling curtain: the streak on the declared looping schedule, the
+   *  churn on its own wrapping clock, the record's mirror as one flip of
+   *  the leaf. */
   [[nodiscard]] Element curtain(int j) {
-    const FieldSpec& f = kFields[j / 2];
+    const FieldSpec& f = kFields[j];
     // Column k starts at its cue; inside that beat the cluster cascade
-    // runs the glyphs top to bottom at the field's own rate. The outer
-    // beat's length is not stated anywhere — a column's beat lasts exactly
-    // as long as its own glyphs need.
+    // runs the glyphs top to bottom at the field's own rate; and the whole
+    // schedule re-opens every loopMs, each glyph on its own fold of that
+    // period. The outer beat's length is not stated anywhere — a column's
+    // beat lasts exactly as long as its own glyphs need.
     Stagger cascade = stagger(unit::Line, cues(fieldCues[j]));
     cascade.then(unit::Cluster,
                  {.eachMs = f.eachMs, .durationMs = f.durationMs});
+    cascade.loopMs = f.loopMs;
     return text(toU8(fieldText[j]), kanaStyle(f.size, kHead, f.glowSigma))
-        .key(curtainKey(j))
+        .key(f.key)
         .left(0)
         .top(0)
         .width(kW)
@@ -330,7 +324,7 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
                    .fx({.effect = fx::scramble(rainSet(), 20),
                         .progress = &bedChurn}));
 
-    for (int j = 0; j < kCurtainCount; ++j) root.child(curtain(j));
+    for (int j = 0; j < kFieldCount; ++j) root.child(curtain(j));
 
     // The monitor's falloff: a radial wash from clear centre to dark
     // edges, over everything. Static, so it caches.
@@ -350,7 +344,7 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     root.child(
         text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 " +
                   std::to_string(totalGlyphs) +
-                  " GLYPHS IN SEVEN PLANES \xc2\xb7 HALF-WIDTH KATAKANA, "
+                  " GLYPHS IN FOUR PLANES \xc2\xb7 HALF-WIDTH KATAKANA, "
                   "MIRRORED, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, THE TYPE "
                   "STANDS STILL"),
              studio::type({.face = faceLabel,
@@ -362,7 +356,7 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
             .top(kH - 30));
 
     if (kMeter)
-      root.child(debug::trackMeter(ctx.composer, "rain-near-a", 0,
+      root.child(debug::trackMeter(ctx.composer, "rain-near", 0,
                                    {0.2f, 0.9f, 0.4f, 0.5f})
                      .absolute()
                      .inset(0)
@@ -373,8 +367,8 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
   void setup(sigil::compose::sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kVoid);
-    // Every field past its first cue window: streaks at every age at
-    // once — fresh heads, long tails, and columns already dark.
+    // Deep into the steady state: streaks at every age at once — fresh
+    // heads, long tails, and columns resting dark between drops.
     ctx.captureAt(7.0);
 
     faceKana = studio::pickFace(
@@ -383,12 +377,9 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
 
     const std::u32string set = rainSet();
     totalGlyphs = 0;
-    for (int j = 0; j < kCurtainCount; ++j) {
-      const FieldSpec& f = kFields[j / 2];
-      // The twin draws its own text and cues; only the schedule's SHAPE is
-      // shared with its sibling.
-      const uint32_t seed = f.seed ^ (j % 2 ? 0x9E3779B9u : 0u);
-      buildField(ctx, set, f.size, seed, f.spreadMs, fieldText[j],
+    for (int j = 0; j < kFieldCount; ++j) {
+      const FieldSpec& f = kFields[j];
+      buildField(ctx, set, f.size, f.seed, f.loopMs, fieldText[j],
                  &fieldCues[j]);
     }
     buildField(ctx, set, kBedSize, kBedSeed, 0.0f, bedText, nullptr);
@@ -398,23 +389,13 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
 
   void update(double elapsed,
               sigil::compose::sketch::SketchContext& ctx) override {
-    const double tMs = elapsed * 1000.0;
-    for (int j = 0; j < kCurtainCount; ++j) {
-      // The curtain's real schedule, read off the mounted track once a
-      // draw has resolved it — the cue table's latest start plus the
-      // nested cascade's own extent, which nothing here restates.
-      if (spanMs[j] <= 1.0f)
-        spanMs[j] = ctx.composer.cascadeSpanMs(curtainKey(j), 0);
-      const FieldSpec& f = kFields[j / 2];
-      if (spanMs[j] > 1.0f) {
-        // Master progress at wall speed across the span, then a rest at 1
-        // (everything dark) before the wrap — so the loop cuts on black.
-        // The twin runs the same loop half a turn behind.
-        const double loop = (double)spanMs[j] + f.restMs;
-        const double half = j % 2 ? loop * 0.5 : 0.0;
-        fall[j] = (float)std::min(
-            1.0, std::fmod(tMs + f.phaseMs + half, loop) / (double)spanMs[j]);
-      }
+    for (int j = 0; j < kFieldCount; ++j) {
+      const FieldSpec& f = kFields[j];
+      // The master is a wrapping phase whose wall period is the cascade's
+      // own declared loop, so one wrap is one cycle of every beat and the
+      // schedule runs at its authored ms — nothing is read back, nothing
+      // can drift.
+      fall[j] = studio::phase(elapsed, (double)f.loopMs / 1000.0);
       churn[j] = studio::phase(elapsed + (double)j * 1.7, f.churnSecs);
     }
     bedChurn = studio::phase(elapsed, kBedChurnSecs);
@@ -425,4 +406,4 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(MatrixRain)  // NOLINT(bugprone-throwing-static-initialization)
+SIGIL_SKETCH(MatrixRain)
