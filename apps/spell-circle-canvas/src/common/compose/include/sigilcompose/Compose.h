@@ -3192,6 +3192,60 @@ class Element {
   Element& variationDrive(const char (&tag)[5],
                           const choreograph::Output<float>* value);
 
+  /** A SIBLING ANCHORED TO A UNIT OF THE TEXT: a caret, a callout, a tick,
+   *  a rule standing at a word's edge. @p what becomes a child of this text
+   *  node whose PARENT BOX is the rect @p where resolves to, so it is
+   *  written in exactly the placement longhand a `positioned()` child takes
+   *  — px or pct `left`/`top`/`right`/`bottom`/`width`/`height`, measured
+   *  inside that rect, and free to sit outside it:
+   *
+   *      text(line, style)
+   *          .mark(sel::word(3), box().left(0).top(pct(100))
+   *                                   .width(pct(100)).height(2)
+   *                                   .fill(Fill::color(ink)))
+   *
+   *  With no dims at all the mark simply IS the rect. A mark carrying no
+   *  key is given one from its declaration order, so it prunes; a mark that
+   *  carries one keeps it, and that key is what `Composer::bounds` and
+   *  `hitTest` answer for.
+   *
+   *  A MARK IS NOT A `rich().slot()`. A slot reserves space INSIDE the flow
+   *  — the line breaks around it, it moves the line's height, and the type
+   *  after it starts further along. A mark reserves nothing: the text is
+   *  laid out as though the mark were not there and the mark is placed on
+   *  the result, so it may overlap the letters, straddle several, or hang
+   *  outside the node's box entirely. Reserve a box for content that is
+   *  part of the sentence; mark the type that is already there.
+   *
+   *  A SELECTOR RESOLVING SEVERAL UNITS GIVES ONE RECT, the union of every
+   *  glyph it addressed — `sel::each(unit::Word)` therefore anchors a mark
+   *  to the whole paragraph, which is a rect and rarely the intent. One
+   *  mark is one element with one identity and one box; to mark each of
+   *  several units, write one mark per unit. A selector resolving NOTHING —
+   *  including a name no run carries and a pattern that does not compile —
+   *  places nothing and warns once, on the silent-no-op family's terms.
+   *
+   *  THE RECT IS THE REST RECT: where the LAYOUT put those glyphs, not
+   *  where an `fx()` track has thrown them this frame. The mark therefore
+   *  follows a reflow, a restyle and a resize exactly as the letters do,
+   *  and stands still while a cascade deviates them. That is deliberate on
+   *  both counts — a deviation is per glyph and per track and several
+   *  compose, so there is no one place a moving unit "is", and a mark
+   *  re-placed at paint would make the layout depend on the frame. For a
+   *  mark that must RIDE the motion, read `Composer::beatsOf` and drive the
+   *  mark's own transform from it.
+   *
+   *  IT NEEDS NO REACH. A track declares one because the glyphs it throws
+   *  are painted by the text node itself; a mark is a CHILD, and the
+   *  recording cull already grows by the union of its children, so a mark
+   *  hanging above the line is not truncated.
+   *
+   *  ON A PATH RUN (`onPath`) marks are refused, and say so once: the curve
+   *  is resolved at paint and a mark is placed during layout, so the only
+   *  answer available here would be the straight baseline the run does not
+   *  use. `beatsOf` reports the curve, and rides it. */
+  Element& mark(Selector where, Element what);
+
   /** Text leaves only: how lines sit inside the node's width (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
    *  node is WIDER than its text (explicit width, grow, stack stretch);
@@ -3828,10 +3882,45 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
  *
  *  Single style, no wrapping: the run is laid on one unbounded line. A
  *  '\n' starts a new line and resets the positions after it, so pass a
- *  RUN and not a paragraph. */
+ *  RUN and not a paragraph.
+ *
+ *  This is the STATIC answer, for a run that is not in the tree. For a
+ *  MOUNTED, animated run — one a `text()` leaf is drawing and an `fx()`
+ *  track is cascading — `Composer::beatsOf` is the answer instead: it
+ *  reports the rect the layout actually placed each unit in, which follows
+ *  a wrap, a mixed-style run and a path baseline that no single-style
+ *  measurement can see. */
 std::vector<float> measureRun(std::u8string_view utf8,
                               const sigil::weave::TextStyle& style,
                               sigil::weave::FontContext& fonts);
+
+/** WHERE THE LETTERS SIT: `measureRun`'s advances already summed. Entry i
+ *  is glyph i's pen x, measured from the first glyph's pen, and there is
+ *  ONE PAST-THE-END ENTRY, so `runPens(...).back()` is the run's whole
+ *  laid-out width and `pens[i + 1] - pens[i]` is glyph i's advance. `n`
+ *  glyphs give `n + 1` entries, and an empty run gives the single entry 0.
+ *
+ *  THE ONE RULE TO KNOW, which is `measureRun`'s and is stated here because
+ *  this is the form that gets read: A SPACE RIDES THE PREVIOUS ADVANCE.
+ *  An inter-word space is a gap the flow leaves between positioned runs
+ *  rather than a glyph, so it is no entry of its own; whatever the layout
+ *  left between one glyph's pen end and the next one's origin is folded
+ *  into the advance of the glyph BEFORE it. That is exactly what makes
+ *  these sums reproduce the pen positions the layout used, across a whole
+ *  sentence and not only inside one word. Two steps are deliberately not
+ *  folded: a '\n' restarts the pen, and a BACKWARDS step between two words
+ *  is bidi reordering, which visual-order prefix sums cannot express (a
+ *  backwards step INSIDE a word is ordinary kerning and does count). The
+ *  pen starts at the first glyph, so leading whitespace is no part of the
+ *  run and entry 0 is always 0.
+ *
+ *  Same shaping path, same single style, same unbounded line as
+ *  `measureRun` — and the same division of labour: this is the STATIC
+ *  answer for an unmounted run, `Composer::beatsOf` is the answer for a
+ *  mounted, cascading one. */
+std::vector<float> runPens(std::u8string_view utf8,
+                           const sigil::weave::TextStyle& style,
+                           sigil::weave::FontContext& fonts);
 
 /** One-shot intrinsic measurement: what size would this element take?
  *  Runs the same reconcile+layout as snapshot() and returns the root's
@@ -4170,6 +4259,12 @@ class Composer {
    *  agrees with the glyphs by construction, whatever the cascade turns out
    *  to be — flat, nested, cue-driven, numbered over the selection or over
    *  the paragraph.
+   *
+   *  THIS IS THE ANSWER FOR A MOUNTED, ANIMATED RUN, where `measureRun` and
+   *  `runPens` are the answer for a static one that is not in the tree: a
+   *  beat's rect is read off the placement the layout produced, so it knows
+   *  about wrapping, mixed styles and a path baseline, none of which a
+   *  single-style measurement of one run can see.
    *
    *  An unknown key, a node that is not text, a track index past the node's
    *  list, and a track carrying no effect all resolve to an EMPTY vector,

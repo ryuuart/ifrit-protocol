@@ -183,6 +183,25 @@ std::vector<float> measureRun(std::u8string_view utf8,
   return advances;
 }
 
+std::vector<float> runPens(std::u8string_view utf8,
+                           const sigil::weave::TextStyle& style,
+                           sigil::weave::FontContext& fonts) {
+  const std::vector<float> advances = measureRun(utf8, style, fonts);
+  std::vector<float> pens;
+  pens.reserve(advances.size() + 1);
+  float pen = 0;
+  for (const float advance : advances) {
+    pens.push_back(pen);
+    pen += advance;
+  }
+  // The past-the-end entry, which is what makes the last advance readable
+  // the same way every other one is and hands back the run's width for
+  // free. An empty run reaches here with nothing summed and answers 0,
+  // which is its width.
+  pens.push_back(pen);
+  return pens;
+}
+
 SkSize measure(Element root, sigil::weave::FontContext& fonts, SkSize maxSize) {
   motion::Ticker ticker;  // inert — same sampling rules as snapshot()
   Composer composer(ticker, fonts);

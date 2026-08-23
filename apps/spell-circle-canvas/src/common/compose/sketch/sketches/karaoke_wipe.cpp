@@ -28,15 +28,11 @@
 // HOW EACH IS SPELLED
 //
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The line is set ONCE, in
-// the sung colour, and a track multiplies every glyph down to the pale
-// colour until its own beat arrives:
-//
-//     colorMul = lerp(pale/sung, 1, smoothstep(t))
-//
-// which is the whole effect. It is a multiplier rather than a colour
-// because that is what a `GlyphMod` carries — every pass the glyph's style
-// draws is modulated, so the same track would tint a gradient-filled line
-// without knowing it was a gradient.
+// the sung colour, and `fx::tint(pale, sung)` multiplies every glyph down
+// to the pale colour until its own beat arrives. It is a multiplier rather
+// than a colour because that is what a `GlyphMod` carries — every pass the
+// glyph's style draws is modulated, so the same track would tint a
+// gradient-filled line without knowing it was a gradient.
 //
 // THE CASCADE IS TWO DEEP AND ITS OUTER LEVEL IS A TABLE. A real disc
 // carries a time for every syllable, cut against the recording: a held note
@@ -128,36 +124,6 @@ constexpr float kHopHeight = 44.0f;   // the 1924 arc
  *  of 0 would make it slide continuously and name nothing. */
 constexpr float kBallHold = 0.62f;
 
-/** The pale line as a MULTIPLIER of the sung line: what the wipe divides
- *  the colour down to before a glyph's beat. A GlyphMod carries a
- *  multiplier and not a colour, so the resting appearance is expressed as
- *  a ratio and the element is set in the destination. */
-constexpr SkColor4f wipeFloor() {
-  return {kPale.fR / kSung.fR, kPale.fG / kSung.fG, kPale.fB / kSung.fB, 1.0f};
-}
-
-/** THE WIPE. One glyph, one number: how far its own beat has run.
- *
- *  `smoothstep` rather than a step because a hard cut on a 46 px letter
- *  shows as a flicker at any frame rate — the edge wants to be one letter
- *  wide, which is what a short `durationMs` buys. The colour multiplier is
- *  quantized before it reaches the draw (each distinct value is its own
- *  batch bucket), and at this size the ladder does not show, so the track
- *  is left to snap. */
-TextEffect wipe() {
-  const SkColor4f floor = wipeFloor();
-  return fx::effect("karaokeWipe",
-                    [floor](const GlyphInfo&, float t, Rng&) {
-                      const float e = t * t * (3.0f - 2.0f * t);
-                      GlyphMod m;
-                      m.colorMul = {floor.fR + (1.0f - floor.fR) * e,
-                                    floor.fG + (1.0f - floor.fG) * e,
-                                    floor.fB + (1.0f - floor.fB) * e, 1.0f};
-                      return m;
-                    },
-                    0.0f, {floor.fR, floor.fG, floor.fB});
-}
-
 /** THE CASCADE: the sung times per word, the letters swept inside each. */
 Stagger wipeCascade() {
   Stagger cascade = stagger(unit::Word, cues(wordCues()));
@@ -218,9 +184,13 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
   double loop = kLeadIn + kLineSeconds + kHold;
 
   [[nodiscard]] Element lyricLine() const {
+    // The line is SET IN kSung and the tint multiplies it down to kPale
+    // until each letter's own beat arrives — the inversion a colour
+    // multiplier forces, which is why the effect takes the two colours in
+    // time order and does the division itself.
     return text(toU8(kLine1), lyric)
         .key("line1")
-        .fx({.effect = wipe(),
+        .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
              .progress = bind(&cycle).window((float)kLeadIn,
                                              (float)(kLeadIn + kLineSeconds))});

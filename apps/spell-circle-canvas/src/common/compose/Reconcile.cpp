@@ -206,7 +206,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 13 && kFieldCount<TextOptions> == 9 &&
+static_assert(kFieldCount<TextData> == 14 && kFieldCount<TextOptions> == 9 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -268,6 +268,10 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
       return false;
     if (!(*ta.metricFill == *tb.metricFill)) return false;
   }
+  // mark(): a comparable selector and the key of the child it anchors, in
+  // declaration order — so a re-described mark list prunes, and a mark
+  // pointed at a different unit re-resolves its rect.
+  if (ta.marks != tb.marks) return false;
   return true;
 }
 
@@ -832,6 +836,16 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
           YGNodeSetNodeType(inst.yoga, YGNodeTypeText);
           YGNodeMarkDirty(inst.yoga);
         }
+        needsLayout = true;
+      }
+      // mark(): a mark's rect is an answer of the TEXT LAYOUT, and
+      // layoutText() reuses a layout that is valid for the same content
+      // revision. So a mark list that changed without the content changing
+      // must invalidate that guard, or the marks keep the rects the
+      // previous selectors resolved. The paragraph itself is untouched —
+      // nothing is re-materialized and nothing re-shapes.
+      else if (prevText && prevText->marks != text.marks) {
+        inst.contentRev++;
         needsLayout = true;
       }
     }

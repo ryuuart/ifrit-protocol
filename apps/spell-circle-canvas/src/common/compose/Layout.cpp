@@ -184,6 +184,11 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
         inst.textSlotRects.emplace_back(inst.textSlotKeys[index], placed.rect);
     }
   }
+  // mark(): where each anchored child's selector landed, resolved here for
+  // the same reason the slot rects are — the layout has just finished and
+  // is the only thing that knows, and resolving once per layout rather than
+  // once per read keeps a mark's box as cheap as a slot's.
+  resolveTextMarks(inst);
   inst.measuredForWidth = constraint;
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
@@ -435,13 +440,39 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
  *  its resolved (or the parent's) width. O(depth) for pct/derived
  *  terms — arithmetic, no engine. */
 SkRect Composer::Impl::positionedRect(const Instance& inst) const {
+  // A MARK child: the rect its selector resolved is its PARENT BOX, not its
+  // box. Everything the child says about its own placement is then read
+  // against that rect exactly as a positioned child reads it against its
+  // parent's — px or pct, in the rect's space, and free to land outside it
+  // — and a child that says nothing at all simply IS the rect. That is the
+  // whole difference from a slot below, whose box the CONTENT reserved and
+  // whose child cannot argue with it. Looked up first for the same reason:
+  // a text node may carry both, and a mark is not an unknown slot.
+  const SkRect* anchor = nullptr;
+  if (inst.parent && inst.parent->desc->kind == Kind::Text &&
+      inst.parent->desc->textData && !inst.desc->key.empty() &&
+      std::ranges::any_of(inst.parent->desc->textData->marks,
+                          [&](const detail::MarkAnchor& mark) {
+                            return mark.key == inst.desc->key;
+                          })) {
+    for (const auto& [key, rect] : inst.parent->textMarkRects)
+      if (key == inst.desc->key) {
+        anchor = &rect;
+        break;
+      }
+    // A mark whose selector resolved NOTHING has no rect, and the honest
+    // answer is an empty box rather than the child's own dims at the text
+    // node's origin — which would be a mark drawn confidently in the wrong
+    // place. resolveTextMarks() already said so once.
+    if (!anchor) return SkRect::MakeEmpty();
+  }
   // A TEXT SLOT child: its box is the placeholder rect the paragraph
   // reserved for its key, and nothing in the child's own description
   // decides it. Read here rather than written back into the tree because a
   // slot child has no Yoga node to write to — the paragraph IS its layout,
   // so a reflow that moves the placeholder moves the child with no second
   // pass and no convergence round.
-  if (inst.parent && inst.parent->desc->kind == Kind::Text &&
+  if (!anchor && inst.parent && inst.parent->desc->kind == Kind::Text &&
       !inst.parent->textSlotKeys.empty() && !inst.desc->key.empty()) {
     for (const auto& [key, rect] : inst.parent->textSlotRects)
       if (key == inst.desc->key) return rect;
@@ -450,7 +481,10 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   }
   const LayoutProps& l = inst.desc->layout;
   float parentW = 0, parentH = 0;
-  if (inst.parent) {
+  if (anchor) {
+    parentW = anchor->width();
+    parentH = anchor->height();
+  } else if (inst.parent) {
     const SkRect parentRect = instanceRect(*inst.parent);
     parentW = parentRect.width();
     parentH = parentRect.height();
@@ -487,6 +521,15 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
                                                   height ? *height : 1.0e6f);
     if (!width) width = inst.measuredSize.width;
     if (!height) height = inst.measuredSize.height;
+  }
+  if (anchor) {
+    // An unstated extent on a mark is the ANCHOR's, which is what makes a
+    // mark with no dims at all the unit's own rect. Text keeps the extent
+    // it just measured for itself above.
+    if (!width) width = parentW;
+    if (!height) height = parentH;
+    return SkRect::MakeXYWH(anchor->left() + left, anchor->top() + top, *width,
+                            *height);
   }
   return SkRect::MakeXYWH(left, top, width.value_or(0.0f),
                           height.value_or(0.0f));

@@ -1165,6 +1165,19 @@ Element& Element::fx(Track track) {
   return *this;
 }
 
+Element& Element::mark(Selector where, Element what) {
+  detail::TextData& text = m_node->textData.ensure();
+  // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
+  // from its declaration order: the layout looks its rect up by key, and
+  // the reconciler matches children by key. The generated name is namespaced
+  // with a character no author writes, so it cannot collide with a key
+  // somebody chose.
+  if (what.node()->key.empty())
+    what.key("mark#" + std::to_string(text.marks.size()));
+  text.marks.push_back({std::move(where), what.node()->key});
+  return child(std::move(what));
+}
+
 Element& Element::variationDrive(const char (&tag)[5],
                                  const choreograph::Output<float>* value) {
   // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a

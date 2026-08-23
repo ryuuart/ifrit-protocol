@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cmath>
 #include <map>
+#include <set>
 #include <tuple>
 #include <unordered_set>
 #include <utility>
@@ -1878,6 +1879,87 @@ SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
 }
 
 }  // namespace
+
+namespace {
+
+/** Once per text node that asks for a mark it cannot have. */
+void warnMarkOnPath(const std::string& key) {
+  static std::set<std::string> warned;
+  if (!warned.insert(key).second) return;
+  SkDebugf(
+      "[compose] mark() on text laid on a path (key \"%s\") places nothing: "
+      "the curve is resolved at paint and a mark is placed during layout, so "
+      "the only rect available here would be the straight baseline the run "
+      "does not use. Composer::beatsOf reports the curve.\n",
+      key.empty() ? "" : key.c_str());
+}
+
+/** Once per (mark key) whose selector found no glyphs. */
+void warnMarkSelectsNothing(const std::string& key) {
+  static std::set<std::string> warned;
+  if (!warned.insert(key).second) return;
+  SkDebugf(
+      "[compose] mark(\"%s\") selects no glyphs in this text, so it places "
+      "nothing and draws nothing. A selector naming a word, line or sentence "
+      "the passage does not have, a style name no run was written with, and "
+      "a pattern that does not compile all resolve to nothing.\n",
+      key.c_str());
+}
+
+}  // namespace
+
+void Composer::Impl::resolveTextMarks(Instance& inst) {
+  inst.textMarkRects.clear();
+  if (!inst.desc || !inst.desc->textData || !inst.paragraph) return;
+  const std::vector<detail::MarkAnchor>& marks = inst.desc->textData->marks;
+  if (marks.empty()) return;
+  if (inst.desc->textData->onPath) {
+    warnMarkOnPath(inst.desc->key);
+    return;
+  }
+
+  // The FLOW layout, the one this node measures by — the same placement
+  // `paragraphLayout()` reports and the letters are drawn from.
+  const sigil::weave::ParagraphLayout& layout = inst.textLayout;
+  static thread_local detail::GlyphStructure structure;
+  structure.build(layout, *inst.paragraph);
+  if (structure.glyphs.empty()) return;
+  const auto count = (uint32_t)structure.glyphs.size();
+
+  const PoseContext poseCtx{&inst, &layout, nullptr, false, 0.0f};
+  std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
+  for (const detail::MarkAnchor& anchor : marks) {
+    const std::vector<uint8_t> selected = detail::resolveSelection(
+        anchor.where, structure, *inst.paragraph, inst.textNamedRuns);
+    // ONE RECT FOR THE WHOLE SELECTION: the union of every advance box it
+    // addressed, built from the same pose and the same box the schedule
+    // read-back builds a beat's rect from, so a mark and a beat cannot
+    // disagree about where a unit is.
+    SkRect box = SkRect::MakeEmpty();
+    bool any = false;
+    uint32_t ordinal = 0;
+    sigil::weave::forEachPlacedGlyph(
+        layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+          const uint32_t g = ordinal++;
+          if (g >= count || !selected[g]) return;
+          RestPose pose;
+          if (!restPoseOf(poseCtx, placed, pose)) return;
+          const SkRect glyph =
+              glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
+          if (any) {
+            box.join(glyph);
+          } else {
+            box = glyph;
+            any = true;
+          }
+        });
+    if (!any) {
+      warnMarkSelectsNothing(anchor.key);
+      continue;
+    }
+    inst.textMarkRects.emplace_back(anchor.key, box);
+  }
+}
 
 std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
                                                size_t trackIndex) {

@@ -80,6 +80,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/Debug.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
@@ -254,28 +255,22 @@ struct ElasticType : sigil::compose::sketch::Sketch {
                             TextEffect effect) {
     const sigil::weave::TextStyle set = studio::type(
         {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
-    sigil::weave::TextStyle ghostStyle = set;
-    ghostStyle.paint.foreground.setColor4f(kRest, nullptr);
 
     // THE GHOST: the same word, same style, no track — the rest position
-    // the deviation is measured against. It is a sibling under a stack
-    // rather than a decoration, because a track's deviation is per glyph
-    // and nothing draws the undeformed glyph beside the deformed one.
+    // the deviation is measured against. A track's deviation is per glyph
+    // and lives only in the draw, so nothing else on the sheet says where
+    // the undeformed letter was.
     return box()
         .column()
         .gap(8)
         .child(text(toU8(caption), small(kLabel)))
-        .child(box()
-                   .child(text(toU8(word), ghostStyle)
-                              .key(std::string(word) + "-rest")
-                              .left(0)
-                              .top(0))
-                   .child(text(toU8(word), set)
-                              .key(word)
-                              .fx({.effect = std::move(effect),
-                                   .stagger = {.eachMs = kEachMs,
-                                               .durationMs = kDurMs},
-                                   .progress = &pass})));
+        .child(debug::restGhost(
+            text(toU8(word), set)
+                .key(word)
+                .fx({.effect = std::move(effect),
+                     .stagger = {.eachMs = kEachMs, .durationMs = kDurMs},
+                     .progress = &pass}),
+            kRest));
   }
 
   [[nodiscard]] Element plot(const char* title, Element inner) {

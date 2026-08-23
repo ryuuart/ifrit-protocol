@@ -12,6 +12,7 @@ add_library(SigilCompose STATIC
   Paint.cpp
   Transitions.cpp
   TextFx.cpp
+  Debug.cpp
   Query.cpp
   Material.cpp
   ComposeInternal.h

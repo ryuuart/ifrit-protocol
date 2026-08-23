@@ -319,7 +319,37 @@ than glyphs — a bouncing ball, a playhead, an underline, a caret, a
 per-unit meter — reads instead of restating `i * eachMs`, which stops
 agreeing with the engine the moment the cascade nests or takes a table.
 An unknown key or track index resolves to an empty vector, silently, like
-the rest of the query family.
+the rest of the query family. For a run that is *not* in the tree,
+`measureRun` and `runPens` are the static answer instead: `runPens` returns
+one pen position per glyph plus a past-the-end entry, so `.back()` is the
+run's laid-out width. A space between two words is a gap the flow leaves
+rather than a glyph, so it rides the advance of the glyph before it — which
+is what makes those sums reproduce the pen positions the layout used across
+a whole sentence.
+
+**Marking the type.** `Element::mark` anchors a child to the rect a selector
+resolves — a caret, a callout, a tick, a rule standing at a word's edge:
+
+```cpp
+text(line, style)
+    .mark(sel::word(3), box().left(0).top(pct(100))
+                             .width(pct(100)).height(2).fill(ink));
+```
+
+The child's box is that rect, and its own placement longhand is read
+*inside* it, exactly as a `positioned()` child reads it against its parent —
+so a mark with no dims at all simply is the unit's rect, and one with them
+is free to hang outside it. That is the difference from `RichText::slot`,
+which reserves space *in the flow*: the line breaks around a slot and the
+type after it starts further along, where a mark is placed on a line laid
+out as though it were not there. A selector resolving several units gives
+one rect, the union of all of them; one resolving nothing places nothing and
+warns once. The rect is the **rest** rect — where the layout put those
+glyphs, not where a track has thrown them this frame — so a mark follows a
+reflow and stands still under a cascade; read `Composer::beatsOf` and drive
+the mark's own transform for one that must ride the motion. A mark needs no
+`reach`, being a child: the recording cull already grows by the union of a
+node's children.
 
 **Effects are comparable values**, which is what lets text carrying tracks
 prune like any other static leaf. A preset compares by its name and its
@@ -371,6 +401,17 @@ Put it on the track that owns the glyph's arrival.
 **Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
 the same scatter on every frame and after every relayout — which is what
 lets it settle and cache instead of jittering forever.
+
+**Colour as a cascade.** `fx::tint(from, to)` is the colour reveal — a
+karaoke wipe, a highlight sweeping a word — and it carries one inversion
+worth stating once. `GlyphMod::colorMul` MULTIPLIES, and a multiplier only
+takes a colour toward black, so **the element is set in `to` and the effect
+multiplies down toward `from`**. The arguments still read in time order and
+the division is done inside: `fx::tint(pale, sung)` on a line set in `sung`
+wipes pale to sung, while setting the line in `pale` draws pale throughout
+with no diagnostic. Multiplying is also what lets it tint a gradient-filled
+line without knowing what fills it, and why a destination channel of zero
+cannot be departed from.
 
 **What a `GlyphMod` can say.** Beyond `dx`, `dy`, `scale`, `rotateDeg` and
 `alpha`: `colorMul` multiplies every pass the glyph's style draws (a flat
@@ -709,7 +750,7 @@ comparable seam values (`Shape`, `Shaper`, `Profile`,
 `Decoration`, `CrossingRule`); the stroke grammar (`spans::` and
 `Element::stroke`); the masking family (`parts::`, `by::`, `Region`);
 `Effect`; the one-shot verbs `snapshot`, `measure`, `metrics`,
-`measureRun`; and re-exports of SigilMotion's animation vocabulary
+`measureRun`, `runPens`; and re-exports of SigilMotion's animation vocabulary
 (`Animatable`, `Transition`, `animate`, `bind`, `ease::`) so authoring
 never has to name a second library. A user who reads only this header has a
 complete and sound model; nothing below it changes kernel semantics.
@@ -741,9 +782,11 @@ parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
 Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
 gradients and blurs rather than shaders.
 
-**Components.** `TextFx.h` supplies the stock effects, the `fx::keys`
-keyframe table, and the `fx::seq`, `fx::mix` and `fx::hold` combinators, for
-the kernel's `Element::fx` seam.
+**Components.** `TextFx.h` supplies the stock effects (`fx::rise`,
+`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`,
+`fx::scatter`, `fx::axis`, `fx::tint`, `fx::scramble`, `fx::effect`), the
+`fx::keys` keyframe table, and the `fx::seq`, `fx::mix` and `fx::hold`
+combinators, for the kernel's `Element::fx` seam.
 `Feed.h` is the streaming collection — a `feed::Ring` of rows, windowed to
 the newest `feed::Options::visible` and keyed by sequence id, so an append
 costs one mount and every surviving row keeps its cached picture; rows of
@@ -762,8 +805,11 @@ prelude: `studio::hex`, `studio::type`, `studio::pickFace`, `studio::ramp`,
 `GpuImage.h` holds `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
 which are mandatory rather than convenient (see the traps). `Debug.h`
 verifies generated geometry — `debug::coverage`, `debug::check`,
-`debug::report`, `debug::failures` — for tests and `--verify` paths, not
-the paint loop.
+`debug::report`, `debug::failures` — and carries the two instruments for
+text in motion, `debug::trackMeter` (a cascade's schedule drawn, one cell
+per beat at its rect, filled by its local time) and `debug::restGhost` (the
+same word undeformed under the moving one). Both tiers are for tests,
+sketches and `--verify` paths, not the paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
 and no new equality: `kit::Frame` and `kit::Grid` (figure-local polar and

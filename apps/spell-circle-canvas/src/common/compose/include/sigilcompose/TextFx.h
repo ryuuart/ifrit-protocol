@@ -226,6 +226,47 @@ inline constexpr float kNominalSizePx = 96.0f;
       0.0f);
 }
 
+/** A COLOUR REVEAL AS A CASCADE: the glyphs read @p from at local 0 and
+ *  @p to at local 1 — a karaoke wipe, a highlight sweeping a word, an
+ *  initial catching its colour as it lands.
+ *
+ *  THE ELEMENT IS SET IN `to`, AND THE EFFECT MULTIPLIES DOWN TOWARD
+ *  `from`. That inversion is the one thing to get right here. A `GlyphMod`
+ *  carries `colorMul`, a per-channel MULTIPLIER over every pass the glyph's
+ *  style draws, and a multiplier can only take a colour toward black — so
+ *  the DESTINATION is what the style paints, and the origin is reached by
+ *  dividing. The arguments still read in time order and the division is
+ *  done here: `fx::tint(pale, sung)` on a line set in `sung` wipes it from
+ *  pale to sung. Set the line in `from` and it draws pale throughout,
+ *  which is the obvious first mistake and has no diagnostic.
+ *
+ *  Multiplying is also what lets this tint a gradient-filled or
+ *  image-filled line without knowing what fills it. Its cost is that a
+ *  DESTINATION CHANNEL OF ZERO cannot be departed from — nothing multiplies
+ *  0 into anything else — so that channel holds at 0 for the whole ramp
+ *  whatever @p from says there.
+ *
+ *  Alpha is untouched: a reveal that also fades wants an alpha track, which
+ *  composes with this one. The ramp is a smoothstep because a hard cut at
+ *  display size flickers at any frame rate; the width of the edge is bought
+ *  with the cascade's `durationMs`, not with the curve. */
+[[nodiscard]] inline TextEffect tint(SkColor4f from, SkColor4f to) {
+  const SkColor4f origin{to.fR > 0 ? from.fR / to.fR : 1.0f,
+                         to.fG > 0 ? from.fG / to.fG : 1.0f,
+                         to.fB > 0 ? from.fB / to.fB : 1.0f, 1.0f};
+  return TextEffect(
+      "tint", {from.fR, from.fG, from.fB, from.fA, to.fR, to.fG, to.fB, to.fA},
+      [origin](const GlyphInfo&, float t, Rng&) {
+        const float e = t * t * (3.0f - 2.0f * t);
+        GlyphMod m;
+        m.colorMul = {origin.fR + (1.0f - origin.fR) * e,
+                      origin.fG + (1.0f - origin.fG) * e,
+                      origin.fB + (1.0f - origin.fB) * e, 1.0f};
+        return m;
+      },
+      0.0f);
+}
+
 /** THE DECODING TEXT: every glyph churns through `charset` before landing
  *  on the letter the text actually says.
  *

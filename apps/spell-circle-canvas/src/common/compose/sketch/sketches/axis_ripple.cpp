@@ -35,7 +35,7 @@
 //
 // The bottom half of this sheet is the proof rather than the claim. The same
 // word is shaped twice — once at wght 300, once at wght 900 — and the two
-// runs are measured with `measureRun`, which shapes through the same path a
+// runs are measured with `runPens`, which shapes through the same path a
 // text leaf takes. The overhang between them, printed on the canvas, is how
 // far every letter after the first would travel during one pass of the wave
 // if the drive were allowed. The GRAD row above it is measured the same way
@@ -135,22 +135,6 @@ TextEffect gradWave(float lo, float hi, float radPerGlyph) {
       0.0f, {lo, hi, radPerGlyph});
 }
 
-/** Pen positions of a run — the prefix sums of `measureRun` — with one
- *  past-the-end entry, so the last element is the run's laid-out width. */
-std::vector<float> pensOf(const char* utf8, const sigil::weave::TextStyle& s,
-                          sigil::weave::FontContext& fonts) {
-  const std::vector<float> advances = measureRun(toU8(utf8), s, fonts);
-  std::vector<float> pens;
-  pens.reserve(advances.size() + 1);
-  float x = 0;
-  for (const float a : advances) {
-    pens.push_back(x);
-    x += a;
-  }
-  pens.push_back(x);
-  return pens;
-}
-
 }  // namespace
 
 // ===========================================================================
@@ -177,14 +161,22 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
   /** THE METER: the axis coordinate each letter is being drawn at, as a bar
    *  under that letter.
    *
-   *  It restates the effect's own sine, because nothing reports what a track
-   *  computed for a glyph — the deviation goes to the draw and no further.
-   *  What it does NOT restate is the clock: the program reads the SAME phase
-   *  Output the track's progress is bound to, so the bars cannot drift a
-   *  frame away from the letters they describe. A second `studio::phase` off
-   *  `elapsedSeconds` would have been one line shorter and wrong.
+   *  It restates the effect's own sine, and it is a schedule meter's
+   *  opposite rather than a hand-rolled one. `Composer::beatsOf` reports
+   *  what a CASCADE scheduled — and this wave is not in the cascade: a
+   *  loop reads a wrapping phase that every glyph must see at once, so the
+   *  stagger is one flat beat and the wavelength lives in the effect body,
+   *  off the glyph's own index. The DEVIATION a track computed goes to the
+   *  draw and no further, so the coordinate under each letter can only be
+   *  computed again here.
    *
-   *  The pens come from `measureRun` on the UNDRIVEN style, which is only
+   *  What it does NOT restate is the clock: the program reads the SAME
+   *  phase Output the track's progress is bound to, so the bars cannot
+   *  drift a frame away from the letters they describe. A second
+   *  `studio::phase` off `elapsedSeconds` would have been one line shorter
+   *  and wrong.
+   *
+   *  The pens come from `runPens` on the UNDRIVEN style, which is only
    *  sound because the axis is advance-invariant: that is the same fact the
    *  engine's own gate checks, used here for a second purpose. */
   [[nodiscard]] Element meter(float width) {
@@ -257,17 +249,30 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
    *  pretend was zero, which is why the runtime measures the face and says
    *  no. */
   [[nodiscard]] Element wghtPanel() {
-    const auto row = [&](float weight, SkColor4f color, const char* tag) {
+    const auto row = [&](float weight, SkColor4f color, const char* tag,
+                         bool marked) {
+      Element run =
+          text(toU8(kProof), studio::type({.face = face,
+                                           .size = kProofRowSize,
+                                           .color = color,
+                                           .track = kProofTrack * 0.6f,
+                                           .weight = weight}));
+      // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
+      // selector resolves to the union of every glyph's box, so pct(100) of
+      // that rect is the last letter's trailing edge — which moves with the
+      // label column, the gap and the tracking, none of which the mark has
+      // to be told about.
+      if (marked)
+        run.mark(
+            Selector{},
+            box().key("rule").left(pct(100)).top(0).width(1).height(112).fill(
+                Fill::color(kMark)));
       return box()
           .row()
           .alignItems(Align::Baseline)
           .gap(16)
           .child(text(toU8(tag), small(kLabel, 11.0f, 1.6f)).width(62))
-          .child(text(toU8(kProof), studio::type({.face = face,
-                                                  .size = kProofRowSize,
-                                                  .color = color,
-                                                  .track = kProofTrack * 0.6f,
-                                                  .weight = weight})));
+          .child(std::move(run));
     };
     char delta[160];
     std::snprintf(delta, sizeof(delta),
@@ -283,20 +288,13 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
         .child(text(toU8("wght \xe2\x80\x94 A SHAPING AXIS: THE SAME WORD, "
                          "TWICE, MEASURED"),
                     small(kLabel)))
+        // The rule stands where the LIGHT run ended, so the heavy run's
+        // overhang past it is the number below.
         .child(box()
                    .column()
                    .gap(6)
-                   // The rule stands where the LIGHT run ended, so the
-                   // heavy run's overhang past it is the number below.
-                   .child(box()
-                              .key("rule")
-                              .left(78 + widthLo)
-                              .top(0)
-                              .width(1)
-                              .height(112)
-                              .fill(Fill::color(kMark)))
-                   .child(row(kWghtLo, kInk, "300"))
-                   .child(row(kWghtHi, kInk, "900")))
+                   .child(row(kWghtLo, kInk, "300", true))
+                   .child(row(kWghtHi, kInk, "900", false)))
         .child(text(toU8(delta), small(kMark, 11.0f, 0.6f)));
   }
 
@@ -345,7 +343,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
                           .size = kProofSize,
                           .color = kInk,
                           .track = kProofTrack});
-    pens = pensOf(kProof, proof, *ctx.fonts);
+    pens = runPens(toU8(kProof), proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
 
     // What the face itself declares, read off the face rather than assumed.
@@ -373,7 +371,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
            .color = kInk,
            .track = kProofTrack * (size == kProofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
-      return pensOf(kProof, s, *ctx.fonts).back();
+      return runPens(toU8(kProof), s, *ctx.fonts).back();
     };
     widthLo = widthAt("wght", kWghtLo, kProofRowSize);
     widthHi = widthAt("wght", kWghtHi, kProofRowSize);

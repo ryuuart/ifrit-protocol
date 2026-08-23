@@ -119,6 +119,17 @@ struct SpanRestyle {
   }
 };
 
+/** One Element::mark() declaration: which unit the mark anchors to, and the
+ *  key of the child that anchors there. The child itself is an ordinary
+ *  child of the text node — this is only the back-index the layout reads to
+ *  learn which rect that child's box is. Comparable, so a re-described mark
+ *  list prunes. */
+struct MarkAnchor {
+  Selector where;
+  std::string key;
+  bool operator==(const MarkAnchor&) const = default;
+};
+
 /** The Element layout-option setters, as a comparable value plus a record
  *  of WHICH of them the description actually set.
  *
@@ -198,6 +209,10 @@ struct TextData {
   // onPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
+  // mark(): a child of this text node whose box is the rect a selector
+  // resolves to, in declaration order. The rects themselves live on the
+  // Instance (textMarkRects) because they are an answer of the layout.
+  std::vector<MarkAnchor> marks;
 
   /** The alignment this leaf actually lays out under: `textAlign()`'s value
    *  where it was written, otherwise whatever the full-control overload's
@@ -439,8 +454,8 @@ struct ElementNode {
 // notices it. Three gates, two of them the compiler's.
 //
 // NO PIN IS NEEDED for a struct whose equality is `= default`
-// (LayoutProps, Corners, MarkLabel, Echo, Anchor, Across, Parts, Span,
-// ContentScalars): the compiler writes the exhaustive comparison
+// (LayoutProps, Corners, MarkLabel, MarkAnchor, Echo, Anchor, Across, Parts,
+// Span, ContentScalars): the compiler writes the exhaustive comparison
 // and cannot forget a field. A pin exists only for a comparator a human
 // wrote by hand — and the honest way to retire a pin is to give the struct
 // a defaulted `operator==`.
@@ -462,10 +477,10 @@ inline auto fields(PaintProps& v) {
 inline auto fields(TextData& v) {
   auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style, rich,
          paragraphOverride, layoutOptions, options, spanRestyles, tracks,
-         metricFill, onPath] = v;
+         metricFill, onPath, marks] = v;
   return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
                   rich, paragraphOverride, layoutOptions, options, spanRestyles,
-                  tracks, metricFill, onPath);
+                  tracks, metricFill, onPath, marks);
 }
 inline auto fields(SpanRestyle& v) {
   auto& [where, style, paintOnly] = v;

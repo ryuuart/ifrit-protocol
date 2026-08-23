@@ -108,6 +108,11 @@ struct Instance {
   // keyed by one of these names takes that rect as its box.
   std::vector<std::string> textSlotKeys;
   std::vector<std::pair<std::string, SkRect>> textSlotRects;
+  // mark(): the rect each anchored child's key resolves to, in this node's
+  // own space, resolved once per layout from the placement the paragraph
+  // produced. A key that resolved no glyphs is absent, and its child places
+  // nothing.
+  std::vector<std::pair<std::string, SkRect>> textMarkRects;
   // rich().add(text, styleName): each named run and the text it occupies, in
   // declaration order — what sel::style resolves against. Cleared and
   // rebuilt with the paragraph, so the names a node answers for are exactly
@@ -1144,6 +1149,12 @@ struct Composer::Impl {
    *  come out in the NODE's own space; the caller offsets them into the
    *  composer's, as the bounds query does. */
   std::vector<Beat> beatsOfTrack(detail::Instance& inst, size_t trackIndex);
+  /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
+   *  just produced: one rect per anchor, the union of the advance boxes of
+   *  the glyphs its selector addressed. Runs during LAYOUT, off the flow
+   *  layout, which is why a path run's marks are refused rather than
+   *  answered from the straight baseline it does not use. */
+  void resolveTextMarks(detail::Instance& inst);
   /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
    *  and by the fx() draw — a letter in flight is painted exactly as a

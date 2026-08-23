@@ -1808,3 +1808,57 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
   EXPECT_FLOAT_EQ(spaced[1], measureRun(u8"B", style, fonts())[0])
       << "the last glyph carries no trailing gap";
 }
+
+TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
+  // runPens is measureRun already summed, and the whole reason it exists is
+  // that everybody who calls measureRun writes that sum by hand. Two claims:
+  // the sums are the pen positions the LAYOUT used (checked against its own
+  // placements, so an inter-word gap folded into the wrong advance shows),
+  // and there is one entry past the end whose value is the run's width.
+  const sigil::weave::TextStyle style = whiteStyle(40);
+  const auto placed = [&](std::u8string_view utf8) {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(utf8, style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    const sigil::weave::ParagraphLayout layout =
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow);
+    // Pen positions relative to the FIRST glyph's pen, which is where the
+    // run starts — leading whitespace is no part of it.
+    std::vector<float> pens;
+    float first = 0;
+    bool seen = false;
+    sigil::weave::forEachPlacedGlyph(
+        layout, paragraph, [&](const sigil::weave::PlacedGlyph& glyph) {
+          if (!seen) first = glyph.rest.x();
+          seen = true;
+          pens.push_back(glyph.rest.x() - first);
+        });
+    return std::pair{pens, seen};
+  };
+  for (std::u8string_view run :
+       {std::u8string_view(u8"ONE"), std::u8string_view(u8"A B"),
+        std::u8string_view(u8" A B"),
+        std::u8string_view(u8"ONE PASS PER WORD PHASE")}) {
+    const std::vector<float> pens = runPens(run, style, fonts());
+    const std::vector<float> advances = measureRun(run, style, fonts());
+    ASSERT_EQ(pens.size(), advances.size() + 1)
+        << "n glyphs must give n + 1 entries";
+    EXPECT_FLOAT_EQ(pens.front(), 0.0f) << "the run starts at its first glyph";
+    auto [truth, seen] = placed(run);
+    ASSERT_TRUE(seen);
+    for (size_t i = 0; i + 1 < pens.size(); ++i)
+      EXPECT_NEAR(pens[i], truth[i], 0.01f)
+          << "glyph " << i << " of \""
+          << std::string(reinterpret_cast<const char*>(run.data()), run.size())
+          << "\" is not where the layout put it";
+    float width = 0;
+    for (float a : advances) width += a;
+    EXPECT_FLOAT_EQ(pens.back(), width)
+        << "the past-the-end entry is the run's laid-out width";
+  }
+  // An empty run is 0 wide, and says so with the one entry the contract
+  // promises rather than with nothing at all.
+  const std::vector<float> nothing = runPens(u8"", style, fonts());
+  ASSERT_EQ(nothing.size(), 1u);
+  EXPECT_FLOAT_EQ(nothing[0], 0.0f);
+}

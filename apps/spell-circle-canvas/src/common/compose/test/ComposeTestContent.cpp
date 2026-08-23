@@ -4701,3 +4701,381 @@ TEST(TextSlot, TheSlotNamespaceIsTheValuesOwnNotTheMountRegistry) {
   EXPECT_GT(countColor(host, all, SK_ColorRED), 20);
   EXPECT_GT(countColor(host, all, SK_ColorGREEN), 20);
 }
+
+// ---------------------------------------------------------------------------
+// fx::tint — the colour reveal, and the inversion it hides
+
+TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
+  // The arguments read in TIME ORDER while the mechanism runs the other
+  // way: colorMul MULTIPLIES, so the element is set in the destination and
+  // the effect divides down toward the origin. At t = 1 the multiplier must
+  // therefore be white — anything else tints a line that has arrived.
+  const SkColor4f pale{0.9f, 0.8f, 0.4f, 1};
+  const SkColor4f sung{0.3f, 0.6f, 0.8f, 1};
+  const TextEffect ramp = fx::tint(pale, sung);
+  GlyphInfo glyph;
+  Rng rng(1);
+  const GlyphMod start = ramp(glyph, 0.0f, rng);
+  const GlyphMod end = ramp(glyph, 1.0f, rng);
+  const GlyphMod middle = ramp(glyph, 0.5f, rng);
+
+  // Origin: the multiplier that takes the DESTINATION to `pale`.
+  EXPECT_NEAR(start.colorMul.fR * sung.fR, pale.fR, 1e-5f);
+  EXPECT_NEAR(start.colorMul.fG * sung.fG, pale.fG, 1e-5f);
+  EXPECT_NEAR(start.colorMul.fB * sung.fB, pale.fB, 1e-5f);
+  // Destination: no tint at all.
+  EXPECT_NEAR(end.colorMul.fR, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMul.fG, 1.0f, 1e-5f);
+  EXPECT_NEAR(end.colorMul.fB, 1.0f, 1e-5f);
+  // And a monotone ramp between them on every channel, in whichever
+  // direction that channel happens to run.
+  for (auto lane : {&SkColor4f::fR, &SkColor4f::fG, &SkColor4f::fB}) {
+    const float a = start.colorMul.*lane, b = middle.colorMul.*lane;
+    EXPECT_GT((b - a) * (1.0f - a), 0.0f)
+        << "the middle of the ramp is not between its ends";
+  }
+  // Alpha is left alone: a reveal that also fades is a separate track.
+  EXPECT_FLOAT_EQ(start.colorMul.fA, 1.0f);
+  // The value is comparable, which is what lets a re-described wipe prune.
+  EXPECT_TRUE(fx::tint(pale, sung) == ramp);
+  EXPECT_FALSE(fx::tint(sung, pale) == ramp);
+  // A destination channel of zero cannot be departed from, and the ramp
+  // says so by holding at 1 rather than dividing by nothing.
+  const GlyphMod dark = fx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
+  EXPECT_FLOAT_EQ(dark.colorMul.fR, 1.0f);
+}
+
+TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
+  // Stacked tracks multiply their colour multipliers, so a tint under a
+  // second tint is the product — not the last one to run. The letter is set
+  // in white so the product is readable straight off the pixels.
+  Host host(160, 120);
+  host.composer.render(box().padding(8).child(
+      text(u8"I", whiteStyle(64))
+          .key("k")
+          // Both tracks are AT REST (progress 0), where each contributes
+          // its own origin: 0.5 on red and 0.5 on green.
+          .fx({.effect = fx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
+               .stagger = {.eachMs = 0, .durationMs = 100},
+               .progress = 0.0f})
+          .fx({.effect = fx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
+               .stagger = {.eachMs = 0, .durationMs = 100},
+               .progress = 0.0f})));
+  host.frame();
+  bool sawProduct = false;
+  for (int y = 0; y < 120 && !sawProduct; ++y)
+    for (int x = 0; x < 160; ++x) {
+      const SkColor c = host.pixel(x, y);
+      if (SkColorGetB(c) < 200) continue;  // not a glyph pixel
+      // Half red AND half green, within the multiplier's quantization.
+      if (std::abs((int)SkColorGetR(c) - 128) < 24 &&
+          std::abs((int)SkColorGetG(c) - 128) < 24) {
+        sawProduct = true;
+        break;
+      }
+      EXPECT_FALSE(SkColorGetR(c) > 200 && SkColorGetG(c) > 200)
+          << "one of the two tints never reached the glyph";
+    }
+  EXPECT_TRUE(sawProduct) << "the two tints did not multiply";
+}
+
+// ---------------------------------------------------------------------------
+// The Debug.h instruments
+
+TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
+  // The meter is beatsOf drawn: a cell on each unit's own rect, filled by
+  // that unit's local time. Half way through a four-beat cascade, the first
+  // cells are full, the last are empty, and every cell stands where its
+  // letters do.
+  Host host(300, 140);
+  const auto describe = [&](bool withMeter) {
+    Element root = box().padding(10).child(
+        text(u8"ABCD", whiteStyle(28))
+            .key("word")
+            .fx({.effect = fx::rise(4),
+                 .stagger = {.eachMs = 100, .durationMs = 100},
+                 .progress = 0.5f}));
+    if (withMeter)
+      root.child(debug::trackMeter(host.composer, "word", 0, {1, 0, 0, 1},
+                                   {0, 0, 1, 1})
+                     .absolute()
+                     .inset(0));
+    return root;
+  };
+  host.composer.render(describe(false));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("word", 0);
+  ASSERT_EQ(beats.size(), 4u);
+  host.composer.render(describe(true));
+  host.frame();
+
+  // Every beat's rect carries a cell: bed where the beat has not run, fill
+  // where it has, and the boundary between them at its localT.
+  for (const Beat& beat : beats) {
+    const int y = (int)beat.rect.centerY();
+    const int left = (int)beat.rect.left() + 1;
+    const int right = (int)beat.rect.right() - 1;
+    ASSERT_LT(left, right) << "a beat rect with no width to draw in";
+    const SkColor at = host.pixel(left, y);
+    if (beat.localT > 0.05f)
+      EXPECT_GT(SkColorGetR(at), 200u)
+          << "a beat that has run shows no fill at its left edge";
+    if (beat.localT < 0.95f)
+      EXPECT_GT(SkColorGetB(host.pixel(right, y)), 200u)
+          << "a beat that has not finished shows no bed at its right edge";
+  }
+  // …and outside the last beat's rect there is no meter at all: the cells
+  // are the units' boxes and not one strip across the node.
+  EXPECT_EQ(SkColorGetB(host.pixel((int)beats.back().rect.right() + 6,
+                                   (int)beats.back().rect.centerY())),
+            0u);
+  // An unknown key is the query family's silent nothing, drawn: an overlay
+  // with no cells in it, which measures as nothing rather than warning.
+  Host empty(120, 80);
+  empty.composer.render(box().child(
+      debug::trackMeter(host.composer, "typo", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
+          .key("meter")
+          .absolute()
+          .inset(0)));
+  empty.frame();
+  for (int y = 0; y < 80; ++y)
+    for (int x = 0; x < 120; ++x)
+      ASSERT_EQ(empty.pixel(x, y), SK_ColorBLACK)
+          << "an unknown key drew a meter anyway";
+}
+
+TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
+  // The ghost is the rest position a deviation is measured against, so it
+  // must be where the letters WOULD be — and must not be carrying the track
+  // that moved them.
+  Host host(300, 140);
+  const SkColor4f ghostInk{0, 0, 1, 1};
+  GlyphMod shove;
+  shove.dx = 60.0f;
+  host.composer.render(box().padding(10).child(
+      debug::restGhost(text(u8"AB", whiteStyle(40))
+                           .key("word")
+                           .fx({.effect = fixed("shove", shove)}),
+                       ghostInk)));
+  host.frame();
+  const auto countBlue = [&](SkIRect region) {
+    int hits = 0;
+    for (int y = region.top(); y < region.bottom(); ++y)
+      for (int x = region.left(); x < region.right(); ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetB(c) > 180 && SkColorGetR(c) < 80) ++hits;
+      }
+    return hits;
+  };
+  const auto countWhite = [&](SkIRect region) {
+    int hits = 0;
+    for (int y = region.top(); y < region.bottom(); ++y)
+      for (int x = region.left(); x < region.right(); ++x)
+        if (host.pixel(x, y) == SK_ColorWHITE) ++hits;
+    return hits;
+  };
+  // The ghost sits at rest, near the left; the moving copy is 60 px right
+  // of it. Neither region may hold the other's ink.
+  const SkIRect atRest = SkIRect::MakeXYWH(0, 0, 60, 140);
+  const SkIRect shoved = SkIRect::MakeXYWH(66, 0, 120, 140);
+  EXPECT_GT(countBlue(atRest), 20) << "no ghost at the rest position";
+  EXPECT_EQ(countWhite(atRest), 0)
+      << "the moving copy never left its rest position";
+  EXPECT_GT(countWhite(shoved), 20) << "the moving copy did not move";
+  EXPECT_EQ(countBlue(shoved), 0) << "the ghost is carrying the track too";
+  // The ghost is addressable, and it is exactly as wide as the word.
+  const SkRect ghost =
+      host.composer.bounds("word-rest").value_or(SkRect::MakeEmpty());
+  const SkRect moving =
+      host.composer.bounds("word").value_or(SkRect::MakeEmpty());
+  ASSERT_FALSE(ghost.isEmpty());
+  EXPECT_NEAR(ghost.width(), moving.width(), 0.51f);
+  EXPECT_NEAR(ghost.left(), moving.left(), 0.51f);
+}
+
+TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
+  // A text node's children are already on screen once. Ghosting them would
+  // draw each of them twice under one key, which the composer's key index
+  // cannot answer for — so the ghost is the type and nothing else.
+  Host host(300, 140);
+  host.composer.render(box().padding(10).child(debug::restGhost(
+      text(u8"ALPHA BETA", whiteStyle(24))
+          .key("word")
+          .mark(sel::word(1), box().key("caret").width(4).fill(green())),
+      {0, 0, 1, 1})));
+  host.frame();
+  const SkRect caret =
+      host.composer.bounds("caret").value_or(SkRect::MakeEmpty());
+  ASSERT_FALSE(caret.isEmpty()) << "the mark on the moving copy is gone";
+  int greens = 0;
+  for (int y = 0; y < 140; ++y)
+    for (int x = 0; x < 300; ++x)
+      if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
+  EXPECT_GT(greens, 0);
+  // One mark, drawn once: every green pixel is inside the one rect the
+  // query answers for.
+  for (int y = 0; y < 140; ++y)
+    for (int x = 0; x < 300; ++x)
+      if (host.pixel(x, y) == SK_ColorGREEN)
+        ASSERT_TRUE(caret.contains((float)x + 0.5f, (float)y + 0.5f))
+            << "the ghost carries a second copy of the mark";
+}
+
+// ---------------------------------------------------------------------------
+// Element::mark — a sibling anchored to a unit
+
+namespace {
+/** The mark's rect, as the composer reports it. */
+SkRect markRect(Host& host, std::string_view key) {
+  const std::optional<SkRect> rect = host.composer.bounds(key);
+  return rect.value_or(SkRect::MakeEmpty());
+}
+}  // namespace
+
+TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
+  // A mark's box IS the unit's rect when it says nothing about its own
+  // placement — and it is the SAME rect the schedule read-back reports, so
+  // a caret and a beat can never disagree about where a word is.
+  Host host(400, 140);
+  host.composer.render(box().padding(10).child(
+      text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+          .key("line")
+          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .mark(sel::word(1), box().key("caret").fill(green()))));
+  host.frame();
+  const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
+  ASSERT_EQ(beats.size(), 3u);
+  const SkRect caret = markRect(host, "caret");
+  EXPECT_NEAR(caret.left(), beats[1].rect.left(), 0.01f);
+  EXPECT_NEAR(caret.top(), beats[1].rect.top(), 0.01f);
+  EXPECT_NEAR(caret.width(), beats[1].rect.width(), 0.01f);
+  EXPECT_NEAR(caret.height(), beats[1].rect.height(), 0.01f);
+  EXPECT_GT(caret.width(), 1.0f) << "the mark collapsed to nothing";
+
+  // Its own placement longhand is read INSIDE that rect, which is the whole
+  // difference from a slot: a 2 px caret pinned to the unit's leading edge
+  // and hanging below it.
+  Host pinned(400, 140);
+  pinned.composer.render(box().padding(10).child(
+      text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+          .key("line")
+          .mark(
+              sel::word(1),
+              box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
+                  green()))));
+  pinned.frame();
+  const SkRect tick = markRect(pinned, "caret");
+  EXPECT_NEAR(tick.left(), caret.left(), 0.01f);
+  EXPECT_NEAR(tick.top(), caret.bottom(), 0.01f)
+      << "pct(100) of the unit's rect is its bottom edge";
+  EXPECT_FLOAT_EQ(tick.width(), 2.0f);
+}
+
+TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
+  // The rect is read off the placement, so a narrower box that pushes the
+  // word onto the next line takes the mark with it — the reason to anchor a
+  // caret rather than compute one.
+  const auto placeAt = [](float width) {
+    Host host(400, 200);
+    host.composer.render(box().padding(10).child(
+        text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
+            .key("line")
+            .width(width)
+            .mark(sel::word(3), box().key("caret").fill(green()))));
+    host.frame();
+    return markRect(host, "caret");
+  };
+  const SkRect wide = placeAt(360);
+  const SkRect narrow = placeAt(150);
+  ASSERT_FALSE(wide.isEmpty());
+  ASSERT_FALSE(narrow.isEmpty());
+  EXPECT_GT(narrow.top(), wide.top())
+      << "the word wrapped onto another line and the mark stayed behind";
+}
+
+TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
+  // The rect is where the LAYOUT put the glyphs, not where a track has
+  // thrown them: a deviation is per glyph and per track and several
+  // compose, so there is no one place a moving unit "is". A mark that must
+  // ride the motion reads beatsOf and drives its own transform.
+  const auto placeAtProgress = [](float progress) {
+    Host host(400, 200);
+    host.composer.render(box().padding(10).child(
+        text(u8"ALPHA BETA", whiteStyle(24))
+            .key("line")
+            .fx({.effect = fx::rise(40),
+                 .stagger = {.eachMs = 0, .durationMs = 100},
+                 .progress = progress})
+            .mark(sel::word(1), box().key("caret").fill(green()))));
+    host.frame();
+    return markRect(host, "caret");
+  };
+  const SkRect early = placeAtProgress(0.0f);
+  const SkRect settled = placeAtProgress(1.0f);
+  ASSERT_FALSE(settled.isEmpty());
+  EXPECT_NEAR(early.top(), settled.top(), 0.01f);
+  EXPECT_NEAR(early.left(), settled.left(), 0.01f);
+}
+
+TEST(ComposeTextFx, MarkResolvingNothingPlacesNothing) {
+  // The silent-no-op family's terms, with the warning that goes with them:
+  // a style name no run carries selects nothing, and a mark on nothing must
+  // draw nothing rather than land at the text node's origin.
+  Host host(300, 140);
+  host.composer.render(box().padding(10).child(
+      text(u8"ALPHA BETA", whiteStyle(24))
+          .key("line")
+          .mark(sel::style("nobody"),
+                box().key("caret").width(30).height(30).fill(green()))));
+  host.frame();
+  EXPECT_TRUE(markRect(host, "caret").isEmpty())
+      << "a mark on nothing took a box anyway";
+  int greens = 0;
+  for (int y = 0; y < 140; ++y)
+    for (int x = 0; x < 300; ++x)
+      if (host.pixel(x, y) == SK_ColorGREEN) ++greens;
+  EXPECT_EQ(greens, 0) << "a mark on nothing drew something";
+}
+
+TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
+  // A mark is a comparable selector plus the key of the child it anchors,
+  // so a re-described identical mark must prune — and one pointed at a
+  // different word must not, or the caret keeps the rect it had.
+  Host host(400, 140);
+  const auto describe = [](uint32_t word) {
+    return box().padding(10).child(
+        text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+            .key("line")
+            .mark(sel::word(word), box().key("caret").fill(green())));
+  };
+  host.composer.render(describe(0));
+  host.frame();
+  const SkRect first = markRect(host, "caret");
+  host.composer.render(describe(0));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an unchanged mark list did not prune";
+  EXPECT_NEAR(markRect(host, "caret").left(), first.left(), 0.01f);
+
+  host.composer.render(describe(2));
+  host.frame();
+  EXPECT_GT(markRect(host, "caret").left(), first.left() + 1.0f)
+      << "the mark kept the rect the previous selector resolved";
+}
+
+TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
+  // The distinction the header states: a slot's box is woven into the line
+  // and the type after it starts further along; a mark is placed on a line
+  // laid out as though it were not there.
+  const auto widthOf = [](Element leaf) {
+    Host host(400, 140);
+    host.composer.render(box().padding(10).child(std::move(leaf).key("line")));
+    host.frame();
+    return host.composer.bounds("line").value_or(SkRect::MakeEmpty()).width();
+  };
+  const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
+  const float marked =
+      widthOf(text(u8"ALPHA BETA", whiteStyle(24))
+                  .mark(sel::word(0), box().key("m").width(40).fill(green())));
+  EXPECT_NEAR(marked, bare, 0.01f) << "the mark reserved space in the flow";
+}

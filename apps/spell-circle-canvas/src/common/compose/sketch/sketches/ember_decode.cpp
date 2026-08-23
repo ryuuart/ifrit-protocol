@@ -41,13 +41,15 @@
 // transparent paints over the whole clip. Multiplying by the sampled coverage,
 // as the burn does, is what keeps the marks on the letters.
 //
-// The rects are the other hand-walk, and it leaves compose entirely. Nothing
-// on compose's seam answers "the rect of unit k": `measureRun` reports
-// advances and no word boundaries, and `Composer::paragraphLayout` answers
-// only for a keyed text node that is in the tree and only after a layout,
-// which the sampler's baked line is not. So the units below are walked out of
-// SigilWeave's own laid-out paragraph, and a unit that is a WORD is a merge
-// the caller performs on that walk.
+// The rects are the other hand-walk, and it leaves compose entirely. Compose
+// does answer "the rect of unit k" — `Composer::beatsOf` reports it, along
+// with that unit's own progress — but only for a KEYED TEXT NODE THAT IS IN
+// THE TREE, running a track, after a layout. The line here is none of those:
+// it is baked to pixels once and handed to a shader as a sampler, so there
+// is no node to key and no track to schedule. `measureRun` is in reach and
+// reports advances with no word boundaries, which a unit that is a WORD
+// needs. So the units below are walked out of SigilWeave's own laid-out
+// paragraph, and a word unit is a merge the caller performs on that walk.
 //
 // EDIT THESE FIRST
 //   kEach     — start-to-start between units. 0 decodes the whole line at
@@ -143,10 +145,10 @@ struct Line {
  *
  *  A unit's box is where the layout PUT the glyphs, so the walk needs
  *  positions and a word index, which is SigilWeave's `forEachPlacedGlyph`
- *  over a laid-out paragraph. Compose's own one-shot answer, `measureRun`,
- *  reports advances whose prefix sums are the pen positions — enough to
- *  place glyphs, not enough to say which word one belongs to, and a unit
- *  that is a word is exactly that question.
+ *  over a laid-out paragraph. Compose's own one-shot answers, `measureRun`
+ *  and `runPens`, report advances and the pen positions they sum to —
+ *  enough to place glyphs, not enough to say which word one belongs to,
+ *  and a unit that is a word is exactly that question.
  *
  *  Each unit spans the line box's full height: a letter's own ink box is
  *  narrower than that, but neighbouring units are separated horizontally and

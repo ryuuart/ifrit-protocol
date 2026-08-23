@@ -68,7 +68,7 @@ audit), the gallery when you are LOOKING at one next to everything else.
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
 | `shipping_forecast` | BBC Radio 4's 0048 bulletin, whose every adjective is a defined quantity | The whole text engine as one designed sheet — a ring marquee, a nested cascade, a grade swell, a decode, mixed faces in one paragraph, and a column running down the page |
-| `karaoke_wipe` | Fleischer's bouncing ball (1924) and the CD+G subcode wipe (1985) | One schedule, two conventions: a `colorMul` cascade against a ball placed from `measureRun` — and what it costs to put anything beside a track |
+| `karaoke_wipe` | Fleischer's bouncing ball (1924) and the CD+G subcode wipe (1985) | One schedule, two conventions: an `fx::tint` cascade against a ball placed from the schedule read back with `beatsOf` |
 | `axis_ripple` | The variable-font weight wave, the demo every variable face ships with | A driven `GRAD` axis, with the `wght` advance drift measured and printed as the reason the drive is refused |
 | `elastic_type` | animate.css `rubberBand` and `jello` (Daniel Eden, 2013) | Two published keyframe tables run per glyph on the non-uniform scale and shear lane, with the tables plotted beside them |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |

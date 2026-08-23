@@ -1326,8 +1326,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     float runLen = 0;
     float slack = size * 0.3f;  // metrics-free fallback, same shape
     if (fonts) {
-      for (float adv : measureRun(toU8(french(men)), style, *fonts))
-        runLen += adv;
+      runLen = runPens(toU8(french(men)), style, *fonts).back();
       slack = metrics(style, *fonts).capSlack();
     }
     const float half = std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
