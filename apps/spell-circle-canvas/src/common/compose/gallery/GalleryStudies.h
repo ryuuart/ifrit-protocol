@@ -176,6 +176,10 @@ inline constexpr StudyInfo kStudies[] = {
      "The Matrix's digital rain (1999) \xe2\x80\x94 four curtains of "
      "mirrored half-width katakana, thousands of glyphs churning on "
      "declared schedules"},
+    {"rota_convocationis", "rota convocationis", "Study \xc2\xb7 Type",
+     "An invented conjuring wheel in the Solomonic idiom \xe2\x80\x94 "
+     "fourteen curved baselines assembling ring by ring, every start "
+     "chained from a span"},
 
     // ---- The kit itself ----
     {"stroke_atlas", "stroke atlas", "Kit",
