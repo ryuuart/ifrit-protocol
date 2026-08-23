@@ -138,7 +138,7 @@ namespace detail {
  *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
  *       — the end-to-end check, through a real re-describe of the same node,
  *       for the wiggle parameters. */
-static_assert(kFieldCount<BoundFloat> == 22,
+static_assert(kFieldCount<BoundFloat> == 24,
               "BoundFloat gained or lost a field. boundMapEqual() below "
               "compares it BY HAND: rule on the new field (participate, or "
               "a stated reason not to), then bump this count. A miss is "
@@ -149,13 +149,16 @@ bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
          a.envelope == b.envelope && a.riseStart == b.riseStart &&
          a.holdStart == b.holdStart && a.holdEnd == b.holdEnd &&
-         a.fallEnd == b.fallEnd && a.steps == b.steps && a.scale == b.scale &&
-         a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
-         a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
+         a.fallEnd == b.fallEnd && a.duty == b.duty && a.steps == b.steps &&
+         a.scale == b.scale && a.offset == b.offset && a.clamped == b.clamped &&
+         a.lo == b.lo && a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
          a.wiggleFrequency == b.wiggleFrequency &&
          a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
          a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&
-         easeEqual(a.curve, b.curve);
+         // The two curve slots compare under the same conservative rule: a
+         // plain function is compared by identity, a capturing lambda is
+         // unequal to everything and the binding re-patches every describe.
+         easeEqual(a.curve, b.curve) && easeEqual(a.waveFn, b.waveFn);
 }
 
 }  // namespace detail
@@ -391,7 +394,7 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  nowhere else); every other field is unconditional. */
 // ---- the fx() seam's hand-written comparators ------------------------------
 
-static_assert(kFieldCount<Stagger> == 10,
+static_assert(kFieldCount<Stagger> == 11,
               "Stagger gained or lost a field — rule on it in "
               "Stagger::operator== below, then bump this count. A field left "
               "out makes two different cascades compare equal, the text node "
@@ -399,7 +402,7 @@ static_assert(kFieldCount<Stagger> == 10,
 bool Stagger::operator==(const Stagger& other) const {
   if (eachMs != other.eachMs || amountMs != other.amountMs ||
       durationMs != other.durationMs || loopMs != other.loopMs ||
-      from != other.from || over != other.over ||
+      from != other.from || seed != other.seed || over != other.over ||
       beatsOver != other.beatsOver || cueMs != other.cueMs)
     return false;
   if (!easeEqual(distribution, other.distribution)) return false;
@@ -990,8 +993,10 @@ void Composer::Impl::patchChildren(Instance& inst,
         // The SAME ordering an fx() track's units take, so `From` means one
         // thing wherever it is written.
         static thread_local std::vector<float> order;
+        // Child stagger has no seed knob: a Random child order is the
+        // count-keyed deal, as it always was.
         cascadeOrder(inst.desc->fxData->staggerFrom,
-                     (uint32_t)newChildren.size(), order);
+                     (uint32_t)newChildren.size(), 0u, order);
         if (mountOrdinal < order.size())
           mountDelayCarryMs += staggerMs * order[mountOrdinal];
       }

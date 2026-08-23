@@ -1122,11 +1122,37 @@ bool samePathLayout(const TextPath& a, const TextPath& b) {
          restA == restB;
 }
 
-/** Directions a path tangent snaps to. Every distinct rotation is both a
- *  batch bucket and a glyph-atlas strike, and 64 steps is 5.6 degrees —
- *  under a pixel of lean at label sizes on a ring whose own letters sit
- *  further apart than that. `TextPath::exactTangent` is the opt-out. */
+/** Directions a path tangent snaps to at LAYOUT time — the tangents baked
+ *  into the path layout's rest poses, which nothing on the paint path
+ *  reads (the painter re-derives every pose exactly and snaps with the
+ *  size-cut ladder below). `TextPath::exactTangent` is the opt-out. */
 constexpr int kPathTangentSteps = 64;
+
+/** How many directions the path-tangent ladder offers a glyph rendered at
+ *  `pixelSize`.
+ *
+ *  A path glyph's rotation is snapped so a turning ring lands on a BOUNDED
+ *  set of directions: every distinct rotation is both a batch bucket and a
+ *  glyph-atlas strike. How coarse the ladder may be is a visual question
+ *  whose answer scales with rendered size: one step turns the outline by a
+ *  fixed angle, a fixed angle sweeps a glyph's extremity through more
+ *  pixels the larger the em is drawn — at eight steps per pixel of em, one
+ *  step's sweep at the extremity stays near a third of a pixel at EVERY
+ *  size, where a size-blind ladder that vanishes on a caption ring makes
+ *  display lettering visibly tick letter by letter as a marquee turns
+ *  (each glyph crosses a step boundary at its own moment).
+ *
+ *  Both ends are clamped. The floor keeps small rings on the ladder they
+ *  have always had; the ceiling is what bounds the strike population at
+ *  all — the ladder's whole reason to exist — and it still does: the
+ *  reachable directions per (face, size) stay at most the step count that
+ *  size cuts. */
+int tangentLadderSteps(float pixelSize) {
+  constexpr float kStepsPerPixel = 8.0f;
+  constexpr int kMinSteps = 64, kMaxSteps = 1024;
+  return std::clamp((int)std::lround(pixelSize * kStepsPerPixel), kMinSteps,
+                    kMaxSteps);
+}
 
 }  // namespace
 
@@ -1559,14 +1585,20 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
     dirY = oy / radius;
   }
   // The ROTATION snaps, and only the rotation: a continuous per-glyph
-  // angle mints a fresh glyph mask per letter in Skia's cache. 64 steps
-  // is 5.6 degrees, which on a ring whose own letters sit further apart
-  // than that is under a pixel of lean at label sizes.
+  // angle mints a fresh glyph mask per letter in Skia's cache. The ladder
+  // is cut by RENDERED SIZE (tangentLadderSteps): a fixed angular step
+  // sweeps a bigger glyph's extremity through more pixels, so display
+  // lettering on a turning ring gets a proportionally finer ladder and
+  // does not tick letter by letter as each glyph crosses a step at its
+  // own moment.
   pose.centre = position;
   pose.cosine = dirX;
   pose.sine = dirY;
   if (!ctx.onPath->exactTangent)
-    sigil::weave::quantizeAngle(std::atan2(dirY, dirX), pose.cosine, pose.sine);
+    sigil::weave::quantizeAngle(
+        std::atan2(dirY, dirX),
+        tangentLadderSteps(placed.shaped ? placed.shaped->fontSize : 0.0f),
+        pose.cosine, pose.sine);
   return true;
 }
 
@@ -1968,6 +2000,35 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   for (const std::unique_ptr<PassLane>& lane : passes) {
     const auto n = (uint32_t)lane->keys.size();
     if (n == 0) continue;  // the selection resolved nothing: nothing to burn
+    // THE DECLARED REST (fx::pass(…).restsAt(…)): when EVERY beat's
+    // resolved local time sits on a declared pass-through phase, the layer
+    // and the shader are skipped and the glyphs draw directly — the route
+    // the compile refusal already takes, so a resting pass is
+    // byte-identical to resting type. The test is EXACT equality, which is
+    // what the schedule supplies: a one-shot cascade clamps a unit to
+    // exactly 0 before its beat and exactly 1 after it. Under a looping
+    // cascade a unit touches 0 only at the instant its beat re-opens, so a
+    // rest declared at 0 effectively never engages there — correctly, the
+    // cycle is always mid-flight somewhere — while units genuinely REST at
+    // exactly 1 between beats, so a rest at 1 engages whenever no beat is
+    // mid-cycle.
+    const std::span<const float> rests =
+        lane->source->track->effect.restPhases();
+    if (!rests.empty()) {
+      bool atRest = true;
+      for (const float local : lane->locals) {
+        bool declared = false;
+        for (const float rest : rests) declared |= local == rest;
+        if (!declared) {
+          atRest = false;
+          break;
+        }
+      }
+      if (atRest) {
+        lane->batches.draw(&canvas);
+        continue;
+      }
+    }
     const float reach = lane->source->track->reachPx();
     const SkRect bounds =
         SkRect::MakeWH(size.width(), size.height()).makeOutset(reach, reach);

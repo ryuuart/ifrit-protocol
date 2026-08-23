@@ -823,6 +823,22 @@ class TextEffect {
    *  runtime dispatches on. */
   [[nodiscard]] const Material* passMaterial() const;
 
+  /** DECLARES A PHASE WHERE THIS PASS IS AN EXACT PASS-THROUGH — an
+   *  author's promise the runtime spends but cannot verify, in the same
+   *  family as `isAnimated`, `bleed()` and `reach`. When every unit the
+   *  track addresses sits at a declared phase, the runtime skips the layer
+   *  and the shader and draws the glyphs directly. The contract, and what
+   *  a false promise looks like, is documented at `fx::pass` (TextFx.h).
+   *  Pass effects only: on any other effect this warns once and returns
+   *  the effect unchanged. The declaration rides the effect's params, so
+   *  it participates in equality as every parameter does. */
+  [[nodiscard]] TextEffect restsAt(float phase) const;
+  /** Both ends: `fx::pass(m).restsAt(0, 1)`. */
+  [[nodiscard]] TextEffect restsAt(float a, float b) const;
+  /** The declared pass-through phases — empty when none were declared,
+   *  and for every per-glyph effect. */
+  [[nodiscard]] std::span<const float> restPhases() const;
+
  private:
   struct State {
     std::string name;
@@ -836,6 +852,10 @@ class TextEffect {
      *  equality by VALUE (Material::operator==), like an Effect child. */
     std::shared_ptr<const Material> pass;
   };
+  /** restsAt()'s one body: appends the phases to the pass's params — a
+   *  pass carries no other parameters, so its params slot IS the rest
+   *  declaration and the phases join equality with no second clause. */
+  [[nodiscard]] TextEffect withRests(std::initializer_list<float> phases) const;
   std::shared_ptr<const State> m_state;
 };
 
@@ -1069,9 +1089,9 @@ struct Stagger {
    *  spec under `then()` as `beatsOver` is; a nested loopMs is ignored.
    *  0 — the default — is the one-shot cascade. */
   float loopMs = 0;
-  /** Where the cascade starts. `Random` is seeded from the unit count, so
-   *  a scatter is the SAME scatter on every frame and after every
-   *  relayout; `Edges` starts at both ends and meets in the middle. */
+  /** Where the cascade starts. `Random` is keyed on the unit count and
+   *  `seed`, so a scatter is the SAME scatter on every frame and after
+   *  every relayout; `Edges` starts at both ends and meets in the middle. */
   enum class From : uint8_t {
     Start,
     Center,
@@ -1079,6 +1099,16 @@ struct Stagger {
     Random,
     Edges
   } from = From::Start;
+  /** WHICH scatter `From::Random` deals. The ranking hash is keyed on the
+   *  unit count alone at the default 0, so two same-count cascades scatter
+   *  IDENTICALLY — three curtains of equal columns would all drop in one
+   *  order. A nonzero seed mixes into that hash and deals an independent
+   *  scatter per value, which is what several fields of one composition
+   *  want. The scatter stays the scrambled EVEN ladder either way: every
+   *  unit takes a distinct rank, so no two units ever open together, and
+   *  `distribution` still shapes how those ranks crowd. Read only under
+   *  `From::Random`; the other origins are their own order. */
+  uint32_t seed = 0;
   /** Which units get a beat. */
   Unit over = Unit::Cluster;
   /** WHICH LIST those beats are numbered against — see `Beats`. The default

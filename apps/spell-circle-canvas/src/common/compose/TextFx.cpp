@@ -125,6 +125,37 @@ const Material* TextEffect::passMaterial() const {
   return m_state ? m_state->pass.get() : nullptr;
 }
 
+TextEffect TextEffect::withRests(std::initializer_list<float> phases) const {
+  if (!m_state || !m_state->pass) {
+    // Once per process: the declaration is about a pass's SkSL, and a
+    // per-glyph effect has no shader to promise anything about.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] restsAt() declares where a PASS's shader is an exact "
+          "pass-through; this effect carries no pass material, so the "
+          "declaration says nothing and is dropped.\n");
+    }
+    return *this;
+  }
+  auto state = std::make_shared<State>(*m_state);
+  state->params.insert(state->params.end(), phases.begin(), phases.end());
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+TextEffect TextEffect::restsAt(float phase) const { return withRests({phase}); }
+TextEffect TextEffect::restsAt(float a, float b) const {
+  return withRests({a, b});
+}
+
+std::span<const float> TextEffect::restPhases() const {
+  return m_state && m_state->pass ? std::span<const float>(m_state->params)
+                                  : std::span<const float>();
+}
+
 Phase TextEffect::until(float t) const { return Phase(*this, t); }
 
 // ---------------------------------------------------------------------------
@@ -794,7 +825,7 @@ uint64_t mix64Value(uint64_t z) {
 }
 }  // namespace
 
-void cascadeOrder(Stagger::From from, uint32_t count,
+void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
                   std::vector<float>& order) {
   order.assign(count, 0.0f);
   // A cascade of ONE is a cascade with no spread, whichever end it claims
@@ -818,12 +849,17 @@ void cascadeOrder(Stagger::From from, uint32_t count,
     case Stagger::From::Random: {
       // Rank each unit by a hash of its index: deterministic, so the same
       // text scatters the same way on every frame and after a relayout.
+      // The seed salts that key AFTER a mix of its own, so seeds 1 and 2
+      // deal permutations as independent as any two; seed 0 contributes
+      // NOTHING to the key, which is what keeps the default scatter the
+      // count-keyed one, bit for bit.
+      const uint64_t salt = seed ? mix64Value(seed) : 0ull;
       std::vector<uint32_t> indices(count);
       std::iota(indices.begin(), indices.end(), 0u);
       std::stable_sort(indices.begin(), indices.end(),
-                       [count](uint32_t a, uint32_t b) {
-                         return mix64Value(a * 2654435761ull + count) <
-                                mix64Value(b * 2654435761ull + count);
+                       [count, salt](uint32_t a, uint32_t b) {
+                         return mix64Value(a * 2654435761ull + count + salt) <
+                                mix64Value(b * 2654435761ull + count + salt);
                        });
       for (uint32_t rank = 0; rank < count; ++rank)
         order[indices[rank]] = (float)rank;
@@ -880,7 +916,7 @@ void Cascade::build(const Stagger& spec, uint32_t outerCount,
                     uint32_t innerCount) {
   duration = std::max(spec.durationMs, 1.0f);
   const uint32_t outer = std::max(outerCount, 1u);
-  cascadeOrder(spec.from, outer, outerOrder);
+  cascadeOrder(spec.from, outer, spec.seed, outerOrder);
   outerEach = spacingMs(spec, outer);
   outerCue = spec.cueMs;
   if (!outerCue.empty() && outerCue.size() != outer)
@@ -888,7 +924,7 @@ void Cascade::build(const Stagger& spec, uint32_t outerCount,
 
   if (spec.inner) {
     const uint32_t inner = std::max(innerCount, 1u);
-    cascadeOrder(spec.inner->from, inner, innerOrder);
+    cascadeOrder(spec.inner->from, inner, spec.inner->seed, innerOrder);
     innerEach = spacingMs(*spec.inner, inner);
     innerCue = spec.inner->cueMs;
     if (!innerCue.empty() && innerCue.size() != inner)

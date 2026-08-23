@@ -28,21 +28,27 @@
 //     does.
 //
 // THIS STUDY'S OWN, flagged rather than smuggled:
-//   * Every colour, size, rate and cue. Four planes — a dim churning bed
+//   * Every colour, size, rate and seed. Four planes — a dim churning bed
 //     and three falling depths, one leaf each — are this study's
 //     composition; the film's screens are a single plane.
-//   * The charset keeps to the half-width kana and leaves the record's
-//     digits out, on purpose: a substitution is honoured only where the
-//     replacement has the original's advance, and the kana block is
-//     advance-uniform in the CJK faces that carry it — so the whole
-//     charset passes that gate and every glyph in the field churns. Mixing
-//     in digits of another width would freeze exactly the glyphs the gate
-//     refuses, silently.
-//   * The mirror is ONE flip of each field (`scaleX(-1)` on the leaf), not
-//     a per-glyph deviation. The record mirrors every glyph the same way,
-//     so one turn of the whole curtain states it — where a per-glyph
-//     mirror is a non-uniform scale, which forces every glyph out of the
-//     shared-transform batch into its own matrix draw.
+//   * The charset is the record's mix — half-width katakana with the odd
+//     bracket, dot and small form, plus digits — but PARTITIONED BY THE
+//     SUBSTITUTION GATE: a codepoint swap is honoured only where the
+//     replacement has the original's advance, and in the face that carries
+//     this field the half-width forms sit at one advance and the digits at
+//     another. So the churn runs as TWO tracks, each cell substituting
+//     within its own advance class, and every glyph in the field still
+//     churns — one mixed charset would silently freeze exactly the cells
+//     whose roll crossed the class line. ('4' is left out: this face cuts
+//     it a hair wider than its siblings and the gate would refuse it.)
+//   * The mirror is PER GLYPH, as the record's is: `scaleX = -1` in a
+//     static track flips each half-width form about its own centre while
+//     the columns keep their reading order. A per-glyph non-uniform scale
+//     routes every mirrored glyph onto its own matrix draw instead of the
+//     shared-transform batch — thousands of matrix draws per frame — which
+//     is load this stress field takes on deliberately. The digits stand
+//     unmirrored, and each glyph also takes its own phosphor lift
+//     (`colorScreen`, seeded per glyph), so no two cells burn alike.
 //
 // -----------------------------------------------------------------------------
 // THE MACHINE, and what it puts under load
@@ -51,15 +57,17 @@
 //     vertical-RL, the kana held UPRIGHT by their style (their default
 //     vertical orientation is rotated, which is not what the screens
 //     show). A column is a LINE unit there, so "each column on its own
-//     clock" is a CUE TABLE over lines — one seeded start per column —
-//     with a nested cluster cascade running the glyphs down inside each
-//     column's beat. The whole schedule is declared; nothing steps
-//     per-column state by hand.
+//     clock" is `From::Random` over lines — the seeded scrambled ladder,
+//     spread across the loop period by `amountMs`, each field dealing its
+//     own scatter from its own `Stagger::seed` — with a nested cluster
+//     cascade running the glyphs down inside each column's beat. The
+//     whole schedule is declared; nothing steps per-column state by hand,
+//     and no table has to agree with the laid-out column count.
 //   * THE RAIN NEVER STOPS because the cascade LOOPS: `Stagger::loopMs`
 //     re-opens every glyph's beat once per period, phase-offset by its
-//     column's cue, and the cues are drawn across the whole period — so at
-//     any instant every age of streak is on screen somewhere and each
-//     column re-drops forever on its own offset. The master is a wrapping
+//     column's scattered start, and the scatter spans the whole period —
+//     so at any instant every age of streak is on screen somewhere and
+//     each column re-drops forever on its own offset. The master is a wrapping
 //     phase whose wall period IS the declared loop, so the drive and the
 //     schedule cannot drift. Where a column's ladder outruns the period,
 //     successive drops share the column, spaced one period apart — the
@@ -72,9 +80,11 @@
 //     has no waiting units to withhold — between beats a glyph rests at
 //     local 1, which this table paints dark — and the bright head IS the
 //     arrival.
-//   * THE CHURN is `fx::scramble` on a second track with its own wrapping
-//     progress, composing with the streak by the track algebra — the
-//     substitution from one track, alpha and tint from the other.
+//   * THE CHURN is `fx::scramble` on two more tracks sharing one wrapping
+//     progress — the field partitioned by a selector into its two advance
+//     classes, each churning within its own charset — composing with the
+//     streak by the track algebra: the substitution from one track, the
+//     mirror and lift from another, alpha and tint from the streak.
 //   * THE LOAD, deliberately: thousands of glyphs whose alpha and tint
 //     vary per glyph per frame — which exercises the quantisation ladder
 //     (each distinct value is a batch bucket and an atlas strike), the
@@ -93,7 +103,7 @@
 //               re-drops.
 //   kMeter    — true draws the near field's resolved schedule over the
 //               frame (one cell per column beat), which is the instrument
-//               for tuning the cue table.
+//               for tuning the column scatter.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -144,7 +154,7 @@ struct FieldSpec {
   float loopMs;      ///< the period every column re-drops on
   float alpha;       ///< element opacity — the depth haze
   float glowSigma;   ///< blurred underlay beneath the foreground; 0 = none
-  uint32_t seed;     ///< the field's own text and cue draw
+  uint32_t seed;     ///< the field's own text draw AND its column scatter
   double churnSecs;  ///< one full re-roll cycle of the substitution
 };
 constexpr FieldSpec kFields[] = {
@@ -160,17 +170,31 @@ constexpr float kBedSize = 20.0f;
 constexpr double kBedChurnSecs = 11.0;
 constexpr uint32_t kBedSeed = 0xC3A5E1u;
 
-/** The charset, and the whole point of its bounds: half-width katakana
- *  (U+FF66, U+FF70, U+FF71..U+FF9D) are one advance in the faces that
- *  carry them, so every substitution the churn asks for passes the
- *  equal-advance gate. */
-std::u32string rainSet() {
+/** The two charsets, cut where the substitution gate cuts. The face that
+ *  carries this field sets every HALF-WIDTH form — the katakana proper
+ *  (U+FF66, U+FF70..U+FF9D), the small forms (U+FF67..U+FF6F) and the
+ *  corner brackets and dot (U+FF62, U+FF63, U+FF65) — at one advance, and
+ *  the DIGITS plus '#' at another, wider one ('4' alone is cut a hair
+ *  wider still, so it stays out). A substitution is honoured only within
+ *  one advance class, so each class churns within itself and every glyph
+ *  in the field passes the gate. */
+std::u32string rainKana() {
   std::u32string set;
   set += U'ｦ';
-  set += U'ｰ';
   for (char32_t c = U'ｱ'; c <= U'ﾝ'; ++c) set += c;
+  set += U'ｰ';
+  set += U'｢';
+  set += U'｣';
+  set += U'･';
+  for (char32_t c = U'ｧ'; c <= U'ｯ'; ++c) set += c;
   return set;
 }
+std::u32string rainWest() { return U"012356789#"; }
+
+/** Which cells the western class holds: roughly one in seven, the way the
+ *  screens sprinkle digits through the kana rather than dealing them
+ *  evenly. */
+constexpr uint32_t kWestOneIn = 7;
 
 /** Deterministic and implementation-independent: the field must be the
  *  same field on every run and platform, or a byte-identity sweep reads
@@ -184,8 +208,12 @@ struct Lcg {
   float uniform() { return (float)(next() % 65536u) / 65536.0f; }
 };
 
-/// Every code point in the set is three UTF-8 bytes (U+0800..U+FFFF).
+/// ASCII (the western class) or U+0800..U+FFFF (the half-width forms).
 void appendUtf8(std::string& out, char32_t c) {
+  if (c < 0x80) {
+    out.push_back((char)c);
+    return;
+  }
   out.push_back((char)(0xE0 | (c >> 12)));
   out.push_back((char)(0x80 | ((c >> 6) & 0x3F)));
   out.push_back((char)(0x80 | (c & 0x3F)));
@@ -207,6 +235,44 @@ TextEffect streak() {
   });
 }
 
+/** WHICH CELLS ARE WESTERN — the digits-and-'#' class, addressed by the
+ *  characters themselves so the partition follows whatever text a seed
+ *  dealt. The complement is the half-width class. */
+Selector westCells() { return sel::regex(u8"[0-9#]"); }
+
+/** The per-glyph phosphor lift the whole field wears: each cell screens up
+ *  by its own seeded amount — most barely, a few hard — so no two cells
+ *  burn alike, the way the screens' tubes never sit at one brightness.
+ *  Squaring the draw skews the field dim with sparse hot cells. Stable per
+ *  glyph, so the field caches between churn steps. */
+GlyphMod phosphorLift(Rng& rng) {
+  GlyphMod m;
+  const float lift = rng.unit() * rng.unit();
+  m.colorScreen = {0.10f * lift, 0.45f * lift, 0.16f * lift, 0.0f};
+  return m;
+}
+
+/** THE RECORD'S MIRROR, per glyph: every half-width form flips about its
+ *  own centre (`scaleX = -1` rides the matrix lane — one matrix draw per
+ *  mirrored glyph, this field's own deliberate load), digits stand
+ *  unmirrored, and both classes take the phosphor lift. */
+TextEffect mirrorLift() {
+  return fx::effect(
+      "rain-mirror-lift",
+      [](const GlyphInfo&, float, Rng& rng) {
+        GlyphMod m = phosphorLift(rng);
+        m.scaleX = -1.0f;
+        return m;
+      },
+      0.0f);
+}
+TextEffect westLift() {
+  return fx::effect(
+      "rain-west-lift",
+      [](const GlyphInfo&, float, Rng& rng) { return phosphorLift(rng); },
+      0.0f);
+}
+
 }  // namespace
 
 // ===========================================================================
@@ -214,11 +280,10 @@ TextEffect streak() {
 struct MatrixRain : sigil::compose::sketch::Sketch {
   sk_sp<SkTypeface> faceKana, faceLabel;
 
-  // One text and one cue table per curtain, built once against measured
-  // metrics so the cue table and the laid-out columns agree entry for
-  // entry.
+  // One text per curtain, built once against measured metrics; the column
+  // count rides along only to spread the seeded scatter across the loop.
   std::string fieldText[kFieldCount];
-  std::vector<float> fieldCues[kFieldCount];
+  int fieldCols[kFieldCount] = {};
   std::string bedText;
   int totalGlyphs = 0;
 
@@ -240,18 +305,17 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     return style;
   }
 
-  /** One field's text and cue table, sized off measured metrics. A column
-   *  is ended by an explicit newline every `rows` glyphs, with exactly as
-   *  many columns as fit the width — so the landed lines and the cue
-   *  table match by construction, and the cascade warns about neither a
-   *  short table nor unread entries. Cues are drawn across the WHOLE loop
-   *  period: the fold phase-offsets each column's re-drop by its cue, so a
-   *  full-period spread is what keeps every age of streak on screen at
-   *  once — rain, not surges. */
+  /** One field's text, sized off measured metrics. A column is ended by
+   *  an explicit newline every `rows` glyphs, with exactly as many columns
+   *  as fit the width. Every cell shares one vertical advance in this
+   *  face whichever class it draws from, so the mixed text keeps the
+   *  grid. `outCols` reports the column count, which the curtain uses to
+   *  spread its seeded scatter across the whole loop period — every age
+   *  of streak on screen at once: rain, not surges. */
   void buildField(sigil::compose::sketch::SketchContext& ctx,
-                  const std::u32string& set, float size, uint32_t seed,
-                  float loopMs, std::string& outText,
-                  std::vector<float>* outCues) {
+                  const std::u32string& kana, const std::u32string& west,
+                  float size, uint32_t seed, std::string& outText,
+                  int* outCols) {
     // An 8-glyph probe of one column: height/8 is the step down the
     // column, width is the column pitch the next one advances left by.
     std::string probe;
@@ -268,28 +332,34 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     outText.clear();
     for (int c = 0; c < cols; ++c) {
       if (c > 0) outText.push_back('\n');
-      for (int r = 0; r < rows; ++r)
+      for (int r = 0; r < rows; ++r) {
+        const bool western = rng.next() % kWestOneIn == 0;
+        const std::u32string& set = western ? west : kana;
         appendUtf8(outText, set[rng.next() % set.size()]);
+      }
     }
-    if (outCues) {
-      outCues->clear();
-      outCues->reserve((size_t)cols);
-      for (int c = 0; c < cols; ++c) outCues->push_back(rng.uniform() * loopMs);
-    }
+    if (outCols) *outCols = cols;
     totalGlyphs += rows * cols;
   }
 
   /** One falling curtain: the streak on the declared looping schedule, the
-   *  churn on its own wrapping clock, the record's mirror as one flip of
-   *  the leaf. */
+   *  churn on its own wrapping clock split across the two advance classes,
+   *  the record's mirror and the phosphor lift per glyph. */
   [[nodiscard]] Element curtain(int j) {
     const FieldSpec& f = kFields[j];
-    // Column k starts at its cue; inside that beat the cluster cascade
-    // runs the glyphs top to bottom at the field's own rate; and the whole
-    // schedule re-opens every loopMs, each glyph on its own fold of that
-    // period. The outer beat's length is not stated anywhere — a column's
-    // beat lasts exactly as long as its own glyphs need.
-    Stagger cascade = stagger(unit::Line, cues(fieldCues[j]));
+    // Each column starts at its own seeded rank of the scrambled even
+    // ladder, spread across the whole loop period ((cols−1)/cols of it, so
+    // the last rank does not fold onto the first); inside that beat the
+    // cluster cascade runs the glyphs top to bottom at the field's own
+    // rate; and the whole schedule re-opens every loopMs, each glyph on
+    // its own fold of that period. The outer beat's length is not stated
+    // anywhere — a column's beat lasts exactly as long as its own glyphs
+    // need.
+    const float cols = (float)std::max(fieldCols[j], 1);
+    Stagger cascade =
+        stagger(unit::Line, {.amountMs = f.loopMs * (cols - 1.0f) / cols,
+                             .from = Stagger::From::Random});
+    cascade.seed = f.seed;
     cascade.then(unit::Cluster,
                  {.eachMs = f.eachMs, .durationMs = f.durationMs});
     cascade.loopMs = f.loopMs;
@@ -301,17 +371,24 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
         .height(kH)
         .clip()
         .writingMode(sigil::weave::WritingMode::kVerticalRL)
-        .scaleX(-1.0f)
         .opacity(f.alpha)
         .fx({.effect = streak(), .stagger = cascade, .progress = &fall[j]})
-        .fx({.effect = fx::scramble(rainSet(), 20), .progress = &churn[j]});
+        .fx({.where = !westCells(), .effect = mirrorLift()})
+        .fx({.where = westCells(), .effect = westLift()})
+        .fx({.where = !westCells(),
+             .effect = fx::scramble(rainKana(), 20),
+             .progress = &churn[j]})
+        .fx({.where = westCells(),
+             .effect = fx::scramble(rainWest(), 20),
+             .progress = &churn[j]});
   }
 
   [[nodiscard]] Element describe(sigil::compose::sketch::SketchContext& ctx) {
     Element root = stack().fill(Fill::color(kVoid));
 
     // The bed: the whole screen faintly alive. No streak track — these
-    // glyphs are never bright and never absent, they only churn.
+    // glyphs are never bright and never absent, they only churn, mirrored
+    // and lifted like the curtains above them.
     root.child(text(toU8(bedText), kanaStyle(kBedSize, kBedInk, 0.0f))
                    .key("rain-bed")
                    .left(0)
@@ -320,8 +397,13 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
                    .height(kH)
                    .clip()
                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                   .scaleX(-1.0f)
-                   .fx({.effect = fx::scramble(rainSet(), 20),
+                   .fx({.where = !westCells(), .effect = mirrorLift()})
+                   .fx({.where = westCells(), .effect = westLift()})
+                   .fx({.where = !westCells(),
+                        .effect = fx::scramble(rainKana(), 20),
+                        .progress = &bedChurn})
+                   .fx({.where = westCells(),
+                        .effect = fx::scramble(rainWest(), 20),
                         .progress = &bedChurn}));
 
     for (int j = 0; j < kFieldCount; ++j) root.child(curtain(j));
@@ -344,9 +426,9 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     root.child(
         text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 " +
                   std::to_string(totalGlyphs) +
-                  " GLYPHS IN FOUR PLANES \xc2\xb7 HALF-WIDTH KATAKANA, "
-                  "MIRRORED, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, THE TYPE "
-                  "STANDS STILL"),
+                  " GLYPHS IN FOUR PLANES \xc2\xb7 KATAKANA AND DIGITS, "
+                  "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
+                  "THE TYPE STANDS STILL"),
              studio::type({.face = faceLabel,
                            .size = 10.5f,
                            .color = kLabel,
@@ -375,14 +457,14 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
         {"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
     faceLabel = studio::pickFace({"Helvetica Neue", "Arial"}, 500);
 
-    const std::u32string set = rainSet();
+    const std::u32string kana = rainKana();
+    const std::u32string west = rainWest();
     totalGlyphs = 0;
     for (int j = 0; j < kFieldCount; ++j) {
       const FieldSpec& f = kFields[j];
-      buildField(ctx, set, f.size, f.seed, f.loopMs, fieldText[j],
-                 &fieldCues[j]);
+      buildField(ctx, kana, west, f.size, f.seed, fieldText[j], &fieldCols[j]);
     }
-    buildField(ctx, set, kBedSize, kBedSeed, 0.0f, bedText, nullptr);
+    buildField(ctx, kana, west, kBedSize, kBedSeed, bedText, nullptr);
 
     ctx.composer.render(describe(ctx));
   }

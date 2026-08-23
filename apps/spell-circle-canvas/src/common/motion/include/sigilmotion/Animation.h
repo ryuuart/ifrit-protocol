@@ -341,10 +341,17 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
  *
  *  One per binding, because a phase has one shape: naming a second
  *  REPLACES the first, exactly as a second `map()` replaces the first
- *  curve. The alternative — three independent flags — would have to
- *  define what a raised cosine of a trapezoid means, and there is no
- *  such thing. */
-enum class Envelope : uint8_t { kNone, kPingPong, kCosine, kTrapezoid };
+ *  curve. The alternative — independent flags — would have to define
+ *  what a raised cosine of a trapezoid means, and there is no such
+ *  thing. */
+enum class Envelope : uint8_t {
+  kNone,
+  kPingPong,
+  kCosine,
+  kTrapezoid,
+  kSquare,
+  kWave
+};
 
 /** A live binding, SHAPED on its way to the property.
  *
@@ -361,9 +368,10 @@ enum class Envelope : uint8_t { kNone, kPingPong, kCosine, kTrapezoid };
  *  in:
  *
  *    1. `source(lo, hi)` normalises the SOURCE range onto [0,1];
- *    2. the ENVELOPE — `pingPong`/`cosine`/`trapezoid` — turns the
- *       one-way phase into a SHAPE across that span: there and back, a
- *       swell, or a hold between two ramps;
+ *    2. the ENVELOPE — `pingPong`/`cosine`/`trapezoid`/`square`/`wave` —
+ *       turns the one-way phase into a SHAPE across that span: there and
+ *       back, a swell, a hold between two ramps, a pulse, or a shape of
+ *       the caller's own;
  *    3. `map(ease)` shapes it (any `choreograph::EaseFn`, so the whole
  *       `ease::` namespace and every choreograph curve fits);
  *    4. the affine chain — `scale`/`offset`/`target`/`invert` — composes
@@ -391,6 +399,10 @@ struct BoundFloat {
   // shoulder is an instant cut rather than a division by zero.
   Envelope envelope = Envelope::kNone;
   float riseStart = 0.0f, holdStart = 0.0f, holdEnd = 1.0f, fallEnd = 1.0f;
+  // square(): the ON fraction of each period, stored clamped to [0,1].
+  float duty = 0.5f;
+  // wave(): the caller's own periodic shape, read on the folded phase.
+  choreograph::EaseFn waveFn;
   int steps = 0;                      // quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;  // the affine chain
   bool clamped = false;
@@ -455,6 +467,25 @@ struct BoundFloat {
         else
           v = (fallEnd - v) / (fallEnd - holdEnd);
         break;
+      case Envelope::kSquare: {
+        // The pulse, folded on the same period pingPong folds on: 1 across
+        // the first `duty` of each period, 0 across the rest. PHASE 0 IS
+        // ON — `u < duty` answers 1 at exactly 0 — because a pulse's owner
+        // is born at the start of its cycle and must be born visible; a
+        // shape answering 0 at exactly 0 would blank that one instant at
+        // every seam of a wrapping phase.
+        const float u = v - std::floor(v);
+        v = u < duty ? 1.0f : 0.0f;
+        break;
+      }
+      case Envelope::kWave: {
+        // The caller's own shape, read on the folded phase u ∈ [0,1) — so
+        // whatever the function draws across one period, the signal
+        // repeats it. An empty function passes the folded phase through.
+        const float u = v - std::floor(v);
+        v = waveFn ? waveFn(u) : u;
+        break;
+      }
     }
     if (curve) v = curve(v);
     if (steps > 1) v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
@@ -571,6 +602,51 @@ class Bound {
     m_b.holdStart = holdStart < riseStart ? riseStart : holdStart;
     m_b.holdEnd = holdEnd < m_b.holdStart ? m_b.holdStart : holdEnd;
     m_b.fallEnd = fallEnd < m_b.holdEnd ? m_b.holdEnd : fallEnd;
+    return *this;
+  }
+  /** THE PULSE: 1 across the first @p duty of each period of the
+   *  normalised phase, 0 across the rest — the blinking caret, the beacon,
+   *  the strobe gate, folded on the same period `pingPong()` folds on so a
+   *  monotonic seconds Output pulses forever.
+   *
+   *      .opacity(bind(&secs).source(0, 1.06f).square(0.62f / 1.06f)
+   *                   .target(0.10f, 1.0f))
+   *
+   *  PHASE 0 IS ON. A pulse's owner is born at the start of its cycle —
+   *  a caret is born visible — and the fold makes phase 1 the same
+   *  instant as phase 0, so the ON test is `u < duty`, true at exactly 0.
+   *  A shape that answered 0 there would blank its owner for one instant
+   *  at every seam of a wrapping phase.
+   *
+   *  The two levels are exactly 0 and 1; put the resting and lit values
+   *  in with the affine chain, as the caret above does. @p duty is
+   *  clamped to [0,1]: 0 is never on, 1 is always on. `map()` still runs
+   *  on the result, but a curve through (0,0) and (1,1) leaves both
+   *  levels where they are — a pulse has no shoulders to round. */
+  Bound& square(float duty = 0.5f) {
+    m_b.envelope = Envelope::kSquare;
+    m_b.duty = duty < 0.0f ? 0.0f : (duty > 1.0f ? 1.0f : duty);
+    return *this;
+  }
+  /** THE CUSTOM WAVEFORM — the escape hatch when none of the named shapes
+   *  is the one you mean. @p shape is evaluated on the FOLDED phase
+   *  u ∈ [0,1), so whatever it draws across one period the signal repeats:
+   *  `wave([](float u) { return u * u; })` is a sawtooth with a curved
+   *  ramp, and every named envelope could have been written this way.
+   *
+   *  Same slot as the named shapes: naming this after `pingPong()`,
+   *  `cosine()`, `trapezoid()` or `square()` replaces them, and vice
+   *  versa.
+   *
+   *  THE FUNCTION IS PART OF THE BINDING'S IDENTITY, compared as `map()`'s
+   *  curve is: a consumer that prunes on equality can compare a PLAIN
+   *  function pointer and does, while a capturing lambda compares unequal
+   *  to everything — so a described binding carrying one re-patches on
+   *  every describe instead of pruning. Name the shape as a free function
+   *  where that cost matters. */
+  Bound& wave(choreograph::EaseFn shape) {
+    m_b.envelope = Envelope::kWave;
+    m_b.waveFn = std::move(shape);
     return *this;
   }
   /** Shape the (normalised) value — any choreograph easing, including the

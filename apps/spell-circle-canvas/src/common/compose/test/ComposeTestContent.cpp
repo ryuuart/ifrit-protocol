@@ -2211,6 +2211,50 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
     EXPECT_FLOAT_EQ(first[i].random, second[i].random);
 }
 
+TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
+  // From::Random ranks units by a hash keyed on the count and Stagger::seed.
+  // Three claims, each a behaviour an author leans on: seed 0 IS the
+  // count-keyed deal (pinned against the exact ranks that key hashes to, so
+  // every settled scene keeps its scatter bit for bit), a nonzero seed deals
+  // a different permutation, and two nonzero seeds deal independently.
+  const auto ranksOf = [](uint32_t seed) {
+    Host host(300, 120);
+    Stagger scatter{
+        .eachMs = 100, .durationMs = 100, .from = Stagger::From::Random};
+    scatter.seed = seed;
+    host.composer.render(box().padding(10).child(
+        text(u8"AAA BBB CCC", whiteStyle(20))
+            .key("k")
+            .fx({.effect = fx::rise(6), .stagger = scatter})));
+    host.frame();
+    const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
+    std::vector<int> ranks;
+    ranks.reserve(beats.size());
+    for (const Beat& b : beats) ranks.push_back((int)(b.startMs / 100.0f));
+    return ranks;
+  };
+  // The count-9 permutation the count-alone key hashes to. Recomputing it
+  // here would restate the implementation; these NUMBERS are the pin.
+  EXPECT_EQ(ranksOf(0), (std::vector<int>{8, 7, 0, 2, 5, 1, 6, 4, 3}));
+  const std::vector<int> dealt42 = ranksOf(42), dealt7 = ranksOf(7);
+  EXPECT_NE(dealt42, ranksOf(0));
+  EXPECT_NE(dealt42, dealt7);
+  // Still the scrambled even ladder: every rank 0..N-1 exactly once, so no
+  // two units ever open together however the seed shuffles them.
+  std::vector<int> sorted = dealt42;
+  std::sort(sorted.begin(), sorted.end());
+  std::vector<int> ladder(sorted.size());
+  std::iota(ladder.begin(), ladder.end(), 0);
+  EXPECT_EQ(sorted, ladder) << "a seeded scatter dropped or doubled a rank";
+  // A different seed is a different cascade to the reconciler, or a
+  // re-described field would prune onto the old scatter and keep it.
+  Stagger a{.from = Stagger::From::Random}, b{.from = Stagger::From::Random};
+  b.seed = 42;
+  EXPECT_FALSE(a == b);
+  a.seed = 42;
+  EXPECT_TRUE(a == b);
+}
+
 TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   // then() compounds: each word gets its beat, and inside that beat each
   // glyph gets its own start. Two ladders, one master progress.

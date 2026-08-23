@@ -553,6 +553,93 @@ TEST(AnimationValues, TrapezoidHoldsAtOneAndCutsWhileDark) {
   EXPECT_FLOAT_EQ(sheet.apply(2.5f), 0.0f);
 }
 
+TEST(AnimationValues, SquarePulsesOnFirstAndPhaseZeroIsOn) {
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat pulse = bind(&phase).square(0.6f).value();
+
+  // PHASE 0 IS ON — a caret born at the start of its cycle is born
+  // visible — and the whole first `duty` of the period is on, exactly 1.
+  EXPECT_FLOAT_EQ(pulse.apply(0.0f), 1.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(0.3f), 1.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(0.59f), 1.0f);
+  // OFF from `duty` to the end of the period, exactly 0.
+  EXPECT_FLOAT_EQ(pulse.apply(0.6f), 0.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(0.99f), 0.0f);
+
+  // PERIODIC by the same fold pingPong uses: phase 1 is phase 0 — ON, not
+  // the trapezoid's dark-at-the-seam — and the pattern repeats on every
+  // period, negative phases included.
+  EXPECT_FLOAT_EQ(pulse.apply(1.0f), 1.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(2.3f), 1.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(3.7f), 0.0f);
+  EXPECT_FLOAT_EQ(pulse.apply(-0.5f), 1.0f);  // −0.5 folds to 0.5 < 0.6
+  EXPECT_FLOAT_EQ(pulse.apply(-0.3f), 0.0f);  // −0.3 folds to 0.7
+
+  // The default duty is half the period.
+  const BoundFloat half = bind(&phase).square().value();
+  EXPECT_FLOAT_EQ(half.apply(0.49f), 1.0f);
+  EXPECT_FLOAT_EQ(half.apply(0.51f), 0.0f);
+
+  // Duty is clamped: 0 is never on, 1 is always on (the fold keeps u < 1).
+  const BoundFloat never = bind(&phase).square(-2.0f).value();
+  const BoundFloat always = bind(&phase).square(5.0f).value();
+  for (int i = 0; i <= 20; ++i) {
+    EXPECT_FLOAT_EQ(never.apply((float)i / 7.0f), 0.0f);
+    EXPECT_FLOAT_EQ(always.apply((float)i / 7.0f), 1.0f);
+  }
+
+  // The two levels land wherever the affine chain puts them — the blink
+  // that rests dim rather than vanishing.
+  const BoundFloat caret = bind(&phase)
+                               .source(0.0f, 1.06f)
+                               .square(0.62f / 1.06f)
+                               .target(0.10f, 1.0f)
+                               .value();
+  EXPECT_FLOAT_EQ(caret.apply(0.0f), 1.0f);
+  EXPECT_FLOAT_EQ(caret.apply(0.61f), 1.0f);
+  EXPECT_FLOAT_EQ(caret.apply(0.63f), 0.10f);
+  EXPECT_FLOAT_EQ(caret.apply(1.07f), 1.0f);  // the next period is on again
+}
+
+TEST(AnimationValues, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
+  ch::Output<float> phase = 0.0f;
+
+  // The caller's function sees u in [0,1) and its drawing repeats every
+  // period — the custom escape hatch behind every named envelope.
+  const BoundFloat saw =
+      bind(&phase).wave([](float u) { return u * u; }).value();
+  EXPECT_FLOAT_EQ(saw.apply(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(saw.apply(0.5f), 0.25f);
+  EXPECT_FLOAT_EQ(saw.apply(1.5f), 0.25f);   // folded: 1.5 → 0.5
+  EXPECT_FLOAT_EQ(saw.apply(-0.5f), 0.25f);  // …and up from below
+  EXPECT_NEAR(saw.apply(3.9f), saw.apply(0.9f), 1e-5f);
+
+  // Same slot as the named shapes: naming wave replaces them, and naming
+  // one of them replaces wave.
+  const BoundFloat waved =
+      bind(&phase).cosine().wave([](float u) { return u; }).value();
+  EXPECT_FLOAT_EQ(waved.apply(0.25f), 0.25f);  // not the cosine's swell
+  const BoundFloat named =
+      bind(&phase).wave([](float) { return 9.0f; }).pingPong().value();
+  EXPECT_FLOAT_EQ(named.apply(0.25f), 0.5f);  // the triangle, not the 9
+
+  // map() still shapes what the wave produced, and the affine chain still
+  // lands it in the property's units — the fixed stage order.
+  const BoundFloat staged = bind(&phase)
+                                .wave([](float u) { return u; })
+                                .map(&ch::easeInQuad)
+                                .scale(100.0f)
+                                .value();
+  EXPECT_FLOAT_EQ(staged.apply(0.5f), ch::easeInQuad(0.5f) * 100.0f);
+
+  // An empty function passes the folded phase through rather than calling
+  // nothing.
+  const BoundFloat empty = bind(&phase).wave(nullptr).value();
+  EXPECT_FLOAT_EQ(empty.apply(1.25f), 0.25f);
+  for (int i = -20; i <= 40; ++i)
+    EXPECT_TRUE(std::isfinite(empty.apply((float)i / 8.0f)));
+}
+
 TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
   ch::Output<float> phase = 0.0f;
 

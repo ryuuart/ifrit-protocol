@@ -266,10 +266,16 @@ and warns once per name, as does a name no run was written with.
 
 **Cascades.** `Stagger` keeps the GSAP model — `eachMs` or `amountMs`,
 `durationMs`, and a `Stagger::From` origin: `Start`, `Center`, `End`, a
-seeded `Random` and a two-ended `Edges`. `Stagger::distribution` shapes
-the start times across the cascade, and `Stagger::then` nests a second cascade
-inside every beat of the first (`stagger(unit::Word, {…}).then(unit::Glyph,
-{…})`).
+seeded `Random` and a two-ended `Edges`. `Random` deals a scrambled EVEN
+ladder — every unit takes a distinct rank, so no two units open together —
+and it is deterministic: the ranking hash is keyed on the unit count and
+`Stagger::seed`, so the same text scatters the same way on every frame and
+after every relayout. At the default seed of 0 the key is the count alone,
+which makes two same-count cascades scatter identically; give each field
+its own nonzero seed for independent scatters. `Stagger::distribution`
+shapes the start times across the cascade, and `Stagger::then` nests a
+second cascade inside every beat of the first (`stagger(unit::Word,
+{…}).then(unit::Glyph, {…})`).
 
 **Irregular timing.** `cues` replaces the even spread with a TABLE — one
 start time per unit, in ms — which is what caption, lyric and lip-sync
@@ -507,6 +513,22 @@ per-unit rects and times are resolved from the SAME cascade
 `Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
 disagree about the schedule.
 
+**A pass can declare where it rests.** `fx::pass(m).restsAt(0)`,
+`.restsAt(1)` and `.restsAt(0, 1)` promise the SkSL is an EXACT
+pass-through at those unit phases. When every addressed unit's resolved
+local time sits on a declared phase the runtime skips the layer and the
+shader and draws the glyphs directly — so a settled pass on a node that
+repaints for unrelated reasons (an orbiting `onPath` ring) stops paying
+for a shader that changes nothing. The promise is unverifiable, in the
+family of `reach` and `bleed()`: declare a phase where the shader is not
+a pass-through and the picture pops at the seam, with no diagnostic. The
+test is exact — a one-shot cascade clamps a unit to exactly 0 before its
+beat and exactly 1 after. A looping cascade touches 0 only at the instant
+a beat re-opens, so `restsAt(0)` effectively never engages there
+(correctly — the cycle is always mid-flight somewhere), while units rest
+at exactly 1 between beats, so `restsAt(1)` engages whenever no beat is
+mid-cycle. Undeclared, a pass always runs.
+
 Order against everything else: deviation tracks apply FIRST, and the pass
 reads the deviated pixels — a pass is post-processing, and pixels are what
 it processes. A glyph a pass addresses draws only inside that pass's
@@ -661,9 +683,12 @@ along the radius, for an astrolabe limb or a compass rose) or `Upright`
 so lettering on the lower half of a ring reads right way up — never each
 glyph, which would reverse the reading order. `TextPath::offset` rides the
 type off the baseline, positive to the LEFT of travel. Tangents snap to a
-fixed ladder of directions because each distinct rotation is a glyph-atlas
-strike; `TextPath::exactTangent` is the opt-out, for static artwork set
-large.
+ladder of directions because each distinct rotation is a glyph-atlas
+strike, and the ladder is cut per RENDERED SIZE — one angular step sweeps
+a bigger glyph's extremity through more pixels, so display lettering on a
+turning ring gets a proportionally finer ladder and does not tick letter
+by letter as a marquee turns; `TextPath::exactTangent` is the opt-out,
+for artwork that must hold the exact angle.
 
 **The baseline declares its own reach.** A resolved path is not bounded by
 the node's box — a custom `Shape` may return a curve well outside it, and

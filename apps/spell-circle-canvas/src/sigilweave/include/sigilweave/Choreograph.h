@@ -232,6 +232,27 @@ inline void quantizeAngle(float angle, float& cosine, float& sine) {
   sine = angleTable[static_cast<size_t>(stepIndex)].second;
 }
 
+/** The same snap on a CALLER-CHOSEN ladder: `steps` directions round the
+ * circle, computed rather than tabled because a caller cuts the ladder by
+ * rendered glyph size — one step turns an outline by a fixed angle, a fixed
+ * angle displaces a glyph's extremity by more pixels the larger the glyph
+ * is drawn, so a size-blind ladder that vanishes on a caption ticks
+ * visibly on display type. At 64 steps this answers bit for bit what the
+ * tabled overload answers. `steps <= 0` is the exact angle — the
+ * continuous opt-out spelled as a ladder of none. */
+inline void quantizeAngle(float angle, int steps, float& cosine, float& sine) {
+  if (steps <= 0) {
+    cosine = std::cos(angle);
+    sine = std::sin(angle);
+    return;
+  }
+  constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
+  int stepIndex = static_cast<int>(std::lround(angle / kTwoPi * steps)) % steps;
+  if (stepIndex < 0) stepIndex += steps;
+  cosine = std::cos(stepIndex * kTwoPi / steps);
+  sine = std::sin(stepIndex * kTwoPi / steps);
+}
+
 /** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
  * `tint`, then adds `add` and screens `screen` over the result — composed
  * over whatever filter the pass already carried (that one runs first, so

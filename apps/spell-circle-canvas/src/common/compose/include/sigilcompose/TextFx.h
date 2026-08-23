@@ -349,7 +349,29 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  A pass is a WHOLE-TRACK statement: inside `fx::seq`, `fx::mix` or
  *  `fx::hold` its material is not consulted and the operand contributes
  *  the identity. Sequence a pass by driving its progress; gate its onset
- *  in its own SkSL, which holds the whole schedule. */
+ *  in its own SkSL, which holds the whole schedule.
+ *
+ *  THE DECLARED REST — `fx::pass(m).restsAt(0)`, `.restsAt(1)`,
+ *  `.restsAt(0, 1)`: the author's promise that the SkSL is an EXACT
+ *  pass-through at those unit phases — at a declared phase it returns its
+ *  input pixels untouched. When every addressed unit's resolved local time
+ *  sits on a declared phase, the runtime skips the layer and the shader
+ *  and draws the batches directly, so a pass on a node that repaints for
+ *  unrelated reasons (an orbiting `onPath` ring under a settled pass)
+ *  stops paying for a shader that is changing nothing. The promise is
+ *  UNVERIFIABLE, in the same family as `Track::reach` and a material's
+ *  `bleed()`: declare a phase where the shader is not a pass-through and
+ *  the picture POPS at the seam, snapping between shaded and raw glyphs as
+ *  the schedule crosses the declared phase, with no diagnostic. The
+ *  comparison is exact — which the schedule supplies, a one-shot cascade
+ *  clamping a unit to exactly 0 before its beat and exactly 1 after. Under
+ *  a LOOPING cascade (`Stagger::loopMs`) a unit touches 0 only at the
+ *  instant its beat re-opens, so `restsAt(0)` effectively never engages
+ *  there — correctly, the cycle is always mid-flight somewhere — while a
+ *  unit RESTS at exactly 1 between beats, so `restsAt(1)` engages whenever
+ *  no beat is mid-cycle. Undeclared, a pass always runs. The declaration
+ *  rides the effect's comparable params, so two passes differing only in
+ *  their rests compare unequal and re-patch. */
 [[nodiscard]] TextEffect pass(Material material);
 
 /** THE ESCAPE HATCH: an ad-hoc effect body under an author-given key.

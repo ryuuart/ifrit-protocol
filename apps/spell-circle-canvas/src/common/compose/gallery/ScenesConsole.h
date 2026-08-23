@@ -197,7 +197,11 @@ struct DaemonConsoleScene final : Scene {
   daemon_console::LogGen gen;
 
   // Bound outputs: the only values volatile forever, all paint-only.
-  choreograph::Output<float> blink{1.0f};
+  // The caret's clock, in seconds: the square() binding on the caret turns
+  // it into the blink, and the prompt machine REBASES it — held at 0 (the
+  // pulse's ON phase) while a command types, released to the mission clock
+  // while the console waits.
+  choreograph::Output<float> caretClock{0.0f};
   choreograph::Output<float> lamp{1.0f};
   choreograph::Output<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
 
@@ -275,7 +279,7 @@ struct DaemonConsoleScene final : Scene {
 
   void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     namespace dc = daemon_console;
-    blink = 1.0f;
+    caretClock = 0.0f;
     lamp = 1.0f;
     prompt = Prompt::Idle;
     commandIndex = 0;
@@ -313,10 +317,10 @@ struct DaemonConsoleScene final : Scene {
       meter[3] = 0.70f + 0.22f * (float)std::sin(t * 1.07 + 1.2);
       lamp = 0.55f + 0.45f * (float)std::sin(t * 2.4);
       // A caret blinks while the console waits and holds solid while it
-      // types — the classic reset-on-keystroke behaviour.
-      blink = prompt == Prompt::Typing    ? 1.0f
-              : std::fmod(t, 1.06) < 0.62 ? 1.0f
-                                          : 0.10f;
+      // types. The waveform lives on the caret's square() binding; what
+      // the machine owns is the PHASE — parked at 0, the pulse's ON
+      // instant, for as long as a command is typing.
+      caretClock = prompt == Prompt::Typing ? 0.0f : (float)t;
       bool dirty = false;
       const char* command = daemon_console::kCommands[commandIndex];
       switch (prompt) {
@@ -642,7 +646,14 @@ struct DaemonConsoleScene final : Scene {
                        .height(13)
                        .margin(3, 0, 0, 0)
                        .fill(Fill::color(dc::kAccent))
-                       .opacity(&blink)
+                       // The blink is the pulse waveform itself: on for
+                       // 0.62 s of every 1.06 s cycle, resting dim rather
+                       // than vanishing. Phase 0 is ON, so the caret the
+                       // typing machine parks at 0 sits solid.
+                       .opacity(bind(&caretClock)
+                                    .source(0.0f, 1.06f)
+                                    .square(0.62f / 1.06f)
+                                    .target(0.10f, 1.0f))
                        .key("caret"))
             .child(box().grow(1))
             .child(text(toU8(studio::fmt("ring 256 \xc2\xb7 %llu events",

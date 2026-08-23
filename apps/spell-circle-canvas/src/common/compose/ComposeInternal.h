@@ -557,13 +557,13 @@ inline auto fields(TextPath& v) {
 }
 inline auto fields(BoundFloat& v) {
   auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
-         holdStart, holdEnd, fallEnd, steps, scale, offset, clamped, lo, hi,
-         wiggleAmount, wiggleFrequency, wiggleSeed, wiggleOctaves,
-         wiggleFalloff, wrapPeriod] = v;
+         holdStart, holdEnd, fallEnd, duty, waveFn, steps, scale, offset,
+         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
+         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
   return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
-                  riseStart, holdStart, holdEnd, fallEnd, steps, scale, offset,
-                  clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
-                  wiggleOctaves, wiggleFalloff, wrapPeriod);
+                  riseStart, holdStart, holdEnd, fallEnd, duty, waveFn, steps,
+                  scale, offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
+                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
 }
 inline auto fields(Transition& v) {
   auto& [duration, ease, delay] = v;
@@ -595,9 +595,9 @@ inline auto fields(Mask& v) {
   return std::tie(what, with);
 }
 inline auto fields(Stagger& v) {
-  auto& [eachMs, amountMs, cueMs, durationMs, loopMs, from, over, beatsOver,
-         distribution, inner] = v;
-  return std::tie(eachMs, amountMs, cueMs, durationMs, loopMs, from, over,
+  auto& [eachMs, amountMs, cueMs, durationMs, loopMs, from, seed, over,
+         beatsOver, distribution, inner] = v;
+  return std::tie(eachMs, amountMs, cueMs, durationMs, loopMs, from, seed, over,
                   beatsOver, distribution, inner);
 }
 inline auto fields(Track& v) {
@@ -776,12 +776,15 @@ std::u16string toUtf16(std::u8string_view utf8);
 /** WHERE INDEX `i` OF `count` SITS IN A CASCADE, in multiples of the
  *  per-step delay — 0,1,2… from Start, reversed from End, the two
  *  symmetric V shapes for Center and Edges, and a seeded permutation for
- *  Random.
+ *  Random. `seed` is `Stagger::seed` — read only by Random, where 0 keys
+ *  the ranking hash on the count alone and a nonzero value deals an
+ *  independent permutation.
  *
  *  ONE BODY for two callers: an fx() track's units and a container's
  *  staggered children. A second spelling would let `Stagger::From` mean
  *  two different orders depending on what it was attached to. */
-void cascadeOrder(Stagger::From from, uint32_t count, std::vector<float>& out);
+void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
+                  std::vector<float>& out);
 
 /** ONE TRACK'S CASCADE, resolved for a frame's unit counts: the delay
  *  ladder, the beat length, and the virtual span the master progress maps

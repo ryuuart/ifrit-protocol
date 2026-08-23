@@ -163,9 +163,9 @@ TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
   // beating over each half's own selection. Both are silent, and both look
   // exactly like the engine ignoring the author.
   static const char* const kNames[] = {
-      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs",
-      "from",   "over",     "beatsOver", "distribution", "inner"};
-  static const bool kParticipates[] = {true, true, true, true, true,
+      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs", "from",
+      "seed",   "over",     "beatsOver", "distribution", "inner"};
+  static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
                       kNames, kParticipates);
@@ -176,16 +176,33 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // map is read live at paint, so every one of them participates — including
   // the wiggle parameters, `wrapPeriod` and the envelope's corners, which are
   // easy to add to the struct and forget in the comparator.
-  static const char* const kNames[] = {
-      "source",        "inScale",         "inOffset",   "curve",
-      "clampInput",    "envelope",        "riseStart",  "holdStart",
-      "holdEnd",       "fallEnd",         "steps",      "scale",
-      "offset",        "clamped",         "lo",         "hi",
-      "wiggleAmount",  "wiggleFrequency", "wiggleSeed", "wiggleOctaves",
-      "wiggleFalloff", "wrapPeriod"};
+  static const char* const kNames[] = {"source",
+                                       "inScale",
+                                       "inOffset",
+                                       "curve",
+                                       "clampInput",
+                                       "envelope",
+                                       "riseStart",
+                                       "holdStart",
+                                       "holdEnd",
+                                       "fallEnd",
+                                       "duty",
+                                       "waveFn",
+                                       "steps",
+                                       "scale",
+                                       "offset",
+                                       "clamped",
+                                       "lo",
+                                       "hi",
+                                       "wiggleAmount",
+                                       "wiggleFrequency",
+                                       "wiggleSeed",
+                                       "wiggleOctaves",
+                                       "wiggleFalloff",
+                                       "wrapPeriod"};
   static const bool kParticipates[] = {
-      true, true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, true, true, true, true};
+      true, true, true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, true, true, true, true, true};
   walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
 }
 

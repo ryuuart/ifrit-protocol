@@ -300,6 +300,75 @@ TEST(TextPass, AddressedGlyphsDrawOnlyThroughTheirPass) {
   EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
 }
 
+TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
+  // The erase pass hides its letters whenever it actually RUNS, which is
+  // what makes the skip observable: at a phase covered by the declaration
+  // the batches draw directly and the letters show, while any phase off
+  // the declaration still runs the shader and erases them.
+  const auto lettersShow = [](TextEffect effect, Stagger cascade,
+                              float master) {
+    Host host;
+    host.composer.render(
+        box().padding(30).child(text(u8"REST", whiteStyle(40))
+                                    .key("t")
+                                    .fx({.effect = std::move(effect),
+                                         .stagger = std::move(cascade),
+                                         .progress = master})));
+    host.frame();
+    return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
+  };
+  const Stagger oneShot =
+      stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200});
+  const TextEffect erase = fx::pass(Material::sksl(kEraseSksl));
+
+  // Undeclared: the pass runs at every phase, both ends included.
+  EXPECT_FALSE(lettersShow(erase, oneShot, 0.0f));
+  EXPECT_FALSE(lettersShow(erase, oneShot, 1.0f));
+
+  // Declared at both ends: a one-shot cascade clamps every unit to exactly
+  // 0 at master 0 and exactly 1 at master 1, so both ends skip — and the
+  // middle, where the units straddle their beats, still runs the shader.
+  const TextEffect rests = erase.restsAt(0.0f, 1.0f);
+  EXPECT_TRUE(lettersShow(rests, oneShot, 0.0f));
+  EXPECT_FALSE(lettersShow(rests, oneShot, 0.5f));
+  EXPECT_TRUE(lettersShow(rests, oneShot, 1.0f));
+
+  // One declared end says nothing about the other.
+  EXPECT_TRUE(lettersShow(erase.restsAt(0.0f), oneShot, 0.0f));
+  EXPECT_FALSE(lettersShow(erase.restsAt(0.0f), oneShot, 1.0f));
+
+  // A LOOPING cascade: units genuinely rest at exactly 1 between beats, so
+  // restsAt(1) engages whenever no beat is mid-cycle — and does not while
+  // any unit is mid-beat.
+  Stagger loop = stagger(unit::Cluster, {.eachMs = 60, .durationMs = 100});
+  loop.loopMs = 1000;
+  EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
+  EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
+}
+
+TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
+  // The declaration is part of the effect's identity: two passes differing
+  // only in their rests must compare unequal, or a re-described track
+  // would prune onto the old declaration and keep (or keep skipping) a
+  // shader the author changed their mind about.
+  const Material m = Material::sksl(kEraseSksl);
+  EXPECT_FALSE(fx::pass(m).restsAt(0.0f) == fx::pass(m));
+  EXPECT_TRUE(fx::pass(m).restsAt(0.0f, 1.0f) ==
+              fx::pass(m).restsAt(0.0f, 1.0f));
+  EXPECT_FALSE(fx::pass(m).restsAt(0.0f) == fx::pass(m).restsAt(1.0f));
+  const TextEffect both = fx::pass(m).restsAt(0.0f, 1.0f);
+  const std::span<const float> declared = both.restPhases();
+  ASSERT_EQ(declared.size(), 2u);
+  EXPECT_EQ(declared[0], 0.0f);
+  EXPECT_EQ(declared[1], 1.0f);
+
+  // On a per-glyph effect the declaration is about a shader that does not
+  // exist: it warns once and the effect comes back unchanged.
+  const TextEffect plain = fx::rise(10);
+  EXPECT_TRUE(plain.restsAt(0.0f) == plain);
+  EXPECT_TRUE(plain.restsAt(0.0f).restPhases().empty());
+}
+
 TEST(TextPass, RidesAPathBaseline) {
   Host host;
   host.composer.render(box().padding(10).child(
