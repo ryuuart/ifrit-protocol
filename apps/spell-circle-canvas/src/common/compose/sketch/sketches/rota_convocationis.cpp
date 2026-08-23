@@ -1,137 +1,176 @@
 // rota_convocationis.cpp — A MAGIC CIRCLE THAT ASSEMBLES ITSELF AND THEN
-// IGNITES: an invented conjuring wheel in the real idiom of the early-modern
-// diagrams, drawn in chalk and then lit, run as the text engine's heaviest
-// single sheet — fifteen curved baselines forming, orbiting and charging on
-// one declared schedule.
+// IGNITES: an invented summoning circle in the ANIME idiom — a dense,
+// twelve-fold mandala that fills its disc edge to centre, built band by
+// band on one declared schedule and lit at the end, run as the text
+// engine's heaviest single sheet.
 // =============================================================================
-// SUBJECT  The magical diagram as a CONSTRUCTION SEQUENCE. The historical
-//          circles are not pictures, they are procedures — a compass strikes
-//          the rules, a pen writes the names round the band, the figures are
-//          inscribed in a stated order — and this study performs that order
-//          rather than presenting its result: concentric rings of lettering
-//          form in turn, the eye is handed from roundel to roundel, and the
-//          finished wheel turns. It is an INVENTED sigil built from
-//          documented parts; it reconstructs no specific artefact and claims
-//          none.
+// SUBJECT  The spell circle as a CONSTRUCTION SEQUENCE. The screen circles
+//          are drawn as machinery — concentric rules that group into bands,
+//          a script register that girds each band, star polygons nested
+//          inside one another, seals orbiting on the vertices, everything
+//          turning at its own rate — and this study performs the order that
+//          machinery would be assembled in rather than presenting the
+//          finished plate: the rules are struck, each band is written, the
+//          stars are inscribed, the seals convene one at a time, and the
+//          emblem at the centre resolves last. The circle is INVENTED. It
+//          copies no specific circle and claims none.
 //
 // -----------------------------------------------------------------------------
-// FROM THE RECORD
+// FROM THE RECORD — what was studied, and what each thing showed
 //
-//   * The CONCENTRIC BAND OF NAMES between two rules, interrupted by
-//     crosses, is the standard first circle of the Solomonic manuscripts
-//     (the Clavicula Salomonis tradition): divine names written round the
-//     rim with a cross drawn between phrases. The nine names on this
-//     wheel's middle ring — EL, ELOHIM, ELOHE, ZEBAOTH, ELION, ESCERCHIE,
-//     IAH, TETRAGRAMMATON, SADAI — are that tradition's own list.
-//   * SATELLITE ROUNDELS attached to the main figure — small circles
-//     bearing their own inscriptions — are how the Solomonic circles carry
-//     their pentacles and how the printed grimoires set their planetary
-//     seals.
-//   * The SEVEN PLANETARY ANGELS and the MAGIC SQUARES are Agrippa's (De
-//     occulta philosophia, book II): Saturn–Cassiel, Jupiter–Sachiel,
-//     Mars–Samael, Sol–Michael, Venus–Anael, Mercury–Raphael,
-//     Luna–Gabriel; and to each planet a square — Saturn the 3×3, Jupiter
-//     4, Mars 5, Sol 6, Venus 7, Mercury 8, Luna 9. The Sun's 6×6 square
-//     at this wheel's hub is Agrippa's own table, every row, column and
-//     diagonal summing to 111.
-//   * The minuscule ring is the Latin of the TABULA SMARAGDINA as the
-//     printed alchemical corpus carries it: "quod est inferius est sicut
-//     quod est superius…", the sentence the rotae quote when they want the
-//     above bound to the below.
-//   * INSCRIBED STAR POLYGONS with lettering along their chords are the
-//     idiom of the seals and of Llull's combinatorial figures — lines
-//     joining lettered stations so that reading becomes traversal.
+//   The references here are screen circles, studied for their GEOMETRY —
+//   how the parts are placed relative to one another — not for their
+//   lighting, which is a separate register recorded further down.
+//
+//   * FULLMETAL ALCHEMIST's transmutation circles are the clearest
+//     statement of the FRAMING RULE: every band of script or symbol sits
+//     SANDWICHED between two ring rules, never floating on the ground.
+//     The array is a small number of concentric circles whose gaps do the
+//     work, and the figure inside — a triangle, a hexagram, a double
+//     square — is inscribed so that its vertices touch a circle and its
+//     chords are tangent to the next circle in. Nothing is placed by eye;
+//     every radius is a consequence of the figure above it.
+//   * AKASHIC RECORDS' spell circles show what DENSITY means in this
+//     idiom: several script bands at once, at three or four different
+//     sizes, so the disc reads as continuous texture from the rim inward
+//     with no empty annulus anywhere. The bands are thin relative to the
+//     radius and there are many of them; the script is script-shaped
+//     rather than readable, and the small size of the innermost register
+//     is what makes the plate look like a mechanism rather than a poster.
+//   * FULLMETAL ALCHEMIST again, for two moves this study takes whole.
+//     PARTIAL ARCS: crescents of a pair of concentric arcs, spanning a
+//     sixth of the circle, three of them, laid across the figure and
+//     belonging to no ring. And the OFF-ORDER MARK: on the flame array a
+//     perfect hexagram is broken by exactly one medallion straddling the
+//     rim and one glyph in the lower crescent. The exception is what makes
+//     the rest read as a drawing rather than as a pattern, and one is
+//     enough.
+//   * THE COMMON GEOMETRY of the genre, which both of those and the
+//     procedural "magic circle generator" culture agree on: rotational
+//     symmetry of twelve or a divisor of it, with DIFFERENT BANDS ON
+//     DIFFERENT ORDERS and every ladder a multiple of the base; SEVERAL
+//     star polygons rather than one, nested at different radii, each
+//     inscribed a little inside the ring it belongs to, and turning
+//     against each other; a copy of a figure rotated half a step as the
+//     standard way to double it; SMALL CIRCLES at every star vertex, of
+//     the order of a hundredth of the radius; radial spokes that stop
+//     short of both ends of the annulus they cross; tick ladders offset
+//     half a step from the nodes so the two interleave; broken and dashed
+//     rings at something under half duty; two rings of script, the inner
+//     one running the other way; and a single emblem at the centre inside
+//     a fifth of the radius, nested down in two or three steps rather than
+//     stopping dead.
+//
+//   The TREATMENT — light standing where ink would stand — is quoted from
+//   a different set: Ufotable's summoning circles for the white-hot core
+//   inside a saturated halo, Fullmetal Alchemist again for chalk that is
+//   inert until it ignites, the Clow emblem for a centre that is the
+//   brightest stable thing on the plate, and the compositing craft of the
+//   motion-graphics tutorial genre for the way a glow is built by adding
+//   a blurred copy of the line to the line.
 //
 // THIS STUDY'S OWN, flagged rather than smuggled:
-//   * The wheel itself: this arrangement of those parts exists on no
-//     recorded plate. The invocation round the rim is this study's Latin,
-//     written for the band ("+ IN PRINCIPIO SCRIBITVR CIRCVLVS…"); the
-//     {6/2} hexagram, its six spokes, the day-name captions on its chords,
-//     the inner band that sets the tablet's Latin again as texture, Sol's
-//     square at the hub with the six other planets on the points, and every
-//     colour, radius and millisecond are composition, not record.
-//   * The IGNITION is invented twice over: no manuscript lights, and the
-//     screen craft it borrows its light from never drew this figure. The
-//     treatment is quoted; the picture is not.
-//   * The ASSEMBLY is the subject and entirely invented: no manuscript
-//     animates. The order performed here — rules, rim, names, tablet,
-//     chords, roundels, square, charge — is a plausible working order, not
-//     a documented one.
+//   * The circle itself. This arrangement of those principles is not any
+//     circle that has been drawn: the radius table, the two nested star
+//     compounds ({12/3} outside {12/4}, three squares outside four
+//     triangles), the three twelve-fold spoke sets, the six seals on the
+//     even stations, the arc pair offset half a pitch, and every colour,
+//     radius and millisecond are composition. Two radii are not free —
+//     the circle under each compound is where that compound's chords run
+//     tangent, which is the reference rule that a figure decides the
+//     radius beneath it rather than being fitted to one.
+//   * The CONTENT is invented outright and quotes nothing. The Latin of
+//     the invocation is this study's; the nine names are made up; the
+//     rune register is an invented alphabet dealt from a seeded walk over
+//     Tifinagh letterforms, chosen because their vocabulary of circles,
+//     crosses and bars is the vocabulary a spell circle already speaks.
+//     It is not Tamazight and does not spell anything.
+//   * The ASSEMBLY is the subject and is invented: nothing animates on a
+//     reference plate. The order performed here — rules, invocation,
+//     register, names, texture, arcs, stars, seals, emblem, ignition — is
+//     a plausible working order, not a documented one.
 //
 // -----------------------------------------------------------------------------
 // THE MACHINE, and what it puts under load
 //
-//   * FIFTEEN TEXT-ON-PATH LEAVES at once: four full rings, six chord
-//     captions on one six-contour baseline addressed by (k+0.5)/6, and six
-//     roundel rings — each shaped once and re-placed per frame wherever
-//     its `at` phase moves. Ring sizes are FITTED, not guessed: each ring
-//     string is measured straight and its type sized so the run girds its
-//     own circumference.
+//   * SEVENTEEN TEXT-ON-PATH LEAVES at once: four full rings, six seal
+//     rings, and seven leaves whose baseline is a POLYGON'S CHORDS as
+//     separate OPEN contours, so caption k is addressed by (k+0.5)/n of
+//     one arc-length coordinate and needs no placement of its own. Ring
+//     sizes are FITTED, not guessed: each ring's string is measured
+//     straight and its type sized so the run girds its own circumference.
 //   * THE SCHEDULE IS DECLARED, THEN READ BACK, never restated: every
 //     stage's window is computed from `Stagger::spanMs` at declare time —
-//     the roundels chain each start off the span of the cascade before it
-//     — and the scribe point that leads the rim's writing is placed every
+//     the seals chain each start off the span of the cascade before it —
+//     and the scribe point that leads the invocation is placed every
 //     frame from `Composer::beatsOf`, so the dot and the letters cannot
 //     disagree about where the pen is.
-//   * THE RIM'S CASCADE IS A CUE TABLE: one start per word, stepping at
-//     writing pace and PAUSING at every cross — irregular timing no even
-//     spread expresses — with a cluster cascade nested inside each word's
-//     beat and `fx::hold` vetoing every glyph whose beat has not opened.
+//   * THE INVOCATION'S CASCADE IS A CUE TABLE: one start per word,
+//     stepping at writing pace and PAUSING at every cross — irregular
+//     timing no even spread expresses — with a cluster cascade nested
+//     inside each word's beat and `fx::hold` vetoing every glyph whose
+//     beat has not opened.
+//   * ONE BAND NEVER SETTLES: the register's shimmer is a LOOPING
+//     cascade, so a crest of light re-opens on every glyph's own cycle
+//     forever, driven by a wrapping phase — declared continuity rather
+//     than a one-shot re-run.
 //   * THE CHARGE IS ONE PASS, not per-glyph paint: `fx::pass` renders the
 //     nine names into a layer and one SkSL pass blooms each name on its
 //     own cascade clock, riding a baseline that is itself a moving
-//     marquee — the pass, the marquee and the glyphs all read one
-//     resolved schedule. The pass DECLARES WHERE IT RESTS, so it stays
-//     mounted for the whole loop and costs nothing outside its window on
-//     a ring that repaints for the whole loop because it orbits.
-//   * THE LIGHT IS UNIONED BEFORE IT IS ADDED: each lighting group's whole
-//     geometry is stroke-expanded and merged into one region at four
-//     widths, so an additive stack cannot print a crossing at twice the
-//     brightness of the lines that cross there. SigilShape is the geometry
-//     PRODUCER here — booleans, roughening and a resample-and-lerp morph —
-//     and compose consumes what it produces as ordinary comparable
+//     marquee. The pass DECLARES WHERE IT RESTS, so it stays mounted for
+//     the whole loop and costs nothing outside its window on a ring that
+//     repaints for the whole loop because it orbits.
+//   * THE LIGHT IS UNIONED BEFORE IT IS ADDED: each lighting group's
+//     whole geometry is stroke-expanded and merged into one region at
+//     four widths, so an additive stack cannot print a crossing at twice
+//     the brightness of the lines that cross there — and a circle of this
+//     density is nearly all crossings. SigilShape is the geometry
+//     PRODUCER here — booleans, roughening and a resample-and-lerp morph
+//     — and compose consumes what it produces as ordinary comparable
 //     silhouette values. That boundary does not move: compose does not
 //     link SigilShape, and this file does.
-//   * MIXED REGISTERS on one wheel: majuscule rings on the grotesque that
+//   * A LIGHTING GROUP IS A LAYER THAT TURNS TOGETHER. Nothing in one
+//     group crosses anything in another, which is what lets seven groups
+//     rotate at seven rates over one baked union each.
+//   * MIXED REGISTERS on one wheel: majuscule Latin on the grotesque that
 //     carries GRAD (so the ignition can swell the names' weight with no
-//     reshape), the tablet in serif italic minuscule, numerals mono and
-//     scramble-decoded — the square resolves line by line under a nested
-//     cascade, each digit churning until its beat closes.
-//   * THE LOAD, deliberately: per-glyph alpha, rotation, colour multiplier,
-//     colour screen and axis coordinate all varying at once across every
-//     glyph of the fifteen curved baselines (the quantisation ladder and
-//     the atlas); four ladders, six roundels and the figure itself
-//     counter-turning at their own rates over cached content; an
-//     ember pool stamped as one draw; and — for the ignition's own window
-//     — a full-band shader pass, a radial-ray material, a chromatic
-//     backdrop and a screened flood, every one of them gated so that a
-//     gain of zero is a node the painter never reaches.
+//     reshape), and two invented rune registers running from a monogram
+//     fifty pixels tall down to a grain too small to read as letters.
+//   * THE LOAD, deliberately: per-glyph alpha, rotation, colour
+//     multiplier, colour screen and axis coordinate all varying at once
+//     across every glyph of the seventeen curved baselines; nine layers
+//     counter-turning at nine rates over cached recordings, and twelve
+//     more inside the seals; an ember pool stamped as one draw; and — for
+//     the ignition's own window — a full-band shader pass, a radial-ray
+//     material, a chromatic backdrop and a screened flood, every one of
+//     them gated so that a gain of zero is a node the painter never
+//     reaches.
 //
 // EDIT THESE FIRST
-//   kStepMs / kCrossMs — the writing pace of the rim, and the scribe's
-//               pause at each cross. The whole timeline downstream moves
-//               with them, because every later window is chained off this
-//               cascade's span.
-//   kSatBeat  — how much of a roundel's forming overlaps the next one's
+//   kStepMs / kCrossMs — the writing pace of the invocation, and the
+//               scribe's pause at each cross. The whole timeline
+//               downstream moves with them, because every later window is
+//               chained off this cascade's span.
+//   kSealBeat — how much of a seal's forming overlaps the next one's
 //               start. 1.0 is strictly one at a time; lower hands the eye
 //               on earlier.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/rota_convocationis.cpp \
-//       --frame /tmp/rota_convocationis.png --at 13.0
+//       --frame /tmp/rota_convocationis.png --at 13.5
 //
-//   ~1.6 s  the compass: the chalk rules and three tick classes sweep on
-//   ~3.0 s  the rim mid-write, the scribe point leading the letters
-//   ~5.5 s  the rim's light lands; the tablet's minuscule sliding in
-//   ~7.8 s  the hexagram struck — a scribble of light resolving onto it
-//  ~13.0 s  the roundel cycle: three lit, one forming, two dark
-//  ~17.0 s  the square of the Sun resolved, the hub burning as the emblem
-//  ~17.9 s  ignition's crest — rays, flood, embers, a colour fringe
-//  ~21.5 s  the hum: the charged wheel breathing, turning, drizzling
-//  loops on a dark sheet.
+//   ~1.7 s  the compass: the rules and the rim's serration sweep on
+//   ~3.6 s  the invocation mid-write, the scribe point leading the letters
+//   ~5.5 s  the register lands and begins its endless shimmer
+//   ~7.0 s  the twelve arcs and the dashed ring struck
+//   ~9.2 s  the star compounds — a scribble of light resolving onto them
+//  ~13.5 s  the seal cycle: four lit, one forming, one dark
+//  ~15.9 s  the emblem resolved, the hub burning as the brightest thing
+//  ~16.6 s  ignition's crest — rays, flood, embers, a colour fringe
+//  ~22.0 s  the hum: the charged circle breathing, turning, drizzling
+//  loops on a dark sheet at 23.3 s.
 
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
@@ -163,10 +202,12 @@ namespace ch = choreograph;
 
 namespace {
 
-constexpr float kW = 1600.0f;
-constexpr float kH = 1000.0f;
+// A magic circle wants a square field: the figure is the picture, and a
+// panoramic sheet would only be two dark wings either side of it.
+constexpr float kW = 1280.0f;
+constexpr float kH = 1280.0f;
 
-// ---- palette: a grimoire by candlelight ----------------------------------
+// ---- palette: chalk by candlelight, then one hue of light -----------------
 constexpr SkColor4f kNight = studio::hex(0x0A0812);
 constexpr SkColor4f kNightLift = studio::hex(0x141021);
 constexpr SkColor4f kGold = studio::hex(0xD8A94E);
@@ -176,100 +217,191 @@ constexpr SkColor4f kIron = studio::hex(0x3B3554);     // construction lines
 constexpr SkColor4f kIronDim = studio::hex(0x262238);  // faint construction
 constexpr SkColor4f kAsh = studio::hex(0x8A8299);      // secondary type
 constexpr SkColor4f kAshDim = studio::hex(0x8A8299, 0.62f);
-constexpr SkColor4f kVerdigris = studio::hex(0x6FA08C);  // the tablet's ink
+constexpr SkColor4f kRuneInk = studio::hex(0x9C8FB8);  // the register's ink
 
 // ---- the ignited palette: ONE hue family, value doing the drawing --------
-// Not a second scheme beside the candlelit one. It is the state the wheel
+// Not a second scheme beside the candlelit one. It is the state the circle
 // changes INTO: chalk is pigment on a surface and reflects what the room
 // gives it, light is emitted and collapses to one hue with a white core.
 constexpr SkColor4f kCore = studio::hex(0xFFF6E2);   // the white-hot core
 constexpr SkColor4f kHalo = studio::hex(0xFFC152);   // the saturated halo
 constexpr SkColor4f kBloom = studio::hex(0xC96F1E);  // the wide dim bloom
 
-// ---- the wheel's frame ----------------------------------------------------
-constexpr SkPoint kEye{500.0f, 500.0f};  // wheel centre in canvas px
-constexpr float kR = 430.0f;             // the greatest circle
+// ---- the circle's frame ---------------------------------------------------
+constexpr SkPoint kEye{640.0f, 640.0f};  // centre in canvas px
+constexpr float kR = 545.0f;             // the greatest circle
 
-// band radii, in units of the greatest circle
-constexpr float rRimOut = 1.000f;   // outer rule
-constexpr float rRimCase = 0.988f;  // its hairline companion
-constexpr float rCorona = 0.952f;   // the invocation's baseline
-constexpr float rRimIn = 0.910f;    // inner rule of the rim band
-constexpr float rTickOut = 0.905f;  // the division ladder
-constexpr float rTickIn = 0.878f;
-constexpr float rFineOut = 0.874f;  // the fine ladder, one pitch finer
-constexpr float rFineIn = 0.858f;
-constexpr float rNomina = 0.840f;    // the nine names' baseline
-constexpr float rNomIn = 0.775f;     // rule under the names
-constexpr float rNomCase = 0.763f;   // its hairline companion
-constexpr float rGloss = 0.742f;     // the tablet's minuscule baseline
-constexpr float rHex = 0.520f;       // hexagram vertices; roundel centres
-constexpr float rMicroOut = 0.418f;  // the micro-script band's rules
-constexpr float rMicro = 0.376f;     // …and its baseline
-constexpr float rMicroIn = 0.336f;
-constexpr float rHub = 0.245f;     // rule round the square of the Sun
-constexpr float kSatR = 76.0f;     // roundel outer radius, px
-constexpr float kSatRing = 61.0f;  // roundel ring-text baseline radius, px
+// THE RADIUS TABLE, in units of the greatest circle. Read it as the bands
+// it makes, because that is how it was built: a band is a PAIR OF RULES
+// with something written or drawn between them, and no rule stands alone.
+// Two radii are not free — they are where a star's chords run tangent, so
+// the figure inside decides where the circle under it goes.
+constexpr float rEdge = 1.000f;      // ─┐ the serration: 240 teeth
+constexpr float rEdgeIn = 0.980f;    // ─┘
+constexpr float rRuneOut = 0.958f;   // ─┐ THE REGISTER — the rune band
+constexpr float rRune = 0.934f;      //   │ its baseline
+constexpr float rRuneIn = 0.910f;    // ─┘
+constexpr float rVoxOut = 0.898f;    // ─┐ THE INVOCATION — Latin majuscule
+constexpr float rVox = 0.872f;       //   │
+constexpr float rVoxIn = 0.846f;     // ─┘
+constexpr float rTickOut = 0.836f;   // ─┐ the division ladder, three classes
+constexpr float rTickMid = 0.818f;   // ─┤ …fenced like any other band, with
+constexpr float rTickIn = 0.800f;    // ─┘ the turning ladder in its own half
+constexpr float rNomOut = 0.790f;    // ─┐ THE NINE NAMES — the charged band
+constexpr float rNom = 0.752f;       //   │
+constexpr float rNomIn = 0.708f;     // ─┘
+constexpr float rNomCase = 0.694f;   //   its hairline companion
+constexpr float rArcOut = 0.676f;    // ─┐ the arc layer: two broken rings,
+constexpr float rArcIn = 0.640f;     // ─┘ offset half a pitch, spoked
+constexpr float rTexOut = 0.622f;    // ─┐ THE TEXTURE — the small register
+constexpr float rTex = 0.598f;       //   │
+constexpr float rTexIn = 0.572f;     // ─┘
+constexpr float rTexCase = 0.560f;   // ─┐ a fine serration, the texture
+constexpr float rSerrIn = 0.534f;    // ─┘ band's own companion ladder
+constexpr float rStar = 0.520f;      // {12/3} vertices; seal centres
+constexpr float rCrescOut = 0.492f;  // ─┐ THREE crescents, 120° apart, laid
+constexpr float rCrescIn = 0.454f;   // ─┘ ACROSS the compound: the one
+                                     //   three-fold mark on the plate
+constexpr float rEnv = 0.368f;       // ─┐ where the {12/3} chords run
+constexpr float rEnvIn = 0.356f;     // ─┘ tangent: a circle it decides
+constexpr float rInner = 0.348f;     // {12/4} vertices
+constexpr float rHubOut = 0.174f;    // ─┐ where the {12/4} chords run
+constexpr float rHubIn = 0.160f;     // ─┘ tangent: the hub's own rule
+constexpr float rHubCase = 0.150f;   //   the emblem's outermost line
+constexpr float rEmblem = 0.140f;    //   the disc of light
+constexpr float rHexagram = 0.118f;  //   the emblem's own figure
+constexpr float rHubKern = 0.104f;   //   …and the ring its chords enclose:
+                                     //   three nested circles, so the centre
+                                     //   steps down as the plate does rather
+                                     //   than stopping dead at one line
+constexpr float kSealR = 60.0f;      // seal outer radius, px
+constexpr float kSealRing = 47.0f;   // seal ring-text baseline radius, px
+constexpr float kSpurR = 23.0f;      // the one off-order mark, px
 
 // ---- the writing pace -----------------------------------------------------
-constexpr float kStepMs = 55.0f;    // word to word round the rim
+constexpr float kStepMs = 55.0f;    // word to word round the band
 constexpr float kCrossMs = 190.0f;  // the scribe's extra pause at a cross
-constexpr float kSatBeat = 0.88f;   // fraction of a roundel's span before
-                                    // the next one starts forming
+constexpr float kSealBeat = 0.86f;  // fraction of a seal's span before the
+                                    // next one starts forming
 
 constexpr float kDeg = 3.14159265358979f / 180.0f;
-constexpr int kEmbers = 96;  // the rim's rising sparks, then the drizzle
+constexpr int kStations = 12;  // the circle's rotational symmetry
+constexpr int kSeals = 6;      // …and the seals', on the even stations
+constexpr int kEmbers = 96;    // the rim's rising sparks, then the drizzle
 
-// ---- content, from the record ---------------------------------------------
+// ---- content: invented, and invented in the open --------------------------
 
-/** The first circle's names, in the Solomonic list's own order. */
-const char* kNames[9] = {"EL",      "ELOHIM",         "ELOHE",
-                         "ZEBAOTH", "ELION",          "ESCERCHIE",
-                         "IAH",     "TETRAGRAMMATON", "SADAI"};
-
-/** The tablet's Latin, as the printed corpus carries it. */
-const char* kSmaragdina =
-    "quod est inferius est sicut quod est superius \xc2\xb7 et quod est "
-    "superius est sicut quod est inferius \xc2\xb7 ad perpetranda miracula "
-    "rei vnius \xc2\xb7 ";
-
-/** Agrippa's planetary angels and square orders, six about one: Sol keeps
- *  the hub, the remaining six take the hexagram's points clockwise from
- *  the top — this study's arrangement of his table. */
-struct Planet {
-  const char* planet;
-  const char* angel;
-  const char* ordo;  // the square's order, as the roundel writes it
-  int order;         // …and as a number: the spinning polygon's sides
-  const char* dies;  // the chord caption toward this planet's point
+/** THE REGISTER — an invented alphabet, not a language.
+ *
+ *  The letterforms are Tifinagh's (U+2D30), taken for their shapes alone:
+ *  a vocabulary of rings, crosses, bars and dotted figures, which is the
+ *  vocabulary a circle of this kind already speaks. The subset below
+ *  drops the forms that read as Latin letters, because a stray E in a
+ *  rune band is the one thing that breaks it.
+ *
+ *  Words are DEALT rather than written: a seeded walk gives every band its
+ *  own text, deterministically, so the plate is the same plate on every
+ *  run and on every machine. An invented script has no orthography to be
+ *  wrong about; a plate that re-dealt itself would not be one plate. */
+const char32_t kRegister[] = {
+    U'ⴰ', U'ⴱ', U'ⴳ', U'ⴴ', U'ⴵ', U'ⴶ', U'ⴷ', U'ⴹ', U'ⴺ', U'ⴻ', U'ⴼ',
+    U'ⴽ', U'ⴿ', U'ⵀ', U'ⵁ', U'ⵂ', U'ⵃ', U'ⵄ', U'ⵅ', U'ⵆ', U'ⵇ', U'ⵉ',
+    U'ⵊ', U'ⵌ', U'ⵍ', U'ⵎ', U'ⵏ', U'ⵑ', U'ⵓ', U'ⵔ', U'ⵕ', U'ⵖ', U'ⵗ',
+    U'ⵙ', U'ⵚ', U'ⵛ', U'ⵜ', U'ⵝ', U'ⵟ', U'ⵡ', U'ⵢ', U'ⵣ', U'ⵥ',
 };
-constexpr Planet kPlanets[6] = {
-    {"SATVRNVS", "CASSIEL", "III", 3, "DIES SATVRNI"},
-    {"IVPPITER", "SACHIEL", "IIII", 4, "DIES IOVIS"},
-    {"MARS", "SAMAEL", "V", 5, "DIES MARTIS"},
-    {"VENVS", "ANAEL", "VII", 7, "DIES VENERIS"},
-    {"MERCVRIVS", "RAPHAEL", "VIII", 8, "DIES MERCVRII"},
-    {"LVNA", "GABRIEL", "IX", 9, "DIES LVNAE"},
+constexpr int kRegisterN = (int)(sizeof(kRegister) / sizeof(kRegister[0]));
+
+/** THE SMALL REGISTER — a second alphabet for the texture band, so the
+ *  two innermost script rings are visibly not the same script. Canadian
+ *  Aboriginal syllabics (U+1400) read as triangles, arcs and dotted
+ *  wedges at four points, which is exactly what a texture band wants: a
+ *  rhythm of marks rather than a run of letters. */
+const char32_t kSmallRegister[] = {
+    U'ᐁ', U'ᐃ', U'ᐅ', U'ᐊ', U'ᐍ', U'ᐐ', U'ᐓ', U'ᐠ', U'ᐯ', U'ᐱ', U'ᐺ', U'ᑉ',
+    U'ᑌ', U'ᑐ', U'ᑦ', U'ᑭ', U'ᑲ', U'ᒃ', U'ᒋ', U'ᒣ', U'ᒻ', U'ᓀ', U'ᓓ', U'ᓪ',
+    U'ᔁ', U'ᔦ', U'ᕋ', U'ᕕ', U'ᕝ', U'ᕰ', U'ᖏ', U'ᖦ', U'ᗞ', U'ᘁ', U'ᘔ', U'ᘢ',
 };
+constexpr int kSmallRegisterN =
+    (int)(sizeof(kSmallRegister) / sizeof(kSmallRegister[0]));
 
-/** Agrippa's square of the Sun: 6×6, every row, column and diagonal 111.
- *  Single digits padded with a space — the face is monospaced, so a space
- *  is exactly one digit wide and the columns stand. */
-const char* kSolSquare =
-    " 6 32  3 34 35  1\n"
-    " 7 11 27 28  8 30\n"
-    "19 14 16 15 23 24\n"
-    "18 20 22 21 17 13\n"
-    "25 29 10  9 26 12\n"
-    "36  5 33  4  2 31";
+/** One step of the deal. Integer arithmetic on a fixed width, so the same
+ *  seed gives the same band wherever this runs. */
+uint32_t nextSeed(uint32_t s) {
+  s ^= s << 13;
+  s ^= s >> 17;
+  s ^= s << 5;
+  return s;
+}
 
-/** The invocation — this study's own Latin, in the band-broken-by-crosses
- *  form. Eight phrases; the leading cross closes the ring at the seam. */
+/** Append @p cp to @p out as UTF-8. The bands are built as bytes because
+ *  everything downstream — measuring, fitting, glyph counting — speaks
+ *  the same encoding the content literals do. */
+void appendUtf8(std::string& out, char32_t cp) {
+  if (cp < 0x80) {
+    out += (char)cp;
+  } else if (cp < 0x800) {
+    out += (char)(0xC0 | (cp >> 6));
+    out += (char)(0x80 | (cp & 0x3F));
+  } else {
+    out += (char)(0xE0 | (cp >> 12));
+    out += (char)(0x80 | ((cp >> 6) & 0x3F));
+    out += (char)(0x80 | (cp & 0x3F));
+  }
+}
+
+/** @p words words of @p lo…@p hi letters, space-separated, dealt from one
+ *  of the two registers. */
+std::string deal(uint32_t seed, int words, int lo, int hi, bool small = false) {
+  const char32_t* set = small ? kSmallRegister : kRegister;
+  const int n = small ? kSmallRegisterN : kRegisterN;
+  std::string out;
+  uint32_t s = seed | 1u;
+  for (int w = 0; w < words; ++w) {
+    s = nextSeed(s);
+    const int len = lo + (int)(s % (uint32_t)(hi - lo + 1));
+    for (int i = 0; i < len; ++i) {
+      s = nextSeed(s);
+      appendUtf8(out, set[s % (uint32_t)n]);
+    }
+    out += ' ';
+  }
+  return out;
+}
+
+/** THE NINE NAMES the charge runs. Invented, and built to be pronounced —
+ *  a name band is read as a name band because the runs look like words a
+ *  mouth could close on, whatever they mean. */
+const char* kNames[9] = {"AZRAEVN", "VELMOTH",  "SIRAKEL",
+                         "OMBRIAX", "THELVNE",  "KARANDIS",
+                         "VOXIMER", "HALDRETH", "ZEPHARIN"};
+
+/** THE INVOCATION — this study's own Latin, in the band-broken-by-crosses
+ *  form. Eight phrases; the leading cross closes the ring at the seam,
+ *  and each says something the circle then does. */
 const char* kInvocatio[8] = {
-    "IN PRINCIPIO SCRIBITVR CIRCVLVS", "LITTERA SVRGIT IN ORBEM",
-    "NOMINA IN CORONA FRANGVNTVR",     "SEPTEM SIGNA CONVOCANTVR",
-    "ROTA IN ROTIS VOLVITVR",          "NVMERVS IN QVADRATO CANIT",
+    "IN PRINCIPIO CIRCVLVS SCRIBITVR", "LITTERA SVRGIT IN ORBEM",
+    "DVODECIM RADII CONVENIVNT",       "SEX SIGILLA VIGILANT",
+    "STELLA IN STELLA VOLVITVR",       "NOMEN IN CORONA FRANGITVR",
     "ORDO EX ORDINE NASCITVR",         "ET SIGILLVM VIVIT"};
+
+/** THE SIX SEALS on the even stations. Each is a small circle of its own:
+ *  a name, a word of the register, and an ordinal that decodes at its
+ *  centre. The ordinals are the odd numbers, which is this study's
+ *  arithmetic and nobody else's. */
+struct Seal {
+  const char* nomen;
+  const char* ordo;   // the ordinal, as the seal's centre writes it
+  int order;          // …and as a number: the spinning polygon's sides
+  const char* limen;  // the caption on the chord toward this station
+};
+constexpr Seal kSealTable[kSeals] = {
+    {"VELMOTH", "I", 3, "LIMEN PRIMVM"},
+    {"SIRAKEL", "III", 5, "LIMEN TERTIVM"},
+    {"OMBRIAX", "V", 7, "LIMEN QVINTVM"},
+    {"THELVNE", "VII", 8, "LIMEN SEPTIMVM"},
+    {"KARANDIS", "IX", 9, "LIMEN NONVM"},
+    {"ZEPHARIN", "XI", 11, "LIMEN VNDECIMVM"},
+};
 
 // ---- the charge -----------------------------------------------------------
 
@@ -307,32 +439,62 @@ half4 main(float2 xy) {
 
 // ---- helpers --------------------------------------------------------------
 
-/** Wheel-frame polar → canvas px. θ clockwise from 12 o'clock, the
- *  direction every band on this wheel is written in. */
+/** Circle-frame polar → canvas px. θ clockwise from 12 o'clock, the
+ *  direction every band here is written in. */
 SkPoint P(float thDeg, float rNorm) {
   const float a = thDeg * kDeg;
   return {kEye.x() + rNorm * kR * std::sin(a),
           kEye.y() - rNorm * kR * std::cos(a)};
 }
 
+/** The pitch of the twelve stations, and the angle of station k. */
+constexpr float kPitch = 360.0f / (float)kStations;
+float station(int k) { return kPitch * (float)k; }
+
 // Slots in the two baked tables. The chalk table holds one wobbled
 // outline per construction line; the glow table one emissive stack per
-// LIGHTING GROUP — a set of lines that ignite together and may cross each
-// other, but crosses nothing in another group.
+// LIGHTING GROUP — a set of lines that ignite together, may cross each
+// other freely, and TURN TOGETHER, because a group is baked as one union
+// and a union can only be rotated whole.
 enum : int {
-  kChalkRimOut,
-  kChalkRimCase,
-  kChalkRimIn,
+  kChalkEdge,
+  kChalkEdgeIn,
+  kChalkRuneOut,
+  kChalkRuneIn,
+  kChalkVoxOut,
+  kChalkVoxIn,
+  kChalkTickMid,
+  kChalkNomOut,
   kChalkNomIn,
   kChalkNomCase,
-  kChalkMicroOut,
-  kChalkMicroIn,
-  kChalkHub,
-  kChalkHex,
-  kChalkSpokes,
+  kChalkTexOut,
+  kChalkTexIn,
+  kChalkTexCase,
+  kChalkSerrIn,
+  kChalkEnv,
+  kChalkEnvIn,
+  kChalkHubOut,
+  kChalkHubIn,
+  kChalkHubCase,
+  kChalkHubKern,
+  kChalkArcs,
+  kChalkDash,
+  kChalkCresc,
+  kChalkStar,
+  kChalkInner,
+  kChalkHexagram,
   kChalkCount,
 };
-enum : int { kGlowRim, kGlowNom, kGlowHex, kGlowHub, kGlowCount };
+enum : int {
+  kGlowRim,    // the outer rules and the register's frame
+  kGlowNom,    // the invocation's and the names' frames
+  kGlowArc,    // the broken arcs, their spokes, nodes and the dashed ring
+  kGlowStar,   // the {12/3} compound, its spokes, nodes and crescents
+  kGlowInner,  // the {12/4} compound and its spokes
+  kGlowHub,    // the hub's rules and the emblem's figures
+  kGlowSpur,   // the one off-order medallion, straddling the rim
+  kGlowCount,
+};
 
 /** A path baked once at setup, wrapped as a comparable silhouette: the
  *  ADDRESS is the identity, so the node prunes and its recording caches
@@ -350,13 +512,14 @@ struct Baked {
  *  grades are that union grown three more times. Painting them additively
  *  is then safe, which is the whole reason for the union: stroke over
  *  stroke under `kPlus` prints every junction at twice the brightness of
- *  the lines running through it, and the references read as one circuit
- *  of even light with no bright knots at the crossings. */
+ *  the lines running through it, and a figure this dense is mostly
+ *  junctions — it would light as a constellation of bright knots instead
+ *  of one circuit of even light. */
 struct Glow {
   SkPath core, halo, mid, bloom;
 };
 
-/** A circle of the wheel as a path in panel-local px. */
+/** A circle of the figure as a path in canvas px. */
 SkPath ringPath(float rNorm) {
   SkPathBuilder b;
   b.addOval(SkRect::MakeLTRB(kEye.x() - rNorm * kR, kEye.y() - rNorm * kR,
@@ -364,23 +527,104 @@ SkPath ringPath(float rNorm) {
   return b.detach();
 }
 
+/** N ARC SEGMENTS on one ring, each spanning @p spanDeg of the station
+ *  pitch and centred on a station offset by @p fromDeg. An arc that stops
+ *  short of its neighbour is what makes a ring read as a mechanism rather
+ *  than as another circle, and offsetting one ring half a pitch from the
+ *  ring beside it is what makes the pair read as two. */
+SkPath arcRing(float rNorm, int count, float spanDeg, float fromDeg) {
+  SkPathBuilder b;
+  const float rad = rNorm * kR;
+  const SkRect oval = SkRect::MakeLTRB(kEye.x() - rad, kEye.y() - rad,
+                                       kEye.x() + rad, kEye.y() + rad);
+  const float pitch = 360.0f / (float)count;
+  for (int k = 0; k < count; ++k) {
+    // Skia measures from due east; the table above is measured from
+    // twelve o'clock, which is the whole difference.
+    const float mid = fromDeg + pitch * (float)k - 90.0f;
+    b.addArc(oval, mid - spanDeg * 0.5f, spanDeg);
+  }
+  return b.detach();
+}
+
+/** N RADIAL SPOKES between two radii. Three sets of these cross the
+ *  figure at three depths, each set living in the layer it crosses, so a
+ *  spoke never runs from one turning layer into another. */
+SkPath spokeRing(int count, float r0, float r1, float fromDeg) {
+  SkPathBuilder b;
+  const float pitch = 360.0f / (float)count;
+  for (int k = 0; k < count; ++k) {
+    const float th = fromDeg + pitch * (float)k;
+    b.moveTo(P(th, r0));
+    b.lineTo(P(th, r1));
+  }
+  return b.detach();
+}
+
+/** N CRESCENTS: a pair of concentric arcs closed at both ends by a radial
+ *  tie, with a short ladder of @p rungs across the gap. A crescent spans a
+ *  fraction of the circle and belongs to no ring — which is what makes it
+ *  read as an applied mark rather than as another band, and what lets a
+ *  plate that counts twelve everywhere else carry three of something. The
+ *  fenced gap is the plate's own rule applied to a mark: even here, the
+ *  ladder runs BETWEEN two lines. */
+SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
+                    float fromDeg, int rungs) {
+  SkPathBuilder b;
+  const float pitch = 360.0f / (float)count;
+  const float ro = rOut * kR;
+  const float ri = rIn * kR;
+  const SkRect ovalOut = SkRect::MakeLTRB(kEye.x() - ro, kEye.y() - ro,
+                                          kEye.x() + ro, kEye.y() + ro);
+  const SkRect ovalIn = SkRect::MakeLTRB(kEye.x() - ri, kEye.y() - ri,
+                                         kEye.x() + ri, kEye.y() + ri);
+  for (int k = 0; k < count; ++k) {
+    const float mid = fromDeg + pitch * (float)k;
+    const float lo = mid - spanDeg * 0.5f;
+    b.addArc(ovalOut, lo - 90.0f, spanDeg);
+    b.addArc(ovalIn, lo - 90.0f, spanDeg);
+    for (int r = 0; r <= rungs; ++r) {
+      const float th = lo + spanDeg * (float)r / (float)rungs;
+      // The two ends are full ties; the rungs between them are stubs off
+      // the inner arc, so the mark reads as a bracket and not as a grid.
+      const bool end = r == 0 || r == rungs;
+      b.moveTo(P(th, rIn));
+      b.lineTo(P(th, end ? rOut : rIn + (rOut - rIn) * 0.45f));
+    }
+  }
+  return b.detach();
+}
+
+/** N SMALL CIRCLES standing on a ring — the furniture that sits at every
+ *  star vertex and at every arc's station. They are drawn as one path so
+ *  twelve nodes cost one node. */
+SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
+  SkPathBuilder b;
+  const float pitch = 360.0f / (float)count;
+  for (int k = 0; k < count; ++k) {
+    const SkPoint c = P(fromDeg + pitch * (float)k, rNorm);
+    b.addOval(SkRect::MakeLTRB(c.fX - px, c.fY - px, c.fX + px, c.fY + px));
+  }
+  return b.detach();
+}
+
 /** THE HAND-DRAWN RULE: the compass wobbles, the pen has a nib. A rule
  *  struck in chalk is never a perfect circle, and the eye reads the
  *  difference immediately — which is what makes the clean emissive circle
- *  landing on top of it at the strike say "ignited" rather than "brighter".
- *  The seed is the band's own index, so two neighbouring rules wobble
- *  differently and no two share a wave. */
-SkPath chalkRing(float rNorm, uint32_t seed) {
+ *  landing on top of it at the strike say "ignited" rather than
+ *  "brighter". The seed is the line's own index, so two neighbouring
+ *  rules wobble differently and no two share a wave. */
+SkPath chalked(const SkPath& line, uint32_t seed, float amplitude = 1.15f) {
   return sigil::shape::ops::Roughen{
-      .amplitude = 1.15f, .segmentPx = 34.0f, .seed = seed, .smooth = true}(
-      ringPath(rNorm));
+      .amplitude = amplitude, .segmentPx = 34.0f, .seed = seed, .smooth = true}(
+      line);
 }
 
 /** A LINE as a region of the given half-width. Stroke expansion, and not
  *  `ops::offset`, because offset unites its source with the expansion —
- *  correct for growing a region, and for a CLOSED line (a circle, the
- *  star's two triangles) it would hand back the interior as well. A rule
- *  is a line and never a disc. */
+ *  correct for growing a region, and for a CLOSED line (a circle, a star
+ *  compound's rings) it would hand back the interior as well. A rule is a
+ *  line and never a disc. */
 SkPath expand(const SkPath& line, float halfWidth) {
   SkPaint p;
   p.setStyle(SkPaint::kStroke_Style);
@@ -476,24 +720,37 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   ch::Output<float> cycle{0};  // seconds within one loop, wrapping
   ch::Output<float> secs{0};   // monotonic — breaths and orbits
 
-  ch::Output<float> coronaDrift{0};    // rim marquee, after ignition
-  ch::Output<float> nominaDrift{0};    // the names' counter-orbit
-  ch::Output<float> microDrift{0};     // the micro-script band, the other way
-  ch::Output<float> ladderSpin{0};     // the fine ladder — the fast layer
-  ch::Output<float> hexSpin{0};        // the figure, counter to the ladder
-  ch::Output<float> satDrift[6] = {};  // each roundel's ring orbit
-  ch::Output<float> satSpin[6] = {};   // each roundel's polygon
+  // NINE LAYERS TURNING AT NINE RATES, and twelve more inside the seals.
+  // The periods are set where they are stepped; what belongs here is the
+  // list, which is also the reading: no band on this plate is still.
+  ch::Output<float> voxDrift{0};   // the invocation, after ignition
+  ch::Output<float> runeDrift{0};  // the register, the other way
+  ch::Output<float> nomDrift{0};   // the names' counter-orbit
+  ch::Output<float> texDrift{0};   // the texture band
+  ch::Output<float> tickSpin{0};   // the division ladder — the fast layer
+  ch::Output<float> arcSpin{0};    // the broken arcs and their spokes
+  ch::Output<float> starSpin{0};   // the {12/3} compound
+  ch::Output<float> innerSpin{0};  // the {12/4} compound, counter to it
+  ch::Output<float> hexSpin{0};    // the emblem's own figure, slowest
+  ch::Output<float> sealDrift[kSeals] = {};  // each seal's ring orbit
+  ch::Output<float> sealSpin[kSeals] = {};   // each seal's polygon
   ch::Output<float> scribeX{0}, scribeY{0}, scribeA{0};
+  // The register's shimmer never lands. It is a LOOPING cascade, so the
+  // master is a phase mod 1 and one sweep is one cycle: this output wraps
+  // forever once the band is written, and pins at 0 before that, where
+  // every unit rests at its landed deviation and the effect is neutral.
+  ch::Output<float> runePhase{0};
 
   // How hard each lighting group is burning. One scalar carries three
   // things a single declared window cannot say together — the strike's
   // cross-fade, the flash the strike throws, and the breath the charged
-  // wheel keeps afterwards — and it is bound, so the four cached
+  // circle keeps afterwards — and it is bound, so the four cached
   // recordings of the group's emissive stack replay under it untouched.
-  ch::Output<float> litRim{0}, litNom{0}, litHex{0}, litHub{0};
-  ch::Output<float> litSat[6] = {};
-  ch::Output<float> morphStep{0};  // the hexagram's strike-morph ladder
-  ch::Output<float> humScale{1};   // the charged wheel's scale breath
+  ch::Output<float> litRim{0}, litNom{0}, litArc{0}, litStar{0}, litInner{0},
+      litHub{0}, litSpur{0};
+  ch::Output<float> litSeal[kSeals] = {};
+  ch::Output<float> morphStep{0};  // the star compound's strike-morph ladder
+  ch::Output<float> humScale{1};   // the charged circle's scale breath
   ch::Output<float> floodA{0}, raysA{0}, emberA{0};
   // The fringe is a BACKDROP: it re-samples what is already painted, and a
   // backdrop is not blended back through the node's alpha the way a fill
@@ -503,39 +760,43 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   // being paid for on any frame that does not want it.
   ch::Output<float> fringeK{0}, fringeA{0};
 
-  sk_sp<SkTypeface> faceRing, faceRingBold, faceTitle, faceItal, faceMono;
+  sk_sp<SkTypeface> faceRing, faceRingBold, faceMono;
 
   // Geometry baked once, before the first describe, and never moved: the
-  // chalk's wobble, each lighting group's emissive stack, and the
-  // hexagram's morph ladder.
+  // chalk's wobble, each lighting group's emissive stack, and the star
+  // compound's morph ladder.
   std::vector<SkPath> chalk;
   std::vector<Glow> glows;
-  std::vector<SkPath> hexSteps;
+  std::vector<SkPath> starSteps;
+  SkPath arcNodes, starNodes, arcSpokes, starSpokes, innerSpokes, hubDots,
+      spurRules;
   std::shared_ptr<instancing::Atlas> emberAtlas;
   std::shared_ptr<instancing::Pool> embers;
   int emberFrame = 0;
 
   // Fitted content: each ring's text and the size that girds its band.
-  std::string coronaText, nominaText, glossText, microText;
-  std::string satText[6];
-  float coronaSize = 18, nominaSize = 30, glossSize = 15, microSize = 8,
-        satSize[6] = {};
-  std::vector<float> coronaCues;  // one start per word; pauses at crosses
-  int coronaWords = 0, coronaMaxWord = 1;
+  std::string voxText, runeText, nomText, texText, hubRuneText, emblemText,
+      spurText;
+  std::string sealText[kSeals];
+  float voxSize = 18, runeSize = 20, nomSize = 30, texSize = 9,
+        sealSize[kSeals] = {};
+  std::vector<float> voxCues;  // one start per word; pauses at crosses
+  int voxWords = 0, voxMaxWord = 1;
 
   // The computed timeline, seconds. Every value is chained from a span.
-  double tBand = 0, tNames = 0, tGloss = 0, tHex = 0, capAt[6] = {},
-         tSat[6] = {}, tSquare = 0, tIgnite = 0, loopSecs = 30;
+  double tVox = 0, tRune = 0, tNames = 0, tTex = 0, tArc = 0, tStar = 0,
+         tInner = 0, limenAt[kSeals] = {}, tSeal[kSeals] = {}, tHub = 0,
+         tIgnite = 0, loopSecs = 30;
   double lastElapsed = 0;  // the scribe's decay reads real dt
-  float bandSpanS = 0, namesSpanS = 0, glossSpanS = 0, microSpanS = 0,
-        capSpanS = 0, satSpanS = 0, squareSpanS = 0;
+  float voxSpanS = 0, runeSpanS = 0, nomSpanS = 0, texSpanS = 0, limenSpanS = 0,
+        sealSpanS = 0, hubSpanS = 0, shimmerS = 3.4f;
 
   int totalGlyphs = 0;
 
   // ------------------------------------------------------------------
   // schedule verbs
 
-  /** A beat on the wheel's timeline, in seconds of the loop: clamped
+  /** A beat on the circle's timeline, in seconds of the loop: clamped
    *  outside its range, so an unstarted track reads 0 and a finished one
    *  reads 1, and the whole assembly re-performs on the wrap. */
   [[nodiscard]] Animatable<float> beat(double from, double to) {
@@ -569,10 +830,13 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     return studio::type(
         {.face = faceRingBold, .size = size, .color = color, .track = track});
   }
-  [[nodiscard]] sigil::weave::TextStyle ital(float size, SkColor4f color,
-                                             float track = 0.6f) const {
-    return studio::type(
-        {.face = faceItal, .size = size, .color = color, .track = track});
+  /** THE REGISTER'S TYPE takes no face. The invented alphabet is not in
+   *  the interface family, and asking for it by name would be asking for
+   *  a font this study does not ship: the shaper's own fallback finds the
+   *  letterforms, which is the mechanism that puts them on the plate. */
+  [[nodiscard]] static sigil::weave::TextStyle rune(float size, SkColor4f color,
+                                                    float track) {
+    return studio::type({.size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle mono(float size, SkColor4f color,
                                              float track = 1.0f) const {
@@ -604,19 +868,36 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
-  // the wheel
+  // the drawn lines
 
-  /** A stroked circle of the wheel, revealed as an arc sweep — the
-   *  compass stroke itself. The outline is the baked chalk ring, so what
-   *  the sweep lays down carries the hand's wobble; the box is the whole
-   *  panel because the path is in the panel's own px. */
+  /** A stroked line of the figure, revealed as an arc sweep — the compass
+   *  stroke itself. The outline is the baked chalk path, so what the
+   *  sweep lays down carries the hand's wobble; the box is the whole panel
+   *  because the path is in the panel's own px. */
   [[nodiscard]] Element rule(const char* key, int chalkIndex, float width,
                              SkColor4f color, double from, double dur) {
     return box()
         .key(key)
         .absolute()
         .inset(0)
+        .hitTestable(false)
         .shape(Baked{&chalk[(size_t)chalkIndex]})
+        .fill(Fill::none())
+        .stroke(spans::upTo(beat(from, from + dur)),
+                util::stroke(width, Fill::color(color)));
+  }
+
+  /** The same, for a path this sketch holds directly rather than in the
+   *  chalk table — the spoke sets and the node rings, which are perfect
+   *  by construction because a node is a bead and not a rule. */
+  [[nodiscard]] Element line(const char* key, const SkPath& path, float width,
+                             SkColor4f color, double from, double dur) {
+    return box()
+        .key(key)
+        .absolute()
+        .inset(0)
+        .hitTestable(false)
+        .shape(Baked{&path})
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 util::stroke(width, Fill::color(color)));
@@ -663,52 +944,61 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  mark print it darker than either weight meant to. */
   [[nodiscard]] Element ladder(const char* key, int divisions, int skipEvery,
                                float outer, float inner, float width,
-                               SkColor4f color, double from, double dur) {
+                               SkColor4f color, double from, double dur,
+                               float fromDeg = 0.0f) {
     kit::Ticks t{.divisions = divisions,
+                 .from = fromDeg,
                  .mark = {inner / outer, 1.0f},
                  .longEvery = skipEvery,
                  .longMark = {1.0f, 1.0f}};
     return box()
         .key(key)
         .absolute()
-        .inset((1.0f - outer) * kR + (500.0f - kR))
+        .inset((1.0f - outer) * kR + (kEye.x() - kR))
+        .hitTestable(false)
         .shape(kit::ticks(t))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 util::stroke(width, Fill::color(color)));
   }
 
-  /** The rim's cascade: one cue per word — writing pace, with the pen
-   *  resting at every cross — and the letters of each word beating inside
-   *  its cue. Built as a named value because `then` mutates in place. */
-  [[nodiscard]] Stagger coronaCascade() const {
-    Stagger cascade = stagger(unit::Word, cues(coronaCues));
+  // ------------------------------------------------------------------
+  // the bands
+
+  /** The invocation's cascade: one cue per word — writing pace, with the
+   *  pen resting at every cross — and the letters of each word beating
+   *  inside its cue. Built as a named value because `then` mutates in
+   *  place. */
+  [[nodiscard]] Stagger voxCascade() const {
+    Stagger cascade = stagger(unit::Word, cues(voxCues));
     cascade.then(unit::Cluster, {.eachMs = 22, .durationMs = 300});
     return cascade;
   }
 
-  /** THE RIM — the invocation between the two outermost rules. Its
-   *  entrance composes with the baseline: the hold vetoes a glyph until
-   *  its beat, the rise then lifts it onto the ring along the ring's own
-   *  local perpendicular, and the tint warms it from ember to bone as it
-   *  lands. After ignition the whole run becomes a slow marquee. */
-  [[nodiscard]] Element corona() {
-    return text(toU8(coronaText), ring(coronaSize, kBone, 2.2f))
-        .key("corona")
+  /** THE INVOCATION — Latin majuscule between two rules, the one band on
+   *  the plate that is meant to be read. Its entrance composes with the
+   *  baseline: the hold vetoes a glyph until its beat, the rise then lifts
+   *  it onto the ring along the ring's own local perpendicular, and the
+   *  tint warms it from ember to bone as it lands. After ignition the
+   *  whole run becomes a slow marquee. */
+  [[nodiscard]] Element invocatio() {
+    return text(toU8(voxText), ring(voxSize, kBone, 2.2f))
+        .key("vox")
         .centerAt(kEye)
-        .width(2 * rCorona * kR)
-        .height(2 * rCorona * kR)
+        .width(2 * rVox * kR)
+        .height(2 * rVox * kR)
+        .hitTestable(false)
         .onPath({.path = shapes::circle(),
-                 .at = &coronaDrift,
+                 .at = &voxDrift,
                  .align = TextPath::Align::Start,
-                 .offset = -coronaSize * 0.34f,
+                 .offset = -voxSize * 0.34f,
                  .autoFlip = false})
-        .fx({.effect = fx::hold(fx::rise(coronaSize * 1.1f)),
-             .stagger = coronaCascade(),
-             .progress = beat(tBand, tBand + bandSpanS)})
+        .fx({.effect = fx::hold(fx::rise(voxSize * 1.1f)),
+             .stagger = voxCascade(),
+             .progress = beat(tVox, tVox + voxSpanS)})
         .fx({.effect = fx::tint(kEmber, kBone),
-             .stagger = coronaCascade(),
-             .progress = beat(tBand, tBand + bandSpanS)})
+             .stagger = voxCascade(),
+             .progress = beat(tVox, tVox + voxSpanS)})
         // THE STRIKE, per word: a letter does not fade up, it arrives lit
         // and cools. The screen term lifts each channel by the headroom it
         // has left rather than adding into a clip, so the flash reads as
@@ -718,8 +1008,48 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                                  {0.18f, {.colorScreen = kCore}},
                                  {1.00f, {}}},
                                 &ch::easeOutQuad),
-             .stagger = coronaCascade(),
-             .progress = beat(tBand, tBand + bandSpanS)});
+             .stagger = voxCascade(),
+             .progress = beat(tVox, tVox + voxSpanS)});
+  }
+
+  /** THE SHIMMER — a crest of light that re-opens on every glyph of the
+   *  register forever. `Stagger::loopMs` folds each glyph's beat onto its
+   *  own cycle of one period, phase-offset by the glyph's start, so one
+   *  sweep of the master IS one cycle and a wrapping phase drives it
+   *  seamlessly with no seam to hide. It is the reading that the circle
+   *  is not a finished picture: something is still running round it. */
+  [[nodiscard]] Stagger shimmerCascade() const {
+    Stagger s = stagger(unit::Cluster, {.eachMs = 26, .durationMs = 620});
+    s.loopMs = (uint32_t)(shimmerS * 1000.0f);
+    return s;
+  }
+
+  /** THE REGISTER — the outer rune band, the widest ring of script on the
+   *  plate and the one that says what idiom this is. It forms as a
+   *  scatter (the letters do not arrive in reading order, because nobody
+   *  reads them), then never settles. */
+  [[nodiscard]] Element registrum() {
+    return text(toU8(runeText), rune(runeSize, kRuneInk, 2.0f))
+        .key("registrum")
+        .centerAt(kEye)
+        .width(2 * rRune * kR)
+        .height(2 * rRune * kR)
+        .hitTestable(false)
+        .onPath({.path = shapes::circle(),
+                 .at = &runeDrift,
+                 .align = TextPath::Align::Start,
+                 .offset = -runeSize * 0.34f,
+                 .autoFlip = false})
+        .fx({.effect = fx::hold(fx::pop(0.55f)),
+             .stagger = stagger(unit::Cluster, {.eachMs = 7,
+                                                .durationMs = 420,
+                                                .from = Stagger::From::Random,
+                                                .seed = 17}),
+             .progress = beat(tRune, tRune + runeSpanS)})
+        .fx({.effect = fx::keys(
+                 {{0.00f, {}}, {0.35f, {.colorScreen = kHalo}}, {1.00f, {}}}),
+             .stagger = shimmerCascade(),
+             .progress = &runePhase});
   }
 
   /** THE NINE NAMES, one text leaf whose baseline is a circle it orbits.
@@ -753,20 +1083,21 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // under-reporting shears the outer halves off at the layer's edge.
     constexpr float kReach = 90.0f;
     Element names =
-        text(toU8(nominaText), ring(nominaSize, kGold, 4.2f))
+        text(toU8(nomText), ring(nomSize, kGold, 4.2f))
             .key("nomina")
             .effect(styles::textGlow(kHalo, 6.0f))
             .centerAt(kEye)
-            .width(2 * rNomina * kR)
-            .height(2 * rNomina * kR)
+            .width(2 * rNom * kR)
+            .height(2 * rNom * kR)
+            .hitTestable(false)
             .onPath({.path = shapes::circle(),
-                     .at = &nominaDrift,
+                     .at = &nomDrift,
                      .align = TextPath::Align::Start,
-                     .offset = -nominaSize * 0.34f,
+                     .offset = -nomSize * 0.34f,
                      .autoFlip = false})
-            .fx({.effect = fx::hold(fx::rise(nominaSize * 0.8f)),
+            .fx({.effect = fx::hold(fx::rise(nomSize * 0.8f)),
                  .stagger = form,
-                 .progress = beat(tNames, tNames + namesSpanS)})
+                 .progress = beat(tNames, tNames + nomSpanS)})
             .fx({.effect = std::move(swell),
                  .stagger =
                      stagger(unit::Word, {.eachMs = 130, .durationMs = 900}),
@@ -789,315 +1120,407 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     return names;
   }
 
-  /** THE TABLET — the minuscule ring, serif italic, deliberately the one
-   *  band that never orbits: the commentary stands still while the wheel
-   *  turns.
-   *
-   *  The lozenges that stand at three words live on the colophon, whose
-   *  straight baseline suits them; a mark on THIS ring would land on the
-   *  curved rect, the same placement `beatsOf` reports. */
-  [[nodiscard]] Element smaragdina() {
-    return text(toU8(glossText), ital(glossSize, kVerdigris, 1.1f))
-        .key("smaragdina")
+  /** THE TEXTURE — the small register, tracked shut and set at a size
+   *  that stops it being letters and makes it grain. It is what makes the disc
+   * continuous between the arcs and the stars instead of leaving a dark annulus
+   *  there, and it is the band the whole idiom depends on: the plate
+   *  looks like a mechanism because the innermost script is too small to
+   *  resolve. Every glyph is still a real glyph; a baked tile would be
+   *  cheaper and would be a lie about what this plate is. */
+  [[nodiscard]] Element textura() {
+    return text(toU8(texText), rune(texSize, kAsh, 0.0f))
+        .key("textura")
         .centerAt(kEye)
-        .width(2 * rGloss * kR)
-        .height(2 * rGloss * kR)
+        .width(2 * rTex * kR)
+        .height(2 * rTex * kR)
+        .hitTestable(false)
         .onPath({.path = shapes::circle(),
-                 .at = 0.0f,
+                 .at = &texDrift,
                  .align = TextPath::Align::Start,
-                 .offset = -glossSize * 0.30f,
+                 .offset = -texSize * 0.30f,
                  .autoFlip = false})
-        .fx({.effect = fx::hold(fx::slide(-14.0f)),
-             .stagger =
-                 stagger(unit::Cluster, {.eachMs = 13, .durationMs = 380}),
-             .progress = beat(tGloss, tGloss + glossSpanS)});
+        .fx({.effect = fx::hold(fx::rise(texSize * 0.9f)),
+             .stagger = stagger(unit::Cluster, {.eachMs = 4,
+                                                .durationMs = 300,
+                                                .from = Stagger::From::Random,
+                                                .seed = 61}),
+             .progress = beat(tTex, tTex + texSpanS)});
   }
 
-  /** THE FIGURE: the {6/2} star, its spokes, and the light that lands on
-   *  them — the wheel's one turning assembly of geometry, counter to the
-   *  fine ladder outside it. The chalk is swept on at the strike; the
-   *  morph ladder resolves the light from a scribble to the true figure;
-   *  the emissive stack is what stays.
+  // ------------------------------------------------------------------
+  // the turning layers
+
+  /** THE ARC LAYER: two rings of broken arcs half a pitch apart, the
+   *  spokes that tie them, the nodes that stand between them and a dashed
+   *  ring outside the pair — one layer, so one baked union, so one
+   *  rotation, and the whole assembly sweeps past the bands either side of
+   *  it as a mechanism rather than as a picture being spun. */
+  [[nodiscard]] Element arcus() {
+    Element turn =
+        box().key("arcus").absolute().inset(0).hitTestable(false).rotate(
+            bind(&arcSpin).target(0.0f, 360.0f));
+    turn.child(rule("arc-chalk", kChalkArcs, 1.7f, kIron, tArc, 1.1));
+    turn.child(rule("arc-dash", kChalkDash, 1.0f, kIron, tArc - 0.3, 1.0));
+    turn.child(line("arc-spokes", arcSpokes, 0.9f, kIron, tArc + 0.2, 0.9));
+    turn.child(line("arc-nodes", arcNodes, 1.0f, kIron, tArc + 0.35, 0.8));
+    turn.child(emissive("arc-lit", glows[kGlowArc], &litArc));
+    return turn;
+  }
+
+  /** THE OFF-ORDER MARK — one medallion straddling the outermost rule at
+   *  twelve o'clock, carrying a single letterform. It obeys none of the
+   *  plate's symmetries and interrupts two bands to exist, which is
+   *  exactly its job: the eye takes a perfectly regular figure for a
+   *  pattern and a figure with one exception for a drawing. */
+  [[nodiscard]] Element spur() {
+    const SkPoint c = P(0.0f, rEdge);
+    return box()
+        .key("spur")
+        .absolute()
+        .inset(0)
+        .hitTestable(false)
+        .child(disc(c, kSpurR)
+                   .key("spur-ground")
+                   .hitTestable(false)
+                   .fill(Fill::color(studio::hex(0x0D0A16, 0.92f)))
+                   .opacity(beat(0.9, 1.4)))
+        .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
+        .child(text(toU8(spurText), rune(19.0f, kBone, 0.0f))
+                   .key("spur-glyph")
+                   .centerAt(c)
+                   .hitTestable(false)
+                   .fx({.effect = fx::hold(fx::pop(0.5f)),
+                        .stagger = stagger(unit::Cluster, {.durationMs = 360}),
+                        .progress = beat(1.3, 1.8)}))
+        .child(emissive("spur-lit", glows[kGlowSpur], &litSpur));
+  }
+
+  /** THE OUTER FIGURE: the {12/3} compound — three squares turned 30°
+   *  from each other, which is what a step of three across twelve
+   *  stations gives — with a small circle at every vertex and spokes
+   *  running from the vertices down to the circle its chords are tangent
+   *  to. The chalk is swept on at the strike; the morph ladder resolves
+   *  the light from a scribble to the true figure; the emissive stack is
+   *  what stays.
    *
    *  THE MORPH IS A LADDER OF BAKED STEPS, not one interpolated path. A
-   *  path re-cooked every frame is content nothing can cache, and this one
-   *  is a resample-and-lerp over four hundred points. Baked, each step is
-   *  an ordinary comparable silhouette whose recording is built once, and
-   *  a bound scalar walks the ladder: neighbouring steps cross-fade, so
-   *  what the eye follows is continuous while what the library records is
-   *  a bounded set. */
-  [[nodiscard]] Element figure() {
+   *  path re-cooked every frame is content nothing can cache, and this
+   *  one is a resample-and-lerp over hundreds of points. Baked, each step
+   *  is an ordinary comparable silhouette whose recording is built once,
+   *  and a bound scalar walks the ladder: neighbouring steps cross-fade,
+   *  so what the eye follows is continuous while what the library records
+   *  is a bounded set. */
+  [[nodiscard]] Element stella() {
     Element turn =
-        box().key("figure").absolute().inset(0).hitTestable(false).rotate(
-            bind(&hexSpin).target(0.0f, 360.0f));
-    turn.child(box()
-                   .key("spokes")
-                   .absolute()
-                   .inset(0)
-                   .shape(Baked{&chalk[kChalkSpokes]})
-                   .fill(Fill::none())
-                   .stroke(spans::upTo(beat(tHex + 0.2, tHex + 1.5)),
-                           util::stroke(0.7f, Fill::color(kIronDim))));
-    turn.child(box()
-                   .key("hex-strokes")
-                   .absolute()
-                   .inset(0)
-                   .shape(Baked{&chalk[kChalkHex]})
-                   .fill(Fill::none())
-                   .stroke(spans::upTo(beat(tHex, tHex + 1.3)),
-                           util::stroke(1.4f, Fill::color(kIron))));
-    for (int i = 0; i < (int)hexSteps.size(); ++i)
+        box().key("stella").absolute().inset(0).hitTestable(false).rotate(
+            bind(&starSpin).target(0.0f, 360.0f));
+    turn.child(rule("star-chalk", kChalkStar, 1.5f, kIron, tStar, 1.3));
+    // THE CRESCENTS: three double-arcs laid ACROSS the compound, 120°
+    // apart, each closed at both ends by a radial tie and carrying its
+    // own short ladder. They are the plate's single THREE-FOLD mark —
+    // applied over the mechanism rather than being a band of it — and
+    // they ride the compound's rotation, so three things visibly sweep
+    // past twelve.
+    turn.child(rule("cresc-chalk", kChalkCresc, 1.3f, kIron, tStar + 0.5, 1.0));
+    turn.child(
+        line("star-spokes", starSpokes, 0.8f, kIronDim, tStar + 0.2, 1.0));
+    turn.child(line("star-nodes", starNodes, 1.0f, kIron, tStar + 0.4, 0.9));
+    for (int i = 0; i < (int)starSteps.size(); ++i)
       turn.child(box()
-                     .key("hex-morph" + std::to_string(i))
+                     .key("star-morph" + std::to_string(i))
                      .absolute()
                      .inset(0)
                      .hitTestable(false)
-                     .shape(Baked{&hexSteps[(size_t)i]})
+                     .shape(Baked{&starSteps[(size_t)i]})
                      .fill(Fill::none())
                      .stroke(util::stroke(1.6f, Fill::color(kCore)))
                      .blend(SkBlendMode::kPlus)
                      .opacity(bind(&morphStep)
                                   .window((float)i - 1.0f, (float)i + 1.0f)
                                   .pingPong()));
-    turn.child(emissive("hex-lit", glows[kGlowHex], &litHex));
+    turn.child(emissive("star-lit", glows[kGlowStar], &litStar));
     return turn;
   }
 
-  /** THE HEXAGRAM'S CAPTIONS. They ride a SECOND path — the same six
-   *  chords as open contours — so chord k's midpoint is at exactly
-   *  (k+0.5)/6 of one arc-length coordinate, and each day name is a leaf
-   *  addressed by fraction alone. They do not turn with the figure: a
-   *  caption is read, and the mechanism is what moves. */
-  [[nodiscard]] Element hexagram() {
-    Element fig = disc(kEye, rHex * kR).key("hexagramma");
+  /** THE INNER FIGURE: the {12/4} compound — four triangles — nested so
+   *  that its vertices sit just inside the circle the squares above are
+   *  tangent to, and its own chords run tangent to the hub's rule. It
+   *  turns against the compound outside it, which is the whole reason
+   *  there are two. */
+  [[nodiscard]] Element stellaInterior() {
+    Element turn = box()
+                       .key("stella-int")
+                       .absolute()
+                       .inset(0)
+                       .hitTestable(false)
+                       .rotate(bind(&innerSpin).target(0.0f, 360.0f));
+    turn.child(rule("inner-chalk", kChalkInner, 1.2f, kIron, tInner, 1.2));
+    turn.child(
+        line("inner-spokes", innerSpokes, 0.7f, kIronDim, tInner + 0.2, 1.0));
+    turn.child(emissive("inner-lit", glows[kGlowInner], &litInner));
+    return turn;
+  }
+
+  /** THE CAPTIONS on the outer compound's chords. They ride a SECOND path
+   *  — the same twelve chords as OPEN contours — so chord k's midpoint is
+   *  at exactly (k+0.5)/12 of one arc-length coordinate, and each caption
+   *  is a leaf addressed by fraction alone. Only the six that face a seal
+   *  are written; the other six chords carry the ladder's silence, which
+   *  is the asymmetry the idiom allows itself. They do not turn with the
+   *  figure: a caption is read, and the mechanism is what moves. */
+  [[nodiscard]] Element limina() {
+    Element fig = disc(kEye, rStar * kR).key("limina").hitTestable(false);
     const Shape chordPath =
-        kit::chords({.sides = 6, .step = 2, .inset = kSatR * 1.12f});
-    for (int k = 0; k < 6; ++k) {
-      fig.child(text(toU8(kPlanets[k].dies), label(12.5f, kAsh, 2.2f))
-                    .key("dies" + std::to_string(k))
-                    .absolute()
-                    .inset(0)
-                    .onPath({.path = chordPath,
-                             .at = ((float)k + 0.5f) / 6.0f,
-                             .align = TextPath::Align::Center,
-                             .offset = 5.0f,
-                             .autoFlip = true})
-                    .fx({.effect = fx::typeOn(),
-                         .stagger = stagger(unit::Cluster,
-                                            {.eachMs = 34, .durationMs = 120}),
-                         .progress = beat(capAt[k], capAt[k] + capSpanS)}));
+        kit::chords({.sides = kStations, .step = 3, .inset = kSealR * 1.24f});
+    for (int k = 0; k < kSeals; ++k) {
+      fig.child(
+          text(toU8(kSealTable[k].limen), label(11.0f, kAsh, 2.0f))
+              .key("limen" + std::to_string(k))
+              .absolute()
+              .inset(0)
+              .hitTestable(false)
+              .onPath({.path = chordPath,
+                       .at = ((float)(k * 2) + 0.5f) / (float)kStations,
+                       .align = TextPath::Align::Center,
+                       .offset = 5.0f,
+                       .autoFlip = true})
+              .fx({.effect = fx::typeOn(),
+                   .stagger = stagger(unit::Cluster,
+                                      {.eachMs = 30, .durationMs = 120}),
+                   .progress = beat(limenAt[k], limenAt[k] + limenSpanS)}));
     }
     return fig;
   }
 
-  /** ONE ROUNDEL — a sub-circle that is a small magic circle of its own:
-   *  rules struck, a ring of lettering tumbling on, the square's order
-   *  decoding at the centre, the order-sided polygon spinning behind it.
-   *  Roundel k's whole window starts where roundel k−1's span says, so
-   *  the six form in turn and the eye is handed round the hexagram. */
-  [[nodiscard]] Element satellite(int k) {
-    const Planet& p = kPlanets[k];
-    const SkPoint c = P((float)k * 60.0f, rHex);
-    const double at = tSat[k];
-    const std::string id = "sat" + std::to_string(k);
+  /** ONE SEAL — a sub-circle that is a small magic circle of its own,
+   *  standing on one of the outer compound's vertices: rules struck, a
+   *  ring of lettering tumbling on, an ordinal decoding at the centre,
+   *  and an order-sided polygon spinning behind it. Seal k's whole window
+   *  starts where seal k−1's span says, so the six form in turn and the
+   *  eye is handed round the figure. */
+  [[nodiscard]] Element sigillum(int k) {
+    const Seal& s = kSealTable[k];
+    const SkPoint c = P(station(k * 2), rStar);
+    const double at = tSeal[k];
+    const std::string id = "seal" + std::to_string(k);
 
-    Element roundel = disc(c, kSatR).key(id);
-    // The ground: occludes the chords under the roundel, and wears a
-    // gold aura for a breath at ignition.
-    roundel.child(
+    Element seal = disc(c, kSealR).key(id);
+    // The ground: occludes the bands under the seal — a seal SITS ON the
+    // plate rather than being drawn into it — and wears an aura for a
+    // breath at ignition.
+    seal.child(
         box()
             .key(id + "-ground")
             .absolute()
             .inset(0)
-            .corners({kSatR})
+            .corners({kSealR})
+            .hitTestable(false)
             .fill(Fill::color(studio::hex(0x0D0A16, 0.94f)))
-            // The ground is dressed rather than shaded: an inner
-            // glow is a blurred band hugging its own edge, a value
-            // decoration that records once with the disc it sits
-            // on. It gives the roundel a lip of light without a
-            // second node and without a shader.
-            .overlay(styles::innerGlow(studio::hex(0xE79A32, 0.30f), 14.0f))
+            // The ground is dressed rather than shaded: an inner glow is
+            // a blurred band hugging its own edge, a value decoration
+            // that records once with the disc it sits on. It gives the
+            // seal a lip of light without a second node and without a
+            // shader.
+            .overlay(styles::innerGlow(studio::hex(0xE79A32, 0.30f), 12.0f))
             .opacity(beat(at, at + 0.4)));
-    // The roundel's own emissive rule. A roundel is a small magic circle,
-    // so it lights like one — but its two rules are concentric and cross
+    // The seal's own emissive rule. A seal is a small magic circle, so it
+    // lights like one — but its two rules are concentric and cross
     // nothing, which is the case the SDF answers in one pass: silhouette,
     // core and halo are three uniforms of one shader rather than a union
     // and four fills.
     {
-      const sdf::Style lit{.borderWidth = 1.5f,
+      const sdf::Style lit{.borderWidth = 1.4f,
                            .borderColor = kCore,
-                           .glowRadius = 8.0f,
+                           .glowRadius = 7.0f,
                            .glowColor = studio::hex(0xFFC152, 0.42f)};
-      const float side = sdf::minBoxFor(lit, 2.0f * kSatR);
-      roundel.child(box()
-                        .key(id + "-lit")
-                        .absolute()
-                        .inset(kSatR - side * 0.5f)
-                        .hitTestable(false)
-                        .fill(sdf::material(sdf::circle(), lit))
-                        .blend(SkBlendMode::kPlus)
-                        .opacity(&litSat[k]));
+      const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
+      seal.child(box()
+                     .key(id + "-lit")
+                     .absolute()
+                     .inset(kSealR - side * 0.5f)
+                     .hitTestable(false)
+                     .fill(sdf::material(sdf::circle(), lit))
+                     .blend(SkBlendMode::kPlus)
+                     .opacity(&litSeal[k]));
     }
     // The rules, struck as sweeps.
-    roundel
-        .child(box()
+    seal.child(box()
                    .key(id + "-rule-out")
                    .absolute()
                    .inset(0)
-                   .corners({kSatR})
+                   .corners({kSealR})
+                   .hitTestable(false)
                    .fill(Fill::none())
                    .stroke(spans::upTo(beat(at, at + 0.55)),
-                           util::stroke(1.3f, Fill::color(kIron))))
+                           util::stroke(1.2f, Fill::color(kIron))))
         .child(box()
                    .key(id + "-rule-in")
                    .absolute()
-                   .inset(kSatR - kSatRing + 9.0f)
-                   .corners({kSatRing - 9.0f})
+                   .inset(kSealR - kSealRing + 8.0f)
+                   .corners({kSealRing - 8.0f})
+                   .hitTestable(false)
                    .fill(Fill::none())
                    .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
-                           util::stroke(0.8f, Fill::color(kIronDim))));
-    // The order-sided polygon, spinning once the roundel is lit.
-    roundel.child(box()
-                      .key(id + "-poly")
-                      .absolute()
-                      .inset(kSatR - 34.0f)
-                      .shape(shapes::polygon(p.order))
-                      .fill(Fill::none())
-                      .stroke(util::stroke(0.9f, Fill::color(kIronDim)))
-                      .rotate(bind(&satSpin[k]).target(0.0f, 360.0f))
-                      .opacity(beat(at + 0.3, at + 0.9)));
-    // The ring: planet, angel, table — tumbling onto the circle, then
-    // orbiting; alternate roundels orbit the other way.
-    roundel.child(
-        text(toU8(satText[k]), ring(satSize[k], kBone, 1.8f))
-            .key(id + "-ring")
-            .absolute()
-            .inset(kSatR - kSatRing)
-            .onPath({.path = shapes::circle(),
-                     .at = &satDrift[k],
-                     .align = TextPath::Align::Start,
-                     .offset = -satSize[k] * 0.34f,
-                     .autoFlip = false})
-            .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 34, .durationMs = 520}),
-                 .progress = beat(at + 0.25, at + 0.25 + satSpanS)}));
-    // The order at the centre, decoding — held, so a digit waiting its
-    // beat is absent rather than churning wrong.
-    roundel.child(
-        text(toU8(std::string(p.ordo)), mono(26.0f, kGold, 2.0f))
+                           util::stroke(0.7f, Fill::color(kIronDim))));
+    // The order-sided polygon, spinning once the seal is lit.
+    seal.child(box()
+                   .key(id + "-poly")
+                   .absolute()
+                   .inset(kSealR - 26.0f)
+                   .hitTestable(false)
+                   .shape(shapes::polygon(s.order))
+                   .fill(Fill::none())
+                   .stroke(util::stroke(0.8f, Fill::color(kIronDim)))
+                   .rotate(bind(&sealSpin[k]).target(0.0f, 360.0f))
+                   .opacity(beat(at + 0.3, at + 0.9)));
+    // The ring: the name and a word of the register — tumbling onto the
+    // circle, then orbiting; alternate seals orbit the other way.
+    seal.child(text(toU8(sealText[k]), ring(sealSize[k], kBone, 1.4f))
+                   .key(id + "-ring")
+                   .absolute()
+                   .inset(kSealR - kSealRing)
+                   .hitTestable(false)
+                   .onPath({.path = shapes::circle(),
+                            .at = &sealDrift[k],
+                            .align = TextPath::Align::Start,
+                            .offset = -sealSize[k] * 0.34f,
+                            .autoFlip = false})
+                   .fx({.effect = fx::hold(fx::spinIn(70.0f, 9.0f)),
+                        .stagger = stagger(unit::Cluster,
+                                           {.eachMs = 30, .durationMs = 480}),
+                        .progress = beat(at + 0.25, at + 0.25 + sealSpanS)}));
+    // The ordinal at the centre, decoding — held, so a numeral waiting
+    // its beat is absent rather than churning wrong.
+    seal.child(
+        text(toU8(std::string(s.ordo)), mono(21.0f, kGold, 2.0f))
             .key(id + "-ordo")
-            .centerAt({kSatR, kSatR})
+            .centerAt({kSealR, kSealR})
+            .hitTestable(false)
             .effect(styles::textGlow(kHalo, 4.0f))
             .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
                  .stagger =
                      stagger(unit::Cluster, {.eachMs = 90, .durationMs = 620}),
-                 .progress = beat(at + 0.55, at + 0.55 + satSpanS * 0.9)})
+                 .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)})
             .fx({.effect = fx::keys({{0.00f, {}},
                                      {0.80f, {}},
                                      {0.90f, {.colorAdd = kCore}},
                                      {1.00f, {}}}),
                  .stagger =
                      stagger(unit::Cluster, {.eachMs = 90, .durationMs = 620}),
-                 .progress = beat(at + 0.55, at + 0.55 + satSpanS * 0.9)}));
-    return roundel;
+                 .progress = beat(at + 0.55, at + 0.55 + sealSpanS * 0.9)}));
+    return seal;
   }
 
-  /** THE SQUARE OF THE SUN at the hub: six monospaced rows resolving
-   *  line by line, each digit churning through the charset until its own
-   *  beat closes.
-   *
-   *  IT IS THE EMBLEM, and an emblem is the brightest stable thing on the
-   *  plate — the one place the eye returns to between the events. So the
-   *  digits are set bone rather than gold (the value hierarchy, not the
-   *  hue, is what makes a centre dominant), they take their own flash as
-   *  each row lands, and the whole tablet sits in a disc of light with a
-   *  glow of its own. The blur is affordable HERE and nowhere else on the
-   *  wheel: this node is two hundred pixels across and does not orbit. */
-  [[nodiscard]] Element quadratum() {
-    Stagger rows = stagger(unit::Line, {.eachMs = 170});
-    rows.then(unit::Cluster, {.eachMs = 46, .durationMs = 560});
-    Element hub = box()
-                      .key("hub")
-                      .centerAt(kEye)
-                      .column()
-                      .alignItems(Align::Center)
-                      .gap(7);
-    hub.child(text(toU8(kSolSquare), mono(17.5f, kBone, 2.6f))
-                  .key("quadratum")
-                  .effect(styles::textGlow(kHalo, 5.0f))
-                  .fx({.effect = fx::hold(fx::scramble(U"0123456789", 14)),
-                       .stagger = rows,
-                       .progress = beat(tSquare, tSquare + squareSpanS)})
-                  .fx({.effect = fx::keys({{0.00f, {}},
-                                           {0.72f, {}},
-                                           {0.86f, {.colorAdd = kHalo}},
-                                           {1.00f, {}}}),
-                       .stagger = rows,
-                       .progress = beat(tSquare, tSquare + squareSpanS)}));
-    hub.child(
-        text(toU8("TABVLA SOLIS \xc2\xb7 MICHAEL"), label(9.5f, kAshDim, 2.8f))
-            .key("hub-cap")
-            .opacity(beat(tSquare + squareSpanS * 0.8,
-                          tSquare + squareSpanS * 0.8 + 0.5)));
-    return hub;
-  }
+  // ------------------------------------------------------------------
+  // the emblem
 
-  /** The disc of light the emblem sits in — the SDF's one pass carrying
-   *  fill and glow together, sized by the reserve the style declares so
-   *  the box cannot crop its own falloff. */
+  /** THE EMBLEM'S DISC of light — the SDF's one pass carrying fill and
+   *  glow together, sized by the reserve the style declares so the box
+   *  cannot crop its own falloff. */
   [[nodiscard]] Element emblemDisc() {
-    const sdf::Style emblem{.fill = studio::hex(0x1A1008, 0.62f),
-                            .glowRadius = 30.0f,
+    const sdf::Style emblem{.fill = studio::hex(0x1A1008, 0.66f),
+                            .glowRadius = 34.0f,
                             .glowColor = studio::hex(0xFFB13A, 0.5f)};
-    const float side = sdf::minBoxFor(emblem, 2.0f * rHub * kR * 0.86f);
+    const float side = sdf::minBoxFor(emblem, 2.0f * rEmblem * kR);
     return disc(kEye, side * 0.5f)
-        .key("hub-disc")
+        .key("emblem-disc")
         .hitTestable(false)
         .fill(sdf::material(sdf::circle(), emblem))
         .blend(SkBlendMode::kPlus)
         .opacity(&litHub);
   }
 
-  /** THE MICRO-SCRIPT BAND: the tablet's own Latin again, a third the
-   *  size, tracked shut and set dim — script read as TEXTURE rather than
-   *  as words, which is what fills the field between the hub and the
-   *  figure without inventing anything to put there. Every glyph is still
-   *  a real glyph; a baked tile would be cheaper and would be a lie about
-   *  what this plate is. It drifts the other way from the names. */
-  [[nodiscard]] Element minuscula() {
-    return text(toU8(microText), ital(microSize, kAshDim, 0.0f))
-        .key("minuscula")
-        .centerAt(kEye)
-        .width(2 * rMicro * kR)
-        .height(2 * rMicro * kR)
-        .onPath({.path = shapes::circle(),
-                 .at = &microDrift,
-                 .align = TextPath::Align::Start,
-                 .offset = -microSize * 0.30f,
-                 .autoFlip = false})
-        .fx({.effect = fx::hold(fx::rise(microSize * 0.9f)),
-             .stagger = stagger(unit::Cluster, {.eachMs = 4,
-                                                .durationMs = 300,
-                                                .from = Stagger::From::Random,
-                                                .seed = 61}),
-             .progress = beat(tGloss + 0.3, tGloss + 0.3 + microSpanS)});
+  /** THE EMBLEM at the centre — a monogram of the register, three
+   *  letterforms set large, resolving out of a churn.
+   *
+   *  IT IS THE EMBLEM, and an emblem is the brightest stable thing on the
+   *  plate: the one place the eye returns to between events, and the
+   *  reason everything else reads as arranged AROUND something. So it is
+   *  set bone rather than gold (the value hierarchy, not the hue, is what
+   *  makes a centre dominant), it takes its own flash as each letterform
+   *  lands, and it sits in a disc of light with a glow of its own. The
+   *  blur is affordable HERE and nowhere else on the plate: this node is
+   *  a hundred pixels across and does not orbit.
+   *
+   *  Six more letterforms ring it, riding the emblem's own hexagram as
+   *  SIX OPEN CHORDS — the same addressed-by-fraction trick the captions
+   *  use, one node for six marks. */
+  [[nodiscard]] Element emblema() {
+    Element hub =
+        box().key("emblem").absolute().inset(0).hitTestable(false).rotate(
+            bind(&hexSpin).target(0.0f, 360.0f));
+    hub.child(rule("hex-chalk", kChalkHexagram, 1.1f, kIron, tInner, 0.8));
+    hub.child(line("hub-dots", hubDots, 1.0f, kIron, tInner + 0.3, 0.7));
+    hub.child(emissive("hub-lit", glows[kGlowHub], &litHub));
+    hub.child(
+        text(toU8(hubRuneText), rune(13.0f, kAsh, 0.0f))
+            .key("hub-ring")
+            .absolute()
+            .inset(0)
+            .hitTestable(false)
+            .onPath({.path = kit::chords(
+                         {.sides = 6,
+                          .step = 2,
+                          .radius = rHexagram * kR / (std::min(kW, kH) * 0.5f),
+                          .inset = 14.0f}),
+                     .at = 0.0f,
+                     .align = TextPath::Align::Start,
+                     .offset = 4.0f,
+                     .autoFlip = true})
+            .fx({.effect = fx::hold(fx::typeOn()),
+                 .stagger =
+                     stagger(unit::Cluster, {.eachMs = 26, .durationMs = 260}),
+                 .progress = beat(tHub - 0.3, tHub + 0.9)}));
+    return hub;
   }
 
-  [[nodiscard]] Element wheel() {
-    Element panel = box().key("rota").width(1000).height(1000).shrink(0);
+  /** The monogram itself, off the turning figure so it stands still while
+   *  the emblem's hexagram revolves under it.
+   *
+   *  IT ARRIVES RATHER THAN DECODES, and the reason is a contract worth
+   *  knowing: a code-point substitution is honoured only where the
+   *  replacement carries the original's advance along the axis its run
+   *  advances on, because a swap that differs there would move every
+   *  letter after it — a reshape, not a redraw. The register's letterforms
+   *  are proportional, so a churn through them is refused with a warning
+   *  and the glyphs draw at rest. A decode belongs on an equal-advance
+   *  charset, which is where the seals' numerals put it. */
+  [[nodiscard]] Element monogramma() {
+    Stagger letters =
+        stagger(unit::Cluster, {.eachMs = 240, .durationMs = 760});
+    return text(toU8(emblemText), rune(52.0f, kBone, 6.0f))
+        .key("monogramma")
+        .centerAt(kEye)
+        .hitTestable(false)
+        .effect(styles::textGlow(kHalo, 7.0f))
+        .fx({.effect = fx::hold(fx::spinIn(90.0f, 14.0f)),
+             .stagger = letters,
+             .progress = beat(tHub, tHub + hubSpanS)})
+        .fx({.effect = fx::keys({{0.00f, {}},
+                                 {0.74f, {}},
+                                 {0.88f, {.colorAdd = kHalo}},
+                                 {1.00f, {}}}),
+             .stagger = letters,
+             .progress = beat(tHub, tHub + hubSpanS)});
+  }
 
-    // The ground wash under the wheel.
+  // ------------------------------------------------------------------
+
+  [[nodiscard]] Element wheel() {
+    Element panel = box().key("rota").absolute().inset(0).hitTestable(false);
+
+    // The ground wash under the figure.
     panel.child(box()
                     .key("rota-wash")
                     .absolute()
                     .inset(0)
+                    .hitTestable(false)
                     .fill(Material::glowUnit({0.5f, 0.5f}, 0.62f,
                                              {{0.0f, kNightLift},
                                               {0.66f, studio::hex(0x0D0A18)},
                                               {1.0f, kNight}})));
 
-    // THE FLOOD: light thrown at the whole sheet from behind the wheel.
+    // THE FLOOD: light thrown at the whole sheet from behind the figure.
     // It screens, so it lifts what is already there toward white instead
     // of laying a wash over it, and it is worth its full-panel gradient
     // only while it is on — at gain zero the node is not painted at all.
@@ -1128,62 +1551,106 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                     .blend(SkBlendMode::kPlus)
                     .opacity(&raysA));
 
-    // The compass work: the rules with their hairline companions, and the
-    // division ladder in three length classes at two pitches — the density
-    // an engraved figure carries and a single ladder cannot.
-    panel.child(rule("rule-out", kChalkRimOut, 1.7f, kIron, 0.35, 1.3));
-    panel.child(
-        rule("rule-out-case", kChalkRimCase, 0.5f, kIronDim, 0.45, 1.2));
-    panel.child(rule("rule-rim", kChalkRimIn, 0.9f, kIron, 0.55, 1.3));
-    panel.child(rule("rule-nom", kChalkNomIn, 0.8f, kIronDim, 0.75, 1.3));
-    panel.child(
-        rule("rule-nom-case", kChalkNomCase, 0.5f, kIronDim, 0.85, 1.2));
-    panel.child(rule("rule-micro-out", kChalkMicroOut, 0.6f, kIronDim,
-                     tGloss + 0.1, 1.1));
-    panel.child(rule("rule-micro-in", kChalkMicroIn, 0.6f, kIronDim,
-                     tGloss + 0.3, 1.1));
-    panel.child(rule("rule-hub", kChalkHub, 0.9f, kIron, tSquare - 0.4, 0.9));
-    panel.child(ladder("ticks-long", 8, 0, rTickOut, rTickIn - 0.020f, 1.2f,
-                       kAshDim, 0.7, 1.4));
-    panel.child(ladder("ticks-mid", 24, 3, rTickOut, rTickIn - 0.008f, 0.9f,
-                       kIron, 0.7, 1.6));
-    panel.child(
-        ladder("ticks-short", 72, 3, rTickOut, rTickIn, 0.8f, kIron, 0.7, 2.1));
+    // THE COMPASS WORK. Every rule below is half of a PAIR, and the pair
+    // is what makes a band: no line on this plate stands on its own, and
+    // nothing is written anywhere except between two of them.
+    panel.child(rule("r-edge", kChalkEdge, 2.1f, kIron, 0.35, 1.3));
+    panel.child(rule("r-edge-in", kChalkEdgeIn, 0.6f, kIronDim, 0.45, 1.2));
+    panel.child(rule("r-rune-out", kChalkRuneOut, 1.1f, kIron, 0.55, 1.3));
+    panel.child(rule("r-rune-in", kChalkRuneIn, 1.1f, kIron, 0.62, 1.3));
+    panel.child(rule("r-vox-out", kChalkVoxOut, 0.5f, kIronDim, 0.70, 1.2));
+    panel.child(rule("r-vox-in", kChalkVoxIn, 1.0f, kIron, 0.76, 1.3));
+    panel.child(rule("r-nom-out", kChalkNomOut, 1.2f, kIron, 0.86, 1.3));
+    panel.child(rule("r-nom-in", kChalkNomIn, 1.2f, kIron, 0.94, 1.3));
+    panel.child(rule("r-nom-case", kChalkNomCase, 0.5f, kIronDim, 1.02, 1.2));
 
-    // THE FAST LAYER: a 288-mark hairline ladder turning at seconds per
-    // revolution, against the figure inside it turning the other way.
-    // Counter-rotation is only legible as MECHANISM when the rates differ
-    // by enough to see in one glance, and the ladder is the layer that can
-    // afford it — it is cached geometry replayed under a bound transform,
-    // where the lettering it sits beside would have to re-place every
-    // glyph.
+    // THE DIVISION LADDERS: the serration at the rim, and three length
+    // classes inside it at two pitches — the density an engraved figure
+    // carries and a single ladder cannot. Different bands take different
+    // symmetry orders on purpose; a plate whose every ring counted twelve
+    // would read as one drawing rather than as several mechanisms.
+    panel.child(
+        ladder("teeth", 240, 12, rEdge, rEdgeIn, 0.7f, kIron, 0.5, 1.7));
+    // The ladder band is fenced like every other band and split in two:
+    // the still classes in its outer half, the turning one in its inner
+    // half, so two ladders never stamp the same mark. Every count is a
+    // multiple of the twelve the plate is built on, and the mid class is
+    // offset HALF A STEP from the long one so the two interleave instead
+    // of doubling up.
+    panel.child(rule("r-tick-mid", kChalkTickMid, 0.5f, kIronDim, 0.86, 1.2));
+    panel.child(ladder("ticks-long", kStations, 0, rTickOut, rTickMid - 0.028f,
+                       1.3f, kAshDim, 0.9, 1.4));
+    panel.child(ladder("ticks-mid", 24, 2, rTickOut, rTickMid - 0.010f, 0.9f,
+                       kIron, 0.9, 1.6, kPitch * 0.5f));
+    panel.child(ladder("ticks-short", 144, 6, rTickOut, rTickMid, 0.7f, kIron,
+                       0.9, 2.1));
+
+    // THE FAST LAYER: a hairline ladder in the band's inner half, turning
+    // at seconds per revolution against everything inside it. It is the
+    // layer that can afford the rate — cached geometry replayed under a
+    // bound transform, where the lettering it sits beside would have to
+    // re-place every glyph.
     panel.child(box()
                     .key("ladder-turn")
                     .absolute()
                     .inset(0)
                     .hitTestable(false)
-                    .rotate(bind(&ladderSpin).target(0.0f, 360.0f))
-                    .child(ladder("ticks-fine", 288, 4, rFineOut, rFineIn, 0.6f,
-                                  kIron, 0.9, 2.3)));
+                    .rotate(bind(&tickSpin).target(0.0f, 360.0f))
+                    .child(ladder("ticks-fine", 288, 6, rTickMid - 0.003f,
+                                  rTickIn, 0.6f, kIron, 1.1, 2.3)));
 
-    // The bands, hub, figures and roundels.
-    panel.child(corona());
+    // The bands the rules frame.
+    panel.child(invocatio());
+    panel.child(registrum());
     panel.child(nomina());
-    panel.child(smaragdina());
-    panel.child(minuscula());
-    panel.child(figure());
-    panel.child(hexagram());
-    for (int k = 0; k < 6; ++k) panel.child(satellite(k));
-    panel.child(emblemDisc());
-    panel.child(quadratum());
 
-    // The light that lands on the struck rules, group by group.
+    // The texture band and its own frame.
+    panel.child(rule("r-tex-out", kChalkTexOut, 0.9f, kIron, tTex - 0.5, 1.0));
+    panel.child(rule("r-tex-in", kChalkTexIn, 0.9f, kIron, tTex - 0.35, 1.0));
+    panel.child(rule("r-tex-case", kChalkTexCase, 0.5f, kIronDim, tTex, 1.0));
+    panel.child(
+        rule("r-serr-in", kChalkSerrIn, 0.5f, kIronDim, tTex + 0.15, 1.0));
+    panel.child(ladder("serration", 48, 4, rTexCase, rSerrIn, 0.7f, kIron,
+                       tTex + 0.1, 1.4, kPitch * 0.25f));
+    panel.child(textura());
+
+    // The turning layers, outside in.
+    panel.child(arcus());
+    panel.child(rule("r-env", kChalkEnv, 1.0f, kIron, tStar + 0.3, 1.0));
+    panel.child(
+        rule("r-env-in", kChalkEnvIn, 0.5f, kIronDim, tStar + 0.45, 1.0));
+    panel.child(stella());
+    panel.child(stellaInterior());
+    panel.child(limina());
+    for (int k = 0; k < kSeals; ++k) panel.child(sigillum(k));
+
+    // THE HUB'S OWN FRAME is struck with the inner compound, not with the
+    // emblem it will hold: the centre of a figure like this is never a
+    // hole waiting to be filled, and a plate whose middle is empty for
+    // eight seconds reads as unfinished rather than as forming.
+    panel.child(
+        rule("r-hub-out", kChalkHubOut, 1.6f, kIron, tInner - 0.4, 0.8));
+    panel.child(
+        rule("r-hub-in", kChalkHubIn, 0.6f, kIronDim, tInner - 0.3, 0.8));
+    panel.child(
+        rule("r-hub-case", kChalkHubCase, 0.9f, kIron, tInner - 0.2, 0.8));
+    panel.child(ladder("hub-teeth", 72, 6, rHubOut, rHubIn, 0.6f, kIronDim,
+                       tInner - 0.35, 0.9));
+    panel.child(
+        rule("r-hub-kern", kChalkHubKern, 0.7f, kIron, tInner + 0.1, 0.8));
+    panel.child(emblemDisc());
+    panel.child(emblema());
+    panel.child(monogramma());
+
+    // The light that lands on the struck rules, group by group. The ones
+    // that do not turn are painted here; the ones that do are painted
+    // inside the layers that turn them.
     panel.child(emissive("rim-lit", glows[kGlowRim], &litRim));
     panel.child(emissive("nom-lit", glows[kGlowNom], &litNom));
-    panel.child(emissive("hub-lit", glows[kGlowHub], &litHub));
+    panel.child(spur());
 
     // The embers: a live pool stamped as one draw, rising off the rim at
-    // ignition and drizzling for as long as the wheel is charged.
+    // ignition and drizzling for as long as the circle is charged.
     panel.child(box()
                     .key("embers")
                     .absolute()
@@ -1196,17 +1663,18 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
 
     // THE CREST'S FRINGE: half a second of the frame beneath re-sampled
     // with its channels pulled apart along the radius.
-    panel.child(box()
-                    .key("fringe")
-                    .absolute()
-                    .inset(0)
-                    .hitTestable(false)
-                    .backdrop(Effect::shader(fringeEffect(),
-                                             {{"uCx", 500.0f}, {"uCy", 500.0f}})
-                                  .uniform("uSpread", &fringeK))
-                    .opacity(&fringeA));
+    panel.child(
+        box()
+            .key("fringe")
+            .absolute()
+            .inset(0)
+            .hitTestable(false)
+            .backdrop(Effect::shader(fringeEffect(),
+                                     {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
+                          .uniform("uSpread", &fringeK))
+            .opacity(&fringeA));
 
-    // The scribe: the point of the pen, led round the rim by the writing
+    // The scribe: the point of the pen, led round the band by the writing
     // cascade — placed every frame from the schedule read back, so it
     // cannot drift from the letters it appears to write.
     panel.child(
@@ -1227,169 +1695,63 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     return panel;
   }
 
-  // ------------------------------------------------------------------
-  // the protocol column
-
-  [[nodiscard]] Element ledgerRow(int i, const char* numeral, const char* name,
-                                  const char* gloss, double from, double to) {
-    return box()
-        .key("stage" + std::to_string(i))
-        .row()
-        .gap(12)
-        .alignItems(Align::Baseline)
-        .opacity(beat(from, from + 0.45))
-        .child(text(toU8(std::string(numeral)), mono(12.0f, kGold, 1.0f))
-                   .width(44))
-        .child(
-            box()
-                .column()
-                .gap(4)
-                .grow(1)
-                .child(text(toU8(std::string(name)), label(12.5f, kBone, 2.8f)))
-                .child(
-                    text(toU8(std::string(gloss)), ital(11.5f, kAshDim, 0.4f)))
-                .child(box()
-                           .height(2)
-                           .width(pct(100))
-                           .fill(Fill::color(kIronDim))
-                           .child(box()
-                                      .height(2)
-                                      .width(pct(100))
-                                      .fill(Fill::color(kEmber))
-                                      .transformOrigin(0.0f, 0.5f)
-                                      .scaleX(beat(from, to)))
-                           // The column inherits the STRIKE and nothing
-                           // else: when a stage closes on the wheel its
-                           // rule takes the same flash the wheel took, so
-                           // the reader's eye is told where to look
-                           // without the ledger being lit like the figure.
-                           .child(box()
-                                      .absolute()
-                                      .inset(0)
-                                      .hitTestable(false)
-                                      .fill(Fill::color(kHalo))
-                                      .blend(SkBlendMode::kPlus)
-                                      .opacity(pulse(to, to + 0.55, 0.06)))));
-  }
-
-  /** The colophon: one paragraph, three registers by NAME — the planets
-   *  addressed by the treatment they were written in, breathing on GRAD
-   *  while the wheel turns — the numerals found by pattern, and a lozenge
-   *  MARKED at the word the whole wheel converges on. */
+  /** THE COLOPHON — two lines under the figure and nothing else. A circle
+   *  of this kind is the whole picture; a panel of commentary beside it
+   *  would be a diagram of a spell circle rather than one. */
   [[nodiscard]] Element colophon() {
-    sigil::weave::StyleSet set{ital(12.5f, kAsh, 0.4f)};
-    set.set("nomen", label(12.0f, kBone, 2.2f));
-    RichText copy = rich(set.base());
-    copy.styles(set)
-        .add(u8"Nine names gird the wheel; ")
-        .add(u8"SIX PLANETS", "nomen")
-        .add(u8" convene about ")
-        .add(u8"SOL", "nomen")
-        .add(
-            u8", whose square of 36 numerals binds every rank to 111. "
-            u8"Every start below is read off the cascade before it.");
-    return text(copy)
-        .mark(sel::text(u8"SOL"),
-              box()
-                  .key("m-sol")
-                  .left(pct(50))
-                  .top(pct(112))
-                  .width(6)
-                  .height(6)
-                  .shape(shapes::polygon(4))
-                  .fill(Fill::color(kGold))
-                  .opacity(beat(tIgnite + 0.9, tIgnite + 1.5)))
+    return box()
         .key("colophon")
-        .width(pct(100))
-        .spanPaint(sel::regex(u8"[0-9]+"),
-                   sigil::weave::PaintStyle(kGold.toSkColor()))
-        .fx({.where = sel::style("nomen"),
-             .effect = fx::axis("GRAD", 400.0f, 780.0f),
-             .stagger = stagger(
-                 unit::Word,
-                 {.eachMs = 90, .durationMs = 700, .beatsOver = beats::Text}),
-             .progress = bind(&secs).source(0.0f, 6.4f).cosine()})
-        .opacity(beat(tIgnite, tIgnite + 0.8));
-  }
-
-  [[nodiscard]] Element protocol() {
-    Element col =
-        box().key("protocol").column().grow(1).gap(16).padding(56, 64, 56, 46);
-    col.child(
-        text(toU8("ROTA EX LITTERIS CONVOCATA"), label(11.5f, kAshDim, 3.4f))
-            .key("eyebrow")
-            .opacity(beat(0.25, 0.85)));
-    col.child(
-        text(toU8("ROTA CONVOCATIONIS"), studio::type({.face = faceTitle,
-                                                       .size = 42.0f,
-                                                       .color = kBone,
-                                                       .track = 1.2f}))
-            .key("titulus")
-            .fx({.effect = fx::rise(18.0f),
-                 .stagger = {.eachMs = 0, .amountMs = 460, .durationMs = 540},
-                 .progress = beat(0.35, 1.8)}));
-    col.child(text(toU8("an invented conjuring wheel in the Solomonic and "
-                        "Agrippan idiom \xe2\x80\x94 it assembles, ring by "
-                        "ring, and is read in the order it forms"),
-                   ital(12.5f, kAsh, 0.3f))
-                  .key("subtitle")
-                  .width(pct(100))
-                  .opacity(beat(0.7, 1.4)));
-    col.child(box().height(6));
-
-    struct Stage {
-      const char* numeral;
-      const char* name;
-      const char* gloss;
-      double from, to;
-    };
-    const Stage stages[8] = {
-        {"I", "CIRCVLI", "the compass strikes the rules", 0.35, 2.1},
-        {"II", "CORONA", "the invocation, letter by letter round the rim",
-         tBand, tBand + bandSpanS},
-        {"III", "NOMINA", "nine names of the first circle rise", tNames,
-         tNames + namesSpanS},
-        {"IIII", "SMARAGDINA", "the tablet's words, minuscule and still",
-         tGloss, tGloss + glossSpanS},
-        {"V", "HEXAGRAMMA", "six chords carry six days", tHex,
-         capAt[5] + capSpanS},
-        {"VI", "PLANETAE", "the roundels convene, each in its turn", tSat[0],
-         tSat[5] + satSpanS + 0.25},
-        {"VII", "QVADRATVM", "the square of the Sun resolves", tSquare,
-         tSquare + squareSpanS},
-        {"VIII", "IGNITIO", "the charge runs the names; the wheel turns",
-         tIgnite, tIgnite + 2.6},
-    };
-    for (int i = 0; i < 8; ++i)
-      col.child(ledgerRow(i, stages[i].numeral, stages[i].name, stages[i].gloss,
-                          stages[i].from, stages[i].to));
-
-    col.child(box().grow(1));
-    col.child(colophon());
-    col.child(text(toU8(std::to_string(totalGlyphs) +
-                        " GLYPHS IN THE FIGVRE \xc2\xb7 15 CVRVED BASELINES "
-                        "\xc2\xb7 EVERY START CHAINED FROM A SPAN, NONE FITTED "
-                        "BY HAND"),
-                   label(9.5f, kAshDim, 2.4f))
-                  .key("colophon-2")
-                  .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
-    return col;
+        .absolute()
+        .left(0)
+        .right(0)
+        .bottom(26)
+        .column()
+        .alignItems(Align::Center)
+        .gap(7)
+        .hitTestable(false)
+        .child(text(toU8("ROTA CONVOCATIONIS"), label(12.0f, kAshDim, 5.2f))
+                   .key("titulus")
+                   // A lozenge stands at the word the whole figure
+                   // converges on, anchored to the rect the selector
+                   // resolves rather than to a number a caller measured.
+                   .mark(sel::text(u8"ROTA"),
+                         box()
+                             .key("m-rota")
+                             .left(pct(50))
+                             .top(pct(126))
+                             .width(5)
+                             .height(5)
+                             .shape(shapes::polygon(4))
+                             .fill(Fill::color(kGold))
+                             .opacity(beat(tIgnite + 0.9, tIgnite + 1.5)))
+                   .fx({.effect = fx::rise(10.0f),
+                        .stagger = {.eachMs = 0,
+                                    .amountMs = 420,
+                                    .durationMs = 520},
+                        .progress = beat(0.35, 1.8)}))
+        .child(text(toU8(std::to_string(totalGlyphs) +
+                         " GLYPHS \xc2\xb7 17 CVRVED BASELINES \xc2\xb7 9 "
+                         "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
+                         "SPAN, NONE FITTED BY HAND"),
+                    label(8.5f, studio::hex(0x8A8299, 0.42f), 2.4f))
+                   .key("colophon-2")
+                   .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
   }
 
   [[nodiscard]] Element describe() {
     return stack()
-        .fill(Material::glowUnit({0.3125f, 0.5f}, 0.9f,
+        .fill(Material::glowUnit({0.5f, 0.5f}, 0.9f,
                                  {{0.0f, kNightLift}, {1.0f, kNight}}))
         .child(box()
-                   .row()
                    .absolute()
                    .inset(0)
                    .opacity(envelope())
-                   // The charged wheel breathes: under a percent of scale,
-                   // which is not a size change so much as the reading that
-                   // a finished circle is holding something in.
+                   // The charged circle breathes: under a percent of
+                   // scale, which is not a size change so much as the
+                   // reading that a finished circle is holding something
+                   // in.
                    .child(wheel().scale(&humScale))
-                   .child(protocol()));
+                   .child(colophon()));
   }
 
   // ------------------------------------------------------------------
@@ -1401,133 +1763,151 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     faceRing = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
     faceRingBold =
         studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceTitle =
-        studio::pickFace({"Iowan Old Style", "Charter", "Georgia"}, 600);
-    faceItal = studio::pickFace({"Iowan Old Style", "Charter", "Georgia"}, 400,
-                                SkFontStyle::kItalic_Slant);
     faceMono = studio::pickFace({"Menlo", "SF Mono", "Courier New"}, 500);
 
     // ---- content, fitted to its own bands --------------------------------
-    coronaText = "+ ";
+    voxText = "+ ";
     for (int i = 0; i < 8; ++i) {
-      coronaText += kInvocatio[i];
-      coronaText += i < 7 ? " + " : " ";
+      voxText += kInvocatio[i];
+      voxText += i < 7 ? " + " : " ";
     }
-    nominaText.clear();
+    nomText.clear();
     for (const char* n : kNames) {
-      nominaText += n;
-      nominaText += " \xc2\xb7 ";
+      nomText += n;
+      nomText += " \xc2\xb7 ";
     }
-    glossText = kSmaragdina;
-    microText = std::string(kSmaragdina) + kSmaragdina;
-    coronaSize =
-        fitToRing(ctx, coronaText, ring(18, kBone, 2.2f), rCorona * kR);
-    nominaSize =
-        fitToRing(ctx, nominaText, ring(30, kGold, 4.2f), rNomina * kR);
-    glossSize =
-        fitToRing(ctx, glossText, ital(15, kVerdigris, 1.1f), rGloss * kR);
-    microSize =
-        fitToRing(ctx, microText, ital(8, kAshDim, 0.0f), rMicro * kR, 0.995f);
-    for (int k = 0; k < 6; ++k) {
-      satText[k] = std::string(kPlanets[k].planet) + " \xc2\xb7 " +
-                   kPlanets[k].angel + " \xc2\xb7 TABVLA " + kPlanets[k].ordo +
-                   " \xc2\xb7 ";
-      satSize[k] =
-          fitToRing(ctx, satText[k], ring(12, kBone, 1.8f), kSatRing, 0.97f);
-    }
+    // THREE SIZES OF SCRIPT, and the ratio between them is the plate's
+    // depth: the names are the main register, the invocation and the
+    // rune band flank it at roughly half, and the texture band runs at
+    // roughly a quarter — small enough that it stops being letters and
+    // becomes the grain the disc is made of. Every band is FITTED to its
+    // own circumference, so the word counts below are how the sizes are
+    // set: fewer, longer words make bigger letters.
+    runeText = deal(0x5EED1, 34, 3, 6);
+    texText = deal(0x5EED2, 84, 2, 5, true);
+    hubRuneText = deal(0x5EED3, 6, 2, 2);
+    emblemText = deal(0x5EED4, 1, 3, 3);
+    spurText = deal(0x5EED5, 1, 1, 1);
+    spurText.pop_back();  // one letterform, and no trailing space
+    for (int k = 0; k < kSeals; ++k)
+      sealText[k] = std::string(kSealTable[k].nomen) + " \xc2\xb7 " +
+                    deal(0x5EE00u + (uint32_t)k, 1, 3, 4) + "\xc2\xb7 ";
 
-    // ---- the rim's cue table: writing pace, pausing at each cross --------
-    coronaCues.clear();
-    coronaWords = 0;
-    coronaMaxWord = 1;
+    voxSize = fitToRing(ctx, voxText, ring(18, kBone, 2.2f), rVox * kR);
+    runeSize = fitToRing(ctx, runeText, rune(20, kRuneInk, 2.0f), rRune * kR);
+    nomSize = fitToRing(ctx, nomText, ring(30, kGold, 4.2f), rNom * kR);
+    texSize = fitToRing(ctx, texText, rune(9, kAsh, 0.0f), rTex * kR, 0.995f);
+    for (int k = 0; k < kSeals; ++k)
+      sealSize[k] =
+          fitToRing(ctx, sealText[k], ring(11, kBone, 1.4f), kSealRing, 0.97f);
+
+    // ---- the writing cue table: pace, pausing at each cross --------------
+    voxCues.clear();
+    voxWords = 0;
+    voxMaxWord = 1;
     {
       float t = 0.0f;
       size_t i = 0;
-      while (i < coronaText.size()) {
-        while (i < coronaText.size() && coronaText[i] == ' ') ++i;
-        if (i >= coronaText.size()) break;
+      while (i < voxText.size()) {
+        while (i < voxText.size() && voxText[i] == ' ') ++i;
+        if (i >= voxText.size()) break;
         size_t j = i;
-        while (j < coronaText.size() && coronaText[j] != ' ') ++j;
-        coronaCues.push_back(t);
-        ++coronaWords;
-        coronaMaxWord = std::max(coronaMaxWord, (int)(j - i));
+        while (j < voxText.size() && voxText[j] != ' ') ++j;
+        voxCues.push_back(t);
+        ++voxWords;
+        voxMaxWord = std::max(voxMaxWord, (int)(j - i));
         t += kStepMs;
-        if (coronaText[i] == '+') t += kCrossMs;
+        if (voxText[i] == '+') t += kCrossMs;
         i = j;
       }
     }
 
     // ---- the timeline, every window chained from a span ------------------
-    bandSpanS =
-        coronaCascade().spanMs((uint32_t)coronaWords, (uint32_t)coronaMaxWord) /
-        1000.0f;
+    voxSpanS =
+        voxCascade().spanMs((uint32_t)voxWords, (uint32_t)voxMaxWord) / 1000.0f;
+    runeSpanS = stagger(unit::Cluster, {.eachMs = 7,
+                                        .durationMs = 420,
+                                        .from = Stagger::From::Random,
+                                        .seed = 17})
+                    .spanMs((uint32_t)glyphsOf(runeText)) /
+                1000.0f;
     {
       Stagger form = stagger(unit::Word, {.amountMs = 1900});
       form.then(unit::Cluster, {.eachMs = 24, .durationMs = 420});
-      namesSpanS = form.spanMs(18, 14) / 1000.0f;
+      nomSpanS = form.spanMs(18, 14) / 1000.0f;
     }
-    glossSpanS = stagger(unit::Cluster, {.eachMs = 13, .durationMs = 380})
-                     .spanMs((uint32_t)glyphsOf(glossText)) /
-                 1000.0f;
-    microSpanS = stagger(unit::Cluster, {.eachMs = 4,
-                                         .durationMs = 300,
-                                         .from = Stagger::From::Random,
-                                         .seed = 61})
-                     .spanMs((uint32_t)glyphsOf(microText)) /
-                 1000.0f;
-    capSpanS =
-        stagger(unit::Cluster, {.eachMs = 34, .durationMs = 120}).spanMs(13) /
-        1000.0f;
-    satSpanS = stagger(unit::Cluster, {.eachMs = 34, .durationMs = 520})
-                   .spanMs((uint32_t)glyphsOf(satText[0])) /
+    texSpanS = stagger(unit::Cluster, {.eachMs = 4,
+                                       .durationMs = 300,
+                                       .from = Stagger::From::Random,
+                                       .seed = 61})
+                   .spanMs((uint32_t)glyphsOf(texText)) /
                1000.0f;
-    {
-      Stagger rows = stagger(unit::Line, {.eachMs = 170});
-      rows.then(unit::Cluster, {.eachMs = 46, .durationMs = 560});
-      squareSpanS = rows.spanMs(6, 12) / 1000.0f;
-    }
+    limenSpanS =
+        stagger(unit::Cluster, {.eachMs = 30, .durationMs = 120}).spanMs(15) /
+        1000.0f;
+    sealSpanS = stagger(unit::Cluster, {.eachMs = 30, .durationMs = 480})
+                    .spanMs((uint32_t)glyphsOf(sealText[0])) /
+                1000.0f;
+    hubSpanS =
+        stagger(unit::Cluster, {.eachMs = 240, .durationMs = 760}).spanMs(3) /
+        1000.0f;
+    // THE SHIMMER'S PERIOD is the span the same ladder would take as a
+    // one-shot — read off a NON-looping copy, because a looping cascade
+    // answers its own period when asked for its span and would only tell
+    // this back what it was already given.
+    shimmerS = stagger(unit::Cluster, {.eachMs = 26, .durationMs = 620})
+                   .spanMs((uint32_t)glyphsOf(runeText)) /
+               1000.0f;
 
-    tBand = 1.1;
-    tNames = tBand + bandSpanS * 0.62;
-    tGloss = tNames + namesSpanS * 0.58;
-    tHex = tGloss + glossSpanS * 0.72;
-    for (int k = 0; k < 6; ++k) capAt[k] = tHex + 0.55 + k * capSpanS * 0.72;
-    tSat[0] = capAt[2];
-    for (int k = 1; k < 6; ++k) tSat[k] = tSat[k - 1] + satSpanS * kSatBeat;
-    tSquare = tSat[5] + satSpanS * 0.8;
-    tIgnite = tSquare + squareSpanS + 0.4;
+    tVox = 1.2;
+    tRune = tVox + voxSpanS * 0.46;
+    tNames = tRune + runeSpanS * 0.62;
+    tTex = tNames + nomSpanS * 0.52;
+    tArc = tTex + texSpanS * 0.55;
+    tStar = tArc + 1.5;
+    tInner = tStar + 1.4;
+    for (int k = 0; k < kSeals; ++k)
+      limenAt[k] = tInner + 0.5 + k * limenSpanS * 0.62;
+    tSeal[0] = limenAt[2];
+    for (int k = 1; k < kSeals; ++k)
+      tSeal[k] = tSeal[k - 1] + sealSpanS * kSealBeat;
+    tHub = tSeal[kSeals - 1] + sealSpanS * 0.85;
+    tIgnite = tHub + hubSpanS + 0.5;
     loopSecs = tIgnite + 2.6 + 2.8 + 1.6;
 
-    // Mid-cycle among the roundels: rings and hexagram formed, three
-    // roundels lit, one forming — the frame where the assembly reads.
-    ctx.captureAt(tSat[3] + satSpanS * 0.55);
+    // Mid-cycle among the seals: every band written, both compounds
+    // struck, three seals lit, one forming — the frame where the assembly
+    // reads.
+    ctx.captureAt(tSeal[3] + sealSpanS * 0.55);
 
     // The chained timeline, printed: every number below came out of a
     // span, and this is where to read what the chaining resolved to.
     std::fprintf(stderr,
-                 "[rota] corona %.2f+%.2fs  nomina %.2f+%.2fs  tablet "
-                 "%.2f+%.2fs  hex %.2f  roundels %.2f..%.2f (+%.2fs each)  "
-                 "square %.2f+%.2fs  ignition %.2f  loop %.2fs\n",
-                 tBand, bandSpanS, tNames, namesSpanS, tGloss, glossSpanS, tHex,
-                 tSat[0], tSat[5], satSpanS, tSquare, squareSpanS, tIgnite,
+                 "[rota] vox %.2f+%.2fs  register %.2f+%.2fs (shimmer %.2fs)  "
+                 "nomina %.2f+%.2fs  textura %.2f+%.2fs  arcs %.2f  stars "
+                 "%.2f/%.2f  seals %.2f..%.2f (+%.2fs each)  emblem %.2f+%.2fs "
+                 " ignition %.2f  loop %.2fs\n",
+                 tVox, voxSpanS, tRune, runeSpanS, shimmerS, tNames, nomSpanS,
+                 tTex, texSpanS, tArc, tStar, tInner, tSeal[0],
+                 tSeal[kSeals - 1], sealSpanS, tHub, hubSpanS, tIgnite,
                  loopSecs);
 
-    totalGlyphs = glyphsOf(coronaText) + glyphsOf(nominaText) +
-                  glyphsOf(glossText) + glyphsOf(microText) +
-                  glyphsOf(kSolSquare);
-    for (int k = 0; k < 6; ++k)
-      totalGlyphs += glyphsOf(satText[k]) + glyphsOf(kPlanets[k].ordo) +
-                     glyphsOf(kPlanets[k].dies);
+    totalGlyphs = glyphsOf(voxText) + glyphsOf(runeText) + glyphsOf(nomText) +
+                  glyphsOf(texText) + glyphsOf(hubRuneText) +
+                  glyphsOf(emblemText) + glyphsOf(spurText);
+    for (int k = 0; k < kSeals; ++k)
+      totalGlyphs += glyphsOf(sealText[k]) + glyphsOf(kSealTable[k].ordo) +
+                     glyphsOf(kSealTable[k].limen);
 
     bakeGeometry();
     ctx.composer.render(describe());
   }
 
   // ------------------------------------------------------------------
-  /** Everything the wheel draws that is a PATH rather than a box, cooked
+  /** Everything the figure draws that is a PATH rather than a box, cooked
    *  once before the first describe and never touched again: the chalk's
-   *  wobble, each lighting group's unioned emissive stack, and the
-   *  hexagram's morph ladder. All of it is content-static, which is what
+   *  wobble, each lighting group's unioned emissive stack, and the outer
+   *  compound's morph ladder. All of it is content-static, which is what
    *  entitles the nodes that wear it to record once and replay under
    *  bound transforms and bound gains for the rest of the loop. */
   void bakeGeometry() {
@@ -1535,56 +1915,124 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     namespace geom = sigil::shape;
 
     chalk.assign((size_t)kChalkCount, SkPath());
-    chalk[kChalkRimOut] = chalkRing(rRimOut, 11);
-    chalk[kChalkRimCase] = chalkRing(rRimCase, 23);
-    chalk[kChalkRimIn] = chalkRing(rRimIn, 37);
-    chalk[kChalkNomIn] = chalkRing(rNomIn, 53);
-    chalk[kChalkNomCase] = chalkRing(rNomCase, 71);
-    chalk[kChalkMicroOut] = chalkRing(rMicroOut, 89);
-    chalk[kChalkMicroIn] = chalkRing(rMicroIn, 101);
-    chalk[kChalkHub] = chalkRing(rHub, 113);
+    auto chalkRing = [&](int slot, float rNorm, uint32_t seed) {
+      chalk[(size_t)slot] = chalked(ringPath(rNorm), seed);
+    };
+    chalkRing(kChalkEdge, rEdge, 11);
+    chalkRing(kChalkEdgeIn, rEdgeIn, 23);
+    chalkRing(kChalkRuneOut, rRuneOut, 37);
+    chalkRing(kChalkRuneIn, rRuneIn, 53);
+    chalkRing(kChalkVoxOut, rVoxOut, 71);
+    chalkRing(kChalkVoxIn, rVoxIn, 89);
+    chalkRing(kChalkTickMid, rTickMid, 97);
+    chalkRing(kChalkNomOut, rNomOut, 101);
+    chalkRing(kChalkNomIn, rNomIn, 113);
+    chalkRing(kChalkNomCase, rNomCase, 127);
+    chalkRing(kChalkTexOut, rTexOut, 139);
+    chalkRing(kChalkTexIn, rTexIn, 151);
+    chalkRing(kChalkTexCase, rTexCase, 163);
+    chalkRing(kChalkSerrIn, rSerrIn, 167);
+    chalkRing(kChalkEnv, rEnv, 173);
+    chalkRing(kChalkEnvIn, rEnvIn, 181);
+    chalkRing(kChalkHubOut, rHubOut, 191);
+    chalkRing(kChalkHubIn, rHubIn, 197);
+    chalkRing(kChalkHubCase, rHubCase, 211);
+    chalkRing(kChalkHubKern, rHubKern, 217);
 
-    // The figure: the {6/2} star's chords, and six spokes running out to
-    // its vertices from just clear of the hub rule, so nothing in this
-    // group crosses anything in another one.
-    kit::Frame frame{.centre = kEye, .radius = kR};
-    const SkPath hex = kit::chords(
-        frame, {.sides = 6, .step = 2, .radius = rHex, .closed = true});
-    SkPathBuilder spokes;
-    for (int k = 0; k < 6; ++k) {
-      spokes.moveTo(P((float)k * 60.0f, rHub + 0.02f));
-      spokes.lineTo(P((float)k * 60.0f, rHex));
+    // THE FIGURES. A star compound is `kit::chords` with a step: twelve
+    // stations stepped by three is three squares, stepped by four is four
+    // triangles, and the library returns exactly gcd(sides, step) closed
+    // rings rather than treating the non-coprime case as an error.
+    const kit::Frame frame{.centre = kEye, .radius = kR};
+    const SkPath star = kit::chords(
+        frame,
+        {.sides = kStations, .step = 3, .radius = rStar, .closed = true});
+    const SkPath inner = kit::chords(
+        frame,
+        {.sides = kStations, .step = 4, .radius = rInner, .closed = true});
+    const SkPath hexagram = kit::chords(
+        frame, {.sides = 6, .step = 2, .radius = rHexagram, .closed = true});
+    // The arcs: two rings of twelve, each arc short of its own pitch, the
+    // inner ring turned half a pitch so the pair reads as a mechanism and
+    // not as two circles.
+    const SkPath arcs = [&] {
+      SkPathBuilder b;
+      b.addPath(arcRing(rArcOut, kStations, kPitch * 0.80f, 0.0f));
+      b.addPath(arcRing(rArcIn, kStations, kPitch * 0.62f, kPitch * 0.5f));
+      return b.detach();
+    }();
+    arcSpokes = spokeRing(kStations, rArcIn, rArcOut, kPitch * 0.5f);
+    arcNodes = nodeRing(kStations, (rArcIn + rArcOut) * 0.5f, 5.0f, 0.0f);
+    starSpokes = spokeRing(kStations, rEnv, rStar, 0.0f);
+    starNodes = nodeRing(kStations, rStar, 9.0f, 0.0f);
+    innerSpokes = spokeRing(kStations, rHubOut, rInner, kPitch * 0.5f);
+    hubDots = nodeRing(6, rHubKern, 4.0f, kPitch);
+    // A DASHED RING is a ring at a duty cycle: sixty marks of a little
+    // under half a pitch each, which the eye reads as broken rather than
+    // as sixty things.
+    const SkPath dashed =
+        arcRing(rNomCase - 0.010f, 60, (360.0f / 60.0f) * 0.44f, 0.0f);
+    // THE CRESCENTS: three, where everything else counts twelve.
+    const SkPath crescents =
+        crescentRing(rCrescOut, rCrescIn, 3, 66.0f, kPitch * 2.5f, 6);
+    // THE OFF-ORDER MARK: one medallion straddling the outermost rule at
+    // twelve o'clock, cutting the serration and the register alike. A
+    // plate that is perfectly regular everywhere reads as a pattern; one
+    // mark that obeys nothing is what makes the rest read as a drawing.
+    {
+      const SkPoint c = P(0.0f, rEdge);
+      SkPathBuilder b;
+      b.addOval(SkRect::MakeLTRB(c.fX - kSpurR, c.fY - kSpurR, c.fX + kSpurR,
+                                 c.fY + kSpurR));
+      const float ri = kSpurR * 0.60f;
+      b.addOval(SkRect::MakeLTRB(c.fX - ri, c.fY - ri, c.fX + ri, c.fY + ri));
+      spurRules = b.detach();
     }
-    const SkPath spokePath = spokes.detach();
-    chalk[kChalkHex] =
-        ops::Roughen{.amplitude = 0.9f, .segmentPx = 40.0f, .seed = 127}(hex);
-    chalk[kChalkSpokes] = ops::Roughen{
-        .amplitude = 0.7f, .segmentPx = 46.0f, .seed = 139}(spokePath);
 
+    chalk[kChalkArcs] = chalked(arcs, 223, 0.9f);
+    chalk[kChalkDash] = chalked(dashed, 239, 0.6f);
+    chalk[kChalkCresc] = chalked(crescents, 241, 0.8f);
+    chalk[kChalkStar] = chalked(star, 227, 0.9f);
+    chalk[kChalkInner] = chalked(inner, 229, 0.8f);
+    chalk[kChalkHexagram] = chalked(hexagram, 233, 0.6f);
+
+    // THE LIGHTING GROUPS. Each is a set of lines that ignite together
+    // and turn together; nothing in one crosses anything in another,
+    // which is the invariant that lets seven unions be rotated
+    // independently and still add cleanly.
     glows.assign((size_t)kGlowCount, Glow{});
-    glows[kGlowRim] = bakeGlow({ringPath(rRimOut), ringPath(rRimIn)}, 0.9f);
-    glows[kGlowNom] = bakeGlow({ringPath(rNomIn)}, 0.7f);
-    glows[kGlowHex] = bakeGlow({hex, spokePath}, 0.85f);
-    glows[kGlowHub] = bakeGlow({ringPath(rHub)}, 0.8f);
+    glows[kGlowRim] = bakeGlow({ringPath(rEdge), ringPath(rEdgeIn),
+                                ringPath(rRuneOut), ringPath(rRuneIn)},
+                               0.85f);
+    glows[kGlowNom] =
+        bakeGlow({ringPath(rVoxIn), ringPath(rNomOut), ringPath(rNomIn)}, 0.7f);
+    glows[kGlowArc] = bakeGlow({arcs, arcSpokes, arcNodes, dashed}, 0.7f);
+    glows[kGlowStar] =
+        bakeGlow({star, starSpokes, starNodes, crescents}, 0.85f);
+    glows[kGlowInner] = bakeGlow({inner, innerSpokes}, 0.75f);
+    glows[kGlowHub] = bakeGlow({ringPath(rHubOut), ringPath(rHubCase),
+                                ringPath(rHubKern), hexagram, hubDots},
+                               0.8f);
+    glows[kGlowSpur] = bakeGlow({spurRules}, 0.8f);
 
     // THE STRIKE-MORPH: the light arrives as a scribble and resolves onto
     // the true figure. Both ends are resampled to the same point count on
     // the same arc-length parameterisation and the ladder is the lerp
-    // between them, so step 0 is the scribble, the last step is the chords
-    // exactly, and nothing in between has to be computed again.
+    // between them, so step 0 is the scribble, the last step is the
+    // compound exactly, and nothing in between has to be computed again.
     constexpr int kSteps = 10;
-    constexpr int kSamples = 220;
+    constexpr int kSamples = 200;
     const SkPath scribble =
-        ops::Roughen{.amplitude = 13.0f, .segmentPx = 16.0f, .seed = 211}(hex);
+        ops::Roughen{.amplitude = 15.0f, .segmentPx = 16.0f, .seed = 211}(star);
     const std::vector<geom::Sampled> from = geom::resample(scribble, kSamples);
-    const std::vector<geom::Sampled> to = geom::resample(hex, kSamples);
-    hexSteps.assign((size_t)kSteps, SkPath());
+    const std::vector<geom::Sampled> to = geom::resample(star, kSamples);
+    starSteps.assign((size_t)kSteps, SkPath());
     for (int i = 0; i < kSteps; ++i) {
       const float t = (float)i / (float)(kSteps - 1);
       SkPathBuilder b;
       for (size_t c = 0; c < to.size() && c < from.size(); ++c)
         b.addPath(geom::toPath(geom::lerp(from[c], to[c], t), true));
-      hexSteps[(size_t)i] = b.detach();
+      starSteps[(size_t)i] = b.detach();
     }
 
     // THE EMBERS: one cell baked from a soft dot, and a pool the ticker
@@ -1607,8 +2055,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  rather than declared as a window each: the cross-fade that lands the
    *  light on a struck rule, the flash the strike itself throws — up in
    *  two frames, down over half a second, the shape a hot thing has and a
-   *  fade does not — and, once the wheel is charged, the breath that keeps
-   *  it from ever reading as a finished picture again. */
+   *  fade does not — and, once the circle is charged, the breath that
+   *  keeps it from ever reading as a finished picture again. */
   float strike(double tc, double at, float rest) const {
     if (tc < at) return 0.0f;
     const double since = tc - at;
@@ -1632,21 +2080,24 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
 
   /** Every gain the fire drives, plus the ember pool. */
   void stepFire(double tc) {
-    litRim = strike(tc, tBand + bandSpanS, 0.34f);
-    litNom = strike(tc, tNames + namesSpanS, 0.30f);
-    litHex = strike(tc, tHex + 1.1, 0.44f);
-    litHub = strike(tc, tSquare + squareSpanS * 0.9, 0.46f);
-    for (int k = 0; k < 6; ++k)
-      litSat[k] = strike(tc, tSat[k] + 0.25 + satSpanS, 0.30f);
+    litRim = strike(tc, tVox + voxSpanS, 0.34f);
+    litNom = strike(tc, tNames + nomSpanS, 0.30f);
+    litArc = strike(tc, tArc + 1.1, 0.30f);
+    litSpur = strike(tc, tVox + voxSpanS * 0.5, 0.30f);
+    litStar = strike(tc, tStar + 1.1, 0.42f);
+    litInner = strike(tc, tInner + 1.1, 0.36f);
+    litHub = strike(tc, tHub + hubSpanS * 0.9, 0.46f);
+    for (int k = 0; k < kSeals; ++k)
+      litSeal[k] = strike(tc, tSeal[k] + 0.25 + sealSpanS, 0.30f);
 
-    // The morph walks its ladder over the strike's own half-second.
-    const double morphAt = tHex + 1.1;
-    // The walk runs from one step BEFORE the first to one PAST the last,
-    // so the ladder is dark at both ends: nothing of the scribble stands
-    // on the plate before the strike, and nothing of it is left behind
-    // when the emissive stack takes the figure over.
+    // The morph walks its ladder over the strike's own half-second. The
+    // walk runs from one step BEFORE the first to one PAST the last, so
+    // the ladder is dark at both ends: nothing of the scribble stands on
+    // the plate before the strike, and nothing of it is left behind when
+    // the emissive stack takes the figure over.
+    const double morphAt = tStar + 1.1;
     morphStep = -1.0f + (float)(std::clamp((tc - morphAt) / 0.78, 0.0, 1.0) *
-                                (double)(hexSteps.size() + 1));
+                                (double)(starSteps.size() + 1));
 
     // IGNITION IS FULL-FRAME. The rays are the widest and the shortest,
     // the flood the deepest, the fringe half a second at the crest alone.
@@ -1667,7 +2118,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   }
 
   /** THE EMBERS: seeded on the rim, thrown up at ignition, then a sparse
-   *  drizzle for as long as the wheel is charged. Each spark is a pure
+   *  drizzle for as long as the circle is charged. Each spark is a pure
    *  function of its index and the time since ignition, so the pool needs
    *  no per-frame state and the loop's wrap re-deals it exactly. */
   void stepEmbers(double tc) {
@@ -1691,7 +2142,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
       // Struck off the RIM and rising: the sparks belong to the edge of
       // the figure, not to the field it encloses, and lettering is not
       // improved by fireflies over it.
-      const float r = kR * (0.905f + 0.10f * seed);
+      const float r = kR * (0.90f + 0.10f * seed);
       const float sway = std::sin(age * 1.9f + seed * 6.28f) * 13.0f;
       positions[(size_t)i] = {kEye.x() + r * std::sin(th) + sway,
                               kEye.y() - r * std::cos(th) - t * 190.0f};
@@ -1708,48 +2159,55 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     cycle = (float)tc;
     secs = (float)elapsed;
 
-    // THE WHEEL'S TURNING, phased so nothing moves until it has formed,
-    // and RATED so the counter-rotation is legible. The periods are
-    // seconds per revolution and not minutes, because a rate the eye
-    // cannot resolve in one glance is not mechanism, it is drift: the
-    // geometry layers take the fast rates, the lettering the slow ones,
-    // and neighbours turn opposite ways.
-    const double namesOn = tNames + namesSpanS;
-    nominaDrift =
-        (float)(tc > namesOn ? std::fmod((tc - namesOn) / 78.0, 1.0) : 0.0);
-    coronaDrift =
-        (float)(tc > tIgnite ? 1.0 - std::fmod((tc - tIgnite) / 118.0, 1.0)
-                             : 0.0);
-    microDrift =
-        (float)(tc > tGloss ? 1.0 - std::fmod((tc - tGloss) / 46.0, 1.0) : 0.0);
-    ladderSpin = (float)std::fmod(std::max(0.0, tc - 2.1) / 21.0, 1.0);
-    const double figureOn = tHex + 1.3;
-    hexSpin =
-        (float)(tc > figureOn ? 1.0 - std::fmod((tc - figureOn) / 34.0, 1.0)
-                              : 0.0);
-    for (int k = 0; k < 6; ++k) {
-      const double on = tSat[k] + 0.25 + satSpanS;
-      const double turn = tc > on ? (tc - on) / (k % 2 ? -17.0 : 17.0) : 0.0;
-      satDrift[k] = (float)(turn - std::floor(turn));
-      const double spinOn = tSat[k] + 0.3;
-      const double spin =
-          tc > spinOn ? (tc - spinOn) / (k % 2 ? 12.0 : -12.0) : 0.0;
-      satSpin[k] = (float)(spin - std::floor(spin));
+    // THE TURNING, phased so nothing moves until it has formed, and RATED
+    // so the counter-rotation is legible: every period below is SECONDS
+    // per revolution and not minutes, because a rate the eye cannot
+    // resolve in one glance is not mechanism, it is drift. No two layers
+    // share a period and NEIGHBOURS TURN OPPOSITE WAYS — that pairing, not
+    // the absolute speed, is what makes the plate read as a train of gears
+    // rather than as a picture being spun. Geometry takes the fast
+    // periods, lettering the slow ones: a ladder is cached geometry
+    // replayed under a bound transform, where a ring of type has to
+    // re-place every glyph.
+    auto turn = [&](double on, double period) {
+      if (tc <= on) return 0.0f;
+      const double p = (tc - on) / period;
+      return (float)(p - std::floor(p));
+    };
+    const double runeOn = tRune + runeSpanS;
+    const double namesOn = tNames + nomSpanS;
+    tickSpin = turn(2.3, 19.0);
+    runeDrift = turn(runeOn, -96.0);
+    voxDrift = turn(tIgnite, 132.0);
+    nomDrift = turn(namesOn, -84.0);
+    texDrift = turn(tTex + texSpanS, 52.0);
+    arcSpin = turn(tArc + 1.2, -44.0);
+    starSpin = turn(tStar + 1.3, 31.0);
+    innerSpin = turn(tInner + 1.3, -17.0);
+    hexSpin = turn(tHub + hubSpanS, 62.0);
+    // The shimmer is pinned at exactly 0 until the register is written,
+    // where every glyph rests at its landed deviation and the crest is
+    // nowhere; after that it wraps forever on the cascade's own period.
+    runePhase = tc > runeOn ? turn(runeOn, shimmerS) : 0.0f;
+    for (int k = 0; k < kSeals; ++k) {
+      const double on = tSeal[k] + 0.25 + sealSpanS;
+      sealDrift[k] = turn(on, k % 2 ? -15.0 : 15.0);
+      sealSpin[k] = turn(tSeal[k] + 0.3, k % 2 ? 11.0 : -11.0);
     }
 
     stepFire(tc);
 
     // The scribe, placed from the schedule read back: the most recently
-    // opened beat of the rim's writing cascade is where the pen is.
+    // opened beat of the writing cascade is where the pen is.
     float bestStart = -1.0f;
     SkRect at = SkRect::MakeEmpty();
-    for (const Beat& b : ctx.composer.beatsOf("corona", 0))
+    for (const Beat& b : ctx.composer.beatsOf("vox", 0))
       if (b.localT > 0.0f && b.localT < 1.0f && b.startMs > bestStart) {
         bestStart = b.startMs;
         at = b.rect;
       }
     const bool writing =
-        bestStart >= 0.0f && tc > tBand && tc < tBand + (double)bandSpanS;
+        bestStart >= 0.0f && tc > tVox && tc < tVox + (double)voxSpanS;
     if (writing) {
       scribeX = at.centerX();
       scribeY = at.centerY();
