@@ -597,6 +597,15 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   return beats;
 }
 
+float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end()) return 0.0f;
+  // Logically const: resolving a schedule fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  return impl.cascadeSpanOfTrack(*it->second, trackIndex);
+}
+
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).

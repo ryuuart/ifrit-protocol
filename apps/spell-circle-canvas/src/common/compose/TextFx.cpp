@@ -248,6 +248,14 @@ Stagger cues(std::vector<float> startMs, Stagger spec) {
   return spec;
 }
 
+float Stagger::spanMs(uint32_t unitCount, uint32_t innerUnitCount) const {
+  // The one arithmetic: the same resolved-cascade body the painter and the
+  // mounted queries run, handed its counts directly instead of a layout.
+  detail::Cascade cascade;
+  cascade.build(*this, unitCount, innerUnitCount);
+  return cascade.totalMs;
+}
+
 // ---------------------------------------------------------------------------
 // The per-walk structure every track shares
 

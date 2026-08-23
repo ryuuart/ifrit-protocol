@@ -46,9 +46,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -338,14 +340,25 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   }
 
   Element title() {
-    // Master progress spans durationMs + eachMs·(N-1) of virtual time.
-    return text(toU8("DOOM FIRE, 1995"), type(heavyFace(), 50, kBone, -0.6f))
+    // The progress duration is the cascade's own span, so the last glyph
+    // lands exactly as the master arrives at 1. Cluster units are the
+    // shaped glyphs, and a space is a gap the flow leaves rather than a
+    // glyph — so for this ASCII line the unit count is its non-space
+    // character count.
+    static constexpr char kTitle[] = "DOOM FIRE, 1995";
+    const Stagger cascade{.eachMs = 28, .durationMs = 480};
+    const auto units =
+        (uint32_t)std::count_if(std::begin(kTitle), std::end(kTitle) - 1,
+                                [](char c) { return c != ' '; });
+    const auto span =
+        std::chrono::milliseconds(std::lround(cascade.spanMs(units)));
+    return text(toU8(kTitle), type(heavyFace(), 50, kBone, -0.6f))
         .key("title")
         .fx({.effect = fx::rise(24),
-             .stagger = {.eachMs = 28, .durationMs = 480},
+             .stagger = cascade,
              .progress = animate(
                  from(0.0f).to(1.0f),
-                 {.duration = 872ms, .ease = &ch::easeNone, .delay = 120ms})});
+                 {.duration = span, .ease = &ch::easeNone, .delay = 120ms})});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so

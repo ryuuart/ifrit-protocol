@@ -110,10 +110,13 @@
 //     decorations receive the already-trimmed outline, so the pen-tip
 //     highlight is not a second stroke() — it is a duplicate node that
 //     rebuilds and re-measures the same 2000-segment path.
-//  4. "VERTIGO" is a per-letter cascade rather than one fx() track: each
-//     capital is its own node under staggerChildren(30ms), which is what
-//     lets a letter carry its own legibility underlay and its own place in
-//     the row. A track would move the letters together over one text node.
+//  4. "VERTIGO" is a per-letter cascade rather than one fx() track. The
+//     track path can dress the hollow face — a batched draw carries the
+//     style's whole paint, underlays included — but on the GPU backend a
+//     track-drawn glyph's blurred stroke underlay composites over the
+//     letterform instead of beneath it, muddying the stroke the hollow
+//     register lives on. The per-node painter composites halo-under-
+//     stroke on both backends, so each capital stays its own node.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -419,8 +422,13 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // pop() rebuilt one tier up: seven letter nodes in a row,
     // staggerChildren() cascading their animate(from().to()) entrances,
     // easeOutBack(1.70158) per letter — the same curve fx::pop() applies
-    // internally. Each letter is its own node because each carries its own
-    // legibility underlay over the cards beneath it.
+    // internally. One text node under one fx() track draws this same
+    // dressed style — a track's batched draw carries a glyph's whole
+    // paint, underlays included — but on the GPU backend a track-drawn
+    // glyph's blurred stroke underlay composites over the letterform
+    // instead of beneath it, muddying the hollow stroke. The per-NODE
+    // painter keeps the halo under the stroke on both backends, so the
+    // letters stay nodes.
     auto word = box()
                     .row()
                     .gap(3)
@@ -445,9 +453,9 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             sigil::weave::PaintLayer::blurred(halo, 3.5f));
       }
       const char* letters[] = {"V", "E", "R", "T", "I", "G", "O"};
-      for (int i = 0; i < 7; ++i)
-        word.child(text(toU8(letters[i]), face)
-                       .key(std::string("v") + letters[i])
+      for (const char* letter : letters)
+        word.child(text(toU8(letter), face)
+                       .key(std::string("v") + letter)
                        .scale(animate(from(0.30f).to(1.0f),
                                       ramp(780, 480, ease::outBack())))
                        .opacity(animate(from(0.0f).to(1.0f), ramp(780, 220))));

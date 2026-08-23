@@ -642,19 +642,28 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                            dash));
 
     // ---- the engraved-hand legend -----------------------------------
+    // Twelve hand-placed lines, one node each: every line sits at the
+    // engraving's own indent and leading, which no single paragraph's
+    // layout can reproduce — so the lines stay separate nodes and only
+    // the SCHEDULE rides the engine. The container's staggerChildren is
+    // the 200 ms per-line ladder, and each line's pen runs for exactly
+    // its cascade's span, so the writing speed is the cascade's own.
     const auto script = type(faceScript, 27, kInk);
+    const Stagger penStagger{.amountMs = 620, .durationMs = 30};
+    Element legend = stack().inset(0).staggerChildren(200ms);
     for (size_t i = 0; i < kLegendText.size(); ++i) {
       Track pen{.effect = fx::typeOn(),
-                .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 30},
-                .progress = animate(from(0.0f).to(1.0f),
-                                    ramp(tLegend * 1000 + (float)i * 200.0f,
-                                         660, ch::easeNone))};
-      root.child(text(toU8(kLegendText[i].text), script)
-                     .key("leg" + std::to_string(i))
-                     .fx(std::move(pen))
-                     .left(171.0f + (float)kLegendText[i].indent * 22.0f)
-                     .top(628.0f + (float)i * 30.7f));
+                .stagger = penStagger,
+                .progress = animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
+      legend.child(text(toU8(kLegendText[i].text), script)
+                       .key("leg" + std::to_string(i))
+                       .fx(std::move(pen))
+                       .left(171.0f + (float)kLegendText[i].indent * 22.0f)
+                       .top(628.0f + (float)i * 30.7f));
     }
+    root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
     root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),

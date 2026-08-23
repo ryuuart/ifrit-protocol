@@ -3191,6 +3191,104 @@ TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
   EXPECT_TRUE(host.composer.beatsOf("p", 7).empty()) << "no such track";
 }
 
+TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
+  // The one number beatsOf does not carry: a beat says when it OPENS, and
+  // nothing else says when the whole schedule is OVER. The span is the
+  // last beat's start plus one beat's own duration — checked against the
+  // beats themselves, so the two read-backs cannot drift apart — and the
+  // declare-time form answers the same number from the counts alone.
+  const Stagger spec = stagger(unit::Word, {.eachMs = 100, .durationMs = 200});
+  Host host(400, 120);
+  host.composer.render(box().padding(6).child(
+      text(u8"AA BB CC DD", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6), .stagger = spec})));
+  host.frame();
+  const float span = host.composer.cascadeSpanMs("p", 0);
+  EXPECT_FLOAT_EQ(span, 500.0f) << "durationMs + eachMs·(N−1) over 4 words";
+  const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+  ASSERT_FALSE(beats.empty());
+  float latest = 0;
+  for (const Beat& beat : beats) latest = std::max(latest, beat.startMs);
+  EXPECT_FLOAT_EQ(span, latest + 200.0f)
+      << "the span disagrees with the beats about when the last one closes";
+  EXPECT_FLOAT_EQ(spec.spanMs(4), span)
+      << "the declare-time form and the mounted one answer differently for "
+         "the same cascade and count";
+
+  // Amount-mode is count-independent past one unit — the amount IS the
+  // spread — and one unit (or none) is a bare beat.
+  const Stagger amount{.amountMs = 700, .durationMs = 420};
+  EXPECT_FLOAT_EQ(amount.spanMs(2), 1120.0f);
+  EXPECT_FLOAT_EQ(amount.spanMs(9), 1120.0f);
+  EXPECT_FLOAT_EQ(amount.spanMs(1), 420.0f);
+  EXPECT_FLOAT_EQ(amount.spanMs(0), 420.0f);
+}
+
+TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
+  // Nested: a beat lasts exactly as long as its inner ladder needs, so the
+  // span compounds — the latest outer start, plus the latest inner start,
+  // plus one INNER duration (the outer durationMs is ignored, as always
+  // under then()).
+  Stagger nested = stagger(unit::Word, {.eachMs = 300, .durationMs = 999});
+  nested.then(unit::Cluster, {.eachMs = 40, .durationMs = 100});
+  {
+    Host host(400, 120);
+    host.composer.render(box().padding(6).child(
+        text(u8"AB CD", whiteStyle(16))
+            .key("p")
+            .width(360)
+            .fx({.effect = fx::rise(6), .stagger = nested})));
+    host.frame();
+    const float span = host.composer.cascadeSpanMs("p", 0);
+    EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
+    const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
+    ASSERT_EQ(beats.size(), 4u);
+    EXPECT_FLOAT_EQ(span, beats.back().startMs + 100.0f);
+    EXPECT_FLOAT_EQ(nested.spanMs(2, 2), span)
+        << "the declare-time form must take the inner count per beat";
+  }
+
+  // A cue table's extent is the table's own: the LATEST time any unit
+  // reads plus the duration — a max, not the final entry, because a table
+  // is not required to ascend.
+  const std::vector<float> table{0.0f, 340.0f, 720.0f, 1180.0f};
+  const Stagger cued = stagger(unit::Word, cues(table, {.durationMs = 180}));
+  {
+    Host host(400, 120);
+    host.composer.render(box().padding(6).child(
+        text(u8"AA BB CC DD", whiteStyle(16))
+            .key("p")
+            .width(360)
+            .fx({.effect = fx::rise(6), .stagger = cued})));
+    host.frame();
+    const float span = host.composer.cascadeSpanMs("p", 0);
+    EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
+    EXPECT_FLOAT_EQ(cued.spanMs(4), span);
+  }
+  EXPECT_FLOAT_EQ(
+      stagger(unit::Word, cues({0.0f, 900.0f, 300.0f}, {.durationMs = 100}))
+          .spanMs(3),
+      1000.0f)
+      << "an out-of-order table spans to its LATEST time, not its last entry";
+}
+
+TEST(ComposeTextFx, CascadeSpanMsResolvesZeroRatherThanGuessing) {
+  Host host(200, 120);
+  host.composer.render(box().padding(6).key("b").child(
+      text(u8"AA BB", whiteStyle(16))
+          .key("p")
+          .fx({.effect = fx::rise(6), .stagger = stagger(unit::Word)})));
+  host.frame();
+  EXPECT_GT(host.composer.cascadeSpanMs("p", 0), 0.0f);
+  EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("typo", 0), 0.0f)
+      << "unknown key";
+  EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("p", 7), 0.0f) << "no such track";
+  EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("b", 0), 0.0f)
+      << "a node that is not text";
+}
+
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
   // Text inside a BaselineGrid, nested in an absolute column, inside a
   // stack(). A custom layout scheme writes back into Yoga out of band, and

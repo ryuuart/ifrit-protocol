@@ -1154,6 +1154,10 @@ struct Composer::Impl {
    *  come out in the NODE's own space; the caller offsets them into the
    *  composer's, as the bounds query does. */
   std::vector<Beat> beatsOfTrack(detail::Instance& inst, size_t trackIndex);
+  /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
+   *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
+   *  0 wherever beatsOfTrack answers empty. */
+  float cascadeSpanOfTrack(detail::Instance& inst, size_t trackIndex);
   /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
    *  just produced: one rect per anchor, the union of the advance boxes of
    *  the glyphs its selector addressed. Runs during LAYOUT, off the flow

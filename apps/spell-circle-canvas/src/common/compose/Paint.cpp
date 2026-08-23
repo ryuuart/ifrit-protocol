@@ -2087,33 +2087,67 @@ void Composer::Impl::resolveTextMarks(Instance& inst) {
   }
 }
 
-std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
-                                               size_t trackIndex) {
-  if (!inst.desc || !inst.paragraph) return {};
+namespace {
+/** ONE TRACK'S SCHEDULE RESOLVED FOR A QUERY — the front half `beatsOfTrack`
+ *  and `cascadeSpanOfTrack` share: which layout the letters are on, which
+ *  glyphs the track addresses, and the cascade those glyphs run. ONE BODY,
+ *  so the span, the beats and the glyphs cannot disagree about the
+ *  schedule. False means the track runs nothing a query can report: no
+ *  text, no such track, no effect, or a path baseline that has not
+ *  resolved. */
+struct TrackSchedule {
+  const Track* track = nullptr;
+  const TextPath* onPath = nullptr;
+  bool ridesPath = false;
+  const sigil::weave::ParagraphLayout* layout = nullptr;
+  uint32_t glyphCount = 0;
+  std::vector<uint8_t> selected;
+  detail::TrackCascade resolved;
+};
+
+bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
+                          TrackSchedule& out) {
+  if (!inst.desc || !inst.paragraph) return false;
   const std::span<const Track> tracks = tracksOf(*inst.desc);
-  if (trackIndex >= tracks.size()) return {};
-  const Track& track = tracks[trackIndex];
-  if (!track.effect) return {};
+  if (trackIndex >= tracks.size()) return false;
+  out.track = &tracks[trackIndex];
+  if (!out.track->effect) return false;
 
   // The layout the last draw() left standing — the path one where the run
   // rides a curve, so the beats are on the curve the letters are on.
-  const TextPath* onPath = nullptr;
   if (inst.desc->textData && inst.desc->textData->onPath.has_value())
-    onPath = &inst.desc->textData->onPath.value();
-  const bool ridesPath = onPath && inst.pathValid;
-  if (onPath && !ridesPath) return {};
-  const sigil::weave::ParagraphLayout& layout =
-      ridesPath ? inst.pathLayout : inst.textLayout;
+    out.onPath = &inst.desc->textData->onPath.value();
+  out.ridesPath = out.onPath && inst.pathValid;
+  if (out.onPath && !out.ridesPath) return false;
+  out.layout = out.ridesPath ? &inst.pathLayout : &inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph);
-  const auto count = (uint32_t)structure.glyphs.size();
-  if (count == 0) return {};
+  structure.build(*out.layout, *inst.paragraph);
+  out.glyphCount = (uint32_t)structure.glyphs.size();
+  if (out.glyphCount == 0) return false;
 
-  const std::vector<uint8_t> selected = detail::resolveSelection(
-      track.where, structure, *inst.paragraph, inst.textNamedRuns);
-  detail::TrackCascade resolved;
-  resolved.build(track.stagger, structure, selected);
+  out.selected = detail::resolveSelection(out.track->where, structure,
+                                          *inst.paragraph, inst.textNamedRuns);
+  out.resolved.build(out.track->stagger, structure, out.selected);
+  return true;
+}
+}  // namespace
+
+float Composer::Impl::cascadeSpanOfTrack(Instance& inst, size_t trackIndex) {
+  TrackSchedule schedule;
+  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return 0.0f;
+  return schedule.resolved.cascade.totalMs;
+}
+
+std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
+                                               size_t trackIndex) {
+  TrackSchedule schedule;
+  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return {};
+  const Track& track = *schedule.track;
+  const auto count = schedule.glyphCount;
+  const std::vector<uint8_t>& selected = schedule.selected;
+  const detail::TrackCascade& resolved = schedule.resolved;
+  const sigil::weave::ParagraphLayout& layout = *schedule.layout;
 
   const AnimatedFloat* anim = trackIndex < inst.trackAnims.size()
                                   ? inst.trackAnims[trackIndex].get()
@@ -2122,9 +2156,10 @@ std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
       std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
 
   float phaseArc = 0;
-  if (ridesPath)
+  if (schedule.ridesPath)
     phaseArc = (inst.resolvePathAt() - inst.pathRestAt) * inst.pathTotalLength;
-  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
+  const PoseContext poseCtx{&inst, &layout, schedule.onPath, schedule.ridesPath,
+                            phaseArc};
 
   // ONE BEAT PER (outer, inner) PAIR THE TRACK ACTUALLY RUNS, in draw order,
   // and the rect is the union of the glyphs THIS track addresses in it: a

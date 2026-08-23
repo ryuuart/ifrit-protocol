@@ -117,6 +117,15 @@ struct KineticCardScene final : Scene {
         {0, 0}, {0, kc::kH},
         {{0.00f, kc::kInk}, {0.62f, kc::kInkLift}, {1.00f, kc::kInkFoot}});
 
+    // Each entrance's progress duration is its cascade's own span, so the
+    // last glyph lands exactly as the master arrives at 1. Both cascades
+    // are amount-mode, whose span is `durationMs + amountMs` for every
+    // unit count past one — that count-independence is the point of the
+    // mode, so the spelled count is nominal.
+    const Stagger heroStagger{.amountMs = 180, .durationMs = 500};
+    const auto spanOf = [](const Stagger& s) {
+      return std::chrono::milliseconds(std::lround(s.spanMs(2)));
+    };
     auto heroLine = [&](const char* s, const char* key, int delayMs) {
       return box()
           .clip()  // the line-box mask
@@ -125,19 +134,20 @@ struct KineticCardScene final : Scene {
                      .width(pct(100))
                      .textAlign(sigil::weave::TextAlignment::kCenter)
                      .fx({.effect = fx::rise(kc::kHeroSize * 1.26f),
-                          .stagger = {.amountMs = 180, .durationMs = 500},
+                          .stagger = heroStagger,
                           .progress =
                               animate(from(0.0f).to(1.0f),
-                                      {680ms, &ch::easeNone,
+                                      {spanOf(heroStagger), &ch::easeNone,
                                        std::chrono::milliseconds(delayMs)})}));
     };
 
-    Track popFx{.effect = fx::pop(0.35f, 1.70158f),  // back.out(1.7)
-                .stagger = {.amountMs = 700,
-                            .durationMs = 420,
-                            .from = Stagger::From::Center},
-                .progress = animate(from(0.0f).to(1.0f),
-                                    {1120ms, &ch::easeNone, 450ms})};
+    const Stagger popStagger{
+        .amountMs = 700, .durationMs = 420, .from = Stagger::From::Center};
+    Track popFx{
+        .effect = fx::pop(0.35f, 1.70158f),  // back.out(1.7)
+        .stagger = popStagger,
+        .progress = animate(from(0.0f).to(1.0f),
+                            {spanOf(popStagger), &ch::easeNone, 450ms})};
 
     // Amplitude in em, phase offset per glyph in radians.
     Track waveFx{.effect = fx::waveLoop(0.10f, 0.5f),

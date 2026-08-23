@@ -327,6 +327,34 @@ rather than a glyph, so it rides the advance of the glyph before it — which
 is what makes those sums reproduce the pen positions the layout used across
 a whole sentence.
 
+**The whole span.** A beat says when it *opens*; `Composer::cascadeSpanMs`
+says when the whole schedule is *over* — the ms of virtual time the track's
+master progress [0,1] maps onto: `durationMs + eachMs·(N−1)` for the flat
+even ladder, `durationMs + amountMs` in amount mode, the compounded extent
+under `Stagger::then`, and the latest time any unit reads plus `durationMs`
+under a cue table. It is the number a progress duration must equal for a
+cascade to run at its authored ms — a table's times are absolute only when
+the window driving the track spans exactly the span — and the number
+anything sequenced *after* the cascade offsets from. It is computed by the
+same resolved cascade the glyphs and `beatsOf` read, so the three cannot
+disagree; an unknown key or track index resolves to 0, silently.
+`Stagger::spanMs` is the same number at *declare* time, computed from unit
+counts alone for the site that needs it before any node exists — above all
+the progress transition written right next to the stagger:
+
+```cpp
+const Stagger cascade{.eachMs = 28, .durationMs = 480};
+const float span = cascade.spanMs(13);  // 480 + 28·12, before any layout
+// Drive the track's progress over exactly `span` ms and the last glyph
+// lands as the master arrives at 1. After a draw,
+// composer.cascadeSpanMs("title", 0) reads the same number off the
+// mounted track — with the unit count the laid-out text supplies.
+```
+
+For a nested cascade the second argument is how many inner units one beat
+holds (the widest beat's count, where they vary), and an amount-mode span
+is the same for every count past one, because the amount *is* the spread.
+
 **Marking the type.** `Element::mark` anchors a child to the rect a selector
 resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
