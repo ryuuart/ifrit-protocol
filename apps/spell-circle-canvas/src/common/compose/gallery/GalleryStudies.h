@@ -172,6 +172,10 @@ inline constexpr StudyInfo kStudies[] = {
     {"elastic_type", "elastic type", "Study \xc2\xb7 Type",
      "animate.css rubberBand and jello, transcribed number for number and "
      "run per glyph \xe2\x80\x94 with the tables plotted"},
+    {"matrix_rain", "matrix rain", "Study \xc2\xb7 Type",
+     "The Matrix's digital rain (1999) \xe2\x80\x94 four curtains of "
+     "mirrored half-width katakana, thousands of glyphs churning on "
+     "declared schedules"},
 
     // ---- The kit itself ----
     {"stroke_atlas", "stroke atlas", "Kit",

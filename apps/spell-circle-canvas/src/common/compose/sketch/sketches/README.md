@@ -71,6 +71,7 @@ audit), the gallery when you are LOOKING at one next to everything else.
 | `karaoke_wipe` | Fleischer's bouncing ball (1924) and the CD+G subcode wipe (1985) | One schedule, two conventions: an `fx::tint` cascade against a ball placed from the schedule read back with `beatsOf` |
 | `axis_ripple` | The variable-font weight wave, the demo every variable face ships with | A driven `GRAD` axis, with the `wght` advance drift measured and printed as the reason the drive is refused |
 | `elastic_type` | animate.css `rubberBand` and `jello` (Daniel Eden, 2013) | Two published keyframe tables run per glyph on the non-uniform scale and shear lane, with the tables plotted beside them |
+| `matrix_rain` | The Matrix's digital rain (Simon Whiteley, Animal Logic, 1999) — the in-film kind, where the light falls and the type stands still | Four vertical-RL curtains of mirrored half-width katakana; per-column cue tables with nested cluster cascades, a held keyframe streak, `fx::scramble` churn through an advance-uniform charset, and per-glyph fades splitting glow underlays into fade classes — thousands of glyphs, all moving |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
 
 Two are not studies:

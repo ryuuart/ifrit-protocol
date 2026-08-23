@@ -58,7 +58,7 @@ set(SIGIL_SKETCH_STUDIES
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense lain_navi eva_magi_interior
   # Type in motion
-  shipping_forecast karaoke_wipe axis_ripple elastic_type
+  shipping_forecast karaoke_wipe axis_ripple elastic_type matrix_rain
   # The kit itself
   hello stock_materials stroke_atlas shapeworks_lab easel_playground
   # One sketch per API — legible over pretty. Each is a place to stand:
