@@ -284,6 +284,69 @@ inline constexpr float kNominalSizePx = 96.0f;
     std::u32string charset = U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
     int steps = 14);
 
+/** A SHADER PASS AS A TRACK'S EFFECT — "a shader per letter" without a
+ *  shader per letter. The track's units are rendered ONCE into a layer and
+ *  @p material runs once over that layer, handed each unit's box and each
+ *  unit's own cascade clock as uniform data, so per-letter treatment is
+ *  data rather than scene structure and the cost is one draw plus one pass
+ *  whatever the unit count is.
+ *
+ *      auto burn = Material::sksl(emberDissolve).uniform("uEdgeWidth", .15f);
+ *      text(u8"EMBER DECODE", display)
+ *          .fx({.effect = fx::pass(burn),
+ *               .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+ *
+ *  THE MATERIAL MUST CARRY SKSL SOURCE (`Material::sksl(std::string, …)`),
+ *  because the unit count is baked into the compiled shader — a runtime
+ *  effect's array size is fixed at compile and SkSL has no uniform-bounded
+ *  loop. The RUNTIME owns that specialization: it prepends
+ *
+ *      uniform shader uContent;        // the units' rendered layer
+ *      uniform float4 uUnitRect[N];    // per unit: x, y, w, h
+ *      uniform float2 uUnitPhase[N];   // per unit: local 0→1, seed
+ *      const int kUnitCount = N;      // the loop bound
+ *
+ *  and compiles once per distinct unit count, cached for the process —
+ *  write the source against those names and do not declare them. Any other
+ *  material warns once and returns an EMPTY effect, so the track draws its
+ *  glyphs at rest rather than nothing.
+ *
+ *  THE COORDINATES ARE THE NODE'S OWN PX: `main(xy)`, `uUnitRect` and the
+ *  layer all share the frame the letters were laid out in, and the layer
+ *  is sampled at the device's resolution, so a 2x host stays sharp with no
+ *  supersampled bake. `uUnitRect` entries are the SAME rects
+ *  `Composer::beatsOf` reports (that query lifts them to composer space);
+ *  `uUnitPhase[i].x` is the same `Beat::localT`, driven by the track's
+ *  progress through its cascade, so the pass, a mark and the glyphs can
+ *  never disagree about the schedule. `uUnitPhase[i].y` is a per-unit seed
+ *  in [1, 256), stable across frames and relayouts, which is what lets a
+ *  seeded dissolve settle and cache instead of churning forever. Under a
+ *  nested cascade there is one entry per (outer, inner) beat, matching the
+ *  beats the query reports.
+ *
+ *  THE PASS IS BOUNDED, unlike a raw `Element::effect` shader: it paints
+ *  the node's box grown by the track's `reach` and nothing outside it. An
+ *  effect built here declares the material's `bleed()` as its reach, so a
+ *  pass that marks beyond the letters says how far on the value that
+ *  paints, or on the track.
+ *
+ *  ORDER AGAINST DEVIATION TRACKS on the same node: deviations apply
+ *  FIRST. The layer holds the addressed glyphs as every deviation track
+ *  left them — risen, scattered, tinted — and the pass reads those pixels,
+ *  because a pass is post-processing and pixels are what it processes. A
+ *  glyph addressed by a pass draws only inside that pass's layer, never
+ *  directly as well; several pass tracks run in declaration order, each
+ *  over its own selection's layer, and a glyph two passes address renders
+ *  in both. A path baseline and a vertical column place glyphs before any
+ *  of this, so a pass rides both, with unit rects turned the way the
+ *  layout turned the letters.
+ *
+ *  A pass is a WHOLE-TRACK statement: inside `fx::seq`, `fx::mix` or
+ *  `fx::hold` its material is not consulted and the operand contributes
+ *  the identity. Sequence a pass by driving its progress; gate its onset
+ *  in its own SkSL, which holds the whole schedule. */
+[[nodiscard]] TextEffect pass(Material material);
+
 /** THE ESCAPE HATCH: an ad-hoc effect body under an author-given key.
  *
  *  The key IS the identity — two effects with the same key compare equal

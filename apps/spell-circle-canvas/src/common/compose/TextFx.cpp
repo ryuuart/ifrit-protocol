@@ -78,11 +78,51 @@ bool TextEffect::operator==(const TextEffect& other) const {
       m_state->params != other.m_state->params ||
       m_state->operands != other.m_state->operands)
     return false;
+  // A pass compares by its MATERIAL, by value — Material's own recipe
+  // equality, so two passes over one source with equal constants prune,
+  // and a live pass material never compares equal, conservatively.
+  if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
+    return false;
+  if (m_state->pass && !(*m_state->pass == *other.m_state->pass)) return false;
   if (m_state->curves.size() != other.m_state->curves.size()) return false;
   for (size_t i = 0; i < m_state->curves.size(); ++i)
     if (!detail::easeEqual(m_state->curves[i], other.m_state->curves[i]))
       return false;
   return true;
+}
+
+TextEffect TextEffect::pass(Material material) {
+  if (material.skslSource().empty()) {
+    // Once per process: the door takes only the source-carrying form,
+    // because the runtime must specialize the source per unit count.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] fx::pass: the material carries no SkSL source — a "
+          "pass is compiled per unit count, which needs "
+          "Material::sksl(std::string, ...). The effect is empty and the "
+          "track draws its glyphs at rest.\n");
+    }
+    return {};
+  }
+  auto state = std::make_shared<State>();
+  state->name = "pass";
+  // The identity body keeps the value truthy (a track with an empty effect
+  // is skipped) and keeps a pass harmless as a seq/mix/hold operand, where
+  // only the deviation is consulted.
+  state->fn = [](const GlyphInfo&, float, Rng&) { return GlyphMod{}; };
+  // A pass paints where its material says it does; the material's declared
+  // reserve is the effect's reach, and Track::reach overrides as ever.
+  state->reach = material.bleed();
+  state->pass = std::make_shared<const Material>(std::move(material));
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+const Material* TextEffect::passMaterial() const {
+  return m_state ? m_state->pass.get() : nullptr;
 }
 
 Phase TextEffect::until(float t) const { return Phase(*this, t); }
@@ -1253,6 +1293,10 @@ TextEffect mix(std::vector<TextEffect> effects) {
         return out;
       },
       reach);
+}
+
+TextEffect pass(Material material) {
+  return TextEffect::pass(std::move(material));
 }
 
 }  // namespace fx

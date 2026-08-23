@@ -409,8 +409,9 @@ void warnUndeclaredEffectUniform(const char* door, const std::string& name) {
   if (seen.size() >= 16) return;
   seen.push_back(name);
   SkDebugf(
-      "[compose] Effect::%s(\"%s\"): the effect declares no float uniform "
-      "by that name — ignored (warned once)\n",
+      "[compose] Effect::%s(\"%s\"): the effect declares no uniform by "
+      "that name at this value's size — ignored (warned once; an array "
+      "must supply the declared total float count exactly)\n",
       door, name.c_str());
 }
 }  // namespace
@@ -667,6 +668,86 @@ Effect& Effect::uniform(std::string name,
   return *this;
 }
 
+namespace {
+/** The gate every constant-uniform door on Effect shares: only a shader()
+ *  effect has named declarations to fill, and a name it does not declare
+ *  at the value's size warns once and is ignored — Material's rule. */
+bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
+                         const std::string& name, size_t bytes,
+                         bool otherKind) {
+  if (otherKind || !effect) {
+    SkDebugf(
+        "[compose] Effect::uniform(\"%s\", const): ignored — only a "
+        "shader() effect has named declarations to fill (directionalBlur "
+        "and blur take their parameters at construction or as bound "
+        "Outputs)\n",
+        name.c_str());
+    return false;
+  }
+  if (!detail::declaresUniform(effect, name, bytes)) {
+    warnUndeclaredEffectUniform("uniform", name);
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
+Effect& Effect::uniform(std::string name, float value) {
+  if (!effectTakesConstant(m_effect, name, sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);  // refresh the snapshot, as child() does
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
+  if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms2.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
+  if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms4.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::vector<float> values) {
+  // An array validates by TOTAL float count — all the builder checks, and
+  // the builder refuses a partial write, so the count must be exact.
+  if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniformArrays.emplace_back(std::move(name), std::move(values));
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name,
+                        std::shared_ptr<const UniformBlock> block) {
+  if (!block) {
+    SkDebugf(
+        "[compose] Effect::uniform(\"%s\", block): null UniformBlock — "
+        "there is nothing to read at paint time; ignored\n",
+        name.c_str());
+    return *this;
+  }
+  if (!effectTakesConstant(m_effect, name, block->size() * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  // A rejected block is not recorded, so it declares no volatility —
+  // the same rule a rejected Output binding follows.
+  m_blocks.emplace_back(std::move(name), std::move(block));
+  return *this;  // now LIVE: read at every paint, like a bound Output
+}
+
 Effect Effect::then(const Effect& next) const {
   Effect e;
   const bool thisReal = m_filter || isAnimated();
@@ -691,7 +772,8 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(
   // A context-needing child (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its children, same answer.
-  if (m_bound.empty() && !(ctx && anyChildNeedsContext())) return m_filter;
+  if (m_bound.empty() && m_blocks.empty() && !(ctx && anyChildNeedsContext()))
+    return m_filter;
   return buildFilter(ctx);
 }
 
@@ -720,20 +802,26 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
   }
   if (!m_effect) return m_filter;
   SkRuntimeShaderBuilder builder(m_effect);
-  for (const auto& [name, value] : m_uniforms)
-    builder.uniform(name.c_str()) = value;
-  for (const auto& [name, out] : m_bound)
-    builder.uniform(name.c_str()) = out->value();
+  for (const auto& [name, value] : m_uniforms) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms2) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms4) builder.uniform(name) = value;
+  for (const auto& [name, values] : m_uniformArrays)
+    builder.uniform(name).set(values.data(), (int)values.size());
+  for (const auto& [name, out] : m_bound) builder.uniform(name) = out->value();
+  for (const auto& [name, block] : m_blocks)
+    builder.uniform(name).set(block->values().data(), (int)block->size());
   // The child slots, against the painting node's box (Material::child's
   // contract: a child sees the SAME PaintContext, because there is one
   // node). "content" is the library's and is filled by the factory below.
   for (const auto& [name, child] : m_children)
-    if (child) builder.child(name.c_str()) = detail::childShader(*child, ctx);
+    if (child) builder.child(name) = detail::childShader(*child, ctx);
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
 bool Effect::isAnimated() const {
-  if (!m_bound.empty()) return true;
+  // A bound block is a bound Output whose value is a table: read at every
+  // paint, so the node must stay volatile for as long as it is attached.
+  if (!m_bound.empty() || !m_blocks.empty()) return true;
   // Tier inheritance: a live child makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the
@@ -782,6 +870,8 @@ bool Effect::operator==(const Effect& o) const {
     return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_uniforms == o.m_uniforms &&
+           m_uniforms2 == o.m_uniforms2 && m_uniforms4 == o.m_uniforms4 &&
+           m_uniformArrays == o.m_uniformArrays &&
            childrenEqual(m_children, o.m_children);
   return m_filter == o.m_filter;  // filter(): pointer identity, as ever
 }

@@ -402,6 +402,48 @@ Put it on the track that owns the glyph's arrival.
 the same scatter on every frame and after every relayout — which is what
 lets it settle and cache instead of jittering forever.
 
+**A shader per letter is one pass.** `fx::pass` makes a track's effect a
+PASS rather than a per-glyph deviation: the runtime renders the units the
+track addresses into a layer and runs the material ONCE over it, handing
+the track's own schedule in as uniform data — `uContent` (the layer),
+`uUnitRect[]` (each unit's box, node-local px) and `uUnitPhase[]` (each
+unit's cascade-local 0→1, then a stable per-unit seed) — so per-letter
+treatment is data rather than scene structure, and the cost is one draw
+plus one pass whatever the unit count is:
+
+```cpp
+auto burn = Material::sksl(emberDissolve).uniform("uEdgeWidth", 0.15f);
+text(u8"EMBER DECODE", display)
+    .fx({.effect = fx::pass(burn),
+         .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+```
+
+The material must be the SOURCE-CARRYING form — `Material::sksl` given the
+SkSL as a string — because the unit count is baked into the compiled
+shader: a runtime effect's array size is fixed at compile and SkSL has no
+uniform-bounded loop, so the runtime prepends the declarations above plus
+`const int kUnitCount = N` and compiles once per distinct count, cached
+for the process. Write the source against those names and do not declare
+them; any other material warns once and the track draws its glyphs at
+rest. `main(xy)` runs in the node's own px, the layer is sampled at the
+device's resolution (a 2x host stays sharp with no supersampled bake), and
+the pass is BOUNDED: it paints the node's box grown by the track's `reach`
+and nothing outside it, unlike an `Element::effect` shader pass. The
+per-unit rects and times are resolved from the SAME cascade
+`Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
+disagree about the schedule.
+
+Order against everything else: deviation tracks apply FIRST, and the pass
+reads the deviated pixels — a pass is post-processing, and pixels are what
+it processes. A glyph a pass addresses draws only inside that pass's
+layer, never directly as well; several pass tracks run in declaration
+order, each over its own selection's layer, and a glyph two passes address
+renders in both. A path baseline and a vertical column place glyphs before
+any of this, so a pass rides both. A pass is a whole-track statement:
+inside `fx::seq`, `fx::mix` and `fx::hold` its material is not consulted —
+sequence a pass by driving its progress, and gate its onset in its own
+SkSL, which holds the whole schedule.
+
 **Colour as a cascade.** `fx::tint(from, to)` is the colour reveal — a
 karaoke wipe, a highlight sweeping a word — and it carries one inversion
 worth stating once. `GlyphMod::colorMul` MULTIPLIES, and a multiplier only
@@ -756,8 +798,12 @@ never has to name a second library. A user who reads only this header has a
 complete and sound model; nothing below it changes kernel semantics.
 
 **Paint values.** `Material.h` is the polymorphic paint value that
-supersedes a flat `Fill` — gradients, images, raw SkSL with live uniforms,
-blend stacks that compile to one shader, world-space anchoring. `Sdf.h`
+supersedes a flat `Fill` — gradients, images, raw SkSL with live uniforms
+(float, float2, float4 and whole arrays, constant or live: a scalar binds
+an `Output`, an array binds a caller-owned `UniformBlock` whose
+`commit()` publishes an edit), SkSL as source compiled and cached by the
+library, blend stacks that compile to one shader, world-space anchoring.
+`Effect::uniform` takes the same shapes on the post-processing seam. `Sdf.h`
 gets shape, border, glow and soft shadow out of a single shader pass.
 `Pattern.h` and `Patterns.h` bake tile recipes once into repeating
 materials, plus stock generators. `Ocio.h` is an output-stage view
@@ -785,8 +831,8 @@ gradients and blurs rather than shaders.
 **Components.** `TextFx.h` supplies the stock effects (`fx::rise`,
 `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`,
 `fx::scatter`, `fx::axis`, `fx::tint`, `fx::scramble`, `fx::effect`), the
-`fx::keys` keyframe table, and the `fx::seq`, `fx::mix` and `fx::hold`
-combinators, for the kernel's `Element::fx` seam.
+`fx::keys` keyframe table, the `fx::pass` shader pass, and the `fx::seq`,
+`fx::mix` and `fx::hold` combinators, for the kernel's `Element::fx` seam.
 `Feed.h` is the streaming collection — a `feed::Ring` of rows, windowed to
 the newest `feed::Options::visible` and keyed by sequence id, so an append
 costs one mount and every surviving row keeps its cached picture; rows of

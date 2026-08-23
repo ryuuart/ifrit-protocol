@@ -40,6 +40,7 @@
 #include <sigilweave/Style.h>
 
 #include <any>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -286,6 +287,44 @@ class StampCache {
       m_entries;
 };
 
+/** A CALLER-OWNED UNIFORM BUFFER WITH A REVISION — the live form of an
+ *  array uniform, for per-frame data no scalar `Output` can carry: a
+ *  particle table, a per-bar spectrum, a set of rects a simulation moves.
+ *
+ *  Own it where you own your model, write `values()`, then `commit()` to
+ *  publish. The binding (`Material::uniform` / `Effect::uniform` with a
+ *  block) reads the CURRENT values at every paint and declares volatility
+ *  the way a bound scalar `Output*` does, so the node paints live and no
+ *  cache can freeze the table; the revision is what lets the resolve memo
+ *  see that an uncommitted frame changed nothing and keep the built shader.
+ *
+ *  LIFETIME AND EQUALITY follow the bound-scalar rules exactly. The
+ *  binding is a shared_ptr, so the buffer cannot dangle, but it compares
+ *  by IDENTITY: a block recreated every describe reads as a new binding
+ *  each time and re-patches its node — hold the block beside your model,
+ *  not in the describe. The values belong to the system and never enter
+ *  the prune comparison. Not thread-safe, deliberately: one owner, one
+ *  writer, matching PixelBuffer. */
+class UniformBlock {
+ public:
+  /** `floatCount` is the buffer's length in FLOATS, and it must equal the
+   *  declared uniform's total float count — 3 float4s is 12. The size is
+   *  fixed for the block's life, because the declared array's is. */
+  explicit UniformBlock(size_t floatCount) : m_values(floatCount, 0.0f) {}
+  /** The floats, yours to write. Publish with commit(). */
+  std::span<float> values() { return m_values; }
+  std::span<const float> values() const { return m_values; }
+  size_t size() const { return m_values.size(); }
+  /** PUBLISH the edit: the next paint resolves a fresh shader from the new
+   *  values (an uncommitted frame reuses the previous one). */
+  void commit() { ++m_revision; }
+  uint64_t revision() const { return m_revision; }
+
+ private:
+  std::vector<float> m_values;
+  uint64_t m_revision = 0;
+};
+
 /**
  * Post-processing at stacking-context boundaries. `filter` wraps any
  * SkImageFilter (blur, displacement, lighting, compose chains);
@@ -391,6 +430,31 @@ class Effect {
    *  not recorded, and no volatility declared for it, because a binding
    *  nothing reads must not cost a repaint per frame forever. */
   Effect& uniform(std::string name, const choreograph::Output<float>* value);
+  /** CONSTANT uniforms after construction — Material::uniform's shapes on
+   *  the effect seam, for the sizes the shader() constructor list cannot
+   *  carry. The float form is the constructor list's late spelling; the
+   *  float2 and float4 forms fill `uniform float2` / `uniform float4`
+   *  declarations; the vector form fills a declared ARRAY, matched by
+   *  TOTAL float count, so 12 floats fill `float4 uRect[3]` and
+   *  `float uWeights[12]` alike.
+   *
+   *  Meaningful on a shader() effect only — the other kinds have no named
+   *  declarations to fill. Guardrails are uniform()'s: an undeclared name,
+   *  or one whose declared size is not the value's, warns once and is
+   *  IGNORED, never a debug abort. The recipe stays comparable: constants
+   *  participate in operator==, so a re-described equal effect prunes. */
+  Effect& uniform(std::string name, float value);
+  Effect& uniform(std::string name, std::array<float, 2> value);
+  Effect& uniform(std::string name, std::array<float, 4> value);
+  Effect& uniform(std::string name, std::vector<float> values);
+  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
+   *  commit()s, read at every paint. Declares volatility exactly as a
+   *  bound scalar Output does: the node paints live while the effect is
+   *  attached, and no cache can freeze the table. The binding compares by
+   *  block identity; the values belong to the system and never prune.
+   *  Size-checked at store time against the declared array's total float
+   *  count, because the builder refuses a partial array write. */
+  Effect& uniform(std::string name, std::shared_ptr<const UniformBlock> block);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
    *  Effect::shader(colorize)). Static chains precompose once; a chain
@@ -450,8 +514,17 @@ class Effect {
   // so equality can compare structurally).
   sk_sp<SkRuntimeEffect> m_effect;
   std::vector<std::pair<std::string, float>> m_uniforms;
+  // The wider constant shapes, one lane per declared size the builder
+  // distinguishes; arrays are stored flat and matched by total float count.
+  std::vector<std::pair<std::string, std::array<float, 2>>> m_uniforms2;
+  std::vector<std::pair<std::string, std::array<float, 4>>> m_uniforms4;
+  std::vector<std::pair<std::string, std::vector<float>>> m_uniformArrays;
   std::vector<std::pair<std::string, const choreograph::Output<float>*>>
       m_bound;
+  // Live arrays: caller-owned UniformBlocks, read at every paint. Their
+  // presence makes the effect isAnimated(), like a bound scalar.
+  std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
+      m_blocks;
   std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
   std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe
   // The child slots: `uniform shader NAME` → Material. Held by
@@ -481,18 +554,20 @@ class Effect {
    *  hand-written in Compose.cpp and reads these members directly; the state
    *  is private, so the decomposition lives inside the class. */
   static void fieldPin(Effect& v) {
-    auto& [filter, effect, uniforms, bound, dirBlur, paramBlur, children,
-           chainA, chainB] = v;
+    auto& [filter, effect, uniforms, uniforms2, uniforms4, uniformArrays, bound,
+           blocks, dirBlur, paramBlur, children, chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(
-                          filter, effect, uniforms, bound, dirBlur, paramBlur,
-                          children, chainA, chainB))> == 9,
+                          filter, effect, uniforms, uniforms2, uniforms4,
+                          uniformArrays, bound, blocks, dirBlur, paramBlur,
+                          children, chainA, chainB))> == 13,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Compose.cpp), then bump this count. "
                   "(m_filter is EXCLUDED on the shader, directionalBlur and "
-                  "blur paths because it is derived from m_effect + "
-                  "m_uniforms / m_dirBlur / m_paramBlur + m_children; "
-                  "m_chainA/B only exist on a live chain, which "
-                  "isAnimated() already refuses.)");
+                  "blur paths because it is derived from m_effect + the "
+                  "constant lanes / m_dirBlur / m_paramBlur + m_children; "
+                  "m_bound and m_blocks make the effect isAnimated(), which "
+                  "operator== already refuses; m_chainA/B only exist on a "
+                  "live chain, ditto.)");
   }
 };
 
@@ -716,6 +791,18 @@ class TextEffect {
                               std::vector<TextEffect> operands, GlyphModFn fn,
                               float reach);
 
+  /** A PASS EFFECT: the track's evaluation is one shader pass over the
+   *  addressed units' rendered pixels, not a per-glyph deviation — the
+   *  factory behind `fx::pass` (TextFx.h), where the contract is
+   *  documented. The material must carry SkSL SOURCE
+   *  (`Material::sksl(std::string, …)`), because the runtime bakes the
+   *  unit count into the compiled shader; any other material warns once
+   *  and returns an EMPTY effect, so the track draws its glyphs at rest. */
+  static TextEffect pass(Material material);
+  /** The pass material, or null for every per-glyph effect — what the
+   *  runtime dispatches on. */
+  [[nodiscard]] const Material* passMaterial() const;
+
  private:
   struct State {
     std::string name;
@@ -724,6 +811,10 @@ class TextEffect {
     std::vector<choreograph::EaseFn> curves;
     GlyphModFn fn;
     float reach = 0;
+    /** Set only by pass(): the material run over the units' layer. Held by
+     *  pointer because Material is declared below this class; it rides
+     *  equality by VALUE (Material::operator==), like an Effect child. */
+    std::shared_ptr<const Material> pass;
   };
   std::shared_ptr<const State> m_state;
 };

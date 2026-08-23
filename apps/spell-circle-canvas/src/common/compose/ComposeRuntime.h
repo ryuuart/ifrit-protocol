@@ -1140,10 +1140,15 @@ struct Composer::Impl {
    *  straight baseline. The rest pose comes from the baseline — level on a
    *  plain run, on the curve and turned to it on a path run — and every
    *  fx() track's deviation applies ON TOP OF IT, in that pose's own frame.
-   *  `onPath` is null for text with no baseline path. */
+   *  `onPath` is null for text with no baseline path. A track whose effect
+   *  is a PASS (fx::pass) renders its addressed glyphs — deviations
+   *  applied — into a layer instead of the canvas and runs its material
+   *  once over that layer; `ctx` is the node's paint context, which that
+   *  resolve reads for its clock, box and injected uniforms. */
   void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
                    const sigil::weave::PaintStyle* override,
-                   const TextPath* onPath, SkSize size);
+                   const TextPath* onPath, SkSize size,
+                   const PaintContext& ctx);
   /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
    *  last draw() produced — the read-back behind Composer::beatsOf. Rects
    *  come out in the NODE's own space; the caller offsets them into the

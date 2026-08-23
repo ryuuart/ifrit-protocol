@@ -845,6 +845,19 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   const bool liveEffect =
       (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
       (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
+  // A LIVE pass material on an fx() track — uTime, a bound uniform, a
+  // bound block — repaints the pass's output every frame with no float the
+  // scalar lane could compare, so it is opaque volatility, exactly as a
+  // live textFill material is. A pass whose only motion is its track's
+  // PROGRESS is not this: progress already rides the memoized scalar lane
+  // above, and the recording replays once it settles.
+  const bool passLive = [&] {
+    for (const Track& t : tracksOf(node))
+      if (t.effect)
+        if (const Material* pm = t.effect.passMaterial())
+          if (pm->isAnimated()) return true;
+    return false;
+  }();
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
   // can sit still for a long time inside a running motion. Declared and
@@ -938,7 +951,8 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // consumer below (the fill rides the memoized scalar lane, the live
   // material has its own memo). No consumer re-enumerates.
   const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
-                            spanVolatile || maskOpaque || liveEffect;
+                            spanVolatile || maskOpaque || liveEffect ||
+                            passLive;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's
@@ -1556,11 +1570,92 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
   return true;
 }
 
+/** The band a glyph occupies either side of its own baseline, from the
+ *  face's own metrics. Memoized per (face, size) across a walk: a
+ *  paragraph is a handful of distinct fonts however many letters it has. */
+struct GlyphBand {
+  float ascent = 0, descent = 0;
+};
+
+/** The memo key is the face AND the size: metrics scale with the size, and
+ *  a mixed-style paragraph is one face at several of them — keyed on the
+ *  face alone, every run after the first would wear the first one's band. */
+using BandKey = std::pair<const void*, float>;
+
+GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
+                 std::vector<std::pair<BandKey, GlyphBand>>& memo) {
+  if (!shaped || !shaped->typeface) return {};
+  const BandKey key{shaped->typeface.get(), shaped->fontSize};
+  for (const auto& [seen, band] : memo)
+    if (seen == key) return band;
+  SkFontMetrics metrics;
+  sigil::weave::makeFont(shaped->typeface, shaped->fontSize)
+      .getMetrics(&metrics);
+  // Skia reports the ascent as a NEGATIVE offset from the baseline; the band
+  // wants both halves positive.
+  const GlyphBand band{-metrics.fAscent, metrics.fDescent};
+  memo.emplace_back(key, band);
+  return band;
+}
+
+/** One glyph's advance box, placed and turned the way the layout placed and
+ *  turned it, as an axis-aligned bound.
+ *
+ *  The box is taken around the ADVANCE CENTRE the rest pose reports, which
+ *  is what makes one rule cover all four baselines: a wrapped line and a
+ *  mixed-style run differ only in where the centre and the band are, a path
+ *  run and a rotated column run differ only in which way the box is turned,
+ *  and an upright vertical glyph's advance runs down the column instead of
+ *  across it. ONE body for three readers — the beatsOf query, the mark
+ *  resolver and a pass track's uUnitRect — so none can disagree about
+ *  where a unit is. */
+SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
+                const GlyphBand& band) {
+  const float size = placed.shaped ? placed.shaped->fontSize : 0.0f;
+  const bool upright = placed.shaped && placed.shaped->vertical;
+  const float halfAlong = std::abs(placed.advance) * 0.5f;
+  // Along the advance, then across it. An upright vertical glyph advances
+  // DOWN its column and is about one em wide across it; everything else
+  // advances along its baseline and stands `band` tall across it.
+  const float x0 = upright ? -size * 0.5f : -halfAlong;
+  const float x1 = upright ? size * 0.5f : halfAlong;
+  const float y0 = upright ? -halfAlong : -band.ascent;
+  const float y1 = upright ? halfAlong : band.descent;
+  SkRect box = SkRect::MakeEmpty();
+  bool first = true;
+  for (const SkPoint corner :
+       {SkPoint{x0, y0}, SkPoint{x1, y0}, SkPoint{x1, y1}, SkPoint{x0, y1}}) {
+    const SkPoint at{
+        pose.centre.x() + corner.x() * pose.cosine - corner.y() * pose.sine,
+        pose.centre.y() + corner.x() * pose.sine + corner.y() * pose.cosine};
+    if (first) {
+      box = SkRect::MakeLTRB(at.x(), at.y(), at.x(), at.y());
+      first = false;
+    } else {
+      box.fLeft = std::min(box.fLeft, at.x());
+      box.fTop = std::min(box.fTop, at.y());
+      box.fRight = std::max(box.fRight, at.x());
+      box.fBottom = std::max(box.fBottom, at.y());
+    }
+  }
+  return box;
+}
+
+/** The seed a pass hands its unit in `uUnitPhase[i].y`: distinct per
+ *  (outer, inner) beat, in [1, 256), and a pure function of the beat's
+ *  numbering — so it is the same seed on every frame and after every
+ *  relayout, which is what lets a seeded dissolve settle and cache. */
+float passUnitSeed(uint32_t outer, uint32_t inner) {
+  Rng rng(((uint64_t)outer << 32) | (uint64_t)inner);
+  return 1.0f + rng.unit() * 255.0f;
+}
+
 }  // namespace
 
 void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                                  const sigil::weave::PaintStyle* override,
-                                 const TextPath* onPath, SkSize size) {
+                                 const TextPath* onPath, SkSize size,
+                                 const PaintContext& ctx) {
   if (!inst.paragraph) return;  // no content materialized: nothing to draw
   const std::span<const Track> tracks = tracksOf(*inst.desc);
 
@@ -1658,6 +1753,27 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   if (used == 0 && !ridesPath) return;
   const std::span<const Resolved> live(resolved.data(), used);
 
+  // PASS TRACKS (fx::pass): each renders its addressed glyphs into its own
+  // lane instead of the canvas, accumulating one rect and one local time
+  // per (outer, inner) beat — the same enumeration beatsOfTrack reports,
+  // from the same TrackCascade, so the pass and the query cannot disagree
+  // about the schedule. A glyph a pass addresses draws only inside that
+  // pass's layer; a glyph two passes address renders in both.
+  struct PassLane {
+    const Resolved* source = nullptr;
+    sigil::weave::GlyphRSXformBatches batches;
+    std::vector<std::pair<uint32_t, uint32_t>> keys;  // (outer, inner) beats
+    std::vector<SkRect> rects;                        // one per beat
+    std::vector<float> locals;                        // localT per beat
+  };
+  std::vector<std::unique_ptr<PassLane>> passes;
+  for (const Resolved& r : live)
+    if (r.track->effect.passMaterial()) {
+      passes.push_back(std::make_unique<PassLane>());
+      passes.back()->source = &r;
+    }
+  std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
+
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
 
@@ -1681,6 +1797,9 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         bool continuous = false;
         for (const Resolved& r : live) {
           if (!(*r.selected)[g]) continue;
+          // A pass deviates nothing per glyph — its whole evaluation is
+          // the layer draw below, downstream of every deviation here.
+          if (r.track->effect.passMaterial()) continue;
           const detail::TrackCascade& rc = r.resolved;
           info.unitIndex = rc.outerUnit[g];
           info.unitCount =
@@ -1787,10 +1906,90 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
           dress.cosine = turnCos * mod.scale;
           dress.sine = turnSin * mod.scale;
         }
-        batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
-                         glyph, halfAdvance, dress);
+        // ROUTE: a glyph a pass addresses is drawn inside that pass's
+        // layer — with the deviation just composed, because the pass reads
+        // pixels and the deviated pixels are the node's truth — and never
+        // directly as well, which would double it under the pass's output.
+        bool inPass = false;
+        for (const std::unique_ptr<PassLane>& lane : passes) {
+          if (!(*lane->source->selected)[g]) continue;
+          inPass = true;
+          lane->batches.addGlyph(placed.shaped,
+                                 override ? *override : *placed.paint, glyph,
+                                 halfAdvance, dress);
+          // The beat this glyph belongs to, and its box joined into that
+          // beat's rect — the same (outer, inner) walk beatsOfTrack takes.
+          const detail::TrackCascade& rc = lane->source->resolved;
+          const uint32_t outer = rc.outerUnit[g];
+          const uint32_t inner = rc.innerUnit.empty() ? 0u : rc.innerUnit[g];
+          const SkRect box =
+              glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
+          bool joined = false;
+          for (size_t i = lane->keys.size(); i-- > 0;)
+            if (lane->keys[i].first == outer && lane->keys[i].second == inner) {
+              lane->rects[i].join(box);
+              joined = true;
+              break;
+            }
+          if (!joined) {
+            lane->keys.emplace_back(outer, inner);
+            lane->rects.push_back(box);
+            lane->locals.push_back(
+                rc.cascade.localTime(lane->source->master, outer, inner));
+          }
+        }
+        if (!inPass)
+          batches.addGlyph(placed.shaped, override ? *override : *placed.paint,
+                           glyph, halfAdvance, dress);
       });
   batches.draw(&canvas);
+
+  // THE PASSES, in track declaration order, each once: record the lane's
+  // glyphs as a picture, hand it to the material as `uContent`, upload the
+  // per-beat rects and phases, and draw ONE rect — the node's box grown by
+  // the track's reach, which is the pass's whole footprint. The picture
+  // shader rasterizes at the device's resolution, so the letters stay
+  // sharp on a scaled host with no supersampled bake; everything is in the
+  // node's own px, the frame main(xy) receives.
+  for (const std::unique_ptr<PassLane>& lane : passes) {
+    const auto n = (uint32_t)lane->keys.size();
+    if (n == 0) continue;  // the selection resolved nothing: nothing to burn
+    const float reach = lane->source->track->reachPx();
+    const SkRect bounds =
+        SkRect::MakeWH(size.width(), size.height()).makeOutset(reach, reach);
+    SkPictureRecorder recorder;
+    lane->batches.draw(recorder.beginRecording(bounds));
+    const sk_sp<SkPicture> layer = recorder.finishRecordingAsPicture();
+    static thread_local std::vector<float> rects, phases;
+    rects.clear();
+    phases.clear();
+    rects.reserve((size_t)n * 4);
+    phases.reserve((size_t)n * 2);
+    for (uint32_t i = 0; i < n; ++i) {
+      const SkRect& r = lane->rects[i];
+      rects.insert(rects.end(), {r.x(), r.y(), r.width(), r.height()});
+      phases.push_back(lane->locals[i]);
+      phases.push_back(passUnitSeed(lane->keys[i].first, lane->keys[i].second));
+    }
+    detail::TextPassInputs inputs;
+    inputs.content = layer->makeShader(SkTileMode::kDecal, SkTileMode::kDecal,
+                                       SkFilterMode::kLinear, nullptr, &bounds);
+    inputs.rects = rects.data();
+    inputs.phases = phases.data();
+    inputs.units = n;
+    const Material* material = lane->source->track->effect.passMaterial();
+    sk_sp<SkShader> pass = material->resolvePass(inputs, ctx);
+    if (!pass) {
+      // The refusal already said why (no source, or it does not compile):
+      // show resting letters rather than nothing, so the text survives
+      // the mistake.
+      lane->batches.draw(&canvas);
+      continue;
+    }
+    SkPaint paint;
+    paint.setShader(std::move(pass));
+    canvas.drawRect(bounds, paint);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1806,79 +2005,6 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
 // buffer would answer with whatever the last live frame left behind; a query
 // that resolves against the current layout and the current progress answers
 // for the frame being asked about.
-
-namespace {
-
-/** The band a glyph occupies either side of its own baseline, from the
- *  face's own metrics. Memoized per (face, size) across the walk: a
- *  paragraph is a handful of distinct fonts however many letters it has. */
-struct GlyphBand {
-  float ascent = 0, descent = 0;
-};
-
-/** The memo key is the face AND the size: metrics scale with the size, and
- *  a mixed-style paragraph is one face at several of them — keyed on the
- *  face alone, every run after the first would wear the first one's band. */
-using BandKey = std::pair<const void*, float>;
-
-GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
-                 std::vector<std::pair<BandKey, GlyphBand>>& memo) {
-  if (!shaped || !shaped->typeface) return {};
-  const BandKey key{shaped->typeface.get(), shaped->fontSize};
-  for (const auto& [seen, band] : memo)
-    if (seen == key) return band;
-  SkFontMetrics metrics;
-  sigil::weave::makeFont(shaped->typeface, shaped->fontSize)
-      .getMetrics(&metrics);
-  // Skia reports the ascent as a NEGATIVE offset from the baseline; the band
-  // wants both halves positive.
-  const GlyphBand band{-metrics.fAscent, metrics.fDescent};
-  memo.emplace_back(key, band);
-  return band;
-}
-
-/** One glyph's advance box, placed and turned the way the layout placed and
- *  turned it, as an axis-aligned bound.
- *
- *  The box is taken around the ADVANCE CENTRE the rest pose reports, which
- *  is what makes one rule cover all four baselines: a wrapped line and a
- *  mixed-style run differ only in where the centre and the band are, a path
- *  run and a rotated column run differ only in which way the box is turned,
- *  and an upright vertical glyph's advance runs down the column instead of
- *  across it. */
-SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
-                const GlyphBand& band) {
-  const float size = placed.shaped ? placed.shaped->fontSize : 0.0f;
-  const bool upright = placed.shaped && placed.shaped->vertical;
-  const float halfAlong = std::abs(placed.advance) * 0.5f;
-  // Along the advance, then across it. An upright vertical glyph advances
-  // DOWN its column and is about one em wide across it; everything else
-  // advances along its baseline and stands `band` tall across it.
-  const float x0 = upright ? -size * 0.5f : -halfAlong;
-  const float x1 = upright ? size * 0.5f : halfAlong;
-  const float y0 = upright ? -halfAlong : -band.ascent;
-  const float y1 = upright ? halfAlong : band.descent;
-  SkRect box = SkRect::MakeEmpty();
-  bool first = true;
-  for (const SkPoint corner :
-       {SkPoint{x0, y0}, SkPoint{x1, y0}, SkPoint{x1, y1}, SkPoint{x0, y1}}) {
-    const SkPoint at{
-        pose.centre.x() + corner.x() * pose.cosine - corner.y() * pose.sine,
-        pose.centre.y() + corner.x() * pose.sine + corner.y() * pose.cosine};
-    if (first) {
-      box = SkRect::MakeLTRB(at.x(), at.y(), at.x(), at.y());
-      first = false;
-    } else {
-      box.fLeft = std::min(box.fLeft, at.x());
-      box.fTop = std::min(box.fTop, at.y());
-      box.fRight = std::max(box.fRight, at.x());
-      box.fBottom = std::max(box.fBottom, at.y());
-    }
-  }
-  return box;
-}
-
-}  // namespace
 
 namespace {
 
@@ -2859,7 +2985,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // deviate from that placement. Neither wins over the other.
           if (hasTextFx(node) || onPath) {
             paintTextFx(inst, canvas, glyphPaint, onPath,
-                        {bounds.width(), bounds.height()});
+                        {bounds.width(), bounds.height()}, paintCtx);
           } else {
             inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
           }

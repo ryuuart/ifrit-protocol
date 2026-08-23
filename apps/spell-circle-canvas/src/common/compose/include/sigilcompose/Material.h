@@ -134,12 +134,38 @@ bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
 /** Does @p effect declare @p name as a uniform of exactly @p bytes? The
  *  same guardrail one paragraph up, for the other kind of slot: assigning
  *  an undeclared uniform — or one whose declared size is not the caller's,
- *  which is every float2, float4 and array — aborts a debug build and drops
+ *  which is every mismatched float2, float4 and array — aborts a debug
+ *  build and drops
  *  the value silently in a release one. Every door that takes a uniform
  *  name from an author validates here at STORE time, so the builder is
- *  never handed an entry it would refuse. */
+ *  never handed an entry it would refuse. An ARRAY validates by its TOTAL
+ *  byte size, which is all the builder checks: 12 floats fill
+ *  `float4 uRect[3]` and `float uWeights[12]` alike. */
 bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
                      std::string_view name, size_t bytes);
+
+/** THE PER-UNIT DATA A TEXT PASS IS HANDED — what the fx() runtime fills
+ *  for a `fx::pass` track's material and `Material::resolvePass` uploads.
+ *  `content` is the addressed units' rendered layer; `rects` is 4 floats
+ *  per unit (x, y, w, h, node-local px); `phases` is 2 per unit (that
+ *  unit's cascade-local 0→1, then its stable seed). Non-owning views,
+ *  valid for the call. */
+struct TextPassInputs {
+  sk_sp<SkShader> content;
+  const float* rects = nullptr;
+  const float* phases = nullptr;
+  uint32_t units = 0;
+};
+
+/** The compiled shader for (pass source, unit count): the runtime's
+ *  declarations — `uContent`, `uUnitRect[N]`, `uUnitPhase[N]`,
+ *  `kUnitCount` — prepended to the author's source and compiled once per
+ *  distinct (source, N), cached for the process. The unit count must be
+ *  baked into the source because a runtime effect's array size is fixed at
+ *  compile and SkSL has no uniform-bounded loop; caching per count is what
+ *  keeps that from meaning a compile per frame. A source that does not
+ *  compile warns once and answers null. */
+sk_sp<SkRuntimeEffect> passEffectFor(const std::string& source, uint32_t units);
 }  // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to
@@ -209,6 +235,33 @@ class Material {
    *  records, cached between layouts — see geometryDependent()). */
   static Material sksl(
       sk_sp<SkRuntimeEffect> effect,
+      std::vector<std::pair<std::string, float>> constants = {});
+  /** The SOURCE-CARRYING form: the SkSL as a string, compiled by the
+   *  library through a process-wide cache keyed on the source — so a
+   *  helper that re-mints this material every describe still compares
+   *  EQUAL to itself (same source, same cached effect pointer), where the
+   *  compiled-effect overload demands the caller hold one effect.
+   *
+   *  It is also the form `fx::pass` requires. A pass material's SkSL is
+   *  written against declarations the RUNTIME supplies — `uniform shader
+   *  uContent` (the addressed units' rendered layer), `uniform float4
+   *  uUnitRect[N]`, `uniform float2 uUnitPhase[N]` and `const int
+   *  kUnitCount = N` — and N is the track's unit count, known only at
+   *  paint, so the source cannot be compiled by the caller at all: the
+   *  library prepends those declarations and compiles once per distinct
+   *  unit count. Do not declare those four names yourself, and reference
+   *  them only from a material handed to `fx::pass` — used as an ordinary
+   *  fill, this material compiles with N = 1 and the runtime's slots go
+   *  unfilled: the arrays read zero and uContent is the builder's null
+   *  child, so a source meant for a fill should not read them.
+   *
+   *  Everything else is the compiled overload exactly: constants here take
+   *  float uniforms, uniform()/child() add the rest, uTime/uResolution/
+   *  uContentScale inject when declared and set the tier. A source that
+   *  does not compile warns once with the compiler's error and the
+   *  material is NONE. */
+  static Material sksl(
+      std::string source,
       std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
   static Material shader(sk_sp<SkShader> shader);
@@ -310,6 +363,26 @@ class Material {
   /** Constant float4 uniform set from a color (straight, not premultiplied —
    *  what the SkSL declares as `uniform float4`). */
   Material& uniform(std::string name, SkColor4f value);
+  /** Constant float4 uniform from plain numbers — a rect, a quaternion,
+   *  anything that is not a colour. Same slot the SkColor4f form fills. */
+  Material& uniform(std::string name, std::array<float, 4> value);
+  /** CONSTANT ARRAY, stored flat and matched against the declared
+   *  uniform's TOTAL float count — 12 floats fill `float4 uRect[3]`,
+   *  `float2 uPts[6]` and `float uWeights[12]` alike, because total size
+   *  is all the builder distinguishes. The whole array must be supplied:
+   *  the builder refuses a partial write, so a count that is not the
+   *  declaration's warns once and is ignored. */
+  Material& uniform(std::string name, std::vector<float> values);
+  /** A LIVE ARRAY — a `UniformBlock` (Compose.h) the caller owns, writes
+   *  and commit()s, read at every paint. The material becomes LIVE exactly
+   *  as a bound scalar makes it: re-resolved per frame, its node declared
+   *  volatile, no cache can freeze the table — and the resolve memo reads
+   *  the block's REVISION, so an uncommitted frame reuses the built shader.
+   *  The binding compares by block identity and the values never prune;
+   *  hold the block beside your model, not in the describe. Size-checked
+   *  at store against the declared array's total float count. */
+  Material& uniform(std::string name,
+                    std::shared_ptr<const UniformBlock> block);
   Material& uniform(std::string name, const choreograph::Output<float>* output);
 
   /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material. The effect
@@ -503,6 +576,20 @@ class Material {
    *  static one, exactly toFill(). What the painter calls for a live fill. */
   Fill resolve(const PaintContext& ctx) const;
 
+  /** THE PASS RESOLVE — what the fx() runtime calls for a `fx::pass`
+   *  track's material, once per draw: the source specialized to
+   *  `in.units` (compiled once per count, cached), the recipe's constants,
+   *  bindings, blocks and children applied exactly as resolve() applies
+   *  them, and the runtime's own slots — uContent, uUnitRect, uUnitPhase —
+   *  filled from @p in. Null when the material carries no source or the
+   *  source does not compile; the caller draws the units plainly then, so
+   *  a broken pass shows resting letters rather than nothing. */
+  sk_sp<SkShader> resolvePass(const detail::TextPassInputs& in,
+                              const PaintContext& ctx) const;
+  /** The SkSL source behind the source-carrying sksl() form, or empty for
+   *  every other kind — what `fx::pass` requires of its material. */
+  const std::string& skslSource() const;
+
   /** STRUCTURAL value equality — the prune signature. Two materials
    *  compare equal when they were built from the same recipe: solids by
    *  colour; gradients by geometry, stops and tile mode; images by (image
@@ -531,9 +618,18 @@ class Material {
    *  floats, because a digest cannot detect a change in an input it was
    *  never fed; uResolution becomes the root canvas size; and the built
    *  shader is wrapped in W⁻¹ BEFORE the memo stores it, so a field that
-   *  is holding still keeps a stable shader pointer. */
+   *  is holding still keeps a stable shader pointer.
+   *
+   *  @p pass non-null is resolvePass()'s route through the SAME body: the
+   *  effect swaps for the source specialized to the unit count, the
+   *  runtime's three slots are filled from the inputs, and the memo is
+   *  skipped — per-unit phases move every frame the pass is live, and a
+   *  settled pass is replayed from its node's recording, not rebuilt. One
+   *  body, so a pass material's constants, bindings, blocks, children and
+   *  injected context can never be applied differently than a fill's. */
   static sk_sp<SkShader> build(const Live& live, const PaintContext* ctx,
-                               bool worldSpace = false);
+                               bool worldSpace = false,
+                               const detail::TextPassInputs* pass = nullptr);
   /** Fold a Blend recipe's layers into one shader — `ctx` null is the
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */
