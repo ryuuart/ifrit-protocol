@@ -67,6 +67,12 @@ audit), the gallery when you are LOOKING at one next to everything else.
 | `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths; the whole skeuomorphic vocabulary — with the real shell GIFs fetched from the studio's restoration host |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
+| `shipping_forecast` | BBC Radio 4's 0048 bulletin, whose every adjective is a defined quantity | The whole text engine as one designed sheet — a ring marquee, a nested cascade, a grade swell, a decode, mixed faces in one paragraph, and a column running down the page |
+| `karaoke_wipe` | Fleischer's bouncing ball (1924) and the CD+G subcode wipe (1985) | One schedule, two conventions: an `fx::tint` cascade against a ball placed from the schedule read back with `beatsOf` |
+| `axis_ripple` | The variable-font weight wave, the demo every variable face ships with | A driven `GRAD` axis, with the `wght` advance drift measured and printed as the reason the drive is refused |
+| `elastic_type` | animate.css `rubberBand` and `jello` (Daniel Eden, 2013) | Two published keyframe tables run per glyph on the non-uniform scale and shear lane, with the tables plotted beside them |
+| `matrix_rain` | The Matrix's digital rain (Simon Whiteley, Animal Logic, 1999) — the in-film kind, where the light falls and the type stands still | Four vertical-RL curtains of mirrored half-width katakana; per-column cue tables with nested cluster cascades, a held keyframe streak, `fx::scramble` churn through an advance-uniform charset, and per-glyph fades splitting glow underlays into fade classes — thousands of glyphs, all moving |
+| `rota_convocationis` | An invented conjuring wheel in the real idiom of the Solomonic circles, Agrippa's planetary tables and the alchemical rotae | A magic circle that ASSEMBLES — fourteen curved baselines forming, orbiting and charging at once: fitted ring runs, a cue-table rim with a `beatsOf`-placed scribe, roundels chained start-to-start from `spanMs`, a kamea decoding under a nested cascade, and an `fx::pass` charge riding a marquee baseline |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
 
 Two are not studies:
@@ -90,7 +96,7 @@ here:
 - **Check the claim before ranking it.** FOUR entries turned out to be
   wrong — `PathFormat` has always carried its own trim window, there has
   always been a bound `Fill`, the whole brush vocabulary has always worked
-  on hand-built geometry via `decorations::paintOn`, and `onPath` walked
+  on hand-built geometry via `decorations::paintOn`, and `onPath` filled
   every contour hours before a doc comment said otherwise. In each case a
   capable author concluded "impossible", worked around it, and the
   workaround got recorded as a gap. An entry that reads "impossible"

@@ -70,9 +70,10 @@
 //    and `background()` would hide the hatch under the node's fill. The
 //    striped plate and the digit are therefore SIBLINGS in a stack().
 //  · A hyperbola sampled out to its asymptote drops off-canvas points and
-//    therefore splits into several contours, and `onPath` only uses the
-//    FIRST one — so the escape label's ν window is fitted by hand to the
-//    part that crosses the frame, or the label renders nothing at all.
+//    therefore splits into several contours. `onPath` fills them in order,
+//    but a contour boundary is a word break — so the escape label's ν
+//    window is fitted by hand to the part that crosses the frame, and the
+//    label reads as one run rather than as words scattered over fragments.
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
@@ -760,7 +761,8 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     // Escape / flyby hyperbola — open, not a closed shape. The window is
     // hand-fitted to the part that crosses the frame: sampling out to the
     // asymptote makes path() drop off-canvas points, which splits the
-    // result into several contours, and onPath only uses the FIRST one.
+    // result into several contours, and onPath treats each as its own
+    // stretch of baseline that a word may not straddle.
     const float nuA = -104.0f, nuB = 98.0f;
     (void)esc.nuInfinity();
     g.child(full(box()

@@ -38,17 +38,19 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilcompose/Console.h>
-#include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Material.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -146,7 +148,7 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
 }
 
 /** back.out with the standard 1.70158 overshoot, the same constant
- *  glyphfx::pop uses. choreograph ships no easeOutBack, so this file
+ *  fx::pop uses. choreograph ships no easeOutBack, so this file
  *  carries its own. */
 float easeOutBack(float t) {
   constexpr float s = 1.70158f;
@@ -186,10 +188,10 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
 
   // --- bound outputs ---
   ch::Output<float> pulse{0.0f};  // swatch-36 energy strobe (τ ≈ 20 ms)
-  ch::Output<float> blink{1.0f};  // console cursor square wave
+  ch::Output<float> blink{1.0f};  // caret square wave
 
-  // --- console ---
-  console::LineRing ring{64};
+  // --- the boot feed ---
+  feed::TextRing ring{64};
   size_t bootLine = 0;
   double nextBoot = 0.20;  // first boot line lands at 200 ms
   bool bootDone = false;
@@ -338,16 +340,25 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   }
 
   Element title() {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(24);
-    fx.stagger = {.eachMs = 28, .durationMs = 480};  // Kinetic.h cadence
-    // Master progress spans durationMs + eachMs·(N-1) of virtual time.
-    fx.progress =
-        animate(from(0.0f).to(1.0f),
-                {.duration = 872ms, .ease = &ch::easeNone, .delay = 120ms});
-    return text(toU8("DOOM FIRE, 1995"), type(heavyFace(), 50, kBone, -0.6f))
+    // The progress duration is the cascade's own span, so the last glyph
+    // lands exactly as the master arrives at 1. Cluster units are the
+    // shaped glyphs, and a space is a gap the flow leaves rather than a
+    // glyph — so for this ASCII line the unit count is its non-space
+    // character count.
+    static constexpr char kTitle[] = "DOOM FIRE, 1995";
+    const Stagger cascade{.eachMs = 28, .durationMs = 480};
+    const auto units =
+        (uint32_t)std::count_if(std::begin(kTitle), std::end(kTitle) - 1,
+                                [](char c) { return c != ' '; });
+    const auto span =
+        std::chrono::milliseconds(std::lround(cascade.spanMs(units)));
+    return text(toU8(kTitle), type(heavyFace(), 50, kBone, -0.6f))
         .key("title")
-        .glyphFx(std::move(fx));
+        .fx({.effect = fx::rise(24),
+             .stagger = cascade,
+             .progress = animate(
+                 from(0.0f).to(1.0f),
+                 {.duration = span, .ease = &ch::easeNone, .delay = 120ms})});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so
@@ -537,18 +548,27 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                                mono(10, hex(0xEFEFC7), 1.2f))));
   }
 
-  console::Style consoleStyle() {
-    console::Style s;
-    s.text = mono(11.5f, kAmber);
-    s.palette = {mono(11.5f, hex(0x8A6A22)),  // 0: dim continuation
-                 mono(11.5f, kBone)};         // 1: emphasis
-    s.gap = 2;
-    s.visibleLines = 16;
-    s.cursorColor = kAmber;
-    s.cursorWidth = 8;
-    s.cursorHeight = 14;
-    s.cursorOpacity = &blink;
-    return s;
+  feed::TextOptions feedOptions() {
+    feed::TextOptions o;
+    o.styles.base(mono(11.5f, kAmber))
+        .set("dim", mono(11.5f, hex(0x8A6A22)))  // continuation lines
+        .set("emphasis", mono(11.5f, kBone));
+    o.window.gap = 2;
+    o.window.visible = 16;
+    return o;
+  }
+
+  /** The boot feed with the caret after it: the block is chrome, not a row,
+   *  so it goes in as an ordinary child of the column feed() returns. */
+  Element bootFeed() {
+    Element well = feed::feed(ring, feedOptions());
+    well.child(box()
+                   .width(8)
+                   .height(14)
+                   .fill(Fill::color(kAmber))
+                   .opacity(&blink)
+                   .key("caret"));
+    return well;
   }
 
   Element specPanel() {
@@ -573,7 +593,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                               .margin(0, 0, 6, 0))
                    .child(text(toU8("27 Hz"), mono(11, kSteel, 1.2f))))
         .child(box().height(1).fill(kKeyline))
-        .child(console::console(ring, consoleStyle()))
+        .child(bootFeed())
         .child(box().grow(1))
         .child(box().height(1).fill(kKeyline))
         // The decay curve: what the buffer looks like as DATA.
@@ -779,8 +799,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       };
       constexpr size_t kBootCount = sizeof(kBoot) / sizeof(kBoot[0]);
       if (bootLine < kBootCount && elapsed >= nextBoot) {
-        const size_t indented = kBoot[bootLine][2] == ' ' ? 0 : SIZE_MAX;
-        ring.append(toU8(kBoot[bootLine]), indented);
+        const char* level = kBoot[bootLine][2] == ' ' ? "dim" : "";
+        ring.append({toU8(kBoot[bootLine]), level});
         ++bootLine;
         nextBoot += 0.11;  // 110 ms between lines — a stagger, as data
         composer.render(describe());

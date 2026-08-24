@@ -29,6 +29,19 @@ namespace sigil::compose {
 
 using namespace detail;
 
+// Declared in ComposeInternal.h and defined here, with the rest of the
+// library's hand-written comparators.
+bool detail::easeEqual(const choreograph::EaseFn& a,
+                       const choreograph::EaseFn& b) {
+  const bool aSet = (bool)a, bSet = (bool)b;
+  if (aSet != bSet) return false;
+  if (!aSet) return true;
+  using Ptr = float (*)(float);
+  const Ptr* pa = a.target<Ptr>();
+  const Ptr* pb = b.target<Ptr>();
+  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
+}
+
 namespace {
 
 YGAlign toYogaAlign(Align a) {
@@ -92,16 +105,6 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
-bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet) return false;
-  if (!aSet) return true;
-  using Ptr = float (*)(float);
-  const Ptr* pa = a.target<Ptr>();
-  const Ptr* pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
-}
-
 static_assert(kFieldCount<Transition> == 3,
               "Transition gained or lost a field — rule on it in "
               "transitionEqual() below, then bump this count.");
@@ -135,7 +138,7 @@ namespace detail {
  *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
  *       — the end-to-end check, through a real re-describe of the same node,
  *       for the wiggle parameters. */
-static_assert(kFieldCount<BoundFloat> == 17,
+static_assert(kFieldCount<BoundFloat> == 24,
               "BoundFloat gained or lost a field. boundMapEqual() below "
               "compares it BY HAND: rule on the new field (participate, or "
               "a stated reason not to), then bump this count. A miss is "
@@ -144,13 +147,18 @@ static_assert(kFieldCount<BoundFloat> == 17,
 bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
   return a.source == b.source && a.inScale == b.inScale &&
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
-         a.steps == b.steps && a.scale == b.scale && a.offset == b.offset &&
-         a.clamped == b.clamped && a.lo == b.lo && a.hi == b.hi &&
-         a.wiggleAmount == b.wiggleAmount &&
+         a.envelope == b.envelope && a.riseStart == b.riseStart &&
+         a.holdStart == b.holdStart && a.holdEnd == b.holdEnd &&
+         a.fallEnd == b.fallEnd && a.duty == b.duty && a.steps == b.steps &&
+         a.scale == b.scale && a.offset == b.offset && a.clamped == b.clamped &&
+         a.lo == b.lo && a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
          a.wiggleFrequency == b.wiggleFrequency &&
          a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
          a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&
-         easeEqual(a.curve, b.curve);
+         // The two curve slots compare under the same conservative rule: a
+         // plain function is compared by identity, a capturing lambda is
+         // unequal to everything and the binding re-patches every describe.
+         easeEqual(a.curve, b.curve) && easeEqual(a.waveFn, b.waveFn);
 }
 
 }  // namespace detail
@@ -189,35 +197,63 @@ bool effectEqual(const std::optional<Effect>& a,
 // ---- block equality: presence must match first, then contents; a block
 // holding a callable stays conservatively unequal ---------------------------
 
-static_assert(kFieldCount<TextData> == 12,
+static_assert(kFieldCount<TextPath> == 7,
+              "TextPath gained or lost a field — rule on it in "
+              "textPathEqual() below, then bump this count. The comparator "
+              "is hand-written at all because `at` is an Animatable, and "
+              "an Animatable is compared where every other animated slot "
+              "is: through propEqual.");
+bool textPathEqual(const TextPath& a, const TextPath& b) {
+  return a.path == b.path && propEqual(a.at, b.at) && a.align == b.align &&
+         a.offset == b.offset && a.autoFlip == b.autoFlip &&
+         a.orient == b.orient && a.exactTangent == b.exactTangent;
+}
+
+static_assert(kFieldCount<TextData> == 14 && kFieldCount<TextOptions> == 9 &&
+                  kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
-              "field compared in PART, and only because the full-control "
-              "overload that can set the rest also sets paragraphOverride, "
-              "which is unconditionally conservative.)");
+              "field NOT compared, and only because the full-control "
+              "overload that sets it also sets paragraphOverride, which is "
+              "unconditionally conservative. The fluent setters are "
+              "comparable in full and live in `options`.)");
 bool textEqual(const ElementNode& a, const ElementNode& b) {
   if ((bool)a.textData != (bool)b.textData) return false;
   if (!a.textData) return true;
   const TextData &ta = *a.textData, &tb = *b.textData;
-  if (ta.glyphFx.has_value() != tb.glyphFx.has_value()) return false;
-  if (ta.glyphFx)
-    return false;  // effect is a callable — memo covers settled kinetic text
-  // VariationDrive: BINDING identity, like Animatable bindings — same tag
-  // and same Output pointer prune (the value lives outside the tree).
-  if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
-      ta.driveValue != tb.driveValue)
-    return false;
+  // fx() tracks are comparable VALUES — selector, effect (preset id plus
+  // parameters, or the key an ad-hoc lambda was given), cascade, reach and
+  // the continuous opt-out — so text that re-describes the same tracks
+  // prunes like any other static leaf. The progress is an Animatable and is
+  // compared where every other animated slot is, through propEqual.
+  //
+  // variationDrive()'s track rides this comparison too: its effect's key
+  // carries the axis tag AND the driven Output's address, so a re-describe
+  // naming the same drive prunes and one naming another does not — the
+  // binding identity every bound value in the tree is compared by.
+  if (ta.tracks.size() != tb.tracks.size()) return false;
+  for (size_t i = 0; i < ta.tracks.size(); ++i)
+    if (!ta.tracks[i].sameShape(tb.tracks[i]) ||
+        !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
+      return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
+  // rich(): a whole mixed paragraph as one comparable value — same base,
+  // same runs, same resolved styles — so a component that rebuilds its
+  // spans every describe prunes like a static leaf. This is exactly what
+  // the shared_ptr<Paragraph> overload below cannot answer.
+  if (!(ta.rich == tb.rich)) return false;
   if (ta.hasTextStroke != tb.hasTextStroke ||
       (ta.hasTextStroke && (ta.textStrokeWidth != tb.textStrokeWidth ||
                             !(ta.textStrokeFill == tb.textStrokeFill))))
     return false;
-  // layoutOptions aren't comparable in full, but alignment is the one knob
-  // the simple text() path exposes (textAlign) — compare it so an alignment
-  // change actually patches.
-  if (a.kind == Kind::Text &&
-      ta.layoutOptions.alignment != tb.layoutOptions.alignment)
-    return false;
+  // The fluent layout-option setters ARE comparable — value plus the mask
+  // of which fields were written — so a changed alignment, break strategy,
+  // clamp or ellipsis patches on every content form.
+  if (a.kind == Kind::Text && !(ta.options == tb.options)) return false;
+  // spanPaint()/spanStyle(): comparable selectors and comparable styles, in
+  // declaration order, so a re-described restyle list prunes and a changed
+  // one re-resolves.
+  if (ta.spanRestyles != tb.spanRestyles) return false;
   if (ta.paragraphOverride != tb.paragraphOverride) return false;
   if (ta.paragraphOverride)
     return false;  // layoutOptions aren't comparable — memo these
@@ -227,7 +263,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // together. A raw-callable baseline makes the Shape compare false and
   // falls back to never pruning.
   if (ta.onPath.has_value() != tb.onPath.has_value()) return false;
-  if (ta.onPath && !(*ta.onPath == *tb.onPath)) return false;
+  if (ta.onPath && !textPathEqual(*ta.onPath, *tb.onPath)) return false;
   // textFill(): live never prunes, static compares by recipe.
   if (ta.metricFill.has_value() != tb.metricFill.has_value()) return false;
   if (ta.metricFill) {
@@ -235,6 +271,10 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
       return false;
     if (!(*ta.metricFill == *tb.metricFill)) return false;
   }
+  // mark(): a comparable selector and the key of the child it anchors, in
+  // declaration order — so a re-described mark list prunes, and a mark
+  // pointed at a different unit re-resolves its rect.
+  if (ta.marks != tb.marks) return false;
   return true;
 }
 
@@ -352,6 +392,40 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  The endpoint trio is compared only for the two rules that READ it
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
  *  nowhere else); every other field is unconditional. */
+// ---- the fx() seam's hand-written comparators ------------------------------
+
+static_assert(kFieldCount<Stagger> == 11,
+              "Stagger gained or lost a field — rule on it in "
+              "Stagger::operator== below, then bump this count. A field left "
+              "out makes two different cascades compare equal, the text node "
+              "prunes, and it keeps beating to the old ladder forever.");
+bool Stagger::operator==(const Stagger& other) const {
+  if (eachMs != other.eachMs || amountMs != other.amountMs ||
+      durationMs != other.durationMs || loopMs != other.loopMs ||
+      from != other.from || seed != other.seed || over != other.over ||
+      beatsOver != other.beatsOver || cueMs != other.cueMs)
+    return false;
+  if (!easeEqual(distribution, other.distribution)) return false;
+  if (inner == other.inner) return true;  // both absent, or one shared value
+  if (!inner || !other.inner) return false;
+  return *inner == *other.inner;
+}
+
+static_assert(kFieldCount<Track> == 6,
+              "Track gained or lost a field — rule on it in "
+              "Track::sameShape() below, then bump this count. `progress` is "
+              "deliberately NOT compared there: it is an Animatable, and "
+              "textEqual() compares it through propEqual with every other "
+              "animated slot.");
+bool Track::sameShape(const Track& other) const {
+  return where == other.where && effect == other.effect &&
+         stagger == other.stagger && reach == other.reach &&
+         continuous == other.continuous;
+}
+bool Track::operator==(const Track& other) const {
+  return sameShape(other) && propEqual(progress, other.progress);
+}
+
 static_assert(kFieldCount<Spans::Term> == 11,
               "Spans::Term gained or lost a field — rule on it below, then "
               "bump this count. A term field left out makes every claim of "
@@ -604,10 +678,7 @@ std::unique_ptr<Instance> Composer::Impl::mount(
   // description, resolved by instanceRect() with no flex engine behind
   // it. The container itself keeps its node (it lives in its parent's
   // flow); its descendants never get one.
-  const bool positionedChild =
-      parent &&
-      (!parent->yoga || (parent->desc && parent->desc->layout.positioned));
-  if (!positionedChild) {
+  if (!parent || childrenCarryYoga(*parent)) {
     inst->yoga = YGNodeNewWithConfig(yogaConfig);
     YGNodeSetContext(inst->yoga, inst.get());
   }
@@ -730,6 +801,7 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
     if (kindChanged) {
       inst.paragraph.reset();
       inst.lines.clear();
+      inst.columns.clear();
       if (inst.yoga) YGNodeSetMeasureFunc(inst.yoga, nullptr);
     }
 
@@ -751,24 +823,32 @@ void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
           prev && prev->textData ? &*prev->textData : nullptr;
       const bool textChanged =
           !prevText || kindChanged || prevText->utf8 != text.utf8 ||
-          !(prevText->style == text.style) ||
+          !(prevText->style == text.style) || !(prevText->rich == text.rich) ||
           prevText->paragraphOverride != text.paragraphOverride ||
-          prevText->layoutOptions.alignment != text.layoutOptions.alignment;
+          !(prevText->options == text.options) ||
+          prevText->spanRestyles != text.spanRestyles;
       if (textChanged) {
         inst.contentRev++;
-        inst.driveProbe = -1;  // new content → re-probe the drive gate
-        if (text.paragraphOverride)
-          inst.paragraph.emplace(*text.paragraphOverride);
-        else {
-          inst.paragraph.emplace();
-          inst.paragraph->appendText(text.utf8, text.style);
-        }
+        // No layout yet at describe time, so a sel::line restyle resolves
+        // against nothing here; layoutText() re-materializes against the
+        // fresh line geometry when one is asked for.
+        materializeText(inst);
         if (inst.yoga) {
           YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
           YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
           YGNodeSetNodeType(inst.yoga, YGNodeTypeText);
           YGNodeMarkDirty(inst.yoga);
         }
+        needsLayout = true;
+      }
+      // mark(): a mark's rect is an answer of the TEXT LAYOUT, and
+      // layoutText() reuses a layout that is valid for the same content
+      // revision. So a mark list that changed without the content changing
+      // must invalidate that guard, or the marks keep the rects the
+      // previous selectors resolved. The paragraph itself is untouched —
+      // nothing is re-materialized and nothing re-shapes.
+      else if (prevText && prevText->marks != text.marks) {
+        inst.contentRev++;
         needsLayout = true;
       }
     }
@@ -860,8 +940,7 @@ void Composer::Impl::patchChildren(Instance& inst,
   // Whether children of THIS parent carry Yoga nodes; a mismatch on a
   // reused instance (the container toggled positioned()) forces a fresh
   // mount below, because a Yoga node's existence is fixed at mount.
-  const bool childrenWantYoga =
-      inst.yoga != nullptr && !inst.desc->layout.positioned;
+  const bool childrenWantYoga = childrenCarryYoga(inst);
   for (auto& child : inst.children) {
     if (child) {
       oldOrder.push_back(child.get());
@@ -911,19 +990,15 @@ void Composer::Impl::patchChildren(Instance& inst,
         // the whole list, but one item appended to a LIVE list enters with
         // no extra delay (it is the only new mount) instead of inheriting
         // its full-list ordinal.
-        const float n = (float)newChildren.size();
-        float order = (float)mountOrdinal;
-        switch (inst.desc->fxData->staggerFrom) {
-          case Stagger::From::End:
-            order = n - 1.0f - order;
-            break;
-          case Stagger::From::Center:
-            order = std::abs(order - (n - 1.0f) * 0.5f) * 2.0f;
-            break;
-          case Stagger::From::Start:
-            break;
-        }
-        mountDelayCarryMs += staggerMs * order;
+        // The SAME ordering an fx() track's units take, so `From` means one
+        // thing wherever it is written.
+        static thread_local std::vector<float> order;
+        // Child stagger has no seed knob: a Random child order is the
+        // count-keyed deal, as it always was.
+        cascadeOrder(inst.desc->fxData->staggerFrom,
+                     (uint32_t)newChildren.size(), 0u, order);
+        if (mountOrdinal < order.size())
+          mountDelayCarryMs += staggerMs * order[mountOrdinal];
       }
       inst.children.push_back(mount(node, &inst));
       mountDelayCarryMs = saved;
@@ -962,6 +1037,89 @@ void Composer::Impl::patchChildren(Instance& inst,
     needsLayout = true;
   }
   // Unmatched old children unmount here (destructors cancel motions).
+}
+
+void Composer::Impl::materializeText(
+    Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
+    std::span<const sigil::weave::ColumnMetrics> columns) {
+  const TextData& text = *inst.desc->textData;
+  inst.paragraph.emplace();
+  // Cleared for every content form, so the names a node answers for are
+  // exactly the ones its CURRENT content declares.
+  inst.textSlotKeys.clear();
+  inst.textSlotRects.clear();
+  inst.textNamedRuns.clear();
+  if (text.paragraphOverride) {
+    *inst.paragraph = *text.paragraphOverride;
+  } else if (!text.rich.empty()) {
+    // The runs concatenate with nothing between them: a rich text's spacing
+    // is the author's own, exactly as it is in the strings they wrote.
+    for (const RichText::Run& run : text.rich.runs()) {
+      if (!run.slotKey.empty()) {
+        // A slot run reserves a box instead of setting glyphs. The names go
+        // into one list in declaration order, which is the order weave
+        // matches its placeholder records to the U+FFFCs in the text.
+        inst.textSlotKeys.push_back(run.slotKey);
+        inst.paragraph->appendPlaceholder(
+            {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
+            run.style);
+        continue;
+      }
+      // The extent a named run occupies, read off the text as it grows: a
+      // name is a handle on THIS run's characters, not on the style span it
+      // produced, so the restyles below may cut the spans to pieces and
+      // sel::style still answers with the run.
+      const auto begin = (uint32_t)inst.paragraph->text().size();
+      inst.paragraph->appendText(run.utf8, run.style);
+      if (!run.styleName.empty())
+        inst.textNamedRuns.push_back(
+            {run.styleName, {begin, (uint32_t)inst.paragraph->text().size()}});
+    }
+  } else {
+    inst.paragraph->appendText(text.utf8, text.style);
+  }
+  // The writing mode is the Paragraph's, not the layout options', so the
+  // field-masked override lands here: a mode nobody set leaves a passed-in
+  // paragraph's own mode standing. A path run has no columns to advance —
+  // its baseline IS the geometry — so the path wins and says so.
+  if (text.options.set & TextOptions::kWritingMode)
+    inst.paragraph->setWritingMode(text.options.writingMode);
+  if (text.onPath &&
+      inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
+    warnWritingModeOnPath();
+    inst.paragraph->setWritingMode(sigil::weave::WritingMode::kHorizontal);
+  }
+
+  // The restyles run in DECLARATION ORDER over the finished paragraph, so a
+  // later one simply overwrites the spans an earlier one wrote wherever the
+  // two overlap — which is the "later wins" rule, spelled as span surgery
+  // rather than as a merge nobody could predict.
+  for (const SpanRestyle& restyle : text.spanRestyles) {
+    const std::vector<sigil::weave::CharRange> ranges =
+        resolveTextRanges(restyle.where, *inst.paragraph, fonts, lines, columns,
+                          inst.textNamedRuns);
+    if (ranges.empty()) continue;
+    if (restyle.paintOnly) {
+      // The batch form: N ranges cost one span-list rebuild, and shaping
+      // keys are untouched, so nothing re-shapes and nothing relayouts.
+      inst.paragraph->setPaint(ranges, restyle.style.paint);
+    } else {
+      for (const sigil::weave::CharRange& range : ranges)
+        inst.paragraph->setStyle(range.start, range.end, restyle.style);
+    }
+  }
+}
+
+sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
+    const Instance& inst) const {
+  sigil::weave::ParagraphLayoutOptions options;
+  if (!inst.desc || !inst.desc->textData) return options;
+  const TextData& text = *inst.desc->textData;
+  // The passed value is the ground the setters are written over, so a
+  // full-control caller keeps every field no setter named.
+  options = text.layoutOptions;
+  text.options.applyTo(options);
+  return options;
 }
 
 void Composer::Impl::applyLayoutProps(Instance& inst) {
@@ -1064,6 +1222,7 @@ void Composer::Impl::rebuildKeyIndex() {
   bySlot.clear();
   routedInstances.clear();
   flowInstances.clear();
+  pathMarkInstances.clear();
   routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
@@ -1112,6 +1271,9 @@ void Composer::Impl::indexKeys(Instance& inst) {
     }
     if (derive.placeFn) hasCustomLayout = true;
   }
+  if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
+      !node.textData->marks.empty())
+    pathMarkInstances.push_back(&inst);
   if (node.layout.centerAt) hasCenterPins = true;
   for (auto& child : inst.children) indexKeys(*child);
 }

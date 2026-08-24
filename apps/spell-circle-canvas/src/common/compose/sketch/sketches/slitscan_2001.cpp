@@ -200,12 +200,12 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -1040,10 +1040,9 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
 
   Element header() {
     using namespace slit;
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(18.0f);
-    fx.stagger = {.eachMs = 22};
-    fx.progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms});
+    Track rise{.effect = fx::rise(18.0f),
+               .stagger = {.eachMs = 22},
+               .progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms})};
     return box()
         .column()
         .height(Dim(kHeaderH))
@@ -1058,7 +1057,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .child(t("THE SLIT-SCAN MACHINE, 1966–68", uiB(40, kType, 0.4f))
                    .key("title")
                    .textStroke(0.6f, Fill::color(kInk))
-                   .glyphFx(std::move(fx)))
+                   .fx(std::move(rise)))
         .child(t("Douglas Trumbull — ‘Creating Special Effects for 2001: A "
                  "Space Odyssey’, American Cinematographer 49(6):416–420, "
                  "451–453, June 1968 (READ DIRECTLY) · Cinefex 85, April "

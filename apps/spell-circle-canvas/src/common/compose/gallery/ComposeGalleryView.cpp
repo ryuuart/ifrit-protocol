@@ -142,8 +142,16 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem* item) {
     // work alone would allow — the number the 60fps floor is judged on.
     metrics.insert(QStringLiteral("fps"), m_stage->stats.presentedFps());
     metrics.insert(QStringLiteral("headroomFps"), m_stage->stats.fps());
-    metrics.insert(QStringLiteral("workMs"), m_stage->stats.average());
-    metrics.insert(QStringLiteral("p99Ms"), m_stage->stats.percentile(0.99));
+    // The presented TAIL, beside the presented mean: a stutter is a worst-case
+    // interval, and averaging it against the frames that did hit the vsync is
+    // what hides it.
+    metrics.insert(QStringLiteral("presentP99Ms"),
+                   m_stage->stats.presentPercentile(0.99));
+    metrics.insert(QStringLiteral("presentWorstMs"),
+                   m_stage->stats.presentWorstMs());
+    metrics.insert(QStringLiteral("workMs"), m_stage->stats.workAverage());
+    metrics.insert(QStringLiteral("p99Ms"),
+                   m_stage->stats.workPercentile(0.99));
     metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
     metrics.insert(QStringLiteral("reconcileMs"), cs.reconcileMs);
     metrics.insert(QStringLiteral("layoutMs"), cs.layoutMs);

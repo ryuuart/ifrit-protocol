@@ -16,6 +16,7 @@
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -26,10 +27,21 @@ namespace sigil::compose {
 /** The sksl recipe behind a Material (opaque in the header). */
 struct Material::Live {
   sk_sp<SkRuntimeEffect> effect;
+  // The source-carrying form's SkSL, empty for the compiled-effect form.
+  // When set, `effect` is the source compiled at unit count 1 through the
+  // same cache resolvePass() specializes from — so two materials built
+  // from one source string share an effect pointer and compare equal.
+  std::string source;
   std::vector<std::pair<std::string, float>> constants;
   std::vector<std::pair<std::string, std::array<float, 2>>> constants2;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
+  // Constant arrays, stored flat; validated at store by total float count.
+  std::vector<std::pair<std::string, std::vector<float>>> constantArrays;
   std::vector<std::pair<std::string, const choreograph::Output<float>*>> binds;
+  // Live arrays: caller-owned blocks, read per resolve. Any entry makes
+  // the material LIVE, like a bind; the resolve memo digests revisions.
+  std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
+      blocks;
   // child(): `uniform shader NAME` slots, filled with whole Materials.
   // They are recipe (they participate in equality) AND volatility: the
   // parent inherits each child's tier, and resolves every child with the
@@ -141,18 +153,18 @@ RampArrays split(const std::vector<Stop>& stops) {
 // assigning an undeclared or mis-sized uniform SkDEBUGFAILs (aborts debug
 // builds), which would let one typo kill the ComposeSketch hot-reload host.
 // Unknown names warn-and-ignore instead (validated at sksl()/uniform() time,
-// so build() never touches an invalid entry).
+// so build() never touches an invalid entry). The rule itself lives in
+// detail:: because Effect's uniform doors answer to it too.
 bool validUniform(const sk_sp<SkRuntimeEffect>& effect, std::string_view name,
                   size_t bytes) {
-  if (!effect) return false;
-  const SkRuntimeEffect::Uniform* u = effect->findUniform(name);
-  return u && u->sizeInBytes() == bytes;
+  return detail::declaresUniform(effect, name, bytes);
 }
 
 void warnUnknownUniform(const char* what, const std::string& name) {
   SkDebugf(
       "Material::%s: uniform \"%s\" is not declared by the effect at "
-      "float size — ignored\n",
+      "this value's size — ignored (an array must supply the declared "
+      "total float count exactly)\n",
       what, name.c_str());
 }
 
@@ -178,6 +190,64 @@ bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
   if (!effect) return false;
   const SkRuntimeEffect::Child* c = effect->findChild(name);
   return c && c->type == SkRuntimeEffect::ChildType::kShader;
+}
+
+// The uniform half of the same guardrail, shared with Effect::shader and
+// Effect::uniform so the two doors that take an author's uniform name cannot
+// disagree about what the effect will accept.
+bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
+                     std::string_view name, size_t bytes) {
+  if (!effect) return false;
+  const SkRuntimeEffect::Uniform* u = effect->findUniform(name);
+  return u && u->sizeInBytes() == bytes;
+}
+
+// The one compile behind every source-carrying material: the pass
+// prelude at the requested unit count, then the author's source, cached
+// per (source, count) for the process — the probe every sksl(source)
+// material validates against is this at count 1, so two materials built
+// from one source string share an effect pointer and compare equal.
+// Failures are cached too: a source that does not compile says why ONCE
+// and then answers null without recompiling per frame.
+sk_sp<SkRuntimeEffect> passEffectFor(const std::string& source,
+                                     uint32_t units) {
+  struct Cached {
+    std::string source;
+    uint32_t units;
+    sk_sp<SkRuntimeEffect> effect;
+  };
+  static std::vector<Cached> cache;
+  const uint32_t n = std::max(units, 1u);
+  for (const Cached& c : cache)
+    if (c.units == n && c.source == source) return c.effect;
+  const std::string count = std::to_string(n);
+  const std::string src =
+      "uniform shader uContent;\n"
+      "uniform float4 uUnitRect[" +
+      count +
+      "];\n"
+      "uniform float2 uUnitPhase[" +
+      count +
+      "];\n"
+      "const int kUnitCount = " +
+      count + ";\n" + source;
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
+  if (!effect) {
+    // Once per source, not per count: the author's error is the same text
+    // at every specialization.
+    bool said = false;
+    for (const Cached& c : cache) said |= !c.effect && c.source == source;
+    if (!said)
+      SkDebugf(
+          "[compose] Material::sksl(source): does not compile — the "
+          "material is NONE and a pass over it draws its units plainly. "
+          "Note the runtime prepends uContent / uUnitRect / uUnitPhase / "
+          "kUnitCount, so line numbers are offset by 4 and those names "
+          "must not be redeclared.\n%s\n",
+          error.c_str());
+  }
+  cache.push_back({source, n, effect});
+  return effect;
 }
 
 // The Material→SkShader conversion every child slot performs (declared in
@@ -231,8 +301,18 @@ void digestToRoot(std::vector<float>& inputs, const SkMatrix& w) {
 // last three only when the effect actually declares them (assigning a uniform
 // the effect lacks aborts in debug builds). `ctx` is null for the static build.
 sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
-                                bool worldSpace) {
-  if (!live.effect) return nullptr;
+                                bool worldSpace,
+                                const detail::TextPassInputs* pass) {
+  // The pass route swaps the effect for the source specialized to the unit
+  // count — everything else below is the one shared body. A pass with no
+  // source has nothing to specialize and answers null; the caller draws
+  // the units plainly.
+  sk_sp<SkRuntimeEffect> effect = live.effect;
+  if (pass) {
+    if (live.source.empty()) return nullptr;
+    effect = detail::passEffectFor(live.source, std::max(pass->units, 1u));
+  }
+  if (!effect) return nullptr;
   // A user-provided uniform (constant or bound) OWNS its slot, and the
   // auto-injects below must never overwrite it. Binding uTime to a
   // caller-driven Output is a supported way to control a material's clock,
@@ -245,18 +325,21 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
       if (n == name) return true;
     for (const auto& [n, v] : live.constants4)
       if (n == name) return true;
+    for (const auto& [n, v] : live.constantArrays)
+      if (n == name) return true;
     for (const auto& [n, o] : live.binds)
+      if (n == name) return true;
+    for (const auto& [n, b] : live.blocks)
       if (n == name) return true;
     return false;
   };
-  const bool injectTime = ctx &&
-                          validUniform(live.effect, "uTime", sizeof(float)) &&
+  const bool injectTime = ctx && validUniform(effect, "uTime", sizeof(float)) &&
                           !userProvided("uTime");
   const bool injectScale =
-      ctx && validUniform(live.effect, "uContentScale", sizeof(float)) &&
+      ctx && validUniform(effect, "uContentScale", sizeof(float)) &&
       !userProvided("uContentScale");
   const bool injectRes =
-      ctx && validUniform(live.effect, "uResolution", 2 * sizeof(float)) &&
+      ctx && validUniform(effect, "uResolution", 2 * sizeof(float)) &&
       !userProvided("uResolution");
 
   // A world-space material's uResolution is the ROOT canvas size, not the
@@ -269,12 +352,23 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
                              : (ctx ? ctx->size : SkSize::MakeEmpty());
 
   // The varying-input digest (constants are fixed per recipe; injected
-  // values participate only when actually injected).
+  // values participate only when actually injected). A PASS skips the memo
+  // outright: its per-unit phases move every frame it is live, and a
+  // settled pass replays from its node's recording rather than resolving.
   std::vector<float> inputs;
-  if (ctx) {
-    inputs.reserve(live.binds.size() + 10);
+  if (ctx && !pass) {
+    inputs.reserve(live.binds.size() + 2 * live.blocks.size() + 10);
     for (const auto& [name, out] : live.binds)
       inputs.push_back(out ? out->value() : 0.0f);
+    // A block's REVISION stands in for its values: commit() moves it, an
+    // uncommitted frame leaves it, and two floats carry it without the
+    // digest walking the whole table. Split because a float holds 24 bits
+    // exactly and a long session's commit count does not fit in them.
+    for (const auto& [name, block] : live.blocks) {
+      const uint64_t revision = block ? block->revision() : 0;
+      inputs.push_back((float)(revision & 0xffffffull));
+      inputs.push_back((float)(revision >> 24));
+    }
     // When anchored, W is a varying input like any other: a node that MOVED
     // resolves a different shader, and the memo has to see that or the next
     // frame after the move replays the shader anchored to the old position.
@@ -315,8 +409,8 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   // uniform signature, when the reserve is at least half the shorter side.
   if (injectRes && ctx->size.width() > 0 && ctx->size.height() > 0) {
     static bool warnedPad = false;
-    if (!warnedPad && validUniform(live.effect, "uPad", sizeof(float)) &&
-        validUniform(live.effect, "uGlowR", sizeof(float))) {
+    if (!warnedPad && validUniform(effect, "uPad", sizeof(float)) &&
+        validUniform(effect, "uGlowR", sizeof(float))) {
       const float halfMin =
           0.5f * std::min(ctx->size.width(), ctx->size.height());
       for (const auto& [name, value] : live.constants)
@@ -335,21 +429,31 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
         }
     }
   }
-  SkRuntimeShaderBuilder b(live.effect);
+  SkRuntimeShaderBuilder b(effect);
   for (const auto& [name, value] : live.constants)
-    b.uniform(name.c_str()) = value;  // entries pre-validated at store time
-  for (const auto& [name, value] : live.constants2)
-    b.uniform(name.c_str()) = value;
-  for (const auto& [name, value] : live.constants4)
-    b.uniform(name.c_str()) = value;
+    b.uniform(name) = value;  // entries pre-validated at store time
+  for (const auto& [name, value] : live.constants2) b.uniform(name) = value;
+  for (const auto& [name, value] : live.constants4) b.uniform(name) = value;
+  for (const auto& [name, values] : live.constantArrays)
+    b.uniform(name).set(values.data(), (int)values.size());
   for (const auto& [name, out] : live.binds)
-    if (out) b.uniform(name.c_str()) = out->value();
+    if (out) b.uniform(name) = out->value();
+  for (const auto& [name, block] : live.blocks)
+    if (block)  // size pre-validated at store: a full array write, exactly
+      b.uniform(name).set(block->values().data(), (int)block->size());
+  if (pass) {
+    // The runtime's own slots. The counts are the specialization's by
+    // construction, and the builder demands exactly them.
+    b.child("uContent") = pass->content;
+    const int n = (int)std::max(pass->units, 1u);
+    if (pass->rects) b.uniform("uUnitRect").set(pass->rects, n * 4);
+    if (pass->phases) b.uniform("uUnitPhase").set(pass->phases, n * 2);
+  }
   // Children resolve with the SAME PaintContext the parent got (so a live
   // child ticks and a geometry child reads the parent node's box), and with
   // the null context on the static snapshot path.
   for (const auto& [name, child] : live.children)
-    b.child(name.c_str()) =
-        detail::childShader(child, ctx);  // pre-validated at store
+    b.child(name) = detail::childShader(child, ctx);  // pre-validated at store
   if (ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
@@ -369,7 +473,7 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   // recording can replay. Wrapping after the store would mint a fresh
   // wrapper per resolve and the material would read as never holding still.
   if (worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx) {
+  if (ctx && !pass) {
     live.lastInputs = std::move(inputs);
     live.lastShader = built;
   }
@@ -570,6 +674,20 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
   return m;
 }
 
+Material Material::sksl(std::string source,
+                        std::vector<std::pair<std::string, float>> constants) {
+  // The unit-1 probe from the same cache resolvePass() specializes from:
+  // it is what uniform()/child() validate against (the author's own
+  // declarations are identical at every count), and its pointer identity
+  // is what makes two materials from one source string compare equal.
+  sk_sp<SkRuntimeEffect> probe = detail::passEffectFor(source, 1);
+  if (!probe) return {};  // passEffectFor already said why, once
+  Material m = sksl(std::move(probe), std::move(constants));
+  m.detachLive();  // sole owner here; the mutation below must not share
+  m.m_live->source = std::move(source);
+  return m;
+}
+
 namespace {
 /** mix(a, b, t) as one nested shader — what a blend layer's amount()
  *  lerps with (SkShaders has Blend but no Lerp). One effect for the
@@ -646,10 +764,13 @@ bool Material::operator==(const Material& o) const {
     // Children are recipe, recursively: two materials over one effect that
     // sample DIFFERENT palettes are different materials, and a node that
     // pruned across that swap would sample the old one forever.
+    // The source form compares by effect pointer like the rest: equal
+    // sources share one cached probe, so no string comparison is needed.
     return m_live->effect == o.m_live->effect &&
            m_live->constants == o.m_live->constants &&
            m_live->constants2 == o.m_live->constants2 &&
            m_live->constants4 == o.m_live->constants4 &&
+           m_live->constantArrays == o.m_live->constantArrays &&
            m_live->children == o.m_live->children;
   }
   if ((m_recipe != nullptr) != (o.m_recipe != nullptr)) return false;
@@ -848,8 +969,11 @@ bool Material::isAnimated() const {
 }
 
 bool Material::animatedBeyondBoundOffset() const {
-  if (m_live &&
-      (!m_live->binds.empty() || m_live->usesTime || m_live->usesScale))
+  // A bound UniformBlock is a bind whose value is a table: the material
+  // re-resolves per frame (the resolve memo reads the revision), and its
+  // node is declared volatile so a cache cannot freeze the array.
+  if (m_live && (!m_live->binds.empty() || !m_live->blocks.empty() ||
+                 m_live->usesTime || m_live->usesScale))
     return true;
   // A child slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
@@ -922,6 +1046,81 @@ Material& Material::uniform(std::string name, SkColor4f value) {
       std::array<float, 4>{value.fR, value.fG, value.fB, value.fA});
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
+}
+
+Material& Material::uniform(std::string name, std::array<float, 4> value) {
+  if (!m_live) {
+    SkDebugf(
+        "Material::uniform(\"%s\", float4): ignored — this material has "
+        "no named uniforms (only sksl() does)\n",
+        name.c_str());
+    return *this;
+  }
+  if (!validUniform(m_live->effect, name, 4 * sizeof(float))) {
+    warnUnknownUniform("uniform", name);
+    return *this;
+  }
+  detachLive();
+  m_live->constants4.emplace_back(std::move(name), value);
+  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  return *this;
+}
+
+Material& Material::uniform(std::string name, std::vector<float> values) {
+  if (!m_live) {
+    SkDebugf(
+        "Material::uniform(\"%s\", array): ignored — this material has "
+        "no named uniforms (only sksl() does)\n",
+        name.c_str());
+    return *this;
+  }
+  // Validated by TOTAL byte size, which is all the builder distinguishes —
+  // and the builder refuses a partial array write, so the count must be
+  // the declaration's exactly.
+  if (!validUniform(m_live->effect, name, values.size() * sizeof(float))) {
+    warnUnknownUniform("uniform", name);
+    return *this;
+  }
+  detachLive();
+  m_live->constantArrays.emplace_back(std::move(name), std::move(values));
+  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  return *this;
+}
+
+Material& Material::uniform(std::string name,
+                            std::shared_ptr<const UniformBlock> block) {
+  if (!m_live) {
+    SkDebugf(
+        "Material::uniform(\"%s\", block): ignored — this material has "
+        "no named uniforms (only sksl() does)\n",
+        name.c_str());
+    return *this;
+  }
+  if (!block) {
+    SkDebugf(
+        "Material::uniform(\"%s\", block): null UniformBlock — there is "
+        "nothing to read at paint time; ignored\n",
+        name.c_str());
+    return *this;
+  }
+  if (!validUniform(m_live->effect, name, block->size() * sizeof(float))) {
+    warnUnknownUniform("uniform", name);
+    return *this;
+  }
+  detachLive();
+  m_live->blocks.emplace_back(std::move(name), std::move(block));
+  return *this;  // now LIVE; painting resolves per frame (resolve())
+}
+
+const std::string& Material::skslSource() const {
+  static const std::string kEmpty;
+  return m_live ? m_live->source : kEmpty;
+}
+
+sk_sp<SkShader> Material::resolvePass(const detail::TextPassInputs& in,
+                                      const PaintContext& ctx) const {
+  if (!m_live || m_live->source.empty()) return nullptr;
+  return build(*m_live, &ctx, m_worldSpace, &in);
 }
 
 /** THE BLEND FOLD, in one place because it has two callers that must agree:

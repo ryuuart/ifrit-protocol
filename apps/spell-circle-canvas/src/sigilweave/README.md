@@ -160,14 +160,14 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 
 | Header | What it is |
 |---|---|
-| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. |
-| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones, the shape cache, observable `Stats`. |
-| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, and the analysis entry points. |
+| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. `StyleSet` is a small ordered registry of named styles, comparable by value, whose lookup always answers — an unregistered name resolves to the set's base entry. |
+| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones (retained, or transient for a continuously varying coordinate), the shape cache, observable `Stats`. |
+| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, sentence boundaries, and the analysis entry points. |
 | `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |
 | `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
 | `Shaper.h` | `ShapedWord`, `shapeWord()`, `wordBlob()`, `makeFont()`. Reach for it to inspect or reuse individual glyph runs. |
 | `Query.h` | Optional: find ranges by substring, word, or ICU regex; `MarkerSet` tracks named ranges across edits, DOM-Range style. |
-| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs with their rest positions, and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls. |
+| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls, each glyph dressed by a `GlyphDress` (placement, fade, tint, face, matrix). |
 | `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
 | `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
 | `InlineVector.h` | The small-buffer vector `Word::segments` uses, so no third-party container appears in a public header. |
@@ -235,7 +235,12 @@ state.
   `wdth` axis).
 - **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
   orientation, `vert` forms, and per-span `VerticalForm` overrides (upright,
-  rotated, tate-chu-yoko).
+  rotated, tate-chu-yoko). `columnMetrics()` measures the result, and a
+  dressed glyph in a column sets `GlyphDress::centreOffset` because half its
+  advance is a step down the page rather than across it.
+  `FontContext::glyphAdvanceEm()` reports either axis's advance in ems, for a
+  caller asking whether two glyphs step the pen alike — the vertical advance
+  is a fact Skia's glyph metrics do not carry at all.
 - **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
   direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
   platform cascade; supply a `FontContext::FallbackResolver` to encode your
@@ -243,11 +248,26 @@ state.
 - **Inline placeholders** — pills, icons, and images woven into the flow. The
   breakers treat each as an unbreakable word; `placeholderRects()` reports
   where they landed.
+- **Per-glyph choreography** — `forEachPlacedGlyph()` (`Choreograph.h`) hands
+  every glyph of a finished layout to a visitor as one `PlacedGlyph`: the
+  shaped run it came from, its glyph ID and advance, the absolute rest
+  position the layout placed it at, its span's whole `PaintStyle`, and the
+  identity an effect selects on — position in the walk, index within the
+  shaped run, UTF-16 cluster, the same cluster as a text offset, and word,
+  line, style-span and sentence indices. A glyph the layout TURNED — one on
+  a contour, one on a rotated interval — carries the tangent it faces and
+  the interval and pen coordinate it was placed at, so it can be re-placed
+  at draw time from the same geometry. Displace, rotate and fade from there,
+  accumulate into `GlyphRSXformBatches`, and draw.
 - **Line metrics** — `lineMetrics()` derives per-line baseline, ascent and
   descent band, advance extent, and character range from the placed runs.
   Selection bands and point-to-line hit-testing are `lineMetrics()[i].rect()`
   plus ordinary canvas drawing; nothing is stored during layout and callers
-  who never ask pay nothing.
+  who never ask pay nothing. `columnMetrics()` is the same query for the
+  other writing mode: a column has no baseline, so it reports the axis, the
+  flow's pitch (also carried on `ParagraphLayout::linePitch`) and how far
+  down the axis the runs reached. Exactly one of the two answers in any
+  given layout.
 - **Tab stops, overflow ellipsis, line clamp** — see the options structs.
 
 ## The hard parts
@@ -302,18 +322,46 @@ patterns in this library. Soft hyphens (U+00AD) must already be in the text;
 feed it through any hyphenator that inserts them. Both breakers then treat
 them as break opportunities that are invisible unless a line actually breaks
 there, in which case a styled hyphen is rendered, and Knuth-Plass charges the
-configured penalty per hyphenated line.
+configured penalty per hyphenated line. `hyphenation.enabled = false` removes
+the opportunity rather than just the glyph: the two halves fuse into one
+unbreakable word during segmentation — `Paragraph::setSoftHyphenBreaks` is
+that switch, and `layoutParagraph` throws it from the option — so the word
+wraps or overflows whole, the way `hyphens: none` does. It changes the word
+list, so it re-runs the analysis, and the fused word is its own
+content-addressed shaping entry.
 
 **Text on a path.** Each glyph is anchored by its *advance center* on the
 baseline point, not by its origin — with the offsets HarfBuzz applied on top
 of the pen position backed out first, or accented glyphs drift off the curve.
 Closed contours wrap their arc positions, so animating an interval's
-`contourStart` gives an infinite marquee around the loop. Tangents are
-quantized to a fixed number of directions by default, because every distinct
-rotation mints a fresh glyph-atlas strike, and continuously varying per-glyph
-rotations turn animated curved text into a per-frame mask-rasterization
-storm. Set `pathText.tangentRotationSteps = 0` for exact rotations on static
-artwork.
+`contourStart` gives an infinite marquee around the loop; an interval that is
+closed in geometry without being *flagged* closed says so with
+`LineInterval::wrapContour`, and a negative `advanceScale` walks the contour
+backwards so a run can read right way up along the lower half of a ring.
+Tangents are quantized to a fixed number of directions by default, because
+every distinct rotation mints a fresh glyph-atlas strike, and continuously
+varying per-glyph rotations turn animated curved text into a per-frame
+mask-rasterization storm. Set `pathText.tangentRotationSteps = 0` for exact
+rotations on static artwork.
+
+`LineInterval::placeAt` is that mapping, and it is public: a pen coordinate
+on the interval, plus a phase, gives the baseline point and the unit tangent.
+The layout bakes its blobs through it, so a caller that re-places those
+glyphs at draw time — to run a marquee, or to compose per-glyph effects on
+top of curved lettering — reads the same function the blob was built from and
+the two cannot disagree. It reports whether the pen fell outside an open
+contour, so a caller may drop a glyph that ran off the end rather than pile
+it on the last point.
+
+**A transformed run is not opaque to choreography.** The layout keeps
+the intervals it consumed (`ParagraphLayout::intervals`) and each run reports
+which one it landed on and where its pen started, so `forEachPlacedGlyph`
+gives a glyph on a curve its true `rest` position, the `tangent` it was
+turned to, and the `pen`/`intervalIndex` pair that re-places it. Every
+per-glyph dressing — a fade, a tint, a driven variable-font axis, a
+substituted code point — therefore reaches curved lettering exactly as it
+reaches straight lettering. What still draws from baked blobs, and still
+ignores the override, is `ParagraphLayout::LiveVariations`.
 
 ## Conventions and gotchas
 
@@ -330,12 +378,26 @@ context must not migrate between threads mid-use.
 **Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
 Typefaces must outlive the context, or be consistently owned by it.
 
-**Cache eviction is a wholesale clear**, not LRU: past its cap the shape
-cache empties in one go and re-fills, costing one cold frame. The
+**Shape-cache eviction is a wholesale clear**, not LRU: past its cap the
+shape cache empties in one go and re-fills, costing one cold frame. The
 per-typeface, fallback, and varied-typeface maps are never pruned at all —
 `purgeAllCaches()` is the manual reset for a long-lived process whose
 typeface population churns. It is safe to call while shaped-word references
-are outstanding, because a `ShapedWord` owns its own data.
+are outstanding, because a `ShapedWord` owns its own data. (The tint-filter
+table behind `GlyphRSXformBatches` is the one LRU: past its cap it drops
+its coldest entry rather than everything, so a working set sitting at the
+cap keeps the filter identities its batching depends on.)
+
+**A varied clone from `variedTypeface()` is retained forever.** The memo is
+keyed on the coordinate's exact bytes, has no cap and no eviction, and
+`purgeAllCaches()` is the only thing that empties it. That is right for a
+coordinate drawn from a bounded set and wrong for one that varies
+continuously, which would add a permanently held clone per frame for the
+life of the process. `variedTypefaceTransient()` is the entry point for the
+latter: it builds the clone and retains nothing, so the cost is constant
+per frame instead of growing, and the face has no stable identity — which
+rules it out of `ShapingStyle::variations` and suits a draw-time drive,
+where the identity is only a batch key inside one frame.
 
 **All range APIs are UTF-16 code-unit offsets, end-exclusive.** UTF-8 entry
 points take `std::u8string_view` specifically, so the encoding contract rides
@@ -357,6 +419,61 @@ shaper measured against — or glyphs drift off their shaped positions. Related:
 Skia takes glyph edging from the *font*, never the paint, so
 `paint.setAntiAlias(false)` is silently ignored for text. Ask for hard edges
 with `ShapingStyle::aliased` instead.
+
+**A per-glyph walk is stable, and its batches are keyed by paint.**
+`forEachPlacedGlyph()` enumerates in draw order, and that order does not
+change across relayouts while the text is unchanged — which is what lets an
+effect key particle state on a glyph's position in the walk. Sentence indices
+come from an ICU pass over the text that runs on the first walk after an edit
+and is reused by every walk after it; a paint edit does not invalidate it.
+`GlyphRSXformBatches` buckets on (typeface, size, condensation, edging,
+resolved paint pass, pass band), and a glyph is added once per pass of its
+`PaintStyle` — each underlay in order, then the foreground, then each
+overlay — so an animated letter keeps its gradients, strokes and mask
+filters, and each pass costs one more `drawGlyphsRSXform` call. Buckets
+draw band by band — every underlay bucket, then every foreground bucket,
+then every overlay bucket, each band in creation order — so every underlay
+lands beneath every foreground even when per-glyph fades split one style
+into several buckets; a blurred halo reaches past its own glyph, so
+creation order alone would lay a late-fading letter's halo over its
+neighbour's stroke. A per-glyph fade rides `alphaScale` instead of a
+per-glyph style; quantize it when an effect drives it continuously, because
+distinct alphas are distinct buckets.
+Batched glyphs draw with their rotations quantized: a continuous per-letter
+angle mints a fresh glyph-atlas strike per letter per frame.
+
+**`GlyphRSXformBatches::subpixel` is the caller's declaration that the
+glyphs it is adding MOVE between frames**, and it decides whether their
+origins land on Skia's subpixel phase grid or on whole pixels. It is off by
+default, because the phases are the second factor in a product: every mask
+is a (glyph, rotation, phase) triple, and the phases multiply what a
+rotation ladder has already multiplied, on both axes for an off-axis run. A
+run at REST gains nothing — its letters are not creeping anywhere — and
+would pay that multiplied population for a placement no one can see move. A
+MOVING run's arithmetic runs the other way: its masks were never going to be
+re-used, since the rotation it needs this frame is a different rotation next
+frame, so the phase grid only refines a mask it was going to rasterize
+regardless. Left on whole pixels, a run creeping by a fraction of a pixel
+per frame does not creep at all — each letter stands still until its own
+origin crosses a pixel boundary and then hops a whole one. This is the same
+trade the rotation ladder makes and not a competing one: the ladder still
+bounds the rotations, and dropping it in exchange costs several times what
+the grid does.
+
+**A `GlyphDress` carries what varies per glyph** rather than per pass — the
+placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`
+flash added after it, and a `colorScreen` glow screened over both — the two
+brightening terms a multiplier cannot say), a `face` override for a glyph
+drawn through a varied clone, and a `matrix` for the placements an RSXform
+cannot express (a shear, a non-uniform scale). The face joins the bucket
+key; the fade and the colour terms change only each pass's resolved paint,
+and on a shader pass all three terms fold into one memoized modulating
+colour filter — screening against a constant is affine per channel — because
+a batch's key is a whole `SkPaint` and `SkPaint` compares its colour filter
+by pointer. A
+matrix glyph draws in its own bucket's lane, after that bucket's RSXform
+glyphs — same font, same paint, same place in the pass order, at the cost of
+one canvas concat and one draw each.
 
 **Shaping style versus paint style.** Any change to a shaping field re-shapes
 the words it covers. Paint changes never re-shape and never relayout, and
@@ -394,7 +511,8 @@ directly.
 straight horizontal runs only — transformed and vertical runs skip them. The
 ellipsis marker requires the final interval to be straight, horizontal, and
 not a contour. `lineMetrics()` skips transformed and vertical runs, and omits
-lines whose geometry placed nothing. Tab stops are line-local and scoped to
+lines whose geometry placed nothing — `columnMetrics()` is what answers
+there. Tab stops are line-local and scoped to
 straight horizontal left-to-right intervals.
 
 **Geometry is re-queried on every layout pass and never cached between

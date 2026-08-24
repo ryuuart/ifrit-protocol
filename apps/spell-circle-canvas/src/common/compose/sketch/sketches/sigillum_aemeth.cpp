@@ -119,7 +119,7 @@
 //   slot()/renderSlot()   the solver as an independent update domain
 //   debug::coverage       the 40 cells tile the annulus; the 7 angle plates
 //                         tile their band
-//   console::LineRing     four panels of checks, printed as they run
+//   feed::TextRing        four panels of checks, printed as they run
 //   Cache::Texture        the wax, the angle plates, the turning heptad
 //
 // A star polygon {n/k} self-intersects n(k−1) times, so this heptagram has
@@ -176,8 +176,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
@@ -444,7 +444,7 @@ shapes::OutlineFn heptChords(float rNorm, float inset) {
  *  and fourteen passes. Because the whole star is a single traversal,
  *  alternating over/under along it is a valid weave; `inconsistent` counts
  *  any crossing whose two passes came out claiming the same side, and the
- *  console reports it. */
+ *  the feed reports it. */
 struct Weave {
   SkPoint v[7];  // traversal vertices, in visiting order
   struct Cross {
@@ -572,7 +572,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   ch::Output<float> tracer{0.0f};
   ch::Output<float> pulseT{0.0f};
 
-  console::LineRing logA{64}, logB{64}, logC{64}, logD{64};
+  feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
   Weave weave;
   std::array<Solved, 7> solved;
   std::array<bool, 40> visited{};
@@ -1674,21 +1674,22 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   // =========================================================================
 
-  console::Style logStyle() {
+  feed::TextOptions logStyle() {
     // 10.2, and the ceiling is arithmetic. The panel is 690 wide, less 24 of
     // padding, less a 14 gap either side of the 1 px divider: 318.5 px to a
     // column. This mono advances 0.62 em, so 11 pt would fit 46 characters
     // and the 47th onward would be cut with no ellipsis and no warning —
-    // console lines simply lose their tails. The longest line printed below
+    // feed rows simply lose their tails. The longest line printed below
     // is 50 characters, so the size has to be at most 11 x 47/50.
     constexpr float kMono = 10.2f;
-    console::Style s = console::monoStyle(faceMono, kMono, hex(0x9d8a66),
-                                          {hex(0x6b5c44),    // 0 dim
-                                           kRubric,          // 1 heading
-                                           hex(0x59b98a),    // 2 PASS
-                                           hex(0x62b0dc)});  // 3 number
-    s.gap = 1.0f;
-    s.visibleLines = 16;
+    feed::TextOptions s;
+    s.styles = feed::tinted(faceMono, kMono, hex(0x9d8a66),
+                            {{"dim", hex(0x6b5c44)},
+                             {"heading", kRubric},
+                             {"pass", hex(0x59b98a)},
+                             {"number", hex(0x62b0dc)}});
+    s.window.gap = 1.0f;
+    s.window.visible = 16;
     return s;
   }
 
@@ -1709,15 +1710,15 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                            .column()
                            .grow(1)
                            .gap(6)
-                           .child(console::console(logA, logStyle()))
-                           .child(console::console(logC, logStyle())))
+                           .child(feed::feed(logA, logStyle()))
+                           .child(feed::feed(logC, logStyle())))
                 .child(box().width(1).fill(Fill::color(hex(0xc7ab74, 0.16f))))
                 .child(box()
                            .column()
                            .grow(1)
                            .gap(6)
-                           .child(console::console(logB, logStyle()))
-                           .child(console::console(logD, logStyle()))));
+                           .child(feed::feed(logB, logStyle()))
+                           .child(feed::feed(logD, logStyle()))));
     return g;
   }
 
@@ -1806,28 +1807,34 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   void runChecks() {
     // --- panel A: the extraction and the fit ------------------------------
-    logA.append(toU8("SECUNDUS.PDF p.31 \xe2\x80\x94 THE PLATE AS VECTORS"), 1);
-    logA.append(toU8("  310 text objects; 296 after the colophon"), 0);
-    logA.append(toU8("  K\xc3\xa5sa fit, outer letter ring, 44 glyphs:"), 0);
-    logA.append(toU8("    centre (305.185, 393.529) pt   R = 257.972 pt"), 3);
-    logA.append(toU8("    page bbox centre is off by (-0.82, -2.47) pt"), 0);
-    logA.append(toU8("    residual rms 4.35 pt = 1.7% R"), 0);
+    logA.append({toU8("SECUNDUS.PDF p.31 \xe2\x80\x94 THE PLATE AS VECTORS"),
+                 "heading"});
+    logA.append({toU8("  310 text objects; 296 after the colophon"), "dim"});
     logA.append(
-        toU8("  9\xc2\xb0 lattice fit: phase +4.30\xc2\xb0, rms 0.81\xc2\xb0"),
-        3);
-    logA.append(toU8("  40 cells recovered: 40 letters, 33 numerals"), 0);
-    logA.append(toU8("  above/below decided by r(numeral) vs r(letter)"), 0);
+        {toU8("  K\xc3\xa5sa fit, outer letter ring, 44 glyphs:"), "dim"});
+    logA.append(
+        {toU8("    centre (305.185, 393.529) pt   R = 257.972 pt"), "number"});
+    logA.append(
+        {toU8("    page bbox centre is off by (-0.82, -2.47) pt"), "dim"});
+    logA.append({toU8("    residual rms 4.35 pt = 1.7% R"), "dim"});
+    logA.append(
+        {toU8("  9\xc2\xb0 lattice fit: phase +4.30\xc2\xb0, rms 0.81\xc2\xb0"),
+         "number"});
+    logA.append({toU8("  40 cells recovered: 40 letters, 33 numerals"), "dim"});
+    logA.append(
+        {toU8("  above/below decided by r(numeral) vs r(letter)"), "dim"});
     {
       int above = 0, below = 0, bare = 0;
       for (const Cell& c : kRing)
         (c.step > 0 ? above : c.step < 0 ? below : bare)++;
-      logA.append(toU8(fmt("    %d above  %d below  %d bare   = 40", above,
-                           below, bare)),
-                  above + below + bare == 40 ? 2 : 1);
+      logA.append({toU8(fmt("    %d above  %d below  %d bare   = 40", above,
+                            below, bare)),
+                   above + below + bare == 40 ? "pass" : "heading"});
     }
 
     // --- panel B: the walk -------------------------------------------------
-    logB.append(toU8("MICHAEL'S JUMP RULE, WALKED FROM ALL 40 CELLS"), 1);
+    logB.append(
+        {toU8("MICHAEL'S JUMP RULE, WALKED FROM ALL 40 CELLS"), "heading"});
     for (int n = 0; n < 7; ++n) {
       const Solved& s = solved[(size_t)n];
       const bool ok = s.reduced == kNames[(size_t)n].name ||
@@ -1835,24 +1842,25 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       std::string chain;
       for (size_t i = 0; i < s.cells.size(); ++i)
         chain += (i ? "-" : "") + std::to_string(s.cells[i]);
-      logB.append(toU8(fmt("  %-9s %-9s %s", kNames[(size_t)n].name,
-                           s.raw.c_str(), chain.c_str())),
-                  ok ? 2 : 1);
+      logB.append({toU8(fmt("  %-9s %-9s %s", kNames[(size_t)n].name,
+                            s.raw.c_str(), chain.c_str())),
+                   ok ? "pass" : "heading"});
     }
-    logB.append(toU8(fmt("  cells consumed %d of 40, unvisited %d", usedCells,
-                         40 - usedCells)),
-                usedCells == 33 ? 2 : 1);
+    logB.append({toU8(fmt("  cells consumed %d of 40, unvisited %d", usedCells,
+                          40 - usedCells)),
+                 usedCells == 33 ? "pass" : "heading"});
     {
       std::string un;
       for (int i = 0; i < 40; ++i)
         if (!visited[(size_t)i])
           un += (un.empty() ? "" : " ") + std::to_string(i + 1) +
                 kRing[(size_t)i].glyph;
-      logB.append(toU8("  " + un), 3);
+      logB.append({toU8("  " + un), "number"});
     }
     logB.append(
-        toU8("  Aaoth from 27 also spells Aaoth \xe2\x80\x94 but leaves"), 0);
-    logB.append(toU8("  32 cells. The 33/7 count picks cell 32."), 2);
+        {toU8("  Aaoth from 27 also spells Aaoth \xe2\x80\x94 but leaves"),
+         "dim"});
+    logB.append({toU8("  32 cells. The 33/7 count picks cell 32."), "pass"});
 
     // --- panel C: coverage -------------------------------------------------
     {
@@ -1883,14 +1891,15 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const debug::Coverage cov = debug::coverage(cells, reg, 320);
       const debug::Coverage ref =
           debug::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
-      logC.append(toU8("THE 40 CELLS TILE THE ANNULUS"), 1);
+      logC.append({toU8("THE 40 CELLS TILE THE ANNULUS"), "heading"});
       logC.append(
-          toU8(fmt("  doubled %d of %d samples", cov.doubled, cov.samples)),
-          cov.doubled == 0 ? 2 : 1);
+          {toU8(fmt("  doubled %d of %d samples", cov.doubled, cov.samples)),
+           cov.doubled == 0 ? "pass" : "heading"});
       logC.append(
-          toU8(fmt("  uncovered %d - outside-the-ring %d = %d", cov.uncovered,
-                   ref.uncovered, cov.uncovered - ref.uncovered)),
-          std::abs(cov.uncovered - ref.uncovered) <= 320 ? 2 : 1);
+          {toU8(fmt("  uncovered %d - outside-the-ring %d = %d", cov.uncovered,
+                    ref.uncovered, cov.uncovered - ref.uncovered)),
+           std::abs(cov.uncovered - ref.uncovered) <= 320 ? "pass"
+                                                          : "heading"});
     }
     {
       std::vector<SkPath> plates;
@@ -1920,58 +1929,64 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const debug::Coverage cov = debug::coverage(plates, reg, 320);
       const debug::Coverage ref =
           debug::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
-      logC.append(toU8("THE 7 ANGLE PLATES TILE THEIR BAND"), 1);
-      logC.append(toU8(fmt("  doubled %d, gap vs ring %d", cov.doubled,
-                           cov.uncovered - ref.uncovered)),
-                  cov.doubled == 0 ? 2 : 1);
+      logC.append({toU8("THE 7 ANGLE PLATES TILE THEIR BAND"), "heading"});
+      logC.append({toU8(fmt("  doubled %d, gap vs ring %d", cov.doubled,
+                            cov.uncovered - ref.uncovered)),
+                   cov.doubled == 0 ? "pass" : "heading"});
       int letters = 0;
       for (int r = 0; r < 7; ++r)
         for (int c = 0; c < 7; ++c)
           if (kAngles[r][c] != std::string("\xe2\x80\xa0")) ++letters;
-      logC.append(
-          toU8(fmt("  %d letters + 1 cross = %d places", letters, letters + 1)),
-          letters == 48 ? 2 : 1);
+      logC.append({toU8(fmt("  %d letters + 1 cross = %d places", letters,
+                            letters + 1)),
+                   letters == 48 ? "pass" : "heading"});
       std::string cols;
       for (int c = 0; c < 7; ++c)
         for (int r = 0; r < 7; ++r)
           if (kAngles[r][c] != std::string("\xe2\x80\xa0"))
             cols += kAngles[r][c];
-      logC.append(toU8("  down the columns: " + cols.substr(0, 24)), 3);
-      logC.append(toU8("  " + cols.substr(24)), 3);
+      logC.append(
+          {toU8("  down the columns: " + cols.substr(0, 24)), "number"});
+      logC.append({toU8("  " + cols.substr(24)), "number"});
     }
 
     // --- panel D: {7/2} vs {7/3}, and the weave ---------------------------
-    logD.append(toU8("{7/2} OR {7/3}? THE COORDINATES DECIDE"), 1);
-    logD.append(toU8(fmt("  {7/2} core = %.4f x Rhept = %.3f R",
-                         (double)kStar72, (double)(kStar72 * rHept))),
-                3);
-    logD.append(toU8(fmt("  {7/3} core = %.4f x Rhept = %.3f R",
-                         (double)kStar73, (double)(kStar73 * rHept))),
-                3);
+    logD.append({toU8("{7/2} OR {7/3}? THE COORDINATES DECIDE"), "heading"});
+    logD.append({toU8(fmt("  {7/2} core = %.4f x Rhept = %.3f R",
+                          (double)kStar72, (double)(kStar72 * rHept))),
+                 "number"});
+    logD.append({toU8(fmt("  {7/3} core = %.4f x Rhept = %.3f R",
+                          (double)kStar73, (double)(kStar73 * rHept))),
+                 "number"});
     logD.append(
-        toU8(fmt("  along a point's ray the core stops at %.3f R",
-                 (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
-        0);
-    // "Filiae", not "Fili\xc3\xa6": the console runs in the MONO face, which
+        {toU8(fmt("  along a point's ray the core stops at %.3f R",
+                  (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
+         "dim"});
+    // "Filiae", not "Fili\xc3\xa6": the feed runs in the MONO face, which
     // has no ash, and a missing glyph falls back to another typeface mid-word.
     // The seal's own legend, set in the serif, keeps the ligature.
-    logD.append(toU8(fmt("  Filiae/Filii Filiorum measured %.3f / %.3f R",
-                         (double)rFiliaeFil, (double)rFiliiFil)),
-                0);
-    logD.append(toU8("  both INSIDE a {7/2} core, as the record says;"), 0);
-    logD.append(toU8("  {7/3} would leave them floating mid-point and"), 0);
-    logD.append(toU8("  would collide with ZABATHIEL at 0.285 R.  {7/2}."), 2);
-    logD.append(toU8("THE INTERLACE"), 1);
+    logD.append({toU8(fmt("  Filiae/Filii Filiorum measured %.3f / %.3f R",
+                          (double)rFiliaeFil, (double)rFiliiFil)),
+                 "dim"});
     logD.append(
-        toU8(fmt("  %zu crossings, %zu passes, %d inconsistent",
-                 weave.crossings.size(), weave.crossings.size() * 2,
-                 weave.inconsistent)),
-        // buildWeave() records one Cross per crossing POINT, so a
-        // {7/2} star yields 7 of them (n(k-1)); the 14 passes are the
-        // same points counted from both segments.
-        (weave.crossings.size() == 7 && weave.inconsistent == 0) ? 2 : 1);
-    logD.append(toU8("  gcd(40,7)=gcd(40,5)=gcd(7,5)=1 \xe2\x80\x94 one"), 0);
-    logD.append(toU8("  alignment only, and it is 12 o'clock."), 2);
+        {toU8("  both INSIDE a {7/2} core, as the record says;"), "dim"});
+    logD.append(
+        {toU8("  {7/3} would leave them floating mid-point and"), "dim"});
+    logD.append(
+        {toU8("  would collide with ZABATHIEL at 0.285 R.  {7/2}."), "pass"});
+    logD.append({toU8("THE INTERLACE"), "heading"});
+    logD.append({toU8(fmt("  %zu crossings, %zu passes, %d inconsistent",
+                          weave.crossings.size(), weave.crossings.size() * 2,
+                          weave.inconsistent)),
+                 // buildWeave() records one Cross per crossing POINT, so a
+                 // {7/2} star yields 7 of them (n(k-1)); the 14 passes are the
+                 // same points counted from both segments.
+                 (weave.crossings.size() == 7 && weave.inconsistent == 0)
+                     ? "pass"
+                     : "heading"});
+    logD.append(
+        {toU8("  gcd(40,7)=gcd(40,5)=gcd(7,5)=1 \xe2\x80\x94 one"), "dim"});
+    logD.append({toU8("  alignment only, and it is 12 o'clock."), "pass"});
   }
 
   // =========================================================================

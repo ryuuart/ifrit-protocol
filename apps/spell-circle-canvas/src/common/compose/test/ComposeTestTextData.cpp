@@ -242,11 +242,13 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   EXPECT_GT(plusR, overR + 60);  // additive stacks all three
 }
 
-TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
+TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
   // A path clipped to a frame commonly comes back as SEVERAL contours, so a
   // baseline that takes only the first one drops the rest of the run with no
-  // diagnostic. The baseline is one arc-length coordinate over the whole
-  // contour chain.
+  // diagnostic. Every contour is one INTERVAL of the run's one line: the
+  // words fill them in order, and a word that does not fit the contour it
+  // reached starts the next one rather than bending across the gap between
+  // two disconnected curves.
   auto twoSegments = [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(10, 40).lineTo(190, 40);    // contour 1: across the top
@@ -263,7 +265,7 @@ TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
   // A run long enough to overflow contour 1 must continue onto contour 2.
   Host host(200, 200);
   host.composer.render(
-      box().child(text(u8"HHHHHHHHHHHHHHHHHHHHHHHH", whiteStyle(20))
+      box().child(text(u8"HHHH HHHH HHHH HHHH HHHH HHHH", whiteStyle(20))
                       .width(200)
                       .height(200)
                       .absolute()
@@ -272,8 +274,41 @@ TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
                       .onPath({.path = twoSegments, .at = 0.0f})));
   host.frame();
   EXPECT_GT(lit(host, 20, 60), 200);    // ink on the first contour…
-  EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which used
-                                        // to be silently unreachable
+  EXPECT_GT(lit(host, 140, 180), 200);  // …and on the second, which a
+                                        // first-contour-only walk would
+                                        // leave silently unreachable
+}
+
+TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
+  // The counterpart contract, pinned so it cannot drift back: a WORD is
+  // never split across two contours. The two segments here are far apart,
+  // and a word bent across the gap would land letters in the empty band
+  // between them.
+  auto twoSegments = [](SkSize) {
+    SkPathBuilder b;
+    b.moveTo(10, 40).lineTo(120, 40);
+    b.moveTo(10, 160).lineTo(190, 160);
+    return b.detach();
+  };
+  auto lit = [](Host& host, int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = 0; x < 200; ++x) count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+  Host host(200, 200);
+  host.composer.render(
+      box().child(text(u8"HHHH HHHHHHHHHH", whiteStyle(20))
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .onPath({.path = twoSegments, .at = 0.0f})));
+  host.frame();
+  EXPECT_GT(lit(host, 20, 60), 100);    // the short word on contour 1…
+  EXPECT_GT(lit(host, 140, 180), 200);  // …the long one whole on contour 2
+  EXPECT_EQ(lit(host, 70, 130), 0) << "a word bent across the gap";
 }
 
 TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
@@ -1722,4 +1757,108 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
   // one per character here, no ligatures in play.
   EXPECT_TRUE(measureRun(u8"", style, fonts()).empty());
   EXPECT_EQ(advances.size(), 15u);
+}
+
+TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
+  // The header's contract is that the prefix sums ARE the pen positions. An
+  // inter-word space is a gap the flow leaves rather than a glyph, so it
+  // visits nothing in the glyph walk; left out of the advances, every glyph
+  // after a space is placed short and the error grows with each word. The
+  // ground truth is the same layout's own placements, so one word, two words
+  // and a leading space are all checked against it — a fix that satisfies
+  // only the single-word case fails here.
+  const sigil::weave::TextStyle style = whiteStyle(40);
+  const auto lastPenEnd = [&](std::u8string_view utf8) {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(utf8, style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    const sigil::weave::ParagraphLayout layout =
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow);
+    // The right edge of the last glyph, and the pen the first one starts at:
+    // measureRun's sums are relative to that first pen.
+    float first = 0, end = 0;
+    bool seen = false;
+    sigil::weave::forEachPlacedGlyph(
+        layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+          if (!seen) first = placed.rest.x();
+          seen = true;
+          end = placed.rest.x() + placed.advance;
+        });
+    return end - first;
+  };
+  for (std::u8string_view run :
+       {std::u8string_view(u8"ONE"), std::u8string_view(u8"A B"),
+        std::u8string_view(u8" A B"),
+        std::u8string_view(u8"ONE PASS PER WORD PHASE")}) {
+    const std::vector<float> advances = measureRun(run, style, fonts());
+    ASSERT_FALSE(advances.empty());
+    float sum = 0;
+    for (float a : advances) sum += a;
+    EXPECT_NEAR(sum, lastPenEnd(run), 0.01f)
+        << "prefix sums mis-place the last glyph of \""
+        << std::string(reinterpret_cast<const char*>(run.data()), run.size())
+        << "\"";
+  }
+  // The glyph count is untouched: a space still contributes no entry, it
+  // only lends its advance to the glyph before it.
+  const std::vector<float> spaced = measureRun(u8"A B", style, fonts());
+  ASSERT_EQ(spaced.size(), 2u);
+  EXPECT_GT(spaced[0], measureRun(u8"A", style, fonts())[0])
+      << "the gap must ride the advance of the glyph it follows";
+  EXPECT_FLOAT_EQ(spaced[1], measureRun(u8"B", style, fonts())[0])
+      << "the last glyph carries no trailing gap";
+}
+
+TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
+  // runPens is measureRun already summed, and the whole reason it exists is
+  // that everybody who calls measureRun writes that sum by hand. Two claims:
+  // the sums are the pen positions the LAYOUT used (checked against its own
+  // placements, so an inter-word gap folded into the wrong advance shows),
+  // and there is one entry past the end whose value is the run's width.
+  const sigil::weave::TextStyle style = whiteStyle(40);
+  const auto placed = [&](std::u8string_view utf8) {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(utf8, style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    const sigil::weave::ParagraphLayout layout =
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow);
+    // Pen positions relative to the FIRST glyph's pen, which is where the
+    // run starts — leading whitespace is no part of it.
+    std::vector<float> pens;
+    float first = 0;
+    bool seen = false;
+    sigil::weave::forEachPlacedGlyph(
+        layout, paragraph, [&](const sigil::weave::PlacedGlyph& glyph) {
+          if (!seen) first = glyph.rest.x();
+          seen = true;
+          pens.push_back(glyph.rest.x() - first);
+        });
+    return std::pair{pens, seen};
+  };
+  for (std::u8string_view run :
+       {std::u8string_view(u8"ONE"), std::u8string_view(u8"A B"),
+        std::u8string_view(u8" A B"),
+        std::u8string_view(u8"ONE PASS PER WORD PHASE")}) {
+    const std::vector<float> pens = runPens(run, style, fonts());
+    const std::vector<float> advances = measureRun(run, style, fonts());
+    ASSERT_EQ(pens.size(), advances.size() + 1)
+        << "n glyphs must give n + 1 entries";
+    EXPECT_FLOAT_EQ(pens.front(), 0.0f) << "the run starts at its first glyph";
+    auto [truth, seen] = placed(run);
+    ASSERT_TRUE(seen);
+    for (size_t i = 0; i + 1 < pens.size(); ++i)
+      EXPECT_NEAR(pens[i], truth[i], 0.01f)
+          << "glyph " << i << " of \""
+          << std::string(reinterpret_cast<const char*>(run.data()), run.size())
+          << "\" is not where the layout put it";
+    float width = 0;
+    for (float a : advances) width += a;
+    EXPECT_FLOAT_EQ(pens.back(), width)
+        << "the past-the-end entry is the run's laid-out width";
+  }
+  // An empty run is 0 wide, and says so with the one entry the contract
+  // promises rather than with nothing at all.
+  const std::vector<float> nothing = runPens(u8"", style, fonts());
+  ASSERT_EQ(nothing.size(), 1u);
+  EXPECT_FLOAT_EQ(nothing[0], 0.0f);
 }

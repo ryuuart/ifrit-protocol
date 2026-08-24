@@ -99,6 +99,79 @@ TEST(SoftHyphen, KnuthPlassTakesDiscretionaryBreaks) {
   EXPECT_GT(layout.lineCount, 2);
 }
 
+TEST(SoftHyphen, DisabledRemovesTheBreakOpportunity) {
+  FontContext& fontContext = sharedContext();
+  // One word, one soft hyphen, and a measure too narrow for the whole word:
+  // the only thing that can decide the line count is whether the hyphen is a
+  // break opportunity.
+  Paragraph paragraph = makeParagraph(u8"extra­ordinarily");
+  BlockFlow flow(SkRect::MakeWH(90, 300));
+
+  ParagraphLayoutOptions hyphenating;
+  hyphenating.hyphenation.enabled = true;
+  ParagraphLayout broken =
+      layoutParagraph(fontContext, paragraph, flow, hyphenating);
+  ASSERT_EQ(paragraph.words().size(), 2u);  // "extra·" + "ordinarily"
+  ASSERT_TRUE(paragraph.words()[0].hyphenBreak);
+  EXPECT_EQ(broken.lineCount, 2);
+  const SkTextBlob* hyphenBlob =
+      wordBlob(*paragraph.words()[0].hyphenGlyph).get();
+  bool hyphenOnFirstLine = false;
+  for (const PositionedRun& run : broken.runs)
+    hyphenOnFirstLine |= run.blob.get() == hyphenBlob && run.lineIndex == 0;
+  EXPECT_TRUE(hyphenOnFirstLine);
+
+  ParagraphLayoutOptions whole;
+  whole.hyphenation.enabled = false;
+  ParagraphLayout unbroken =
+      layoutParagraph(fontContext, paragraph, flow, whole);
+  // The halves fuse: one word, no discretionary break, one line — and it
+  // overflows the measure rather than splitting, which is the whole point.
+  ASSERT_EQ(paragraph.words().size(), 1u);
+  EXPECT_FALSE(paragraph.words()[0].hyphenBreak);
+  EXPECT_EQ(unbroken.lineCount, 1);
+  ASSERT_FALSE(unbroken.runs.empty());
+  float extent = 0;
+  for (const PositionedRun& run : unbroken.runs)
+    extent = std::max(extent, runEnd(paragraph, run));
+  EXPECT_GT(extent, 90.0f);
+
+  // Turning it back on restores the break, so the decision is not sticky.
+  ParagraphLayout again =
+      layoutParagraph(fontContext, paragraph, flow, hyphenating);
+  EXPECT_EQ(paragraph.words().size(), 2u);
+  EXPECT_EQ(again.lineCount, 2);
+}
+
+TEST(SoftHyphen, DisabledRemovesTheBreakOpportunityForKnuthPlass) {
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(
+      u8"the as­ton­ish­ing­ly in­com­pre­hen"
+      "­si­ble hy­phen­ation ma­chin­ery works");
+  BlockFlow flow(SkRect::MakeWH(120, 600));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  options.alignment = TextAlignment::kJustify;
+
+  ParagraphLayout hyphenated =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  EXPECT_FALSE(hyphenated.overflowed());
+  const size_t hyphenatedWordCount = paragraph.words().size();
+  size_t hyphenBreakCount = 0;
+  for (const Word& word : paragraph.words())
+    hyphenBreakCount += word.hyphenBreak;
+  ASSERT_GT(hyphenBreakCount, 0u);
+
+  options.hyphenation.enabled = false;
+  ParagraphLayout whole =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  // Every fused pair is one word fewer, and nothing left in the list can be
+  // broken at a hyphen — Knuth-Plass has no discretionary breaks to weigh.
+  EXPECT_LT(paragraph.words().size(), hyphenatedWordCount);
+  for (const Word& word : paragraph.words()) EXPECT_FALSE(word.hyphenBreak);
+  EXPECT_FALSE(whole.overflowed());
+}
+
 TEST(Typography, SpanRestyleAcrossLines) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
@@ -786,4 +859,67 @@ TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
       << "default highlight must not hide the text behind it";
   EXPECT_FLOAT_EQ(band.position, -20.0f) << "band top at the ascent line";
   EXPECT_FLOAT_EQ(band.thickness, 26.0f) << "ascent + descent tall";
+}
+
+// ── StyleSet: styles fixed once, addressed by name ───────────────────────
+
+TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
+  TextStyle base;
+  base.shaping.fontSize = 12.0f;
+  TextStyle alert;
+  alert.shaping.fontSize = 12.0f;
+  alert.paint.foreground.setColor(SK_ColorRED);
+
+  StyleSet styles(base);
+  styles.set("alert", alert);
+
+  EXPECT_TRUE(styles["alert"] == alert);
+  EXPECT_TRUE(styles.contains("alert"));
+  ASSERT_NE(styles.find("alert"), nullptr);
+
+  // The unknown-name contract: a lookup ALWAYS returns a style, and the one
+  // it returns for a name nobody registered is the base. A misspelling is
+  // therefore visible as base-styled text, never as text that vanished.
+  EXPECT_TRUE(styles["alrt"] == base) << "an unknown name must fall back";
+  EXPECT_TRUE(styles[""] == base) << "the empty name is an unknown name";
+  EXPECT_FALSE(styles.contains("alrt"));
+  EXPECT_EQ(styles.find("alrt"), nullptr) << "find() reports absence";
+  EXPECT_EQ(styles.size(), 1u) << "a failed lookup must not register a name";
+
+  // A default-constructed set still answers: the base is a default style.
+  EXPECT_TRUE(StyleSet{}["anything"] == TextStyle{});
+}
+
+TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+  TextStyle small;
+  small.shaping.fontSize = 9.0f;
+  TextStyle large;
+  large.shaping.fontSize = 24.0f;
+
+  StyleSet a;
+  a.set("head", small).set("body", large);
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_EQ(a.entries()[0].first, "head") << "entries keep insertion order";
+
+  // Re-setting a registered name replaces it where it already sits.
+  a.set("head", large);
+  EXPECT_EQ(a.size(), 2u);
+  EXPECT_EQ(a.entries()[0].first, "head");
+  EXPECT_TRUE(a["head"] == large);
+
+  // Equality is what lets a StyleSet ride inside a larger comparable value:
+  // same base, same entries, same order.
+  StyleSet b;
+  b.set("head", large).set("body", large);
+  EXPECT_TRUE(a == b);
+  b.base(small);
+  EXPECT_FALSE(a == b) << "the base participates in equality";
+
+  StyleSet reordered;
+  reordered.set("body", large).set("head", large);
+  EXPECT_FALSE(a == reordered) << "equality is order-sensitive";
+
+  StyleSet extra = a;
+  extra.set("note", small);
+  EXPECT_FALSE(a == extra);
 }

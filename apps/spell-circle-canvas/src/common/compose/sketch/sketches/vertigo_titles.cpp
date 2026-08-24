@@ -110,11 +110,6 @@
 //     decorations receive the already-trimmed outline, so the pen-tip
 //     highlight is not a second stroke() — it is a duplicate node that
 //     rebuilds and re-measures the same 2000-segment path.
-//  4. Kinetic text is solid-fill only. paintKineticText() reduces every
-//     glyph to (font, colour, RSXform) and drops the style's SkPaint, so
-//     hollow display caps and glyphFx are mutually exclusive. "VERTIGO"
-//     rebuilds pop() one tier up: seven letter nodes under
-//     staggerChildren(30ms). Element::onPath() has the same limitation.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -129,10 +124,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -415,25 +410,14 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
-    // VERTIGO — hollow Clarendon expanding out of the pupil.
-    //
-    // This SHOULD be one text() with glyphFx(glyphfx::pop()). It can't be:
-    // paintKineticText() collapses every glyph to (font, color, RSXform)
-    // and drops the style's SkPaint entirely, so kinetic text is always a
-    // solid fill — the hollow register and per-glyph motion are mutually
-    // exclusive. pop() is therefore rebuilt one tier
-    // up: seven letter nodes in a row, staggerChildren() cascading their
-    // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the
-    // same curve glyphfx::pop() applies internally.
-    auto word = box()
-                    .row()
-                    .gap(3)
-                    .alignItems(Align::Baseline)
-                    .centerAt(kEye)
-                    .key("vertigo")
-                    .staggerChildren(30ms);
+    // VERTIGO — hollow Clarendon expanding out of the pupil: one text
+    // node, one fx::pop() track cascading the capitals 30 ms apart. The
+    // track's batched draw carries the style's whole paint — the blurred
+    // stroke underlay stays beneath the hollow stroke while the letters
+    // pop. The 3 px the letter row used to open between nodes is tracking
+    // now, because with one node the spacing IS letterspacing.
     {
-      auto face = hollow(faceDisplay, 76, kBone, 2.2f);
+      auto face = hollow(faceDisplay, 76, kBone, 2.2f, 3.0f);
       // Legibility underlay over the busiest cards. NOT dropShadow() —
       // that is a FILLED blurred copy and would plug the counters, which
       // is the one thing the outline register exists to keep open. A
@@ -448,15 +432,17 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         face.paint.underlays.push_back(
             sigil::weave::PaintLayer::blurred(halo, 3.5f));
       }
-      const char* letters[] = {"V", "E", "R", "T", "I", "G", "O"};
-      for (int i = 0; i < 7; ++i)
-        word.child(text(toU8(letters[i]), face)
-                       .key(std::string("v") + letters[i])
-                       .scale(animate(from(0.30f).to(1.0f),
-                                      ramp(780, 480, ease::outBack())))
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(780, 220))));
+      // The entrance ramp covers the cascade's own span, so the last
+      // capital lands exactly when the master progress does.
+      const sigil::compose::Stagger cascade{.eachMs = 30, .durationMs = 480};
+      panel.child(text(toU8("VERTIGO"), face)
+                      .key("vertigo")
+                      .centerAt(kEye)
+                      .fx({.effect = fx::pop(0.30f),
+                           .stagger = cascade,
+                           .progress = animate(from(0.0f).to(1.0f),
+                                               ramp(780, cascade.spanMs(7)))}));
     }
-    panel.child(std::move(word));
 
     // the other register — "solid black capitals of the SAME typeface"
     // (Typotheque), so Clarendon again, not the gothic. Deliberately
@@ -645,11 +631,10 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // ---- header ---------------------------------------------------
     auto head = box().row().height(104).alignItems(Align::End);
 
-    GlyphFx rise;
-    rise.effect = glyphfx::rise(18.0f);
-    rise.stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420};
-    rise.progress =
-        animate(from(0.0f).to(1.0f), ramp(140, 900, ch::easeOutExpo));
+    Track rise{.effect = fx::rise(18.0f),
+               .stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420},
+               .progress = animate(from(0.0f).to(1.0f),
+                                   ramp(140, 900, ch::easeOutExpo))};
 
     head.child(
         box()
@@ -665,7 +650,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             .child(
                 text(toU8("VERTIGO, 1958"), type(faceDisplay, 42, kBone, 1.0f))
                     .key("heading")
-                    .glyphFx(std::move(rise)))
+                    .fx(std::move(rise)))
             .child(text(toU8("Saul Bass, title design — John Whitney, "
                              "spirals — Paramount, dir. Alfred Hitchcock"),
                         type(faceGothic, 12, kSteel, 0.4f))

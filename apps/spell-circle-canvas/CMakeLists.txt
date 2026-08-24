@@ -204,6 +204,17 @@ if(SPELLCIRCLE_SANITIZE)
     # is Abseil's iterator-invalidation checking, which cannot work
     # against a prebuilt archive anyway.
     add_compile_definitions(NDEBUG_SANITIZER)
+    # Skia's TArray grows a poisoning flag in any translation unit compiled
+    # under ASan, which moves every member that follows an array inside a
+    # header type — SkPathBuilder's fill type among them. Half of such an
+    # object's accessors are inline (this layout) and half live in the
+    # prebuilt archive (the other layout), so values written through one
+    # are read back from the wrong offset and quietly revert. Forcing this
+    # header ahead of every Skia include leaves Skia's feature macro
+    # undefined here, pinning our objects to the archive's layout; the
+    # header itself states what that costs.
+    add_compile_options(
+      "$<$<COMPILE_LANGUAGE:CXX,OBJCXX>:-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/SkiaSanitizerAbi.h>")
   endif()
   # Compile flags are gated on language because SpellCircleMac's Swift
   # sources go through swiftc, which rejects these clang flags. The link

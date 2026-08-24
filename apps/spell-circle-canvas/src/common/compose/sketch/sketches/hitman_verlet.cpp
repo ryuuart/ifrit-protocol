@@ -186,11 +186,11 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1912,12 +1912,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   // =========================================================================
 
   Element header() {
-    GlyphFx fx;
-    fx.effect = glyphfx::rise(22.0f);
-    fx.stagger = {.eachMs = 24, .durationMs = 440};
-    fx.progress =
-        animate(from(0.0f).to(1.0f),
-                {.duration = 1100ms, .ease = ch::easeOutQuad, .delay = 120ms});
+    Track rise{
+        .effect = fx::rise(22.0f),
+        .stagger = {.eachMs = 24, .durationMs = 440},
+        .progress = animate(
+            from(0.0f).to(1.0f),
+            {.duration = 1100ms, .ease = ch::easeOutQuad, .delay = 120ms})};
     return box()
         .column()
         .height(Dim(100))
@@ -1931,7 +1931,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(
             t("THE HITMAN RAGDOLL, 2000", type(heavyFace(), 42, kBone, -0.3f))
                 .key("title")
-                .glyphFx(std::move(fx)))
+                .fx(std::move(rise)))
         .child(t("Thomas Jakobsen, IO Interactive \xe2\x80\x94 \"Advanced "
                  "Character Physics\", GDC 2001 \xc2\xb7 shipped in Hitman: "
                  "Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX "

@@ -127,7 +127,7 @@
 //                                      not one bake of a mostly-empty canvas
 //   ctx.measure()                      every label's point size is SOLVED from
 //                                      the width measured off the reference
-//   console::LineRing                  the rotation audit, printed as it runs
+//   feed::TextRing                     the rotation audit, printed as it runs
 //
 // -----------------------------------------------------------------------------
 // Run:
@@ -152,7 +152,7 @@
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -685,7 +685,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
   std::vector<float> labelSize;  // solved from the measured widths
   std::vector<float> siteNameSize;
   float numeralSize = 96.0f;
-  sigil::compose::console::LineRing audit{48};
+  sigil::compose::feed::TextRing audit{48};
   std::vector<std::u8string> failures;
   SkPath funnel;
 
@@ -701,8 +701,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
         centroid.fX += unroll(s.centre).fX / 5.0f;
         centroid.fY += unroll(s.centre).fY / 5.0f;
       }
-    audit.append(u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)",
-                 1);
+    audit.append({u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)",
+                  "heading"});
     char line[160];
     std::printf("\n  MAGI defense plate — rotation audit\n");
     std::printf(
@@ -729,7 +729,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                     (double)s.rotation, (double)stemDeg, (double)err,
                     ok ? "PASS" : "*** FAIL ***");
       std::printf("%s\n", line);
-      audit.append(toU8(line + 2), ok ? 2 : 3);
+      audit.append({toU8(line + 2), ok ? "pass" : "fail"});
       if (!ok) failures.push_back(toU8(line + 2));
     }
     // ...and the plate's other published number: the wall angle. The
@@ -750,7 +750,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                     (double)(ax / ay), (double)kRoll, (double)rendered,
                     (double)kDiag, ok ? "PASS" : "*** FAIL ***");
       std::printf("%s\n", line);
-      audit.append(toU8(line + 2), ok ? 2 : 3);
+      audit.append({toU8(line + 2), ok ? "pass" : "fail"});
       if (!ok) failures.push_back(toU8(line + 2));
     }
     std::printf(
@@ -968,19 +968,19 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
    *  the normal case; a violated construction rule gets the whole ring dumped
    *  in magenta where nobody can miss it. */
   Element failureBanner() const {
-    sigil::compose::console::Style st;
-    st.text = eva::type(23, {0, 0, 0, 1}, 0.95f);
-    st.palette = {eva::type(23, {0.25f, 0, 0.25f, 1}, 0.95f),
-                  eva::type(26, {0, 0, 0, 1}, 0.95f),
-                  eva::type(23, {0, 0.25f, 0.15f, 1}, 0.95f),
-                  eva::type(23, {0.6f, 0, 0, 1}, 0.95f)};
-    st.gap = 3.0f;
-    st.visibleLines = 16;
+    sigil::compose::feed::TextOptions st;
+    st.styles.base(eva::type(23, {0, 0, 0, 1}, 0.95f))
+        .set("dim", eva::type(23, {0.25f, 0, 0.25f, 1}, 0.95f))
+        .set("heading", eva::type(26, {0, 0, 0, 1}, 0.95f))
+        .set("pass", eva::type(23, {0, 0.25f, 0.15f, 1}, 0.95f))
+        .set("fail", eva::type(23, {0.6f, 0, 0, 1}, 0.95f));
+    st.window.gap = 3.0f;
+    st.window.visible = 16;
     return box()
         .left(0)
         .top(300)
         .width(eva::kW)
-        .height(150 + 30 * (float)audit.lines().size())
+        .height(150 + 30 * (float)audit.size())
         .fill(Fill::color({1, 0, 1, 0.93f}))
         .column()
         .padding(26)
@@ -988,7 +988,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
         .child(
             text(u8"ROTATION RULE VIOLATED — this plate is not one component",
                  eva::type(40, {0, 0, 0, 1}, 0.95f)))
-        .child(sigil::compose::console::console(audit, st));
+        .child(sigil::compose::feed::feed(audit, st));
   }
 
   // --- host ------------------------------------------------------------------

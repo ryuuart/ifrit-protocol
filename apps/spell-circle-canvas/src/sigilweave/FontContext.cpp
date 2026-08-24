@@ -175,6 +175,27 @@ sk_sp<SkTypeface> FontContext::resolveTypeface(
   return resolvedTypeface;
 }
 
+namespace {
+
+sk_sp<SkTypeface> cloneAt(const sk_sp<SkTypeface>& base,
+                          std::span<const FontVariation> variations) {
+  std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
+  coordinates.reserve(variations.size());
+  for (const FontVariation& variation : variations)
+    coordinates.push_back({SkSetFourByteTag(variation.tag[0], variation.tag[1],
+                                            variation.tag[2], variation.tag[3]),
+                           variation.value});
+  SkFontArguments fontArguments;
+  fontArguments.setVariationDesignPosition(
+      {coordinates.data(), static_cast<int>(coordinates.size())});
+  sk_sp<SkTypeface> clone = base->makeClone(fontArguments);
+  // Non-variable faces (or failed clones) resolve to the base: the axes are
+  // simply inert, matching CSS font-variation-settings behavior.
+  return clone ? clone : base;
+}
+
+}  // namespace
+
 sk_sp<SkTypeface> FontContext::variedTypeface(
     const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations) {
   const sk_sp<SkTypeface>& resolvedBase = base ? base : defaultTypeface();
@@ -187,21 +208,26 @@ sk_sp<SkTypeface> FontContext::variedTypeface(
   auto cachedClone = m_impl->variedTypefaces.find(key);
   if (cachedClone != m_impl->variedTypefaces.end()) return cachedClone->second;
 
-  std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
-  coordinates.reserve(variations.size());
-  for (const FontVariation& variation : variations)
-    coordinates.push_back({SkSetFourByteTag(variation.tag[0], variation.tag[1],
-                                            variation.tag[2], variation.tag[3]),
-                           variation.value});
-  SkFontArguments fontArguments;
-  fontArguments.setVariationDesignPosition(
-      {coordinates.data(), static_cast<int>(coordinates.size())});
-  sk_sp<SkTypeface> clone = resolvedBase->makeClone(fontArguments);
-  // Non-variable faces (or failed clones) resolve to the base: the axes are
-  // simply inert, matching CSS font-variation-settings behavior.
-  if (!clone) clone = resolvedBase;
+  sk_sp<SkTypeface> clone = cloneAt(resolvedBase, variations);
   m_impl->variedTypefaces.emplace(std::move(key), clone);
   return clone;
+}
+
+sk_sp<SkTypeface> FontContext::variedTypefaceTransient(
+    const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations) {
+  const sk_sp<SkTypeface>& resolvedBase = base ? base : defaultTypeface();
+  if (variations.empty() || !resolvedBase) return resolvedBase;
+  // Neither read nor written: the memo above is the ONLY thing that retains
+  // a clone, so a coordinate that comes through here can never end up in it
+  // — not on this call and not on a later one, because nothing hands the
+  // returned face back to variedTypeface(). Probing the memo first would be
+  // a legal read, and is skipped anyway: building the key allocates, which
+  // on a per-glyph, per-frame path costs more than the probe saves.
+  return cloneAt(resolvedBase, variations);
+}
+
+size_t FontContext::variedTypefaceCount() const {
+  return m_impl->variedTypefaces.size();
 }
 
 bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
@@ -244,6 +270,21 @@ bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
     if (std::abs(widthsLo[(size_t)i] - widthsHi[(size_t)i]) > 0.001f)
       return false;
   return true;
+}
+
+float FontContext::glyphAdvanceEm(const sk_sp<SkTypeface>& base,
+                                  SkGlyphID glyph, bool vertical) {
+  const sk_sp<SkTypeface>& face = base ? base : defaultTypeface();
+  if (!face) return 0;
+  Impl::TypefaceRecord& record = m_impl->recordForTypeface(face);
+  // HarfBuzz points y up, so a vertical advance comes back negative for a
+  // pen that runs down the page; the shaper negates it for the same reason.
+  const hb_position_t advance =
+      vertical ? -hb_font_get_glyph_v_advance(record.harfBuzzFont, glyph)
+               : hb_font_get_glyph_h_advance(record.harfBuzzFont, glyph);
+  // The font is scaled to its own units per em, so the raw position IS the
+  // design-unit advance.
+  return (float)advance / (float)record.unitsPerEm;
 }
 
 void FontContext::purgeShapeCache() { m_impl->shapeCache.clear(); }

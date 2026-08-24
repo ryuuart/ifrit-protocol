@@ -158,6 +158,29 @@ inline constexpr StudyInfo kStudies[] = {
      "684) reprojected from "
      "1,460 real stars \xe2\x80\x94 and it refuses to answer"},
 
+    // ---- Type in motion: one sheet, and the patterns it is made of ----
+    {"shipping_forecast", "shipping forecast", "Study \xc2\xb7 Type",
+     "BBC Radio 4's 0048 bulletin as a sheet that performs itself "
+     "\xe2\x80\x94 a fixed vocabulary, a ring of sea areas, one dominant "
+     "move"},
+    {"karaoke_wipe", "karaoke wipe", "Study \xc2\xb7 Type",
+     "Fleischer's bouncing ball (1924) and the CD+G wipe (1985) on one "
+     "schedule \xe2\x80\x94 the point against the boundary"},
+    {"axis_ripple", "axis ripple", "Study \xc2\xb7 Type",
+     "The variable-font weight wave \xe2\x80\x94 driven on GRAD, with the "
+     "wght advance drift measured and printed beside it"},
+    {"elastic_type", "elastic type", "Study \xc2\xb7 Type",
+     "animate.css rubberBand and jello, transcribed number for number and "
+     "run per glyph \xe2\x80\x94 with the tables plotted"},
+    {"matrix_rain", "matrix rain", "Study \xc2\xb7 Type",
+     "The Matrix's digital rain (1999) \xe2\x80\x94 four curtains of "
+     "mirrored half-width katakana, thousands of glyphs churning on "
+     "declared schedules"},
+    {"rota_convocationis", "rota convocationis", "Study \xc2\xb7 Type",
+     "An invented conjuring wheel in the Solomonic idiom \xe2\x80\x94 "
+     "fourteen curved baselines assembling ring by ring, every start "
+     "chained from a span"},
+
     // ---- The kit itself ----
     {"stroke_atlas", "stroke atlas", "Kit",
      "The line, border and corner specimen plate \xe2\x80\x94 every rule "
@@ -185,7 +208,7 @@ inline constexpr StudyInfo kStudies[] = {
      "diagonal beside the fix, and the amplitude bound at six octaves"},
     {"env_theme", "env theme", "Kit \xc2\xb7 API",
      "env::Provide / inherited \xe2\x80\x94 one tree, three environments; "
-     "console::Style is the worked library consumer"},
+     "feed::TextOptions is the worked library consumer"},
     {"material_child", "material child", "Kit \xc2\xb7 API",
      "Material::child() \xe2\x80\x94 an index texture through a palette LUT, "
      "with the LUT swapped live by update()"},
@@ -204,6 +227,9 @@ inline constexpr StudyInfo kStudies[] = {
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "
      "falloffs: constant, depth of field, a lens edge, a rack focus"},
+    {"ember_decode", "ember decode", "Kit \xc2\xb7 API",
+     "text as a sampler \xe2\x80\x94 one SkSL pass burns a line in, reading "
+     "each unit's rect, progress and seed out of uniform arrays"},
     {"still_accent", "still accent", "Kit \xc2\xb7 API",
      "one bound fill() held still over hundreds of cells \xe2\x80\x94 "
      "the case the settle/release memo exists for"},

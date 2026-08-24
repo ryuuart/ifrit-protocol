@@ -127,7 +127,9 @@ shared-vcpkg configure. The runtimes ship with Clang — no new
 dependencies. UBSan findings abort rather than scroll past, so a finding
 fails its test. vcpkg archives are uninstrumented, which is why
 container-overflow checking is disabled at runtime and the address lane
-pins Abseil's table layout to agree with the prebuilt archive;
+pins Abseil's table layout and Skia's array layout to agree with the
+prebuilt archives (a header that grows a member under instrumentation
+moves every field behind it, and half of those accessors are inline);
 LeakSanitizer is unsupported on Apple Silicon and disabled. The TSan
 lane runs `scry_test`'s web-thread handoffs, though the Ultralight
 dylibs themselves are uninstrumented.

@@ -155,7 +155,7 @@
 //                        and the 30° default finds no corners at all
 //   TextPath::Orient::Radial   the disc's mansion names
 //   trim() + bind().window()   one Output writes the whole plate
-//   console::LineRing    four panels of checks, printed as they run
+//   feed::TextRing       four panels of checks, printed as they run
 //   slot()/renderSlot()  the audit advances without a full render()
 //
 // Run:
@@ -181,8 +181,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Decorations.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
@@ -1836,7 +1836,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   double clockT = 0;
   int auditPhase = -2;
 
-  console::LineRing logA{72}, logB{72}, logC{72}, logD{72};
+  feed::TextRing logA{72}, logB{72}, logC{72}, logD{72};
 
   /** THE ONE DISCRETE STATE, AND IT IS A CACHING STATE. Every reveal on this
    *  plate is a window() on `scribe`, which is a BOUND property and therefore
@@ -2026,7 +2026,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       // The sky the chart does NOT carry — the +45..+52 band between the
       // cylindrical maps and the disc, everything south of -45 — leaves the
       // plate entirely rather than lingering as ghosts ON the paper, where it
-      // reads as dots. The count is in the console instead.
+      // reads as dots. The count is in the feed instead.
       if (!p.onPaper) t.fA = 1.0f - f;
       tint[(size_t)i] = t;
     }
@@ -3427,16 +3427,16 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     return g;
   }
 
-  console::Style logStyle() {
-    console::Style s;
-    s.text = type(faceMono, 9.2f, hex(0x9a8a68));
-    s.palette = {type(faceMono, 9.2f, hex(0x6d6249)),
-                 type(faceMono, 9.2f, hex(0xc9a35c)),
-                 type(faceMono, 9.2f, hex(0x6ba87e)),
-                 type(faceMono, 9.2f, hex(0xcf6a4a)),
-                 type(faceMono, 9.2f, hex(0xc4483a))};
-    s.gap = 1.0f;
-    s.visibleLines = 12;
+  feed::TextOptions logStyle() {
+    feed::TextOptions s;
+    s.styles.base(type(faceMono, 9.2f, hex(0x9a8a68)))
+        .set("dim", type(faceMono, 9.2f, hex(0x6d6249)))
+        .set("heading", type(faceMono, 9.2f, hex(0xc9a35c)))
+        .set("pass", type(faceMono, 9.2f, hex(0x6ba87e)))
+        .set("number", type(faceMono, 9.2f, hex(0xcf6a4a)))
+        .set("fail", type(faceMono, 9.2f, hex(0xc4483a)));
+    s.window.gap = 1.0f;
+    s.window.visible = 12;
     return s;
   }
 
@@ -3770,11 +3770,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .height(Dim(h - 18))
                 .column()
                 .gap(6)
-                .child(console::console(logA, logStyle()))
+                .child(feed::feed(logA, logStyle()))
                 .child(box().height(1).fill(Fill::color(hex(0x8a7458, 0.16f))))
-                .child(console::console(logB, logStyle()))
+                .child(feed::feed(logB, logStyle()))
                 .child(box().height(1).fill(Fill::color(hex(0x8a7458, 0.16f))))
-                .child(console::console(logC, logStyle())));
+                .child(feed::feed(logC, logStyle())));
     return g;
   }
 
@@ -4047,55 +4047,66 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     }
     rebuild(2000.0f, 0.0f);
 
-    logA.append(toU8("THE JOIN"), 1);
+    logA.append({toU8("THE JOIN"), "heading"});
     logA.append(
-        toU8(fmt("chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst)),
-        0);
-    logA.append(toU8("1,463 star TOKENS \xe2\x80\x94 3 are DSO (M44/M7/M31)"),
-                3);
+        {toU8(fmt("chinese_chenzhuo: %d asterisms, 1,883 vertex words", nAst)),
+         "dim"});
+    logA.append({toU8("1,463 star TOKENS \xe2\x80\x94 3 are DSO (M44/M7/M31)"),
+                 "number"});
+    logA.append({toU8(fmt("  so %d HIP numbers vs Chen Zhuo's canonical 1,464",
+                          nStars)),
+                 "dim"});
+    logA.append({toU8("HYG v4.1 join on HIP: 1,457 direct, 3 LOST"), "number"});
+    logA.append({toU8("  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B"), "dim"});
     logA.append(
-        toU8(fmt("  so %d HIP numbers vs Chen Zhuo's canonical 1,464", nStars)),
-        0);
-    logA.append(toU8("HYG v4.1 join on HIP: 1,457 direct, 3 LOST"), 3);
-    logA.append(toU8("  55203 xi UMa, 78727 xi Sco, 115125 94 Aqr B"), 0);
-    logA.append(toU8("  cause: HYG BLANKS hip on resolved double components"),
-                0);
-    logA.append(toU8("  Bayer fallback recovers all three"), 2);
-    logA.append(toU8(fmt("RESOLVED %d / %d = 100.00%%", nStars, nStars)), 2);
-    logA.append(toU8("largest 1300-yr proper motion 1.476 deg (HIP 19849)"), 0);
+        {toU8("  cause: HYG BLANKS hip on resolved double components"), "dim"});
+    logA.append({toU8("  Bayer fallback recovers all three"), "pass"});
+    logA.append(
+        {toU8(fmt("RESOLVED %d / %d = 100.00%%", nStars, nStars)), "pass"});
+    logA.append(
+        {toU8("largest 1300-yr proper motion 1.476 deg (HIP 19849)"), "dim"});
 
-    logB.append(toU8("THE EPOCH, AND THE DECLINATION WINDOW"), 1);
-    logB.append(toU8("paper precessed to +700, NOT +665 (sect. 4.1)"), 3);
-    logB.append(toU8("  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26"),
-                0);
-    logB.append(toU8("  4.6x below the chart's own hand. UNRESOLVABLE."), 2);
-    logB.append(toU8(fmt("of %d stars at +700:", nStars)), 0);
-    logB.append(toU8(fmt("  %4d fall on maps 1-12  (|DEC| <= 45)", nOnMaps)),
-                0);
-    logB.append(toU8(fmt("  %4d fall on the disc    (DEC >= +52)", nOnDisc)),
-                0);
-    logB.append(toU8(fmt("  %4d fall in the UNCOVERED band +45..+52", nInGap)),
-                3);
+    logB.append({toU8("THE EPOCH, AND THE DECLINATION WINDOW"), "heading"});
     logB.append(
-        toU8(fmt("  %4d are south of DEC -45, off the chart", nTooSouth)), 3);
-    logB.append(toU8("Chang'an is 34.3N, so DEC < -55.7 never rises at all"),
-                0);
+        {toU8("paper precessed to +700, NOT +665 (sect. 4.1)"), "number"});
+    logB.append(
+        {toU8("  665 vs 700 = 0.489 deg RA; map 5's RA residual 2.26"), "dim"});
+    logB.append(
+        {toU8("  4.6x below the chart's own hand. UNRESOLVABLE."), "pass"});
+    logB.append({toU8(fmt("of %d stars at +700:", nStars)), "dim"});
+    logB.append(
+        {toU8(fmt("  %4d fall on maps 1-12  (|DEC| <= 45)", nOnMaps)), "dim"});
+    logB.append(
+        {toU8(fmt("  %4d fall on the disc    (DEC >= +52)", nOnDisc)), "dim"});
+    logB.append({toU8(fmt("  %4d fall in the UNCOVERED band +45..+52", nInGap)),
+                 "number"});
+    logB.append(
+        {toU8(fmt("  %4d are south of DEC -45, off the chart", nTooSouth)),
+         "number"});
+    logB.append(
+        {toU8("Chang'an is 34.3N, so DEC < -55.7 never rises at all"), "dim"});
 
-    logC.append(toU8("THE SCHOOLS, AND WHAT IS NOT ATTESTED"), 1);
-    logC.append(toU8("S.3326 is the FIRST document to colour the three"), 0);
-    logC.append(toU8("  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE"),
-                0);
-    logC.append(toU8(fmt("Tables 4+5 give a colour for 54 asterisms; %d stars",
-                         nSchooled)),
-                0);
-    logC.append(toU8(fmt("%d stars have NO published school: drawn undeclared",
-                         nUnattested)),
-                3);
-    logC.append(toU8("guessing the rest would be inventing the evidence"), 0);
-    logC.append(toU8("Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars"), 3);
-    logC.append(toU8("  9 != 6, so it is consistent and does not close"), 0);
-    logC.append(toU8("Sangong: Chen Zhuo files one under WU XIAN (white),"), 0);
-    logC.append(toU8("  the map draws BOTH black. printed, not corrected."), 3);
+    logC.append({toU8("THE SCHOOLS, AND WHAT IS NOT ATTESTED"), "heading"});
+    logC.append(
+        {toU8("S.3326 is the FIRST document to colour the three"), "dim"});
+    logC.append(
+        {toU8("  schools: Shi shi RED, Gan shi BLACK, Wu Xian WHITE"), "dim"});
+    logC.append({toU8(fmt("Tables 4+5 give a colour for 54 asterisms; %d stars",
+                          nSchooled)),
+                 "dim"});
+    logC.append({toU8(fmt("%d stars have NO published school: drawn undeclared",
+                          nUnattested)),
+                 "number"});
+    logC.append(
+        {toU8("guessing the rest would be inventing the evidence"), "dim"});
+    logC.append(
+        {toU8("Huagai +6 unaccounted: Chen Zhuo HAS Gang, 9 stars"), "number"});
+    logC.append(
+        {toU8("  9 != 6, so it is consistent and does not close"), "dim"});
+    logC.append(
+        {toU8("Sangong: Chen Zhuo files one under WU XIAN (white),"), "dim"});
+    logC.append({toU8("  the map draws BOTH black. printed, not corrected."),
+                 "number"});
 
     ctx.ticker.add([this, &tick = ctx.ticker](double) {
       clockT = tick.elapsed();

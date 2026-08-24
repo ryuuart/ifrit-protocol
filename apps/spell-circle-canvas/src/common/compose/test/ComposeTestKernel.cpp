@@ -704,6 +704,27 @@ TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
   EXPECT_LT(SkColorGetR(host.pixel(60, 60)), 60u);   // and so is the middle
 }
 
+TEST(ComposeShapes, CircleInsetStandsConcentricallyInsideTheBox) {
+  // circle(inset) is the ring baseline that stands clear of the box edge —
+  // the same concentric geometry, pulled in by px, so glyphs straddling
+  // the circle keep both halves inside whatever clips at the box.
+  const SkSize size{200, 200};
+  const SkRect inscribed = shapes::circle()(size).getBounds();
+  const SkRect drawn = shapes::circle(24.0f)(size).getBounds();
+  EXPECT_FLOAT_EQ(drawn.left(), inscribed.left() + 24.0f);
+  EXPECT_FLOAT_EQ(drawn.top(), inscribed.top() + 24.0f);
+  EXPECT_FLOAT_EQ(drawn.right(), inscribed.right() - 24.0f);
+  EXPECT_FLOAT_EQ(drawn.bottom(), inscribed.bottom() - 24.0f);
+  // Zero inset IS the inscribed circle, byte for byte, and the value form
+  // compares by its parameters — the prune contract every generator keeps.
+  EXPECT_EQ(shapes::circle()(size), shapes::circle(0.0f)(size));
+  EXPECT_TRUE(shapes::circle() == shapes::circle(0.0f));
+  EXPECT_FALSE(shapes::circle() == shapes::circle(24.0f));
+  // The oriented overload carries the same trailing inset.
+  EXPECT_EQ(shapes::circle(SkPathDirection::kCCW, 1, 24.0f)(size).getBounds(),
+            drawn);
+}
+
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
   host.composer.render(box().child(box()
@@ -899,7 +920,9 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a valid effect must not warn";
   ::testing::internal::CaptureStderr();
-  (void)Material::sksl(nullptr);
+  // Spelled as the sk_sp overload: a bare nullptr is ambiguous against the
+  // source-carrying overload, and this is the null-EFFECT diagnostic.
+  (void)Material::sksl(sk_sp<SkRuntimeEffect>(nullptr));
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("Material::sksl"), std::string::npos) << log;
   EXPECT_NE(log.find("nothing"), std::string::npos) << log;
@@ -2304,8 +2327,6 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u);  // fades with distance
 }
 
-// ---- console(): the streaming log ------------------------------------------
-
 // ---------------------------------------------------------------------------
 // Effect live uniforms: the same uniform(name, &output) contract Material
 // offers, on the effect seam.
@@ -2804,6 +2825,73 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
   EXPECT_FALSE(nulled.isAnimated());
 }
 
+TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
+  // The shader() path is the one that takes arbitrary names, and the builder
+  // answers a name the effect does not declare — or one declared at another
+  // type — with a debug abort and no write. This Skia has no SK_DEBUG, so
+  // without a check the value is dropped, the effect paints with a zeroed
+  // uniform, and nothing says so. Material's discipline is the standard:
+  // validate at store time, warn, ignore.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform shader content;"
+      "uniform float uK;"
+      "uniform float2 uV;"
+      "half4 main(float2 p) { return content.eval(p) * (uK + uV.x); }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  choreograph::Output<float> k{0.5f};
+
+  // Control: the declared float binds, silently, on both doors.
+  ::testing::internal::CaptureStderr();
+  const Effect good = Effect::shader(effect, {{"uK", 0.5f}});
+  Effect goodBound = Effect::shader(effect);
+  goodBound.uniform("uK", &k);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a declared float uniform must bind without a word";
+  EXPECT_TRUE(goodBound.isAnimated());
+  EXPECT_TRUE(good.imageFilter() != nullptr);
+
+  // (a) a typo'd constant on shader(): warned, and the filter it builds is
+  // the one it would have built with no binding at all.
+  ::testing::internal::CaptureStderr();
+  const Effect typoConst = Effect::shader(effect, {{"noSuchConst", 1.0f}});
+  const std::string constLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(constLog.find("Effect::shader"), std::string::npos) << constLog;
+  EXPECT_NE(constLog.find("noSuchConst"), std::string::npos) << constLog;
+  EXPECT_EQ(typoConst, Effect::shader(effect))
+      << "a rejected constant must leave no trace in the recipe";
+
+  // (b) a typo'd binding on uniform(): warned, ignored, and — the part that
+  // costs a repaint every frame if it is got wrong — NOT declared live.
+  ::testing::internal::CaptureStderr();
+  Effect typoBound = Effect::shader(effect);
+  typoBound.uniform("noSuchBinding", &k);
+  const std::string boundLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(boundLog.find("Effect::uniform"), std::string::npos) << boundLog;
+  EXPECT_NE(boundLog.find("noSuchBinding"), std::string::npos) << boundLog;
+  EXPECT_FALSE(typoBound.isAnimated())
+      << "an ignored binding must not mark the node live forever";
+  EXPECT_EQ(typoBound, Effect::shader(effect));
+
+  // (c) a name the effect DOES declare, at another type: a float2 is not a
+  // float, and assigning it is the same abort.
+  ::testing::internal::CaptureStderr();
+  Effect wrongType = Effect::shader(effect, {{"uV", 1.0f}});
+  wrongType.uniform("uV", &k);
+  const std::string typeLog = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(typeLog.find("uV"), std::string::npos) << typeLog;
+  EXPECT_FALSE(wrongType.isAnimated());
+  EXPECT_EQ(wrongType, Effect::shader(effect));
+
+  // Once per name, not once per call: a description is rebuilt every frame
+  // in a live-coding host and a per-call warning would bury the console.
+  ::testing::internal::CaptureStderr();
+  (void)Effect::shader(effect, {{"noSuchConst", 1.0f}});
+  Effect again = Effect::shader(effect);
+  again.uniform("noSuchBinding", &k);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "the same rejected name must not warn twice";
+}
+
 // ---------------------------------------------------------------------------
 // Material::amount(): a blend layer's strength.
 
@@ -3029,7 +3117,7 @@ struct EnvPalette {
 };
 
 /** A component four levels below whoever bound the value, handed nothing
- *  and reading the environment — the `console::`/decoration case. */
+ *  and reading the environment — the `feed::`/decoration case. */
 Element envThemedChip() {
   return box().width(20).height(20).fill(
       Fill::color(env::inheritedOr(EnvPalette{}).surface));
@@ -3205,35 +3293,36 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
 }
 
 TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
-  // The entry's actual complaint: `console::` had to be handed its colours
-  // by whoever composed it. The env key is console::Style — the component's
-  // OWN props type — so no library-wide Theme exists or needs to.
-  console::LineRing ring;
-  ring.append(u8"ready.");
+  // The entry's actual complaint: a library component had to be handed its
+  // colours by whoever composed it. The env key is feed::TextOptions — the
+  // component's OWN props type — so no library-wide Theme exists or needs
+  // to.
+  feed::TextRing ring;
+  ring.append({u8"ready."});
 
-  console::Style themed;
-  themed.text = whiteStyle(12);
-  themed.gap = 7.0f;
+  feed::TextOptions themed;
+  themed.styles.base(whiteStyle(12));
+  themed.window.gap = 7.0f;
 
   Element tree = [&] {
-    env::Provide<console::Style> style(themed);
-    return box().padding(4).child(box().child(console::console(ring)));
+    env::Provide<feed::TextOptions> style(themed);
+    return box().padding(4).child(box().child(feed::feed(ring)));
   }();
-  ASSERT_FALSE(env::bound<console::Style>());
+  ASSERT_FALSE(env::bound<feed::TextOptions>());
 
   Host host;
   host.composer.render(tree);
   host.frame();
-  const SkRect got = *host.composer.bounds("con#1");
+  const SkRect got = *host.composer.bounds(feed::rowKey(1));
   EXPECT_GT(got.width(), 0.0f);
 
   // The unbound spelling still compiles to the component's own default —
   // and a DIFFERENT default, which is what proves the binding was read.
   Host bare;
   bare.composer.render(box().padding(4).child(
-      box().child(console::console(ring, console::Style{}))));
+      box().child(feed::feed(ring, feed::TextOptions{}))));
   bare.frame();
-  EXPECT_NE(bare.composer.bounds("con#1")->width(), got.width());
+  EXPECT_NE(bare.composer.bounds(feed::rowKey(1))->width(), got.width());
 }
 
 // ---------------------------------------------------------------------------

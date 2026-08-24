@@ -52,11 +52,12 @@ SigilLoader in the demos. `sketches/frame_asset.cpp` is the template.
 ```sh
 ComposeSketch <sketch.cpp> --bench [--at <seconds>] [--bench-frames <n>]
                                    [--fps <n>] [--scale <n>]
+                                   [--jitter-dt [amplitude]]
 ```
 
 ```
-BENCH penrose_paving 1400x900 frames=120 p50=7.31ms p99=11.02ms mean=7.61ms \
-      max=14.90ms fps50=136.8 VERDICT=PASS
+BENCH penrose_paving 1400x900 frames=120 step=fixed p50=7.31ms p95=9.80ms \
+      p99=11.02ms mean=7.61ms max=14.90ms fps50=136.8 VERDICT=PASS
   phases (mean ms): update 0.42 [reconcile 0.31] · draw 7.19 [layout 0.04 · paint 7.10]
   last frame: 214 nodes painted, 0 pictures recorded, 96 pictures live, …
   PASS — p99 11.02 ms is inside the 16.6 ms budget (60 FPS gate)
@@ -102,6 +103,31 @@ The phase line answers "what dominates" first:
   (a raw `custom()` program, a `StampModFn`, an `ops::PathOp`) is
   defeating the cache. `memo()` the host node or keep the callable
   pointer-stable.
+
+### `--jitter-dt`: the regime a fixed step cannot reach
+
+Every path here steps a **fixed** `dt`, which is what makes a capture
+reproducible — and what makes one class of cost invisible. An animated
+value is a function of elapsed time, so under a fixed step the values a
+sketch visits repeat on the sketch's own period. Anything memoized on such
+a value therefore saturates within one period and stops being paid for,
+while a live host on wall-clock `dt` never revisits a value and pays for
+every one. A per-distinct-value cost that grows without bound reads as
+*free* in the harness and as a slow leak in the running app.
+
+`--bench --jitter-dt` steps a varying interval (a golden-ratio rotation:
+irrational, so it never repeats; deterministic, so two runs measure the
+same frames) at ±35% of nominal, or `--jitter-dt <amplitude>` for another
+spread. The `step=` token on the BENCH line says which regime produced the
+numbers, because a jittered number and a fixed-dt number are not
+comparable. Nothing else in the repository steps a jittered `dt`: the
+captures, the gallery sweep and the plate ledger's byte identity all keep
+the fixed step.
+
+Reach for it whenever a sketch drives something continuously — a
+variable-font axis, a tint, a rotation — and run the same sketch both
+ways. Two numbers that disagree by orders of magnitude mean the fixed-dt
+run was measuring a cache the running application never gets.
 
 ### The one CPU signal that predicts the GPU: **0 steady-state cache writes**
 

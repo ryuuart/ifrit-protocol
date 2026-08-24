@@ -57,12 +57,15 @@ set(SIGIL_SKETCH_STUDIES
   # Motion and film
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense lain_navi eva_magi_interior
+  # Type in motion
+  shipping_forecast karaoke_wipe axis_ripple elastic_type matrix_rain
+  rota_convocationis
   # The kit itself
   hello stock_materials stroke_atlas shapeworks_lab easel_playground
   # One sketch per API — legible over pretty. Each is a place to stand:
   # small, single-purpose, and captioned with the call that made it.
   travel_path wiggle_shake env_theme material_child matte_luma pop_lanes
-  pop_deform geo_groups blur_falloff
+  pop_deform geo_groups blur_falloff ember_decode
   # §38's measured fixture as a living scene: one never-moving bound fill
   # over 512 cells — the reproduction of the 19.6× and the demonstration
   # that the settle/release extension retires it.

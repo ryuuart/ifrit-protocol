@@ -151,11 +151,55 @@ std::vector<float> measureRun(std::u8string_view utf8,
   sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
   sigil::weave::ParagraphLayout layout =
       sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
+  // An inter-word space is a GAP the flow leaves between positioned runs,
+  // not a glyph, so it visits nothing here. Left out, every glyph after a
+  // space would be placed short by the accumulated space advances and the
+  // error would grow with each word. Whatever the layout left between one
+  // glyph's pen end and the next one's origin therefore rides the advance
+  // of the glyph it follows, which is what makes the prefix sums reproduce
+  // the pen positions the layout used.
+  //
+  // Two steps are not glue and are not folded: a line change (a '\n' in the
+  // run) restarts the pen, and a BACKWARDS step between two words is
+  // bidi reordering rather than a gap — visual order runs the other way
+  // there and no prefix sum can express it. Inside one word a backwards
+  // step is ordinary kerning and counts.
+  float pen = 0;
+  int lineIndex = -1;
+  uint32_t wordIndex = 0;
   sigil::weave::forEachPlacedGlyph(
-      layout, paragraph,
-      [&](const sigil::weave::ShapedWord*, SkGlyphID, float advance, SkColor,
-          SkPoint) { advances.push_back(advance); });
+      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const float step = placed.rest.x() - pen;
+        if (placed.lineIndex != lineIndex) {
+          lineIndex = placed.lineIndex;
+        } else if (!advances.empty() &&
+                   (placed.wordIndex == wordIndex || step > 0)) {
+          advances.back() += step;
+        }
+        advances.push_back(placed.advance);
+        pen = placed.rest.x() + placed.advance;
+        wordIndex = placed.wordIndex;
+      });
   return advances;
+}
+
+std::vector<float> runPens(std::u8string_view utf8,
+                           const sigil::weave::TextStyle& style,
+                           sigil::weave::FontContext& fonts) {
+  const std::vector<float> advances = measureRun(utf8, style, fonts);
+  std::vector<float> pens;
+  pens.reserve(advances.size() + 1);
+  float pen = 0;
+  for (const float advance : advances) {
+    pens.push_back(pen);
+    pen += advance;
+  }
+  // The past-the-end entry, which is what makes the last advance readable
+  // the same way every other one is and hands back the run's width for
+  // free. An empty run reaches here with nothing summed and answers 0,
+  // which is its width.
+  pens.push_back(pen);
+  return pens;
 }
 
 SkSize measure(Element root, sigil::weave::FontContext& fonts, SkSize maxSize) {
@@ -528,6 +572,38 @@ const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
   auto it = m_impl->byKey.find(std::string(key));
   if (it == m_impl->byKey.end() || !it->second->paragraph) return nullptr;
   return &it->second->textLayout;
+}
+
+std::vector<Beat> Composer::beatsOf(std::string_view key,
+                                    size_t trackIndex) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end()) return {};
+  // Logically const: resolving a schedule fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  std::vector<Beat> beats = impl.beatsOfTrack(*it->second, trackIndex);
+  if (beats.empty()) return beats;
+  // Rects come out in the node's own space. Lift them into the composer's,
+  // by the same walk up the tree the bounds query takes — a beat is a place
+  // on the SHEET, so it can be read beside `bounds()` and `hitTest()`
+  // without the caller knowing which node the glyphs belong to.
+  SkPoint origin{0, 0};
+  for (Instance* node = it->second; node; node = node->parent) {
+    const SkRect rect = impl.instanceRect(*node);
+    if (!rect.isFinite()) return {};  // laid out by nothing yet
+    origin.offset(rect.left(), rect.top());
+  }
+  for (Beat& beat : beats) beat.rect.offset(origin.x(), origin.y());
+  return beats;
+}
+
+float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end()) return 0.0f;
+  // Logically const: resolving a schedule fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  return impl.cascadeSpanOfTrack(*it->second, trackIndex);
 }
 
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {

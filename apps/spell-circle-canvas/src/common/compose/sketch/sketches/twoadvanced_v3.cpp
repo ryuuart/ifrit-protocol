@@ -67,12 +67,12 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

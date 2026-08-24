@@ -58,7 +58,6 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
@@ -67,6 +66,7 @@
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Studio.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -773,10 +773,9 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .zIndex(7)
             .child(text(toU8("CONTACT BEAM"), type(31, kTitle, 0.10f))
                        .key("title")
-                       .glyphFx(GlyphFx{
-                           .effect = glyphfx::typeOn(),
-                           .stagger = {.eachMs = 26, .durationMs = 190},
-                           .progress = animate(from(0.0f).to(1.0f), {760ms})})
+                       .fx({.effect = fx::typeOn(),
+                            .stagger = {.eachMs = 26, .durationMs = 190},
+                            .progress = animate(from(0.0f).to(1.0f), {760ms})})
                        .effect(styles::textGlow(alpha(kCyan, 0.5f), 5.0f))));
 
     // under the rule: the repair caption at left, and at right the RIG's

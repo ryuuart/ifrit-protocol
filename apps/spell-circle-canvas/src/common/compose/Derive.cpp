@@ -39,6 +39,43 @@ SkPath expandForHit(const SkPath& route) {
   return skpathutils::FillPathWithPaint(route, p);
 }
 
+/** The shape a laid-out instance actually occupies, in its OWN space —
+ *  the same answer the painter builds, so a borrowed spine and the
+ *  element it was borrowed from can never disagree. */
+SkPath resolvedShapeOf(Instance& inst) {
+  const ElementNode& node = *inst.desc;
+  const SkRect rect = inst.owner->instanceRect(inst);
+  const SkSize size{rect.width(), rect.height()};
+  if (node.deriveData && !inst.connectorPath.isEmpty())
+    return inst.connectorPath;
+  if (node.shapeFn) return node.shapeFn(size);
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(size.width(), size.height()));
+  return b.detach();
+}
+
+/** Whether that shape is a SILHOUETTE the node declared, as opposed to the
+ *  rectangle `resolvedShapeOf` falls back to. Corner radii deliberately do
+ *  not count: they round the fill, not the outline the borrow family reads,
+ *  and `resolvedShapeOf` ignores them everywhere else too. */
+bool hasResolvedSilhouette(const Instance& inst) {
+  const ElementNode& node = *inst.desc;
+  return (bool)node.shapeFn ||
+         (node.deriveData && !inst.connectorPath.isEmpty());
+}
+
+/** The cycle guard every borrow in this file applies: the target must not be
+ *  this node or anything under it. Borrowing a DESCENDANT's geometry is the
+ *  cycle — the child's box is derived from this node's, so the shape would
+ *  feed itself and the layout loop would never settle. If you add another
+ *  borrow, it needs this check too, or an author can hang the layout pass
+ *  with a key. */
+bool borrowIsCyclic(const Instance& inst, Instance* target) {
+  for (Instance* p = target; p; p = p->parent)
+    if (p == &inst) return true;
+  return false;
+}
+
 }  // namespace
 
 /** The derive pass over the flat instance lists the key index rebuilds each
@@ -58,22 +95,38 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
   const DeriveData* derive = &*inst.desc->deriveData;
 
   if (inst.paragraph) {
-    std::vector<SkRect> exclusions;
+    std::vector<Exclusion> exclusions;
     const SkRect own = absoluteRect(inst);
     for (const std::string& key : derive->flowAroundKeys) {
       auto it = byKey.find(key);
       if (it == byKey.end()) continue;
-      // Cycle guard: the target must not be this node or a descendant.
-      bool cyclic = false;
-      for (Instance* p = it->second; p; p = p->parent)
-        if (p == &inst) {
-          cyclic = true;
-          break;
+      if (borrowIsCyclic(inst, it->second)) continue;
+      Instance& target = *it->second;
+      const SkRect box = absoluteRect(target);
+      Exclusion exclusion;
+      exclusion.bounds = box.makeOffset(-own.left(), -own.top());
+      // The target's own SILHOUETTE when it declares one, its box when it
+      // does not. The margin means the same thing either way — a standoff
+      // measured from whatever edge is being subtracted — so the shaped
+      // case is the boxed case with a truer edge, not a second rule.
+      if (hasResolvedSilhouette(target)) {
+        exclusion.path =
+            resolvedShapeOf(target).makeTransform(SkMatrix::Translate(
+                box.left() - own.left(), box.top() - own.top()));
+        SkRect oval = SkRect::MakeEmpty();
+        // A round silhouette is subtracted ANALYTICALLY: the same answer,
+        // at one square root per line band instead of a walk of a
+        // flattened outline. Only a true circle qualifies — an ellipse's
+        // inscribed circle is a different shape, and this is the one place
+        // where taking the near-enough answer would be silently wrong.
+        if (exclusion.path.isOval(&oval) &&
+            std::abs(oval.width() - oval.height()) <= 0.01f) {
+          exclusion.circle = true;
+          exclusion.bounds = oval;
+          exclusion.path.reset();
         }
-      if (cyclic) continue;
-      SkRect target = absoluteRect(*it->second);
-      target.offset(-own.left(), -own.top());
-      exclusions.push_back(target);
+      }
+      exclusions.push_back(std::move(exclusion));
     }
     if (exclusions != inst.exclusionsLocal) {
       inst.exclusionsLocal = std::move(exclusions);
@@ -87,38 +140,6 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
 
   return relayout;
 }
-
-namespace {
-
-/** The shape a laid-out instance actually occupies, in its OWN space —
- *  the same answer the painter builds, so a borrowed spine and the
- *  element it was borrowed from can never disagree. */
-SkPath resolvedShapeOf(Instance& inst) {
-  const ElementNode& node = *inst.desc;
-  const SkRect rect = inst.owner->instanceRect(inst);
-  const SkSize size{rect.width(), rect.height()};
-  if (node.deriveData && !inst.connectorPath.isEmpty())
-    return inst.connectorPath;
-  if (node.shapeFn) return node.shapeFn(size);
-  SkPathBuilder b;
-  b.addRect(SkRect::MakeWH(size.width(), size.height()));
-  return b.detach();
-}
-
-/** The cycle guard every borrow in this file applies: the target must not be
- *  this node or anything under it. Borrowing a DESCENDANT's geometry is the
- *  cycle — the child's box is derived from this node's, so the shape would
- *  feed itself and the layout loop would never settle. deriveFlow and the
- *  rail branch below open-code the same walk; if you add a fourth borrow,
- *  it needs this check too, or an author can hang the layout pass with a
- *  key. */
-bool borrowIsCyclic(const Instance& inst, Instance* target) {
-  for (Instance* p = target; p; p = p->parent)
-    if (p == &inst) return true;
-  return false;
-}
-
-}  // namespace
 
 void Composer::Impl::deriveRoute(Instance& inst) {
   const DeriveData* derive = &*inst.desc->deriveData;

@@ -31,6 +31,22 @@
 
 namespace sigil::compose::detail {
 
+struct Instance;
+
+/** WHETHER THE CHILDREN OF THIS NODE CARRY YOGA NODES. Stated once because
+ *  two places ask — the mount that creates the node and the patch that
+ *  decides a reused instance is in the wrong mode — and a drift between
+ *  them is a hard Yoga abort rather than a wrong pixel.
+ *
+ *  Two families answer no. A `positioned()` container's descendants carry
+ *  their rects in their own descriptions instead of in the flex engine. And
+ *  a TEXT node's children never can: Yoga forbids children under a node
+ *  that has a measure function, and the measure function is how text sizes
+ *  to its container. So text keeps measuring, and a `rich().slot()` pill
+ *  takes its box from the paragraph — which is the only thing that knows
+ *  where the reserved run landed. */
+inline bool childrenCarryYoga(const Instance& inst);
+
 /** One float property that can transition: the Choreograph output is the
  *  source of truth while a motion is connected. */
 struct AnimatedFloat {
@@ -39,6 +55,28 @@ struct AnimatedFloat {
   // Where the running motion is headed — lets a patch that does not change
   // this slot's target leave the motion ALONE (no hitch, no re-held delay).
   float target = 0.0f;
+};
+
+/** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
+ *
+ *  A target that resolves a SILHOUETTE of its own — a `shape()`, a routed
+ *  connector or rail — is subtracted by that outline, concavities and holes
+ *  included, so text runs into the notch of a star and through the hole of
+ *  a ring. A target that resolves none is subtracted by its BOX, which is
+ *  the whole of what it occupies. `circle` is the analytic case: a round
+ *  silhouette costs one square root per line band instead of a walk of a
+ *  flattened outline, and the answer is the same one.
+ *
+ *  Both forms are one value so the compare that decides whether the text
+ *  must be laid out again stays a plain vector compare. */
+struct Exclusion {
+  SkRect bounds = SkRect::MakeEmpty();  ///< the target's box (or the circle's)
+  SkPath path;          ///< the silhouette; empty when the target has none
+  bool circle = false;  ///< `bounds`'s inscribed circle IS the silhouette
+  bool operator==(const Exclusion& other) const {
+    return bounds == other.bounds && circle == other.circle &&
+           path == other.path;
+  }
 };
 
 struct Instance {
@@ -54,19 +92,55 @@ struct Instance {
   std::optional<sigil::weave::Paragraph> paragraph;
   sigil::weave::ParagraphLayout textLayout;
   std::vector<sigil::weave::LineMetrics> lines;
+  /// The same geometry for a VERTICAL passage, where a "line" is a column
+  /// and lineMetrics() answers with nothing. Exactly one of the two lists is
+  /// ever non-empty, and which one is the node's writing mode.
+  std::vector<sigil::weave::ColumnMetrics> columns;
   float measuredForWidth = -1.0f;
+  float measuredForHeight = -1.0f;
   YGSize measuredSize{0, 0};
-  uint32_t contentRev = 0;     // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
-  // VariationDrive probe result for the CURRENT text content:
-  // -1 unprobed, 0 refused (axis absent or advance-variant), 1 live.
-  int8_t driveProbe = -1;
+  float measuredBaseline = 0.0f;  // first character's baseline, from the top
+  uint32_t contentRev = 0;        // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
+  // rich().slot(): the slot names in the order the content declares them —
+  // which is the order weave matches its placeholder records in — and where
+  // the finished layout put each one, in this node's own space. A child
+  // keyed by one of these names takes that rect as its box.
+  std::vector<std::string> textSlotKeys;
+  std::vector<std::pair<std::string, SkRect>> textSlotRects;
+  // mark(): the rect each anchored child's key resolves to, in this node's
+  // own space, resolved once per layout from the placement the paragraph
+  // produced. A key that resolved no glyphs is absent, and its child places
+  // nothing.
+  std::vector<std::pair<std::string, SkRect>> textMarkRects;
+  // rich().add(text, styleName): each named run and the text it occupies, in
+  // declaration order — what sel::style resolves against. Cleared and
+  // rebuilt with the paragraph, so the names a node answers for are exactly
+  // the ones its current content declares.
+  std::vector<detail::NamedRun> textNamedRuns;
+  // onPath(): the run broken across the baseline's contours, and the
+  // geometry it was broken across. A SECOND layout beside `textLayout`
+  // rather than a replacement for it — `textLayout` is still the node's
+  // MEASURE, the run laid straight, and the box it measures is what the
+  // baseline is resolved against. Rebuilt when the content, the box or the
+  // baseline value changes; the `at` phase is applied at PAINT and never
+  // touches it.
+  sigil::weave::ParagraphLayout pathLayout;
+  std::vector<sigil::weave::LineInterval> pathIntervals;
+  float pathTotalLength = 0;   // every contour's arc length together
+  float pathRestAt = 0;        // the `at` the layout's entry point baked in
+  SkPoint pathCentroid{0, 0};  // Orient::Radial's centre
+  bool pathValid = false;
+  uint32_t pathRev = ~0u;            // contentRev the path layout belongs to
+  SkSize pathSize = {-1, -1};        // the box the baseline resolved against
+  std::optional<TextPath> pathSpec;  // the value it was built from
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
-  // count is a property of the KERNEL. Mask gates are deliberately not here:
-  // how many a node has is a property of its description, so they live in the
-  // maskAnims vector instead.
+  // count is a property of the KERNEL. Mask gates and fx() tracks are
+  // deliberately not here: how many a node has is a property of its
+  // description, so they live in the maskAnims and trackAnims vectors
+  // instead.
   //
   // ADDING A SLOT HERE IS A BUILD FAILURE until it also gets a row in
   // kSlotSpecs below, the one table every consumer of this enum walks.
@@ -77,19 +151,19 @@ struct Instance {
     kRotate,
     kScale,
     kFillLerp,
-    kGlyphProgress,
     kSkewX,
     kSkewY,
     kScaleX,
     kScaleY,
     kMotionT,
+    kTextPathAt,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo;  // endpoints for kFillLerp
 
   // Derive-phase state
-  std::vector<SkRect> exclusionsLocal;  // flowAround rects, text-local
+  std::vector<Exclusion> exclusionsLocal;  // flowAround targets, text-local
   SkPath connectorPath;  // routed path (connector OR rail), local
   SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
   std::vector<SkPoint> railPoints;  // last resolved rail waypoints
@@ -116,6 +190,26 @@ struct Instance {
   // mask list drops the running motions rather than carrying them onto
   // numbers that now mean something else.
   std::vector<std::unique_ptr<AnimatedFloat>> maskAnims;
+  // Animated fx() TRACK progresses, one per track in declaration order.
+  //
+  // Positional and separately indexed for the same reason mask gates are:
+  // three tracks on one text node may run at three rates, and a shared slot
+  // would make the third retarget the first. A description that changes the
+  // NUMBER of tracks drops the running motions rather than carrying them
+  // onto a progress that now drives a different effect.
+  std::vector<std::unique_ptr<AnimatedFloat>> trackAnims;
+
+  // ---- fx() selection, resolved once per (content, layout, selector) -------
+  //
+  // A selector answers one byte per glyph, and answering it can mean an ICU
+  // regular expression over the whole paragraph. That is a per-EDIT cost,
+  // not a per-frame one: the masks below are rebuilt when the text changes,
+  // when the layout reflows (a line selector moves with the break), or when
+  // the description's selectors themselves change.
+  std::vector<Selector> selectionKeys;
+  std::vector<std::vector<uint8_t>> selectionMasks;
+  uint32_t selectionRev = ~0u;
+  float selectionWidth = -1.0f;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -138,6 +232,16 @@ struct Instance {
   // derived from paint history, which a node under a cached parent never
   // accumulates.
   bool transformLive = false;
+  // …and does what this node draws LAND SOMEWHERE ELSE next frame?
+  // `transformLive` is the node's OWN declared motion; this is that, OR any
+  // ancestor's, OR — for text — a live fx() track whose effect moves glyphs
+  // off their pen positions. Text asks it: a run whose device placement
+  // creeps needs its glyph origins on the subpixel grid, and a figure
+  // rotating above the text, or a slide dragging every letter sideways,
+  // makes it creep exactly as a marquee phase does. Every term is read off
+  // a declaration, so a run that stops keeps the placement it was moving
+  // with instead of taking one last shift as it settles.
+  bool placementUnderMotion = false;
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own
   // still moves every frame under a resizing window or a pinch zoom, and a
@@ -197,7 +301,9 @@ struct Instance {
    *  set of floats to compare. A node animated only by a per-pass span falls
    *  back to per-frame content volatility and does not cache. */
   struct ContentScalars {
-    float glyph = 1.0f;
+    /** Every fx() track's master progress, resolved, in the order
+     *  trackAnims indexes them. Empty on text carrying no tracks. */
+    std::vector<float> tracks;
     /** Every mask gate's animated floats, resolved, in the order
      *  maskAnims indexes them. */
     std::vector<float> gates;
@@ -231,6 +337,11 @@ struct Instance {
      *  Instance::resolvePatternOffset(), so the guard cannot drift between
      *  the volatility walk, the released scan and the paint probe. */
     std::array<float, 2> pattern{};
+    /** onPath()'s resolved phase — WHERE ALONG the baseline the run sits
+     *  this frame. The recording bakes the glyph positions that phase
+     *  produced, so it is a content input exactly as a gate fraction is.
+     *  Zero when the node carries no path baseline. */
+    float pathAt = 0;
     bool operator==(const ContentScalars&) const = default;
   };
   ContentScalars bakedScalars;
@@ -410,6 +521,16 @@ struct Instance {
    *  the recording was BAKED with. Empty when the node carries no mask, or
    *  only shape/alpha gates, which have no numbers. */
   std::vector<float> resolveGateValues() const;
+  /** The same resolution over the fx() TRACKS: every track's master
+   *  progress this frame, in the order trackAnims indexes them (and
+   *  ContentScalars::tracks stores them). Empty when the node carries no
+   *  tracks. */
+  std::vector<float> resolveTrackValues() const;
+  /** The same resolution over onPath()'s `at` phase — one float, or zero
+   *  when the node carries no path baseline. Every compare site reads this
+   *  one body, so the volatility walk, the released scan and the paint
+   *  probe cannot drift apart. */
+  float resolvePathAt() const;
   /** `resolveGateValues`'s sibling for the fill lane: the value a bound
    *  `fill(&output)` resolves to this frame — `binding()->value()`, exactly
    *  the read paint() bakes into the recording — or a default (None) Fill
@@ -449,6 +570,11 @@ struct Instance {
     }
   }
 };
+
+inline bool childrenCarryYoga(const Instance& inst) {
+  return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&
+         inst.desc->kind != Kind::Text;
+}
 
 // ---------------------------------------------------------------------------
 // THE SLOT TABLE — a slot added to Instance::Slot is a BUILD FAILURE
@@ -556,12 +682,6 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kFillLerp, SlotRole::Bespoke, nullptr, 0.0f,
      "a progress scalar over paint.fill's Transitioned<Fill> — there is no "
      "Animatable<float> in the description to point at"},
-    {Instance::kGlyphProgress, SlotRole::Content,
-     [](const ElementNode& n) -> const Animatable<float>* {
-       return n.textData && n.textData->glyphFx ? &n.textData->glyphFx->progress
-                                                : nullptr;
-     },
-     1.0f, nullptr},
     {Instance::kSkewX, SlotRole::Geometric,
      [](const ElementNode& n) { return &n.paint.skewX; }, 0.0f, nullptr},
     {Instance::kSkewY, SlotRole::Geometric,
@@ -575,6 +695,18 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     {Instance::kMotionT, SlotRole::Geometric,
      [](const ElementNode& n) -> const Animatable<float>* {
        return n.motionData ? &n.motionData->t : nullptr;
+     },
+     0.0f, nullptr},
+    // onPath(): `at` is WHERE ALONG the baseline the run sits, so moving it
+    // re-places every glyph INSIDE the node's own box and leaves the box
+    // where it was. That is the CONTENT half, not the geometric one — the
+    // recording is rebuilt, the device rect is not — and the resolved value
+    // joins ContentScalars so a marquee that stops running releases like any
+    // other settled scalar.
+    {Instance::kTextPathAt, SlotRole::Content,
+     [](const ElementNode& n) -> const Animatable<float>* {
+       return n.textData && n.textData->onPath ? &n.textData->onPath->at
+                                               : nullptr;
      },
      0.0f, nullptr},
 };
@@ -735,6 +867,11 @@ struct Composer::Impl {
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
   std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  // Text nodes carrying mark() on a path-laid run. Their curve resolves
+  // against the node's FINAL box, which measurement never sees, so their
+  // marks resolve in a post-layout pass over this flat list instead of
+  // inside measure like a flow run's.
+  std::vector<detail::Instance*> pathMarkInstances;
   std::unordered_map<std::string, std::vector<detail::Instance*>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
@@ -838,6 +975,22 @@ struct Composer::Impl {
   void patchChildren(detail::Instance& inst,
                      const std::vector<Element>& newChildren);
   void applyLayoutProps(detail::Instance& inst);
+  /** Builds the instance's Paragraph from whichever content form its
+   *  description carries — plain utf8, `rich()` runs, or a copy of a
+   *  supplied Paragraph — and then applies the span restyles in
+   *  declaration order. @p lines is the geometry a previous layout
+   *  produced, which is what a `sel::line` restyle addresses; empty leaves
+   *  those selectors unresolved. @p columns carries the same geometry for a
+   *  vertical passage, where a line IS a column. */
+  void materializeText(
+      detail::Instance& inst,
+      std::span<const sigil::weave::LineMetrics> lines = {},
+      std::span<const sigil::weave::ColumnMetrics> columns = {});
+  /** The options a text node actually lays out under: the full-control
+   *  overload's value where it has one, with every field a fluent setter
+   *  named written over it. */
+  sigil::weave::ParagraphLayoutOptions textLayoutOptions(
+      const detail::Instance& inst) const;
   void applyTransitions(detail::Instance& inst, const detail::ElementNode& prev,
                         const detail::ElementNode& next);
   void applyMountTransitions(detail::Instance& inst,
@@ -881,7 +1034,13 @@ struct Composer::Impl {
    *  matrix moved with the ancestor even though this node's
    *  parent-relative rect did not. */
   void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
-  void layoutText(detail::Instance& inst, float constraint);
+  /** Lays the node's text out inside @p constraint px across and
+   *  @p downConstraint px down. A horizontal passage reads the first as its
+   *  measure and ignores the second; a vertical one reads the first as
+   *  where its rightmost column stands and the second as how far a column
+   *  may run before the next one starts. */
+  void layoutText(detail::Instance& inst, float constraint,
+                  float downConstraint = 1.0e6f);
   SkRect instanceRect(const detail::Instance& inst) const;
   SkRect positionedRect(const detail::Instance& inst) const;
   SkRect absoluteRect(const detail::Instance& inst) const;
@@ -988,10 +1147,46 @@ struct Composer::Impl {
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f;  // device px per layout px at draw() entry
   void paint(detail::Instance& inst, SkCanvas& canvas);
-  void paintTextOnPath(detail::Instance& inst, SkCanvas& canvas,
-                       const TextPath& spec, SkSize size);
-  void paintKineticText(detail::Instance& inst, SkCanvas& canvas,
-                        const GlyphFx& fx);
+  /** Breaks the run across the baseline's contours through SigilWeave's
+   *  contour-interval geometry, and caches the result on the instance. */
+  void ensurePathLayout(detail::Instance& inst, const TextPath& spec,
+                        SkSize size);
+  /** THE ONE GLYPH DRAW for text that is not simply resting on its own
+   *  straight baseline. The rest pose comes from the baseline — level on a
+   *  plain run, on the curve and turned to it on a path run — and every
+   *  fx() track's deviation applies ON TOP OF IT, in that pose's own frame.
+   *  `onPath` is null for text with no baseline path. A track whose effect
+   *  is a PASS (fx::pass) renders its addressed glyphs — deviations
+   *  applied — into a layer instead of the canvas and runs its material
+   *  once over that layer; `ctx` is the node's paint context, which that
+   *  resolve reads for its clock, box and injected uniforms. */
+  void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
+                   const sigil::weave::PaintStyle* override,
+                   const TextPath* onPath, SkSize size,
+                   const PaintContext& ctx);
+  /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
+   *  last draw() produced — the read-back behind Composer::beatsOf. Rects
+   *  come out in the NODE's own space; the caller offsets them into the
+   *  composer's, as the bounds query does. */
+  std::vector<Beat> beatsOfTrack(detail::Instance& inst, size_t trackIndex);
+  /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
+   *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
+   *  0 wherever beatsOfTrack answers empty. */
+  float cascadeSpanOfTrack(detail::Instance& inst, size_t trackIndex);
+  /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
+   *  the letters are drawn from: one rect per anchor, the union of the
+   *  advance boxes of the glyphs its selector addressed. A flow run's
+   *  marks resolve during measure; a PATH run's resolve in ensureLayout's
+   *  post-layout pass, because the curve resolves against the node's
+   *  final box and the marks then stand on it — at the run's resting
+   *  placement, since a layout rect cannot chase a paint-time `at`. */
+  void resolveTextMarks(detail::Instance& inst);
+  /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
+   *  when the node asks for neither. ONE body, called by the resting draw
+   *  and by the fx() draw — a letter in flight is painted exactly as a
+   *  resting one is. */
+  std::optional<sigil::weave::PaintStyle> metricTextStyle(
+      detail::Instance& inst, const PaintContext& paintCtx);
   /** Which half of a node's paint to emit.
    *
    *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —

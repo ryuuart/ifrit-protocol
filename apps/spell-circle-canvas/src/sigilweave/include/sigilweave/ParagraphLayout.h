@@ -47,7 +47,12 @@ struct LineMetricsOptions {
 
 /** Controls soft-hyphen handling independently from the break strategy. */
 struct HyphenationOptions {
-  bool enabled = true;  ///< false ignores soft-hyphen break opportunities
+  /// False removes the break opportunity, not just the hyphen glyph: the
+  /// halves either side of a soft hyphen fuse into one unbreakable word
+  /// during segmentation, so the word wraps or overflows whole. Reaching
+  /// the paragraph is what makes that happen — see
+  /// Paragraph::setSoftHyphenBreaks, which layoutParagraph sets from here.
+  bool enabled = true;
   /// Added as squared demerits by Knuth-Plass to discourage repeated
   /// discretionary hyphen breaks.
   float penalty = 50.0f;
@@ -161,6 +166,12 @@ struct PositionedRun {
   int lineIndex = 0;          ///< 0-based flow line the run landed on
   bool transformed = false;   ///< RSXform blob (positions baked into the blob)
   int placeholderIndex = -1;  ///< \>= 0: index into Paragraph::placeholders()
+  /// Which flow interval this run landed on — an index into
+  /// ParagraphLayout::intervals. With `penOffset` it is the whole of what a
+  /// caller needs to re-place a transformed run at draw time: the geometry
+  /// it was placed on, and where along that geometry its pen started.
+  int intervalIndex = -1;
+  float penOffset = 0;  ///< pen travel at the run's start, in advance units
 };
 
 /// Geometry of one laid-out line, derived on demand from its placed runs
@@ -184,10 +195,46 @@ struct LineMetrics {
   }
 };
 
+/// Geometry of one laid-out COLUMN of a vertical paragraph — the counterpart
+/// of LineMetrics, derived on demand from the placed runs
+/// (ParagraphLayout::columnMetrics). A column has no baseline: its reading
+/// axis is y, and the glyphs of every form (upright, rotated, tate-chu-yoko)
+/// centre themselves ACROSS the column's central axis. So the band is the
+/// axis plus the flow's own column pitch, and the extent is how far down the
+/// axis the placed runs reached.
+struct ColumnMetrics {
+  int lineIndex = 0;       ///< matches PositionedRun::lineIndex
+  float axis = 0;          ///< the column's central axis, x
+  float pitch = 0;         ///< the column band's width (the flow's line pitch)
+  float top = 0;           ///< first placed pen position down the column
+  float bottom = 0;        ///< one past the last, trailing glue excluded
+  uint32_t textBegin = 0;  ///< first UTF-16 unit placed in the column
+  uint32_t textEnd = 0;    ///< one past the last unit, trailing glue included
+
+  /** Returns the column's bounding band (half the pitch either side). */
+  [[nodiscard]] SkRect rect() const {
+    return SkRect::MakeLTRB(axis - pitch * 0.5f, top, axis + pitch * 0.5f,
+                            bottom);
+  }
+};
+
 /** Positioned output of one paragraph layout pass. */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
-  int lineCount = 0;                ///< lines actually produced
+  /// Every flow interval the layout consumed, in the order the geometry
+  /// handed them over — the numbering PositionedRun::intervalIndex uses.
+  /// A caller that re-places transformed runs reads their geometry here
+  /// rather than rebuilding it and hoping the two agree.
+  std::vector<LineInterval> intervals;
+  /// The tangent snapping the placement used, carried so a re-placement can
+  /// match it (see LineInterval::placeAt).
+  int tangentRotationSteps = 0;
+  /// The pitch every line was queried at — the resolved line height, which
+  /// is a vertical flow's COLUMN WIDTH. Carried because the flow's band is
+  /// not recoverable from an interval: a LineInterval states where the pen
+  /// travels, never how wide the band around it is.
+  float linePitch = 0;
+  int lineCount = 0;  ///< lines actually produced
   /// First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended
@@ -255,6 +302,19 @@ struct ParagraphLayout {
    * nothing do not appear.
    */
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
+      const Paragraph& paragraph) const;
+
+  /** Returns per-COLUMN geometry for a vertical layout, ascending by column
+   * index — what lineMetrics() is for a horizontal one, and the only one of
+   * the two that answers in a vertical paragraph.
+   *
+   * Derived, not stored: one pass over `runs`, with each run's extent down
+   * the column taken from the pen it was placed at. Every vertical form
+   * counts — upright, rotated and tate-chu-yoko alike — because all three
+   * consume column pitch. Columns that placed nothing do not appear, and a
+   * horizontal layout returns an empty list.
+   */
+  [[nodiscard]] std::vector<ColumnMetrics> columnMetrics(
       const Paragraph& paragraph) const;
 };
 

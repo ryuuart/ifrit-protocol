@@ -92,7 +92,7 @@
 // wide on longer legs, is a real Ribbon and works. The audit still measures
 // the Ribbon band and not the quads, so the defect stays reported rather
 // than hidden behind the workaround; the error it finds is printed in the
-// console in both px and millimetres of Minard's paper.
+// checks strip in both px and millimetres of Minard's paper.
 //
 // `profileOffset` delegates to `lines::offsetAcross` — real vertices, arc
 // outside a turn, miter inside — only when the profile is CONSTANT. A flow
@@ -119,7 +119,7 @@
 //
 // NOT TRACED. Every band width here is survivors x 1.126 mm / 10,000
 // against the sheet's own 2.258 px per millimetre; the Russian panel's
-// city positions come out of the affine fit above; every console number
+// city positions come out of the affine fit above; every printed number
 // is computed in this file. The Hannibal band's stations ARE read off
 // the scan, and that is forced rather than lazy: hann.py shows there is
 // no projection to fit.
@@ -136,8 +136,8 @@
 #include <include/core/SkPathMeasure.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
@@ -907,7 +907,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   float riserFracErr = 0;  // fraction indexed    — the trap
   const char* riserWorstCity = "";
 
-  console::LineRing colA{200}, colB{200}, colC{200}, colD{200}, colE{200};
+  feed::TextRing colA{200}, colB{200}, colC{200}, colD{200}, colE{200};
 
   // -----------------------------------------------------------------------
   // beat clock (seconds). Everything reads through bind(&T).window(a,b).
@@ -1326,8 +1326,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     float runLen = 0;
     float slack = size * 0.3f;  // metrics-free fallback, same shape
     if (fonts) {
-      for (float adv : measureRun(toU8(french(men)), style, *fonts))
-        runLen += adv;
+      runLen = runPens(toU8(french(men)), style, *fonts).back();
       slack = metrics(style, *fonts).capSlack();
     }
     const float half = std::max(bandPx(men) * 0.5f, runLen * 0.5f) + slack;
@@ -2369,24 +2368,29 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element consoleStrip() {
-    console::Style s = console::monoStyle(faceMono, 8.2f, hex(0xb9b2a4),
-                                          {hex(0x6d675c),    // 0 dim
-                                           hex(0x62ab74),    // 1 pass
-                                           hex(0xd08a2a),    // 2 fail/anomaly
-                                           hex(0x64a8d8),    // 3 measured
-                                           hex(0xf0e8d8)});  // 4 heading
-    s.palette[4].shaping.fontSize = 8.8f;  // the heading runs a shade larger
-    s.gap = 0.0f;
-    s.visibleLines = 20;
-    return console::panel({.rings = {&colA, &colB, &colC, &colD, &colE},
-                           .style = s,
-                           .paddingX = 8,
-                           .paddingY = 8,
-                           .gap = 12,
-                           .fill = Fill::color(hex(0x141311)),
-                           .border = Fill::color(hex(0x2c2a26)),
-                           .borderAlign = PathFormat::Align::Center,
-                           .ringExtent = 480})
+    feed::TextOptions s;
+    s.styles = feed::tinted(faceMono, 8.2f, hex(0xb9b2a4),
+                            {{"dim", hex(0x6d675c)},
+                             {"pass", hex(0x62ab74)},
+                             {"fail", hex(0xd08a2a)},
+                             {"measured", hex(0x64a8d8)},
+                             {"heading", hex(0xf0e8d8)}});
+    // The heading runs a shade larger; set() replaces it where it sits.
+    s.styles.set(
+        "heading",
+        studio::type({.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
+    s.window.gap = 0.0f;
+    s.window.visible = 20;
+    return feed::plate({.columns = {feed::feed(colA, s), feed::feed(colB, s),
+                                    feed::feed(colC, s), feed::feed(colD, s),
+                                    feed::feed(colE, s)},
+                        .paddingX = 8,
+                        .paddingY = 8,
+                        .gap = 12,
+                        .fill = Fill::color(hex(0x141311)),
+                        .border = Fill::color(hex(0x2c2a26)),
+                        .borderAlign = PathFormat::Align::Center,
+                        .columnExtent = 480})
         .rect(SkRect::MakeXYWH(48, kConsoleY, 2464, kConsoleH))
         .key("console");
   }
@@ -2407,20 +2411,20 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   void runAudits() {
     // --- flow conservation, on Minard's own engraved numbers -------------
-    auto say = [&](console::LineRing& r, const std::string& s, size_t pal) {
-      r.append(toU8(s), pal);
+    auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
+      r.append({toU8(s), style});
     };
     // The verdict is never written by hand: debug::check computes it FROM
-    // the two values and debug::report prints it in the palette that
+    // the two values and debug::report prints it in the style that
     // verdict chose, so a line that reads EXACT cannot disagree with the
     // arithmetic printed beside it, and a line that fails says what it
     // expected as well as what it got.
-    auto chk = [&](console::LineRing& r, const std::string& label, long lhs,
+    auto chk = [&](feed::TextRing& r, const std::string& label, long lhs,
                    long rhs) {
-      debug::report(r, debug::check(label, rhs, lhs), 1, 2);
+      debug::report(r, debug::check(label, rhs, lhs), "pass", "fail");
     };
 
-    say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", 4);
+    say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", "heading");
     chk(colA, "422,000 − 22,000 (northern column)", 422000 - 22000, 400000);
     chk(colA, "400,000 − 60,000 (Polotzk column)", 400000 - 60000, 340000);
     chk(colA, "340,000 + 60,000 + 22,000", 340000 + 60000 + 22000, 422000);
@@ -2430,7 +2434,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         fmt("  Berezina 50,000−28,000=22,000 in 4 days · campaign "
             "%.2f%% survived",
             100.0 * 10000.0 / 422000.0),
-        0);
+        "dim");
     // the one identity that fails, found by walking the retreat westward
     int junctions = 0, violations = 0;
     std::string viol;
@@ -2452,11 +2456,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     say(colA,
         fmt2("  junctions checked %.0f      violations %.0f", (double)junctions,
              (double)violations),
-        violations ? 2 : 1);
-    say(colA, viol + " (Molodezno→Smorgoni, +2,000, unexplained)", 2);
-    say(colA, "", 0);
+        violations ? "fail" : "pass");
+    say(colA, viol + " (Molodezno→Smorgoni, +2,000, unexplained)", "fail");
+    say(colA, "", "dim");
 
-    say(colA, "HANNIBAL, AGAINST POLYBIUS", 4);
+    say(colA, "HANNIBAL, AGAINST POLYBIUS", "heading");
     chk(colA, "12,000 Africans + 8,000 Iberians + 6,000 horse  III.56.4",
         12000 + 8000 + 6000, 26000);
     chk(colA, "38,000 foot + 8,000 horse, entering the Alps", 38000 + 8000,
@@ -2464,78 +2468,79 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     say(colA,
         "  Pyrenees   Hanno 11,000 + 10,000 sent home = 21,000; Minard draws "
         "20,000",
-        0);
-    say(colA, "  → the one place he smooths.  Δ 1,000", 0);
+        "dim");
+    say(colA, "  → the one place he smooths.  Δ 1,000", "dim");
     say(colA,
         fmt("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
             100.0 * 26.0 / 96.0),
-        0);
+        "dim");
     say(colA,
         fmt("  Napoleon 1812    422,000 → 10,000   survived %.2f%%",
             100.0 * 10.0 / 422.0),
-        0);
-    say(colA, "", 0);
+        "dim");
+    say(colA, "", "dim");
 
     // --- the scale audit --------------------------------------------------
-    say(colB, "DOES THE PLATE OBEY ITS OWN LEGEND?", 4);
+    say(colB, "DOES THE PLATE OBEY ITS OWN LEGEND?", "heading");
     say(colB,
         "  legend (BOTH panels)  \"à raison d'un millimètre pour dix "
         "mille hommes\"",
-        0);
+        "dim");
     say(colB,
         "  11 treads, Commons scan:  3.828 px/10k, intercept "
         "−0.19 px, R² 0.99266",
-        3);
+        "measured");
     say(colB,
         "  intercept / (10,000-men width)   −0.05        PASS "
         "(proportional)",
-        1);
+        "pass");
     say(colB,
         "  paper 3945×3423 px, aspect 1.1525 vs 62/54 = 1.1481   "
         "+0.4%  PASS",
-        1);
-    say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", 0);
+        "pass");
+    say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", "dim");
     say(colB,
         fmt("  from the regression                        %.3f mm/10k",
             3.828 / 3.4482),
-        3);
-    say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm", 3);
-    say(colB, "  STATED                                 1.0000 mm", 0);
+        "measured");
+    say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
+        "measured");
+    say(colB, "  STATED                                 1.0000 mm", "dim");
     say(colB,
         fmt("  → the engraved zones are %.1f%% WIDER than the legend "
             "claims     FAIL (the plate's)",
             100.0 * (kMmPer10k - 1.0) / 1.0),
-        2);
+        "fail");
     say(colB,
         "  and the SAME factor on the Hannibal panel, other data, other "
         "continent",
-        2);
+        "fail");
     say(colB,
         fmt("  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
             "[SPECULATION]",
             100.0 * std::fabs(kLigneHalf - kMmPer10k) / kMmPer10k),
-        0);
-    say(colB, "", 0);
-    say(colB, "THE FLOOR", 4);
+        "dim");
+    say(colB, "", "dim");
+    say(colB, "THE FLOOR", "heading");
     say(colB,
         "  above ~35,000 men      3.6 – 3.9 px per 10,000   (holds "
         "scale)",
-        1);
+        "pass");
     say(colB,
         "  at 8,000 / 4,000       7.0 / 10.5 px per 10,000   (2.6× "
         "too wide)",
-        2);
+        "fail");
     say(colB,
         "  minimum drawn width    5.4 px = 1.57 mm — what a crayon "
         "holds",
-        2);
+        "fail");
     say(colB,
         "  → 12,000→14,000 is NOT measurable in the ink. "
         "NEGATIVE RESULT, REPORTED.",
-        2);
-    say(colB, "", 0);
+        "fail");
+    say(colB, "", "dim");
 
-    say(colC, "MINARD'S GEOGRAPHY vs THE REAL WORLD", 4);
+    say(colC, "MINARD'S GEOGRAPHY vs THE REAL WORLD", "heading");
     {
       std::vector<float> km;
       for (const City& c : kCities) km.push_back(cityKm(c));
@@ -2552,99 +2557,102 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       say(colC,
           fmt2("  20 cities, haversine:  mean %.2f km   median %.2f km", mean,
                med),
-          3);
-      say(colC, fmt("                         rms  %.2f km", rms), 3);
-      say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", 0);
-      say(colC, "  rms expected from quantisation alone      3.70 km", 0);
+          "measured");
+      say(colC, fmt("                         rms  %.2f km", rms), "measured");
+      say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", "dim");
+      say(colC, "  rms expected from quantisation alone      3.70 km", "dim");
       say(colC,
           fmt("  → residual is within %.1f× of the measurement floor  "
               "         PASS",
               rms / 3.70),
-          1);
+          "pass");
       const float kmKM = haversineKm(kCities[0].rlon, kCities[0].rlat,
                                      kCities[17].rlon, kCities[17].rlat);
       const float kmM = haversineKm(kCities[0].lon, kCities[0].lat,
                                     kCities[17].lon, kCities[17].lat);
       say(colC,
-          fmt2("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM, kmM), 3);
+          fmt2("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM, kmM),
+          "measured");
       say(colC,
           "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk "
           "1.528  TOTAL 1.011",
-          2);
+          "fail");
     }
-    say(colC, "", 0);
+    say(colC, "", "dim");
 
     // --- the projection fits, both panels --------------------------------
-    say(colC, "THE PROJECTION — re-measured here, and one finding is new", 4);
+    say(colC, "THE PROJECTION — re-measured here, and one finding is new",
+        "heading");
     say(colC,
-        "  Napoleon panel, tan centreline, 8 stations east of Polotzk:", 0);
+        "  Napoleon panel, tan centreline, 8 stations east of Polotzk:", "dim");
     say(colC,
         "    d = 280.3 px/deg lat,  d/b = 2.142,  R² 0.866, rms 34 "
         "px",
-        3);
+        "measured");
     say(colC,
         "    true-to-scale at 55°N = 1.743  → latitude "
         "STRETCHED 1.23×",
-        3);
-    say(colC, "  Hannibal panel, same fit, 11 stations, BnF sheet:", 0);
+        "measured");
+    say(colC, "  Hannibal panel, same fit, 11 stations, BnF sheet:", "dim");
     say(colC,
         "    d/b = 0.048,  R² = 0.12   (robust: 0.048–0.075 "
         "over any anchor)",
-        2);
+        "fail");
     say(colC,
         "  → THE TWO PANELS DO NOT SHARE A PROJECTION. The top one "
         "is a STRIP,",
-        2);
+        "fail");
     say(colC,
         "    not a map: latitude explains an eighth of the band's "
         "height. So the",
-        2);
+        "fail");
     say(colC,
         "    received \"Minard sacrificed geography\" is wrong about the "
         "panel every-",
-        2);
-    say(colC, "    one quotes and right about the panel nobody looks at.", 2);
-    say(colC, "", 0);
+        "fail");
+    say(colC, "    one quotes and right about the panel nobody looks at.",
+        "fail");
+    say(colC, "", "dim");
 
-    say(colD, "THE SCALE BAR DISAGREES WITH THE MAP", 4);
+    say(colD, "THE SCALE BAR DISAGREES WITH THE MAP", "heading");
     say(colD,
         "  \"Lieues communes\" 4.985 px/lieue, linear to 0.2% ⇒ 1 mm "
         "= 3.074 km",
-        3);
+        "measured");
     say(colD,
         "  the map, from real longitudes: 1 mm = 1.688 km   1 : "
         "1,688,000",
-        3);
+        "measured");
     say(colD, "  ratio 1.82                                     UNEXPLAINED",
-        2);
+        "fail");
     say(colD,
         "  Kowno→Smolensk with Minard's own bar: 933 km. Truth: 520 "
         "km.",
-        2);
+        "fail");
     say(colD,
         "  hypotheses: labels half value | copied unrescaled from "
         "Fezensac | my scale",
-        0);
+        "dim");
     say(colD,
         "  (the two panels also use DIFFERENT lieues: 4,444.8 m and "
         "4,560 m)",
-        0);
-    say(colD, "", 0);
+        "dim");
+    say(colD, "", "dim");
 
-    say(colD, "RÉAUMUR", 4);
+    say(colD, "RÉAUMUR", "heading");
     say(colD,
         "  °C = °R × 5/4   °F = °R × 9/4 + "
         "32   (exact, no offset)",
-        0);
+        "dim");
     say(colD,
         "  −30 °R = −37.50 °C = −35.50 °F  "
         "  9 readings converted     PASS",
-        1);
+        "pass");
     say(colD,
         "  the undated −11° recovers as 24 Nov (days col.) and "
         "25 Nov (lon interp.)",
-        3);
-    say(colD, "", 0);
+        "measured");
+    say(colD, "", "dim");
 
     // --- THE SKETCH'S OWN GEOMETRY ---------------------------------------
     const SkPath advSpine = polyline(kAdvTrunk);
@@ -2772,116 +2780,118 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       }
     }
 
-    say(colD, "THE TWO PANELS SHARE ONE ABSCISSA", 4);
+    say(colD, "THE TWO PANELS SHARE ONE ABSCISSA", "heading");
     say(colD,
         "  vertical rules detected in y ∈ [700,930]     9 inner + 2 "
         "frame",
-        0);
+        "dim");
 
     say(colD,
         "  best matches  lon 25.300 vs 25.3  Δ 0.000  |  28.593 vs "
         "28.5  Δ 0.09",
-        3);
+        "measured");
 
     say(colD,
         "  2 rules unmatched, 2 readings unmatched     PARTIAL — "
         "reported, not fudged",
-        2);
+        "fail");
     say(colD,
         "  in THIS sketch the lock is one shared mapX(lon) called from "
         "both panels;",
-        0);
+        "dim");
     say(colD,
         "  nothing in the library can declare it. A scale is not a "
         "layout.",
-        2);
+        "fail");
 
-    say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round", 4);
+    say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
+        "heading");
     say(colE,
         fmt2("  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
              "mm",
              auditAdvance.maxErr, auditAdvance.maxErr / kPxPerMm),
-        auditAdvance.maxErr > 2.0f ? 2 : 1);
+        auditAdvance.maxErr > 2.0f ? "fail" : "pass");
     say(colE,
         fmt2("    rms %.2f px · worst at arc %.0f px = Wilna's corner, 130 px "
              "band / 86 px leg",
              auditAdvance.rms, auditAdvance.maxErrAt),
-        3);
+        "measured");
     say(colE,
         fmt3("  retreat band (a real Ribbon): max |err| %.2f px = %.3f mm "
              "· fills %.0f px²",
              auditRetreat.maxErr, auditRetreat.maxErr / kPxPerMm, retreatArea),
-        auditRetreat.maxErr > 2.0f ? 2 : 1);
+        auditRetreat.maxErr > 2.0f ? "fail" : "pass");
     say(colE,
         fmt3("  ∫w ds %.0f · Ribbon fills %.0f · quads+bevel %.0f  (px²)",
              advanceInk, advanceArea, unionArea),
-        3);
+        "measured");
     say(colE,
         fmt("  the AREA test CANNOT tell those two apart — %.2f%% — because "
             "Ribbon loses the",
             100.0 * std::fabs(unionArea - advanceArea) / advanceInk),
-        2);
+        "fail");
     say(colE,
         "  inner lobe of each bend and gains an outer chord, and the "
         "two nearly cancel.",
-        2);
+        "fail");
     say(colE,
         "  Debug.h's own lesson from the other side: AREA is the "
         "cheap check that PASSES",
-        0);
+        "dim");
     say(colE,
         "  here. Min-chord sees it at once, at Wilna, 28 mm of "
         "Minard's paper.",
-        0);
+        "dim");
     say(colE,
         "  ⇒ debug::widthAlong is not a nicety: coverage() provably "
         "cannot substitute.",
-        2);
+        "fail");
     say(colE,
         "  The advance zones are drawn as quads + a hand-rolled "
         "BEVEL JOIN; the audit",
-        0);
+        "dim");
     say(colE,
         "  measures the Ribbon band they replaced. The retreat IS a "
         "Ribbon, and works.",
-        1);
+        "pass");
     say(colE,
         fmt("  coverage(advance ∪ retreat) doubled %.4f — they touch "
             "near Wizma, as on the plate",
             coverDoubled),
-        coverDoubled > 0.0005f ? 2 : 1);
+        coverDoubled > 0.0005f ? "fail" : "pass");
     say(colE,
         fmt2("  components()  advance as Minard draws it %.0f, as Wilkinson "
              "encodes it %.0f",
              (double)advComponentsDrawn, (double)advComponentsWilkinson),
-        3);
+        "measured");
     say(colE,
         fmt("  components()  retreat %.0f   — one army came back",
             (double)retComponents),
-        retComponents == 1 ? 1 : 2);
+        retComponents == 1 ? "pass" : "fail");
     say(colE,
         fmt("  risers, indexed by ARC LENGTH  max %.3f px off station    "
             "PASS",
             riserArcErr),
-        riserArcErr < 0.5f ? 1 : 2);
+        riserArcErr < 0.5f ? "pass" : "fail");
     say(colE,
         fmt("  risers, indexed by FRACTION    max %.1f px off station    "
             "FAIL",
             riserFracErr),
-        2);
+        "fail");
     say(colE,
         std::string("    ^ the trap, and its worst riser is ") +
             riserWorstCity + "'s",
-        2);
+        "fail");
     say(colE,
         "  → the corner error is brush::Ribbon's, not the data's: "
         "a variable-width",
-        0);
+        "dim");
     say(colE,
         "    band IS a stroke and Ribbon has no join — compare Wilna's "
         "corner, where",
-        0);
-    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.", 0);
+        "dim");
+    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.",
+        "dim");
   }
 
   // =======================================================================

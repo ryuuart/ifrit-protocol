@@ -11,15 +11,16 @@ add_library(SigilCompose STATIC
   Derive.cpp
   Paint.cpp
   Transitions.cpp
+  TextFx.cpp
+  Debug.cpp
   Query.cpp
   Material.cpp
   ComposeInternal.h
   ComposeRuntime.h
   include/sigilcompose/Brushes.h
   include/sigilcompose/Compose.h
-  include/sigilcompose/Console.h
+  include/sigilcompose/Feed.h
   include/sigilcompose/Instances.h
-  include/sigilcompose/Kinetic.h
   include/sigilcompose/LayerStyles.h
   include/sigilcompose/Material.h
   include/sigilcompose/Pattern.h
@@ -31,6 +32,7 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Routers.h
   include/sigilcompose/Shapes.h
   include/sigilcompose/Studio.h
+  include/sigilcompose/TextFx.h
   include/sigilcompose/Util.h
   include/sigilcompose/Web.h
 )
@@ -115,9 +117,12 @@ add_executable(compose_test
   test/ComposeTestKernel.cpp
   test/ComposeTestContent.cpp
   test/ComposeTestLines.cpp
+  test/ComposeTestVertical.cpp
   test/ComposeTestBrushes.cpp
   test/ComposeTestEngineDocs.cpp
   test/ComposeTestTextData.cpp
+  test/ComposeTestTextPass.cpp
+  test/ComposeTestPathMotion.cpp
   test/ComposeTestQueriesStudio.cpp
   test/ComposeTestGrammar.cpp
   test/ComposeTestMask.cpp
@@ -136,7 +141,7 @@ target_link_libraries(compose_test PRIVATE
 # harness by name, like every hand-written slice does.
 target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 # Committed test assets (the SigilImage test/assets convention): today one
-# generated variable font, the §35.3 advance-variant wght instrument. Not
+# generated variable font, an advance-variant wght instrument. Not
 # fetch_assets — a TEST must never depend on an opt-in target.
 target_compile_definitions(compose_test PRIVATE
   SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")

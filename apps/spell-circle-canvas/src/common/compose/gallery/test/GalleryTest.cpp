@@ -22,7 +22,7 @@ struct ClockProbeScene final : Scene {
 };
 
 TEST(ComposeGallery, EveryRegistryEntryHasAFactory) {
-  EXPECT_EQ(kCatalogSceneCount, 22);
+  EXPECT_EQ(kCatalogSceneCount, 23);
   EXPECT_EQ(kGallerySceneCount, kCatalogSceneCount + kStudyCount);
   for (int index = 0; index < kGallerySceneCount; ++index) {
     SCOPED_TRACE(index);

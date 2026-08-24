@@ -18,10 +18,10 @@
 // setup(), because a scene can be activated more than once.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 
 #include <cmath>
 
@@ -117,34 +117,42 @@ struct KineticCardScene final : Scene {
         {0, 0}, {0, kc::kH},
         {{0.00f, kc::kInk}, {0.62f, kc::kInkLift}, {1.00f, kc::kInkFoot}});
 
+    // Each entrance's progress duration is its cascade's own span, so the
+    // last glyph lands exactly as the master arrives at 1. Both cascades
+    // are amount-mode, whose span is `durationMs + amountMs` for every
+    // unit count past one — that count-independence is the point of the
+    // mode, so the spelled count is nominal.
+    const Stagger heroStagger{.amountMs = 180, .durationMs = 500};
+    const auto spanOf = [](const Stagger& s) {
+      return std::chrono::milliseconds(std::lround(s.spanMs(2)));
+    };
     auto heroLine = [&](const char* s, const char* key, int delayMs) {
-      GlyphFx fx;
-      fx.effect = glyphfx::rise(kc::kHeroSize * 1.26f);
-      fx.stagger = {.amountMs = 180, .durationMs = 500};
-      fx.progress =
-          animate(from(0.0f).to(1.0f),
-                  {680ms, &ch::easeNone, std::chrono::milliseconds(delayMs)});
       return box()
           .clip()  // the line-box mask
           .child(text(toU8(s), kc::type(kc::kHeroSize, kc::kBone, 2))
                      .key(key)
                      .width(pct(100))
                      .textAlign(sigil::weave::TextAlignment::kCenter)
-                     .glyphFx(std::move(fx)));
+                     .fx({.effect = fx::rise(kc::kHeroSize * 1.26f),
+                          .stagger = heroStagger,
+                          .progress =
+                              animate(from(0.0f).to(1.0f),
+                                      {spanOf(heroStagger), &ch::easeNone,
+                                       std::chrono::milliseconds(delayMs)})}));
     };
 
-    GlyphFx popFx;
-    popFx.effect = glyphfx::pop(0.35f, 1.70158f);  // back.out(1.7)
-    popFx.stagger = {
+    const Stagger popStagger{
         .amountMs = 700, .durationMs = 420, .from = Stagger::From::Center};
-    popFx.progress =
-        animate(from(0.0f).to(1.0f), {1120ms, &ch::easeNone, 450ms});
+    Track popFx{
+        .effect = fx::pop(0.35f, 1.70158f),  // back.out(1.7)
+        .stagger = popStagger,
+        .progress = animate(from(0.0f).to(1.0f),
+                            {spanOf(popStagger), &ch::easeNone, 450ms})};
 
-    GlyphFx waveFx;
     // Amplitude in em, phase offset per glyph in radians.
-    waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f);
-    waveFx.stagger = {.eachMs = 0, .durationMs = 450};  // one master phase
-    waveFx.progress = &wavePhase;
+    Track waveFx{.effect = fx::waveLoop(0.10f, 0.5f),
+                 .stagger = {.eachMs = 0, .durationMs = 450},  // one phase
+                 .progress = &wavePhase};
 
     auto lineOutline = [](SkSize s) {
       SkPathBuilder b;
@@ -186,7 +194,7 @@ struct KineticCardScene final : Scene {
                        .key("popline")
                        .width(pct(100))
                        .textAlign(sigil::weave::TextAlignment::kCenter)
-                       .glyphFx(std::move(popFx))
+                       .fx(std::move(popFx))
                        .effect(glow));
 
     return stack()
@@ -247,7 +255,7 @@ struct KineticCardScene final : Scene {
                            .key("waveline")
                            .width(pct(100))
                            .textAlign(sigil::weave::TextAlignment::kCenter)
-                           .glyphFx(std::move(waveFx))
+                           .fx(std::move(waveFx))
                            .opacity(animate(from(0.0f).to(1.0f),
                                             {560ms, &ch::easeOutQuad, 840ms}))
                            .margin(0, 22, 0, 0))

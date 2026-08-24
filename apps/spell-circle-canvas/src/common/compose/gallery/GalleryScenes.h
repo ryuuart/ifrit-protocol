@@ -35,6 +35,7 @@
 #include "ScenesPoster.h"
 #include "ScenesScale.h"
 #include "ScenesSkillTree.h"
+#include "ScenesTategaki.h"
 #include "ScenesVeloren.h"
 #include "ScenesY2k.h"
 #include "ScenesZellige.h"
@@ -87,7 +88,7 @@ inline constexpr SceneInfo kScenes[] = {
     {"aero desktop", "Catalog \xc2\xb7 Chrome", "glass + window colorization"},
     {"y2k chrome", "Catalog \xc2\xb7 Chrome", "chrome presets A/B"},
     {"passive tree", "Catalog \xc2\xb7 Game UI", "linework + orbit router"},
-    {"daemon console", "Catalog \xc2\xb7 Game UI", "console() LineRing feed"},
+    {"daemon console", "Catalog \xc2\xb7 Game UI", "feed() over a TextRing"},
     {"motion poster", "Catalog \xc2\xb7 Type & grid",
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
     {"zellige", "Catalog \xc2\xb7 Tiling",
@@ -100,6 +101,8 @@ inline constexpr SceneInfo kScenes[] = {
      "Capital 1962 \xe2\x80\x94 the mobile grid, run"},
     {"cosmati", "Catalog \xc2\xb7 Tiling",
      "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone"},
+    {"tategaki", "Catalog \xc2\xb7 Type & grid",
+     "vertical-rl CJK \xe2\x80\x94 three forms, one paragraph"},
 };
 inline constexpr int kCatalogSceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -212,6 +215,8 @@ inline std::unique_ptr<Scene> makeCatalogScene(int index) {
       return std::make_unique<GerstnerGridScene>();
     case 21:
       return std::make_unique<CosmatiScene>();
+    case 22:
+      return std::make_unique<TategakiScene>();
     default:
       return nullptr;
   }
@@ -227,8 +232,10 @@ inline std::unique_ptr<Scene> makeScene(int index) {
  *  printing the FPS table and writing a 2x PNG per scene.
  *
  *  @p timingJsonPath — when non-empty, ALSO writes one JSON line per scene
- *  with the steady-state sample numbers (`{"scene":…,"work_ms":…,
- *  "p99_ms":…,"fps":…}`), the machine-readable lane the GPU 60 FPS gate
+ *  with the steady-state sample numbers (`{"scene":…,"frame_ms":…,
+ *  "work_ms":…,"p99_ms":…,"headroom_fps":…}`), the machine-readable lane the
+ *  GPU 60 FPS
+ *  gate
  *  (`scripts/plate_ledger.py --fps-gate`) parses. The table's stdout is
  *  untouched. The JSON snapshot is taken at the END OF THE SAMPLE WINDOW,
  *  before the capture pass — a scene that declares its capture moment (or
@@ -308,8 +315,19 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
   }
 #endif
   std::filesystem::create_directories(outDir);
+  // TWO timing columns, and the difference between them is the point.
+  //
+  // "frame ms" is end to end, the backend flush included — on --gpu that is
+  // a submit(SyncToCpu) per frame, so the column is the honest serialized
+  // CPU+GPU cost of one frame. "headroom" is 1000 / mean(work ms), the rate
+  // the frame's WORK alone would allow, with the flush taken out; it is a
+  // ceiling and never a frame rate. A headless sweep presents nothing, so it
+  // has no frame rate to report at all — a present interval is a property of
+  // a swap chain and a vsync, neither of which exists here. Both columns are
+  // gated, because a scene can fail either one alone.
   std::printf("%-20s %10s %8s %8s %9s %6s %6s %6s %6s\n", "scene", "canvas",
-              "work ms", "p99 ms", "fps", "recon", "layout", "volat", "paint");
+              "frame ms", "p99 ms", "headroom", "recon", "layout", "volat",
+              "paint");
   const int first = only >= 0 ? only : 0;
   const int last = only >= 0 ? only + 1 : kGallerySceneCount;
   bool anyShortened = false;
@@ -389,7 +407,7 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
     // The steady-state sample numbers, snapshotted the moment the sample
     // window closes — see the timingJsonPath doc above for why the JSON
     // line cannot read stage.stats at table-print time.
-    double sampleWorkMs = 0, sampleP99Ms = 0, sampleFps = 0;
+    double sampleFrameMs = 0, sampleWorkMs = 0, sampleP99Ms = 0, sampleFps = 0;
     if (!ledger) {
       for (int f = 0; f < kProbeFrames; ++f) {
         surface->getCanvas()->clear(clearColor);
@@ -417,7 +435,8 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
         volatileMs += cs.volatileMs;
         paintMs += cs.paintMs;
       }
-      sampleWorkMs = stage.stats.average();
+      sampleFrameMs = stage.stats.average();
+      sampleWorkMs = stage.stats.workAverage();
       sampleP99Ms = stage.stats.percentile(0.99);
       sampleFps = stage.stats.fps();
     }
@@ -498,13 +517,16 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
           stage.composer->stats().picturesRecorded,
           stage.composer->stats().nodesPainted);
       if (timingJson) {
+        // Both numbers the gate judges, plus the one it derives from. See
+        // the table header above for what separates frame_ms from work_ms.
         std::fprintf(timingJson,
-                     "{\"scene\":\"%s\",\"canvas\":\"%dx%d\",\"work_ms\":%.3f,"
-                     "\"p99_ms\":%.3f,\"fps\":%.1f,\"shortened\":%s,"
+                     "{\"scene\":\"%s\",\"canvas\":\"%dx%d\","
+                     "\"frame_ms\":%.3f,\"work_ms\":%.3f,"
+                     "\"p99_ms\":%.3f,\"headroom_fps\":%.1f,\"shortened\":%s,"
                      "\"backend\":\"%s\"}\n",
                      registryName(i), (int)sceneSize.width(),
-                     (int)sceneSize.height(), sampleWorkMs, sampleP99Ms,
-                     sampleFps, shortened ? "true" : "false",
+                     (int)sceneSize.height(), sampleFrameMs, sampleWorkMs,
+                     sampleP99Ms, sampleFps, shortened ? "true" : "false",
                      gpu ? "gpu" : "raster");
         // Flush per line: a scene that crashes later must not take the lines
         // already written down with it.

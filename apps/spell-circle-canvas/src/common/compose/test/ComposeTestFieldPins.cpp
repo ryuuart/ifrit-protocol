@@ -62,6 +62,9 @@ void perturb(Shape& v) {
 }
 void perturb(std::optional<Transition>& v) { v = Transition{}; }
 void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(sigil::motion::Envelope& v) {
+  v = sigil::motion::Envelope::kCosine;
+}
 void perturb(const choreograph::Output<float>*& v) {
   static choreograph::Output<float> other;
   v = &other;
@@ -77,6 +80,13 @@ void perturb(std::vector<Decoration>& v) {
 }
 void perturb(std::vector<Element>& v) { v.push_back(box()); }
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
+void perturb(Unit& v) { v = Unit::Line; }
+void perturb(Beats& v) { v = Beats::Text; }
+void perturb(Stagger::From& v) { v = Stagger::From::End; }
+void perturb(std::vector<float>& v) { v.push_back(1.0f); }
+void perturb(std::shared_ptr<const Stagger>& v) {
+  v = std::make_shared<const Stagger>();
+}
 template <class T>
 void perturb(cd::Box<T>& v) {
   v.ensure();
@@ -145,16 +155,39 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
+TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
+  // A cascade is a comparable value, and its equality is what lets text
+  // carrying tracks prune. Miss a field here and a re-described track keeps
+  // the OLD schedule with no diagnostic — a re-cut cue table that never
+  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
+  // beating over each half's own selection. Both are silent, and both look
+  // exactly like the engine ignoring the author.
+  static const char* const kNames[] = {
+      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs", "from",
+      "seed",   "over",     "beatsOver", "distribution", "inner"};
+  static const bool kParticipates[] = {true, true, true, true, true, true,
+                                       true, true, true, true, true};
+  walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
+                      kNames, kParticipates);
+}
+
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // Against boundMapEqual() directly. Every stage of a bound float's shaping
   // map is read live at paint, so every one of them participates — including
-  // the wiggle parameters and `wrapPeriod`, which are easy to add to the
-  // struct and forget in the comparator.
+  // the wiggle parameters, `wrapPeriod` and the envelope's corners, which are
+  // easy to add to the struct and forget in the comparator.
   static const char* const kNames[] = {"source",
                                        "inScale",
                                        "inOffset",
                                        "curve",
                                        "clampInput",
+                                       "envelope",
+                                       "riseStart",
+                                       "holdStart",
+                                       "holdEnd",
+                                       "fallEnd",
+                                       "duty",
+                                       "waveFn",
                                        "steps",
                                        "scale",
                                        "offset",
@@ -167,9 +200,9 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
                                        "wiggleOctaves",
                                        "wiggleFalloff",
                                        "wrapPeriod"};
-  static const bool kParticipates[] = {true, true, true, true, true, true,
-                                       true, true, true, true, true, true,
-                                       true, true, true, true, true};
+  static const bool kParticipates[] = {
+      true, true, true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, true, true, true, true, true};
   walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
 }
 
@@ -249,8 +282,8 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   // non-Bespoke row must answer with a pointer, and that pointer must be at
   // the field's own default value.
   cd::ElementNode node;
-  node.motionData.ensure();                  // travel(): carries kMotionT
-  node.textData.ensure().glyphFx.emplace();  // kinetic text: kGlyphProgress
+  node.motionData.ensure();                 // travel(): carries kMotionT
+  node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
 
   std::vector<const Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;

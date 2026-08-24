@@ -66,6 +66,12 @@ struct WordSegment {
                             ///< kTateChuYoko this lands on the run's baseline)
   SegmentForm form = SegmentForm::kFlow;  ///< vertical-text placement; always
                                           ///< kFlow in horizontal paragraphs
+  /// First UTF-16 unit of the text this segment shaped, so a glyph's cluster
+  /// (ShapedWord::clusters, an offset inside that text) maps back to a
+  /// position in Paragraph::text(). Length-changing case mapping
+  /// (ShapingStyle::textTransform) makes the mapping approximate, exactly as
+  /// it does for the clusters themselves.
+  uint32_t textBegin = 0;
 };
 
 /// An inline object slot woven into the flow (SkParagraph's placeholder
@@ -111,7 +117,9 @@ struct Word {
   bool ideographic = false;
   /// Content ended with a soft hyphen (U+00AD, stripped from shaping): a
   /// discretionary break. `hyphenGlyph` is the cached shaped "-" to render
-  /// when a breaker actually breaks here.
+  /// when a breaker actually breaks here. A hyphen the analysis refused to
+  /// break at (see Paragraph::setSoftHyphenBreaks) is interior to its word
+  /// and sets nothing.
   bool hyphenBreak = false;
   ShapedWordRef hyphenGlyph;  ///< only set alongside `hyphenBreak`
 
@@ -152,6 +160,28 @@ class Paragraph {
   /** Returns the direction in which this paragraph is shaped. */
   [[nodiscard]] WritingMode writingMode() const noexcept {
     return m_writingMode;
+  }
+
+  /** Sets whether a soft hyphen (U+00AD) opens a break opportunity.
+   *
+   * True (the default) splits the word there, so a breaker may end a line at
+   * the hyphen and render `Word::hyphenGlyph`. False fuses the word back into
+   * one unbreakable `Word` whose text spans the hyphen: no breaker can split
+   * it, no hyphen is ever rendered, and the word wraps or overflows whole.
+   *
+   * Break opportunities are decided during analysis, so this belongs to the
+   * paragraph rather than to a layout pass — changing it re-runs the ICU
+   * segmentation and re-derives the word list. The fused word is a different
+   * string from either half, so it is a different content-addressed shaping
+   * entry; toggling back finds both sets of entries warm.
+   *
+   * `layoutParagraph` sets this from `HyphenationOptions::enabled` before it
+   * analyzes, so callers who go through it never call this directly.
+   */
+  void setSoftHyphenBreaks(bool enabled);
+  /** Returns whether a soft hyphen opens a break opportunity. */
+  [[nodiscard]] bool softHyphenBreaks() const noexcept {
+    return m_softHyphenBreaks;
   }
 
   // ── Inline placeholders (pills, icons, images in the flow) ────────────
@@ -245,6 +275,18 @@ class Paragraph {
   /** Returns the analyzed line-break units in logical text order. */
   const std::vector<Word>& words() const { return m_words; }
 
+  /** Returns the UTF-16 offset where each sentence of the text starts,
+   * ascending, the first entry always 0 (empty for empty text). The sentence
+   * containing an offset is the last entry not greater than it.
+   *
+   * ICU sentence segmentation, run on first call and reused until the text
+   * changes: a paragraph nobody asks never runs the pass, and one whose text
+   * is unchanged runs it once no matter how many frames read it. Style and
+   * paint edits leave it valid. Independent of ensureAnalyzed() — no shaping,
+   * no words, no fonts are involved.
+   */
+  [[nodiscard]] std::span<const uint32_t> sentenceStarts() const;
+
   /// Line-height inputs from the first span's font (the "strut"): returns
   /// {ascent (positive), height} for a default single-spaced line.
   struct Strut {
@@ -280,6 +322,8 @@ class Paragraph {
   std::vector<Word> m_words;
   std::vector<Placeholder> m_placeholders;
   WritingMode m_writingMode = WritingMode::kHorizontal;
+  // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
+  bool m_softHyphenBreaks = true;
   bool m_dirty = true;
   bool m_paintDirty = false;
 
@@ -301,6 +345,11 @@ class Paragraph {
   uint32_t m_cachedWhitespaceStyleIndex = ~0u;
   std::u16string m_cachedWhitespaceText;
   float m_cachedWhitespaceWidth = 0;
+
+  // Sentence starts are derived from the text alone, so they survive every
+  // style edit and are rebuilt only when recordEdit() fires.
+  mutable std::vector<uint32_t> m_sentenceStarts;
+  mutable bool m_sentenceStartsValid = false;
 
   uint64_t m_revision = 0;
   std::vector<TextEdit> m_editHistory;

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <utility>
 
 namespace sigil::weave {
@@ -12,6 +13,23 @@ namespace sigil::weave {
 namespace {
 
 constexpr float kEps = 0.01f;
+
+// Snaps a unit tangent to one of `steps` directions (512 → 0.7° steps —
+// invisible). Continuously varying per-glyph rotations would otherwise mint
+// a fresh glyph-atlas strike every frame for every glyph on a moving path,
+// turning animated curved text into a per-frame mask-rasterization storm.
+SkVector quantizeTangent(SkVector tangent, int directionCount) {
+  if (directionCount <= 0) return tangent;
+  constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
+  const float angle = std::atan2(tangent.fY, tangent.fX);
+  int directionIndex =
+      static_cast<int>(std::lround(angle / kTwoPi * directionCount)) %
+      directionCount;
+  if (directionIndex < 0) directionIndex += directionCount;
+  const float snapped =
+      static_cast<float>(directionIndex) * kTwoPi / directionCount;
+  return {std::cos(snapped), std::sin(snapped)};
+}
 
 // Removes [excludedStart, excludedEnd] from every sorted, disjoint interval.
 void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
@@ -122,6 +140,42 @@ void mergeSpans(std::vector<std::pair<float, float>>& spans) {
 }
 
 }  // namespace
+
+bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
+                           SkPoint* position, SkVector* tangent) const {
+  if (!contour) {
+    // Straight: the pen simply travels along the interval's own direction.
+    // Nothing to run off the end of, so the phase is a plain shift.
+    const float travel = pen + phase;
+    *position =
+        origin + SkVector{direction.x() * travel, direction.y() * travel};
+    *tangent = quantizeTangent(direction, rotationSteps);
+    return true;
+  }
+  const float contourLength = contour->length();
+  float contourPosition = contourStart + (pen * advanceScale) + phase;
+  bool inside = true;
+  if (contour->isClosed() || wrapContour) {
+    // Closed contours wrap: text can march around the loop forever
+    // (shift the phase for an infinite marquee).
+    contourPosition = std::fmod(contourPosition, contourLength);
+    if (contourPosition < 0) contourPosition += contourLength;
+  } else {
+    inside = contourPosition >= 0 && contourPosition <= contourLength;
+    contourPosition = std::clamp(contourPosition, 0.0f, contourLength);
+  }
+  if (!contour->getPosTan(contourPosition, position, tangent)) {
+    *position = {0, 0};
+    *tangent = {1, 0};
+    return false;
+  }
+  // Walking backwards faces the other way — turned before the snap, so the
+  // reversed direction lands on a ladder step rather than beside one.
+  if (advanceScale < 0) *tangent = {-tangent->fX, -tangent->fY};
+  // Rotation snaps; position stays exact.
+  *tangent = quantizeTangent(*tangent, rotationSteps);
+  return inside;
+}
 
 // Flattened-polygon form of an exclusion SkPath, cached by generation ID.
 struct ExclusionFlow::FlatPath {

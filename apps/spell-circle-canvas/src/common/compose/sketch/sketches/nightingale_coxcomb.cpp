@@ -44,7 +44,7 @@
 //   patterns::speckle()   the litho stipple, per band, over a colour wash
 //   patterns::grain()     plate tone + the ink-density wander inside a band
 //   Material::blend()     wash + stipple + blot + density, one fill value
-//   glyphfx::typeOn()     the pen writing the title and the legend
+//   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
 //   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH, because
 //                         Compose has no text-on-path (see arcRun below)
@@ -63,11 +63,11 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTextBlob.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
@@ -509,25 +509,23 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     const auto title2 =
         kit::emboldened(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
 
-    GlyphFx t1;
-    t1.effect = glyphfx::typeOn();
-    t1.stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40};
-    t1.progress =
-        animate(from(0.0f).to(1.0f), ramp(tTitle1 * 1000, 700, ch::easeNone));
+    Track t1{.effect = fx::typeOn(),
+             .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
+             .progress = animate(from(0.0f).to(1.0f),
+                                 ramp(tTitle1 * 1000, 700, ch::easeNone))};
     root.child(text(toU8("DIAGRAM of the CAUSES of MORTALITY"), title1)
                    .key("title1")
-                   .glyphFx(std::move(t1))
+                   .fx(std::move(t1))
                    .echo({0.8f, 0.5f}, hex(0x241c15, 0.8f))
                    .centerAt({968, 38}));
 
-    GlyphFx t2;
-    t2.effect = glyphfx::typeOn();
-    t2.stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40};
-    t2.progress =
-        animate(from(0.0f).to(1.0f), ramp(tTitle2 * 1000, 400, ch::easeNone));
+    Track t2{.effect = fx::typeOn(),
+             .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
+             .progress = animate(from(0.0f).to(1.0f),
+                                 ramp(tTitle2 * 1000, 400, ch::easeNone))};
     root.child(text(toU8("in the ARMY in the EAST."), title2)
                    .key("title2")
-                   .glyphFx(std::move(t2))
+                   .fx(std::move(t2))
                    .echo({0.6f, 0.4f}, hex(0x241c15, 0.7f))
                    .centerAt({945, 84}));
 
@@ -644,20 +642,28 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                            dash));
 
     // ---- the engraved-hand legend -----------------------------------
+    // Twelve hand-placed lines, one node each: every line sits at the
+    // engraving's own indent and leading, which no single paragraph's
+    // layout can reproduce — so the lines stay separate nodes and only
+    // the SCHEDULE rides the engine. The container's staggerChildren is
+    // the 200 ms per-line ladder, and each line's pen runs for exactly
+    // its cascade's span, so the writing speed is the cascade's own.
     const auto script = type(faceScript, 27, kInk);
+    const Stagger penStagger{.amountMs = 620, .durationMs = 30};
+    Element legend = stack().inset(0).staggerChildren(200ms);
     for (size_t i = 0; i < kLegendText.size(); ++i) {
-      GlyphFx pen;
-      pen.effect = glyphfx::typeOn();
-      pen.stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 30};
-      pen.progress =
-          animate(from(0.0f).to(1.0f),
-                  ramp(tLegend * 1000 + (float)i * 200.0f, 660, ch::easeNone));
-      root.child(text(toU8(kLegendText[i].text), script)
-                     .key("leg" + std::to_string(i))
-                     .glyphFx(std::move(pen))
-                     .left(171.0f + (float)kLegendText[i].indent * 22.0f)
-                     .top(628.0f + (float)i * 30.7f));
+      Track pen{.effect = fx::typeOn(),
+                .stagger = penStagger,
+                .progress = animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
+      legend.child(text(toU8(kLegendText[i].text), script)
+                       .key("leg" + std::to_string(i))
+                       .fx(std::move(pen))
+                       .left(171.0f + (float)kLegendText[i].indent * 22.0f)
+                       .top(628.0f + (float)i * 30.7f));
     }
+    root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
     root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),

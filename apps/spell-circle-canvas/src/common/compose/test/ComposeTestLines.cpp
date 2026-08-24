@@ -2095,3 +2095,258 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
   EXPECT_TRUE(identicalPixels(railed, clean, 200, 200))
       << "the manhattan rail's cased brush differs from clean geometry";
 }
+
+// ---------------------------------------------------------------------------
+// TEXT ON A PATH — the animated phase, and the tracks that compose with it
+
+namespace {
+/** Ink of a ring of type, described in polar terms about `centre`: how much
+ *  of it there is, how far off the ring it strays, and where round the ring
+ *  it sits. */
+struct RingInk {
+  int count = 0;
+  float minRadius = 1e9f, maxRadius = 0;
+  float centroidAngle = 0;  // radians, atan2 of the ink's mean position
+};
+
+RingInk ringInk(Host& host, int size, SkPoint centre) {
+  RingInk ink;
+  double sumX = 0, sumY = 0;
+  for (int y = 0; y < size; ++y)
+    for (int x = 0; x < size; ++x) {
+      if (host.pixel(x, y) == SK_ColorBLACK) continue;
+      const float dx = (float)x + 0.5f - centre.x();
+      const float dy = (float)y + 0.5f - centre.y();
+      const float radius = std::hypot(dx, dy);
+      ink.minRadius = std::min(ink.minRadius, radius);
+      ink.maxRadius = std::max(ink.maxRadius, radius);
+      sumX += dx;
+      sumY += dy;
+      ++ink.count;
+    }
+  if (ink.count) ink.centroidAngle = (float)std::atan2(sumY, sumX);
+  return ink;
+}
+
+/** Smallest turn from `a` to `b`, in radians. */
+float angleGap(float a, float b) {
+  float d =
+      std::fmod(b - a + 3.0f * (float)M_PI, 2.0f * (float)M_PI) - (float)M_PI;
+  return std::abs(d);
+}
+}  // namespace
+
+TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
+  // The marquee. A bound phase is PAINT-ONLY motion: the run is shaped and
+  // broken across the baseline once, and stepping the output re-places the
+  // glyphs it already placed. Nothing is re-described between these frames.
+  choreograph::Output<float> phase{0.0f};
+  Host host(240, 240);
+  host.composer.render(
+      box().child(text(u8"MARQUEE", whiteStyle(20))
+                      .key("ring")
+                      .width(240)
+                      .height(240)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .onPath({.path = shapes::circle(),
+                               .at = &phase,
+                               .align = TextPath::Align::Center})));
+  host.frame();
+  const SkPoint centre{120, 120};
+  const RingInk atZero = ringInk(host, 240, centre);
+  ASSERT_GT(atZero.count, 200);
+
+  phase = 0.25f;
+  host.frame();  // no render(): the phase is read at PAINT
+  const RingInk atQuarter = ringInk(host, 240, centre);
+
+  // The run travelled: a quarter turn is most of a right angle, and no
+  // sampling of the same glyphs could produce that by accident.
+  EXPECT_GT(angleGap(atZero.centroidAngle, atQuarter.centroidAngle), 1.0f);
+  // …and it stayed ON the ring, with all of itself: a run that fell off the
+  // baseline would spread its radii, and one clipped at the seam would lose
+  // ink.
+  EXPECT_NEAR(atQuarter.minRadius, atZero.minRadius, 6.0f);
+  EXPECT_NEAR(atQuarter.maxRadius, atZero.maxRadius, 6.0f);
+  EXPECT_NEAR((float)atQuarter.count, (float)atZero.count,
+              (float)atZero.count * 0.25f);
+}
+
+TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
+  // 0.9 → 0.1 crosses fraction 1, which on a closed baseline is the same
+  // point as fraction 0. The run must walk through it, not fall off it.
+  choreograph::Output<float> phase{0.9f};
+  Host host(240, 240);
+  host.composer.render(
+      box().child(text(u8"SEAMLESS", whiteStyle(20))
+                      .key("ring")
+                      .width(240)
+                      .height(240)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .onPath({.path = shapes::circle(),
+                               .at = &phase,
+                               .align = TextPath::Align::Center})));
+  host.frame();
+  const SkPoint centre{120, 120};
+  const RingInk before = ringInk(host, 240, centre);
+  ASSERT_GT(before.count, 200);
+
+  phase = 0.1f;
+  host.frame();
+  const RingInk after = ringInk(host, 240, centre);
+  EXPECT_NEAR((float)after.count, (float)before.count,
+              (float)before.count * 0.25f)
+      << "glyphs were dropped at the seam";
+  EXPECT_NEAR(after.minRadius, before.minRadius, 6.0f);
+  EXPECT_NEAR(after.maxRadius, before.maxRadius, 6.0f);
+  EXPECT_GT(angleGap(before.centroidAngle, after.centroidAngle), 0.5f);
+}
+
+TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
+  // The declared-volatility contract, on the marquee's lane: a phase that
+  // is held still long enough releases, and the node stops declaring
+  // content volatility. Driving it again re-declares in the same frame.
+  choreograph::Output<float> phase{0.0f};
+  Host host(240, 240);
+  host.composer.render(
+      box().child(text(u8"HELD", whiteStyle(20))
+                      .key("ring")
+                      .width(240)
+                      .height(240)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .onPath({.path = shapes::circle(), .at = &phase})));
+  for (int frame = 0; frame < 20; ++frame) host.frame();
+  EXPECT_FALSE(host.composer.dirty())
+      << "a phase that never moves keeps repainting";
+
+  phase = 0.3f;
+  host.frame();
+  const RingInk moved = ringInk(host, 240, {120, 120});
+  EXPECT_GT(moved.count, 200) << "the driven phase did not re-place the run";
+}
+
+TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
+  // THE COMPOSITION ORDER, pinned: the baseline places the glyph, then the
+  // track deviates from that placement IN THE FRAME THE BASELINE PUT IT IN.
+  //
+  // The baseline here runs straight DOWN the canvas, so its local "up" —
+  // the direction fx::rise lifts from — points to canvas +x. The control is
+  // the same track on the same text with no baseline, where local up is
+  // canvas up. Different directions from one description is the whole
+  // claim.
+  auto downward = [](SkSize) {
+    SkPathBuilder b;
+    b.moveTo(100, 20).lineTo(100, 180);
+    return b.detach();
+  };
+  // A bare offset, so the assertion is about DIRECTION and nothing else —
+  // a preset that also fades would cull the glyphs it is being asked about.
+  const TextEffect lift =
+      fx::effect("test.pathframe.lift", [](const GlyphInfo&, float t, Rng&) {
+        GlyphMod mod;
+        mod.dy = -40.0f * (1.0f - t);
+        return mod;
+      });
+  auto scene = [&](bool onPath, float progress) {
+    Element t = text(u8"LIFT", whiteStyle(18))
+                    .key("t")
+                    .width(200)
+                    .height(200)
+                    .absolute()
+                    .left(0)
+                    // Room above the run for the control's lift to land in:
+                    // ink clipped off the top would move the centroid for a
+                    // reason that has nothing to do with the frame.
+                    .top(onPath ? 0.0f : 90.0f)
+                    .fx({.effect = lift, .progress = progress});
+    if (onPath) t.onPath({.path = downward});
+    return box().child(std::move(t));
+  };
+  auto inkCentroid = [](Host& host) {
+    double sumX = 0, sumY = 0;
+    int count = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        if (host.pixel(x, y) != SK_ColorBLACK) {
+          sumX += x;
+          sumY += y;
+          ++count;
+        }
+    return count ? SkPoint{(float)(sumX / count), (float)(sumY / count)}
+                 : SkPoint{0, 0};
+  };
+
+  // On the path: at rest, then lifted. The lift moves the run along canvas
+  // +x, because that is the baseline's own "up".
+  Host rested(200, 200), lifted(200, 200);
+  rested.composer.render(scene(true, 1.0f));
+  rested.frame();
+  lifted.composer.render(scene(true, 0.0f));
+  lifted.frame();
+  const SkPoint atRest = inkCentroid(rested);
+  const SkPoint inFlight = inkCentroid(lifted);
+  ASSERT_GT(atRest.x(), 0);
+  ASSERT_GT(inFlight.x(), 0);
+  EXPECT_GT(inFlight.x() - atRest.x(), 12.0f)
+      << "the rise did not follow the baseline's own frame";
+  EXPECT_LT(std::abs(inFlight.y() - atRest.y()), 12.0f);
+
+  // The control: no baseline, so the same track lifts up the canvas.
+  Host flatRest(200, 200), flatLift(200, 200);
+  flatRest.composer.render(scene(false, 1.0f));
+  flatRest.frame();
+  flatLift.composer.render(scene(false, 0.0f));
+  flatLift.frame();
+  const SkPoint flatAtRest = inkCentroid(flatRest);
+  const SkPoint flatInFlight = inkCentroid(flatLift);
+  ASSERT_GT(flatAtRest.y(), 0);
+  EXPECT_GT(flatAtRest.y() - flatInFlight.y(), 12.0f);
+  EXPECT_LT(std::abs(flatInFlight.x() - flatAtRest.x()), 12.0f);
+}
+
+TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
+  // Neither seam wins the other: a ring carrying a track is still a ring,
+  // and the track still deviates from where the ring put each glyph.
+  Host plain(240, 240), tracked(240, 240);
+  auto ring = [](bool withTrack) {
+    // A ring well inside the frame: a track that throws glyphs OUTWARD off
+    // a ring already touching the edges would be measuring the clip.
+    Element t = text(u8"BOTH RUN", whiteStyle(18))
+                    .key("ring")
+                    .width(160)
+                    .height(160)
+                    .absolute()
+                    .left(40)
+                    .top(40)
+                    .onPath({.path = shapes::circle(),
+                             .align = TextPath::Align::Center});
+    if (withTrack)
+      t.fx({.effect = fx::effect("test.pathframe.out",
+                                 [](const GlyphInfo&, float, Rng&) {
+                                   GlyphMod mod;
+                                   mod.dy = -22.0f;
+                                   return mod;
+                                 }),
+            .progress = 1.0f});
+    return box().child(std::move(t));
+  };
+  plain.composer.render(ring(false));
+  plain.frame();
+  tracked.composer.render(ring(true));
+  tracked.frame();
+  const SkPoint centre{120, 120};
+  const RingInk resting = ringInk(plain, 240, centre);
+  const RingInk lifted = ringInk(tracked, 240, centre);
+  ASSERT_GT(resting.count, 200);
+  ASSERT_GT(lifted.count, 200);
+  // Still on a ring — same angular place, so the baseline still placed it…
+  EXPECT_LT(angleGap(resting.centroidAngle, lifted.centroidAngle), 0.4f);
+  // …and off it by the track's own distance, so the track ran too.
+  EXPECT_GT(std::abs(lifted.maxRadius - resting.maxRadius), 8.0f);
+}

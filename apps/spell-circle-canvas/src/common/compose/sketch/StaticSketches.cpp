@@ -15,8 +15,20 @@ std::vector<StaticSketch>& staticSketches() {
   return registry;
 }
 
-bool registerStaticSketch(const char* key, SketchFactory factory) {
-  if (key && factory) staticSketches().push_back({key, factory});
+bool registerStaticSketch(const char* key, SketchFactory factory) noexcept {
+  if (!key || !factory) return false;
+  try {
+    staticSketches().push_back({key, factory});
+  } catch (...) {
+    // The registry vector failed to grow. This runs during static
+    // initialization, where no handler exists and an unwinding exception
+    // is fatal by definition — and a process that cannot allocate a few
+    // pointers before main() is about to fail loudly anyway. Answering
+    // false keeps the seam genuinely non-throwing, which is what lets
+    // every sketch's registration initializer be non-throwing with no
+    // per-file suppression.
+    return false;
+  }
   return true;
 }
 

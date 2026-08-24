@@ -22,11 +22,10 @@
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Console.h>
 #include <sigilcompose/Debug.h>
 #include <sigilcompose/Decorations.h>
+#include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Lines.h>
@@ -37,9 +36,11 @@
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Studio.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilimage/ImageAsset.h>
+#include <sigilweave/Choreograph.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 #include "FontContextImpl.h"
 #include "sigilweave/FontContext.h"
@@ -242,6 +243,7 @@ void itemizeScripts(const std::u16string& text, bool& hasRightToLeftText,
 void Paragraph::recordEdit(uint32_t start, uint32_t removedLength,
                            uint32_t insertedLength) {
   ++m_revision;
+  m_sentenceStartsValid = false;  // the only thing that can move sentences
   // Bounded history, trimmed half at a time so trimming is amortized instead
   // of running on every edit once the cap is reached. The consequence for
   // callers is in editsSince(): the lookback that is always available is
@@ -295,6 +297,12 @@ void Paragraph::setWritingMode(WritingMode mode) {
   if (m_writingMode == mode) return;
   m_writingMode = mode;
   markDirty();
+}
+
+void Paragraph::setSoftHyphenBreaks(bool enabled) {
+  if (m_softHyphenBreaks == enabled) return;
+  m_softHyphenBreaks = enabled;
+  markDirty();  // break opportunities are decided in analyze()
 }
 
 void Paragraph::appendText(std::u16string_view utf16, const TextStyle& style) {
@@ -618,6 +626,40 @@ void Paragraph::ensureShaped(FontContext& fontContext) {
   ensureShapedTo(fontContext, static_cast<uint32_t>(m_words.size()));
 }
 
+std::span<const uint32_t> Paragraph::sentenceStarts() const {
+  if (m_sentenceStartsValid) return m_sentenceStarts;
+  m_sentenceStartsValid = true;
+  m_sentenceStarts.clear();
+  if (m_text.empty()) return m_sentenceStarts;
+
+  // One iterator per thread, re-targeted per paragraph: opening a break
+  // iterator loads its rule data and costs far more than running one. It
+  // borrows the text only for the duration of this call — every later use
+  // re-targets it first.
+  struct BreakIteratorCloser {
+    void operator()(UBreakIterator* iterator) const { ubrk_close(iterator); }
+  };
+  static thread_local std::unique_ptr<UBreakIterator, BreakIteratorCloser>
+      sentenceIterator;
+
+  const UChar* text = reinterpret_cast<const UChar*>(m_text.data());
+  const int32_t textLength = static_cast<int32_t>(m_text.size());
+  UErrorCode status = U_ZERO_ERROR;
+  if (!sentenceIterator)
+    sentenceIterator.reset(
+        ubrk_open(UBRK_SENTENCE, "", text, textLength, &status));
+  else
+    ubrk_setText(sentenceIterator.get(), text, textLength, &status);
+  if (U_FAILURE(status) || !sentenceIterator) return m_sentenceStarts;
+
+  m_sentenceStarts.push_back(0);
+  for (int32_t boundary = ubrk_next(sentenceIterator.get());
+       boundary != UBRK_DONE; boundary = ubrk_next(sentenceIterator.get()))
+    if (boundary > 0 && boundary < textLength)
+      m_sentenceStarts.push_back(static_cast<uint32_t>(boundary));
+  return m_sentenceStarts;
+}
+
 void Paragraph::analyze(FontContext& fontContext) {
   m_words.clear();
   if (m_text.empty()) return;
@@ -646,6 +688,26 @@ void Paragraph::analyze(FontContext& fontContext) {
     boundaries.push_back(boundary);
   if (boundaries.empty() || boundaries.back() != textLength)
     boundaries.push_back(textLength);
+
+  // A soft hyphen (U+00AD) is the one discretionary break opportunity the
+  // word list carries. When it is turned off, the boundary UAX#14 opened
+  // right after the hyphen is dropped here so the two halves fuse into a
+  // single unbreakable Word: no breaker can split there, and the hyphen —
+  // now interior to the word — shapes as the zero-advance default-ignorable
+  // it is, so the word wraps or overflows whole and unmarked. A hyphen
+  // followed by whitespace keeps its boundary either way, because the break
+  // belongs to the space and not to the hyphen.
+  if (!m_softHyphenBreaks) {
+    size_t keptCount = 0;
+    for (const int32_t boundary : boundaries) {
+      if (boundary < textLength &&
+          m_text[static_cast<size_t>(boundary) - 1] == 0x00AD)
+        continue;
+      boundaries[keptCount++] = boundary;
+    }
+    boundaries.resize(keptCount);
+    if (boundaries.empty()) boundaries.push_back(textLength);
+  }
 
   // ── Script runs (also detects whether bidi is needed at all) ──────────
   bool hasRightToLeftText = false;
@@ -906,11 +968,12 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
       SkFontMetrics fontMetrics;
       font.getMetrics(&fontMetrics);
       word.segments.push_back({shapedWord, styleIndex,
-                               word.width - fontMetrics.fAscent, segmentForm});
+                               word.width - fontMetrics.fAscent, segmentForm,
+                               static_cast<uint32_t>(segmentStart)});
       word.width += -fontMetrics.fAscent + fontMetrics.fDescent;
     } else {
-      word.segments.push_back(
-          {shapedWord, styleIndex, word.width, segmentForm});
+      word.segments.push_back({shapedWord, styleIndex, word.width, segmentForm,
+                               static_cast<uint32_t>(segmentStart)});
       word.width += shapedWord->advance;
     }
     segmentStart = segmentEnd;

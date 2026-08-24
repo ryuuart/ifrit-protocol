@@ -37,7 +37,7 @@
  * names. Include `sigilcompose/kit/Strokes.h` directly when you want them.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
- * `console::panel` and `console::monoStyle` (`Console.h`) and
+ * `feed::plate` and `feed::tinted` (`Feed.h`) and
  * `debug::check` / `report` / `failures` (`Debug.h`) are the verification
  * plate; `studio::hex` / `type` / `pickFace` / `ramp` / `fmt`
  * (`Studio.h`) are the prelude; `util::stroke` / `disc` / `centred`

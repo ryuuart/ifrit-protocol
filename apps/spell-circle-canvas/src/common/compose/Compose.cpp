@@ -14,11 +14,14 @@
 #include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
-#include <cmath>  // std::isfinite — the profileOffset non-finite guard
+#include <cmath>   // std::isfinite — the profileOffset non-finite guard
+#include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <set>
 
 #include "ComposeInternal.h"
-#include "sigilcompose/Lines.h"  // the ONE corner scanner (spans::corners)
+#include "sigilcompose/Lines.h"   // the ONE corner scanner (spans::corners)
+#include "sigilcompose/TextFx.h"  // fx::axis — the one axis effect spanAxis
+                                  // and a hand-written track both name
 
 namespace sigil::compose {
 
@@ -393,10 +396,43 @@ Effect Effect::filter(sk_sp<SkImageFilter> f) {
   return e;
 }
 
+namespace {
+/** A uniform name this effect will not take, said once per name.
+ *
+ *  Once, because a description is rebuilt every frame in a live-coding host:
+ *  a per-call warning would bury the console under one typo. The ledger is
+ *  capped so a program that mints names cannot grow it without bound. */
+void warnUndeclaredEffectUniform(const char* door, const std::string& name) {
+  static std::vector<std::string> seen;
+  for (const std::string& s : seen)
+    if (s == name) return;
+  if (seen.size() >= 16) return;
+  seen.push_back(name);
+  SkDebugf(
+      "[compose] Effect::%s(\"%s\"): the effect declares no uniform by "
+      "that name at this value's size — ignored (warned once; an array "
+      "must supply the declared total float count exactly)\n",
+      door, name.c_str());
+}
+}  // namespace
+
 Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
                       std::vector<std::pair<std::string, float>> uniforms) {
   Effect e;
   if (!effect) return e;
+  // Material's guardrail, and for the same reason: SkRuntimeShaderBuilder
+  // answers a name the effect does not declare — or one whose declared size
+  // is not four bytes, which is every float2, float4 and array — with a
+  // debug abort and no write, and this Skia is built without SK_DEBUG, so
+  // the value is dropped and the effect paints with a zeroed uniform. Drop
+  // the entry here instead, loudly, and keep the recipe free of anything
+  // buildFilter would have to re-check.
+  std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
+    if (detail::declaresUniform(effect, entry.first, sizeof(float)))
+      return false;
+    warnUndeclaredEffectUniform("shader", entry.first);
+    return true;
+  });
   SkRuntimeShaderBuilder builder(effect);
   for (const auto& [name, value] : uniforms)
     builder.uniform(name.c_str()) = value;
@@ -612,6 +648,15 @@ Effect& Effect::uniform(std::string name,
     return *this;
   }
   if (m_effect) {
+    // The shader() path is the one that takes arbitrary names, so it is the
+    // one that must ask the effect. A rejected binding is not recorded at
+    // all, which also means it declares no volatility: an ignored binding
+    // that still marked the node live would cost a repaint every frame
+    // forever, for a value nothing reads.
+    if (!detail::declaresUniform(m_effect, name, sizeof(float))) {
+      warnUndeclaredEffectUniform("uniform", name);
+      return *this;
+    }
     m_bound.emplace_back(std::move(name), value);
     return *this;
   }
@@ -621,6 +666,86 @@ Effect& Effect::uniform(std::string name,
       "blur() do; a filter() wraps an already-built SkImageFilter)\n",
       name.c_str());
   return *this;
+}
+
+namespace {
+/** The gate every constant-uniform door on Effect shares: only a shader()
+ *  effect has named declarations to fill, and a name it does not declare
+ *  at the value's size warns once and is ignored — Material's rule. */
+bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
+                         const std::string& name, size_t bytes,
+                         bool otherKind) {
+  if (otherKind || !effect) {
+    SkDebugf(
+        "[compose] Effect::uniform(\"%s\", const): ignored — only a "
+        "shader() effect has named declarations to fill (directionalBlur "
+        "and blur take their parameters at construction or as bound "
+        "Outputs)\n",
+        name.c_str());
+    return false;
+  }
+  if (!detail::declaresUniform(effect, name, bytes)) {
+    warnUndeclaredEffectUniform("uniform", name);
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
+Effect& Effect::uniform(std::string name, float value) {
+  if (!effectTakesConstant(m_effect, name, sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);  // refresh the snapshot, as child() does
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
+  if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms2.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
+  if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniforms4.emplace_back(std::move(name), value);
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name, std::vector<float> values) {
+  // An array validates by TOTAL float count — all the builder checks, and
+  // the builder refuses a partial write, so the count must be exact.
+  if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  m_uniformArrays.emplace_back(std::move(name), std::move(values));
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+Effect& Effect::uniform(std::string name,
+                        std::shared_ptr<const UniformBlock> block) {
+  if (!block) {
+    SkDebugf(
+        "[compose] Effect::uniform(\"%s\", block): null UniformBlock — "
+        "there is nothing to read at paint time; ignored\n",
+        name.c_str());
+    return *this;
+  }
+  if (!effectTakesConstant(m_effect, name, block->size() * sizeof(float),
+                           m_dirBlur || m_paramBlur))
+    return *this;
+  // A rejected block is not recorded, so it declares no volatility —
+  // the same rule a rejected Output binding follows.
+  m_blocks.emplace_back(std::move(name), std::move(block));
+  return *this;  // now LIVE: read at every paint, like a bound Output
 }
 
 Effect Effect::then(const Effect& next) const {
@@ -647,7 +772,8 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(
   // A context-needing child (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its children, same answer.
-  if (m_bound.empty() && !(ctx && anyChildNeedsContext())) return m_filter;
+  if (m_bound.empty() && m_blocks.empty() && !(ctx && anyChildNeedsContext()))
+    return m_filter;
   return buildFilter(ctx);
 }
 
@@ -676,20 +802,26 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
   }
   if (!m_effect) return m_filter;
   SkRuntimeShaderBuilder builder(m_effect);
-  for (const auto& [name, value] : m_uniforms)
-    builder.uniform(name.c_str()) = value;
-  for (const auto& [name, out] : m_bound)
-    builder.uniform(name.c_str()) = out->value();
+  for (const auto& [name, value] : m_uniforms) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms2) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms4) builder.uniform(name) = value;
+  for (const auto& [name, values] : m_uniformArrays)
+    builder.uniform(name).set(values.data(), (int)values.size());
+  for (const auto& [name, out] : m_bound) builder.uniform(name) = out->value();
+  for (const auto& [name, block] : m_blocks)
+    builder.uniform(name).set(block->values().data(), (int)block->size());
   // The child slots, against the painting node's box (Material::child's
   // contract: a child sees the SAME PaintContext, because there is one
   // node). "content" is the library's and is filled by the factory below.
   for (const auto& [name, child] : m_children)
-    if (child) builder.child(name.c_str()) = detail::childShader(*child, ctx);
+    if (child) builder.child(name) = detail::childShader(*child, ctx);
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
 bool Effect::isAnimated() const {
-  if (!m_bound.empty()) return true;
+  // A bound block is a bound Output whose value is a table: read at every
+  // paint, so the node must stay volatile for as long as it is attached.
+  if (!m_bound.empty() || !m_blocks.empty()) return true;
   // Tier inheritance: a live child makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the
@@ -738,6 +870,8 @@ bool Effect::operator==(const Effect& o) const {
     return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_uniforms == o.m_uniforms &&
+           m_uniforms2 == o.m_uniforms2 && m_uniforms4 == o.m_uniforms4 &&
+           m_uniformArrays == o.m_uniformArrays &&
            childrenEqual(m_children, o.m_children);
   return m_filter == o.m_filter;  // filter(): pointer identity, as ever
 }
@@ -995,6 +1129,19 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   return e;
 }
 
+Element text(RichText spans) {
+  Element e;
+  e.node()->kind = Kind::Text;
+  detail::TextData& text = e.node()->textData.ensure();
+  // The base rides along as `style` because everything downstream that asks
+  // a text leaf what it is set in — the strut a line height comes from, the
+  // metric band textFill() maps into — reads one style, and a mixed
+  // paragraph's answer to that question is the style its unstyled runs use.
+  text.style = spans.base();
+  text.rich = std::move(spans);
+  return e;
+}
+
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
@@ -1003,6 +1150,74 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
   text.paragraphOverride = std::move(paragraph);
   text.layoutOptions = std::move(options);
   return e;
+}
+
+// ---------------------------------------------------------------------------
+// rich() — mixed text as a value
+
+RichText rich(sigil::weave::TextStyle base) {
+  return RichText(std::move(base));
+}
+
+RichText& RichText::add(std::u8string_view utf8) {
+  m_runs.push_back(Run{std::u8string(utf8), m_base, {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8,
+                        sigil::weave::TextStyle style) {
+  m_runs.push_back(Run{std::u8string(utf8), std::move(style), {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
+  // The inherited set is captured on the FIRST named run rather than at
+  // rich(), so an unnamed value costs nothing and the capture still happens
+  // inside the author's describe scope. styles() overrides it whichever way
+  // round the two are written.
+  if (!m_hasStyles && !m_stylesExplicit) {
+    if (const sigil::weave::StyleSet* ambient =
+            env::inherited<sigil::weave::StyleSet>()) {
+      m_styles = *ambient;
+      m_hasStyles = true;
+    }
+  }
+  Run run{std::u8string(utf8), m_base, std::string(styleName)};
+  if (m_hasStyles) {
+    // find(), not operator[]: an unregistered name resolves to the base
+    // handed to rich(), which is this text's one default.
+    if (const sigil::weave::TextStyle* named = m_styles.find(run.styleName))
+      run.style = *named;
+  }
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
+RichText& RichText::slot(std::string key, SkSize size, float baselineDrop) {
+  Run run;
+  // U+FFFC OBJECT REPLACEMENT CHARACTER. The slot is CONTENT: it occupies
+  // one code point, so it counts as a cluster, falls inside the ranges a
+  // selector names, and takes its beat in a cascade exactly as a letter
+  // does. The engine matches its reserved box to this occurrence by order.
+  run.utf8 = u8"￼";
+  run.style = m_base;
+  run.slotKey = std::move(key);
+  run.slotSize = size;
+  run.slotBaselineDrop = baselineDrop;
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
+RichText& RichText::styles(sigil::weave::StyleSet set) {
+  m_styles = std::move(set);
+  m_hasStyles = true;
+  m_stylesExplicit = true;
+  for (Run& run : m_runs) {
+    if (run.styleName.empty()) continue;
+    const sigil::weave::TextStyle* named = m_styles.find(run.styleName);
+    run.style = named ? *named : m_base;
+  }
+  return *this;
 }
 
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
@@ -1035,24 +1250,152 @@ Element custom(std::string_view key, PaintProgram program) {
   return e;
 }
 
-Element& Element::glyphFx(GlyphFx fx) {
-  m_node->textData.ensure().glyphFx = std::move(fx);
+Element& Element::fx(Track track) {
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
+}
+
+Element& Element::mark(Selector where, Element what) {
+  detail::TextData& text = m_node->textData.ensure();
+  // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
+  // from its declaration order: the layout looks its rect up by key, and
+  // the reconciler matches children by key. The generated name is namespaced
+  // with a character no author writes, so it cannot collide with a key
+  // somebody chose.
+  if (what.node()->key.empty())
+    what.key("mark#" + std::to_string(text.marks.size()));
+  text.marks.push_back({std::move(where), what.node()->key});
+  return child(std::move(what));
 }
 
 Element& Element::variationDrive(const char (&tag)[5],
                                  const choreograph::Output<float>* value) {
-  detail::TextData& text = m_node->textData.ensure();
-  text.driveTag[0] = tag[0];
-  text.driveTag[1] = tag[1];
-  text.driveTag[2] = tag[2];
-  text.driveTag[3] = tag[3];
-  text.driveValue = value;
+  // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
+  // shove or a fade, so the drive is a whole-text track and composes with
+  // whatever other tracks the element carries. A second, parallel text path
+  // is what it used to be, and a track drawn over it hid it completely.
+  //
+  // The effect reads the Output DIRECTLY rather than through the track's
+  // progress, because an axis coordinate is a design-space number (GRAD
+  // runs to ±100 on the faces that have it) and a progress is a 0→1 ramp
+  // the cascade clamps. The progress is bound to the same Output for the
+  // one thing it is good for here: declaring the paint volatility, so the
+  // node repaints while the drive moves and settles when it stops.
+  const sigil::weave::FontVariation coordinate(tag, 0.0f);
+  // The effect's key IS its identity, and a drive is identified by its axis
+  // and by WHICH Output feeds it — the binding identity every bound value
+  // in the tree is compared by. Two drives of one axis from two Outputs
+  // must not prune onto each other.
+  char key[64];
+  std::snprintf(key, sizeof(key), "variationDrive:%.4s@%p", tag,
+                (const void*)value);
+  Track track;
+  track.effect = TextEffect(
+      key, {},
+      [coordinate, value](const GlyphInfo&, float, Rng&) {
+        GlyphMod mod;
+        if (!value) return mod;
+        sigil::weave::FontVariation driven = coordinate;
+        driven.value = value->value();
+        mod.axis = driven;
+        return mod;
+      },
+      // Only an ADVANCE-INVARIANT axis is honoured, which is precisely the
+      // condition that the glyphs keep the pen positions shaping gave them:
+      // a drive re-cuts outlines where they already stand, so a run under a
+      // sweeping grade is type at rest and keeps its whole-pixel origins.
+      /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
+  track.progress = value;
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
 
 Element& Element::textAlign(sigil::weave::TextAlignment a) {
-  m_node->textData.ensure().layoutOptions.alignment = a;
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.alignment = a;
+  options.set |= detail::TextOptions::kAlignment;
+  return *this;
+}
+
+Element& Element::writingMode(sigil::weave::WritingMode mode) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.writingMode = mode;
+  options.set |= detail::TextOptions::kWritingMode;
+  return *this;
+}
+
+Element& Element::lineBreak(sigil::weave::LineBreakStrategy strategy) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.lineBreak = strategy;
+  options.set |= detail::TextOptions::kLineBreak;
+  return *this;
+}
+
+Element& Element::hyphenation(sigil::weave::HyphenationOptions spec) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.hyphenation = spec;
+  options.set |= detail::TextOptions::kHyphenation;
+  return *this;
+}
+
+Element& Element::ellipsis(std::u8string_view marker) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.ellipsis = detail::toUtf16(marker);
+  options.set |= detail::TextOptions::kEllipsis;
+  return *this;
+}
+
+Element& Element::maxLines(int lines) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.maxLines = lines;
+  options.set |= detail::TextOptions::kMaxLines;
+  return *this;
+}
+
+Element& Element::lastLine(sigil::weave::TextAlignment alignment,
+                           bool justify) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.lastLineAlignment = alignment;
+  options.justifyLastLine = justify;
+  options.set |= detail::TextOptions::kLastLine;
+  return *this;
+}
+
+Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
+  detail::SpanRestyle restyle;
+  restyle.where = std::move(where);
+  restyle.style.paint = std::move(paint);
+  restyle.paintOnly = true;
+  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
+  return *this;
+}
+
+Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
+  detail::SpanRestyle restyle;
+  restyle.where = std::move(where);
+  restyle.style = std::move(style);
+  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
+  return *this;
+}
+
+Element& Element::spanAxis(Selector where, const char (&tag)[5], float value) {
+  // SUGAR over fx(), for the same reason variationDrive is: an axis
+  // coordinate IS a per-glyph deviation, so the one that a span asks for and
+  // the one a track asks for must be the same deviation reaching the same
+  // gate, the same snapping ladder and the same composition. A second path
+  // that restyled the paragraph instead would have to re-shape to carry the
+  // coordinate — which is exactly what this verb exists not to do.
+  //
+  // The track's progress stays at its default 1: a static coordinate is
+  // there from the first frame and never moves, so the leaf settles and
+  // caches like the static text it is. `continuous` stays false for the same
+  // reason — a value that does not sweep has nothing to be smooth about, and
+  // the ladder is what keeps its varied clone memoized rather than minted
+  // per frame.
+  Track track;
+  track.where = std::move(where);
+  track.effect = fx::axis(tag, value);
+  m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
 

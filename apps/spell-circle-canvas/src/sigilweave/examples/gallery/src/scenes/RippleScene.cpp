@@ -67,40 +67,32 @@ class RippleScene final : public Scene {
     const auto layoutEndTime = Clock::now();
 
     m_batches.clear();
-    forEachPlacedGlyph(
-        layout, m_paragraph,
-        [&](const ShapedWord* shapedWord, SkGlyphID glyph, float glyphAdvance,
-            SkColor color, SkPoint restingOrigin) {
-          SkVector offset = {0, 0};
-          float tilt = 0;
-          for (const Drop& drop : m_drops) {
-            const SkVector radialVector = restingOrigin - drop.center;
-            const float distance = radialVector.length() + 1.0f;
-            const float ringRadius =
-                6.0f * static_cast<float>(frameNumber - drop.birthFrameNumber);
-            const float normalizedRingDistance =
-                (distance - ringRadius) / 46.0f;
-            if (normalizedRingDistance > 3 || normalizedRingDistance < -3)
-              continue;
-            const float amplitude =
-                42.0f * std::exp(-static_cast<float>(frameNumber -
-                                                     drop.birthFrameNumber) /
-                                 150.0f);
-            const float pulse = amplitude * std::exp(-normalizedRingDistance *
-                                                     normalizedRingDistance);
-            offset += radialVector * (pulse / distance);
-            tilt +=
-                pulse * 0.012f * (normalizedRingDistance < 0 ? -1.0f : 1.0f);
-          }
-          float cosine;
-          float sine;
-          quantizeAngle(tilt, cosine, sine);
-          const float halfAdvance = glyphAdvance * 0.5f;
-          const SkPoint drawingCenter =
-              restingOrigin + offset + SkVector{halfAdvance, 0};
-          m_batches.addGlyph(shapedWord, color, glyph, halfAdvance,
-                             drawingCenter, cosine, sine);
-        });
+    forEachPlacedGlyph(layout, m_paragraph, [&](const PlacedGlyph& placed) {
+      SkVector offset = {0, 0};
+      float tilt = 0;
+      for (const Drop& drop : m_drops) {
+        const SkVector radialVector = placed.rest - drop.center;
+        const float distance = radialVector.length() + 1.0f;
+        const float ringRadius =
+            6.0f * static_cast<float>(frameNumber - drop.birthFrameNumber);
+        const float normalizedRingDistance = (distance - ringRadius) / 46.0f;
+        if (normalizedRingDistance > 3 || normalizedRingDistance < -3) continue;
+        const float amplitude =
+            42.0f *
+            std::exp(-static_cast<float>(frameNumber - drop.birthFrameNumber) /
+                     150.0f);
+        const float pulse = amplitude * std::exp(-normalizedRingDistance *
+                                                 normalizedRingDistance);
+        offset += radialVector * (pulse / distance);
+        tilt += pulse * 0.012f * (normalizedRingDistance < 0 ? -1.0f : 1.0f);
+      }
+      float cosine;
+      float sine;
+      quantizeAngle(tilt, cosine, sine);
+      const SkPoint drawingCenter =
+          placed.rest + offset + SkVector{placed.advance * 0.5f, 0};
+      m_batches.addGlyph(placed, drawingCenter, cosine, sine);
+    });
 
     canvas->clear(kPaper);
     const int drawnGlyphCount = m_batches.draw(canvas);

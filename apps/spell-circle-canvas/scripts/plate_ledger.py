@@ -77,13 +77,30 @@ backend (--gpu) with the full benchmark phases, because parallel renders
 contend for the machine and corrupt every number — the same load
 sensitivity that makes hashing want the opposite. The gate runs
 `ComposeGallery
---headless --scene <s> --gpu`, whose work ms is CPU + drained GPU via
-submit(SyncToCpu) per frame — one scene at a time, reads the steady-state
-sample through --timing-json, and reports every scene whose steady frame
-exceeds the 60 FPS budget (16.7 ms). Exit 1 when any scene fails the
-budget. Run it on a quiet machine; there is no known-flapper list here —
-a load spike is YOUR machine, rerun the scene.
+--headless --scene <s> --gpu` one scene at a time and reads the
+steady-state sample through --timing-json.
+
+IT JUDGES TWO NUMBERS, and a scene fails on either: the END-TO-END frame
+time (CPU + drained GPU via submit(SyncToCpu) inside the timed window)
+against --budget-ms, and the MODELED HEADROOM (1000 / mean work ms, that
+drain taken back out) against --headroom-fps. The first is the
+pessimistic bound — a real host pipelines the CPU and the GPU while this
+lane serializes them — and the second is the optimistic one, the rate the
+frame's own work would allow with the GPU assumed free.
+
+Work ms is part of frame ms, so at the DEFAULT --headroom-fps
+(1000/--budget-ms) the second check cannot fail on its own: it asserts
+the relationship between the lanes rather than adding a test. Raise it to
+make the optimistic bound bite — a scene whose CPU frame alone eats most
+of the budget has nothing left for the GPU work a pipelined host runs
+beside it, and passes here until the content grows.
+
+Presented FPS is the interactive lane's number and stays there — a
+headless sweep presents nothing. Exit 1 when any scene fails either. Run
+it on a quiet machine; there is no known-flapper list here — a load spike
+is YOUR machine, rerun the scene.
 """
+
 import argparse, concurrent.futures, hashlib, json, os, subprocess, sys, tempfile
 
 FLAPPERS = {"genesis_fire", "hitman_verlet", "slitscan_2001"}
@@ -96,8 +113,10 @@ FLAPPERS = {"genesis_fire", "hitman_verlet", "slitscan_2001"}
 # plus headroom; a scene here still times out, just at its own ceiling.
 SCENE_TIMEOUT_OVERRIDES = {"chaucer_astrolabe": 2400.0}
 
+
 def timeout_for(scene, default):
     return SCENE_TIMEOUT_OVERRIDES.get(scene, default)
+
 
 def sha256(path):
     h = hashlib.sha256()
@@ -106,8 +125,8 @@ def sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
-def render_scene(binary, scene, outdir, timeout, extra_args=(),
-                 honor_overrides=True):
+
+def render_scene(binary, scene, outdir, timeout, extra_args=(), honor_overrides=True):
     # The per-scene timeout overrides budget the FULL tier's declared-moment
     # renders. The quick tier's capture cap removes exactly that cost, so a
     # quick render still running at the default ceiling is a defect, not an
@@ -116,70 +135,143 @@ def render_scene(binary, scene, outdir, timeout, extra_args=(),
         timeout = timeout_for(scene, timeout)
     try:
         r = subprocess.run(
-            [binary, "--headless", outdir, "--no-promotion", "--ledger",
-             *extra_args, "--scene", scene],
-            capture_output=True, text=True, timeout=timeout)
+            [
+                binary,
+                "--headless",
+                outdir,
+                "--no-promotion",
+                "--ledger",
+                *extra_args,
+                "--scene",
+                scene,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
     except subprocess.TimeoutExpired:
         # One scene consuming unbounded CPU must not hang the whole sweep:
         # the render is killed, the scene is reported by name, and every
         # other scene still gets its verdict.
-        return scene, None, (f"FAILED-TIMEOUT: still rendering after "
-                             f"{timeout:g}s (killed; raise "
-                             f"--timeout-seconds if the scene is merely "
-                             f"slow)")
+        return (
+            scene,
+            None,
+            (
+                f"FAILED-TIMEOUT: still rendering after "
+                f"{timeout:g}s (killed; raise "
+                f"--timeout-seconds if the scene is merely "
+                f"slow)"
+            ),
+        )
     plate = os.path.join(outdir, f"gallery_{scene}.png")
     if r.returncode != 0 or not os.path.exists(plate):
         return scene, None, (r.stderr or r.stdout).strip()[-300:]
     return scene, sha256(plate), None
 
-def fps_gate(binary, scenes, budget_ms, timeout):
+
+def gate_verdict(row, budget_ms, floor_fps):
+    """Which of the two numbers a scene failed, as a list of reasons.
+
+    The gate judges BOTH, because a headless lane presents nothing and so
+    has no single honest frame rate to judge instead:
+
+      frame_ms      end to end, the backend flush included — on --gpu a
+                    submit(SyncToCpu) per frame, so this is the SERIALIZED
+                    CPU+GPU cost of one frame. A real host pipelines the
+                    two, so this is the pessimistic bound: a scene passing
+                    it cannot miss for want of either.
+      headroom_fps  1000 / mean(work ms), the flush taken back out — the
+                    rate the frame's own work would allow, with the GPU
+                    assumed free. The optimistic bound, and the one that
+                    answers "is the CPU side alone already too slow".
+
+    THE TWO FLOORS ARE INDEPENDENT KNOBS, and they need to be. Work ms is
+    part of frame ms, so at a shared floor (--headroom-fps defaulting to
+    1000/--budget-ms) the headroom check can never fail on its own: any
+    scene inside the end-to-end budget is inside the modeled one too. That
+    default asserts the relationship rather than adding a test. Raise
+    --headroom-fps to make the optimistic bound bite — a scene whose CPU
+    frame alone eats most of the budget has nothing left for the GPU work
+    a pipelined host would be running beside it, and reads as passing
+    until the content grows."""
+    reasons = []
+    if row["frame_ms"] > budget_ms:
+        reasons.append(f"frame {row['frame_ms']:.2f} ms > {budget_ms:g} ms")
+    if row["headroom_fps"] < floor_fps:
+        reasons.append(f"headroom {row['headroom_fps']:.0f} fps < {floor_fps:.0f} fps")
+    return reasons
+
+
+def fps_gate(binary, scenes, budget_ms, floor_fps, timeout):
     """SERIAL GPU timing sweep; see the module docstring for why serial and
     why this never shares a run with the hash sweep. Each scene gets the
     timing instrument: single-scene mode (the full unbudgeted 240-warm/120-sample
-    window), --gpu (work ms = CPU + drained GPU, submit(SyncToCpu) per
-    frame). --capture-at 0.02 collapses the post-sample capture pass to one
+    window), --gpu (frame ms = CPU + drained GPU, submit(SyncToCpu) per
+    frame; work ms is the same frame with that drain taken out).
+    --capture-at 0.02 collapses the post-sample capture pass to one
     frame — the timing sample closes before the capture pass begins (the
     JSON line snapshots at sample-window close), so this only trims wall
     clock, never the measurement; the throwaway plates land in a temp dir
     and are NOT ledger material (wrong backend, wrong conditions)."""
     outdir = tempfile.mkdtemp(prefix="fps_gate_")
-    print(f"GPU 60 FPS gate: {len(scenes)} scenes, serial, budget "
-          f"{budget_ms} ms\n")
+    print(
+        f"GPU 60 FPS gate: {len(scenes)} scenes, serial, budget "
+        f"{budget_ms} ms end-to-end AND {floor_fps:.0f} fps modeled "
+        f"headroom\n"
+    )
     rows, failures, errors = [], [], []
     for scene in scenes:
         tj = os.path.join(outdir, f"timing_{scene}.json")
         try:
             r = subprocess.run(
-                [binary, "--headless", outdir, "--gpu", "--scene", scene,
-                 "--timing-json", tj, "--capture-at", "0.02"],
-                capture_output=True, text=True, timeout=timeout)
+                [
+                    binary,
+                    "--headless",
+                    outdir,
+                    "--gpu",
+                    "--scene",
+                    scene,
+                    "--timing-json",
+                    tj,
+                    "--capture-at",
+                    "0.02",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
         except subprocess.TimeoutExpired:
             errors.append(scene)
-            print(f"  FAILED-TIMEOUT {scene}: still rendering after "
-                  f"{timeout:g}s, killed")
+            print(
+                f"  FAILED-TIMEOUT {scene}: still rendering after {timeout:g}s, killed"
+            )
             continue
         if r.returncode != 0 or not os.path.exists(tj):
             errors.append(scene)
-            print(f"  RENDER FAILED  {scene}: "
-                  f"{(r.stderr or r.stdout).strip()[-200:]}")
+            print(f"  RENDER FAILED  {scene}: {(r.stderr or r.stdout).strip()[-200:]}")
             continue
         with open(tj) as f:
             row = json.loads(f.readline())
         rows.append(row)
-        ok = row["work_ms"] <= budget_ms
-        if not ok:
+        reasons = gate_verdict(row, budget_ms, floor_fps)
+        if reasons:
+            row["reasons"] = reasons
             failures.append(row)
-        print(f"  {'PASS' if ok else 'FAIL'}  {scene:<24} "
-              f"{row['work_ms']:8.2f} ms  (p99 {row['p99_ms']:7.2f}, "
-              f"{row['fps']:5.0f} fps)")
-    rows.sort(key=lambda r: -r["work_ms"])
-    print(f"\n{len(rows) - len(failures)} under budget, {len(failures)} "
-          f"over, {len(errors)} failed to render")
+        print(
+            f"  {'FAIL' if reasons else 'PASS'}  {scene:<24} "
+            f"frame {row['frame_ms']:8.2f} ms  (p99 {row['p99_ms']:7.2f}, "
+            f"work {row['work_ms']:7.2f}, "
+            f"{row['headroom_fps']:5.0f} fps headroom)"
+        )
+    rows.sort(key=lambda r: -r["frame_ms"])
+    print(
+        f"\n{len(rows) - len(failures)} under budget, {len(failures)} "
+        f"over, {len(errors)} failed to render"
+    )
     if failures:
-        print(f"OVER {budget_ms} ms (steady frame, GPU):")
-        for row in sorted(failures, key=lambda r: -r["work_ms"]):
-            print(f"  {row['scene']:<24} {row['work_ms']:8.2f} ms "
-                  f"({row['fps']:.0f} fps)")
+        print("OVER BUDGET (steady frame, GPU):")
+        for row in sorted(failures, key=lambda r: -r["frame_ms"]):
+            print(f"  {row['scene']:<24} {'; '.join(row['reasons'])}")
     return 1 if failures or errors else 0
 
 
@@ -187,52 +279,100 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="Release")
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
-    ap.add_argument("--tier", choices=("quick", "full"), default="full",
-                    help="verification tier. full (default): CPU renders to "
-                         "each scene's declared capture moment — the final "
-                         "confirmation gate. quick: GPU renders with a "
-                         "uniform capture-time cap, compared against the "
-                         "separate quick baseline — the iteration loop. See "
-                         "the module docstring for the tiers' blind spots")
-    ap.add_argument("--capture-cap", type=float, default=2.0, metavar="S",
-                    help="quick tier only: the uniform capture time in "
-                         "seconds, passed to the renderer as --capture-at "
-                         "(default 2.0). Content after this time is invisible "
-                         "to the quick tier")
-    ap.add_argument("--rebase", action="store_true",
-                    help="write the manifest from this sweep (tier-specific: "
-                         "--tier quick --rebase writes the quick baseline)")
-    ap.add_argument("--stability", type=int, default=0, metavar="N",
-                    help="re-render each mover N more times; a scene that "
-                         "disagrees with ITSELF is attributed to the scene")
+    ap.add_argument(
+        "--tier",
+        choices=("quick", "full"),
+        default="full",
+        help="verification tier. full (default): CPU renders to "
+        "each scene's declared capture moment — the final "
+        "confirmation gate. quick: GPU renders with a "
+        "uniform capture-time cap, compared against the "
+        "separate quick baseline — the iteration loop. See "
+        "the module docstring for the tiers' blind spots",
+    )
+    ap.add_argument(
+        "--capture-cap",
+        type=float,
+        default=2.0,
+        metavar="S",
+        help="quick tier only: the uniform capture time in "
+        "seconds, passed to the renderer as --capture-at "
+        "(default 2.0). Content after this time is invisible "
+        "to the quick tier",
+    )
+    ap.add_argument(
+        "--rebase",
+        action="store_true",
+        help="write the manifest from this sweep (tier-specific: "
+        "--tier quick --rebase writes the quick baseline)",
+    )
+    ap.add_argument(
+        "--stability",
+        type=int,
+        default=0,
+        metavar="N",
+        help="re-render each mover N more times; a scene that "
+        "disagrees with ITSELF is attributed to the scene",
+    )
     ap.add_argument("--scenes", nargs="*", help="subset (registry names)")
-    ap.add_argument("--fps-gate", action="store_true",
-                    help="the GPU 60 FPS gate — a separate SERIAL lane, not "
-                         "part of the byte-identity sweep (timing and "
-                         "hashing want opposite conditions; see the module "
-                         "docstring). Renders each scene alone with --gpu "
-                         "through the full benchmark phases and fails any "
-                         "whose steady work ms exceeds --budget-ms")
-    ap.add_argument("--budget-ms", type=float, default=16.7,
-                    help="fps-gate frame budget in ms (default 16.7 = 60 FPS)")
-    ap.add_argument("--timeout-seconds", type=float, default=300, metavar="S",
-                    help="per-scene render ceiling, in seconds (default 300). "
-                         "A scene still running at the ceiling is killed and "
-                         "reported FAILED-TIMEOUT by name while the rest of "
-                         "the sweep continues — one runaway scene must not "
-                         "hang the gate that protects everything else")
+    ap.add_argument(
+        "--fps-gate",
+        action="store_true",
+        help="the GPU 60 FPS gate — a separate SERIAL lane, not "
+        "part of the byte-identity sweep (timing and "
+        "hashing want opposite conditions; see the module "
+        "docstring). Renders each scene alone with --gpu "
+        "through the full benchmark phases and fails any "
+        "whose steady end-to-end frame exceeds --budget-ms "
+        "OR whose modeled headroom falls under --headroom-fps",
+    )
+    ap.add_argument(
+        "--budget-ms",
+        type=float,
+        default=16.7,
+        help="fps-gate END-TO-END frame budget in ms (default 16.7 = "
+        "60 FPS): CPU plus the synchronously drained GPU",
+    )
+    ap.add_argument(
+        "--headroom-fps",
+        type=float,
+        default=None,
+        metavar="FPS",
+        help="fps-gate floor on the MODELED headroom (1000 / mean work "
+        "ms, the GPU drain taken back out). Defaults to the rate "
+        "--budget-ms implies, which asserts the relationship between "
+        "the two lanes rather than testing anything: work ms is part "
+        "of frame ms, so at that default a scene inside the end-to-end "
+        "budget is always inside this one. Raise it to make the "
+        "modeled bound bite on its own",
+    )
+    ap.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=300,
+        metavar="S",
+        help="per-scene render ceiling, in seconds (default 300). "
+        "A scene still running at the ceiling is killed and "
+        "reported FAILED-TIMEOUT by name while the rest of "
+        "the sweep continues — one runaway scene must not "
+        "hang the gate that protects everything else",
+    )
     args = ap.parse_args()
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     binary = os.path.join(
-        root, "build/bin", args.config,
-        "ComposeGallery.app/Contents/MacOS/ComposeGallery")
+        root,
+        "build/bin",
+        args.config,
+        "ComposeGallery.app/Contents/MacOS/ComposeGallery",
+    )
     # Each tier compares against its own baseline: quick plates are rendered
     # on a different backend at a different scene time, so their hashes can
     # never match the full manifest and must never be written into it.
     tier_tag = "" if args.tier == "full" else f"_{args.tier}"
     manifest = os.path.join(
-        root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256")
+        root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256"
+    )
     if not os.path.exists(binary):
         sys.exit(f"no gallery binary at {binary} — build ComposeGallery first")
 
@@ -241,35 +381,55 @@ def main():
     # across processes under this exact invocation, with only the documented
     # FLAPPERS moving — the same attribution the full tier already makes.
     quick = args.tier == "quick"
-    tier_args = ("--gpu", "--capture-at", f"{args.capture_cap:g}") if quick \
-        else ()
+    tier_args = ("--gpu", "--capture-at", f"{args.capture_cap:g}") if quick else ()
 
     scenes = args.scenes or [
-        s for s in subprocess.run(
+        s
+        for s in subprocess.run(
             [binary, "--headless", "/tmp", "--list-scenes"],
-            capture_output=True, text=True, check=True).stdout.splitlines()
-        if s.strip()]
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+        if s.strip()
+    ]
 
     if args.fps_gate:
-        return fps_gate(binary, scenes, args.budget_ms, args.timeout_seconds)
+        floor_fps = (
+            args.headroom_fps
+            if args.headroom_fps is not None
+            else 1000.0 / args.budget_ms
+        )
+        return fps_gate(binary, scenes, args.budget_ms, floor_fps, args.timeout_seconds)
 
-    print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
-          f"tier {args.tier}")
+    print(
+        f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
+        f"tier {args.tier}"
+    )
     if quick:
-        print(f"QUICK TIER: GPU renders (--gpu --no-promotion), capture "
-              f"capped at {args.capture_cap:g}s. Blind spots: content that "
-              f"only appears after the cap is never hashed, and the backend "
-              f"is the GPU raster path, not the full tier's CPU path. Run "
-              f"the full tier as the final gate before trusting a "
-              f"byte-neutral verdict.")
+        print(
+            f"QUICK TIER: GPU renders (--gpu --no-promotion), capture "
+            f"capped at {args.capture_cap:g}s. Blind spots: content that "
+            f"only appears after the cap is never hashed, and the backend "
+            f"is the GPU raster path, not the full tier's CPU path. Run "
+            f"the full tier as the final gate before trusting a "
+            f"byte-neutral verdict."
+        )
 
     outdir = tempfile.mkdtemp(prefix="plate_ledger_")
     results, errors = {}, {}
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
         for scene, digest, err in pool.map(
-                lambda s: render_scene(binary, s, outdir,
-                                       args.timeout_seconds, tier_args,
-                                       honor_overrides=not quick), scenes):
+            lambda s: render_scene(
+                binary,
+                s,
+                outdir,
+                args.timeout_seconds,
+                tier_args,
+                honor_overrides=not quick,
+            ),
+            scenes,
+        ):
             if digest is None:
                 errors[scene] = err
             else:
@@ -279,8 +439,10 @@ def main():
 
     if args.rebase or not os.path.exists(manifest):
         if not args.rebase:
-            print(f"no manifest at {manifest} — writing one (this sweep "
-                  f"becomes the baseline)")
+            print(
+                f"no manifest at {manifest} — writing one (this sweep "
+                f"becomes the baseline)"
+            )
         # A subset rebase (--scenes ... --rebase) merges into the existing
         # manifest rather than truncating it to the subset: adopting one
         # deliberately changed plate must not silently discard the baseline
@@ -296,8 +458,10 @@ def main():
         with open(manifest, "w") as f:
             for scene in sorted(merged):
                 f.write(f"{merged[scene]}  {scene}\n")
-        print(f"baseline written: {manifest} ({len(merged)} scenes, "
-              f"{len(results)} from this sweep)")
+        print(
+            f"baseline written: {manifest} ({len(merged)} scenes, "
+            f"{len(results)} from this sweep)"
+        )
         return 0 if not errors else 1
 
     baseline = {}
@@ -312,37 +476,50 @@ def main():
         elif baseline[scene] != digest:
             movers.append(scene)
     identical = len(results) - len(movers) - len(missing)
-    print(f"\n{identical} byte-identical, {len(movers)} moved, "
-          f"{len(missing)} not in baseline, {len(errors)} failed")
+    print(
+        f"\n{identical} byte-identical, {len(movers)} moved, "
+        f"{len(missing)} not in baseline, {len(errors)} failed"
+    )
 
     verdict = 0
     for scene in movers:
         if scene in FLAPPERS:
-            print(f"  MOVED (attributed) {scene} — on the documented "
-                  f"self-nondeterministic list")
+            print(
+                f"  MOVED (attributed) {scene} — on the documented "
+                f"self-nondeterministic list"
+            )
             continue
         if args.stability > 0:
             rerenders = {results[scene]}
             for _ in range(args.stability):
                 _, digest, err = render_scene(
-                    binary, scene, tempfile.mkdtemp(prefix="plate_stab_"),
-                    args.timeout_seconds, tier_args,
-                    honor_overrides=not quick)
+                    binary,
+                    scene,
+                    tempfile.mkdtemp(prefix="plate_stab_"),
+                    args.timeout_seconds,
+                    tier_args,
+                    honor_overrides=not quick,
+                )
                 if digest:
                     rerenders.add(digest)
             if len(rerenders) > 1:
-                print(f"  MOVED (self-unstable) {scene} — disagrees with "
-                      f"itself across {args.stability + 1} renders; "
-                      f"attribute to the scene, consider adding to FLAPPERS")
+                print(
+                    f"  MOVED (self-unstable) {scene} — disagrees with "
+                    f"itself across {args.stability + 1} renders; "
+                    f"attribute to the scene, consider adding to FLAPPERS"
+                )
                 continue
-        print(f"  MOVED  {scene}  {baseline[scene][:12]} -> "
-              f"{results[scene][:12]}   <-- FINDING")
+        print(
+            f"  MOVED  {scene}  {baseline[scene][:12]} -> "
+            f"{results[scene][:12]}   <-- FINDING"
+        )
         verdict = 1
     for scene in missing:
         print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
     if verdict == 0 and not errors:
         print("VERDICT: byte-neutral (modulo attributed scenes)")
     return verdict or (1 if errors else 0)
+
 
 if __name__ == "__main__":
     sys.exit(main())
