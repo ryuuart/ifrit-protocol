@@ -432,7 +432,10 @@ node's children.
 prune like any other static leaf. A preset compares by its name and its
 parameters; an ad-hoc body goes through `fx::effect`, which takes the key
 its author gives it — two different bodies under one key compare equal and
-one of them silently never draws. `fx::seq` remaps local time so each
+one of them silently never draws. The one declaration an ad-hoc body
+carries, `TextEffect::displacing`, joins those parameters rather than
+sitting beside them, so two bodies under one key that disagree about
+placement do not prune onto each other. `fx::seq` remaps local time so each
 phase sees a renormalised 0→1 (`TextEffect::until` sets the joint,
 `Phase::xfade` lerps across it), and `fx::mix` evaluates several effects at
 one time and composes them by the same algebra stacked tracks use.
@@ -698,15 +701,35 @@ origin, so a ring creeping along by a fraction of a pixel per frame does
 not creep at all on whole pixels: every letter stands still until its own
 origin crosses a pixel boundary and then hops a whole one, at its own
 moment. Nothing about the placement arithmetic causes it and no ladder
-fixes it. Two declarations put a run on the finer grid, both of them the
+fixes it. Three declarations put a run on the finer grid, all of them the
 question "does what this run draws land somewhere else next frame": a
-BOUND or animated `TextPath::at`, and a bound or animated `rotate()` (or
-any other geometric transform) at or above the text node. A phase written
+BOUND or animated `TextPath::at`; a bound or animated `rotate()` (or
+any other geometric transform) at or above the text node; and a live
+`fx()` track whose effect moves glyphs. A phase written
 as a plain number, or a figure turned by re-describing a literal angle,
 declares nothing and is treated as type at rest. The grid is read off the
 declaration and never off a frame-to-frame difference, so a marquee parked
 at a phase keeps the placement it was turning with rather than taking one
 last quarter-pixel shift the moment it settles.
+
+**A track declares through two facts, and needs both.** Its progress must
+be live — bound, or mid-transition — and its effect must actually move
+glyphs, which is what `TextEffect::displaces` answers. That answer is
+*inferred* almost everywhere: a preset knows its own deviation (`fx::rise`,
+`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::scatter` and `fx::waveLoop`
+move glyphs; `fx::typeOn`, `fx::axis`, `fx::tint` and `fx::scramble` touch
+coverage, colour or the outline and leave every pen position alone),
+`fx::keys` reads its own table (any entry publishing an offset, a lean, a
+shear or a growth), and `fx::seq`, `fx::mix` and `fx::hold` derive from
+their operands. `fx::pass` does not displace — its shader runs over pixels
+already rasterized at the resting origins, so refining those origins says
+nothing about where the pass puts its output. Only `fx::effect` has to be
+told, because a lambda is opaque until it runs: it assumes the moving
+answer, and `.displacing(false)` is the author's promise otherwise. A
+karaoke wipe, a decoding scramble and a staggered fade therefore keep
+whole-pixel origins and their bytes however hard they run, and a settled
+displacing track goes back to them — its glyphs are standing somewhere
+else and standing still.
 
 **The baseline declares its own reach.** A resolved path is not bounded by
 the node's box — a custom `Shape` may return a curve well outside it, and

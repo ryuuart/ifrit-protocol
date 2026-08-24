@@ -232,12 +232,15 @@ struct Instance {
   // derived from paint history, which a node under a cached parent never
   // accumulates.
   bool transformLive = false;
-  // …and is anything ABOVE it turning as well? `transformLive` is the
-  // node's OWN declared motion; this is that OR any ancestor's, which is
-  // the question "does what this node draws land somewhere else next
-  // frame". Text asks it: a run whose device placement creeps needs its
-  // glyph origins on the subpixel grid, and a figure rotating above the
-  // text makes it creep exactly as a marquee phase does.
+  // …and does what this node draws LAND SOMEWHERE ELSE next frame?
+  // `transformLive` is the node's OWN declared motion; this is that, OR any
+  // ancestor's, OR — for text — a live fx() track whose effect moves glyphs
+  // off their pen positions. Text asks it: a run whose device placement
+  // creeps needs its glyph origins on the subpixel grid, and a figure
+  // rotating above the text, or a slide dragging every letter sideways,
+  // makes it creep exactly as a marquee phase does. Every term is read off
+  // a declaration, so a run that stops keeps the placement it was moving
+  // with instead of taking one last shift as it settles.
   bool placementUnderMotion = false;
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own

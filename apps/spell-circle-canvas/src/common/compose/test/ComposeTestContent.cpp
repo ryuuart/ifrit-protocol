@@ -2499,6 +2499,77 @@ TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
                fx::mix(fx::slide(), fx::rise(20)));
 }
 
+// THE PLACEMENT FACT IS INFERRED wherever the data allows it, because it is
+// the data: a preset's deviation is its own body, a table's mods are its
+// entries, and a combinator can only do what its operands do. Only an
+// ad-hoc lambda is opaque, and that door assumes motion.
+TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
+  // The presets that move geometry.
+  EXPECT_TRUE(fx::rise().displaces());
+  EXPECT_TRUE(fx::slide().displaces());
+  EXPECT_TRUE(fx::pop().displaces());
+  EXPECT_TRUE(fx::spinIn().displaces());
+  EXPECT_TRUE(fx::scatter().displaces());
+  EXPECT_TRUE(fx::waveLoop().displaces());
+  // …and the ones that touch coverage, colour or the outline only, leaving
+  // every pen position exactly where the layout put it.
+  EXPECT_FALSE(fx::typeOn().displaces());
+  EXPECT_FALSE(fx::axis("GRAD", 80).displaces());
+  EXPECT_FALSE(fx::axis("GRAD", 0, 80).displaces());
+  EXPECT_FALSE(fx::tint(SkColors::kGray, SkColors::kWhite).displaces());
+  EXPECT_FALSE(fx::scramble().displaces());
+
+  // A TABLE ANSWERS FROM ITS OWN ENTRIES. Colour and coverage are not
+  // placement…
+  EXPECT_FALSE(fx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}}).displaces());
+  EXPECT_FALSE(
+      fx::keys({{0.0f, {.colorMul = {0.2f, 0.2f, 0.2f, 1}}}, {1.0f, {}}})
+          .displaces());
+  // …and every lane that is.
+  EXPECT_TRUE(fx::keys({{0.0f, {.dx = 12.0f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.dy = 12.0f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.scale = 1.4f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.rotateDeg = 8.0f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.scaleX = 1.2f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.skewXDeg = 6.0f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(fx::keys({{0.0f, {.skewYDeg = 6.0f}}, {1.0f, {}}}).displaces());
+
+  // A COMBINATOR DERIVES: any operand it may evaluate moving is enough, and
+  // none of them moving is enough the other way. `fx::hold` vetoes with
+  // alpha, which places nothing, so it is its operand's answer.
+  EXPECT_FALSE(fx::mix(fx::typeOn(), fx::scramble()).displaces());
+  EXPECT_TRUE(fx::mix(fx::typeOn(), fx::rise()).displaces());
+  EXPECT_FALSE(fx::seq(fx::typeOn().until(0.5f), fx::scramble()).displaces());
+  EXPECT_TRUE(fx::seq(fx::typeOn().until(0.5f), fx::rise()).displaces());
+  EXPECT_FALSE(fx::hold(fx::scramble()).displaces());
+  EXPECT_TRUE(fx::hold(fx::rise()).displaces());
+  // Nesting keeps the derivation exact rather than sticky.
+  EXPECT_FALSE(fx::mix(fx::seq(fx::tint(SkColors::kGray, SkColors::kWhite)),
+                       fx::hold(fx::typeOn()))
+                   .displaces());
+
+  // A PASS IS NOT A PLACEMENT: its shader runs over pixels already
+  // rasterized at the resting origins.
+  EXPECT_FALSE(fx::pass(Material::sksl("half4 main(float2 xy) { return "
+                                       "uContent.eval(xy); }"))
+                   .displaces());
+
+  // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
+  const GlyphModFn still = [](const GlyphInfo&, float, Rng&) {
+    GlyphMod m;
+    m.alpha = 0.5f;
+    return m;
+  };
+  EXPECT_TRUE(fx::effect("opaque", still).displaces());
+  EXPECT_FALSE(fx::effect("opaque", still).displacing(false).displaces());
+  // …and the declaration rides the params, so two bodies under one key that
+  // disagree about placement do not prune onto each other.
+  EXPECT_FALSE(fx::effect("opaque", still) ==
+               fx::effect("opaque", still).displacing(false));
+  EXPECT_TRUE(fx::effect("opaque", still).displacing(false) ==
+              fx::effect("opaque", still).displacing(false));
+}
+
 TEST(ComposeTextFx, KeysReproducesEveryEntryAtItsOwnPosition) {
   // A published table is a promise about the moments it names. Whatever the
   // curve between them, the deviation AT an entry is the entry.

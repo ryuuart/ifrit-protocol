@@ -886,10 +886,27 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // sitting under a live loop still declares.
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
-      const Animatable<float>& v = node.textData->tracks[i].progress;
+      const Track& track = node.textData->tracks[i];
+      const Animatable<float>& v = track.progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected())) scalarContent = true;
+      if (!(v.binding() || (a && a->value.isConnected()))) continue;
+      scalarContent = true;
+      // …and the THIRD way a run's placement creeps: a live track whose
+      // effect moves glyphs off their pen positions carries every addressed
+      // letter across the device by a fraction of a pixel per frame, exactly
+      // as a driven baseline phase or a turning ancestor does. Whole-pixel
+      // origins cannot express that, so such a run joins them on the finer
+      // grid.
+      //
+      // BOTH HALVES ARE DECLARATIONS, never a frame diff: what the effect
+      // does to a glyph, and whether the progress driving it is live. A
+      // SETTLED displacing track is therefore back on whole pixels — its
+      // glyphs are standing somewhere else and standing still, which is what
+      // whole-pixel origins are for and what lets the frame cache. A track
+      // that only fades, tints or substitutes never joins however hard its
+      // progress runs.
+      if (track.effect.displaces()) inst.placementUnderMotion = true;
     }
   // A world-space material under a CONNECTED transform — this node's own or
   // any ancestor's, threaded down this recursion as movingAbove — has its
@@ -1832,12 +1849,13 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
 
   // WHERE THIS RUN'S GLYPHS LAND MOVES FROM FRAME TO FRAME, which is what
   // decides whether their origins go on Skia's subpixel phase grid or on
-  // whole pixels. Two ways a run creeps: a driven baseline phase (the
-  // marquee runs under the type) and a driven transform at or above the
-  // node (the figure turns under the type). Both make every letter's device
-  // position advance by a fraction of a pixel per frame, which whole-pixel
-  // origins cannot express — each letter stands still and then hops a whole
-  // pixel at its own moment.
+  // whole pixels. Three ways a run creeps: a driven baseline phase (the
+  // marquee runs under the type), a driven transform at or above the node
+  // (the figure turns under the type), and a live fx() track whose effect
+  // displaces (the letters travel under their own schedule). All three make
+  // every letter's device position advance by a fraction of a pixel per
+  // frame, which whole-pixel origins cannot express — each letter stands
+  // still and then hops a whole pixel at its own moment.
   //
   // Read off the DECLARATION rather than off a frame-to-frame diff, so a
   // marquee parked at a phase keeps the placement it was turning with. A

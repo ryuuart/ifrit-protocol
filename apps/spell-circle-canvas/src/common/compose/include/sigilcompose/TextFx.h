@@ -34,6 +34,13 @@
  * through batched RSXform draws — moving text is never per-glyph draw
  * calls — and every preset declares the reach its motion needs so the
  * recording cull does not truncate it.
+ *
+ * Every effect here also carries whether it MOVES its glyphs off the pen
+ * positions the layout gave them (`TextEffect::displaces`), which is what
+ * decides the grid a live run's origins are rounded to. `rise`, `slide`,
+ * `pop`, `spinIn`, `scatter` and `waveLoop` move them; `typeOn`, `axis`,
+ * `tint`, `scramble` and `pass` do not; `keys` reads its own table and the
+ * combinators derive from their operands. Only `fx::effect` has to be told.
  */
 
 #include <algorithm>
@@ -140,7 +147,8 @@ inline constexpr float kNominalSizePx = 96.0f;
         m.alpha = t >= 0.5f ? 1.0f : 0.0f;
         return m;
       },
-      0.0f);
+      // Coverage only: the glyph appears where it already was.
+      0.0f, {}, /*displaces=*/false);
 }
 
 /** Endless float: glyph i bobs on a sine, phase-shifted per glyph. Bind
@@ -206,7 +214,9 @@ inline constexpr float kNominalSizePx = 96.0f;
         m.axis = coordinate;
         return m;
       },
-      0.0f);
+      // Only an ADVANCE-INVARIANT axis is honoured, which is exactly the
+      // condition that the pen positions do not move.
+      0.0f, {}, /*displaces=*/false);
 }
 
 /** The same axis SWEPT across local progress: `from` at t = 0, `to` at
@@ -225,7 +235,7 @@ inline constexpr float kNominalSizePx = 96.0f;
         m.axis = driven;
         return m;
       },
-      0.0f);
+      0.0f, {}, /*displaces=*/false);
 }
 
 /** A COLOUR REVEAL AS A CASCADE: the glyphs read @p from at local 0 and
@@ -269,7 +279,8 @@ inline constexpr float kNominalSizePx = 96.0f;
                       origin.fB + (1.0f - origin.fB) * e, 1.0f};
         return m;
       },
-      0.0f);
+      // Colour only: a wipe repaints letters, it does not move them.
+      0.0f, {}, /*displaces=*/false);
 }
 
 /** THE DECODING TEXT: every glyph churns through `charset` before landing
@@ -383,7 +394,15 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  capturing them silently.
  *
  *  `reach` is how far past the element's box the body may push a glyph;
- *  the default covers the shipped presets' range. */
+ *  the default covers the shipped presets' range.
+ *
+ *  THE ONE PLACEMENT FACT THE LIBRARY CANNOT INFER lives here too. Every
+ *  other effect answers `TextEffect::displaces` for itself — a preset knows
+ *  its own deviation, `fx::keys` reads its table, `fx::seq`, `fx::mix` and
+ *  `fx::hold` derive from their operands — but a lambda is opaque until it
+ *  runs, so this door assumes the moving answer and takes
+ *  `.displacing(false)` as the promise that the body leaves every pen
+ *  position alone. */
 [[nodiscard]] inline TextEffect effect(std::string key, GlyphModFn program,
                                        float reach = 48.0f,
                                        std::vector<float> params = {}) {

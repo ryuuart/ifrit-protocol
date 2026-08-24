@@ -785,9 +785,13 @@ class TextEffect {
    *  a lambda compares UNEQUAL, which is the rule every other curve slot in
    *  the library follows. Leaving a curve out of this list would make an
    *  effect that reshapes its motion compare equal to the one it replaced,
-   *  and the reconciler would keep drawing the old one. */
+   *  and the reconciler would keep drawing the old one.
+   *
+   *  `displaces` is the placement fact below — true unless the body provably
+   *  leaves every glyph on its pen position. */
   TextEffect(std::string name, std::vector<float> params, GlyphModFn fn,
-             float reach, std::vector<choreograph::EaseFn> curves = {});
+             float reach, std::vector<choreograph::EaseFn> curves = {},
+             bool displaces = true);
 
   /** Evaluates the deviation. An empty effect answers the identity. */
   GlyphMod operator()(const GlyphInfo& g, float t, Rng& rng) const {
@@ -806,10 +810,12 @@ class TextEffect {
   [[nodiscard]] class Phase until(float t) const;
 
   /** Builds a composite (`fx::seq`, `fx::mix`) — the operands ride the
-   *  value so the result compares by structure. */
+   *  value so the result compares by structure. `displaces` is the fact
+   *  DERIVED from those operands: a composite moves its glyphs when any
+   *  operand it may evaluate does. */
   static TextEffect composite(std::string name, std::vector<float> params,
                               std::vector<TextEffect> operands, GlyphModFn fn,
-                              float reach);
+                              float reach, bool displaces);
 
   /** A PASS EFFECT: the track's evaluation is one shader pass over the
    *  addressed units' rendered pixels, not a per-glyph deviation — the
@@ -839,6 +845,40 @@ class TextEffect {
    *  and for every per-glyph effect. */
   [[nodiscard]] std::span<const float> restPhases() const;
 
+  /** DOES THIS EFFECT MOVE ITS GLYPHS OFF THEIR PEN POSITIONS? A glyph mask
+   *  is rasterized for a QUANTIZED origin, so a run whose letters creep by a
+   *  fraction of a pixel per frame does not creep at all on whole pixels:
+   *  each letter stands still until its own origin crosses a pixel boundary
+   *  and then hops a whole one. A track whose effect answers true and whose
+   *  progress is live puts its run's placement on the finer subpixel grid,
+   *  which is the only placement that can express the creep.
+   *
+   *  It is a fact about the DEVIATION, not about the schedule: an effect
+   *  that only fades, tints, substitutes a code point or holds a variable
+   *  axis leaves every pen position exactly where the layout put it, and a
+   *  run under it keeps whole-pixel origins however hard its progress is
+   *  running. Offsets, rotation, shear and scale are what move a glyph. */
+  [[nodiscard]] bool displaces() const;
+
+  /** DECLARES THE FACT ABOVE for a body the library cannot read — the one
+   *  knob `fx::effect` needs, since an ad-hoc lambda's deviation is opaque
+   *  until it runs. It defaults to TRUE, so an undeclared body is placed
+   *  smoothly; `fx::effect(key, body).displacing(false)` is the author's
+   *  promise that the body never moves a glyph, and the cost of a false
+   *  promise is exactly the tick the grid exists to remove.
+   *
+   *  Every effect the library builds ANSWERS FOR ITSELF and needs no call
+   *  here: a preset knows its own deviation, `fx::keys` reads its table, and
+   *  `fx::seq`, `fx::mix` and `fx::hold` derive from their operands. The
+   *  declaration rides the effect's params, so two bodies under one key that
+   *  disagree about placement compare unequal and re-patch.
+   *
+   *  A PASS is not a placement: `fx::pass` runs its shader over pixels that
+   *  were already rasterized at the glyphs' resting origins, so refining
+   *  those origins says nothing about where the shader puts its output.
+   *  Calling this on a pass warns once and returns the effect unchanged. */
+  [[nodiscard]] TextEffect displacing(bool moves) const;
+
  private:
   struct State {
     std::string name;
@@ -847,6 +887,9 @@ class TextEffect {
     std::vector<choreograph::EaseFn> curves;
     GlyphModFn fn;
     float reach = 0;
+    /** Whether the body moves glyphs off their pen positions — see
+     *  displaces(). True is the safe answer, so it is the default. */
+    bool displaces = true;
     /** Set only by pass(): the material run over the units' layer. Held by
      *  pointer because Material is declared below this class; it rides
      *  equality by VALUE (Material::operator==), like an Effect child. */

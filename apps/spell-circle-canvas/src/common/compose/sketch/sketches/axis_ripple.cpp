@@ -123,16 +123,23 @@ constexpr float kProofRowSize = 40.0f;
  *  START TIMES, which is right for an entrance and wrong for something that
  *  never ends. */
 TextEffect gradWave(float lo, float hi, float radPerGlyph) {
-  return fx::effect(
-      "gradWave",
-      [lo, hi, radPerGlyph](const GlyphInfo& g, float t, Rng&) {
-        const float s = 0.5f + 0.5f * std::sin(t * 6.2831853f -
-                                               (float)g.index * radPerGlyph);
-        GlyphMod m;
-        m.axis = sigil::weave::FontVariation("GRAD", lo + (hi - lo) * s);
-        return m;
-      },
-      0.0f, {lo, hi, radPerGlyph});
+  return fx::effect("gradWave",
+                    [lo, hi, radPerGlyph](const GlyphInfo& g, float t, Rng&) {
+                      const float s =
+                          0.5f + 0.5f * std::sin(t * 6.2831853f -
+                                                 (float)g.index * radPerGlyph);
+                      GlyphMod m;
+                      m.axis = sigil::weave::FontVariation("GRAD",
+                                                           lo + (hi - lo) * s);
+                      return m;
+                    },
+                    0.0f, {lo, hi, radPerGlyph})
+      // The wave is a GRADE, and only an advance-invariant axis is honoured:
+      // every letter keeps the pen position shaping gave it for the whole
+      // ripple. The phase driving this is bound and never settles, so saying
+      // so is what keeps the run on whole-pixel origins and one atlas strike
+      // per letter instead of one per phase.
+      .displacing(false);
 }
 
 }  // namespace

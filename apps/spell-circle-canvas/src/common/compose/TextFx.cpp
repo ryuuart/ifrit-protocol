@@ -32,25 +32,28 @@ namespace sigil::compose {
 
 TextEffect::TextEffect(std::string name, std::vector<float> params,
                        GlyphModFn fn, float reach,
-                       std::vector<choreograph::EaseFn> curves) {
+                       std::vector<choreograph::EaseFn> curves,
+                       bool displaces) {
   auto state = std::make_shared<State>();
   state->name = std::move(name);
   state->params = std::move(params);
   state->curves = std::move(curves);
   state->fn = std::move(fn);
   state->reach = reach;
+  state->displaces = displaces;
   m_state = std::move(state);
 }
 
 TextEffect TextEffect::composite(std::string name, std::vector<float> params,
                                  std::vector<TextEffect> operands,
-                                 GlyphModFn fn, float reach) {
+                                 GlyphModFn fn, float reach, bool displaces) {
   auto state = std::make_shared<State>();
   state->name = std::move(name);
   state->params = std::move(params);
   state->operands = std::move(operands);
   state->fn = std::move(fn);
   state->reach = reach;
+  state->displaces = displaces;
   TextEffect out;
   out.m_state = std::move(state);
   return out;
@@ -115,6 +118,13 @@ TextEffect TextEffect::pass(Material material) {
   // A pass paints where its material says it does; the material's declared
   // reserve is the effect's reach, and Track::reach overrides as ever.
   state->reach = material.bleed();
+  // A PASS IS NOT A PLACEMENT. Its shader reads a layer whose glyphs were
+  // rasterized at their RESTING origins — the pass moves pixels, not pen
+  // positions — so putting those origins on the subpixel grid refines masks
+  // the shader's own output does not follow, and pays the multiplied atlas
+  // population for letters that are provably standing still. Whatever the
+  // pass does with them, the layer is re-rendered every frame it runs.
+  state->displaces = false;
   state->pass = std::make_shared<const Material>(std::move(material));
   TextEffect out;
   out.m_state = std::move(state);
@@ -154,6 +164,37 @@ TextEffect TextEffect::restsAt(float a, float b) const {
 std::span<const float> TextEffect::restPhases() const {
   return m_state && m_state->pass ? std::span<const float>(m_state->params)
                                   : std::span<const float>();
+}
+
+bool TextEffect::displaces() const { return m_state && m_state->displaces; }
+
+TextEffect TextEffect::displacing(bool moves) const {
+  if (!m_state) return *this;
+  if (m_state->pass) {
+    // Once per process: a pass runs over already-rasterized pixels, so it
+    // has no pen position to move and the declaration says nothing. Its
+    // params slot is the rest declaration, which this must not write into.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] displacing() declares whether a body moves glyphs off "
+          "their pen positions; a pass runs over pixels already rasterized "
+          "at the resting origins, so the declaration is dropped.\n");
+    }
+    return *this;
+  }
+  auto state = std::make_shared<State>(*m_state);
+  state->displaces = moves;
+  // The declaration JOINS THE PARAMS, which is where an effect's identity
+  // already lives — no second equality lane, and two bodies under one key
+  // that disagree about placement compare unequal and re-patch. Every
+  // library-built effect answers at construction and never comes through
+  // here, so nothing appends twice.
+  state->params.push_back(moves ? 1.0f : 0.0f);
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
 }
 
 Phase TextEffect::until(float t) const { return Phase(*this, t); }
@@ -1170,6 +1211,19 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane) {
 
 namespace fx {
 
+namespace {
+/** A combinator's placement fact, derived from what it may evaluate: it
+ *  moves glyphs when any operand does. Deriving rather than declaring is
+ *  what keeps the answer exact through nesting — a `fx::mix` of three tints
+ *  and one `fx::rise` displaces, the same mix without the rise does not. */
+template <typename Range>
+bool anyDisplaces(const Range& operands) {
+  for (const auto& operand : operands)
+    if (operand.displaces()) return true;
+  return false;
+}
+}  // namespace
+
 TextEffect seq(std::vector<Phase> phases) {
   if (phases.empty()) return TextEffect();
   // The last phase always runs to the end of local time, whatever it was
@@ -1187,6 +1241,7 @@ TextEffect seq(std::vector<Phase> phases) {
     params.push_back(p.overlap());
     reach = std::max(reach, p.effect().reach());
   }
+  const bool displaces = anyDisplaces(operands);
   return TextEffect::composite(
       "seq", params, operands,
       [phases](const GlyphInfo& g, float t, Rng&) {
@@ -1220,7 +1275,7 @@ TextEffect seq(std::vector<Phase> phases) {
         }
         return mod;
       },
-      reach);
+      reach, displaces);
 }
 
 namespace {
@@ -1282,6 +1337,23 @@ float keysReach(const std::vector<Key>& table) {
   return reach;
 }
 
+/** Whether a table moves its glyphs off their pen positions — read off the
+ *  entries, because the mods ARE the data here and no author needs to say
+ *  twice what the table already says. Any offset, any lean, any growth: a
+ *  glyph under it lands somewhere other than where the layout put it, and
+ *  interpolation between two such entries only ever lands between them, so
+ *  a table of entries that all leave the pen alone can never move it. The
+ *  colour terms, the fade and the two substitutions are not placement. */
+bool keysDisplace(const std::vector<Key>& table) {
+  for (const Key& key : table) {
+    const GlyphMod& m = key.mod;
+    if (m.dx != 0 || m.dy != 0 || m.rotateDeg != 0 || m.skewXDeg != 0 ||
+        m.skewYDeg != 0 || m.scale != 1 || m.scaleX != 1 || m.scaleY != 1)
+      return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
@@ -1299,6 +1371,7 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
     curves.push_back(key.ease);
   }
   const float reach = keysReach(table);
+  const bool displaces = keysDisplace(table);
   return TextEffect(
       "keys", std::move(params),
       [table = std::move(table), ease = std::move(ease)](const GlyphInfo&,
@@ -1321,11 +1394,14 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
         }
         return table.back().mod;
       },
-      reach, std::move(curves));
+      reach, std::move(curves), displaces);
 }
 
 TextEffect hold(TextEffect effect) {
   const float reach = effect.reach();
+  // The veto is alpha, which moves nothing: a hold places its glyphs exactly
+  // where the effect it wraps places them.
+  const bool displaces = effect.displaces();
   std::vector<TextEffect> operands{effect};
   return TextEffect::composite(
       "hold", {}, std::move(operands),
@@ -1347,7 +1423,7 @@ TextEffect hold(TextEffect effect) {
         // exactly the numbers it would have drawn unheld.
         return effect(g, t, rng);
       },
-      reach);
+      reach, displaces);
 }
 
 TextEffect scramble(std::u32string charset, int steps) {
@@ -1384,13 +1460,17 @@ TextEffect scramble(std::u32string charset, int steps) {
                     charset.size()];
         return mod;
       },
-      0.0f);
+      // A substitution draws a different outline AT THE ORIGINAL'S PEN
+      // POSITION — that is the whole condition the runtime enforces on it —
+      // so a churning glyph never moves.
+      0.0f, {}, /*displaces=*/false);
 }
 
 TextEffect mix(std::vector<TextEffect> effects) {
   if (effects.empty()) return TextEffect();
   float reach = 0;
   for (const TextEffect& e : effects) reach += e.reach();
+  const bool displaces = anyDisplaces(effects);
   std::vector<TextEffect> operands = effects;
   return TextEffect::composite(
       "mix", {}, std::move(operands),
@@ -1402,7 +1482,7 @@ TextEffect mix(std::vector<TextEffect> effects) {
         }
         return out;
       },
-      reach);
+      reach, displaces);
 }
 
 TextEffect pass(Material material) {

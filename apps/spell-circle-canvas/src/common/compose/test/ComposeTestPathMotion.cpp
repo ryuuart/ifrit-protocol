@@ -1,8 +1,9 @@
-// Motion on a curved baseline: what a glyph's CENTRE does frame to frame
-// while a marquee turns. Everything here renders consecutive frames at a
-// fixed phase step and reads the INK back, so the measure is what the
-// screen shows rather than what the placement arithmetic intended — the
-// rounding a glyph's device origin takes happens below both.
+// What a glyph's CENTRE does frame to frame while its run is moving — a
+// marquee turning on its baseline, a figure turning above the type, or a
+// track carrying the letters on its own schedule. Everything here renders
+// consecutive frames at a fixed step and reads the INK back, so the measure
+// is what the screen shows rather than what the placement arithmetic
+// intended — the rounding a glyph's device origin takes happens below both.
 
 #include "ComposeTestSupport.h"
 
@@ -92,6 +93,23 @@ std::vector<SkPoint> ringTrack(float pixelSize) {
     track.push_back(inkCentroid(host, kField, kField));
   }
   return track;
+}
+
+/// The same ring wearing one fx track, with its baseline phase written as a
+/// PLAIN NUMBER — the run declares nothing through the baseline, so whatever
+/// grid its glyphs land on is the track's answer and nobody else's.
+Element ringWith(float at, float pixelSize, Track track) {
+  return box().child(text(u8"H", whiteStyle(pixelSize))
+                         .key("ring")
+                         .width(kField)
+                         .height(kField)
+                         .absolute()
+                         .left(0)
+                         .top(0)
+                         .onPath({.path = shapes::circle(),
+                                  .at = at,
+                                  .align = TextPath::Align::Center})
+                         .fx(std::move(track)));
 }
 
 /// How many DISTINCT frames a run produces as it slides through a pixel
@@ -208,6 +226,124 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
 
   EXPECT_LE(atRest, 3) << "a resting run is paying for the subpixel grid";
   EXPECT_GE(inMotion, 6) << "a turning run is rounding to whole pixels";
+}
+
+// THE THIRD WAY A RUN CREEPS: nothing above the type is turning and its
+// baseline is a level line standing still, but a live track is carrying
+// every letter across the device on its own schedule. A glyph under a slow
+// slide advances by a fraction of a pixel per frame exactly as one on a
+// turning ring does, and whole-pixel origins express that the same way —
+// not at all, and then a whole pixel at once.
+//
+// The master is driven so the LETTER's travel is uniform, which is what a
+// constant angular step buys the ring above: `fx::slide` places a glyph at
+// (1−t)³ of its distance, so stepping the inverse of that curve advances the
+// letter by exactly half a pixel a frame. Half a pixel is the interval that
+// separates the two placements — two steps of the finer grid, and never
+// enough to be sure of crossing a whole-pixel boundary. The window sits
+// where the slide's own fade has long since finished, so the letter is
+// solid ink throughout and the centroid is measuring placement alone.
+TEST(ComposePathMotion, ADisplacingTrackAdvancesSmoothlyUnderALiveProgress) {
+  constexpr float kDistance = 640.0f;
+  constexpr float kFromPx = 40.0f;  // where in the slide the window opens
+  constexpr float kTravel = 0.5f;   // …and how far the letter goes per frame
+  constexpr int kSlideFrames = 40;
+  for (const float size : {14.0f, 44.0f}) {
+    Host host(kField, kField);
+    choreograph::Output<float> progress{0.0f};
+    std::vector<SkPoint> track;
+    for (int i = 0; i < kSlideFrames; ++i) {
+      progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
+      host.composer.render(box().child(
+          text(u8"H", whiteStyle(size))
+              .key("run")
+              .width(kField)
+              .height(kField)
+              .absolute()
+              .left(0)
+              .top(0)
+              .fx({.effect = fx::slide(kDistance), .progress = &progress})));
+      host.frame();
+      track.push_back(inkCentroid(host, kField, kField));
+    }
+    const MotionStats s = motionOf(track);
+    SCOPED_TRACE(testing::Message()
+                 << "size " << size << " meanStep " << s.meanStep << " minStep "
+                 << s.minStep << " rmsJerk " << s.rmsJerk);
+    ASSERT_GT(s.meanStep, 0.1) << "the letter did not travel";
+    EXPECT_GT(s.minStep, 0.0) << "a frame the letter stood still";
+    EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "the letter's advance stalls";
+  }
+}
+
+// …AND A TRACK THAT MOVES NOTHING BUYS NOTHING. A fade is a coverage ramp:
+// every pen position is where the layout put it on every frame of it, so the
+// run is type at rest however hard its progress is running, and it keeps the
+// whole-pixel origins and the cheap atlas that go with that.
+TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
+  Host host(kField, kField);
+  choreograph::Output<float> progress{0.5f};  // bound: the track IS live
+  const TextEffect fade = fx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}});
+  const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
+    return ringWith(at, 44.0f, {.effect = fade, .progress = &progress});
+  });
+  EXPECT_LE(distinct, 3) << "a fade-only track is paying for the subpixel grid";
+}
+
+// A TABLE IS ANSWERED BY ITS OWN ENTRIES, and the two verdicts are measured
+// the same way so neither can be an accident of the measurement: the same
+// ring, the same live progress, the same slide of a pixel and a half — only
+// the lane the table publishes into differs.
+TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
+  choreograph::Output<float> progress{0.5f};
+  const TextEffect colourOnly =
+      fx::keys({{0.0f, {.colorMul = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
+  const TextEffect offset = fx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
+
+  Host cheapHost(kField, kField);
+  const int cheap = distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
+    return ringWith(at, 44.0f, {.effect = colourOnly, .progress = &progress});
+  });
+  Host movingHost(kField, kField);
+  const int moving = distinctFramesAcrossOnePixel(movingHost, [&](float at) {
+    return ringWith(at, 44.0f, {.effect = offset, .progress = &progress});
+  });
+
+  EXPECT_LE(cheap, 3) << "a colour-only table is paying for the subpixel grid";
+  EXPECT_GE(moving, 6) << "a table with an offset is rounding to whole pixels";
+}
+
+// A SETTLED TRACK IS TYPE AT REST, whatever it does while it runs. Its
+// glyphs are standing somewhere else and standing still, which is what
+// whole-pixel origins are for — and the proof is bytes: a settled slide
+// deviates nothing at all, so its frame must be the frame with no track on
+// it, mask for mask. Read off the declaration, so the last frame of the
+// motion and the first frame of the rest do not disagree.
+TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
+  const auto shot = [](Host& host, const Element& tree) {
+    host.composer.render(tree);
+    host.frame();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));
+    host.surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  };
+  Host bare(kField, kField);
+  const SkBitmap untracked = shot(bare, ringAt(0.05f, 44.0f));
+  Host settled(kField, kField);
+  const SkBitmap withTrack =
+      shot(settled,
+           ringWith(0.05f, 44.0f, {.effect = fx::slide(), .progress = 1.0f}));
+  for (int y = 0; y < kField; ++y)
+    for (int x = 0; x < kField; ++x)
+      ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
+          << "a settled slide moved the ink at " << x << "," << y;
+
+  Host sliding(kField, kField);
+  const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
+    return ringWith(at, 44.0f, {.effect = fx::slide(), .progress = 1.0f});
+  });
+  EXPECT_LE(distinct, 3) << "a settled track is paying for the subpixel grid";
 }
 
 // A TRACK'S OWN ROTATION TAKES THE SAME LADDER as the baseline's tangent.

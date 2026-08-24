@@ -1300,7 +1300,11 @@ Element& Element::variationDrive(const char (&tag)[5],
         mod.axis = driven;
         return mod;
       },
-      /*reach=*/0.0f);
+      // Only an ADVANCE-INVARIANT axis is honoured, which is precisely the
+      // condition that the glyphs keep the pen positions shaping gave them:
+      // a drive re-cuts outlines where they already stand, so a run under a
+      // sweeping grade is type at rest and keeps its whole-pixel origins.
+      /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
   track.progress = value;
   m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
