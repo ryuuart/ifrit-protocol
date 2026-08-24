@@ -7,13 +7,14 @@
 // SUBJECT  The spell circle as a CONSTRUCTION SEQUENCE. The screen circles
 //          are drawn as machinery — concentric rules that group into bands,
 //          a script register that girds each band, star polygons nested
-//          inside one another, seals orbiting on the vertices, everything
-//          turning at its own rate — and this study performs the order that
-//          machinery would be assembled in rather than presenting the
-//          finished plate: the rules are struck, each band is written, the
-//          stars are inscribed, the seals convene one at a time, and the
-//          emblem at the centre resolves last. The circle is INVENTED. It
-//          copies no specific circle and claims none.
+//          inside one another, a ring of small seals riding the rim and
+//          carried round it, everything turning at its own rate — and this
+//          study performs the order that machinery would be assembled in
+//          rather than presenting the finished plate: the rules are
+//          struck, each band is written, the stars are inscribed, the fire
+//          runs round the rim seal by seal, and the emblem at the centre
+//          resolves last. The circle is INVENTED. It copies no specific
+//          circle and claims none.
 //
 // -----------------------------------------------------------------------------
 // FROM THE RECORD — what was studied, and what each thing showed
@@ -53,7 +54,10 @@
 //     inscribed a little inside the ring it belongs to, and turning
 //     against each other; a copy of a figure rotated half a step as the
 //     standard way to double it; SMALL CIRCLES at every star vertex, of
-//     the order of a hundredth of the radius; radial spokes that stop
+//     the order of a hundredth of the radius, and SATELLITE SEALS an
+//     order larger riding the OUTERMOST ring — the sub-circles sit at the
+//     edge of the disc, not in the middle of it, and each is a small
+//     magic circle carrying its own ring of script; radial spokes that stop
 //     short of both ends of the annulus they cross; tick ladders offset
 //     half a step from the nodes so the two interleave; broken and dashed
 //     rings at something under half duty; two rings of script, the inner
@@ -73,12 +77,14 @@
 //   * The circle itself. This arrangement of those principles is not any
 //     circle that has been drawn: the radius table, the two nested star
 //     compounds ({12/3} outside {12/4}, three squares outside four
-//     triangles), the three twelve-fold spoke sets, the six seals on the
-//     even stations, the arc pair offset half a pitch, and every colour,
-//     radius and millisecond are composition. Two radii are not free —
-//     the circle under each compound is where that compound's chords run
-//     tangent, which is the reference rule that a figure decides the
-//     radius beneath it rather than being fitted to one.
+//     triangles), the three twelve-fold spoke sets, the twelve seals on
+//     the rim, the arc pair offset half a pitch, and every colour, radius
+//     and millisecond are composition. FOUR RADII ARE NOT FREE — the
+//     circle under each compound is where that compound's chords run
+//     tangent, and a seal's size and station radius are the span from the
+//     register's inner rule to a lip past the greatest circle. Both are
+//     the reference rule that a figure decides the radius beneath it
+//     rather than being fitted to one.
 //   * The CONTENT is invented outright and quotes nothing. The Latin of
 //     the invocation is this study's; the nine names are made up; the
 //     rune register is an invented alphabet dealt from a seeded walk over
@@ -93,12 +99,14 @@
 // -----------------------------------------------------------------------------
 // THE MACHINE, and what it puts under load
 //
-//   * SEVENTEEN TEXT-ON-PATH LEAVES at once: four full rings, six seal
-//     rings, and seven leaves whose baseline is a POLYGON'S CHORDS as
+//   * TWENTY-THREE TEXT-ON-PATH LEAVES at once: four full rings, twelve
+//     seal rings, and seven leaves whose baseline is a POLYGON'S CHORDS as
 //     separate OPEN contours, so caption k is addressed by (k+0.5)/n of
 //     one arc-length coordinate and needs no placement of its own. Ring
 //     sizes are FITTED, not guessed: each ring's string is measured
-//     straight and its type sized so the run girds its own circumference.
+//     straight and its type sized so the run girds its own circumference —
+//     which is why a seal's ring is written to a MARK COUNT: on a circle
+//     that small the number of marks is the only handle on their size.
 //   * THE SCHEDULE IS DECLARED, THEN READ BACK, never restated: every
 //     stage's window is computed from `Stagger::spanMs` at declare time —
 //     the seals chain each start off the span of the cascade before it —
@@ -136,11 +144,19 @@
 //     carries GRAD (so the ignition can swell the names' weight with no
 //     reshape), and two invented rune registers running from a monogram
 //     fifty pixels tall down to a grain too small to read as letters.
+//   * A TURNING RING OF TURNING SEALS, which is the one arrangement the
+//     framework's placement rule has to be right about: the carrier is a
+//     bound rotation ABOVE twelve text leaves, each seal a second bound
+//     rotation above its own, so every glyph on the rim lands somewhere
+//     else next frame. A run declares that from the transforms over it
+//     and takes subpixel origins for as long as they are live, which is
+//     what keeps a ring of moving letterforms from standing still and
+//     then hopping a whole pixel letter by letter.
 //   * THE LOAD, deliberately: per-glyph alpha, rotation, colour
 //     multiplier, colour screen and axis coordinate all varying at once
-//     across every glyph of the seventeen curved baselines; nine layers
-//     counter-turning at nine rates over cached recordings, and twelve
-//     more inside the seals; an ember pool stamped as one draw; and — for
+//     across every glyph of the twenty-three curved baselines; ten layers
+//     counter-turning at ten rates over cached recordings, and two more
+//     inside each seal; an ember pool stamped as one draw; and — for
 //     the ignition's own window — a full-band shader pass, a radial-ray
 //     material, a chromatic backdrop and a screened flood, every one of
 //     them gated so that a gain of zero is a node the painter never
@@ -153,23 +169,27 @@
 //               chained off this cascade's span.
 //   kSealBeat — how much of a seal's forming overlaps the next one's
 //               start. 1.0 is strictly one at a time; lower hands the eye
-//               on earlier.
+//               on earlier. Twelve seals want a lower number than six
+//               did: at 1.0 a ring of twelve is a roll call, and what the
+//               rim should read as is a fuse.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/rota_convocationis.cpp \
-//       --frame /tmp/rota_convocationis.png --at 13.5
+//       --frame /tmp/rota_convocationis.png --at 14.3
 //
 //   ~1.7 s  the compass: the rules and the rim's serration sweep on
 //   ~3.6 s  the invocation mid-write, the scribe point leading the letters
 //   ~5.5 s  the register lands and begins its endless shimmer
 //   ~7.0 s  the twelve arcs and the dashed ring struck
 //   ~9.2 s  the star compounds — a scribble of light resolving onto them
-//  ~13.5 s  the seal cycle: four lit, one forming, one dark
-//  ~15.9 s  the emblem resolved, the hub burning as the brightest thing
-//  ~16.6 s  ignition's crest — rays, flood, embers, a colour fringe
-//  ~22.0 s  the hum: the charged circle breathing, turning, drizzling
-//  loops on a dark sheet at 23.3 s.
+//  ~14.3 s  the seal cycle: the fire half way round the rim, seven lit,
+//           one forming, and the ring already off its stations
+//  ~17.0 s  the emblem resolved, the hub burning as the brightest thing
+//  ~18.8 s  ignition's crest — rays, flood, embers, a colour fringe
+//  ~23.5 s  the hum: twelve lit seals riding a turning rim, each turning
+//           on its own centre, over a circle breathing and drizzling
+//  loops on a dark sheet at 25.4 s.
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -235,12 +255,14 @@ constexpr float kR = 545.0f;             // the greatest circle
 // it makes, because that is how it was built: a band is a PAIR OF RULES
 // with something written or drawn between them, and no rule stands alone.
 // Two radii are not free — they are where a star's chords run tangent, so
-// the figure inside decides where the circle under it goes.
-constexpr float rEdge = 1.000f;      // ─┐ the serration: 240 teeth
-constexpr float rEdgeIn = 0.980f;    // ─┘
-constexpr float rRuneOut = 0.958f;   // ─┐ THE REGISTER — the rune band
-constexpr float rRune = 0.934f;      //   │ its baseline
-constexpr float rRuneIn = 0.910f;    // ─┘
+// the figure inside decides where the circle under it goes. Two more are
+// the seal ride below, which the same rule sets from this table's own
+// fences.
+constexpr float rEdge = 1.000f;      // ─┐ the serration: 240 teeth  ─┐
+constexpr float rEdgeIn = 0.980f;    // ─┘                            │ THE
+constexpr float rRuneOut = 0.958f;   // ─┐ THE REGISTER — the rune    │ SEAL
+constexpr float rRune = 0.934f;      //   │ band, and its baseline    │ RIDE
+constexpr float rRuneIn = 0.910f;    // ─┘                           ─┘
 constexpr float rVoxOut = 0.898f;    // ─┐ THE INVOCATION — Latin majuscule
 constexpr float rVox = 0.872f;       //   │
 constexpr float rVoxIn = 0.846f;     // ─┘
@@ -258,7 +280,7 @@ constexpr float rTex = 0.598f;       //   │
 constexpr float rTexIn = 0.572f;     // ─┘
 constexpr float rTexCase = 0.560f;   // ─┐ a fine serration, the texture
 constexpr float rSerrIn = 0.534f;    // ─┘ band's own companion ladder
-constexpr float rStar = 0.520f;      // {12/3} vertices; seal centres
+constexpr float rStar = 0.520f;      // {12/3} vertices
 constexpr float rCrescOut = 0.492f;  // ─┐ THREE crescents, 120° apart, laid
 constexpr float rCrescIn = 0.454f;   // ─┘ ACROSS the compound: the one
                                      //   three-fold mark on the plate
@@ -274,20 +296,34 @@ constexpr float rHubKern = 0.104f;   //   …and the ring its chords enclose:
                                      //   three nested circles, so the centre
                                      //   steps down as the plate does rather
                                      //   than stopping dead at one line
-constexpr float kSealR = 60.0f;      // seal outer radius, px
-constexpr float kSealRing = 47.0f;   // seal ring-text baseline radius, px
 constexpr float kSpurR = 23.0f;      // the one off-order mark, px
+
+// THE SEAL RIDE — where the twelve sub-seals stand, and how big they are.
+// Both numbers are read off the bands rather than chosen: a seal's inner
+// edge lands on the register's inner rule and its outer edge stands proud
+// of the greatest circle, so ONE SEAL IS EXACTLY AS TALL AS THE GROUND IT
+// STANDS ON — the register and the serration together — and breaks the
+// rim on its way out. That is the reason the seals are out here and not
+// at mid radius: the rim is where a small circle can cover a whole band
+// group without touching anything that is meant to be read, and the band
+// it covers is script-shaped rather than readable. The invocation, one
+// fence further in, is never crossed.
+constexpr float rSealLip = 1.032f;  // how far a seal stands past rEdge
+constexpr float rSealRide = (rRuneIn + rSealLip) * 0.5f;    // seal centres
+constexpr float kSealR = (rSealLip - rRuneIn) * 0.5f * kR;  // ≈33 px
+constexpr float kSealRing = kSealR * 0.78f;  // its ring-text baseline
 
 // ---- the writing pace -----------------------------------------------------
 constexpr float kStepMs = 55.0f;    // word to word round the band
 constexpr float kCrossMs = 190.0f;  // the scribe's extra pause at a cross
-constexpr float kSealBeat = 0.86f;  // fraction of a seal's span before the
+constexpr float kSealBeat = 0.55f;  // fraction of a seal's span before the
                                     // next one starts forming
 
 constexpr float kDeg = 3.14159265358979f / 180.0f;
-constexpr int kStations = 12;  // the circle's rotational symmetry
-constexpr int kSeals = 6;      // …and the seals', on the even stations
-constexpr int kEmbers = 96;    // the rim's rising sparks, then the drizzle
+constexpr int kStations = 12;        // the circle's rotational symmetry
+constexpr int kSeals = kStations;    // …and the seals', one per station
+constexpr int kLimens = kSeals / 2;  // the thresholds named on the chords
+constexpr int kEmbers = 96;  // the rim's rising sparks, then the drizzle
 
 // ---- content: invented, and invented in the open --------------------------
 
@@ -380,27 +416,35 @@ const char* kNames[9] = {"AZRAEVN", "VELMOTH",  "SIRAKEL",
  *  and each says something the circle then does. */
 const char* kInvocatio[8] = {
     "IN PRINCIPIO CIRCVLVS SCRIBITVR", "LITTERA SVRGIT IN ORBEM",
-    "DVODECIM RADII CONVENIVNT",       "SEX SIGILLA VIGILANT",
+    "DVODECIM RADII CONVENIVNT",       "BIS SENA SIGILLA VIGILANT",
     "STELLA IN STELLA VOLVITVR",       "NOMEN IN CORONA FRANGITVR",
     "ORDO EX ORDINE NASCITVR",         "ET SIGILLVM VIVIT"};
 
-/** THE SIX SEALS on the even stations. Each is a small circle of its own:
- *  a name, a word of the register, and an ordinal that decodes at its
- *  centre. The ordinals are the odd numbers, which is this study's
- *  arithmetic and nobody else's. */
+/** THE TWELVE SEALS riding the rim, one to a station. Each is a small
+ *  circle of its own: two words of the register — the band the seal
+ *  stands on, said back inside it — and an ordinal that decodes at its
+ *  centre. The polygon ladder runs three to eight and then repeats, so a
+ *  seal and the seal opposite it carry the same figure and the twelve
+ *  read as two sixes, which is this study's arithmetic and nobody
+ *  else's. */
 struct Seal {
-  const char* nomen;
-  const char* ordo;   // the ordinal, as the seal's centre writes it
-  int order;          // …and as a number: the spinning polygon's sides
-  const char* limen;  // the caption on the chord toward this station
+  const char* ordo;  // the ordinal, as the seal's centre writes it
+  int order;         // …and the spinning polygon's sides
 };
 constexpr Seal kSealTable[kSeals] = {
-    {"VELMOTH", "I", 3, "LIMEN PRIMVM"},
-    {"SIRAKEL", "III", 5, "LIMEN TERTIVM"},
-    {"OMBRIAX", "V", 7, "LIMEN QVINTVM"},
-    {"THELVNE", "VII", 8, "LIMEN SEPTIMVM"},
-    {"KARANDIS", "IX", 9, "LIMEN NONVM"},
-    {"ZEPHARIN", "XI", 11, "LIMEN VNDECIMVM"},
+    {"I", 3},   {"II", 4},   {"III", 5}, {"IV", 6}, {"V", 7},  {"VI", 8},
+    {"VII", 3}, {"VIII", 4}, {"IX", 5},  {"X", 6},  {"XI", 7}, {"XII", 8},
+};
+
+/** THE THRESHOLDS, named on the outer compound's chords: six of the
+ *  twelve, the odd ones. A caption no longer stands beside the seal it
+ *  names — the seals ride the rim and the chords are bands deeper in —
+ *  so the correspondence is carried by the numbering alone, which is how
+ *  a plate says two things belong together without drawing a line between
+ *  them. */
+constexpr const char* kLimina[kLimens] = {
+    "LIMEN PRIMVM",   "LIMEN TERTIVM", "LIMEN QVINTVM",
+    "LIMEN SEPTIMVM", "LIMEN NONVM",   "LIMEN VNDECIMVM",
 };
 
 // ---- the charge -----------------------------------------------------------
@@ -732,8 +776,14 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   ch::Output<float> starSpin{0};   // the {12/3} compound
   ch::Output<float> innerSpin{0};  // the {12/4} compound, counter to it
   ch::Output<float> hexSpin{0};    // the emblem's own figure, slowest
-  ch::Output<float> sealDrift[kSeals] = {};  // each seal's ring orbit
-  ch::Output<float> sealSpin[kSeals] = {};   // each seal's polygon
+  // THE RIM'S THREE MOTIONS, which is the reading the sub-seals exist for:
+  // the carrier brings the whole ring of stations round, each seal turns
+  // about its own centre inside it, and the polygon in each seal turns
+  // against its seal. Only the ordinal is held out of all three.
+  ch::Output<float> sealOrbit{0};    // the carrier: the station ring
+  ch::Output<float> sealUpright{0};  // …its negation, gimballing the ordinals
+  ch::Output<float> sealSpin[kSeals] = {};  // each seal about its own centre
+  ch::Output<float> sealCog[kSeals] = {};   // its polygon, against the seal
   ch::Output<float> scribeX{0}, scribeY{0}, scribeA{0};
   // The register's shimmer never lands. It is a LOOPING cascade, so the
   // master is a phase mod 1 and one sweep is one cycle: this output wraps
@@ -785,7 +835,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
 
   // The computed timeline, seconds. Every value is chained from a span.
   double tVox = 0, tRune = 0, tNames = 0, tTex = 0, tArc = 0, tStar = 0,
-         tInner = 0, limenAt[kSeals] = {}, tSeal[kSeals] = {}, tHub = 0,
+         tInner = 0, limenAt[kLimens] = {}, tSeal[kSeals] = {}, tHub = 0,
          tIgnite = 0, loopSecs = 30;
   double lastElapsed = 0;  // the scribe's decay reads real dt
   float voxSpanS = 0, runeSpanS = 0, nomSpanS = 0, texSpanS = 0, limenSpanS = 0,
@@ -1264,17 +1314,18 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   /** THE CAPTIONS on the outer compound's chords. They ride a SECOND path
    *  — the same twelve chords as OPEN contours — so chord k's midpoint is
    *  at exactly (k+0.5)/12 of one arc-length coordinate, and each caption
-   *  is a leaf addressed by fraction alone. Only the six that face a seal
-   *  are written; the other six chords carry the ladder's silence, which
-   *  is the asymmetry the idiom allows itself. They do not turn with the
-   *  figure: a caption is read, and the mechanism is what moves. */
+   *  is a leaf addressed by fraction alone. Only six of the twelve chords
+   *  are written; the other six carry the ladder's silence, which is the
+   *  asymmetry the idiom allows itself. They do not turn with the figure,
+   *  and they do not travel with the rim: a caption is read, and the
+   *  mechanism is what moves. */
   [[nodiscard]] Element limina() {
     Element fig = disc(kEye, rStar * kR).key("limina").hitTestable(false);
     const Shape chordPath =
-        kit::chords({.sides = kStations, .step = 3, .inset = kSealR * 1.24f});
-    for (int k = 0; k < kSeals; ++k) {
+        kit::chords({.sides = kStations, .step = 3, .inset = 74.0f});
+    for (int k = 0; k < kLimens; ++k) {
       fig.child(
-          text(toU8(kSealTable[k].limen), label(11.0f, kAsh, 2.0f))
+          text(toU8(kLimina[k]), label(11.0f, kAsh, 2.0f))
               .key("limen" + std::to_string(k))
               .absolute()
               .inset(0)
@@ -1293,14 +1344,23 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
   }
 
   /** ONE SEAL — a sub-circle that is a small magic circle of its own,
-   *  standing on one of the outer compound's vertices: rules struck, a
+   *  standing on the rim at one of the twelve stations: rules struck, a
    *  ring of lettering tumbling on, an ordinal decoding at the centre,
    *  and an order-sided polygon spinning behind it. Seal k's whole window
-   *  starts where seal k−1's span says, so the six form in turn and the
-   *  eye is handed round the figure. */
+   *  starts where seal k−1's span says, so the twelve ignite in turn as
+   *  the carrier brings them round, and what runs the rim is a fuse
+   *  rather than a ceremony of one seal at a time.
+   *
+   *  THE SEAL TURNS AS A BODY, and its ring text turns with it because it
+   *  IS the body: a circular baseline rotated about its own centre is the
+   *  same picture as the same run advanced along its path, so the letters
+   *  need no placement of their own: the seal is recorded once and
+   *  replayed under a bound transform, where a driven path phase would
+   *  re-place every glyph of every seal on every frame. That is what
+   *  makes the count affordable — a rim of twelve, not a handful. */
   [[nodiscard]] Element sigillum(int k) {
     const Seal& s = kSealTable[k];
-    const SkPoint c = P(station(k * 2), rStar);
+    const SkPoint c = P(station(k), rSealRide);
     const double at = tSeal[k];
     const std::string id = "seal" + std::to_string(k);
 
@@ -1321,7 +1381,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
             // that records once with the disc it sits on. It gives the
             // seal a lip of light without a second node and without a
             // shader.
-            .overlay(styles::innerGlow(studio::hex(0xE79A32, 0.30f), 12.0f))
+            .overlay(styles::innerGlow(studio::hex(0xE79A32, 0.30f), 8.0f))
             .opacity(beat(at, at + 0.4)));
     // The seal's own emissive rule. A seal is a small magic circle, so it
     // lights like one — but its two rules are concentric and cross
@@ -1329,9 +1389,9 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // core and halo are three uniforms of one shader rather than a union
     // and four fills.
     {
-      const sdf::Style lit{.borderWidth = 1.4f,
+      const sdf::Style lit{.borderWidth = 1.1f,
                            .borderColor = kCore,
-                           .glowRadius = 7.0f,
+                           .glowRadius = 6.0f,
                            .glowColor = studio::hex(0xFFC152, 0.42f)};
       const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
       seal.child(box()
@@ -1356,32 +1416,48 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         .child(box()
                    .key(id + "-rule-in")
                    .absolute()
-                   .inset(kSealR - kSealRing + 8.0f)
-                   .corners({kSealRing - 8.0f})
+                   .inset(kSealR - kSealRing + 7.0f)
+                   .corners({kSealRing - 7.0f})
                    .hitTestable(false)
                    .fill(Fill::none())
                    .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
                            util::stroke(0.7f, Fill::color(kIronDim))));
-    // The order-sided polygon, spinning once the seal is lit.
-    seal.child(box()
+    // THE TURNING BODY: everything in the seal that is not a circle and
+    // not the ordinal. The rules and the ground are concentric discs and
+    // a disc under rotation is the same disc, so they stay outside this
+    // node and nothing pays for turning them.
+    Element body = box()
+                       .key(id + "-body")
+                       .absolute()
+                       .inset(0)
+                       .hitTestable(false)
+                       .rotate(bind(&sealSpin[k]).target(0.0f, 360.0f));
+    // The order-sided polygon, turning AGAINST its own seal once lit, so
+    // the figure inside a seal and the seal around it are visibly two
+    // mechanisms and not one drawing.
+    body.child(box()
                    .key(id + "-poly")
                    .absolute()
-                   .inset(kSealR - 26.0f)
+                   .inset(kSealR - 16.0f)
                    .hitTestable(false)
                    .shape(shapes::polygon(s.order))
                    .fill(Fill::none())
-                   .stroke(util::stroke(0.8f, Fill::color(kIronDim)))
-                   .rotate(bind(&sealSpin[k]).target(0.0f, 360.0f))
+                   .stroke(util::stroke(0.9f, Fill::color(kIron)))
+                   .rotate(bind(&sealCog[k]).target(0.0f, 360.0f))
                    .opacity(beat(at + 0.3, at + 0.9)));
-    // The ring: the name and a word of the register — tumbling onto the
-    // circle, then orbiting; alternate seals orbit the other way.
-    seal.child(text(toU8(sealText[k]), ring(sealSize[k], kBone, 1.4f))
+    // The ring: two words of the register, tumbling onto the circle and
+    // then carried round by the body it belongs to. Its phase is a plain
+    // number — a twelfth per station, so no two seals open their text at
+    // the same clock angle — because the turning is the body's and a run
+    // that is not driving its own placement can rest at whole pixels
+    // until an ancestor moves it.
+    body.child(text(toU8(sealText[k]), ring(sealSize[k], kBone, 1.4f))
                    .key(id + "-ring")
                    .absolute()
                    .inset(kSealR - kSealRing)
                    .hitTestable(false)
                    .onPath({.path = shapes::circle(),
-                            .at = &sealDrift[k],
+                            .at = (float)k / (float)kSeals,
                             .align = TextPath::Align::Start,
                             .offset = -sealSize[k] * 0.34f,
                             .autoFlip = false})
@@ -1389,14 +1465,19 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                         .stagger = stagger(unit::Cluster,
                                            {.eachMs = 30, .durationMs = 480}),
                         .progress = beat(at + 0.25, at + 0.25 + sealSpanS)}));
-    // The ordinal at the centre, decoding — held, so a numeral waiting
-    // its beat is absent rather than churning wrong.
+    seal.child(std::move(body));
+    // THE ORDINAL at the centre, decoding — held, so a numeral waiting
+    // its beat is absent rather than churning wrong — and GIMBALLED: it
+    // carries the carrier's rotation backwards, so the one mark on the
+    // seal that has to be read stands upright at every station the rim
+    // brings it to while everything around it turns.
     seal.child(
-        text(toU8(std::string(s.ordo)), mono(21.0f, kGold, 2.0f))
+        text(toU8(std::string(s.ordo)), mono(12.0f, kGold, 1.0f))
             .key(id + "-ordo")
             .centerAt({kSealR, kSealR})
             .hitTestable(false)
-            .effect(styles::textGlow(kHalo, 4.0f))
+            .rotate(bind(&sealUpright).target(0.0f, 360.0f))
+            .effect(styles::textGlow(kHalo, 3.0f))
             .fx({.effect = fx::hold(fx::scramble(U"IVXLC", 12)),
                  .stagger =
                      stagger(unit::Cluster, {.eachMs = 90, .durationMs = 620}),
@@ -1622,7 +1703,6 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     panel.child(stella());
     panel.child(stellaInterior());
     panel.child(limina());
-    for (int k = 0; k < kSeals; ++k) panel.child(sigillum(k));
 
     // THE HUB'S OWN FRAME is struck with the inner compound, not with the
     // emblem it will hold: the centre of a figure like this is never a
@@ -1647,6 +1727,23 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // inside the layers that turn them.
     panel.child(emissive("rim-lit", glows[kGlowRim], &litRim));
     panel.child(emissive("nom-lit", glows[kGlowNom], &litNom));
+
+    // THE CARRIER: one node holding all twelve seals, turning them about
+    // the circle's own centre. It is painted here, after the rim's light,
+    // for the same reason each seal carries an opaque ground — a seal
+    // SITS ON the plate, and a rule that runs under one does not print
+    // across it however hard the rule is burning.
+    //
+    // A ring of stations that turns is what makes the seals read as
+    // MOUNTED rather than as drawn at twelve places: the whole rim is one
+    // mechanism, and the exception that proves it is the medallion below,
+    // which is at the rim and does not travel — the seals pass behind it.
+    Element ferrum =
+        box().key("ferrum").absolute().inset(0).hitTestable(false).rotate(
+            bind(&sealOrbit).target(0.0f, 360.0f));
+    for (int k = 0; k < kSeals; ++k) ferrum.child(sigillum(k));
+    panel.child(std::move(ferrum));
+
     panel.child(spur());
 
     // The embers: a live pool stamped as one draw, rising off the rim at
@@ -1730,7 +1827,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                                     .durationMs = 520},
                         .progress = beat(0.35, 1.8)}))
         .child(text(toU8(std::to_string(totalGlyphs) +
-                         " GLYPHS \xc2\xb7 17 CVRVED BASELINES \xc2\xb7 9 "
+                         " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
                          "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
                          "SPAN, NONE FITTED BY HAND"),
                     label(8.5f, studio::hex(0x8A8299, 0.42f), 2.4f))
@@ -1789,9 +1886,14 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     emblemText = deal(0x5EED4, 1, 3, 3);
     spurText = deal(0x5EED5, 1, 1, 1);
     spurText.pop_back();  // one letterform, and no trailing space
+    // A SEAL'S RING is two words of the register and a separator, and the
+    // COUNT IS WHAT SETS THE SIZE, because the ring is fitted to its own
+    // circumference like every other band here. Sixteen marks or so is
+    // what a circle this small wants: fewer and the letters come out
+    // taller than the annulus that fences them, more and the ring becomes
+    // grain, which is the texture band's job and not a seal's.
     for (int k = 0; k < kSeals; ++k)
-      sealText[k] = std::string(kSealTable[k].nomen) + " \xc2\xb7 " +
-                    deal(0x5EE00u + (uint32_t)k, 1, 3, 4) + "\xc2\xb7 ";
+      sealText[k] = deal(0x5EE00u + (uint32_t)k, 2, 7, 8) + "\xc2\xb7 ";
 
     voxSize = fitToRing(ctx, voxText, ring(18, kBone, 2.2f), rVox * kR);
     runeSize = fitToRing(ctx, runeText, rune(20, kRuneInk, 2.0f), rRune * kR);
@@ -1799,7 +1901,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     texSize = fitToRing(ctx, texText, rune(9, kAsh, 0.0f), rTex * kR, 0.995f);
     for (int k = 0; k < kSeals; ++k)
       sealSize[k] =
-          fitToRing(ctx, sealText[k], ring(11, kBone, 1.4f), kSealRing, 0.97f);
+          fitToRing(ctx, sealText[k], ring(9, kBone, 1.4f), kSealRing, 0.97f);
 
     // ---- the writing cue table: pace, pausing at each cross --------------
     voxCues.clear();
@@ -1866,7 +1968,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     tArc = tTex + texSpanS * 0.55;
     tStar = tArc + 1.5;
     tInner = tStar + 1.4;
-    for (int k = 0; k < kSeals; ++k)
+    for (int k = 0; k < kLimens; ++k)
       limenAt[k] = tInner + 0.5 + k * limenSpanS * 0.62;
     tSeal[0] = limenAt[2];
     for (int k = 1; k < kSeals; ++k)
@@ -1876,9 +1978,10 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     loopSecs = tIgnite + 2.6 + 2.8 + 1.6;
 
     // Mid-cycle among the seals: every band written, both compounds
-    // struck, three seals lit, one forming — the frame where the assembly
-    // reads.
-    ctx.captureAt(tSeal[3] + sealSpanS * 0.55);
+    // struck, the fire round the rim about half way — seven seals lit,
+    // one forming, the rest dark, and the carrier far enough round that
+    // the ring is visibly off its stations.
+    ctx.captureAt(tSeal[7] + sealSpanS * 0.55);
 
     // The chained timeline, printed: every number below came out of a
     // span, and this is where to read what the chaining resolved to.
@@ -1896,8 +1999,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                   glyphsOf(texText) + glyphsOf(hubRuneText) +
                   glyphsOf(emblemText) + glyphsOf(spurText);
     for (int k = 0; k < kSeals; ++k)
-      totalGlyphs += glyphsOf(sealText[k]) + glyphsOf(kSealTable[k].ordo) +
-                     glyphsOf(kSealTable[k].limen);
+      totalGlyphs += glyphsOf(sealText[k]) + glyphsOf(kSealTable[k].ordo);
+    for (const char* l : kLimina) totalGlyphs += glyphsOf(l);
 
     bakeGeometry();
     ctx.composer.render(describe());
@@ -2189,10 +2292,22 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // where every glyph rests at its landed deviation and the crest is
     // nowhere; after that it wraps forever on the cascade's own period.
     runePhase = tc > runeOn ? turn(runeOn, shimmerS) : 0.0f;
+    // THE RIM'S OWN TRAIN, three rates deep and each about four times the
+    // one that carries it, so what the eye reads is nested mechanism and
+    // not one speed applied three times. The CARRIER is the slowest
+    // turning thing on the plate that is not lettering — a wheel moving
+    // rather than a spin — and it runs AGAINST the register band beneath
+    // it, so the seals visibly cross the script they stand on. Each SEAL
+    // turns about its own centre four times faster, and NEIGHBOURS TURN
+    // OPPOSITE WAYS: the rim reads as a gear train because adjacent teeth
+    // must. Each polygon turns faster again and against its own seal. The
+    // carrier starts when the first seal lights: a ring of stations is a
+    // fixed array until there is something mounted on it to carry.
+    sealOrbit = turn(tSeal[0], 68.0);
+    sealUpright = 1.0f - sealOrbit.value();
     for (int k = 0; k < kSeals; ++k) {
-      const double on = tSeal[k] + 0.25 + sealSpanS;
-      sealDrift[k] = turn(on, k % 2 ? -15.0 : 15.0);
-      sealSpin[k] = turn(tSeal[k] + 0.3, k % 2 ? 11.0 : -11.0);
+      sealSpin[k] = turn(tSeal[k] + 0.3, k % 2 ? 17.0 : -17.0);
+      sealCog[k] = turn(tSeal[k] + 0.3, k % 2 ? -9.0 : 9.0);
     }
 
     stepFire(tc);
