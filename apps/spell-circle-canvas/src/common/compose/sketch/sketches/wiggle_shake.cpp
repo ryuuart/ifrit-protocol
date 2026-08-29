@@ -26,7 +26,6 @@
 #include <cmath>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 namespace {
 

@@ -105,8 +105,7 @@ struct ZelligeScene final : Scene {
                    // Carved-plaster depth: the Photoshop route, no shader.
                    .foreground(styles::InnerShadow{{0, 0, 0, 0.38f}, {0, 4}, 9})
                    .foreground(styles::innerGlow({1, 1, 1, 0.18f}, 5))
-                   .stroke(sigil::compose::util::stroke(2.5f,
-                                                        Fill::color(zw::kInk))))
+                   .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk))))
         .child(text(toU8(label), zw::type(13, zw::kInk, 1.2f)));
   }
 

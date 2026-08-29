@@ -140,8 +140,8 @@ inline Element boneFrame(float w, float h, float radius = 3) {
           {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
       .foreground(styles::BevelEmboss{
           1.6f, 2.4f, 120, {1, 1, 1, 0.35f}, {0, 0, 0, 0.65f}})
-      .foreground(util::stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
-                               PathFormat::Align::Outer));
+      .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
+                         PathFormat::Align::Outer));
 }
 
 /** A bar: bone frame, sunk track, content, and Veloren's decay ghost —
@@ -444,10 +444,9 @@ struct WorldHudScene final : Scene {
                     {0, 0}, {0, 24}, {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
                 // several glyphs are line-only (frost, dash, bow):
                 // a fill alone leaves them invisible
-                .stroke(util::stroke(2.2f, Fill::color(wh::kBoneHi)))
-                .stroke(util::stroke(3.4f,
-                                     Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
-                                     PathFormat::Align::Outer)));
+                .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
+                .stroke(stroke(3.4f, Fill::color({0.04f, 0.03f, 0.02f, 0.75f}),
+                               PathFormat::Align::Outer)));
       // four of them are cooling down: the sweep Veloren draws as a dark
       // wipe over the icon
       if (i >= 1 && i <= 4)
@@ -558,17 +557,16 @@ struct WorldHudScene final : Scene {
                    .corners({3})
                    .fill(Material::solid(wh::kEnemyHp)))
         // the ring
-        .child(
-            box()
-                .inset(0)
-                .corners({d * 0.5f})
-                .foreground(util::stroke(
-                    5.0f,
-                    util::linearGradient({0, 0}, {0, d},
-                                         {wh::kBoneHi, wh::kBone, wh::kBoneLo}),
-                    PathFormat::Align::Inner))
-                .foreground(util::stroke(
-                    1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
+        .child(box()
+                   .inset(0)
+                   .corners({d * 0.5f})
+                   .foreground(stroke(
+                       5.0f,
+                       linearGradient({0, 0}, {0, d},
+                                      {wh::kBoneHi, wh::kBone, wh::kBoneLo}),
+                       PathFormat::Align::Inner))
+                   .foreground(
+                       stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))))
         .child(text(toU8("N"), wh::type(11, wh::kInk, 1.0f, 640))
                    .left(d * 0.5f - 4)
                    .top(7))
@@ -605,30 +603,30 @@ struct WorldHudScene final : Scene {
                       .zIndex(6)
                       .staggerChildren(70ms);
     for (const Pip& p : kPips)
-      row.child(box()
-                    .width(Dim(30.0f))
-                    .height(Dim(30.0f))
-                    .corners({4})
-                    .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-                    .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
-                    .fill(Material::linear({0, 0}, {0, 30},
-                                           {{0.0f, worldhud::C(0x2A2118)},
-                                            {1.0f, worldhud::C(0x120C08)}}))
-                    .foreground(
-                        util::stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
-                                                        p.color.fB, 0.9f})))
-                    .alignItems(Align::Center)
-                    .justify(Justify::Center)
-                    // the drain: a dark wipe from the bottom, under the label
-                    .child(box()
-                               .left(0)
-                               .bottom(0)
-                               .width(Dim(30.0f))
-                               .height(Dim(30.0f * (1.0f - p.left)))
-                               .fill(Material::solid({0, 0, 0, 0.62f}))
-                               .zIndex(1))
-                    .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
-                               .zIndex(2)));
+      row.child(
+          box()
+              .width(Dim(30.0f))
+              .height(Dim(30.0f))
+              .corners({4})
+              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+              .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
+              .fill(Material::linear({0, 0}, {0, 30},
+                                     {{0.0f, worldhud::C(0x2A2118)},
+                                      {1.0f, worldhud::C(0x120C08)}}))
+              .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
+                                                    p.color.fB, 0.9f})))
+              .alignItems(Align::Center)
+              .justify(Justify::Center)
+              // the drain: a dark wipe from the bottom, under the label
+              .child(box()
+                         .left(0)
+                         .bottom(0)
+                         .width(Dim(30.0f))
+                         .height(Dim(30.0f * (1.0f - p.left)))
+                         .fill(Material::solid({0, 0, 0, 0.62f}))
+                         .zIndex(1))
+              .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
+                         .zIndex(2)));
     return row;
   }
 
@@ -656,22 +654,21 @@ struct WorldHudScene final : Scene {
                        .zIndex(6)
                        .staggerChildren(90ms);
     for (const Line& l : kLines)
-      feed.child(
-          box()
-              .row()
-              .alignItems(Align::Center)
-              .gap(7)
-              .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-              .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
-              .child(box()
-                         .width(Dim(16.0f))
-                         .height(Dim(16.0f))
-                         .corners({2})
-                         .fill(Material::solid({l.color.fR * 0.28f,
-                                                l.color.fG * 0.28f,
-                                                l.color.fB * 0.28f, 1}))
-                         .foreground(util::stroke(1.0f, Fill::color(l.color))))
-              .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
+      feed.child(box()
+                     .row()
+                     .alignItems(Align::Center)
+                     .gap(7)
+                     .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+                     .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
+                     .child(box()
+                                .width(Dim(16.0f))
+                                .height(Dim(16.0f))
+                                .corners({2})
+                                .fill(Material::solid({l.color.fR * 0.28f,
+                                                       l.color.fG * 0.28f,
+                                                       l.color.fB * 0.28f, 1}))
+                                .foreground(stroke(1.0f, Fill::color(l.color))))
+                     .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
     return feed;
   }
 
@@ -696,8 +693,8 @@ struct WorldHudScene final : Scene {
                    .width(Dim(168.0f))
                    .height(Dim(9.0f))
                    .fill(Material::solid(worldhud::kTrack))
-                   .foreground(util::stroke(
-                       1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
+                   .foreground(
+                       stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                    .child(box()
                               .left(1)
                               .top(1)

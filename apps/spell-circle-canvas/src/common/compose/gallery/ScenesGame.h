@@ -116,11 +116,11 @@ struct BotanicalScene final : Scene {
     }
 
     return stack()
-        .fill(sigil::compose::util::linearGradient({0, 0}, {0, 640},
-                                                   {{0.13f, 0.09f, 0.26f, 1},
-                                                    {0.72f, 0.36f, 0.34f, 1},
-                                                    {0.98f, 0.75f, 0.45f, 1}},
-                                                   {0.0f, 0.72f, 1.0f}))
+        .fill(sigil::compose::linearGradient({0, 0}, {0, 640},
+                                             {{0.13f, 0.09f, 0.26f, 1},
+                                              {0.72f, 0.36f, 0.34f, 1},
+                                              {0.98f, 0.75f, 0.45f, 1}},
+                                             {0.0f, 0.72f, 1.0f}))
         // Ground
         .child(custom([](SkCanvas& c, const PaintContext& ctx) {
                  SkPaint p;

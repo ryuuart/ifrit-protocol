@@ -80,10 +80,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Instruments.h>
 #include <sigilsketch/Sketch.h>
 
 #include <string>
@@ -91,20 +91,19 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 namespace {
 
 constexpr float kW = 1080.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = studio::hex(0x101014);
-constexpr SkColor4f kInk = studio::hex(0xF6F2E9);
-constexpr SkColor4f kLabel = studio::hex(0x848B99);
-constexpr SkColor4f kFaint = studio::hex(0x2E3440);
-constexpr SkColor4f kX = studio::hex(0xFF7A59);  // scaleX / skewX
-constexpr SkColor4f kY = studio::hex(0x5AC8F5);  // scaleY
-constexpr SkColor4f kRest = studio::hex(0x4A5262);
+constexpr SkColor4f kPaper = hex(0x101014);
+constexpr SkColor4f kInk = hex(0xF6F2E9);
+constexpr SkColor4f kLabel = hex(0x848B99);
+constexpr SkColor4f kFaint = hex(0x2E3440);
+constexpr SkColor4f kX = hex(0xFF7A59);  // scaleX / skewX
+constexpr SkColor4f kY = hex(0x5AC8F5);  // scaleY
+constexpr SkColor4f kRest = hex(0x4A5262);
 
 constexpr float kWordSize = 68.0f;
 constexpr float kEachMs = 62.0f;
@@ -242,7 +241,7 @@ struct ElasticType : sigil::compose::sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
                                               float size = 11.5f,
                                               float track = 2.4f) const {
-    return studio::type(
+    return type(
         {.face = faceLabel, .size = size, .color = color, .track = track});
   }
 
@@ -253,8 +252,8 @@ struct ElasticType : sigil::compose::sketch::Sketch {
    *  and its marks are one body and squash together. */
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
-    const sigil::weave::TextStyle set = studio::type(
-        {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
+    const sigil::weave::TextStyle set =
+        type({.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph
@@ -264,7 +263,7 @@ struct ElasticType : sigil::compose::sketch::Sketch {
         .column()
         .gap(8)
         .child(text(toU8(caption), small(kLabel)))
-        .child(debug::restGhost(
+        .child(kit::restGhost(
             text(toU8(word), set)
                 .key(word)
                 .fx({.effect = std::move(effect),
@@ -293,7 +292,7 @@ struct ElasticType : sigil::compose::sketch::Sketch {
         .gap(26)
         .fill(Material::linear(
             {0, 0}, {0, kH},
-            {{0.0f, kPaper}, {0.55f, studio::hex(0x15151B)}, {1.0f, kPaper}}))
+            {{0.0f, kPaper}, {0.55f, hex(0x15151B)}, {1.0f, kPaper}}))
         .child(box()
                    .row()
                    .alignItems(Align::End)
@@ -349,12 +348,12 @@ struct ElasticType : sigil::compose::sketch::Sketch {
     // table laid out along the line.
     ctx.captureAt(1.15);
 
-    face = studio::pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
-    faceLabel = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
+    faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      pass = studio::phase(t, kLoop);
+      pass = motion::phase(t, kLoop);
       return true;
     });
 

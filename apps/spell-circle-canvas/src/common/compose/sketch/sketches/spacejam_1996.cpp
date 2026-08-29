@@ -119,7 +119,7 @@
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -130,7 +130,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -241,7 +240,7 @@ inline Element rect(float x, float y, float w, float h) {
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
 inline Element sphere(SkPoint c, float r, Material m) {
-  return disc(c, r).shape(shapes::circle()).fill(std::move(m));
+  return kit::disc(c, r).shape(shapes::circle()).fill(std::move(m));
 }
 
 // ---------------------------------------------------------------------------
@@ -449,7 +448,7 @@ inline Element starTile() {
   // single-level dots, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
-    tile.child(disc({S(g[0]), S(g[1])}, S(g[2]))
+    tile.child(kit::disc({S(g[0]), S(g[1])}, S(g[2]))
                    .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, {1, 1, 1, 0.0f}},
                                              {0.74f, {1, 1, 1, 0.0f}},
@@ -469,7 +468,7 @@ inline Element starTile() {
     // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
-    tile.child(disc({S((float)s.x), S((float)s.y)}, R)
+    tile.child(kit::disc({S((float)s.x), S((float)s.y)}, R)
                    .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, {L, L, L, 1.0f}},
                                              {0.24f, {L, L, L, 0.66f}},
@@ -488,7 +487,7 @@ inline Element starTile() {
       const int pts = eight ? 8 : 4;
       const float waist = eight ? 0.15f : 0.12f;
       const float len = S(eight ? 4.8f + 6.6f * L : 4.2f + 6.0f * L);
-      Element sp = disc({S((float)s.x), S((float)s.y)}, len)
+      Element sp = kit::disc({S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blend(SkBlendMode::kPlus);
@@ -591,7 +590,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
 inline Element artBball(sigil::weave::FontContext& f) {
   const float W = S(62), H = S(62);
   return artBox(W, H)
-      .child(disc({S(31), S(37.5f)}, S(25.5f))
+      .child(kit::disc({S(31), S(37.5f)}, S(25.5f))
                  .shape(shapes::circle())
                  .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300),
                                     C5(0x843900), 0.055f))

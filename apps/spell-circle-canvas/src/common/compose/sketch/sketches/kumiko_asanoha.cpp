@@ -100,7 +100,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 
 namespace {
@@ -702,8 +701,7 @@ Element stripElement(const Strip& s, TimberBank& bank,
                                           {1, 0.96f, 0.86f, bevelAlpha},
                                           {0.14f, 0.09f, 0.03f, bevelAlpha}})
           // The seam every abutting piece shows against its neighbour.
-          .stroke(
-              util::stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner));
+          .stroke(stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner));
   if (fade) e.opacity(fade);
   if (pop) e.scale(pop);
   return e;
@@ -930,7 +928,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // A faint vertical vignette — the near-side room, in shadow.
         .child(box()
                    .inset(0, 0, 0, 0)
-                   .fill(util::radialGradient(
+                   .fill(radialGradient(
                        {700, 500}, 920,
                        {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
                        {0.30f, 0.72f, 1.0f})));

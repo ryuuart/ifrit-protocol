@@ -35,7 +35,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace geometry = sigil::geometry;
 
 namespace {
@@ -153,8 +152,8 @@ Element splat(geometry::Cloud cloud) {
            style.tintLane = "tint";
            style.additive = false;
            style.depthSort = true;
-           geometry::points::drawBillboards(canvas, cloud, lookDown(), paint.size,
-                                         style);
+           geometry::points::drawBillboards(canvas, cloud, lookDown(),
+                                            paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);
@@ -210,13 +209,14 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     saved = geometry::pop::on(seed).op(kRingLarger).cloud();
     // 2. Peak everyone OUTSIDE the ring: the group inverted into a
     // second lane by a Math, and the peak masked by that.
-    peaked = geometry::pop::on(seed)
-                 .copy("ring", "outside")
-                 .op(geometry::pop::Math{"outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
-                 .peak(60)
-                 .masked("outside")
-                 .op(kRingLarger)
-                 .cloud();
+    peaked =
+        geometry::pop::on(seed)
+            .copy("ring", "outside")
+            .op(geometry::pop::Math{"outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
+            .peak(60)
+            .masked("outside")
+            .op(kRingLarger)
+            .cloud();
     // 3. Only the ring turns.
     twisted = geometry::pop::on(seed)
                   .twist(kTwistDeg, {0, 1, 0}, -1, 1)

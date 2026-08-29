@@ -107,11 +107,11 @@ struct ManuscriptScene final : Scene {
             .child(box()
                        .inset(26, 22, 26, 22)
                        .corners({6})
-                       .background(sigil::compose::util::shadow(
-                           {0, 0, 0, 0.55f}, {5, 7}, 16))
+                       .background(
+                           sigil::compose::shadow({0, 0, 0, 0.55f}, {5, 7}, 16))
                        .fill(parchmentFill(pal.parchment))
-                       .foreground(sigil::compose::util::stroke(
-                           2.2f, Fill::color(pal.stem)))
+                       .foreground(
+                           sigil::compose::stroke(2.2f, Fill::color(pal.stem)))
                        // Inner gilded dashed rule (the broken hairline the
                        // corner flourishes dance around).
                        .child(box().inset(14).foreground(goldDash)))
@@ -130,11 +130,11 @@ struct ManuscriptScene final : Scene {
                               kSceneSize.height() - 146 - 98)
                        .zIndex(3)
                        .corners({8})
-                       .background(sigil::compose::util::shadow(
-                           {0, 0, 0, 0.35f}, {2, 3}, 7))
+                       .background(
+                           sigil::compose::shadow({0, 0, 0, 0.35f}, {2, 3}, 7))
                        .fill(Fill::color(pal.stem))
-                       .foreground(sigil::compose::util::stroke(
-                           1.6f, Fill::color(pal.gold)))
+                       .foreground(
+                           sigil::compose::stroke(1.6f, Fill::color(pal.gold)))
                        .alignItems(Align::Center)
                        .justify(Justify::Center)
                        .child(box().inset(5).foreground(goldDash))
@@ -260,7 +260,7 @@ struct NineSliceScene final : Scene {
     const float breathH = 130 + 34 * stretch;
 
     return stack()
-        .fill(sigil::compose::util::linearGradient(
+        .fill(sigil::compose::linearGradient(
             {0, 0}, {0, 640},
             {{0.09f, 0.07f, 0.10f, 1}, {0.05f, 0.06f, 0.09f, 1}}))
         // The source texture at natural size, labeled.

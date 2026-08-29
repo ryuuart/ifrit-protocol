@@ -260,7 +260,7 @@ struct KineticCardScene final : Scene {
                                             {560ms, &ch::easeOutQuad, 840ms}))
                            .margin(0, 22, 0, 0))
                 .child(box().grow(1)))
-        .child(util::marquee(tickerContent(), &tickX, kc::kTickerGap)
+        .child(marquee(tickerContent(), &tickX, kc::kTickerGap)
                    .inset(0, kc::kH - kc::kTickerH, 0, 0)
                    .opacity(animate(from(0.0f).to(1.0f),
                                     {560ms, &ch::easeOutQuad, 1040ms}))

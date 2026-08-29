@@ -91,8 +91,8 @@
 //                         the almucantars
 //   bind()                one rete-rotation Output remapped at eight call
 //                         sites; one sun-longitude Output at four
-//   debug::coverage       the 12 zodiac cells tile the ecliptic ring
-//   debug::endpointDegrees   the rete is ONE PIERCED SHEET: no spur, one
+//   test::coverage       the 12 zodiac cells tile the ecliptic ring
+//   test::endpointDegrees   the rete is ONE PIERCED SHEET: no spur, one
 //                         component — a degree-1 endpoint that is not a
 //                         thorn tip is a piece that falls out of the object
 //   brush::taper        the star thorns
@@ -126,7 +126,6 @@
 #include <include/core/SkTypeface.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
@@ -134,9 +133,10 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
+#include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 
@@ -148,13 +148,12 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
 
-using studio::hex;  // 0xRRGGBB -> SkColor4f
+using sigil::compose::hex;  // 0xRRGGBB -> SkColor4f
 
 // ---------------------------------------------------------------------------
 // palette — luminance percentiles over the hue-masked brass of the 1466
@@ -307,7 +306,7 @@ const char* const kSigns[12] = {
     "LIBRA", "SCORPIVS", "SAGITTARIVS", "CAPRICORNVS", "AQVARIVS", "PISCES"};
 
 /** λ → the angle about the ECLIPTIC CIRCLE'S OWN centre. Getting this map
- *  wrong is what produces the gaps and overlaps debug::coverage catches. */
+ *  wrong is what produces the gaps and overlaps test::coverage catches. */
 float ringAngle(float lamDeg) {
   const SkPoint p = projRA(sunDec(lamDeg), sunRA(lamDeg));
   float a = std::atan2(p.fY - kEclCy, p.fX) / kD;
@@ -379,7 +378,7 @@ const char* const kMonths[12] = {"IAN", "FEB", "MAR", "APR", "MAI", "IVN",
 // A rete is ONE PIERCED SHEET. Every bar has to connect: a degree-1 endpoint
 // that is not a star's tip is a spur, and a disconnected component is a piece
 // that FALLS OUT OF THE INSTRUMENT. So the rete is built as a graph first and
-// drawn from it second, and debug::endpointDegrees audits the graph.
+// drawn from it second, and test::endpointDegrees audits the graph.
 
 constexpr float kRingSk = 0.9790f;  // outer ring centreline (band .958–1.0)
 constexpr float kBarW = 0.040f;     // I.21's bars, off MHS 45133
@@ -605,11 +604,11 @@ std::vector<Piece> retePieces(const Rete& r) {
 // this can name its own four parameters over it.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
-  return studio::type(
+  return sigil::compose::type(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
-using studio::ramp;  // (startMs, durationMs) -> a Transition
+using motion::ramp;  // (startMs, durationMs) -> a Transition
 
 /** THE ENGRAVED V-GROOVE. An engraved line is not a stroke, it is a cut with
  *  a shadowed wall and a lit wall — a CROSS-SECTION, which is the one paint
@@ -637,7 +636,7 @@ Fill grooveFill(float rad, float w, float darkA, float liteA) {
 Element cut(SkPoint mc, float mr, float w, float darkA, float liteA,
             const std::string& key) {
   const float rad = mr * kR;
-  return disc(PL(mc.fX, mc.fY), rad)
+  return kit::disc(PL(mc.fX, mc.fY), rad)
       .key(key)
       .shape(shapes::circle())
       .fill(Fill::none())
@@ -887,7 +886,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       PathFormat dotted{.width = 1.5f,
                         .strokeFill = Fill::color(hex(0x3a2a10, 0.42f)),
                         .dashIntervals = {3.0f, 5.0f}};
-      g.child(disc(PL(0, almCy(-18.0f)), almR(-18.0f) * kR)
+      g.child(kit::disc(PL(0, almCy(-18.0f)), almR(-18.0f) * kR)
                   .key("twilight")
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -937,7 +936,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         for (int s = -1; s <= 1; s += 2) {
           const float rad = rr * kR;
           sky.child(
-              disc(local(s * cx, kAzCy), rad)
+              kit::disc(local(s * cx, kAzCy), rad)
                   .key("az" + std::to_string(i * s))
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -952,7 +951,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       // tan(45−φ/2)·tan(45+φ/2) = 1
       {
         const float rad = kAzA * kR;
-        sky.child(disc(local(0, kAzCy), rad)
+        sky.child(kit::disc(local(0, kAzCy), rad)
                       .key("azPV")
                       .shape(shapes::circle())
                       .fill(Fill::none())
@@ -1009,7 +1008,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
           continue;
         const float rad = c.r * kR;
         night.child(
-            disc(PL(c.cx, c.cy), rad)
+            kit::disc(PL(c.cx, c.cy), rad)
                 .key("hr" + std::to_string(k))
                 .shape(shapes::circle())
                 .fill(Fill::none())
@@ -1048,7 +1047,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     // Exact invariant: √(R_eq² + R_eq²/tan²φ) = R_eq/sin φ, to the last bit
     // of a double. The cheapest real check on the whole instrument.
     for (int s = -1; s <= 1; s += 2)
-      g.child(disc(PL(s * kReq, 0), 5.0f)
+      g.child(kit::disc(PL(s * kReq, 0), 5.0f)
                   .key(std::string("ew") + (s < 0 ? "E" : "W"))
                   .shape(shapes::circle())
                   .fill(Fill::color(kTrace))
@@ -1056,7 +1055,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // --- the zenith ------------------------------------------------------
     g.child(
-        disc(PL(0, kYzen), 3.6f)
+        kit::disc(PL(0, kYzen), 3.6f)
             .key("zenith")
             .shape(shapes::circle())
             .fill(Fill::color(hex(0x3a2a10, 0.85f)))
@@ -1083,13 +1082,13 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     const float cy = almCy(h), ra = almR(h);
 
     // the sun's declination circle
-    g.child(disc(PL(0, 0), rs * kR)
+    g.child(kit::disc(PL(0, 0), rs * kR)
                 .key("tdec")
                 .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(stroke(2.0f, Fill::color(hex(0x2f6f9c, 0.85f)))));
     // the almucantar for the measured altitude
-    g.child(disc(PL(0, cy), ra * kR)
+    g.child(kit::disc(PL(0, cy), ra * kR)
                 .key("talm")
                 .shape(shapes::circle())
                 .fill(Fill::none())
@@ -1100,7 +1099,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     const float x = std::sqrt(std::max(0.0f, rs * rs - y * y));
     for (int s = -1; s <= 1; s += 2) {
       const SkPoint p = PL(s * x, y);
-      g.child(disc(p, 23.0f)
+      g.child(kit::disc(p, 23.0f)
                   .key(std::string("xr") + (s < 0 ? "a" : "b"))
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -1394,7 +1393,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       if (i == 3) {
         // ALHABOR — the dog-star. The 1326 maker gave it a dog's head, and
         // it is the joke he built into the object.
-        g.child(disc(c, 0.030f * kR)
+        g.child(kit::disc(c, 0.030f * kR)
                     .key("dog")
                     .shape(shapes::blob(7u, 0.30f, 7))
                     .fill(Fill::color(kBrassP70))
@@ -1407,19 +1406,19 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .rotate(-40.0f)
                     .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))));
         // the ear and the muzzle
-        g.child(disc({c.fX - 0.020f * kR, c.fY - 0.020f * kR}, 0.011f * kR)
+        g.child(kit::disc({c.fX - 0.020f * kR, c.fY - 0.020f * kR}, 0.011f * kR)
                     .key("dogear")
                     .shape(shapes::polygon(3, 20))
                     .fill(Fill::color(kBrassP70))
                     .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))));
         g.child(
-            disc(c, 3.0f)
+            kit::disc(c, 3.0f)
                 .key("dogeye")
                 .shape(shapes::circle())
                 .fill(Fill::color(hex(0x2a1d08, 0.8f)))
                 .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300))));
       } else {
-        g.child(disc(c, 4.2f)
+        g.child(kit::disc(c, 4.2f)
                     .key("tip" + std::to_string(i))
                     .shape(shapes::circle())
                     .fill(Fill::color(kBrassP90))
@@ -1458,7 +1457,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
               .opacity(
                   animate(from(0.0f).to(1.0f),
                           ramp(tRete * 1000 + 2400 + (float)i * 30, 500))));
-      g.child(disc(b, 2.6f)
+      g.child(kit::disc(b, 2.6f)
                   .key("ghost" + std::to_string(i))
                   .shape(shapes::circle())
                   .fill(Fill::color(hex(0x2a1d08, 0.45f)))
@@ -1494,7 +1493,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       m.preTranslate(-rad, -rad);
       inner = solid.makeTransform(m);
       Op(solid, inner, kDifference_SkPathOp, &ring);
-      return disc(at, rad)
+      return kit::disc(at, rad)
           .key(key)
           .shape([ring](SkSize) { return ring; })
           .fill(brassDisc(at, rad, 0.66f))
@@ -1513,7 +1512,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // --- the central rosette --------------------------------------------
     g.child(
-        disc(PL(0, 0), 0.110f * kR)
+        kit::disc(PL(0, 0), 0.110f * kR)
             .key("rosette")
             .shape(shapes::star(12, 0.52f, 0.16f))
             .fill(brassDisc({kCx, kCy}, 0.110f * kR, 0.68f))
@@ -1526,7 +1525,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                              ramp(tRete * 1000 + 900, 500, ease::outBack()))));
 
     // --- the almury: "the Denticle of Capricorne" (I.23), at 0° Capricorn -
-    g.child(disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
+    g.child(kit::disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
                 .key("almury")
                 .shape(shapes::polygon(3, 180))
                 .fill(brassDisc({kCx, kCy + kR}, 0.048f * kR, 0.68f))
@@ -1549,7 +1548,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // the mater's brass field
     g.child(
-        disc({kCx, kCy}, kMaterR)
+        kit::disc({kCx, kCy}, kMaterR)
             .key("mater")
             .shape(shapes::circle())
             .fill(brassDisc({kCx, kCy}, kMaterR, 0.50f))
@@ -1565,7 +1564,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     // because it must FILL its box — radialUnit's radius is a fraction of
     // the HALF-DIAGONAL, so it reaches the corners and stops short of the
     // edges, which on a disc is the wrong stop entirely.
-    g.child(disc({kCx, kCy}, kMaterR)
+    g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("sheen")
                 .shape(shapes::circle())
                 .fill(Material::glowUnit({0.40f, 0.30f}, 0.95f,
@@ -1577,14 +1576,14 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                  ramp(tMater * 1000 + 200, 700))));
 
     // brass is TOOLED, and the tool marks are fine concentric turning
-    g.child(disc({kCx, kCy}, kMaterR)
+    g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("turning")
                 .shape(shapes::circle())
                 .background(lines::concentric(
                     Fill::color(hex(0x6b4d18, 0.055f)), 120, 0.9f))
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tMater * 1000 + 300, 600))));
-    g.child(disc({kCx, kCy}, kMaterR)
+    g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("brassgrain")
                 .shape(shapes::circle())
                 .fill(brassGrain)
@@ -1595,7 +1594,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     // the three rules of the limb: 1.155 / 1.082 / 1.005 R
     const float rules[3] = {1.155f, 1.082f, 1.005f};
     for (int i = 0; i < 3; ++i)
-      g.child(disc({kCx, kCy}, rules[i] * kR)
+      g.child(kit::disc({kCx, kCy}, rules[i] * kR)
                   .key("rule" + std::to_string(i))
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -1670,8 +1669,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
               .opacity(animate(from(0.0f).to(1.0f),
                                ramp(tLetters * 1000 + (float)n * 12, 380))));
       // the letter under the label lights as it passes
-      g.child(disc(MC(1.044f * std::cos(psi * kD), 1.044f * std::sin(psi * kD)),
-                   0.052f * kR)
+      g.child(kit::disc(
+                  MC(1.044f * std::cos(psi * kD), 1.044f * std::sin(psi * kD)),
+                  0.052f * kR)
                   .key("hlg" + std::to_string(n))
                   .shape(shapes::circle())
                   .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
@@ -1705,7 +1705,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                           ramp(tMater * 1000 + 200, 900, ease::outBack())))
               .opacity(animate(from(0.0f).to(1.0f),
                                ramp(tMater * 1000 + 200, 600))));
-      g.child(disc({top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
+      g.child(kit::disc({top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
                   .key("shackle")
                   .shape(shapes::annulus(0.62f))
                   .fill(brassDisc({top.fX, top.fY - th - 0.055f * kR},
@@ -1745,7 +1745,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // the pin and its horse
     g.child(
-        disc({kCx, kCy}, 0.040f * kR)
+        kit::disc({kCx, kCy}, 0.040f * kR)
             .key("pin")
             .shape(shapes::circle())
             .fill(brassDisc({kCx, kCy}, 0.040f * kR, 0.82f))
@@ -1779,26 +1779,26 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                          rOfDec(-dec) * std::sin(psiN * kD));
     return box()
         .rect(SkRect::MakeXYWH(0, 0, kW, kH))
-        .child(disc(p, 34.0f)
+        .child(kit::disc(p, 34.0f)
                    .shape(shapes::circle())
                    .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, up ? hex(0xfff3cf, 0.60f)
                                                        : hex(0x8fb0d0, 0.30f)},
                                              {1.0f, hex(0xfff3cf, 0.0f)}}))
                    .blend(SkBlendMode::kPlus))
-        .child(disc(p, 15.0f)
+        .child(kit::disc(p, 15.0f)
                    .shape(shapes::star(12, 0.40f, 0.16f))
                    .fill(Fill::color(up ? hex(0xfff6dc, 1.0f)
                                         : hex(0xa8bed2, 0.9f)))
                    .foreground(stroke(1.4f, Fill::color(hex(0x2a1d08, 0.75f)))))
-        .child(disc(p, 5.0f)
+        .child(kit::disc(p, 5.0f)
                    .shape(shapes::circle())
                    .fill(Fill::color(hex(0x6b4d18, 0.8f))))
-        .child(disc(q, 7.0f)
+        .child(kit::disc(q, 7.0f)
                    .shape(shapes::circle())
                    .fill(Fill::none())
                    .stroke(stroke(1.6f, Fill::color(hex(0x2f6f9c, 0.75f)))))
-        .child(disc(q, 2.2f)
+        .child(kit::disc(q, 2.2f)
                    .shape(shapes::circle())
                    .fill(Fill::color(hex(0x2f6f9c, 0.8f))));
   }
@@ -1815,7 +1815,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     const float rr = 100;
 
     // the celestial sphere in section
-    g.child(disc(c, rr)
+    g.child(kit::disc(c, rr)
                 .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(stroke(1.6f, Fill::color(hex(0x241c15, 0.75f)))));
@@ -1833,10 +1833,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .fill(Fill::color(hex(0x241c15, 0.42f))));
     }
     // the poles
-    g.child(disc({c.fX, c.fY - rr}, 3.4f)
+    g.child(kit::disc({c.fX, c.fY - rr}, 3.4f)
                 .shape(shapes::circle())
                 .fill(Fill::color(kInk)));
-    g.child(disc({c.fX, c.fY + rr}, 5.0f)
+    g.child(kit::disc({c.fX, c.fY + rr}, 5.0f)
                 .shape(shapes::circle())
                 .fill(Fill::color(kRubric)));
     g.child(text(toU8("N"), type(faceSerif, 15, kInk))
@@ -1884,8 +1884,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
             .stroke(PathFormat{.width = 1.5f,
                                .strokeFill = Fill::color(hex(0x2f6f9c, 0.9f)),
                                .dashIntervals = {6.0f, 4.0f}}));
-    g.child(disc(P, 5.0f).shape(shapes::circle()).fill(Fill::color(kTrace)));
-    g.child(disc(Lp, 5.0f).shape(shapes::circle()).fill(Fill::color(kRubric)));
+    g.child(
+        kit::disc(P, 5.0f).shape(shapes::circle()).fill(Fill::color(kTrace)));
+    g.child(
+        kit::disc(Lp, 5.0f).shape(shapes::circle()).fill(Fill::color(kRubric)));
     g.child(box()
                 .rect(SkRect::MakeXYWH(Lp.fX - 1, c.fY - 20, 2, 40))
                 .fill(Fill::color(hex(0x8c2f22, 0.55f))));
@@ -1963,14 +1965,14 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       const float cx = px + 116 + (float)(i % 2) * 218;
       const float cy = py + 126 + (float)(i / 2) * 158;
       const float r = 54;
-      auto d = disc({cx, cy}, r)
+      auto d = kit::disc({cx, cy}, r)
                    .shape(shapes::circle())
                    .clip(true)
                    .fill(Fill::color(hex(0xf6efdd)))
                    .stroke(stroke(1.2f, Fill::color(hex(0x241c15, 0.5f)),
                                   PathFormat::Align::Inner));
       auto put = [&](float mcx, float mcy, float mr, float w, float a) {
-        d.child(disc({r + mcx * r, r - mcy * r}, mr * r)
+        d.child(kit::disc({r + mcx * r, r - mcy * r}, mr * r)
                     .shape(shapes::circle())
                     .fill(Fill::none())
                     .stroke(stroke(w, Fill::color(hex(0x241c15, a)))));
@@ -2025,7 +2027,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     const float r = 156;
 
     g.child(
-        disc(c, r)
+        kit::disc(c, r)
             .shape(shapes::circle())
             .fill(brassDisc(c, r, 0.44f))
             .foreground(styles::BevelEmboss{.depth = 2,
@@ -2075,7 +2077,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
              1.1f);
     }
     for (float rr : {0.90f, 0.96f, 0.855f, 0.78f, 0.70f})
-      g.child(disc(c, r * rr)
+      g.child(kit::disc(c, r * rr)
                   .shape(shapes::circle())
                   .fill(Fill::none())
                   .stroke(PathFormat{
@@ -2170,7 +2172,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                       ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
                   .fill(brassDisc(c, r, 0.80f))
                   .foreground(stroke(1.0f, Fill::color(hex(0x2a1d08, 0.6f)))));
-    g.child(disc(c, 8).shape(shapes::circle()).fill(brassDisc(c, 8, 0.82f)));
+    g.child(
+        kit::disc(c, 8).shape(shapes::circle()).fill(brassDisc(c, 8, 0.82f)));
     g.child(text(toU8("altitude 25\xc2\xb0 30\xe2\x80\xb2 \xe2\x80\x94 "
                       "12 March 1391"),
                  type(faceItalic, 13, kRubric))
@@ -2277,7 +2280,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .rect(SkRect::MakeXYWH(
                         bx + bw * (t - lo) / (1.0f - lo) - 0.5f, y + 4, 1, 9))
                     .fill(Fill::color(hex(0x241c15, 0.35f))));
-      g.child(disc({bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
+      g.child(kit::disc({bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
                   .shape(shapes::circle())
                   .fill(Fill::color(i == 3 ? kRubric : kInk)));
     }
@@ -2777,9 +2780,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       }
       const SkPath ringPath = rb.detach();
       const SkRect reg = SkRect::MakeLTRB(-ro, -ro, ro, ro);
-      const debug::Coverage cov = debug::coverage(cells, reg, 256);
-      const debug::Coverage ref =
-          debug::coverage(std::span<const SkPath>(&ringPath, 1), reg, 256);
+      const test::Coverage cov = test::coverage(cells, reg, 256);
+      const test::Coverage ref =
+          test::coverage(std::span<const SkPath>(&ringPath, 1), reg, 256);
       logC.append({toU8("THE ZODIAC CELLS TILE THE RING"), "heading"});
       logC.append({toU8(fmt("  coverage(12 cells, grid 256): doubled %.0f",
                             (double)cov.doubled)),
@@ -2809,7 +2812,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         if (p.kind == Part::Thorn)
           tips.push_back(p.path.getPoint(p.path.countPoints() - 1));
       }
-      const debug::VertexDegrees vd = debug::endpointDegrees(paths, 0.6f);
+      const test::VertexDegrees vd = test::endpointDegrees(paths, 0.6f);
       int spurs = 0;
       for (size_t i = 0; i < vd.degree.size(); ++i) {
         if (vd.degree[i] != 1) continue;

@@ -14,7 +14,7 @@
 
 using namespace sigil::geometry;
 
-using sigil::geometry::testing::kCubeObj;
+using sigil::geometry::test::kCubeObj;
 
 TEST(Pop, CookMeshFormsAModelFromAChain) {
   // A pop chain is a DESCRIPTION; cooking is what forms it. The output is a

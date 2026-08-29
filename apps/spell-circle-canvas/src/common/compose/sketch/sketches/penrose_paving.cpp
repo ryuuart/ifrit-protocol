@@ -121,7 +121,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 
 namespace {
@@ -766,8 +765,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
             .foreground(Decoration(PaintProgram(chamfer)))
             // the saw cut: a hairline of the joint's own colour just
             // inside the silhouette, so neighbouring setts never fuse
-            .stroke(util::stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
-                                 PathFormat::Align::Inner))
+            .stroke(stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
+                           PathFormat::Align::Inner))
             // one Output, two curves: the fade eases out cubic, the
             // seating overshoots — shaped at the property, not in
             // the tick loop
@@ -801,12 +800,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     const float gR = R + kBandW;
     const float inner = (R - kBandW * 0.5f) / gR;
     const float outer = (R + kBandW * 0.5f) / gR;
-    Fill band =
-        util::radialGradient(c, gR,
-                             {kSteelEdge, kSteelEdge, kSteelSpec, kSteelBase,
-                              kSteelEdge, kSteelEdge},
-                             {0.0f, inner, inner + (outer - inner) * 0.26f,
-                              inner + (outer - inner) * 0.66f, outer, 1.0f});
+    Fill band = radialGradient(c, gR,
+                               {kSteelEdge, kSteelEdge, kSteelSpec, kSteelBase,
+                                kSteelEdge, kSteelEdge},
+                               {0.0f, inner, inner + (outer - inner) * 0.26f,
+                                inner + (outer - inner) * 0.66f, outer, 1.0f});
 
     return box()
         .left(bb.left() - parentOrg.x())
@@ -915,8 +913,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .width(r.width())
         .height(r.height())
         .fill(Fill::color(rgb(0x121517, 0.84f)))
-        .stroke(util::stroke(1.0f, Fill::color(rgb(0x5E6163, 0.55f)),
-                             PathFormat::Align::Inner))
+        .stroke(stroke(1.0f, Fill::color(rgb(0x5E6163, 0.55f)),
+                       PathFormat::Align::Inner))
         .background(styles::dropShadow(rgb(0x000000, 0.55f), {0, 6}, 22))
         .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
                          "\xc3\x97"
@@ -982,7 +980,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
                    .cache(Cache::Texture)
-                   .fill(util::radialGradient(
+                   .fill(radialGradient(
                        {470, 280}, 1280,
                        {rgb(0xFAFAF8), rgb(0xE6E6E4), rgb(0xB2B4B8),
                         rgb(0x74777C), rgb(0x42454A)},
@@ -994,7 +992,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                    .blend(SkBlendMode::kPlus)
                    .opacity(0.5f)
                    .cache(Cache::Texture)
-                   .fill(util::radialGradient(
+                   .fill(radialGradient(
                        {470, 280}, 1100,
                        {rgb(0xFFF8E8, 0.13f), rgb(0xFFF3DA, 0.075f),
                         rgb(0xFFF0D0, 0.025f), rgb(0x000000, 0.0f)},
@@ -1002,32 +1000,32 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // wet-stone sheen — a broad, low raking band that sweeps once per
         // loop as the arcs finish, so the field reads as a wet surface
         // catching the sky rather than as flat fill
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .blend(SkBlendMode::kScreen)
-                   .opacity(&sheen)
-                   .fill(util::linearGradient(
-                       {180, 0}, {1500, 1200},
-                       {rgb(0x000000, 0.0f), rgb(0xBFD2E0, 0.09f),
-                        rgb(0x000000, 0.0f)},
-                       {0.30f, 0.50f, 0.72f})))
+        .child(
+            box()
+                .inset(0, 0, 0, 0)
+                .blend(SkBlendMode::kScreen)
+                .opacity(&sheen)
+                .fill(linearGradient({180, 0}, {1500, 1200},
+                                     {rgb(0x000000, 0.0f), rgb(0xBFD2E0, 0.09f),
+                                      rgb(0x000000, 0.0f)},
+                                     {0.30f, 0.50f, 0.72f})))
         .child(inset())
         // ---- the site plaque. A civic plaque sits on the paving, so give
         // it a shadowed band to sit in rather than dropping 10 px type onto
         // speckled granite where it cannot be read at any exposure.
         .child(box().left(0).top(kH - 190).width(kW).height(190).fill(
-            util::linearGradient({0, kH - 190}, {0, kH},
-                                 {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
-                                  rgb(0x08090A, 0.72f)},
-                                 {0.0f, 0.5f, 1.0f})))
+            linearGradient({0, kH - 190}, {0, kH},
+                           {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
+                            rgb(0x08090A, 0.72f)},
+                           {0.0f, 0.5f, 1.0f})))
         .child(box()
                    .left(56)
                    .top(1084)
                    .width(1010)
                    .height(96)
                    .fill(Fill::color(rgb(0x101314, 0.90f)))
-                   .stroke(util::stroke(1.0f, Fill::color(rgb(0x676B6D, 0.45f)),
-                                        PathFormat::Align::Inner))
+                   .stroke(stroke(1.0f, Fill::color(rgb(0x676B6D, 0.45f)),
+                                  PathFormat::Align::Inner))
                    .background(
                        styles::dropShadow(rgb(0x000000, 0.5f), {0, 5}, 18)))
         .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "

@@ -351,7 +351,7 @@ int runBench(sigil::compose::sketch::SketchHost& host,
       // read. `picturesRecorded == 0` looks like "fully cached" and is not: a
       // picture records the DRAW CALLS, so replaying it re-runs every SkSL
       // shader over every pixel, every frame. Only Cache::Texture keeps
-      // the PIXELS. (Note: debug::coverage is a geometric path-tiling
+      // the PIXELS. (Note: test::coverage is a geometric path-tiling
       // check — it has nothing to do with paint cost, so do not send
       // people there for this.)
       std::printf(

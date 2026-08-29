@@ -91,7 +91,7 @@ TEST(ComposeSpans, CornerPassMarksOnlyTheCorners) {
   host.composer.render(
       stack().child(box()
                         .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                        .stroke(spans::corners(20), util::stroke(6, red()))));
+                        .stroke(spans::corners(20), stroke(6, red()))));
   host.frame();
   EXPECT_EQ(host.pixel(30, 20), SK_ColorRED) << "10px along the top edge";
   EXPECT_EQ(host.pixel(70, 20), SK_ColorBLACK) << "the middle of a run";
@@ -107,8 +107,8 @@ TEST(ComposeSpans, PassesAppendAndRestFillsTheGaps) {
   host.composer.render(
       stack().child(box()
                         .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                        .stroke(spans::corners(20), util::stroke(6, red()))
-                        .stroke(spans::rest(), util::stroke(6, green()))));
+                        .stroke(spans::corners(20), stroke(6, red()))
+                        .stroke(spans::rest(), stroke(6, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "rest() took the run";
@@ -124,8 +124,8 @@ TEST(ComposeSpans, OverlappingClaimsAreSaidOutLoud) {
     host.composer.render(stack().child(
         box()
             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-            .stroke(spans::every(1), util::stroke(4, red()), "halo")
-            .stroke(spans::upTo(0.5f), util::stroke(2, green()), "keyline")));
+            .stroke(spans::every(1), stroke(4, red()), "halo")
+            .stroke(spans::upTo(0.5f), stroke(2, green()), "keyline")));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -143,8 +143,8 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
     host.composer.render(
         stack().child(box()
                           .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                          .stroke(util::stroke(8, red()))
-                          .stroke(util::stroke(3, green()))));
+                          .stroke(stroke(8, red()))
+                          .stroke(stroke(3, green()))));
     host.frame();
     EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "the second stroke wins";
   }
@@ -163,7 +163,7 @@ TEST(ComposeSpans, ReorderedTermsPruneBecauseResolveNeverReadsOrder) {
         box()
             .key("m")
             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-            .stroke(std::move(where), util::stroke(4, red()), "marks"));
+            .stroke(std::move(where), stroke(4, red()), "marks"));
   };
   Host host;
   host.composer.render(tree(spans::corners(8) | spans::at(0, 4)));
@@ -195,9 +195,9 @@ TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
     Host host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
     if (useLegacyTrim)
-      e.mask(by::spans(spans::upTo(0.4f))).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::upTo(0.4f))).stroke(stroke(6, red()));
     else
-      e.stroke(spans::upTo(0.4f), util::stroke(6, red()));
+      e.stroke(spans::upTo(0.4f), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     std::vector<SkColor> out;
@@ -222,7 +222,7 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
       box()
           .rect(SkRect::MakeXYWH(20, 20, 100, 100))
           .stroke(spans::upTo(animate(from(0.0f).to(1.0f), {400ms})),
-                  util::stroke(6, red()))));
+                  stroke(6, red()))));
   host.frame(0.02);
   auto inked = [&] {
     int n = 0;
@@ -253,7 +253,7 @@ TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
         .child(box().key("lbl").rect(label))
         .child(box()
                    .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                   .stroke(spans::fit("lbl", 0.0f), util::stroke(6, red())));
+                   .stroke(spans::fit("lbl", 0.0f), stroke(6, red())));
   };
   host.composer.render(scene(SkRect::MakeXYWH(40, 10, 30, 20)));
   host.frame();
@@ -414,7 +414,7 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
   host.composer.render(
       stack().child(band(rectSpine(), across(16))
                         .rect(SkRect::MakeXYWH(30, 30, 80, 80))
-                        .stroke(spans::every(1), util::stroke(4, green()))));
+                        .stroke(spans::every(1), stroke(4, green()))));
   host.frame();
   int inked = 0;
   for (int x = 0; x < 200; ++x)
@@ -802,8 +802,8 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
                       {mid.fX + d.x() * len, mid.fY + d.y() * len});
     };
     brush::Weave w = brush::weave(
-        {brush::Strand{strand::path(through(dirA)), util::stroke(9, red())},
-         brush::Strand{strand::path(through(dirB)), util::stroke(9, green())}},
+        {brush::Strand{strand::path(through(dirA)), stroke(9, red())},
+         brush::Strand{strand::path(through(dirB)), stroke(9, green())}},
         crossing::alternate());  // strand 0 (red) passes OVER at crossing 0
     host.composer.render(stack().child(box().inset(0).stroke(w)));
     host.frame();
@@ -828,10 +828,10 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
   // escape", which for an Align::Inner stroke is zero, while the MARK it
   // paints is still `width` wide. Sizing a repair from bleed() gives a
   // zero-sized repair for every inner stroke.
-  const Decoration inner = util::stroke(9, red(), PathFormat::Align::Inner);
+  const Decoration inner = stroke(9, red(), PathFormat::Align::Inner);
   EXPECT_EQ(inner.bleed(), 0.0f) << "unchanged: it escapes nothing";
   EXPECT_EQ(inner.reach(), 9.0f) << "…but the mark is 9px wide";
-  const Decoration centred = util::stroke(9, red());
+  const Decoration centred = stroke(9, red());
   EXPECT_EQ(centred.bleed(), 4.5f);
   EXPECT_EQ(centred.reach(), 9.0f);
 
@@ -846,9 +846,9 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
   Host host(400, 400);
   brush::Weave w = brush::weave(
       {brush::Strand{strand::path(circle(160, 200, 90)),
-                     util::stroke(9, red(), PathFormat::Align::Inner)},
+                     stroke(9, red(), PathFormat::Align::Inner)},
        brush::Strand{strand::path(circle(240, 200, 90)),
-                     util::stroke(9, green(), PathFormat::Align::Inner)}},
+                     stroke(9, green(), PathFormat::Align::Inner)}},
       CrossingRule(EveryCrossingRedOnTop{}));
   host.composer.render(stack().child(box().inset(0).stroke(w)));
   host.frame();
@@ -924,7 +924,7 @@ TEST(ComposeBrushKinds, SolidIsPathFormatUnderItsTaughtName) {
   // through either compares equal to the other.
   static_assert(std::is_same_v<brush::Solid, PathFormat>);
   const brush::Solid a = brush::solid(2, red());
-  const PathFormat b = util::stroke(2, red());
+  const PathFormat b = stroke(2, red());
   EXPECT_TRUE(a == b) << "one value, two spellings";
 }
 
@@ -946,10 +946,10 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
   const SkPath small = circle(288, 200, 13);
 
   Host host(400, 400);
-  host.composer.render(stack().child(box().inset(0).stroke(brush::weave(
-      {brush::Strand{strand::path(big), util::stroke(6, red())},
-       brush::Strand{strand::path(small), util::stroke(6, green())}},
-      crossing::alternate()))));
+  host.composer.render(stack().child(box().inset(0).stroke(
+      brush::weave({brush::Strand{strand::path(big), stroke(6, red())},
+                    brush::Strand{strand::path(small), stroke(6, green())}},
+                   crossing::alternate()))));
   host.frame();
 
   const std::vector<Crossing> knots = discoverCrossings({big, small});
@@ -1481,7 +1481,7 @@ TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
     Element b = box().key("b").rect(SkRect::MakeXYWH(120, 120, 40, 40));
     Element wire =
         qualified ? derive::connector("a", "b") : connector("a", "b");
-    wire.absolute().inset(0).foreground(util::stroke(4, red()));
+    wire.absolute().inset(0).foreground(stroke(4, red()));
     host.composer.render(
         stack().child(std::move(a)).child(std::move(b)).child(std::move(wire)));
     host.frame();
@@ -1540,10 +1540,9 @@ TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::wrap(0.9f, 1.15f)))
-          .stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::wrap(0.9f, 1.15f))).stroke(stroke(6, red()));
     else
-      e.stroke(spans::wrap(0.9f, 1.15f), util::stroke(6, red()));
+      e.stroke(spans::wrap(0.9f, 1.15f), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return boundaryRing(host);
@@ -1571,12 +1570,12 @@ TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   trimmed.composer.render(stack().child(
       revealBox()
           .mask(by::spans(spans::wrap(0.0f, kWindow).offset(&phase)))
-          .stroke(util::stroke(6, red()))));
+          .stroke(stroke(6, red()))));
 
   Host spanned(200, 200);
   spanned.composer.render(stack().child(revealBox().stroke(
       spans::wrap(bind(&phase), bind(&phase).offset(kWindow)),
-      util::stroke(6, red()))));
+      stroke(6, red()))));
 
   for (float p : {0.0f, 0.12f, 0.37f, 0.5f, 0.66f, 0.80f, 0.90f, 0.97f}) {
     phase = p;
@@ -1601,11 +1600,11 @@ TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
     if (useLegacyTrim)
       e.mask(by::spans(spans::wrap(0.0f, kWindow)
                            .offset(animate(from(0.0f).to(1.0f), {1000ms}))))
-          .stroke(util::stroke(6, red()));
+          .stroke(stroke(6, red()));
     else
       e.stroke(spans::wrap(animate(from(0.0f).to(1.0f), {1000ms}),
                            animate(from(kWindow).to(1.0f + kWindow), {1000ms})),
-               util::stroke(6, red()));
+               stroke(6, red()));
     h->composer.render(stack().child(std::move(e)));
     return h;
   };
@@ -1625,9 +1624,9 @@ TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::wrap(a, b))).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::wrap(a, b))).stroke(stroke(6, red()));
     else
-      e.stroke(spans::wrap(a, b), util::stroke(6, red()));
+      e.stroke(spans::wrap(a, b), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return inkedCount(boundaryRing(host));
@@ -1715,10 +1714,9 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::range(0.15f, 0.55f)))
-          .stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::range(0.15f, 0.55f))).stroke(stroke(6, red()));
     else
-      e.stroke(spans::range(0.15f, 0.55f), util::stroke(6, red()));
+      e.stroke(spans::range(0.15f, 0.55f), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return boundaryRing(host);
@@ -1736,10 +1734,9 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::range(-0.4f, 0.6f)))
-          .stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::range(-0.4f, 0.6f))).stroke(stroke(6, red()));
     else
-      e.stroke(spans::range(-0.4f, 0.6f), util::stroke(6, red()));
+      e.stroke(spans::range(-0.4f, 0.6f), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return boundaryRing(host);
@@ -1758,7 +1755,7 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
   // ring" is true of every window.)
   Host probe(200, 200);
   probe.composer.render(stack().child(
-      revealBox().stroke(spans::range(-0.4f, 0.6f), util::stroke(6, red()))));
+      revealBox().stroke(spans::range(-0.4f, 0.6f), stroke(6, red()))));
   probe.frame();
   // Fraction 0 is the bottom-left corner running UP the left edge, so the
   // clamped [0, 0.6] is the left edge, the top edge and the top 40% of the
@@ -1776,9 +1773,9 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
   trimmed.composer.render(
       stack().child(revealBox()
                         .mask(by::spans(spans::range(&begin, &end)))
-                        .stroke(util::stroke(6, red()))));
+                        .stroke(stroke(6, red()))));
   spanned.composer.render(stack().child(
-      revealBox().stroke(spans::range(&begin, &end), util::stroke(6, red()))));
+      revealBox().stroke(spans::range(&begin, &end), stroke(6, red()))));
   for (auto [b, e] : {std::pair{0.0f, 0.2f}, std::pair{0.3f, 0.9f},
                       std::pair{0.45f, 0.55f}}) {
     begin = b;
@@ -1803,9 +1800,9 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   constTrim.composer.render(
       stack().child(revealBox()
                         .mask(by::spans(spans::range(0.1f, 0.4f).offset(0.25f)))
-                        .stroke(util::stroke(6, red()))));
+                        .stroke(stroke(6, red()))));
   constSpan.composer.render(stack().child(revealBox().stroke(
-      spans::range(0.1f + 0.25f, 0.4f + 0.25f), util::stroke(6, red()))));
+      spans::range(0.1f + 0.25f, 0.4f + 0.25f), stroke(6, red()))));
   constTrim.frame();
   constSpan.frame();
   EXPECT_EQ(boundaryRing(constSpan), boundaryRing(constTrim))
@@ -1815,10 +1812,9 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   boundTrim.composer.render(
       stack().child(revealBox()
                         .mask(by::spans(spans::upTo(0.3f).offset(&off)))
-                        .stroke(util::stroke(6, red()))));
-  boundSpan.composer.render(stack().child(
-      revealBox().stroke(spans::range(bind(&off), bind(&off).offset(0.3f)),
-                         util::stroke(6, red()))));
+                        .stroke(stroke(6, red()))));
+  boundSpan.composer.render(stack().child(revealBox().stroke(
+      spans::range(bind(&off), bind(&off).offset(0.3f)), stroke(6, red()))));
   for (float v : {0.0f, 0.17f, 0.42f, 0.61f}) {
     off = v;
     boundTrim.frame();
@@ -1836,10 +1832,10 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
     Element e = revealBox();
     if (useLegacyTrim)
       e.mask(by::spans(spans::upTo(animate(from(0.0f).to(1.0f), {800ms}))))
-          .stroke(util::stroke(6, red()));
+          .stroke(stroke(6, red()));
     else
       e.stroke(spans::upTo(animate(from(0.0f).to(1.0f), {800ms})),
-               util::stroke(6, red()));
+               stroke(6, red()));
     h->composer.render(stack().child(std::move(e)));
     return h;
   };
@@ -1886,9 +1882,9 @@ TEST(ComposeR2Offset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
   trimmed.composer.render(stack().child(
       revealBox()
           .mask(by::spans(spans::range(&begin, &end).offset(&off)))
-          .stroke(util::stroke(6, red()))));
+          .stroke(stroke(6, red()))));
   spanned.composer.render(stack().child(revealBox().stroke(
-      spans::range(&begin, &end).offset(&off), util::stroke(6, red()))));
+      spans::range(&begin, &end).offset(&off), stroke(6, red()))));
   for (auto [b, e, o] :
        {std::tuple{0.0f, 0.3f, 0.0f}, std::tuple{0.0f, 0.3f, 0.25f},
         std::tuple{0.1f, 0.5f, -0.05f}, std::tuple{0.4f, 0.45f, 0.5f},
@@ -1912,9 +1908,9 @@ TEST(ComposeR2Offset, TheSummedEndpointWrapsLikeTrimDoes) {
   trimmed.composer.render(
       stack().child(revealBox()
                         .mask(by::spans(spans::wrap(&begin, &end).offset(&off)))
-                        .stroke(util::stroke(6, red()))));
+                        .stroke(stroke(6, red()))));
   spanned.composer.render(stack().child(revealBox().stroke(
-      spans::wrap(&begin, &end).offset(&off), util::stroke(6, red()))));
+      spans::wrap(&begin, &end).offset(&off), stroke(6, red()))));
   begin = 0.0f;
   end = 0.22f;
   for (float o : {0.0f, 0.15f, 0.44f, 0.7f, 0.88f, 0.95f, 1.3f}) {
@@ -1972,9 +1968,9 @@ TEST(ComposeR2Background, TrimmedBackgroundFollowerHasASpanSpelling) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::upTo(0.45f))).background(util::stroke(6, red()));
+      e.mask(by::spans(spans::upTo(0.45f))).background(stroke(6, red()));
     else
-      e.background(spans::upTo(0.45f), util::stroke(6, red()));
+      e.background(spans::upTo(0.45f), stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return boundaryRing(host);
@@ -1992,9 +1988,9 @@ TEST(ComposeR2Background, ThePassPaintsUNDERTheChildren) {
     Host host(200, 200);
     Element e = revealBox();
     if (asBackground)
-      e.background(spans::every(1), util::stroke(10, red()));
+      e.background(spans::every(1), stroke(10, red()));
     else
-      e.stroke(spans::every(1), util::stroke(10, red()));
+      e.stroke(spans::every(1), stroke(10, red()));
     // A child straddling the top edge, opaque, painted between the halves.
     e.child(
         box().absolute().rect(SkRect::MakeXYWH(30, -6, 40, 12)).fill(green()));
@@ -2015,8 +2011,8 @@ TEST(ComposeR2Background, OneBoundaryIsOneClaimLedgerAcrossBothHalves) {
     Host host(200, 200);
     host.composer.render(stack().child(
         revealBox()
-            .background(spans::every(1), util::stroke(4, red()), "under")
-            .stroke(spans::upTo(0.5f), util::stroke(2, green()), "over")));
+            .background(spans::every(1), stroke(4, red()), "under")
+            .stroke(spans::upTo(0.5f), stroke(2, green()), "over")));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -2030,8 +2026,8 @@ TEST(ComposeR2Background, RestReadsAcrossTheHalvesToo) {
   Host host(200, 200);
   host.composer.render(
       stack().child(revealBox()
-                        .background(spans::upTo(0.25f), util::stroke(6, red()))
-                        .stroke(spans::rest(), util::stroke(6, green()))));
+                        .background(spans::upTo(0.25f), stroke(6, red()))
+                        .stroke(spans::rest(), stroke(6, green()))));
   host.frame();
   // The seam (fraction 0) of an rrect outline is its BOTTOM-LEFT corner and
   // the boundary runs UP the left edge from there, so the first quarter of
@@ -2055,7 +2051,7 @@ TEST(ComposeR2Seam, AWholeContourClaimKeepsItsCornerJoin) {
   auto corner = [](int form) {
     Host host(200, 200);
     Element e = revealBox();
-    PathFormat wide = util::stroke(12, red());
+    PathFormat wide = stroke(12, red());
     wide.join = SkPaint::kMiter_Join;
     switch (form) {
       case 0:
@@ -2106,10 +2102,9 @@ TEST(ComposeR2Wrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
     host.composer.render(stack().child(
         revealBox()
             // [0.9, 1] + [0, 0.15]
-            .stroke(spans::wrap(0.9f, 1.15f), util::stroke(4, red()), "ants")
+            .stroke(spans::wrap(0.9f, 1.15f), stroke(4, red()), "ants")
             // touches only the SECOND run
-            .stroke(spans::range(0.05f, 0.3f), util::stroke(2, green()),
-                    "keyline")));
+            .stroke(spans::range(0.05f, 0.3f), stroke(2, green()), "keyline")));
     host.frame();
   }
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -2122,9 +2117,8 @@ TEST(ComposeR2Wrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
     Host host(200, 200);
     host.composer.render(stack().child(
         revealBox()
-            .stroke(spans::wrap(0.9f, 1.05f), util::stroke(4, red()), "ants")
-            .stroke(spans::range(0.3f, 0.6f), util::stroke(2, green()),
-                    "keyline")));
+            .stroke(spans::wrap(0.9f, 1.05f), stroke(4, red()), "ants")
+            .stroke(spans::range(0.3f, 0.6f), stroke(2, green()), "keyline")));
     host.frame();
   }
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
@@ -2134,10 +2128,10 @@ TEST(ComposeR2Wrap, RestIsTheComplementOfBothOfWrapsRuns) {
   // rest() reads RESOLVED runs, so a seam-crossing claim leaves rest() a
   // single interval in the middle — not two, and not the naive [end, begin].
   Host host(200, 200);
-  host.composer.render(stack().child(
-      revealBox()
-          .stroke(spans::wrap(0.9f, 1.15f), util::stroke(6, red()))
-          .stroke(spans::rest(), util::stroke(6, green()))));
+  host.composer.render(
+      stack().child(revealBox()
+                        .stroke(spans::wrap(0.9f, 1.15f), stroke(6, red()))
+                        .stroke(spans::rest(), stroke(6, green()))));
   host.frame();
   // Perimeter 400 px, seam at the BOTTOM-LEFT corner, running UP the left
   // edge: [0.9,1] is the last 40 px of the bottom edge, arriving at the
@@ -2160,7 +2154,7 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
   // half — declaring volatility unconditionally would be equally wrong.
   auto paintedPerFrame = [](bool live) {
     Host host(200, 200);
-    PathFormat mark = util::stroke(8, red());
+    PathFormat mark = stroke(8, red());
     mark.strokeMaterial = Material::sksl(heavyEffect(live));
     host.composer.render(
         stack().child(revealBox().stroke(spans::upTo(0.6f), std::move(mark))));

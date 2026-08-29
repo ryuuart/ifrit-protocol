@@ -183,8 +183,6 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
-#include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -199,7 +197,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 namespace ch = choreograph;
@@ -215,8 +212,8 @@ inline float snapG(float v) { return std::round(v / 4.0f) * 4.0f; }  // 320-grid
 inline float snapX(float v) { return std::round(v / 2.5f) * 2.5f; }  // 512-grid
 inline float snapY(float v) { return std::round(v / 4.0f) * 4.0f; }
 
-using studio::hex;
-using studio::mul;
+using sigil::compose::hex;
+using sigil::compose::mul;
 
 // Reconstructed palette: pale bone rules and type over translucent slate, RISK
 // amber -> blood, target highlight cold cyan.

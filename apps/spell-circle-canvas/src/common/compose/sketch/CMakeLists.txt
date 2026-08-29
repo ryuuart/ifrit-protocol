@@ -23,8 +23,13 @@ target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/inclu
 # host also accepts `--assets <dir>` to point at it directly.
 target_compile_definitions(SigilSketchKit PUBLIC
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
+# SigilComposeTesting is here for the --verify path: a sketch that reports
+# its checks reads <sigilcompose/testing/Checks.h>, and what a sketch may
+# include is exactly this target's PUBLIC dependencies. It is header-only,
+# so it adds nothing to the force_load list below.
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilLoader SigilGeometry SigilWeavePorts EnTT::EnTT)
+  SigilCompose SigilComposeTesting SigilLoader SigilGeometry SigilWeavePorts
+  EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 

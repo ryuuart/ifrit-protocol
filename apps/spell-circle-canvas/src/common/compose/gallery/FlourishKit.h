@@ -94,9 +94,8 @@ inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
       .width(w)
       .height(h)
       .shape(leafOutline())
-      .fill(sigil::compose::util::linearGradient({0, 0}, {w, h},
-                                                 {s.leaf, s.bronze}))
-      .foreground(sigil::compose::util::stroke(1.1f, Fill::color(s.goldBright)))
+      .fill(sigil::compose::linearGradient({0, 0}, {w, h}, {s.leaf, s.bronze}))
+      .foreground(sigil::compose::stroke(1.1f, Fill::color(s.goldBright)))
       .foreground(midrib)
       .foreground(veins);
 }
@@ -148,9 +147,9 @@ inline Element flourishCard(const FlourishStyle& s, float w, float h,
       .width(w)
       .height(h)
       .corners({radius})
-      .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 4}, 10))
+      .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 4}, 10))
       .fill(flourishParchment(s))
-      .foreground(sigil::compose::util::stroke(2.4f, Fill::color(s.gold)))
+      .foreground(sigil::compose::stroke(2.4f, Fill::color(s.gold)))
       .foreground(flourishVine(s, 16.0f, 20.0f, 14.0f))
       .foreground(beadChain(s.goldBright, 12.0f, 2.0f))
       .foreground(SwirlCorners{pal, 16.0f, 1.4f})

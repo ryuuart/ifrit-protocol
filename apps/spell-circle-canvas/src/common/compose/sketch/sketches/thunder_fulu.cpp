@@ -167,16 +167,10 @@
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
-
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
 
 template <typename... A>
 std::string fmt(const char* f, A... args) {

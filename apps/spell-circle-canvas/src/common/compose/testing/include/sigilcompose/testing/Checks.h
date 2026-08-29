@@ -3,7 +3,8 @@
 /** @file
  * SigilCompose checks for GENERATED geometry — tilings, subdivisions,
  * lattices, pavings: the constructions whose correctness is a property of a
- * rule rather than of anything you can see at a glance.
+ * rule rather than of anything you can see at a glance — and for reading
+ * back what was actually drawn.
  *
  * Why point-sampled coverage rather than something cheaper: the two obvious
  * cheap checks both PASS on a subdivision that overlaps in one place and
@@ -12,24 +13,28 @@
  * child really does lie inside its parent. Sampling the region is what
  * separates them, because it asks each point how many pieces claim it.
  *
- * Beside the checks sit the INSTRUMENTS — `trackMeter` and `restGhost` —
- * which answer the other half of the same question for text in motion: a
- * cascade is an invisible remap and a deviation has nothing on screen to be
- * measured against, so both draw what is otherwise only inferable.
- *
  * This header is for tests, sketches and verification passes, not for the
- * paint loop: coverage() costs O(samples × candidate pieces), the
- * rasterizing helpers allocate a surface per call, and the instruments draw
- * a second copy of what they describe.
+ * paint loop: coverage() costs O(samples × candidate pieces) and the
+ * rasterizing helpers allocate a surface per call. It is the one header of
+ * a separate target, SigilComposeTesting, so that a shipping paint loop
+ * cannot reach it by accident and so that `report()` may speak to a feed
+ * without the library itself depending on one. The namespace is `checks`
+ * rather than the target's name because GoogleTest owns `::testing`, and
+ * a test that brings `sigil::compose` in with a using-directive must be
+ * able to spell both without qualifying either.
  */
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColor.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/Element.h>
+#include <sigilcompose/Feed.h>
 
 #include <algorithm>
 #include <cmath>
@@ -38,12 +43,14 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Feed.h"
+namespace sigil::weave {
+class FontContext;
+}
 
-namespace sigil::compose::debug {
+namespace sigil::compose::test {
 
 /** What a point-sampled coverage test found. A correct exact cover has
  *  `uncovered == 0 && doubled == 0`. */
@@ -337,96 +344,6 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
 }
 
 // ---------------------------------------------------------------------------
-// Looking at a cascade while you author it
-//
-// The two below are instruments, on the same terms as everything else in
-// this header: for a sketch under the eye of whoever is tuning it, for a
-// test that has to see the schedule, and NOT for the paint loop of
-// something that ships. Both are describe-time — they read a resolved
-// layout and hand back ordinary elements — so neither costs anything on a
-// frame that does not build one.
-
-/** THE SCHEDULE, DRAWN: one cell per beat of track @p trackIndex on the
- *  keyed text node, at that beat's own laid-out rect, filled left to right
- *  by that beat's local progress.
- *
- *  Every cascade is otherwise invisible — it numbers units, spreads them
- *  and tells nobody — so tuning one means watching letters and guessing.
- *  This is `Composer::beatsOf` drawn without an intermediate: a beat that
- *  has not opened shows bed alone, one running shows its own fraction, one
- *  finished is full, and the pitch between cells is the cascade's real
- *  pitch, uneven where a cue table made it uneven.
- *
- *  THE RECTS ARE IN THE COMPOSER'S SPACE, because that is the space
- *  `beatsOf` answers in. Put the result over the whole composition —
- *  `root.child(debug::trackMeter(...).absolute().inset(0))` — and the cells
- *  land on the type wherever it is. It is read at DESCRIBE time from the
- *  layout the last draw left standing, so a moving cascade wants a
- *  re-describe per frame to move with it; that is the cost, and it is why
- *  this is an instrument and not a component.
- *
- *  An unknown key, a node that is not text and a track index past the
- *  node's list all give an EMPTY overlay, silently, exactly as `beatsOf`
- *  does. */
-[[nodiscard]] inline Element trackMeter(const Composer& composer,
-                                        std::string_view key, size_t trackIndex,
-                                        SkColor4f fill,
-                                        SkColor4f bed = {1, 1, 1, 0.10f}) {
-  Element overlay = positioned();
-  const std::vector<Beat> beats = composer.beatsOf(key, trackIndex);
-  for (size_t i = 0; i < beats.size(); ++i) {
-    const SkRect& rect = beats[i].rect;
-    const std::string cell = "beat" + std::to_string(i);
-    overlay.child(box()
-                      .key(cell)
-                      .left(rect.left())
-                      .top(rect.top())
-                      .width(rect.width())
-                      .height(rect.height())
-                      .fill(Fill::color(bed))
-                      .child(box()
-                                 .key(cell + "-t")
-                                 .left(0)
-                                 .top(0)
-                                 .width(rect.width() *
-                                        std::clamp(beats[i].localT, 0.0f, 1.0f))
-                                 .height(rect.height())
-                                 .fill(Fill::color(fill))));
-  }
-  return overlay;
-}
-
-/** THE SAME TEXT AT REST, UNDER THE MOVING COPY — what a deformation is
- *  measured against.
- *
- *  A track's deviation is per glyph and lives only in the draw, so the
- *  undeformed letter is nowhere on screen to compare with: a squash reads
- *  as a squash only beside the shape it squashed. This returns a box
- *  holding two copies of @p moving — a ghost set in @p colour, carrying no
- *  tracks and pinned at the box's origin, and @p moving itself in the flow,
- *  which is what sizes the box. Drop it in where the text was:
- *
- *      box().child(debug::restGhost(
- *          text(u8"RUBBERBAND", set).key("word").fx({…}), rest))
- *
- *  The ghost takes the moving copy's key with `-rest` after it (a keyless
- *  original leaves the ghost keyless too), so both are addressable and both
- *  prune. Everything that could make the two disagree about where a letter
- *  belongs is left alone — same content, same style, same width, same
- *  layout — and only the tracks and the ink differ.
- *
- *  IT GHOSTS THE TYPE AND NOTHING ELSE. A text node's children are its
- *  `Element::mark`s and its `RichText::slot` mounts, and both are already
- *  drawn once; the ghost carries neither, so nothing appears twice under
- *  one key. A slot's reserved space is content and stays, which is what
- *  keeps the two copies' letters in the same places.
- *
- *  TEXT ONLY. Anything else has its rest position on screen already, so a
- *  ghost of it would be a second copy of a thing that never moved; that
- *  warns once and hands @p moving back unchanged. */
-[[nodiscard]] Element restGhost(Element moving, SkColor4f colour);
-
-// ---------------------------------------------------------------------------
 // Saying whether it was right
 
 /** One claim, its evidence, and its verdict.
@@ -542,4 +459,4 @@ inline int failures(std::span<const Check> checks) {
   return n;
 }
 
-}  // namespace sigil::compose::debug
+}  // namespace sigil::compose::test

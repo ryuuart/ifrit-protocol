@@ -65,7 +65,6 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilsketch/Sketch.h>
@@ -78,7 +77,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 
 namespace {
@@ -86,8 +84,8 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-using studio::alpha;  // the same colour at a different alpha
-using studio::hex;    // 0xRRGGBB -> SkColor4f
+using sigil::compose::alpha;  // the same colour at a different alpha
+using sigil::compose::hex;    // 0xRRGGBB -> SkColor4f
 
 const SkColor4f kBody = hex(0x0B1E21);
 const SkColor4f kStrip = hex(0x102A2A);

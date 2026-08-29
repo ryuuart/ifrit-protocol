@@ -136,26 +136,27 @@
 #include <include/core/SkPathMeasure.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
 #include <string>
 #include <vector>
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -164,7 +165,8 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-using studio::hex;  // hex(0xRRGGBB[, a]) -> SkColor4f, usable in constexpr
+using sigil::compose::hex;  // hex(0xRRGGBB[, a]) -> SkColor4f, usable in
+                            // constexpr
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
@@ -277,7 +279,7 @@ const std::vector<Station> kAdvPolotzk = {
 
 // --- the retreat, east -> west -------------------------------------------
 // Drawn in two pieces so the Bobr junction is an ENDPOINT of both, which
-// is what debug::endpointDegrees needs to see the army as one component.
+// is what test::endpointDegrees needs to see the army as one component.
 const std::vector<Station> kRetEast = {
     {37.70f, 55.70f, 100000}, {37.50f, 55.70f, 98000}, {37.00f, 55.00f, 97000},
     {36.80f, 55.00f, 96000},  {35.40f, 55.30f, 87000}, {34.30f, 55.20f, 55000},
@@ -834,13 +836,33 @@ SkPath rectPath(float l, float t, float r, float bm) {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  return studio::type({.face = std::move(face),
-                       .size = size,
-                       .color = color,
-                       .track = tracking});
+  return sigil::compose::type({.face = std::move(face),
+                               .size = size,
+                               .color = color,
+                               .track = tracking});
 }
 
-using studio::fmt;  // variadic, and it sizes the result
+/** printf into a std::string, sized by a measuring pass rather than
+ *  written into a fixed buffer, so a long caption is never truncated. */
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 1, 2)))
+#endif
+std::string fmt(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  va_list probe;
+  va_copy(probe, args);
+  const int needed = std::vsnprintf(nullptr, 0, format, probe);
+  va_end(probe);
+  if (needed < 0) {
+    va_end(args);
+    return {};
+  }
+  std::string out((size_t)needed, '\0');
+  std::vsnprintf(out.data(), (size_t)needed + 1, format, args);
+  va_end(args);
+  return out;
+}
 std::string fmt2(const char* f, double a, double b) {
   char buf[192];
   std::snprintf(buf, sizeof buf, f, a, b);
@@ -968,7 +990,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(segFn({kFrameL, kDivNT}, {kFrameR, kDivNT}))
                 .stroke(spans::upTo(beat(0.4f, 1.2f)),
-                        util::stroke(1.0f, Fill::color(kInk)))
+                        stroke(1.0f, Fill::color(kInk)))
                 .key("divNT"));
     return g;
   }
@@ -992,7 +1014,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(cx - r, cy - r * 0.66f, 2 * r, 1.32f * r))
               .shape(shapes::circle())
-              .stroke(util::stroke(1.5f, Fill::color(kStampRed)))
+              .stroke(stroke(1.5f, Fill::color(kStampRed)))
               .child(text(toU8(label), type(faceRoman, 7.5f, kStampRed, 0.3f))
                          .at({r * 0.35f, r * 0.42f}))
               .key(k)
@@ -1064,7 +1086,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(pathFn(line))
                 .stroke(spans::upTo(beat(tHann, tHann + 0.5f)),
-                        util::stroke(1.1f, Fill::color(kInk)))
+                        stroke(1.1f, Fill::color(kInk)))
                 .key("coast"));
     g.child(text(toU8("Iles Baléares"), type(faceItalic, 9, kInk, 0.2f))
                 .at({150, 500})
@@ -1172,7 +1194,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
                   .stroke(spans::upTo(beat(t0, t0 + 0.4f)),
-                          util::stroke(0.8f, Fill::color(hex(0x4e4436, 0.8f))))
+                          stroke(0.8f, Fill::color(hex(0x4e4436, 0.8f))))
                   .key(k));
     };
     river({{206, 190}, {198, 240}, {212, 280}, {200, 322}}, "ebre",
@@ -1237,7 +1259,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto g = box()
                  .rect(SkRect::MakeXYWH(l, t, w, h))
                  .shape(pathFn(rectPath(0, 0, w, h)))
-                 .stroke(util::stroke(1.0f, Fill::color(kInk)))
+                 .stroke(stroke(1.0f, Fill::color(kInk)))
                  .key("legendbox")
                  .opacity(beat(tHann + 1.5f, tHann + 1.8f));
     g.child(text(toU8("Légende."), type(faceScript, 14, kInk)).at({140, 4}));
@@ -1391,7 +1413,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
                   .stroke(spans::upTo(beat(t0, t0 + 0.35f)),
-                          util::stroke(0.7f, Fill::color(hex(0x4e4436, 0.85f))))
+                          stroke(0.7f, Fill::color(hex(0x4e4436, 0.85f))))
                   .key(k));
       g.child(text(toU8(label), type(faceItalic, 8, hex(0x4e4436), 0.6f))
                   .at({lp.x(), lp.y()})
@@ -1531,7 +1553,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(fb.detach()))
-                  .stroke(util::stroke(0.9f, Fill::color(kBlue)))
+                  .stroke(stroke(0.9f, Fill::color(kBlue)))
                   .key("floorink")
                   .opacity(beat(tScale + 1.4f, tScale + 1.7f)));
       g.child(text(toU8("what the crayon actually laid — 1.57 mm, "
@@ -1576,7 +1598,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape(segFn({x, y}, {x + w, y}))
-                .stroke(util::stroke(0.9f, Fill::color(kInk))));
+                .stroke(stroke(0.9f, Fill::color(kInk))));
     for (int v = 0; v <= span; v += step) {
       const float tx = x + pxPerUnit * (float)v;
       if (v > 25 && v < span)
@@ -1597,7 +1619,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(tb.detach()))
-                  .stroke(util::stroke(0.9f, Fill::color(kInk))));
+                  .stroke(stroke(0.9f, Fill::color(kInk))));
     }
     g.child(
         text(toU8(label), type(faceItalic, 7.5f, kInk, 0.1f)).at({x, y - 18}));
@@ -1630,7 +1652,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .shape(segFn({kFrameL, y}, {kFrameR - 34, y}))
                   .stroke(spans::upTo(beat(tTemp + 0.1f + 0.03f * (float)r,
                                            tTemp + 0.45f + 0.03f * (float)r)),
-                          util::stroke(0.4f, Fill::color(hex(0x4e4436, 0.45f))))
+                          stroke(0.4f, Fill::color(hex(0x4e4436, 0.45f))))
                   .key("taxis" + std::to_string(r)));
       g.child(text(toU8(r == 30 ? "30 degrés" : std::to_string(r)),
                    type(faceNum, 7, kInk))
@@ -1651,7 +1673,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape(pathFn(curvePath))
-                .stroke(util::stroke(1.2f, Fill::color(kInk)))
+                .stroke(stroke(1.2f, Fill::color(kInk)))
                 // right to left, the way the retreat runs
                 .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
                 .key("tcurve"));
@@ -1786,9 +1808,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(p.detach()))
-                  .background(
-                      util::shadow(hex(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
-                  .stroke(util::stroke(2.0f, Fill::color(kBlue)))
+                  .background(shadow(hex(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
+                  .stroke(stroke(2.0f, Fill::color(kBlue)))
                   .key(k));
     };
     jaw(r.x, r.y, r.halfPx, "jaw1");
@@ -1817,7 +1838,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element sheet(sketch::SketchContext& ctx) {
     return box()
         .rect(SkRect::MakeXYWH(kSheetX, kSheetY, kSheetW, kSheetH))
-        .background(util::shadow(hex(0x000000, 0.55f), {6, 10}, 26))
+        .background(shadow(hex(0x000000, 0.55f), {6, 10}, 26))
         .child(paperGround())
         .child(frames())
         .child(hannibalPanel())
@@ -1855,7 +1876,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto c = box()
                  .rect(SkRect::MakeXYWH(kAuditX, y, kAuditW, h))
                  .fill(Material::solid(kCard))
-                 .stroke(util::stroke(1.0f, Fill::color(hex(0xcfc6b4))))
+                 .stroke(stroke(1.0f, Fill::color(hex(0xcfc6b4))))
                  .key(key)
                  .opacity(beat(t0, t0 + 0.4f))
                  .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
@@ -1864,7 +1885,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     c.child(box()
                 .inset(0)
                 .shape(segFn({18, 36}, {kAuditW - 18, 36}))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(kCardInk))));
     c.child(std::move(body));
     return c;
   }
@@ -1893,11 +1914,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(kCardInk))));
     g.child(box()
                 .inset(0)
                 .shape(segFn({px0, py0}, {px0, py0 + ph}))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(kCardInk))));
     auto X = [&](float men) { return px0 + men / 440000.0f * pw; };
     auto Y = [&](float px) { return py0 + ph - px / 180.0f * ph; };
     // the fitted line
@@ -1906,11 +1927,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .shape(segFn({X(0), Y(intercept)},
                              {X(440000), Y(intercept + slope * 44.0f)}))
                 .stroke(spans::upTo(beat(tScale + 1.8f, tScale + 2.4f)),
-                        util::stroke(1.6f, Fill::color(kBlue)))
+                        stroke(1.6f, Fill::color(kBlue)))
                 .key("fitline"));
     for (size_t i = 0; i < treads.size(); ++i) {
       const float x = X(treads[i].first), y = Y(treads[i].second);
-      g.child(util::disc({x, y}, 3.6f)
+      g.child(kit::disc({x, y}, 3.6f)
                   .shape(shapes::circle())
                   .fill(Material::solid(kBlue))
                   .key("tread" + std::to_string(i))
@@ -1945,7 +1966,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .inset(0)
                   .shape(segFn({rx, y}, {rx + rw, y}))
                   .stroke(spans::upTo(beat(t0, t0 + 0.3f)),
-                          util::stroke(2.0f, Fill::color(col)))
+                          stroke(2.0f, Fill::color(col)))
                   .key(k));
       g.child(text(toU8(v), type(faceUiBold, 17, col))
                   .at({rx, y - 26})
@@ -2013,7 +2034,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(kCardInk))));
     SkPathBuilder line;
     for (size_t i = pts.size(); i-- > 0;) {
       const SkPoint q{X(pts[i].first), Y(pts[i].second)};
@@ -2023,7 +2044,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(pathFn(line.detach()))
                 .stroke(spans::upTo(beat(tScale + 1.0f, tScale + 1.8f)),
-                        util::stroke(1.6f, Fill::color(kBlue)))
+                        stroke(1.6f, Fill::color(kBlue)))
                 .key("floorline"));
     // the crayon floor
     g.child(box()
@@ -2041,7 +2062,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .key("floorLab")
                 .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
     for (size_t i = 0; i < pts.size(); ++i)
-      g.child(util::disc({X(pts[i].first), Y(pts[i].second)}, 3.0f)
+      g.child(kit::disc({X(pts[i].first), Y(pts[i].second)}, 3.0f)
                   .shape(shapes::circle())
                   .fill(Material::solid(i >= 8 ? kAmber : kBlue))
                   .key("fp" + std::to_string(i))
@@ -2097,7 +2118,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(rt.detach()))
                   .stroke(spans::upTo(beat(tGeo, tGeo + 0.5f)),
-                          util::stroke(1.4f, Fill::color(hex(0x1c1a17, 0.35f))))
+                          stroke(1.4f, Fill::color(hex(0x1c1a17, 0.35f))))
                   .key("georoute"));
     }
     SkPathBuilder crosses, vectors;
@@ -2116,18 +2137,18 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(pathFn(vectors.detach()))
                 .stroke(spans::upTo(beat(tGeo + 0.5f, tGeo + 1.1f)),
-                        util::stroke(0.8f, Fill::color(hex(0x2f6f9c, 0.6f))))
+                        stroke(0.8f, Fill::color(hex(0x2f6f9c, 0.6f))))
                 .key("geovec"));
     g.child(box()
                 .inset(0)
                 .shape(pathFn(crosses.detach()))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk)))
+                .stroke(stroke(1.0f, Fill::color(kCardInk)))
                 .key("geocross")
                 .opacity(beat(tGeo + 0.2f, tGeo + 0.6f)));
     for (size_t i = 0; i < kCities.size(); ++i) {
       const City& c = kCities[i];
       const bool out = cityKm(c) > 20.0f;
-      g.child(util::disc({MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
+      g.child(kit::disc({MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
                   .shape(shapes::circle())
                   .fill(Material::solid(out ? kAmber : kBlue))
                   .key("gc" + std::to_string(i))
@@ -2219,7 +2240,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape(segFn({mid, by - 4}, {mid, by + rowH * 10 + 4}))
-                .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(kCardInk))));
     for (size_t i = 0; i < legs.size(); ++i) {
       const float y = by + rowH * (float)i;
       const bool bad = legs[i].ratio < 0.7f || legs[i].ratio > 1.3f;
@@ -2379,7 +2400,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // The heading runs a shade larger; set() replaces it where it sits.
     s.styles.set(
         "heading",
-        studio::type({.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
+        type({.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
     s.window.gap = 0.0f;
     s.window.visible = 20;
     return feed::plate({.columns = {feed::feed(colA, s), feed::feed(colB, s),
@@ -2415,14 +2436,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
       r.append({toU8(s), style});
     };
-    // The verdict is never written by hand: debug::check computes it FROM
-    // the two values and debug::report prints it in the style that
+    // The verdict is never written by hand: test::check computes it FROM
+    // the two values and test::report prints it in the style that
     // verdict chose, so a line that reads EXACT cannot disagree with the
     // arithmetic printed beside it, and a line that fails says what it
     // expected as well as what it got.
     auto chk = [&](feed::TextRing& r, const std::string& label, long lhs,
                    long rhs) {
-      debug::report(r, debug::check(label, rhs, lhs), "pass", "fail");
+      test::report(r, test::check(label, rhs, lhs), "pass", "fail");
     };
 
     say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", "heading");
@@ -2688,20 +2709,20 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const SkPath un = quadUnion(pointsOf(kAdvTrunk), menOf(kAdvTrunk));
       const SkRect bb = un.getBounds();
       const std::array<SkPath, 1> pieces{un};
-      const debug::Coverage cov = debug::coverage(pieces, bb, 512);
+      const test::Coverage cov = test::coverage(pieces, bb, 512);
       unionArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
     }
     {
       const SkRect bb = advBand.getBounds();
       const std::array<SkPath, 1> pieces{advBand};
-      const debug::Coverage cov = debug::coverage(pieces, bb, 512);
+      const test::Coverage cov = test::coverage(pieces, bb, 512);
       advanceArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
     }
     retreatInk = inkIntegral(retSpine, retProf);
     {
       const SkRect bb = retBand.getBounds();
       const std::array<SkPath, 1> pieces{retBand};
-      const debug::Coverage cov = debug::coverage(pieces, bb, 512);
+      const test::Coverage cov = test::coverage(pieces, bb, 512);
       retreatArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
     }
     // do the two zones overlap? They must not — they are adjacent.
@@ -2709,7 +2730,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const std::array<SkPath, 2> pieces{advBand, retBand};
       SkRect region = advBand.getBounds();
       region.join(retBand.getBounds());
-      const debug::Coverage cov = debug::coverage(pieces, region, 384);
+      const test::Coverage cov = test::coverage(pieces, region, 384);
       coverDoubled = cov.doubledFraction();
     }
     // connectivity, on the ROUTE polylines: a filled band is a closed
@@ -2726,7 +2747,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const std::array<SkPath, 5> asDrawn{polyline(t1), polyline(t2),
                                           polyline(t3), polyline(kAdvNorth),
                                           polyline(kAdvPolotzk)};
-      advComponentsDrawn = debug::endpointDegrees(asDrawn, 0.5f).components();
+      advComponentsDrawn = test::endpointDegrees(asDrawn, 0.5f).components();
       // Wilkinson's encoding: three parallel columns from x = 0
       std::vector<Station> g1 = kAdvTrunk;
       g1[0] = {24.0f, 54.9f, 340000};
@@ -2739,11 +2760,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                                        polyline({{24.0f, 55.2f, 22000},
                                                  {24.5f, 55.3f, 22000},
                                                  {24.6f, 55.8f, 6000}})};
-      advComponentsWilkinson = debug::endpointDegrees(wilk, 0.5f).components();
+      advComponentsWilkinson = test::endpointDegrees(wilk, 0.5f).components();
       const std::array<SkPath, 4> ret{polyline(kRetEast), polyline(kRetWest),
                                       polyline(kRetPolotzk),
                                       polyline(kRetNorth)};
-      retComponents = debug::endpointDegrees(ret, 0.5f).components();
+      retComponents = test::endpointDegrees(ret, 0.5f).components();
     }
     // THE RISER CHECK, and the trap it exists to catch. Index the width
     // by ARC LENGTH and every riser lands on its station; index it by

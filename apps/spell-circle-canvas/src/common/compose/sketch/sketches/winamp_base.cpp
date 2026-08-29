@@ -76,7 +76,7 @@
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/ParagraphLayout.h>
@@ -91,7 +91,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -253,24 +252,24 @@ inline Element at(Element e, float x, float y, float w, float h) {
  *  across the three windows wear exactly this, so it is spelled once. */
 inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
                        float w = 1.0f) {
-  e.foreground(shapes::onEdges(
-      shapes::Edge::Top | shapes::Edge::Left,
-      util::stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
-  e.foreground(shapes::onEdges(
-      shapes::Edge::Bottom | shapes::Edge::Right,
-      util::stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
+  e.foreground(
+      shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                      stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
+  e.foreground(
+      shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
+                      stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
   return e;
 }
 /** The sunken bevel — the same pair with the light swapped to the far
  *  edges. Every LCD well, trough and list frame in the skin. */
 inline Element& sunken(Element& e, SkColor4f hi = fade(C(0x5C5C86), 0.9f),
                        SkColor4f lo = C(0x101018), float w = 1.0f) {
-  e.foreground(shapes::onEdges(
-      shapes::Edge::Top | shapes::Edge::Left,
-      util::stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
-  e.foreground(shapes::onEdges(
-      shapes::Edge::Bottom | shapes::Edge::Right,
-      util::stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
+  e.foreground(
+      shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                      stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
+  e.foreground(
+      shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
+                      stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
   return e;
 }
 
@@ -512,9 +511,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // "the same bevel again, N px further in", which is Winamp's doubled
     // button edge without a second element.
     e.foreground(shapes::inset(
-        n(1),
-        shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                        util::stroke(n(1), Fill::color(fade(kBtnLo, 0.45f)),
+        n(1), shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
+                              stroke(n(1), Fill::color(fade(kBtnLo, 0.45f)),
                                      PathFormat::Align::Inner))));
     e.child(glyph);
     return e;
@@ -659,8 +657,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element titleWell = at(box(), 109, 22, 158, 11).fill(C(0x101020));
     sunken(titleWell, fade(C(0x4A4A70), 0.5f), C(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
-    title.child(util::marquee(t(marqueeText(), pix(5, C(0x00E000))), marqueeW,
-                              &marqueePhase, n(40)));
+    title.child(marquee(t(marqueeText(), pix(5, C(0x00E000))), marqueeW,
+                        &marqueePhase, n(40)));
     titleWell.child(title);
     w.child(titleWell);
 

@@ -151,7 +151,6 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -164,7 +163,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 namespace ch = choreograph;
@@ -230,10 +228,6 @@ inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
   return {(float)((hex >> 16) & 255) / 255.0f,
           (float)((hex >> 8) & 255) / 255.0f, (float)(hex & 255) / 255.0f, a};
 }
-inline SkColor4f mul(SkColor4f c, float k, float a = -1) {
-  return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
-}
-
 /** Deterministic hash — every jitter, tear and speckle comes through here. */
 inline uint32_t hash3(int a, int b, int c) {
   // The multiplies are meant to wrap; unsigned operands make that wrap

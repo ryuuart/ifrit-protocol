@@ -238,25 +238,25 @@ struct CosmatiScene final : Scene {
     // the bed
     el.child(box().inset(0).corners({r}).fill(Material::solid(cs::kMortar)));
     // outer fillet
-    el.child(box().inset(0).corners({r}).foreground(util::stroke(
-        3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)));
+    el.child(box().inset(0).corners({r}).foreground(
+        stroke(3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)));
     // two ring courses of lozenges, counter-phased
     el.child(box()
                  .inset(0)
                  .shape(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
                  .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 40))
-                 .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
+                 .stroke(stroke(0.8f, Fill::color(cs::kMortar))));
     el.child(box()
                  .inset(0)
                  .shape(cs::lozengeRing(8, r * 0.30f, r * 0.54f, 0.3926991f))
                  .fill(cs::stone(cs::kGiallo, cs::kGialloLo, 12))
-                 .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
+                 .stroke(stroke(0.8f, Fill::color(cs::kMortar))));
     // the eye
     el.child(box()
                  .inset(r * 0.72f)
                  .corners({r * 0.28f})
                  .fill(cs::stone(eyeHi, eyeLo, 60))
-                 .foreground(util::stroke(1.6f, Fill::color(cs::kMarble))));
+                 .foreground(stroke(1.6f, Fill::color(cs::kMarble))));
     return el;
   }
 
@@ -280,19 +280,19 @@ struct CosmatiScene final : Scene {
     band.child(box()
                    .inset(0)
                    .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 8))
-                   .foreground(util::stroke(1.4f, Fill::color(cs::kMarble),
-                                            PathFormat::Align::Inner)));
+                   .foreground(stroke(1.4f, Fill::color(cs::kMarble),
+                                      PathFormat::Align::Inner)));
     band.child(box()
                    .inset(0)
                    .shape(cs::guillocheStrand((float)periods, 0.0f, h * 0.26f))
                    .stroke(spans::upTo(&lay),
-                           util::stroke(h * 0.20f, Fill::color(cs::kGiallo))));
+                           stroke(h * 0.20f, Fill::color(cs::kGiallo))));
     band.child(
         box()
             .inset(0)
             .shape(cs::guillocheStrand((float)periods, 3.14159265f, h * 0.26f))
             .stroke(spans::upTo(&lay),
-                    util::stroke(h * 0.20f, Fill::color(cs::kSerpentine))));
+                    stroke(h * 0.20f, Fill::color(cs::kSerpentine))));
     // the discs the strands plait around
     for (int i = 0; i < periods; ++i) {
       const float cx = w * ((float)i + 0.5f) / (float)periods;
@@ -303,7 +303,7 @@ struct CosmatiScene final : Scene {
                      .height(Dim(h * 0.40f))
                      .corners({h * 0.20f})
                      .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
-                     .foreground(util::stroke(1.0f, Fill::color(cs::kMarble))));
+                     .foreground(stroke(1.0f, Fill::color(cs::kMarble))));
     }
     return band;
   }
@@ -342,8 +342,8 @@ struct CosmatiScene final : Scene {
                 .inset(0)
                 .shape(cs::triangleCourse(cols, rows, 2))
                 .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 34)));
-    q.child(box().inset(0).foreground(util::stroke(
-        2.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)));
+    q.child(box().inset(0).foreground(
+        stroke(2.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)));
     return q;
   }
 
@@ -373,8 +373,8 @@ struct CosmatiScene final : Scene {
             // raster backend every pixel of it is an SkSL
             // evaluation
             .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 1))
-            .foreground(util::stroke(2.0f, Fill::color(cs::kMarble),
-                                     PathFormat::Align::Inner))
+            .foreground(stroke(2.0f, Fill::color(cs::kMarble),
+                               PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
     floorPlate.child(text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
                                "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
@@ -538,7 +538,7 @@ struct CosmatiScene final : Scene {
                          .width(Dim(20.0f))
                          .height(Dim(13.0f))
                          .fill(cs::stone(q.hi, q.lo, 34))
-                         .foreground(util::stroke(
+                         .foreground(stroke(
                              1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,
                                                 cs::kMarble.fB, 0.55f}))))
               .child(text(toU8(q.label), cs::type(10.5f, cs::kInkDim, 0.7f))));

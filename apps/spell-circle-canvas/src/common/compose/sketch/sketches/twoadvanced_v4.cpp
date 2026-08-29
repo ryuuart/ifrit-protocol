@@ -71,7 +71,6 @@
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -83,7 +82,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -428,12 +426,12 @@ inline Element place(Element e, float x, float y, float w, float h) {
  *  CHAMFERED outline wherever the panel has one. */
 inline Element singleBevel(Element e, SkColor4f base) {
   e.fill(base);
-  e.foreground(shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                               util::stroke(3, Fill::color(lift(base, 0.15f)),
-                                            PathFormat::Align::Inner)));
-  e.foreground(shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                               util::stroke(2, Fill::color(dark(base, 0.60f)),
-                                            PathFormat::Align::Inner)));
+  e.foreground(shapes::onEdges(
+      shapes::Edge::Top | shapes::Edge::Left,
+      stroke(3, Fill::color(lift(base, 0.15f)), PathFormat::Align::Inner)));
+  e.foreground(shapes::onEdges(
+      shapes::Edge::Bottom | shapes::Edge::Right,
+      stroke(2, Fill::color(dark(base, 0.60f)), PathFormat::Align::Inner)));
   return e;
 }
 
@@ -643,10 +641,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .alignItems(Align::Center)
         .padding(10, 0)
         .fill(stripesLive)
-        .foreground(
-            shapes::onEdges(shapes::Edge::Bottom,
-                            util::stroke(1, Fill::color(fade(kCyan, 0.35f)),
-                                         PathFormat::Align::Inner)))
+        .foreground(shapes::onEdges(shapes::Edge::Bottom,
+                                    stroke(1, Fill::color(fade(kCyan, 0.35f)),
+                                           PathFormat::Align::Inner)))
         .child(t(boldHalf, heavy(17, kNear, 40)))
         .child(t(restHalf, type(arial(), 15, kHeadDim, 40, 0.95f)))
         .child(box().width(12))
@@ -672,11 +669,11 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .fill(Material::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, C(0x3A0000)}}))
-        .stroke(util::stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
+        .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
         .foreground(styles::gloss(fade(kCtaHi, 0.55f), h * 0.30f,
                                   {0, -h * 0.26f}, 0.62f, 0.30f))
-        .foreground(util::stroke(1, Fill::color(fade(hairline, 0.45f)),
-                                 PathFormat::Align::Inner))
+        .foreground(stroke(1, Fill::color(fade(hairline, 0.45f)),
+                           PathFormat::Align::Inner))
         .row()
         .justify(Justify::Center)
         .alignItems(Align::Center)
@@ -737,12 +734,12 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                   {{0.0f, kCyanRing},
                                                    {0.55f, kTealBar},
                                                    {1.0f, C(0x0C2A2C)}}))
-                       .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.7f)),
-                                            PathFormat::Align::Inner))
+                       .stroke(stroke(1, Fill::color(fade(kCyan, 0.7f)),
+                                      PathFormat::Align::Inner))
                        .justify(Justify::Center)
                        .alignItems(Align::Center)
                        .child(box().width(9).height(9).corners({5}).stroke(
-                           util::stroke(2, Fill::color(kCyan)))))
+                           stroke(2, Fill::color(kCyan)))))
             // The teal segment's voice, verbatim from the interface
             // capture: the boot callsign, then the two region labels the
             // page hangs over its modules.
@@ -777,8 +774,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .child(box()
                        .height(24)
                        .padding(9, 0)
-                       .stroke(util::stroke(1, Fill::color(fade(kNear, 0.75f)),
-                                            PathFormat::Align::Inner))
+                       .stroke(stroke(1, Fill::color(fade(kNear, 0.75f)),
+                                      PathFormat::Align::Inner))
                        .row()
                        .alignItems(Align::Center)
                        .child(t("V4.PROPHECY", heavy(14, kNear, 80))));
@@ -811,23 +808,22 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               .fill(sel ? kChromeHi : fade(C(0x2A0A0C), 0.85f))
               .foreground(shapes::onEdges(
                   shapes::Edge::Left,
-                  util::stroke(2, Fill::color(sel ? kCyan : fade(kDust, 0.35f)),
-                               PathFormat::Align::Inner)))
+                  stroke(2, Fill::color(sel ? kCyan : fade(kDust, 0.35f)),
+                         PathFormat::Align::Inner)))
               .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
               .child(t(tracks[i], type(blackFace(), 13, sel ? kNear : kHeadDim,
                                        60, 0.92f))));
     }
 
-    Element scope =
-        box()
-            .grow(1)
-            .height(100)
-            .shape(chamfer(8, kTR | kBL))
-            .fill(spectrum)
-            .foreground(Scanlines{{0, 0, 0, 0.16f}, 3, 1})
-            .foreground(Brackets{fade(kCyan, 0.6f), 10, 2, 3, 0xF})
-            .foreground(util::stroke(1, Fill::color(fade(kCyan, 0.35f)),
-                                     PathFormat::Align::Inner));
+    Element scope = box()
+                        .grow(1)
+                        .height(100)
+                        .shape(chamfer(8, kTR | kBL))
+                        .fill(spectrum)
+                        .foreground(Scanlines{{0, 0, 0, 0.16f}, 3, 1})
+                        .foreground(Brackets{fade(kCyan, 0.6f), 10, 2, 3, 0xF})
+                        .foreground(stroke(1, Fill::color(fade(kCyan, 0.35f)),
+                                           PathFormat::Align::Inner));
 
     auto key = [&](const char* glyph, bool hot) {
       return box()
@@ -838,8 +834,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                      {{0.0f, hot ? kCtaHi : C(0x5A2226)},
                                       {0.5f, hot ? kCta : C(0x3A0F12)},
                                       {1.0f, C(0x240607)}}))
-          .stroke(util::stroke(1, Fill::color(fade(kDust, 0.35f)),
-                               PathFormat::Align::Inner))
+          .stroke(stroke(1, Fill::color(fade(kDust, 0.35f)),
+                         PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(t(glyph, micro(11, hot ? kNear : kDust, 0)));
@@ -953,8 +949,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                       .fill(Material::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.0f, C(0x06232A)}, {1.0f, C(0x01090B)}}))
-                      .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.35f)),
-                                           PathFormat::Align::Inner))
+                      .stroke(stroke(1, Fill::color(fade(kCyan, 0.35f)),
+                                     PathFormat::Align::Inner))
                       .child(box().inset(0).fill(Material::radialUnit(
                           {0.5f, 0.92f}, 1.0f,
                           {{0.0f, fade(kGlow, g)}, {1.0f, fade(kGlow, 0.0f)}})))
@@ -1026,15 +1022,14 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
           .fill(sdf::material(
               sdf::circle(),
               {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan}))
-          .child(
-              box()
-                  .width(50)
-                  .height(50)
-                  .shape(shapes::polygon(6, 0))
-                  .stroke(util::stroke(1, Fill::color(fade(kCyanRing, 0.75f))))
-                  .justify(Justify::Center)
-                  .alignItems(Align::Center)
-                  .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
+          .child(box()
+                     .width(50)
+                     .height(50)
+                     .shape(shapes::polygon(6, 0))
+                     .stroke(stroke(1, Fill::color(fade(kCyanRing, 0.75f))))
+                     .justify(Justify::Center)
+                     .alignItems(Align::Center)
+                     .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
     }
 
     return box()
@@ -1230,7 +1225,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element ring =
         place(box()
                   .shape(shapes::arc(-125, 310))
-                  .stroke(util::stroke(2, Fill::color(fade(kCyanRing, 0.6f)))),
+                  .stroke(stroke(2, Fill::color(fade(kCyanRing, 0.6f)))),
               cx - 118, horizon - 226, 236, 236);
     if (!still)
       ring.mask(by::spans(spans::upTo(
@@ -1258,8 +1253,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       fig.foreground(styles::gloss(fade(kCyanRing, 0.95f), dw * 0.09f,
                                    {0, -dh * 0.15f}, 0.28f, 0.20f));
       fig.foreground(shapes::onEdges(
-          shapes::Edge::Top, util::stroke(1.5f, Fill::color(fade(kGlow, 0.85f)),
-                                          PathFormat::Align::Inner)));
+          shapes::Edge::Top, stroke(1.5f, Fill::color(fade(kGlow, 0.85f)),
+                                    PathFormat::Align::Inner)));
       fig.child(box()
                     .left(Dim(dw * 0.22f))
                     .top(Dim(dh * 0.30f))
@@ -1380,10 +1375,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               .height(316)
               .fill(Material::linearUnit(
                   {0, 0}, {1, 0}, {{0.0f, C(0x2A0708)}, {1.0f, C(0x1A0405)}}))
-              .foreground(shapes::onEdges(
-                  shapes::Edge::Bottom,
-                  util::stroke(3, Fill::color(fade(kCyan, 0.5f)),
-                               PathFormat::Align::Inner)))
+              .foreground(
+                  shapes::onEdges(shapes::Edge::Bottom,
+                                  stroke(3, Fill::color(fade(kCyan, 0.5f)),
+                                         PathFormat::Align::Inner)))
               .scaleY(&shutter[(size_t)i])
               .transformOrigin(0.5f, 0.0f));
     // The ACCESSING readout that rides the closed shutters.
@@ -1394,8 +1389,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    .height(64)
                    .shape(chamfer(10, kTL | kBR))
                    .fill(fade(C(0x140404), 0.92f))
-                   .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.6f)),
-                                        PathFormat::Align::Inner))
+                   .stroke(stroke(1, Fill::color(fade(kCyan, 0.6f)),
+                                  PathFormat::Align::Inner))
                    .foreground(Brackets{fade(kCyan, 0.7f), 10, 2, 3, 0xF})
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
@@ -1444,9 +1439,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .foreground(styles::gloss(fade(kPanelHi, 0.5f), 40, {0, -h * 0.34f},
                                   0.72f, 0.28f))
         .foreground(shapes::onEdges(
-            shapes::Edge::Top,
-            util::stroke(1, Fill::color(fade(C(0xCFEFEC), 0.7f)),
-                         PathFormat::Align::Inner)));
+            shapes::Edge::Top, stroke(1, Fill::color(fade(C(0xCFEFEC), 0.7f)),
+                                      PathFormat::Align::Inner)));
   }
 
   /** Four procedural "stills" — each a different flat-shape composition
@@ -1469,9 +1463,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                       .fill(Material::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.0f, C(0x0A2C33)}, {1.0f, C(0x02171B)}}))
-                      .stroke(util::stroke(1,
-                                           Fill::color(fade(C(0x0B3B40), 0.9f)),
-                                           PathFormat::Align::Inner))
+                      .stroke(stroke(1, Fill::color(fade(C(0x0B3B40), 0.9f)),
+                                     PathFormat::Align::Inner))
                       .child(box().inset(0).fill(Material::radialUnit(
                           {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
                           {{0.0f, fade(kGlow, g)}, {1.0f, fade(kGlow, 0.0f)}})))
@@ -1510,8 +1503,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .shape(chamfer(12, kTL | kBR))
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, C(0x06232A)}, {1.0f, C(0x011114)}}))
-            .stroke(util::stroke(1, Fill::color(fade(C(0x0B3B40), 0.9f)),
-                                 PathFormat::Align::Inner))
+            .stroke(stroke(1, Fill::color(fade(C(0x0B3B40), 0.9f)),
+                           PathFormat::Align::Inner))
             .child(box().inset(0).fill(
                 Material::radialUnit({0.5f, 0.72f}, 0.95f,
                                      {{0.0f, fade(kGlow, 0.8f)},
@@ -1547,9 +1540,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .height(84)
                        .padding(9)
                        .fill(dither.material())
-                       .foreground(
-                           util::stroke(1, Fill::color(fade(kPanelSh, 0.9f)),
-                                        PathFormat::Align::Inner))
+                       .foreground(stroke(1, Fill::color(fade(kPanelSh, 0.9f)),
+                                          PathFormat::Align::Inner))
                        // the ONE place this interface is not tracked caps
                        .child(t("2Advanced completes a broadcast spot for "
                                 "BSN's N.O.-Xplode line \xe2\x80\x94 full CG "
@@ -1601,8 +1593,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                 .gap(4)
                 .padding(8)
                 .fill(dither.material())
-                .foreground(util::stroke(1, Fill::color(fade(kPanelSh, 0.9f)),
-                                         PathFormat::Align::Inner))
+                .foreground(stroke(1, Fill::color(fade(kPanelSh, 0.9f)),
+                                   PathFormat::Align::Inner))
                 .child(t("CREDITS", micro(9, fade(C(0x123B3D), 0.8f), 260)))
                 .child(box().height(1).fill(fade(kDate, 0.28f)))
                 .child(t("DIRECTION", micro(9, kDate, 200)))
@@ -1723,20 +1715,20 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .justify(Justify::Center)
                        .alignItems(Align::Center)
                        .child(t("\xe2\x96\xb4", micro(8, kBody, 0))))
-            .child(box()
-                       .grow(1)
-                       .fill(fade(kPanelSh, 0.6f))
-                       .child(box()
-                                  .left(Dim(2))
-                                  .top(Dim(6))
-                                  .width(12)
-                                  .height(90)
-                                  .fill(Material::linearUnit(
-                                      {0, 0}, {1, 0},
-                                      {{0.0f, C(0xCFEFEC)}, {1.0f, kPanelHi}}))
-                                  .stroke(util::stroke(
-                                      1, Fill::color(fade(kDate, 0.4f)),
-                                      PathFormat::Align::Inner))))
+            .child(
+                box()
+                    .grow(1)
+                    .fill(fade(kPanelSh, 0.6f))
+                    .child(box()
+                               .left(Dim(2))
+                               .top(Dim(6))
+                               .width(12)
+                               .height(90)
+                               .fill(Material::linearUnit(
+                                   {0, 0}, {1, 0},
+                                   {{0.0f, C(0xCFEFEC)}, {1.0f, kPanelHi}}))
+                               .stroke(stroke(1, Fill::color(fade(kDate, 0.4f)),
+                                              PathFormat::Align::Inner))))
             .child(box()
                        .width(16)
                        .height(16)
@@ -1759,7 +1751,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                   .clip()
                                   .padding(9)
                                   .fill(dither.material())
-                                  .foreground(util::stroke(
+                                  .foreground(stroke(
                                       1, Fill::color(fade(kPanelSh, 0.9f)),
                                       PathFormat::Align::Inner))
                                   .child(list))
@@ -1808,8 +1800,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .fill(Material::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
-        .stroke(util::stroke(1, Fill::color(fade(C(0xCFEFEC), 0.6f)),
-                             PathFormat::Align::Inner))
+        .stroke(stroke(1, Fill::color(fade(C(0xCFEFEC), 0.6f)),
+                       PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
         .child(t("VIEW", label(11, kDate, 200)));
@@ -1850,8 +1842,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          .fill(Material::linearUnit(
                              {0, 0}, {0, 1},
                              {{0.0f, C(0x8E2A2A)}, {1.0f, C(0x3A0C0E)}}))
-                         .stroke(util::stroke(1, Fill::color(fade(kNear, 0.4f)),
-                                              PathFormat::Align::Inner))
+                         .stroke(stroke(1, Fill::color(fade(kNear, 0.4f)),
+                                        PathFormat::Align::Inner))
                          .justify(Justify::Center)
                          .alignItems(Align::Center)
                          .child(t(it.glyph, micro(11, kPanelHi, 0))))
@@ -1917,8 +1909,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                     .fill(Material::linearUnit(
                         {0, 0}, {0, 1},
                         {{0.0f, C(0x2A0A0C)}, {1.0f, C(0x140404)}}))
-                    .stroke(util::stroke(1, Fill::color(fade(kDust, 0.4f)),
-                                         PathFormat::Align::Inner))
+                    .stroke(stroke(1, Fill::color(fade(kDust, 0.4f)),
+                                   PathFormat::Align::Inner))
                     .child(box()
                                .width(20)
                                .height(20)
@@ -2127,7 +2119,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   }
 
   /** The wire ticker: the content of ONE marquee unit. Measured once in
-   *  setup() so the strip's wrap length is exact (util::marquee's
+   *  setup() so the strip's wrap length is exact (marquee's
    *  width-pinned overload — an unpinned strip wraps against the clip). */
   Element wireContent() {
     using namespace tav;
@@ -2156,7 +2148,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   /** The full-width status bus between the panel grid and SUB SYSTEM. */
   Element statusWire() {
     using namespace tav;
-    Element strip = util::marquee(wireContent(), wireW, &wirePhase, 60);
+    Element strip = marquee(wireContent(), wireW, &wirePhase, 60);
     strip.grow(1).height(24);
     return singleBevel(box()
                            .width(1892)
@@ -2191,9 +2183,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             on ? Material::linearUnit(
                      {0, 0}, {0, 1}, {{0.0f, C(0x0A4148)}, {1.0f, C(0x02181C)}})
                : Material::solid(C(0x220608)))
-        .stroke(util::stroke(
-            1, Fill::color(on ? fade(kCyan, 0.7f) : fade(kDust, 0.35f)),
-            PathFormat::Align::Inner))
+        .stroke(stroke(1,
+                       Fill::color(on ? fade(kCyan, 0.7f) : fade(kDust, 0.35f)),
+                       PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
         .child(t(lbl, micro(10, on ? kCyan : kDustDim, 160)));
@@ -2221,8 +2213,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
           .corners({20})
           .fill(Material::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, C(0x6A1B21)}, {1.0f, C(0x220608)}}))
-          .stroke(util::stroke(1, Fill::color(fade(kDust, 0.5f)),
-                               PathFormat::Align::Inner))
+          .stroke(stroke(1, Fill::color(fade(kDust, 0.5f)),
+                         PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(t(glyph, heavy(15, kCyan, 0)));
@@ -2239,8 +2231,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                      .fill(Material::radialUnit(
                          {0.5f, 0.76f}, 1.1f,
                          {{0.0f, C(0x0A4148)}, {1.0f, C(0x010D10)}}))
-                     .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.5f)),
-                                          PathFormat::Align::Inner)))
+                     .stroke(stroke(1, Fill::color(fade(kCyan, 0.5f)),
+                                    PathFormat::Align::Inner)))
           .child(box()
                      .column()
                      .gap(1)
@@ -2362,9 +2354,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                 .padding(8, 0)
                                 .shape(chamfer(7, kTL | kBR))
                                 .fill(C(0x2A0A0C))
-                                .stroke(util::stroke(
-                                    1, Fill::color(fade(kDust, 0.45f)),
-                                    PathFormat::Align::Inner))
+                                .stroke(stroke(1,
+                                               Fill::color(fade(kDust, 0.45f)),
+                                               PathFormat::Align::Inner))
                                 .row()
                                 .gap(6)
                                 .alignItems(Align::Center)
@@ -2435,7 +2427,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3850ms}))
           .foreground(shapes::onEdges(
               shapes::Edge::Top,
-              util::stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
+              stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
     }
     Element strip =
         box()
@@ -2456,7 +2448,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                 animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3850ms}))
             .foreground(shapes::onEdges(
                 shapes::Edge::Top,
-                util::stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
+                stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
 
     auto window = [&](const char* title, const char* a, const char* b,
                       float w) {
@@ -2572,8 +2564,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          .inset(26)
                          .corners({16})
                          .fill(fade(kD1, 0.92f))
-                         .stroke(util::stroke(1, Fill::color(kD4),
-                                              PathFormat::Align::Inner)))
+                         .stroke(stroke(1, Fill::color(kD4),
+                                        PathFormat::Align::Inner)))
               .child(t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
                        micro(11, kD7, 140))));
     strip.child(cluster);
@@ -2605,10 +2597,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                     {0.22f, kChrome},
                                     {0.70f, C(0x2A0708)},
                                     {1.00f, C(0x0A0000)}}))
-        .foreground(shapes::onEdges(
-            right ? shapes::Edge::Left : shapes::Edge::Right,
-            util::stroke(1, Fill::color(fade(C(0x99AAAA), 0.35f)),
-                         PathFormat::Align::Inner)))
+        .foreground(
+            shapes::onEdges(right ? shapes::Edge::Left : shapes::Edge::Right,
+                            stroke(1, Fill::color(fade(C(0x99AAAA), 0.35f)),
+                                   PathFormat::Align::Inner)))
         .foreground(RailFlares{C(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});
   }
 
@@ -2626,7 +2618,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                    from(0.0f).to(1.0f),
                                    {400ms, &ch::easeOutQuint,
                                     std::chrono::milliseconds(delayMs)})),
-                               util::stroke(1.5f, Fill::color(kCyan))),
+                               stroke(1.5f, Fill::color(kCyan))),
                    x, y, w, h);
     };
 
@@ -2652,7 +2644,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .shape(shapes::arc(-90, 359))
             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {500ms, &ch::easeOutQuint, 260ms})),
-                    util::stroke(1, Fill::color(fade(kCyan, 0.7f)))),
+                    stroke(1, Fill::color(fade(kCyan, 0.7f)))),
         cx - 92, cy - 92, 184, 184));
     // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
     o.child(
@@ -2670,7 +2662,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(box().inset(0).shape(ray(1, 1)).stroke(
                            spans::upTo(animate(from(0.0f).to(1.0f),
                                                {800ms, &ch::easeNone, 550ms})),
-                           util::stroke(2, Fill::color(kCyan)))))
+                           stroke(2, Fill::color(kCyan)))))
             .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97"
                      "655",
                      micro(11, fade(kCyan, 0.6f), 240))));

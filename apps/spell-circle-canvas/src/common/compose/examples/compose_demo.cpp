@@ -21,7 +21,6 @@
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -122,9 +121,9 @@ Element scoreRow(const Row& row) {
       .corners({8})
       .fill(Fill::color(row.highlighted ? SkColor4f{0.32f, 0.18f, 0.45f, 1}
                                         : SkColor4f{0.10f, 0.11f, 0.16f, 1}))
-      .child(text(sigil::compose::util::toU8(row.name), styleAt(18, 0xffe8ecf8))
-                 .grow(1))
-      .child(text(sigil::compose::util::toU8(std::to_string(row.score)),
+      .child(
+          text(sigil::compose::toU8(row.name), styleAt(18, 0xffe8ecf8)).grow(1))
+      .child(text(sigil::compose::toU8(std::to_string(row.score)),
                   styleAt(18, 0xff7ee8ff)));
 }
 
@@ -356,7 +355,7 @@ Element organicPanel(SkSize size) {
         .zIndex(2)
         .shape(shapes::blob(seed, 0.28f, 7))
         .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
-        .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
+        .foreground(stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
   };
 
   PathFormat wire;

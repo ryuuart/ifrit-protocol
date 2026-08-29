@@ -351,7 +351,7 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
   // sits at a small fraction of its peak, an 8-bit read-back quantises that
   // tail to a couple of levels — which yields a confident wrong exponent
   // rather than an obviously broken one.
-  const auto r = debug::rasterize(
+  const auto r = test::rasterize(
       box().absolute().inset(0).fill(Fill::color({1.0f, 0.25f, 0.0f, 1})),
       fonts(), {32, 32});
   ASSERT_TRUE(r.valid());
@@ -365,7 +365,7 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
   // 1/500 of full scale is 0.51 of a 255-step — it quantises to 0 or 1
   // in N32 and is measurable in float.
   const float faint = 1.0f / 500.0f;
-  const auto dim = debug::rasterize(
+  const auto dim = test::rasterize(
       box().absolute().inset(0).fill(Fill::color({faint, faint, faint, 1})),
       fonts(), {8, 8});
   ASSERT_TRUE(dim.valid());
@@ -380,10 +380,10 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 // The extraction layer: placement, the prelude, the feed plate, and the
 // proving primitive.
 
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Feed.h>
-#include <sigilcompose/Studio.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilmotion/Animation.h>
 
 TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   // rect() is sugar for .absolute().left().top().width().height(), and the
@@ -548,45 +548,39 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
 TEST(ComposeStudio, TheColourOpsAreTheBodiesTheCorpusWroteTwentyFourTimes) {
   // hex() is defined 24 times across 64 files under three names with
   // byte-identical bodies and no shared brief between the groups.
-  constexpr SkColor4f rubric = studio::hex(0x8C2F22);
-  static_assert(studio::hex(0xFFFFFF).fR == 1.0f,
+  constexpr SkColor4f rubric = hex(0x8C2F22);
+  static_assert(hex(0xFFFFFF).fR == 1.0f,
                 "must stay constexpr — the "
                 "palettes are constexpr");
   EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
-  EXPECT_FLOAT_EQ(studio::hex(0x000000, 0.25f).fA, 0.25f);
+  EXPECT_FLOAT_EQ(hex(0x000000, 0.25f).fA, 0.25f);
 
   // alpha() and mul() are two names on purpose: 45 gallery sites override
   // alpha and 16 scale channels, and they are different operations.
-  const SkColor4f faded = studio::alpha(rubric, 0.4f);
+  const SkColor4f faded = alpha(rubric, 0.4f);
   EXPECT_FLOAT_EQ(faded.fR, rubric.fR);
   EXPECT_FLOAT_EQ(faded.fA, 0.4f);
 
-  const SkColor4f lit = studio::mul(rubric, 1.5f);
+  const SkColor4f lit = mul(rubric, 1.5f);
   EXPECT_FLOAT_EQ(lit.fR, rubric.fR * 1.5f);
   EXPECT_FLOAT_EQ(lit.fA, rubric.fA) << "a < 0 must KEEP the source alpha";
-  EXPECT_FLOAT_EQ(studio::mul(rubric, 0.5f, 0.2f).fA, 0.2f);
+  EXPECT_FLOAT_EQ(mul(rubric, 0.5f, 0.2f).fA, 0.2f);
   // Deliberately unclamped: SkColor4f is float and >1 is meaningful.
-  EXPECT_GT(studio::mul(SkColor4f{0.9f, 0.9f, 0.9f, 1}, 2.0f).fR, 1.0f);
+  EXPECT_GT(mul(SkColor4f{0.9f, 0.9f, 0.9f, 1}, 2.0f).fR, 1.0f);
 
-  const SkColor4f half =
-      studio::mix({0, 0, 0, 0}, {1.0f, 0.5f, 0.25f, 1.0f}, 0.5f);
+  const SkColor4f half = mix({0, 0, 0, 0}, {1.0f, 0.5f, 0.25f, 1.0f}, 0.5f);
   EXPECT_FLOAT_EQ(half.fR, 0.5f);
   EXPECT_FLOAT_EQ(half.fG, 0.25f);
   EXPECT_FLOAT_EQ(half.fA, 0.5f) << "mix() interpolates alpha too";
 
   // phase() wraps and never NaNs on a zero period.
-  EXPECT_FLOAT_EQ(studio::phase(0.0, 4.0), 0.0f);
-  EXPECT_FLOAT_EQ(studio::phase(3.0, 4.0), 0.75f);
-  EXPECT_FLOAT_EQ(studio::phase(9.0, 4.0), 0.25f);
-  EXPECT_FLOAT_EQ(studio::phase(1.0, 0.0), 0.0f);
-
-  EXPECT_EQ(studio::fmt("%s %d %.2f", "n", 7, 1.5), "n 7 1.50");
-  // Sizes the result rather than truncating into a fixed stack buffer, which
-  // all seven hand-rolled versions did.
-  EXPECT_EQ(studio::fmt("%s", std::string(2000, 'x').c_str()).size(), 2000u);
+  EXPECT_FLOAT_EQ(motion::phase(0.0, 4.0), 0.0f);
+  EXPECT_FLOAT_EQ(motion::phase(3.0, 4.0), 0.75f);
+  EXPECT_FLOAT_EQ(motion::phase(9.0, 4.0), 0.25f);
+  EXPECT_FLOAT_EQ(motion::phase(1.0, 0.0), 0.0f);
 }
 
 TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
@@ -597,14 +591,13 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   // test asserts exactly the fields a positional two-argument helper could
   // not reach; if it ever shrinks to size+colour, the extraction has failed
   // the same way its predecessor did.
-  const sigil::weave::TextStyle s =
-      studio::type({.size = 18.0f,
-                    .color = {0.2f, 0.4f, 0.6f, 1},
-                    .track = 1.25f,
-                    .condense = 0.94f,
-                    .weight = 650.0f,
-                    .slant = -10.0f,
-                    .aliased = true});
+  const sigil::weave::TextStyle s = type({.size = 18.0f,
+                                          .color = {0.2f, 0.4f, 0.6f, 1},
+                                          .track = 1.25f,
+                                          .condense = 0.94f,
+                                          .weight = 650.0f,
+                                          .slant = -10.0f,
+                                          .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);
@@ -618,7 +611,7 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
 
   // Defaults leave design space alone — an unvaried style must not carry a
   // wght entry, or every default style occupies its own varied-face memo.
-  EXPECT_TRUE(studio::type({.size = 12}).shaping.variations.empty());
+  EXPECT_TRUE(type({.size = 12}).shaping.variations.empty());
 
   // It equals a hand-built style, so a study migrating to it prunes.
   sigil::weave::TextStyle byHand;
@@ -630,13 +623,11 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   byHand.paint.foreground.setAntiAlias(true);
   byHand.variation("wght", 650.0f);
   byHand.variation("slnt", -10.0f);
-  EXPECT_TRUE(s == byHand)
-      << "studio::type() does not build the TextStyle it declares";
+  EXPECT_TRUE(s == byHand) << "type() does not build the TextStyle it declares";
 
   // And it actually lays out — a TextStyle that measures to nothing would
   // satisfy every field assertion above.
-  const SkSize measured =
-      measure(text(u8"Wm", studio::type({.size = 40})), fonts());
+  const SkSize measured = measure(text(u8"Wm", type({.size = 40})), fonts());
   EXPECT_GT(measured.width(), 10.0f);
   EXPECT_GT(measured.height(), 10.0f);
 }
@@ -651,7 +642,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
   b.append({u8"beta"});
 
   feed::TextOptions style;
-  style.styles.base(studio::type({.size = 9, .color = {1, 1, 1, 1}}));
+  style.styles.base(type({.size = 9, .color = {1, 1, 1, 1}}));
   style.window.gap = 1.0f;
 
   auto strip = [&] {
@@ -734,7 +725,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   // count. feed::height() is that number, and the plate below is built
   // from it with no slack at all.
   feed::TextOptions st;
-  st.styles.base(studio::type({.size = 9.2f, .color = {1, 1, 1, 1}}));
+  st.styles.base(type({.size = 9.2f, .color = {1, 1, 1, 1}}));
   st.window.gap = 1.0f;
   st.window.visible = 12;
 
@@ -806,8 +797,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // patched, and an author who needs something the options do not carry can
   // write that column themselves without losing the identity discipline.
   feed::TextOptions st;
-  st.styles.base(studio::type({.size = 20, .color = {1, 1, 1, 1}}))
-      .set("alert", studio::type({.size = 20, .color = {1, 0, 0, 1}}));
+  st.styles.base(type({.size = 20, .color = {1, 1, 1, 1}}))
+      .set("alert", type({.size = 20, .color = {1, 0, 0, 1}}));
   st.window.gap = 4.0f;
   feed::TextRing ring;
   ring.append({u8"AAAA"});
@@ -872,16 +863,16 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // A figure that prints its own verification is worthless if the printed
   // verdict is written by hand next to the numbers: the string and the claim
   // are then unconnected, and the plate cannot be falsified by its own
-  // output. debug::check() derives the verdict FROM the two values it
+  // output. test::check() derives the verdict FROM the two values it
   // prints, so a wrong number changes the word beside it.
-  const debug::Check ok =
-      debug::check("northern column", 422000 - 22000, 400000);
+  const test::Check ok =
+      test::check("northern column", 422000 - 22000, 400000);
   EXPECT_TRUE(ok.pass);
   EXPECT_NE(ok.line().find("400000"), std::string::npos);
   EXPECT_NE(ok.line().find("PASS"), std::string::npos);
   EXPECT_EQ(ok.line().find("FAIL"), std::string::npos);
 
-  const debug::Check bad = debug::check("Berezina", 20000 + 30000, 49000);
+  const test::Check bad = test::check("Berezina", 20000 + 30000, 49000);
   EXPECT_FALSE(bad.pass);
   EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
       << "a failing check must print what it wanted, or the plate says "
@@ -890,30 +881,30 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
   // checks silently losing their units to a feed column that clipped.
-  const std::string wide = debug::check(std::string(80, 'L'), 1, 1).line(44);
+  const std::string wide = test::check(std::string(80, 'L'), 1, 1).line(44);
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
   // Floats need a tolerance the STUDY chooses; there is no default.
-  EXPECT_TRUE(debug::check("R", 257.972, 257.9715, 0.001).pass);
-  EXPECT_FALSE(debug::check("R", 257.972, 257.9, 0.001).pass);
-  EXPECT_NE(debug::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
+  EXPECT_TRUE(test::check("R", 257.972, 257.9715, 0.001).pass);
+  EXPECT_FALSE(test::check("R", 257.972, 257.9, 0.001).pass);
+  EXPECT_NE(test::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
             std::string::npos);
 
   EXPECT_TRUE(
-      debug::check("winding", std::string_view("kCW"), std::string_view("kCW"))
+      test::check("winding", std::string_view("kCW"), std::string_view("kCW"))
           .pass);
-  EXPECT_FALSE(debug::check("closed", false).pass);
-  EXPECT_TRUE(debug::check("closed", true).pass);
+  EXPECT_FALSE(test::check("closed", false).pass);
+  EXPECT_TRUE(test::check("closed", true).pass);
 
-  const debug::Check checks[] = {ok, bad, debug::check("x", true)};
-  EXPECT_EQ(debug::failures(checks), 1);
-  EXPECT_EQ(debug::failures(std::span<const debug::Check>{checks, 1}), 0);
+  const test::Check checks[] = {ok, bad, test::check("x", true)};
+  EXPECT_EQ(test::failures(checks), 1);
+  EXPECT_EQ(test::failures(std::span<const test::Check>{checks, 1}), 0);
 
   // report() lands the line in the feed under the style name the VERDICT
   // chose — that link is the whole primitive.
   feed::TextRing ring;
-  debug::report(ring, ok, "pass", "fail");
-  debug::report(ring, bad, "pass", "fail");
+  test::report(ring, ok, "pass", "fail");
+  test::report(ring, bad, "pass", "fail");
   ASSERT_EQ(ring.size(), 2u);
   EXPECT_EQ(ring.rows()[0].value.style, "pass");
   EXPECT_EQ(ring.rows()[1].value.style, "fail");
@@ -937,9 +928,9 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
 }
 
 TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
-  const SkRect r = util::centred({100, 50}, 40, 20);
+  const SkRect r = kit::centred({100, 50}, 40, 20);
   EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
-  EXPECT_EQ(util::centred({100, 50}, SkSize{40, 20}), r);
+  EXPECT_EQ(kit::centred({100, 50}, SkSize{40, 20}), r);
 
   // The point of it being a VALUE: rect() takes it, and so does everything
   // else that wants the same geometry.

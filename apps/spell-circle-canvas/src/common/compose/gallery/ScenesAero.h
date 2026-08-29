@@ -38,7 +38,7 @@
 
 namespace compose_gallery {
 
-using sigil::compose::util::stroke;
+using sigil::compose::stroke;
 
 namespace aero_desktop {
 
@@ -173,7 +173,7 @@ inline Material closeBloom(float w, float h) {
 }
 
 // The DWM window shadow: a rounded-box SDF falloff painted INSIDE its
-// own node bounds. Still a shader (not util::Shadow) on purpose: the
+// own node bounds. Still a shader (not Shadow) on purpose: the
 // glass is translucent, so the shadow must be HOLLOW under the window
 // (the smoothstep knockout below) or the backdrop blur samples its own
 // black core and the whole pane goes murky.

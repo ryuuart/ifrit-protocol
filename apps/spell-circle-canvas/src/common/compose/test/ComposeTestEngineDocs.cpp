@@ -4,7 +4,7 @@ TEST(ComposeBrushEngine, PipelineStylesEveryLayer) {
   Host host;
   Brush b;
   b.shaped(kit::brush::shapers::Wave{.amplitude = 8, .wavelength = 24})
-      .layer(util::stroke(2, green()))
+      .layer(stroke(2, green()))
       .layer([] {
         brush::Scatter s;
         s.art = box().width(6).height(6).fill(red());
@@ -65,8 +65,8 @@ TEST(ComposeBrushEngine, PerLayerShapersRideTheSharedPipeline) {
   // as a single material value. Positive `px` is LEFT of travel.
   Host host;
   Brush b;
-  b.layer(util::stroke(3, green()), {kit::brush::shapers::Offset{12}})
-      .layer(util::stroke(3, blue()), {kit::brush::shapers::Offset{-12}});
+  b.layer(stroke(3, green()), {kit::brush::shapers::Offset{12}})
+      .layer(stroke(3, blue()), {kit::brush::shapers::Offset{-12}});
   host.composer.render(straightRun(std::move(b)));
   host.frame();
   EXPECT_EQ(host.pixel(100, 88), SK_ColorGREEN);   // left-of-travel rail
@@ -395,7 +395,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto ngon = shapes::polygon(20, -90.0f);
   auto chamfer = shapes::chamfered(22.0f, shapes::Corner::All);
   auto notch = shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal);
-  auto edges = shapes::onEdges(shapes::Edge::Top, util::stroke(2.0f, ink));
+  auto edges = shapes::onEdges(shapes::Edge::Top, stroke(2.0f, ink));
 
   auto glow =
       kit::brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
@@ -404,7 +404,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   // OP FIRST, decoration second. The two arguments read equally well in
   // either order in prose, which is why the call is spelled here.
   auto restyled = brush::restyle(kit::brush::shapers::Jitter{8.0f, 2.0f, 7},
-                                 util::stroke(1.0f, ink), 8.0f);
+                                 stroke(1.0f, ink), 8.0f);
 
   lines::Hatch hatch;
   choreograph::Output<float> pitch{6.0f}, angle{0.0f};
@@ -538,8 +538,8 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
                     .strokeFill = ink,
                     .cap = SkPaint::kRound_Cap,
                     .join = SkPaint::kRound_Join};
-  PathFormat inner = util::stroke(2.0f, ink, PathFormat::Align::Inner);
-  PathFormat outer = util::stroke(2.0f, ink, PathFormat::Align::Outer);
+  PathFormat inner = stroke(2.0f, ink, PathFormat::Align::Inner);
+  PathFormat outer = stroke(2.0f, ink, PathFormat::Align::Outer);
   PathFormat material{.width = 2.0f};
   material.strokeMaterial = Material::solid({0.7f, 0.6f, 0.3f, 1});
   PathFormat stamped{.width = 1.0f, .strokeFill = ink};
@@ -570,7 +570,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   auto wash = decorations::wash(Material::solid({1, 1, 1, 0.2f}),
                                 SkBlendMode::kOverlay, 0.5f);
   // shadow(color, OFFSET, blur) — the offset is the second argument.
-  auto shadow = util::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
+  auto shadow = sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
 
   // ---- shapes, exactly as the "shapes" block spells them -----------------
   auto circle = shapes::circle();
@@ -689,8 +689,8 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // Every place a Material is accepted, spelled once each.
   (void)box().fill(flat);
   (void)box().textFill(linU);
-  (void)util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
-  PathFormat stroked = util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  (void)stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  PathFormat stroked = stroke(2.0f, Fill::color({1, 1, 1, 1}));
   stroked.strokeMaterial = radU;  // a stroke takes a Material, not only a Fill
   (void)decorations::wash(glowU, SkBlendMode::kOverlay, 0.5f);
 

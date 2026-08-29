@@ -133,6 +133,7 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -146,7 +147,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -154,11 +154,6 @@ namespace {
 
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome, not sourced
-
-constexpr SkColor4f hex(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xFF) / 255.0f,
-          (float)((rgb >> 8) & 0xFF) / 255.0f, (float)(rgb & 0xFF) / 255.0f, a};
-}
 
 constexpr SkColor4f kInk = hex(0x06070B);
 constexpr SkColor4f kPanel = hex(0x0B0D14);
@@ -814,7 +809,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
       const bool sol = i == 7;
       g.child(
-          disc(p, rad * 2.0f)
+          kit::disc(p, rad * 2.0f)
               .fill(Material::radialUnit(
                   {0.5f, 0.5f}, 0.707f,
                   {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
@@ -874,7 +869,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
             from(12.0f).to(0.0f),
             {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
         // Duff's local light. ONE Output (loopU) shaped into px.
-        .child(disc({0, 0}, 132)
+        .child(kit::disc({0, 0}, 132)
                    .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
                                               {{0.0f, hex(0xFF8A3A, 0.62f)},
                                                {0.38f, hex(0xC24E14, 0.24f)},
@@ -894,7 +889,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // (off-frame left). Documented as elements; timing is reconstruction.
     const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
     Element g = box().inset(0);
-    g.child(disc(impact, 170)
+    g.child(kit::disc(impact, 170)
                 .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
                                            {{0.0f, {1, 1, 1, 0.95f}},
                                             {0.25f, hex(0xFFE7B0, 0.6f)},
@@ -909,7 +904,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   }
                   return 0.0f;
                 })));
-    g.child(disc(impact, 520)
+    g.child(kit::disc(impact, 520)
                 .shape(shapes::circle())
                 .stroke(stroke(2.0f, Fill::color(hex(0xFFB070, 0.85f))))
                 .blend(SkBlendMode::kPlus)
@@ -944,7 +939,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
             .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.55f)),
                            PathFormat::Align::Inner))
             // the expanding wavefront ring — same Output, unit scale
-            .child(disc({34, 106}, 124)
+            .child(kit::disc({34, 106}, 124)
                        .shape(shapes::circle())
                        .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.75f))))
                        .scale(bind(&loopU)

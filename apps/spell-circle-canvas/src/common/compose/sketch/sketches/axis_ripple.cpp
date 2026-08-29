@@ -75,8 +75,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -85,19 +85,18 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 namespace {
 
 constexpr float kW = 1120.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = studio::hex(0x0C0C0E);
-constexpr SkColor4f kInk = studio::hex(0xF4F1EA);
-constexpr SkColor4f kLabel = studio::hex(0x7E8492);
-constexpr SkColor4f kFaint = studio::hex(0x3A3F4B);
-constexpr SkColor4f kMark = studio::hex(0xE2504B);  // the overhang
-constexpr SkColor4f kAxis = studio::hex(0x63B8FF);  // the driven coordinate
+constexpr SkColor4f kPaper = hex(0x0C0C0E);
+constexpr SkColor4f kInk = hex(0xF4F1EA);
+constexpr SkColor4f kLabel = hex(0x7E8492);
+constexpr SkColor4f kFaint = hex(0x3A3F4B);
+constexpr SkColor4f kMark = hex(0xE2504B);  // the overhang
+constexpr SkColor4f kAxis = hex(0x63B8FF);  // the driven coordinate
 
 const char* kProof = "HAMBURGEFONTSIV";
 
@@ -161,7 +160,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
                                               float size = 11.5f,
                                               float track = 2.4f) const {
-    return studio::type(
+    return type(
         {.face = faceLabel, .size = size, .color = color, .track = track});
   }
 
@@ -180,7 +179,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
    *  What it does NOT restate is the clock: the program reads the SAME
    *  phase Output the track's progress is bound to, so the bars cannot
    *  drift a frame away from the letters they describe. A second
-   *  `studio::phase` off `elapsedSeconds` would have been one line shorter
+   *  `motion::phase` off `elapsedSeconds` would have been one line shorter
    *  and wrong.
    *
    *  The pens come from `runPens` on the UNDRIVEN style, which is only
@@ -258,12 +257,11 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
   [[nodiscard]] Element wghtPanel() {
     const auto row = [&](float weight, SkColor4f color, const char* tag,
                          bool marked) {
-      Element run =
-          text(toU8(kProof), studio::type({.face = face,
-                                           .size = kProofRowSize,
-                                           .color = color,
-                                           .track = kProofTrack * 0.6f,
-                                           .weight = weight}));
+      Element run = text(toU8(kProof), type({.face = face,
+                                             .size = kProofRowSize,
+                                             .color = color,
+                                             .track = kProofTrack * 0.6f,
+                                             .weight = weight}));
       // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
       // selector resolves to the union of every glyph's box, so pct(100) of
       // that rect is the last letter's trailing edge — which moves with the
@@ -312,7 +310,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
         .gap(30)
         .fill(Material::linear(
             {0, 0}, {0, kH},
-            {{0.0f, kPaper}, {0.6f, studio::hex(0x111116)}, {1.0f, kPaper}}))
+            {{0.0f, kPaper}, {0.6f, hex(0x111116)}, {1.0f, kPaper}}))
         .child(
             box()
                 .row()
@@ -344,12 +342,12 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
     // The system grotesque is the face here because it is the one installed
     // face that carries BOTH axes this sheet needs — a grade to drive and a
     // weight to measure against it.
-    face = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceLabel = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-    proof = studio::type({.face = face,
-                          .size = kProofSize,
-                          .color = kInk,
-                          .track = kProofTrack});
+    face = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
+    faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    proof = type({.face = face,
+                  .size = kProofSize,
+                  .color = kInk,
+                  .track = kProofTrack});
     pens = runPens(toU8(kProof), proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
 
@@ -372,11 +370,11 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
     // takes. Both pairs are shaped at the ROW size, so the printed px are
     // the px on the page.
     const auto widthAt = [&](const char (&tag)[5], float value, float size) {
-      sigil::weave::TextStyle s = studio::type(
-          {.face = face,
-           .size = size,
-           .color = kInk,
-           .track = kProofTrack * (size == kProofSize ? 1.0f : 0.6f)});
+      sigil::weave::TextStyle s =
+          type({.face = face,
+                .size = size,
+                .color = kInk,
+                .track = kProofTrack * (size == kProofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
       return runPens(toU8(kProof), s, *ctx.fonts).back();
     };
@@ -387,7 +385,7 @@ struct AxisRipple : sigil::compose::sketch::Sketch {
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      phase = studio::phase(t, kPeriod);
+      phase = motion::phase(t, kPeriod);
       return true;
     });
 

@@ -10,9 +10,9 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/Decorations.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -47,9 +47,8 @@ Element scoreRow(const Row& row) {
       .padding(8)
       .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
-      .child(
-          text(sigil::compose::util::toU8(std::to_string(row.score)), style));
+      .child(text(sigil::compose::toU8(row.name), style).grow(1))
+      .child(text(sigil::compose::toU8(std::to_string(row.score)), style));
 }
 
 Element scoreboard(const std::vector<Row>& rows) {
@@ -117,12 +116,11 @@ static Element decoratedRow(const Row& row) {
       .padding(8)
       .corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
-      .foreground(sigil::compose::util::stroke(
-          1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
-      .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
-      .child(
-          text(sigil::compose::util::toU8(std::to_string(row.score)), style));
+      .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
+      .foreground(
+          sigil::compose::stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
+      .child(text(sigil::compose::toU8(row.name), style).grow(1))
+      .child(text(sigil::compose::toU8(std::to_string(row.score)), style));
 }
 
 static Element decoratedBoard(const std::vector<Row>& rows) {

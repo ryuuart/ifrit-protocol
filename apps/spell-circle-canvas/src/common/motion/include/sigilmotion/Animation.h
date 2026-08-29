@@ -911,4 +911,40 @@ class Animatable {
   std::unique_ptr<Extra> m_extra;
 };
 
+// ---------------------------------------------------------------------------
+// Two arithmetic helpers over the clock and the transition
+
+/** A delayed ramp, in MILLISECONDS as floats.
+ *
+ *  Float ms rather than `std::chrono::milliseconds` on purpose: a staggered
+ *  reveal computes its delay arithmetically
+ *  (`ramp(tTicks * 1000 + 300 + i * 25, 400)`), and a chrono parameter
+ *  would put a cast at every such site. `Transition{.duration = 400ms}`
+ *  remains the spelling wherever the numbers are literals. */
+inline Transition ramp(float delayMs, float durationMs,
+                       choreograph::EaseFn ease = &choreograph::easeOutQuad) {
+  Transition t;
+  t.duration = std::chrono::milliseconds((int)durationMs);
+  t.delay = std::chrono::milliseconds((int)delayMs);
+  t.ease = std::move(ease);
+  return t;
+}
+
+/** A wrapping phase in [0, 1): `t` seconds over a `period`-second loop —
+ *  the marching-ants offset, the orbiting comet, the scrolling marquee,
+ *  the scanline creep.
+ *
+ *  A non-positive period gives 0 rather than the NaN the bare `fmod` would
+ *  produce, and a negative `t` wraps forward instead of returning a
+ *  negative phase, so the result is always in range whatever the caller
+ *  hands in.
+ *
+ *  Deliberately narrow. The two neighbouring signals, `0.5 + 0.5·sin(t·k)`
+ *  and `min(1, t/k)`, are one short expression each and are not here. */
+inline float phase(double t, double period) {
+  if (!(period > 0)) return 0.0f;
+  const double p = std::fmod(t / period, 1.0);
+  return (float)(p < 0 ? p + 1.0 : p);
+}
+
 }  // namespace sigil::motion

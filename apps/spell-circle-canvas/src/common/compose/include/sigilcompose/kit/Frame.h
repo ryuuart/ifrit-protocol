@@ -21,7 +21,7 @@
  * `Radial` distributes N children evenly around a container and hands back
  * rects: it is a placement POLICY and it decides where things go. `Frame`
  * decides nothing — you supply the angle and the radius. It is the peer of
- * `util::centred`, not of a layout scheme, and the two compose fine.
+ * `centred`, not of a layout scheme, and the two compose fine.
  *
  * ### The conversions are the point
  *
@@ -47,10 +47,39 @@
 #include <cmath>
 #include <vector>
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Util.h"
+#include "sigilcompose/Element.h"
+#include "sigilcompose/Layout.h"
 
 namespace sigil::compose::kit {
+
+// ---------------------------------------------------------------------------
+// Placement values — the arithmetic every polar plate spells out
+
+/** A box of `radius` about `centre` — the polar-chart placement. Every
+ *  inscribed-in-the-box generator (sector, arc, circle, star) otherwise
+ *  needs `width(2r).height(2r).centerAt(c)` spelled out at its call
+ *  site. */
+inline Element disc(SkPoint centre, float radius) {
+  return box().width(Dim(radius * 2)).height(Dim(radius * 2)).centerAt(centre);
+}
+
+/** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
+ *  arithmetic as a VALUE you can then inset, union, or hand to
+ *  `Element::rect()`.
+ *
+ *  Not a replacement for `centerAt()`: that centres a node on its MEASURED
+ *  size after layout, which is the right tool when the node sizes itself.
+ *  Use this when you know the box and want the rect for something else too
+ *  — the panel geometry a caption, a rule and a shadow all read from.
+ *
+ *  There is deliberately no `xywh()` or `ltrb()` wrapper here:
+ *  `SkRect::MakeXYWH` and `SkRect::MakeLTRB` already name those. */
+inline SkRect centred(SkPoint c, float w, float h) {
+  return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
+}
+inline SkRect centred(SkPoint c, SkSize s) {
+  return centred(c, s.width(), s.height());
+}
 
 /** Where a frame's 0° points. */
 enum class Zero {
@@ -71,7 +100,7 @@ enum class Sense { CW, CCW };
  *  name.
  *
  *      const kit::Frame fig{.centre = {kRR, kRR}, .radius = kR};  // North/CW
- *      g.child(util::disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink));
+ *      g.child(disc(fig.at(126.0f, 0.72f), 6.0f).fill(ink));
  *
  *  Trivially copyable; holds no Element and no node state. */
 struct Frame {
@@ -136,7 +165,7 @@ struct Frame {
    *  **Only exact on a circle.** A circle's arc length is proportional to
    *  its angle; an ellipse's is not, so on a non-square box the result
    *  drifts from the true arc-length fraction. Keep ring inscriptions on a
-   *  square box (`util::disc`, `Frame::box()`). */
+   *  square box (`disc`, `Frame::box()`). */
   float fraction(float deg,
                  SkPathDirection baseline = SkPathDirection::kCW) const {
     const float screen =
@@ -182,12 +211,12 @@ struct Frame {
    *  `shapes::` generator inscribes itself in. Hand it to `Element::rect`,
    *  inset it, union it. */
   SkRect box(float rNorm = 1.0f) const {
-    return util::centred(centre, 2 * rNorm * radius, 2 * rNorm * radius);
+    return centred(centre, 2 * rNorm * radius, 2 * rNorm * radius);
   }
-  /** `util::disc` at this frame: an Element sized and centred for a
+  /** `disc` at this frame: an Element sized and centred for a
    *  `shapes::circle()`/`sector()`/`arc()` outline at `rNorm`. */
   Element disc(float rNorm = 1.0f) const {
-    return util::disc(centre, rNorm * radius);
+    return kit::disc(centre, rNorm * radius);
   }
 
   // ---- derived frames ----------------------------------------------------

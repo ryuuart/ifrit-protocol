@@ -109,7 +109,7 @@
 // flowAround(), the derive phase's only user-facing feature; renderSlot() as
 // the counter/content idiom; measure() for the leader rules and the card's
 // title advance; patterns::grain, Material::blend,
-// Material::linearUnit/radialUnit, shapes::inset, shapes::circle, util::disc,
+// Material::linearUnit/radialUnit, shapes::inset, shapes::circle, kit::disc,
 // styles::BevelEmboss, PathFormat hairlines, Element::overlay(), bind().
 //
 // THE HARD THING: every row here is a two-column table and the library has no
@@ -165,7 +165,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Paragraph.h>
 #include <sigilweave/ParagraphLayout.h>
@@ -180,7 +180,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 namespace weave = sigil::weave;
@@ -907,11 +906,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(wellMat);
     e.background(styles::dropShadow(C(0x000000, 0.55f), {0, n(1)}, n(2)));
-    e.stroke(
-        util::stroke(n(1), Fill::color(C(0x0A0E06)), PathFormat::Align::Inner));
-    e.foreground(shapes::inset(
-        n(-1.5f), util::stroke(n(1.5f), Fill::color(C(0x5C4C30, 0.85f)),
-                               PathFormat::Align::Center)));
+    e.stroke(stroke(n(1), Fill::color(C(0x0A0E06)), PathFormat::Align::Inner));
+    e.foreground(
+        shapes::inset(n(-1.5f), stroke(n(1.5f), Fill::color(C(0x5C4C30, 0.85f)),
+                                       PathFormat::Align::Center)));
     e.foreground(styles::BevelEmboss{n(1.2f), n(1.6f), 118, C(0x8A7448, 0.55f),
                                      C(0x000000, 0.60f)});
     if (rivets) {
@@ -919,11 +917,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       for (int i = 0; i < 4; ++i) {
         const float rx = (i & 1) ? r.w - inset : inset;
         const float ry = (i & 2) ? r.h - inset : inset;
-        e.child(util::disc({n(rx), n(ry)}, n(2.4f))
+        e.child(kit::disc({n(rx), n(ry)}, n(2.4f))
                     .fill(rivetMat)
-                    .foreground(util::stroke(n(0.6f),
-                                             Fill::color(C(0x000000, 0.7f)),
-                                             PathFormat::Align::Outer)));
+                    .foreground(stroke(n(0.6f), Fill::color(C(0x000000, 0.7f)),
+                                       PathFormat::Align::Outer)));
       }
     }
     return e;
@@ -936,8 +933,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
     e.foreground(styles::BevelEmboss{n(1.4f), n(1.8f), 118, C(0xA08858, 0.60f),
                                      C(0x0C0906, 0.65f)});
-    e.stroke(util::stroke(n(1), Fill::color(C(0x1A1610, 0.9f)),
-                          PathFormat::Align::Inner));
+    e.stroke(
+        stroke(n(1), Fill::color(C(0x1A1610, 0.9f)), PathFormat::Align::Inner));
     return e;
   }
 
@@ -989,8 +986,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       plaque.background(styles::dropShadow(C(0x000000, 0.6f), {0, n(1)}, n(2)));
       plaque.foreground(
           styles::InnerShadow{C(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
-      plaque.stroke(util::stroke(n(1), Fill::color(C(0x14100A)),
-                                 PathFormat::Align::Inner));
+      plaque.stroke(
+          stroke(n(1), Fill::color(C(0x14100A)), PathFormat::Align::Inner));
       g.child(plaque);
       // the gold L: a bar under the plaque running 4 px past its left edge,
       // and a short riser (sampled at y = 59..60, x from 96)
@@ -1015,7 +1012,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                     .fill(Fill::color(C(0x000000)))
                     .corners(Corners{n(2)});
     g.foreground(
-        util::stroke(n(1), Fill::color(C(0x0A0A0A)), PathFormat::Align::Inner));
+        stroke(n(1), Fill::color(C(0x0A0A0A)), PathFormat::Align::Inner));
     const std::string digits =
         (value < 10 ? "0" : "") + std::to_string(std::clamp(value, 0, 99));
     for (int c = 0; c < 2; ++c) {
@@ -1040,10 +1037,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       // these things blank for 123 ms instead of cross-fading. It has to paint
       // over the glyph, so it is a foreground, not a background: the exact
       // slot Element::overlay() does NOT cover.
-      wheel.foreground(
-          shapes::onEdges(shapes::Edge::All,
-                          util::stroke(n(0.7f), Fill::color(C(0x000000, 0.75f)),
-                                       PathFormat::Align::Inner)));
+      wheel.foreground(shapes::onEdges(
+          shapes::Edge::All, stroke(n(0.7f), Fill::color(C(0x000000, 0.75f)),
+                                    PathFormat::Align::Inner)));
       wheel.child(at(box(), 0, kOdoH * 0.5f - 0.6f, kOdoW - 1, 1.2f)
                       .fill(Fill::color(C(0x000000, 0.60f)))
                       .zIndex(3));
@@ -1191,8 +1187,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
               .fill(Material::linearUnit(
                   {0, 0}, {0, 1}, {{0.0f, C(0x50432E)}, {1.0f, C(0x2C2418)}}))
               .corners(Corners{n(1)});
-      a.foreground(util::stroke(n(0.8f), Fill::color(C(0x1A1610)),
-                                PathFormat::Align::Inner));
+      a.foreground(
+          stroke(n(0.8f), Fill::color(C(0x1A1610)), PathFormat::Align::Inner));
       a.child(at(box(), 2, 3, 7, 6)
                   .fill(Fill::color(fade(kGold, 0.9f)))
                   .shape([up](SkSize s) {
@@ -1247,8 +1243,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       Element btn = at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
                         .fill(Fill::color(k == 0 ? C(0x3A3020) : C(0x2A2418)))
                         .corners(Corners{n(1.5f)});
-      btn.foreground(util::stroke(n(0.8f), Fill::color(C(0x8A7448, 0.7f)),
-                                  PathFormat::Align::Inner));
+      btn.foreground(stroke(n(0.8f), Fill::color(C(0x8A7448, 0.7f)),
+                            PathFormat::Align::Inner));
       if (k == 0)  // the `+` lamp flashes on each spend
         btn.child(box()
                       .inset(0)
@@ -1342,7 +1338,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     // PathFormat exposes no cap or join, so these open contours end square and
     // mitre at the joints — fine for a 1998 blit.
     figNode.stroke(
-        util::stroke(n(1.15f), Fill::color(kInk), PathFormat::Align::Center));
+        stroke(n(1.15f), Fill::color(kInk), PathFormat::Align::Center));
     g.child(figNode);
 
     // ---- the body. Greedy first-fit, ragged right, forced 11 px pitch. ---
@@ -1408,8 +1404,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                 .fill(Material::radialUnit({0.60f, 0.85f}, 1.0f,
                                            {{0.0f, fade(C(0x3A2A12), 0.18f)},
                                             {1.0f, fade(C(0x3A2A12), 0.0f)}})));
-    c.stroke(util::stroke(n(1.5f), Fill::color(C(0x2A1C08, 0.75f)),
-                          PathFormat::Align::Inner));
+    c.stroke(stroke(n(1.5f), Fill::color(C(0x2A1C08, 0.75f)),
+                    PathFormat::Align::Inner));
     c.child(box().inset(0).child(slot("card")));
     return c;
   }
@@ -1424,8 +1420,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     // The outer frame and the dividers between the five panels — raised
     // facets lit from the top-left.
     g.child(at(box(), 0, 0, 640, 480)
-                .foreground(util::stroke(n(3), Fill::color(C(0x1E1810)),
-                                         PathFormat::Align::Inner))
+                .foreground(stroke(n(3), Fill::color(C(0x1E1810)),
+                                   PathFormat::Align::Inner))
                 .foreground(shapes::inset(
                     n(3), styles::BevelEmboss{n(2.0f), n(2.5f), 118,
                                               C(0xA08858, 0.45f),
@@ -1485,8 +1481,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                                     {{0.0f, C(0xFF6A4A)},
                                                      {0.45f, kLampOn},
                                                      {1.0f, C(0x600000)}}));
-      lamp.foreground(util::stroke(n(1.2f), Fill::color(C(0x1A1208)),
-                                   PathFormat::Align::Outer));
+      lamp.foreground(
+          stroke(n(1.2f), Fill::color(C(0x1A1208)), PathFormat::Align::Outer));
       if (i == 1)  // DONE dims and returns as the `+` is pressed
         lamp.child(box()
                        .inset(0)
@@ -1557,16 +1553,15 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                    .cache(Cache::Texture));
       sp.foreground(styles::BevelEmboss{
           n(1.6f), n(2.0f), 118, C(0xB09868, 0.55f), C(0x080604, 0.70f)});
-      sp.stroke(util::stroke(n(1), Fill::color(C(0x1A1610)),
-                             PathFormat::Align::Inner));
+      sp.stroke(
+          stroke(n(1), Fill::color(C(0x1A1610)), PathFormat::Align::Inner));
       for (int i = 0; i < 4; ++i)
-        sp.child(util::disc({n((i & 1) ? kWellSpecial.w - 6 : 6.0f),
-                             n((i & 2) ? kWellSpecial.h - 6 : 6.0f)},
-                            n(2.6f))
+        sp.child(kit::disc({n((i & 1) ? kWellSpecial.w - 6 : 6.0f),
+                            n((i & 2) ? kWellSpecial.h - 6 : 6.0f)},
+                           n(2.6f))
                      .fill(rivetMat)
-                     .foreground(util::stroke(n(0.6f),
-                                              Fill::color(C(0x000000, 0.7f)),
-                                              PathFormat::Align::Outer)));
+                     .foreground(stroke(n(0.6f), Fill::color(C(0x000000, 0.7f)),
+                                        PathFormat::Align::Outer)));
       screen.child(sp);
     }
     screen.child(well(kWellStatus));
@@ -1610,9 +1605,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
             .height(Dim(kCaptionH))
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, C(0x0B0D08)}, {1.0f, C(0x050604)}}));
-    band.foreground(shapes::onEdges(shapes::Edge::Top,
-                                    util::stroke(2.0f, Fill::color(C(0x3A3020)),
-                                                 PathFormat::Align::Inner)));
+    band.foreground(shapes::onEdges(
+        shapes::Edge::Top,
+        stroke(2.0f, Fill::color(C(0x3A3020)), PathFormat::Align::Inner)));
     char buf[192];
     std::snprintf(buf, sizeof buf,
                   "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "

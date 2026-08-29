@@ -129,8 +129,9 @@
 
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Style.h>
 
@@ -138,7 +139,6 @@
 #include <string>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace ch = choreograph;
 
 namespace {
@@ -149,13 +149,13 @@ namespace {
 constexpr float kW = 1440.0f;
 constexpr float kH = 880.0f;
 
-constexpr SkColor4f kSea = studio::hex(0x06090E);      // ground
-constexpr SkColor4f kSeaLift = studio::hex(0x0B111A);  // panel wash
-constexpr SkColor4f kBone = studio::hex(0xE9E5DB);     // primary type
-constexpr SkColor4f kSlate = studio::hex(0x76828F);    // secondary type
-constexpr SkColor4f kSlateDim = studio::hex(0x76828F, 0.62f);
-constexpr SkColor4f kKeyline = studio::hex(0x1A2532);
-constexpr SkColor4f kAmber = studio::hex(0xF0A03C);  // the one accent
+constexpr SkColor4f kSea = hex(0x06090E);      // ground
+constexpr SkColor4f kSeaLift = hex(0x0B111A);  // panel wash
+constexpr SkColor4f kBone = hex(0xE9E5DB);     // primary type
+constexpr SkColor4f kSlate = hex(0x76828F);    // secondary type
+constexpr SkColor4f kSlateDim = hex(0x76828F, 0.62f);
+constexpr SkColor4f kKeyline = hex(0x1A2532);
+constexpr SkColor4f kAmber = hex(0xF0A03C);  // the one accent
 
 constexpr float kRingBox = 660.0f;  // the square the ring panel occupies
 constexpr float kRingR = 292.0f;    // sea-area baseline radius
@@ -222,12 +222,12 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
 
   [[nodiscard]] sigil::weave::TextStyle body(float size, SkColor4f color,
                                              float track = 0) const {
-    return studio::type(
+    return type(
         {.face = faceBody, .size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
                                               float track = 2.4f) const {
-    return studio::type(
+    return type(
         {.face = faceBold, .size = size, .color = color, .track = track});
   }
 
@@ -240,16 +240,16 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     sigil::weave::StyleSet set{body(19.5f, kBone)};
     // The wind direction: the one thing in the sentence that is a heading,
     // so it is set as one — condensed, tracked, and a shade brighter.
-    set.set("dir", studio::type({.face = faceBold,
-                                 .size = 19.5f,
-                                 .color = kBone,
-                                 .track = 0.6f,
-                                 .condense = 0.94f}));
+    set.set("dir", type({.face = faceBold,
+                         .size = 19.5f,
+                         .color = kBone,
+                         .track = 0.6f,
+                         .condense = 0.94f}));
     // A defined term. A serif italic inside a grotesque paragraph reads as
     // a citation of a glossary, which is exactly what these words are.
     set.set(
         "term",
-        studio::type(
+        type(
             {.face = faceTerm, .size = 20.5f, .color = kAmber, .track = 0.2f}));
     return set;
   }
@@ -294,10 +294,10 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
         .progress = bind(&secs).source(0.0f, (float)kBreathPeriod).cosine()};
 
     return box().clip().width(pct(100)).child(
-        text(toU8(words), studio::type({.face = faceDisplay,
-                                        .size = kHero,
-                                        .color = kBone,
-                                        .track = 1.5f}))
+        text(toU8(words), type({.face = faceDisplay,
+                                .size = kHero,
+                                .color = kBone,
+                                .track = 1.5f}))
             .key(key)
             .width(pct(100))
             .textAlign(sigil::weave::TextAlignment::kCenter)
@@ -331,18 +331,17 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // lettering has something to sit on without a visible plate edge.
     panel.child(box().inset(0).fill(Material::glowUnit(
         {0.5f, 0.5f}, 0.94f,
-        {{0.0f, kSeaLift}, {0.62f, studio::hex(0x090E15)}, {1.0f, kSea}})));
+        {{0.0f, kSeaLift}, {0.62f, hex(0x090E15)}, {1.0f, kSea}})));
 
     const auto hair = [](float r, SkColor4f color, float width) {
-      return disc(kEye, r)
+      return kit::disc(kEye, r)
           .corners({r})
           .fill(Fill::none())
           .stroke(stroke(width, Fill::color(color)));
     };
     panel.child(hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"));
     panel.child(hair(kInnerR, kKeyline, 1.0f).key("ring-inner"));
-    panel.child(
-        hair(kInnerR - 9.0f, studio::hex(0x121B26), 1.0f).key("ring-inner-2"));
+    panel.child(hair(kInnerR - 9.0f, hex(0x121B26), 1.0f).key("ring-inner-2"));
 
     // THE MARQUEE. `at` is where along the baseline the run sits, as a
     // fraction of the whole path; on a closed contour that fraction wraps,
@@ -355,10 +354,10 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // then lifts it along THAT frame, so the letters come in off the curve
     // radially instead of straight up the canvas.
     panel.child(
-        text(toU8(kAreas), studio::type({.face = faceBold,
-                                         .size = 15.0f,
-                                         .color = studio::hex(0xBFC7D1),
-                                         .track = 3.6f}))
+        text(toU8(kAreas), type({.face = faceBold,
+                                 .size = 15.0f,
+                                 .color = hex(0xBFC7D1),
+                                 .track = 3.6f}))
             .key("areas")
             .inset(kRingBox * 0.5f - kRingR)
             .onPath({.path = shapes::circle(),
@@ -423,9 +422,9 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
         .gap(12)
         .padding(13, 10)
         .corners({3})
-        .fill(Fill::color(studio::hex(0x1C1206)))
-        .stroke(stroke(1.0f, Fill::color(studio::hex(0x4A3411)),
-                       PathFormat::Align::Inner))
+        .fill(Fill::color(hex(0x1C1206)))
+        .stroke(
+            stroke(1.0f, Fill::color(hex(0x4A3411)), PathFormat::Align::Inner))
         .opacity(beat(0.10f, 0.70f))
         .child(box().width(7).height(7).corners({4}).shrink(0).fill(
             Fill::color(kAmber)))
@@ -529,8 +528,8 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  why its charset is digits and capitals of one width. On a proportional
    *  face the runtime measures both, refuses, and draws the true letter. */
   [[nodiscard]] Element barometer() {
-    const sigil::weave::TextStyle mono = studio::type(
-        {.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
+    const sigil::weave::TextStyle mono =
+        type({.face = faceMono, .size = 27.0f, .color = kBone, .track = 3.0f});
     return box()
         .column()
         .gap(7)
@@ -646,10 +645,10 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
               .child(text(toU8(r.wind), label(12.5f, kSlate, 1.4f))
                          .width(74)
                          .textAlign(sigil::weave::TextAlignment::kEnd))
-              .child(text(toU8(r.baro), studio::type({.face = faceMono,
-                                                      .size = 12.0f,
-                                                      .color = kSlate,
-                                                      .track = 0.4f}))
+              .child(text(toU8(r.baro), type({.face = faceMono,
+                                              .size = 12.0f,
+                                              .color = kSlate,
+                                              .track = 0.4f}))
                          .width(166)
                          .textAlign(sigil::weave::TextAlignment::kEnd)));
     }
@@ -666,7 +665,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     Element strip = box().row().gap(6).height(56).alignItems(Align::End);
     for (int f = 0; f <= 12; ++f) {
       const bool named = f >= 5 && f <= 8;
-      const SkColor4f ink = named ? kAmber : studio::hex(0x37475B);
+      const SkColor4f ink = named ? kAmber : hex(0x37475B);
       strip.child(
           box()
               .grow(1)
@@ -736,17 +735,17 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                         label(11.0f, kSlateDim, 3.2f))
                        .key("eyebrow")
                        .opacity(beat(0.05f, 0.55f)))
-            .child(text(toU8("THE SHIPPING FORECAST"),
-                        studio::type({.face = faceDisplay,
-                                      .size = 34.0f,
-                                      .color = kBone,
-                                      .track = 1.0f}))
-                       .key("title")
-                       .fx({.effect = fx::rise(16.0f),
-                            .stagger = {.eachMs = 0,
-                                        .amountMs = 420,
-                                        .durationMs = 520},
-                            .progress = beat(0.15f, 1.30f)}));
+            .child(
+                text(toU8("THE SHIPPING FORECAST"), type({.face = faceDisplay,
+                                                          .size = 34.0f,
+                                                          .color = kBone,
+                                                          .track = 1.0f}))
+                    .key("title")
+                    .fx({.effect = fx::rise(16.0f),
+                         .stagger = {.eachMs = 0,
+                                     .amountMs = 420,
+                                     .durationMs = 520},
+                         .progress = beat(0.15f, 1.30f)}));
 
     Element right = box().column().gap(5).alignItems(Align::End);
     static constexpr const char* kSlug[] = {
@@ -814,7 +813,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     return stack()
         .fill(Material::linear(
             {0, 0}, {0, kH},
-            {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, studio::hex(0x05080C)}}))
+            {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, hex(0x05080C)}}))
         .child(spine().opacity(envelope()))
         .child(std::move(column));
   }
@@ -832,20 +831,19 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // advance-invariant weight axis the swell needs. The stand-ins keep the
     // sheet legible where it is absent; the swell then simply does not
     // happen, and says so once.
-    faceDisplay = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceBold = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceBody = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
-    faceTerm = studio::pickFace({"Iowan Old Style", "Charter", "Georgia"}, 400,
-                                SkFontStyle::kItalic_Slant);
-    faceMono = studio::pickFace({"Menlo", "SF Mono", "Courier New"}, 400);
+    faceDisplay = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
+    faceBold = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
+    faceBody = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
+    faceTerm = pickFace({"Iowan Old Style", "Charter", "Georgia"}, 400,
+                        SkFontStyle::kItalic_Slant);
+    faceMono = pickFace({"Menlo", "SF Mono", "Courier New"}, 400);
 
     // The hero's ink: a ramp pinned to the metric band, warm at the
     // baseline and bone at the cap line, so a letter arriving from below
     // cools as it rises into place.
-    heroInk = Material::linearUnit({0.5f, 0.0f}, {0.5f, 1.0f},
-                                   {{0.00f, studio::hex(0xFFFBF2)},
-                                    {0.52f, kBone},
-                                    {1.00f, studio::hex(0xC9A46A)}});
+    heroInk = Material::linearUnit(
+        {0.5f, 0.0f}, {0.5f, 1.0f},
+        {{0.00f, hex(0xFFFBF2)}, {0.52f, kBone}, {1.00f, hex(0xC9A46A)}});
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;

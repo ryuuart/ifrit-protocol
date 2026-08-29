@@ -8,7 +8,6 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Util.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -24,7 +23,7 @@
 namespace compose_gallery {
 
 using namespace sigil::compose;
-using sigil::compose::util::toU8;
+using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
 inline sigil::weave::FontContext& fonts() {

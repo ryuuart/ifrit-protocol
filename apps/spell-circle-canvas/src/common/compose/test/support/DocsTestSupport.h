@@ -18,7 +18,6 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilweave/Choreograph.h>

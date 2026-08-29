@@ -187,7 +187,6 @@
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilsketch/Sketch.h>
@@ -203,7 +202,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 

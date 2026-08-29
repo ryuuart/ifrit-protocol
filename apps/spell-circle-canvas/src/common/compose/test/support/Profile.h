@@ -4,8 +4,8 @@
 // profiled at all, the row lookup that proves it was, and a whole-surface
 // pixel grab for frame-to-frame comparisons.
 
+#include <sigilcompose/Decorations.h>
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Util.h>
 
 #include <vector>
 
@@ -27,15 +27,14 @@ Element expensivePanel() {
       box().width(180).height(180).fill(Material::sksl(heavyEffect(false)));
   for (int i = 0; i < 220; ++i) {
     const float t = (float)i / 220.0f;
-    panel.child(
-        box()
-            .absolute()
-            .left(4 + t * 170)
-            .top(2)
-            .width(2)
-            .height(176)
-            .fill(i % 2 ? green() : red())
-            .foreground(util::stroke(0.7f, Fill::color({1, 1, 1, 0.5f}))));
+    panel.child(box()
+                    .absolute()
+                    .left(4 + t * 170)
+                    .top(2)
+                    .width(2)
+                    .height(176)
+                    .fill(i % 2 ? green() : red())
+                    .foreground(stroke(0.7f, Fill::color({1, 1, 1, 0.5f}))));
   }
   return panel;
 }

@@ -243,7 +243,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -256,7 +256,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 namespace ch = choreograph;
@@ -1499,8 +1498,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     for (int k = 0; k < 4; ++k) {
       const float bx = (k & 1) ? Wd - 25.0f : 25.0f;
       const float by = (k & 2) ? Ht - 23.0f : 23.0f;
-      g.child(disc({bx, by}, 8.5f).fill(Material::solid(magi::hex(0x120A12))));
-      g.child(disc({bx - 2.0f, by - 2.0f}, 5.0f)
+      g.child(
+          kit::disc({bx, by}, 8.5f).fill(Material::solid(magi::hex(0x120A12))));
+      g.child(kit::disc({bx - 2.0f, by - 2.0f}, 5.0f)
                   .fill(Fill::none())
                   .foreground(decorations::border(
                       1.8f, Fill::color(magi::hex(0x6E5E70)))));

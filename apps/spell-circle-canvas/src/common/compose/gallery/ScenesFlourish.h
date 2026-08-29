@@ -147,8 +147,8 @@ struct FlourishScene final : Scene {
     return box()
         .inset(kFrameInset)
         .corners({22})
-        .background(sigil::compose::util::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
-        .foreground(sigil::compose::util::stroke(2.6f, Fill::color(st.gold)))
+        .background(sigil::compose::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
+        .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
         .foreground(shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
                                     Decoration(crestWalk)))
@@ -159,7 +159,7 @@ struct FlourishScene final : Scene {
                    .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
                    .foreground(giltDash(st.gold, 1.2f)))
         .child(box().inset(22).foreground(
-            sigil::compose::util::stroke(0.8f, Fill::color(st.bronze))))
+            sigil::compose::stroke(0.8f, Fill::color(st.bronze))))
         .child(layout(layouts::AlongPath{innerRect})
                    .inset(0)
                    .children(std::move(studs)));
@@ -207,7 +207,7 @@ struct FlourishScene final : Scene {
                            .height(18)
                            .shape(shapes::rounded(shapes::star(4, 0.36f), 2))
                            .fill(Fill::color(st.goldBright))
-                           .foreground(sigil::compose::util::stroke(
+                           .foreground(sigil::compose::stroke(
                                0.7f, Fill::color(st.bronze))));
 
     Fill disc =
@@ -224,14 +224,14 @@ struct FlourishScene final : Scene {
         .rotate(&spin[q])
         .scale(&breathe[q])
         .cache(Cache::Picture)
-        .child(box()
-                   .inset(15)
-                   .shape(shapes::squircle(4.0f))
-                   .fill(disc)
-                   .foreground(
-                       sigil::compose::util::stroke(2.2f, Fill::color(st.gold)))
-                   .foreground(sigil::compose::util::stroke(
-                       0.7f, Fill::color(st.goldBright))))
+        .child(
+            box()
+                .inset(15)
+                .shape(shapes::squircle(4.0f))
+                .fill(disc)
+                .foreground(sigil::compose::stroke(2.2f, Fill::color(st.gold)))
+                .foreground(
+                    sigil::compose::stroke(0.7f, Fill::color(st.goldBright))))
         .child(
             layout(layouts::Radial{0.82f}).inset(0).children(std::move(petals)))
         .child(box()
@@ -337,7 +337,7 @@ struct FlourishScene final : Scene {
         .zIndex(3)
         .clip()
         .backdrop(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
-        .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
+        .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
         .background(carved)
@@ -348,17 +348,17 @@ struct FlourishScene final : Scene {
         .child(layout(layouts::Scatter{7, 0.7f})
                    .inset(22)
                    .children(std::move(sparks)))
-        .child(stack()
-                   .width(258)
-                   .height(66)
-                   .shape(scallopOutline(12))
-                   .fill(Fill::color({st.parchment.fR * 1.05f,
-                                      st.parchment.fG * 1.05f,
-                                      st.parchment.fB * 1.02f, 1}))
-                   .foreground(
-                       sigil::compose::util::stroke(1.3f, Fill::color(st.gold)))
-                   .child(titleLayer(st.goldBright, true))
-                   .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
+        .child(
+            stack()
+                .width(258)
+                .height(66)
+                .shape(scallopOutline(12))
+                .fill(Fill::color({st.parchment.fR * 1.05f,
+                                   st.parchment.fG * 1.05f,
+                                   st.parchment.fB * 1.02f, 1}))
+                .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
+                .child(titleLayer(st.goldBright, true))
+                .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
         .child(
             box()
                 .key("seal")
@@ -369,8 +369,8 @@ struct FlourishScene final : Scene {
                 .shape(shapes::star(12, 0.66f))
                 .fill(animate(to(Fill::color(accent ? st.rubric : st.bronze)),
                               {600ms}))
-                .foreground(sigil::compose::util::stroke(
-                    1.4f, Fill::color(st.goldBright))))
+                .foreground(
+                    sigil::compose::stroke(1.4f, Fill::color(st.goldBright))))
         .child(text(u8"Framed by a vine that draws itself on, corner by "
                     u8"corner, while the medallions turn and the rules hold "
                     u8"their three weights of gold — every ornament a "
@@ -518,8 +518,8 @@ struct FlourishScene final : Scene {
 
   Element describe() const {
     return stack()
-        .fill(sigil::compose::util::radialGradient(
-            {kW / 2, kH / 2}, 620, {st.velvetCore, st.velvetEdge}))
+        .fill(sigil::compose::radialGradient({kW / 2, kH / 2}, 620,
+                                             {st.velvetCore, st.velvetEdge}))
         .child(frameBand())
         .child(frameGlow())
         .child(filaments())

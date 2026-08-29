@@ -110,10 +110,10 @@
 //       src/common/compose/sketch/sketches/matrix_rain.cpp \
 //       --frame /tmp/matrix_rain.png --at 7.0
 
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Instruments.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Style.h>
 
@@ -123,7 +123,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace ch = choreograph;
 
 namespace {
@@ -297,7 +296,7 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle kanaStyle(float size, SkColor4f color,
                                                   float glowSigma) const {
     sigil::weave::TextStyle style =
-        studio::type({.face = faceKana, .size = size, .color = color});
+        type({.face = faceKana, .size = size, .color = color});
     style.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
     if (glowSigma > 0)
       style.paint.addUnderlay(
@@ -429,17 +428,17 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
                   " GLYPHS IN FOUR PLANES \xc2\xb7 KATAKANA AND DIGITS, "
                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
                   "THE TYPE STANDS STILL"),
-             studio::type({.face = faceLabel,
-                           .size = 10.5f,
-                           .color = kLabel,
-                           .track = 2.2f}))
+             type({.face = faceLabel,
+                   .size = 10.5f,
+                   .color = kLabel,
+                   .track = 2.2f}))
             .key("caption")
             .left(26)
             .top(kH - 30));
 
     if (kMeter)
-      root.child(debug::trackMeter(ctx.composer, "rain-near", 0,
-                                   {0.2f, 0.9f, 0.4f, 0.5f})
+      root.child(kit::trackMeter(ctx.composer, "rain-near", 0,
+                                 {0.2f, 0.9f, 0.4f, 0.5f})
                      .absolute()
                      .inset(0)
                      .hitTestable(false));
@@ -453,9 +452,9 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
     // heads, long tails, and columns resting dark between drops.
     ctx.captureAt(7.0);
 
-    faceKana = studio::pickFace(
-        {"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
-    faceLabel = studio::pickFace({"Helvetica Neue", "Arial"}, 500);
+    faceKana =
+        pickFace({"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
+    faceLabel = pickFace({"Helvetica Neue", "Arial"}, 500);
 
     const std::u32string kana = rainKana();
     const std::u32string west = rainWest();
@@ -477,10 +476,10 @@ struct MatrixRain : sigil::compose::sketch::Sketch {
       // own declared loop, so one wrap is one cycle of every beat and the
       // schedule runs at its authored ms — nothing is read back, nothing
       // can drift.
-      fall[j] = studio::phase(elapsed, (double)f.loopMs / 1000.0);
-      churn[j] = studio::phase(elapsed + (double)j * 1.7, f.churnSecs);
+      fall[j] = motion::phase(elapsed, (double)f.loopMs / 1000.0);
+      churn[j] = motion::phase(elapsed + (double)j * 1.7, f.churnSecs);
     }
-    bedChurn = studio::phase(elapsed, kBedChurnSecs);
+    bedChurn = motion::phase(elapsed, kBedChurnSecs);
     // The picture animates through bound outputs alone; only the
     // instrument, which reads the schedule at describe time, needs the
     // tree re-described.

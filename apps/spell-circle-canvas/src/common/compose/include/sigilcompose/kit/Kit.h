@@ -25,10 +25,12 @@
  * |---|---|
  * | `kit/Frame.h` | `Frame` — figure-local polar coordinates |
  * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) |
+ * | `kit/Frame.h` | `disc()` and `centred()` — a box about a centre |
  * | `kit/Divisions.h` | `ticks()` — a division ladder as one path |
  * | `kit/Divisions.h` | `chords()` — polygon sides as N contours |
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
+ * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
  *
  * **`kit/Strokes.h` IS NOT INCLUDED HERE, AND THIS UMBRELLA DOES NOT GIVE
  * YOU IT.** That header carries the stroke grammar — `kit::brush::shapers`,
@@ -37,14 +39,15 @@
  * names. Include `sigilcompose/kit/Strokes.h` directly when you want them.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
- * `feed::plate` and `feed::tinted` (`Feed.h`) and
- * `debug::check` / `report` / `failures` (`Debug.h`) are the verification
- * plate; `studio::hex` / `type` / `pickFace` / `ramp` / `fmt`
- * (`Studio.h`) are the prelude; `util::stroke` / `disc` / `centred`
- * (`Util.h`) are the value spellings.
+ * `feed::plate` and `feed::tinted` (`Feed.h`) and `test::check` /
+ * `report` / `failures` (`testing/Checks.h`, the SigilComposeTesting
+ * target) are the verification plate; `hex` (`Paint.h`), `type` and
+ * `pickFace` (`Typography.h`) and `motion::ramp` are the prelude; `stroke`
+ * (`Decorations.h`) is the value spelling.
  */
 
 #include "sigilcompose/kit/Divisions.h"
 #include "sigilcompose/kit/Frame.h"
+#include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"

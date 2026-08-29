@@ -331,7 +331,7 @@ struct GerstnerGridScene final : Scene {
               .justify(Justify::Center)
               .fill(Material::solid(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
               .foreground(
-                  util::stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
+                  stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
               .child(text(toU8(n), g::type(12, live ? g::kPaper : g::kInkSoft,
                                            0.6f, 620))));
     }

@@ -12,28 +12,46 @@ add_library(SigilCompose STATIC
   Paint.cpp
   Transitions.cpp
   TextFx.cpp
-  Debug.cpp
+  TextAtRest.cpp
   Query.cpp
   Material.cpp
+  Shapes.cpp
+  Lines.cpp
+  Brushes.cpp
+  Routers.cpp
+  LayerStyles.cpp
+  Instances.cpp
+  Patterns.cpp
+  Sdf.cpp
+  Decorations.cpp
   ComposeInternal.h
   ComposeRuntime.h
   include/sigilcompose/Brushes.h
   include/sigilcompose/Compose.h
+  include/sigilcompose/Composer.h
+  include/sigilcompose/Derive.h
+  include/sigilcompose/Element.h
+  include/sigilcompose/Env.h
   include/sigilcompose/Feed.h
   include/sigilcompose/Instances.h
   include/sigilcompose/LayerStyles.h
+  include/sigilcompose/Layout.h
+  include/sigilcompose/Mask.h
   include/sigilcompose/Material.h
+  include/sigilcompose/Motion.h
+  include/sigilcompose/Paint.h
   include/sigilcompose/Pattern.h
   include/sigilcompose/Patterns.h
-  include/sigilcompose/Debug.h
   include/sigilcompose/Sdf.h
+  include/sigilcompose/Shape.h
+  include/sigilcompose/Stroke.h
   include/sigilcompose/Decorations.h
   include/sigilcompose/Layouts.h
   include/sigilcompose/Routers.h
   include/sigilcompose/Shapes.h
-  include/sigilcompose/Studio.h
+  include/sigilcompose/Text.h
   include/sigilcompose/TextFx.h
-  include/sigilcompose/Util.h
+  include/sigilcompose/Typography.h
   include/sigilcompose/Web.h
 )
 # The KIT tier is NOT listed here: it is its own library (kit/CMakeLists.txt)
@@ -82,7 +100,7 @@ endif()
 function(_compose_test_binary name)
   add_executable(${name} ${ARGN})
   target_link_libraries(${name} PRIVATE
-    SigilCompose SigilWeavePorts GTest::gtest_main)
+    SigilCompose SigilComposeTesting SigilWeavePorts GTest::gtest_main)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
@@ -147,6 +165,7 @@ add_custom_command(
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           --include ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
@@ -191,7 +210,7 @@ add_executable(compose_kit_test
   test/ComposeKitTest.cpp
 )
 target_link_libraries(compose_kit_test PRIVATE
-  SigilComposeKit SigilWeavePorts GTest::gtest_main)
+  SigilComposeKit SigilComposeTesting SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_kit_test COMMAND compose_kit_test)
 
 # GPU-backend behavior tests (Graphite Metal): the raster suite proves
@@ -263,9 +282,10 @@ add_executable(compose_demo
 target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
 
 # Each tree-structured product owns its CMakeLists (repo convention —
-# see sigilweave/examples/*). kit/ first (it is a library the rest may
-# link), then sketch/, which defines SigilSketchStudies (every study sketch
-# compiled in place) and which the gallery links.
+# see sigilweave/examples/*). testing/ and kit/ first (they are libraries
+# the rest may link), then sketch/, which defines SigilSketchStudies (every
+# study sketch compiled in place) and which the gallery links.
+add_subdirectory(testing)
 add_subdirectory(kit)
 add_subdirectory(sketch)
 add_subdirectory(gallery)

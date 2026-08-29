@@ -8,7 +8,7 @@
 // translation unit over one subsystem, so anything two of them read lives
 // here rather than in either of them.
 
-namespace sigil::geometry::testing {
+namespace sigil::geometry::test {
 
 constexpr const char* kCubeObj = R"(mtllib cube.mtl
 o Cube
@@ -48,4 +48,4 @@ inline Mesh splitQuad() {
   return m;
 }
 
-}  // namespace sigil::geometry::testing
+}  // namespace sigil::geometry::test

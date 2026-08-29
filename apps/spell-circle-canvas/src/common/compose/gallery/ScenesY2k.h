@@ -18,7 +18,7 @@
 //   aqua orb ........ styles::aquaGel() on a circle
 //   1998 button ..... a plastic bevel built by hand — flat web-safe fill,
 //                     BevelEmboss, 1px black keyline. No preset covers it.
-//   status bar ...... util::marquee, driven live: the content width is
+//   status bar ...... marquee, driven live: the content width is
 //                     measured and the wrapping phase comes from the ticker
 
 #include <include/core/SkMaskFilter.h>
@@ -26,6 +26,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/TextFx.h>
 
 #include <cmath>
 #include <string>
@@ -137,7 +138,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
   const float r = h / 2;  // true pill
   // rim 1.5px per-side #8BA2C1 / #5890BF / #4F93CA / #768FA5.
   auto rim = [](shapes::Edge e, SkColor4f c) {
-    return shapes::onEdges(e, util::stroke(1.5f, Fill::color(c)));
+    return shapes::onEdges(e, stroke(1.5f, Fill::color(c)));
   };
   return box()
       .width(w)
@@ -195,7 +196,7 @@ inline Element plasticButton(std::string_view label) {
       .height(34)
       .fill(Fill::color(C(0x336699)))  // flat web-safe fill
       .foreground(bevel)
-      .stroke(util::stroke(1, Fill::color(C(0x000000))))  // keyline
+      .stroke(stroke(1, Fill::color(C(0x000000))))  // keyline
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
@@ -212,7 +213,7 @@ inline Element chromeSquare(SkColor4f fill) {
       .height(13)
       .fill(Fill::color(fill))
       .foreground(bevel)
-      .stroke(util::stroke(1, Fill::color({0.25f, 0.27f, 0.30f, 0.8f})));
+      .stroke(stroke(1, Fill::color({0.25f, 0.27f, 0.30f, 0.8f})));
 }
 
 /** White starburst glint (shapes::star, thin 4-point). */
@@ -430,7 +431,7 @@ struct Y2kChromeScene final : Scene {
                     .padding(16, 10)
                     .corners({8})
                     .fill(Fill::color({1, 1, 1, 0.30f}))
-                    .stroke(util::stroke(1, Fill::color(yc::C(0x9AA1A9))))
+                    .stroke(stroke(1, Fill::color(yc::C(0x9AA1A9))))
                     .child(box()
                                .column()
                                .alignItems(Align::Center)
@@ -447,19 +448,17 @@ struct Y2kChromeScene final : Scene {
                             .child(yc::caption(
                                 "PRESET \xc2\xb7 styles::aquaGel()"))));
 
-    // ---- status bar: util::marquee, ticker-driven phase -------------------
-    Element strip = util::marquee(stripContent(), &tickX, yc::kTickerGap);
+    // ---- status bar: marquee, ticker-driven phase -------------------
+    Element strip = marquee(stripContent(), &tickX, yc::kTickerGap);
     strip.grow(1);
     Element statusBar =
         box()
             .height(yc::kStatusH)
             .fill(Fill::color(yc::C(0xD9DDE1)))
-            .foreground(
-                shapes::onEdges(shapes::Edge::Top,
-                                util::stroke(1, Fill::color(yc::C(0xFFFFFF)))))
-            .background(
-                shapes::onEdges(shapes::Edge::Top,
-                                util::stroke(1, Fill::color(yc::C(0x8F969D)))))
+            .foreground(shapes::onEdges(
+                shapes::Edge::Top, stroke(1, Fill::color(yc::C(0xFFFFFF)))))
+            .background(shapes::onEdges(
+                shapes::Edge::Top, stroke(1, Fill::color(yc::C(0x8F969D)))))
             .row()
             .alignItems(Align::Center)
             .padding(10, 0)
@@ -494,7 +493,7 @@ struct Y2kChromeScene final : Scene {
                 .column()
                 .corners({6})
                 .clip()
-                .stroke(util::stroke(1, Fill::color(yc::C(0x70777E))))
+                .stroke(stroke(1, Fill::color(yc::C(0x70777E))))
                 .child(titleBar)
                 .child(
                     box()

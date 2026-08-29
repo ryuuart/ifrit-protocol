@@ -103,7 +103,7 @@ struct UiParticleScene final : Scene {
         .height(kSprite - 26)
         .corners({14})
         .fill(Fill::color(t.fill))
-        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
+        .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .child(text(std::move(label), styleAt(15, ink(t))));
@@ -113,10 +113,10 @@ struct UiParticleScene final : Scene {
         .width(kSprite - 4)
         .height(kSprite - 4)
         .shape(starburstOutline(spikes, 0.32f))
-        .fill(sigil::compose::util::radialGradient(
-            {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
-            {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
-        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
+        .fill(sigil::compose::radialGradient({kSprite / 2 - 2, kSprite / 2 - 2},
+                                             kSprite / 2,
+                                             {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
+        .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .child(text(std::move(label), styleAt(13, ink(t))));
@@ -127,7 +127,7 @@ struct UiParticleScene final : Scene {
         .height(kSprite - 8)
         .shape(scallopOutline(lobe))
         .fill(Fill::color(t.fill))
-        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
+        .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
         .child(text(std::move(label), styleAt(13, ink(t))));
@@ -258,7 +258,7 @@ struct UiParticleScene final : Scene {
         .height(kPostH - 6)
         .corners({12})
         .fill(Fill::color({0.10f, 0.11f, 0.15f, 1}))
-        .foreground(sigil::compose::util::stroke(1.4f, Fill::color(accent)))
+        .foreground(sigil::compose::stroke(1.4f, Fill::color(accent)))
         .column()
         .padding(16, 14)
         .gap(6)
@@ -395,7 +395,7 @@ struct UiParticleScene final : Scene {
     // pool positions are canvas pixels. Chips behind, posts in front.
     composer.render(
         stack()
-            .fill(sigil::compose::util::linearGradient(
+            .fill(sigil::compose::linearGradient(
                 {0, 0}, {0, 640},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
             .child(box().inset(0).child(instancing::instances(

@@ -81,7 +81,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -90,11 +89,6 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette — sampled from the scan (patch means + the darkest/lightest
 // deciles, which separate "ink dot" from "paper showing through")
-
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
 
 constexpr SkColor4f kPaper = hex(0xf1e4e0);  // aged ivory, pink undertone
 constexpr SkColor4f kInk = hex(0x241c15);    // engraver's warm black-brown

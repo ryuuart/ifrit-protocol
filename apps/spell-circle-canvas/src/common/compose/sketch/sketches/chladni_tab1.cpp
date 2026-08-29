@@ -81,7 +81,7 @@
 //   shapes::circle()     the twelve rims and the bow's contact track
 //   shapes::sector()     the 120 sub-wedges the engraved fan is built from
 //   lines::hatch()       their tone, rotated per sub-wedge into a fan
-//   util::disc()         placement for every circle on the plate
+//   kit::disc()         placement for every circle on the plate
 //   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live
 //   bind()               one settle Output per figure, shaped three ways
 //   PathFormat::trim*    the bow's travelling contact arc
@@ -119,16 +119,10 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
-
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
 
 // ---------------------------------------------------------------------------
 // palette — the scan is a warm, under-lit archive.org JPEG derivative
@@ -566,7 +560,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- the rim hairline ----
     root.child(
-        disc(c, kR)
+        kit::disc(c, kR)
             .key(tag + "rim")
             .shape(shapes::circle())
             .fill(Fill::none())
@@ -576,7 +570,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- the figure itself ----
     if (f.kind == Kind::Star) {
-      root.child(disc(c, kR * kTip)
+      root.child(kit::disc(c, kR * kTip)
                      .key(tag + "star")
                      .shape(starOutline(f.points, f.inner))
                      .fill(inkMat)
@@ -602,7 +596,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           const float b0 = (float)p * sweep + (float)k * ssw;
           const float bc = b0 + ssw * 0.5f;
           root.child(
-              disc(c, kR)
+              kit::disc(c, kR)
                   .key(tag + "h" + std::to_string(p) + "_" + std::to_string(k))
                   .shape(shapes::sector(b0 - 90.4f, ssw + 0.8f))
                   .fill(Fill::none())
@@ -610,14 +604,14 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                                            4.6f, 0.85f, bc - 90.0f))
                   .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1)));
         }
-      root.child(disc(c, kR * 1.002f)
+      root.child(kit::disc(c, kR * 1.002f)
                      .key(tag + "mask")
                      .shape(starOutline(f.points, f.inner))
                      .fill(Fill::color(kPaper)));
     } else {
       const std::vector<Linie>& lines = linienOf(f.num);
       for (size_t li = 0; li < lines.size(); ++li)
-        root.child(disc(c, kR)
+        root.child(kit::disc(c, kR)
                        .key(tag + "l" + std::to_string(li))
                        .shape(linieOutline(lines[li]))
                        .fill(Fill::none())
@@ -635,7 +629,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     bow.trimStart = 0.0f;
     bow.trimEnd = 0.065f;
     bow.trimPhase = &bowPhase[fi];
-    root.child(disc(c, kR)
+    root.child(kit::disc(c, kR)
                    .key(tag + "bow")
                    .shape(shapes::circle())
                    .fill(Fill::none())

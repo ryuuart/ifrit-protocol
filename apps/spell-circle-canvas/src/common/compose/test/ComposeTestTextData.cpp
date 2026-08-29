@@ -327,7 +327,7 @@ TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
   };
   const std::vector<SkPath> exact = {rect(0, 0, 50, 100),
                                      rect(50, 0, 100, 100)};
-  const auto good = debug::coverage(exact, region, 64);
+  const auto good = test::coverage(exact, region, 64);
   EXPECT_TRUE(good.exact());
   EXPECT_EQ(good.uncovered, 0);
   EXPECT_EQ(good.doubled, 0);
@@ -344,7 +344,7 @@ TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
   for (const SkPath& p : broken)
     EXPECT_TRUE(region.contains(p.getBounds()));  // containment: PASSES
 
-  const auto bad = debug::coverage(broken, region, 64);
+  const auto bad = test::coverage(broken, region, 64);
   EXPECT_FALSE(bad.exact());  // …and coverage does not
   EXPECT_NEAR(bad.uncoveredFraction(), 0.10f, 0.02f);
   EXPECT_NEAR(bad.doubledFraction(), 0.10f, 0.02f);
@@ -365,14 +365,14 @@ TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
   // two loose ends (degree 1).
   const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
                                      seg(20, 0, 30, 0)};
-  const auto degrees = debug::endpointDegrees(chain);
+  const auto degrees = test::endpointDegrees(chain);
   EXPECT_EQ(degrees.points.size(), 4u);
   EXPECT_EQ(degrees.outside(2, 2).size(), 2u);  // the two loose ends
 
   // Move one segment off its joint: now four loose ends, not two.
   const std::vector<SkPath> broken = {seg(0, 0, 10, 0), seg(11, 0, 20, 0),
                                       seg(20, 0, 30, 0)};
-  EXPECT_EQ(debug::endpointDegrees(broken).outside(2, 2).size(), 4u);
+  EXPECT_EQ(test::endpointDegrees(broken).outside(2, 2).size(), 4u);
 }
 
 TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
@@ -481,7 +481,7 @@ TEST(ComposeShapes, StarArmsCanBeWaisted) {
   // area sees no difference at all and would pass on a no-op.
   auto covered = [&](const SkPath& p) {
     const SkPath pieces[] = {p};
-    const auto c = debug::coverage(pieces, region, 128);
+    const auto c = test::coverage(pieces, region, 128);
     return c.samples - c.uncovered;
   };
 
@@ -583,7 +583,7 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
 
   // Node gated to the first 60% — one geometry, two windows on it:
   // a wide dim body over all of it, and a bright sliver at its head.
-  PathFormat head = util::stroke(6, Fill::color({0, 1, 0, 1}));
+  PathFormat head = stroke(6, Fill::color({0, 1, 0, 1}));
   head.trimStart = 0.90f;
   head.trimEnd = 1.0f;
   Host host(200, 200);
@@ -594,7 +594,7 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
                       .shape(line)
                       .fill(Fill::none())
                       .mask(by::spans(spans::upTo(0.6f)))
-                      .foreground(util::stroke(3, Fill::color({1, 0, 0, 1})))
+                      .foreground(stroke(3, Fill::color({1, 0, 0, 1})))
                       .foreground(head)));
   host.frame();
 
@@ -785,7 +785,7 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
   // frame, which defeats the pruning the library is built on. A study
   // wrote a 25-line DecorationScheme for want of this.
   choreograph::Output<float> march{0.0f};
-  PathFormat dashed = util::stroke(4, Fill::color({1, 1, 1, 1}));
+  PathFormat dashed = stroke(4, Fill::color({1, 1, 1, 1}));
   dashed.dashIntervals = {10.0f, 10.0f};
   dashed.dashPhaseBinding = &march;
 
@@ -1021,7 +1021,7 @@ TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
   // curve or a plotted signal can wear all of it — including
   // PathFormat's own trim window, which is the part the roadmap said was
   // lost.
-  PathFormat dashedHead = util::stroke(5, Fill::color({0, 1, 0, 1}));
+  PathFormat dashedHead = stroke(5, Fill::color({0, 1, 0, 1}));
   dashedHead.trimStart = 0.75f;  // the last quarter only
   dashedHead.trimEnd = 1.0f;
 
@@ -1188,7 +1188,7 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
     return b.detach();
   };
   auto corner = [&](SkPaint::Join join) {
-    PathFormat f = util::stroke(24, Fill::color({1, 1, 1, 1}));
+    PathFormat f = stroke(24, Fill::color({1, 1, 1, 1}));
     f.join = join;
     Host host(200, 200);
     host.composer.render(box().child(box()
@@ -1398,9 +1398,9 @@ TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
   const std::vector<SkPath> halves = {rect(0, 0, 50, 100),
                                       rect(50, 0, 100, 100)};
 
-  const auto onRect = debug::coverage(halves, SkRect::MakeWH(100, 100), 64);
+  const auto onRect = test::coverage(halves, SkRect::MakeWH(100, 100), 64);
   EXPECT_TRUE(onRect.exact());  // the square really is covered exactly
-  const auto onDisc = debug::coverage(halves, disc, 64);
+  const auto onDisc = test::coverage(halves, disc, 64);
   EXPECT_TRUE(onDisc.exact());
   EXPECT_LT(onDisc.samples, onRect.samples);  // it tested fewer points…
   EXPECT_GT(onDisc.samples, 1000);            // …but a real number of them
@@ -1415,11 +1415,11 @@ TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
   };
   const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
                                      seg(20, 0, 30, 0)};
-  EXPECT_EQ(debug::endpointDegrees(chain).components(), 1u);
+  EXPECT_EQ(test::endpointDegrees(chain).components(), 1u);
 
   const std::vector<SkPath> split = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
                                      seg(40, 0, 50, 0)};
-  EXPECT_EQ(debug::endpointDegrees(split).components(), 2u);
+  EXPECT_EQ(test::endpointDegrees(split).components(), 2u);
 }
 
 TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
@@ -1428,7 +1428,7 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   // which is node-local pixels compared by shader pointer. On an object
   // whose surfaces are mostly STROKES, that meant writing the same brass
   // twice, once per return type.
-  PathFormat f = util::stroke(30, Fill::color({1, 1, 1, 1}));
+  PathFormat f = stroke(30, Fill::color({1, 1, 1, 1}));
   f.strokeMaterial = Material::linearUnit(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
@@ -1460,7 +1460,7 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
     ring.push_back(sector((float)i * SK_FloatPI / 6.0f,
                           (float)(i + 1) * SK_FloatPI / 6.0f));
 
-  const auto d = debug::endpointDegrees(ring);
+  const auto d = test::endpointDegrees(ring);
   EXPECT_EQ(d.closedContours, 12u);
   EXPECT_TRUE(d.points.empty());  // …and no phantom degree-1 vertices
   EXPECT_TRUE(d.outside(2, 2).empty());
@@ -1474,7 +1474,7 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
   };
   std::vector<SkPath> mixed = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
                                sector(0.0f, 0.5f)};
-  const auto m = debug::endpointDegrees(mixed);
+  const auto m = test::endpointDegrees(mixed);
   EXPECT_EQ(m.closedContours, 1u);
   EXPECT_EQ(m.points.size(), 3u);         // the chain's three endpoints
   EXPECT_EQ(m.outside(2, 2).size(), 2u);  // its two loose ends

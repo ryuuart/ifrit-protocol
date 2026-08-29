@@ -498,8 +498,6 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
   EXPECT_NE(host.pixel(30, 30), SK_ColorBLACK);  // filtered content present
 }
 
-#include <sigilcompose/Util.h>
-
 namespace {
 /** ~20 lines of user code: the lightweight grid from the design docs. */
 struct Grid {
@@ -548,19 +546,6 @@ TEST(ComposeLayoutScheme, GridPlacesAndSizesCells) {
   EXPECT_EQ(host.pixel(145, 55), SK_ColorGREEN);
 }
 
-TEST(ComposeUtil, StageBundlesTheLoop) {
-  sigil::compose::util::Stage stage({100, 100}, fonts());
-  stage.render(box().fill(Fill::color({1, 0, 0, 1})));
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
-  bool more = stage.frame(*surface->getCanvas());
-  EXPECT_FALSE(more);  // static content settles immediately
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-  surface->readPixels(bm.pixmap(), 50, 50);
-  EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);
-}
-
 TEST(ComposeUtil, ShadowAndStrokeSugar) {
   Host host;
   host.composer.render(box().child(
@@ -570,9 +555,9 @@ TEST(ComposeUtil, ShadowAndStrokeSugar) {
           .inset(40, 40, 40, 40)
           .absolute()
           .corners({10})
-          .background(sigil::compose::util::shadow({0, 0, 1, 1}, {12, 12}, 0))
+          .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
           .fill(red())
-          .foreground(sigil::compose::util::stroke(4, green()))));
+          .foreground(sigil::compose::stroke(4, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
   EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
@@ -593,14 +578,14 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
         .row()
         .gap(8)
         .padding(12)
-        .child(box()
-                   .width(40)
-                   .height(40)
-                   .corners({6})
-                   .fill(red())
-                   .background(
-                       sigil::compose::util::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
-                   .foreground(sigil::compose::util::stroke(2, green())))
+        .child(
+            box()
+                .width(40)
+                .height(40)
+                .corners({6})
+                .fill(red())
+                .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
+                .foreground(sigil::compose::stroke(2, green())))
         .child(box().width(60).height(20).foreground(dash));
   };
   host.composer.render(tree());
@@ -696,8 +681,7 @@ TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
   Host host(120, 120);
   host.composer.render(box().child(
       box().width(120).height(120).absolute().left(0).top(0).foreground(
-          shapes::inset(12.0f,
-                        util::stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
+          shapes::inset(12.0f, stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(60, 12)), 150u);  // the inset rule
   EXPECT_LT(SkColorGetR(host.pixel(60, 1)), 60u);    // the edge is bare
@@ -1800,7 +1784,7 @@ TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
                       .inset(0, 0, 100, 100)
                       .absolute()
                       .mask(by::spans(spans::upTo(0.2f)))
-                      .foreground(sigil::compose::util::stroke(4, green()))));
+                      .foreground(sigil::compose::stroke(4, green()))));
   host.frame();
   // Perimeter order for this outline: left → top → right → bottom, so the
   // first 20% is about the left edge. That order is a property of how the
@@ -1815,15 +1799,14 @@ TEST(ComposeMask, TransitionDrawsOn) {
   // perimeter over time (retarget-safe like every transitioned prop).
   Host host;
   auto tree = [](Animatable<float> end) {
-    return box().child(
-        box()
-            .key("b")
-            .width(100)
-            .height(100)
-            .inset(0, 0, 100, 100)
-            .absolute()
-            .mask(by::spans(spans::upTo(std::move(end))))
-            .foreground(sigil::compose::util::stroke(4, green())));
+    return box().child(box()
+                           .key("b")
+                           .width(100)
+                           .height(100)
+                           .inset(0, 0, 100, 100)
+                           .absolute()
+                           .mask(by::spans(spans::upTo(std::move(end))))
+                           .foreground(sigil::compose::stroke(4, green())));
   };
   host.composer.render(tree(0.001f));
   host.frame();
@@ -1849,7 +1832,7 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
                       .inset(0, 0, 100, 100)
                       .absolute()
                       .mask(by::spans(spans::upTo(&end)))
-                      .foreground(sigil::compose::util::stroke(4, green()))));
+                      .foreground(sigil::compose::stroke(4, green()))));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
   EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK);  // bare at end=0.2
@@ -1859,7 +1842,6 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // paints live
 }
 
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Sdf.h>
 
 TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
@@ -2206,7 +2188,7 @@ TEST(ComposeStyles, OverlayAndStrokeSugar) {
                       .fill(Fill::color({0, 0, 1, 1}))
                       .foreground(styles::colorOverlay(
                           {1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
-                      .stroke(sigil::compose::util::stroke(4, green()))));
+                      .stroke(sigil::compose::stroke(4, green()))));
   host.frame();
   const SkColor c = host.pixel(30, 30);  // 50% red over blue
   EXPECT_GT(SkColorGetR(c), 90u);
@@ -2243,13 +2225,12 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
   // to grow by the decoration's declared bleed(). Otherwise the shadow draws
   // on the first frame and is truncated by every cached replay after it.
   Host host;
-  host.composer.render(
-      box().padding(40).child(box()
-                                  .width(60)
-                                  .height(40)
-                                  .background(sigil::compose::util::shadow(
-                                      {1, 0, 0, 0.9f}, {0, 10}, 20))
-                                  .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
+  host.composer.render(box().padding(40).child(
+      box()
+          .width(60)
+          .height(40)
+          .background(sigil::compose::shadow({1, 0, 0, 0.9f}, {0, 10}, 20))
+          .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
   host.frame();
   host.frame();  // cached replay
   // Node spans y∈[40,80); sample 14px below it — the soft red reach.

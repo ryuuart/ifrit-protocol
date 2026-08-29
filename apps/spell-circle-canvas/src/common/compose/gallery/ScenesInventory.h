@@ -278,7 +278,7 @@ inline Element artwork(Art art, float w, float h, SkColor4f tint,
       .shape(artPath(art))
       .fill(Material::linear({0, 0}, {w * 0.35f, h},
                              {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
-      .stroke(util::stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
+      .stroke(stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +339,7 @@ inline Element well(float w, float h, float alpha = 1.0f) {
       .foreground(styles::InnerShadow{{0, 0, 0, 0.75f}, {0, 2}, 3})
       .foreground(shapes::onEdges(
           shapes::Edge::Bottom,
-          util::stroke(1.0f, Fill::color({0.42f, 0.38f, 0.31f, 0.30f}))));
+          stroke(1.0f, Fill::color({0.42f, 0.38f, 0.31f, 0.30f}))));
 }
 
 /** The bronze-framed stone panel every part of this UI sits in. */
@@ -364,9 +364,9 @@ inline Element panel(float w, float h) {
           120,
           {kBronzeLit.fR, kBronzeLit.fG, kBronzeLit.fB, 0.35f},
           {0, 0, 0, 0.7f}})
-      .foreground(util::stroke(2.0f, Fill::color(kBronze)))
-      .foreground(util::stroke(1.0f, Fill::color(kBronzeDim),
-                               PathFormat::Align::Inner));
+      .foreground(stroke(2.0f, Fill::color(kBronze)))
+      .foreground(
+          stroke(1.0f, Fill::color(kBronzeDim), PathFormat::Align::Inner));
 }
 
 /** Four rivets, one per corner of a panel. */
@@ -516,7 +516,7 @@ struct LootGridScene final : Scene {
                   {{0.0f, {rc.fR * 0.30f, rc.fG * 0.30f, rc.fB * 0.30f, 0.85f}},
                    {1.0f,
                     {rc.fR * 0.13f, rc.fG * 0.13f, rc.fB * 0.13f, 0.85f}}}))
-              .foreground(util::stroke(
+              .foreground(stroke(
                   1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.7f : 0.3f})))
               .row()
               .justify(Justify::Center)
@@ -548,32 +548,32 @@ struct LootGridScene final : Scene {
     const float dw = lt::spanW(kDragW), dh = lt::spanW(kDragH);
     // FarrokhGames' two cell sprites, cross-faded: green while the
     // footprint is free, red the moment it overlaps something.
-    grid.child(box()
-                   .width(Dim(dw))
-                   .height(Dim(dh))
-                   .corners({2})
-                   .left(0)
-                   .top(0)
-                   .translateX(&dragX)
-                   .translateY(&dragY)
-                   .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.26f}))
-                   .foreground(util::stroke(
-                       1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
-                   .opacity(&fitsMix)
-                   .zIndex(5));
-    grid.child(box()
-                   .width(Dim(dw))
-                   .height(Dim(dh))
-                   .corners({2})
-                   .left(0)
-                   .top(0)
-                   .translateX(&dragX)
-                   .translateY(&dragY)
-                   .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.30f}))
-                   .foreground(util::stroke(
-                       1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
-                   .opacity(&blockedMix)
-                   .zIndex(6));
+    grid.child(
+        box()
+            .width(Dim(dw))
+            .height(Dim(dh))
+            .corners({2})
+            .left(0)
+            .top(0)
+            .translateX(&dragX)
+            .translateY(&dragY)
+            .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.26f}))
+            .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
+            .opacity(&fitsMix)
+            .zIndex(5));
+    grid.child(
+        box()
+            .width(Dim(dw))
+            .height(Dim(dh))
+            .corners({2})
+            .left(0)
+            .top(0)
+            .translateX(&dragX)
+            .translateY(&dragY)
+            .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.30f}))
+            .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
+            .opacity(&blockedMix)
+            .zIndex(6));
     // and the item riding it
     grid.child(box()
                    .width(Dim(dw))
@@ -671,8 +671,8 @@ struct LootGridScene final : Scene {
                       {rc.fR * 0.28f, rc.fG * 0.28f, rc.fB * 0.28f, 0.9f}},
                      {1.0f,
                       {rc.fR * 0.12f, rc.fG * 0.12f, rc.fB * 0.12f, 0.9f}}}))
-                .foreground(util::stroke(
-                    1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f}))));
+                .foreground(
+                    stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f}))));
         socket.child(box()
                          .inset(0)
                          .row()
@@ -772,8 +772,7 @@ struct LootGridScene final : Scene {
         .gap(2)
         .corners({2})
         .fill(Material::solid({0.02f, 0.02f, 0.02f, 0.90f}))
-        .foreground(
-            util::stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f})))
+        .foreground(stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")
         .opacity(animate(from(0.0f).to(1.0f), {380ms}))
@@ -846,7 +845,7 @@ struct LootGridScene final : Scene {
             .corners({3})
             .fill(Material::linear(
                 {0, 0}, {0, 32}, {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
-            .foreground(util::stroke(1.0f, Fill::color(lt::kBronzeDim)))
+            .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
             .child(box()
                        .width(Dim(13.0f))
                        .height(Dim(13.0f))
@@ -872,7 +871,7 @@ struct LootGridScene final : Scene {
                      .corners({1.5f})
                      .fill(Material::solid(
                          {c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}))
-                     .foreground(util::stroke(1.0f, Fill::color(c))))
+                     .foreground(stroke(1.0f, Fill::color(c))))
           .child(text(toU8(label), lt::type(10.5f, c, 0.8f)));
     };
     root.child(box()
@@ -899,7 +898,7 @@ struct LootGridScene final : Scene {
                        .height(Dim(11.0f))
                        .corners({2})
                        .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.30f}))
-                       .foreground(util::stroke(
+                       .foreground(stroke(
                            1.0f, Fill::color({0.35f, 1.0f, 0.45f, 0.8f}))))
             .child(text(toU8("fits"), lt::type(10.5f, lt::kAsh, 0.8f)))
             .child(box()
@@ -908,7 +907,7 @@ struct LootGridScene final : Scene {
                        .corners({2})
                        .margin(10, 0, 0, 0)
                        .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.34f}))
-                       .foreground(util::stroke(
+                       .foreground(stroke(
                            1.0f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f}))))
             .child(text(toU8("blocked"), lt::type(10.5f, lt::kAsh, 0.8f))));
     return root;

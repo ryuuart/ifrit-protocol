@@ -273,8 +273,6 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
-#include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -286,7 +284,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 namespace ch = choreograph;
@@ -312,8 +309,8 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;    // Cluster:59 — the HIT bo
 constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
-using studio::hex;  // 0xRRGGBB -> SkColor4f
-using studio::mul;  // scale RGB by k, optionally replacing alpha
+using sigil::compose::hex;  // 0xRRGGBB -> SkColor4f
+using sigil::compose::mul;  // scale RGB by k, optionally replacing alpha
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
 // Palette, sampled out of the mod's own PNGs (see the header).

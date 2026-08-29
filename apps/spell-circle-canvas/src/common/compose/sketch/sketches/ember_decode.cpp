@@ -63,8 +63,8 @@
 //       --frame /tmp/ember_decode.png --at 2.4
 
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Choreograph.h>
 
@@ -74,7 +74,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 namespace {
 
@@ -184,17 +183,17 @@ struct EmberDecode : sigil::compose::sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     const sigil::weave::TextStyle label =
-        studio::type({.size = 11.5f, .color = kLabel, .track = 1.6f});
+        type({.size = 11.5f, .color = kLabel, .track = 1.6f});
     const sigil::weave::TextStyle faint =
-        studio::type({.size = 10.5f, .color = kFaint, .track = 0.8f});
+        type({.size = 10.5f, .color = kFaint, .track = 0.8f});
     const sk_sp<SkTypeface> face =
-        studio::pickFace({"Helvetica Neue", "Arial", "Inter"}, 700);
+        pickFace({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
-    const sigil::weave::TextStyle big = studio::type(
-        {.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
-    const sigil::weave::TextStyle small = studio::type(
-        {.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
+    const sigil::weave::TextStyle big =
+        type({.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
+    const sigil::weave::TextStyle small =
+        type({.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
 
     const Material burn = burnMaterial();
     Element root =
@@ -282,7 +281,7 @@ struct EmberDecode : sigil::compose::sketch::Sketch {
     };
     if (displayTotalMs <= 1.0f) displayTotalMs = span("burn-display");
     if (wordsTotalMs <= 1.0f) wordsTotalMs = span("burn-words");
-    const double t = studio::phase(elapsed, kLoop) * kLoop;
+    const double t = motion::phase(elapsed, kLoop) * kLoop;
     display = masterAt(t, kInAt, displayTotalMs);
     words = masterAt(t, kWordsAt, wordsTotalMs);
     // Re-described per frame for the meter, which reads beatsOf at

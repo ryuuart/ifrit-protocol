@@ -201,8 +201,9 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilgeometry/Ops.h>
 #include <sigilgeometry/Polyline.h>
@@ -217,7 +218,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace ch = choreograph;
 
 namespace {
@@ -228,24 +228,24 @@ constexpr float kW = 1280.0f;
 constexpr float kH = 1280.0f;
 
 // ---- palette: chalk by candlelight, then one hue of light -----------------
-constexpr SkColor4f kNight = studio::hex(0x0A0812);
-constexpr SkColor4f kNightLift = studio::hex(0x141021);
-constexpr SkColor4f kGold = studio::hex(0xD8A94E);
-constexpr SkColor4f kBone = studio::hex(0xE9DFC8);
-constexpr SkColor4f kEmber = studio::hex(0x8A4A26);
-constexpr SkColor4f kIron = studio::hex(0x3B3554);     // construction lines
-constexpr SkColor4f kIronDim = studio::hex(0x262238);  // faint construction
-constexpr SkColor4f kAsh = studio::hex(0x8A8299);      // secondary type
-constexpr SkColor4f kAshDim = studio::hex(0x8A8299, 0.62f);
-constexpr SkColor4f kRuneInk = studio::hex(0x9C8FB8);  // the register's ink
+constexpr SkColor4f kNight = hex(0x0A0812);
+constexpr SkColor4f kNightLift = hex(0x141021);
+constexpr SkColor4f kGold = hex(0xD8A94E);
+constexpr SkColor4f kBone = hex(0xE9DFC8);
+constexpr SkColor4f kEmber = hex(0x8A4A26);
+constexpr SkColor4f kIron = hex(0x3B3554);     // construction lines
+constexpr SkColor4f kIronDim = hex(0x262238);  // faint construction
+constexpr SkColor4f kAsh = hex(0x8A8299);      // secondary type
+constexpr SkColor4f kAshDim = hex(0x8A8299, 0.62f);
+constexpr SkColor4f kRuneInk = hex(0x9C8FB8);  // the register's ink
 
 // ---- the ignited palette: ONE hue family, value doing the drawing --------
 // Not a second scheme beside the candlelit one. It is the state the circle
 // changes INTO: chalk is pigment on a surface and reflects what the room
 // gives it, light is emitted and collapses to one hue with a white core.
-constexpr SkColor4f kCore = studio::hex(0xFFF6E2);   // the white-hot core
-constexpr SkColor4f kHalo = studio::hex(0xFFC152);   // the saturated halo
-constexpr SkColor4f kBloom = studio::hex(0xC96F1E);  // the wide dim bloom
+constexpr SkColor4f kCore = hex(0xFFF6E2);   // the white-hot core
+constexpr SkColor4f kHalo = hex(0xFFC152);   // the saturated halo
+constexpr SkColor4f kBloom = hex(0xC96F1E);  // the wide dim bloom
 
 // ---- the circle's frame ---------------------------------------------------
 constexpr SkPoint kEye{640.0f, 640.0f};  // centre in canvas px
@@ -877,7 +877,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
 
   [[nodiscard]] sigil::weave::TextStyle ring(float size, SkColor4f color,
                                              float track = 3.0f) const {
-    return studio::type(
+    return type(
         {.face = faceRingBold, .size = size, .color = color, .track = track});
   }
   /** THE REGISTER'S TYPE takes no face. The invented alphabet is not in
@@ -886,16 +886,16 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  letterforms, which is the mechanism that puts them on the plate. */
   [[nodiscard]] static sigil::weave::TextStyle rune(float size, SkColor4f color,
                                                     float track) {
-    return studio::type({.size = size, .color = color, .track = track});
+    return type({.size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle mono(float size, SkColor4f color,
                                              float track = 1.0f) const {
-    return studio::type(
+    return type(
         {.face = faceMono, .size = size, .color = color, .track = track});
   }
   [[nodiscard]] sigil::weave::TextStyle label(float size, SkColor4f color,
                                               float track = 2.6f) const {
-    return studio::type(
+    return type(
         {.face = faceRing, .size = size, .color = color, .track = track});
   }
 
@@ -934,7 +934,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         .shape(Baked{&chalk[(size_t)chalkIndex]})
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
-                util::stroke(width, Fill::color(color)));
+                stroke(width, Fill::color(color)));
   }
 
   /** The same, for a path this sketch holds directly rather than in the
@@ -950,7 +950,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         .shape(Baked{&path})
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
-                util::stroke(width, Fill::color(color)));
+                stroke(width, Fill::color(color)));
   }
 
   /** ONE GRADE of a lighting group's emissive stack. Each grade is a flat
@@ -1009,7 +1009,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         .shape(kit::ticks(t))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
-                util::stroke(width, Fill::color(color)));
+                stroke(width, Fill::color(color)));
   }
 
   // ------------------------------------------------------------------
@@ -1229,10 +1229,10 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .child(disc(c, kSpurR)
+        .child(kit::disc(c, kSpurR)
                    .key("spur-ground")
                    .hitTestable(false)
-                   .fill(Fill::color(studio::hex(0x0D0A16, 0.92f)))
+                   .fill(Fill::color(hex(0x0D0A16, 0.92f)))
                    .opacity(beat(0.9, 1.4)))
         .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
         .child(text(toU8(spurText), rune(19.0f, kBone, 0.0f))
@@ -1283,7 +1283,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                      .hitTestable(false)
                      .shape(Baked{&starSteps[(size_t)i]})
                      .fill(Fill::none())
-                     .stroke(util::stroke(1.6f, Fill::color(kCore)))
+                     .stroke(stroke(1.6f, Fill::color(kCore)))
                      .blend(SkBlendMode::kPlus)
                      .opacity(bind(&morphStep)
                                   .window((float)i - 1.0f, (float)i + 1.0f)
@@ -1320,7 +1320,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  and they do not travel with the rim: a caption is read, and the
    *  mechanism is what moves. */
   [[nodiscard]] Element limina() {
-    Element fig = disc(kEye, rStar * kR).key("limina").hitTestable(false);
+    Element fig = kit::disc(kEye, rStar * kR).key("limina").hitTestable(false);
     const Shape chordPath =
         kit::chords({.sides = kStations, .step = 3, .inset = 74.0f});
     for (int k = 0; k < kLimens; ++k) {
@@ -1364,25 +1364,24 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     const double at = tSeal[k];
     const std::string id = "seal" + std::to_string(k);
 
-    Element seal = disc(c, kSealR).key(id);
+    Element seal = kit::disc(c, kSealR).key(id);
     // The ground: occludes the bands under the seal — a seal SITS ON the
     // plate rather than being drawn into it — and wears an aura for a
     // breath at ignition.
-    seal.child(
-        box()
-            .key(id + "-ground")
-            .absolute()
-            .inset(0)
-            .corners({kSealR})
-            .hitTestable(false)
-            .fill(Fill::color(studio::hex(0x0D0A16, 0.94f)))
-            // The ground is dressed rather than shaded: an inner glow is
-            // a blurred band hugging its own edge, a value decoration
-            // that records once with the disc it sits on. It gives the
-            // seal a lip of light without a second node and without a
-            // shader.
-            .overlay(styles::innerGlow(studio::hex(0xE79A32, 0.30f), 8.0f))
-            .opacity(beat(at, at + 0.4)));
+    seal.child(box()
+                   .key(id + "-ground")
+                   .absolute()
+                   .inset(0)
+                   .corners({kSealR})
+                   .hitTestable(false)
+                   .fill(Fill::color(hex(0x0D0A16, 0.94f)))
+                   // The ground is dressed rather than shaded: an inner glow is
+                   // a blurred band hugging its own edge, a value decoration
+                   // that records once with the disc it sits on. It gives the
+                   // seal a lip of light without a second node and without a
+                   // shader.
+                   .overlay(styles::innerGlow(hex(0xE79A32, 0.30f), 8.0f))
+                   .opacity(beat(at, at + 0.4)));
     // The seal's own emissive rule. A seal is a small magic circle, so it
     // lights like one — but its two rules are concentric and cross
     // nothing, which is the case the SDF answers in one pass: silhouette,
@@ -1392,7 +1391,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
       const sdf::Style lit{.borderWidth = 1.1f,
                            .borderColor = kCore,
                            .glowRadius = 6.0f,
-                           .glowColor = studio::hex(0xFFC152, 0.42f)};
+                           .glowColor = hex(0xFFC152, 0.42f)};
       const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
       seal.child(box()
                      .key(id + "-lit")
@@ -1412,7 +1411,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                    .hitTestable(false)
                    .fill(Fill::none())
                    .stroke(spans::upTo(beat(at, at + 0.55)),
-                           util::stroke(1.2f, Fill::color(kIron))))
+                           stroke(1.2f, Fill::color(kIron))))
         .child(box()
                    .key(id + "-rule-in")
                    .absolute()
@@ -1421,7 +1420,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                    .hitTestable(false)
                    .fill(Fill::none())
                    .stroke(spans::upTo(beat(at + 0.15, at + 0.7)),
-                           util::stroke(0.7f, Fill::color(kIronDim))));
+                           stroke(0.7f, Fill::color(kIronDim))));
     // THE TURNING BODY: everything in the seal that is not a circle and
     // not the ordinal. The rules and the ground are concentric discs and
     // a disc under rotation is the same disc, so they stay outside this
@@ -1442,7 +1441,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                    .hitTestable(false)
                    .shape(shapes::polygon(s.order))
                    .fill(Fill::none())
-                   .stroke(util::stroke(0.9f, Fill::color(kIron)))
+                   .stroke(stroke(0.9f, Fill::color(kIron)))
                    .rotate(bind(&sealCog[k]).target(0.0f, 360.0f))
                    .opacity(beat(at + 0.3, at + 0.9)));
     // The ring: two words of the register, tumbling onto the circle and
@@ -1499,11 +1498,11 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  glow together, sized by the reserve the style declares so the box
    *  cannot crop its own falloff. */
   [[nodiscard]] Element emblemDisc() {
-    const sdf::Style emblem{.fill = studio::hex(0x1A1008, 0.66f),
+    const sdf::Style emblem{.fill = hex(0x1A1008, 0.66f),
                             .glowRadius = 34.0f,
-                            .glowColor = studio::hex(0xFFB13A, 0.5f)};
+                            .glowColor = hex(0xFFB13A, 0.5f)};
     const float side = sdf::minBoxFor(emblem, 2.0f * rEmblem * kR);
-    return disc(kEye, side * 0.5f)
+    return kit::disc(kEye, side * 0.5f)
         .key("emblem-disc")
         .hitTestable(false)
         .fill(sdf::material(sdf::circle(), emblem))
@@ -1591,32 +1590,31 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     Element panel = box().key("rota").absolute().inset(0).hitTestable(false);
 
     // The ground wash under the figure.
-    panel.child(box()
-                    .key("rota-wash")
-                    .absolute()
-                    .inset(0)
-                    .hitTestable(false)
-                    .fill(Material::glowUnit({0.5f, 0.5f}, 0.62f,
-                                             {{0.0f, kNightLift},
-                                              {0.66f, studio::hex(0x0D0A18)},
-                                              {1.0f, kNight}})));
+    panel.child(
+        box()
+            .key("rota-wash")
+            .absolute()
+            .inset(0)
+            .hitTestable(false)
+            .fill(Material::glowUnit(
+                {0.5f, 0.5f}, 0.62f,
+                {{0.0f, kNightLift}, {0.66f, hex(0x0D0A18)}, {1.0f, kNight}})));
 
     // THE FLOOD: light thrown at the whole sheet from behind the figure.
     // It screens, so it lifts what is already there toward white instead
     // of laying a wash over it, and it is worth its full-panel gradient
     // only while it is on — at gain zero the node is not painted at all.
-    panel.child(
-        box()
-            .key("flood")
-            .absolute()
-            .inset(-120)
-            .hitTestable(false)
-            .fill(Material::glowUnit({0.5f, 0.5f}, 0.86f,
-                                     {{0.0f, studio::hex(0xFFD98A, 0.55f)},
-                                      {0.42f, studio::hex(0xE79A32, 0.30f)},
-                                      {1.0f, studio::hex(0xC96F1E, 0.0f)}}))
-            .blend(SkBlendMode::kScreen)
-            .opacity(&floodA));
+    panel.child(box()
+                    .key("flood")
+                    .absolute()
+                    .inset(-120)
+                    .hitTestable(false)
+                    .fill(Material::glowUnit({0.5f, 0.5f}, 0.86f,
+                                             {{0.0f, hex(0xFFD98A, 0.55f)},
+                                              {0.42f, hex(0xE79A32, 0.30f)},
+                                              {1.0f, hex(0xC96F1E, 0.0f)}}))
+                    .blend(SkBlendMode::kScreen)
+                    .opacity(&floodA));
 
     // THE RAYS, thrown past the figure at ignition — the reading that
     // makes an ignition a whole-frame event and not a brighter drawing.
@@ -1774,21 +1772,20 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // The scribe: the point of the pen, led round the band by the writing
     // cascade — placed every frame from the schedule read back, so it
     // cannot drift from the letters it appears to write.
-    panel.child(
-        box()
-            .key("scribe")
-            .left(-9)
-            .top(-9)
-            .width(18)
-            .height(18)
-            .hitTestable(false)
-            .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
-                                     {{0.0f, studio::hex(0xFFE9B0)},
-                                      {0.35f, studio::hex(0xD8A94E, 0.55f)},
-                                      {1.0f, studio::hex(0xD8A94E, 0.0f)}}))
-            .translateX(&scribeX)
-            .translateY(&scribeY)
-            .opacity(&scribeA));
+    panel.child(box()
+                    .key("scribe")
+                    .left(-9)
+                    .top(-9)
+                    .width(18)
+                    .height(18)
+                    .hitTestable(false)
+                    .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
+                                             {{0.0f, hex(0xFFE9B0)},
+                                              {0.35f, hex(0xD8A94E, 0.55f)},
+                                              {1.0f, hex(0xD8A94E, 0.0f)}}))
+                    .translateX(&scribeX)
+                    .translateY(&scribeY)
+                    .opacity(&scribeA));
     return panel;
   }
 
@@ -1830,7 +1827,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                          " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
                          "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
                          "SPAN, NONE FITTED BY HAND"),
-                    label(8.5f, studio::hex(0x8A8299, 0.42f), 2.4f))
+                    label(8.5f, hex(0x8A8299, 0.42f), 2.4f))
                    .key("colophon-2")
                    .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
   }
@@ -1857,10 +1854,9 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
 
-    faceRing = studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-    faceRingBold =
-        studio::pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceMono = studio::pickFace({"Menlo", "SF Mono", "Courier New"}, 500);
+    faceRing = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    faceRingBold = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
+    faceMono = pickFace({"Menlo", "SF Mono", "Courier New"}, 500);
 
     // ---- content, fitted to its own bands --------------------------------
     voxText = "+ ";
@@ -2144,10 +2140,10 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     emberAtlas = std::make_shared<instancing::Atlas>(2.0f);
     emberFrame = emberAtlas->cell(
         box().fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
-                                      {{0.0f, studio::hex(0xFFF3D2)},
-                                       {0.22f, studio::hex(0xFFD277, 0.85f)},
-                                       {0.55f, studio::hex(0xE79A32, 0.30f)},
-                                       {1.0f, studio::hex(0xC96F1E, 0.0f)}})),
+                                      {{0.0f, hex(0xFFF3D2)},
+                                       {0.22f, hex(0xFFD277, 0.85f)},
+                                       {0.55f, hex(0xE79A32, 0.30f)},
+                                       {1.0f, hex(0xC96F1E, 0.0f)}})),
         {22, 22});
     embers = std::make_shared<instancing::Pool>();
     embers->resize(kEmbers);

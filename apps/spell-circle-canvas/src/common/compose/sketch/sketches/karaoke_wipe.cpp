@@ -76,8 +76,8 @@
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
 #include <sigilsketch/Sketch.h>
 
 #include <algorithm>
@@ -86,20 +86,19 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 namespace {
 
 constexpr float kW = 1020.0f;
 constexpr float kH = 470.0f;
 
-constexpr SkColor4f kStage = studio::hex(0x0A0A12);
-constexpr SkColor4f kBand = studio::hex(0x11111D);
-constexpr SkColor4f kSung = studio::hex(0x53E0C4);  // the saturated colour
-constexpr SkColor4f kPale = studio::hex(0xF2EFE6);  // the resting line
-constexpr SkColor4f kNext = studio::hex(0x585F6E);  // the line to come
-constexpr SkColor4f kLabel = studio::hex(0x767E8D);
-constexpr SkColor4f kFaint = studio::hex(0x333A47);
+constexpr SkColor4f kStage = hex(0x0A0A12);
+constexpr SkColor4f kBand = hex(0x11111D);
+constexpr SkColor4f kSung = hex(0x53E0C4);  // the saturated colour
+constexpr SkColor4f kPale = hex(0xF2EFE6);  // the resting line
+constexpr SkColor4f kNext = hex(0x585F6E);  // the line to come
+constexpr SkColor4f kLabel = hex(0x767E8D);
+constexpr SkColor4f kFaint = hex(0x333A47);
 
 const char* kLine1 = "COME TAKE A TRIP IN MY AIRSHIP";
 const char* kLine2 = "COME TAKE A SAIL AMONG THE STARS";
@@ -227,10 +226,10 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
   }
 
   [[nodiscard]] Element describe() const {
-    const sigil::weave::TextStyle small = studio::type(
-        {.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
-    const sigil::weave::TextStyle note = studio::type(
-        {.face = face, .size = 11.5f, .color = kFaint, .track = 0.5f});
+    const sigil::weave::TextStyle small =
+        type({.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
+    const sigil::weave::TextStyle note =
+        type({.face = face, .size = 11.5f, .color = kFaint, .track = 0.5f});
 
     Element stage =
         box()
@@ -255,10 +254,10 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
                                   .translateY(&ballY)))
             .child(lyricLine())
             .child(ruler().margin(0, 12, 0, 0))
-            .child(text(toU8(kLine2), studio::type({.face = face,
-                                                    .size = kLyricSize * 0.78f,
-                                                    .color = kNext,
-                                                    .track = kTrack}))
+            .child(text(toU8(kLine2), type({.face = face,
+                                            .size = kLyricSize * 0.78f,
+                                            .color = kNext,
+                                            .track = kTrack}))
                        .key("line2")
                        .margin(0, 22, 0, 0));
 
@@ -273,10 +272,10 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
                    .alignItems(Align::End)
                    .child(text(toU8("FOLLOW THE BOUNCING BALL"), small).grow(1))
                    .child(text(toU8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"),
-                               studio::type({.face = face,
-                                             .size = 11.5f,
-                                             .color = kNext,
-                                             .track = 2.4f}))))
+                               type({.face = face,
+                                     .size = 11.5f,
+                                     .color = kNext,
+                                     .track = 2.4f}))))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -298,8 +297,8 @@ struct KaraokeWipe : sigil::compose::sketch::Sketch {
     ctx.background(kStage);
     if (!ctx.fonts) return;
 
-    face = studio::pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
-    lyric = studio::type(
+    face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
+    lyric = type(
         {.face = face, .size = kLyricSize, .color = kSung, .track = kTrack});
     schedule.clear();
     words.clear();

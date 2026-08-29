@@ -281,7 +281,7 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
   Host host;
   host.composer.render(straightRun(brush::restyle(
-      kit::brush::shapers::Wave{8, 24}, util::stroke(2, green()), 12)));
+      kit::brush::shapers::Wave{8, 24}, stroke(2, green()), 12)));
   host.frame();
   int offAxis = 0;
   for (int x = 30; x < 170; x += 2)
@@ -296,8 +296,8 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
 TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
   Host host, plain;
   host.composer.render(straightRun(brush::restyle(
-      kit::brush::shapers::Jitter{8, 3.0f, 11}, util::stroke(2, green()))));
-  plain.composer.render(straightRun(util::stroke(2, green())));
+      kit::brush::shapers::Jitter{8, 3.0f, 11}, stroke(2, green()))));
+  plain.composer.render(straightRun(stroke(2, green())));
   host.frame();
   plain.frame();
   int off = 0, offPlain = 0;
@@ -605,7 +605,7 @@ TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
       box()
           .child(box().absolute().inset(20, 90, 160, 90).fill(red()).key("a"))
           .child(box().absolute().inset(160, 90, 20, 90).fill(red()).key("b"))
-          .child(connector("a", "b").stroke(util::stroke(4, green()))));
+          .child(connector("a", "b").stroke(stroke(4, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the wire, mid-span
   host.frame();                                    // cached replay
@@ -622,7 +622,7 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
                       .absolute()
                       .inset(70, 70, 70, 70)
                       .cache(Cache::Texture)
-                      .background(util::Shadow{{0, 1, 0, 1}, {30, 0}, 0})
+                      .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
                       .fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
@@ -645,7 +645,7 @@ TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
                         return b.detach();
                       })
                       .mask(by::spans(spans::wrap(0.9f, 1.2f)))
-                      .stroke(util::stroke(6, green()))));
+                      .stroke(stroke(6, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN);  // tail piece [0.9, 1]
   EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);   // head piece [0, 0.2]
@@ -682,7 +682,7 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
           // perimeter 640: [0, 0.2] runs 128 px right along the top edge,
           // [0.9, 1] runs the last 64 px UP the left edge into the seam.
           .mask(by::spans(spans::wrap(0.9f, 1.2f)))
-          .stroke(util::stroke(6, green()))));
+          .stroke(stroke(6, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(80, 20), SK_ColorGREEN);    // head piece, top edge
   EXPECT_EQ(host.pixel(20, 50), SK_ColorGREEN);    // tail piece, left edge
@@ -754,10 +754,10 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
           .top(0)
           .width(200)
           .height(200)
-          .background(util::stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
+          .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
           .fill(Material::sksl(sharedHeavyEffect()))
-          .overlay(util::stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
-          .foreground(util::stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
+          .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
+          .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
   if (clipped) plane.clip(true);
   plane.child(box()
                   .absolute()
@@ -909,11 +909,10 @@ TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
             .top(0)
             .width(200)
             .height(200)
-            .background(
-                util::stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
+            .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
             .fill(Material::sksl(sharedHeavyEffect()))
-            .overlay(util::stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
-            .foreground(util::stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
+            .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
+            .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
             .child(box()
                        .absolute()
                        .left(10)
@@ -1051,8 +1050,8 @@ Element board(int i) {
                                       120.0f + ang,
                                       {1, 0.96f, 0.86f, 0.45f},
                                       {0.14f, 0.09f, 0.03f, 0.45f}})
-      .stroke(util::stroke(0.6f, Fill::color({0.29f, 0.21f, 0.12f, 0.55f}),
-                           PathFormat::Align::Inner))
+      .stroke(stroke(0.6f, Fill::color({0.29f, 0.21f, 0.12f, 0.55f}),
+                     PathFormat::Align::Inner))
       .opacity(&boardFade()[i])
       .scale(&boardPop()[i]);
 }
@@ -1425,7 +1424,7 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
   // An ANIMATED DECORATION: the same argument as the live material, one
   // level out from the fill.
   static choreograph::Output<float> dash{0};
-  PathFormat marching = util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  PathFormat marching = stroke(2.0f, Fill::color({1, 1, 1, 1}));
   marching.dashIntervals = {4.0f, 4.0f};
   marching.dashPhaseBinding = &dash;
   EXPECT_FALSE(groupBakesWith(plainExtra().background(marching)))
@@ -1527,7 +1526,7 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
           .absolute()
           .inset(60, 60, 60, 60)
           .backdrop(Effect::filter(SkImageFilters::Blur(2, 2, nullptr)))
-          .stroke(util::stroke(10, green(), PathFormat::Align::Outer))));
+          .stroke(stroke(10, green(), PathFormat::Align::Outer))));
   host.frame();
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
 }

@@ -38,8 +38,8 @@
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-#include "sigilcompose/Studio.h"
-#include "sigilcompose/Util.h"
+#include "sigilcompose/Decorations.h"
+#include "sigilcompose/Typography.h"
 
 namespace sigil::compose::feed {
 
@@ -284,11 +284,10 @@ struct TextOptions {
 [[nodiscard]] inline sigil::weave::StyleSet tinted(
     const sk_sp<SkTypeface>& face, float size, SkColor4f base,
     std::vector<std::pair<std::string, SkColor4f>> named) {
-  sigil::weave::StyleSet set(
-      studio::type({.face = face, .size = size, .color = base}));
+  sigil::weave::StyleSet set(type({.face = face, .size = size, .color = base}));
   for (auto& [name, color] : named)
     set.set(std::move(name),
-            studio::type({.face = face, .size = size, .color = color}));
+            type({.face = face, .size = size, .color = color}));
   return set;
 }
 
@@ -348,7 +347,7 @@ struct Plate {
 [[nodiscard]] inline Element plate(Plate p) {
   Element ground = box().fill(p.fill);
   if (p.border.kind != Fill::Kind::None)
-    ground.stroke(util::stroke(p.borderWidth, p.border, p.borderAlign));
+    ground.stroke(stroke(p.borderWidth, p.border, p.borderAlign));
 
   // grow(1) so the padded interior fills whatever rect the caller gave the
   // plate, without the interior needing its own size.

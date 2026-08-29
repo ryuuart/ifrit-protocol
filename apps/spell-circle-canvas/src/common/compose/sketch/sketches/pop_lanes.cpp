@@ -39,7 +39,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace geometry = sigil::geometry;
 
 namespace {
@@ -122,7 +121,7 @@ Element splat(geometry::Cloud cloud, float spriteSize) {
            style.additive = false;   // kSrcOver: order decides the picture
            style.depthSort = false;  // the sink's own sort would mask it
            geometry::points::drawBillboards(canvas, cloud, lookAtCrown(),
-                                         paint.size, style);
+                                            paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);

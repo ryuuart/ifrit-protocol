@@ -11,6 +11,7 @@ add_library(SigilComposeKit STATIC
   Kit.cpp
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Divisions.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Frame.h
+  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Instruments.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Kit.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Legibility.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/PixelType.h

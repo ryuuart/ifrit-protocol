@@ -123,17 +123,16 @@ sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* text, float size = 9.5f, SkColor4f c = kInk) {
-  return sigil::compose::text(util::toU8(text),
-                              style(gType.mono, size, c, 0.1f));
+  return sigil::compose::text(toU8(text), style(gType.mono, size, c, 0.1f));
 }
 Element roman(const char* text, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return sigil::compose::text(util::toU8(text),
+  return sigil::compose::text(toU8(text),
                               style(gType.roman, size, c, tracking));
 }
 Element romanBold(const char* text, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return sigil::compose::text(util::toU8(text),
+  return sigil::compose::text(toU8(text),
                               style(gType.romanBold, size, c, tracking));
 }
 
@@ -400,11 +399,11 @@ std::vector<Style> furnishedStyles() {
   gradient.alongStops = {
       {0.0f, kRed}, {0.5f, {0.85f, 0.66f, 0.16f, 1}}, {1.0f, kBlue}};
 
-  PathFormat dotted = util::stroke(2.6f, ink());
+  PathFormat dotted = stroke(2.6f, ink());
   dotted.cap = SkPaint::kRound_Cap;
   dotted.dashIntervals = {0.01f, 8.0f};
 
-  PathFormat morse = util::stroke(1.8f, ink());
+  PathFormat morse = stroke(1.8f, ink());
   morse.cap = SkPaint::kButt_Cap;
   morse.dashIntervals = {14, 5, 3, 5, 3, 12};
 
@@ -479,11 +478,11 @@ std::vector<Style> stampedStyles() {
                    .width(14)
                    .height(10)
                    .shape(shapes::circle())
-                   .foreground(util::stroke(1.4f, ink()));
+                   .foreground(stroke(1.4f, ink()));
   chain.advance = 11.0f;
   chain.reach = 12.0f;
 
-  PathFormat vine = util::stroke(1.2f, ink());
+  PathFormat vine = stroke(1.2f, ink());
   {
     SkPathBuilder leaf;
     leaf.moveTo(0, 0);
@@ -586,7 +585,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                       .width(16)
                       .height(16)
                       .shape(shapes::circle())
-                      .foreground(util::stroke(1.0f, red())));
+                      .foreground(stroke(1.0f, red())));
       plate.child(box()
                       .absolute()
                       .left(originX - 13)
@@ -799,7 +798,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
             .height(124)
             .shape(std::move(shape))
             .background(std::move(dec))
-            .foreground(util::stroke(1.0f, ink()))
+            .foreground(stroke(1.0f, ink()))
             .child(call(label, 8.0f, kInkSoft).absolute().left(0).top(130));
       };
       // Staggered, not ruled: the shapes differ, so their baselines should.
@@ -897,13 +896,12 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         // aligned, so under Outgoing the same polygon(4, 45) comes back
         // as four upright SQUARES and the label stops being true of the
         // picture beside it.
-        tiled.corner =
-            brush::CornerArt{box()
-                                 .width(15)
-                                 .height(15)
-                                 .shape(shapes::polygon(4, 45.0f))
-                                 .foreground(util::stroke(1.3f, red())),
-                             brush::CornerAlign::Bisector};
+        tiled.corner = brush::CornerArt{box()
+                                            .width(15)
+                                            .height(15)
+                                            .shape(shapes::polygon(4, 45.0f))
+                                            .foreground(stroke(1.3f, red())),
+                                        brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
         add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled,
@@ -920,7 +918,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         add("ContourWalk{spacing=15, stamp=triangle}", frameRect(8), walk);
       }
       {
-        PathFormat ants = util::stroke(1.6f, ink());
+        PathFormat ants = stroke(1.6f, ink());
         ants.dashIntervals = {8, 6};
         ants.dashPhaseBinding = &march;
         add("PathFormat{dashPhaseBinding}  it marches", frameRect(8), ants,
@@ -948,7 +946,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       }
       add("shapes::onEdges(Top|Bottom, stroke(2))", frameRect(8),
           shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
-                          util::stroke(2.0f, ink())),
+                          stroke(2.0f, ink())),
           -1.2f);
       add("lines::Rails as a border (ink/red/ink)", frameRect(10),
           lines::rails({{.across = 3, .width = 1.6f, .fill = ink()},
@@ -1079,7 +1077,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                                          .width(13)
                                          .height(13)
                                          .shape(shapes::polygon(4, 45.0f))
-                                         .foreground(util::stroke(1.3f, red())),
+                                         .foreground(stroke(1.3f, red())),
                                      brush::CornerAlign::Bisector};
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;

@@ -32,7 +32,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 namespace geometry = sigil::geometry;
 
 namespace {
@@ -100,7 +99,7 @@ Element splat(geometry::Cloud cloud) {
            style.additive = false;
            style.depthSort = true;
            geometry::points::drawBillboards(canvas, cloud, lookAtColumn(),
-                                         paint.size, style);
+                                            paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);
@@ -135,8 +134,8 @@ geometry::pop::Builder base() {
       .spread(28)
       .seed(3)
       .vary(0.5f)
-      .select("band", geometry::pop::Select::Shape::Box, {0, 20, 0}, {80, 55, 80},
-              kFeather)
+      .select("band", geometry::pop::Select::Shape::Box, {0, 20, 0},
+              {80, 55, 80}, kFeather)
       .rampBy("band", 0, stops);
 }
 

@@ -43,9 +43,9 @@ TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
   // is not the person who wrote the mark.
   const auto helper = [] {
     return maskBox()
-        .stroke(util::stroke(10, blue()))
-        .stroke(util::stroke(6, green()))
-        .stroke(util::stroke(2, red()));
+        .stroke(stroke(10, blue()))
+        .stroke(stroke(6, green()))
+        .stroke(stroke(2, red()));
   };
   Host all(200, 200), gated(200, 200);
   all.composer.render(stack().child(helper()));
@@ -72,7 +72,7 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
     b.lineTo(s.width(), s.height() * 0.5f);
     return b.detach();
   };
-  PathFormat wet = util::stroke(8, green());
+  PathFormat wet = stroke(8, green());
   wet.trimStart = 0.90f;
   wet.trimEnd = 1.0f;
   Host host(200, 200);
@@ -81,7 +81,7 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
                                          .inset(0)
                                          .shape(line)
                                          .fill(Fill::none())
-                                         .stroke(util::stroke(4, red()))
+                                         .stroke(stroke(4, red()))
                                          .foreground(wet)
                                          .mask(by::spans(spans::upTo(0.5f)))));
   host.frame();
@@ -112,7 +112,7 @@ TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
   // sample can tell them apart. From above they move in opposite
   // directions, and the midpoint sample separates them.
   const auto tree = [](int phase) {
-    Element e = maskBox().stroke(util::stroke(6, red()));
+    Element e = maskBox().stroke(stroke(6, red()));
     if (phase == 0)
       e.mask(by::spans(spans::upTo(0.8f)));
     else
@@ -148,7 +148,7 @@ TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
   // would force the `if` above construction — re-authoring the element
   // rather than qualifying it.
   const auto build = [](bool still) {
-    Element ring = maskBox().stroke(util::stroke(6, red()));
+    Element ring = maskBox().stroke(stroke(6, red()));
     if (!still) ring.mask(by::spans(spans::upTo(0.25f)));
     return stack().child(std::move(ring));
   };
@@ -170,10 +170,10 @@ TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
   // overriding the other.
   const auto draw = [](float t) {
     Host host(200, 200);
-    host.composer.render(stack().child(
-        maskBox()
-            .stroke(spans::corners(18), util::stroke(6, red()), "brk")
-            .mask(parts::marks(), by::spans(spans::upTo(t)))));
+    host.composer.render(
+        stack().child(maskBox()
+                          .stroke(spans::corners(18), stroke(6, red()), "brk")
+                          .mask(parts::marks(), by::spans(spans::upTo(t)))));
     host.frame();
     return inkedCount(boundaryRing(host));
   };
@@ -193,8 +193,8 @@ TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
     Host host(200, 200);
     host.composer.render(stack().child(
         maskBox()
-            .stroke(spans::range(0.0f, 0.5f), util::stroke(4, red()), "a")
-            .stroke(spans::range(0.3f, 0.8f), util::stroke(4, green()), "b")
+            .stroke(spans::range(0.0f, 0.5f), stroke(4, red()), "a")
+            .stroke(spans::range(0.3f, 0.8f), stroke(4, green()), "b")
             .mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
     host.frame();
   }
@@ -454,8 +454,8 @@ TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
                              .top(20)
                              .width(160)
                              .height(160)
-                             .overlay(util::stroke(20, red()), "hazard")
-                             .foreground(util::stroke(4, green()), "keyline")
+                             .overlay(stroke(20, red()), "hazard")
+                             .foreground(stroke(4, green()), "keyline")
                              .mask(parts::named("hazard"), by::edge(0.0f, t)));
   };
   Host closed(200, 200), open(200, 200);
@@ -542,7 +542,7 @@ TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
   Host host(200, 200);
   host.composer.render(stack().child(
       maskBox()
-          .stroke(util::stroke(6, red()))
+          .stroke(stroke(6, red()))
           .mask(by::spans(spans::range(0.0f, 0.5f)))     // left + top
           .mask(by::spans(spans::range(0.3f, 1.0f)))));  // top's last 80%
   host.frame();
@@ -558,7 +558,7 @@ TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
   Host disjoint(200, 200);
   disjoint.composer.render(
       stack().child(maskBox()
-                        .stroke(util::stroke(6, red()))
+                        .stroke(stroke(6, red()))
                         .mask(by::spans(spans::range(0.0f, 0.2f)))
                         .mask(by::spans(spans::range(0.6f, 0.8f)))));
   disjoint.frame();
@@ -577,9 +577,9 @@ TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
     Host host(200, 200);
     Element e = maskBox();
     if (sugar)
-      e.stroke(spans::corners(18), util::stroke(6, red()), "brk");
+      e.stroke(spans::corners(18), stroke(6, red()), "brk");
     else
-      e.stroke(util::stroke(6, red()), "brk")
+      e.stroke(stroke(6, red()), "brk")
           .mask(parts::named("brk"), by::spans(spans::corners(18)));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
@@ -600,7 +600,7 @@ TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
     Host host(200, 200);
     host.composer.render(stack().child(
         maskBox()
-            .stroke(util::stroke(6, red()), "outer")
+            .stroke(stroke(6, red()), "outer")
             .mask(parts::named(label), by::spans(spans::upTo(0.0f)))));
     host.frame();
     return inkedCount(boundaryRing(host));
@@ -630,7 +630,7 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
                    .height(120)
                    .key("ring")
                    .shape(shapes::circle())
-                   .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
+                   .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
                    .mask(by::spans(spans::upTo(animate(
                        through({{std::chrono::milliseconds(0), 0.0f},
                                 {std::chrono::milliseconds(200), 0.6f},
@@ -669,7 +669,7 @@ TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
   const auto tree = [](float t) {
     return stack().child(maskBox()
                              .key("m")
-                             .stroke(util::stroke(6, red()))
+                             .stroke(stroke(6, red()))
                              .mask(by::spans(spans::upTo(t))));
   };
   Host host(200, 200);
@@ -744,7 +744,7 @@ TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   // parts::surface() alone leaves the marks whole, and vice versa.
   Host onlyMarks(200, 200), onlySurface(200, 200);
   const auto both = [] {
-    return maskBox().fill(red()).stroke(util::stroke(6, green()));
+    return maskBox().fill(red()).stroke(stroke(6, green()));
   };
   onlyMarks.composer.render(
       stack().child(both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
@@ -770,7 +770,7 @@ TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
                                          .width(160)
                                          .height(160)
                                          .fill(red())
-                                         .stroke(util::stroke(6, green()))
+                                         .stroke(stroke(6, green()))
                                          .mask(by::edge(0.0f, 0.5f))));
   host.frame();
   // A reveal, not a squash: the edge lands at the box's MIDPOINT.
@@ -808,7 +808,7 @@ TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
     Host gated(200, 200), truth(200, 200);
     gated.composer.render(
         stack().child(maskBox()
-                          .stroke(util::stroke(6, red()))
+                          .stroke(stroke(6, red()))
                           .mask(by::spans(spans::range(lo, hi)))));
     gated.frame();
     truth.composer.render(
@@ -990,7 +990,7 @@ TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
   choreograph::Output<float> reveal{0.0f};
   Host host;
   host.composer.render(box().child(maskBox()
-                                       .stroke(util::stroke(6, red()))
+                                       .stroke(stroke(6, red()))
                                        .mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
   reveal = 1.0f;                // the ramp lands…
@@ -1052,7 +1052,7 @@ Element settledFillPanel(const choreograph::Output<Fill>* tint) {
                   .height(26)
                   .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(blue())
-                  .stroke(util::stroke(1.5f, green())));
+                  .stroke(stroke(1.5f, green())));
   row.child(
       box().key("accent").width(26).height(26).fill(Animatable<Fill>(tint)));
   return box()
@@ -1213,7 +1213,7 @@ Element pannedPanel(Pattern& pat) {
                   .height(26)
                   .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(blue())
-                  .stroke(util::stroke(1.5f, green())));
+                  .stroke(stroke(1.5f, green())));
   row.child(box().key("accent").width(26).height(26).fill(pat.material()));
   return box()
       .key("root")

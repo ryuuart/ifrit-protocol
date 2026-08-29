@@ -31,10 +31,11 @@
 #include <vector>
 
 #include "sigilcompose/Brushes.h"
-#include "sigilcompose/Compose.h"
+#include "sigilcompose/Derive.h"
 #include "sigilcompose/Lines.h"
 #include "sigilcompose/Routers.h"
 #include "sigilcompose/Shapes.h"
+#include "sigilcompose/Stroke.h"
 #include "sigilgeometry/Contour.h"
 
 namespace sigil::compose::kit {

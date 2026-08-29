@@ -117,7 +117,7 @@
 //                         hop, so 0→1 marches the walk hop by hop
 //   bind()                ONE Output driving two counter-rotations
 //   slot()/renderSlot()   the solver as an independent update domain
-//   debug::coverage       the 40 cells tile the annulus; the 7 angle plates
+//   test::coverage       the 40 cells tile the annulus; the 7 angle plates
 //                         tile their band
 //   feed::TextRing        four panels of checks, printed as they run
 //   Cache::Texture        the wax, the angle plates, the turning heptad
@@ -176,15 +176,16 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Studio.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 
@@ -196,13 +197,12 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
 
-using studio::hex;  // 0xRRGGBB (+ optional alpha) → SkColor4f
+using sigil::compose::hex;  // 0xRRGGBB (+ optional alpha) → SkColor4f
 
 // ---------------------------------------------------------------------------
 // palette — beeswax, four centuries old, under museum light: one hue and
@@ -520,15 +520,15 @@ shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
 // ---------------------------------------------------------------------------
 // paint helpers
 
-// A positional shorthand over studio::type. Every text run on this plate is
+// A positional shorthand over type. Every text run on this plate is
 // built from the same four fields, and there are hundreds of call sites.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
-  return studio::type(
+  return sigil::compose::type(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
-using studio::ramp;  // ramp(delayMs, durationMs) — a delayed eased reveal
+using motion::ramp;  // ramp(delayMs, durationMs) — a delayed eased reveal
 
 /** THE ENGRAVED V-GROOVE. A cut in wax is a cross-section — a shadowed wall
  *  and a lit wall — which is the one thing a stroke's own paint cannot
@@ -600,7 +600,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     auto g = box().inset(0);
 
     // the cake: rim, body, and the tool-marks of a warm knife
-    g.child(disc({kRR, kRR}, kWaxEdge * 1.055f * kR)
+    g.child(kit::disc({kRR, kRR}, kWaxEdge * 1.055f * kR)
                 .shape(shapes::annulus(0.90f))
                 .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
                                            {{0.0f, hex(0x05070a, 0.0f)},
@@ -610,7 +610,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .translateX(5)
                 .translateY(11)
                 .key("waxshadow"));
-    g.child(disc({kRR, kRR}, kWaxEdge * kR)
+    g.child(kit::disc({kRR, kRR}, kWaxEdge * kR)
                 .shape(shapes::circle())
                 .fill(Material::blend(
                     {{Material::radialUnit({0.42f, 0.36f}, 1.05f,
@@ -632,7 +632,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
     // the burnish left by the shew-stone. A ball of quartz stood on the
     // middle of this figure for its whole working life.
-    g.child(disc({kRR, kRR}, 0.33f * kR)
+    g.child(kit::disc({kRR, kRR}, 0.33f * kR)
                 .shape(shapes::circle())
                 .fill(Material::radialUnit({0.42f, 0.38f}, 1.0f,
                                            {{0.0f, hex(0xfff6dd, 0.34f)},
@@ -641,7 +641,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .blend(SkBlendMode::kScreen)
                 .key("shew"));
     g.child(
-        disc({kRR, kRR}, 0.335f * kR)
+        kit::disc({kRR, kRR}, 0.335f * kR)
             .shape(shapes::circle())
             .fill(Fill::none())
             .stroke(PathFormat{.width = 2.0f,
@@ -664,7 +664,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // hair INSIDE. lines::Line cannot say this; lines::Rails can.
     auto rule = [&](float rNorm, float heavy, float hair, float gap,
                     const char* key, bool dotted) {
-      Element e = disc({kRR, kRR}, rNorm * kR)
+      Element e = kit::disc({kRR, kRR}, rNorm * kR)
                       .shape(wobbled(shapes::circle(), 1582))
                       .fill(Fill::none())
                       .key(key);
@@ -684,7 +684,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
           spans::upTo(animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)))));
       return e;
     };
-    g.child(disc({kRR, kRR}, rGreat * kR)
+    g.child(kit::disc({kRR, kRR}, rGreat * kR)
                 .shape(shapes::annulus(rBandIn / rGreat))
                 .fill(Fill::none())
                 .foreground(lines::RadialHatch{
@@ -704,7 +704,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // CENTRE, so an Interval scatter with no phase lands its first stamp
     // half a cell along — exactly on the boundary — and every one after.
     const float step = 2.0f * SK_FloatPI * rBandIn * kR / 40.0f;
-    g.child(disc({kRR, kRR}, rBandIn * kR)
+    g.child(kit::disc({kRR, kRR}, rBandIn * kR)
                 .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(brush::Scatter{
@@ -842,7 +842,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const float mid = ((float)k + 0.5f) * 360.0f / 7.0f;
       const float half = 360.0f / 7.0f * 0.5f - 1.1f;
       plates.child(
-          disc({kRR, kRR}, 0.868f * kR)
+          kit::disc({kRR, kRR}, 0.868f * kR)
               .shape(shapes::sector(skAngle(mid - half), 2 * half,
                                     0.720f / 0.868f))
               .fill(Fill::color(hex(0xd9bd88, 0.30f)))
@@ -894,7 +894,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       // the bird lands: its angle-plate takes a rule it did not have before
       const float mid2 = ((float)k + 0.5f) * 360.0f / 7.0f;
       const float half2 = 360.0f / 7.0f * 0.5f - 1.1f;
-      g.child(disc({kRR, kRR}, 0.868f * kR)
+      g.child(kit::disc({kRR, kRR}, 0.868f * kR)
                   .shape(shapes::sector(skAngle(mid2 - half2), 2 * half2,
                                         0.720f / 0.868f))
                   .fill(Fill::none())
@@ -1092,7 +1092,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 5; ++i) {
       const float rr = kCellRings[i];
       g.child(
-          disc({kRR, kRR}, rr * kR)
+          kit::disc({kRR, kRR}, rr * kR)
               .shape(wobbled(shapes::circle(), (uint32_t)(7 + i), 22.0f, 0.30f))
               .fill(Fill::none())
               .stroke(
@@ -1217,7 +1217,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // "Set Z, of Zedekieil within the angle which standeth up toward the
     // begynning of the greatest Circle" — point-up, aligned on division 1.
     g.child(
-        disc({kHp, kHp}, rPenta * kR)
+        kit::disc({kHp, kHp}, rPenta * kR)
             .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
             .fill(Fill::color(hex(0xe6cf9e, 0.18f)))
             .stroke(lines::rails({{.across = 0.0f,
@@ -1888,9 +1888,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       ringB.addCircle(0, 0, rBandIn);
       const SkPath ring = ringB.detach();
       const SkRect reg = SkRect::MakeLTRB(-rGreat, -rGreat, rGreat, rGreat);
-      const debug::Coverage cov = debug::coverage(cells, reg, 320);
-      const debug::Coverage ref =
-          debug::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
+      const test::Coverage cov = test::coverage(cells, reg, 320);
+      const test::Coverage ref =
+          test::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
       logC.append({toU8("THE 40 CELLS TILE THE ANNULUS"), "heading"});
       logC.append(
           {toU8(fmt("  doubled %d of %d samples", cov.doubled, cov.samples)),
@@ -1926,9 +1926,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       ringB.addCircle(0, 0, 0.720f);
       const SkPath ring = ringB.detach();
       const SkRect reg = SkRect::MakeLTRB(-0.868f, -0.868f, 0.868f, 0.868f);
-      const debug::Coverage cov = debug::coverage(plates, reg, 320);
-      const debug::Coverage ref =
-          debug::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
+      const test::Coverage cov = test::coverage(plates, reg, 320);
+      const test::Coverage ref =
+          test::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
       logC.append({toU8("THE 7 ANGLE PLATES TILE THEIR BAND"), "heading"});
       logC.append({toU8(fmt("  doubled %d, gap vs ring %d", cov.doubled,
                             cov.uncovered - ref.uncovered)),

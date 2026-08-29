@@ -498,3 +498,51 @@ template <typename... Rest>
 }
 
 }  // namespace sigil::compose::fx
+
+namespace sigil::compose {
+
+// ---------------------------------------------------------------------------
+// The marquee — text in motion that costs a repaint and never a reflow
+
+/** The seamless ticker (news crawl, y2k status bar): `content` twice in a
+ *  row inside a clipped box, slid by a caller-owned WRAPPING phase Output
+ *  in px. Step the phase over [-(w + gap), 0] where w = the content's
+ *  width — measure(content, fonts).width() gives it — and the loop is
+ *  invisible. Binding translateX is paint-only volatility: the strip's
+ *  recording replays every frame, nothing re-records. Keep `content`
+ *  keyless (it mounts twice). */
+inline Element marquee(Element content, const choreograph::Output<float>* phase,
+                       float gap = 0.0f) {
+  return box().clip(true).child(box()
+                                    .row()
+                                    .gap(gap)
+                                    .shrink(0)
+                                    .alignSelf(Align::Start)
+                                    .translateX(phase)
+                                    .child(content)
+                                    .child(content));
+}
+
+/** The width-pinned marquee: each copy rides in a fixed `contentWidth`
+ *  box, so text content can NEVER wrap against the clip viewport. An
+ *  unpinned strip resolves its width against the clip box instead and
+ *  wraps to two lines, which is what the overload above risks with text.
+ *  Measure once — `ctx.measure(strip).width()` — and pass it here; wrap
+ *  the phase over [-(contentWidth + gap), 0]. */
+inline Element marquee(Element content, float contentWidth,
+                       const choreograph::Output<float>* phase,
+                       float gap = 0.0f) {
+  auto pinned = [&] {
+    return box().width(Dim(contentWidth)).shrink(0).child(content);
+  };
+  return box().clip(true).child(box()
+                                    .row()
+                                    .gap(gap)
+                                    .shrink(0)
+                                    .alignSelf(Align::Start)
+                                    .translateX(phase)
+                                    .child(pinned())
+                                    .child(pinned()));
+}
+
+}  // namespace sigil::compose

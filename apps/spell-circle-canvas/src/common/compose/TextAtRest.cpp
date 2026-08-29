@@ -1,19 +1,16 @@
-// The instruments from <sigilcompose/Debug.h> that cannot be written
-// against the public seam. The checks in that header are all header-only;
-// restGhost is not, because building a copy of a text element WITHOUT its
-// tracks means reading the description, and a description is internal.
-
-#include "sigilcompose/Debug.h"
+// The one instrument primitive that cannot be written against the public
+// seam: building a copy of a text element WITHOUT its tracks means reading
+// the description, and a description is internal. The instrument itself
+// (`kit::restGhost`) is the kit's; this is what it reads.
 
 #include <string>
 #include <utility>
 
 #include "ComposeInternal.h"
+#include "sigilcompose/Element.h"
 
-namespace sigil::compose::debug {
+namespace sigil::compose::detail {
 
-// `detail` inside this namespace is Debug.h's own formatting corner, so the
-// element description's namespace is named explicitly here.
 namespace nodes = ::sigil::compose::detail;
 
 namespace {
@@ -23,7 +20,7 @@ void warnGhostOfNonText() {
   if (warned) return;
   warned = true;
   SkDebugf(
-      "[compose] debug::restGhost() on an element that is not text() hands "
+      "[compose] restGhost() on an element that is not text() hands "
       "the element back unchanged: a rest pose is what an fx() track's "
       "per-glyph deviation is measured against, and every other element "
       "already draws where its layout put it.\n");
@@ -31,7 +28,7 @@ void warnGhostOfNonText() {
 
 }  // namespace
 
-Element restGhost(Element moving, SkColor4f colour) {
+Element textAtRest(Element moving, SkColor4f colour) {
   const std::shared_ptr<nodes::ElementNode>& node = moving.node();
   if (node->kind != nodes::Kind::Text || !node->textData) {
     warnGhostOfNonText();
@@ -100,4 +97,4 @@ Element restGhost(Element moving, SkColor4f colour) {
   return box().child(std::move(ghost)).child(std::move(moving));
 }
 
-}  // namespace sigil::compose::debug
+}  // namespace sigil::compose::detail

@@ -60,7 +60,7 @@ struct OrganicScene final : Scene {
             .height(18)
             .shape(shapes::star(4, 0.4f))
             .fill(Fill::color({1.0f, 0.71f, 0.42f, 0.9f}))
-            .foreground(util::stroke(1.2f, Fill::color({1, 0.9f, 0.75f, 1})));
+            .foreground(stroke(1.2f, Fill::color({1, 0.9f, 0.75f, 1})));
     auto centerpiece =
         box()
             .key("sigil")
@@ -98,7 +98,7 @@ struct OrganicScene final : Scene {
           .zIndex(2)
           .shape(shapes::blob(seed, 0.28f, 7))
           .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
-          .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
+          .foreground(stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
     };
 
     // -- plaque: per-edge chrome (#9) ---------------------------------

@@ -44,6 +44,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
 #include <sigilweave/Features.h>
 
 #include "GalleryCore.h"
@@ -55,6 +56,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <cmath>
+#include <format>
 #include <random>
 #include <string>
 
@@ -65,20 +67,20 @@ namespace daemon_console {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // ---- palette: graphite steel, phosphor accents ----------------------------
-constexpr SkColor4f kVoid = studio::hex(0x04060B);
-constexpr SkColor4f kGroundTop = studio::hex(0x0A101A);
-constexpr SkColor4f kPanel = studio::hex(0x0C121C, 0.97f);
-constexpr SkColor4f kRule = studio::hex(0x22344A);
-constexpr SkColor4f kAccent = studio::hex(0x59CBE3);
-constexpr SkColor4f kBone = studio::hex(0xE8EFF6);
-constexpr SkColor4f kChrome = studio::hex(0x8296AE);
-constexpr SkColor4f kDim = studio::hex(0x49596D);
-constexpr SkColor4f kBody = studio::hex(0xAFC8BB);
-constexpr SkColor4f kOk = studio::hex(0x49D6A2);
-constexpr SkColor4f kWarn = studio::hex(0xF2B04E);
-constexpr SkColor4f kCrit = studio::hex(0xFF5752);
-constexpr SkColor4f kCritText = studio::hex(0xFF7A73);
-constexpr SkColor4f kMeterBed = studio::hex(0x16202E);
+constexpr SkColor4f kVoid = hex(0x04060B);
+constexpr SkColor4f kGroundTop = hex(0x0A101A);
+constexpr SkColor4f kPanel = hex(0x0C121C, 0.97f);
+constexpr SkColor4f kRule = hex(0x22344A);
+constexpr SkColor4f kAccent = hex(0x59CBE3);
+constexpr SkColor4f kBone = hex(0xE8EFF6);
+constexpr SkColor4f kChrome = hex(0x8296AE);
+constexpr SkColor4f kDim = hex(0x49596D);
+constexpr SkColor4f kBody = hex(0xAFC8BB);
+constexpr SkColor4f kOk = hex(0x49D6A2);
+constexpr SkColor4f kWarn = hex(0xF2B04E);
+constexpr SkColor4f kCrit = hex(0xFF5752);
+constexpr SkColor4f kCritText = hex(0xFF7A73);
+constexpr SkColor4f kMeterBed = hex(0x16202E);
 
 // ---- severities -----------------------------------------------------------
 enum Sev : int { kTrace = 0, kInfo, kSeal, kFlux, kBreach, kSevCount };
@@ -93,8 +95,8 @@ struct SevDress {
 };
 inline const SevDress& dress(int sev) {
   static const SevDress kDress[kSevCount] = {
-      {studio::alpha(kDim, 0.55f), "tag-trace", "trace"},
-      {studio::alpha(kChrome, 0.6f), "tag-info", ""},
+      {alpha(kDim, 0.55f), "tag-trace", "trace"},
+      {alpha(kChrome, 0.6f), "tag-info", ""},
       {kOk, "tag-seal", "seal"},
       {kWarn, "tag-flux", "flux"},
       {kCrit, "tag-breach", "breach"},
@@ -150,35 +152,37 @@ struct LogGen {
     if (roll < 8) {
       ++breaches;
       LogRow row{t, kBreach, "WARD",
-                 studio::fmt("BREACH sector %02u \xc2\xb7 rerouting gate %u",
+                 std::format("BREACH sector {:02} \xc2\xb7 rerouting gate {}",
                              (unsigned)(rng() % 13), (unsigned)(rng() % 7))};
       if (rng() % 2)
-        row.cipher = studio::fmt("%04x\xc2\xb7%04x", (unsigned)(rng() % 0xffff),
-                                 (unsigned)(rng() % 0xffff));
+        row.cipher =
+            std::format("{:04x}\xc2\xb7{:04x}", (unsigned)(rng() % 0xffff),
+                        (unsigned)(rng() % 0xffff));
       return ring.append(std::move(row));
     }
     if (roll < 22) {
       ++warns;
       return ring.append({t, kFlux, "FLUX",
-                          studio::fmt("sigil flux %0.2f mS over damping floor",
+                          std::format("sigil flux {:.2f} mS over damping floor",
                                       0.4 + (double)(rng() % 90) / 100.0)});
     }
     if (roll < 32) {
       ++seals;
-      return ring.append({t, kSeal, "SEAL",
-                          studio::fmt("ward seal reforged \xc2\xb7 sector %02u "
-                                      "holding",
-                                      (unsigned)(rng() % 13))});
+      return ring.append(
+          {t, kSeal, "SEAL",
+           std::format("ward seal reforged \xc2\xb7 sector {:02} "
+                       "holding",
+                       (unsigned)(rng() % 13))});
     }
     if (roll < 62)
       return ring.append({t, kTrace, "LATT",
-                          studio::fmt("lattice sweep %06x \xc2\xb7 %u pts ok",
+                          std::format("lattice sweep {:06x} \xc2\xb7 {} pts ok",
                                       packet, (unsigned)(64 + rng() % 900))});
     return ring.append(
         {t, kInfo, "AUTH",
-         studio::fmt("daemon[%u] bound :6%03u \xc2\xb7 handshake",
+         std::format("daemon[{}] bound :6{:03} \xc2\xb7 handshake",
                      (unsigned)(rng() % 9), (unsigned)(rng() % 1000)),
-         studio::fmt("%04x\xc2\xb7%04x", (unsigned)(rng() % 0xffff),
+         std::format("{:04x}\xc2\xb7{:04x}", (unsigned)(rng() % 0xffff),
                      (unsigned)(rng() % 0xffff))});
   }
 };
@@ -239,14 +243,13 @@ struct DaemonConsoleScene final : Scene {
    *  tabular numerals asked of it where digits must sit in columns. */
   sigil::weave::StyleSet rowStyles() const {
     namespace dc = daemon_console;
-    using studio::type;
+    using sigil::compose::type;
     sigil::weave::StyleSet s(
         type({.face = faceMono, .size = 12.5f, .color = dc::kBody}));
     s.set("ts", type({.face = faceMono, .size = 11, .color = dc::kDim}));
     s.set("trace", type({.face = faceMono, .size = 12.5f, .color = dc::kDim}));
-    s.set("seal", type({.face = faceMono,
-                        .size = 12.5f,
-                        .color = studio::hex(0x8FE5C4)}));
+    s.set("seal",
+          type({.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
     s.set("flux", type({.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
     s.set("breach",
           type({.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
@@ -255,7 +258,7 @@ struct DaemonConsoleScene final : Scene {
     auto tag = [&](SkColor4f color) {
       return type({.face = faceMonoMed, .size = 11, .color = color});
     };
-    s.set("tag-trace", tag(studio::alpha(dc::kDim, 0.8f)));
+    s.set("tag-trace", tag(alpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
     s.set("tag-seal", tag(dc::kOk));
     s.set("tag-flux", tag(dc::kWarn));
@@ -268,10 +271,10 @@ struct DaemonConsoleScene final : Scene {
   sigil::weave::TextStyle chrome(float size, SkColor4f color, float track = 0,
                                  bool medium = false, bool tabular = false) {
     sigil::weave::TextStyle s =
-        studio::type({.face = medium ? faceChromeMed : faceChrome,
-                      .size = size,
-                      .color = color,
-                      .track = track});
+        type({.face = medium ? faceChromeMed : faceChrome,
+              .size = size,
+              .color = color,
+              .track = track});
     if (tabular)
       s.shaping.fontFeatures = {sigil::weave::Features::tabularNumbers};
     return s;
@@ -291,10 +294,10 @@ struct DaemonConsoleScene final : Scene {
     ring.clear();  // scenes re-activate; seq ids stay monotonic
     gen = dc::LogGen{};
 
-    faceMono = studio::pickFace({"SF Mono", "Menlo", "Monaco"}, 400);
-    faceMonoMed = studio::pickFace({"SF Mono", "Menlo", "Monaco"}, 700);
-    faceChrome = studio::pickFace({"Helvetica Neue", "Arial"}, 400);
-    faceChromeMed = studio::pickFace({"Helvetica Neue", "Arial"}, 600);
+    faceMono = pickFace({"SF Mono", "Menlo", "Monaco"}, 400);
+    faceMonoMed = pickFace({"SF Mono", "Menlo", "Monaco"}, 700);
+    faceChrome = pickFace({"Helvetica Neue", "Arial"}, 400);
+    faceChromeMed = pickFace({"Helvetica Neue", "Arial"}, 600);
 
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
     composer.setView(ocio::exponent(1.08f));
@@ -384,8 +387,8 @@ struct DaemonConsoleScene final : Scene {
 
     auto line = rich(styles.base())
                     .styles(styles)
-                    .add(toU8(studio::fmt("%07.2f  ", r.t)), "ts")
-                    .add(toU8(studio::fmt("%-6s", r.tag.c_str())), d.tagStyle)
+                    .add(toU8(std::format("{:07.2f}  ", r.t)), "ts")
+                    .add(toU8(std::format("{:<6}", r.tag)), d.tagStyle)
                     .add(toU8(r.body), d.bodyStyle);
     if (!r.cipher.empty()) line.add(toU8("  " + r.cipher), "cipher");
 
@@ -456,8 +459,7 @@ struct DaemonConsoleScene final : Scene {
                           Fill::color(d.stripe)))
                       .child(std::move(leaf));
     // Severity in form as well as ink: a breach line carries its own wash.
-    if (r.sev == dc::kBreach)
-      row.fill(Fill::color(studio::alpha(dc::kCrit, 0.09f)));
+    if (r.sev == dc::kBreach) row.fill(Fill::color(alpha(dc::kCrit, 0.09f)));
     return row;
   }
 
@@ -468,10 +470,10 @@ struct DaemonConsoleScene final : Scene {
     return box()
         .column()
         .gap(4)
-        .child(text(toU8(label), studio::type({.face = faceMono,
-                                               .size = 10,
-                                               .color = dc::kChrome,
-                                               .track = 0.6f})))
+        .child(text(toU8(label), type({.face = faceMono,
+                                       .size = 10,
+                                       .color = dc::kChrome,
+                                       .track = 0.6f})))
         .child(box()
                    .height(4)
                    .corners({2})
@@ -494,7 +496,7 @@ struct DaemonConsoleScene final : Scene {
         .child(box().width(6).height(6).corners({1.5f}).fill(Fill::color(chip)))
         .child(text(toU8(label), chrome(10, dc::kChrome, 1.6f)))
         .child(box().grow(1))
-        .child(text(toU8(studio::fmt("%u", n)),
+        .child(text(toU8(std::format("{}", n)),
                     chrome(12, dc::kBone, 0, true, true)));
   }
 
@@ -516,9 +518,9 @@ struct DaemonConsoleScene final : Scene {
     // rather than restated as a number that drifts.
     const sdf::Style panelStyle{.fill = dc::kPanel,
                                 .borderWidth = 1.0f,
-                                .borderColor = studio::hex(0x3B5474, 0.95f),
+                                .borderColor = hex(0x3B5474, 0.95f),
                                 .glowRadius = 6,
-                                .glowColor = studio::hex(0x3EC2DC, 0.22f)};
+                                .glowColor = hex(0x3EC2DC, 0.22f)};
     Material panel = sdf::material(sdf::roundBox(12), panelStyle);
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;
@@ -570,7 +572,7 @@ struct DaemonConsoleScene final : Scene {
                        .corners({3})
                        .fill(Fill::color(dc::kOk))
                        .opacity(&lamp))
-            .child(text(toU8(studio::fmt("T+%07.2f", mission(clockNow))),
+            .child(text(toU8(std::format("T+{:07.2f}", mission(clockNow))),
                         chrome(11.5f, dc::kAccent, 0.6f, true, true)));
 
     // ---- rail -------------------------------------------------------------
@@ -599,10 +601,10 @@ struct DaemonConsoleScene final : Scene {
                     .alignItems(Align::Center)
                     .child(text(toU8("latency"), chrome(10, dc::kChrome, 0.8f)))
                     .child(box().grow(1))
-                    .child(text(
-                        toU8(studio::fmt(
-                            "%2.0f mS", 11.0 + 3.0 * std::sin(clockNow * 0.7))),
-                        chrome(11, dc::kBone, 0, true, true))))
+                    .child(text(toU8(std::format(
+                                    "{:2.0f} mS",
+                                    11.0 + 3.0 * std::sin(clockNow * 0.7))),
+                                chrome(11, dc::kBone, 0, true, true))))
             // The hero stat anchors the rail's foot: session health as one
             // number, amber the moment the breach count says it should be.
             .child(box().grow(1))
@@ -614,12 +616,12 @@ struct DaemonConsoleScene final : Scene {
                     .gap(4)
                     .alignItems(Align::Baseline)
                     .child(text(
-                        toU8(studio::fmt("%.1f", integrity())),
+                        toU8(std::format("{:.1f}", integrity())),
                         chrome(24, integrity() >= 96.0 ? dc::kBone : dc::kWarn,
                                0, true, true)))
                     .child(text(toU8("%"), chrome(12, dc::kChrome))))
             .child(
-                text(toU8(studio::fmt("%u breach%s this session", gen.breaches,
+                text(toU8(std::format("{} breach{} this session", gen.breaches,
                                       gen.breaches == 1 ? "" : "es")),
                      chrome(9.5f, dc::kDim, 0.8f, false, true)));
 
@@ -631,16 +633,14 @@ struct DaemonConsoleScene final : Scene {
             .gap(2)
             .alignItems(Align::Center)
             .child(text(
-                rich(studio::type(
-                         {.face = faceMono, .size = 12, .color = dc::kDim}))
+                rich(type({.face = faceMono, .size = 12, .color = dc::kDim}))
                     .add(toU8("wardnet"))
-                    .add(toU8(" $ "), studio::type({.face = faceMonoMed,
-                                                    .size = 12,
-                                                    .color = dc::kAccent}))))
+                    .add(toU8(" $ "), type({.face = faceMonoMed,
+                                            .size = 12,
+                                            .color = dc::kAccent}))))
             .child(text(
                 toU8(std::string(command).substr(0, shown)),
-                studio::type(
-                    {.face = faceMono, .size = 12.5f, .color = dc::kBone})))
+                type({.face = faceMono, .size = 12.5f, .color = dc::kBone})))
             .child(box()
                        .width(7)
                        .height(13)
@@ -656,7 +656,7 @@ struct DaemonConsoleScene final : Scene {
                                     .target(0.10f, 1.0f))
                        .key("caret"))
             .child(box().grow(1))
-            .child(text(toU8(studio::fmt("ring 256 \xc2\xb7 %llu events",
+            .child(text(toU8(std::format("ring 256 \xc2\xb7 {} events",
                                          (unsigned long long)gen.events)),
                         chrome(9.5f, dc::kDim, 0.8f, false, true)));
 

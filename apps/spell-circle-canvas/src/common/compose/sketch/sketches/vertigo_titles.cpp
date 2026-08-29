@@ -128,7 +128,9 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilgeometry/Noise.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/Style.h>
@@ -141,7 +143,6 @@
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -149,11 +150,6 @@ namespace {
 
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
-
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
 
 // ---------------------------------------------------------------------------
 // chrome palette — this study's own (film-base warm black, deliberately
@@ -304,7 +300,7 @@ std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, SkColor4f color, float width) {
-  return disc(kEye, r)
+  return kit::disc(kEye, r)
       .corners({r})
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(color)));

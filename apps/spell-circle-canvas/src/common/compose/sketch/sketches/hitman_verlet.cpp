@@ -191,6 +191,7 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -205,7 +206,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -213,11 +213,6 @@ namespace {
 
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome (a physics-debug register)
-
-constexpr SkColor4f hex(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xFF) / 255.0f,
-          (float)((rgb >> 8) & 0xFF) / 255.0f, (float)(rgb & 0xFF) / 255.0f, a};
-}
 
 constexpr SkColor4f kInk = hex(0x0A0A0C);
 constexpr SkColor4f kPanel = hex(0x101116);
@@ -1276,7 +1271,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   Element blastFlash() {
     const SkPoint c = toStage(kBlast);
-    return disc(c, 120.0f)
+    return kit::disc(c, 120.0f)
         .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                  {{0.0f, hex(0xFFF3E2, 1.0f)},
                                   {0.35f, hex(0xFFC98A, 0.55f)},

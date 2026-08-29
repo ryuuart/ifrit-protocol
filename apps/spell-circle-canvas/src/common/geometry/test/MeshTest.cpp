@@ -15,7 +15,7 @@
 
 using namespace sigil::geometry;
 
-using sigil::geometry::testing::splitQuad;
+using sigil::geometry::test::splitQuad;
 
 namespace {
 

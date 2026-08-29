@@ -73,7 +73,6 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -87,7 +86,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -450,12 +448,11 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
             {0, 0}, {0, 1},
             {{0.0f, C(0x8B98B2)}, {0.55f, C(0x64738F)}, {1.0f, C(0x4C5A73)}}))
         .foreground(shapes::onEdges(
-            shapes::Edge::Bottom, util::stroke(1, Fill::color(fade(kInk, 0.6f)),
-                                               PathFormat::Align::Inner)))
-        .foreground(
-            shapes::onEdges(shapes::Edge::Top,
-                            util::stroke(1, Fill::color(fade(kSteelHi, 0.7f)),
-                                         PathFormat::Align::Inner)))
+            shapes::Edge::Bottom,
+            stroke(1, Fill::color(fade(kInk, 0.6f)), PathFormat::Align::Inner)))
+        .foreground(shapes::onEdges(shapes::Edge::Top,
+                                    stroke(1, Fill::color(fade(kSteelHi, 0.7f)),
+                                           PathFormat::Align::Inner)))
         .child(box()
                    .width(16)
                    .height(16)
@@ -480,8 +477,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
         .fill(Material::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
-        .stroke(util::stroke(1, Fill::color(fade(kInk, 0.7f)),
-                             PathFormat::Align::Inner))
+        .stroke(
+            stroke(1, Fill::color(fade(kInk, 0.7f)), PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
         .child(t(label, micro(11, kInk, 140)));
@@ -538,7 +535,7 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
       mark.fill(kNear).mask(by::alpha(stretchFill(logoMark, 46, 46)));
     } else {
       mark.corners({23})
-          .stroke(util::stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
+          .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(t("2a", type(grotBold(), 18, kNear, 0, 1.0f)));
@@ -549,10 +546,9 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1},
                 {{0.0f, C(0x8C99B4)}, {0.6f, kSteel}, {1.0f, C(0x67748E)}}))
-            .foreground(
-                shapes::onEdges(shapes::Edge::Bottom,
-                                util::stroke(2, Fill::color(fade(kInk, 0.5f)),
-                                             PathFormat::Align::Inner)))
+            .foreground(shapes::onEdges(shapes::Edge::Bottom,
+                                        stroke(2, Fill::color(fade(kInk, 0.5f)),
+                                               PathFormat::Align::Inner)))
             .child(mark)
             .child(
                 box()
@@ -598,10 +594,9 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
             .padding(12, 0)
             .gap(7)
             .fill(fade(C(0x39445C), 0.92f))
-            .foreground(
-                shapes::onEdges(shapes::Edge::Right,
-                                util::stroke(1, Fill::color(fade(kInk, 0.8f)),
-                                             PathFormat::Align::Inner)))
+            .foreground(shapes::onEdges(shapes::Edge::Right,
+                                        stroke(1, Fill::color(fade(kInk, 0.8f)),
+                                               PathFormat::Align::Inner)))
             .child(t("\xe2\x86\x92", micro(11, kSteelHi, 0)))
             .child(t("2A.V3..2024 // EXPANSIONS", micro(11.5f, kNear, 80))));
     // Right: the six tab slots live in a slot so the active-section
@@ -760,16 +755,15 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
       Element tabs = box().row().gap(2);
       for (const char* s : spec.subnav)
         if (s)
-          tabs.child(
-              box()
-                  .height(17)
-                  .padding(10, 0)
-                  .fill(fade(kSeam, 0.92f))
-                  .stroke(util::stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
-                                       PathFormat::Align::Inner))
-                  .justify(Justify::Center)
-                  .alignItems(Align::Center)
-                  .child(t(s, micro(9, kNear, 200))));
+          tabs.child(box()
+                         .height(17)
+                         .padding(10, 0)
+                         .fill(fade(kSeam, 0.92f))
+                         .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
+                                        PathFormat::Align::Inner))
+                         .justify(Justify::Center)
+                         .alignItems(Align::Center)
+                         .child(t(s, micro(9, kNear, 200))));
       art.child(place(box().row().justify(Justify::Center).child(tabs),
                       kStageW / 2 - 220, 26, 440, 17)
                     .opacity(settle));
@@ -816,8 +810,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
                      .fill(C(0x4B5870))
                      .foreground(shapes::onEdges(
                          shapes::Edge::Top,
-                         util::stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
-                                      PathFormat::Align::Inner)))
+                         stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
+                                PathFormat::Align::Inner)))
                      .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
                      .child(t("SCROLL.EXTENDED.CONTENT",
                               micro(9, fade(kSteelHi, 0.85f), 180)))
@@ -840,8 +834,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
         .child(box()
                    .grow(1)
                    .fill(fade(C(0x4A5872), 0.80f))
-                   .stroke(util::stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
-                                        PathFormat::Align::Inner))
+                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
+                                  PathFormat::Align::Inner))
                    .child(body.inset(0)))
         .translateY(animate(from(46.0f).to(0.0f),
                             {420ms, &ch::easeOutQuint,
@@ -874,8 +868,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
                    .height(96)
                    .shape(chamfer(20, kTR))
                    .fill(C(0x232E48))
-                   .stroke(util::stroke(1, Fill::color(fade(kSteelHi, 0.5f)),
-                                        PathFormat::Align::Inner))
+                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.5f)),
+                                  PathFormat::Align::Inner))
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .child(std::move(content)))
@@ -883,8 +877,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
                    .height(22)
                    .shape(chamfer(14, kBL))
                    .fill(C(0x313D5A))
-                   .stroke(util::stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
-                                        PathFormat::Align::Inner))
+                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
+                                  PathFormat::Align::Inner))
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .child(t(btn, micro(11, kNear, 140))));
@@ -1017,9 +1011,9 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
                                   .grow(1)
                                   .height(22)
                                   .fill(fade(kPage, 0.9f))
-                                  .stroke(util::stroke(
-                                      1, Fill::color(fade(kSteel, 0.6f)),
-                                      PathFormat::Align::Inner))
+                                  .stroke(
+                                      stroke(1, Fill::color(fade(kSteel, 0.6f)),
+                                             PathFormat::Align::Inner))
                                   .row()
                                   .alignItems(Align::Center)
                                   .padding(7, 0)

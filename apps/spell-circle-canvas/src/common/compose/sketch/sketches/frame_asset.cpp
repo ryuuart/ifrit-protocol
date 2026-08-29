@@ -14,7 +14,6 @@
 #include <sigilsketch/Sketch.h>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 
 struct FrameAsset : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
 #include <include/core/SkSurface.h>
+#include <sigilsketch/Stage.h>
 
 #include <algorithm>
 #include <string_view>
@@ -130,6 +132,19 @@ TEST(ComposeGallery, PresentationCadenceResetsAcrossPause) {
 
   EXPECT_TRUE(stage.stats.presentMs.empty());
   EXPECT_EQ(stage.lastPresent, std::chrono::steady_clock::time_point{});
+}
+
+TEST(ComposeGallery, StageBundlesTheLoop) {
+  sigil::compose::sketch::Stage stage({100, 100}, fonts());
+  stage.render(box().fill(Fill::color({1, 0, 0, 1})));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
+  bool more = stage.frame(*surface->getCanvas());
+  EXPECT_FALSE(more);  // static content settles immediately
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  surface->readPixels(bm.pixmap(), 50, 50);
+  EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);
 }
 
 }  // namespace

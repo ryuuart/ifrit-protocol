@@ -108,7 +108,6 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
@@ -117,6 +116,8 @@
 #include <sigilcompose/Ocio.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/Paragraph.h>
@@ -132,7 +133,7 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
+using sigil::compose::kit::centred;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 namespace weave = sigil::weave;
@@ -141,11 +142,6 @@ namespace {
 
 // ---------------------------------------------------------------------------
 // palette — sampled off the 1864 plate
-
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
 
 constexpr SkColor4f kPaper = hex(0xEFE8D9);  // the plate's unprinted paper
 constexpr SkColor4f kWell = hex(0xE4DCCA);   // panel wells, the limb's tint
@@ -821,7 +817,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       SkPathBuilder region;
       region.addOval(SkRect::MakeWH(sz.width(), sz.height()));
       const SkPath regionPath = region.detach();
-      const debug::Coverage cov = debug::coverage(pieces, regionPath, 256);
+      const test::Coverage cov = test::coverage(pieces, regionPath, 256);
       v.covSamples = cov.samples;
       v.covUncovered = cov.uncovered;
       v.covDoubled = cov.doubled;
@@ -831,7 +827,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       // says how many contours were CLOSED, so "this test does not apply"
       // is legible instead of inferred.
       std::vector<SkPath> sectorsOnly(pieces.begin(), pieces.end() - 1);
-      const debug::VertexDegrees deg = debug::endpointDegrees(sectorsOnly);
+      const test::VertexDegrees deg = test::endpointDegrees(sectorsOnly);
       v.closedContours = deg.closedContours;
       v.endpointPoints = deg.points.size();
     }
@@ -1013,18 +1009,18 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     Element g = box();
 
     // the panel's own shadow, attached FIRST so the fill paints over it
-    g.child(disc(kC, kRSweepOut + 6)
+    g.child(kit::disc(kC, kRSweepOut + 6)
                 .shape(shapes::circle())
                 .background(styles::dropShadow(hex(0x3A352D, 0.30f), {3, 3}, 8))
                 .fill(Fill::color(kPaper)));
 
     // ---- the limb's tint and its two engraved circles ---------------
-    g.child(disc(kC, kRLimbOut)
+    g.child(kit::disc(kC, kRLimbOut)
                 .shape(shapes::annulus(kRLimbIn / kRLimbOut))
                 .fill(Fill::color(kWell))
                 .opacity(bind(&demo).window(0.15f, 0.19f)));
     for (float r : {kRLimbIn, kRLimbOut})
-      g.child(disc(kC, r)
+      g.child(kit::disc(kC, r)
                   .key(fmt("limb%.0f", r))
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -1039,7 +1035,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // runs against the un-overlapped geometry.
     for (int n = 0; n < 72; ++n) {
       const float lo = 0.005f + 0.0021f * (float)n;
-      g.child(disc(kC, kRColour)
+      g.child(kit::disc(kC, kRColour)
                   .key("sector" + std::to_string(n))
                   .shape(shapes::sector(sectorStart(n) - 0.125f,
                                         kSectorDeg + 0.25f, kInner))
@@ -1058,7 +1054,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       lines::RadialHatch h = lines::radialHatch(Fill::color(kPaper), 72, 2.4f);
       h.rotateDeg = 2.5f;
       h.holeFraction = kInner * 0.70f;
-      g.child(disc(kC, kRColour)
+      g.child(kit::disc(kC, kRColour)
                   .key("radii")
                   .shape(shapes::annulus(kInner))
                   .fill(Fill::none())
@@ -1069,7 +1065,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // plate tone: real intaglio leaves the whole printed area faintly
     // toned. Clipped to the wheel, cached as a texture.
     if (!std::getenv("CHEVREUL_NOTONE"))
-      g.child(disc(kC, kRColour)
+      g.child(kit::disc(kC, kRColour)
                   .shape(shapes::circle())
                   .fill(Fill::none())
                   .foreground(decorations::wash(plateTone,
@@ -1081,7 +1077,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // the steps stay franches) in one shader, against the discrete sectors
     // beside it. Continuous against franche is the distinction the plate's
     // own title makes.
-    g.child(disc(kC, kRSweepOut)
+    g.child(kit::disc(kC, kRSweepOut)
                 .key("sweepring")
                 .shape(shapes::annulus(kRSweepIn / kRSweepOut))
                 .fill(sweepRing)
@@ -1089,13 +1085,13 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // ---- the medallion ----------------------------------------------
     const float rMed = kRColour * kInner;
-    g.child(disc(kC, rMed + 3)
+    g.child(kit::disc(kC, rMed + 3)
                 .shape(shapes::circle())
                 .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                          {{0.0f, hex(0x8C8578, 0.0f)},
                                           {0.72f, hex(0x8C8578, 0.0f)},
                                           {1.0f, hex(0x8C8578, 0.22f)}})));
-    g.child(disc(kC, rMed)
+    g.child(kit::disc(kC, rMed)
                 .shape(shapes::circle())
                 .fill(Fill::color(kPaper))
                 .stroke(stroke(1.0f, Fill::color(kRule))));
@@ -1227,7 +1223,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     }
 
     // ---- beat 2: a diameter rides the wheel -------------------------
-    g.child(disc(kC, kRColour)
+    g.child(kit::disc(kC, kRColour)
                 .key("diam")
                 .fill(Fill::none())
                 .shape(diameter())
@@ -1263,7 +1259,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                "scan measures ROUGE %.1f, VERT %.1f, delta %.2f",
                kRougeDeg, kScanRouge, kScanVert, v.plateDelta),
            kInk2},
-          {fmt("debug::coverage over an SkPath REGION: %d/%d of %d · "
+          {fmt("test::coverage over an SkPath REGION: %d/%d of %d · "
                "endpointDegrees: %zu closed contours, %zu endpoints",
                v.covUncovered, v.covDoubled, v.covSamples, v.closedContours,
                v.endpointPoints),
@@ -1396,7 +1392,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     for (int n = 0; n < 72; ++n) {
       const SkPoint A = P(lab[(size_t)n].a, lab[(size_t)n].b);
       const float lo = 0.005f + 0.0021f * (float)n;
-      g.child(disc(A, 3.5f)
+      g.child(kit::disc(A, 3.5f)
                   .key("labpt" + std::to_string(n))
                   .shape(shapes::circle())
                   .fill(Fill::color(corrected[(size_t)n]))
@@ -1405,7 +1401,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                   .opacity(bind(&demo).window(lo, lo + 0.01f)));
     }
     // the centroid — the piece's whole argument
-    g.child(disc(P(v.centA, v.centB), 9.0f)
+    g.child(kit::disc(P(v.centA, v.centB), 9.0f)
                 .key("centroid")
                 .shape(shapes::circle())
                 .fill(Fill::none())

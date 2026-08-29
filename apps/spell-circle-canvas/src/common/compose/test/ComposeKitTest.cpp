@@ -408,8 +408,8 @@ TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
 
 namespace {
 sigil::weave::TextStyle pixelStyle(float size) {
-  return sigil::compose::studio::type(
-      {.face = sigil::compose::studio::pickFace(
+  return sigil::compose::type(
+      {.face = sigil::compose::pickFace(
            {"Menlo", "DejaVu Sans Mono", "Courier New"}),
        .size = size,
        .color = {1, 1, 1, 1},
@@ -447,9 +447,9 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
     sk_sp<SkTypeface> face =
-        sigil::compose::studio::pickFace({family}, SkFontStyle::Italic());
+        sigil::compose::pickFace({family}, SkFontStyle::Italic());
     if (!face) continue;
-    const auto style = sigil::compose::studio::type(
+    const auto style = sigil::compose::type(
         {.face = face, .size = 12.0f, .color = {1, 1, 1, 1}, .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
@@ -610,8 +610,7 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
     sk_sp<SkSurface> s =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
     s->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 128));
-    SkFont font(sigil::compose::studio::pickFace({"Menlo", "Courier New"}),
-                20.0f);
+    SkFont font(sigil::compose::pickFace({"Menlo", "Courier New"}), 20.0f);
     if (halo)
       kit::drawHaloed(*s->getCanvas(), "HALO", {10, 28}, font,
                       SkColor4f{1, 1, 1, 1},
@@ -749,7 +748,7 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
 // and is built on demand.
 
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Strokes.h>
 
 TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {

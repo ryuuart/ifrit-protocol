@@ -14,9 +14,9 @@
 
 using namespace sigil::geometry;
 
-using sigil::geometry::testing::kCubeMtl;
-using sigil::geometry::testing::kCubeObj;
-using sigil::geometry::testing::splitQuad;
+using sigil::geometry::test::kCubeMtl;
+using sigil::geometry::test::kCubeObj;
+using sigil::geometry::test::splitQuad;
 
 namespace {
 

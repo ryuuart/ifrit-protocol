@@ -39,7 +39,7 @@ TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
     return box().child(box()
                            .absolute()
                            .inset(50, 50, 50, 50)
-                           .stroke(util::stroke(20, green(), align)));
+                           .stroke(stroke(20, green(), align)));
   };
   Host inner, outer;
   inner.composer.render(boxWith(PathFormat::Align::Inner));
@@ -148,7 +148,7 @@ TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
   Host host(200, 60);
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().padding(10).child(
-      util::marquee(box().width(60).height(20).fill(red()), &phase)
+      marquee(box().width(60).height(20).fill(red()), &phase)
           .width(Dim(100.0f))
           .height(Dim(20.0f))));
   host.frame();
@@ -163,7 +163,7 @@ TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
 TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   Host host;
   choreograph::Output<float> lift{0.0f};
-  util::Shadow shadow;
+  Shadow shadow;
   shadow.color = {0, 1, 0, 1};
   shadow.bindOffsetX = &lift;
   shadow.maxBind = 40.0f;
@@ -386,14 +386,14 @@ TEST(ComposePaint, ClipSparesDecorations) {
   // clip() bounds fill/content/children; decorations dress the outline —
   // an Outer stroke and a shadow survive on a clipped node.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(60, 60, 60, 60)
-          .clip(true)
-          .fill(blue())
-          .stroke(util::stroke(10, green(), PathFormat::Align::Outer))
-          .child(box().width(200).height(10).fill(red()))));
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .inset(60, 60, 60, 60)
+                      .clip(true)
+                      .fill(blue())
+                      .stroke(stroke(10, green(), PathFormat::Align::Outer))
+                      .child(box().width(200).height(10).fill(red()))));
   host.frame();
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);  // fill clipped area
@@ -402,7 +402,7 @@ TEST(ComposePaint, ClipSparesDecorations) {
 
 TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   Host host;
-  util::Shadow s;
+  Shadow s;
   s.color = {0, 1, 0, 1};
   s.offset = {20, 0};
   s.knockout = true;
@@ -987,7 +987,7 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   auto scene = [] {
     return box().child(box().width(100).height(100).fill(blue()).foreground(
         shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                        util::stroke(8, Fill::color({1, 1, 1, 1})))));
+                        stroke(8, Fill::color({1, 1, 1, 1})))));
   };
   Host host;
   host.composer.render(scene());
@@ -999,7 +999,7 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   // And it still compares UNEQUAL when the mask actually changes.
   host.composer.render(box().child(
       box().width(100).height(100).fill(blue()).foreground(shapes::onEdges(
-          shapes::Edge::Bottom, util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+          shapes::Edge::Bottom, stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
 }
@@ -1711,7 +1711,7 @@ Element gatedRing(Cache mode) {
                  .key("ring")
                  .cache(mode)
                  .shape(shapes::circle())
-                 .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
+                 .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
                  .mask(by::spans(spans::upTo(
                      animate(through({{std::chrono::milliseconds(0), 0.0f},
                                       {std::chrono::milliseconds(200), 0.6f},

@@ -77,12 +77,13 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -100,7 +101,7 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
+using sigil::compose::kit::centred;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
 
@@ -240,7 +241,7 @@ inline uint8_t clothAt(const std::vector<uint8_t>& S, int x, int y) {
 // ranges and the sum still says 252, the sequence is still palindromic and the
 // cloth still looks right. Only point-sampled coverage sees it.
 //
-// debug::endpointDegrees deliberately does NOT appear. A weave has no chained
+// test::endpointDegrees deliberately does NOT appear. A weave has no chained
 // contour to close; its integrity is arithmetic (#3) and areal (#6), never
 // topological, and forcing the other assertion on it would prove nothing.
 
@@ -365,8 +366,8 @@ Verdict verify(const std::vector<Run>& bwRuns, const std::vector<uint8_t>& S,
     for (size_t j = 0; j < bwRuns.size(); ++j)
       cells.push_back(SkPath::Rect(SkRect::MakeXYWH(
           start[i], start[j], (float)bwRuns[i].n, (float)bwRuns[j].n)));
-  const debug::Coverage cov =
-      debug::coverage(cells, SkRect::MakeWH((float)n, (float)n), 256);
+  const test::Coverage cov =
+      test::coverage(cells, SkRect::MakeWH((float)n, (float)n), 256);
   v.samples = cov.samples;
   v.uncovered = cov.uncovered;
   v.doubled = cov.doubled;

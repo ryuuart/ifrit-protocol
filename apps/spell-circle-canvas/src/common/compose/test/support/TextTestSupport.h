@@ -6,7 +6,6 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Debug.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Lines.h>
@@ -14,7 +13,7 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilweave/Choreograph.h>
 
 #include <algorithm>

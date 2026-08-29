@@ -22,7 +22,6 @@
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Util.h>
 #include <sigilsketch/Assets.h>
 
 #include <string_view>

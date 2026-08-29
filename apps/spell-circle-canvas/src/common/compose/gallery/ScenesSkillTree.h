@@ -319,8 +319,8 @@ struct SkillTreeScene final : Scene {
             .height(Dim(dia + 10))
             .centerAt(at)
             .shape(pt::notchRing(8, 0.72f, 1.0f))
-            .stroke(util::stroke(1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
-                                                    alloc ? 0.9f : 0.5f})))
+            .stroke(stroke(1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
+                                              alloc ? 0.9f : 0.5f})))
             .zIndex(4));
     // The well is never empty in the real thing — a cast sigil sits in it.
     parent.child(box()
@@ -347,7 +347,7 @@ struct SkillTreeScene final : Scene {
                      .key(nodeKey(i))
                      .shape(shapes::polygon(4))
                      .fill(Material::solid(pt::kSocket))
-                     .stroke(util::stroke(1.8f, Fill::color(ring)))
+                     .stroke(stroke(1.8f, Fill::color(ring)))
                      .zIndex(3));
     parent.child(box()
                      .width(Dim(dia * 0.42f))
@@ -384,14 +384,14 @@ struct SkillTreeScene final : Scene {
             .fill(Material::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
                                    {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
                                     {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
-            .stroke(util::stroke(2.8f, Fill::color(ring)))
+            .stroke(stroke(2.8f, Fill::color(ring)))
             .zIndex(3));
     parent.child(box()
                      .width(Dim(dia - 11))
                      .height(Dim(dia - 11))
                      .centerAt(at)
                      .shape(shapes::polygon(8, 22.5f))
-                     .stroke(util::stroke(
+                     .stroke(stroke(
                          1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
                      .zIndex(4));
     parent.child(box()
@@ -399,7 +399,7 @@ struct SkillTreeScene final : Scene {
                      .height(Dim(dia + 16))
                      .centerAt(at)
                      .shape(pt::notchRing(16, 0.86f, 1.0f))
-                     .stroke(util::stroke(
+                     .stroke(stroke(
                          1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
                      .zIndex(4));
     // A keystone's plate carries the heaviest sigil in the tree.
@@ -430,7 +430,7 @@ struct SkillTreeScene final : Scene {
                      .centerAt(at)
                      .key(nodeKey(i))
                      .shape(shapes::polygon(4))
-                     .stroke(util::stroke(2.0f, Fill::color(ring)))
+                     .stroke(stroke(2.0f, Fill::color(ring)))
                      .zIndex(3));
   }
 
@@ -462,7 +462,7 @@ struct SkillTreeScene final : Scene {
                        .height(Dim(r * 2))
                        .centerAt({g.x, g.y})
                        .shape(pt::circleOutline())
-                       .stroke(util::stroke(
+                       .stroke(stroke(
                            1.0f, Fill::color({pt::kPewter.fR, pt::kPewter.fG,
                                               pt::kPewter.fB, 0.30f})))
                        .zIndex(0));
@@ -606,29 +606,28 @@ struct SkillTreeScene final : Scene {
       if (!searched(i)) continue;
       const treedata::Node& n = treedata::kNodes[i];
       const float d = pt::diameterOf(n.kind) + 13;
-      root.child(box()
-                     .width(Dim(d))
-                     .height(Dim(d))
-                     .centerAt({n.x, n.y})
-                     .shape(pt::circleOutline())
-                     .opacity(&searchPulse)
-                     .stroke(util::stroke(
-                         1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                            pt::kSearch.fB, 0.85f})))
-                     .zIndex(5));
+      root.child(
+          box()
+              .width(Dim(d))
+              .height(Dim(d))
+              .centerAt({n.x, n.y})
+              .shape(pt::circleOutline())
+              .opacity(&searchPulse)
+              .stroke(stroke(1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                                pt::kSearch.fB, 0.85f})))
+              .zIndex(5));
     }
     const treedata::Node& sel = treedata::kNodes[selectedIndex()];
     const float d = pt::diameterOf(sel.kind) + 30;
-    root.child(
-        box()
-            .width(Dim(d))
-            .height(Dim(d))
-            .centerAt({sel.x, sel.y})
-            .rotate(&selectSpin)
-            .shape(shapes::star(12, 0.82f))
-            .stroke(util::stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
-                                                    pt::kHalo.fB, 0.55f})))
-            .zIndex(5));
+    root.child(box()
+                   .width(Dim(d))
+                   .height(Dim(d))
+                   .centerAt({sel.x, sel.y})
+                   .rotate(&selectSpin)
+                   .shape(shapes::star(12, 0.82f))
+                   .stroke(stroke(1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
+                                                     pt::kHalo.fB, 0.55f})))
+                   .zIndex(5));
   }
 
   /** The tooltip: name, kind rule, stat lines, italic flavour. Anchored in
@@ -660,9 +659,8 @@ struct SkillTreeScene final : Scene {
                                    {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                                     {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
-            .foreground(util::stroke(
-                1.2f,
-                Fill::color({pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.45f})))
+            .foreground(stroke(1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG,
+                                                  pt::kGold.fB, 0.45f})))
             .zIndex(7)
             .opacity(animate(from(0.0f).to(1.0f), {420ms}))
             .translateY(animate(from(10.0f).to(0.0f), {520ms}))
@@ -703,12 +701,11 @@ struct SkillTreeScene final : Scene {
                       pt::type(11.5f, {0.42f, 0.38f, 0.32f, 1}, 0.3f, true))
                      .margin(0, 9, 0, 0));
     // the leader from the card back to the node it describes
-    root.child(
-        rail({{"detail"}, {nodeKey(sel)}})
-            .inset(0)
-            .stroke(util::stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
-                                                    pt::kGold.fB, 0.35f})))
-            .zIndex(6));
+    root.child(rail({{"detail"}, {nodeKey(sel)}})
+                   .inset(0)
+                   .stroke(stroke(1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
+                                                     pt::kGold.fB, 0.35f})))
+                   .zIndex(6));
     root.child(card.key("detail"));
   }
 
@@ -756,9 +753,9 @@ struct SkillTreeScene final : Scene {
                    .padding(10, 5)
                    .corners({3})
                    .fill(Material::solid({0.075f, 0.063f, 0.051f, 0.9f}))
-                   .foreground(util::stroke(
-                       1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
-                                          pt::kSearch.fB, 0.4f})))
+                   .foreground(
+                       stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
+                                                 pt::kSearch.fB, 0.4f})))
                    .child(text(toU8("search"), pt::type(10, pt::kAsh, 1.8f)))
                    .child(text(toU8("fire"), pt::type(12, pt::kSearch, 0.6f)))
                    .child(text(toU8(found), pt::type(10, pt::kAsh, 1.2f))));

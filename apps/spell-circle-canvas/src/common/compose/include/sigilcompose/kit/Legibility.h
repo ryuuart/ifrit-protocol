@@ -35,9 +35,9 @@
 #include <initializer_list>
 #include <string_view>
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Studio.h"
-#include "sigilcompose/Util.h"
+#include "sigilcompose/Element.h"
+#include "sigilcompose/Paint.h"
+#include "sigilcompose/Shape.h"
 
 namespace sigil::compose::kit {
 

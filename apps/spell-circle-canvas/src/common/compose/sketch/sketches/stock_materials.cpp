@@ -52,8 +52,8 @@ Element swatch(const char* name, Material material) {
                  .width(150)
                  .height(88)
                  .fill(std::move(material))
-                 .foreground(util::stroke(1.0f, Fill::color({1, 1, 1, 0.25f}))))
-      .child(text(util::toU8(name), label(10)).margin(0, 6, 0, 0));
+                 .foreground(stroke(1.0f, Fill::color({1, 1, 1, 0.25f}))))
+      .child(text(toU8(name), label(10)).margin(0, 6, 0, 0));
 }
 
 }  // namespace
@@ -74,8 +74,8 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
     ctx.composer.render(
         stack()
             .fill(Material::solid({0.05f, 0.05f, 0.07f, 1}))
-            .child(text(util::toU8("STOCK SkSL MATERIALS \xc2\xb7 "
-                                   "split-Skia guard"),
+            .child(text(toU8("STOCK SkSL MATERIALS \xc2\xb7 "
+                             "split-Skia guard"),
                         label(12))
                        .left(24)
                        .top(20))
@@ -145,9 +145,9 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
                                      sdf::circle(),
                                      {.fill = {0.95f, 0.35f, 0.25f, 0.8f}}),
                                  SkBlendMode::kSrcOver}}))))
-            .child(text(util::toU8("every one of these is painted, not just "
-                                   "compiled \xe2\x80\x94 running the effect "
-                                   "is what crosses the image boundary"),
+            .child(text(toU8("every one of these is painted, not just "
+                             "compiled \xe2\x80\x94 running the effect "
+                             "is what crosses the image boundary"),
                         label(10))
                        .left(24)
                        .bottom(16)));

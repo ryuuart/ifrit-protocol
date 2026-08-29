@@ -39,7 +39,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   // append and re-patch the whole window.
   feed::TextRing ring;
   for (int i = 0; i < 30; ++i)
-    ring.append({util::toU8("boot sequence line " + std::to_string(i))});
+    ring.append({toU8("boot sequence line " + std::to_string(i))});
   const feed::TextOptions options = feedOptions(10);
   Host host(200, 400);
   auto describe = [&] {
@@ -48,7 +48,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   host.frame();  // records the visible window
 
-  ring.append({util::toU8("intrusion detected")});
+  ring.append({toU8("intrusion detected")});
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);  // the new tail only
   host.frame();
@@ -59,7 +59,7 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   // The price is CONSTANT, which is the whole claim: a second append costs
   // exactly what the first did, and the retained tree does not grow.
   const size_t liveAfterFirst = host.composer.stats().instances;
-  ring.append({util::toU8("second intrusion")});
+  ring.append({toU8("second intrusion")});
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
   host.frame();
@@ -74,7 +74,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   // was silently remounted by an append would flash back to nothing. Every
   // row here is fully lit before the append, and must still be after it.
   feed::TextRing ring;
-  for (int i = 0; i < 4; ++i) ring.append({util::toU8("row")});
+  for (int i = 0; i < 4; ++i) ring.append({toU8("row")});
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
@@ -93,7 +93,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
     EXPECT_GT(brightestIn(host, *band), 150) << "row " << seq;
   }
 
-  ring.append({util::toU8("tail")});
+  ring.append({toU8("tail")});
   host.composer.render(describe());
   host.frame(0.016);
   for (uint64_t seq = 1; seq <= 4; ++seq) {
@@ -114,7 +114,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
   // and no layout cost, and a ring that keeps growing does not.
   feed::TextRing ring{600};
   for (int i = 0; i < 300; ++i)
-    ring.append({util::toU8("line " + std::to_string(i))});
+    ring.append({toU8("line " + std::to_string(i))});
   const feed::TextOptions options = feedOptions(8);
   Host host(200, 200);
   host.composer.render(box().child(feed::feed(ring, options)));
@@ -129,7 +129,7 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
 
   const size_t live = host.composer.stats().instances;
   for (int i = 0; i < 200; ++i)
-    ring.append({util::toU8("more " + std::to_string(i))});
+    ring.append({toU8("more " + std::to_string(i))});
   host.composer.render(box().child(feed::feed(ring, options)));
   host.frame();
   EXPECT_EQ(host.composer.stats().instances, live)
@@ -143,7 +143,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   // it enters AT ONCE instead of inheriting a full window's worth of steps,
   // and no row already on screen re-enters.
   feed::TextRing ring;
-  for (int i = 0; i < 3; ++i) ring.append({util::toU8("row")});
+  for (int i = 0; i < 3; ++i) ring.append({toU8("row")});
   feed::TextOptions options = feedOptions(6, 16.0f);
   options.window.entrance = {.eachMs = 400};
   auto lit = [&](const feed::TextRow& row) {
@@ -169,7 +169,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   // The append: one new mount, so no extra delay at all. Waiting only its
   // own 200 ms entrance is what proves the cascade counts MOUNTS and not
   // positions — an ordinal-based delay would hold this row for 1.2 s.
-  ring.append({util::toU8("tail")});
+  ring.append({toU8("tail")});
   host.composer.render(describe());
   host.frame(0.25);
   const std::optional<SkRect> r4 = host.composer.bounds(feed::rowKey(4));
@@ -184,7 +184,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   // is a static leaf again, cached like every row above it. A track that
   // never settled would pin the whole window volatile.
   feed::TextRing ring;
-  ring.append({util::toU8("daemon bound port 6042")});
+  ring.append({toU8("daemon bound port 6042")});
   const feed::TextOptions options = feedOptions(8, 16.0f);
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
@@ -237,9 +237,9 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
   auto rowEl = [&](const StructuredRow& r) {
     auto line = rich(styles.base())
                     .styles(styles)
-                    .add(util::toU8(r.ts + "  "), "ts")
-                    .add(util::toU8(r.tag + "  "), "tag")
-                    .add(util::toU8(r.body));
+                    .add(toU8(r.ts + "  "), "ts")
+                    .add(toU8(r.tag + "  "), "tag")
+                    .add(toU8(r.body));
     return box()
         .row()
         .gap(6)
@@ -926,7 +926,7 @@ TEST(ComposeDecorations, EdgeSliceStrokesSelectedEdgesOnly) {
   host.composer.render(
       box().child(box().width(100).height(100).fill(blue()).foreground(
           shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                          util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+                          stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top edge stroked
   EXPECT_EQ(host.pixel(1, 50), SK_ColorWHITE);  // left edge stroked
@@ -942,7 +942,7 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   host.composer.render(box().child(
       box().width(100).height(100).corners({30}).fill(blue()).foreground(
           shapes::onEdges(shapes::Edge::Top,
-                          util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+                          stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top run center
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);   // left flank untouched
@@ -4316,7 +4316,7 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
                            .absolute()
                            .inset(50, 50, 50, 50)
                            .mask(by::spans(std::move(where)))
-                           .foreground(util::stroke(6, green())));
+                           .foreground(stroke(6, green())));
   };
   Host wrap, pieceA, pieceB;
   wrap.composer.render(strokedBox(spans::wrap(0.9f, 1.15f)));
@@ -4348,7 +4348,7 @@ TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
                       .absolute()
                       .inset(50, 50, 50, 50)
                       .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
-                      .foreground(util::stroke(6, green()))));
+                      .foreground(stroke(6, green()))));
   host.frame();
   std::vector<SkIPoint> lit0;
   for (int y = 40; y < 160; y += 2)
@@ -5560,10 +5560,10 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
                  .stagger = {.eachMs = 100, .durationMs = 100},
                  .progress = 0.5f}));
     if (withMeter)
-      root.child(debug::trackMeter(host.composer, "word", 0, {1, 0, 0, 1},
-                                   {0, 0, 1, 1})
-                     .absolute()
-                     .inset(0));
+      root.child(
+          kit::trackMeter(host.composer, "word", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
+              .absolute()
+              .inset(0));
     return root;
   };
   host.composer.render(describe(false));
@@ -5597,7 +5597,7 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // with no cells in it, which measures as nothing rather than warning.
   Host empty(120, 80);
   empty.composer.render(box().child(
-      debug::trackMeter(host.composer, "typo", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
+      kit::trackMeter(host.composer, "typo", 0, {1, 0, 0, 1}, {0, 0, 1, 1})
           .key("meter")
           .absolute()
           .inset(0)));
@@ -5617,10 +5617,10 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   GlyphMod shove;
   shove.dx = 60.0f;
   host.composer.render(box().padding(10).child(
-      debug::restGhost(text(u8"AB", whiteStyle(40))
-                           .key("word")
-                           .fx({.effect = fixed("shove", shove)}),
-                       ghostInk)));
+      kit::restGhost(text(u8"AB", whiteStyle(40))
+                         .key("word")
+                         .fx({.effect = fixed("shove", shove)}),
+                     ghostInk)));
   host.frame();
   const auto countBlue = [&](SkIRect region) {
     int hits = 0;
@@ -5662,7 +5662,7 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
   // draw each of them twice under one key, which the composer's key index
   // cannot answer for — so the ghost is the type and nothing else.
   Host host(300, 140);
-  host.composer.render(box().padding(10).child(debug::restGhost(
+  host.composer.render(box().padding(10).child(kit::restGhost(
       text(u8"ALPHA BETA", whiteStyle(24))
           .key("word")
           .mark(sel::word(1), box().key("caret").width(4).fill(green())),

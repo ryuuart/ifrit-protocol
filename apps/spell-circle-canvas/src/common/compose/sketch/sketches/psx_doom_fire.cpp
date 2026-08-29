@@ -55,7 +55,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -71,11 +70,6 @@ constexpr uint32_t kPalette[37] = {
     0xCF8717, 0xC78717, 0xC78F17, 0xC7971F, 0xBF9F1F, 0xBF9F1F, 0xBFA727,
     0xBFA727, 0xBFAF2F, 0xB7AF2F, 0xB7B72F, 0xB7B737, 0xCFCF6F, 0xDFDF9F,
     0xEFEFC7, 0xFFFFFF};
-
-constexpr SkColor4f hex(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xFF) / 255.0f,
-          (float)((rgb >> 8) & 0xFF) / 255.0f, (float)(rgb & 0xFF) / 255.0f, a};
-}
 
 // Chrome palette — the study's own UI, not the simulation.
 constexpr SkColor4f kInk = hex(0x0B0B0F);

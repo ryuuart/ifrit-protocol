@@ -42,6 +42,7 @@
 #include <include/core/SkShader.h>  // sk_sp<SkShader> data member
 #include <include/core/SkString.h>
 #include <include/core/SkTileMode.h>
+#include <include/effects/SkGradient.h>       // the gradient Fills
 #include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
 
 #include <array>
@@ -756,5 +757,31 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
 }
 
 }  // namespace detail
+
+// ---------------------------------------------------------------------------
+// Gradient Fills — the flat-value spelling, one line over Fill::shader.
+
+/** Linear gradient Fill — one line over Fill::shader + SkShaders. */
+inline Fill linearGradient(SkPoint from, SkPoint to,
+                           std::vector<SkColor4f> colors,
+                           std::vector<float> stops = {}) {
+  SkPoint pts[2] = {from, to};
+  return Fill::shader(
+      SkShaders::LinearGradient(pts, SkGradient({{colors.data(), colors.size()},
+                                                 {stops.data(), stops.size()},
+                                                 SkTileMode::kClamp},
+                                                {})));
+}
+
+inline Fill radialGradient(SkPoint center, float radius,
+                           std::vector<SkColor4f> colors,
+                           std::vector<float> stops = {}) {
+  return Fill::shader(
+      SkShaders::RadialGradient(center, radius,
+                                SkGradient({{colors.data(), colors.size()},
+                                            {stops.data(), stops.size()},
+                                            SkTileMode::kClamp},
+                                           {})));
+}
 
 }  // namespace sigil::compose

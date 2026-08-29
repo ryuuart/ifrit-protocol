@@ -43,7 +43,6 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/Util.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -54,7 +53,6 @@
 #include <string>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -300,11 +298,10 @@ struct TwoAdvancedEquipment : sigil::compose::sketch::Sketch {
           .fill(kSbFace)
           .foreground(shapes::onEdges(
               shapes::Edge::Top | shapes::Edge::Left,
-              util::stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
-          .foreground(
-              shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                              util::stroke(1, Fill::color(C(0x000000)),
-                                           PathFormat::Align::Inner)))
+              stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
+          .foreground(shapes::onEdges(
+              shapes::Edge::Bottom | shapes::Edge::Right,
+              stroke(1, Fill::color(C(0x000000)), PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(
@@ -321,8 +318,8 @@ struct TwoAdvancedEquipment : sigil::compose::sketch::Sketch {
             .child(box().grow(1).fill(kSbTrack).child(
                 place(box().fill(kSbFace).foreground(shapes::onEdges(
                           shapes::Edge::Top | shapes::Edge::Left,
-                          util::stroke(1, Fill::color(kWhite),
-                                       PathFormat::Align::Inner))),
+                          stroke(1, Fill::color(kWhite),
+                                 PathFormat::Align::Inner))),
                       0, 0, kSbW, thumbH)
                     .translateY(&thumbY)))
             .child(sbButton(false));

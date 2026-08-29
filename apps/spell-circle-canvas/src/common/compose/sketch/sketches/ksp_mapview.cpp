@@ -78,6 +78,7 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
+#include <include/effects/SkDashPathEffect.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Brushes.h>
@@ -88,7 +89,6 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilcompose/Util.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -101,7 +101,6 @@
 #include <vector>
 
 using namespace sigil::compose;
-using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
