@@ -190,7 +190,7 @@ inline constexpr StudyInfo kStudies[] = {
      "One of every stock SkSL material \xe2\x80\x94 also the split-Skia ctest "
      "guard"},
     {"shapeworks_lab", "shapeworks lab", "Kit",
-     "SigilShape live \xe2\x80\x94 the Illustrator blend, spinning meshes, "
+     "SigilGeometry live \xe2\x80\x94 the Illustrator blend, spinning meshes, "
      "and the gold/chrome/glass materials, all hot-editable"},
     {"easel_playground", "easel playground", "Kit",
      "The artist surface \xe2\x80\x94 easel:: chains that read like "
@@ -216,13 +216,13 @@ inline constexpr StudyInfo kStudies[] = {
      "by::alpha / alphaOut / luma / lumaOut on one content \xe2\x80\x94 and "
      "the Rec. 601 pairs that prove the law"},
     {"pop_lanes", "pop lanes", "Kit \xc2\xb7 API",
-     "shape::pop rampBy() and order() \xe2\x80\x94 colour by height, and "
+     "geometry::pop rampBy() and order() \xe2\x80\x94 colour by height, and "
      "painter order on a sink with no depth buffer"},
     {"pop_deform", "pop deform", "Kit \xc2\xb7 API",
-     "shape::pop select() and masked(), then twist / taper / bend / peak "
+     "geometry::pop select() and masked(), then twist / taper / bend / peak "
      "\xe2\x80\x94 one column, six chains, every one GPU-executable"},
     {"geo_groups", "geo groups", "Kit \xc2\xb7 API",
-     "shape::import of a Houdini .geo \xe2\x80\x94 its point group is a "
+     "geometry::import of a Houdini .geo \xe2\x80\x94 its point group is a "
      "pop mask on arrival, and pop::on(cloud) seeds the chain from it"},
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "

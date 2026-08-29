@@ -67,8 +67,8 @@
  */
 
 #include <sigilmotion/Animation.h>
-#include <sigilshape/Curves.h>
-#include <sigilshape/Pop.h>
+#include <sigilgeometry/Curves.h>
+#include <sigilgeometry/Pop.h>
 
 #include <algorithm>
 #include <cmath>
@@ -150,7 +150,7 @@ struct AnimatedLight {
   std::optional<Animatable<float>> x, y, z;
 };
 
-/** A FLIGHT PATH for the eye: a `shape::Spline3` plus the ONE float lane
+/** A FLIGHT PATH for the eye: a `geometry::Spline3` plus the ONE float lane
  *  that walks it. Independent float lanes can describe a POINT but not a
  *  TRAJECTORY; driving `eyeX/Y/Z` from a spline by hand would mean the
  *  caller computing three numbers per frame, which is the imperative
@@ -195,7 +195,7 @@ struct AnimatedLight {
 struct CameraPath {
   /** The curve the eye rides. Held by value: edit `points` in place and
    *  the next resolve picks it up (the table below re-derives). */
-  shape::Spline3 path;
+  geometry::Spline3 path;
   /** WHERE along it, in [0,1] — arc-length fraction unless @ref
    *  arcLength is false, in which case it is the curve parameter. One
    *  float, so every `bind()` shaping verb still applies. */
@@ -224,7 +224,7 @@ struct CameraPath {
    *  `path.points` in place cannot leave a stale table behind. */
   std::vector<float> arcTable;
   std::vector<glm::vec3> tablePoints;
-  shape::Spline3::Type tableType = shape::Spline3::Type::CatmullRom;
+  geometry::Spline3::Type tableType = geometry::Spline3::Type::CatmullRom;
   bool tableClosed = false;
   int tableSamples = 0;
 };
@@ -256,7 +256,7 @@ struct CameraPath {
  *    them on the component or through `setCamera()`.
  *
  *  @ref path is not a lane but a CURVE plus one: it flies the eye along
- *  a `shape::Spline3` and outranks `eyeX/Y/Z` while engaged (see
+ *  a `geometry::Spline3` and outranks `eyeX/Y/Z` while engaged (see
  *  @ref CameraPath).
  *
  *  Lanes resolve in order, so `rollDeg` sees the eye and target this
@@ -310,7 +310,7 @@ struct AnimatedWindow {
 
 /** Declared motion for a point chain's operator DIALS — the twist's
  *  amount, the noise's seed, a selector's centre, a mix factor: any
- *  numeric field `shape::popops::setField` addresses, each a float lane
+ *  numeric field `geometry::popops::setField` addresses, each a float lane
  *  bound to (operator index, field name). The component holds its own
  *  copy of the chain (the prop's value lives inside World); a resolve
  *  writes every lane into that copy and, when any lane MOVED, pushes it
@@ -335,7 +335,7 @@ struct AnimatedChain {
     float applied = 0;
     bool wasApplied = false;
   };
-  shape::pop::Chain chain;
+  geometry::pop::Chain chain;
   std::vector<Lane> lanes;
 };
 
@@ -515,7 +515,7 @@ inline AnimationStats resolveAnimation(entt::registry& registry) {
   for (auto [e, animated, cameraComponent] :
        registry.view<AnimatedCamera, CameraComponent>().each()) {
     bool changed = false;
-    shape::space::Camera& c = cameraComponent.camera;
+    geometry::space::Camera& c = cameraComponent.camera;
     // PRECEDENCE: an engaged path drives the eye outright, and the
     // target too if and only if it was asked to aim (lookAhead != 0).
     // Whatever the path drives, the corresponding lanes do not.
@@ -605,7 +605,7 @@ inline AnimationStats resolveAnimation(World& world) {
       const float value = resolveValue(lane.value);
       if (lane.wasApplied && value == lane.applied) continue;
       if (lane.op < animated.chain.size() &&
-          shape::popops::setField(animated.chain[lane.op], lane.field, value))
+          geometry::popops::setField(animated.chain[lane.op], lane.field, value))
         moved = true;
       lane.applied = value;
       lane.wasApplied = true;

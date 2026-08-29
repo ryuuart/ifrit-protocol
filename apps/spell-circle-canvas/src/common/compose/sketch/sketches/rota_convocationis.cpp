@@ -132,11 +132,11 @@
 //     whole geometry is stroke-expanded and merged into one region at
 //     four widths, so an additive stack cannot print a crossing at twice
 //     the brightness of the lines that cross there — and a circle of this
-//     density is nearly all crossings. SigilShape is the geometry
+//     density is nearly all crossings. SigilGeometry is the geometry
 //     PRODUCER here — booleans, roughening and a resample-and-lerp morph
 //     — and compose consumes what it produces as ordinary comparable
 //     silhouette values. That boundary does not move: compose does not
-//     link SigilShape, and this file does.
+//     link SigilGeometry, and this file does.
 //   * A LIGHTING GROUP IS A LAYER THAT TURNS TOGETHER. Nothing in one
 //     group crosses anything in another, which is what lets seven groups
 //     rotate at seven rates over one baked union each.
@@ -204,8 +204,8 @@
 #include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilshape/Geometry.h>
-#include <sigilshape/Ops.h>
+#include <sigilgeometry/Polyline.h>
+#include <sigilgeometry/Ops.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Style.h>
 
@@ -659,7 +659,7 @@ SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
  *  "brighter". The seed is the line's own index, so two neighbouring
  *  rules wobble differently and no two share a wave. */
 SkPath chalked(const SkPath& line, uint32_t seed, float amplitude = 1.15f) {
-  return sigil::shape::ops::Roughen{
+  return sigil::geometry::ops::Roughen{
       .amplitude = amplitude, .segmentPx = 34.0f, .seed = seed, .smooth = true}(
       line);
 }
@@ -680,7 +680,7 @@ SkPath expand(const SkPath& line, float halfWidth) {
 
 /** The group's lines widened four times and unioned at each width. */
 Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
-  namespace ops = sigil::shape::ops;
+  namespace ops = sigil::geometry::ops;
   auto at = [&](float k) {
     std::vector<SkPath> regions;
     regions.reserve(lines.size());
@@ -2014,8 +2014,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  entitles the nodes that wear it to record once and replay under
    *  bound transforms and bound gains for the rest of the loop. */
   void bakeGeometry() {
-    namespace ops = sigil::shape::ops;
-    namespace geom = sigil::shape;
+    namespace ops = sigil::geometry::ops;
+    namespace geom = sigil::geometry;
 
     chalk.assign((size_t)kChalkCount, SkPath());
     auto chalkRing = [&](int slot, float rNorm, uint32_t seed) {

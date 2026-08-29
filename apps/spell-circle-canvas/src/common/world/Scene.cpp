@@ -1,7 +1,7 @@
 #include "sigilworld/Scene.h"
 
 #include <include/core/SkTypes.h>  // SkDebugf — the outrank diagnostic
-#include <sigilshape/Mesh.h>
+#include <sigilgeometry/Mesh.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
@@ -28,7 +28,7 @@ glm::mat4 Node::localMatrix() const {
   return m;
 }
 
-Node place(std::shared_ptr<const shape::Mesh> mesh, Material material) {
+Node place(std::shared_ptr<const geometry::Mesh> mesh, Material material) {
   Node node;
   node.m_kind = Node::Kind::Prop;
   node.m_mesh = std::move(mesh);
@@ -70,14 +70,14 @@ Scene::Stats Scene::render(const Node& root) {
 
     if (node.m_kind != Node::Kind::Group) {
       // Panels resolve their cached quad mesh here.
-      const shape::Mesh* mesh = node.m_mesh.get();
+      const geometry::Mesh* mesh = node.m_mesh.get();
       Material material = node.m_material;
       if (node.m_kind == Node::Kind::Panel) {
-        std::shared_ptr<const shape::Mesh>& quad =
+        std::shared_ptr<const geometry::Mesh>& quad =
             m_quads[{node.m_panelWidth, node.m_panelHeight}];
         if (!quad)
-          quad = std::make_shared<const shape::Mesh>(
-              shape::mesh::quad(node.m_panelWidth, node.m_panelHeight));
+          quad = std::make_shared<const geometry::Mesh>(
+              geometry::mesh::quad(node.m_panelWidth, node.m_panelHeight));
         mesh = quad.get();
       }
       if (mesh) {

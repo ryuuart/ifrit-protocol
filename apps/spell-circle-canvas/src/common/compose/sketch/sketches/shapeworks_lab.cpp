@@ -1,7 +1,7 @@
 // shapeworks_lab.cpp — SIGILSHAPE, LIVE: three of the library's moves
 // =============================================================================
 // A lab, not a study: there is no external artwork behind this one. What it
-// exercises is src/common/shape itself, and everything here is
+// exercises is src/common/geometry itself, and everything here is
 // hot-editable — change a blend key, a material parameter, a camera angle,
 // save, and the canvas follows.
 //
@@ -21,22 +21,22 @@
 // Every panel is a custom() leaf with Cache::None: drawing straight to the
 // canvas, re-recorded each frame, because everything here moves. A real
 // scene would cache the materials row, whose shaders never change once
-// setup() has built them. shape:: draws through Skia and knows nothing
+// setup() has built them. geometry:: draws through Skia and knows nothing
 // about compose, so the custom() leaves are the entire adapter between
 // them.
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilshape/Blend.h>
-#include <sigilshape/Materials.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Space.h>
+#include <sigilgeometry/Blend.h>
+#include <sigilgeometry/Materials.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
 using namespace sigil::compose;
-namespace shape = sigil::shape;
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -79,13 +79,13 @@ sk_sp<SkImage> bakeChecker(int w, int h) {
 
 struct ShapeworksLab : sigil::compose::sketch::Sketch {
   // Built once per (re)load; repainting a shader-filled path is cheap.
-  shape::materials::Environment studio;
-  shape::materials::Environment sunset;
+  geometry::materials::Environment studio;
+  geometry::materials::Environment sunset;
   sk_sp<SkShader> gold, chrome, glass;
   SkPath goldPath, chromePath, glassPath;
   sk_sp<SkImage> backdrop;
-  shape::Mesh starMesh;
-  shape::Mesh ringMesh;
+  geometry::Mesh starMesh;
+  geometry::Mesh ringMesh;
 
   Element describe(sketch::SketchContext& ctx) {
     // LEFT — the blend tool, re-keyed every frame.
@@ -93,14 +93,14 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const float w = paint.size.width(), h = paint.size.height();
           const float spin = (float)paint.elapsedSeconds * 24.0f;
-          shape::blend::Key from{star(5, 64, 26, {w * 0.5f, 80}, -90 + spin),
+          geometry::blend::Key from{star(5, 64, 26, {w * 0.5f, 80}, -90 + spin),
                                  {1.0f, 0.42f, 0.30f, 1}};
-          shape::blend::Key to{SkPath::Circle(w * 0.5f, h - 90, 58),
+          geometry::blend::Key to{SkPath::Circle(w * 0.5f, h - 90, 58),
                                {0.30f, 0.62f, 1.0f, 1}};
-          shape::blend::Options options;
+          geometry::blend::Options options;
           options.steps = 9;
           options.smoothOutlines = true;
-          shape::blend::draw(canvas, shape::blend::make(from, to, options));
+          geometry::blend::draw(canvas, geometry::blend::make(from, to, options));
         })
             .inset(40, 60, 660, 60)
             .cache(Cache::None);
@@ -109,23 +109,23 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
     Element meshLab =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;
-          shape::space::Camera camera;
+          geometry::space::Camera camera;
           camera.eye = {0, 90, 560};
           camera.target = {0, 0, 0};
           camera.fovYDeg = 38;
           const float t = (float)paint.elapsedSeconds;
-          shape::space::MeshStyle steel;
+          geometry::space::MeshStyle steel;
           steel.baseColor = {0.75f, 0.78f, 0.86f, 1};
           steel.specular = 0.8f;
-          shape::space::drawMesh(
+          geometry::space::drawMesh(
               canvas, starMesh,
-              shape::space::place({-130, 0, 0}, t * 40.0f, -16), camera,
+              geometry::space::place({-130, 0, 0}, t * 40.0f, -16), camera,
               viewport, steel);
-          shape::space::MeshStyle bronze = steel;
+          geometry::space::MeshStyle bronze = steel;
           bronze.baseColor = {0.85f, 0.55f, 0.3f, 1};
-          shape::space::drawMesh(
+          geometry::space::drawMesh(
               canvas, ringMesh,
-              shape::space::place({150, 0, -40}, 0, t * 31.0f, 14), camera,
+              geometry::space::place({150, 0, -40}, 0, t * 31.0f, 14), camera,
               viewport, bronze);
         })
             .inset(620, 60, 40, 420)
@@ -164,8 +164,8 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
     ctx.background({0.055f, 0.05f, 0.09f, 1});
     ctx.captureAt(3.4);
 
-    studio = shape::materials::Environment::studio();
-    sunset = shape::materials::Environment::sunset();
+    studio = geometry::materials::Environment::studio();
+    sunset = geometry::materials::Environment::sunset();
 
     // Badge geometry lives in the material leaf's LOCAL space (540 x 300).
     goldPath = star(8, 72, 50, {95, 150}, -90);
@@ -177,37 +177,37 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
       SkRect b = path.computeTightBounds();
       b.outset(bevel + 2, bevel + 2);
       return std::pair(
-          shape::materials::bevelNormals(path, b.roundOut(), bevel),
+          geometry::materials::bevelNormals(path, b.roundOut(), bevel),
           b.roundOut());
     };
     {
       auto [normals, bounds] = normalsFor(goldPath, 9);
-      shape::materials::GoldParams params;
+      geometry::materials::GoldParams params;
       params.crinkle = 0.4f;
       params.sparkle = 0.7f;
-      gold = shape::materials::gold(
+      gold = geometry::materials::gold(
           normals, studio, {(float)bounds.left(), (float)bounds.top()}, params);
     }
     {
       auto [normals, bounds] = normalsFor(chromePath, 12);
-      shape::materials::ChromeParams params;
+      geometry::materials::ChromeParams params;
       params.brushed = 0.6f;
       params.roughness = 0.2f;
       // studio, not sunset: a flat face reflects whatever sits dead
       // ahead on the equirect, and the sunset parks its sun there.
-      chrome = shape::materials::chrome(
+      chrome = geometry::materials::chrome(
           normals, studio, {(float)bounds.left(), (float)bounds.top()}, params);
     }
     {
       auto [normals, bounds] = normalsFor(glassPath, 14);
       glass =
-          shape::materials::glass(normals, studio, backdrop,
+          geometry::materials::glass(normals, studio, backdrop,
                                   {(float)bounds.left(), (float)bounds.top()});
     }
 
     starMesh =
-        shape::mesh::extrude(star(5, 92, 42, {0, 0}, -90), {.depth = 36});
-    ringMesh = shape::mesh::torus(96, 34);
+        geometry::mesh::extrude(star(5, 92, 42, {0, 0}, -90), {.depth = 36});
+    ringMesh = geometry::mesh::torus(96, 34);
 
     ctx.composer.render(describe(ctx));
   }

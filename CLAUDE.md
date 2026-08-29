@@ -17,7 +17,7 @@ do not reconstruct a library's rules from another library's document.
   authoring scenes in Python, building and running
 - `src/sigilweave/README.md` — text shaping and layout
 - `src/common/compose/README.md` — data-driven drawable components
-- `src/common/shape/README.md` — higher-level drawing over Skia
+- `src/common/geometry/README.md` — higher-level drawing over Skia
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
 - `src/common/substance/README.md` — Substance `.sbsar` materials rendered
   to images (needs the Adobe SDK; optional)
@@ -50,7 +50,7 @@ reader who has never opened any other document.
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
 - **No performance measurements.** Benchmarks own numbers — `compose_bench`,
-  `weave_bench`, `scry_bench`, `shape_bench`, `world_bench`, and the plate
+  `weave_bench`, `scry_bench`, `geometry_bench`, `world_bench`, and the plate
   ledger. A behavioral constant
   is different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
@@ -144,7 +144,7 @@ lane runs `scry_test`'s web-thread handoffs, though the Ultralight
 dylibs themselves are uninstrumented.
 
 API documentation is a Doxygen site per library, built with `cmake
---build build --target docs` (or `--target docs-SigilShape` for one of
+--build build --target docs` (or `--target docs-SigilGeometry` for one of
 them) and landing at `build/docs/index.html`. Everything driving it
 lives in `docs/`, whose README is the canon for it — the theme, the
 two-pass cross-linking, and the container that serves the result. Each
@@ -205,7 +205,7 @@ carry the `Sigil` prefix. Product-side integrations keep `Ifrit`
 **Boundaries between libraries are deliberate** and each README states
 its own. Two that are easy to get backwards: SigilLoader owns resource
 *access* while SigilImage owns image *meaning*; and SigilWorld consumes
-SigilShape's types, never the reverse.
+SigilGeometry's types, never the reverse.
 
 ## Generated files — never hand-edit
 

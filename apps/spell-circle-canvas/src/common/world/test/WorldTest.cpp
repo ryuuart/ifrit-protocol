@@ -6,8 +6,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilmotion/Ticker.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Points.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Points.h>
 
 #include <chrono>
 #include <cstdio>
@@ -112,7 +112,7 @@ TEST(World, RendersLitQuadCoveringCenter) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -121,7 +121,7 @@ TEST(World, RendersLitQuadCoveringCenter) {
   material.baseColor = {0.9f, 0.2f, 0.2f, 1};
   material.roughness = 0.6f;
   const uint32_t id =
-      w->place(shape::mesh::quad(200, 200), glm::mat4(1.0f), material);
+      w->place(geometry::mesh::quad(200, 200), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   ASSERT_TRUE(w->render());
@@ -146,7 +146,7 @@ TEST(World, TexturedUnlitPanelShowsTexture) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
 
@@ -161,7 +161,7 @@ TEST(World, TexturedUnlitPanelShowsTexture) {
   world::Material material;
   material.unlit = true;
   material.texture = surface->makeImageSnapshot();
-  ASSERT_NE(w->place(shape::mesh::quad(220, 160), glm::mat4(1.0f), material),
+  ASSERT_NE(w->place(geometry::mesh::quad(220, 160), glm::mat4(1.0f), material),
             0u);
 
   ASSERT_TRUE(w->render());
@@ -219,14 +219,14 @@ TEST(World, SwappingATextureIsLive) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Material material;
   material.unlit = true;
   material.texture = solidImage(SK_ColorRED);
   const uint32_t id =
-      w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), material);
+      w->place(geometry::mesh::quad(400, 400), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkColor c = readFrame(*w).getColor(32, 32);
@@ -242,13 +242,13 @@ TEST(World, SwappingATextureIsLive) {
   EXPECT_LT(SkColorGetR(c), 30);
 
   // Instanced surfaces take the same door.
-  shape::Cloud one;
+  geometry::Cloud one;
   one.positions = {{0, 0, 0}};
   world::Material inst;
   inst.unlit = true;
   inst.texture = solidImage(SK_ColorGREEN);
   w->remove(id);
-  const uint32_t flock = w->placeStamps(shape::mesh::quad(400, 400), one, inst);
+  const uint32_t flock = w->placeStamps(geometry::mesh::quad(400, 400), one, inst);
   ASSERT_NE(flock, 0u);
   ASSERT_TRUE(w->render());
   c = readFrame(*w).getColor(32, 32);
@@ -271,7 +271,7 @@ TEST(World, TileRepeatsWhereClampSmears) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   camera.fovYDeg = 40;
   w->setCamera(camera);
@@ -281,7 +281,7 @@ TEST(World, TileRepeatsWhereClampSmears) {
   material.uvScale = {2, 1};
   material.tile = true;
   const uint32_t id =
-      w->place(shape::mesh::quad(1000, 1000), glm::mat4(1.0f), material);
+      w->place(geometry::mesh::quad(1000, 1000), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   // The quad fills the frame; x = 40 of 64 is u = 0.625.
@@ -310,7 +310,7 @@ TEST(World, NormalMapTiltsShadingInItsConvention) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Lighting lighting;
@@ -330,7 +330,7 @@ TEST(World, NormalMapTiltsShadingInItsConvention) {
 
   const auto lumaOf = [&](const world::Material& m) {
     const uint32_t id =
-        w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), m);
+        w->place(geometry::mesh::quad(400, 400), glm::mat4(1.0f), m);
     EXPECT_NE(id, 0u);
     EXPECT_TRUE(w->render());
     const float l = luma(readFrame(*w).getColor(32, 32));
@@ -358,7 +358,7 @@ TEST(World, EmissiveMapGlowsWhereItIsLit) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Lighting dark;
@@ -372,7 +372,7 @@ TEST(World, EmissiveMapGlowsWhereItIsLit) {
   m.emissiveMap = solidImage(SK_ColorGREEN, 8, 8, SK_ColorBLACK);
   // The quad just fills the frame, so x = 16 and 48 read u = 0.25 and
   // 0.75 — well inside each column, clear of the bilinear seam.
-  const uint32_t id = w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id = w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -406,7 +406,7 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Lighting lighting;
@@ -417,7 +417,7 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   world::Material red;
   red.baseColor = {1, 0, 0, 1};
   red.roughness = 1;
-  ASSERT_NE(w->place(shape::mesh::quad(400, 400),
+  ASSERT_NE(w->place(geometry::mesh::quad(400, 400),
                      glm::translate(glm::mat4(1.0f), {0, 0, -100}), red),
             0u);
   world::Material glass;
@@ -426,7 +426,7 @@ TEST(World, GlassShowsTheOpaquePassThroughItself) {
   glass.transmission = 1;
   glass.ior = 1;
   const uint32_t pane =
-      w->place(shape::mesh::quad(400, 400),
+      w->place(geometry::mesh::quad(400, 400),
                glm::translate(glm::mat4(1.0f), {0, 0, 50}), glass);
   ASSERT_NE(pane, 0u);
   ASSERT_TRUE(w->render());
@@ -467,7 +467,7 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Material m;
@@ -475,7 +475,7 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   m.baseColor = {1, 1, 1, 1};
   m.opacityMap = solidImage(SK_ColorBLACK, 8, 8, SK_ColorWHITE);
   EXPECT_TRUE(m.blended());
-  const uint32_t id = w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id = w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -487,7 +487,7 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   world::Material green;
   green.unlit = true;
   green.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(w->place(shape::mesh::quad(240, 240),
+  ASSERT_NE(w->place(geometry::mesh::quad(240, 240),
                      glm::translate(glm::mat4(1.0f), {0, 0, -50}), green),
             0u);
   world::Material& live =
@@ -510,7 +510,7 @@ TEST(World, LayersBlendWhereTheirMasksSay) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Material white;
@@ -526,7 +526,7 @@ TEST(World, LayersBlendWhereTheirMasksSay) {
 
   world::Material layered = white.over(blue, world::Mask::fromMap(halves, 0));
   const uint32_t id =
-      w->place(shape::mesh::quad(240, 240), glm::mat4(1.0f), layered);
+      w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), layered);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -583,7 +583,7 @@ TEST(World, SlopeHeightAndVertexColorMasksReadTheGeometry) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Material red;
@@ -593,7 +593,7 @@ TEST(World, SlopeHeightAndVertexColorMasksReadTheGeometry) {
   green.unlit = true;
   green.baseColor = {0, 1, 0, 1};
 
-  shape::Mesh ball = shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48);
+  geometry::Mesh ball = geometry::mesh::superellipsoid({120, 120, 120}, 2, 64, 48);
   const uint32_t id =
       w->place(ball, glm::mat4(1.0f),
                red.over(green, world::Mask::slope({0, 1, 0}, 0.2f, 0.4f)));
@@ -646,10 +646,10 @@ TEST(World, MaterialSlotsPickPerTriangleAndStayLive) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
-  shape::Mesh quad = shape::mesh::quad(240, 240);
+  geometry::Mesh quad = geometry::mesh::quad(240, 240);
   ASSERT_EQ(quad.triangleCount(), 2u);
   std::vector<glm::vec4>& lane = quad.prim("Material");
   lane[0] = {0, 0, 0, 0};
@@ -711,7 +711,7 @@ TEST(World, PackedMapChannelsReachTheirSlots) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Lighting lighting;
@@ -727,7 +727,7 @@ TEST(World, PackedMapChannelsReachTheirSlots) {
   world::Material metal = dielectric;
   metal.metallicChannel = 2;  // reads blue = 1 -> metallic 1
   const auto lumaOf = [&](const world::Material& m) {
-    const uint32_t id = w->place(shape::mesh::superellipsoid({90, 90, 90}, 1),
+    const uint32_t id = w->place(geometry::mesh::superellipsoid({90, 90, 90}, 1),
                                  glm::mat4(1.0f), m);
     EXPECT_NE(id, 0u);
     EXPECT_TRUE(w->render());
@@ -750,7 +750,7 @@ TEST(World, EnvironmentPanoramaLightsFromItsBrightSide) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 300};
   w->setCamera(camera);
   world::Lighting lighting;
@@ -762,7 +762,7 @@ TEST(World, EnvironmentPanoramaLightsFromItsBrightSide) {
   world::Material white;
   white.baseColor = {1, 1, 1, 1};
   white.roughness = 0.9f;
-  ASSERT_NE(w->place(shape::mesh::superellipsoid({120, 120, 120}, 2, 64, 48),
+  ASSERT_NE(w->place(geometry::mesh::superellipsoid({120, 120, 120}, 2, 64, 48),
                      glm::mat4(1.0f), white),
             0u);
   ASSERT_TRUE(w->render());
@@ -904,7 +904,7 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
   // The imported-part door: factors become the scalars, the pack and a
   // separate occlusion naming the same bytes share one decode, glTF
   // normals read as OpenGL, and the sampler tiles.
-  shape::import::Part part;
+  geometry::import::Part part;
   part.baseColor = {0.5f, 0.6f, 0.7f, 1};
   part.metallic = 0.25f;
   part.roughness = 0.8f;
@@ -938,11 +938,11 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
 
   // The slots door: parts naming indices 0 and 2 (1 unnamed) give three
   // slots, the gap a default.
-  shape::import::Model model;
-  shape::import::Part first;
+  geometry::import::Model model;
+  geometry::import::Part first;
   first.materialIndex = 0;
   first.baseColor = {1, 0, 0, 1};
-  shape::import::Part third;
+  geometry::import::Part third;
   third.materialIndex = 2;
   third.baseColor = {0, 0, 1, 1};
   model.parts = {first, third};
@@ -961,7 +961,7 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 400};
   w->setCamera(camera);
 
@@ -975,7 +975,7 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
 
   // Plain pipeline: a mesh's baked colour lane reaches the fragment
   // directly. Left half red, right half blue.
-  shape::Mesh mesh = shape::mesh::quad(220, 160);
+  geometry::Mesh mesh = geometry::mesh::quad(220, 160);
   mesh.colors.resize(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i)
     mesh.colors[i] =
@@ -997,10 +997,10 @@ TEST(World, BakedVertexColorsTintBothPipelines) {
   // per-instance tint. Yellow stamp times cyan tint is green — a colour
   // neither input shows on its own, so passing either through
   // unmultiplied fails both counts below.
-  shape::Mesh stamp = shape::mesh::quad(14, 14);
+  geometry::Mesh stamp = geometry::mesh::quad(14, 14);
   stamp.colors.assign(stamp.positions.size(), glm::vec4{1, 1, 0, 1});
-  shape::Cloud field =
-      shape::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 10, 8);
+  geometry::Cloud field =
+      geometry::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 10, 8);
   field.color("tint", {0, 1, 1, 1});
   world::StampLanes lanes;
   lanes.tintLane = "tint";
@@ -1029,14 +1029,14 @@ TEST(World, QuadAtPositiveYAppearsInTopHalf) {
   config.height = 100;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(w->place(shape::mesh::quad(100, 100),
+  ASSERT_NE(w->place(geometry::mesh::quad(100, 100),
                      glm::translate(glm::mat4(1.0f), {0, 150, 0}), material),
             0u);
   ASSERT_TRUE(w->render());
@@ -1073,7 +1073,7 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
   config.height = 64;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(50, 50));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(50, 50));
   world::Material red;
   red.baseColor = {1, 0, 0, 1};
 
@@ -1152,7 +1152,7 @@ TEST(World, PointLightBrightensAndTintsItsSide) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 400};
   w->setCamera(camera);
 
@@ -1165,7 +1165,7 @@ TEST(World, PointLightBrightensAndTintsItsSide) {
   world::Material material;
   material.baseColor = {0.9f, 0.9f, 0.9f, 1};
   material.roughness = 0.8f;
-  ASSERT_NE(w->place(shape::mesh::quad(600, 300), glm::mat4(1.0f), material),
+  ASSERT_NE(w->place(geometry::mesh::quad(600, 300), glm::mat4(1.0f), material),
             0u);
 
   // A red point light hovering near the quad's LEFT half.
@@ -1211,7 +1211,7 @@ TEST(World, ActiveCameraComponentOverridesSetCamera) {
   MAKE_WORLD_OR_SKIP(w, config);
 
   // The fallback camera looks AWAY from the quad.
-  shape::space::Camera away;
+  geometry::space::Camera away;
   away.eye = {0, 0, 400};
   away.target = {0, 0, 800};
   w->setCamera(away);
@@ -1219,11 +1219,11 @@ TEST(World, ActiveCameraComponentOverridesSetCamera) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
-  ASSERT_NE(w->place(shape::mesh::quad(200, 200), glm::mat4(1.0f), material),
+  ASSERT_NE(w->place(geometry::mesh::quad(200, 200), glm::mat4(1.0f), material),
             0u);
 
   // An active camera entity faces it; that one must drive the frame.
-  shape::space::Camera facing;
+  geometry::space::Camera facing;
   facing.eye = {0, 0, 400};
   facing.target = {0, 0, 0};
   entt::registry& registry = w->registry();
@@ -1260,14 +1260,14 @@ TEST(World, StampsRenderAndCount) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   w->setCamera(camera);
 
   // A lattice of small quads spanning the middle of the frame, tinted
   // red through the tint lane over a white unlit material.
-  shape::Cloud field =
-      shape::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 10, 8);
+  geometry::Cloud field =
+      geometry::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 10, 8);
   field.color("tint", {1, 0, 0, 1});
   world::Material material;
   material.unlit = true;
@@ -1275,7 +1275,7 @@ TEST(World, StampsRenderAndCount) {
   world::StampLanes lanes;
   lanes.tintLane = "tint";
   const uint32_t id =
-      w->placeStamps(shape::mesh::quad(14, 14), field, material, lanes);
+      w->placeStamps(geometry::mesh::quad(14, 14), field, material, lanes);
   ASSERT_NE(id, 0u);
   // The whole flock is ONE surface.
   EXPECT_EQ(w->propCount(), 1u);
@@ -1307,8 +1307,8 @@ TEST(World, StampsRenderAndCount) {
     EXPECT_GT(quadrants[i], 0) << "instances must spread quadrant " << i;
 
   // setStamps with a different count recreates the stream.
-  shape::Cloud fewer =
-      shape::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 2, 2);
+  geometry::Cloud fewer =
+      geometry::points::grid({-150, -100, 0}, {300, 0, 0}, {0, 200, 0}, 2, 2);
   fewer.color("tint", {1, 0, 0, 1});
   w->setStamps(id, fewer, lanes);
   ASSERT_TRUE(w->render());
@@ -1330,14 +1330,14 @@ TEST(World, PropsAreEntities) {
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   w->setCamera(camera);
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
   const uint32_t id =
-      w->place(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
+      w->place(geometry::mesh::quad(100, 100), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   // The id is an entity carrying the public components.
@@ -1384,7 +1384,7 @@ TEST(Easel, CommitReconciles) {
   auto describe = [&](float x) {
     stage.sun({-0.4f, -0.8f, -0.5f}, 2.0f)
         .light({0, 120, 60}, {0.2f, 0.9f, 1.0f, 1}, 3)
-        .place(shape::mesh::quad(50, 50), red)
+        .place(geometry::mesh::quad(50, 50), red)
         .key("card")
         .at({x, 0, 0})
         .turned(15);
@@ -1431,9 +1431,9 @@ TEST(Easel, StampsAreKeyStable) {
   glow.unlit = true;
 
   auto describe = [&](float y) {
-    shape::Cloud cloud =
-        shape::points::grid({-40, -20, 0}, {80, 0, 0}, {0, 40, 0}, 6, 4);
-    stage.placeStamps(cloud, shape::mesh::quad(5, 5), glow)
+    geometry::Cloud cloud =
+        geometry::points::grid({-40, -20, 0}, {80, 0, 0}, {0, 40, 0}, 6, 4);
+    stage.placeStamps(cloud, geometry::mesh::quad(5, 5), glow)
         .key("sparks")
         .at({0, y, 0});
     return stage.commit();
@@ -1476,9 +1476,9 @@ TEST(Easel, StampsCloudEditsRefreshInPlace) {
   glow.unlit = true;
 
   auto describe = [&](float originX) {
-    shape::Cloud cloud = shape::points::grid({originX - 40, -20, 0}, {80, 0, 0},
+    geometry::Cloud cloud = geometry::points::grid({originX - 40, -20, 0}, {80, 0, 0},
                                              {0, 40, 0}, 6, 4);
-    stage.placeStamps(cloud, shape::mesh::quad(5, 5), glow).key("sparks");
+    stage.placeStamps(cloud, geometry::mesh::quad(5, 5), glow).key("sparks");
     return stage.commit();
   };
 
@@ -1510,10 +1510,10 @@ TEST(Easel, ChainsReconcileByValue) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
-  const shape::Mesh stamp = shape::mesh::quad(6, 6);
-  const auto declare = [&](float head, const shape::Mesh& withStamp) {
+  const geometry::Mesh stamp = geometry::mesh::quad(6, 6);
+  const auto declare = [&](float head, const geometry::Mesh& withStamp) {
     return stage
-        .placeChain(shape::pop::on(loop).count(300).window(head, 0.5f).noise(9),
+        .placeChain(geometry::pop::on(loop).count(300).window(head, 0.5f).noise(9),
                     withStamp, world::Material{})
         .key("comet")
         .commit();
@@ -1527,7 +1527,7 @@ TEST(Easel, ChainsReconcileByValue) {
   stats = declare(0.4f, stamp);
   EXPECT_EQ(stats.moved, 1) << "a window slide is a chain edit";
   EXPECT_EQ(stats.added + stats.removed, 0);
-  stats = declare(0.4f, shape::mesh::quad(9, 9));
+  stats = declare(0.4f, geometry::mesh::quad(9, 9));
   EXPECT_EQ(stats.added, 1) << "a new stamp is a rebuild";
   EXPECT_EQ(stats.removed, 1);
   stats = stage.commit();  // nothing declared: it leaves
@@ -1546,7 +1546,7 @@ TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1564,7 +1564,7 @@ TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
   screen.uvScale = {0, 0};
   screen.uvOffset = {0.25f, 0.5f};
   const uint32_t id =
-      w->place(shape::mesh::quad(400, 400), glm::mat4(1.0f), screen);
+      w->place(geometry::mesh::quad(400, 400), glm::mat4(1.0f), screen);
   ASSERT_NE(id, 0u);
 
   const auto centerColor = [&]() {
@@ -1607,7 +1607,7 @@ TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
   config.height = 32;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1631,7 +1631,7 @@ TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
   screen.uvScale = {0, 0};
   screen.uvOffset = {0.5f / (float)count, 0.5f};
   const uint32_t id =
-      w->place(shape::mesh::quad(600, 600), glm::mat4(1.0f), screen);
+      w->place(geometry::mesh::quad(600, 600), glm::mat4(1.0f), screen);
   ASSERT_NE(id, 0u);
   auto& material =
       w->registry().get<world::MaterialComponent>(world::entity(id));
@@ -1662,7 +1662,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   config.height = 100;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1670,7 +1670,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
   const uint32_t id =
-      w->place(shape::mesh::quad(100, 100), glm::mat4(1.0f), material);
+      w->place(geometry::mesh::quad(100, 100), glm::mat4(1.0f), material);
   ASSERT_NE(id, 0u);
 
   const auto greenRows = [&](int* top, int* bottom) {
@@ -1692,7 +1692,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   EXPECT_GT(bottom, 0);  // centered quad spans both halves
 
   // Same topology, vertices moved up: the in-place update path.
-  shape::Mesh moved = shape::mesh::quad(100, 100);
+  geometry::Mesh moved = geometry::mesh::quad(100, 100);
   moved.transform(glm::translate(glm::mat4(1.0f), {0, 150, 0}));
   w->setMesh(id, moved);
   ASSERT_TRUE(w->render());
@@ -1701,7 +1701,7 @@ TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   EXPECT_EQ(bottom, 0) << "geometry must have moved to the top half";
 
   // Different topology: the recreate path still renders.
-  w->setMesh(id, shape::mesh::torus(80, 24));
+  w->setMesh(id, geometry::mesh::torus(80, 24));
   ASSERT_TRUE(w->render());
   greenRows(&top, &bottom);
   EXPECT_GT(top + bottom, 0);
@@ -1717,7 +1717,7 @@ TEST(World, GpuSweepGeneratesAndSlidesOnTheGpu) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1772,7 +1772,7 @@ TEST(World, PopChainCooksAndRedescribes) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1792,7 +1792,7 @@ TEST(World, PopChainCooksAndRedescribes) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {1, 1, 1, 1};  // tint carries the green
-  const uint32_t id = w->placeChain(shape::mesh::quad(10, 10), chain, material);
+  const uint32_t id = w->placeChain(geometry::mesh::quad(10, 10), chain, material);
   ASSERT_NE(id, 0u);
 
   const auto greenHalves = [&](int* left, int* right) {
@@ -1835,7 +1835,7 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
   config.height = 64;
   config.clearColor = {0, 0, 0, 1};
   MAKE_WORLD_OR_SKIP(w, config);
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   camera.eye = {0, 0, 500};
   camera.target = {0, 0, 0};
   w->setCamera(camera);
@@ -1845,7 +1845,7 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
     const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
     loop.push_back({160.0f * std::cos(a), 160.0f * std::sin(a), 0});
   }
-  const shape::pop::Chain chain = shape::pop::on(loop)
+  const geometry::pop::Chain chain = geometry::pop::on(loop)
                                       .count(200)
                                       .window(0.125f, 0.6f)
                                       .spread(8)
@@ -1853,7 +1853,7 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
                                       .vary(0.35f)
                                       .smooth(0.5f, 2)
                                       .lookAt({0, 0, 500});
-  const shape::Mesh stamp = shape::mesh::quad(9, 9);
+  const geometry::Mesh stamp = geometry::mesh::quad(9, 9);
   world::Material material;
   material.unlit = true;
   material.baseColor = {0, 1, 0, 1};
@@ -1876,7 +1876,7 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
   mask(&gpuMask);
   w->remove(gpu);
 
-  const shape::Mesh cpuModel = shape::popops::cookMesh(chain, stamp);
+  const geometry::Mesh cpuModel = geometry::popops::cookMesh(chain, stamp);
   ASSERT_NE(w->place(cpuModel, glm::mat4(1.0f), material), 0u);
   ASSERT_TRUE(w->render());
   std::vector<bool> cpuMask;
@@ -1910,7 +1910,7 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
     loop.push_back(
         {160.0f * std::cos(a), 30.0f * std::sin(3 * a), 160.0f * std::sin(a)});
   }
-  const shape::pop::Chain chain = shape::pop::on(loop)
+  const geometry::pop::Chain chain = geometry::pop::on(loop)
                                       .count(500)
                                       .window(0.8f, 0.6f)
                                       .spread(14)
@@ -1920,12 +1920,12 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
                                       .atlas(2, 2)
                                       .fade({1, 0, 0, 1}, {0, 0, 1, 1});
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());  // the cook
 
-  const shape::Cloud gpu = w->readChain(id);
-  const shape::Cloud cpu = shape::popops::cook(chain);
+  const geometry::Cloud gpu = w->readChain(id);
+  const geometry::Cloud cpu = geometry::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 500u);
   ASSERT_EQ(cpu.size(), 500u);
   const std::vector<float>* gpuT = gpu.scalarIf("t");
@@ -1963,7 +1963,7 @@ TEST(World, SetPointsWindowSlidesLikeAFullRedescribe) {
         {140.0f * std::cos(a), 40.0f * std::sin(2 * a), 140.0f * std::sin(a)});
   }
   const auto chainAt = [&](float head, float span) {
-    return (shape::pop::Chain)shape::pop::on(loop)
+    return (geometry::pop::Chain)geometry::pop::on(loop)
         .count(128)
         .window(head, span)
         .spread(9)
@@ -1971,19 +1971,19 @@ TEST(World, SetPointsWindowSlidesLikeAFullRedescribe) {
         .vary(0.3f);
   };
 
-  const uint32_t id = w->placeChain(shape::mesh::quad(3, 3),
+  const uint32_t id = w->placeChain(geometry::mesh::quad(3, 3),
                                     chainAt(1.0f, 0.5f), world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readChain(id);
+  const geometry::Cloud before = w->readChain(id);
 
   w->setChainWindow(id, 0.35f, 0.2f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readChain(id);
+  const geometry::Cloud slid = w->readChain(id);
 
   w->setChain(id, chainAt(0.35f, 0.2f));
   ASSERT_TRUE(w->render());
-  const shape::Cloud redescribed = w->readChain(id);
+  const geometry::Cloud redescribed = w->readChain(id);
 
   ASSERT_EQ(slid.size(), 128u);
   ASSERT_EQ(redescribed.size(), 128u);
@@ -2011,20 +2011,20 @@ TEST(World, CustomAttributesCookOnTheGpu) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
-  const shape::pop::Chain chain =
-      shape::pop::on(loop)
+  const geometry::pop::Chain chain =
+      geometry::pop::on(loop)
           .count(256)
           .fill("energy", {0.5f, 0, 0, 0})
-          .op(shape::pop::Jitter{"energy", 0.25f, 5})
-          .op(shape::pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
+          .op(geometry::pop::Jitter{"energy", 0.25f, 5})
+          .op(geometry::pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u)
       << "a chain with custom attribute lanes must cook on the GPU";
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readChain(id);
-  const shape::Cloud cpu = shape::popops::cook(chain);
+  const geometry::Cloud gpu = w->readChain(id);
+  const geometry::Cloud cpu = geometry::popops::cook(chain);
   const std::vector<glm::vec4>* gpuEnergy = gpu.colorIf("energy");
   const std::vector<glm::vec4>* cpuEnergy = cpu.colorIf("energy");
   ASSERT_TRUE(gpuEnergy && cpuEnergy);
@@ -2049,12 +2049,12 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
   const auto describe = [&](bool promote) {
-    shape::pop::Builder b = shape::pop::on(loop);
+    geometry::pop::Builder b = geometry::pop::on(loop);
     b.count(64).fade({1, 0, 0, 1}, {0, 0, 1, 1});
-    if (promote) b.promote(shape::pop::Lane::Color);
-    return (shape::pop::Chain)b;
+    if (promote) b.promote(geometry::pop::Lane::Color);
+    return (geometry::pop::Chain)b;
   };
-  const shape::Mesh stamp = shape::mesh::quad(6, 6);
+  const geometry::Mesh stamp = geometry::mesh::quad(6, 6);
 
   // The control: the same chain WITHOUT that operator cooks fine.
   const uint32_t plain =
@@ -2064,9 +2064,9 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
   EXPECT_EQ(w->placeChain(stamp, describe(true), world::Material{}), 0u);
   const uint32_t upstream = w->placeChainOn(
       plain, stamp,
-      (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
+      (geometry::pop::Chain)geometry::pop::on(std::vector<glm::vec3>{})
           .count(32)
-          .promote(shape::pop::Lane::Color),
+          .promote(geometry::pop::Lane::Color),
       world::Material{});
   EXPECT_EQ(upstream, 0u) << "the composing entry declines too";
 
@@ -2076,7 +2076,7 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
 
   // ...and the CPU executor still builds the primitive lanes the GPU
   // cannot, so the capability is not lost, only located.
-  const shape::Mesh cpu = shape::popops::cookMesh(describe(true), stamp);
+  const geometry::Mesh cpu = geometry::popops::cookMesh(describe(true), stamp);
   EXPECT_TRUE(cpu.primIf("Color"));
 }
 
@@ -2101,8 +2101,8 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   // SplineScatter, Jitter, Noise, Relax, Set, Math, Vary, LookAt, Atlas,
   // Ramp and Lookup — every operator with a kernel, each writing a lane
   // the readback below checks.
-  const shape::pop::Chain chain =
-      shape::pop::on(loop)
+  const geometry::pop::Chain chain =
+      geometry::pop::on(loop)
           .count(384)
           .window(0.85f, 0.7f)
           .spread(12)
@@ -2111,20 +2111,20 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
           .noise(14, 0.012f)
           .smooth(0.4f, 2)
           .fill("energy", {0.5f, 0, 0, 0})
-          .op(shape::pop::Math{"energy", {3, 1, 1, 1}, {0.25f, 0, 0, 0}})
+          .op(geometry::pop::Math{"energy", {3, 1, 1, 1}, {0.25f, 0, 0, 0}})
           .vary(0.35f)
           .lookAt({0, 220, 0})
           .atlas(3, 2)
           .fade({1, 0.2f, 0, 1}, {0, 0.4f, 1, 1})
-          .rampBy(shape::pop::Lane::P, 1,
+          .rampBy(geometry::pop::Lane::P, 1,
                   {{0, 0, 0, 0}, {1, 0, 0, 0}, {4, 0, 0, 0}}, -60, 60, "heat");
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
   ASSERT_TRUE(w->render());  // the cook
 
-  const shape::Cloud gpu = w->readChain(id);
-  const shape::Cloud cpu = shape::popops::cook(chain);
+  const geometry::Cloud gpu = w->readChain(id);
+  const geometry::Cloud cpu = geometry::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 384u);
   ASSERT_EQ(cpu.size(), 384u);
   const std::vector<float>* gpuT = gpu.scalarIf("t");
@@ -2169,14 +2169,14 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   // A table EDIT is a re-describe: setChain must notice the stops
   // moved even though every op kind lines up, and re-cook against the
   // new table rather than the buffer it uploaded first.
-  shape::pop::Chain edited = chain;
-  for (shape::pop::Op& op : edited)
-    if (auto* lookup = std::get_if<shape::pop::Lookup>(&op))
+  geometry::pop::Chain edited = chain;
+  for (geometry::pop::Op& op : edited)
+    if (auto* lookup = std::get_if<geometry::pop::Lookup>(&op))
       lookup->stops = {{100, 0, 0, 0}, {110, 0, 0, 0}, {140, 0, 0, 0}};
   w->setChain(id, edited);
   ASSERT_TRUE(w->render());
-  const shape::Cloud reheated = w->readChain(id);
-  const shape::Cloud cpuReheated = shape::popops::cook(edited);
+  const geometry::Cloud reheated = w->readChain(id);
+  const geometry::Cloud cpuReheated = geometry::popops::cook(edited);
   const std::vector<glm::vec4>* gpuHeat2 = reheated.colorIf("heat");
   const std::vector<glm::vec4>* cpuHeat2 = cpuReheated.colorIf("heat");
   ASSERT_TRUE(gpuHeat2 && cpuHeat2);
@@ -2204,20 +2204,20 @@ TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
     loop.push_back(
         {180.0f * std::cos(a), 30.0f * std::sin(2 * a), 180.0f * std::sin(a)});
   }
-  const shape::pop::Chain chain =
-      shape::pop::on(loop)
+  const geometry::pop::Chain chain =
+      geometry::pop::on(loop)
           .count(512)
           .seed(4)
           .select("east", {180, 0, 0}, 140, 0.5f)
-          .select("east", shape::pop::Select::Shape::Box, {-180, 0, 0},
-                  {90, 300, 90}, 0.2f, shape::pop::Select::Combine::Union)
+          .select("east", geometry::pop::Select::Shape::Box, {-180, 0, 0},
+                  {90, 300, 90}, 0.2f, geometry::pop::Select::Combine::Union)
           .move({0, 40, 0})
           .masked("east")
           .jitter(9)
           .smooth(0.5f, 2)
           .masked("east")
-          .affine(shape::space::place({10, 0, -5}, 35, 10))
-          .orient(shape::space::place({}, 35, 10))
+          .affine(geometry::space::place({10, 0, -5}, 35, 10))
+          .orient(geometry::space::place({}, 35, 10))
           .peak(12)
           .twist(120, {0, 1, 0}, -40, 40)
           .taper(0.4f, {0, 1, 0}, -40, 40)
@@ -2227,12 +2227,12 @@ TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
           .mixBy("Color", "warm", "Color", "east")
           .copy("east", "sel2");
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readChain(id);
-  const shape::Cloud cpu = shape::popops::cook(chain);
+  const geometry::Cloud gpu = w->readChain(id);
+  const geometry::Cloud cpu = geometry::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 512u);
   ASSERT_EQ(cpu.size(), 512u);
   const std::vector<glm::vec3>* gpuDir = gpu.vectorIf("dir");
@@ -2273,7 +2273,7 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  shape::Cloud given;
+  geometry::Cloud given;
   for (int i = 0; i < 300; ++i)
     given.positions.push_back({(float)(i % 20) * 12 - 120,
                                (float)(i / 20) * 12 - 90,
@@ -2288,8 +2288,8 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
     normal[(size_t)i] = {0, 0, 1};
     heat[(size_t)i] = {(float)i / 300.0f, 0, 0, 1};
   }
-  const shape::pop::Chain chain =
-      shape::pop::on(given)
+  const geometry::pop::Chain chain =
+      geometry::pop::on(given)
           .move({0, 25, 0})
           .masked("top")
           .peak(8)
@@ -2297,14 +2297,14 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
           .vary(0.3f)
           .masked("top");
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
-  shape::Cloud gpu = w->readChain(id);
-  shape::Cloud cpu = shape::popops::cook(chain);
+  geometry::Cloud gpu = w->readChain(id);
+  geometry::Cloud cpu = geometry::popops::cook(chain);
   ASSERT_EQ(gpu.size(), 300u);
   ASSERT_EQ(cpu.size(), 300u);
-  const auto compare = [&](const shape::Cloud& a, const shape::Cloud& b) {
+  const auto compare = [&](const geometry::Cloud& a, const geometry::Cloud& b) {
     const std::vector<float>* aSize = a.scalarIf("size");
     const std::vector<float>* bSize = b.scalarIf("size");
     const std::vector<glm::vec4>* aTint = a.colorIf("tint");
@@ -2332,17 +2332,17 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
 
   // Re-describe with a different cloud (fewer points, another custom
   // lane): the arena is rebuilt and re-uploaded.
-  shape::Cloud other;
+  geometry::Cloud other;
   for (int i = 0; i < 64; ++i) other.positions.push_back({(float)i * 3, 0, 0});
   other.scalar("top", 1);
   other.color("heat", {0.5f, 0, 0, 1});
   other.scalar("extra", 7);
-  shape::pop::Chain again = chain;
-  again.front() = shape::pop::PointSet{other};
+  geometry::pop::Chain again = chain;
+  again.front() = geometry::pop::PointSet{other};
   w->setChain(id, again);
   ASSERT_TRUE(w->render());
   gpu = w->readChain(id);
-  cpu = shape::popops::cook(again);
+  cpu = geometry::popops::cook(again);
   ASSERT_EQ(gpu.size(), 64u);
   compare(gpu, cpu);
   const std::vector<glm::vec4>* extra = gpu.colorIf("extra");
@@ -2369,25 +2369,25 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
         {150.0f * std::cos(a), 20.0f * std::sin(2 * a), 150.0f * std::sin(a)});
   }
   const auto describe = [&](bool sort) {
-    shape::pop::Builder b = shape::pop::on(loop);
+    geometry::pop::Builder b = geometry::pop::on(loop);
     b.count(64).spread(8).fade({1, 0, 0, 1}, {0, 0, 1, 1});
     if (sort) b.order({0, 1, 0}, true);
-    return (shape::pop::Chain)b;
+    return (geometry::pop::Chain)b;
   };
-  const shape::Mesh stamp = shape::mesh::quad(6, 6);
+  const geometry::Mesh stamp = geometry::mesh::quad(6, 6);
 
   // The control: the same chain WITHOUT the sort cooks fine.
   const uint32_t plain =
       w->placeChain(stamp, describe(false), world::Material{});
   ASSERT_NE(plain, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud cooked = w->readChain(plain);
+  const geometry::Cloud cooked = w->readChain(plain);
   ASSERT_EQ(cooked.size(), 64u);
 
   EXPECT_EQ(w->placeChain(stamp, describe(true), world::Material{}), 0u);
   EXPECT_EQ(w->placeChainOn(
                 plain, stamp,
-                (shape::pop::Chain)shape::pop::on(std::vector<glm::vec3>{})
+                (geometry::pop::Chain)geometry::pop::on(std::vector<glm::vec3>{})
                     .count(32)
                     .order({0, 1, 0}),
                 world::Material{}),
@@ -2398,7 +2398,7 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
   // the surface keeps cooking the chain it had.
   w->setChain(plain, describe(true));
   ASSERT_TRUE(w->render());
-  const shape::Cloud after = w->readChain(plain);
+  const geometry::Cloud after = w->readChain(plain);
   ASSERT_EQ(after.size(), 64u);
   for (size_t i = 0; i < after.size(); i += 13)
     EXPECT_NEAR(after.positions[i].y, cooked.positions[i].y, 1e-4f)
@@ -2406,7 +2406,7 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
 
   // ...and the CPU executor performs the sort the GPU declined, so the
   // capability is not lost, only located.
-  const shape::Cloud cpu = shape::popops::cook(describe(true));
+  const geometry::Cloud cpu = geometry::popops::cook(describe(true));
   ASSERT_EQ(cpu.size(), 64u);
   for (size_t i = 1; i < cpu.size(); ++i)
     EXPECT_GE(cpu.positions[i - 1].y, cpu.positions[i].y);
@@ -2426,29 +2426,29 @@ TEST(World, ChainsComposeOnDevice) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
-  const shape::pop::Chain chainA =
-      shape::pop::on(loop).count(48).noise(24, 0.01f).smooth(0.5f, 2);
-  const shape::pop::Chain chainB =
-      shape::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
+  const geometry::pop::Chain chainA =
+      geometry::pop::on(loop).count(48).noise(24, 0.01f).smooth(0.5f, 2);
+  const geometry::pop::Chain chainB =
+      geometry::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
           .count(300)
           .spread(6)
           .seed(9)
           .vary(0.3f);
 
   const uint32_t a =
-      w->placeChain(shape::mesh::quad(4, 4), chainA, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chainA, world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, geometry::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
 
-  const shape::Cloud gpu = w->readChain(b);
+  const geometry::Cloud gpu = w->readChain(b);
   // The same composition, done on the CPU.
-  shape::pop::Chain cpuB = chainB;
-  std::get<shape::pop::SplineScatter>(cpuB.front()).loop =
-      shape::popops::cook(chainA).positions;
-  const shape::Cloud cpu = shape::popops::cook(cpuB);
+  geometry::pop::Chain cpuB = chainB;
+  std::get<geometry::pop::SplineScatter>(cpuB.front()).loop =
+      geometry::popops::cook(chainA).positions;
+  const geometry::Cloud cpu = geometry::popops::cook(cpuB);
   ASSERT_EQ(gpu.size(), 300u);
   ASSERT_EQ(cpu.size(), 300u);
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
@@ -2474,11 +2474,11 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
       const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
       loop.push_back({radius * std::cos(a), 0, radius * std::sin(a)});
     }
-    return (shape::pop::Chain)shape::pop::on(loop).count(128).spread(5).seed(3);
+    return (geometry::pop::Chain)geometry::pop::on(loop).count(128).spread(5).seed(3);
   };
 
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(3, 3), chainOn(150), world::Material{});
+      w->placeChain(geometry::mesh::quad(3, 3), chainOn(150), world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
 
@@ -2486,8 +2486,8 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
   // land where a fresh describe of the smaller circle lands.
   w->setChain(id, chainOn(60));
   ASSERT_TRUE(w->render());
-  const shape::Cloud gpu = w->readChain(id);
-  const shape::Cloud cpu = shape::popops::cook(chainOn(60));
+  const geometry::Cloud gpu = w->readChain(id);
+  const geometry::Cloud cpu = geometry::popops::cook(chainOn(60));
   ASSERT_EQ(gpu.size(), 128u);
   ASSERT_EQ(cpu.size(), 128u);
   for (size_t i : {size_t(0), size_t(64), size_t(127)}) {
@@ -2511,29 +2511,29 @@ TEST(World, RemovingUpstreamLeavesDependentsCookedAndAlive) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
-  const shape::pop::Chain chainA =
-      shape::pop::on(loop).count(48).noise(24, 0.01f).smooth(0.5f, 2);
-  const shape::pop::Chain chainB =
-      shape::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
+  const geometry::pop::Chain chainA =
+      geometry::pop::on(loop).count(48).noise(24, 0.01f).smooth(0.5f, 2);
+  const geometry::pop::Chain chainB =
+      geometry::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
           .count(300)
           .spread(6)
           .seed(9)
           .vary(0.3f);
 
   const uint32_t a =
-      w->placeChain(shape::mesh::quad(4, 4), chainA, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chainA, world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, geometry::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readChain(b);
+  const geometry::Cloud before = w->readChain(b);
   ASSERT_EQ(before.size(), 300u);
 
   w->remove(a);
   EXPECT_EQ(w->propCount(), 1u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud after = w->readChain(b);
+  const geometry::Cloud after = w->readChain(b);
   ASSERT_EQ(after.size(), 300u);
   // Frozen at the last cook — not recooked over garbage, not zeroed.
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
@@ -2558,32 +2558,32 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
   const auto chainAt = [&](float head, float span) {
-    return (shape::pop::Chain)shape::pop::on(loop)
+    return (geometry::pop::Chain)geometry::pop::on(loop)
         .count(48)
         .window(head, span)
         .noise(24, 0.01f)
         .smooth(0.5f, 2);
   };
-  const shape::pop::Chain chainB =
-      shape::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
+  const geometry::pop::Chain chainB =
+      geometry::pop::on(std::vector<glm::vec3>{})  // loop comes from upstream
           .count(300)
           .spread(6)
           .seed(9)
           .vary(0.3f);
 
-  const uint32_t a = w->placeChain(shape::mesh::quad(4, 4), chainAt(1.0f, 0.4f),
+  const uint32_t a = w->placeChain(geometry::mesh::quad(4, 4), chainAt(1.0f, 0.4f),
                                    world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
-      w->placeChainOn(a, shape::mesh::quad(4, 4), chainB, world::Material{});
+      w->placeChainOn(a, geometry::mesh::quad(4, 4), chainB, world::Material{});
   ASSERT_NE(b, 0u);
   ASSERT_TRUE(w->render());
-  const shape::Cloud before = w->readChain(b);
+  const geometry::Cloud before = w->readChain(b);
   ASSERT_EQ(before.size(), 300u);
 
   w->setChainWindow(a, 0.5f, 0.4f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readChain(b);
+  const geometry::Cloud slid = w->readChain(b);
   ASSERT_EQ(slid.size(), 300u);
 
   // (i) The dependent actually followed the upstream arc.
@@ -2595,10 +2595,10 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
 
   // (ii) And it landed on the CPU reference over the slid upstream
   // description.
-  shape::pop::Chain cpuB = chainB;
-  std::get<shape::pop::SplineScatter>(cpuB.front()).loop =
-      shape::popops::cook(chainAt(0.5f, 0.4f)).positions;
-  const shape::Cloud cpu = shape::popops::cook(cpuB);
+  geometry::pop::Chain cpuB = chainB;
+  std::get<geometry::pop::SplineScatter>(cpuB.front()).loop =
+      geometry::popops::cook(chainAt(0.5f, 0.4f)).positions;
+  const geometry::Cloud cpu = geometry::popops::cook(cpuB);
   ASSERT_EQ(cpu.size(), 300u);
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
     EXPECT_NEAR(slid.positions[i].x, cpu.positions[i].x, 0.05f);
@@ -2725,12 +2725,12 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   MAKE_WORLD_OR_SKIP(w, config);
   std::vector<glm::vec3> loop = {
       {40, -100, 0}, {40, 100, 0}, {40, 100, 1}, {40, -100, 1}};
-  const shape::pop::Chain chain = shape::pop::on(loop)
+  const geometry::pop::Chain chain = geometry::pop::on(loop)
                                       .count(200)
                                       .window(0.5f, 0.5f)
                                       .twist(0, {0, 1, 0}, -100, 100);
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
   choreograph::Output<float> amount{0.0f};
   world::AnimatedChain animated;
@@ -2748,11 +2748,11 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   stats = world::resolveAnimation(*w);
   EXPECT_EQ(stats.chains, 0) << "a still lane costs nothing";
   ASSERT_TRUE(w->render());
-  const shape::Cloud flat = w->readChain(id);
+  const geometry::Cloud flat = w->readChain(id);
 
   amount = 180.0f;
   ASSERT_TRUE(w->render());  // render resolves; a moved lane re-cooks
-  const shape::Cloud twisted = w->readChain(id);
+  const geometry::Cloud twisted = w->readChain(id);
   ASSERT_EQ(flat.size(), twisted.size());
   // At the top of the column (u = 1) a 180 twist about +Y sends x = 40
   // to x = -40; at the bottom (u = 0) nothing moves.
@@ -2766,9 +2766,9 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   EXPECT_GT(flipped, 0);
   EXPECT_GT(still, 0);
   // ...and it agrees with the CPU cook of the same edited chain.
-  shape::pop::Chain edited = chain;
-  shape::popops::setField(edited[1], "amount", 180.0f);
-  const shape::Cloud cpu = shape::popops::cook(edited);
+  geometry::pop::Chain edited = chain;
+  geometry::popops::setField(edited[1], "amount", 180.0f);
+  const geometry::Cloud cpu = geometry::popops::cook(edited);
   for (size_t i = 0; i < cpu.size(); i += 13)
     EXPECT_NEAR(twisted.positions[i].x, cpu.positions[i].x, 1e-2f) << i;
 }
@@ -3043,7 +3043,7 @@ TEST(WorldAnimation, RenderResolvesTheLanesItself) {
   MAKE_WORLD_OR_SKIP(w, config);
 
   const uint32_t id =
-      w->place(shape::mesh::quad(40, 40), glm::mat4(1.0f), world::Material{});
+      w->place(geometry::mesh::quad(40, 40), glm::mat4(1.0f), world::Material{});
   ASSERT_NE(id, 0u);
   choreograph::Output<float> fade{0.25f};
   w->registry().emplace<world::AnimatedMaterial>(world::entity(id)).opacity =
@@ -3068,12 +3068,12 @@ TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
 
   const auto runTo = [&](int frames, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    shape::space::Camera camera;
+    geometry::space::Camera camera;
     camera.eye = {0, 0, 260};
     camera.target = {0, 0, 0};
     w->setCamera(camera);
     const uint32_t id =
-        w->place(shape::mesh::quad(90, 90), glm::mat4(1.0f), world::Material{});
+        w->place(geometry::mesh::quad(90, 90), glm::mat4(1.0f), world::Material{});
     ASSERT_NE(id, 0u);
 
     motion::Ticker ticker;
@@ -3127,7 +3127,7 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
         {140.0f * std::cos(a), 40.0f * std::sin(2 * a), 140.0f * std::sin(a)});
   }
   const auto chain = [&] {
-    return (shape::pop::Chain)shape::pop::on(loop)
+    return (geometry::pop::Chain)geometry::pop::on(loop)
         .count(128)
         .window(1.0f, 0.5f)
         .spread(9)
@@ -3135,9 +3135,9 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
         .vary(0.3f);
   };
   const uint32_t animatedId =
-      w->placeChain(shape::mesh::quad(3, 3), chain(), world::Material{});
+      w->placeChain(geometry::mesh::quad(3, 3), chain(), world::Material{});
   const uint32_t manualId =
-      w->placeChain(shape::mesh::quad(3, 3), chain(), world::Material{});
+      w->placeChain(geometry::mesh::quad(3, 3), chain(), world::Material{});
   ASSERT_NE(animatedId, 0u);
   ASSERT_NE(manualId, 0u);
 
@@ -3155,8 +3155,8 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
 
   w->setChainWindow(manualId, 0.35f, 0.2f);
   ASSERT_TRUE(w->render());
-  const shape::Cloud animatedCloud = w->readChain(animatedId);
-  const shape::Cloud manualCloud = w->readChain(manualId);
+  const geometry::Cloud animatedCloud = w->readChain(animatedId);
+  const geometry::Cloud manualCloud = w->readChain(manualId);
   ASSERT_EQ(animatedCloud.size(), 128u);
   ASSERT_EQ(manualCloud.size(), 128u);
   for (size_t i : {size_t(0), size_t(64), size_t(127)}) {
@@ -3173,7 +3173,7 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
   stats = world::resolveAnimation(*w);
   EXPECT_EQ(stats.windows, 1);
   ASSERT_TRUE(w->render());
-  const shape::Cloud slid = w->readChain(animatedId);
+  const geometry::Cloud slid = w->readChain(animatedId);
   float moved = 0;
   for (size_t i : {size_t(0), size_t(64), size_t(127)})
     moved += glm::length(slid.positions[i] - animatedCloud.positions[i]);
@@ -3201,7 +3201,7 @@ TEST(WorldAnimation, CameraLanesDriveACameraEntityWithoutADevice) {
   dolly = 0.5f;
   world::AnimationStats stats = world::resolveAnimation(registry);
   EXPECT_EQ(stats.cameras, 1);
-  const shape::space::Camera& cam =
+  const geometry::space::Camera& cam =
       registry.get<world::CameraComponent>(e).camera;
   EXPECT_FLOAT_EQ(cam.eye.z, 400.0f);
   EXPECT_FLOAT_EQ(cam.fovYDeg, 29.0f);
@@ -3219,7 +3219,7 @@ TEST(WorldAnimation, CameraLanesOverrideOnlyWhatTheyDeclare) {
   // target to the origin.
   entt::registry registry;
   const entt::entity e = registry.create();
-  shape::space::Camera authored;
+  geometry::space::Camera authored;
   authored.eye = {10, 20, 30};
   authored.target = {0, 90, 0};
   authored.fovYDeg = 12;
@@ -3232,7 +3232,7 @@ TEST(WorldAnimation, CameraLanesOverrideOnlyWhatTheyDeclare) {
 
   pan = 0.25f;
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
-  const shape::space::Camera& cam =
+  const geometry::space::Camera& cam =
       registry.get<world::CameraComponent>(e).camera;
   EXPECT_FLOAT_EQ(cam.eye.x, 25.0f);
   EXPECT_FLOAT_EQ(cam.eye.y, 20.0f) << "an undeclared lane is not driven";
@@ -3250,7 +3250,7 @@ TEST(WorldAnimation, CameraRollTurnsUpAboutTheViewAxisAndStaysUnit) {
   // rollReference on every resolve, so repeated resolves cannot drift.
   entt::registry registry;
   const entt::entity e = registry.create();
-  shape::space::Camera authored;
+  geometry::space::Camera authored;
   authored.eye = {0, 0, 10};
   authored.target = {0, 0, 0};
   registry.emplace<world::CameraComponent>(e, authored);
@@ -3258,7 +3258,7 @@ TEST(WorldAnimation, CameraRollTurnsUpAboutTheViewAxisAndStaysUnit) {
   registry.emplace<world::AnimatedCamera>(e).rollDeg = &tilt;
 
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
-  const shape::space::Camera& cam =
+  const geometry::space::Camera& cam =
       registry.get<world::CameraComponent>(e).camera;
   // Right-handed about the eye->target axis (0,0,-1): +y goes to +x.
   EXPECT_NEAR(cam.up.x, 1.0f, 1e-6f);
@@ -3300,7 +3300,7 @@ TEST(WorldAnimation, CameraTraceIsTheSameAtTheSameFrameIndex) {
     for (int i = 0; i < frames; ++i) {
       ticker.tick(dt);
       world::resolveAnimation(registry);
-      const shape::space::Camera& cam =
+      const geometry::space::Camera& cam =
           registry.get<world::CameraComponent>(e).camera;
       trace.push_back(cam.eye.z);
       trace.push_back(cam.fovYDeg);
@@ -3333,11 +3333,11 @@ TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
 
   const auto shoot = [&](float eyeZ, bool animate, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    shape::space::Camera far;
+    geometry::space::Camera far;
     far.eye = {0, 0, 900};
     far.target = {0, 0, 0};
     w->setCamera(far);
-    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+    ASSERT_NE(w->place(geometry::mesh::quad(120, 120), glm::mat4(1.0f),
                        world::Material{}),
               0u);
     if (animate) {
@@ -3350,7 +3350,7 @@ TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
       // The imperative door, used AFTER the lanes exist: it must lose.
       w->setCamera(far);
     } else {
-      shape::space::Camera plain;
+      geometry::space::Camera plain;
       plain.eye = {0, 0, eyeZ};
       plain.target = {0, 0, 0};
       w->setCamera(plain);
@@ -3391,7 +3391,7 @@ TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
 
   const auto runTo = [&](int frames, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+    ASSERT_NE(w->place(geometry::mesh::quad(120, 120), glm::mat4(1.0f),
                        world::Material{}),
               0u);
     entt::registry& registry = w->registry();
@@ -3450,25 +3450,25 @@ namespace {
  *  parameter covers 10 units and the second covers 90, so parameter-
  *  uniform and arc-length walks answer differently at every sample and
  *  the difference is arithmetic anyone can check by hand. */
-shape::Spline3 unevenRun() {
-  shape::Spline3 s;
+geometry::Spline3 unevenRun() {
+  geometry::Spline3 s;
   s.points = {{0, 0, 0}, {10, 0, 0}, {100, 0, 0}};
-  s.type = shape::Spline3::Type::Linear;
+  s.type = geometry::Spline3::Type::Linear;
   s.closed = false;
   return s;
 }
 
 /** A CLOSED loop through four points, for the wrap and roll tests. */
-shape::Spline3 diamondLoop() {
-  shape::Spline3 s;
+geometry::Spline3 diamondLoop() {
+  geometry::Spline3 s;
   s.points = {{100, 0, 0}, {0, 0, 100}, {-100, 0, 0}, {0, 0, -100}};
-  s.type = shape::Spline3::Type::CatmullRom;
+  s.type = geometry::Spline3::Type::CatmullRom;
   s.closed = true;
   return s;
 }
 
 /** The camera of the registry's sole camera entity. */
-const shape::space::Camera& cameraOf(entt::registry& registry, entt::entity e) {
+const geometry::space::Camera& cameraOf(entt::registry& registry, entt::entity e) {
   return registry.get<world::CameraComponent>(e).camera;
 }
 
@@ -3546,7 +3546,7 @@ TEST(WorldAnimation, CameraPathAimsAheadUnlessLookAheadIsZero) {
   // myself", and then the target lanes stand untouched.
   entt::registry registry;
   const entt::entity e = registry.create();
-  shape::space::Camera authored;
+  geometry::space::Camera authored;
   authored.target = {0, 90, 0};
   registry.emplace<world::CameraComponent>(e, authored);
   choreograph::Output<float> along{0.25f};
@@ -3559,7 +3559,7 @@ TEST(WorldAnimation, CameraPathAimsAheadUnlessLookAheadIsZero) {
 
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
   {
-    const shape::space::Camera& cam = cameraOf(registry, e);
+    const geometry::space::Camera& cam = cameraOf(registry, e);
     EXPECT_NEAR(cam.eye.x, 25.0f, 0.05f);
     // 5% of a 100-unit run ahead of the eye, and the aiming path owns
     // the target outright, so the 42 lane does NOT get a say.
@@ -3571,7 +3571,7 @@ TEST(WorldAnimation, CameraPathAimsAheadUnlessLookAheadIsZero) {
   flight.lookAhead = 0;
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
   {
-    const shape::space::Camera& cam = cameraOf(registry, e);
+    const geometry::space::Camera& cam = cameraOf(registry, e);
     EXPECT_NEAR(cam.eye.x, 25.0f, 0.05f) << "the eye is still flown";
     EXPECT_FLOAT_EQ(cam.target.y, 42.0f)
         << "lookAhead = 0 hands the target back to the lanes";
@@ -3597,7 +3597,7 @@ TEST(WorldAnimation, CameraPathOutranksTheEyeLanes) {
   flight.lookAhead = 0;
 
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
-  const shape::space::Camera& cam = cameraOf(registry, e);
+  const geometry::space::Camera& cam = cameraOf(registry, e);
   EXPECT_NEAR(cam.eye.x, 50.0f, 0.05f) << "the curve places the eye";
   EXPECT_FLOAT_EQ(cam.eye.y, 0.0f);
   EXPECT_FLOAT_EQ(cam.eye.z, 0.0f);
@@ -3706,7 +3706,7 @@ TEST(WorldAnimation, CameraPathRollTurnsAboutTheFlightAxis) {
   // produced, so a dutch tilt follows the curve round.
   entt::registry registry;
   const entt::entity e = registry.create();
-  shape::space::Camera authored;
+  geometry::space::Camera authored;
   authored.eye = {0, 0, 10};
   authored.target = {0, 0, 0};  // forward -z, if roll ran before the path
   registry.emplace<world::CameraComponent>(e, authored);
@@ -3719,7 +3719,7 @@ TEST(WorldAnimation, CameraPathRollTurnsAboutTheFlightAxis) {
   flight.lookAhead = 0.005f;
 
   EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
-  const shape::space::Camera& cam = cameraOf(registry, e);
+  const geometry::space::Camera& cam = cameraOf(registry, e);
   // At s = 0 the loop passes (100,0,0) along its Catmull-Rom tangent,
   // the centred difference of the neighbouring knots: +z. Rolling
   // world-up 90 degrees right-handed about +z lands up on -x.
@@ -3758,7 +3758,7 @@ TEST(WorldAnimation, CameraPathTraceIsTheSameAtTheSameFrameIndex) {
     for (int i = 0; i < frames; ++i) {
       ticker.tick(dt);
       world::resolveAnimation(registry);
-      const shape::space::Camera& cam = cameraOf(registry, e);
+      const geometry::space::Camera& cam = cameraOf(registry, e);
       trace.push_back(cam.eye.x);
       trace.push_back(cam.eye.z);
       trace.push_back(cam.target.x);
@@ -3789,7 +3789,7 @@ TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
 
   const auto runTo = [&](int frames, SkBitmap* out) {
     MAKE_WORLD_OR_SKIP(w, config);
-    ASSERT_NE(w->place(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+    ASSERT_NE(w->place(geometry::mesh::quad(120, 120), glm::mat4(1.0f),
                        world::Material{}),
               0u);
     entt::registry& registry = w->registry();
@@ -3802,7 +3802,7 @@ TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
     auto& animated = registry.emplace<world::AnimatedCamera>(cam);
     world::CameraPath& flight = animated.path.emplace();
     flight.path.points = {{0, 40, 520}, {60, 80, 400}, {0, 20, 300}};
-    flight.path.type = shape::Spline3::Type::CatmullRom;
+    flight.path.type = geometry::Spline3::Type::CatmullRom;
     flight.t = world::bind(&phase).target(0.0f, 0.8f);
     flight.lookAhead = 0.05f;
 
@@ -3870,7 +3870,7 @@ TEST(WorldSceneAnimation, KeptLeavesRideTheirEntityAndTheirLanesOutrankIt) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group().key("set").child(
         world::scene::place(mesh, world::Material{})
@@ -3914,7 +3914,7 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
         world::scene::place(mesh, material).key("card"));
@@ -3965,7 +3965,7 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
   animated.eyeZ = world::bind(&dolly).target(800.0f, 200.0f);
   animated.targetZ = 0.0f;
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   world::scene::Scene scene(*w);
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
@@ -4009,7 +4009,7 @@ TEST(WorldSceneAnimation, FindResolvesANestedPathAcrossAKeep) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group().key("comp").child(
         world::scene::group()
@@ -4051,9 +4051,9 @@ TEST(WorldSceneAnimation, FindReturnsTheNewEntityAfterARecreate) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto meshA = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
-  auto meshB = std::make_shared<const shape::Mesh>(shape::mesh::quad(60, 20));
-  const auto describe = [&](std::shared_ptr<const shape::Mesh> mesh) {
+  auto meshA = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto meshB = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(60, 20));
+  const auto describe = [&](std::shared_ptr<const geometry::Mesh> mesh) {
     return world::scene::group().key("set").child(
         world::scene::place(std::move(mesh), world::Material{}).key("card"));
   };
@@ -4093,7 +4093,7 @@ TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   world::scene::Scene scene(*w);
   ASSERT_EQ(scene
                 .render(world::scene::group().key("set").child(
@@ -4123,7 +4123,7 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group()
         .key("set")
@@ -4200,7 +4200,7 @@ TEST(WorldLayers, NearLayersShiftMoreThanFarOnesInTheDepthRatio) {
   // renderer: two projections through space::Camera::viewProjection().
   const SkSize viewport = SkSize::Make(1920, 1080);
   const auto projectX = [&](glm::vec3 eye, glm::vec3 point) {
-    shape::space::Camera cam;
+    geometry::space::Camera cam;
     cam.eye = eye;
     cam.target = eye + glm::vec3{0, 0, -100};  // a truck: view axis fixed
     const glm::vec4 out = cam.viewProjection(viewport) * glm::vec4(point, 1);

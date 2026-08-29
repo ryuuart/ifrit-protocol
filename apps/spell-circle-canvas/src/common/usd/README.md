@@ -5,7 +5,7 @@ a stage from the values a scene is made of — meshes with their placements
 and material slots, stamps as point instancers, lights, a camera — and
 saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
-instancers and materials into `shape::import::Model`, the same currency
+instancers and materials into `geometry::import::Model`, the same currency
 every other format lands in.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
@@ -22,22 +22,22 @@ Namespace `sigil::usd`, target `SigilUsd`, header `sigilusd/Usd.h`.
 usd::Writer writer("shots/lab.usdc");
 writer.mesh("floor", floorMesh, glm::mat4(1.0f), plate);
 writer.mesh("torus", torus, place({420, 20, 0}), {plate, rubber});  // slots
-writer.stamps("sparks", cloud, shape::mesh::quad(4, 4), glm::mat4(1.0f), glow);
+writer.stamps("sparks", cloud, geometry::mesh::quad(4, 4), glm::mat4(1.0f), glow);
 writer.sun("sun", lighting);
 writer.camera("camera", camera);
 std::string error;
 if (!writer.save(&error)) std::fprintf(stderr, "%s\n", error.c_str());
 
-std::optional<shape::import::Model> back = usd::readModel("shots/lab.usdc");
+std::optional<geometry::import::Model> back = usd::readModel("shots/lab.usdc");
 ```
 
 ## The mental model
 
 **Values in, a stage out.** The writer never looks inside a `World` — the
 GPU has the meshes, not the CPU — it takes the same values you placed:
-`shape::Mesh`, `glm::mat4`, `world::Material` (or a slot list),
-`shape::Cloud`, `world::LightComponent`, `world::Lighting`,
-`shape::space::Camera`. Keep those around (as `world_demo`'s material lab
+`geometry::Mesh`, `glm::mat4`, `world::Material` (or a slot list),
+`geometry::Cloud`, `world::LightComponent`, `world::Lighting`,
+`geometry::space::Camera`. Keep those around (as `world_demo`'s material lab
 does) and writing the scene is one call per prop.
 
 **What goes where.**
@@ -88,9 +88,9 @@ them.
 
 ## Boundary
 
-Public: SigilWorld, SigilShape, Skia. Private: OpenUSD core (`usd`,
+Public: SigilWorld, SigilGeometry, Skia. Private: OpenUSD core (`usd`,
 `usdGeom`, `usdShade`, `usdLux`, `sdf`, `tf`, `gf`, `vt`) — no imaging,
-no MaterialX. Neither SigilWorld nor SigilShape links or includes this
+no MaterialX. Neither SigilWorld nor SigilGeometry links or includes this
 library; it is a leaf. It does not bake materials or generate maps of any
 kind: what it writes are the images and values it was handed.
 

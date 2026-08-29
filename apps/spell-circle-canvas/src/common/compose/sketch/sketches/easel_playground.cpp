@@ -1,6 +1,6 @@
 // easel_playground.cpp — THE ARTIST SURFACE, LIVE
 // =============================================================================
-// SigilShape's easel:: is the layer that reads like sentences: stock
+// SigilGeometry's easel:: is the layer that reads like sentences: stock
 // shapes, fluent dials, one draw() at the end. This playground is its
 // prototype in the hot-reload loop — every chain below is meant to be
 // EDITED. Change a number, save, watch. Nothing here needs an options
@@ -15,14 +15,14 @@
 // their cooked values (path()/cook()/spline()) at any point.
 
 #include <include/core/SkSurface.h>
-#include <sigilshape/Easel.h>
+#include <sigilgeometry/Easel.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
 using namespace sigil::compose;
-namespace easel = sigil::shape::easel;
-namespace shape = sigil::shape;
+namespace easel = sigil::geometry::easel;
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -63,7 +63,7 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
 }  // namespace
 
 struct EaselPlayground : sigil::compose::sketch::Sketch {
-  shape::materials::Environment studio;
+  geometry::materials::Environment studio;
   sk_sp<SkImage> marqueeStrip;
 
   Element describe(sketch::SketchContext& ctx) {
@@ -132,7 +132,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;
-          shape::space::Camera camera;
+          geometry::space::Camera camera;
           camera.eye = {0, 170, 620};
           camera.target = {0, 0, 0};
           camera.fovYDeg = 40;
@@ -146,10 +146,10 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           }
           loop.closed();
 
-          shape::space::MeshStyle steel;
+          geometry::space::MeshStyle steel;
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
-          shape::space::drawMesh(canvas, loop.tube(7, 180), glm::mat4(1.0f),
+          geometry::space::drawMesh(canvas, loop.tube(7, 180), glm::mat4(1.0f),
                                  camera, viewport, steel);
           loop.draw(canvas, camera, viewport, {1, 1, 1, 0.25f}, 1);
 
@@ -165,7 +165,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
                            std::sin(a) * 265});
           }
           orbit.closed();
-          shape::space::MeshStyle band;
+          geometry::space::MeshStyle band;
           band.texture = marqueeStrip;
           band.tileTexture = true;
           band.baseColor = {1, 1, 1, 0.92f};
@@ -173,7 +173,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.lights = {};
           band.specular = 0;
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
-          shape::space::drawMesh(canvas, orbit.ribbon(30, 220), glm::mat4(1.0f),
+          geometry::space::drawMesh(canvas, orbit.ribbon(30, 220), glm::mat4(1.0f),
                                  camera, viewport, band);
 
           easel::particles()
@@ -199,7 +199,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     ctx.canvas(1240, 760);
     ctx.background({0.045f, 0.045f, 0.085f, 1});
     ctx.captureAt(2.6);
-    studio = shape::materials::Environment::studio();
+    studio = geometry::materials::Environment::studio();
     marqueeStrip = fibonacciStrip(96, 1024);
     ctx.composer.render(describe(ctx));
   }

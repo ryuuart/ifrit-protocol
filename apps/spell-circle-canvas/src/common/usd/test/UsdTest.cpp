@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Points.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Points.h>
 
 #include <filesystem>
 #include <fstream>
@@ -36,7 +36,7 @@ TEST(Usd, RoundTripsAMeshWithSlotsAndMaterials) {
   // "Material" lane naming two slots, both materials found, the
   // texture's bytes read from the file written beside the stage.
   const std::filesystem::path file = scratch("slots.usdc");
-  shape::Mesh torus = shape::mesh::torus(100, 40, 24, 12);
+  geometry::Mesh torus = geometry::mesh::torus(100, 40, 24, 12);
   std::vector<glm::vec4>& lane = torus.prim("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < lane.size(); ++t) lane[t] = {(float)(t % 2), 0, 0, 0};
   world::Material red;
@@ -65,11 +65,11 @@ TEST(Usd, RoundTripsAMeshWithSlotsAndMaterials) {
   }
   usd::ReadInfo info;
   std::string error;
-  const std::optional<shape::import::Model> back =
+  const std::optional<geometry::import::Model> back =
       usd::readModel(file, &info, &error);
   ASSERT_TRUE(back) << error;
   ASSERT_EQ(back->parts.size(), 1u);
-  const shape::import::Part& part = back->parts.front();
+  const geometry::import::Part& part = back->parts.front();
   EXPECT_EQ(part.mesh.triangleCount(), torus.triangleCount());
   EXPECT_EQ(part.mesh.vertexCount(), torus.triangleCount() * 3);  // unwelded
   const std::vector<glm::vec4>* slots = part.mesh.primIf("Material");
@@ -98,7 +98,7 @@ TEST(Usd, RoundTripsAMeshWithSlotsAndMaterials) {
 
 TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
   const std::filesystem::path file = scratch("scene.usda");
-  shape::Cloud cloud;
+  geometry::Cloud cloud;
   for (int i = 0; i < 50; ++i) cloud.positions.push_back({(float)i, 0, 0});
   cloud.scalar("size", 2);
   cloud.vector("normal", {0, 1, 0});
@@ -107,7 +107,7 @@ TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
     world::Material glow;
     glow.emissive = {1, 0.5f, 0, 1};
     glow.emissiveStrength = 2;
-    EXPECT_EQ(writer.stamps("sparks", cloud, shape::mesh::quad(4, 4),
+    EXPECT_EQ(writer.stamps("sparks", cloud, geometry::mesh::quad(4, 4),
                             glm::mat4(1.0f), glow),
               "/World/sparks");
     world::LightComponent point;
@@ -116,11 +116,11 @@ TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
     EXPECT_EQ(writer.light("lamp", point), "/World/lamp");
     world::Lighting lighting;
     EXPECT_EQ(writer.sun("sun", lighting), "/World/sun");
-    shape::space::Camera camera;
+    geometry::space::Camera camera;
     camera.eye = {0, 0, 300};
     EXPECT_EQ(writer.camera("eye", camera), "/World/eye");
     // A second prop with the same name gets a unique path.
-    EXPECT_EQ(writer.mesh("sparks", shape::mesh::quad(1, 1), glm::mat4(1.0f),
+    EXPECT_EQ(writer.mesh("sparks", geometry::mesh::quad(1, 1), glm::mat4(1.0f),
                           world::Material{}),
               "/World/sparks_2");
     ASSERT_TRUE(writer.save());
@@ -137,12 +137,12 @@ TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
     EXPECT_NE(text.find("UsdPreviewSurface"), std::string::npos);
     EXPECT_NE(text.find("emissiveColor"), std::string::npos);
   }
-  const std::optional<shape::import::Model> back = usd::readModel(file);
+  const std::optional<geometry::import::Model> back = usd::readModel(file);
   ASSERT_TRUE(back);
   // The instancer's positions come back as a faceless part with its
   // sizes; the prototype and the second quad as meshes.
-  const shape::import::Part* sparks = nullptr;
-  for (const shape::import::Part& part : back->parts)
+  const geometry::import::Part* sparks = nullptr;
+  for (const geometry::import::Part& part : back->parts)
     if (part.name == "sparks") sparks = &part;
   ASSERT_TRUE(sparks);
   EXPECT_EQ(sparks->mesh.vertexCount(), 50u);

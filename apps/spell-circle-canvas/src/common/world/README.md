@@ -22,7 +22,7 @@ Vulkan — through MoltenVK on macOS.
 #include <sigilworld/Components.h>
 #include <sigilworld/World.h>
 
-#include <sigilshape/Mesh.h>
+#include <sigilgeometry/Mesh.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -43,9 +43,9 @@ gold.metallic = 1;
 gold.roughness = 0.25f;
 
 const uint32_t ring =
-    w->place(shape::mesh::torus(140, 40), glm::mat4(1.0f), gold);
+    w->place(geometry::mesh::torus(140, 40), glm::mat4(1.0f), gold);
 
-shape::space::Camera camera;
+geometry::space::Camera camera;
 camera.eye = {0, 220, 620};
 camera.target = {0, 0, 0};
 w->setCamera(camera);
@@ -66,7 +66,7 @@ A textured panel is the same call with an image in the material:
 world::Material screen;
 screen.texture = someSkImage;
 screen.unlit = true;  // self-lit UI, no shading applied
-w->place(shape::mesh::quad(380, 252), placement, screen);
+w->place(geometry::mesh::quad(380, 252), placement, screen);
 ```
 
 A material can wear others on top of it, each where a mask says — one
@@ -89,16 +89,16 @@ for (const world::textures::TextureSet& set :
      world::textures::discover("assets/textures/metal_plate")) {
   world::Material plate = world::textures::material(set, decodeImage);
   plate.uvScale = {4, 4};  // the set tiles; lay it down four times
-  w->place(shape::mesh::torus(150, 60), placement, plate);
+  w->place(geometry::mesh::torus(150, 60), placement, plate);
 }
 ```
 
 ## The mental model
 
 **Four things cross the boundary, and nothing else does.** Geometry
-comes in as a `shape::Mesh`. Panel content comes in as any `SkImage` —
+comes in as a `geometry::Mesh`. Panel content comes in as any `SkImage` —
 whatever produced it. The camera comes in as a
-`shape::space::Camera`, the same value type SigilShape's software
+`geometry::space::Camera`, the same value type SigilGeometry's software
 renderer uses, so a Skia-composited image and a SigilWorld render agree
 about where things sit. Frames leave as raster `SkImage`s. There is no
 window, no swapchain, and no scene file format.
@@ -152,20 +152,20 @@ is consumed during initialization, so a valid prop id is never 0 and
 
 **Four ways to get geometry onto the GPU, increasingly device-resident.**
 
-1. `place()` uploads a CPU-built `shape::Mesh`.
+1. `place()` uploads a CPU-built `geometry::Mesh`.
    `setMesh()` replaces it in place — matching vertex and index
    counts update the existing buffers, a different shape recreates them.
 2. `placeStamps()` uploads one stamp mesh plus a per-instance stream
-   built from a `shape::Cloud`, drawing every point in one call.
+   built from a `geometry::Cloud`, drawing every point in one call.
    `setStamps()` refreshes the points.
 3. `placeSweep()` builds its geometry with a compute kernel: control
    points live in a device buffer, and the vertex stream is written on
    the GPU. The points never exist on the CPU at all.
-4. `placeChain()` cooks a whole `shape::pop::Chain` — a generator plus a
+4. `placeChain()` cooks a whole `geometry::pop::Chain` — a generator plus a
    list of filter operators — as one compute dispatch per operator over
    GPU-resident attribute lanes. `placeChainOn()` feeds one cooked chain
    into another without a CPU round trip. `readChain()` copies the
-   cooked lanes back as a `shape::Cloud` when you want them. A scattered,
+   cooked lanes back as a `geometry::Cloud` when you want them. A scattered,
    drifting, tinted flock is a chain (`pop::on(loop).spread().noise().fade()`),
    not a door of its own.
 
@@ -199,7 +199,7 @@ work on the CPU.
 `AnimatedWindow`, `AnimatedChain` — whose fields are `Animatable<float>`
 lanes from SigilMotion. `AnimatedChain` reaches any operator dial of a
 point chain by (operator index, field name) — `"amount"`, `"center.x"`,
-`"seed"` — through SigilShape's `popops::setField`, and re-describes the
+`"seed"` — through SigilGeometry's `popops::setField`, and re-describes the
 prop only when a lane moved. Attach them and the values follow whatever
 `choreograph::Output` they are bound to. `resolveAnimation()` has two
 overloads: one taking a bare `entt::registry`, which touches no GPU
@@ -221,7 +221,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
-| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `shape::import::Part` (glTF's material, factors and all). |
+| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `geometry::import::Part` (glTF's material, factors and all). |
 
 ## Conventions that will bite you
 
@@ -447,7 +447,7 @@ live `Animated*` component, `render()` warns once per node.
 
 ## Boundary
 
-Public dependencies: `SigilShape` (the mesh, cloud, chain, spline and
+Public dependencies: `SigilGeometry` (the mesh, cloud, chain, spline and
 camera types), Skia (`SkImage` in and out), `EnTT` (the registry is
 public API), and `SigilMotion` — public because `Animatable` appears in
 the component surface, and safe to expose because SigilMotion links a

@@ -17,10 +17,10 @@
  *
  * Decoding is not done here. SigilWorld owns no image decoder; the
  * caller supplies one (SigilImage's decode, or anything returning an
- * SkImage for a path), exactly as SigilShape's importer takes a Resolver.
+ * SkImage for a path), exactly as SigilGeometry's importer takes a Resolver.
  */
 
-#include <sigilshape/Import.h>
+#include <sigilgeometry/Import.h>
 #include <sigilworld/World.h>
 
 #include <filesystem>
@@ -130,7 +130,7 @@ using BytesDecoder = std::function<sk_sp<SkImage>(
  *  plus its transmission, ior and alpha cutoff. glTF normals are
  *  OpenGL-convention; the sampler tiles. The part's factors are kept as
  *  the scalars the maps multiply. */
-Material material(const shape::import::Part& part, const BytesDecoder& decode,
+Material material(const geometry::import::Part& part, const BytesDecoder& decode,
                   Material base = {});
 
 /** The model's material SLOTS: one Material per index the parts name
@@ -138,7 +138,7 @@ Material material(const shape::import::Part& part, const BytesDecoder& decode,
  *  default for any index no part wears — the list `World::place(mesh,
  *  model, slots)` takes beside `Model::merged()`. Empty when no part
  *  names a material. */
-std::vector<Material> materials(const shape::import::Model& model,
+std::vector<Material> materials(const geometry::import::Model& model,
                                 const BytesDecoder& decode, Material base = {});
 
 }  // namespace sigil::world::textures

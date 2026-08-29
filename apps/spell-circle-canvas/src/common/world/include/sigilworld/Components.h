@@ -81,7 +81,7 @@ struct LightComponent {
  *  destroy it to fall back. With several active cameras the first the
  *  registry iterates wins — keep one active. */
 struct CameraComponent {
-  shape::space::Camera camera;
+  geometry::space::Camera camera;
   bool active = true;
 };
 

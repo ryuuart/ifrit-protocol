@@ -1,6 +1,6 @@
-// pop_deform.cpp — SELECTORS, MASKS AND DEFORMERS in shape::pop.
+// pop_deform.cpp — SELECTORS, MASKS AND DEFORMERS in geometry::pop.
 // =============================================================================
-// Links shape:: like pop_lanes.cpp: every cloud is cooked once by the CPU
+// Links geometry:: like pop_lanes.cpp: every cloud is cooked once by the CPU
 // reference executor in setup() and splatted by points::drawBillboards.
 // SigilWorld cooks the identical chains on the GPU; this sketch is the
 // Skia-painter view of the same language.
@@ -23,9 +23,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilshape/Points.h>
-#include <sigilshape/Pop.h>
-#include <sigilshape/Space.h>
+#include <sigilgeometry/Points.h>
+#include <sigilgeometry/Pop.h>
+#include <sigilgeometry/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -33,7 +33,7 @@
 
 using namespace sigil::compose;
 using namespace sigil::compose::util;
-namespace shape = sigil::shape;
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -67,8 +67,8 @@ std::vector<glm::vec3> column() {
           {0, -kHeight / 2, 1}};
 }
 
-shape::space::Camera lookAtColumn() {
-  shape::space::Camera camera;
+geometry::space::Camera lookAtColumn() {
+  geometry::space::Camera camera;
   camera.eye = {260, 120, 720};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 30;
@@ -89,17 +89,17 @@ const sk_sp<SkImage>& disc() {
   return img;
 }
 
-Element splat(shape::Cloud cloud) {
+Element splat(geometry::Cloud cloud) {
   return custom([cloud = std::move(cloud)](SkCanvas& canvas,
                                            const PaintContext& paint) {
-           shape::points::BillboardStyle style;
+           geometry::points::BillboardStyle style;
            style.sprite = disc();
            style.size = 7;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;
            style.depthSort = true;
-           shape::points::drawBillboards(canvas, cloud, lookAtColumn(),
+           geometry::points::drawBillboards(canvas, cloud, lookAtColumn(),
                                          paint.size, style);
          })
       .inset(0)
@@ -125,17 +125,17 @@ Element panel(const char* title, const char* note, Element inner) {
  *  band across its middle selected into "band" — feathered so the ramp
  *  shows a gradient at the edges. Colour then reads the mask: cool
  *  outside, hot inside. */
-shape::pop::Builder base() {
+geometry::pop::Builder base() {
   const std::vector<glm::vec4> stops = {{0.16f, 0.22f, 0.45f, 1},
                                         {0.85f, 0.35f, 0.30f, 1},
                                         {1.00f, 0.85f, 0.35f, 1}};
-  return shape::pop::on(column())
+  return geometry::pop::on(column())
       .count(kCount)
       .window(0.5f, 0.5f)
       .spread(28)
       .seed(3)
       .vary(0.5f)
-      .select("band", shape::pop::Select::Shape::Box, {0, 20, 0}, {80, 55, 80},
+      .select("band", geometry::pop::Select::Shape::Box, {0, 20, 0}, {80, 55, 80},
               kFeather)
       .rampBy("band", 0, stops);
 }
@@ -143,14 +143,14 @@ shape::pop::Builder base() {
 }  // namespace
 
 struct PopDeform : sigil::compose::sketch::Sketch {
-  shape::Cloud selected, masked, twisted, tapered, bent, peaked;
+  geometry::Cloud selected, masked, twisted, tapered, bent, peaked;
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1240, 420);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     const char* mask = kMaskDeformers ? "band" : "";
-    const auto maskIf = [&](shape::pop::Builder b) {
+    const auto maskIf = [&](geometry::pop::Builder b) {
       return kMaskDeformers ? b.masked(mask) : b;
     };
 
@@ -171,14 +171,14 @@ struct PopDeform : sigil::compose::sketch::Sketch {
     // column — masked to the band, after orient() has tipped Dir over
     // by 60 degrees so the band leans out.
     peaked = base()
-                 .orient(shape::space::place({}, 0, 0, 60))
+                 .orient(geometry::space::place({}, 0, 0, 60))
                  .peak(70)
                  .masked("band")
                  .cloud();
 
     ctx.composer.render(
         stack()
-            .child(text(toU8("shape::pop \xc2\xb7 select() writes a mask, "
+            .child(text(toU8("geometry::pop \xc2\xb7 select() writes a mask, "
                              ".masked() takes it, and twist / taper / bend / "
                              "peak deform the same column"),
                         type(15, kInk))

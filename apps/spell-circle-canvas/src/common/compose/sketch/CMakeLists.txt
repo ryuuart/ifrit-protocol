@@ -24,7 +24,7 @@ target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/inclu
 target_compile_definitions(SigilSketchKit PUBLIC
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilLoader SigilShape SigilWeavePorts EnTT::EnTT)
+  SigilCompose SigilLoader SigilGeometry SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -119,7 +119,7 @@ if(APPLE)
   # host able to re-export it. Until then a sketch had to link libskia.a
   # itself, leaving two Skia images in the process whose objects could not
   # be exchanged — see the split-Skia note on compose_sketch_stock below.
-  # SigilShape was missing from this list until 2026-07-29, and the symptom
+  # SigilGeometry was missing from this list until 2026-07-29, and the symptom
   # is the "two registries of one fact" shape again: the kit's PUBLIC
   # dependencies decide what a sketch may #include (via sketch_flags.rsp),
   # this list decides what a sketch may LINK, and nothing checked that they
@@ -128,7 +128,7 @@ if(APPLE)
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
   # added to SigilSketchKit's PUBLIC libraries belongs here too.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
-                              SigilLoader SigilMotion SigilShape SigilWeave
+                              SigilLoader SigilMotion SigilGeometry SigilWeave
                               SigilWeavePorts
                               unofficial::skia::skia)
     target_link_options(ComposeSketch PRIVATE
@@ -190,7 +190,7 @@ add_test(NAME compose_sketch_stock
 # case in either of the two above: what it watches is not a compile and not
 # a pixel, it is the -force_load list.
 #
-# SigilShape was missing from that list from the day sketches could use it
+# SigilGeometry was missing from that list from the day sketches could use it
 # until 2026-07-29. Every shape-using sketch compiled (the kit's PUBLIC
 # dependencies decide what a sketch may #include, via sketch_flags.rsp) and
 # every one ran fine as a compiled-in gallery scene (SigilSketchStudies is
@@ -206,7 +206,7 @@ add_test(NAME compose_sketch_stock
 # most likely to catch a PARTIAL regression too.
 #
 # hello.cpp and stock_materials.cpp cannot cover this: neither names a
-# shape:: symbol, so both load happily with SigilShape absent.
+# geometry:: symbol, so both load happily with SigilGeometry absent.
 add_test(NAME compose_sketch_shape
   COMMAND ComposeSketch
     ${CMAKE_CURRENT_LIST_DIR}/sketches/shapeworks_lab.cpp

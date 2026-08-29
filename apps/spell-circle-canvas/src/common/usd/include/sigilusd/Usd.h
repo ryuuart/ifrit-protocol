@@ -9,7 +9,7 @@
  *    instancers, lights, a camera — and saves it as binary crate
  *    (`.usdc`, the default), ASCII (`.usda`) or a `.usdz` package;
  *  - a reader that pours a USD stage's meshes, point instancers and
- *    materials into shape::import::Model, the same currency every other
+ *    materials into geometry::import::Model, the same currency every other
  *    format lands in.
  *
  * Materials go out as UsdPreviewSurface with UsdUVTexture inputs — the
@@ -20,13 +20,13 @@
  * the prim as custom metadata rather than baked.
  *
  * Namespace sigil::usd, target SigilUsd. Links SigilWorld (Material,
- * Lighting) and SigilShape (Mesh, Cloud, import::Model) publicly and
- * OpenUSD privately; SigilWorld and SigilShape do not know it exists.
+ * Lighting) and SigilGeometry (Mesh, Cloud, import::Model) publicly and
+ * OpenUSD privately; SigilWorld and SigilGeometry do not know it exists.
  */
 
-#include <sigilshape/Import.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Points.h>
+#include <sigilgeometry/Import.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Points.h>
 #include <sigilworld/Components.h>
 #include <sigilworld/World.h>
 
@@ -66,11 +66,11 @@ class Writer {
    *  lane as `displayColor`, every prim lane as a uniform primvar, and
    *  the "Material" lane as GeomSubsets bound to @p slots (one material
    *  = the whole mesh bound). Returns the prim path. */
-  std::string mesh(std::string_view name, const shape::Mesh& mesh,
+  std::string mesh(std::string_view name, const geometry::Mesh& mesh,
                    const glm::mat4& model,
                    const std::vector<world::Material>& slots,
                    std::string_view parent = "/World");
-  std::string mesh(std::string_view name, const shape::Mesh& mesh,
+  std::string mesh(std::string_view name, const geometry::Mesh& mesh,
                    const glm::mat4& model, const world::Material& material,
                    std::string_view parent = "/World") {
     return this->mesh(name, mesh, model, std::vector<world::Material>{material},
@@ -79,8 +79,8 @@ class Writer {
   /** Stamps: a UsdGeomPointInstancer over @p cloud's positions with the
    *  stamp mesh as its one prototype; the "size" lane scales, "dir" (or
    *  "normal") orients, "tint" lands as a per-instance primvar. */
-  std::string stamps(std::string_view name, const shape::Cloud& cloud,
-                     const shape::Mesh& stamp, const glm::mat4& model,
+  std::string stamps(std::string_view name, const geometry::Cloud& cloud,
+                     const geometry::Mesh& stamp, const glm::mat4& model,
                      const world::Material& material,
                      std::string_view parent = "/World");
   /** A light: distant (the sun) or sphere (a point light). */
@@ -89,7 +89,7 @@ class Writer {
   std::string sun(std::string_view name, const world::Lighting& lighting,
                   std::string_view parent = "/World");
   /** The camera, as UsdGeomCamera. */
-  std::string camera(std::string_view name, const shape::space::Camera& camera,
+  std::string camera(std::string_view name, const geometry::space::Camera& camera,
                      std::string_view parent = "/World");
 
   /** Write the stage; false (with @p error) when USD refuses. */
@@ -107,7 +107,7 @@ class Writer {
  *  positions a faceless Part; a bound UsdPreviewSurface fills the
  *  Part's factors and texture references (bytes read from the file's
  *  neighbours). nullopt when the stage cannot be opened. */
-std::optional<shape::import::Model> readModel(const std::filesystem::path& file,
+std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
                                               std::string* error = nullptr);
 
 /** The bound UsdPreviewSurface material names, in slot order, that
@@ -115,7 +115,7 @@ std::optional<shape::import::Model> readModel(const std::filesystem::path& file,
 struct ReadInfo {
   std::vector<std::string> materialNames;
 };
-std::optional<shape::import::Model> readModel(const std::filesystem::path& file,
+std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
                                               ReadInfo* info,
                                               std::string* error = nullptr);
 

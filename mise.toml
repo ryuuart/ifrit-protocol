@@ -209,7 +209,7 @@ description = "Build and run one benchmark in Release"
 dir = "apps/spell-circle-canvas"
 usage = '''
 arg "<benchmark>" help="which benchmark to run" default="compose_bench" {
-  choices "compose_bench" "weave_bench" "scry_bench" "shape_bench" "world_bench"
+  choices "compose_bench" "weave_bench" "scry_bench" "geometry_bench" "world_bench"
 }
 '''
 run = '''

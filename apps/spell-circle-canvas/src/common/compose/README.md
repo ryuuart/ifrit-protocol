@@ -1166,7 +1166,7 @@ alone.
 
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
-keeps the registry on your side), SigilShape, Diligent, and Qt — Qt
+keeps the registry on your side), SigilGeometry, Diligent, and Qt — Qt
 identifiers are banned outright in exported headers.
 
 What it refuses to be:

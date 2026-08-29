@@ -3,7 +3,7 @@
 #   common/      libraries shared across products: skia/ (Graphite GPU
 #                plumbing), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
-#                motion/ (SigilMotion), shape/ (SigilShape), world/
+#                motion/ (SigilMotion), shape/ (SigilGeometry), world/
 #                (SigilWorld), compose/ (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
@@ -19,7 +19,7 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   add_subdirectory(common/scry)
 endif()
 add_subdirectory(common/motion)
-add_subdirectory(common/shape)
+add_subdirectory(common/geometry)
 add_subdirectory(common/world)
 if(SPELLCIRCLE_ENABLE_SUBSTANCE)
   add_subdirectory(common/substance)

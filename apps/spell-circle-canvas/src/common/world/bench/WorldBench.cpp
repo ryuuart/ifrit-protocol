@@ -6,8 +6,8 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
-#include <sigilshape/Mesh.h>
-#include <sigilshape/Pop.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Pop.h>
 
 #include <cmath>
 #include <memory>
@@ -36,8 +36,8 @@ std::unique_ptr<world::World> makeWorld() {
   return world::World::create(config);
 }
 
-shape::pop::Builder plain(int count) {
-  return shape::pop::on(ring(12))
+geometry::pop::Builder plain(int count) {
+  return geometry::pop::on(ring(12))
       .count(count)
       .spread(30)
       .jitter(6)
@@ -48,14 +48,14 @@ shape::pop::Builder plain(int count) {
 
 /** One cooked frame per iteration: the window slides, so the whole
  *  chain re-dispatches, and the frame draws the instanced surface. */
-void cookFrames(benchmark::State& state, const shape::pop::Chain& chain) {
+void cookFrames(benchmark::State& state, const geometry::pop::Chain& chain) {
   std::unique_ptr<world::World> w = makeWorld();
   if (!w) {
     state.SkipWithMessage("no 3D backend");
     return;
   }
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
@@ -102,7 +102,7 @@ void BM_GpuReadPoints(benchmark::State& state) {
     return;
   }
   const uint32_t id = w->placeChain(
-      shape::mesh::quad(4, 4), plain((int)state.range(0)), world::Material{});
+      geometry::mesh::quad(4, 4), plain((int)state.range(0)), world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
@@ -122,11 +122,11 @@ void BM_GpuPointSet_Reupload(benchmark::State& state) {
     state.SkipWithMessage("no 3D backend");
     return;
   }
-  const shape::Cloud seed = plain((int)state.range(0)).cloud();
-  shape::pop::Chain chain =
-      shape::pop::on(seed).move({0, 10, 0}).vary(0.3f).lookAt({0, 0, 900});
+  const geometry::Cloud seed = plain((int)state.range(0)).cloud();
+  geometry::pop::Chain chain =
+      geometry::pop::on(seed).move({0, 10, 0}).vary(0.3f).lookAt({0, 0, 900});
   const uint32_t id =
-      w->placeChain(shape::mesh::quad(4, 4), chain, world::Material{});
+      w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
@@ -135,7 +135,7 @@ void BM_GpuPointSet_Reupload(benchmark::State& state) {
   float y = 0;
   for (auto _ : state) {
     y += 1;
-    std::get<shape::pop::PointSet>(chain.front()).cloud.positions[0].y = y;
+    std::get<geometry::pop::PointSet>(chain.front()).cloud.positions[0].y = y;
     w->setChain(id, chain);
     w->render();
   }

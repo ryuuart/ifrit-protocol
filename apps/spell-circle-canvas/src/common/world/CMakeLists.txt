@@ -1,6 +1,6 @@
 # SigilWorld — diegetic surfaces in real 3D over Diligent Engine
 # (Vulkan/MoltenVK on macOS; the Diligent layer keeps D3D/GL open for
-# the Windows/Linux ports). Geometry arrives as sigil::shape::Mesh,
+# the Windows/Linux ports). Geometry arrives as sigil::geometry::Mesh,
 # panel content as SkImage textures, frames leave as raster SkImages —
 # the Skia world and the GPU world meet at those three seams.
 #
@@ -49,7 +49,7 @@ endif()
 # SigilWorld stays compose-free; world_test links SigilCompose
 # TEST-ONLY, below.
 target_link_libraries(SigilWorld
-  PUBLIC SigilShape unofficial::skia::skia EnTT::EnTT SigilMotion
+  PUBLIC SigilGeometry unofficial::skia::skia EnTT::EnTT SigilMotion
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 

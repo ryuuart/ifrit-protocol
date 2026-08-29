@@ -1,7 +1,7 @@
 // pop_lanes.cpp — TWO POP OPERATORS: Builder::rampBy() (Lookup) and
-// Builder::order() (Sort), from SigilShape.
+// Builder::order() (Sort), from SigilGeometry.
 // =============================================================================
-// Links shape:: like shapeworks_lab.cpp: the clouds are cooked by the CPU
+// Links geometry:: like shapeworks_lab.cpp: the clouds are cooked by the CPU
 // reference executor in setup() and splatted by points::drawBillboards, so
 // this file is the adapter and nothing else.
 //
@@ -30,9 +30,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilshape/Points.h>
-#include <sigilshape/Pop.h>
-#include <sigilshape/Space.h>
+#include <sigilgeometry/Points.h>
+#include <sigilgeometry/Pop.h>
+#include <sigilgeometry/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -40,7 +40,7 @@
 
 using namespace sigil::compose;
 using namespace sigil::compose::util;
-namespace shape = sigil::shape;
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -78,8 +78,8 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
   return loop;
 }
 
-shape::space::Camera lookAtCrown() {
-  shape::space::Camera camera;
+geometry::space::Camera lookAtCrown() {
+  geometry::space::Camera camera;
   camera.eye = {0, 150, 980};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 34;
@@ -111,17 +111,17 @@ const sk_sp<SkImage>& disc() {
 /** The sink: NO depth sort and NO additive blending, because both of those
  *  hide what `order()` does. kSrcOver means the last sprite drawn wins, and
  *  chain order decides who is last. */
-Element splat(shape::Cloud cloud, float spriteSize) {
+Element splat(geometry::Cloud cloud, float spriteSize) {
   return custom([cloud = std::move(cloud), spriteSize](
                     SkCanvas& canvas, const PaintContext& paint) {
-           shape::points::BillboardStyle style;
+           geometry::points::BillboardStyle style;
            style.sprite = disc();
            style.size = spriteSize;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;   // kSrcOver: order decides the picture
            style.depthSort = false;  // the sink's own sort would mask it
-           shape::points::drawBillboards(canvas, cloud, lookAtCrown(),
+           geometry::points::drawBillboards(canvas, cloud, lookAtCrown(),
                                          paint.size, style);
          })
       .inset(0)
@@ -146,7 +146,7 @@ Element panel(const char* title, const char* note, Element inner) {
 }  // namespace
 
 struct PopLanes : sigil::compose::sketch::Sketch {
-  shape::Cloud downT, byHeight, unsorted, sorted;
+  geometry::Cloud downT, byHeight, unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1200, 400);
@@ -162,7 +162,7 @@ struct PopLanes : sigil::compose::sketch::Sketch {
                                           {0.85f, 1.00f, 0.95f, 1}};
 
     // 1 — the loud default: `rampBy(stops)` == rampBy(Lane::T, 0, stops).
-    downT = shape::pop::on(loop)
+    downT = geometry::pop::on(loop)
                 .count(kCount)
                 .spread(62)
                 .seed(5)
@@ -172,24 +172,24 @@ struct PopLanes : sigil::compose::sketch::Sketch {
 
     // 2 — the full form: ANY lane, ANY component, ANY range. Component 1
     // of P is y, so this is "colour by height" over [-kRange, kRange].
-    byHeight = shape::pop::on(loop)
+    byHeight = geometry::pop::on(loop)
                    .count(kCount)
                    .spread(62)
                    .seed(5)
                    .vary(0.45f)
-                   .rampBy(shape::pop::Lane::P, 1, stops, -kRange, kRange)
+                   .rampBy(geometry::pop::Lane::P, 1, stops, -kRange, kRange)
                    .cloud();
 
     // 3 and 4 — identical but for `.order()`. Colour is driven from P.z,
     // so colour IS depth and a mis-ordered sprite is visible as a dark dot
     // sitting on top of a bright one.
     const auto depthChain = [&](const std::vector<glm::vec4>& table) {
-      return shape::pop::on(loop)
+      return geometry::pop::on(loop)
           .count(kOrderCount)
           .spread(62)
           .seed(5)
           .vary(0.45f)
-          .rampBy(shape::pop::Lane::P, 2, table, -230.0f, 230.0f);
+          .rampBy(geometry::pop::Lane::P, 2, table, -230.0f, 230.0f);
     };
     const std::vector<glm::vec4> depthStops = {{0.06f, 0.08f, 0.16f, 1},
                                                {0.20f, 0.38f, 0.55f, 1},
@@ -199,7 +199,7 @@ struct PopLanes : sigil::compose::sketch::Sketch {
 
     ctx.composer.render(
         stack()
-            .child(text(toU8("shape::pop \xc2\xb7 rampBy() drives one lane "
+            .child(text(toU8("geometry::pop \xc2\xb7 rampBy() drives one lane "
                              "from another; order() is a PERMUTATION, and "
                              "the point sink draws in it"),
                         type(15, kInk))

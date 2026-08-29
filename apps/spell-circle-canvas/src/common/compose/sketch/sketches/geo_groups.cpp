@@ -1,7 +1,7 @@
 // geo_groups.cpp — A HOUDINI .geo COMES IN, GROUPS AND ALL, and its groups
 // are pop masks the moment they land.
 // =============================================================================
-// Links shape:: like pop_deform.cpp: the file is parsed by SigilShape's
+// Links geometry:: like pop_deform.cpp: the file is parsed by SigilGeometry's
 // importer, poured into a Cloud, and that cloud SEEDS a chain
 // (pop::on(cloud), the PointSet generator). Its point group "ring" is a
 // 0/1 lane under that name — exactly what `.masked("ring")` reads. Every
@@ -24,10 +24,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilshape/Import.h>
-#include <sigilshape/Points.h>
-#include <sigilshape/Pop.h>
-#include <sigilshape/Space.h>
+#include <sigilgeometry/Import.h>
+#include <sigilgeometry/Points.h>
+#include <sigilgeometry/Pop.h>
+#include <sigilgeometry/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -36,7 +36,7 @@
 
 using namespace sigil::compose;
 using namespace sigil::compose::util;
-namespace shape = sigil::shape;
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -121,8 +121,8 @@ std::string houdiniGeo() {
          rle + "]]]]]]]";
 }
 
-shape::space::Camera lookDown() {
-  shape::space::Camera camera;
+geometry::space::Camera lookDown() {
+  geometry::space::Camera camera;
   camera.eye = {0, 520, 620};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 40;
@@ -143,17 +143,17 @@ const sk_sp<SkImage>& disc() {
   return img;
 }
 
-Element splat(shape::Cloud cloud) {
+Element splat(geometry::Cloud cloud) {
   return custom([cloud = std::move(cloud)](SkCanvas& canvas,
                                            const PaintContext& paint) {
-           shape::points::BillboardStyle style;
+           geometry::points::BillboardStyle style;
            style.sprite = disc();
            style.size = 6;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;
            style.depthSort = true;
-           shape::points::drawBillboards(canvas, cloud, lookDown(), paint.size,
+           geometry::points::drawBillboards(canvas, cloud, lookDown(), paint.size,
                                          style);
          })
       .inset(0)
@@ -175,13 +175,13 @@ Element panel(const char* title, const char* note, Element inner) {
       .child(text(toU8(note), type(10.5f, kDim)));
 }
 
-const shape::pop::Math kRingLarger{
+const geometry::pop::Math kRingLarger{
     "Scale", {2.2f, 2.2f, 2.2f, 2.2f}, {}, "ring"};
 
 }  // namespace
 
 struct GeoGroups : sigil::compose::sketch::Sketch {
-  shape::Cloud saved, peaked, twisted;
+  geometry::Cloud saved, peaked, twisted;
   std::string caption;
 
   void setup(sketch::SketchContext& ctx) override {
@@ -189,8 +189,8 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     const std::string geo = houdiniGeo();
-    const std::optional<shape::import::Model> model =
-        shape::import::model(geo.data(), geo.size(), "grid.geo");
+    const std::optional<geometry::import::Model> model =
+        geometry::import::model(geo.data(), geo.size(), "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
       ctx.composer.render(text(toU8(caption), type(15, kInk)).left(30).top(16));
@@ -198,7 +198,7 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
     // group as a 0/1 scalar lane under its own name.
-    const shape::Cloud seed = model->parts.front().asCloud();
+    const geometry::Cloud seed = model->parts.front().asCloud();
     int inRing = 0;
     if (const std::vector<float>* ring = seed.scalarIf("ring"))
       for (float f : *ring) inRing += f > 0.5f;
@@ -207,18 +207,18 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
               " of them";
 
     // 1. As saved, the ring drawn larger: a Math on Scale, masked.
-    saved = shape::pop::on(seed).op(kRingLarger).cloud();
+    saved = geometry::pop::on(seed).op(kRingLarger).cloud();
     // 2. Peak everyone OUTSIDE the ring: the group inverted into a
     // second lane by a Math, and the peak masked by that.
-    peaked = shape::pop::on(seed)
+    peaked = geometry::pop::on(seed)
                  .copy("ring", "outside")
-                 .op(shape::pop::Math{"outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
+                 .op(geometry::pop::Math{"outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
                  .peak(60)
                  .masked("outside")
                  .op(kRingLarger)
                  .cloud();
     // 3. Only the ring turns.
-    twisted = shape::pop::on(seed)
+    twisted = geometry::pop::on(seed)
                   .twist(kTwistDeg, {0, 1, 0}, -1, 1)
                   .masked("ring")
                   .peak(30)
@@ -228,7 +228,7 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
 
     ctx.composer.render(
         stack()
-            .child(text(toU8("shape::import \xc2\xb7 a Houdini .geo's point "
+            .child(text(toU8("geometry::import \xc2\xb7 a Houdini .geo's point "
                              "group is a pop mask the moment it lands "
                              "\xe2\x80\x94 " +
                              caption),

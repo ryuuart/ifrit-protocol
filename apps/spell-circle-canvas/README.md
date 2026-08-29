@@ -121,7 +121,7 @@ The app is thin. Most of the code is in libraries under `src/common/` and
 | --- | --- |
 | [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 | [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
-| [SigilShape](src/common/shape/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
+| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
 | [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
 | [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
 | [SigilImage](src/common/image/README.md) | Image decoding and probing |
