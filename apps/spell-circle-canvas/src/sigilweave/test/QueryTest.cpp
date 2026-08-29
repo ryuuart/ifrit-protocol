@@ -8,7 +8,7 @@
 #include <array>
 #include <vector>
 
-#include "TestSupport.h"
+#include "support/QuerySupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

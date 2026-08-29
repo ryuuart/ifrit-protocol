@@ -5,7 +5,7 @@
 // against Composer::beatsOf, because the pass and that query resolve one
 // TrackCascade and must never disagree.
 
-#include "ComposeTestSupport.h"
+#include "support/TextTestSupport.h"
 
 namespace {
 

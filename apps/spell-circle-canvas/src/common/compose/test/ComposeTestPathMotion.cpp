@@ -5,7 +5,7 @@
 // is what the screen shows rather than what the placement arithmetic
 // intended — the rounding a glyph's device origin takes happens below both.
 
-#include "ComposeTestSupport.h"
+#include "support/TextTestSupport.h"
 
 namespace {
 

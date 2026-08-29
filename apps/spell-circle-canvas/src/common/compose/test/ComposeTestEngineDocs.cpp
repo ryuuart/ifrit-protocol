@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/DocsTestSupport.h"
 
 TEST(ComposeBrushEngine, PipelineStylesEveryLayer) {
   Host host;

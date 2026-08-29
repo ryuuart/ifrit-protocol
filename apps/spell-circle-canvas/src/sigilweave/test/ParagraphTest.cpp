@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "TestSupport.h"
+#include "support/ShapingSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

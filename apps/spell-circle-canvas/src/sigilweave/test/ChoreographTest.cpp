@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "TestSupport.h"
+#include "support/ChoreographSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/BrushTestSupport.h"
 
 TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   Host host(200, 100);

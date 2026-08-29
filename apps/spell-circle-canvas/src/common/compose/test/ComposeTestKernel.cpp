@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/CoreTestSupport.h"
 
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
   Host host;

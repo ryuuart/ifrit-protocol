@@ -7,7 +7,7 @@
 
 #include <set>
 
-#include "TestSupport.h"
+#include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

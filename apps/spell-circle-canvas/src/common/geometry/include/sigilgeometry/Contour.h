@@ -46,6 +46,10 @@ class Contour {
   Contour() = default;
 
   bool valid() const { return m_measure != nullptr; }
+  /** Two contours are equal when they are the same measurement — copies
+   *  of one `Contour::of` result compare equal, two measurements of the
+   *  same path do not. A cache proves reuse by this. */
+  bool operator==(const Contour&) const = default;
   float length() const;
   bool closed() const;
 

@@ -9,7 +9,7 @@
  * geometry and nothing else can check it.
  */
 
-#include "ComposeTestSupport.h"
+#include "support/TextTestSupport.h"
 
 namespace {
 

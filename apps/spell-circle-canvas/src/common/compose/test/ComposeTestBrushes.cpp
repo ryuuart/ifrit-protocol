@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/BrushTestSupport.h"
 
 // ---------------------------------------------------------------------------
 // The corner vocabulary — bracket marks, open-corner rules, weighted

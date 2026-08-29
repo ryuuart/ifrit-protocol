@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/TextTestSupport.h"
 
 TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
   // Reading order IS evaluation order for the affine ops, so the two

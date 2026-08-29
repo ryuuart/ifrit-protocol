@@ -10,7 +10,7 @@
 #include <string>
 #include <tuple>
 
-#include "TestSupport.h"
+#include "support/KitSupport.h"
 
 using namespace sigil::weave;
 using namespace sigil::weave::test;

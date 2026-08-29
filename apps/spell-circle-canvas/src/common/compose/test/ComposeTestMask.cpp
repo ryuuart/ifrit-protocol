@@ -1,5 +1,5 @@
 #include "../ComposeInternal.h"  // propsEqual — the comparator, taken directly
-#include "ComposeTestSupport.h"
+#include "support/CoreTestSupport.h"
 
 // ---------------------------------------------------------------------------
 // THE MASKING FAMILY

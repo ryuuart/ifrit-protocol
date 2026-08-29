@@ -1214,10 +1214,21 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Registered tests: `compose_test`, `compose_kit_test`, `compose_spike_test`,
-`compose_gallery_test`, `compose_sketch_smoke`, `compose_sketch_stock`,
-`compose_sketch_shape`, plus `compose_gpu_test` (Apple only, needs the
-Graphite plumbing) and `compose_web_test` (needs the Ultralight SDK).
+Registered tests, one binary per feature area so that editing an
+extension header rebuilds only the tests that exercise it:
+`compose_core_test` (the kernel, the authoring grammar, masks, the field
+walks), `compose_content_test` (leaves, feed, routers, layouts, text
+effects, colour management), `compose_brush_test` (lines and brushes),
+`compose_text_test` (text data, the text pass, vertical writing, motion
+along paths), `compose_studio_test` (queries and the studio),
+`compose_docs_test` (the engine walkthroughs and the generated README
+probes), `compose_api_doc_probes_self_test`, `compose_kit_test`,
+`compose_spike_test`, `compose_gallery_test`, `compose_sketch_smoke`,
+`compose_sketch_stock`, `compose_sketch_shape`, plus `compose_gpu_test`
+(Apple only, needs the Graphite plumbing) and `compose_web_test` (needs
+the Ultralight SDK). Each binary's translation units share
+`test/support/Host.h` — the composer-in-a-raster-surface harness — through
+a support header of their own that includes only what they use.
 `compose_bench` and `compose_demo` are executables, not tests — anything
 resembling a performance claim belongs to `compose_bench` and to the plate
 ledger, never to prose.
@@ -1249,7 +1260,7 @@ change.
 
 ### The generated doc-probe translation unit
 
-`compose_test` builds a C++ file that does not exist in the source tree.
+`compose_docs_test` builds a C++ file that does not exist in the source tree.
 `test/docs/api_doc_probes.py` reads this document, extracts every qualified
 name an author could copy out of it — from fenced code blocks **and** from
 inline `code` spans, because the prose carries as many names as the

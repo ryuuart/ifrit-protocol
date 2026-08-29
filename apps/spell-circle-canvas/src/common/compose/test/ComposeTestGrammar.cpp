@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/CoreTestSupport.h"
 
 namespace {
 

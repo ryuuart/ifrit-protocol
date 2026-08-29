@@ -1,4 +1,4 @@
-#include "ComposeTestSupport.h"
+#include "support/StudioTestSupport.h"
 
 namespace {
 /** A flow band's width law: wide at the start, narrow at the end, with the

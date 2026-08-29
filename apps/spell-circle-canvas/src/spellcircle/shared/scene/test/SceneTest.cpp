@@ -8,12 +8,12 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
+#include <sigilgeometry/Contour.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -311,52 +311,49 @@ TEST(SceneLabels, CircleContoursStartAtThreeOClock) {
   // Pins the assumption Circle.text_start is built on: a Skia circle path's
   // contour begins at 3 o'clock and winds clockwise in y-down screen space,
   // which is why an anchor fraction of 0.75 centers a label at the top.
-  SkContourMeasureIter iterator(SkPath::Circle(0.0f, 0.0f, 100.0f),
-                                /*forceClosed=*/false);
-  const sk_sp<SkContourMeasure> ring = iterator.next();
-  ASSERT_TRUE(ring);
+  const std::vector<sigil::geometry::Contour> rings =
+      sigil::geometry::Contour::of(SkPath::Circle(0.0f, 0.0f, 100.0f));
+  ASSERT_EQ(rings.size(), 1u);
 
-  SkPoint position;
-  SkVector tangent;
-  ASSERT_TRUE(ring->getPosTan(0.0f, &position, &tangent));
-  EXPECT_NEAR(position.x(), 100.0f, 0.01f);
-  EXPECT_NEAR(position.y(), 0.0f, 0.01f);
+  const auto start = rings[0].at(0.0f);
+  ASSERT_TRUE(start);
+  EXPECT_NEAR(start->position.x, 100.0f, 0.01f);
+  EXPECT_NEAR(start->position.y, 0.0f, 0.01f);
   // Leaving the start point the contour heads downward (+y), which is
   // clockwise on screen.
-  EXPECT_GT(tangent.y(), 0.9f);
+  EXPECT_GT(start->tangent.y, 0.9f);
 }
 
 TEST(RingLabelGeometryCache, DegenerateRadiusReturnsNullEveryTime) {
   spellcircle::RingLabelGeometryCache cache;
-  EXPECT_EQ(cache.ringForRadius(0.0f), nullptr);
-  EXPECT_EQ(cache.ringForRadius(0.0f), nullptr);
-  EXPECT_EQ(cache.ringForRadius(-5.0f), nullptr);
+  EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
+  EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
+  EXPECT_FALSE(cache.ringForRadius(-5.0f).valid());
 }
 
 TEST(RingLabelGeometryCache, ValidRadiiShareOneMeasurement) {
   spellcircle::RingLabelGeometryCache cache;
-  const sk_sp<SkContourMeasure> first = cache.ringForRadius(200.0f);
-  ASSERT_TRUE(first);
-  EXPECT_EQ(cache.ringForRadius(200.0f).get(), first.get());
+  const sigil::geometry::Contour first = cache.ringForRadius(200.0f);
+  ASSERT_TRUE(first.valid());
+  EXPECT_EQ(cache.ringForRadius(200.0f), first);
 }
 
 TEST(RingLabelGeometryCache, DegenerateRequestsDoNotOccupySlots) {
   spellcircle::RingLabelGeometryCache cache(/*maximumEntries=*/4);
-  EXPECT_EQ(cache.ringForRadius(0.0f), nullptr);
+  EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
 
   const float radii[] = {10.0f, 20.0f, 30.0f, 40.0f};
-  sk_sp<SkContourMeasure> held[4];
+  sigil::geometry::Contour held[4];
   for (int i = 0; i < 4; ++i) {
     held[i] = cache.ringForRadius(radii[i]);
-    ASSERT_TRUE(held[i]);
+    ASSERT_TRUE(held[i].valid());
   }
 
   // Had the degenerate request been stored, it would have counted toward the
   // four-entry capacity and inserting the fourth ring would have flushed the
   // earlier ones; every radius still answering with the SAME measurement
-  // proves it occupied nothing. The held sk_sp copies keep the originals
-  // alive, so a re-measure could not reuse their addresses.
-  for (int i = 0; i < 4; ++i)
-    EXPECT_EQ(cache.ringForRadius(radii[i]).get(), held[i].get());
-  EXPECT_EQ(cache.ringForRadius(0.0f), nullptr);
+  // proves it occupied nothing. The held copies keep the originals alive,
+  // so a re-measure could not be mistaken for them.
+  for (int i = 0; i < 4; ++i) EXPECT_EQ(cache.ringForRadius(radii[i]), held[i]);
+  EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
 }

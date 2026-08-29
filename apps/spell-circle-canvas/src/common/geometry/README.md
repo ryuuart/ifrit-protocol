@@ -450,11 +450,29 @@ python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
 ```
 
-Targets: `SigilGeometryPath` and `SigilGeometry` (static libraries),
-`geometry_path_test` (the leaf alone) and `geometry_test` (both registered
-with ctest), `geometry_demo`, and `geometry_bench` (Google Benchmark: the pop cook by
-count and operator mix, the stamping sink, and the `.geo` reader — run
-it from a Release build).
+Targets: `SigilGeometryPath` and `SigilGeometry` (static libraries), the
+tests, `geometry_demo`, and `geometry_bench` (Google Benchmark: the pop
+cook by count and operator mix, the stamping sink, and the `.geo` reader —
+run it from a Release build).
+
+The tests are one binary per subsystem, each a single translation unit
+under `test/`, so an edit to one subsystem recompiles one small file. All
+are registered with ctest and answer to `-R geometry`:
+
+| Binary | Source | Covers |
+| --- | --- | --- |
+| `geometry_path_test` | `PathTest.cpp` | the leaf alone: polylines, contours, noise, numerics |
+| `geometry_blend_test` | `BlendTest.cpp` | shape interpolation |
+| `geometry_mesh_test` | `MeshTest.cpp` | meshes, the Space painter, materials |
+| `geometry_curves_test` | `CurvesTest.cpp` | splines, tubes, ribbons, banners |
+| `geometry_points_test` | `PointsTest.cpp` | point clouds and instancing |
+| `geometry_pop_test` | `PopTest.cpp` | pop chains and their operators |
+| `geometry_easel_test` | `EaselTest.cpp` | the fluent authoring surface |
+| `geometry_import_test` | `ImportTest.cpp` | every import format and PLY save; the only one linking Alembic |
+
+Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
+`test/support/GeometrySupport.h`; a helper one binary uses stays in that
+binary's file.
 
 ```sh
 ctest --test-dir build -C Debug -R geometry --output-on-failure

@@ -565,14 +565,28 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
-ctest --test-dir build -C Debug -R weave_test --output-on-failure
+ctest --test-dir build -C Debug -R weave_ --output-on-failure
 ```
 
-`weave_test` is one binary with a translation unit per module, plus a
-typographic-correctness section: cluster coverage across scripts, ZWNJ
-joining control, combining-mark attachment (NFC and NFD must measure alike),
-kinsoku prohibitions, NBSP no-break, justification shrink limits, UAX#9
-visual reordering, strut metrics, and edit safety at surrogate boundaries.
+The tests are one binary per feature, following the library's layering so
+each compiles and links only what its feature needs:
+
+- `weave_container_test` — `InlineVector`, with no fonts at all.
+- `weave_shaping_test` — the shaper, the paragraph model, and typographic
+  correctness: cluster coverage across scripts, ZWNJ joining control,
+  combining-mark attachment (NFC and NFD must measure alike), kinsoku
+  prohibitions, NBSP no-break, justification shrink limits, UAX#9 visual
+  reordering, strut metrics, and edit safety at surrogate boundaries.
+- `weave_layout_test` — line breaking (greedy and Knuth-Plass), flows and
+  exclusions, overflow and clamp, vertical writing, and the large-paragraph
+  stress cases.
+- `weave_query_test` — the optional Query layer.
+- `weave_choreograph_test` — per-glyph choreography and its rendering.
+- `weave_kit_test` — the SigilWeaveKit convenience layer.
+
+Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
+`FontContext` every binary shapes with, and each binary has a support header
+that includes exactly the headers its translation units use.
 
 `weave_bench` owns every performance claim about this library. Build it
 Release and run it rather than trusting a number written down anywhere:

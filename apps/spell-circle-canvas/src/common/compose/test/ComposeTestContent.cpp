@@ -5,7 +5,7 @@
 
 #include <numeric>
 
-#include "ComposeTestSupport.h"
+#include "support/ContentTestSupport.h"
 
 // ---- feed(): the streaming collection --------------------------------------
 

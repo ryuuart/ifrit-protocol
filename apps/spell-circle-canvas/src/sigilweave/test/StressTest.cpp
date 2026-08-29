@@ -8,12 +8,13 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <sigilweave/PaintShaders.h>
+#include <sigilweave/Query.h>
 
 #include <chrono>
 #include <random>
 #include <string>
 
-#include "TestSupport.h"
+#include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

@@ -9,10 +9,12 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilweave/Features.h>
+#include <sigilweave/Query.h>
 
 #include <algorithm>
 
-#include "TestSupport.h"
+#include "support/ShapingSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

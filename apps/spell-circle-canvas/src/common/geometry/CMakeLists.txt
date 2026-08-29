@@ -100,16 +100,30 @@ target_link_libraries(geometry_path_test PRIVATE SigilGeometryPath
   GTest::gtest_main)
 add_test(NAME geometry_path_test COMMAND geometry_path_test)
 
-add_executable(geometry_test
-  test/GeometryTest.cpp
-)
+# One test binary per subsystem, each a single translation unit, so an edit
+# to one subsystem recompiles one small file. Helpers that more than one
+# binary reads live in test/support/GeometrySupport.h.
+function(geometry_suite_test name source)
+  add_executable(${name} test/${source})
+  target_include_directories(${name} PRIVATE test)
+  target_link_libraries(${name} PRIVATE SigilGeometry GTest::gtest_main)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+geometry_suite_test(geometry_blend_test BlendTest.cpp)
+geometry_suite_test(geometry_mesh_test MeshTest.cpp)
+geometry_suite_test(geometry_curves_test CurvesTest.cpp)
+geometry_suite_test(geometry_points_test PointsTest.cpp)
+geometry_suite_test(geometry_pop_test PopTest.cpp)
+geometry_suite_test(geometry_easel_test EaselTest.cpp)
 
-# The test writes Alembic archives in memory with the O* API, so it
-# needs the headers/libs directly, not just SigilGeometry's import door.
-target_link_libraries(geometry_test PRIVATE SigilGeometry GTest::gtest_main
-  Alembic::Alembic)
-
-add_test(NAME geometry_test COMMAND geometry_test)
+# The import tests write Alembic archives in memory with the O* API, so this
+# one binary needs the headers and libraries directly, not just
+# SigilGeometry's import door.
+add_executable(geometry_import_test test/ImportTest.cpp)
+target_include_directories(geometry_import_test PRIVATE test)
+target_link_libraries(geometry_import_test PRIVATE SigilGeometry
+  GTest::gtest_main Alembic::Alembic)
+add_test(NAME geometry_import_test COMMAND geometry_import_test)
 
 # Headless PNG panels of the SigilGeometry catalog: blend studies, material
 # swatches, procedural meshes in perspective. Mirrors compose_demo:

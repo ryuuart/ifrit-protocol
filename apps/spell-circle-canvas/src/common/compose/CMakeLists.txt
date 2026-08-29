@@ -70,10 +70,64 @@ else()
   message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
 endif()
 
-# The kernel tests, split across files by dominant theme and sharing the
-# harness in test/ComposeTestSupport.h. Suites interleave across the files
-# rather than each file holding one suite, so search for a test by name
-# rather than guessing which file owns it.
+# The kernel tests are one binary per feature area, each with a support
+# header under test/support that includes only the headers its translation
+# units use, over the shared harness in test/support/Host.h. Editing an
+# extension header therefore rebuilds the binaries that exercise it and no
+# other. Suites interleave across the files rather than each file holding
+# one suite, so search for a test by name rather than guessing which file
+# owns it.
+#
+# `_compose_test_binary(<name> <sources>...)` registers one such binary.
+function(_compose_test_binary name)
+  add_executable(${name} ${ARGN})
+  target_link_libraries(${name} PRIVATE
+    SigilCompose SigilWeavePorts GTest::gtest_main)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+# The kernel, the authoring grammar, masks and the field walks. The field
+# walks include ComposeInternal.h AND ComposeRuntime.h (the only test TU
+# that does either) so the equality comparators and the kSlotSpecs table
+# can be reached DIRECTLY — see the file header — which is why this binary
+# alone sees the library's source root. yoga::yogacore is PRIVATE to
+# SigilCompose, so its headers are not on this target's path by
+# inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
+# the INCLUDE PATH; the archive itself was already in the link closure.
+_compose_test_binary(compose_core_test
+  test/ComposeTestKernel.cpp
+  test/ComposeTestGrammar.cpp
+  test/ComposeTestMask.cpp
+  test/ComposeTestFieldPins.cpp
+)
+target_include_directories(compose_core_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(compose_core_test PRIVATE yoga::yogacore)
+
+# Leaves, feed, routers, layouts, text effects and colour management.
+_compose_test_binary(compose_content_test
+  test/ComposeTestContent.cpp
+)
+
+# Lines, rails, hatches and brushes.
+_compose_test_binary(compose_brush_test
+  test/ComposeTestLines.cpp
+  test/ComposeTestBrushes.cpp
+)
+
+# Text data, the text pass, vertical writing and motion along paths.
+_compose_test_binary(compose_text_test
+  test/ComposeTestTextData.cpp
+  test/ComposeTestTextPass.cpp
+  test/ComposeTestVertical.cpp
+  test/ComposeTestPathMotion.cpp
+)
+
+# Composer queries and the studio.
+_compose_test_binary(compose_studio_test
+  test/ComposeTestQueriesStudio.cpp
+)
+
+# The engine walkthroughs and the README's compile check.
 # Every API name the README spells, compiled against the headers that own
 # it. A hand-written guard only covers the sections someone remembered to
 # transcribe, which is how documentation that does not compile reaches a
@@ -113,44 +167,26 @@ add_test(NAME compose_api_doc_probes_self_test
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --self-test)
 
-add_executable(compose_test
+_compose_test_binary(compose_docs_test
   ${COMPOSE_API_DOC_PROBES}
-  test/ComposeTestKernel.cpp
-  test/ComposeTestContent.cpp
-  test/ComposeTestLines.cpp
-  test/ComposeTestVertical.cpp
-  test/ComposeTestBrushes.cpp
   test/ComposeTestEngineDocs.cpp
-  test/ComposeTestTextData.cpp
-  test/ComposeTestTextPass.cpp
-  test/ComposeTestPathMotion.cpp
-  test/ComposeTestQueriesStudio.cpp
-  test/ComposeTestGrammar.cpp
-  test/ComposeTestMask.cpp
-  # The field walks. Includes ComposeInternal.h AND ComposeRuntime.h (the
-  # only test TU that does either) so the equality comparators and the
-  # kSlotSpecs table can be reached DIRECTLY — see the file header.
-  test/ComposeTestFieldPins.cpp
 )
-# yoga::yogacore is PRIVATE to SigilCompose, so its headers are not on this
-# target's path by inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>.
-# Listed for the INCLUDE PATH; the archive itself was already in the link
-# closure.
-target_link_libraries(compose_test PRIVATE
-  SigilCompose SigilWeavePorts yoga::yogacore GTest::gtest_main)
-# The generated probe TU lives in the binary dir and includes the shared
-# harness by name, like every hand-written slice does.
-target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+# The generated probe TU lives in the binary dir and includes its support
+# header by the same path the hand-written slices use.
+target_include_directories(compose_docs_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
 # Committed test assets (the SigilImage test/assets convention): today one
 # generated variable font, an advance-variant wght instrument. Not
-# fetch_assets — a TEST must never depend on an opt-in target.
-target_compile_definitions(compose_test PRIVATE
-  SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")
-add_test(NAME compose_test COMMAND compose_test)
+# fetch_assets — a TEST must never depend on an opt-in target. Defined for
+# the binaries whose tests open it.
+foreach(_t compose_content_test compose_text_test compose_docs_test)
+  target_compile_definitions(${_t} PRIVATE
+    SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")
+endforeach()
 
 # The kit tier (include/sigilcompose/kit/*.h). Separate binary rather than
-# more cases in compose_test: the kit changes nothing in the kernel, so a
-# kit failure must never look like a kernel failure on the dashboard.
+# more cases in the kernel binaries: the kit changes nothing in the kernel,
+# so a kit failure must never look like a kernel failure on the dashboard.
 add_executable(compose_kit_test
   test/ComposeKitTest.cpp
 )

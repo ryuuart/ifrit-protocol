@@ -134,27 +134,69 @@ target_link_libraries(SigilWeaveQt INTERFACE
   SigilWeave # bridges Paragraph/Query types directly
 )
 
-# One TU per module (mirroring the library's own structure) linked into a
-# single test binary; shared fixtures live in TestSupport.
-add_executable(weave_test
-  test/TestSupport.cpp test/TestSupport.h
+# Tests are one binary per feature, grouped by the library's own layering
+# (fonts and paragraph model, then layout, then the query, choreography and
+# kit layers over it), so each binary compiles and links only the headers
+# and targets its feature needs. Fixtures live under test/support/: every
+# binary shapes through one process-wide FontContext (support/Fonts.h),
+# and each has a support header that includes exactly what its TUs use.
+function(sigil_weave_add_test name)
+  add_executable(${name} ${ARGN})
+  target_link_libraries(${name} PRIVATE SigilWeave SigilWeavePorts
+    GTest::gtest_main)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+# The container test shapes nothing, so it links no font port.
+add_executable(weave_container_test
+  test/InlineVectorTest.cpp
+)
+target_link_libraries(weave_container_test PRIVATE SigilWeave
+  GTest::gtest_main)
+add_test(NAME weave_container_test COMMAND weave_container_test)
+
+sigil_weave_add_test(weave_shaping_test
+  test/support/Fonts.h test/support/Paragraphs.h test/support/Layouts.h
+  test/support/ShapingSupport.h
   test/ShaperTest.cpp
   test/ParagraphTest.cpp
-  test/FlowTest.cpp
+  test/TypographyTest.cpp
+)
+target_link_libraries(weave_shaping_test PRIVATE absl::flat_hash_set)
+
+# StressTest drives layoutParagraph over large paragraphs (and paints them
+# through SigilWeaveShaders' runtime shaders), so it lives with layout.
+sigil_weave_add_test(weave_layout_test
+  test/support/Fonts.h test/support/Paragraphs.h test/support/Layouts.h
+  test/support/LayoutSupport.h
   test/LayoutTest.cpp
   test/KnuthPlassTest.cpp
-  test/TypographyTest.cpp
   test/OverflowTest.cpp
-  test/QueryTest.cpp
-  test/ChoreographTest.cpp
   test/VerticalTest.cpp
+  test/FlowTest.cpp
   test/StressTest.cpp
-  test/InlineVectorTest.cpp
+)
+target_link_libraries(weave_layout_test PRIVATE SigilWeaveShaders
+  absl::flat_hash_set)
+
+sigil_weave_add_test(weave_query_test
+  test/support/Fonts.h test/support/Paragraphs.h
+  test/support/QuerySupport.h
+  test/QueryTest.cpp
+)
+
+sigil_weave_add_test(weave_choreograph_test
+  test/support/Fonts.h test/support/Paragraphs.h
+  test/support/ChoreographSupport.h
+  test/ChoreographTest.cpp
+)
+
+sigil_weave_add_test(weave_kit_test
+  test/support/Fonts.h test/support/Paragraphs.h
+  test/support/KitSupport.h
   test/KitTest.cpp
 )
-target_link_libraries(weave_test PRIVATE SigilWeave SigilWeaveShaders
-  SigilWeavePorts SigilWeaveKit GTest::gtest_main absl::flat_hash_set)
-add_test(NAME weave_test COMMAND weave_test)
+target_link_libraries(weave_kit_test PRIVATE SigilWeaveKit)
 
 add_executable(weave_bench
   bench/weave_bench.cpp
