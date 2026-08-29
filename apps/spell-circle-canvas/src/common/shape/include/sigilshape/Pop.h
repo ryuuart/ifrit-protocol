@@ -24,6 +24,12 @@
 
 namespace sigil::shape {
 
+/** The point-operator language: a scope holding the vocabulary rather
+ *  than a type anyone instantiates. Inside it are the attribute
+ *  references operators address, the operator descriptions themselves,
+ *  and the Chain that sequences them. A Chain only DESCRIBES work —
+ *  executing it is the job of a backend, and the CPU and GPU backends
+ *  are required to produce the same result from the same Chain. */
 struct pop {
   enum class Lane : int32_t { P = 0, Dir = 1, Color = 2, Scale = 3, T = 4 };
   /** TouchDesigner's real superpower, adopted: operators address

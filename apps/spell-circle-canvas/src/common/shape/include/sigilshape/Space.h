@@ -54,12 +54,19 @@ struct Camera {
   glm::mat4 viewProjection(SkSize viewport) const;
 };
 
+/** One directional light. `direction` is the direction the light
+ *  TRAVELS in world space, so it points from the lamp toward the
+ *  scene rather than back at it. */
 struct Light {
   glm::vec3 direction = {-0.5f, -0.8f, -0.4f};  ///< world-space, toward scene
   SkColor4f color = SkColors::kWhite;
   float intensity = 1;
 };
 
+/** Everything the software mesh shader needs beyond the geometry
+ *  itself: which of the three shading modes to run, the surface's
+ *  base colour and optional texture, and the lights the Lit mode
+ *  answers to. */
 struct MeshStyle {
   enum class Mode : uint8_t {
     Lit,      ///< per-vertex Lambert + Blinn specular + rim

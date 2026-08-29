@@ -146,3 +146,16 @@ if(SLANGC_EXECUTABLE)
   target_include_directories(SigilWorld PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
   target_compile_definitions(SigilWorld PRIVATE SIGILWORLD_POP_SPIRV)
 endif()
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SigilWorld
+  BRIEF "Windowless 3D scenes drawn on a real GPU and handed back as raster images"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

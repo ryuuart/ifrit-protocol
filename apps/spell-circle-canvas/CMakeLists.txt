@@ -18,6 +18,17 @@ if(POLICY CMP0179)
   cmake_policy(SET CMP0179 NEW) # ...keeping the first occurrence, everywhere
 endif()
 
+# The wire schema's C++ header is generated in one directory and compiled
+# in others. Under the OLD behavior the GENERATED source property is
+# visible only in the directory that sets it, so a consumer elsewhere
+# treats the not-yet-written header as a missing source file and the
+# generate step fails. NEW makes the property global, which is what lets
+# the schema target carry its own build ordering instead of every
+# consumer having to name the generator.
+if(POLICY CMP0118)
+  cmake_policy(SET CMP0118 NEW) # GENERATED is visible in every directory
+endif()
+
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
 set(QT_QML_GENERATE_QMLLS_INI ON) # QMLLS Language Server config
@@ -231,6 +242,12 @@ endif()
 # (`--target fetch_assets`); nothing here runs during a normal build.
 include(FetchAssets)
 
+# Per-library Doxygen sites (`--target docs`); nothing here runs during a
+# normal build, and the target is simply absent when Doxygen is not
+# installed. Each library registers itself with sigil_add_docs(); the
+# sigil_finalize_docs() call after add_subdirectory(src) writes the rules.
+include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake")
+
 enable_testing()
 
 # What the policies above cannot reach: vcpkg's exported configs disagree
@@ -262,6 +279,10 @@ endif()
 qt_standard_project_setup(REQUIRES 6.11)
 
 add_subdirectory(src)
+
+# Every sigil_add_docs() has run by now, which is what lets each library's
+# Doxyfile name all the others in TAGFILES.
+sigil_finalize_docs()
 
 include(GNUInstallDirs)
 install(TARGETS SpellCircle

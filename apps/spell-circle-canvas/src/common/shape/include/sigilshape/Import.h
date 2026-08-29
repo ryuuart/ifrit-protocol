@@ -137,6 +137,10 @@ struct Part {
   Cloud asCloud() const;
 };
 
+/** A whole imported file: its parts, and the operations that only make
+ *  sense across all of them at once — the combined counts and bounds,
+ *  one merged mesh, and the transform that fits the model to a size
+ *  the rest of a scene can work with. */
 struct Model {
   std::vector<Part> parts;
 

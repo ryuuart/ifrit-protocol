@@ -4,4 +4,3 @@
 # reformat). clang-format 18+ honors this file; scripts/check.py applies
 # the same exclusions in its own file selection.
 apps/spell-circle-canvas/src/common/world/thirdparty/**
-apps/spell-circle-canvas/src/spellcircle/shared/schema/include/SpellCircle_generated.h

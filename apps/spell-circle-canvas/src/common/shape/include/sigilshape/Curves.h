@@ -30,6 +30,12 @@
 
 namespace sigil::shape {
 
+/** A 3D curve as control points plus the rule that reads them. Linear
+ *  joins them, CatmullRom passes through them, and Bezier reads a
+ *  3n+1 layout of anchor, out-handle, in-handle, anchor. Every
+ *  evaluator here is uniform in the PARAMETER, so equal steps of t
+ *  cover unequal arc length wherever the control points bunch up;
+ *  `sampleArcLength()` is what trades that for even spacing. */
 struct Spline3 {
   enum class Type : uint8_t { Linear, CatmullRom, Bezier };
 
@@ -68,6 +74,9 @@ namespace curves {
 std::vector<Frame3> frames(const Spline3& spline, int count,
                            glm::vec3 up = {0, 1, 0});
 
+/** How `tube()` sweeps its circle: the cross-section radius and its
+ *  profile over the curve, the tessellation along and around, and
+ *  whether open ends are closed off. */
 struct TubeOptions {
   float radius = 6;
   /** Radius profile over t (multiplies `radius`); null = constant. */
@@ -81,6 +90,8 @@ struct TubeOptions {
 /** Sweep a circle along the spline. UVs: u around, v = t. */
 Mesh tube(const Spline3& spline, const TubeOptions& options = {});
 
+/** How `ribbon()` sweeps its band. Unlike a tube the band has a
+ *  facing, so `up` seeds the frames that decide which way it turns. */
 struct RibbonOptions {
   float width = 24;
   std::function<float(float t)> profile;
@@ -91,6 +102,10 @@ struct RibbonOptions {
 /** Sweep a flat band along the spline (a 3D brush stroke). */
 Mesh ribbon(const Spline3& spline, const RibbonOptions& options = {});
 
+/** How `banner()` cuts its cloth. The band covers only a window of the
+ *  closed spline: `head` is the leading edge in loop parameter and
+ *  `span` the length trailing it, so advancing `head` alone tows the
+ *  banner around the curve. */
 struct BannerOptions {
   float width = 24;
   float head = 1;  ///< window end, in loop parameter

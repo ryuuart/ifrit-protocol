@@ -262,6 +262,9 @@ using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;
  *  each consumer reads only its own kind. */
 class StampCache {
  public:
+  /** One bake. A consumer stores either a recorded picture or a
+   *  rastered image with the logical size it was baked at, and reads
+   *  back only the kind it wrote. */
   struct Entry {
     sk_sp<SkPicture> pic;
     sk_sp<SkImage> image;
@@ -971,6 +974,10 @@ class Selector {
     Intersect,
     Complement,
   };
+  /** Everything a selector of any kind needs, in one shape. The fields
+   *  a given Kind ignores stay at their defaults — one flat state keeps
+   *  selectors cheap to copy and comparable by value, which is what
+   *  lets a track's selector take part in prop equality. */
   struct State {
     Kind kind = Kind::All;
     uint32_t lo = 0, hi = 0;  ///< Word/Words/Line/Sentence/Range bounds
@@ -2842,6 +2849,9 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
 
+/** A length that may be absolute, relative to the parent, or left for
+ *  layout to decide. Constructing one from a bare float gives pixels,
+ *  so the common case reads as a number. */
 struct Dim {
   enum class Unit : uint8_t { Px, Pct, Auto };
   Unit unit = Unit::Auto;
@@ -2971,6 +2981,11 @@ concept ComponentFn =
 // ---------------------------------------------------------------------------
 // Element — a cheap value description
 
+/** One node of a scene description: what to draw, how to lay it out,
+ *  and the children under it. An Element is a VALUE built fresh every
+ *  frame and thrown away — it holds no GPU or layout state, and the
+ *  retained tree behind it is the composer's business. The chaining
+ *  setters return `*this`, so a node reads as one expression. */
 class Element {
  public:
   Element();  // empty box
@@ -4400,6 +4415,11 @@ Element memo(P props, F fn) {
 // ---------------------------------------------------------------------------
 // Composer — the retained side; a guest in the host's canvas
 
+/** The retained tree standing behind the descriptions. It diffs each new
+ *  Element tree against the last one, keeps layout and cached rasters
+ *  alive across frames for the parts that did not change, and paints
+ *  into a canvas the caller owns — it creates no surface and takes over
+ *  no rendering loop. */
 class Composer {
  public:
   /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
@@ -4568,6 +4588,10 @@ class Composer {
   std::vector<std::string> routesAt(std::string_view nodeKey) const;
 
   // ---- introspection (cost verification; see the compose_bench target) --
+  /** What the retained tree currently holds and what the last frame
+   *  did to it. Read for verifying that a description is being reused
+   *  rather than rebuilt: describes skipped and nodes kept should
+   *  dominate once a tree has settled. */
   struct Stats {
     size_t instances = 0;       ///< live retained nodes
     size_t yogaNodes = 0;       ///< instances carrying a Yoga node —
@@ -4668,6 +4692,10 @@ class Composer {
      *  child on top of it. */
     SplitBaked,
   };
+  /** One node's share of the last frame, with the reason it was or was
+   *  not promoted to a cached bake. This is the per-node companion to
+   *  Stats: Stats says the tree is re-rasterizing, these say which
+   *  node is doing it and what refused the bake. */
   struct NodeCost {
     std::string label;   ///< key() if set, else kind + size — actionable
     double selfMs = 0;   ///< this node's own paint, EXCLUDING children

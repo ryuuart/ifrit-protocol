@@ -69,6 +69,10 @@ class Environment {
 sk_sp<SkImage> bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
                             float heightScale = 1);
 
+/** Dials for the `gold()` shader — a warm metal whose reflection is
+ *  broken up by foil wrinkles. `crinkle` and `crinkleScale` set how
+ *  coarse that wrinkling is; at zero the surface is polished and the
+ *  environment reflects cleanly. */
 struct GoldParams {
   SkColor4f tint = {1.0f, 0.78f, 0.34f, 1};  ///< gold F0
   float roughness = 0.25f;
@@ -78,6 +82,10 @@ struct GoldParams {
   float ambient = 0.18f;       ///< floor so shadow sides stay golden
 };
 
+/** Dials for the `chrome()` shader — a cool mirror that lives or dies
+ *  by how hard the environment is pushed. `contrast` and `exposure`
+ *  shape the reflection, `brushed` streaks it anisotropically, and
+ *  `fresnel` sets how much brighter the glancing edges read. */
 struct ChromeParams {
   SkColor4f tint = {0.92f, 0.95f, 1.0f, 1};  ///< cool steel bias
   float roughness = 0.0f;
@@ -89,6 +97,10 @@ struct ChromeParams {
   float exposure = 1.0f;
 };
 
+/** Dials for the `glass()` shader — a transmissive surface that
+ *  displaces the backdrop behind it rather than reflecting an
+ *  environment. `refractPx` is how far the bevel bends what is
+ *  behind, which is what sells the thickness. */
 struct GlassParams {
   SkColor4f tint = {0.82f, 0.93f, 0.96f, 1};  ///< transmission color
   float refractPx = 18;   ///< max backdrop displacement at the bevel

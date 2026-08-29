@@ -38,6 +38,10 @@
 
 namespace sigil::world::scene {
 
+/** One declared node of a scene tree: a group, a prop, or a panel,
+ *  with its placement and the children under it. A Node is a VALUE
+ *  describing what should exist, not a handle to something that does
+ *  — the reconciler is what makes the world match the description. */
 class Node {
  public:
   enum class Kind : uint8_t { Group, Prop, Panel };
@@ -139,10 +143,19 @@ struct Stack {
   }
 };
 
+/** Keeps a World matching a declared tree. Each `render()` diffs the
+ *  tree it is given against the one before it and applies only the
+ *  difference, so a caller can rebuild the whole description every
+ *  frame and still pay only for what actually changed. Nodes are
+ *  matched across frames by key, which is what lets a prop keep its
+ *  identity — and its GPU residency — while it moves. */
 class Scene {
  public:
   explicit Scene(World& world) : m_world(world) {}
 
+  /** What the last reconcile did, counted by outcome. `kept` dominating
+   *  the others is the sign the tree is being matched rather than
+   *  rebuilt. */
   struct Stats {
     int added = 0;
     int removed = 0;

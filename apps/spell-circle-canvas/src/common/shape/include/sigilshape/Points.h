@@ -38,6 +38,12 @@
 
 namespace sigil::shape {
 
+/** Points plus named attribute lanes, all parallel to `positions`.
+ *  A lane is one value per point under a name the operators agree on
+ *  — "size", "tint", "normal" — which is what lets a generator, a
+ *  modifier and a consumer meet without a fixed vertex format. Lanes
+ *  come in three widths (scalar, vector, color) and are created on
+ *  first touch, sized to the cloud and filled with a default. */
 struct Cloud {
   std::vector<glm::vec3> positions;
   std::map<std::string, std::vector<float>, std::less<>> scalars;
@@ -100,6 +106,9 @@ void displaceNoise(Cloud& cloud, float amplitude, float frequency,
 // ---------------------------------------------------------------------------
 // Consumers
 
+/** How `instance()` stamps its mesh at every point. Each lane name is
+ *  optional: when empty, that property is uniform across the cloud
+ *  rather than read per point. */
 struct InstanceOptions {
   float scale = 1;
   /** Scalar lane multiplied into scale per point (e.g. "size"). */
@@ -136,6 +145,10 @@ Mesh quads(const Cloud& cloud, float width, float height,
 void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,
                     const std::string& primLane);
 
+/** How `drawBillboards()` splats its sprites — the image and its size,
+ *  the lanes that vary size and tint per point, and whether the
+ *  splats glow additively, sort back-to-front, and shrink with
+ *  distance. */
 struct BillboardStyle {
   /** Sprite image; null draws a soft radial dot. */
   sk_sp<SkImage> sprite;

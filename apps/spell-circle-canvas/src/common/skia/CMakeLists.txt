@@ -61,3 +61,16 @@ target_link_libraries(SpellCircleSkiaQt
     PRIVATE
       Qt6::GuiPrivate
 )
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SpellCircleSkia
+  BRIEF "Skia Graphite bring-up over a Metal or QRhi device someone else owns"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

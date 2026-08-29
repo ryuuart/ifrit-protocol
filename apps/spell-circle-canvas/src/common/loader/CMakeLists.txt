@@ -29,3 +29,16 @@ if(OpenImageIO_FOUND)
   target_compile_definitions(loader_test PRIVATE SIGILLOADER_HAS_OIIO)
 endif()
 add_test(NAME loader_test COMMAND loader_test)
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SigilLoader
+  BRIEF "Runtime resource hub: resources addressed by URI, cached, and reloaded when they change"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -59,7 +59,7 @@ class SkImage;
 
 namespace sigil::compose {
 
-/** A gradient ramp stop (position 0..1 + color) — the MaterialX <ramp> atom.
+/** A gradient ramp stop (position 0..1 + color) — the MaterialX `<ramp>` atom.
  *  Authored in the working color space. */
 struct Stop {
   float pos = 0.0f;

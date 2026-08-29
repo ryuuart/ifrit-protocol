@@ -48,6 +48,10 @@ namespace sigil::compose {
  *  same seed, same tile (determinism is what makes regeneration a choice). */
 using PatternProgram = std::function<void(SkCanvas&, SkSize, uint32_t seed)>;
 
+/** A repeating fill built from one tile — drawn by a program or
+ *  described as an Element tree. The tile is regenerated on demand from
+ *  the pattern's seed, so restyling every use of a pattern is a matter
+ *  of changing the seed rather than rebuilding it. */
 class Pattern {
  public:
   Pattern() = default;

@@ -1,0 +1,241 @@
+# Task runner entry points. `mise tasks` lists them, `mise run <name>` runs one.
+#
+# mise is not required to work on this repository. Every task here is a
+# thin wrapper over a command CLAUDE.md already documents, and running
+# that command directly does the same thing — the wrappers exist so the
+# workflows that get repeated are one word instead of a path and a set
+# of flags to remember.
+#
+# Two conventions run through the file, and they are in tension:
+#
+#  * Anything after `--` is forwarded to the last command a task runs,
+#    which is what lets `mise run test -- -R compose` work.
+#  * A task that declares its own arguments in `usage` CANNOT forward.
+#
+# So each task picks one. Tasks wrapping a script with a considered
+# interface of its own (check.py, coverage.py, sanitize.py,
+# plate_ledger.py, ctest, ComposeGallery) forward and declare nothing;
+# tasks that need to choose a build configuration or a target declare
+# `usage` and do not forward.
+
+[tasks."docs:build"]
+description = "Generate the per-library API documentation into build/docs"
+dir = "apps/spell-circle-canvas"
+run = """
+set -e
+# Documentation is parsed from headers, so the build tree only has to be
+# CONFIGURED, never compiled. A first run on a fresh checkout therefore
+# stops after configure rather than building the whole application.
+if [ ! -f build/CMakeCache.txt ]; then
+  echo "No build tree yet — configuring (this does not compile the app)."
+  python3 scripts/setup.py --config Debug --configure-only
+fi
+cmake --build build --config Debug --target docs
+"""
+
+[tasks.docs]
+description = "Build the API documentation and open it"
+depends = ["docs:build"]
+dir = "apps/spell-circle-canvas"
+run = """
+set -e
+page="$PWD/build/docs/index.html"
+echo "$page"
+open "$page" 2>/dev/null || xdg-open "$page" 2>/dev/null || true
+"""
+
+[tasks."docs:serve"]
+description = "Build the API documentation and serve it from a container"
+depends = ["docs:build"]
+dir = "apps/spell-circle-canvas"
+run = """
+set -e
+name=spellcircle-docs
+port="${DOCS_PORT:-8080}"
+
+# The generated tree is a complete build context: the docs target stages
+# the Dockerfile and nginx config into it alongside the HTML.
+docker build -t "$name" build/docs
+
+docker rm -f "$name" >/dev/null 2>&1 || true
+docker run -d --name "$name" -p "$port:80" "$name" >/dev/null
+
+# Opening the page before nginx is listening shows a connection error
+# that a reload would have fixed, so wait for it to actually answer.
+i=0
+while [ "$i" -lt 40 ]; do
+  if curl -fsS -o /dev/null "http://localhost:$port/"; then break; fi
+  i=$((i + 1))
+  sleep 0.25
+done
+
+echo "Serving on http://localhost:$port"
+echo "Stop it with: docker rm -f $name"
+open "http://localhost:$port" 2>/dev/null || xdg-open "http://localhost:$port" 2>/dev/null || true
+"""
+
+# ---------------------------------------------------------------------------
+# Build and run
+#
+# One build tree, several configurations: the generator is Ninja
+# Multi-Config, so `--config` selects among them rather than each getting
+# its own directory. Binaries land in build/bin/<config>/.
+
+[tasks.build]
+description = "Configure and build the application (--config Debug|Release|RelWithDebInfo)"
+dir = "apps/spell-circle-canvas"
+usage = '''
+flag "--config <config>" help="build configuration" default="Debug" {
+  choices "Debug" "Release" "RelWithDebInfo"
+}
+'''
+run = 'python3 scripts/setup.py --config "${usage_config:-Debug}"'
+
+[tasks.app]
+description = "Build and launch SpellCircle (--config Debug|Release|RelWithDebInfo)"
+dir = "apps/spell-circle-canvas"
+usage = '''
+flag "--config <config>" help="build configuration" default="Debug" {
+  choices "Debug" "Release" "RelWithDebInfo"
+}
+'''
+run = '''
+set -e
+config="${usage_config:-Debug}"
+python3 scripts/setup.py --config "$config"
+# A macOS bundle: `open` gives it a proper application activation rather
+# than the console-app treatment the bare binary gets.
+open "build/bin/$config/SpellCircle.app"
+'''
+
+# ---------------------------------------------------------------------------
+# Tests
+#
+# Two tasks rather than one with a --config flag: extra arguments after
+# `--` are forwarded to ctest, and a task that declares its own flags
+# cannot also forward. Filtering tests is worth more than the flag.
+#
+#     mise run test -- -R compose
+#     mise run test -- --rerun-failed
+
+[tasks.test]
+description = "Run the Debug test suite (extra args go to ctest, after --)"
+dir = "apps/spell-circle-canvas"
+depends = ["build"]
+run = "ctest --test-dir build -C Debug --output-on-failure"
+
+[tasks."test:release"]
+description = "Run the Release test suite (extra args go to ctest, after --)"
+dir = "apps/spell-circle-canvas"
+depends = ["build --config Release"]
+run = "ctest --test-dir build -C Release --output-on-failure"
+
+# ---------------------------------------------------------------------------
+# Gates
+#
+# Each of these wraps a script that already has a considered interface,
+# so none of them declare flags of their own — everything after `--` is
+# forwarded:
+#
+#     mise run check -- --fix
+#     mise run sanitize -- --thread
+#     mise run coverage -- --filter compose --open
+
+[tasks.check]
+description = "Format and lint the changed files (args after -- go to check.py)"
+dir = "apps/spell-circle-canvas"
+run = "python3 scripts/check.py"
+
+[tasks.coverage]
+description = "Instrumented build, test run and llvm-cov report (args go to coverage.py)"
+dir = "apps/spell-circle-canvas"
+run = "python3 scripts/coverage.py"
+
+[tasks.sanitize]
+description = "ASan+UBSan build and test run; --thread for the TSan lane"
+dir = "apps/spell-circle-canvas"
+run = "python3 scripts/sanitize.py"
+
+# ---------------------------------------------------------------------------
+# Visual and performance work
+#
+# Release throughout: Debug timings say nothing about this code, and the
+# ledger compares rendered bytes from a build whose optimisation settings
+# have to be the ones the baseline was taken with.
+
+[tasks.gallery]
+description = "Render gallery scenes headlessly (args go to ComposeGallery, after --)"
+dir = "apps/spell-circle-canvas"
+# Debug, and no --config flag: a task that declares its own flags cannot
+# forward extra arguments, and `--scene <substring>` is the whole point
+# of running this by hand.
+#
+#     mise run gallery -- --scene astrolabe
+#     mise run gallery -- --gpu
+run = '''
+set -e
+cmake --build build --config Debug --target ComposeGallery
+out="build/gallery-out"
+mkdir -p "$out"
+echo "Rendering into $out"
+# The gallery is an app bundle, so a headless run goes through the
+# binary inside it rather than the bundle.
+exec "build/bin/Debug/ComposeGallery.app/Contents/MacOS/ComposeGallery" \
+  --headless "$out"
+'''
+
+[tasks.sketch]
+description = "Launch the live-coding sketch host (args go to ComposeSketch, after --)"
+dir = "apps/spell-circle-canvas"
+run = '''
+set -e
+cmake --build build --config Debug --target ComposeSketch
+exec build/bin/Debug/ComposeSketch
+'''
+
+[tasks.ledger]
+description = "Byte-identity sweep over the plate registry (args go to plate_ledger.py)"
+dir = "apps/spell-circle-canvas"
+run = '''
+set -e
+# The ledger renders through ComposeGallery and refuses to run without
+# it, but does not build it itself.
+cmake --build build --config Release --target ComposeGallery
+python3 scripts/plate_ledger.py
+'''
+
+[tasks.bench]
+description = "Build and run one benchmark in Release"
+dir = "apps/spell-circle-canvas"
+usage = '''
+arg "<benchmark>" help="which benchmark to run" default="compose_bench" {
+  choices "compose_bench" "weave_bench" "scry_bench" "shape_bench" "world_bench"
+}
+'''
+run = '''
+set -e
+name="${usage_benchmark:-compose_bench}"
+cmake --build build --config Release --target "$name"
+binary="build/bin/Release/$name"
+# Printed so a run with the benchmark library's own filters and repeat
+# options is a copy-paste away.
+echo "$binary"
+exec "$binary"
+'''
+
+# ---------------------------------------------------------------------------
+# Generated files and assets
+
+[tasks.flatbuffers]
+description = "Regenerate the committed Python schema modules from SpellCircle.fbs"
+dir = "apps/spell-circle-canvas"
+# The C++ header is generated by the build and is not committed, so it is
+# neither an input nor an output here.
+sources = ["src/spellcircle/shared/schema/SpellCircle.fbs"]
+outputs = ["../python/SpellCircle/Scene.py"]
+run = "sh scripts/regen_flatbuffers.sh"
+
+[tasks.assets]
+description = "Fetch the open-licensed demo assets into build/assets"
+dir = "apps/spell-circle-canvas"
+run = "cmake --build build --config Debug --target fetch_assets"

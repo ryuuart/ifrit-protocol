@@ -101,6 +101,10 @@ inline uint64_t fingerprint(const shape::Cloud& cloud,
 
 }  // namespace detail
 
+/** The set: lights, camera and a declared scene, applied together on
+ *  commit. Stage is the reach-for layer over World and Scene — it
+ *  holds the whole shot as dials, so a sketch can describe the frame
+ *  it wants rather than sequencing the calls that build it. */
 class Stage {
  public:
   explicit Stage(World& world) : m_world(world), m_scene(world) {}

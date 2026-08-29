@@ -35,10 +35,15 @@
 
 namespace sigil::world {
 
+/** A prop's placement — the model matrix taking its mesh from local
+ *  space into the world. */
 struct TransformComponent {
   glm::mat4 model{1.0f};
 };
 
+/** What a prop is made of. A prop placed with one material has only
+ *  `material`; a prop placed with several carries the rest in `slots`,
+ *  and the mesh says per triangle which slot it wears. */
 struct MaterialComponent {
   /** What the prop is made of — slot 0. */
   Material material;

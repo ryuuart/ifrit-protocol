@@ -232,3 +232,16 @@ target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
 add_subdirectory(kit)
 add_subdirectory(sketch)
 add_subdirectory(gallery)
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SigilCompose
+  BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

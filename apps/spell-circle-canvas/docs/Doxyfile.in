@@ -1,0 +1,79 @@
+# Configured per library by sigil_add_docs() in Docs.cmake. Only the tags
+# that differ from Doxygen's defaults are listed; everything else is left
+# at the default so a Doxygen upgrade does not have to be mirrored here.
+
+PROJECT_NAME           = "@SIGIL_DOCS_NAME@"
+PROJECT_BRIEF          = "@SIGIL_DOCS_BRIEF@"
+OUTPUT_DIRECTORY       = @SIGIL_DOCS_OUTPUT@
+
+INPUT                  = @SIGIL_DOCS_INPUT@
+FILE_PATTERNS          = *.h *.hpp *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */archive/* */build/* */test/* */bench/*
+
+# detail namespaces are implementation scaffolding reachable only because
+# C++ has no way to hide a header. Documenting them would advertise names
+# that carry no compatibility promise.
+EXCLUDE_SYMBOLS        = *::detail *::detail::* detail::*
+
+STRIP_FROM_PATH        = @SIGIL_DOCS_STRIP@
+FULL_PATH_NAMES        = NO
+
+# The house comment style is a /** */ block whose first sentence is the
+# summary, so the brief is taken from that sentence rather than written
+# twice behind an explicit @brief.
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MARKDOWN_ID_STYLE      = GITHUB
+USE_MDFILE_AS_MAINPAGE = @SIGIL_DOCS_MAINPAGE@
+
+# A type carries the prose; its self-evident fields and one-line accessors
+# do not repeat it. Warning about those members would bury the warnings
+# that matter -- an undocumented type -- under roughly thirty times as
+# many that do not.
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = YES
+WARN_IF_UNDOCUMENTED   = @SIGIL_DOCS_WARN_UNDOCUMENTED@
+WARN_NO_PARAMDOC       = NO
+
+SORT_BRIEF_DOCS        = NO
+SORT_MEMBER_DOCS       = NO
+GENERATE_LATEX         = NO
+GENERATE_HTML          = @SIGIL_DOCS_GENERATE_HTML@
+HTML_OUTPUT            = html
+
+# Theme. Doxygen's stock HTML does not respond to viewport width at all;
+# this replaces the stylesheet without altering the generated structure,
+# so the markup Doxygen emits stays the markup the theme expects.
+#
+# The three settings above HTML_EXTRA_STYLESHEET are requirements of the
+# theme's sidebar layout, not preferences: the treeview IS the navigation
+# it styles, and it has no rules for a full-width sidebar or for
+# Doxygen's own dark palette (its toggle supplies dark mode instead).
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_HEADER            = @SIGIL_DOCS_HEADER@
+HTML_EXTRA_STYLESHEET  = @SIGIL_DOCS_STYLESHEETS@
+HTML_EXTRA_FILES       = @SIGIL_DOCS_EXTRA_FILES@
+
+# Doxygen grew its own versions of two things the theme already does.
+# Running both leaves a duplicate copy button on every code block and a
+# second outline panel beside the theme's own.
+HTML_COPY_CLIPBOARD    = NO
+PAGE_OUTLINE_PANEL     = NO
+
+# Cross-library linking: every library emits a tag file naming what it
+# declares, and then every library reads all the others. A type used
+# across a boundary resolves to the page that defines it.
+GENERATE_TAGFILE       = @SIGIL_DOCS_TAGFILE@
+TAGFILES               = @SIGIL_DOCS_TAGFILES_IN@
+
+HAVE_DOT               = @SIGIL_DOCS_HAVE_DOT@
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+COLLABORATION_GRAPH    = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+QUIET                  = YES

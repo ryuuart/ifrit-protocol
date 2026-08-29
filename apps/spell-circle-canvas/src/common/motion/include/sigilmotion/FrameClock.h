@@ -19,6 +19,10 @@ struct FrameClockOptions {
   double maxDelta = 0.25;
 };
 
+/** Turns wall-clock readings into per-frame deltas an animation can
+ *  trust. It clamps the delta so a stalled or suspended frame does not
+ *  jump every animation forward by the length of the stall, and it can
+ *  scale time so a whole scene runs slower or faster. */
 class FrameClock {
  public:
   using Options = FrameClockOptions;

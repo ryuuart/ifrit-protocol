@@ -44,6 +44,10 @@ namespace sigil::world {
 
 struct LightComponent;  // Components.h
 
+/** How the device and its offscreen targets are brought up: the render
+ *  size, which backend to ask for, how much multisampling to request,
+ *  and whether to turn on the backend's validation layers. Everything
+ *  here is fixed for the lifetime of the World it creates. */
 struct WorldConfig {
   int width = 1280;
   int height = 720;
@@ -278,6 +282,10 @@ struct Material {
   bool blended() const;
 };
 
+/** One material stacked over the one beneath it, through a mask and a
+ *  blend rule. Layering is how a surface gets local variation — rust
+ *  over steel, dirt in the crevices — without a bespoke shader per
+ *  combination. */
 struct Material::Layer {
   Material material;
   Mask mask;
@@ -373,6 +381,11 @@ struct Lighting {
   float environmentRotationDeg = 0;
 };
 
+/** The device, the offscreen colour-and-depth target, and the props
+ *  drawn into it. A World owns the GPU resources and hands frames back
+ *  as raster images; it never opens a window. Props are entities in
+ *  `registry()`, so anything the component vocabulary can express can
+ *  be attached to one after it is placed. */
 class World {
  public:
   /** Bring up the device and offscreen targets. Returns null (and

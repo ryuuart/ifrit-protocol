@@ -152,13 +152,17 @@ timings say nothing useful.
 
 ### Changing the wire format
 
-Edit `src/spellcircle/shared/schema/SpellCircle.fbs`, then run
-`scripts/regen_flatbuffers.sh` from anywhere and commit what it writes.
-It regenerates both sides — the C++ header and the Python modules.
+Edit `src/spellcircle/shared/schema/SpellCircle.fbs`. The two sides are
+then handled differently.
 
-Generated, never hand-edited:
+The **C++ header** is generated into the build tree by the
+`SpellCircleSchema` target, so the next build picks the edit up on its
+own — there is nothing to run and nothing to commit.
 
-- `src/spellcircle/shared/schema/include/SpellCircle_generated.h`
+The **Python modules** are committed, because `apps/python` is installed
+and imported without a CMake build in reach. Run
+`scripts/regen_flatbuffers.sh` from anywhere and commit what it writes:
+
 - `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
 ### Demo assets

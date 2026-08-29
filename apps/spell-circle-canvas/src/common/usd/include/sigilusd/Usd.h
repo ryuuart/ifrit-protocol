@@ -39,6 +39,9 @@
 
 namespace sigil::usd {
 
+/** Stage-wide settings for a `Writer`: where its textures land beside
+ *  the stage file, and the unit scale recorded so a consumer reads the
+ *  geometry at the size it was authored. */
 struct WriteOptions {
   /** Where the materials' images are written, relative to the stage
    *  file; empty = "<stem>_textures". PNG. */

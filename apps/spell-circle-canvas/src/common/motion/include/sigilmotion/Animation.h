@@ -115,6 +115,10 @@ inline T quantizeTime(T t, T hz) {
 }
 
 template <typename T>
+/** A value together with how it should move when it changes. Assigning
+ *  a new value does not jump to it: the transition spec says how to get
+ *  there, and the optional entrance and waypoint paths say what happens
+ *  the first time the value is mounted. */
 struct Transitioned {
   /** Value-initialized, not default-initialized. `animate(through({}))`
    *  builds one of these and then fills nothing; for a scalar T,
@@ -163,6 +167,8 @@ template <typename T>
 struct To {
   T value;
 };
+/** The half-built entrance argument: `from(a)` on its own is not yet an
+ *  animation, and `.to(b)` completes it. */
 template <typename T>
 struct From {
   T value;
@@ -178,6 +184,9 @@ To<T> to(T v) {
 }
 
 template <typename T>
+/** The mount-time path argument: `animate(through({...}))`. Each frame
+ *  pairs an ABSOLUTE time from the start of the path with the value to
+ *  hold at that time. */
 struct Waypoints {
   std::vector<std::pair<std::chrono::milliseconds, T>> frames;
 };

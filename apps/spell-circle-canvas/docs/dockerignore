@@ -1,0 +1,7 @@
+# Staged into the generated tree as .dockerignore by the `docs` target.
+#
+# The output tree holds only what is served — the build's intermediates
+# live beside it in docs-build/ — so the only things to keep out of the
+# image are the two files that describe how to build it.
+Dockerfile
+.dockerignore

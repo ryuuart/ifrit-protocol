@@ -909,6 +909,9 @@ struct Scatter {
            animatedMod == o.animatedMod;
   }
 
+  /** The scatter's baked stamp, shared by every copy of the brush
+   *  value. `bakedFor` pins the bake to the art it came from, so a
+   *  copy that swaps art re-bakes instead of stamping the old one. */
   struct Cache {
     sk_sp<SkPicture> pic;
     const void* bakedFor = nullptr;  // the art node the bake belongs to —
@@ -1406,6 +1409,8 @@ struct Art {
            stationPx == o.stationPx && reach == o.reach;
   }
 
+  /** The art's rastered strip, shared by every copy of the brush value
+   *  and pinned to the art it came from. */
   struct Cache {
     sk_sp<SkImage> image;  // the 2x bake
     SkSize artSize{0, 0};  // logical art size

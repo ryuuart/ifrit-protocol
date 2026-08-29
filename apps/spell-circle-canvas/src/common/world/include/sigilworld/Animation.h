@@ -245,7 +245,7 @@ struct CameraPath {
  *  - `up` gets NO lanes. It must stay a unit vector roughly out of the
  *    view axis, which three free floats cannot promise — the same
  *    refusal AnimatedLight makes for a directional light's `direction`.
- *    @ref rollDeg is the safe single-float parameterisation, and the
+ *    `rollDeg` is the safe single-float parameterisation, and the
  *    only way to declare a dutch tilt: it turns @ref rollReference
  *    right-handed about the eye→target axis, so the camera rolls
  *    clockwise seen from behind it and the scene tips counter-clockwise
@@ -259,7 +259,7 @@ struct CameraPath {
  *  a `shape::Spline3` and outranks `eyeX/Y/Z` while engaged (see
  *  @ref CameraPath).
  *
- *  Lanes resolve in order, so @ref rollDeg sees the eye and target this
+ *  Lanes resolve in order, so `rollDeg` sees the eye and target this
  *  frame's own lanes, or path, just produced. `active` is NOT consulted
  *  here: it gates the RENDERER's choice of camera, not this system, so
  *  toggling a camera on never replays a backlog of missed frames.
@@ -271,7 +271,7 @@ struct AnimatedCamera {
   std::optional<Animatable<float>> targetX, targetY, targetZ;
   std::optional<Animatable<float>> fovYDeg;
   std::optional<Animatable<float>> rollDeg;
-  /** The un-rolled up vector @ref rollDeg turns about the view axis.
+  /** The un-rolled up vector `rollDeg` turns about the view axis.
    *  Not a lane — the fixed reference that keeps roll idempotent. */
   glm::vec3 rollReference{0, 1, 0};
   /** A curve for the eye to fly, instead of `eyeX/Y/Z` — see
@@ -324,6 +324,10 @@ struct AnimatedWindow {
  *  push rather than a whole-chain re-describe. A lane naming a field the
  *  operator lacks is ignored (setField says no; nothing is written). */
 struct AnimatedChain {
+  /** One driven field: which operator in the chain it belongs to,
+   *  which of that operator's fields it writes, and the value doing
+   *  the driving. The last applied value is kept so a lane that has
+   *  not moved can be skipped. */
   struct Lane {
     size_t op = 0;      ///< index into `chain`
     std::string field;  ///< "amount", "center.x", "seed"...

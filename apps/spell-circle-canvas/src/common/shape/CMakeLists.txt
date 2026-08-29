@@ -90,3 +90,16 @@ target_link_libraries(shape_demo PRIVATE SigilShape SigilLoader
 #   ./build/bin/Release/shape_bench
 add_executable(shape_bench bench/ShapeBench.cpp)
 target_link_libraries(shape_bench PRIVATE SigilShape benchmark::benchmark)
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SigilShape
+  BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

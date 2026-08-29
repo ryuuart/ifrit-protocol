@@ -51,6 +51,11 @@ enum class Role {
   Specular,
 };
 
+/** What one texture file was read to be: the channel it feeds, the set
+ *  of sibling files it belongs to, and any convention its name
+ *  declares. Produced by inspecting the filename, so a directory of
+ *  maps from any of the usual sources can be sorted into materials
+ *  without being told the naming scheme up front. */
 struct Classified {
   Role role = Role::Unknown;
   /** The set this file belongs to: the file stem with the role word and

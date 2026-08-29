@@ -43,3 +43,16 @@ add_executable(motion_test
 target_link_libraries(motion_test PRIVATE SigilMotion GTest::gtest_main)
 
 add_test(NAME motion_test COMMAND motion_test)
+
+# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# The README is the site's front page, so the generated pages open on the
+# same document that is canon for the library.
+sigil_add_docs(
+  NAME SigilMotion
+  BRIEF "Animation timing and animatable values, with no renderer in them"
+  INPUT
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  STRIP
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)

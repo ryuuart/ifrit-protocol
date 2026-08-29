@@ -60,6 +60,9 @@ enum class Orientation : uint8_t {
   AlignToPath,  ///< steps rotate with the spine tangent
 };
 
+/** Every dial of a blend: how many intermediates and how their count
+ *  is decided, the spine they ride and how they orient along it, and
+ *  how finely the outlines are resampled while interpolating. */
 struct Options {
   Spacing spacing = Spacing::Steps;
   int steps = 8;        ///< Spacing::Steps: intermediates per key pair

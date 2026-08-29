@@ -92,6 +92,10 @@ struct Mesh {
 
 namespace mesh {
 
+/** How `extrude()` thickens a path: the total depth and which of the
+ *  three surfaces — front cap, back cap, swept walls — to emit.
+ *  Dropping caps leaves an open shell, which is what a wall-only
+ *  extrusion is for. */
 struct ExtrudeOptions {
   float depth = 24;         ///< total thickness, centered on z = 0
   float tolerance = 0.25f;  ///< curve flattening tolerance for walls/caps
@@ -106,6 +110,10 @@ struct ExtrudeOptions {
  *  UVs run u = contour arc length, v = depth. */
 Mesh extrude(const SkPath& path, const ExtrudeOptions& options = {});
 
+/** How `revolve()` lathes a profile: the number of steps around the
+ *  axis and how far around to go. A partial sweep leaves the surface
+ *  open at the seam; a full one duplicates the seam ring so the u
+ *  coordinate can reach 1 instead of wrapping to 0. */
 struct RevolveOptions {
   int segments = 48;     ///< steps around the axis
   float sweepDeg = 360;  ///< partial sweeps leave an open seam

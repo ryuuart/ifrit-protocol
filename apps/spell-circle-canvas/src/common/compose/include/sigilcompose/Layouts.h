@@ -153,6 +153,8 @@ struct ModularGrid {
   int rows = 6;
   float gutter = 12.0f;
 
+  /** One child's cell and how many cells it covers. Children without a
+   *  span auto-flow into the next free cell. */
   struct Span {
     int col = 0, row = 0, colSpan = 1, rowSpan = 1;
     bool operator==(const Span&) const = default;
@@ -226,18 +228,18 @@ struct Diagonal {
   }
 };
 
+/** The editorial baseline rhythm: children stack vertically at x = 0,
+ *  and each is shifted DOWN so its anchor — the first TEXT baseline when
+ *  the child has one, its bottom edge otherwise — lands exactly on the
+ *  next grid line (multiples of `rhythm`, phased by `offset`). A
+ *  deterministic quantization applied after Yoga has measured: mixed type
+ *  sizes share one vertical rhythm, images and rules bottom-align to it,
+ *  and the placement is a pure function of the sizes, so the node caches
+ *  like any other static layout. */
 struct BaselineGrid {
-  /** The editorial baseline rhythm: children stack vertically at x = 0,
-   *  and each is shifted DOWN so its anchor — the first TEXT baseline when
-   *  the child has one, its bottom edge otherwise — lands exactly on the
-   *  next grid line (multiples of `rhythm`, phased by `offset`). A
-   *  deterministic quantization applied after Yoga has measured: mixed type
-   *  sizes share one vertical rhythm, images and rules bottom-align to it,
-   *  and the placement is a pure function of the sizes, so the node caches
-   *  like any other static layout. */
-  float rhythm = 24.0f;
-  float offset = 0.0f;  // grid phase
-  float gap = 0.0f;     // extra space between children before snapping
+  float rhythm = 24.0f;  ///< distance between grid lines
+  float offset = 0.0f;   // grid phase
+  float gap = 0.0f;      // extra space between children before snapping
 
   std::vector<SkRect> place(const LayoutInput& in) const {
     std::vector<SkRect> rects(in.childSizes.size());

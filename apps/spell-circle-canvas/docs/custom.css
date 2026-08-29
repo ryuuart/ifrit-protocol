@@ -1,0 +1,111 @@
+/* Project overrides, loaded after the theme.
+ *
+ * The theme handles typography, colour and the collapsing sidebar. What
+ * is left is the class of problem it cannot fix from variables: Doxygen
+ * emits several block elements whose intrinsic width is set by their
+ * CONTENT — member tables, code fragments, dot graphs — and on a narrow
+ * screen those widen the page itself rather than overflowing inside it.
+ * The page then scrolls sideways as a whole, which drags the header and
+ * the body text out of view and is the single worst part of reading
+ * generated docs on a phone. Every rule here confines that overflow to
+ * the element that causes it. */
+
+:root {
+  /* Wide enough for a declaration with a template argument list to sit
+   * on one line on a laptop; the theme's default wraps them often. */
+  --content-maxwidth: 1120px;
+}
+
+/* iOS inflates text in blocks it decides are too narrow, which
+ * desynchronises the rendered line height from the theme's rhythm. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* The page never scrolls sideways; the elements below do it themselves. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Code, output blocks and formulas: scroll within their own box. The
+ * momentum scrolling keeps a long signature reachable by thumb. */
+div.fragment,
+pre.fragment,
+.memproto,
+.formulaDsp {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Doxygen's member and directory tables are laid out as real tables, so
+ * a single long signature sets the width of the whole page. Making the
+ * table a scroll container keeps the column layout while bounding it. */
+table.memberdecls,
+table.directory,
+table.markdownTable,
+table.doxtable,
+table.fieldtable {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Graphviz output is sized in absolute units by dot itself. */
+.dotgraph,
+.dotgraph img,
+.dotgraph svg,
+div.image img,
+.center img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media screen and (max-width: 767px) {
+  /* Touch targets. The tree and the tab bar are the two things a reader
+   * actually aims at on a phone, and the desktop sizes are below the
+   * point where a thumb hits them reliably. */
+  #nav-tree .item,
+  #nav-tree a,
+  .sm-dox a,
+  .tabs a,
+  .tablist a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* A search field under 16px makes iOS Safari zoom the whole page on
+   * focus, and it does not zoom back out afterwards. */
+  #MSearchField,
+  input[type="text"],
+  input[type="search"] {
+    font-size: 16px;
+  }
+
+  /* Reclaim the horizontal padding the theme reserves for a desktop
+   * gutter — on a phone it is a third of the usable width. */
+  div.contents,
+  .PageDoc {
+    padding-left: var(--spacing-medium);
+    padding-right: var(--spacing-medium);
+  }
+
+  /* Parameter tables read as stacked rows rather than two cramped
+   * columns fighting over 300px. */
+  .params td.paramname,
+  .retval td.paramname,
+  .exception td.paramname {
+    display: block;
+    padding-bottom: 0;
+  }
+  .params td,
+  .retval td,
+  .exception td {
+    display: block;
+    width: auto;
+  }
+}

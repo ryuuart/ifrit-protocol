@@ -19,11 +19,13 @@ class WebEngine;
  * WebView's output. Created via WebEngine::createImage(name, w, h);
  * reference it from HTML wherever an image URL is accepted:
  *
+ * @code{.html}
  *   <img src="name.imgsrc" />
+ * @endcode
  *
  * (The engine's FileSystem synthesizes the .imgsrc indirection Ultralight
- * expects; any path whose filename is "<name>.imgsrc" resolves to the
- * image registered under <name>.)
+ * expects; any path whose filename is `<name>.imgsrc` resolves to the
+ * image registered under `<name>`.)
  *
  * Ways to supply pixels, safest first:
  *  - paint(painter): hands you an SkCanvas already targeting the image's

@@ -94,6 +94,10 @@ inline SkPath ring(float outer, float inner) {
 // ---------------------------------------------------------------------------
 // Shape — a base path + a stack of dials + one look.
 
+/** A path plus the ordered distortions applied to it and the paint that
+ *  finishes it. Each dial appends a step rather than editing the base,
+ *  so the recipe stays readable and re-orderable, and nothing is
+ *  evaluated until `path()` or `draw()` asks for it. */
 class Shape {
  public:
   explicit Shape(SkPath base) : m_base(std::move(base)) {}
@@ -224,6 +228,10 @@ inline Shape shape(SkPath base) { return Shape(std::move(base)); }
 // ---------------------------------------------------------------------------
 // Blend — two outlines, a count, maybe a road to ride.
 
+/** Intermediate outlines between two shapes, interpolating paint along
+ *  with geometry. By default the steps march along the straight line
+ *  between the two, and `along()` replaces that line with any path so
+ *  the sequence rides a curve instead. */
 class Blend {
  public:
   Blend(SkPath from, SkPath to) {
@@ -295,6 +303,9 @@ inline Blend blend(SkPath from, SkPath to) {
 // ---------------------------------------------------------------------------
 // Wire — a spline you can sweep, bead, or draw.
 
+/** A 3D curve and the ways of making it visible: swept into a tube or
+ *  ribbon, beaded with points, or flattened to a 2D path under a
+ *  camera. The curve is built by naming the points it runs through. */
 class Wire {
  public:
   Wire() = default;
@@ -346,6 +357,10 @@ inline Wire wire(std::initializer_list<glm::vec3> points) {
 // ---------------------------------------------------------------------------
 // Particles — put points somewhere, style them, glow.
 
+/** Points scattered over a source — a wire, a box, a mesh — then
+ *  perturbed and drawn as camera-facing sprites. The source, the
+ *  count and the styling are independent dials, so the same scatter
+ *  can be re-coloured or re-sized without being regenerated. */
 class Particles {
  public:
   Particles& on(const Wire& wire) {
