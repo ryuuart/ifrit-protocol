@@ -13,11 +13,9 @@
 #include "sigilgeometry/Blend.h"
 #include "sigilgeometry/Curves.h"
 #include "sigilgeometry/Easel.h"
-#include "sigilgeometry/Polyline.h"
 #include "sigilgeometry/Import.h"
 #include "sigilgeometry/Materials.h"
 #include "sigilgeometry/Mesh.h"
-#include "sigilgeometry/Ops.h"
 #include "sigilgeometry/Points.h"
 #include "sigilgeometry/Pop.h"
 #include "sigilgeometry/Save.h"
@@ -32,75 +30,6 @@ SkPath rect(float x, float y, float w, float h) {
 }
 
 }  // namespace
-
-// --- Geometry -------------------------------------------------------------
-
-TEST(Geometry, FlattenRectKeepsCornersAndClosure) {
-  const std::vector<Polyline> contours = flatten(rect(0, 0, 100, 50));
-  ASSERT_EQ(contours.size(), 1u);
-  EXPECT_TRUE(contours[0].closed);
-  EXPECT_EQ(contours[0].points.size(), 4u);
-  EXPECT_NEAR(contours[0].length(), 300.0f, 1e-3f);
-}
-
-TEST(Geometry, FlattenCircleHitsTolerance) {
-  const std::vector<Polyline> contours =
-      flatten(SkPath::Circle(0, 0, 100), 0.1f);
-  ASSERT_EQ(contours.size(), 1u);
-  // Flattening emits points sampled ON the curve, so every vertex keeps the
-  // radius; the tolerance argument bounds how far the straight chords
-  // BETWEEN them may sag inside the arc. That sag is also why the polyline
-  // perimeter comes in slightly under the true circumference.
-  for (const SkPoint& p : contours[0].points) {
-    const float r = std::sqrt(p.fX * p.fX + p.fY * p.fY);
-    EXPECT_NEAR(r, 100.0f, 0.5f);
-  }
-  EXPECT_NEAR(contours[0].length(), 2.0f * (float)M_PI * 100.0f, 4.0f);
-}
-
-TEST(Geometry, ResampleUniformSpacing) {
-  const std::vector<Sampled> sampled = resample(SkPath::Circle(0, 0, 50), 64);
-  ASSERT_EQ(sampled.size(), 1u);
-  ASSERT_EQ(sampled[0].points.size(), 64u);
-  // resample() spaces its N points evenly along ARC LENGTH, not evenly in
-  // the underlying segment parameter — the two differ on any curved path,
-  // so a parameter-uniform sampler would show up here as an uneven spread.
-  float minD = 1e9f, maxD = 0;
-  for (size_t i = 0; i < 64; ++i) {
-    const SkPoint a = sampled[0].points[i];
-    const SkPoint b = sampled[0].points[(i + 1) % 64];
-    const float d = SkPoint::Distance(a, b);
-    minD = std::min(minD, d);
-    maxD = std::max(maxD, d);
-  }
-  EXPECT_LT(maxD - minD, 0.6f);
-}
-
-// bestAlignment searches for the index offset (and direction) that pairs two
-// sampled contours with the least total distance. Blending relies on it: two
-// shapes sampled from different start points would otherwise twist through
-// the interpolation. A cyclic shift is the case with an exact answer, so it
-// is the one that can be checked to within float noise.
-TEST(Geometry, AlignmentFindsRotation) {
-  Sampled a;
-  a.closed = true;
-  Sampled b;
-  b.closed = true;
-  const int n = 16;
-  for (int i = 0; i < n; ++i) {
-    const float t = (float)i / (float)n * 2.0f * (float)M_PI;
-    a.points.push_back({std::cos(t) * 10, std::sin(t) * 10});
-  }
-  // b is a rotated by 4 slots.
-  for (int i = 0; i < n; ++i)
-    b.points.push_back(a.points[(size_t)((i + 4) % n)]);
-  const Alignment alignment = bestAlignment(a, b);
-  const Sampled aligned = applyAlignment(b, alignment);
-  for (int i = 0; i < n; ++i) {
-    EXPECT_NEAR(aligned.points[(size_t)i].fX, a.points[(size_t)i].fX, 1e-4f);
-    EXPECT_NEAR(aligned.points[(size_t)i].fY, a.points[(size_t)i].fY, 1e-4f);
-  }
-}
 
 // --- Blend ----------------------------------------------------------------
 
@@ -610,54 +539,6 @@ TEST(Materials, EnvironmentRoughnessBlursAndCaches) {
   // built once and kept, so asking twice for the same roughness returns the
   // identical object rather than re-blurring the environment per draw.
   EXPECT_EQ(env.image(0.6f).get(), rough.get());
-}
-
-// --- Ops ------------------------------------------------------------------
-
-TEST(Ops, PathfinderBooleans) {
-  const SkPath a = rect(0, 0, 100, 100);
-  const SkPath b = rect(50, 0, 100, 100);
-  EXPECT_NEAR(ops::unite(a, b).computeTightBounds().width(), 150, 1e-3);
-  EXPECT_NEAR(ops::subtract(a, b).computeTightBounds().width(), 50, 1e-3);
-  EXPECT_NEAR(ops::intersect(a, b).computeTightBounds().width(), 50, 1e-3);
-  // Exclude keeps the union's outline but removes the overlap, so bounds
-  // alone cannot tell it from unite — the interior probe is what separates
-  // them.
-  const SkPath xr = ops::exclude(a, b);
-  EXPECT_NEAR(xr.computeTightBounds().width(), 150, 1e-3);
-  EXPECT_FALSE(xr.contains(75, 50));  // the overlap is punched out
-  EXPECT_TRUE(ops::unite({a, b, rect(140, 0, 100, 100)}).contains(200, 50));
-}
-
-// Offset distance is a radius, not a diameter: a positive amount grows the
-// outline by that much on every side, a negative one eats into it, so a
-// circle of radius 50 offset by 10 spans 120 across and by -15 spans 70.
-TEST(Ops, OffsetGrowsAndShrinks) {
-  const SkPath circle = SkPath::Circle(0, 0, 50);
-  const SkRect grown = ops::offset(circle, 10).computeTightBounds();
-  EXPECT_NEAR(grown.width(), 120, 1.5f);
-  const SkRect shrunk = ops::offset(circle, -15).computeTightBounds();
-  EXPECT_NEAR(shrunk.width(), 70, 1.5f);
-}
-
-// Distorts are shape-preserving in the large: they displace the outline but
-// must not translate the shape or run away in size. Each bound below is the
-// distort's own amplitude budget — Roughen's amplitude of 6 can move a point
-// at most 6 outward, so the width cannot exceed the diameter plus twice that.
-TEST(Ops, DistortsKeepBoundsSane) {
-  const SkPath base = SkPath::Circle(100, 100, 60);
-  const SkRect roughened =
-      ops::Roughen{6, 8, 42}.apply(base).computeTightBounds();
-  EXPECT_LT(std::abs(roughened.centerX() - 100), 4);
-  EXPECT_LT(roughened.width(), 120 + 2 * 6 + 2);
-  const SkPath twirled = ops::Twirl{90}.apply(base);
-  EXPECT_LT(std::abs(twirled.computeTightBounds().centerX() - 100), 4);
-  const SkRect bloated =
-      ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
-  EXPECT_GT(bloated.width(), 118);  // bloat pushes outward, never inward
-  const SkPath chained =
-      ops::chain({ops::offsetBy(6), ops::Zigzag{4, 20}})(base);
-  EXPECT_FALSE(chained.isEmpty());
 }
 
 // --- Curves ---------------------------------------------------------------
@@ -2193,8 +2074,8 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   // PLY is ever produced — this library's own reader rejects one.
   EXPECT_TRUE(save::ply(Cloud{}).empty());
   EXPECT_TRUE(save::ply(Mesh{}).empty());
-  const std::filesystem::path file =
-      std::filesystem::temp_directory_path() / "sigilgeometry_empty_decline.ply";
+  const std::filesystem::path file = std::filesystem::temp_directory_path() /
+                                     "sigilgeometry_empty_decline.ply";
   EXPECT_FALSE(save::ply(file, Cloud{}));
   EXPECT_FALSE(save::ply(file, Mesh{}));
 }

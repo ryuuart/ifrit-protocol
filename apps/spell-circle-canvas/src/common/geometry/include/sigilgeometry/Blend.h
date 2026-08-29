@@ -1,8 +1,8 @@
 #pragma once
 
 /** @file
- * SigilGeometry blend — a study of Illustrator's Object > Blend, rebuilt
- * on the Geometry.h resampling currency. The tool that made 90s
+ * SigilGeometry blend — a study of Illustrator's Object > Blend, built
+ * on the polyline resampling currency. The tool that made 90s
  * airbrush ribbons, smooth-color type halos, and every "morph a star
  * into a circle in eight steps" poster.
  *

@@ -51,6 +51,7 @@ target_include_directories(SigilWeave PUBLIC
 target_link_libraries(SigilWeave
   PUBLIC
     unofficial::skia::skia
+    SigilGeometryPath     # LineInterval::contour is a geometry::Contour
   PRIVATE
     absl::flat_hash_map   # FontContextImpl + ExclusionFlow::PathCache
     absl::node_hash_map   # stable Paragraph& cache entries across inserts

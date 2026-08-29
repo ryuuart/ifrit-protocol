@@ -94,7 +94,7 @@
 // than hidden behind the workaround; the error it finds is printed in the
 // checks strip in both px and millimetres of Minard's paper.
 //
-// `profileOffset` delegates to `lines::offsetAcross` — real vertices, arc
+// `profileOffset` delegates to `geometry::parallel` — real vertices, arc
 // outside a turn, miter inside — only when the profile is CONSTANT. A flow
 // map's whole point is that it is not, so this band takes the sampled walk
 // however the width is spelled, and the deviation stands. What the width
@@ -154,6 +154,7 @@
 #include <vector>
 
 using namespace sigil::compose;
+namespace geometry = sigil::geometry;
 using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -1009,7 +1010,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   /** The Mediterranean, as an engraved coast: the outline, then
    *  coast-parallel hatching whose spacing GROWS away from the shore,
-   *  which is lines::offsetAcross called once per ring. */
+   *  which is geometry::parallel called once per ring. */
   Element hannibalSea() {
     const std::vector<SkPoint> coast = {
         {60, 300},   {150, 318},  {200, 330},  {268, 348},  {330, 344},
@@ -1020,7 +1021,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     };
     // A lithographic edge is slightly ragged. One displace pass at low
     // amplitude and a long wavelength, before anything is stroked.
-    const SkPath line = lines::displace(smooth(coast), 0.9f, 90.0f, false);
+    const SkPath line = geometry::displace(smooth(coast), 0.9f, 90.0f, false);
     // The sea as a CLOSED region: the coast, then round the panel's own
     // south-east corner. Built by hand because there are no boolean path
     // ops here — `panelRect − land` is the natural spelling, and `.clip()`
@@ -1037,7 +1038,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     float d = 0;
     for (int i = 1; i <= 7; ++i) {
       d += 2.4f + 1.05f * (float)i;
-      rings.push_back(lines::offsetAcross(line, -d, 4.0f));
+      rings.push_back(geometry::parallel(line, -d, 4.0f));
     }
 
     auto g = box().inset(0);

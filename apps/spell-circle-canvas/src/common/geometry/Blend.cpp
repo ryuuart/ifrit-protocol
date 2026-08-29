@@ -7,10 +7,27 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
+
+#include "sigilgeometry/Numeric.h"
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::geometry::blend {
 
 namespace {
+
+/** `v` scaled to unit length, or `fallback` when it has none. The
+ *  magnitude is taken in double so a nearly-degenerate vector keeps its
+ *  direction instead of rounding to zero. */
+glm::vec2 unit(glm::vec2 v, glm::vec2 fallback) {
+  const double xx = v.x, yy = v.y;
+  const double mag = std::sqrt(xx * xx + yy * yy);
+  if (!(mag > 0) || !std::isfinite(mag)) return fallback;
+  const double scale = 1.0 / mag;
+  const glm::vec2 out{(float)(xx * scale), (float)(yy * scale)};
+  if (!std::isfinite(out.x) || !std::isfinite(out.y)) return fallback;
+  return out;
+}
 
 float srgbToLinear(float c) {
   return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
@@ -54,7 +71,7 @@ SkColor4f fromOklab(const Oklab& lab) {
  *  whole-shape centroid. */
 struct Prepared {
   std::vector<Sampled> contours;
-  SkPoint centroid = {0, 0};
+  glm::vec2 centroid = {0, 0};
 };
 
 Prepared prepare(const Key& key, int samples) {
@@ -63,9 +80,9 @@ Prepared prepare(const Key& key, int samples) {
   double x = 0, y = 0;
   size_t n = 0;
   for (const Sampled& c : out.contours) {
-    for (const SkPoint& p : c.points) {
-      x += p.fX;
-      y += p.fY;
+    for (const glm::vec2& p : c.points) {
+      x += p.x;
+      y += p.y;
     }
     n += c.points.size();
   }
@@ -75,7 +92,7 @@ Prepared prepare(const Key& key, int samples) {
 
 /** A degenerate contour every point of which is @p at — what a missing
  *  contour blends against (it grows from / collapses to a point). */
-Sampled collapsed(const Sampled& like, SkPoint at) {
+Sampled collapsed(const Sampled& like, glm::vec2 at) {
   Sampled out;
   out.closed = like.closed;
   out.points.assign(like.points.size(), at);
@@ -92,15 +109,14 @@ struct Spine {
     cumulative.clear();
     cumulative.push_back(0);
     for (size_t i = 1; i < line.points.size(); ++i)
-      cumulative.push_back(
-          cumulative.back() +
-          SkPoint::Distance(line.points[i - 1], line.points[i]));
+      cumulative.push_back(cumulative.back() +
+                           distance(line.points[i - 1], line.points[i]));
     total = cumulative.empty() ? 0 : cumulative.back();
   }
 
-  void at(float distance, SkPoint* pos, SkVector* tangent) const {
+  void at(float distance, glm::vec2* pos, glm::vec2* tangent) const {
     if (line.points.size() < 2) {
-      *pos = line.points.empty() ? SkPoint{0, 0} : line.points.front();
+      *pos = line.points.empty() ? glm::vec2{0, 0} : line.points.front();
       *tangent = {1, 0};
       return;
     }
@@ -109,12 +125,10 @@ struct Spine {
     while (seg + 2 < cumulative.size() && cumulative[seg + 1] < distance) ++seg;
     const float span = cumulative[seg + 1] - cumulative[seg];
     const float t = span < 1e-9f ? 0 : (distance - cumulative[seg]) / span;
-    const SkPoint a = line.points[seg];
-    const SkPoint b = line.points[seg + 1];
-    *pos = {a.fX + (b.fX - a.fX) * t, a.fY + (b.fY - a.fY) * t};
-    SkVector d = b - a;
-    if (!d.normalize()) d = {1, 0};
-    *tangent = d;
+    const glm::vec2 a = line.points[seg];
+    const glm::vec2 b = line.points[seg + 1];
+    *pos = {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
+    *tangent = unit(b - a, {1, 0});
   }
 };
 
@@ -149,7 +163,7 @@ Step makeStep(const Prepared& a, const Prepared& b,
               const std::vector<Alignment>& alignments, const Key& keyA,
               const Key& keyB, float u, const Options& options,
               const Spine& spine, float spanStart, float spanLength,
-              SkVector baseline) {
+              glm::vec2 baseline) {
   Step step;
   step.fill = detail::lerpOklab(keyA.fill, keyB.fill, u);
   if (keyA.stroke || keyB.stroke) {
@@ -181,21 +195,21 @@ Step makeStep(const Prepared& a, const Prepared& b,
   // line, which plain interpolation already follows — only a custom
   // spine needs a placement transform.
   if (spine.line.points.size() >= 2) {
-    SkPoint pos;
-    SkVector tangent;
+    glm::vec2 pos;
+    glm::vec2 tangent;
     spine.at(spanStart + u * spanLength, &pos, &tangent);
-    const SkPoint naturalCenter = {
-        a.centroid.fX + (b.centroid.fX - a.centroid.fX) * u,
-        a.centroid.fY + (b.centroid.fY - a.centroid.fY) * u};
-    SkMatrix placement = SkMatrix::Translate(pos.fX - naturalCenter.fX,
-                                             pos.fY - naturalCenter.fY);
+    const glm::vec2 naturalCenter = {
+        a.centroid.x + (b.centroid.x - a.centroid.x) * u,
+        a.centroid.y + (b.centroid.y - a.centroid.y) * u};
+    SkMatrix placement =
+        SkMatrix::Translate(pos.x - naturalCenter.x, pos.y - naturalCenter.y);
     if (options.orientation == Orientation::AlignToPath) {
       const float tangentDeg =
-          SkRadiansToDegrees(std::atan2(tangent.fY, tangent.fX));
+          SkRadiansToDegrees(std::atan2(tangent.y, tangent.x));
       const float baselineDeg =
-          SkRadiansToDegrees(std::atan2(baseline.fY, baseline.fX));
+          SkRadiansToDegrees(std::atan2(baseline.y, baseline.x));
       placement.preConcat(
-          SkMatrix::RotateDeg(tangentDeg - baselineDeg, naturalCenter));
+          SkMatrix::RotateDeg(tangentDeg - baselineDeg, toSk(naturalCenter)));
     }
     path = path.makeTransform(placement);
   }
@@ -258,9 +272,8 @@ std::vector<Step> make(std::span<const Key> keys, const Options& options) {
 
     const float spanStart = pairSpan * (float)p;
     const float spanLength =
-        spine.total > 0 ? pairSpan : SkPoint::Distance(a.centroid, b.centroid);
-    SkVector baseline = b.centroid - a.centroid;
-    if (!baseline.normalize()) baseline = {1, 0};
+        spine.total > 0 ? pairSpan : distance(a.centroid, b.centroid);
+    const glm::vec2 baseline = unit(b.centroid - a.centroid, {1, 0});
 
     const int between = stepsForPair(options, keys[p], keys[p + 1], spanLength);
     const bool emitFirstKey = options.includeKeys && p == 0;

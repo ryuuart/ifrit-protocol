@@ -214,9 +214,10 @@ TEST(ParagraphLayout, PathFlowLaysGlyphsAlongCircle) {
 
 TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
   FontContext& fontContext = sharedContext();
-  SkContourMeasureIter iter(SkPath::Circle(0, 0, 200), /*forceClosed=*/false);
-  const sk_sp<SkContourMeasure> ring = iter.next();
-  ASSERT_TRUE(ring);
+  const std::vector<sigil::geometry::Contour> rings =
+      sigil::geometry::Contour::of(SkPath::Circle(0, 0, 200));
+  ASSERT_EQ(rings.size(), 1u);
+  const sigil::geometry::Contour& ring = rings.front();
 
   // Same text on the same ring, once at natural arc consumption and once at
   // half — the half-scale layout's final word must sit at roughly half the
@@ -225,7 +226,7 @@ TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
     Paragraph paragraph = makeParagraph(u8"curvature compensation", 40.0f);
     LineInterval interval;
     interval.contour = ring;
-    interval.length = ring->length() / scale;
+    interval.length = ring.length() / scale;
     interval.advanceScale = scale;
     LineSetFlow flow;
     flow.lines().push_back({interval});

@@ -13,7 +13,19 @@ It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
 is no windowing, no GPU device, no UI framework and no scene graph — you
 hand it values, it hands you paths, meshes, clouds and pixels.
 
-Namespace `sigil::geometry`. Headers under `include/sigilgeometry/`.
+It is two targets. **`SigilGeometryPath`** is the leaf: polylines, contours
+addressed by arc length, seeded noise, the numeric routines under them, and
+the path operators — Skia and glm only, so a text engine or a drawable
+component library can walk an outline without linking meshes, importers or
+materials. **`SigilGeometry`** is everything else and links the leaf, so a
+consumer of the whole library names only `SigilGeometry`.
+
+Namespace `sigil::geometry`. Headers under `include/sigilgeometry/`. Every
+signature in the library speaks glm — `glm::vec2` for a point on a path as
+much as `glm::vec3` for a vertex — and Skia types appear only where the
+object *is* a Skia path, image, canvas or paint. `Skia.h` holds the two
+conversions, `toSk()` and `fromSk()`, so a caller drawing a result never
+spells the swizzle itself.
 
 ## Using it
 
@@ -64,22 +76,36 @@ objects are values you can copy, tweak and re-cook.
 
 ## The mental model
 
-**Two type currencies.** Anything genuinely three-dimensional — mesh
-vertices, spline knots, camera vectors, cloud positions, transforms —
-speaks glm (`vec2`, `vec3`, `vec4`, `mat4`). Anything genuinely
-two-dimensional or draw-time speaks Skia: `SkPath` outlines, `SkColor4f`
-paint, `SkImage` textures, `SkCanvas`. `Space.h` is the declared bridge
-between them, and `space::toSkM44()` is the seam. Because glm's `mat4` and
+**One numeric currency, one drawing currency.** Every vector, point and
+matrix — mesh vertices, spline knots, camera vectors, cloud positions,
+flattened path points, transforms — is glm (`vec2`, `vec3`, `vec4`,
+`mat4`). What is drawn or drawn from speaks Skia: `SkPath` outlines,
+`SkColor4f` paint, `SkImage` textures, `SkCanvas`. `Skia.h` converts a
+point (`toSk()`, `fromSk()`); `Space.h` is the declared bridge for
+matrices, and `space::toSkM44()` is the seam. Because glm's `mat4` and
 Skia's `SkM44` are both column-major, that conversion is a straight memory
 pour with no transpose.
 
-**Resampling is the substrate.** `Geometry.h` reduces any path to one of
+**Resampling is the substrate.** `Polyline.h` reduces any path to one of
 two forms: a `Polyline` (adaptive curve flattening that keeps corner
 anchors exact) or a `Sampled` (exactly N points spaced uniformly by arc
 length). Everything above stands on those two. Blending interpolates
 `Sampled` pairs. Distortions displace resampled points and rebuild.
 Extrusion walls sweep flattened contours. Swept geometry rides arc-length
 samples of a spline.
+
+**A contour is addressed by distance.** Where a `Polyline` is the outline
+as vertices, a `Contour` is the outline as a length: position and unit
+tangent at a distance (`at()` clamps, `around()` wraps a closed contour
+past its seam), the piece between two distances as its own path, and the
+corners along the way. Anything placed *along* an outline — text on a
+path, a marching dash, a stroke's ornaments — reads it this way, so there
+is one definition of "distance along" and one of "closed wraps around".
+
+**Noise is seeded and bit-exact.** Everything random in the library draws
+from `noise::` — a per-index hash, a PCG stream, and the trilinear value
+noise built on them — so a scattered stamp, a roughened outline or a
+drifted cloud re-rolls identically on every platform and every run.
 
 **Values, not baked results.** Options structs, distortion structs,
 operator values, splines, clouds and chains are all plain data you edit and
@@ -139,17 +165,41 @@ sentence.
 They form a dependency chain — each header includes those it needs, so
 including a later one pulls the earlier ones in.
 
-Four headers stand alone and depend on nothing else in the library:
+The leaf, `SigilGeometryPath`, is six headers that depend on nothing else
+in the library:
 
-- **`Geometry.h`** — the resampling core. `Polyline` and `flatten()`,
-  `Sampled` and `resample()`, `bestAlignment()`/`applyAlignment()` for
-  matching two closed contours, `toPath()` to rebuild (optionally through
-  Catmull-Rom cubics), and `lerp()`.
+- **`Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
+  `sample()` to walk a parametric curve evenly by arc length, `Sampled`
+  and `resample()`, `bestAlignment()`/`applyAlignment()` for matching two
+  closed contours, `toPath()` to rebuild (optionally through Catmull-Rom
+  cubics), and `lerp()`.
+- **`Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
+  splits a path (skipping zero-length contours); `length()`, `closed()`,
+  `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which
+  walks the contour in strides and bisects to each turn sharper than a
+  threshold. Three constructions walk every contour of a path:
+  `parallel()` (a curve a constant distance to the side, round outer
+  joins and mitred inner ones), `displace()` (a sinusoidal or zigzag
+  sideways wave, fitted to a whole number of cycles so both ends stay on
+  the source curve) and `cornerWindows()` (the pieces within a radius of
+  each corner, or everything but them).
+- **`Noise.h`** — namespace `noise`. `hash(seed, i)` to [-1, 1] for
+  per-index jitter; the PCG family `pcgAdvance`, `pcgMix`, `pcgHash`,
+  `pcgNext` (a stream over a carried state) and `pcgUnit` (either squeezed
+  to [0, 1)); and `value3()`, trilinear value noise over the integer
+  lattice.
+- **`Numeric.h`** — `kPi`, `kTau`, the degree/radian factors, `bisect()`
+  over a predicate and `wrap()` into a period.
+- **`Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
+  `SkPoint`, and `centre()` of an `SkRect`.
 - **`Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
   `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
   `offset`), and four distortions as parameter structs you apply on demand:
   `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp` and `chain()`
   compose them, `offsetBy()` adapts `offset` into a step.
+
+Two more headers in `SigilGeometry` stand alone above the leaf:
+
 - **`Materials.h`** — reflective materials as `SkRuntimeEffect` shaders.
   `bevelNormals()` derives a normal map from a path's coverage;
   `Environment` supplies what the surface reflects, either as a procedural
@@ -166,7 +216,7 @@ Four headers stand alone and depend on nothing else in the library:
 
 The rest build on those:
 
-- **`Blend.h`** needs `Geometry`. Shape interpolation modelled on
+- **`Blend.h`** needs `Polyline`. Shape interpolation modelled on
   Illustrator's blend tool: `Key`s expand into drawable `Step`s under
   `Options` controlling spacing (`Steps`, `Distance`, `SmoothColor`), an
   optional spine path, orientation, sample density and outline smoothing.
@@ -300,9 +350,9 @@ is silently, plausibly wrong rather than obviously broken.
   while other colours pad white, and vectors pad `{0, 0, 1}`. Call
   `computeNormals()` on the merge when you want the geometric truth instead
   of the pad.
-- **The hash helpers in `detail/Hash.h` are ABI.** `pcgAdvance`, `pcgMix`
-  and `pcgHash` are bit-matched to the GPU compute kernels that execute the
-  same operator chains. The constants and the shift schedule are not tuning
+- **The PCG helpers in `Noise.h` are ABI.** `noise::pcgAdvance`,
+  `noise::pcgMix` and `noise::pcgHash` are bit-matched to the GPU compute
+  kernels that execute the same operator chains. The constants and the shift schedule are not tuning
   knobs — changing either desynchronizes the CPU reference from the GPU
   executor, and the failure appears as two renderers scattering points
   differently rather than as a build error.
@@ -369,7 +419,9 @@ is silently, plausibly wrong rather than obviously broken.
 
 ## Boundaries
 
-Publicly the library links Skia and glm and nothing else. Privately it uses
+Publicly the library links Skia and glm and nothing else, and the
+`SigilGeometryPath` leaf links nothing beyond those two. Privately
+`SigilGeometry` uses
 tinyobjloader for OBJ, Alembic for `.abc`, and the header-only earcut (cap
 triangulation) and cgltf (glTF); STL and PLY are parsed by hand.
 
@@ -398,13 +450,14 @@ python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
 ```
 
-Targets: `SigilGeometry` (static library), `geometry_test` (registered with
-ctest), `geometry_demo`, and `geometry_bench` (Google Benchmark: the pop cook by
+Targets: `SigilGeometryPath` and `SigilGeometry` (static libraries),
+`geometry_path_test` (the leaf alone) and `geometry_test` (both registered
+with ctest), `geometry_demo`, and `geometry_bench` (Google Benchmark: the pop cook by
 count and operator mix, the stamping sink, and the `.geo` reader — run
 it from a Release build).
 
 ```sh
-ctest --test-dir build -C Debug -R geometry_test --output-on-failure
+ctest --test-dir build -C Debug -R geometry --output-on-failure
 ./build/bin/Debug/geometry_demo [outdir] [assetdir]
 ```
 

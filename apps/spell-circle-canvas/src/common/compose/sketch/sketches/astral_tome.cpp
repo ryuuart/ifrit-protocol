@@ -212,8 +212,8 @@
 //     a HORIZONTAL run has a VERTICAL normal   -> its band comes out k * w
 //     a VERTICAL   run has a HORIZONTAL normal -> its band stays at w
 // It is the NORMAL that is stretched, not the tangent, so horizontal runs come
-// out THICKER. lines::Rails shares the property — offsetAcross and the rail
-// widths are local-space too — so the whole rail vocabulary is anisotropic
+// out THICKER. lines::Rails shares the property — geometry::parallel and the
+// rail widths are local-space too — so the whole rail vocabulary is anisotropic
 // under a non-uniform parent scale.
 //
 // Nothing on this canvas hits it, because the sketch does what the mod does:
@@ -697,7 +697,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         // marks do. Nothing before Rails could spell this.
         // NOTE the 2.2 px "on" interval, and do not shorten it to chase
         // rounder dots. A near-zero dash such as {0.01f, 11.0f} is placed
-        // CORRECTLY — offsetAcross samples getPosTan at two distances and
+        // CORRECTLY — geometry::parallel samples getPosTan at two distances and
         // displaces both along the normal, and a 0.01-long segment still has
         // a well-defined tangent — but it carries almost no ink: under a
         // 1.4 px round cap its peak coverage never reaches 1, and here it

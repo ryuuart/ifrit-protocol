@@ -16,24 +16,28 @@
  *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
  *                        tangent via RSXform runs.
  *
+ * A contour is the geometry library's `geometry::Contour` — one sub-path
+ * addressed by arc length — so "distance along" and "closed wraps around"
+ * mean the same thing here as anywhere else a path is walked.
+ *
  * Implement FlowGeometry yourself for anything else. Pass the chosen
  * geometry to layoutParagraph() in ParagraphLayout.h.
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkRefCnt.h>
 
 #include <memory>
 #include <vector>
+
+#include "sigilgeometry/Contour.h"
 
 namespace sigil::weave {
 
 /// One stretch of pen travel a line of text may occupy. Text is never bound
 /// to a rectangle: a "line" is just an ordered list of these, and they can
-/// be straight segments in any direction or spans of an SkPath contour.
+/// be straight segments in any direction or spans of a path contour.
 struct LineInterval {
   /// Straight form: pen starts at `origin` (a baseline point) and travels
   /// along unit vector `direction` for at most `length`.
@@ -41,11 +45,13 @@ struct LineInterval {
   SkVector direction = {1, 0};  ///< unit vector of pen travel
   float length = 0;             ///< maximum pen travel, px
 
-  /// Path form: when `contour` is set, the pen instead travels the
+  /// Path form: when `contour` is valid, the pen instead travels the
   /// contour's arc length starting at `contourStart`; glyphs are rotated to
   /// the local tangent (rendered with RSXform runs). `origin`/`direction`
-  /// are ignored.
-  sk_sp<SkContourMeasure> contour;
+  /// are ignored. The contour is the geometry library's: build one with
+  /// `geometry::Contour::of(path)`; a default-constructed one is "no
+  /// contour" and leaves the interval straight.
+  geometry::Contour contour;
   float contourStart = 0;  ///< arc length where the pen enters the contour
 
   /// Contour intervals only: WRAP at the contour's ends rather than stop at
@@ -271,7 +277,7 @@ class PathFlow : public FlowGeometry {
                      std::vector<LineInterval>& intervals) override;
 
  private:
-  std::vector<sk_sp<SkContourMeasure>> m_contours;
+  std::vector<geometry::Contour> m_contours;
 };
 
 }  // namespace sigil::weave

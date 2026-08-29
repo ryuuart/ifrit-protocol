@@ -109,7 +109,7 @@
 //   Brush layers + shapers::Offset  飛白 as two dashed rails offset off the
 //                        stroke's own centreline — tangent-aligned by
 //                        construction, no per-stroke shader matrix
-//   lines::displace      雲篆: the cloud-wander is a REAL median displaced,
+//   geometry::displace      雲篆: the cloud-wander is a REAL median displaced,
 //                        so the graphs are illegible honestly
 //   trim(0, bind(&scribe).window(t0,t1))   ONE Output writes the whole
 //                        plate; every stroke's own beat is its window
@@ -166,6 +166,7 @@
 #include <vector>
 
 using namespace sigil::compose;
+namespace geometry = sigil::geometry;
 using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -823,11 +824,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   /** 雲篆. Strokes 「盤曲如雲」 — twisted like winding cloud. The wander is a
-   *  REAL median displaced, never an invented squiggle: lines::displace
+   *  REAL median displaced, never an invented squiggle: geometry::displace
    *  offsets perpendicular to the tangent, so the graph keeps its topology
    *  and loses its legibility, which is exactly the intent of the script. */
   static SkPath cloud(const SkPath& p, float amp, float wl) {
-    return lines::displace(p, amp, wl, false);
+    return geometry::displace(p, amp, wl, false);
   }
 
   /** A composite cloud graph: components stacked vertically in one box, each

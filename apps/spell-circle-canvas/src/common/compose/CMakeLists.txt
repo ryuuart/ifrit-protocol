@@ -48,6 +48,7 @@ target_include_directories(SigilCompose PUBLIC
 
 target_link_libraries(SigilCompose
   PUBLIC
+    SigilGeometryPath
     SigilImage
     SigilMotion
     SigilWeave

@@ -19,9 +19,8 @@
 #include <set>
 
 #include "ComposeInternal.h"
-#include "sigilcompose/Lines.h"   // the ONE corner scanner (spans::corners)
-#include "sigilcompose/TextFx.h"  // fx::axis — the one axis effect spanAxis
-                                  // and a hand-written track both name
+#include "sigilgeometry/Contour.h"
+// and a hand-written track both name
 
 namespace sigil::compose {
 
@@ -50,6 +49,70 @@ const ElementNode* Element::NodeHandle::operator->() const {
 }
 
 // ---- layout ---------------------------------------------------------------
+
+namespace detail {
+
+/** Says so when a corner scan found nothing but the shape clearly has
+ *  vertices — the alternative being a bracket set that renders blank while
+ *  the API does exactly what it was told.
+ *
+ *  Why this is a diagnostic and NOT an adaptive default: the threshold's
+ *  whole job is to tell a VERTEX from a finely-sampled CURVE, and a
+ *  rounded corner is meant to take no bracket (stated at `cornerAngleDeg`).
+ *  The scan steps 2 px, so an arc of radius r turns ~114/r degrees per
+ *  sample — about 11° at r = 10. Any auto-lowered threshold low enough to
+ *  catch a 20-gon's 18° vertices is also low enough to shatter a small
+ *  rounded corner into a run of false ones. So the number stays the
+ *  author's, and the library explains what to pass. */
+void warnNoCornersFound(float sharpestDeg, float angleDeg) {
+  // A SET of seen shapes, not the last one: two different failing shapes in
+  // one frame alternate, and a last-seen guard then prints both on every
+  // frame forever — a diagnostic that floods is a diagnostic people turn
+  // off. Capped so a procedurally varied scene cannot grow it without
+  // bound.
+  static std::vector<int> seen;
+  const int key = (int)std::lround(sharpestDeg);
+  for (int k : seen)
+    if (k == key) return;
+  if (seen.size() >= 16) return;
+  seen.push_back(key);
+  SkDebugf(
+      "compose: no corner cleared the %.1f\xc2\xb0 threshold, but the "
+      "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
+      "weightedCorners and spans::corners() will "
+      "draw nothing here, and spans::edges() (their complement) will "
+      "claim the WHOLE boundary instead of stopping short of "
+      "anything. A "
+      "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
+      "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
+      "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",
+      angleDeg, sharpestDeg, std::max(4.0f, sharpestDeg * 0.6f));
+}
+
+/** The corner scan every decoration shares, with the diagnostic above
+ *  attached: `geometry::Contour::corners` reports the sharpest turn it
+ *  saw, and a scan that found nothing on a contour whose sharpest turn
+ *  is above the noise a smooth curve produces at this step (4°) says so
+ *  once. */
+std::vector<geometry::Contour::Corner> cornersOrWarn(
+    const geometry::Contour& contour, float angleDeg, float minSpacing,
+    float step) {
+  float sharpestDeg = 0.0f;
+  std::vector<geometry::Contour::Corner> corners =
+      contour.corners(angleDeg, minSpacing, step, &sharpestDeg);
+  if (corners.empty() && sharpestDeg >= 4.0f)
+    warnNoCornersFound(sharpestDeg, angleDeg);
+  return corners;
+}
+
+/** The same diagnostic for a whole path, ahead of a corner window
+ *  construction that reports nothing itself. */
+void warnIfNoCorners(const SkPath& src, float angleDeg) {
+  for (const geometry::Contour& contour : geometry::Contour::of(src))
+    (void)cornersOrWarn(contour, angleDeg);
+}
+
+}  // namespace detail
 
 Element& Element::row() {
   m_node->layout.row = true;
@@ -1378,6 +1441,22 @@ Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
   return *this;
 }
 
+TextEffect TextEffect::axis(const char (&tag)[5], float value) {
+  const sigil::weave::FontVariation coordinate(tag, value);
+  return TextEffect(
+      "axis",
+      {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
+       (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
+      [coordinate](const GlyphInfo&, float, Rng&) {
+        GlyphMod m;
+        m.axis = coordinate;
+        return m;
+      },
+      // An advance-invariant axis leaves every pen position where the
+      // layout put it, so the effect does not displace.
+      0.0f, {}, /*displaces=*/false);
+}
+
 Element& Element::spanAxis(Selector where, const char (&tag)[5], float value) {
   // SUGAR over fx(), for the same reason variationDrive is: an axis
   // coordinate IS a per-glyph deviation, so the one that a span asks for and
@@ -1394,7 +1473,7 @@ Element& Element::spanAxis(Selector where, const char (&tag)[5], float value) {
   // per frame.
   Track track;
   track.where = std::move(where);
-  track.effect = fx::axis(tag, value);
+  track.effect = TextEffect::axis(tag, value);
   m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }
@@ -1551,12 +1630,11 @@ std::vector<Span> cornerSpans(const SkPath& outline, float arm,
   const std::vector<ContourRun> runs = measureContours(outline, &total);
   if (total <= 0) return out;
   size_t i = 0;
-  SkContourMeasureIter iter(outline, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+  for (const geometry::Contour& contour : geometry::Contour::of(outline)) {
     if (i >= runs.size()) break;
-    for (const lines::detail::CornerHit& hit :
-         lines::detail::findCorners(*contour, angleDeg))
-      pushCornerWindow(out, runs[i], hit.d, arm, total);
+    for (const geometry::Contour::Corner& hit :
+         detail::cornersOrWarn(contour, angleDeg))
+      pushCornerWindow(out, runs[i], hit.distance, arm, total);
     ++i;
   }
   return detail::normalizeSpans(std::move(out));
@@ -1826,7 +1904,7 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
   // chord, so two concentric ring spines came out as a filled disc.
   //
   // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
-  // constant width then rides lines::offsetAcross's corner repair (real
+  // constant width then rides geometry::parallel's corner repair (real
   // vertices, arc outside a turn, miter inside) instead of a naive
   // sample-and-displace that leaves a spur on the inside of every
   // rectangle.
@@ -1835,7 +1913,7 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
   // `across` is LEFT of travel, which with y pointing down is OUTSIDE a
   // clockwise path — and clockwise is SkPath's own direction for rects and
   // circles, so `.outward()` exits the shape. bandPointAt and
-  // lines::offsetAcross mean the same side; a helper that flipped it would
+  // geometry::parallel mean the same side; a helper that flipped it would
   // turn every band inside out on one code path only.
   SkPathBuilder out;
   float consumed = 0;
@@ -1852,7 +1930,7 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
                                                 sliceStart, sliceSpan, total}));
     if (outerRail.isEmpty() || innerRail.isEmpty()) continue;
 
-    // Zip by arc length rather than by index: offsetAcross inserts join
+    // Zip by arc length rather than by index: geometry::parallel inserts join
     // geometry, so the two rails do not share a point count.
     const int steps = std::max(16, (int)std::ceil(len / 2.0f));
     const std::vector<SkPoint> outerPts = sampleRail(outerRail, steps);
@@ -2082,15 +2160,15 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
   float total = 0;
   measureContours(spine, &total);
   if (total <= 0) return SkPath();
-  // A CONSTANT profile is a parallel, and lines::offsetAcross already does
+  // A CONSTANT profile is a parallel, and geometry::parallel already does
   // parallels exactly — it finds the real vertices and joins them (arc
   // outside a turn, miter inside) instead of chording across. The naive
   // sample-and-displace walk below cannot: at a hard corner it offsets one
   // sampled point along ONE edge's normal, which leaves a spur on the
   // inside of every rectangle. Delegating rather than growing a second
   // corner repair here is deliberate — two repairs would drift apart.
-  // No sign conversion is needed: offsetAcross is LEFT of travel, which is
-  // this file's frame exactly (see bandPointAt).
+  // No sign conversion is needed: geometry::parallel is LEFT of travel, which
+  // is this file's frame exactly (see bandPointAt).
   //
   // Constancy is detected by SAMPLING, and that is a real limitation, not
   // a rounding detail: a stepped profile whose period divides the sample
@@ -2107,7 +2185,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
     for (int k = 1; k < 97 && constant; ++k)
       constant = profile.acrossAt(((float)k + 0.5f) / 97.0f, total) == first;
     if (constant)
-      return first == 0.0f ? spine : lines::offsetAcross(spine, first);
+      return first == 0.0f ? spine : geometry::parallel(spine, first);
   }
   SkPathBuilder out;
   SkContourMeasureIter iter(spine, false);

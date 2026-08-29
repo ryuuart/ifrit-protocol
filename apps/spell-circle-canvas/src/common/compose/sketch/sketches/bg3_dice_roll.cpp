@@ -175,7 +175,7 @@
 // THE CORNER ANGLE — why every ornament here passes one explicitly
 //
 // `brackets`, `gappedRule` and `weightedCorners` all route through
-// `detail::cornerWindows(src, radius, keep, angleDeg)`, and `cornerDistances`
+// `geometry::cornerWindows(src, radius, keep, angleDeg)`, and the corner scan
 // only records a vertex whose per-sample tangent break EXCEEDS that threshold.
 // The default is 30 degrees. A regular 20-gon turns 360/20 = 18 degrees per
 // vertex, and cos(18) = 0.9511 is NOT below cos(30) = 0.8660 — so at the

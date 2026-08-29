@@ -11,6 +11,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
 #include <sigilcompose/Instances.h>
+#include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
 
 #include <sigilweave/FontContext.h>

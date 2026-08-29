@@ -85,7 +85,7 @@ breakers, justification, hyphenation, placement — applies to your shape:
 ```cpp
 class SingleContourFlow : public FlowGeometry {
 public:
-  SingleContourFlow(sk_sp<SkContourMeasure> contour, float start)
+  SingleContourFlow(geometry::Contour contour, float start)
       : m_contour(std::move(contour)), m_start(start) {}
 
   bool lineIntervals(int index, float lineHeight, float ascent,
@@ -95,16 +95,22 @@ public:
     LineInterval interval;
     interval.contour = m_contour;
     interval.contourStart = m_start;   // animate this for a marquee
-    interval.length = m_contour->length();
+    interval.length = m_contour.length();
     intervals.push_back(interval);
     return true;
   }
 
 private:
-  sk_sp<SkContourMeasure> m_contour;
+  geometry::Contour m_contour;   // geometry::Contour::of(path).front()
   float m_start;
 };
 ```
+
+A contour interval carries a `geometry::Contour` from SigilGeometryPath —
+one sub-path addressed by arc length, built with `geometry::Contour::of(path)`.
+The layout reads position and tangent through it, so "distance along" and
+"closed wraps around" mean the same thing for text as for every other thing
+that walks a path.
 
 Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
 `ExclusionFlow` (a rectangle minus moving circles, rects, or arbitrary
@@ -180,14 +186,16 @@ in `kit/`, and a Qt bridge.
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
-| `SigilWeave` | the engine | HarfBuzz, ICU, abseil — all private |
+| `SigilWeave` | the engine | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); HarfBuzz, ICU, abseil — all private |
 | `SigilWeaveShaders` | `PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
-Skia is a PUBLIC dependency; HarfBuzz, ICU and abseil are PRIVATE and appear
-in no public header. Pimpls hide the hash maps, and `InlineVector` replaces
+Skia and SigilGeometryPath are PUBLIC dependencies — the path a line of text
+follows is a geometry contour, and `ExclusionFlow` flattens its shapes through
+the same library; HarfBuzz, ICU and abseil are PRIVATE and appear in no public
+header. Pimpls hide the hash maps, and `InlineVector` replaces
 the one abseil container that would otherwise have leaked into a value type.
 The core is Qt-free and carries no SkSL: shader presets are content, not
 engine.

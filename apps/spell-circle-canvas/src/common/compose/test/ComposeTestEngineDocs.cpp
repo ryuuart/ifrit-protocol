@@ -229,7 +229,7 @@ TEST(ComposeLines, OffsetAlongClampsNonPositiveStep) {
   const SkPath route = builder.detach();
 
   for (float step : {0.0f, -4.0f}) {
-    const SkPath shifted = lines::offsetAcross(route, -10.0f, step);
+    const SkPath shifted = sigil::geometry::parallel(route, -10.0f, step);
     ASSERT_FALSE(shifted.isEmpty()) << "step=" << step;
     EXPECT_NEAR(shifted.getBounds().top(), 60.0f, 0.01f);
     EXPECT_NEAR(shifted.getBounds().bottom(), 60.0f, 0.01f);
@@ -1418,7 +1418,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   byHand.composer.render(
       box().child(text(u8"GRADE", style)
                       .key("t")
-                      .fx({.effect = fx::axis("GRAD", gradeMax)})
+                      .fx({.effect = TextEffect::axis("GRAD", gradeMax)})
                       .absolute()
                       .inset(20, 60, 20, 60)));
   byHand.frame();
@@ -1510,7 +1510,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     choreograph::Output<float> phase{0.0f};
     // eachMs = 0: every glyph reads the one master phase, so the coordinate
     // is exactly the sequence driven below and nothing else.
-    Track track{.effect = fx::axis("GRAD", gradeMin, gradeMax),
+    Track track{.effect = fx::axisSweep("GRAD", gradeMin, gradeMax),
                 .stagger = {.eachMs = 0, .durationMs = 100},
                 .progress = &phase};
     track.continuous = continuous;

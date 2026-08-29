@@ -140,6 +140,7 @@
 #include <vector>
 
 using namespace sigil::compose;
+namespace geometry = sigil::geometry;
 using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -736,7 +737,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     std::vector<Stop> fibres;
     for (int i = 0; i <= 96; ++i) {
       const float v = (i % 2 == 0) ? 0.482f : 0.518f;
-      const float j = 0.012f * shapes::detail::hashNoise(17u, (uint32_t)i);
+      const float j = 0.012f * geometry::noise::hash(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
     irisMat = Material::blend(

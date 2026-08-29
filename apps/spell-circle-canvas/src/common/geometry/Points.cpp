@@ -9,7 +9,7 @@
 #include <cmath>
 #include <numeric>
 
-#include "sigilgeometry/detail/Hash.h"
+#include "sigilgeometry/Noise.h"
 #include "sigilgeometry/detail/VecMath.h"
 
 namespace sigil::geometry {
@@ -19,38 +19,6 @@ using detail::normalized;
 using glm::cross;
 
 namespace {
-
-/** The shared hash driven as a PRNG: advance the carried state, mix a
- *  copy of it. Same bits the local copy produced (detail/Hash.h). */
-uint32_t pcg(uint32_t& state) {
-  state = detail::pcgAdvance(state);
-  return detail::pcgMix(state);
-}
-
-float rand01(uint32_t& state) { return (float)pcg(state) / (float)0xFFFFFFFFu; }
-
-float valueNoise3(glm::vec3 p, uint32_t seed) {
-  auto hash = [seed](int x, int y, int z) {
-    uint32_t h = seed + (uint32_t)x * 374761393u + (uint32_t)y * 668265263u +
-                 (uint32_t)z * 2147483647u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return (float)(h ^ (h >> 16)) / (float)0xFFFFFFFFu;
-  };
-  const int xi = (int)std::floor(p.x), yi = (int)std::floor(p.y),
-            zi = (int)std::floor(p.z);
-  const float xf = p.x - (float)xi, yf = p.y - (float)yi, zf = p.z - (float)zi;
-  auto smooth = [](float t) { return t * t * (3 - 2 * t); };
-  const float u = smooth(xf), v = smooth(yf), w = smooth(zf);
-  float accum = 0;
-  for (int dz = 0; dz <= 1; ++dz)
-    for (int dy = 0; dy <= 1; ++dy)
-      for (int dx = 0; dx <= 1; ++dx) {
-        const float weight =
-            (dx ? u : 1 - u) * (dy ? v : 1 - v) * (dz ? w : 1 - w);
-        accum += hash(xi + dx, yi + dy, zi + dz) * weight;
-      }
-  return accum * 2.0f - 1.0f;
-}
 
 /** The pad values Cloud::append fills missing lanes with, BY NAME —
  *  the lane conventions, not one blanket default: a missing "size"
@@ -201,9 +169,9 @@ Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed) {
   uint32_t state = seed * 2654435761u + 1u;
   out.positions.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
-    out.positions.push_back({lo.x + (hi.x - lo.x) * rand01(state),
-                             lo.y + (hi.y - lo.y) * rand01(state),
-                             lo.z + (hi.z - lo.z) * rand01(state)});
+    out.positions.push_back({lo.x + (hi.x - lo.x) * noise::pcgUnitNext(state),
+                             lo.y + (hi.y - lo.y) * noise::pcgUnitNext(state),
+                             lo.z + (hi.z - lo.z) * noise::pcgUnitNext(state)});
   }
   std::vector<float>& t = out.scalar("t");
   for (int i = 0; i < count; ++i)
@@ -233,14 +201,14 @@ Cloud onMesh(const Mesh& mesh, int count, uint32_t seed) {
   std::vector<glm::vec3> pickedNormals;
   pickedNormals.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
-    const double target = (double)rand01(state) * total;
+    const double target = (double)noise::pcgUnitNext(state) * total;
     const size_t t = (size_t)(std::upper_bound(cumulative.begin(),
                                                cumulative.end(), target) -
                               cumulative.begin()) -
                      1;
     const size_t tri = std::min(t, triangles - 1);
     // Uniform barycentric.
-    float u = rand01(state), v = rand01(state);
+    float u = noise::pcgUnitNext(state), v = noise::pcgUnitNext(state);
     if (u + v > 1) {
       u = 1 - u;
       v = 1 - v;
@@ -270,18 +238,18 @@ Cloud onMesh(const Mesh& mesh, int count, uint32_t seed) {
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   uint32_t state = seed * 2654435761u + 101u;
   for (glm::vec3& p : cloud.positions)
-    p += glm::vec3{(rand01(state) * 2 - 1) * amplitude,
-                   (rand01(state) * 2 - 1) * amplitude,
-                   (rand01(state) * 2 - 1) * amplitude};
+    p += glm::vec3{(noise::pcgUnitNext(state) * 2 - 1) * amplitude,
+                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude,
+                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude};
 }
 
 void displaceNoise(Cloud& cloud, float amplitude, float frequency,
                    uint32_t seed) {
   for (glm::vec3& p : cloud.positions) {
     const glm::vec3 q = p * frequency;
-    p += glm::vec3{valueNoise3(q, seed) * amplitude,
-                   valueNoise3(q + glm::vec3{31.7f, 0, 0}, seed) * amplitude,
-                   valueNoise3(q + glm::vec3{0, 47.3f, 0}, seed) * amplitude};
+    p += glm::vec3{noise::value3(q, seed) * amplitude,
+                   noise::value3(q + glm::vec3{31.7f, 0, 0}, seed) * amplitude,
+                   noise::value3(q + glm::vec3{0, 47.3f, 0}, seed) * amplitude};
   }
 }
 

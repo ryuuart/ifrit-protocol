@@ -46,6 +46,10 @@
 #include <cstdint>
 
 #include "sigilcompose/Compose.h"
+#include "sigilgeometry/Noise.h"
+#include "sigilgeometry/Numeric.h"
+#include "sigilgeometry/Polyline.h"
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::compose::shapes {
 
@@ -266,61 +270,26 @@ struct Squircle {
 inline Squircle squircle(float exponent = 4.0f) { return Squircle{exponent}; }
 
 namespace detail {
-/** Deterministic per-index noise in [-1, 1] (splitmix-style). */
-inline float hashNoise(uint32_t seed, uint32_t i) {
-  uint64_t z =
-      (uint64_t(seed) << 32 | (i * 0x9e3779b9u)) + 0x9e3779b97f4a7c15ull;
-  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-  z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-  z ^= z >> 31;
-  return (float)(z & 0xffffff) / (float)0x7fffff - 1.0f;
-}
-/** Localise the point where a property of a contour CHANGES, given a
- *  bracket that straddles it.
- *
- *  Every scanner that walks a contour at a stride has the same two halves:
- *  notice between two samples that something flipped, then narrow the
- *  bracket. This is the second half, written once, because the returned
- *  value is easy to get wrong: **the answer is `hi`, the first distance
- *  PROVEN past the transition — never the midpoint of the bracket.**
- *  Returning the midpoint reports the transition up to half the scanning
- *  stride early, which shows up as a run boundary sitting short of the
- *  corner it belongs to.
- *
- *  @param stillNear answers "is @p d still on the starting side?" for any
- *         distance in the bracket. A sample it cannot evaluate must answer
- *         `true`: that can only move `lo`, so it can never report a
- *         transition earlier than the truth. */
-template <typename Pred>
-inline float bisectTransition(float lo, float hi, Pred stillNear,
-                              int iterations = 8) {
-  for (int i = 0; i < iterations; ++i) {
-    const float mid = (lo + hi) * 0.5f;
-    if (stillNear(mid))
-      lo = mid;
-    else
-      hi = mid;
-  }
-  return hi;
-}
-
 /** The one polyline sampler behind every parametric curve: evaluates
  *  @p f over t ∈ [t0, t1] in the UNIT frame (±1 spans the box) and
- *  scales onto the node's half-extents. */
+ *  scales onto the node's half-extents. The sampling itself is the
+ *  geometry library's; only the unit-box scaling is this library's
+ *  convention. */
 template <typename F>
 inline SkPath samplePolyline(const F& f, float t0, float t1, int samples,
                              bool close, SkSize s) {
-  const int n = std::max(samples, 2);
   const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+  const geometry::Polyline unit = geometry::sample(
+      [&](float t) { return geometry::fromSk(f(t)); }, t0, t1, samples, close);
   SkPathBuilder b;
-  for (int i = 0; i <= n; ++i) {
-    const float t = t0 + (t1 - t0) * ((float)i / (float)n);
-    const SkPoint u = f(t);
-    const SkPoint p{cx + cx * u.fX, cy + cy * u.fY};
-    if (i == 0)
+  bool first = true;
+  for (const glm::vec2& u : unit.points) {
+    const SkPoint p{cx + cx * u.x, cy + cy * u.y};
+    if (first)
       b.moveTo(p);
     else
       b.lineTo(p);
+    first = false;
   }
   if (close) b.close();
   return b.detach();
@@ -344,7 +313,7 @@ struct Blob {
     std::vector<SkPoint> pts((size_t)n);
     for (int i = 0; i < n; ++i) {
       const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
-      const float r = 1.0f - amplitude * (0.5f + 0.5f * detail::hashNoise(
+      const float r = 1.0f - amplitude * (0.5f + 0.5f * geometry::noise::hash(
                                                             seed, (uint32_t)i));
       pts[(size_t)i] = {cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
     }
@@ -898,7 +867,7 @@ inline SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f) {
         // The boundary lies between the previous sample and this one;
         // narrow the bracket rather than taking either sample, or every
         // run boundary sits up to one step away from the real corner.
-        const float at = detail::bisectTransition(
+        const float at = geometry::bisect(
             length * (float)(i - 1) / (float)samples, d, [&](float mid) {
               SkPoint mp;
               return contour->getPosTan(mid, &mp, nullptr) &&

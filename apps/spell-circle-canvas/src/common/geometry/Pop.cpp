@@ -5,19 +5,12 @@
 #include <map>
 #include <numeric>
 
+#include "sigilgeometry/Noise.h"
 #include "sigilgeometry/Polyline.h"
-#include "sigilgeometry/detail/Hash.h"
 
 namespace sigil::geometry {
 
 namespace {
-
-/** The GPU kernels' hash, bit for bit (see world's pop kernels) —
- *  detail::pcgHash IS that hash; only the float squeeze (24 mantissa
- *  bits over 2^24) lives here, because it is what the kernels do. */
-float hash1(uint32_t x) {
-  return (float)(detail::pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
-}
 
 glm::vec3 drift(glm::vec3 p, float freq, float seed) {
   const float sx = std::sin(p.y * freq * 6.1f + seed) +
@@ -339,7 +332,7 @@ Cloud cook(const pop::Chain& chain) {
     const uint32_t seed = scatter->seed;
     const float u0 = ((float)i + 0.5f) / (float)count;
     const float t = scatter->head - scatter->span + scatter->span * u0 +
-                    (hash1((uint32_t)i * 3u + seed) - 0.5f) *
+                    (noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
                         (scatter->span / (float)count) * 4.0f;
     const glm::vec3 p = spline.position(wrap01(t));
     glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
@@ -350,9 +343,9 @@ Cloud cook(const pop::Chain& chain) {
                                               : glm::cross(tangent, {1, 0, 0});
     n0 = n0 * (1.0f / glm::length(n0));
     const glm::vec3 b0 = glm::cross(tangent, n0);
-    const float ang = hash1((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
-    const float rad =
-        std::sqrt(hash1((uint32_t)i * 5u + seed + 3u)) * scatter->radius;
+    const float ang = noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
+    const float rad = std::sqrt(noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
+                      scatter->radius;
     const glm::vec3 placed =
         p + (n0 * std::cos(ang) + b0 * std::sin(ang)) * rad;
     laneP[i] = {placed.x, placed.y, placed.z, 0};
@@ -477,9 +470,10 @@ Cloud cook(const pop::Chain& chain) {
             const float dv = 1.0f / (float)rows;
             const int cells = std::max(cols * rows, 1);
             for (size_t i = 0; i < count; ++i) {
-              const int cell = std::min(
-                  (int)(hash1((uint32_t)i * 13u + op.seed) * (float)cells),
-                  cells - 1);
+              const int cell =
+                  std::min((int)(noise::pcgUnit((uint32_t)i * 13u + op.seed) *
+                                 (float)cells),
+                           cells - 1);
               storeMasked("Tex", i, op.mask,
                           {(float)(cell % cols) * du, (float)(cell / cols) * dv,
                            du, dv});
@@ -631,12 +625,14 @@ Cloud cook(const pop::Chain& chain) {
             for (size_t i = 0; i < count; ++i) {
               if constexpr (std::is_same_v<T, pop::Jitter>) {
                 glm::vec4 v = attrs.load(op.lane.name, i);
-                v.x += (hash1((uint32_t)i * 3u + op.seed) - 0.5f) * 2.0f *
-                       op.amplitude;
-                v.y += (hash1((uint32_t)i * 5u + op.seed + 1u) - 0.5f) * 2.0f *
-                       op.amplitude;
-                v.z += (hash1((uint32_t)i * 7u + op.seed + 2u) - 0.5f) * 2.0f *
-                       op.amplitude;
+                v.x += (noise::pcgUnit((uint32_t)i * 3u + op.seed) - 0.5f) *
+                       2.0f * op.amplitude;
+                v.y +=
+                    (noise::pcgUnit((uint32_t)i * 5u + op.seed + 1u) - 0.5f) *
+                    2.0f * op.amplitude;
+                v.z +=
+                    (noise::pcgUnit((uint32_t)i * 7u + op.seed + 2u) - 0.5f) *
+                    2.0f * op.amplitude;
                 storeMasked(op.lane.name, i, op.mask, v);
               } else if constexpr (std::is_same_v<T, pop::Noise>) {
                 const glm::vec3 dd =
@@ -655,7 +651,8 @@ Cloud cook(const pop::Chain& chain) {
                     op.base *
                     (1.0f +
                      op.spread *
-                         (hash1((uint32_t)i * 11u + op.seed) * 2.0f - 1.0f));
+                         (noise::pcgUnit((uint32_t)i * 11u + op.seed) * 2.0f -
+                          1.0f));
                 storeMasked(op.lane.name, i, op.mask, {v, v, v, v});
               } else if constexpr (std::is_same_v<T, pop::LookAt>) {
                 glm::vec3 d = op.target - attrs.p3(i);
@@ -786,7 +783,7 @@ Mesh cookSweep(const pop::Chain& chain, const SkPath& profile,
   if (path.points.size() < 2) return {};
   const std::vector<Polyline> contours = flatten(profile, 0.4f);
   if (contours.empty() || contours[0].points.size() < 3) return {};
-  const std::vector<SkPoint>& ring = contours[0].points;
+  const std::vector<glm::vec2>& ring = contours[0].points;
   const std::vector<Frame3> rail =
       curves::frames(path, std::max(options.segments, 2), {0, 1, 0});
 
@@ -794,10 +791,10 @@ Mesh cookSweep(const pop::Chain& chain, const SkPath& profile,
   const uint32_t n = (uint32_t)ring.size();
   for (const Frame3& f : rail)
     for (uint32_t i = 0; i < n; ++i) {
-      const SkPoint p = ring[i];
+      const glm::vec2 p = ring[i];
       // Profile is authored y-down (SkPath space); the frame's normal
       // is its "up", so y flips — same convention extrude() uses.
-      out.positions.push_back(f.position + f.binormal * p.fX - f.normal * p.fY);
+      out.positions.push_back(f.position + f.binormal * p.x - f.normal * p.y);
       out.uvs.push_back({(float)i / (float)n, f.t});
     }
   for (uint32_t s = 0; s + 1 < (uint32_t)rail.size(); ++s)

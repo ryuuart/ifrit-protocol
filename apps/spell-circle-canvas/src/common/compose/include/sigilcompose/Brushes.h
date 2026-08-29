@@ -55,7 +55,10 @@
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/Decorations.h"  // PathSample
 #include "sigilcompose/Lines.h"        // lines::displace (the wave op)
-#include "sigilcompose/Shapes.h"       // detail::hashNoise (seeded jitter)
+#include "sigilcompose/Shapes.h"
+#include "sigilgeometry/Contour.h"
+#include "sigilgeometry/Noise.h"  // noise::hash (seeded jitter)
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::compose {
 
@@ -840,10 +843,6 @@ using StampModFn =
     std::function<StampMod(const PathSample&, size_t index, size_t count)>;
 
 namespace detail {
-/** The corner hit type, shared with the one corner scanner in Lines.h so
- *  every decoration that asks about corners gets the same answer. */
-using CornerHit = sigil::compose::lines::detail::CornerHit;
-
 inline void drawStamp(SkCanvas& c, const SkPicture& pic,
                       const PathSample& sample, bool align, float rotateDeg,
                       float scaleX, float scaleY, const StampMod& m) {
@@ -953,12 +952,10 @@ struct Scatter {
       if (mod) m = mod(samples[i], i, samples.size());
       if (seed != 0) {
         const uint32_t k = (uint32_t)i;
-        m.dAlong += shapes::detail::hashNoise(seed, 4 * k) * jitterAlong;
-        m.dNormal += shapes::detail::hashNoise(seed, 4 * k + 1) * jitterNormal;
-        m.scale *=
-            1.0f + shapes::detail::hashNoise(seed, 4 * k + 2) * jitterScale;
-        m.rotateDeg +=
-            shapes::detail::hashNoise(seed, 4 * k + 3) * jitterRotateDeg;
+        m.dAlong += geometry::noise::hash(seed, 4 * k) * jitterAlong;
+        m.dNormal += geometry::noise::hash(seed, 4 * k + 1) * jitterNormal;
+        m.scale *= 1.0f + geometry::noise::hash(seed, 4 * k + 2) * jitterScale;
+        m.rotateDeg += geometry::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
       }
       detail::drawStamp(c, *pic, samples[i], alignToPath, 0, 1, 1, m);
     }
@@ -1136,13 +1133,13 @@ struct Pattern {
     std::vector<std::pair<PathSample, float>> sideSlots;  // sample + scaleX
     std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
-    SkContourMeasureIter iter(ctx.outline, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      const bool closed = contour->isClosed();
+    for (const geometry::Contour& contour :
+         geometry::Contour::of(ctx.outline)) {
+      const float len = contour.length();
+      const bool closed = contour.closed();
 
       // Corners come from the one shared scanner (lines::detail::
-      // findCorners), so the same shape reports the same corners whichever
+      // cornersOrWarn), so the same shape reports the same corners whichever
       // decoration asks, and the diagnostic it prints when a scan finds
       // nothing reaches a pattern brush too.
       //
@@ -1152,10 +1149,10 @@ struct Pattern {
       // on the same leg whenever it is shorter than the probe, aiming the
       // tile at the outgoing tangent regardless of the alignment asked
       // for.
-      std::vector<detail::CornerHit> corners;
+      std::vector<geometry::Contour::Corner> corners;
       if (cache->corner)
-        corners = sigil::compose::lines::detail::findCorners(
-            *contour, cornerAngleDeg, tileLen * 0.5f,
+        corners = sigil::compose::detail::cornersOrWarn(
+            contour, cornerAngleDeg, tileLen * 0.5f,
             std::clamp(tileLen * 0.25f, 1.0f, 6.0f));
 
       // Open-contour caps reserve their slots at the ends.
@@ -1174,10 +1171,10 @@ struct Pattern {
                         : 0.0f;
       const float halfCorner = cornerRoom * 0.5f;
       std::vector<float> bounds{head};
-      for (const detail::CornerHit& hit : corners)
-        if (hit.d > head && hit.d < len - tail) {
-          bounds.push_back(hit.d - halfCorner);  // run ends before the corner
-          bounds.push_back(hit.d + halfCorner);  // next run starts after it
+      for (const geometry::Contour::Corner& hit : corners)
+        if (hit.distance > head && hit.distance < len - tail) {
+          bounds.push_back(hit.distance - halfCorner);  // run ends before
+          bounds.push_back(hit.distance + halfCorner);  // next run starts after
         }
       bounds.push_back(len - tail);
 
@@ -1192,10 +1189,11 @@ struct Pattern {
         const float sx = stretchToFit ? slot / tileLen : 1.0f;
         for (int i = 0; i < n; ++i) {
           const float d = a + slot * ((float)i + 0.5f);
-          SkPoint pos;
-          SkVector tan;
-          if (contour->getPosTan(d, &pos, &tan))
-            sideSlots.push_back({{pos, tan, d, len > 0 ? d / len : 0}, sx});
+          if (const auto at = contour.at(d))
+            sideSlots.push_back(
+                {{geometry::toSk(at->position), geometry::toSk(at->tangent), d,
+                  len > 0 ? d / len : 0},
+                 sx});
         }
       }
 
@@ -1205,28 +1203,29 @@ struct Pattern {
       // required constructor argument of CornerArt, so corner art with no
       // stated alignment cannot be described in the first place.
       if (cache->corner)
-        for (const detail::CornerHit& hit : corners) {
-          SkPoint pos;
-          if (!contour->getPosTan(hit.d, &pos, nullptr)) continue;
-          SkVector dir{hit.in.x() + hit.out.x(), hit.in.y() + hit.out.y()};
+        for (const geometry::Contour::Corner& hit : corners) {
+          const auto at = contour.at(hit.distance);
+          if (!at) continue;
+          SkVector dir{hit.in.x + hit.out.x, hit.in.y + hit.out.y};
           // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
           // silent zero rotation. Fall back to the outgoing leg.
           if (dir.length() < 1e-3f || corner->align == CornerAlign::Outgoing)
-            dir = hit.out;
-          caps.push_back({{pos, dir, hit.d, len > 0 ? hit.d / len : 0},
+            dir = geometry::toSk(hit.out);
+          caps.push_back({{geometry::toSk(at->position), dir, hit.distance,
+                           len > 0 ? hit.distance / len : 0},
                           cache->corner.get()});
         }
       if (!closed && cache->start) {
-        SkPoint pos;
-        SkVector tan;
-        if (contour->getPosTan(head * 0.5f, &pos, &tan))
-          caps.push_back({{pos, tan, 0, 0}, cache->start.get()});
+        if (const auto at = contour.at(head * 0.5f))
+          caps.push_back({{geometry::toSk(at->position),
+                           geometry::toSk(at->tangent), 0, 0},
+                          cache->start.get()});
       }
       if (!closed && cache->end) {
-        SkPoint pos;
-        SkVector tan;
-        if (contour->getPosTan(len - tail * 0.5f, &pos, &tan))
-          caps.push_back({{pos, tan, len, 1}, cache->end.get()});
+        if (const auto at = contour.at(len - tail * 0.5f))
+          caps.push_back({{geometry::toSk(at->position),
+                           geometry::toSk(at->tangent), len, 1},
+                          cache->end.get()});
       }
     }
 
@@ -1278,7 +1277,7 @@ struct Ribbon {
    *
    *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
    *  through `profileOffset` — a CONSTANT profile picks up
-   *  `lines::offsetAcross`'s real-vertex corner repair (arc outside a
+   *  `geometry::parallel`'s real-vertex corner repair (arc outside a
    *  turn, miter inside) instead of the spur the sample-and-displace walk
    *  below leaves on the inside of every rectangle corner; a VARYING one
    *  is sampled per rail at a uniform 2 px and zipped by arc length.

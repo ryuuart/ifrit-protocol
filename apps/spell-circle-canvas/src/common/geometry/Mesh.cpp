@@ -6,6 +6,7 @@
 #include <limits>
 #include <mapbox/earcut.hpp>
 
+#include "sigilgeometry/Numeric.h"
 #include "sigilgeometry/Polyline.h"
 #include "sigilgeometry/detail/VecMath.h"
 
@@ -190,13 +191,13 @@ namespace mesh {
 
 namespace {
 
-bool pointInRing(SkPoint p, const std::vector<SkPoint>& ring) {
+bool pointInRing(glm::vec2 p, const std::vector<glm::vec2>& ring) {
   bool inside = false;
   const size_t n = ring.size();
   for (size_t i = 0, j = n - 1; i < n; j = i++) {
-    const SkPoint a = ring[i], b = ring[j];
-    if ((a.fY > p.fY) != (b.fY > p.fY) &&
-        p.fX < (b.fX - a.fX) * (p.fY - a.fY) / (b.fY - a.fY) + a.fX)
+    const glm::vec2 a = ring[i], b = ring[j];
+    if ((a.y > p.y) != (b.y > p.y) &&
+        p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x)
       inside = true;
   }
   return inside;
@@ -224,9 +225,9 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
   // Center on the path bounds, flip y so the mesh sits in y-up space
   // with the artwork upright.
   const SkRect pathBounds = path.computeTightBounds();
-  const SkPoint center = {pathBounds.centerX(), pathBounds.centerY()};
+  const glm::vec2 center = {pathBounds.centerX(), pathBounds.centerY()};
   for (Polyline& ring : rings)
-    for (SkPoint& p : ring.points) p = {p.fX - center.fX, -(p.fY - center.fY)};
+    for (glm::vec2& p : ring.points) p = {p.x - center.x, -(p.y - center.y)};
 
   // Even-odd containment depth: even = outer ring, odd = hole of the
   // innermost containing outer.
@@ -269,8 +270,8 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
       auto pushRing = [&](const Polyline& ring) {
         std::vector<EarPoint> ear;
         ear.reserve(ring.points.size());
-        for (const SkPoint& p : ring.points)
-          ear.push_back({(double)p.fX, (double)p.fY});
+        for (const glm::vec2& p : ring.points)
+          ear.push_back({(double)p.x, (double)p.y});
         polygon.push_back(std::move(ear));
         ringsUsed.push_back(&ring);
       };
@@ -282,11 +283,11 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
       const uint32_t base = (uint32_t)out.positions.size();
       const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
       for (const Polyline* ring : ringsUsed) {
-        for (const SkPoint& p : ring->points) {
-          out.positions.push_back({p.fX, p.fY, z});
+        for (const glm::vec2& p : ring->points) {
+          out.positions.push_back({p.x, p.y, z});
           out.normals.push_back(normal);
           out.uvs.push_back(
-              {(p.fX + uvW * 0.5f) / uvW, 1.0f - (p.fY + uvH * 0.5f) / uvH});
+              {(p.x + uvW * 0.5f) / uvW, 1.0f - (p.y + uvH * 0.5f) / uvH});
         }
       }
       for (size_t t = 0; t + 2 < tris.size(); t += 3) {
@@ -309,19 +310,19 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
       float total = ring.length();
       if (total < 1e-6f) total = 1;
       for (size_t e = 0; e < n; ++e) {
-        const SkPoint a = ring.points[e];
-        const SkPoint b = ring.points[(e + 1) % n];
-        SkVector edge = b - a;
-        const float len = edge.length();
+        const glm::vec2 a = ring.points[e];
+        const glm::vec2 b = ring.points[(e + 1) % n];
+        const glm::vec2 edge = b - a;
+        const float len = length(edge);
         if (len < 1e-9f) continue;
         // CCW outer ring in y-up space: outward = edge rotated -90.
-        const glm::vec3 normal = normalized({edge.fY / len, -edge.fX / len, 0});
+        const glm::vec3 normal = normalized({edge.y / len, -edge.x / len, 0});
         const uint32_t base = (uint32_t)out.positions.size();
         const float u0 = arc / total, u1 = (arc + len) / total;
-        out.positions.push_back({a.fX, a.fY, half});
-        out.positions.push_back({b.fX, b.fY, half});
-        out.positions.push_back({b.fX, b.fY, -half});
-        out.positions.push_back({a.fX, a.fY, -half});
+        out.positions.push_back({a.x, a.y, half});
+        out.positions.push_back({b.x, b.y, half});
+        out.positions.push_back({b.x, b.y, -half});
+        out.positions.push_back({a.x, a.y, -half});
         for (int k = 0; k < 4; ++k) out.normals.push_back(normal);
         out.uvs.push_back({u0, 0});
         out.uvs.push_back({u1, 0});

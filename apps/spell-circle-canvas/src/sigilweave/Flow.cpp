@@ -5,8 +5,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/vec2.hpp>
 #include <numbers>
 #include <utility>
+
+#include "sigilgeometry/Numeric.h"
+#include "sigilgeometry/Polyline.h"
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::weave {
 
@@ -54,19 +59,19 @@ void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
 // fill rule, so holes and concave gaps stay open) unioned with every edge's
 // x-travel through the band (conservative — catches features that fall
 // between the samples, like a star tip). Appends unmerged occupied spans.
-void bandOccupancy(const std::vector<std::vector<SkPoint>>& contours,
+void bandOccupancy(const std::vector<std::vector<glm::vec2>>& contours,
                    bool evenOdd, float top, float bottom,
                    std::vector<std::pair<float, float>>& occupiedSpans) {
   static thread_local std::vector<std::pair<float, int>> crossings;
   const float scanlines[3] = {top + kEps, (top + bottom) * 0.5f, bottom - kEps};
   for (const float scanlineY : scanlines) {
     crossings.clear();
-    for (const std::vector<SkPoint>& polygon : contours) {
+    for (const std::vector<glm::vec2>& polygon : contours) {
       for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
-        const SkPoint& startPoint = polygon[pointIndex];
-        const SkPoint& endPoint = polygon[(pointIndex + 1) % polygon.size()];
-        const float startY = startPoint.y();
-        const float endY = endPoint.y();
+        const glm::vec2& startPoint = polygon[pointIndex];
+        const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
+        const float startY = startPoint.y;
+        const float endY = endPoint.y;
         if (startY == endY) continue;
         // Half-open [min, max) so shared vertices count exactly once.
         const bool travelsUp = endY > startY;
@@ -75,7 +80,7 @@ void bandOccupancy(const std::vector<std::vector<SkPoint>>& contours,
           continue;
         const float interpolation = (scanlineY - startY) / (endY - startY);
         crossings.emplace_back(
-            startPoint.x() + interpolation * (endPoint.x() - startPoint.x()),
+            startPoint.x + interpolation * (endPoint.x - startPoint.x),
             travelsUp ? 1 : -1);
       }
     }
@@ -97,29 +102,29 @@ void bandOccupancy(const std::vector<std::vector<SkPoint>>& contours,
     }
   }
 
-  for (const std::vector<SkPoint>& polygon : contours) {
+  for (const std::vector<glm::vec2>& polygon : contours) {
     for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
-      const SkPoint& startPoint = polygon[pointIndex];
-      const SkPoint& endPoint = polygon[(pointIndex + 1) % polygon.size()];
-      const float edgeTop = std::min(startPoint.y(), endPoint.y());
-      const float edgeBottom = std::max(startPoint.y(), endPoint.y());
+      const glm::vec2& startPoint = polygon[pointIndex];
+      const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
+      const float edgeTop = std::min(startPoint.y, endPoint.y);
+      const float edgeBottom = std::max(startPoint.y, endPoint.y);
       if (edgeBottom <= top || edgeTop >= bottom) continue;
       float startFraction = 0;
       float endFraction = 1;
-      if (startPoint.y() != endPoint.y()) {
+      if (startPoint.y != endPoint.y) {
         const float topFraction =
-            (top - startPoint.y()) / (endPoint.y() - startPoint.y());
+            (top - startPoint.y) / (endPoint.y - startPoint.y);
         const float bottomFraction =
-            (bottom - startPoint.y()) / (endPoint.y() - startPoint.y());
+            (bottom - startPoint.y) / (endPoint.y - startPoint.y);
         startFraction =
             std::clamp(std::min(topFraction, bottomFraction), 0.0f, 1.0f);
         endFraction =
             std::clamp(std::max(topFraction, bottomFraction), 0.0f, 1.0f);
       }
       const float startX =
-          startPoint.x() + startFraction * (endPoint.x() - startPoint.x());
+          startPoint.x + startFraction * (endPoint.x - startPoint.x);
       const float endX =
-          startPoint.x() + endFraction * (endPoint.x() - startPoint.x());
+          startPoint.x + endFraction * (endPoint.x - startPoint.x);
       occupiedSpans.emplace_back(std::min(startX, endX),
                                  std::max(startX, endX));
     }
@@ -143,7 +148,7 @@ void mergeSpans(std::vector<std::pair<float, float>>& spans) {
 
 bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
                            SkPoint* position, SkVector* tangent) const {
-  if (!contour) {
+  if (!contour.valid()) {
     // Straight: the pen simply travels along the interval's own direction.
     // Nothing to run off the end of, so the phase is a plain shift.
     const float travel = pen + phase;
@@ -152,23 +157,28 @@ bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
     *tangent = quantizeTangent(direction, rotationSteps);
     return true;
   }
-  const float contourLength = contour->length();
+  const float contourLength = contour.length();
   float contourPosition = contourStart + (pen * advanceScale) + phase;
   bool inside = true;
-  if (contour->isClosed() || wrapContour) {
+  if (contour.closed() || wrapContour) {
     // Closed contours wrap: text can march around the loop forever
-    // (shift the phase for an infinite marquee).
-    contourPosition = std::fmod(contourPosition, contourLength);
-    if (contourPosition < 0) contourPosition += contourLength;
+    // (shift the phase for an infinite marquee). `wrapContour` wraps a
+    // contour the geometry would clamp, so the wrap is spelled here rather
+    // than left to `around`.
+    contourPosition = geometry::wrap(contourPosition, contourLength);
   } else {
     inside = contourPosition >= 0 && contourPosition <= contourLength;
     contourPosition = std::clamp(contourPosition, 0.0f, contourLength);
   }
-  if (!contour->getPosTan(contourPosition, position, tangent)) {
+  const std::optional<geometry::Contour::Sample> sample =
+      contour.at(contourPosition);
+  if (!sample) {
     *position = {0, 0};
     *tangent = {1, 0};
     return false;
   }
+  *position = geometry::toSk(sample->position);
+  *tangent = geometry::toSk(sample->tangent);
   // Walking backwards faces the other way — turned before the snap, so the
   // reversed direction lands on a ladder step rather than beside one.
   if (advanceScale < 0) *tangent = {-tangent->fX, -tangent->fY};
@@ -179,7 +189,7 @@ bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
 
 // Flattened-polygon form of an exclusion SkPath, cached by generation ID.
 struct ExclusionFlow::FlatPath {
-  std::vector<std::vector<SkPoint>> contours;  // closed polylines
+  std::vector<std::vector<glm::vec2>> contours;  // closed polylines
   SkRect bounds = SkRect::MakeEmpty();
   bool evenOdd = false;
 };
@@ -211,87 +221,16 @@ const ExclusionFlow::FlatPath& ExclusionFlow::flattenedPathFor(
                            fill == SkPathFillType::kInverseEvenOdd;
   flattenedPath->bounds = path.computeTightBounds();
 
-  // Fixed-count curve subdivision: layout avoidance needs a couple of pixels
-  // of fidelity, not rendering accuracy.
-  constexpr int kCurveSegs = 12;
-  std::vector<SkPoint> polygon;
-  auto flushPolygon = [&] {
-    if (polygon.size() >= 3)
-      flattenedPath->contours.push_back(std::move(polygon));
-    polygon.clear();
-  };
-
-  SkPath::Iter pathIterator(path, /*forceClose=*/true);
-  SkPoint controlPoints[4];
-  for (;;) {
-    const SkPath::Verb verb = pathIterator.next(controlPoints);
-    if (verb == SkPath::kDone_Verb) break;
-    switch (verb) {
-      case SkPath::kMove_Verb:
-        flushPolygon();
-        polygon.push_back(controlPoints[0]);
-        break;
-      case SkPath::kLine_Verb:
-        polygon.push_back(controlPoints[1]);
-        break;
-      case SkPath::kQuad_Verb:
-        for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
-          const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
-          const float complement = 1 - fraction;
-          polygon.push_back(
-              {complement * complement * controlPoints[0].x() +
-                   2 * complement * fraction * controlPoints[1].x() +
-                   fraction * fraction * controlPoints[2].x(),
-               complement * complement * controlPoints[0].y() +
-                   2 * complement * fraction * controlPoints[1].y() +
-                   fraction * fraction * controlPoints[2].y()});
-        }
-        break;
-      case SkPath::kConic_Verb: {
-        const float conicWeight = pathIterator.conicWeight();
-        for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
-          const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
-          const float complement = 1 - fraction;
-          const float denominator = complement * complement +
-                                    2 * conicWeight * complement * fraction +
-                                    fraction * fraction;
-          polygon.push_back(
-              {(complement * complement * controlPoints[0].x() +
-                2 * conicWeight * complement * fraction * controlPoints[1].x() +
-                fraction * fraction * controlPoints[2].x()) /
-                   denominator,
-               (complement * complement * controlPoints[0].y() +
-                2 * conicWeight * complement * fraction * controlPoints[1].y() +
-                fraction * fraction * controlPoints[2].y()) /
-                   denominator});
-        }
-        break;
-      }
-      case SkPath::kCubic_Verb:
-        for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
-          const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
-          const float complement = 1 - fraction;
-          polygon.push_back(
-              {complement * complement * complement * controlPoints[0].x() +
-                   3 * complement * complement * fraction *
-                       controlPoints[1].x() +
-                   3 * complement * fraction * fraction * controlPoints[2].x() +
-                   fraction * fraction * fraction * controlPoints[3].x(),
-               complement * complement * complement * controlPoints[0].y() +
-                   3 * complement * complement * fraction *
-                       controlPoints[1].y() +
-                   3 * complement * fraction * fraction * controlPoints[2].y() +
-                   fraction * fraction * fraction * controlPoints[3].y()});
-        }
-        break;
-      case SkPath::kClose_Verb:
-        flushPolygon();
-        break;
-      default:
-        break;
-    }
+  // Layout avoidance needs a couple of pixels of fidelity, not rendering
+  // accuracy, and every contour is treated as closed: an open sub-path of
+  // an exclusion is filled as if its ends were joined, exactly as the fill
+  // rule fills it.
+  constexpr float kFlattenTolerance = 0.5f;
+  for (geometry::Polyline& polyline :
+       geometry::flatten(path, kFlattenTolerance)) {
+    if (polyline.points.size() >= 3)
+      flattenedPath->contours.push_back(std::move(polyline.points));
   }
-  flushPolygon();
 
   auto cacheEntry = cache.emplace(generationId, std::move(flattenedPath)).first;
   return *cacheEntry->second;
@@ -404,8 +343,7 @@ bool LineSetFlow::lineIntervals(int index, float /*lineHeight*/,
 PathFlow::PathFlow(const SkPath& path) { addPath(path); }
 
 void PathFlow::addPath(const SkPath& path) {
-  SkContourMeasureIter contourIterator(path, /*forceClosed=*/false);
-  while (sk_sp<SkContourMeasure> contour = contourIterator.next())
+  for (geometry::Contour& contour : geometry::Contour::of(path))
     m_contours.push_back(std::move(contour));
 }
 
@@ -417,7 +355,7 @@ bool PathFlow::lineIntervals(int index, float /*lineHeight*/, float /*ascent*/,
   LineInterval interval;
   interval.contour = m_contours[static_cast<size_t>(index)];
   interval.contourStart = 0;
-  interval.length = interval.contour->length();
+  interval.length = interval.contour.length();
   intervals.push_back(interval);
   return true;
 }

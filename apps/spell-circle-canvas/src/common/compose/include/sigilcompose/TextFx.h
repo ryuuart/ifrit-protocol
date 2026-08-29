@@ -38,7 +38,7 @@
  * Every effect here also carries whether it MOVES its glyphs off the pen
  * positions the layout gave them (`TextEffect::displaces`), which is what
  * decides the grid a live run's origins are rounded to. `rise`, `slide`,
- * `pop`, `spinIn`, `scatter` and `waveLoop` move them; `typeOn`, `axis`,
+ * `pop`, `spinIn`, `scatter` and `waveLoop` move them; `typeOn`, `axisSweep`,
  * `tint`, `scramble` and `pass` do not; `keys` reads its own table and the
  * combinators derive from their operands. Only `fx::effect` has to be told.
  */
@@ -193,36 +193,12 @@ inline constexpr float kNominalSizePx = 96.0f;
       std::abs(radiusPx) + detail::kNominalSizePx * 0.5f);
 }
 
-/** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
- *  addresses — a grade, an optical size, a slant applied at draw time with
- *  no reshape.
- *
- *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen
- *  positions shaping gave them, so an axis that moves advances would leave
- *  them sitting wrong. The runtime probes the face once per axis and
- *  refuses one that does, drawing at the shaped face and warning once —
- *  GRAD is the advance-invariant weight most faces carry, while wght
- *  belongs in the shaping style, which re-shapes. */
-[[nodiscard]] inline TextEffect axis(const char (&tag)[5], float value) {
-  const sigil::weave::FontVariation coordinate(tag, value);
-  return TextEffect(
-      "axis",
-      {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
-       (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
-      [coordinate](const GlyphInfo&, float, Rng&) {
-        GlyphMod m;
-        m.axis = coordinate;
-        return m;
-      },
-      // Only an ADVANCE-INVARIANT axis is honoured, which is exactly the
-      // condition that the pen positions do not move.
-      0.0f, {}, /*displaces=*/false);
-}
-
-/** The same axis SWEPT across local progress: `from` at t = 0, `to` at
- *  t = 1. Pair it with a stagger and a weight rolls along the line. */
-[[nodiscard]] inline TextEffect axis(const char (&tag)[5], float from,
-                                     float to) {
+/** A variable-font axis SWEPT across local progress: `from` at t = 0,
+ *  `to` at t = 1. Pair it with a stagger and a weight rolls along the
+ *  line. The held coordinate is `TextEffect::axis`, in the kernel, because
+ *  the span verb that holds an axis is built on it. */
+[[nodiscard]] inline TextEffect axisSweep(const char (&tag)[5], float from,
+                                          float to) {
   const sigil::weave::FontVariation coordinate(tag, from);
   return TextEffect(
       "axisSweep",

@@ -286,7 +286,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
     // not show — and the swell keeps the memoized faces a bounded ladder
     // buys instead of minting one per frame.
     Track swell{
-        .effect = fx::axis("GRAD", 400.0f, 880.0f),
+        .effect = fx::axisSweep("GRAD", 400.0f, 880.0f),
         .stagger = {.eachMs = 34, .durationMs = 620},
         // A swell, not an arrival: `cosine()` is 0 at both ends of
         // its period and 1 in the middle, which is what a window —
@@ -498,7 +498,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .stagger = wordClock(460.0f),
                    .progress = beat(1.75f, 4.10f)};
     Track grade{.where = everyInitial & !glossary,
-                .effect = fx::axis("GRAD", 400.0f, 900.0f),
+                .effect = fx::axisSweep("GRAD", 400.0f, 900.0f),
                 .stagger = wordClock(460.0f),
                 .progress = beat(1.75f, 4.10f)};
     Track bodies{.where = sel::each(unit::Word).drop(1),

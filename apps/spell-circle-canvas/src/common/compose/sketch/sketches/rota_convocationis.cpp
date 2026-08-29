@@ -204,8 +204,8 @@
 #include <sigilcompose/Studio.h>
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilgeometry/Polyline.h>
 #include <sigilgeometry/Ops.h>
+#include <sigilgeometry/Polyline.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Style.h>
 
@@ -1123,8 +1123,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     form.then(unit::Cluster, {.eachMs = 24, .durationMs = 420});
 
     TextEffect swell =
-        fx::seq(fx::axis("GRAD", 400.0f, 860.0f).until(0.45f).xfade(0.25f),
-                fx::axis("GRAD", 860.0f, 400.0f));
+        fx::seq(fx::axisSweep("GRAD", 400.0f, 860.0f).until(0.45f).xfade(0.25f),
+                fx::axisSweep("GRAD", 860.0f, 400.0f));
 
     // How far past the ring's snug box the pass may paint: the glyphs
     // straddle the baseline circle and stand proud of the box at its four

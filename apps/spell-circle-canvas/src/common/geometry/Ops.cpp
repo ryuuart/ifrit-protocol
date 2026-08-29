@@ -7,7 +7,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 
+#include "sigilgeometry/Noise.h"
+#include "sigilgeometry/Numeric.h"
 #include "sigilgeometry/Polyline.h"
 
 namespace sigil::geometry::ops {
@@ -20,25 +23,14 @@ SkPath binary(const SkPath& a, const SkPath& b, SkPathOp op) {
   return out;
 }
 
-float hashNoise(uint32_t seed, uint32_t i) {
-  uint32_t x = seed * 0x9E3779B9u + i * 0x85EBCA6Bu;
-  x ^= x >> 16;
-  x *= 0x7FEB352Du;
-  x ^= x >> 15;
-  x *= 0x846CA68Bu;
-  x ^= x >> 16;
-  return (float)x / (float)0xFFFFFFFFu * 2.0f - 1.0f;  // [-1, 1]
-}
-
-/** Outward normal at sample i of a closed/open polyline (central
- *  difference tangent, rotated). */
-SkVector normalAt(const std::vector<SkPoint>& pts, size_t i, bool closed) {
+glm::vec2 normalAt(const std::vector<glm::vec2>& pts, size_t i, bool closed) {
   const size_t n = pts.size();
-  const SkPoint prev = pts[closed ? (i + n - 1) % n : (i == 0 ? 0 : i - 1)];
-  const SkPoint next = pts[closed ? (i + 1) % n : std::min(i + 1, n - 1)];
-  SkVector t = next - prev;
-  if (!t.normalize()) t = {1, 0};
-  return {t.fY, -t.fX};
+  const glm::vec2 prev = pts[closed ? (i + n - 1) % n : (i == 0 ? 0 : i - 1)];
+  const glm::vec2 next = pts[closed ? (i + 1) % n : std::min(i + 1, n - 1)];
+  glm::vec2 t = next - prev;
+  const float len = length(t);
+  t = len > 0 ? t / len : glm::vec2{1, 0};
+  return {t.y, -t.x};
 }
 
 template <typename Fn>
@@ -101,9 +93,8 @@ SkPath Roughen::apply(const SkPath& path) const {
   return overSamples(path, segmentPx, smooth, [&](Sampled& samples) {
     const uint32_t base = seed + contourIndex++ * 7919u;
     for (size_t i = 0; i < samples.points.size(); ++i) {
-      const SkVector n = normalAt(samples.points, i, samples.closed);
-      const float d = hashNoise(base, (uint32_t)i) * amplitude;
-      samples.points[i] += {n.fX * d, n.fY * d};
+      const glm::vec2 n = normalAt(samples.points, i, samples.closed);
+      samples.points[i] += n * (noise::hash(base, (uint32_t)i) * amplitude);
     }
   });
 }
@@ -115,15 +106,14 @@ SkPath Zigzag::apply(const SkPath& path) const {
     const size_t n = samples.points.size();
     const float cycles =
         std::max(1.0f, std::round(samples.sourceLength / wavelengthPx));
-    std::vector<SkPoint> original = samples.points;
+    std::vector<glm::vec2> original = samples.points;
     for (size_t i = 0; i < n; ++i) {
-      const float phase = (float)i / (float)n * cycles * 2.0f * (float)M_PI;
-      const float wave = smooth ? std::sin(phase)
-                                : (std::asin(std::sin(phase)) *
-                                   (2.0f / (float)M_PI));  // triangle
-      const SkVector nrm = normalAt(original, i, samples.closed);
+      const float phase = (float)i / (float)n * cycles * kTau;
+      const float wave =
+          smooth ? std::sin(phase)
+                 : (std::asin(std::sin(phase)) * (2.0f / kPi));  // triangle
       samples.points[i] +=
-          {nrm.fX * wave * amplitude, nrm.fY * wave * amplitude};
+          normalAt(original, i, samples.closed) * (wave * amplitude);
     }
   });
 }
@@ -131,36 +121,36 @@ SkPath Zigzag::apply(const SkPath& path) const {
 SkPath PuckerBloat::apply(const SkPath& path) const {
   const float amount = std::clamp(this->amount, -1.0f, 1.0f);
   return overSamples(path, segmentPx, true, [&](Sampled& samples) {
-    const SkPoint c = samples.centroid();
+    const glm::vec2 c = samples.centroid();
     float rMax = 1e-3f;
-    for (const SkPoint& p : samples.points)
-      rMax = std::max(rMax, SkPoint::Distance(p, c));
+    for (const glm::vec2& p : samples.points)
+      rMax = std::max(rMax, distance(p, c));
     // Radial power warp: exponent < 1 bloats (spherize), > 1 puckers.
     const float exponent = std::pow(2.0f, -amount * 1.6f);
-    for (SkPoint& p : samples.points) {
-      SkVector d = p - c;
-      const float r = d.length();
+    for (glm::vec2& p : samples.points) {
+      const glm::vec2 d = p - c;
+      const float r = length(d);
       if (r < 1e-6f) continue;
       const float rNew = rMax * std::pow(r / rMax, exponent);
-      p = {c.fX + d.fX / r * rNew, c.fY + d.fY / r * rNew};
+      p = c + d / r * rNew;
     }
   });
 }
 
 SkPath Twirl::apply(const SkPath& path) const {
   return overSamples(path, segmentPx, true, [&](Sampled& samples) {
-    const SkPoint c = samples.centroid();
+    const glm::vec2 c = samples.centroid();
     float rMax = 1e-3f;
-    for (const SkPoint& p : samples.points)
-      rMax = std::max(rMax, SkPoint::Distance(p, c));
-    const float full = angleDeg * (float)M_PI / 180.0f;
-    for (SkPoint& p : samples.points) {
-      SkVector d = p - c;
-      const float r = d.length();
+    for (const glm::vec2& p : samples.points)
+      rMax = std::max(rMax, distance(p, c));
+    const float full = angleDeg * kDegToRad;
+    for (glm::vec2& p : samples.points) {
+      const glm::vec2 d = p - c;
+      const float r = length(d);
       const float falloff = 1.0f - std::clamp(r / rMax, 0.0f, 1.0f);
       const float a = full * falloff * falloff;
       const float cs = std::cos(a), sn = std::sin(a);
-      p = {c.fX + d.fX * cs - d.fY * sn, c.fY + d.fX * sn + d.fY * cs};
+      p = {c.x + d.x * cs - d.y * sn, c.y + d.x * sn + d.y * cs};
     }
   });
 }

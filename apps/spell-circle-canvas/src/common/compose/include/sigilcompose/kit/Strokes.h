@@ -35,6 +35,7 @@
 #include "sigilcompose/Lines.h"
 #include "sigilcompose/Routers.h"
 #include "sigilcompose/Shapes.h"
+#include "sigilgeometry/Contour.h"
 
 namespace sigil::compose::kit {
 
@@ -91,7 +92,7 @@ struct Wave {
   }
   /** As a SHAPER: displace the path itself. */
   SkPath shape(const SkPath& p) const {
-    return lines::displace(p, amplitude, wavelength, false);
+    return geometry::displace(p, amplitude, wavelength, false);
   }
 
  private:
@@ -141,7 +142,7 @@ struct Offset {
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
   SkPath shape(const SkPath& p) const {
-    return lines::offsetAcross(p, px, step);
+    return geometry::parallel(p, px, step);
   }
 };
 
@@ -201,7 +202,7 @@ struct Zigzag {
   bool operator==(const Zigzag&) const = default;
   float bleed() const { return std::abs(amplitude); }
   SkPath shape(const SkPath& p) const {
-    return lines::displace(p, amplitude, wavelength, true);
+    return geometry::displace(p, amplitude, wavelength, true);
   }
 };
 

@@ -33,6 +33,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
+#include <sigilgeometry/Contour.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/FrameClock.h>
 #include <sigilmotion/Ticker.h>
@@ -795,6 +796,19 @@ class TextEffect {
   TextEffect(std::string name, std::vector<float> params, GlyphModFn fn,
              float reach, std::vector<choreograph::EaseFn> curves = {},
              bool displaces = true);
+
+  /** A VARIABLE-FONT AXIS held at one coordinate for every glyph the track
+   *  addresses — a grade, an optical size, a slant applied at draw time
+   *  with no reshape. The kernel's own effect: `Element::spanAxis` is a
+   *  track carrying it.
+   *
+   *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen
+   *  positions shaping gave them, so an axis that moves advances would
+   *  leave them sitting wrong. The runtime probes the face once per axis
+   *  and refuses one that does, drawing at the shaped face and warning
+   *  once — GRAD is the advance-invariant weight most faces carry, while
+   *  wght belongs in the shaping style, which re-shapes. */
+  static TextEffect axis(const char (&tag)[5], float value);
 
   /** Evaluates the deviation. An empty effect answers the identity. */
   GlyphMod operator()(const GlyphInfo& g, float t, Rng& rng) const {
@@ -2020,6 +2034,21 @@ inline Spans operator|(Spans a, const Spans& b) {
 }
 
 /** The span factories — the WHERE half of `.stroke(where, what)`. */
+namespace detail {
+/** The corner scan every stroke grammar and decoration shares: the
+ *  geometry library's `Contour::corners`, with one diagnostic attached. A
+ *  scan that finds nothing on a contour whose sharpest turn is above the
+ *  noise a smooth curve produces at this step (4°) says so once, because
+ *  a threshold that is simply too high for the shape is the common
+ *  authoring mistake and draws nothing without it. */
+std::vector<geometry::Contour::Corner> cornersOrWarn(
+    const geometry::Contour& contour, float angleDeg, float minSpacing = 3.0f,
+    float step = 2.0f);
+/** The same diagnostic for a whole path, ahead of a corner construction
+ *  that reports nothing itself. */
+void warnIfNoCorners(const SkPath& path, float angleDeg);
+}  // namespace detail
+
 namespace spans {
 /** `[begin, end]` of the boundary's arc length. Both ends take the full
  *  Animatable treatment (constant, `animate(...)`, or a bound Output). */
@@ -2473,7 +2502,7 @@ struct Self {
 /** across ≡ px: a parallel. Parallels are rails — they never cross.
  *
  *  **Positive is LEFT of travel**, which is outside a clockwise path.
- *  `kit::brush::shapers::offset`, `lines::offsetAcross`,
+ *  `kit::brush::shapers::offset`, `geometry::parallel`,
  *  `lines::Rail::across`, `Profile::across` and `TextPath::offset` all
  *  mean this same side; see bandPointAt. */
 struct Offset {
@@ -2641,12 +2670,12 @@ inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
  *  behind a relative strand, and exactly the band's frame: `along` is a
  *  fraction of total arc length, positive `across` is LEFT of travel
  *  (outside a clockwise path). A constant profile delegates to
- *  `lines::offsetAcross`, which means the same side. */
+ *  `geometry::parallel`, which means the same side. */
 SkPath profileOffset(const SkPath& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get
- *  `lines::offsetAcross`'s real-vertex repair (arc outside a turn, miter
+ *  `geometry::parallel`'s real-vertex repair (arc outside a turn, miter
  *  inside) instead of the sample-and-displace spur a naive walk leaves on
  *  the inside of every rectangle.
  *
@@ -3957,7 +3986,7 @@ Element band(Around spine, Across width);
  *  and circles, so `.outward()` exits the shape.
  *
  *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
- *  `Profile::across`, `strand::offset`, `lines::offsetAcross`,
+ *  `Profile::across`, `strand::offset`, `geometry::parallel`,
  *  `lines::Rail::across`, `kit::brush::shapers::offset` and
  *  `TextPath::offset` all mean this same side. Anything placing content on
  *  a band reads it here, so the placement and the band's own geometry

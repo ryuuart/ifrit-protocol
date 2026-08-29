@@ -5,42 +5,46 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 #include <limits>
+
+#include "sigilgeometry/Numeric.h"
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::geometry {
 
 namespace {
 
-float segmentLength(SkPoint a, SkPoint b) { return SkPoint::Distance(a, b); }
+float segmentLength(glm::vec2 a, glm::vec2 b) { return distance(a, b); }
 
-// Flatness test: max distance of the control points from the chord.
+/** Farthest any interior control point sits from the chord: the flatness
+ *  measure that decides how many segments a curve needs. */
 float controlDeviation(const SkPoint pts[], int count) {
-  const SkPoint a = pts[0], b = pts[count - 1];
-  const SkVector chord = b - a;
-  const float chordLen2 = chord.dot(chord);
+  const glm::vec2 a = fromSk(pts[0]), b = fromSk(pts[count - 1]);
+  const glm::vec2 chord = b - a;
+  const float chordLen2 = glm::dot(chord, chord);
   float worst = 0;
   for (int i = 1; i < count - 1; ++i) {
-    const SkVector v = pts[i] - a;
+    const glm::vec2 v = fromSk(pts[i]) - a;
     float d;
     if (chordLen2 < 1e-12f) {
-      d = std::sqrt(v.dot(v));
+      d = length(v);
     } else {
-      const float t = std::clamp(v.dot(chord) / chordLen2, 0.0f, 1.0f);
-      const SkVector off = v - SkVector{chord.fX * t, chord.fY * t};
-      d = std::sqrt(off.dot(off));
+      const float t = std::clamp(glm::dot(v, chord) / chordLen2, 0.0f, 1.0f);
+      d = length(v - chord * t);
     }
     worst = std::max(worst, d);
   }
   return worst;
 }
 
-SkPoint evalQuad(const SkPoint p[3], float t) {
+glm::vec2 evalQuad(const SkPoint p[3], float t) {
   const float u = 1 - t;
   return {u * u * p[0].fX + 2 * u * t * p[1].fX + t * t * p[2].fX,
           u * u * p[0].fY + 2 * u * t * p[1].fY + t * t * p[2].fY};
 }
 
-SkPoint evalCubic(const SkPoint p[4], float t) {
+glm::vec2 evalCubic(const SkPoint p[4], float t) {
   const float u = 1 - t;
   return {u * u * u * p[0].fX + 3 * u * u * t * p[1].fX +
               3 * u * t * t * p[2].fX + t * t * t * p[3].fX,
@@ -49,10 +53,8 @@ SkPoint evalCubic(const SkPoint p[4], float t) {
 }
 
 template <typename Eval>
-void flattenCurve(std::vector<SkPoint>& out, const SkPoint pts[], int count,
+void flattenCurve(std::vector<glm::vec2>& out, const SkPoint pts[], int count,
                   float tolerance, Eval eval) {
-  // Subdivision count from deviation: a curve whose control polygon
-  // deviates d from the chord flattens to ~sqrt(d / tol) * 4 segments.
   const float dev = controlDeviation(pts, count);
   int segments =
       dev <= tolerance ? 1 : (int)std::ceil(std::sqrt(dev / tolerance) * 4.0f);
@@ -72,22 +74,19 @@ float Polyline::length() const {
   return total;
 }
 
-SkPoint Polyline::centroid() const {
+glm::vec2 Polyline::centroid() const {
   if (points.empty()) return {0, 0};
-  // Length-weighted centroid (vertex average biases toward dense spans).
   double x = 0, y = 0, w = 0;
-  auto accumulate = [&](SkPoint a, SkPoint b) {
+  auto accumulate = [&](glm::vec2 a, glm::vec2 b) {
     const double len = segmentLength(a, b);
-    x += (a.fX + b.fX) * 0.5 * len;
-    y += (a.fY + b.fY) * 0.5 * len;
+    x += (a.x + b.x) * 0.5 * len;
+    y += (a.y + b.y) * 0.5 * len;
     w += len;
   };
   for (size_t i = 1; i < points.size(); ++i)
     accumulate(points[i - 1], points[i]);
   if (closed && points.size() > 1) accumulate(points.back(), points.front());
-  if (w < 1e-9) {
-    return points.front();
-  }
+  if (w < 1e-9) return points.front();
   return {(float)(x / w), (float)(y / w)};
 }
 
@@ -95,9 +94,9 @@ float Polyline::signedArea() const {
   double area = 0;
   const size_t n = points.size();
   for (size_t i = 0; i < n; ++i) {
-    const SkPoint& a = points[i];
-    const SkPoint& b = points[(i + 1) % n];
-    area += (double)a.fX * b.fY - (double)b.fX * a.fY;
+    const glm::vec2& a = points[i];
+    const glm::vec2& b = points[(i + 1) % n];
+    area += (double)a.x * b.y - (double)b.x * a.y;
   }
   return (float)(area * 0.5);
 }
@@ -116,17 +115,15 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
       case SkPath::kMove_Verb:
         if (current.points.size() > 1) contours.push_back(std::move(current));
         current = {};
-        current.points.push_back(pts[0]);
+        current.points.push_back(fromSk(pts[0]));
         break;
       case SkPath::kLine_Verb:
-        current.points.push_back(pts[1]);
+        current.points.push_back(fromSk(pts[1]));
         break;
       case SkPath::kQuad_Verb:
         flattenCurve(current.points, pts, 3, tolerance, evalQuad);
         break;
       case SkPath::kConic_Verb: {
-        // Convert the conic to quads (2^1 = 2 of them is plenty at our
-        // tolerances), then flatten those.
         SkPoint quads[1 + 2 * 2];
         const int count = SkPath::ConvertConicToQuads(
             pts[0], pts[1], pts[2], iter.conicWeight(), quads, 1);
@@ -139,7 +136,6 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
         break;
       case SkPath::kClose_Verb:
         current.closed = true;
-        // Drop an explicit closing duplicate if the path emitted one.
         if (current.points.size() > 1 &&
             segmentLength(current.points.front(), current.points.back()) <
                 1e-4f)
@@ -153,12 +149,23 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
   return contours;
 }
 
-SkPoint Sampled::centroid() const {
+Polyline sample(const std::function<glm::vec2(float)>& f, float t0, float t1,
+                int count, bool closed) {
+  Polyline out;
+  out.closed = closed;
+  const int n = std::max(count, 2);
+  out.points.reserve((size_t)n + 1);
+  for (int i = 0; i <= n; ++i)
+    out.points.push_back(f(t0 + (t1 - t0) * ((float)i / (float)n)));
+  return out;
+}
+
+glm::vec2 Sampled::centroid() const {
   if (points.empty()) return {0, 0};
   double x = 0, y = 0;
-  for (const SkPoint& p : points) {
-    x += p.fX;
-    y += p.fY;
+  for (const glm::vec2& p : points) {
+    x += p.x;
+    y += p.y;
   }
   return {(float)(x / points.size()), (float)(y / points.size())};
 }
@@ -168,26 +175,21 @@ Sampled resample(const Polyline& contour, int count) {
   out.closed = contour.closed;
   if (contour.points.empty() || count <= 0) return out;
   out.points.reserve((size_t)count);
-
-  // Cumulative arc length over the (possibly wrapped) segment list.
   std::vector<float> cumulative;
   cumulative.reserve(contour.points.size() + 1);
   cumulative.push_back(0);
   const size_t n = contour.points.size();
   const size_t segments = contour.closed ? n : n - 1;
-  for (size_t i = 0; i < segments; ++i) {
-    const SkPoint a = contour.points[i];
-    const SkPoint b = contour.points[(i + 1) % n];
-    cumulative.push_back(cumulative.back() + segmentLength(a, b));
-  }
+  for (size_t i = 0; i < segments; ++i)
+    cumulative.push_back(
+        cumulative.back() +
+        segmentLength(contour.points[i], contour.points[(i + 1) % n]));
   const float total = cumulative.back();
   out.sourceLength = total;
   if (total < 1e-9f) {
     out.points.assign((size_t)count, contour.points.front());
     return out;
   }
-
-  // Closed: count samples over [0, total); open: over [0, total].
   const float denom = contour.closed ? (float)count : (float)(count - 1);
   size_t seg = 0;
   for (int i = 0; i < count; ++i) {
@@ -196,9 +198,9 @@ Sampled resample(const Polyline& contour, int count) {
       ++seg;
     const float span = cumulative[seg + 1] - cumulative[seg];
     const float t = span < 1e-9f ? 0 : (target - cumulative[seg]) / span;
-    const SkPoint a = contour.points[seg % n];
-    const SkPoint b = contour.points[(seg + 1) % n];
-    out.points.push_back({a.fX + (b.fX - a.fX) * t, a.fY + (b.fY - a.fY) * t});
+    const glm::vec2 a = contour.points[seg % n];
+    const glm::vec2 b = contour.points[(seg + 1) % n];
+    out.points.push_back(a + (b - a) * t);
   }
   return out;
 }
@@ -215,16 +217,14 @@ Alignment bestAlignment(const Sampled& a, const Sampled& b) {
   if (a.points.size() != b.points.size() || a.points.empty()) return best;
   const int n = (int)a.points.size();
   double bestCost = std::numeric_limits<double>::max();
-  // O(n^2) over offsets x2 directions; n is a blend's sample count
-  // (typically 64-256), evaluated once per key pair, never per step.
   for (int reversed = 0; reversed < 2; ++reversed) {
     for (int offset = 0; offset < n; ++offset) {
       double cost = 0;
       for (int i = 0; i < n && cost < bestCost; ++i) {
         const int j =
             reversed ? (offset - i % n + 2 * n) % n : (offset + i) % n;
-        const SkVector d = a.points[(size_t)i] - b.points[(size_t)j];
-        cost += (double)d.dot(d);
+        const glm::vec2 d = a.points[(size_t)i] - b.points[(size_t)j];
+        cost += (double)glm::dot(d, d);
       }
       if (cost < bestCost) {
         bestCost = cost;
@@ -253,28 +253,35 @@ SkPath toPath(const Sampled& samples, bool smooth) {
   const size_t n = samples.points.size();
   if (n < 2) return builder.detach();
   if (!smooth) {
-    builder.moveTo(samples.points[0]);
-    for (size_t i = 1; i < n; ++i) builder.lineTo(samples.points[i]);
+    builder.moveTo(toSk(samples.points[0]));
+    for (size_t i = 1; i < n; ++i) builder.lineTo(toSk(samples.points[i]));
     if (samples.closed) builder.close();
     return builder.detach();
   }
-  // Catmull-Rom through the samples, expressed as cubic Beziers.
-  auto at = [&](long i) -> SkPoint {
+  auto at = [&](long i) -> glm::vec2 {
     if (samples.closed)
       return samples.points[(size_t)((i % (long)n + (long)n) % (long)n)];
     return samples.points[(size_t)std::clamp(i, 0L, (long)n - 1)];
   };
-  builder.moveTo(at(0));
+  builder.moveTo(toSk(at(0)));
   const long last = samples.closed ? (long)n : (long)n - 1;
   for (long i = 0; i < last; ++i) {
-    const SkPoint p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
-    const SkPoint c1 = {p1.fX + (p2.fX - p0.fX) / 6.0f,
-                        p1.fY + (p2.fY - p0.fY) / 6.0f};
-    const SkPoint c2 = {p2.fX - (p3.fX - p1.fX) / 6.0f,
-                        p2.fY - (p3.fY - p1.fY) / 6.0f};
-    builder.cubicTo(c1, c2, p2);
+    const glm::vec2 p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+    const glm::vec2 c1 = p1 + (p2 - p0) / 6.0f;
+    const glm::vec2 c2 = p2 - (p3 - p1) / 6.0f;
+    builder.cubicTo(toSk(c1), toSk(c2), toSk(p2));
   }
   if (samples.closed) builder.close();
+  return builder.detach();
+}
+
+SkPath toPath(const Polyline& line) {
+  SkPathBuilder builder;
+  if (line.points.empty()) return builder.detach();
+  builder.moveTo(toSk(line.points[0]));
+  for (size_t i = 1; i < line.points.size(); ++i)
+    builder.lineTo(toSk(line.points[i]));
+  if (line.closed) builder.close();
   return builder.detach();
 }
 
@@ -283,12 +290,8 @@ Sampled lerp(const Sampled& a, const Sampled& b, float t) {
   out.closed = a.closed;
   const size_t n = std::min(a.points.size(), b.points.size());
   out.points.reserve(n);
-  for (size_t i = 0; i < n; ++i) {
-    const SkPoint& pa = a.points[i];
-    const SkPoint& pb = b.points[i];
-    out.points.push_back(
-        {pa.fX + (pb.fX - pa.fX) * t, pa.fY + (pb.fY - pa.fY) * t});
-  }
+  for (size_t i = 0; i < n; ++i)
+    out.points.push_back(a.points[i] + (b.points[i] - a.points[i]) * t);
   out.sourceLength = a.sourceLength + (b.sourceLength - a.sourceLength) * t;
   return out;
 }

@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
@@ -657,18 +656,18 @@ TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
 // caller that re-places its glyphs
 
 namespace {
-/// A closed circle as one contour measure, plus its length.
-std::pair<sk_sp<SkContourMeasure>, float> circleContour(float radius) {
+/// A closed circle as one contour, plus its length.
+std::pair<sigil::geometry::Contour, float> circleContour(float radius) {
   SkPathBuilder builder;
   builder.addCircle(0, 0, radius);
-  const SkPath path = builder.detach();
-  SkContourMeasureIter iterator(path, false);
-  sk_sp<SkContourMeasure> contour = iterator.next();
-  return {contour, contour ? contour->length() : 0.0f};
+  std::vector<sigil::geometry::Contour> contours =
+      sigil::geometry::Contour::of(builder.detach());
+  if (contours.empty()) return {sigil::geometry::Contour{}, 0.0f};
+  return {contours.front(), contours.front().length()};
 }
 
 /// One line whose whole measure is one contour.
-LineSetFlow ringFlow(const sk_sp<SkContourMeasure>& contour, float length,
+LineSetFlow ringFlow(const sigil::geometry::Contour& contour, float length,
                      float start = 0, float advanceScale = 1.0f) {
   LineInterval interval;
   interval.contour = contour;
@@ -687,7 +686,7 @@ TEST(PathText, APlacedGlyphReportsTheIntervalAndPenItWasPlacedAt) {
   // placeAt() anchors — feed one straight back to the other and the answer
   // must be the position the layout itself computed.
   auto [contour, length] = circleContour(200.0f);
-  ASSERT_TRUE(contour);
+  ASSERT_TRUE(contour.valid());
   Paragraph paragraph = ParagraphBuilder(basicStyle(20.0f))
                             .addText(u8"round and round we go")
                             .build();
@@ -725,7 +724,7 @@ TEST(PathText, ThePenIsTheAccumulatedAdvanceNotTheShapedPosition) {
   // taken from the pen — an accented glyph anchored by its shaped x drifts
   // off the curve by exactly its own offset.
   auto [contour, length] = circleContour(300.0f);
-  ASSERT_TRUE(contour);
+  ASSERT_TRUE(contour.valid());
   Paragraph paragraph =
       ParagraphBuilder(basicStyle(24.0f)).addText(u8"clockwise").build();
   FontContext& context = sharedContext();
@@ -755,7 +754,7 @@ TEST(PathText, APhaseWalksTheRunRoundAClosedContourWithoutRelayout) {
   // must not fall off — the run walks through fraction 1 and out the other
   // side.
   auto [contour, length] = circleContour(150.0f);
-  ASSERT_TRUE(contour);
+  ASSERT_TRUE(contour.valid());
   LineInterval interval;
   interval.contour = contour;
   interval.length = length;
@@ -779,15 +778,15 @@ TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
   // closed. Without the opt-in it clamps; with it, it wraps.
   SkPathBuilder arcBuilder;
   arcBuilder.addArc(SkRect::MakeLTRB(-100, -100, 100, 100), 0, 359.9f);
-  const SkPath arc = arcBuilder.detach();
-  SkContourMeasureIter iterator(arc, false);
-  sk_sp<SkContourMeasure> contour = iterator.next();
-  ASSERT_TRUE(contour);
-  ASSERT_FALSE(contour->isClosed());
+  const std::vector<sigil::geometry::Contour> contours =
+      sigil::geometry::Contour::of(arcBuilder.detach());
+  ASSERT_EQ(contours.size(), 1u);
+  const sigil::geometry::Contour& contour = contours.front();
+  ASSERT_FALSE(contour.closed());
 
   LineInterval clamping;
   clamping.contour = contour;
-  clamping.length = contour->length();
+  clamping.length = contour.length();
   LineInterval wrapping = clamping;
   wrapping.wrapContour = true;
 
@@ -804,7 +803,7 @@ TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
   // How a run reads right way up along the lower half of a ring: the whole
   // run turns round once, rather than each letter turning over.
   auto [contour, length] = circleContour(120.0f);
-  ASSERT_TRUE(contour);
+  ASSERT_TRUE(contour.valid());
   LineInterval forward;
   forward.contour = contour;
   forward.length = length;

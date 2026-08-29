@@ -33,6 +33,8 @@
 #include <utility>
 
 #include "ComposeRuntime.h"
+#include "sigilgeometry/Contour.h"
+#include "sigilgeometry/Skia.h"
 
 namespace sigil::compose {
 
@@ -1241,35 +1243,30 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
         runWidth = std::max(runWidth, placed.rest.x() + placed.advance);
       });
 
-  static thread_local std::vector<sk_sp<SkContourMeasure>> contours;
-  const auto measureContours = [](const SkPath& path) {
-    contours.clear();
-    float total = 0;
-    for (SkContourMeasureIter iter(path, false);;) {
-      sk_sp<SkContourMeasure> contour = iter.next();
-      if (!contour) break;
-      if (contour->length() > 0) {
-        total += contour->length();
-        contours.push_back(std::move(contour));
-      }
-    }
-    return total;
-  };
-  const float length = measureContours(baseline);
+  static thread_local std::vector<geometry::Contour> contours;
+  contours = geometry::Contour::of(baseline);
   if (contours.empty()) return;
+  float length = 0;
+  for (const geometry::Contour& contour : contours) length += contour.length();
   inst.pathTotalLength = length;
 
   // One arc-length coordinate over the whole chain, for the two questions
   // that are about the BASELINE rather than about one glyph: is it closed,
   // and which way does the run read along it.
   const auto posTan = [](float distance, SkPoint* position, SkVector* tangent) {
-    for (const auto& contour : contours) {
-      if (distance <= contour->length())
-        return contour->getPosTan(distance, position, tangent);
-      distance -= contour->length();
+    const auto read = [&](const geometry::Contour& contour, float d) {
+      const auto sample = contour.at(d);
+      if (!sample) return false;
+      if (position) *position = geometry::toSk(sample->position);
+      if (tangent) *tangent = geometry::toSk(sample->tangent);
+      return true;
+    };
+    for (const geometry::Contour& contour : contours) {
+      if (distance <= contour.length()) return read(contour, distance);
+      distance -= contour.length();
     }
-    const auto& last = contours.back();
-    return last->getPosTan(last->length(), position, tangent);
+    const geometry::Contour& last = contours.back();
+    return read(last, last.length());
   };
 
   // "Closed" here means geometrically closed, not flagged closed:
@@ -1277,7 +1274,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
   // spelling for a ring, but addArc leaves it open. Dropping half a centred
   // caption off a ring because of a tenth of a degree is not a behaviour
   // anyone wants.
-  bool closed = contours.size() == 1 && contours.front()->isClosed();
+  bool closed = contours.size() == 1 && contours.front().closed();
   if (!closed) {
     SkPoint head, tail;
     SkVector ignored;
@@ -1347,8 +1344,8 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
   size_t entryContour = 0;
   float entryLocal = entry;
   while (entryContour + 1 < contours.size() &&
-         entryLocal > contours[entryContour]->length()) {
-    entryLocal -= contours[entryContour]->length();
+         entryLocal > contours[entryContour].length()) {
+    entryLocal -= contours[entryContour].length();
     ++entryContour;
   }
   inst.pathIntervals.reserve(contours.size());
@@ -1361,7 +1358,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
     // How much baseline this contour still offers from where the pen
     // entered it — the whole of it when the pen wraps, because a loop has
     // no end to run out of.
-    const float contourLength = contours[index]->length();
+    const float contourLength = contours[index].length();
     interval.length =
         closed
             ? contourLength
@@ -1371,7 +1368,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
   if (flipRun) {
     pushInterval(entryContour, entryLocal);
     for (size_t index = entryContour; index-- > 0;)
-      pushInterval(index, contours[index]->length());
+      pushInterval(index, contours[index].length());
   } else {
     pushInterval(entryContour, entryLocal);
     for (size_t index = entryContour + 1; index < contours.size(); ++index)

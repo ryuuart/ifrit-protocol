@@ -157,7 +157,7 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   run.lineIndex = flatInterval.sourceLineIndex;
   run.intervalIndex = flatInterval.index;
   run.penOffset = penOffset;
-  const bool straight = !flatInterval.interval.contour;
+  const bool straight = !flatInterval.interval.contour.valid();
   const bool horizontal = straight &&
                           flatInterval.interval.direction.x() == 1 &&
                           flatInterval.interval.direction.y() == 0 &&
@@ -389,7 +389,7 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
     for (const WordSegment& segment : word.segments)
       emitSegment(result, flatInterval, segment, wordIndex,
                   penPosition + segment.advanceOffset, options);
-    if (word.placeholderIndex >= 0 && !flatInterval.interval.contour) {
+    if (word.placeholderIndex >= 0 && !flatInterval.interval.contour.valid()) {
       // Inline slot: report where it landed (blob-less run; draw() and
       // drawBatched() skip it, placeholderRects() surfaces it).
       PositionedRun run;
@@ -453,7 +453,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
                                      intervalSequence.intervalAt(intervalIndex);
        ++intervalIndex)
     lastInterval = flatInterval;
-  if (!lastInterval || lastInterval->interval.contour ||
+  if (!lastInterval || lastInterval->interval.contour.valid() ||
       lastInterval->interval.direction.x() != 1 ||
       lastInterval->interval.direction.y() != 0)
     return;
@@ -1101,7 +1101,7 @@ std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
         intervals[static_cast<size_t>(run.intervalIndex)];
     // A column is a straight interval whose pen travels straight down. Any
     // other geometry belongs to lineMetrics or to nothing.
-    if (interval.contour || interval.direction.x() != 0 ||
+    if (interval.contour.valid() || interval.direction.x() != 0 ||
         interval.direction.y() != 1)
       continue;
 
