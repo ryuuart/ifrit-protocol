@@ -278,6 +278,12 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.11)
 
+# Every benchmark binary hangs off this target, so one build command
+# produces the set scripts/bench_ledger.py runs. Benchmarks are not
+# tests: none is registered with ctest, and each library adds its own
+# with add_dependencies(benches <name>).
+add_custom_target(benches)
+
 add_subdirectory(src)
 
 # Every sigil_add_docs() has run by now, which is what lets each library's

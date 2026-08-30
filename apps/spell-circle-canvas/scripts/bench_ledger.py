@@ -1,0 +1,404 @@
+#!/usr/bin/env python3
+"""The bench ledger, as ONE command: timing sweeps over the benchmark
+binaries, compared against a committed baseline.
+
+Runs every `*_bench` binary the build produced (or the subset named with
+--benches), each with Google Benchmark's JSON reporter and a fixed number
+of repetitions, takes the MEDIAN real time of every benchmark, and
+compares it against the baseline stored for the build configuration —
+printing IDENTICAL / FASTER / SLOWER rows and one verdict. The plate
+ledger does this for bytes; this does it for time.
+
+Usage (from apps/spell-circle-canvas):
+  scripts/bench_ledger.py --rebase              # bake the baseline
+  scripts/bench_ledger.py                       # sweep + compare + verdict
+  scripts/bench_ledger.py --benches weave_layout_bench geometry_pop_bench
+  scripts/bench_ledger.py --config Release --repetitions 7 --min-time 0.2
+
+HOW A NUMBER IS TAKEN. Each benchmark runs --repetitions times (default
+5), every repetition long enough to satisfy --min-time (default 0.1 s)
+after a warm-up period (--warmup, default 0.1 s) that is never timed.
+The first repetition is discarded as well — it is the one that pays for
+page faults, lazily built caches and frequency ramp — and the median of
+the remaining repetitions is the number. Real (wall-clock) time is what
+is compared, since it is what a frame budget is spent in; CPU time is
+kept in the baseline for reference but never judged.
+
+HOW A NUMBER IS JUDGED. Each benchmark has a tolerance band, ±10 % by
+default; a benchmark whose noise is honestly wider is given its own band
+by name in TOLERANCES below rather than widening everyone's. Within the
+band a row is IDENTICAL, below it FASTER, above it SLOWER, and any SLOWER
+row fails the run. A benchmark the baseline has never seen is NEW and a
+baseline entry no run produced is MISSING; neither fails the run, since
+the fix for both is --rebase.
+
+THE MACHINE MUST BE QUIET. Timing wants the opposite conditions from
+hashing: the binaries run one at a time (--jobs 1, the default, and the
+only setting whose numbers mean anything), and a build, a browser or a
+sync client running beside them corrupts every number. A SLOWER row on a
+busy machine is the machine, not the code — rerun the bench alone before
+reading it as a finding.
+
+THE BASELINE IS COMMITTED, one file per build configuration, under
+bench/baseline_<config>.json next to the scripts that read it, so a
+change that moves a number moves it in review. Numbers are per machine:
+a baseline taken on one host says nothing about another, and the file
+records the host it was taken on so a mismatch is visible. --rebase
+writes the file from this sweep; with --benches it MERGES the named
+benches into the existing baseline rather than truncating it to them,
+so adopting one deliberately changed bench never discards the rest.
+"""
+
+import argparse
+import datetime
+import json
+import os
+import platform
+import re
+import statistics
+import subprocess
+import sys
+import tempfile
+
+# Per-benchmark tolerance bands, keyed by a regular expression matched
+# against the full benchmark name ("binary:BM_Name/args"). Only for
+# benchmarks whose run-to-run spread on a quiet machine honestly exceeds
+# the default; a widened band is a statement about the benchmark, not
+# a way past a finding. The default applies to everything unmatched.
+DEFAULT_TOLERANCE = 0.10
+TOLERANCES = {
+    # Sub-microsecond bodies: a hash, a lookup, a resolve. The timer's own
+    # resolution and the loop overhead are a visible fraction of each.
+    r":BM_Noise": 0.15,
+    r"^loader_bench:BM_Resolve": 0.15,
+    r"^loader_bench:BM_NetworkCacheKey": 0.15,
+    # The cold arms purge and refill a cache inside each repetition and
+    # pay HarfBuzz for every word; allocator state moves them more than
+    # the warm arms.
+    r"_Cold": 0.15,
+    r"ReplaceWholeParagraph_Cold": 0.15,
+    # Raster painting through Skia's CPU backend has thread-pool warm-up
+    # inside it that the warm-up period does not fully settle.
+    r"^weave_paint_bench:": 0.15,
+}
+
+TIME_UNITS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
+
+
+def tolerance_for(name):
+    for pattern, band in TOLERANCES.items():
+        if re.search(pattern, name):
+            return band
+    return DEFAULT_TOLERANCE
+
+
+def to_ns(value, unit):
+    return value * TIME_UNITS[unit]
+
+
+def discover(bin_dir):
+    """Every *_bench executable in the build's bin directory, by name."""
+    found = {}
+    if not os.path.isdir(bin_dir):
+        return found
+    for entry in sorted(os.listdir(bin_dir)):
+        path = os.path.join(bin_dir, entry)
+        if (
+            entry.endswith("_bench")
+            and os.access(path, os.X_OK)
+            and os.path.isfile(path)
+        ):
+            found[entry] = path
+    return found
+
+
+def run_bench(name, binary, repetitions, min_time, warmup, timeout):
+    """One binary through the JSON reporter. Returns ({bench_name: row},
+    error) where each row holds the median real and CPU time in ns over
+    the repetitions after the first, and the repetition count used."""
+    out = os.path.join(tempfile.mkdtemp(prefix="bench_ledger_"), f"{name}.json")
+    cmd = [
+        binary,
+        f"--benchmark_out={out}",
+        "--benchmark_out_format=json",
+        f"--benchmark_repetitions={repetitions}",
+        f"--benchmark_min_time={min_time:g}s",
+        f"--benchmark_min_warmup_time={warmup:g}",
+        # Aggregates are computed here, over the repetitions that
+        # survive the warm-up discard; the library's own would include
+        # the first.
+        "--benchmark_report_aggregates_only=false",
+        "--benchmark_display_aggregates_only=true",
+    ]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {}, f"still running after {timeout:g}s (killed)"
+    if r.returncode != 0 or not os.path.exists(out):
+        return {}, (r.stderr or r.stdout).strip()[-300:]
+    with open(out) as f:
+        report = json.load(f)
+
+    samples = {}
+    for entry in report.get("benchmarks", []):
+        if entry.get("run_type") != "iteration":
+            continue
+        if entry.get("error_occurred"):
+            return {}, f"{entry['name']}: {entry.get('error_message', 'error')}"
+        key = entry.get("run_name", entry["name"])
+        samples.setdefault(key, []).append(
+            (
+                entry.get("repetition_index", 0),
+                to_ns(entry["real_time"], entry["time_unit"]),
+                to_ns(entry["cpu_time"], entry["time_unit"]),
+                entry["time_unit"],
+            )
+        )
+
+    rows = {}
+    for key, reps in samples.items():
+        reps.sort()
+        kept = reps[1:] if len(reps) > 1 else reps
+        rows[key] = {
+            "real_ns": statistics.median(rep[1] for rep in kept),
+            "cpu_ns": statistics.median(rep[2] for rep in kept),
+            "unit": kept[0][3],
+            "repetitions": len(kept),
+        }
+    return rows, None
+
+
+def fmt_time(ns):
+    for unit, scale in (("s", 1e9), ("ms", 1e6), ("us", 1e3)):
+        if ns >= scale:
+            return f"{ns / scale:8.3f} {unit}"
+    return f"{ns:8.1f} ns"
+
+
+def load_baseline(path):
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def write_baseline(path, config, results, merge_into):
+    benches = dict(merge_into.get("benches", {})) if merge_into else {}
+    benches.update(results)
+    doc = {
+        "config": config,
+        "host": platform.node(),
+        "machine": platform.machine(),
+        "taken": datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        ),
+        "benches": {name: benches[name] for name in sorted(benches)},
+    }
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=1, sort_keys=False)
+        f.write("\n")
+    return doc
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="timing sweep over the benchmark binaries, judged "
+        "against a committed baseline"
+    )
+    ap.add_argument("--config", default="Release")
+    ap.add_argument(
+        "--benches",
+        nargs="*",
+        metavar="NAME",
+        help="subset of *_bench binaries (default: every one the build produced)",
+    )
+    ap.add_argument(
+        "--filter",
+        metavar="REGEX",
+        help="forwarded to each binary as --benchmark_filter; the comparison "
+        "then covers only the benchmarks it selects",
+    )
+    ap.add_argument(
+        "--repetitions",
+        type=int,
+        default=5,
+        help="repetitions per benchmark; the first is discarded and the "
+        "median of the rest is the number (default 5)",
+    )
+    ap.add_argument(
+        "--min-time",
+        type=float,
+        default=0.1,
+        metavar="S",
+        help="minimum timed seconds per repetition (default 0.1)",
+    )
+    ap.add_argument(
+        "--warmup",
+        type=float,
+        default=0.1,
+        metavar="S",
+        help="untimed warm-up seconds before each benchmark (default 0.1)",
+    )
+    ap.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="binaries run at once. 1 (the default) is the only value whose "
+        "numbers mean anything — timing wants a quiet machine — and is "
+        "what every baseline is taken at; higher values exist for a smoke "
+        "run where the verdict will be ignored",
+    )
+    ap.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=1800,
+        metavar="S",
+        help="per-binary ceiling (default 1800); a binary still running at "
+        "the ceiling is killed and reported FAILED-TIMEOUT by name",
+    )
+    ap.add_argument(
+        "--rebase",
+        action="store_true",
+        help="write the baseline from this sweep (merging when --benches "
+        "names a subset)",
+    )
+    args = ap.parse_args()
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bin_dir = os.path.join(root, "build", "bin", args.config)
+    baseline_path = os.path.join(root, "bench", f"baseline_{args.config}.json")
+
+    available = discover(bin_dir)
+    if args.benches:
+        missing = [b for b in args.benches if b not in available]
+        if missing:
+            sys.exit(
+                f"no such bench binary in {bin_dir}: {' '.join(missing)} — "
+                f"build the `benches` target first"
+            )
+        selected = {b: available[b] for b in args.benches}
+    else:
+        selected = available
+    if not selected:
+        sys.exit(f"no *_bench binaries in {bin_dir} — build the `benches` target first")
+
+    if args.jobs != 1:
+        print(
+            f"WARNING: --jobs {args.jobs}: binaries contend for the machine; "
+            f"the numbers below are not comparable to a baseline"
+        )
+    print(
+        f"{len(selected)} benches, config {args.config}, "
+        f"{args.repetitions} repetitions (first discarded), "
+        f"min {args.min_time:g}s each, {args.jobs} job(s)\n"
+    )
+
+    def run_one(item):
+        name, binary = item
+        rows, err = run_bench(
+            name,
+            binary,
+            args.repetitions,
+            args.min_time,
+            args.warmup,
+            args.timeout_seconds,
+        )
+        if args.filter and rows:
+            rows = {k: v for k, v in rows.items() if re.search(args.filter, k)}
+        return name, rows, err
+
+    results, errors = {}, {}
+    if args.jobs == 1:
+        outcomes = map(run_one, selected.items())
+    else:
+        import concurrent.futures
+
+        pool = concurrent.futures.ThreadPoolExecutor(args.jobs)
+        outcomes = pool.map(run_one, selected.items())
+    for name, rows, err in outcomes:
+        if err is not None:
+            errors[name] = err
+            print(f"  FAILED  {name}: {err}")
+        else:
+            results[name] = rows
+            print(f"  ran     {name:<26} {len(rows)} benchmarks")
+
+    if not results:
+        print("\nnothing ran; the baseline is untouched")
+        return 1
+
+    baseline = load_baseline(baseline_path)
+    if args.rebase or baseline is None:
+        if not args.rebase:
+            print(
+                f"\nno baseline at {baseline_path} — writing one (this sweep "
+                f"becomes the baseline)"
+            )
+        doc = write_baseline(
+            baseline_path,
+            args.config,
+            results,
+            baseline if args.benches else None,
+        )
+        print(
+            f"\nbaseline written: {baseline_path} "
+            f"({len(doc['benches'])} benches, {len(results)} from this sweep)"
+        )
+        for name in sorted(results):
+            for key, row in results[name].items():
+                print(f"  {name}:{key:<58} {fmt_time(row['real_ns'])}")
+        return 1 if errors else 0
+
+    if baseline.get("host") and baseline["host"] != platform.node():
+        print(
+            f"\nWARNING: baseline was taken on {baseline['host']}, this is "
+            f"{platform.node()} — numbers are per machine"
+        )
+
+    identical, faster, slower, new, missing = [], [], [], [], []
+    print()
+    for name in sorted(results):
+        base_rows = baseline.get("benches", {}).get(name, {})
+        for key, row in results[name].items():
+            full = f"{name}:{key}"
+            base = base_rows.get(key)
+            if base is None:
+                new.append(full)
+                print(f"  NEW        {full:<70} {fmt_time(row['real_ns'])}")
+                continue
+            ratio = row["real_ns"] / base["real_ns"] if base["real_ns"] else 1.0
+            band = tolerance_for(full)
+            delta = ratio - 1.0
+            if delta > band:
+                status, bucket = "SLOWER", slower
+            elif delta < -band:
+                status, bucket = "FASTER", faster
+            else:
+                status, bucket = "IDENTICAL", identical
+            bucket.append(full)
+            print(
+                f"  {status:<10} {full:<70} {fmt_time(base['real_ns'])} -> "
+                f"{fmt_time(row['real_ns'])}  {delta:+6.1%} (band ±{band:.0%})"
+            )
+        for key in base_rows:
+            if key not in results[name] and not args.filter:
+                missing.append(f"{name}:{key}")
+    for full in missing:
+        print(f"  MISSING    {full} (in baseline, not produced — rebase to drop)")
+
+    print(
+        f"\n{len(identical)} identical, {len(faster)} faster, {len(slower)} slower, "
+        f"{len(new)} new, {len(missing)} missing, {len(errors)} failed"
+    )
+    if slower:
+        print("SLOWER beyond band:")
+        for full in slower:
+            print(f"  {full}   <-- FINDING")
+    if not slower and not errors:
+        print("VERDICT: within band")
+    return 1 if slower or errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

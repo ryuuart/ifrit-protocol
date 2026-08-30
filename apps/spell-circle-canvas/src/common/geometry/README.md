@@ -451,9 +451,16 @@ cmake --build build --config Debug
 ```
 
 Targets: `SigilGeometryPath` and `SigilGeometry` (static libraries), the
-tests, `geometry_demo`, and `geometry_bench` (Google Benchmark: the pop
-cook by count and operator mix, the stamping sink, and the `.geo` reader —
-run it from a Release build).
+tests, `geometry_demo`, and four Google Benchmark binaries built by the
+`benches` target and run from a Release build through
+`scripts/bench_ledger.py`: `geometry_path_bench` (flattening and
+resampling by point count, corner detection and the parallel and displaced
+constructions by contour length, the noise hashes per call),
+`geometry_mesh_bench` (extrude, revolve and the grid presets by vertex
+count), `geometry_pop_bench` (the pop cook per operator over a thousand
+points, and whole chains by count and operator mix) and
+`geometry_import_bench` (OBJ, GLB and `.geo` decoded from bytes in memory,
+per triangle or point).
 
 The tests are one binary per subsystem, each a single translation unit
 under `test/`, so an edit to one subsystem recompiles one small file. All

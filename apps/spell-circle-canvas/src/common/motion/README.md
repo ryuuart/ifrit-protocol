@@ -221,7 +221,13 @@ ctest --test-dir build -C Debug -R motion_ --output-on-failure
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
 (the libraries), `SigilMotion` (the umbrella), and one test per library:
-`motion_bind_test`, `motion_values_test` and `motion_clock_test`. No GPU,
+`motion_bind_test`, `motion_values_test` and `motion_clock_test`, plus two
+Google Benchmark binaries built by the `benches` target and run from a
+Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
+(`BoundFloat::apply` per call under each envelope and the full chain, and
+the wiggle field by octave) and `motion_values_bench` (the consumer's read
+of an `Animatable` lane per slot for each kind it can hold, and copying
+and constructing such a lane). No GPU,
 no assets, no runtime requirements. Each test links only the library it
 exercises (plus the clock where a value is driven by the ticker) and
 GoogleTest, and fails the build if a compositing header becomes

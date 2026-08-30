@@ -221,11 +221,29 @@ sigil_weave_add_test(weave_kit_test
 )
 target_link_libraries(weave_kit_test PRIVATE SigilWeaveKit)
 
-add_executable(weave_bench
-  bench/weave_bench.cpp
-)
-target_link_libraries(weave_bench PRIVATE SigilWeave SigilWeaveShaders
-  SigilWeavePorts benchmark::benchmark)
+# Benchmarks (Google Benchmark; use a Release build), one binary per
+# layer so each links only what it measures: the Unicode leaf alone, the
+# shaper, the layout, and painting (which alone needs the preset shaders).
+# The three that shape share bench/support/Corpus.h — one process-wide
+# FontContext over the system fonts and a fixed word list. None is a
+# test: they build through the `benches` target and run through
+# scripts/bench_ledger.py, which compares them against a baseline.
+add_executable(weave_unicode_bench bench/UnicodeBench.cpp)
+target_link_libraries(weave_unicode_bench PRIVATE SigilWeaveUnicode
+  benchmark::benchmark)
+
+function(sigil_weave_add_bench name source)
+  add_executable(${name} bench/${source} bench/support/Corpus.h)
+  target_link_libraries(${name} PRIVATE SigilWeave SigilWeavePorts
+    benchmark::benchmark)
+  add_dependencies(benches ${name})
+endfunction()
+sigil_weave_add_bench(weave_shaping_bench ShapingBench.cpp)
+target_link_libraries(weave_shaping_bench PRIVATE SigilWeaveUnicode)
+sigil_weave_add_bench(weave_layout_bench LayoutBench.cpp)
+sigil_weave_add_bench(weave_paint_bench PaintBench.cpp)
+target_link_libraries(weave_paint_bench PRIVATE SigilWeaveShaders)
+add_dependencies(benches weave_unicode_bench)
 
 # Example programs: the headless PNG demo and the interactive Qt gallery.
 add_subdirectory(examples/demo)

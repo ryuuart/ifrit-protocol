@@ -159,7 +159,12 @@ ctest --test-dir build -C Debug -R loader_test --output-on-failure
 ```
 
 Targets: `SigilLoaderSource` (header only), `SigilLoader` (static
-library) and `loader_test`, which covers both.
+library), `loader_test`, which covers both, and `loader_bench` (Google
+Benchmark, built by the `benches` target and run from a Release build
+through `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and
+`load<T>` on a decoded view per call, `resolve` per URI against the mount
+table, and `networkCacheKey` per URL — the disk kept out of every timed
+loop).
 
 Two parts of the test suite are conditional. The EXR cases compile only
 when OpenImageIO is found at configure time — the test uses it to *write*

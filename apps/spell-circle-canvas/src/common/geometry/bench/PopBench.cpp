@@ -1,0 +1,178 @@
+// geometry_pop_bench — the CPU pop executor under load: what each
+// operator costs per point on top of a seeded cloud, how the whole chain
+// scales with count and with the operator mix, and what a mask, a
+// deformer or a point-set seed costs relative to the plain chain. Run a
+// Release build; Debug numbers say nothing.
+
+#include <benchmark/benchmark.h>
+#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/Pop.h>
+
+#include <cmath>
+#include <functional>
+#include <numbers>
+#include <vector>
+
+using namespace sigil::geometry;
+
+namespace {
+
+std::vector<glm::vec3> ring(int knots) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < knots; ++i) {
+    const float a = (float)i / (float)knots * 2.0f * std::numbers::pi_v<float>;
+    loop.emplace_back(200.0f * std::cos(a), 40.0f * std::sin(3.0f * a),
+                      200.0f * std::sin(a));
+  }
+  return loop;
+}
+
+/** The plain chain: scatter, jitter, noise, colour, size — the shape a
+ *  comet has. */
+pop::Builder plain(int count) {
+  return pop::on(ring(12))
+      .count(count)
+      .spread(30)
+      .jitter(6)
+      .noise(14, 0.012f)
+      .fade({1, 0.3f, 0.2f, 1}, {0.2f, 0.6f, 1, 1})
+      .vary(0.4f);
+}
+
+void countPoints(benchmark::State& state, int64_t points) {
+  state.counters["points/s"] = benchmark::Counter(
+      (double)points, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetItemsProcessed(state.iterations() * points);
+}
+
+/** One operator over a cloud that already exists: the copy-in of the
+ *  seed is the floor every arm below shares, so an operator's own cost
+ *  is its arm minus BM_PopOperator/seed. */
+using Operator = std::function<pop::Builder(pop::Builder)>;
+
+struct NamedOperator {
+  const char* name;
+  Operator apply;
+};
+
+const std::vector<NamedOperator>& operators() {
+  static const std::vector<NamedOperator> ops = {
+      {"seed", [](pop::Builder b) { return b; }},
+      {"move", [](pop::Builder b) { return b.move({0, 10, 0}); }},
+      {"jitter", [](pop::Builder b) { return b.jitter(6); }},
+      {"noise", [](pop::Builder b) { return b.noise(14, 0.012f); }},
+      {"vary", [](pop::Builder b) { return b.vary(0.4f); }},
+      {"fade",
+       [](pop::Builder b) {
+         return b.fade({1, 0.3f, 0.2f, 1}, {0.2f, 0.6f, 1, 1});
+       }},
+      {"lookAt", [](pop::Builder b) { return b.lookAt({0, 0, 900}); }},
+      {"twist", [](pop::Builder b) { return b.twist(90, {0, 1, 0}, -60, 60); }},
+      {"bend",
+       [](pop::Builder b) {
+         return b.bend(40, {0, 1, 0}, {1, 0, 0}, -60, 60);
+       }},
+      {"peak", [](pop::Builder b) { return b.peak(8); }},
+      {"select",
+       [](pop::Builder b) { return b.select("band", {0, 0, 0}, 160, 0.4f); }},
+      {"smooth", [](pop::Builder b) { return b.smooth(0.5f, 4); }},
+  };
+  return ops;
+}
+
+void BM_PopOperator(benchmark::State& state) {
+  const int count = 1000;
+  const NamedOperator& op = operators()[(size_t)state.range(0)];
+  state.SetLabel(op.name);
+  const Cloud seed = plain(count).cloud();
+  const pop::Chain chain = op.apply(pop::on(seed));
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cook(chain));
+  countPoints(state, count);
+}
+BENCHMARK(BM_PopOperator)->DenseRange(0, 11)->Unit(benchmark::kMicrosecond);
+
+void BM_PopCook_Plain(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0));
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cook(chain));
+  countPoints(state, state.range(0));
+  state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_PopCook_Plain)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_PopCook_MaskedAndDeformed(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0))
+                               .select("band", {0, 0, 0}, 160, 0.4f)
+                               .twist(90, {0, 1, 0}, -60, 60)
+                               .masked("band")
+                               .bend(40, {0, 1, 0}, {1, 0, 0}, -60, 60)
+                               .peak(8)
+                               .masked("band")
+                               .mixBy("Color", "Color", "Color", "band");
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cook(chain));
+  countPoints(state, state.range(0));
+  state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_PopCook_MaskedAndDeformed)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_PopCook_Relax(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0)).smooth(0.5f, 4);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cook(chain));
+  countPoints(state, state.range(0));
+  state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_PopCook_Relax)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_PopCook_PointSetSeed(benchmark::State& state) {
+  // Seeding from an existing cloud with a few lanes: the copy-in cost
+  // against the scatter it replaces.
+  const Cloud seed = plain((int)state.range(0)).cloud();
+  const pop::Chain chain =
+      pop::on(seed).move({0, 10, 0}).vary(0.3f).lookAt({0, 0, 900});
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cook(chain));
+  countPoints(state, state.range(0));
+  state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_PopCook_PointSetSeed)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Arg(100000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_PopSink_Stamps(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0)).lookAt({0, 0, 900});
+  const Mesh stamp = mesh::quad(4, 4);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(popops::cookMesh(chain, stamp));
+  countPoints(state, state.range(0));
+  state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_PopSink_Stamps)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+}  // namespace
+
+BENCHMARK_MAIN();

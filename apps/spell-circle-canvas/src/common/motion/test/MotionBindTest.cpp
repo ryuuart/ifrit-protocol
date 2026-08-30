@@ -680,3 +680,28 @@ TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
     EXPECT_NEAR(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f),
                 1e-6f);
 }
+
+// The noise field is reachable piecewise: a caller can evaluate one lattice
+// cell, one octave or the summed field directly, and each keeps its
+// documented range.
+TEST(BindNoise, PiecesAreLinkableAndBounded) {
+  using namespace sigil::motion::detail;
+  EXPECT_NE(wiggleHash(1u), wiggleHash(2u));
+  for (int cell = -8; cell <= 8; ++cell) {
+    const float l = wiggleLattice(cell, 7u);
+    EXPECT_GE(l, -1.0f);
+    EXPECT_LE(l, 1.0f);
+  }
+  float prev = wiggleOctave(0.0f, 7u);
+  for (int i = 1; i <= 200; ++i) {
+    const float x = i * 0.01f;
+    const float o = wiggleOctave(x, 7u);
+    EXPECT_GE(o, -1.0f);
+    EXPECT_LE(o, 1.0f);
+    EXPECT_LT(std::abs(o - prev), 0.2f);  // quintic smoothing: no jumps
+    prev = o;
+  }
+  const float one = wiggleNoise(0.37f, 7u, 1, 0.5f);
+  EXPECT_FLOAT_EQ(one, wiggleOctave(0.37f, 7u));
+  EXPECT_LE(std::abs(wiggleNoise(0.37f, 7u, 8, 0.5f)), 1.0f);
+}

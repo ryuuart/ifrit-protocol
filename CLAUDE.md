@@ -49,9 +49,12 @@ reader who has never opened any other document.
 
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
-- **No performance measurements.** Benchmarks own numbers — `compose_bench`,
-  `weave_bench`, `scry_bench`, `geometry_bench`, `world_bench`, and the plate
-  ledger. A behavioral constant
+- **No performance measurements.** Benchmarks own numbers — the `*_bench`
+  binaries (`compose_bench`, `scry_bench`, `world_bench`, and the
+  per-library ones for geometry, weave, motion, image and loader, which
+  the `benches` target builds), `scripts/bench_ledger.py` which judges
+  their medians against a committed baseline, and the plate ledger. A
+  behavioral constant
   is different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
@@ -92,6 +95,10 @@ and baseline when that registry is pushed; the workflow is in its README.
 
 Use a Release build for any performance work. Several benchmarks and
 gallery scenes are deliberately stressful and Debug timings say nothing.
+`cmake --build build --config Release --target benches` builds every
+benchmark binary and `scripts/bench_ledger.py` (or `mise run bench`) runs
+them on a quiet machine, comparing each benchmark's median against
+`bench/baseline_<config>.json`; `--rebase` adopts new numbers.
 
 Some targets are conditional: Ultralight-dependent ones disable
 themselves with a warning when the SDK is missing, GPU tests need Metal,

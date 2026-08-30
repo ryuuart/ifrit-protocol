@@ -139,11 +139,20 @@ target_link_libraries(geometry_demo PRIVATE SigilGeometry SigilLoader
   SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
 
-# The CPU pop executor and the .geo reader under load (Google Benchmark;
-# use a Release build):
-#   ./build/bin/Release/geometry_bench
-add_executable(geometry_bench bench/GeometryBench.cpp)
-target_link_libraries(geometry_bench PRIVATE SigilGeometry benchmark::benchmark)
+# Benchmarks (Google Benchmark; use a Release build), one binary per
+# subsystem so each links only the library it measures. None is a test:
+# they build through the `benches` target and run through
+# scripts/bench_ledger.py, which compares them against a baseline.
+#   ./build/bin/Release/geometry_path_bench
+function(geometry_bench name source library)
+  add_executable(${name} bench/${source})
+  target_link_libraries(${name} PRIVATE ${library} benchmark::benchmark)
+  add_dependencies(benches ${name})
+endfunction()
+geometry_bench(geometry_path_bench PathBench.cpp SigilGeometryPath)
+geometry_bench(geometry_mesh_bench MeshBench.cpp SigilGeometry)
+geometry_bench(geometry_pop_bench PopBench.cpp SigilGeometry)
+geometry_bench(geometry_import_bench ImportBench.cpp SigilGeometry)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

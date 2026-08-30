@@ -34,6 +34,14 @@ if(OpenImageIO_FOUND)
 endif()
 add_test(NAME loader_test COMMAND loader_test)
 
+# The hub benchmark (Google Benchmark; use a Release build): cache hits,
+# typed-view dispatch and URI resolution, the disk kept out of the timed
+# loop. Not a test: it builds through the `benches` target and runs
+# through scripts/bench_ledger.py.
+add_executable(loader_bench bench/LoaderBench.cpp)
+target_link_libraries(loader_bench PRIVATE SigilLoader benchmark::benchmark)
+add_dependencies(benches loader_bench)
+
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

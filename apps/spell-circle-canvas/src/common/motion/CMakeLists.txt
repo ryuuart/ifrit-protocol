@@ -84,6 +84,17 @@ add_executable(motion_bind_test test/MotionBindTest.cpp
 target_link_libraries(motion_bind_test PRIVATE SigilMotionBind GTest::gtest_main)
 add_test(NAME motion_bind_test COMMAND motion_bind_test)
 
+# Benchmarks (Google Benchmark; use a Release build), one per library,
+# each linking only what it measures. Not tests: they build through the
+# `benches` target and run through scripts/bench_ledger.py.
+add_executable(motion_bind_bench bench/BindBench.cpp)
+target_link_libraries(motion_bind_bench PRIVATE SigilMotionBind
+  benchmark::benchmark)
+add_executable(motion_values_bench bench/ValuesBench.cpp)
+target_link_libraries(motion_values_bench PRIVATE SigilMotionValues
+  benchmark::benchmark)
+add_dependencies(benches motion_bind_bench motion_values_bench)
+
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

@@ -6,7 +6,7 @@ namespace sigil::motion {
 
 namespace detail {
 
-inline uint32_t wiggleHash(uint32_t x) {
+uint32_t wiggleHash(uint32_t x) {
   x ^= x >> 16;
   x *= 0x7feb352du;
   x ^= x >> 15;
@@ -15,13 +15,13 @@ inline uint32_t wiggleHash(uint32_t x) {
   return x;
 }
 
-inline float wiggleLattice(int32_t cell, uint32_t seed) {
+float wiggleLattice(int32_t cell, uint32_t seed) {
   const uint32_t h =
       wiggleHash((uint32_t)cell * 0x9e3779b9u ^ wiggleHash(seed + 0x85ebca6bu));
   return (float)(h >> 8) * (1.0f / 8388608.0f) - 1.0f;
 }
 
-inline float wiggleOctave(float x, uint32_t seed) {
+float wiggleOctave(float x, uint32_t seed) {
   const float base = std::floor(x);
   if (!(base > -2.0e9f && base < 2.0e9f)) return 0.0f;
   const float t = x - base;
@@ -32,7 +32,7 @@ inline float wiggleOctave(float x, uint32_t seed) {
   return a + (b - a) * u;
 }
 
-inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
+float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
   const int n = octaves < 1 ? 1 : (octaves > 8 ? 8 : octaves);
   float sum = 0.0f, weight = 0.0f, amp = 1.0f, freq = 1.0f;
   for (int i = 0; i < n; ++i) {

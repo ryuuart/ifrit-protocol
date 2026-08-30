@@ -138,8 +138,12 @@ ctest --test-dir build -C Debug -R image_ --output-on-failure
 ```
 
 Targets: `SigilImageAsset` and `SigilImageDecode` (static libraries),
-`SigilImage` (the umbrella), and one test per library, `image_asset_test`
-and `image_decode_test`, each linking only its library. The fixtures are
+`SigilImage` (the umbrella), one test per library, `image_asset_test`
+and `image_decode_test`, each linking only its library, and
+`image_decode_bench` (Google Benchmark, built by the `benches` target and
+run from a Release build through `scripts/bench_ledger.py`: `decodeImage`
+per megapixel over PNG and JPEG fixtures encoded in memory at several
+sizes, the committed 4x4 stills for the per-call floor, and `probeImage`). The fixtures are
 committed 4x4 px files — one still per format plus a three-frame animation
 for each animated format — located through the `IFRIT_IMAGE_TEST_ASSET_DIR`
 compile definition, so the test runs from any working directory.

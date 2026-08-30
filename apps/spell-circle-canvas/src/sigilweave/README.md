@@ -614,12 +614,21 @@ Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
 `FontContext` every binary shapes with, and each binary has a support header
 that includes exactly the headers its translation units use.
 
-`weave_bench` owns every performance claim about this library. Build it
-Release and run it rather than trusting a number written down anywhere:
+The benchmarks own every performance claim about this library — one
+binary per layer, so each links only what it measures: `weave_unicode_bench`
+(itemize, line breaks and bidi per code point, on the Unicode leaf alone),
+`weave_shaping_bench` (`shapeWord` per word cold and warm, and whole
+paragraphs shaped cold against warm), `weave_layout_bench`
+(`layoutParagraph` per word, greedy and Knuth-Plass by length, and each
+kind of per-frame update against the same warm relayout) and
+`weave_paint_bench` (`draw` and `drawBatched` per glyph on a raster
+surface, with arms that differ in one paint feature). Build them Release
+through the `benches` target and run them through `scripts/bench_ledger.py`
+rather than trusting a number written down anywhere:
 
 ```sh
-cmake --build build --config Release --target weave_bench weave_demo
-./build/bin/Release/weave_bench
+cmake --build build --config Release --target benches weave_demo
+python3 scripts/bench_ledger.py --benches weave_layout_bench
 ./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
 ```
 
