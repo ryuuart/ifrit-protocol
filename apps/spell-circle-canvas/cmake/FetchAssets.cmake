@@ -54,7 +54,7 @@ set(SIGIL_ASSET_MANIFEST
 # full-url | destination | sha256
 set(SIGIL_ASSET_URL_MANIFEST
     # The Ghostscript tiger — the classic vector torture test, exercised
-    # by SigilImage's SVG decode backend and the world_demo SVG panel.
+    # by SigilImage's SVG decode backend.
     # AGPL-3.0 (per its Wikimedia Commons file page).
     "https://upload.wikimedia.org/wikipedia/commons/f/fd/Ghostscript_Tiger.svg|svg/tiger.svg|5211e169283f43ab8ad7ea7998d917d5fbb3c568ac85c1a0217e86792822684d"
     "https://www.gnu.org/licenses/agpl-3.0.txt|svg/tiger.LICENSE.txt|0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
@@ -69,8 +69,8 @@ set(SIGIL_ASSET_URL_MANIFEST
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/LICENSE.md|models/Avocado.LICENSE.md|15aa885ef74db3dce103da85abb568476378a815ca46db0cf7667a1a795b4194"
     # Poly Haven "metal_plate" PBR texture set (CC0), one file per map in
     # the site's own naming (_diff, _nor_gl, _rough, _metal, _ao, and the
-    # packed _arm) — SigilWorld's texture-set loader recognizes these
-    # names, and world_demo dresses its material lab with them.
+    # packed _arm) — SigilMaterial's texture-set discovery recognizes
+    # these names.
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_diff_1k.png|textures/metal_plate/metal_plate_diff_1k.png|00401b4ce56f0ffa8b2c1e10366fa36a7a9b839199b3abac2678790a9883c2e9"
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_nor_gl_1k.png|textures/metal_plate/metal_plate_nor_gl_1k.png|d858021ebc0a2a01ec13e574bc47ed58795e129904cda2868b3fb2dfd02d6741"
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_rough_1k.png|textures/metal_plate/metal_plate_rough_1k.png|aa6e4947c33559a7012e275d1600bfa6e00c2824271726a94de69f1a7b7fed2e"

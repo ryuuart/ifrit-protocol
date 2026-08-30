@@ -8,7 +8,7 @@ with the material channel it feeds — `baseColor`, `normal`, `roughness`,
 package, exposes its graphs' parameters as plain values, renders on the
 CPU Substance Engine, and hands every output back as an `SkImage` keyed
 by identifier and by usage. Nothing here knows about surfaces or the GPU:
-SigilWorld's texture-set door takes the by-usage map and makes a
+SigilMaterial's texture-set door takes the by-usage map and makes a
 `Material` of it.
 
 Namespace `sigil::substance`, target `SigilSubstance`. One static target
@@ -29,8 +29,9 @@ nothing but its graphs, so a test of one is a test of both.
 ## Using it
 
 ```cpp
+#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/texture/TextureSet.h>
 #include <sigilsubstance/Substance.h>
-#include <sigilworld/TextureSet.h>
 
 using namespace sigil;
 
@@ -49,8 +50,8 @@ graph.set("Season", 0.8f);
 graph.render();
 
 sk_sp<SkImage> normal = graph.output("normal");  // by usage or identifier
-world::Material leaves = world::textures::material(
-    graph.outputsByUsage(), {}, graph.normalsAreDirectX());
+material::Material leaves = material::kit::surface(material::textures::
+    fromUsageMap(graph.outputsByUsage(), graph.normalsAreDirectX()));
 ```
 
 `substance_demo <file.sbsar> [outdir] [log2size] [name=value ...]` prints
@@ -70,15 +71,15 @@ touching the SDK's types.
 
 **Usage is the key.** Every output the graph tagged with a channel is
 returned under that channel's canonical name — the vocabulary
-`world::textures::roleForUsage()` reads. Untagged outputs are keyed by
+`material::textures::roleForUsage()` reads. Untagged outputs are keyed by
 identifier. Both spellings a graph may use for the same slot
 (`diffuse` and `baseColor`) land on the same `Material` slot downstream.
 
 **Two inputs every graph has.** `$outputsize` (an Int2, log2 per axis)
 is what `setResolution()` sets. `$normalformat` (0 DirectX, 1 OpenGL)
 selects the normal map's green convention; the engine's default is
-DirectX, which is why `world::textures::material()`'s by-usage overload
-defaults `normalDirectX` to true. `Graph::normalsAreDirectX()` reads the
+DirectX, which is why `material::textures::fromUsageMap()` defaults
+`normalDirectX` to true. `Graph::normalsAreDirectX()` reads the
 input back, so the material builder can be handed the graph's own
 answer rather than a remembered one.
 
@@ -114,8 +115,8 @@ Public dependency: Skia (`SkImage` out). Private: the Substance 3D SDK's
 framework library and one engine dylib — no public header names an SDK
 type; the SDK is included only by the sources and the internal headers
 beside them. Deliberately absent: any GPU device, any material or
-surface type (SigilWorld's), any file-set discovery (that is
-`sigilworld/TextureSet.h`), and the SDK's own sources — nothing from the
+surface type (SigilMaterial's), any file-set discovery (that is
+`sigilmaterial/texture/TextureSet.h`), and the SDK's own sources — nothing from the
 SDK is vendored into this repository.
 
 ## The SDK
@@ -127,8 +128,7 @@ use — or point `SUBSTANCE_SDK_DIR` at the directory holding
 `substance-config.cmake`. `setup.py` writes the location into
 `CMakeUserPresets.json`; without an SDK the top-level configure warns and
 leaves this library, `substance_test`, `substance_bench` and
-`substance_demo` out of the build, and `world_demo`'s material lab
-renders without its Substance props. Executables that link SigilSubstance
+`substance_demo` out of the build. Executables that link SigilSubstance
 carry the SDK's `bin/release` in their runtime search path, which is
 where the engine dylib lives.
 

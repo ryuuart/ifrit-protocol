@@ -76,7 +76,7 @@ class Graph {
    *  top-left origin. */
   sk_sp<SkImage> output(std::string_view identifierOrUsage) const;
   /** Every rendered image output keyed by its usage — the map
-   *  SigilWorld's texture-set door takes. Outputs with no usage are
+   *  SigilMaterial's texture-set door takes. Outputs with no usage are
    *  keyed by identifier. */
   std::map<std::string, sk_sp<SkImage>> outputsByUsage() const;
 

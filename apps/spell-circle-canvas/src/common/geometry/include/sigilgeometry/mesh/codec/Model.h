@@ -54,7 +54,8 @@ struct Part {
    *  same bytes as "orm" when the file packs them), "emissive". Each
    *  entry holds the encoded bytes when reachable and the URI as the
    *  file spells it. Formats without a material model leave this
-   *  empty. These are the words SigilWorld's texture-set door reads. */
+   *  empty. These are the words SigilMaterial's texture-set door
+   *  reads. */
   struct TextureRef {
     std::string uri;
     std::vector<std::byte> bytes;

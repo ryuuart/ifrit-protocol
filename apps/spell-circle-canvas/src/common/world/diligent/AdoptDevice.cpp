@@ -25,7 +25,7 @@
 #include <sigilskia/device/GpuDevice.h>
 // clang-format on
 
-namespace sigil::world {
+namespace sigil::world::diligent {
 
 std::unique_ptr<skia::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
@@ -86,4 +86,4 @@ std::unique_ptr<skia::GpuDevice> adoptVulkanDevice(
   return skia::GpuDevice::adopt(native, error);
 }
 
-}  // namespace sigil::world
+}  // namespace sigil::world::diligent

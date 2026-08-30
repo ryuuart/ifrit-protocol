@@ -19,7 +19,7 @@ namespace sigil::skia {
 class GpuDevice;
 }  // namespace sigil::skia
 
-namespace sigil::world {
+namespace sigil::world::diligent {
 
 /**
  * The Vulkan objects behind @p device and its immediate @p context —
@@ -41,4 +41,4 @@ std::unique_ptr<skia::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
     std::string* error);
 
-}  // namespace sigil::world
+}  // namespace sigil::world::diligent

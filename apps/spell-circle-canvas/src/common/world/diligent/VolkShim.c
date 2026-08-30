@@ -1,4 +1,4 @@
-/* SigilWorld's Vulkan bootstrap, for Diligent alone.
+/* The Vulkan bootstrap, for Diligent alone.
  *
  * DiligentCore resolves every Vulkan entry point through volk. Stock
  * volk dlopens leaf names plus /usr/local/lib, which misses the Homebrew

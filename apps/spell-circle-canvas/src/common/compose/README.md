@@ -1312,7 +1312,7 @@ present only with SigilScry), `SigilComposeTesting` (`testing/`) and
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. Every consumer in this
 repository — the gallery, the sketch kit, the benches, the demos, the
-tests, `world_test`, `world_demo` and `geometry_demo` — links the feature
+tests and `geometry_demo` — links the feature
 targets it draws with by name, so a dependency on a tier is a stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each

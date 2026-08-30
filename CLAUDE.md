@@ -53,12 +53,10 @@ reader who has never opened any other document.
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
 - **No performance measurements.** Benchmarks own numbers — the `*_bench`
-  binaries (`compose_bench`, `scry_bench`, `world_bench`, and the
-  per-library ones for geometry, weave, motion, image and loader, which
-  the `benches` target builds), `scripts/bench_ledger.py` which judges
-  their medians against a committed baseline, and the plate ledger. A
-  behavioral constant
-  is different and belongs in the comment: if only editing the code could
+  binaries (one per feature target, which the `benches` target builds),
+  `scripts/bench_ledger.py` which judges their medians against a
+  committed baseline, and the plate ledger. A behavioral constant is
+  different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
   names. When a past attempt revealed a real constraint, state the
@@ -105,8 +103,8 @@ them on a quiet machine, comparing each benchmark's median against
 
 Some targets are conditional: Ultralight-dependent ones disable
 themselves with a warning when the SDK is missing, GPU tests need Metal,
-and the SigilWorld tests *skip* rather than fail without a Vulkan runtime
-(`brew install molten-vk vulkan-loader`).
+and `world_diligent_test` *skips* rather than fails without a Vulkan
+runtime (`brew install molten-vk vulkan-loader`).
 
 Open-licensed demo assets come from the opt-in `fetch_assets` target into
 `build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.

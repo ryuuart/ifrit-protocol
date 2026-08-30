@@ -4,8 +4,9 @@
 #                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
 #                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
-#                geometry/ (SigilGeometry), world/ (SigilWorld), material/
-#                (SigilMaterial), compose/ (SigilCompose)
+#                geometry/ (SigilGeometry), world/ (SigilWorldLight,
+#                SigilWorldDiligent), material/ (SigilMaterial), compose/
+#                (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by

@@ -12,7 +12,7 @@
  * "emissive"...). This library loads a package, exposes its graphs'
  * parameters as plain values, renders on the CPU engine, and hands each
  * output back as an SkImage keyed by identifier and by usage. Nothing
- * here knows about surfaces or the GPU: SigilWorld's texture-set door
+ * here knows about surfaces or the GPU: SigilMaterial's texture-set door
  * takes the by-usage map and makes a Material of it.
  *
  * Namespace sigil::substance, target SigilSubstance. Requires the

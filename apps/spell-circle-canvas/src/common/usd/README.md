@@ -50,9 +50,8 @@ auto back = usd::readModel("shots/lab.usdc");  // decode::Model
 GPU has the meshes, not the CPU — it takes the same values you placed:
 `geometry::mesh::Mesh`, `glm::mat4`, `material::Material` (or a slot
 list), `geometry::mesh::Cloud`, `world::light::Light`,
-`geometry::mesh::camera::Camera`. Keep those around (as `world_demo`'s
-material lab does, handing its own values over through
-`sigilworld/Adapt.h`) and writing the scene is one call per prop.
+`geometry::mesh::camera::Camera`. Keep those around and writing the
+scene is one call per prop.
 
 **What goes where.**
 
@@ -133,7 +132,7 @@ was handed.
 
 OpenUSD comes from vcpkg (`usd`, default features off: `tbb` and `zlib`
 only). When the package is not found the top-level configure warns and
-leaves every target here and `world_demo`'s USD export out.
+leaves every target here out.
 
 Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
 `SigilUsd` umbrella; `usd_runtime_test`, `usd_write_test` and
