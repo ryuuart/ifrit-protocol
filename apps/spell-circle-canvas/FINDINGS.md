@@ -83,11 +83,7 @@ findings in geometry, skia, core, measure, scry, material, usd,
 substance or the text engine. Neither `src/common/compose/` nor
 `src/common/world/` is covered by that sentence: world does not compile
 while its rewrite is in flight, and compose has been analyzed only in
-part. The one compose finding measured so far is a false positive that
-still needs an answer in place —
-`compose/core/ReconcileHost.cpp:106` reports "Called C++ object pointer
-is null" on a path where `parent` is null and `staggerMs` is positive,
-which the ternary that computes `staggerMs` from `parent` forbids.
+part — the translation units measured so far report nothing.
 
 **What it was evidently intended to do.** Keep the queue closed: a
 finding is either fixed or answered in place with the reason it stands,
