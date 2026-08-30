@@ -136,10 +136,6 @@ std::optional<ImageProbe> ImageAsset::probe(sk_sp<SkData> encoded) {
   return info;
 }
 
-std::optional<ImageAsset> ImageAsset::load(const std::string& path) {
-  return decode(SkData::MakeFromFileName(path.c_str()));
-}
-
 ImageAsset ImageAsset::wrap(sk_sp<SkImage> image) {
   ImageAsset asset;
   if (!image) return asset;

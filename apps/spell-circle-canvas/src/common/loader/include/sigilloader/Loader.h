@@ -15,6 +15,8 @@
 //   auto hdr   = hub.image("res://light/probe.exr",         // OIIO: EXR,
 //                          {.layer = "diffuse"});           //  PSD, TIFF…
 //   auto info  = hub.probe("res://light/probe.exr");        // metadata
+//   hub.registerDecoder<Mesh>(parseMesh);                   // any T
+//   auto mesh  = hub.load<Mesh>("res://props/crate.obj");
 //
 // http:// and https:// URIs bypass mounts and fetch over the network
 // (libcurl: redirects followed, 20s timeout, HTTP errors fail).
@@ -28,32 +30,30 @@
 // strip to plain local paths. poll() skips network entries: they
 // carry no mtime to watch.
 //
-// The loader owns ACCESS: where bytes come from, caching, reload.
-// What pixels mean is SigilImage's concern (sigilimage/Decode.h) — the
-// Skia codecs plus, when built in, the OpenImageIO backend (EXR with
-// layer selection, PSD, TIFF, HDR; float sources land as RGBA_F32).
+// The loader owns ACCESS: where bytes come from, caching, reload. A Hub
+// is a ByteSource (sigilloader/Source.h): fetch() answers a URI with
+// bytes, and every typed view is a registered Decoder run over those
+// bytes. What pixels mean is SigilImage's concern (sigilimage/Decode.h)
+// — the Skia codecs plus, when built in, the OpenImageIO backend (EXR
+// with layer selection, PSD, TIFF, HDR; float sources land as RGBA_F32)
+// — and the hub registers those decoders by default.
 
 #include <sigilimage/Decode.h>
+#include <sigilloader/Source.h>
 
 #include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <typeindex>
+#include <utility>
 #include <vector>
 
 namespace sigil::loader {
-
-/** Raw bytes of a resource. */
-struct Blob {
-  std::vector<std::byte> bytes;
-
-  std::string_view asText() const {
-    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
-  }
-};
 
 /** What a resource is, before (or without) fully decoding it. */
 struct ResourceInfo {
@@ -95,18 +95,24 @@ std::string networkCacheKey(std::string_view url);
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
  *
- * Each URI is cached as one entry whose blob, image, and channel views
- * are independent: each populates the first time its accessor is asked,
- * and asking for one never affects another. An image() ask with a layer
- * or an explicit size is a different decode and gets its own entry.
- * poll() re-stats every previously requested resource and reloads the
- * changed ones, returning true so hosts can re-render (holders of old
- * shared_ptrs keep the old data — swap by re-asking). Failed lookups
- * are NOT cached: a missing file loads as soon as it appears.
+ * Each URI is cached as one entry whose blob and decoded views are
+ * independent: each populates the first time its accessor is asked, and
+ * asking for one never affects another. A view is one decoded type —
+ * image(), channels() and load<T>() each populate their own — and an
+ * image() ask with a layer or an explicit size is a different decode
+ * that gets its own entry. poll() re-stats every previously requested
+ * resource and reloads the changed ones, returning true so hosts can
+ * re-render (holders of old shared_ptrs keep the old data — swap by
+ * re-asking). Failed lookups are NOT cached: a missing file loads as
+ * soon as it appears.
+ *
+ * A Hub satisfies ByteSource and ResolvingByteSource.
  */
 class Hub {
  public:
-  Hub() = default;
+  /** Registers the SigilImage decoders: ImageAsset (the routed decode
+   *  at default options) and ChannelData. */
+  Hub();
 
   /** Maps every URI starting with `prefix` to files under `dir`
    *  ("res://" + "ui/logo.png" → dir/ui/logo.png). Longest matching
@@ -126,16 +132,64 @@ class Hub {
   void setNetworkPolicy(NetworkPolicy policy);
 
   /** Raw bytes; null when unresolvable/unreadable. Never decodes:
-   *  bytes load and cache whether or not any image codec accepts
-   *  them. */
-  std::shared_ptr<const Blob> blob(std::string_view uri);
+   *  bytes load and cache whether or not any decoder accepts them. */
+  std::shared_ptr<const Bytes> blob(std::string_view uri);
+
+  /** The ByteSource spelling of blob(): the same bytes, the same cache
+   *  entry. */
+  std::shared_ptr<const Bytes> fetch(std::string_view uri) { return blob(uri); }
+
+  /** Registers how a T is decoded from bytes, so load<T>() can answer.
+   *  `hint` is the resource's local path when it has one (the disk
+   *  cache file for a network URI). Replaces any decoder already
+   *  registered for T; views already decoded keep their values until
+   *  poll() reloads them through the new decoder. ImageAsset and
+   *  ChannelData are registered by the constructor. */
+  template <typename T>
+  void registerDecoder(
+      std::function<std::optional<T>(const Bytes&, std::string_view hint)>
+          decode) {
+    m_decoders[std::type_index(typeid(T))] =
+        [decode = std::move(decode)](
+            const Bytes& bytes,
+            const std::filesystem::path& path) -> std::shared_ptr<const void> {
+      auto value = decode(bytes, path.native());
+      if (!value) return nullptr;
+      return std::make_shared<const T>(std::move(*value));
+    };
+  }
+
+  /** The same, from any object satisfying the Decoder concept. */
+  template <typename T, Decoder<T> D>
+  void registerDecoder(D decoder) {
+    registerDecoder<T>([decoder = std::move(decoder)](const Bytes& bytes,
+                                                      std::string_view hint) {
+      return decoder.decode(bytes, hint);
+    });
+  }
+
+  /** The resource decoded as a T through the decoder registered for T;
+   *  null on failure, and null (with no fetch) when no decoder is
+   *  registered for T. Decodes on the first ask, from bytes a prior
+   *  blob() ask already cached when they are present, and caches the
+   *  result as one view of the URI's entry. load<ImageAsset>(uri) is
+   *  image(uri) and shares its view. */
+  template <typename T>
+  std::shared_ptr<const T> load(std::string_view uri) {
+    return std::static_pointer_cast<const T>(
+        loadView(cacheKey(uri, nullptr), uri, std::type_index(typeid(T)),
+                 registeredDecoder(std::type_index(typeid(T)))));
+  }
 
   /** UTF-8 text convenience over blob(). */
   std::optional<std::string> text(std::string_view uri);
 
   /** Decoded image (stills and animations); null on failure. Decodes
    *  on this first ask, from bytes a prior blob() ask already cached
-   *  when they are present (no second read of the source). */
+   *  when they are present (no second read of the source). At default
+   *  options this is the ImageAsset decoder registered on the hub, so
+   *  it answers whatever load<ImageAsset>() answers; with a layer or
+   *  size named it is its own decode in its own entry. */
   std::shared_ptr<const sigil::image::ImageAsset> image(
       std::string_view uri, const ImageOptions& options = {});
 
@@ -160,11 +214,24 @@ class Hub {
   bool poll();
 
  private:
-  /** One cached resource. blob, image, and channels are independent
-   *  views, each populated the first time its accessor asks; asking
-   *  for bytes never decodes, and decoding never drops bytes already
-   *  served. An image decoded with a layer or explicit size lives in
-   *  its own entry (see cacheKey).
+  /** Re-decodes bytes into a type-erased value; null on failure. The
+   *  decode a view was made with rides along with the view, so poll()
+   *  can re-run exactly it. */
+  using Redecode = std::function<std::shared_ptr<const void>(
+      const Bytes&, const std::filesystem::path&)>;
+
+  /** One decoded view of an entry: the value, and how to make it again
+   *  from fresh bytes. */
+  struct View {
+    std::shared_ptr<const void> value;
+    Redecode decode;
+  };
+
+  /** One cached resource. The blob and each decoded view are
+   *  independent, each populated the first time its accessor asks;
+   *  asking for bytes never decodes, and decoding never drops bytes
+   *  already served. An image decoded with a layer or explicit size
+   *  lives in its own entry (see cacheKey).
    *
    *  `uri` is the original request string. reload() and poll() use it
    *  directly — a URI is never recovered by parsing a map key, so no
@@ -180,15 +247,25 @@ class Hub {
    *  views back into agreement. */
   struct Entry {
     std::string uri;
-    std::shared_ptr<const Blob> blob;
-    std::shared_ptr<const sigil::image::ImageAsset> image;
-    std::shared_ptr<const sigil::image::ChannelData> channels;
-    ImageOptions imageOptions;
+    std::shared_ptr<const Bytes> blob;
+    std::map<std::type_index, View> views;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime{};
   };
 
   bool reload(Entry& entry);
+
+  /** The one decode path every typed accessor shares: the view of
+   *  `type` in the entry at `key`, decoded with `decode` from cached or
+   *  freshly fetched bytes. Null when `decode` is empty, when the fetch
+   *  fails, or when the decode does. */
+  std::shared_ptr<const void> loadView(const std::string& key,
+                                       std::string_view uri,
+                                       std::type_index type,
+                                       const Redecode& decode);
+
+  /** The decoder registered for `type`, or an empty function. */
+  Redecode registeredDecoder(std::type_index type) const;
 
   /** The map key for an ask: the URI alone for blob()/text()/
    *  channels() and default-options image(); with a layer or size
@@ -201,6 +278,7 @@ class Hub {
 
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
+  std::map<std::type_index, Redecode> m_decoders;
   std::filesystem::path m_netCacheDir;  // empty = the default temp dir
   NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
 };

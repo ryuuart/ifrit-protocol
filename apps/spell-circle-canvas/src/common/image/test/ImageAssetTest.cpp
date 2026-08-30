@@ -1,10 +1,14 @@
+// SigilImageAsset: the Skia-codec decode of every still and animated
+// format, frame compositing, timeline playback, and drawing onto a
+// canvas. Bytes reach the asset through SkData; the file reads here are
+// the test's own, because the library takes no paths.
+
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
-#include <sigilimage/Decode.h>
 #include <sigilimage/ImageAsset.h>
 
 #include <string>
@@ -15,6 +19,11 @@ namespace {
 
 std::string assetPath(const char* name) {
   return std::string(IFRIT_IMAGE_TEST_ASSET_DIR "/") + name;
+}
+
+/** Reads a fixture and decodes it through the Skia codecs. */
+std::optional<ImageAsset> load(const std::string& path) {
+  return ImageAsset::decode(SkData::MakeFromFileName(path.c_str()));
 }
 
 /** Reads the pixel at (x, y) of a decoded frame as unpremultiplied color. */
@@ -47,7 +56,7 @@ TEST(ImageAsset, DecodesEveryStillFormat) {
       {"still.gif", 0}, {"still.avif", 2},
   };
   for (const auto& testCase : kCases) {
-    auto asset = ImageAsset::load(assetPath(testCase.file));
+    auto asset = load(assetPath(testCase.file));
     ASSERT_TRUE(asset.has_value()) << testCase.file;
     EXPECT_EQ(asset->width(), 4) << testCase.file;
     EXPECT_EQ(asset->height(), 4) << testCase.file;
@@ -66,7 +75,7 @@ TEST(ImageAsset, DecodesAnimationsWithCompositedFrames) {
     int tolerance;
   } kCases[] = {{"anim.gif", 0}, {"anim.webp", 0}, {"anim.avif", 2}};
   for (const auto& testCase : kCases) {
-    auto asset = ImageAsset::load(assetPath(testCase.file));
+    auto asset = load(assetPath(testCase.file));
     ASSERT_TRUE(asset.has_value()) << testCase.file;
     EXPECT_TRUE(asset->animated()) << testCase.file;
     ASSERT_EQ(asset->frames().size(), 3u) << testCase.file;
@@ -82,7 +91,7 @@ TEST(ImageAsset, DecodesAnimationsWithCompositedFrames) {
 }
 
 TEST(ImageAsset, FrameAtWalksAndLoopsTheTimeline) {
-  auto asset = ImageAsset::load(assetPath("anim.gif"));
+  auto asset = load(assetPath("anim.gif"));
   ASSERT_TRUE(asset.has_value());
   const auto& frames = asset->frames();
   EXPECT_EQ(asset->frameAt(0).image, frames[0].image);
@@ -94,7 +103,7 @@ TEST(ImageAsset, FrameAtWalksAndLoopsTheTimeline) {
 }
 
 TEST(ImageAsset, FramesDrawOntoACanvas) {
-  auto asset = ImageAsset::load(assetPath("anim.webp"));
+  auto asset = load(assetPath("anim.webp"));
   ASSERT_TRUE(asset.has_value());
 
   sk_sp<SkSurface> surface =
@@ -111,69 +120,13 @@ TEST(ImageAsset, FramesDrawOntoACanvas) {
   EXPECT_EQ(readback.getColor(7, 7), SK_ColorBLACK);  // outside again
 }
 
-#ifdef SIGILIMAGE_HAS_SVG
-
-// An 8x4 document, red left half, blue right half.
-constexpr char kTwoRectSvg[] =
-    "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='4'>"
-    "<rect x='0' y='0' width='4' height='4' fill='#ff0000'/>"
-    "<rect x='4' y='0' width='4' height='4' fill='#0000ff'/>"
-    "</svg>";
-
-const std::byte* svgBytes(const char* svg) {
-  return reinterpret_cast<const std::byte*>(svg);
-}
-
-TEST(SvgDecode, RendersAtExplicitSize) {
-  auto asset = sigil::image::decodeImage(
-      svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
-      {.width = 64, .height = 32});
-  ASSERT_TRUE(asset.has_value());
-  EXPECT_EQ(asset->width(), 64);
-  EXPECT_EQ(asset->height(), 32);
-  ASSERT_EQ(asset->frames().size(), 1u);
-  expectNearColor(pixelAt(asset->frames()[0].image, 16, 16), SK_ColorRED, 0,
-                  "left rect");
-  expectNearColor(pixelAt(asset->frames()[0].image, 48, 16), SK_ColorBLUE, 0,
-                  "right rect");
-}
-
-TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
-  auto asset = sigil::image::decodeImage(
-      svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
-      {.width = 100});
-  ASSERT_TRUE(asset.has_value());
-  EXPECT_EQ(asset->width(), 100);
-  EXPECT_EQ(asset->height(), 50);  // 8x4 intrinsic aspect
-  // And with no size at all, the intrinsic size wins.
-  auto intrinsic = sigil::image::decodeImage(
-      svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg));
-  ASSERT_TRUE(intrinsic.has_value());
-  EXPECT_EQ(intrinsic->width(), 8);
-  EXPECT_EQ(intrinsic->height(), 4);
-}
-
-TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {
-  auto info = sigil::image::probeImage(
-      svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg));
-  ASSERT_TRUE(info.has_value());
-  EXPECT_EQ(info->format, "svg");
-  EXPECT_EQ(info->width, 8);
-  EXPECT_EQ(info->height, 4);
-  EXPECT_EQ(info->channels, 4);
-  EXPECT_EQ(info->frames, 1);
-  EXPECT_FALSE(info->floatingPoint);
-}
-
-#endif  // SIGILIMAGE_HAS_SVG
-
 TEST(ImageAsset, RejectsUnsupportedBytes) {
   const char kGarbage[] = "definitely not an image";
   EXPECT_FALSE(
       ImageAsset::decode(SkData::MakeWithCopy(kGarbage, sizeof(kGarbage)))
           .has_value());
   EXPECT_FALSE(ImageAsset::decode(nullptr).has_value());
-  EXPECT_FALSE(ImageAsset::load(assetPath("missing.png")).has_value());
+  EXPECT_FALSE(load(assetPath("missing.png")).has_value());
 }
 
 }  // namespace

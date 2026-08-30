@@ -132,8 +132,9 @@ if(APPLE)
   # all ran as compiled-in gallery scenes, and all failed to dlopen —
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
   # added to SigilSketchKit's PUBLIC libraries belongs here too.
-  foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
-                              SigilLoader SigilMotion SigilGeometry SigilWeave
+  foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImageAsset
+                              SigilImageDecode SigilLoader SigilMotionClock
+                              SigilMotionBind SigilGeometry SigilWeave
                               SigilWeavePorts
                               unofficial::skia::skia)
     target_link_options(ComposeSketch PRIVATE

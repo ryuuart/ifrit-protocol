@@ -55,6 +55,86 @@ void writePng(const fs::path& path, int size, SkColor color) {
 
 }  // namespace
 
+// The hub is the reference ByteSource: the concepts in Source.h are
+// what every consumer writes against, so the hub must satisfy them.
+static_assert(ByteSource<Hub>);
+static_assert(ResolvingByteSource<Hub>);
+
+TEST(LoaderSource, HubFetchesAndErasesToAnyByteSource) {
+  TempDir dir;
+  dir.write("notes/hello.txt", "carry the coal");
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto fetched = hub.fetch("res://notes/hello.txt");
+  ASSERT_NE(fetched, nullptr);
+  EXPECT_EQ(fetched->asText(), "carry the coal");
+  // fetch() and blob() are one cache entry.
+  EXPECT_EQ(fetched, hub.blob("res://notes/hello.txt"));
+
+  AnyByteSource any(hub);
+  ASSERT_TRUE(any);
+  EXPECT_EQ(any.fetch("res://notes/hello.txt"), fetched);
+  EXPECT_EQ(any.resolve("res://notes/hello.txt"),
+            dir.path / "notes" / "hello.txt");
+  EXPECT_EQ(any.fetch("res://missing.txt"), nullptr);
+  EXPECT_FALSE(AnyByteSource{});
+}
+
+/** A decoder for the test's own type: the text, counted. */
+struct WordCount {
+  size_t words = 0;
+};
+struct WordCounter {
+  std::optional<WordCount> decode(const Bytes& bytes, std::string_view) const {
+    WordCount count;
+    bool inWord = false;
+    for (const char c : bytes.asText()) {
+      const bool space = c == ' ' || c == '\n';
+      if (!space && !inWord) ++count.words;
+      inWord = !space;
+    }
+    return count;
+  }
+};
+static_assert(Decoder<WordCounter, WordCount>);
+
+TEST(LoaderHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
+  TempDir dir;
+  dir.write("live.txt", "one two three");
+  Hub hub;
+  hub.mount("res://", dir.path);
+  // No decoder for the type: null, and nothing fetched.
+  EXPECT_EQ(hub.load<WordCount>("res://live.txt"), nullptr);
+  hub.registerDecoder<WordCount>(WordCounter{});
+  auto counted = hub.load<WordCount>("res://live.txt");
+  ASSERT_NE(counted, nullptr);
+  EXPECT_EQ(counted->words, 3u);
+  // Cached: the same view answers again, beside the text view.
+  EXPECT_EQ(hub.load<WordCount>("res://live.txt"), counted);
+  EXPECT_EQ(hub.text("res://live.txt"), "one two three");
+  // A changed file re-decodes every populated view from one read.
+  dir.write("live.txt", "four five");
+  fs::last_write_time(dir.path / "live.txt", fs::file_time_type::clock::now() +
+                                                 std::chrono::seconds(2));
+  EXPECT_TRUE(hub.poll());
+  auto recounted = hub.load<WordCount>("res://live.txt");
+  ASSERT_NE(recounted, nullptr);
+  EXPECT_NE(recounted, counted);
+  EXPECT_EQ(recounted->words, 2u);
+  EXPECT_EQ(hub.text("res://live.txt"), "four five");
+}
+
+TEST(LoaderHub, LoadImageAssetIsTheImageView) {
+  TempDir dir;
+  writePng(dir.path / "logo.png", 3, SK_ColorRED);
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto image = hub.image("res://logo.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://logo.png"), image);
+  EXPECT_EQ(image->width(), 3);
+}
+
 TEST(LoaderHub, MountsResolveLongestPrefix) {
   TempDir dir;
   Hub hub;

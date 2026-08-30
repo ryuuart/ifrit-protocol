@@ -1,7 +1,11 @@
 # SigilLoader — the runtime resource system: mounted res:// URIs,
-# caching, metadata probes, hot reload. Access only: all image format
-# knowledge lives in SigilImage (sigilimage/Decode.h), which the hub
-# delegates to.
+# caching, metadata probes, hot reload. Access only: the hub is a
+# ByteSource (SigilLoaderSource, added below) and every typed view is a
+# registered decoder run over the bytes it fetched. All image format
+# knowledge lives in SigilImageDecode (sigilimage/Decode.h), whose
+# decoders the hub registers by default.
+add_subdirectory(source)
+
 add_library(SigilLoader STATIC
   Hub.cpp
   include/sigilloader/Loader.h
@@ -9,7 +13,7 @@ add_library(SigilLoader STATIC
 target_compile_features(SigilLoader PUBLIC cxx_std_20)
 target_include_directories(SigilLoader PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(SigilLoader PUBLIC SigilImage)
+target_link_libraries(SigilLoader PUBLIC SigilLoaderSource SigilImageDecode)
 
 # libcurl backs the http(s):// URIs (fetch + on-disk cache); pure
 # transport, so it stays a private implementation detail.

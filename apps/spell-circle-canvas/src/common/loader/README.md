@@ -6,9 +6,15 @@ onto directories, results are cached per resource, and `poll()` re-stats
 what has been loaded so edited files reload without a restart. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. Decoding is not
-its job: it hands bytes to SigilImage.
+its job: it hands bytes to registered decoders, SigilImage's by default.
 
-Namespace `sigil::loader`. Header `Loader.h`. One class, `Hub`.
+Namespace `sigil::loader`. Two libraries: `SigilLoaderSource`
+(`Source.h` — header only, standard library only: `Bytes`, the
+`ByteSource`, `ResolvingByteSource` and `Decoder` concepts, and
+`AnyByteSource`, the type-erased source value) and `SigilLoader`
+(`Loader.h` — the `Hub`). The hub is a `ByteSource`; anything that
+consumes bytes by URI can be written against the concept and handed a
+hub, a fixture, or an `AnyByteSource` holding either.
 
 ## Using it
 
@@ -27,6 +33,15 @@ auto planes = hub.channels("res://light/probe.exr"); // every raw channel
 
 if (auto info = hub.probe("res://light/probe.exr"))
   useDimensions(info->image.width, info->image.height);
+
+// Any type, once its decoder is registered: a Decoder<T> object or a
+// function from bytes (and the resource's name as a hint) to optional<T>.
+hub.registerDecoder<Mesh>(ObjParser{});
+auto crate = hub.load<Mesh>("res://props/crate.obj");   // shared_ptr<const Mesh>
+
+// The hub as a ByteSource, for code that only wants bytes by URI.
+sigil::loader::AnyByteSource source(hub);
+auto raw = source.fetch("res://data/table.bin");
 
 // Network resources need no mount; point the disk cache somewhere durable
 // if downloads should survive a reboot.
@@ -48,14 +63,18 @@ prefix wins**, so `res://deep/` can point somewhere other than `res://`.
 Re-mounting a prefix replaces it. A URI that matches no mount is tried as
 a plain path.
 
-The cache holds one entry per URI. An entry carries the blob, the decoded
-image, and the channel data as three independent views, each populated the
-first time its accessor is asked — asking for bytes never decodes, and a
-later `image()` or `channels()` ask on the same URI decodes the bytes the
-entry already holds instead of reading the source again. An `image()` ask
-with a layer or an explicit size is a different decode, so it gets its own
-entry, keyed by the URI plus the options behind a separator byte no URI
-can contain. Every entry also remembers the URI it was asked by, which is
+The cache holds one entry per URI. An entry carries the blob and one
+decoded view per type — the image, the channel data, and whatever
+`load<T>()` has been asked for — each populated the first time its
+accessor is asked. Asking for bytes never decodes, and a later `image()`,
+`channels()` or `load<T>()` ask on the same URI decodes the bytes the
+entry already holds instead of reading the source again. Each view
+remembers the decode that made it, which is what `poll()` re-runs. An
+`image()` ask with a layer or an explicit size is a different decode, so
+it gets its own entry, keyed by the URI plus the options behind a
+separator byte no URI can contain; at default options `image()` is the
+registered `ImageAsset` decoder, so it and `load<ImageAsset>()` share one
+view. Every entry also remembers the URI it was asked by, which is
 what reloading goes back to — a URI is never re-derived from a key
 string, so no character a URI may contain is special.
 
@@ -63,7 +82,12 @@ Network URIs bypass the mount list entirely. A fetch goes through the disk
 cache directory, and the entry carries a sentinel timestamp so `poll()`
 knows to leave it alone.
 
-Every decode delegates to SigilImage. The hub never inspects bytes.
+Every decode is a registered decoder. The constructor registers
+SigilImage's two — `ImageAsset` and `ChannelData` — and
+`registerDecoder<T>()` adds any other; registering a type again replaces
+its decoder, and views already decoded keep their values until `poll()`
+reloads them. `load<T>()` with no decoder registered for `T` answers null
+without fetching. The hub never inspects bytes.
 
 ## Gotchas
 
@@ -110,8 +134,11 @@ cache hit or failure.
 
 ## Boundary
 
-Dependencies: `SigilImage` publicly, `CURL::libcurl` privately — private
-because it is pure transport, but a hard requirement to configure.
+Dependencies: `SigilLoaderSource` and `SigilImageDecode` publicly,
+`CURL::libcurl` privately — private because it is pure transport, but a
+hard requirement to configure. `SigilLoaderSource` itself depends on
+nothing beyond the standard library, so a decoder library can speak the
+byte-source vocabulary without inheriting the hub, libcurl or any codec.
 
 SigilLoader owns **access**: URIs, mounts, caching, hot reload, network
 fetch and the disk cache. SigilImage owns **meaning**: format sniffing,
@@ -131,7 +158,8 @@ cmake --build build --config Debug --target loader_test
 ctest --test-dir build -C Debug -R loader_test --output-on-failure
 ```
 
-Targets: `SigilLoader` (static library) and `loader_test`.
+Targets: `SigilLoaderSource` (header only), `SigilLoader` (static
+library) and `loader_test`, which covers both.
 
 Two parts of the test suite are conditional. The EXR cases compile only
 when OpenImageIO is found at configure time — the test uses it to *write*

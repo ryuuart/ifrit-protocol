@@ -5,7 +5,7 @@
 #include <functional>
 #include <vector>
 
-#include "sigilmotion/Animation.h"
+#include "sigilmotion/Bind.h"
 
 namespace sigil::motion {
 

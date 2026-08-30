@@ -8,7 +8,11 @@ vector sources. For sources carrying more than plain RGBA, the raw float
 channel planes are exposed directly. No Qt, no windowing, no filesystem
 abstraction — the library sees bytes.
 
-Namespace `sigil::image`. Headers `ImageAsset.h`, `Decode.h`.
+Namespace `sigil::image`. Two libraries, linked by what a consumer uses:
+`SigilImageAsset` (`ImageAsset.h` — the decoded document and the Skia
+codec path; Skia only) and `SigilImageDecode` (`Decode.h` — the routing
+surface and the raw channel planes; carries the optional backends).
+`SigilImage` is the umbrella target over both.
 
 ## Using it
 
@@ -71,10 +75,15 @@ into Skia.
 
 ## Gotchas
 
-**`ImageAsset::decode`, `::load` and `::probe` are Skia-codec only.** They
-do not route through SVG or OpenImageIO. Handing an EXR to
-`ImageAsset::load` returns `nullopt` no matter which backends are built
-in. Only the free functions in `Decode.h` route.
+**`ImageAsset::decode` and `::probe` are Skia-codec only.** They do not
+route through SVG or OpenImageIO. Handing an EXR to `ImageAsset::decode`
+returns `nullopt` no matter which backends are built in. Only the free
+functions in `Decode.h` route.
+
+Nothing here opens a file. `ImageAsset` takes `SkData`, `Decode.h` takes
+a byte range; a caller with a path reads it (SigilLoader's `Hub::image`
+is the usual way, `SkData::MakeFromFileName` the bare one) and hands the
+bytes in.
 
 Decoding is eager and CPU-side. Every frame of an animation is decoded up
 front and stays resident for the asset's lifetime. That fits decode-once,
@@ -105,10 +114,12 @@ codec, which parses AVIF containers and then silently decodes no frames.
 
 ## Boundary
 
-Dependencies: `unofficial::skia::skia` publicly; OpenImageIO and Skia's
-SVG module privately and optionally, each behind a `find_package` or
-target check that degrades to "that format fails to decode" with a
-configure-time warning.
+Dependencies: `SigilImageAsset` links `unofficial::skia::skia` publicly
+and nothing else. `SigilImageDecode` links `SigilImageAsset` publicly and
+OpenImageIO and Skia's SVG module privately and optionally, each behind a
+`find_package` or target check that degrades to "that format fails to
+decode" with a configure-time warning. A consumer that only draws decoded
+images links `SigilImageAsset` and never sees a backend.
 
 SigilImage owns **meaning**: format sniffing, decode backends, probing,
 channel and layer semantics, colour type choice. It owns nothing about
@@ -122,11 +133,13 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target image_test
-ctest --test-dir build -C Debug -R image_test --output-on-failure
+cmake --build build --config Debug --target image_asset_test image_decode_test
+ctest --test-dir build -C Debug -R image_ --output-on-failure
 ```
 
-Targets: `SigilImage` (static library) and `image_test`. The fixtures are
+Targets: `SigilImageAsset` and `SigilImageDecode` (static libraries),
+`SigilImage` (the umbrella), and one test per library, `image_asset_test`
+and `image_decode_test`, each linking only its library. The fixtures are
 committed 4x4 px files — one still per format plus a three-frame animation
 for each animated format — located through the `IFRIT_IMAGE_TEST_ASSET_DIR`
 compile definition, so the test runs from any working directory.

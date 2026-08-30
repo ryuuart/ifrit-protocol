@@ -9,8 +9,20 @@ moving, and a small set of value types describing how a property changes
 over time. It links Choreograph and nothing else, so anything can use it
 without dragging in a graphics stack.
 
-Namespace `sigil::motion`. Headers `FrameClock.h`, `Ticker.h`,
-`Animation.h`.
+Namespace `sigil::motion`. Three libraries, linked by what a consumer
+uses:
+
+| target | headers | holds |
+|--------|---------|-------|
+| `SigilMotionBind`   | `Bind.h` | `bind()`, the `Bound` chain, `BoundFloat`, `Envelope`, the wiggle noise |
+| `SigilMotionValues` | `Values.h` | `Transition`, `ease::`, `animate()`/`from()`/`to()`/`through()`, `ramp()`, `phase()`, `quantizeTime()`, `Animatable<T>` |
+| `SigilMotionClock`  | `FrameClock.h`, `Ticker.h` | the clock and the ticker |
+
+`SigilMotion` is the umbrella target over all three, and `Animation.h` is
+the umbrella header over `Values.h` and `Bind.h`, so a consumer that
+includes `Animation.h` and links `SigilMotion` sees everything. Bind is
+the leaf: Values links it because `Animatable<T>` can hold a shaped
+binding, and Clock links it because `Ticker::derive` runs one.
 
 ## Using it
 
@@ -184,7 +196,8 @@ directly.
 
 ## Boundary
 
-`SigilMotion` links `choreograph::choreograph` publicly and nothing else.
+Each of the three libraries links `choreograph::choreograph` publicly and
+nothing else outside this directory.
 That is the point: consumers that also draw — a compositor, a 3D
 renderer — link it without inheriting a drawing library, and can
 re-export its types into their own namespaces.
@@ -201,12 +214,16 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target motion_test
-ctest --test-dir build -C Debug -R motion_test --output-on-failure
+cmake --build build --config Debug \
+  --target motion_clock_test motion_values_test motion_bind_test
+ctest --test-dir build -C Debug -R motion_ --output-on-failure
 ```
 
-Targets: `SigilMotion` (static library) and `motion_test`. No GPU, no
-assets, no runtime requirements. `motion_test` links only `SigilMotion`
-and GoogleTest, and fails the build if a compositing header becomes
+Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
+(the libraries), `SigilMotion` (the umbrella), and one test per library:
+`motion_bind_test`, `motion_values_test` and `motion_clock_test`. No GPU,
+no assets, no runtime requirements. Each test links only the library it
+exercises (plus the clock where a value is driven by the ticker) and
+GoogleTest, and fails the build if a compositing header becomes
 reachable from it — that is how the dependency boundary above stays
 honest.

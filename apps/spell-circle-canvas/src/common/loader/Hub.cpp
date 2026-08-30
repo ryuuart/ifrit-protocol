@@ -9,12 +9,12 @@ namespace sigil::loader {
 
 namespace {
 
-std::shared_ptr<const Blob> readFile(const std::filesystem::path& path) {
+std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path) {
   std::ifstream stream(path, std::ios::binary | std::ios::ate);
   if (!stream) return nullptr;
   const std::streamsize size = stream.tellg();
   stream.seekg(0);
-  auto blob = std::make_shared<Blob>();
+  auto blob = std::make_shared<Bytes>();
   blob->bytes.resize((size_t)size);
   if (!stream.read(reinterpret_cast<char*>(blob->bytes.data()), size))
     return nullptr;
@@ -73,7 +73,7 @@ struct NetFetcher {
  *  `path` is the decode pathHint (the cache file for network URIs, so
  *  extension-based format hints keep working). */
 struct FetchResult {
-  std::shared_ptr<const Blob> blob;
+  std::shared_ptr<const Bytes> blob;
   std::filesystem::path path;
   std::filesystem::file_time_type mtime{};
 };
@@ -102,7 +102,7 @@ FetchResult fetchNetwork(const std::filesystem::path& cacheDir,
   std::ofstream(cached, std::ios::binary)
       .write(reinterpret_cast<const char*>(body->data()),
              (std::streamsize)body->size());  // best-effort persist
-  auto blob = std::make_shared<Blob>();
+  auto blob = std::make_shared<Bytes>();
   blob->bytes = std::move(*body);
   return {std::move(blob), cached, kNetworkMtime};
 }
@@ -144,6 +144,19 @@ std::string networkCacheKey(std::string_view url) {
       path.size() - dot <= 8)
     key += path.substr(dot);
   return key;
+}
+
+Hub::Hub() {
+  registerDecoder<sigil::image::ImageAsset>(
+      [](const Bytes& bytes, std::string_view hint) {
+        return sigil::image::decodeImage(bytes.bytes.data(), bytes.bytes.size(),
+                                         {}, std::filesystem::path(hint));
+      });
+  registerDecoder<sigil::image::ChannelData>([](const Bytes& bytes,
+                                                std::string_view hint) {
+    return sigil::image::decodeChannels(bytes.bytes.data(), bytes.bytes.size(),
+                                        std::filesystem::path(hint));
+  });
 }
 
 void Hub::mount(std::string prefix, std::filesystem::path dir) {
@@ -192,7 +205,7 @@ std::string Hub::cacheKey(std::string_view uri, const ImageOptions* options) {
   return key;
 }
 
-std::shared_ptr<const Blob> Hub::blob(std::string_view uri) {
+std::shared_ptr<const Bytes> Hub::blob(std::string_view uri) {
   const std::string key = cacheKey(uri, nullptr);
   auto it = m_entries.find(key);
   if (it != m_entries.end() && it->second.blob) return it->second.blob;
@@ -215,14 +228,24 @@ std::optional<std::string> Hub::text(std::string_view uri) {
   return std::string(bytes->asText());
 }
 
-std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
-    std::string_view uri, const ImageOptions& options) {
-  const std::string key = cacheKey(uri, &options);
+Hub::Redecode Hub::registeredDecoder(std::type_index type) const {
+  const auto it = m_decoders.find(type);
+  return it == m_decoders.end() ? Redecode{} : it->second;
+}
+
+std::shared_ptr<const void> Hub::loadView(const std::string& key,
+                                          std::string_view uri,
+                                          std::type_index type,
+                                          const Redecode& decode) {
+  if (!decode) return nullptr;
   auto it = m_entries.find(key);
-  if (it != m_entries.end() && it->second.image) return it->second.image;
+  if (it != m_entries.end())
+    if (const auto view = it->second.views.find(type);
+        view != it->second.views.end() && view->second.value)
+      return view->second.value;
   // Bytes already cached by a blob() ask are decoded as they are —
   // one read serves every view of the entry; otherwise fetch fresh.
-  std::shared_ptr<const Blob> bytes;
+  std::shared_ptr<const Bytes> bytes;
   std::filesystem::path path;
   FetchResult fetched;
   if (it != m_entries.end() && it->second.blob) {
@@ -234,9 +257,8 @@ std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
     bytes = fetched.blob;
     path = fetched.path;
   }
-  auto decoded = sigil::image::decodeImage(bytes->bytes.data(),
-                                           bytes->bytes.size(), options, path);
-  if (!decoded) return nullptr;
+  auto value = decode(*bytes, path);
+  if (!value) return nullptr;
   if (it == m_entries.end()) {
     it = m_entries.emplace(key, Entry{}).first;
     it->second.uri = std::string(uri);
@@ -244,42 +266,38 @@ std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
     it->second.mtime = fetched.mtime;
   }
   // The encoded bytes are not kept unless blob() asked for them, so
-  // an image-only workload never holds them alive beside the pixels.
-  it->second.image =
-      std::make_shared<sigil::image::ImageAsset>(std::move(*decoded));
-  it->second.imageOptions = options;
-  return it->second.image;
+  // a decode-only workload never holds them alive beside the value.
+  View& view = it->second.views[type];
+  view.value = std::move(value);
+  view.decode = decode;
+  return view.value;
+}
+
+std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
+    std::string_view uri, const ImageOptions& options) {
+  using sigil::image::ImageAsset;
+  const std::type_index type(typeid(ImageAsset));
+  if (options == ImageOptions{})
+    return std::static_pointer_cast<const ImageAsset>(
+        loadView(cacheKey(uri, nullptr), uri, type, registeredDecoder(type)));
+  // A layer or a size is a different decode: its own entry, with the
+  // options riding in the decode so poll() re-runs the same one.
+  const Redecode decode =
+      [options](
+          const Bytes& bytes,
+          const std::filesystem::path& path) -> std::shared_ptr<const void> {
+    auto decoded = sigil::image::decodeImage(bytes.bytes.data(),
+                                             bytes.bytes.size(), options, path);
+    if (!decoded) return nullptr;
+    return std::make_shared<const ImageAsset>(std::move(*decoded));
+  };
+  return std::static_pointer_cast<const ImageAsset>(
+      loadView(cacheKey(uri, &options), uri, type, decode));
 }
 
 std::shared_ptr<const sigil::image::ChannelData> Hub::channels(
     std::string_view uri) {
-  const std::string key = cacheKey(uri, nullptr);
-  auto it = m_entries.find(key);
-  if (it != m_entries.end() && it->second.channels) return it->second.channels;
-  std::shared_ptr<const Blob> bytes;
-  std::filesystem::path path;
-  FetchResult fetched;
-  if (it != m_entries.end() && it->second.blob) {
-    bytes = it->second.blob;
-    path = it->second.path;
-  } else {
-    fetched = fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
-    if (!fetched.blob) return nullptr;
-    bytes = fetched.blob;
-    path = fetched.path;
-  }
-  auto decoded = sigil::image::decodeChannels(bytes->bytes.data(),
-                                              bytes->bytes.size(), path);
-  if (!decoded) return nullptr;
-  if (it == m_entries.end()) {
-    it = m_entries.emplace(key, Entry{}).first;
-    it->second.uri = std::string(uri);
-    it->second.path = std::move(path);
-    it->second.mtime = fetched.mtime;
-  }
-  it->second.channels =
-      std::make_shared<sigil::image::ChannelData>(std::move(*decoded));
-  return it->second.channels;
+  return load<sigil::image::ChannelData>(uri);
 }
 
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
@@ -309,22 +327,14 @@ bool Hub::reload(Entry& entry) {
   const std::filesystem::path path = localPath(*this, entry.uri);
   auto bytes = readFile(path);
   if (!bytes) return false;
-  std::shared_ptr<const sigil::image::ImageAsset> image;
-  if (entry.image) {
-    auto decoded = sigil::image::decodeImage(
-        bytes->bytes.data(), bytes->bytes.size(), entry.imageOptions, path);
-    if (!decoded) return false;
-    image = std::make_shared<sigil::image::ImageAsset>(std::move(*decoded));
+  std::vector<std::pair<View*, std::shared_ptr<const void>>> decoded;
+  for (auto& [type, view] : entry.views) {
+    if (!view.value) continue;
+    auto value = view.decode(*bytes, path);
+    if (!value) return false;
+    decoded.emplace_back(&view, std::move(value));
   }
-  std::shared_ptr<const sigil::image::ChannelData> channels;
-  if (entry.channels) {
-    auto decoded = sigil::image::decodeChannels(bytes->bytes.data(),
-                                                bytes->bytes.size(), path);
-    if (!decoded) return false;
-    channels = std::make_shared<sigil::image::ChannelData>(std::move(*decoded));
-  }
-  if (entry.image) entry.image = std::move(image);
-  if (entry.channels) entry.channels = std::move(channels);
+  for (auto& [view, value] : decoded) view->value = std::move(value);
   if (entry.blob) entry.blob = std::move(bytes);
   entry.path = path;
   return true;

@@ -44,15 +44,15 @@ struct Frame {
  * Decoding is CPU-side and eager: an asset's frames stay resident for its
  * lifetime, which fits canvas-drawing workloads (decode once at import,
  * draw per frame). Not for streaming video-sized content.
+ *
+ * Bytes in, never a path: where bytes come from (files, URIs, caches)
+ * is a resource loader's concern, and this type only ever sees memory.
  */
 class ImageAsset {
  public:
   /** Decodes an encoded image from memory; nullopt when the bytes are not
    *  one of the supported formats or are corrupt. */
   static std::optional<ImageAsset> decode(sk_sp<SkData> encoded);
-
-  /** Reads and decodes a file; nullopt on I/O or decode failure. */
-  static std::optional<ImageAsset> load(const std::string& path);
 
   /** Sniffs encoded bytes: dimensions, frame count, format name;
    *  nullopt when the bytes are not a supported format. */
