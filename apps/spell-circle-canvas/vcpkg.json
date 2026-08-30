@@ -4,6 +4,7 @@
     "alembic",
     "asio",
     "benchmark",
+    "boost-pfr",
     "cgltf",
     "choreograph",
     "concurrentqueue",
@@ -51,6 +52,7 @@
         }
       ]
     },
+    "simdjson",
     "spdlog",
     {
       "name": "spout2",

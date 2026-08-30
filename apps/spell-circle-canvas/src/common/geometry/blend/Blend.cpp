@@ -17,6 +17,7 @@
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
+#include "sigilmaterial/core/Color.h"
 
 namespace sigil::geometry::blend {
 
@@ -33,44 +34,6 @@ glm::vec2 unit(glm::vec2 v, glm::vec2 fallback) {
   const glm::vec2 out{(float)(xx * scale), (float)(yy * scale)};
   if (!std::isfinite(out.x) || !std::isfinite(out.y)) return fallback;
   return out;
-}
-
-float srgbToLinear(float c) {
-  return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
-}
-
-float linearToSrgb(float c) {
-  c = std::clamp(c, 0.0f, 1.0f);
-  return c <= 0.0031308f ? c * 12.92f
-                         : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
-}
-
-struct Oklab {
-  float L, a, b, alpha;
-};
-
-Oklab toOklab(const SkColor4f& c) {
-  const float r = srgbToLinear(c.fR), g = srgbToLinear(c.fG),
-              b = srgbToLinear(c.fB);
-  const float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
-  const float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
-  const float s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
-  const float l_ = std::cbrt(l), m_ = std::cbrt(m), s_ = std::cbrt(s);
-  return {0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_,
-          1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_,
-          0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_, c.fA};
-}
-
-SkColor4f fromOklab(const Oklab& lab) {
-  const float l_ = lab.L + 0.3963377774f * lab.a + 0.2158037573f * lab.b;
-  const float m_ = lab.L - 0.1055613458f * lab.a - 0.0638541728f * lab.b;
-  const float s_ = lab.L - 0.0894841775f * lab.a - 1.2914855480f * lab.b;
-  const float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
-  const float r = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
-  const float g = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
-  const float b = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
-  return {linearToSrgb(r), linearToSrgb(g), linearToSrgb(b),
-          std::clamp(lab.alpha, 0.0f, 1.0f)};
 }
 
 /** A key reduced to blendable form: aligned samples per contour plus a
@@ -229,10 +192,9 @@ Step makeStep(const Prepared& a, const Prepared& b,
 namespace detail {
 
 SkColor4f lerpOklab(const SkColor4f& a, const SkColor4f& b, float t) {
-  const Oklab la = toOklab(a), lb = toOklab(b);
-  return fromOklab({la.L + (lb.L - la.L) * t, la.a + (lb.a - la.a) * t,
-                    la.b + (lb.b - la.b) * t,
-                    la.alpha + (lb.alpha - la.alpha) * t});
+  const material::Color c = material::lerpOklab({a.fR, a.fG, a.fB, a.fA},
+                                                {b.fR, b.fG, b.fB, b.fA}, t);
+  return {c.r, c.g, c.b, c.a};
 }
 
 }  // namespace detail

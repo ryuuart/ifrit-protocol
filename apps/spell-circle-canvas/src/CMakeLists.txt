@@ -4,7 +4,7 @@
 #                plumbing), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
 #                measure/ (SigilMeasure), motion/ (SigilMotion), shape/ (SigilGeometry), world/
-#                (SigilWorld), compose/ (SigilCompose)
+#                (SigilWorld), material/ (SigilMaterial), compose/ (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
@@ -21,6 +21,7 @@ endif()
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
 add_subdirectory(common/geometry)
+add_subdirectory(common/material)
 add_subdirectory(common/world)
 if(SPELLCIRCLE_ENABLE_SUBSTANCE)
   add_subdirectory(common/substance)
