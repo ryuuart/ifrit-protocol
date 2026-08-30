@@ -131,8 +131,12 @@ if(APPLE)
   # agree. So shapeworks_lab, easel_playground and pop_lanes all compiled,
   # all ran as compiled-in gallery scenes, and all failed to dlopen —
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
-  # added to SigilSketchKit's PUBLIC libraries belongs here too.
-  foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImageAsset
+  # added to SigilSketchKit's PUBLIC libraries belongs here too — as the
+  # ARCHIVES it resolves to: SigilCompose is an interface over the four
+  # compose archives, and an interface target has no file to force-load.
+  foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
+                              SigilComposeShape SigilComposeBrush
+                              SigilComposePaint SigilImageAsset
                               SigilImageDecode SigilLoader SigilMotionClock
                               SigilMotionBind SigilGeometry SigilWeave
                               SigilWeavePorts

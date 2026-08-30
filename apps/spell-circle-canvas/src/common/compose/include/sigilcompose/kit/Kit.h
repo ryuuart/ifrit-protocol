@@ -31,14 +31,14 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
- * | `kit/Plate.h` | `plate()` — the bordered strip feeds sit on |
- * | `kit/Plate.h` | `tinted()` — one face and size, many inks |
  *
- * **`kit/Strokes.h` IS NOT INCLUDED HERE, AND THIS UMBRELLA DOES NOT GIVE
- * YOU IT.** That header carries the stroke grammar — `kit::brush::shapers`,
- * `kit::profile`, `kit::strands`, `kit::spans`, `kit::shapes`, and the
- * `kit::brush::presets` — and including this file brings in none of those
- * names. Include `sigilcompose/kit/Strokes.h` directly when you want them.
+ * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
+ * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
+ * types and ship with it: `kit/Strokes.h` carries the stroke grammar —
+ * `kit::brush::shapers`, `kit::profile`, `kit::strands`, `kit::spans`,
+ * `kit::shapes`, and the `kit::brush::presets` — and `kit/Plate.h` the
+ * bordered feed plate (`kit::plate`, `kit::tinted`). Including this file
+ * brings in none of those names; include either header directly.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
  * `test::check` / `report` / `failures` (`testing/Checks.h`, the
@@ -52,4 +52,3 @@
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
-#include "sigilcompose/kit/Plate.h"

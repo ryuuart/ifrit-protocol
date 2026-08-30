@@ -15,21 +15,21 @@
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/PixelType.h>
-#include <sigilcompose/kit/Plate.h>
-#include <sigilcompose/kit/Strokes.h>
+
+#include <concepts>
 
 namespace sigil::compose::kit {
 
-/** Anchors the library so it is not an empty archive, and asserts the two
- *  properties the tier boundary is FOR: a kit value is comparable (it can
- *  be handed to the reconciler) and it satisfies the same seam concept a
- *  user-written value would. If a kit value ever stops being a peer of a
- *  hand-written one, this stops compiling. */
+/** Anchors the library so it is not an empty archive, and asserts the
+ *  property the tier boundary is FOR: a kit value is comparable, so it can
+ *  be handed to the reconciler and pruned like a hand-written one. If a kit
+ *  value ever stops being a peer of a hand-written one, this stops
+ *  compiling. */
 bool kitLinked() {
-  static_assert(ShaperScheme<brush::shapers::Wave>);
-  static_assert(ShaperScheme<brush::shapers::Jitter>);
-  static_assert(ShaperScheme<brush::shapers::Offset>);
-  static_assert(ProfileScheme<brush::shapers::Wave>);
+  static_assert(std::equality_comparable<Frame>);
+  static_assert(std::equality_comparable<Grid>);
+  static_assert(std::equality_comparable<Ticks>);
+  static_assert(std::equality_comparable<TicksShape>);
   return true;
 }
 

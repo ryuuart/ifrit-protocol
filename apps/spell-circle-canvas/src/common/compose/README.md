@@ -1053,12 +1053,13 @@ centre), `kit::ticks` and `kit::chords` (division ladders as one path),
 halo/shade legibility helpers, the two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time) and `kit::restGhost` (the same word
-undeformed under the moving one) — and `kit/Strokes.h`'s shapers,
-profiles and span compositions. The kit is a **separate CMake library**
-(`SigilComposeKit`) whose only include path is compose's public headers,
-which is how the public/internal boundary is proven rather than asserted.
-Note that the umbrella header does not pull in `kit/Strokes.h`; include it
-directly.
+undeformed under the moving one) — and, shipped with the Brush tier
+because they are spelled in its types, `kit/Strokes.h`'s shapers,
+profiles and span compositions and `kit/Plate.h`'s bordered feed plate.
+The kit is a **separate CMake library** (`SigilComposeKit`) whose only
+include path is compose's public headers, which is how the public/internal
+boundary is proven rather than asserted. Note that the umbrella header
+does not pull in `kit/Strokes.h` or `kit/Plate.h`; include them directly.
 
 ---
 
@@ -1235,8 +1236,16 @@ What it refuses to be:
 
 ## Build and test
 
-The library target is `SigilCompose`; the kit is `SigilComposeKit`. From
-`apps/spell-circle-canvas`:
+The library is a set of feature targets over one kernel, and a consumer
+links the tier it draws with: `SigilComposeCore` (the kernel — elements,
+the reconciler, layout, paint, transitions, text, the feed and the
+instanced leaf), `SigilComposeShape` (silhouettes, layouts, routers),
+`SigilComposeBrush` (decorations, lines, brushes, with `kit/Strokes.h` and
+`kit/Plate.h`), `SigilComposePaint` (patterns, SDF materials, layer
+styles, OCIO), `SigilComposeTypography` (header-only: type styles and the
+text-fx presets) and `SigilComposeWeb` (header-only, present only with
+SigilScry). `SigilCompose` is the umbrella over every tier but the web
+leaf; the kit is `SigilComposeKit`. From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
@@ -1259,9 +1268,12 @@ probes), `compose_api_doc_probes_self_test`, `compose_kit_test`,
 the Ultralight SDK). Each binary's translation units share
 `test/support/Host.h` — the composer-in-a-raster-surface harness — through
 a support header of their own that includes only what they use.
-`compose_bench` and `compose_demo` are executables, not tests — anything
-resembling a performance claim belongs to `compose_bench` and to the plate
-ledger, never to prose.
+The benchmarks and `compose_demo` are executables, not tests. There is one
+benchmark binary per tier — `compose_core_bench`, `compose_shape_bench`,
+`compose_brush_bench`, `compose_paint_bench`, `compose_text_bench` — each
+linking only the library it measures, all built by the `benches` target
+and run by `scripts/bench_ledger.py`; anything resembling a performance
+claim belongs to them and to the plate ledger, never to prose.
 
 **The gallery** is a macOS app bundle, so headless runs go through the
 binary inside it:

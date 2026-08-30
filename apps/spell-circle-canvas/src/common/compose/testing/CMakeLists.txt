@@ -7,4 +7,4 @@
 add_library(SigilComposeTesting INTERFACE)
 target_include_directories(SigilComposeTesting INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(SigilComposeTesting INTERFACE SigilCompose)
+target_link_libraries(SigilComposeTesting INTERFACE SigilComposeCore)

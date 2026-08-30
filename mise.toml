@@ -220,11 +220,11 @@ python3 scripts/bench_ledger.py
 description = "Build and run one benchmark binary in Release, with its own reporter"
 dir = "apps/spell-circle-canvas"
 usage = '''
-arg "<benchmark>" help="which benchmark to run" default="compose_bench"
+arg "<benchmark>" help="which benchmark to run" default="compose_core_bench"
 '''
 run = '''
 set -e
-name="${usage_benchmark:-compose_bench}"
+name="${usage_benchmark:-compose_core_bench}"
 cmake --build build --config Release --target "$name"
 binary="build/bin/Release/$name"
 # Printed so a run with the benchmark library's own filters and repeat
