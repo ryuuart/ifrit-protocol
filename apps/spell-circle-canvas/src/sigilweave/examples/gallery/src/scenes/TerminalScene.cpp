@@ -168,15 +168,15 @@ class TerminalScene final : public Scene {
     float cursorFontSize = params.fontSize;
     for (const PositionedRun& run : m_layout.runs) {
       const Word& word = paragraph.words()[run.wordIndex];
-      if (word.segments.empty()) continue;
+      if (word.segments().empty()) continue;
       if (previousWordIndex != ~0u && run.wordIndex != previousWordIndex)
         revealAt += paragraph.words()[previousWordIndex].mandatoryBreakAfter
                         ? 14.0  // carriage return: the beat between lines
                         : 1.2;  // the space bar
       previousWordIndex = run.wordIndex;
       const WordSegment& segment =
-          word.segments[m_segmentCounters[run.wordIndex]++ %
-                        word.segments.size()];
+          word.segments()[m_segmentCounters[run.wordIndex]++ %
+                          word.segments().size()];
       const ShapedWord& shaped = *segment.shaped;
       const std::vector<SkGlyphID>& scramblePool =
           m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;
@@ -338,7 +338,7 @@ class TerminalScene final : public Scene {
     m_glyphPools.buckets.clear();  // drop stale typefaces, not just glyphs
     for (const PositionedRun& run : m_layout.runs)
       for (const WordSegment& segment :
-           paragraph.words()[run.wordIndex].segments) {
+           paragraph.words()[run.wordIndex].segments()) {
         const ShapedWord& shaped = *segment.shaped;
         std::vector<SkGlyphID>& pool =
             m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;

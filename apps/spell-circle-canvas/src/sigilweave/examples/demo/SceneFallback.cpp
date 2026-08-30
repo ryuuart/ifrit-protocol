@@ -43,7 +43,7 @@ CoverageCheck checkFallbackCoverage(const Paragraph& paragraph,
                                     const SkTypeface& primaryTypeface) {
   CoverageCheck result;
   for (const Word& word : paragraph.words()) {
-    for (const WordSegment& segment : word.segments) {
+    for (const WordSegment& segment : word.segments()) {
       const SkTypeface* resolved = segment.shaped->typeface.get();
       if (resolved && resolved != &primaryTypeface) {
         result.sawFallback = true;

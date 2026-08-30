@@ -1,42 +1,74 @@
 #include "sigilweave/Paragraph.h"
 
+#include <absl/container/inlined_vector.h>
+#include <hb.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
-#include <unicode/ubidi.h>
-#include <unicode/ubrk.h>
-#include <unicode/uchar.h>
-#include <unicode/uscript.h>
-#include <unicode/ustring.h>
-#include <unicode/utf16.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <memory>
+#include <new>
 
 #include "FontContextImpl.h"
 #include "sigilweave/FontContext.h"
+#include "sigilweave/unicode/Unicode.h"
 
 namespace sigil::weave {
 
+// ── WordSegmentList ────────────────────────────────────────────────────
+// The bytes in the public header hold an inline vector of one segment; the
+// container type stays here so no abseil header reaches a consumer.
+
 namespace {
 
-std::u16string utf8ToUtf16(std::u8string_view utf8) {
-  if (utf8.empty()) return {};
-  std::u16string utf16;
-  utf16.resize(utf8.size());  // UTF-16 never has more units than UTF-8 bytes
-  UErrorCode status = U_ZERO_ERROR;
-  int32_t codeUnitsWritten = 0;
-  u_strFromUTF8(reinterpret_cast<UChar*>(utf16.data()),
-                static_cast<int32_t>(utf16.size()), &codeUnitsWritten,
-                reinterpret_cast<const char*>(utf8.data()),
-                static_cast<int32_t>(utf8.size()), &status);
-  if (U_FAILURE(status)) return {};
-  utf16.resize(codeUnitsWritten);
-  return utf16;
+using SegmentStorage = absl::InlinedVector<WordSegment, 1>;
+static_assert(sizeof(SegmentStorage) <= sizeof(WordSegmentList),
+              "WordSegmentList's storage is too small for the container");
+static_assert(alignof(SegmentStorage) <= alignof(WordSegmentList),
+              "WordSegmentList's storage is under-aligned for the container");
+
+SegmentStorage& storageOf(WordSegmentList& list) {
+  return *std::launder(reinterpret_cast<SegmentStorage*>(&list));
+}
+const SegmentStorage& storageOf(const WordSegmentList& list) {
+  return *std::launder(reinterpret_cast<const SegmentStorage*>(&list));
 }
 
+}  // namespace
+
+WordSegmentList::WordSegmentList() noexcept {
+  new (m_storage) SegmentStorage();
+}
+WordSegmentList::WordSegmentList(const WordSegmentList& other) {
+  new (m_storage) SegmentStorage(storageOf(other));
+}
+WordSegmentList::WordSegmentList(WordSegmentList&& other) noexcept {
+  new (m_storage) SegmentStorage(std::move(storageOf(other)));
+}
+WordSegmentList& WordSegmentList::operator=(const WordSegmentList& other) {
+  if (this != &other) storageOf(*this) = storageOf(other);
+  return *this;
+}
+WordSegmentList& WordSegmentList::operator=(WordSegmentList&& other) {
+  if (this != &other) storageOf(*this) = std::move(storageOf(other));
+  return *this;
+}
+WordSegmentList::~WordSegmentList() { storageOf(*this).~SegmentStorage(); }
+std::span<const WordSegment> WordSegmentList::view() const noexcept {
+  const SegmentStorage& storage = storageOf(*this);
+  return {storage.data(), storage.size()};
+}
+void WordSegmentList::append(WordSegment segment) {
+  storageOf(*this).push_back(std::move(segment));
+}
+void WordSegmentList::clear() noexcept { storageOf(*this).clear(); }
+
+namespace {
+
 /** Applies the style's TextTransform to one segment slice, returning either
- *  `text` untouched or a view of `scratch` holding the mapped form. ICU case
+ *  `text` untouched or a view of `scratch` holding the mapped form. Case
  *  mapping is locale-sensitive through the style's languageTag. kCapitalize
  *  titlecases only the first code point of a word (CSS semantics), so it
  *  applies just to the segment that starts the word. */
@@ -46,111 +78,36 @@ std::u16string_view applyTextTransform(const ShapingStyle& shaping,
                                        std::u16string& scratch) {
   if (shaping.textTransform == TextTransform::kNone || text.empty())
     return text;
-  const char* locale =
-      shaping.languageTag.empty() ? nullptr : shaping.languageTag.c_str();
-
-  // Runs the double-call ICU pattern into `scratch` for the given mapper.
-  auto caseMap = [&](std::u16string_view source, auto&& mapFunction,
-                     size_t scratchOffset) -> bool {
-    UErrorCode status = U_ZERO_ERROR;
-    scratch.resize(scratchOffset + source.size() + 8);
-    int32_t written =
-        mapFunction(reinterpret_cast<UChar*>(scratch.data() + scratchOffset),
-                    static_cast<int32_t>(scratch.size() - scratchOffset),
-                    reinterpret_cast<const UChar*>(source.data()),
-                    static_cast<int32_t>(source.size()), locale, &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-      status = U_ZERO_ERROR;
-      scratch.resize(scratchOffset + static_cast<size_t>(written));
-      written =
-          mapFunction(reinterpret_cast<UChar*>(scratch.data() + scratchOffset),
-                      static_cast<int32_t>(scratch.size() - scratchOffset),
-                      reinterpret_cast<const UChar*>(source.data()),
-                      static_cast<int32_t>(source.size()), locale, &status);
-    }
-    if (U_FAILURE(status)) return false;
-    scratch.resize(scratchOffset + static_cast<size_t>(written));
-    return true;
-  };
-
+  unicode::Case mapping = unicode::Case::kUpper;
   switch (shaping.textTransform) {
     case TextTransform::kUppercase:
-      return caseMap(text, u_strToUpper, 0) ? std::u16string_view(scratch)
-                                            : text;
-    case TextTransform::kLowercase:
-      return caseMap(text, u_strToLower, 0) ? std::u16string_view(scratch)
-                                            : text;
-    case TextTransform::kCapitalize: {
-      if (!segmentStartsWord) return text;
-      // Titlecase exactly the first code point; the remainder is untouched
-      // (u_strToTitle over the whole slice would lowercase it).
-      int32_t firstEnd = 0;
-      UChar32 firstCodePoint;
-      U16_NEXT(text.data(), firstEnd, static_cast<int32_t>(text.size()),
-               firstCodePoint);
-      static_cast<void>(firstCodePoint);
-      auto titleFirst = [](UChar* dest, int32_t destCapacity, const UChar* src,
-                           int32_t srcLength, const char* mapLocale,
-                           UErrorCode* status) {
-        return u_strToTitle(dest, destCapacity, src, srcLength,
-                            /*titleIter=*/nullptr, mapLocale, status);
-      };
-      if (!caseMap(text.substr(0, static_cast<size_t>(firstEnd)), titleFirst,
-                   0))
-        return text;
-      scratch.append(text.substr(static_cast<size_t>(firstEnd)));
-      return scratch;
-    }
-    case TextTransform::kNone:
+      mapping = unicode::Case::kUpper;
       break;
+    case TextTransform::kLowercase:
+      mapping = unicode::Case::kLower;
+      break;
+    case TextTransform::kCapitalize:
+      if (!segmentStartsWord) return text;
+      mapping = unicode::Case::kCapitalize;
+      break;
+    case TextTransform::kNone:
+      return text;
   }
-  return text;
+  return unicode::caseMap(text, mapping, shaping.languageTag, scratch)
+             ? std::u16string_view(scratch)
+             : text;
 }
 
-bool isHardLineBreakCharacter(char16_t character) {
-  return character == u'\n' || character == u'\r' || character == 0x0085 ||
-         character == 0x2028 || character == 0x2029;
-}
-
-// Scripts whose break opportunities carry no glue (no spaces between words).
-bool isIdeographicScript(UScriptCode script) {
-  switch (script) {
-    case USCRIPT_HAN:
-    case USCRIPT_HIRAGANA:
-    case USCRIPT_KATAKANA:
-    case USCRIPT_KATAKANA_OR_HIRAGANA:
-    case USCRIPT_HANGUL:
-    case USCRIPT_BOPOMOFO:
-    case USCRIPT_YI:
-      return true;
-    default:
-      return false;
-  }
-}
-
-// Codepoints that never trigger a font switch: they inherit the run's
-// typeface (marks, joiners, variation selectors, whitespace, controls).
-bool codePointInheritsTypeface(UChar32 codePoint) {
-  if (codePoint == 0x200D /*ZWJ*/ || codePoint == 0x200C /*ZWNJ*/) return true;
-  if (codePoint >= 0xFE00 && codePoint <= 0xFE0F)  // variation selectors
-    return true;
-  if (u_isUWhiteSpace(codePoint)) return true;
-  const int8_t type = u_charType(codePoint);
-  return type == U_NON_SPACING_MARK || type == U_ENCLOSING_MARK ||
-         type == U_COMBINING_SPACING_MARK || type == U_CONTROL_CHAR ||
-         type == U_FORMAT_CHAR;
-}
-
-ScriptTag harfBuzzScriptFor(UScriptCode script) {
-  if (script <= USCRIPT_INHERITED || script >= USCRIPT_CODE_LIMIT)
+ScriptTag harfBuzzScriptFor(unicode::Script script) {
+  if (!unicode::isSpecificScript(script) || script >= unicode::scriptLimit())
     return static_cast<ScriptTag>(HB_SCRIPT_COMMON);  // hb falls back to DFLT
   // hb_script_from_string re-parses a 4-char tag every call; memoize the
-  // whole (small, dense) UScriptCode space once.
+  // whole (small, dense) script-code space once.
   static const auto scriptTable = [] {
-    std::array<ScriptTag, USCRIPT_CODE_LIMIT> scripts{};
-    for (int scriptIndex = 0; scriptIndex < USCRIPT_CODE_LIMIT; ++scriptIndex) {
-      const char* name =
-          uscript_getShortName(static_cast<UScriptCode>(scriptIndex));
+    std::vector<ScriptTag> scripts(static_cast<size_t>(unicode::scriptLimit()));
+    for (unicode::Script scriptIndex = 0; scriptIndex < unicode::scriptLimit();
+         ++scriptIndex) {
+      const char* name = unicode::scriptShortName(scriptIndex);
       scripts[static_cast<size_t>(scriptIndex)] = static_cast<ScriptTag>(
           name ? hb_script_from_string(name, -1) : HB_SCRIPT_COMMON);
     }
@@ -159,27 +116,11 @@ ScriptTag harfBuzzScriptFor(UScriptCode script) {
   return scriptTable[static_cast<size_t>(script)];
 }
 
-// Codepoints that can force right-to-left directionality: the RTL script
-// blocks plus the explicit RTL controls. When a paragraph has none, the
-// whole UBiDi pass is skipped.
-bool mayRequireBidirectionalAnalysis(UChar32 codePoint) {
-  if (codePoint < 0x0590) return false;
-  if (codePoint <= 0x08FF)  // Hebrew, Arabic, Syriac, Thaana, NKo, ...
-    return true;
-  if (codePoint == 0x200F || codePoint == 0x202B || codePoint == 0x202E ||
-      codePoint == 0x2067)
-    return true;  // RLM / RLE / RLO / RLI
-  return (codePoint >= 0xFB1D && codePoint <= 0xFDFF) ||
-         (codePoint >= 0xFE70 && codePoint <= 0xFEFF) ||
-         (codePoint >= 0x10800 && codePoint <= 0x10FFF) ||
-         (codePoint >= 0x1E800 && codePoint <= 0x1EFFF);
-}
-
 // Placement form of one codepoint in a vertical paragraph: the span's
 // explicit override, or UTR#50's per-character vertical orientation (CJK
 // upright, Latin rotated — the CSS text-orientation:mixed behaviour).
 SegmentForm resolveVerticalForm(const ShapingStyle& shaping,
-                                UChar32 codePoint) {
+                                char32_t codePoint) {
   switch (shaping.verticalForm) {
     case VerticalForm::kUpright:
       return SegmentForm::kUpright;
@@ -194,48 +135,10 @@ SegmentForm resolveVerticalForm(const ShapingStyle& shaping,
   // upright too: TTB shaping applies the font's 'vert' substitutions, which
   // supply the rotated forms — the browser behaviour for
   // text-orientation: mixed. Only plain R (Latin, etc.) physically rotates.
-  const int32_t orientation =
-      u_getIntPropertyValue(codePoint, UCHAR_VERTICAL_ORIENTATION);
-  return orientation == U_VO_ROTATED ? SegmentForm::kRotated
-                                     : SegmentForm::kUpright;
-}
-
-struct ScriptRun {
-  uint32_t end = 0;
-  UScriptCode script = USCRIPT_COMMON;
-};
-
-// Classic script itemization: COMMON/INHERITED characters attach to the
-// preceding real script (or the following one at the start of the text).
-// Piggybacks RTL detection on the same codepoint walk so the (expensive)
-// UBiDi pass can be skipped for the overwhelmingly common LTR-only case.
-// Fills a caller-owned `runs` so per-analyze allocation amortizes away.
-void itemizeScripts(const std::u16string& text, bool& hasRightToLeftText,
-                    std::vector<ScriptRun>& scriptRuns) {
-  scriptRuns.clear();
-  const int32_t textLength = static_cast<int32_t>(text.size());
-  UScriptCode currentScript = USCRIPT_COMMON;
-  hasRightToLeftText = false;
-  int32_t codeUnitOffset = 0;
-  while (codeUnitOffset < textLength) {
-    const int32_t codePointStart = codeUnitOffset;
-    UChar32 codePoint;
-    U16_NEXT(text.data(), codeUnitOffset, textLength, codePoint);
-    hasRightToLeftText |= mayRequireBidirectionalAnalysis(codePoint);
-    UErrorCode status = U_ZERO_ERROR;
-    UScriptCode script = uscript_getScript(codePoint, &status);
-    if (U_FAILURE(status)) script = USCRIPT_COMMON;
-    if (script <= USCRIPT_INHERITED)
-      continue;  // stays in the current run whatever it is
-    if (currentScript <= USCRIPT_INHERITED) {
-      currentScript = script;  // leading common adopts the first real script
-    } else if (script != currentScript) {
-      scriptRuns.push_back(
-          {static_cast<uint32_t>(codePointStart), currentScript});
-      currentScript = script;
-    }
-  }
-  scriptRuns.push_back({static_cast<uint32_t>(textLength), currentScript});
+  return unicode::verticalOrientation(codePoint) ==
+                 unicode::VerticalOrientation::kRotated
+             ? SegmentForm::kRotated
+             : SegmentForm::kUpright;
 }
 
 }  // namespace
@@ -290,7 +193,7 @@ void Paragraph::setPlaceholder(size_t index, const Placeholder& placeholder) {
 }
 
 void Paragraph::appendText(std::u8string_view utf8, const TextStyle& style) {
-  appendText(std::u16string_view(utf8ToUtf16(utf8)), style);
+  appendText(std::u16string_view(unicode::toUtf16(utf8)), style);
 }
 
 void Paragraph::setWritingMode(WritingMode mode) {
@@ -367,7 +270,7 @@ void Paragraph::replaceText(uint32_t start, uint32_t end,
   const uint32_t textLength = static_cast<uint32_t>(m_text.size());
   start = std::min(start, textLength);
   end = std::min(std::max(end, start), textLength);
-  const std::u16string insertedText = utf8ToUtf16(utf8);
+  const std::u16string insertedText = unicode::toUtf16(utf8);
   const uint32_t insertedLength = static_cast<uint32_t>(insertedText.size());
 
   // Style the inserted range like the text at the edit point.
@@ -606,7 +509,7 @@ void Paragraph::reshapeShapedPrefix(FontContext& fontContext) {
     Word& word = m_words[m_shapedWordCount];
     if (word.placeholderIndex >= 0)
       continue;  // slots carry no glyphs; width comes from the record
-    word.segments.clear();
+    word.m_segments.clear();
     word.width = 0;
     word.spaceWidth = 0;
     shapeWordContent(fontContext, word);
@@ -629,65 +532,22 @@ void Paragraph::ensureShaped(FontContext& fontContext) {
 std::span<const uint32_t> Paragraph::sentenceStarts() const {
   if (m_sentenceStartsValid) return m_sentenceStarts;
   m_sentenceStartsValid = true;
-  m_sentenceStarts.clear();
-  if (m_text.empty()) return m_sentenceStarts;
-
-  // One iterator per thread, re-targeted per paragraph: opening a break
-  // iterator loads its rule data and costs far more than running one. It
-  // borrows the text only for the duration of this call — every later use
-  // re-targets it first.
-  struct BreakIteratorCloser {
-    void operator()(UBreakIterator* iterator) const { ubrk_close(iterator); }
-  };
-  static thread_local std::unique_ptr<UBreakIterator, BreakIteratorCloser>
-      sentenceIterator;
-
-  const UChar* text = reinterpret_cast<const UChar*>(m_text.data());
-  const int32_t textLength = static_cast<int32_t>(m_text.size());
-  UErrorCode status = U_ZERO_ERROR;
-  if (!sentenceIterator)
-    sentenceIterator.reset(
-        ubrk_open(UBRK_SENTENCE, "", text, textLength, &status));
-  else
-    ubrk_setText(sentenceIterator.get(), text, textLength, &status);
-  if (U_FAILURE(status) || !sentenceIterator) return m_sentenceStarts;
-
-  m_sentenceStarts.push_back(0);
-  for (int32_t boundary = ubrk_next(sentenceIterator.get());
-       boundary != UBRK_DONE; boundary = ubrk_next(sentenceIterator.get()))
-    if (boundary > 0 && boundary < textLength)
-      m_sentenceStarts.push_back(static_cast<uint32_t>(boundary));
+  m_sentenceStarts = unicode::sentenceStarts(m_text);
   return m_sentenceStarts;
 }
 
 void Paragraph::analyze(FontContext& fontContext) {
+  static_cast<void>(fontContext);  // analysis reads only the text
   m_words.clear();
   if (m_text.empty()) return;
 
-  const UChar* text = reinterpret_cast<const UChar*>(m_text.data());
   const int32_t textLength = static_cast<int32_t>(m_text.size());
-  UErrorCode status = U_ZERO_ERROR;
 
-  // ── Line-break opportunities (UAX #14 via ICU) ─────────────────────────
-  FontContext::Impl& implementation = fontContext.impl();
-  if (!implementation.lineBreakIterator) {
-    implementation.lineBreakIterator =
-        ubrk_open(UBRK_LINE, "", text, textLength, &status);
-  } else {
-    ubrk_setText(implementation.lineBreakIterator, text, textLength, &status);
-  }
-  if (U_FAILURE(status) || !implementation.lineBreakIterator) return;
-
+  // ── Line-break opportunities (UAX #14) ─────────────────────────────────
   // Scratch buffers persist across analyses (one FontContext == one thread
   // by contract, so thread_local matches the ownership model).
-  static thread_local std::vector<int32_t> boundaries;
-  boundaries.clear();
-  for (int32_t boundary = ubrk_next(implementation.lineBreakIterator);
-       boundary != UBRK_DONE;
-       boundary = ubrk_next(implementation.lineBreakIterator))
-    boundaries.push_back(boundary);
-  if (boundaries.empty() || boundaries.back() != textLength)
-    boundaries.push_back(textLength);
+  static thread_local std::vector<uint32_t> boundaries;
+  unicode::lineBreaks(m_text, boundaries);
 
   // A soft hyphen (U+00AD) is the one discretionary break opportunity the
   // word list carries. When it is turned off, the boundary UAX#14 opened
@@ -699,50 +559,43 @@ void Paragraph::analyze(FontContext& fontContext) {
   // belongs to the space and not to the hyphen.
   if (!m_softHyphenBreaks) {
     size_t keptCount = 0;
-    for (const int32_t boundary : boundaries) {
-      if (boundary < textLength &&
+    for (const uint32_t boundary : boundaries) {
+      if (boundary < static_cast<uint32_t>(textLength) &&
           m_text[static_cast<size_t>(boundary) - 1] == 0x00AD)
         continue;
       boundaries[keptCount++] = boundary;
     }
     boundaries.resize(keptCount);
-    if (boundaries.empty()) boundaries.push_back(textLength);
+    if (boundaries.empty())
+      boundaries.push_back(static_cast<uint32_t>(textLength));
   }
 
-  // ── Script runs (also detects whether bidi is needed at all) ──────────
-  bool hasRightToLeftText = false;
-  static thread_local std::vector<ScriptRun> scriptRuns;
-  itemizeScripts(m_text, hasRightToLeftText, scriptRuns);
+  // ── Script runs ────────────────────────────────────────────────────────
+  static thread_local std::vector<unicode::ScriptRun> scriptRuns;
+  unicode::itemize(m_text, scriptRuns);
 
-  // ── Bidi levels (skipped entirely for LTR-only text) ──────────────────
-  const UBiDiLevel* bidiLevels = nullptr;
-  uint8_t uniformLevel = 0;  // used when the whole paragraph is one direction
-  if (hasRightToLeftText) {
-    if (!implementation.bidirectionalAnalyzer)
-      implementation.bidirectionalAnalyzer =
-          ubidi_open();  // reused: setPara re-targets it per analyze
-    if (implementation.bidirectionalAnalyzer) {
-      status = U_ZERO_ERROR;
-      ubidi_setPara(implementation.bidirectionalAnalyzer, text, textLength,
-                    UBIDI_DEFAULT_LTR, nullptr, &status);
-      if (U_SUCCESS(status)) {
-        const UBiDiDirection direction =
-            ubidi_getDirection(implementation.bidirectionalAnalyzer);
-        if (direction == UBIDI_MIXED)
-          bidiLevels =
-              ubidi_getLevels(implementation.bidirectionalAnalyzer, &status);
-        else if (direction == UBIDI_RTL)
-          uniformLevel = 1;
-      }
-      if (U_FAILURE(status)) bidiLevels = nullptr;
-    }
+  // ── Bidi levels (one run for LTR-only text, per-unit levels otherwise) ─
+  const std::vector<unicode::BidiRun> bidiRuns = unicode::bidi(m_text);
+  m_uniformBidirectionalLevel = 0;
+  m_bidirectionalLevels.clear();
+  if (bidiRuns.size() == 1) {
+    m_uniformBidirectionalLevel = bidiRuns.front().level;
+  } else if (bidiRuns.size() > 1) {
+    m_bidirectionalLevels.resize(static_cast<size_t>(textLength));
+    for (const unicode::BidiRun& run : bidiRuns)
+      std::fill(m_bidirectionalLevels.begin() + run.start,
+                m_bidirectionalLevels.begin() + run.end, run.level);
   }
+  const uint8_t* bidiLevels =
+      m_bidirectionalLevels.empty() ? nullptr : m_bidirectionalLevels.data();
+  const uint8_t uniformLevel = m_uniformBidirectionalLevel;
 
   // ── Words: one per break segment (segment/shape runs resolved lazily) ──
   m_words.reserve(boundaries.size());
   int placeholdersSeen = 0;
   int32_t segmentStart = 0;
-  for (int32_t boundary : boundaries) {
+  for (const uint32_t breakOffset : boundaries) {
+    const int32_t boundary = static_cast<int32_t>(breakOffset);
     if (boundary <= segmentStart) continue;
 
     // Object-replacement characters are placeholder slots (see
@@ -774,10 +627,10 @@ void Paragraph::analyze(FontContext& fontContext) {
     bool hardBreak = false;
     while (whitespaceStart > segmentStart) {
       const char16_t character = m_text[whitespaceStart - 1];
-      if (isHardLineBreakCharacter(character)) {
+      if (unicode::isHardLineBreak(character)) {
         hardBreak = true;
         --whitespaceStart;
-      } else if (u_isWhitespace(character)) {
+      } else if (unicode::isWhitespace(character)) {
         --whitespaceStart;
       } else {
         break;
@@ -807,12 +660,9 @@ void Paragraph::analyze(FontContext& fontContext) {
       word.tabAfter = m_text[static_cast<size_t>(codeUnitIndex)] == u'\t';
 
     if (whitespaceStart > segmentStart) {
-      UChar32 firstCodePoint;
-      int32_t codePointEnd = segmentStart;
-      U16_NEXT(text, codePointEnd, textLength, firstCodePoint);
-      UErrorCode scriptStatus = U_ZERO_ERROR;
-      word.ideographic =
-          isIdeographicScript(uscript_getScript(firstCodePoint, &scriptStatus));
+      size_t codePointEnd = static_cast<size_t>(segmentStart);
+      word.ideographic = unicode::isIdeographicScript(
+          unicode::scriptOf(unicode::decodeAt(m_text, codePointEnd)));
     }
 
     // Glyphs, widths, and glue come later: shapeWordContent() fills them in
@@ -822,17 +672,12 @@ void Paragraph::analyze(FontContext& fontContext) {
     segmentStart = boundary;
   }
 
-  // Persist what lazy shaping needs: script runs (compact, ICU-free form)
-  // and per-unit bidi levels (only when actually mixed).
+  // Persist what lazy shaping needs: the script runs (the levels are
+  // already in place).
   m_scriptRunEnds.clear();
   m_scriptRunEnds.reserve(scriptRuns.size());
-  for (const ScriptRun& run : scriptRuns)
-    m_scriptRunEnds.push_back({run.end, static_cast<int32_t>(run.script)});
-  m_uniformBidirectionalLevel = uniformLevel;
-  if (bidiLevels)
-    m_bidirectionalLevels.assign(bidiLevels, bidiLevels + textLength);
-  else
-    m_bidirectionalLevels.clear();
+  for (const unicode::ScriptRun& run : scriptRuns)
+    m_scriptRunEnds.push_back({run.end, run.script});
   m_shapedWordCount = 0;
   m_shapingSpanCursor = 0;
   m_shapingScriptCursor = 0;
@@ -847,9 +692,6 @@ void Paragraph::analyze(FontContext& fontContext) {
 void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
   if (word.placeholderIndex >= 0)
     return;  // slots carry their size from the placeholder record
-
-  const UChar* text = reinterpret_cast<const UChar*>(m_text.data());
-  const int32_t textLength = static_cast<int32_t>(m_text.size());
 
   auto styleIndexAt = [&](uint32_t position) -> uint32_t {
     while (m_shapingSpanCursor + 1 < m_spans.size() &&
@@ -909,11 +751,16 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
     bool hasResolvedForm = false;
     int32_t segmentEnd = segmentStart;
     int32_t codeUnitOffset = segmentStart;
+    // Decoding stops at the segment limit, so a surrogate pair the limit
+    // splits decodes as its lone high surrogate.
+    const std::u16string_view segmentUnits(m_text.data(),
+                                           static_cast<size_t>(segmentLimit));
     while (codeUnitOffset < segmentLimit) {
       const int32_t codePointStart = codeUnitOffset;
-      UChar32 codePoint;
-      U16_NEXT(text, codeUnitOffset, segmentLimit, codePoint);
-      if (codePointInheritsTypeface(codePoint)) {
+      size_t decodeOffset = static_cast<size_t>(codeUnitOffset);
+      const char32_t codePoint = unicode::decodeAt(segmentUnits, decodeOffset);
+      codeUnitOffset = static_cast<int32_t>(decodeOffset);
+      if (unicode::inheritsTypeface(codePoint)) {
         segmentEnd = codeUnitOffset;
         continue;
       }
@@ -928,8 +775,8 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
           break;
         }
       }
-      sk_sp<SkTypeface> codePointTypeface =
-          fontContext.resolveTypeface(primaryTypeface, codePoint, languageTag);
+      sk_sp<SkTypeface> codePointTypeface = fontContext.resolveTypeface(
+          primaryTypeface, static_cast<int32_t>(codePoint), languageTag);
       if (!resolvedTypeface) {
         resolvedTypeface = std::move(codePointTypeface);
       } else if (codePointTypeface.get() != resolvedTypeface.get()) {
@@ -956,10 +803,10 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
             static_cast<size_t>(segmentStart),
             static_cast<size_t>(segmentEnd - segmentStart)),
         segmentStart == static_cast<int32_t>(word.textBegin), transformScratch);
-    ShapedWordRef shapedWord = shapeWord(
-        fontContext, span.style.shaping, resolvedTypeface, segmentText,
-        harfBuzzScriptFor(static_cast<UScriptCode>(scriptRun.script)),
-        (bidiLevel & 1) != 0 && !shapeVertical, shapeVertical);
+    ShapedWordRef shapedWord =
+        shapeWord(fontContext, span.style.shaping, resolvedTypeface,
+                  segmentText, harfBuzzScriptFor(scriptRun.script),
+                  (bidiLevel & 1) != 0 && !shapeVertical, shapeVertical);
     if (verticalMode && segmentForm == SegmentForm::kTateChuYoko) {
       // 縦中横 occupies its font height along the column; advanceOffset lands
       // on the run's baseline inside that box so placement needs no metrics.
@@ -967,13 +814,13 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
           makeFont(resolvedTypeface, span.style.shaping.fontSize);
       SkFontMetrics fontMetrics;
       font.getMetrics(&fontMetrics);
-      word.segments.push_back({shapedWord, styleIndex,
-                               word.width - fontMetrics.fAscent, segmentForm,
-                               static_cast<uint32_t>(segmentStart)});
+      word.m_segments.append({shapedWord, styleIndex,
+                              word.width - fontMetrics.fAscent, segmentForm,
+                              static_cast<uint32_t>(segmentStart)});
       word.width += -fontMetrics.fAscent + fontMetrics.fDescent;
     } else {
-      word.segments.push_back({shapedWord, styleIndex, word.width, segmentForm,
-                               static_cast<uint32_t>(segmentStart)});
+      word.m_segments.append({shapedWord, styleIndex, word.width, segmentForm,
+                              static_cast<uint32_t>(segmentStart)});
       word.width += shapedWord->advance;
     }
     segmentStart = segmentEnd;
@@ -983,9 +830,9 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
     // Shape the hyphen the breaker may render here, in the style of the
     // word's tail. Content-addressed like everything else: one entry per
     // style, shared by every hyphenatable word.
-    const uint32_t styleIndex = word.segments.empty()
+    const uint32_t styleIndex = word.segments().empty()
                                     ? styleIndexAt(word.textBegin)
-                                    : word.segments.back().styleIndex;
+                                    : word.segments().back().styleIndex;
     const StyleSpan& span = m_spans[styleIndex];
     sk_sp<SkTypeface> typeface = fontContext.variedTypeface(
         span.style.shaping.typeface, span.style.shaping.variations);
@@ -1009,7 +856,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
     for (int32_t codeUnitIndex = whitespaceStart; codeUnitIndex < whitespaceEnd;
          ++codeUnitIndex) {
       const char16_t character = m_text[static_cast<size_t>(codeUnitIndex)];
-      if (isHardLineBreakCharacter(character) || character == u'\t') {
+      if (unicode::isHardLineBreak(character) || character == u'\t') {
         needsScratch = true;
         break;
       }
@@ -1019,7 +866,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
       for (int32_t codeUnitIndex = whitespaceStart;
            codeUnitIndex < whitespaceEnd; ++codeUnitIndex) {
         const char16_t character = m_text[static_cast<size_t>(codeUnitIndex)];
-        if (isHardLineBreakCharacter(character)) continue;
+        if (unicode::isHardLineBreak(character)) continue;
         whitespaceScratch.push_back(character == u'\t' ? u' ' : character);
       }
       whitespace = whitespaceScratch;

@@ -53,7 +53,7 @@ TEST(Vertical, VertFeatureSubstitutesForms) {
     paragraph.ensureShaped(fontContext);
     std::multiset<uint16_t> ids;
     for (const Word& word : paragraph.words())
-      for (const WordSegment& segment : word.segments)
+      for (const WordSegment& segment : word.segments())
         for (uint16_t glyph : segment.shaped->glyphs) ids.insert(glyph);
     return ids;
   };

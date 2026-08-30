@@ -319,7 +319,7 @@ TEST(Correctness, ClusterCoverageIsComplete) {
     Paragraph paragraph = makeParagraph(sample);
     paragraph.ensureShaped(fontContext);
     for (const Word& word : paragraph.words())
-      for (const WordSegment& seg : word.segments) {
+      for (const WordSegment& seg : word.segments()) {
         const auto& clusters = seg.shaped->clusters;
         ASSERT_FALSE(clusters.empty());
         const size_t segLen = seg.shaped->glyphs.size();
@@ -341,7 +341,7 @@ TEST(Correctness, ZwnjBlocksArabicJoining) {
     paragraph.ensureShaped(fontContext);
     std::multiset<uint16_t> ids;
     for (const Word& word : paragraph.words())
-      for (const WordSegment& seg : word.segments)
+      for (const WordSegment& seg : word.segments())
         for (uint16_t glyph : seg.shaped->glyphs)
           if (glyph != 0) ids.insert(glyph);
     return ids;
@@ -363,8 +363,8 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
   // And the mark forms one grapheme cluster with its base: the NFD segment
   // reports at most as many clusters as it has base characters (4).
   absl::flat_hash_set<uint32_t> unique(
-      nfd.words()[0].segments[0].shaped->clusters.begin(),
-      nfd.words()[0].segments[0].shaped->clusters.end());
+      nfd.words()[0].segments()[0].shaped->clusters.begin(),
+      nfd.words()[0].segments()[0].shaped->clusters.end());
   EXPECT_LE(unique.size(), 4u);
 }
 
@@ -383,7 +383,7 @@ TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
   auto glyphCount = [](const Paragraph& paragraph) {
     size_t count = 0;
     for (const Word& word : paragraph.words())
-      for (const WordSegment& segment : word.segments)
+      for (const WordSegment& segment : word.segments())
         count += segment.shaped->glyphs.size();
     return count;
   };

@@ -30,7 +30,7 @@ inline Paragraph makeParagraph(std::u8string_view utf8,
 /// .notdef): the script actually shaped with a covering font.
 inline bool allGlyphsResolved(const Paragraph& paragraph) {
   for (const Word& word : paragraph.words())
-    for (const WordSegment& seg : word.segments)
+    for (const WordSegment& seg : word.segments())
       for (uint16_t glyph : seg.shaped->glyphs)
         if (glyph == 0) return false;
   return true;

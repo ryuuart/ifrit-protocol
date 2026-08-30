@@ -1,13 +1,11 @@
 #pragma once
 
 // Private guts of FontContext, shared by FontContext.cpp, Shaper.cpp and
-// Paragraph.cpp. Keeps HarfBuzz/ICU/absl types out of the public headers.
+// Paragraph.cpp. Keeps HarfBuzz/absl types out of the public headers.
 
 #include <absl/container/flat_hash_map.h>
 #include <absl/hash/hash.h>
 #include <hb.h>
-#include <unicode/ubidi.h>
-#include <unicode/ubrk.h>
 
 #include <array>
 #include <concepts>
@@ -205,10 +203,8 @@ struct FontContext::Impl {
   absl::flat_hash_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
       shapeCache;
 
-  // Reused scratch objects (the context is single-threaded by contract).
+  // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;
-  UBreakIterator* lineBreakIterator = nullptr;  // lazily created, root locale
-  UBiDi* bidirectionalAnalyzer = nullptr;       // setPara() reuses it
 
   FontContext::Stats stats;
 

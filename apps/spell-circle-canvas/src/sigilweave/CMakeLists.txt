@@ -12,19 +12,36 @@ option(TEXTFLOW_ENABLE_INSTALL
   "Generate install/export rules so find_package(SigilWeave) works from an install tree"
   ON)
 
+# The Unicode leaf: transcoding, case mapping, script itemization, bidi and
+# segmentation as plain values over UTF-16 text. Links ICU and nothing else
+# — no Skia, no other weave header — so it compiles in isolation and any
+# consumer that needs text analysis without fonts can take it alone.
+add_library(SigilWeaveUnicode STATIC
+  unicode/Unicode.cpp
+  include/sigilweave/unicode/Unicode.h
+)
+target_compile_features(SigilWeaveUnicode PUBLIC cxx_std_20)
+target_include_directories(SigilWeaveUnicode PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(SigilWeaveUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
+
 add_library(SigilWeave STATIC
   FontContext.cpp
   Shaper.cpp
   Paragraph.cpp
   Flow.cpp
-  ParagraphLayout.cpp
+  LineBreak.cpp
   KnuthPlass.cpp
+  LayoutMetrics.cpp
+  Decoration.cpp
+  Paint.cpp
   Query.cpp
   SingleLineParagraphCache.cpp
 
   include/sigilweave/SigilWeave.h
   include/sigilweave/Features.h
-  include/sigilweave/InlineVector.h
   include/sigilweave/Style.h
   include/sigilweave/FontContext.h
   include/sigilweave/Shaper.h
@@ -44,16 +61,21 @@ target_include_directories(SigilWeave PUBLIC
 )
 
 # Abseil is an implementation detail: no absl type appears in any public
-# header (Word::segments uses sigil::weave::InlineVector; the ExclusionFlow and
-# SingleLineParagraphCache maps hide behind pimpls), so consumers of an
-# installed SigilWeave never include abseil headers — the archives still need
-# linking, which the future package config expresses via find_dependency.
+# header (Word's segment list is an inlined vector behind opaque storage; the
+# ExclusionFlow and SingleLineParagraphCache maps hide behind pimpls), so
+# consumers of an installed SigilWeave never include abseil headers — the
+# archives still need linking, which the future package config expresses via
+# find_dependency. The Unicode leaf is private for the same reason: no public
+# header of the engine names one of its types. ICU stays linked directly
+# for the regex search in Query.cpp.
 target_link_libraries(SigilWeave
   PUBLIC
     unofficial::skia::skia
     SigilGeometryPath     # LineInterval::contour is a geometry::Contour
   PRIVATE
+    SigilWeaveUnicode
     absl::flat_hash_map   # FontContextImpl + ExclusionFlow::PathCache
+    absl::inlined_vector  # Word's segment list
     absl::node_hash_map   # stable Paragraph& cache entries across inserts
     absl::strings         # allocation-aware composite cache-key construction
     harfbuzz::harfbuzz
@@ -147,13 +169,14 @@ function(sigil_weave_add_test name)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-# The container test shapes nothing, so it links no font port.
-add_executable(weave_container_test
-  test/InlineVectorTest.cpp
+# The Unicode leaf shapes nothing, so its test links neither the engine
+# nor a font port.
+add_executable(weave_unicode_test
+  test/UnicodeTest.cpp
 )
-target_link_libraries(weave_container_test PRIVATE SigilWeave
+target_link_libraries(weave_unicode_test PRIVATE SigilWeaveUnicode
   GTest::gtest_main)
-add_test(NAME weave_container_test COMMAND weave_container_test)
+add_test(NAME weave_unicode_test COMMAND weave_unicode_test)
 
 sigil_weave_add_test(weave_shaping_test
   test/support/Fonts.h test/support/Paragraphs.h test/support/Layouts.h
@@ -219,7 +242,7 @@ add_subdirectory(examples/gallery)
 if(TEXTFLOW_ENABLE_INSTALL)
   include(CMakePackageConfigHelpers)
 
-  install(TARGETS SigilWeave SigilWeaveShaders SigilWeavePorts SigilWeaveKit SigilWeaveQt
+  install(TARGETS SigilWeaveUnicode SigilWeave SigilWeaveShaders SigilWeavePorts SigilWeaveKit SigilWeaveQt
     EXPORT SigilWeaveTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib

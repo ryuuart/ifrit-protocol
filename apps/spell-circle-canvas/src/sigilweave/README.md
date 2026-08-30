@@ -176,17 +176,41 @@ Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
 | `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls, each glyph dressed by a `GlyphDress` (placement, fade, tint, face, matrix). |
 | `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
 | `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
-| `InlineVector.h` | The small-buffer vector `Word::segments` uses, so no third-party container appears in a public header. |
 
-Separate targets add `PaintShaders.h` (animated SkSL presets),
-`ports/SystemFontManager.h` (the OS font manager), the companion utilities
-in `kit/`, and a Qt bridge.
+Separate targets add `unicode/Unicode.h` (the text analysis leaf, below),
+`PaintShaders.h` (animated SkSL presets), `ports/SystemFontManager.h` (the
+OS font manager), the companion utilities in `kit/`, and a Qt bridge.
+
+### The Unicode leaf
+
+`<sigilweave/unicode/Unicode.h>` (target `SigilWeaveUnicode`, namespace
+`sigil::weave::unicode`) is every Unicode question the engine asks,
+answered as plain values over UTF-16 text and depending on ICU alone — no
+Skia, no other header of this library:
+
+| Function | Answer |
+|---|---|
+| `toUtf16` / `toUtf8` / `decodeAt` | transcoding and code-point decoding |
+| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `verticalOrientation` | per-character properties: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, how a character stands in a vertical column (UTR#50) |
+| `scriptOf`, `scriptShortName`, `isIdeographicScript`, `itemize` | scripts, and the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours |
+| `caseMap` / `caseMapped` | locale-aware upper, lower and first-code-point title case |
+| `lineBreaks`, `wordBoundaries`, `sentenceStarts` | UAX#14 break opportunities and UAX#29 word and sentence segmentation, as ascending offsets |
+| `bidi` | UAX#9 embedding levels as `BidiRun`s against a chosen `BaseDirection` |
+
+The engine consumes it privately: `Paragraph` runs `lineBreaks`, `itemize`
+and `bidi` when it analyzes, `caseMap` just before it shapes a transformed
+segment, and `sentenceStarts` on the first walk after an edit. Nothing in
+the engine's public headers names one of its types, so a consumer that
+wants the analysis without the fonts links the leaf alone. The scratch
+objects the analyses reuse (ICU break iterators, the bidi analyzer) are
+thread-local, so every function is safe from any thread.
 
 ## Targets and dependencies
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
-| `SigilWeave` | the engine | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); HarfBuzz, ICU, abseil — all private |
+| `SigilWeaveUnicode` | the Unicode leaf: `unicode/Unicode.h` | ICU, private; no Skia |
+| `SigilWeave` | the engine | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); SigilWeaveUnicode, HarfBuzz, ICU, abseil — all private |
 | `SigilWeaveShaders` | `PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
@@ -194,9 +218,11 @@ in `kit/`, and a Qt bridge.
 
 Skia and SigilGeometryPath are PUBLIC dependencies — the path a line of text
 follows is a geometry contour, and `ExclusionFlow` flattens its shapes through
-the same library; HarfBuzz, ICU and abseil are PRIVATE and appear in no public
-header. Pimpls hide the hash maps, and `InlineVector` replaces
-the one abseil container that would otherwise have leaked into a value type.
+the same library; the Unicode leaf, HarfBuzz, ICU and abseil are PRIVATE and
+appear in no public header. Pimpls hide the hash maps, and `Word::segments()`
+hands out a `std::span` over storage whose container type only the engine
+sees, so the one abseil container inside a value type never reaches a
+consumer.
 The core is Qt-free and carries no SkSL: shader presets are content, not
 engine.
 
@@ -377,11 +403,11 @@ Read this section before writing against the library. Most of it is not
 discoverable from a signature.
 
 **Threading.** A `FontContext` is single-threaded by contract and contains no
-locks. The shape cache, the HarfBuzz buffer, the ICU break iterator and the
-bidi object are all reused scratch, not per-call state. Create one per layout
-thread; parallelism belongs above the library, one paragraph per task with
-zero shared state. Several hot paths also use `thread_local` scratch, so a
-context must not migrate between threads mid-use.
+locks. The shape cache and the HarfBuzz buffer are reused scratch, not
+per-call state. Create one per layout thread; parallelism belongs above the
+library, one paragraph per task with zero shared state. Several hot paths
+also use `thread_local` scratch (the ICU break iterators and bidi analyzer
+among them), so a context must not migrate between threads mid-use.
 
 **Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
 Typefaces must outlive the context, or be consistently owned by it.
@@ -571,7 +597,7 @@ ctest --test-dir build -C Debug -R weave_ --output-on-failure
 The tests are one binary per feature, following the library's layering so
 each compiles and links only what its feature needs:
 
-- `weave_container_test` — `InlineVector`, with no fonts at all.
+- `weave_unicode_test` — the Unicode leaf, with no fonts at all.
 - `weave_shaping_test` — the shaper, the paragraph model, and typographic
   correctness: cluster coverage across scripts, ZWNJ joining control,
   combining-mark attachment (NFC and NFD must measure alike), kinsoku

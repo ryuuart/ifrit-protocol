@@ -25,8 +25,8 @@ TEST(Shaper, ShapesLatinWord) {
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const Word& word = paragraph.words()[0];
-  ASSERT_EQ(word.segments.size(), 1u);
-  EXPECT_EQ(word.segments[0].shaped->glyphs.size(), 5u);
+  ASSERT_EQ(word.segments().size(), 1u);
+  EXPECT_EQ(word.segments()[0].shaped->glyphs.size(), 5u);
   EXPECT_GT(word.width, 0.0f);
   EXPECT_EQ(word.spaceWidth, 0.0f);
 }
@@ -88,7 +88,7 @@ TEST(Shaper, ClustersAreMonotone) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"office");  // 'ffi' may ligate
   paragraph.ensureShaped(fontContext);
-  const auto& clusters = paragraph.words()[0].segments[0].shaped->clusters;
+  const auto& clusters = paragraph.words()[0].segments()[0].shaped->clusters;
   EXPECT_TRUE(std::is_sorted(clusters.begin(), clusters.end()));
 }
 
@@ -96,7 +96,7 @@ TEST(Shaper, WordBlobIsSharedAcrossLayouts) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"stable");
   paragraph.ensureShaped(fontContext);
-  const ShapedWordRef& shaped = paragraph.words()[0].segments[0].shaped;
+  const ShapedWordRef& shaped = paragraph.words()[0].segments()[0].shaped;
   const SkTextBlob* first = wordBlob(*shaped).get();
   ASSERT_NE(first, nullptr);
   EXPECT_EQ(wordBlob(*shaped).get(), first);
@@ -135,7 +135,7 @@ TEST(Itemization, FallbackResolvesCjkGlyphs) {
   Paragraph paragraph = makeParagraph(u8"abc漢字xyz");
   paragraph.ensureShaped(fontContext);
   for (const Word& word : paragraph.words())
-    for (const WordSegment& seg : word.segments) {
+    for (const WordSegment& seg : word.segments()) {
       ASSERT_TRUE(seg.shaped->typeface);
       for (uint16_t glyph : seg.shaped->glyphs)
         EXPECT_NE(glyph, 0) << "missing glyph (.notdef) leaked into layout";
@@ -173,7 +173,7 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
 
   ASSERT_FALSE(paragraph.words().empty());
   const sk_sp<SkTypeface>& resolved =
-      paragraph.words().front().segments.front().shaped->typeface;
+      paragraph.words().front().segments().front().shaped->typeface;
   ASSERT_TRUE(resolved);
   EXPECT_EQ(resolved->uniqueID(), preferred->uniqueID());
   EXPECT_EQ(observedLanguage, "ja");
@@ -240,7 +240,7 @@ TEST(Itemization, RtlWordShapesRtl) {
   Paragraph paragraph = makeParagraph(u8"שלום");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  const auto& clusters = paragraph.words()[0].segments[0].shaped->clusters;
+  const auto& clusters = paragraph.words()[0].segments()[0].shaped->clusters;
   ASSERT_GE(clusters.size(), 2u);
   // RTL output is in visual order: cluster values run backwards.
   EXPECT_GT(clusters.front(), clusters.back());
@@ -251,7 +251,7 @@ TEST(Scripts, ArabicLamAlefLigates) {
       makeParagraph(u8"لا");  // lam + alef: mandatory ligature
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  const ShapedWord& shapedWord = *paragraph.words()[0].segments[0].shaped;
+  const ShapedWord& shapedWord = *paragraph.words()[0].segments()[0].shaped;
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Arabic font on this system";
   EXPECT_EQ(shapedWord.glyphs.size(), 1u)
@@ -267,7 +267,7 @@ TEST(Scripts, ArabicJoinsRtl) {
   ASSERT_GE(paragraph.words().size(), 5u);
   for (const Word& word : paragraph.words()) {
     EXPECT_EQ(word.bidiLevel & 1, 1) << "Arabic words must be RTL";
-    const auto& clusters = word.segments[0].shaped->clusters;
+    const auto& clusters = word.segments()[0].shaped->clusters;
     if (clusters.size() >= 2)  // RTL visual order: clusters run backwards
       EXPECT_GT(clusters.front(), clusters.back());
   }
@@ -282,8 +282,8 @@ TEST(Scripts, DevanagariFormsConjunctClusters) {
   // "नमस्ते" is 6 UTF-16 units but the virama fuses स्+ते into one grapheme
   // cluster: distinct clusters must be fewer than code units.
   const Word& namaste = paragraph.words()[0];
-  ASSERT_EQ(namaste.segments.size(), 1u);
-  const ShapedWord& shapedWord = *namaste.segments[0].shaped;
+  ASSERT_EQ(namaste.segments().size(), 1u);
+  const ShapedWord& shapedWord = *namaste.segments()[0].shaped;
   EXPECT_LT(uniqueClusterCount(shapedWord), 6u);
   EXPECT_GE(shapedWord.glyphs.size(), 3u);
 }
@@ -299,7 +299,7 @@ TEST(Scripts, CuneiformSupplementaryPlane) {
     GTEST_SKIP() << "no Cuneiform font on this system";
   std::vector<uint32_t> clusters;
   for (const Word& word : paragraph.words())
-    for (const WordSegment& segment : word.segments)
+    for (const WordSegment& segment : word.segments())
       for (uint32_t cluster : segment.shaped->clusters)
         clusters.push_back(cluster + word.textBegin);
   ASSERT_FALSE(clusters.empty());
@@ -313,8 +313,8 @@ TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
   Paragraph paragraph = makeParagraph(u8"👨‍👩‍👧‍👦");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
-  const ShapedWord& shapedWord = *paragraph.words()[0].segments[0].shaped;
+  ASSERT_EQ(paragraph.words()[0].segments().size(), 1u);
+  const ShapedWord& shapedWord = *paragraph.words()[0].segments()[0].shaped;
   ASSERT_FALSE(shapedWord.glyphs.empty());
   EXPECT_EQ(uniqueClusterCount(shapedWord), 1u)
       << "a ZWJ family sequence is a single grapheme cluster";
@@ -327,7 +327,7 @@ TEST(Scripts, EmojiModifierAndFlagClusters) {
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
   for (const Word& word : paragraph.words()) {
-    const ShapedWord& shapedWord = *word.segments[0].shaped;
+    const ShapedWord& shapedWord = *word.segments()[0].shaped;
     EXPECT_EQ(uniqueClusterCount(shapedWord), 1u)
         << "modifier/flag sequences are single grapheme clusters";
   }
@@ -340,7 +340,7 @@ TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
   paragraph.ensureShaped(fontContext);
   absl::flat_hash_set<const SkTypeface*> faces;
   for (const Word& word : paragraph.words())
-    for (const WordSegment& segment : word.segments)
+    for (const WordSegment& segment : word.segments())
       faces.insert(segment.shaped->typeface.get());
   EXPECT_GE(faces.size(), 2u) << "emoji must resolve to its own typeface";
   EXPECT_TRUE(allGlyphsResolved(paragraph));
@@ -550,7 +550,7 @@ TEST(ShaperVariations, ScaleXCondensesAdvancesAndKeysTheCache) {
     paragraph.ensureShaped(fontContext);
     float advance = 0;
     for (const Word& word : paragraph.words())
-      for (const WordSegment& segment : word.segments)
+      for (const WordSegment& segment : word.segments())
         advance += segment.shaped->advance;
     return advance;
   };

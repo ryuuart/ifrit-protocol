@@ -91,8 +91,6 @@ void FontContext::Impl::destroyTypefaceRecords() {
 FontContext::Impl::~Impl() {
   destroyTypefaceRecords();
   if (shapingBuffer) hb_buffer_destroy(shapingBuffer);
-  if (lineBreakIterator) ubrk_close(lineBreakIterator);
-  if (bidirectionalAnalyzer) ubidi_close(bidirectionalAnalyzer);
 }
 
 FontContext::FontContext(sk_sp<SkFontMgr> fontManager,

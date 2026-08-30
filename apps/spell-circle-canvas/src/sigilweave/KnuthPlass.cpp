@@ -92,9 +92,9 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
                  (words[wordIndex].ideographic ||
                   words[wordIndex + 1].ideographic)) {
         const float fontSize =
-            words[wordIndex].segments.empty()
+            words[wordIndex].segments().empty()
                 ? 16.0f
-                : words[wordIndex].segments[0].shaped->fontSize;
+                : words[wordIndex].segments()[0].shaped->fontSize;
         stretch = fontSize * 0.25f;
         shrink = fontSize * 0.03f;
       }

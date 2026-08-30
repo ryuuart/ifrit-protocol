@@ -300,14 +300,14 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
   ligaturesEnabledParagraph.ensureShaped(fontContext);
   ligaturesDisabledParagraph.ensureShaped(fontContext);
   const size_t enabledGlyphCount =
-      ligaturesEnabledParagraph.words()[0].segments[0].shaped->glyphs.size();
+      ligaturesEnabledParagraph.words()[0].segments()[0].shaped->glyphs.size();
   const size_t disabledGlyphCount =
-      ligaturesDisabledParagraph.words()[0].segments[0].shaped->glyphs.size();
+      ligaturesDisabledParagraph.words()[0].segments()[0].shaped->glyphs.size();
   EXPECT_LT(enabledGlyphCount, disabledGlyphCount)
       << "'ffi' must ligate when liga is on";
   // Features are part of the shape-cache key: both variants coexist.
-  EXPECT_NE(ligaturesEnabledParagraph.words()[0].segments[0].shaped.get(),
-            ligaturesDisabledParagraph.words()[0].segments[0].shaped.get());
+  EXPECT_NE(ligaturesEnabledParagraph.words()[0].segments()[0].shaped.get(),
+            ligaturesDisabledParagraph.words()[0].segments()[0].shaped.get());
 }
 
 // ── Text transform (ShapingStyle::textTransform) ─────────────────────────
@@ -338,8 +338,8 @@ TEST(TextTransformTest, UppercaseShapesUppercaseGlyphs) {
   // shape-cache entry, since the transformed text is itself the key text.
   transformed.ensureShaped(sharedContext());
   reference.ensureShaped(sharedContext());
-  EXPECT_EQ(transformed.words()[0].segments[0].shaped.get(),
-            reference.words()[0].segments[0].shaped.get());
+  EXPECT_EQ(transformed.words()[0].segments()[0].shaped.get(),
+            reference.words()[0].segments()[0].shaped.get());
   // The stored document text stays untransformed.
   EXPECT_EQ(transformed.text(), u"hello");
 }
@@ -361,8 +361,8 @@ TEST(TextTransformTest, TurkishDotlessIRespectsLocale) {
   plain.ensureShaped(sharedContext());
   // tr maps i → İ (dotted capital); the root locale maps i → I. Different
   // glyph streams must come back.
-  EXPECT_NE(turkish.words()[0].segments[0].shaped->glyphs,
-            plain.words()[0].segments[0].shaped->glyphs);
+  EXPECT_NE(turkish.words()[0].segments()[0].shaped->glyphs,
+            plain.words()[0].segments()[0].shaped->glyphs);
 }
 
 TEST(TextTransformTest, CapitalizeTitlecasesFirstLetterOnly) {
@@ -373,8 +373,8 @@ TEST(TextTransformTest, CapitalizeTitlecasesFirstLetterOnly) {
   reference.ensureShaped(sharedContext());
   ASSERT_EQ(transformed.words().size(), reference.words().size());
   for (size_t wordIndex = 0; wordIndex < reference.words().size(); ++wordIndex)
-    EXPECT_EQ(transformed.words()[wordIndex].segments[0].shaped.get(),
-              reference.words()[wordIndex].segments[0].shaped.get())
+    EXPECT_EQ(transformed.words()[wordIndex].segments()[0].shaped.get(),
+              reference.words()[wordIndex].segments()[0].shaped.get())
         << "word " << wordIndex
         << ": capitalize must uppercase the first letter and leave the rest";
 }

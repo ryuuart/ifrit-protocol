@@ -228,7 +228,7 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   Paragraph paragraph = makeParagraph(u8"highlight");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
-  ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
+  ASSERT_EQ(paragraph.words()[0].segments().size(), 1u);
   const float whole = paragraph.words()[0].width;
 
   PaintStyle blue(0xFF0000CC);
@@ -236,11 +236,11 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   paragraph.ensureShaped(fontContext);
 
   const Word& word = paragraph.words()[0];
-  ASSERT_EQ(word.segments.size(), 2u);
-  EXPECT_EQ(paragraph.spans()[word.segments[0].styleIndex]
+  ASSERT_EQ(word.segments().size(), 2u);
+  EXPECT_EQ(paragraph.spans()[word.segments()[0].styleIndex]
                 .style.paint.foreground.getColor(),
             blue.foreground.getColor());
-  EXPECT_NE(paragraph.spans()[word.segments[1].styleIndex]
+  EXPECT_NE(paragraph.spans()[word.segments()[1].styleIndex]
                 .style.paint.foreground.getColor(),
             blue.foreground.getColor());
   // Width comes back as the sum of the halves (kerning across the split

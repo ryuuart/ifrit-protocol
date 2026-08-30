@@ -13,13 +13,13 @@
  * range-query and marker conveniences live in the optional Query.h.
  */
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include "InlineVector.h"
 #include "Shaper.h"
 #include "Style.h"
 
@@ -89,6 +89,36 @@ struct Placeholder {
   float baselineDrop = 0;
 };
 
+/// The shaped runs of one Word, in text order. Nearly every word is a single
+/// uniform run, so one segment lives inside the object and only a word that
+/// a style boundary, script change or font fallback splits allocates. The
+/// container behind the bytes is an implementation detail of the library:
+/// readers see a span, and only Paragraph fills the list.
+class WordSegmentList {
+ public:
+  WordSegmentList() noexcept;
+  WordSegmentList(const WordSegmentList& other);
+  WordSegmentList(WordSegmentList&& other) noexcept;
+  WordSegmentList& operator=(const WordSegmentList& other);
+  WordSegmentList& operator=(WordSegmentList&& other);
+  ~WordSegmentList();
+
+  /** Returns the segments in text order. The view is invalidated by the
+   * next append or clear.
+   */
+  [[nodiscard]] std::span<const WordSegment> view() const noexcept;
+
+ private:
+  friend class Paragraph;
+  void append(WordSegment segment);
+  void clear() noexcept;
+
+  // Room for the inline container: its size and alignment are checked
+  // where it is instantiated, so a container that outgrows this space
+  // fails to compile rather than overrunning it.
+  alignas(8) std::byte m_storage[48];
+};
+
 /// The atomic layout unit: the text between two line-break opportunities.
 /// Content and trailing whitespace are measured separately so justification
 /// can treat the whitespace as stretchable glue.
@@ -97,9 +127,14 @@ struct Word {
   uint32_t textEnd = 0;        ///< exclusive end of the content range
   uint32_t whitespaceEnd = 0;  ///< == textEnd when there is no trailing space
 
-  /// Inline storage: nearly every word is a single uniform run, so the
-  /// common case costs no allocation when the word list is rebuilt.
-  InlineVector<WordSegment, 1> segments;
+  /** Returns the shaped runs in text order (usually exactly one; more when
+   * a style boundary, script change, or font fallback splits the word).
+   * Empty until the word is shaped (Paragraph::ensureShapedTo) and for
+   * placeholder words, which carry no glyphs.
+   */
+  [[nodiscard]] std::span<const WordSegment> segments() const noexcept {
+    return m_segments.view();
+  }
   float width = 0;       ///< content advance
   float spaceWidth = 0;  ///< trailing-whitespace advance (justification glue)
 
@@ -126,6 +161,10 @@ struct Word {
   /// \>= 0: this word is Paragraph::placeholders()[placeholderIndex] — no
   /// glyphs, `width` comes from the placeholder record.
   int placeholderIndex = -1;
+
+ private:
+  friend class Paragraph;
+  WordSegmentList m_segments;
 };
 
 /// Flow direction the paragraph is shaped for. Vertical-RL is the CJK book

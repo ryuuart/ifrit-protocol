@@ -136,9 +136,9 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     // word it follows.
     uint32_t& segmentCursor = segmentCounters[run.wordIndex];
     const WordSegment* segment = nullptr;
-    if (segmentCursor < word.segments.size() &&
-        word.segments[segmentCursor].shaped.get() == run.shaped.get())
-      segment = &word.segments[segmentCursor++];
+    if (segmentCursor < word.segments().size() &&
+        word.segments()[segmentCursor].shaped.get() == run.shaped.get())
+      segment = &word.segments()[segmentCursor++];
 
     placed.shaped = run.shaped.get();
     placed.paint = run.styleIndex < spans.size()
