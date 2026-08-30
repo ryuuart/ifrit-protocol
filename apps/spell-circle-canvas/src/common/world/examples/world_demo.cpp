@@ -25,7 +25,7 @@
 #include <sigilgeometry/codec/Encode.h>
 #include <sigilgeometry/curves/Curves.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilloader/Loader.h>
@@ -401,8 +401,8 @@ void renderPopLab(const std::filesystem::path& outDir,
   // the asset, points scattered on a torus.
   geometry::Cloud seed;
   std::string seedName = "torus scatter";
-  if (std::optional<geometry::import::Model> avocado =
-          geometry::import::model(assetDir / "models/Avocado.glb")) {
+  if (std::optional<geometry::decode::Model> avocado =
+          geometry::decode::model(assetDir / "models/Avocado.glb")) {
     const glm::mat4 fit = avocado->fitTransform(520);
     geometry::Mesh merged = avocado->merged();
     merged.transform(fit);
@@ -788,8 +788,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   // 3. An imported model wearing the material its file carries: base
   // colour, normal, packed metallicRoughness and occlusion, decoded from
   // the bytes the importer kept.
-  if (std::optional<geometry::import::Model> avocado =
-          geometry::import::model(assetDir / "models/Avocado.glb")) {
+  if (std::optional<geometry::decode::Model> avocado =
+          geometry::decode::model(assetDir / "models/Avocado.glb")) {
     const auto decodeBytes = [](const std::vector<std::byte>& bytes,
                                 std::string_view hint) -> sk_sp<SkImage> {
       std::optional<image::ImageAsset> asset = image::decodeImage(
@@ -1238,13 +1238,13 @@ int main(int argc, char** argv) {
   // --- reading GPU-cooked points back out ---------------------------------
   // The comet's particles exist only as GPU lanes, cooked by compute and
   // never touched by the CPU. readChain() pulls those lanes back as a
-  // Cloud, and save::ply() writes a binary PLY that a DCC application
+  // Cloud, and encode::ply() writes a binary PLY that a DCC application
   // opens directly — positions plus the scalar, vector and colour lanes
   // the chain named, all riding along.
   if (cometId) {
     const geometry::Cloud comet = w->readChain(cometId);
     const auto file = outDir / "comet_points.ply";
-    if (geometry::save::ply(file, comet, {.binary = true}))
+    if (geometry::encode::ply(file, comet, {.binary = true}))
       std::printf(
           "comet_points.ply: %zu GPU-cooked points exported "
           "(binary_little_endian, %.1f MB), "

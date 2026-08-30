@@ -16,7 +16,7 @@
 #include "Internal.h"
 #include "sigilgeometry/codec/Decode.h"
 
-namespace sigil::geometry::import {
+namespace sigil::geometry::decode {
 
 namespace detail {
 
@@ -199,4 +199,4 @@ std::optional<Model> model(const std::filesystem::path& file) {
   return model(bytes.data(), bytes.size(), file.filename().string(), siblings);
 }
 
-}  // namespace sigil::geometry::import
+}  // namespace sigil::geometry::decode

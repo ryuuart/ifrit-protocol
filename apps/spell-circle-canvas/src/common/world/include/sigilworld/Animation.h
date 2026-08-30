@@ -310,7 +310,7 @@ struct AnimatedWindow {
 
 /** Declared motion for a point chain's operator DIALS — the twist's
  *  amount, the noise's seed, a selector's centre, a mix factor: any
- *  numeric field `geometry::popops::setField` addresses, each a float lane
+ *  numeric field `geometry::pop::setField` addresses, each a float lane
  *  bound to (operator index, field name). The component holds its own
  *  copy of the chain (the prop's value lives inside World); a resolve
  *  writes every lane into that copy and, when any lane MOVED, pushes it
@@ -605,8 +605,7 @@ inline AnimationStats resolveAnimation(World& world) {
       const float value = resolveValue(lane.value);
       if (lane.wasApplied && value == lane.applied) continue;
       if (lane.op < animated.chain.size() &&
-          geometry::popops::setField(animated.chain[lane.op], lane.field,
-                                     value))
+          geometry::pop::setField(animated.chain[lane.op], lane.field, value))
         moved = true;
       lane.applied = value;
       lane.wasApplied = true;

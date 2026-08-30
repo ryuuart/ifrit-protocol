@@ -62,9 +62,7 @@ struct Attrs {
 
 }  // namespace
 
-namespace popops {
-
-void seedAttrs(
+void pop::seedAttrs(
     const Cloud& cloud,
     std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes) {
   const size_t n = cloud.size();
@@ -111,7 +109,7 @@ void seedAttrs(
   }
 }
 
-std::vector<std::string> seedCustomNames(const Cloud& cloud) {
+std::vector<std::string> pop::seedCustomNames(const Cloud& cloud) {
   std::vector<std::string> names;
   const auto note = [&](const std::string& name) {
     if (pop::builtinIndex(name) >= 0) return;
@@ -131,8 +129,8 @@ std::vector<std::string> seedCustomNames(const Cloud& cloud) {
   return names;
 }
 
-void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
-                 glm::vec3* side) {
+void pop::deformFrame(const pop::Deform& op, glm::vec3* axis,
+                      glm::vec3* direction, glm::vec3* side) {
   glm::vec3 a = op.axis;
   const float al = glm::length(a);
   a = al > 1e-6f ? a / al : glm::vec3{0, 1, 0};
@@ -150,7 +148,7 @@ void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
   *side = glm::cross(a, d);
 }
 
-Cloud cook(const pop::Chain& chain) {
+Cloud pop::cook(const pop::Chain& chain) {
   Cloud out;
   if (chain.empty()) return out;
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
@@ -173,7 +171,7 @@ Cloud cook(const pop::Chain& chain) {
   attrs.ensure("Scale", {1, 1, 1, 1});
   attrs.ensure("Color", {1, 1, 1, 1});
 
-  if (given) popops::seedAttrs(given->cloud, attrs.lanes);
+  if (given) pop::seedAttrs(given->cloud, attrs.lanes);
 
   if (surface) {
     const Cloud seeds =
@@ -564,6 +562,5 @@ Cloud cook(const pop::Chain& chain) {
   }
   return out;
 }
-}  // namespace popops
 
 }  // namespace sigil::geometry

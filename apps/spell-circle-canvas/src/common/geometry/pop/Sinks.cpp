@@ -9,7 +9,7 @@
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/pop/Pop.h"
 
-namespace sigil::geometry::popops {
+namespace sigil::geometry {
 
 namespace {
 
@@ -28,7 +28,7 @@ std::string cloudLaneFor(const std::string& attr) {
 
 }  // namespace
 
-Mesh cookMesh(const pop::Chain& chain, const Mesh& stamp) {
+Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp) {
   const Cloud cloud = cook(chain);
   points::InstanceOptions options;
   options.orientLane = "dir";
@@ -68,30 +68,30 @@ namespace {
 
 Spline3 pathThrough(const pop::Chain& chain, bool closed) {
   Spline3 path;
-  path.points = cook(chain).positions;
+  path.points = pop::cook(chain).positions;
   path.closed = closed;
   return path;
 }
 
 }  // namespace
 
-Mesh cookTube(const pop::Chain& chain, float radius, int sides,
-              const SweepSinkOptions& options) {
+Mesh pop::cookTube(const pop::Chain& chain, float radius, int sides,
+                   const SweepSinkOptions& options) {
   const Spline3 path = pathThrough(chain, options.closed);
   if (path.points.size() < 2) return {};
   return curves::tube(
       path, {.radius = radius, .segments = options.segments, .sides = sides});
 }
 
-Mesh cookRibbon(const pop::Chain& chain, float width,
-                const SweepSinkOptions& options) {
+Mesh pop::cookRibbon(const pop::Chain& chain, float width,
+                     const SweepSinkOptions& options) {
   const Spline3 path = pathThrough(chain, options.closed);
   if (path.points.size() < 2) return {};
   return curves::ribbon(path, {.width = width, .segments = options.segments});
 }
 
-Mesh cookSweep(const pop::Chain& chain, const SkPath& profile,
-               const SweepSinkOptions& options) {
+Mesh pop::cookSweep(const pop::Chain& chain, const SkPath& profile,
+                    const SweepSinkOptions& options) {
   const Spline3 path = pathThrough(chain, options.closed);
   if (path.points.size() < 2) return {};
   const std::vector<Polyline> contours = flatten(profile, 0.4f);
@@ -121,4 +121,4 @@ Mesh cookSweep(const pop::Chain& chain, const SkPath& profile,
   return out;
 }
 
-}  // namespace sigil::geometry::popops
+}  // namespace sigil::geometry

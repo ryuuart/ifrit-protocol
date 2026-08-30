@@ -14,7 +14,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "sigilgeometry/mesh/Mesh.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 #include "sigilgeometry/space/Space.h"
 
 using namespace sigil::geometry;

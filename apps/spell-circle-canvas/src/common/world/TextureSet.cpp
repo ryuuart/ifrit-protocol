@@ -268,7 +268,7 @@ Material material(const std::map<std::string, sk_sp<SkImage>>& byUsage,
       normalDirectX);
 }
 
-Material material(const geometry::import::Part& part,
+Material material(const geometry::decode::Part& part,
                   const BytesDecoder& decode, Material base) {
   Material m = std::move(base);
   m.baseColor = part.baseColor;
@@ -300,11 +300,11 @@ Material material(const geometry::import::Part& part,
   return out;
 }
 
-std::vector<Material> materials(const geometry::import::Model& model,
+std::vector<Material> materials(const geometry::decode::Model& model,
                                 const BytesDecoder& decode, Material base) {
   std::vector<Material> slots((size_t)model.materialSlotCount(), base);
   std::vector<bool> filled(slots.size(), false);
-  for (const geometry::import::Part& part : model.parts) {
+  for (const geometry::decode::Part& part : model.parts) {
     if (part.materialIndex < 0 || (size_t)part.materialIndex >= slots.size() ||
         filled[(size_t)part.materialIndex])
       continue;

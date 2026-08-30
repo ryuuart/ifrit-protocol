@@ -11,7 +11,7 @@ target_link_libraries(SigilGeometryEasel INTERFACE
   SigilGeometryMaterial
   SigilGeometryMesh
   SigilGeometryPath
-  SigilGeometryPoints
+  SigilGeometryPop
   SigilGeometrySpace
 )
 

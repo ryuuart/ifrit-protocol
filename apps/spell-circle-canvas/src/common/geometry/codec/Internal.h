@@ -19,7 +19,7 @@
 
 #include "sigilgeometry/codec/Model.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 constexpr glm::vec4 kWhite = {1, 1, 1, 1};
 
@@ -57,4 +57,4 @@ bool looksLikePly(std::string_view text);
 std::optional<Model> importHoudiniGeo(std::string_view text);
 bool looksLikeHoudiniGeo(std::string_view text);
 
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail

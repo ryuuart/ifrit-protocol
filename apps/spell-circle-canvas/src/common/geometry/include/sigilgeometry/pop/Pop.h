@@ -2,10 +2,10 @@
 
 /** @file
  * SigilGeometry pop — POP-style point combinators as VALUES. A Chain is
- * a description (nondestructive: edit a field, re-describe), the
- * TouchDesigner lesson over shape's own Cloud vocabulary. The LANGUAGE
- * lives here, backend-neutral; executors live downstream: cook() is
- * the CPU reference (a Cloud, ready for points::instance / panels /
+ * a description (nondestructive: edit a field, re-describe) over the
+ * Cloud vocabulary in Points.h. The LANGUAGE and its CPU reference
+ * executor share one scope: pop::on() opens a Chain, pop::cook() is the
+ * reference (a Cloud, ready for points::instance / panels /
  * drawBillboards on the Skia painter), and SigilWorld runs the same
  * Chain as compute dispatches over GPU lanes. The two must agree —
  * same hashes, same spline, same formulas.
@@ -20,9 +20,16 @@
 #include <vector>
 
 #include "sigilgeometry/curves/Curves.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 
 namespace sigil::geometry {
+
+/** The dials of pop's swept sinks (tube, ribbon, sweep); spelled
+ *  pop::SweepSinkOptions at the call site. */
+struct PopSweepSinkOptions {
+  bool closed = false;  ///< join the last cooked point to the first
+  int segments = 160;   ///< resampled cross-sections along the path
+};
 
 /** The point-operator language: a scope holding the vocabulary rather
  *  than a type anyone instantiates. Inside it are the attribute
@@ -608,7 +615,7 @@ struct pop {
     operator Chain() const { return m_chain; }
     const Chain& chain() const { return m_chain; }
 
-    // The sinks (defined after popops below): pick the former.
+    // The sinks (the executor below runs them): pick the former.
     Cloud cloud() const;
     Mesh stamps(const Mesh& stamp) const;
     Mesh tube(float radius, int sides = 12, bool closed = false,
@@ -642,95 +649,91 @@ struct pop {
   }
   /** The given entry: an existing point set, lanes and all. */
   static Builder on(Cloud given) { return Builder(PointSet{std::move(given)}); }
+
+  /** THE CPU REFERENCE EXECUTOR and the helpers both executors share.
+   *  The GPU executor in SigilWorld runs the same Chain over compute
+   *  lanes; everything below is the definition it must agree with. */
+  /** How a PointSet's cloud lays out as attributes: the conventional
+   *  lanes onto the builtins, everything else under its own name — one
+   *  function, so the CPU cook and the GPU executor's initial upload
+   *  agree lane for lane. @p lanes gains or overwrites the seeded names,
+   *  every lane sized to the cloud. */
+  static void seedAttrs(
+      const Cloud& cloud,
+      std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes);
+  /** The custom attribute names seedAttrs would create for @p cloud (the
+   *  lanes that are not builtins), in a stable order. */
+  static std::vector<std::string> seedCustomNames(const Cloud& cloud);
+
+  /** PARAMETER ADDRESSING: an operator's numeric fields by name, the way
+   *  a control surface or an animation lane reaches into a chain without
+   *  knowing the operator's type. Names are the struct's own field names,
+   *  vector components dotted (`"center.x"`, `"add.w"`, `"from.g"`) —
+   *  every float, int, bool and enum field an operator has, and nothing a
+   *  string, a lane name, a mesh, a cloud or a matrix (those are
+   *  descriptions, not dials). Ints truncate, bools read non-zero, enums
+   *  take their integer value. `setField` returns false and writes
+   *  nothing for a name the operator does not have; `getField` returns
+   *  nullopt for it. */
+  static bool setField(Op& op, std::string_view field, float value);
+  static std::optional<float> getField(const Op& op, std::string_view field);
+
+  /** The frame a Deform runs in: its axis normalized, its bend direction
+   *  made perpendicular to that axis and normalized (a direction parallel
+   *  to the axis, or zero, falls back to a fixed perpendicular), and
+   *  side = axis x direction. One function, so the CPU cook and the GPU
+   *  executor's parameter upload deform in the identical frame. */
+  static void deformFrame(const Deform& op, glm::vec3* axis,
+                          glm::vec3* direction, glm::vec3* side);
+
+  /** The CPU reference cook: evaluates @p chain into a Cloud with the
+   *  conventional lanes — "t" (scalar), "dir" (vector), "tint" (color),
+   *  "size" (scalar) — bit-faithful to the GPU executor's formulas. */
+  static Cloud cook(const Chain& chain);
+
+  /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
+   *  point into ONE Mesh (dir orients, size scales, tint colors) — a
+   *  pop-DESCRIBED 3D model, drawable by space::drawMesh on the Skia
+   *  painter and place in SigilWorld alike. */
+  static Mesh cookMesh(const Chain& chain, const Mesh& stamp);
+
+  /** Swept sinks: the chain's cooked points become the PATH — a
+   *  Catmull-Rom through P in chain order, so Jitter/Noise/Math edits
+   *  BEND the sweep — and the curve generators form the model. The
+   *  same nondestructive description, a different former. */
+  using SweepSinkOptions = PopSweepSinkOptions;
+  static Mesh cookTube(const Chain& chain, float radius, int sides = 12,
+                       const SweepSinkOptions& options = {});
+  static Mesh cookRibbon(const Chain& chain, float width,
+                         const SweepSinkOptions& options = {});
+  /** The general former: ANY closed 2D outline (a star, a squircle, an
+   *  Ops.h recipe's result) becomes the cross-section, swept along the
+   *  chain's cooked path — tube generalized to the whole shape
+   *  vocabulary. */
+  static Mesh cookSweep(const Chain& chain, const SkPath& profile,
+                        const SweepSinkOptions& options = {});
 };
 
-namespace popops {
-
-/** How a PointSet's cloud lays out as attributes: the conventional
- *  lanes onto the builtins, everything else under its own name — one
- *  function, so the CPU cook and the GPU executor's initial upload
- *  agree lane for lane. @p lanes gains or overwrites the seeded names,
- *  every lane sized to the cloud. */
-void seedAttrs(
-    const Cloud& cloud,
-    std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes);
-/** The custom attribute names seedAttrs would create for @p cloud (the
- *  lanes that are not builtins), in a stable order. */
-std::vector<std::string> seedCustomNames(const Cloud& cloud);
-
-/** PARAMETER ADDRESSING: an operator's numeric fields by name, the way
- *  a control surface or an animation lane reaches into a chain without
- *  knowing the operator's type. Names are the struct's own field names,
- *  vector components dotted (`"center.x"`, `"add.w"`, `"from.g"`) —
- *  every float, int, bool and enum field an operator has, and nothing a
- *  string, a lane name, a mesh, a cloud or a matrix (those are
- *  descriptions, not dials). Ints truncate, bools read non-zero, enums
- *  take their integer value. `setField` returns false and writes
- *  nothing for a name the operator does not have; `getField` returns
- *  nullopt for it. */
-bool setField(pop::Op& op, std::string_view field, float value);
-std::optional<float> getField(const pop::Op& op, std::string_view field);
-
-/** The frame a Deform runs in: its axis normalized, its bend direction
- *  made perpendicular to that axis and normalized (a direction parallel
- *  to the axis, or zero, falls back to a fixed perpendicular), and
- *  side = axis x direction. One function, so the CPU cook and the GPU
- *  executor's parameter upload deform in the identical frame. */
-void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
-                 glm::vec3* side);
-
-/** The CPU reference cook: evaluates @p chain into a Cloud with the
- *  conventional lanes — "t" (scalar), "dir" (vector), "tint" (color),
- *  "size" (scalar) — bit-faithful to the GPU executor's formulas. */
-Cloud cook(const pop::Chain& chain);
-
-/** The mesh-forming sink: cook @p chain and stamp @p stamp at every
- *  point into ONE Mesh (dir orients, size scales, tint colors) — a
- *  pop-DESCRIBED 3D model, drawable by space::drawMesh on the Skia
- *  painter and place in SigilWorld alike. */
-Mesh cookMesh(const pop::Chain& chain, const Mesh& stamp);
-
-/** Swept sinks: the chain's cooked points become the PATH — a
- *  Catmull-Rom through P in chain order, so Jitter/Noise/Math edits
- *  BEND the sweep — and the curve generators form the model. The
- *  same nondestructive description, a different former. */
-struct SweepSinkOptions {
-  bool closed = false;  ///< join the last cooked point to the first
-  int segments = 160;   ///< resampled cross-sections along the path
-};
-Mesh cookTube(const pop::Chain& chain, float radius, int sides = 12,
-              const SweepSinkOptions& options = {});
-Mesh cookRibbon(const pop::Chain& chain, float width,
-                const SweepSinkOptions& options = {});
-/** The general former: ANY closed 2D outline (a star, a squircle, an
- *  Ops.h recipe's result) becomes the cross-section, swept along the
- *  chain's cooked path — tube generalized to the whole shape
- *  vocabulary. */
-Mesh cookSweep(const pop::Chain& chain, const SkPath& profile,
-               const SweepSinkOptions& options = {});
-
-}  // namespace popops
-
-inline Cloud pop::Builder::cloud() const { return popops::cook(m_chain); }
+inline Cloud pop::Builder::cloud() const { return pop::cook(m_chain); }
 inline Mesh pop::Builder::stamps(const Mesh& stamp) const {
-  return popops::cookMesh(m_chain, stamp);
+  return pop::cookMesh(m_chain, stamp);
 }
 inline Mesh pop::Builder::tube(float radius, int sides, bool closed,
                                int segments) const {
-  return popops::cookTube(m_chain, radius, sides,
-                          {.closed = closed, .segments = segments});
+  return pop::cookTube(m_chain, radius, sides,
+                       {.closed = closed, .segments = segments});
 }
 inline Mesh pop::Builder::ribbon(float width, bool closed, int segments) const {
-  return popops::cookRibbon(m_chain, width,
-                            {.closed = closed, .segments = segments});
+  return pop::cookRibbon(m_chain, width,
+                         {.closed = closed, .segments = segments});
 }
 inline pop::Builder::Builder(const Chain& upstream)
-    : Builder(popops::cook(upstream).positions) {}
+    : Builder(pop::cook(upstream).positions) {}
 
 inline Mesh pop::Builder::sweep(const SkPath& profile, bool closed,
                                 int segments) const {
-  return popops::cookSweep(m_chain, profile,
-                           {.closed = closed, .segments = segments});
+  return pop::cookSweep(m_chain, profile,
+                        {.closed = closed, .segments = segments});
 }
 
 }  // namespace sigil::geometry

@@ -2,7 +2,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 
 #include <filesystem>
 #include <fstream>
@@ -65,11 +65,11 @@ TEST(Usd, RoundTripsAMeshWithSlotsAndMaterials) {
   }
   usd::ReadInfo info;
   std::string error;
-  const std::optional<geometry::import::Model> back =
+  const std::optional<geometry::decode::Model> back =
       usd::readModel(file, &info, &error);
   ASSERT_TRUE(back) << error;
   ASSERT_EQ(back->parts.size(), 1u);
-  const geometry::import::Part& part = back->parts.front();
+  const geometry::decode::Part& part = back->parts.front();
   EXPECT_EQ(part.mesh.triangleCount(), torus.triangleCount());
   EXPECT_EQ(part.mesh.vertexCount(), torus.triangleCount() * 3);  // unwelded
   const std::vector<glm::vec4>* slots = part.mesh.primIf("Material");
@@ -137,12 +137,12 @@ TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
     EXPECT_NE(text.find("UsdPreviewSurface"), std::string::npos);
     EXPECT_NE(text.find("emissiveColor"), std::string::npos);
   }
-  const std::optional<geometry::import::Model> back = usd::readModel(file);
+  const std::optional<geometry::decode::Model> back = usd::readModel(file);
   ASSERT_TRUE(back);
   // The instancer's positions come back as a faceless part with its
   // sizes; the prototype and the second quad as meshes.
-  const geometry::import::Part* sparks = nullptr;
-  for (const geometry::import::Part& part : back->parts)
+  const geometry::decode::Part* sparks = nullptr;
+  for (const geometry::decode::Part& part : back->parts)
     if (part.name == "sparks") sparks = &part;
   ASSERT_TRUE(sparks);
   EXPECT_EQ(sparks->mesh.vertexCount(), 50u);

@@ -5,7 +5,7 @@ a stage from the values a scene is made of — meshes with their placements
 and material slots, stamps as point instancers, lights, a camera — and
 saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
-instancers and materials into `geometry::import::Model`, the same currency
+instancers and materials into `geometry::decode::Model`, the same currency
 every other format lands in.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
@@ -28,7 +28,7 @@ writer.camera("camera", camera);
 std::string error;
 if (!writer.save(&error)) std::fprintf(stderr, "%s\n", error.c_str());
 
-std::optional<geometry::import::Model> back = usd::readModel("shots/lab.usdc");
+std::optional<geometry::decode::Model> back = usd::readModel("shots/lab.usdc");
 ```
 
 ## The mental model

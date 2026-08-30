@@ -121,7 +121,7 @@ std::vector<std::byte> gridGlb(int n) {
   return out;
 }
 
-void countTriangles(benchmark::State& state, const import::Model& model,
+void countTriangles(benchmark::State& state, const decode::Model& model,
                     size_t bytes) {
   state.counters["triangles/s"] =
       benchmark::Counter((double)model.triangleCount(),
@@ -132,9 +132,9 @@ void countTriangles(benchmark::State& state, const import::Model& model,
 
 void BM_ImportObj(benchmark::State& state) {
   const std::string obj = gridObj((int)state.range(0));
-  std::optional<import::Model> model;
+  std::optional<decode::Model> model;
   for ([[maybe_unused]] auto iteration : state) {
-    model = import::model(obj.data(), obj.size(), "grid.obj");
+    model = decode::model(obj.data(), obj.size(), "grid.obj");
     benchmark::DoNotOptimize(model);
   }
   if (!model) {
@@ -151,9 +151,9 @@ BENCHMARK(BM_ImportObj)
 
 void BM_ImportGlb(benchmark::State& state) {
   const std::vector<std::byte> glb = gridGlb((int)state.range(0));
-  std::optional<import::Model> model;
+  std::optional<decode::Model> model;
   for ([[maybe_unused]] auto iteration : state) {
-    model = import::model(glb.data(), glb.size(), "grid.glb");
+    model = decode::model(glb.data(), glb.size(), "grid.glb");
     benchmark::DoNotOptimize(model);
   }
   if (!model) {
@@ -190,7 +190,7 @@ void BM_ImportGeo_Points(benchmark::State& state) {
   }
   geo += "]]]]]],\"primitives\",[]]";
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(import::model(geo.data(), geo.size(), "p.geo"));
+    benchmark::DoNotOptimize(decode::model(geo.data(), geo.size(), "p.geo"));
   state.counters["points/s"] =
       benchmark::Counter(n, benchmark::Counter::kIsIterationInvariantRate);
   state.SetBytesProcessed(state.iterations() * (int64_t)geo.size());

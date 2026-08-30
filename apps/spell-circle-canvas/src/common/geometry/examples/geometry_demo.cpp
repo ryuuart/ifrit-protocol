@@ -40,7 +40,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 #include "sigilgeometry/pop/Pop.h"
 #include "sigilgeometry/space/Space.h"
 
@@ -744,7 +744,7 @@ void panelMaterialsHdri(SkCanvas& canvas, const materials::Environment& env) {
 // the file carries one, its base-color texture — SigilImage decodes
 // the encoded bytes the importer hands over.
 void panelImportedModels(SkCanvas& canvas,
-                         const std::vector<import::Model>& models) {
+                         const std::vector<decode::Model>& models) {
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 170, 860};
@@ -763,11 +763,11 @@ void panelImportedModels(SkCanvas& canvas,
   const float slots[3] = {-370, 0, 370};
   const int count = std::min((int)models.size(), 3);
   for (int i = 0; i < count; ++i) {
-    const import::Model& model = models[(size_t)i];
+    const decode::Model& model = models[(size_t)i];
     const glm::mat4 place = space::place({slots[count == 1 ? 1 : i], 0, 0},
                                          -34 + 26.0f * (float)i, -6) *
                             model.fitTransform(290);
-    for (const import::Part& part : model.parts) {
+    for (const decode::Part& part : model.parts) {
       space::MeshStyle style;
       style.baseColor = {part.baseColor.r, part.baseColor.g, part.baseColor.b,
                          part.baseColor.a};
@@ -893,7 +893,7 @@ void panelPop(SkCanvas& canvas) {
   space::MeshStyle jade = steel;
   jade.baseColor = {0.4f, 0.85f, 0.6f, 1};
   jade.backfaceCull = false;  // a band twists; show both faces
-  space::drawMesh(canvas, popops::cookRibbon(wave, 42, {.segments = 120}),
+  space::drawMesh(canvas, pop::cookRibbon(wave, 42, {.segments = 120}),
                   space::place({0, -60, 140}, 0, 14), camera, viewport, jade);
 }
 
@@ -1169,7 +1169,7 @@ int main(int argc, char** argv) {
   // Imported models, up to three, alphabetical: fetch_assets ships the
   // Khronos Avocado; any OBJ/glTF/GLB/STL dropped into assets/models/
   // joins the panel.
-  std::vector<import::Model> models;
+  std::vector<decode::Model> models;
   const std::filesystem::path modelDir = assetDir / "models";
   if (std::filesystem::exists(modelDir)) {
     std::vector<std::filesystem::path> files;
@@ -1178,7 +1178,7 @@ int main(int argc, char** argv) {
     std::sort(files.begin(), files.end());
     for (const std::filesystem::path& file : files) {
       if (models.size() == 3) break;
-      if (auto model = import::model(file)) models.push_back(std::move(*model));
+      if (auto model = decode::model(file)) models.push_back(std::move(*model));
       // non-model files (licenses) simply don't import; no complaint
     }
   }

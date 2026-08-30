@@ -15,7 +15,6 @@ add_subdirectory(blend)
 add_subdirectory(mesh)
 add_subdirectory(space)
 add_subdirectory(curves)
-add_subdirectory(points)
 add_subdirectory(pop)
 add_subdirectory(codec)
 add_subdirectory(material)
@@ -28,7 +27,6 @@ target_link_libraries(SigilGeometry INTERFACE
   SigilGeometryMesh
   SigilGeometrySpace
   SigilGeometryCurves
-  SigilGeometryPoints
   SigilGeometryPop
   SigilGeometryCodec
   SigilGeometryMaterial

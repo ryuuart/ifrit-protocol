@@ -8,7 +8,7 @@
 
 #include "sigilgeometry/pop/Pop.h"
 
-namespace sigil::geometry::popops {
+namespace sigil::geometry {
 
 namespace {
 
@@ -130,7 +130,7 @@ float readBack(const T& member) {
 
 }  // namespace
 
-bool setField(pop::Op& op, std::string_view field, float value) {
+bool pop::setField(pop::Op& op, std::string_view field, float value) {
   bool hit = false;
   eachField(op, [&](const std::string& name, auto& member) {
     if (!hit && name == field) {
@@ -141,11 +141,11 @@ bool setField(pop::Op& op, std::string_view field, float value) {
   return hit;
 }
 
-std::optional<float> getField(const pop::Op& op, std::string_view field) {
+std::optional<float> pop::getField(const pop::Op& op, std::string_view field) {
   std::optional<float> out;
   eachField(op, [&](const std::string& name, const auto& member) {
     if (!out && name == field) out = readBack(member);
   });
   return out;
 }
-}  // namespace sigil::geometry::popops
+}  // namespace sigil::geometry

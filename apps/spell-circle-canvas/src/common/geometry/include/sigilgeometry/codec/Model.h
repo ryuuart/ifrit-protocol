@@ -24,9 +24,9 @@
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 
-namespace sigil::geometry::import {
+namespace sigil::geometry::decode {
 
 /** Maps a relative URI ("scene.bin", "textures/wood.png", "duck.mtl")
  *  to its bytes; nullopt when unavailable. Only consulted for formats
@@ -97,7 +97,7 @@ struct Part {
    *  which is triangleCount()-sized by definition — so a per-face lane
    *  can never be read as a per-vertex one, and Model::merged()
    *  carries them through Mesh::append for free. PLY face properties
-   *  are the source (the read leg of save::ply's per-face write):
+   *  are the source (the read leg of encode::ply's per-face write):
    *  `name_r/_g/_b/_a` folds to the vec4 lane `name` (alpha defaults
    *  to 1), `name_x/_y/_z` to `name` with w = 0, conventional
    *  `red/green/blue/alpha` to "Color", and any lone scalar to `.x`
@@ -143,4 +143,4 @@ struct Model {
   int materialSlotCount() const;
 };
 
-}  // namespace sigil::geometry::import
+}  // namespace sigil::geometry::decode

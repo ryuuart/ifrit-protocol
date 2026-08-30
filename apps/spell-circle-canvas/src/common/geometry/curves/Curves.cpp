@@ -15,7 +15,6 @@
 
 namespace sigil::geometry {
 
-using detail::normalized;
 using glm::cross;
 using glm::dot;
 

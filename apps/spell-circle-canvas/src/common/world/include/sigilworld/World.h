@@ -28,7 +28,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilgeometry/pop/Pop.h>
 #include <sigilgeometry/space/Space.h>
 

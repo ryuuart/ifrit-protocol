@@ -129,7 +129,7 @@ glm::mat4 place(glm::vec3 position, float yawDeg = 0, float pitchDeg = 0,
  *  both renderers want: a billboard is the same panel re-described each
  *  frame with a fresh faceCamera(), which a reconciler sees as a
  *  transform-only change (setTransform, never a re-upload). The basis
- *  is detail::basisFor — the SAME construction points::instance() and
+ *  is basisFor — the SAME construction points::instance() and
  *  world's instanced path stamp with, so a faceCamera'd quad and a
  *  facing-lane instance orient identically; Dir≈±up falls back the same
  *  way, and eye==at degenerates to facing +z. */

@@ -17,7 +17,7 @@
 
 #include "Internal.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 namespace {
 
@@ -746,4 +746,4 @@ bool looksLikeHoudiniGeo(std::string_view text) {
          std::string_view::npos;
 }
 
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail

@@ -23,7 +23,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilgeometry/pop/Pop.h>
 #include <sigilgeometry/space/Space.h>
 #include <sigilsketch/Sketch.h>

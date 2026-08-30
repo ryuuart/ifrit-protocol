@@ -19,7 +19,7 @@
 
 #include "Internal.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 namespace {
 
@@ -289,4 +289,4 @@ std::optional<Model> importGltf(const void* bytes, size_t size,
   return out;
 }
 
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail

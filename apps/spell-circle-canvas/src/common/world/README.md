@@ -199,7 +199,7 @@ work on the CPU.
 `AnimatedWindow`, `AnimatedChain` — whose fields are `Animatable<float>`
 lanes from SigilMotion. `AnimatedChain` reaches any operator dial of a
 point chain by (operator index, field name) — `"amount"`, `"center.x"`,
-`"seed"` — through SigilGeometry's `popops::setField`, and re-describes the
+`"seed"` — through SigilGeometry's `pop::setField`, and re-describes the
 prop only when a lane moved. Attach them and the values follow whatever
 `choreograph::Output` they are bound to. `resolveAnimation()` has two
 overloads: one taking a bare `entt::registry`, which touches no GPU
@@ -221,7 +221,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
-| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `geometry::import::Part` (glTF's material, factors and all). |
+| `sigilworld/TextureSet.h` | The tools' texture sets read back: `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s, and `material()` from a set, from usage-keyed images, or from an imported `geometry::decode::Part` (glTF's material, factors and all). |
 
 ## Conventions that will bite you
 
@@ -412,12 +412,12 @@ Everything else runs here: the selector (`Select`), the deformers
 a mask lane is just one more slot in the lane arena, and the masked
 blend is the same expression the CPU cook uses. A chain led by a
 `PointSet` runs too: its cloud is uploaded as the arena's initial
-contents (laid out by `popops::seedAttrs`, custom lanes in the chain's
+contents (laid out by `pop::seedAttrs`, custom lanes in the chain's
 custom slots), its kernel is empty, `setChainWindow` has nothing to
 slide, and every `setChain` on such a chain takes the structural path
 because the cloud *is* the data.
 
-**A `Deform`'s frame is computed once, on the CPU.** `popops::deformFrame`
+**A `Deform`'s frame is computed once, on the CPU.** `pop::deformFrame`
 normalizes the axis and orthogonalizes the bend direction for both
 executors, and the kernel receives that frame rather than recomputing it,
 so a degenerate axis or direction falls back the same way on both sides.

@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 
 namespace sigil::geometry {
 

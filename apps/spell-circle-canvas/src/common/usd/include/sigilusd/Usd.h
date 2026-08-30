@@ -9,7 +9,7 @@
  *    instancers, lights, a camera — and saves it as binary crate
  *    (`.usdc`, the default), ASCII (`.usda`) or a `.usdz` package;
  *  - a reader that pours a USD stage's meshes, point instancers and
- *    materials into geometry::import::Model, the same currency every other
+ *    materials into geometry::decode::Model, the same currency every other
  *    format lands in.
  *
  * Materials go out as UsdPreviewSurface with UsdUVTexture inputs — the
@@ -20,13 +20,13 @@
  * the prim as custom metadata rather than baked.
  *
  * Namespace sigil::usd, target SigilUsd. Links SigilWorld (Material,
- * Lighting) and SigilGeometry (Mesh, Cloud, import::Model) publicly and
+ * Lighting) and SigilGeometry (Mesh, Cloud, decode::Model) publicly and
  * OpenUSD privately; SigilWorld and SigilGeometry do not know it exists.
  */
 
 #include <sigilgeometry/codec/Decode.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilworld/Components.h>
 #include <sigilworld/World.h>
 
@@ -108,7 +108,7 @@ class Writer {
  *  positions a faceless Part; a bound UsdPreviewSurface fills the
  *  Part's factors and texture references (bytes read from the file's
  *  neighbours). nullopt when the stage cannot be opened. */
-std::optional<geometry::import::Model> readModel(
+std::optional<geometry::decode::Model> readModel(
     const std::filesystem::path& file, std::string* error = nullptr);
 
 /** The bound UsdPreviewSurface material names, in slot order, that
@@ -116,7 +116,7 @@ std::optional<geometry::import::Model> readModel(
 struct ReadInfo {
   std::vector<std::string> materialNames;
 };
-std::optional<geometry::import::Model> readModel(
+std::optional<geometry::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info,
     std::string* error = nullptr);
 

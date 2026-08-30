@@ -6,7 +6,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilmotion/clock/Ticker.h>
 
 #include <chrono>
@@ -908,7 +908,7 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
   // The imported-part door: factors become the scalars, the pack and a
   // separate occlusion naming the same bytes share one decode, glTF
   // normals read as OpenGL, and the sampler tiles.
-  geometry::import::Part part;
+  geometry::decode::Part part;
   part.baseColor = {0.5f, 0.6f, 0.7f, 1};
   part.metallic = 0.25f;
   part.roughness = 0.8f;
@@ -942,11 +942,11 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
 
   // The slots door: parts naming indices 0 and 2 (1 unnamed) give three
   // slots, the gap a default.
-  geometry::import::Model model;
-  geometry::import::Part first;
+  geometry::decode::Model model;
+  geometry::decode::Part first;
   first.materialIndex = 0;
   first.baseColor = {1, 0, 0, 1};
-  geometry::import::Part third;
+  geometry::decode::Part third;
   third.materialIndex = 2;
   third.baseColor = {0, 0, 1, 1};
   model.parts = {first, third};
@@ -1883,7 +1883,7 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
   mask(&gpuMask);
   w->remove(gpu);
 
-  const geometry::Mesh cpuModel = geometry::popops::cookMesh(chain, stamp);
+  const geometry::Mesh cpuModel = geometry::pop::cookMesh(chain, stamp);
   ASSERT_NE(w->place(cpuModel, glm::mat4(1.0f), material), 0u);
   ASSERT_TRUE(w->render());
   std::vector<bool> cpuMask;
@@ -1932,7 +1932,7 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
   ASSERT_TRUE(w->render());  // the cook
 
   const geometry::Cloud gpu = w->readChain(id);
-  const geometry::Cloud cpu = geometry::popops::cook(chain);
+  const geometry::Cloud cpu = geometry::pop::cook(chain);
   ASSERT_EQ(gpu.size(), 500u);
   ASSERT_EQ(cpu.size(), 500u);
   const std::vector<float>* gpuT = gpu.scalarIf("t");
@@ -2031,7 +2031,7 @@ TEST(World, CustomAttributesCookOnTheGpu) {
   ASSERT_TRUE(w->render());
 
   const geometry::Cloud gpu = w->readChain(id);
-  const geometry::Cloud cpu = geometry::popops::cook(chain);
+  const geometry::Cloud cpu = geometry::pop::cook(chain);
   const std::vector<glm::vec4>* gpuEnergy = gpu.colorIf("energy");
   const std::vector<glm::vec4>* cpuEnergy = cpu.colorIf("energy");
   ASSERT_TRUE(gpuEnergy && cpuEnergy);
@@ -2083,7 +2083,7 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
 
   // ...and the CPU executor still builds the primitive lanes the GPU
   // cannot, so the capability is not lost, only located.
-  const geometry::Mesh cpu = geometry::popops::cookMesh(describe(true), stamp);
+  const geometry::Mesh cpu = geometry::pop::cookMesh(describe(true), stamp);
   EXPECT_TRUE(cpu.primIf("Color"));
 }
 
@@ -2131,7 +2131,7 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   ASSERT_TRUE(w->render());  // the cook
 
   const geometry::Cloud gpu = w->readChain(id);
-  const geometry::Cloud cpu = geometry::popops::cook(chain);
+  const geometry::Cloud cpu = geometry::pop::cook(chain);
   ASSERT_EQ(gpu.size(), 384u);
   ASSERT_EQ(cpu.size(), 384u);
   const std::vector<float>* gpuT = gpu.scalarIf("t");
@@ -2183,7 +2183,7 @@ TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
   w->setChain(id, edited);
   ASSERT_TRUE(w->render());
   const geometry::Cloud reheated = w->readChain(id);
-  const geometry::Cloud cpuReheated = geometry::popops::cook(edited);
+  const geometry::Cloud cpuReheated = geometry::pop::cook(edited);
   const std::vector<glm::vec4>* gpuHeat2 = reheated.colorIf("heat");
   const std::vector<glm::vec4>* cpuHeat2 = cpuReheated.colorIf("heat");
   ASSERT_TRUE(gpuHeat2 && cpuHeat2);
@@ -2239,7 +2239,7 @@ TEST(World, SelectorsDeformersAndMasksAgreeAcrossExecutors) {
   ASSERT_TRUE(w->render());
 
   const geometry::Cloud gpu = w->readChain(id);
-  const geometry::Cloud cpu = geometry::popops::cook(chain);
+  const geometry::Cloud cpu = geometry::pop::cook(chain);
   ASSERT_EQ(gpu.size(), 512u);
   ASSERT_EQ(cpu.size(), 512u);
   const std::vector<glm::vec3>* gpuDir = gpu.vectorIf("dir");
@@ -2308,7 +2308,7 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   geometry::Cloud gpu = w->readChain(id);
-  geometry::Cloud cpu = geometry::popops::cook(chain);
+  geometry::Cloud cpu = geometry::pop::cook(chain);
   ASSERT_EQ(gpu.size(), 300u);
   ASSERT_EQ(cpu.size(), 300u);
   const auto compare = [&](const geometry::Cloud& a, const geometry::Cloud& b) {
@@ -2349,7 +2349,7 @@ TEST(World, PointSetLedChainsCookOnTheGpuFromTheUploadedLanes) {
   w->setChain(id, again);
   ASSERT_TRUE(w->render());
   gpu = w->readChain(id);
-  cpu = geometry::popops::cook(again);
+  cpu = geometry::pop::cook(again);
   ASSERT_EQ(gpu.size(), 64u);
   compare(gpu, cpu);
   const std::vector<glm::vec4>* extra = gpu.colorIf("extra");
@@ -2413,7 +2413,7 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
 
   // ...and the CPU executor performs the sort the GPU declined, so the
   // capability is not lost, only located.
-  const geometry::Cloud cpu = geometry::popops::cook(describe(true));
+  const geometry::Cloud cpu = geometry::pop::cook(describe(true));
   ASSERT_EQ(cpu.size(), 64u);
   for (size_t i = 1; i < cpu.size(); ++i)
     EXPECT_GE(cpu.positions[i - 1].y, cpu.positions[i].y);
@@ -2454,8 +2454,8 @@ TEST(World, ChainsComposeOnDevice) {
   // The same composition, done on the CPU.
   geometry::pop::Chain cpuB = chainB;
   std::get<geometry::pop::SplineScatter>(cpuB.front()).loop =
-      geometry::popops::cook(chainA).positions;
-  const geometry::Cloud cpu = geometry::popops::cook(cpuB);
+      geometry::pop::cook(chainA).positions;
+  const geometry::Cloud cpu = geometry::pop::cook(cpuB);
   ASSERT_EQ(gpu.size(), 300u);
   ASSERT_EQ(cpu.size(), 300u);
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
@@ -2497,7 +2497,7 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
   w->setChain(id, chainOn(60));
   ASSERT_TRUE(w->render());
   const geometry::Cloud gpu = w->readChain(id);
-  const geometry::Cloud cpu = geometry::popops::cook(chainOn(60));
+  const geometry::Cloud cpu = geometry::pop::cook(chainOn(60));
   ASSERT_EQ(gpu.size(), 128u);
   ASSERT_EQ(cpu.size(), 128u);
   for (size_t i : {size_t(0), size_t(64), size_t(127)}) {
@@ -2607,8 +2607,8 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
   // description.
   geometry::pop::Chain cpuB = chainB;
   std::get<geometry::pop::SplineScatter>(cpuB.front()).loop =
-      geometry::popops::cook(chainAt(0.5f, 0.4f)).positions;
-  const geometry::Cloud cpu = geometry::popops::cook(cpuB);
+      geometry::pop::cook(chainAt(0.5f, 0.4f)).positions;
+  const geometry::Cloud cpu = geometry::pop::cook(cpuB);
   ASSERT_EQ(cpu.size(), 300u);
   for (size_t i : {size_t(0), size_t(150), size_t(299)}) {
     EXPECT_NEAR(slid.positions[i].x, cpu.positions[i].x, 0.05f);
@@ -2777,8 +2777,8 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   EXPECT_GT(still, 0);
   // ...and it agrees with the CPU cook of the same edited chain.
   geometry::pop::Chain edited = chain;
-  geometry::popops::setField(edited[1], "amount", 180.0f);
-  const geometry::Cloud cpu = geometry::popops::cook(edited);
+  geometry::pop::setField(edited[1], "amount", 180.0f);
+  const geometry::Cloud cpu = geometry::pop::cook(edited);
   for (size_t i = 0; i < cpu.size(); i += 13)
     EXPECT_NEAR(twisted.positions[i].x, cpu.positions[i].x, 1e-2f) << i;
 }

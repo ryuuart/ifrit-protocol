@@ -12,7 +12,7 @@
 
 #include "Internal.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 namespace {
 
@@ -129,4 +129,4 @@ std::optional<Model> importObj(std::string_view text, const Resolver& resolve) {
   if (out.parts.empty()) return std::nullopt;
   return out;
 }
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail

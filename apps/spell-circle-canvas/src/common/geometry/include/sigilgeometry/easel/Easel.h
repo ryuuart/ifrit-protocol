@@ -40,7 +40,7 @@
 #include "sigilgeometry/material/Materials.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/path/Ops.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 #include "sigilgeometry/space/Space.h"
 
 namespace sigil::geometry::easel {

@@ -3,7 +3,7 @@
 // g_Lanes holds slotCount lanes of count float4s each, addressed
 // slot * count + i. Builtin slots are fixed (P=0, T=1, Dir=2,
 // Scale=3, Color=4, Tex=5); the CPU side assigns custom names the
-// slots above. This mirrors geometry::popops' named Attrs store exactly
+// slots above. This mirrors geometry::pop' named Attrs store exactly
 // — one description, two executors, identical semantics (the numeric
 // parity test is the gate). Whole-element writes and a single
 // element-struct per buffer keep MoltenVK/SPIRV-Cross honest.
@@ -43,7 +43,7 @@ void storeSlot(int slot, uint i, float4 v)
 }
 
 // The mask every filter shares — a lane's .x clamped to [0, 1], 1 when
-// no lane is named (m.x < 0). geometry::popops' storeMasked is this pair,
+// no lane is named (m.x < 0). geometry::pop' storeMasked is this pair,
 // expression for expression: m == 1 stores the new value outright, so an
 // unmasked write stays bit-identical to a direct store.
 float maskAt(uint i)
@@ -216,7 +216,7 @@ void CSAtlas(uint3 id: SV_DispatchThreadID)
 }
 
 // Drive one attribute from another through a stop table. The twin of
-// geometry::popops' Lookup branch, formula for formula: same left-to-right
+// geometry::pop' Lookup branch, formula for formula: same left-to-right
 // key sum, same clamp, same floor, same a + (b - a) * f.
 //   a = weights, b = (fromSlot, tableOffset, stopCount, -),
 //   c = (low, high, -, -), d.y = destination slot
@@ -245,7 +245,7 @@ void CSLookup(uint3 id: SV_DispatchThreadID)
     storeMasked(int(PopParams.d.y), id.x, v0 + (v1 - v0) * f);
 }
 
-// The selector. geometry::popops' Group branch, formula for formula: the
+// The selector. geometry::pop' Group branch, formula for formula: the
 // per-axis ratio, the sphere/box distance, the spelled-out smoothstep
 // over the feather band, the flip, the combine.
 //   a = center (xyz), b = size (xyz), c = (feather, shape, invert,
@@ -396,7 +396,7 @@ void CSMix(uint3 id: SV_DispatchThreadID)
 }
 
 // The point-set generator has no arithmetic: its lanes are uploaded as
-// the arena's initial contents (geometry::popops::seedAttrs decides the
+// the arena's initial contents (geometry::pop::seedAttrs decides the
 // layout). The kernel exists so the generator has a row like every
 // other operator and the dispatch loop stays uniform.
 [shader("compute")]
@@ -428,7 +428,7 @@ void CSPopPack(uint3 id: SV_DispatchThreadID)
     float s = loadSlot(3, id.x).x;
     float3 xi = cross(float3(0.0, 1.0, 0.0), zi);
     float xl = length(xi);
-    // Degenerate (zi ≈ ±Y): geometry::detail::basisFor's fallback axis.
+    // Degenerate (zi ≈ ±Y): geometry::basisFor's fallback axis.
     xi = xl > 1e-4 ? xi / xl
                    : normalize(cross(float3(1.0, 0.0, 0.0), zi));
     float3 yi = cross(zi, xi);

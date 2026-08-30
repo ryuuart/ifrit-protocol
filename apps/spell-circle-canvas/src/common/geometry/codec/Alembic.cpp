@@ -20,7 +20,7 @@
 #include "Internal.h"
 #include "sigilgeometry/codec/Decode.h"
 
-namespace sigil::geometry::import {
+namespace sigil::geometry::decode {
 
 using detail::finishPart;
 
@@ -461,4 +461,4 @@ std::optional<Model> alembic(const void* bytes, size_t size,
   }
 }
 
-}  // namespace sigil::geometry::import
+}  // namespace sigil::geometry::decode

@@ -18,8 +18,8 @@ using namespace sigil::geometry;
 
 using sigil::geometry::test::splitQuad;
 
-using import::Model;
-using import::Part;
+using decode::Model;
+using decode::Part;
 
 TEST(Save, PlyRoundTripsPrimitiveLanes) {
   // Per-triangle (prim) lanes survive a PLY round trip in both encodings:
@@ -32,11 +32,11 @@ TEST(Save, PlyRoundTripsPrimitiveLanes) {
   quad.prim("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f}, {1e-5f, 3, 0, 1}};
 
   for (const bool binary : {false, true}) {
-    const std::string bytes = save::ply(quad, {.binary = binary});
+    const std::string bytes = encode::ply(quad, {.binary = binary});
     ASSERT_FALSE(bytes.empty());
-    auto model = import::model(bytes.data(), bytes.size(), "prim.ply");
+    auto model = decode::model(bytes.data(), bytes.size(), "prim.ply");
     ASSERT_TRUE(model.has_value());
-    const import::Part& part = model->parts.front();
+    const decode::Part& part = model->parts.front();
     const Mesh& back = part.mesh;
     ASSERT_EQ(back.triangleCount(), 2u);
 
@@ -95,8 +95,8 @@ TEST(Save, PlyRoundTripsCloudLanes) {
   cloud.color("tint") = {
       {1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}, {1, 1, 1, 0.5f}};
 
-  const std::string bytes = save::ply(cloud);
-  auto model = import::model(bytes.data(), bytes.size(), "trip.ply");
+  const std::string bytes = encode::ply(cloud);
+  auto model = decode::model(bytes.data(), bytes.size(), "trip.ply");
   ASSERT_TRUE(model.has_value());
   const Cloud back = model->parts.front().asCloud();
   ASSERT_EQ(back.size(), 4u);
@@ -118,8 +118,8 @@ TEST(Save, PlyRoundTripsCloudLanes) {
 TEST(Save, PlyRoundTripsMeshWithFaces) {
   Mesh quad = mesh::quad(10, 6);
   quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
-  const std::string bytes = save::ply(quad);
-  auto model = import::model(bytes.data(), bytes.size(), "quad.ply");
+  const std::string bytes = encode::ply(quad);
+  auto model = decode::model(bytes.data(), bytes.size(), "quad.ply");
   ASSERT_TRUE(model.has_value());
   const Mesh& back = model->parts.front().mesh;
   ASSERT_EQ(back.vertexCount(), 4u);
@@ -150,8 +150,8 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
       {0.25f, 0.5f, 0.75f, 1.0f}, {1.0f / 3.0f, 0, 0, 0.5f}, {0, 1, 0, 0.125f}};
   cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 1}, {1, 1, 1, 0.5f}};
 
-  const std::string bytes = save::ply(cloud, {.binary = true});
-  auto model = import::model(bytes.data(), bytes.size(), "bin.ply");
+  const std::string bytes = encode::ply(cloud, {.binary = true});
+  auto model = decode::model(bytes.data(), bytes.size(), "bin.ply");
   ASSERT_TRUE(model.has_value());
   const Cloud back = model->parts.front().asCloud();
   ASSERT_EQ(back.size(), 3u);
@@ -175,9 +175,9 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
   // out in text.
   Mesh quad = mesh::quad(10, 6);
   quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
-  const std::string meshBytes = save::ply(quad, {.binary = true});
+  const std::string meshBytes = encode::ply(quad, {.binary = true});
   auto meshModel =
-      import::model(meshBytes.data(), meshBytes.size(), "quad.ply");
+      decode::model(meshBytes.data(), meshBytes.size(), "quad.ply");
   ASSERT_TRUE(meshModel.has_value());
   const Mesh& tri = meshModel->parts.front().mesh;
   ASSERT_EQ(tri.vertexCount(), 4u);
@@ -201,8 +201,8 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   cloud.scalar("energy") = {1, 2, 3};
   cloud.scalars["stub"] = {7};                    // wrong length
   cloud.vectors["off"] = {{1, 2, 3}, {4, 5, 6}};  // wrong length
-  const std::string bytes = save::ply(cloud);
-  auto model = import::model(bytes.data(), bytes.size(), "skip.ply");
+  const std::string bytes = encode::ply(cloud);
+  auto model = decode::model(bytes.data(), bytes.size(), "skip.ply");
   ASSERT_TRUE(model.has_value());
   const Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 3u);
@@ -215,19 +215,19 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   // Nothing to write is refused rather than emitted: the string overloads
   // return empty and the file overloads return false, so no zero-element
   // PLY is ever produced — this library's own reader rejects one.
-  EXPECT_TRUE(save::ply(Cloud{}).empty());
-  EXPECT_TRUE(save::ply(Mesh{}).empty());
+  EXPECT_TRUE(encode::ply(Cloud{}).empty());
+  EXPECT_TRUE(encode::ply(Mesh{}).empty());
   const std::filesystem::path file = std::filesystem::temp_directory_path() /
                                      "sigilgeometry_empty_decline.ply";
-  EXPECT_FALSE(save::ply(file, Cloud{}));
-  EXPECT_FALSE(save::ply(file, Mesh{}));
+  EXPECT_FALSE(encode::ply(file, Cloud{}));
+  EXPECT_FALSE(encode::ply(file, Mesh{}));
 }
 
 TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   Mesh m = splitQuad();
   m.prim("Color")[0] = {1, 0, 0, 1};
   m.prim("Color")[1] = {0, 0.25f, 0, 1};
-  const std::string text = save::ply(m);
+  const std::string text = encode::ply(m);
   ASSERT_FALSE(text.empty());
   // Prim lanes are per-triangle, so they are declared on the FACE element,
   // and after the vertex_indices list because that is the order the rows
@@ -248,7 +248,7 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   // still reads back through this library's own importer with its triangles
   // intact. (That the prim VALUES also survive the trip is checked
   // separately, in PlyRoundTripsPrimitiveLanes.)
-  auto back = import::model(text.data(), text.size(), "prims.ply");
+  auto back = decode::model(text.data(), text.size(), "prims.ply");
   ASSERT_TRUE(back.has_value());
   ASSERT_EQ(back->parts.size(), 1u);
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);

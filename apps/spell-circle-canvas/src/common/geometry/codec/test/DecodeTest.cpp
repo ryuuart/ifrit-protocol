@@ -27,8 +27,8 @@ using sigil::geometry::test::splitQuad;
 
 namespace {
 
-using import::Model;
-using import::Part;
+using decode::Model;
+using decode::Part;
 
 std::vector<std::byte> toBytes(std::string_view text) {
   const auto* begin = reinterpret_cast<const std::byte*>(text.data());
@@ -118,14 +118,14 @@ std::vector<std::byte> glbBytes() {
 
 TEST(Import, ObjCubeWithMaterialThroughResolver) {
   std::vector<std::string> asked;
-  const import::Resolver resolve =
+  const decode::Resolver resolve =
       [&](std::string_view uri) -> std::optional<std::vector<std::byte>> {
     asked.emplace_back(uri);
     if (uri == "cube.mtl") return toBytes(kCubeMtl);
     return std::nullopt;
   };
   const std::string obj = kCubeObj;
-  auto model = import::model(obj.data(), obj.size(), "cube.obj", resolve);
+  auto model = decode::model(obj.data(), obj.size(), "cube.obj", resolve);
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 1u);
   const Part& part = model->parts.front();
@@ -153,7 +153,7 @@ TEST(Import, ObjCubeWithMaterialThroughResolver) {
 TEST(Import, GltfEmbeddedBase64Buffer) {
   const std::string json = triangleGltfJson(
       "data:application/octet-stream;base64," + base64(triangleBufferBytes()));
-  auto model = import::model(json.data(), json.size(), "tri.gltf");
+  auto model = decode::model(json.data(), json.size(), "tri.gltf");
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 1u);
   const Part& part = model->parts.front();
@@ -173,27 +173,27 @@ TEST(Import, GltfEmbeddedBase64Buffer) {
 
 TEST(Import, GltfExternalBufferThroughResolver) {
   const std::string json = triangleGltfJson("tri.bin");
-  const import::Resolver resolve =
+  const decode::Resolver resolve =
       [](std::string_view uri) -> std::optional<std::vector<std::byte>> {
     if (uri == "tri.bin") return triangleBufferBytes();
     return std::nullopt;
   };
-  auto model = import::model(json.data(), json.size(), "tri.gltf", resolve);
+  auto model = decode::model(json.data(), json.size(), "tri.gltf", resolve);
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->triangleCount(), 1u);
   // Without the resolver the external buffer is unreachable.
-  EXPECT_FALSE(import::model(json.data(), json.size(), "tri.gltf").has_value());
+  EXPECT_FALSE(decode::model(json.data(), json.size(), "tri.gltf").has_value());
 }
 
 TEST(Import, GlbBinaryContainerAndSniffing) {
   const std::vector<std::byte> glb = glbBytes();
-  auto model = import::model(glb.data(), glb.size(), "tri.glb");
+  auto model = decode::model(glb.data(), glb.size(), "tri.glb");
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->vertexCount(), 3u);
   EXPECT_EQ(model->triangleCount(), 1u);
   // Format detection does not depend on the filename: with an extension
   // that says nothing, the leading "glTF" magic identifies the container.
-  auto sniffed = import::model(glb.data(), glb.size(), "download");
+  auto sniffed = decode::model(glb.data(), glb.size(), "download");
   ASSERT_TRUE(sniffed.has_value());
   EXPECT_EQ(sniffed->triangleCount(), 1u);
 }
@@ -212,7 +212,7 @@ TEST(Import, StlBinaryAndAscii) {
     for (int i = 0; i < 12; ++i) appendRaw(stl, f[i]);
     appendRaw(stl, (uint16_t)0);
   }
-  auto model = import::model(stl.data(), stl.size(), "part.stl");
+  auto model = decode::model(stl.data(), stl.size(), "part.stl");
   ASSERT_TRUE(model.has_value());
   EXPECT_EQ(model->triangleCount(), 2u);
   // STL has no shared-vertex concept, so nothing is welded: every facet
@@ -230,7 +230,7 @@ endloop
 endfacet
 endsolid tetra piece
 )";
-  auto text = import::model(ascii.data(), ascii.size(), "part.stl");
+  auto text = decode::model(ascii.data(), ascii.size(), "part.stl");
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(text->triangleCount(), 1u);
   EXPECT_EQ(text->parts.front().name, "tetra piece");
@@ -326,9 +326,9 @@ TEST(Import, GltfCustomAttributesBecomeLanes) {
     {"bufferView": 1, "componentType": 5126, "count": 3,
      "type": "SCALAR"}]
 })";
-  auto model = import::model(json.data(), json.size(), "pts.gltf");
+  auto model = decode::model(json.data(), json.size(), "pts.gltf");
   ASSERT_TRUE(model.has_value());
-  const import::Part& part = model->parts.front();
+  const decode::Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 3u);
   const auto energy = part.scalarLanes.find("ENERGY");
   ASSERT_NE(energy, part.scalarLanes.end());
@@ -373,7 +373,7 @@ TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
     {"bufferView": 1, "componentType": 5126, "count": 3, "type": "VEC2"},
     {"bufferView": 2, "componentType": 5126, "count": 3, "type": "VEC4"}]
 })";
-  auto model = import::model(json.data(), json.size(), "pts.gltf");
+  auto model = decode::model(json.data(), json.size(), "pts.gltf");
   ASSERT_TRUE(model.has_value());
   const Part& part = model->parts.front();
   const auto uv = part.colorLanes.find("UV2");
@@ -421,9 +421,9 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
       "10 0 0 1.5 0 255 0\n"
       "0 10 0 2.5 0 0 255\n"
       "10 10 0 3.5 255 255 255\n";
-  auto model = import::model(ascii, std::strlen(ascii), "scatter.ply");
+  auto model = decode::model(ascii, std::strlen(ascii), "scatter.ply");
   ASSERT_TRUE(model.has_value());
-  const import::Part& part = model->parts.front();
+  const decode::Part& part = model->parts.front();
   ASSERT_EQ(part.mesh.vertexCount(), 4u);
   EXPECT_TRUE(part.mesh.indices.empty());  // no faces declared, none invented
   EXPECT_FLOAT_EQ(part.mesh.positions[1].x, 10);
@@ -472,9 +472,9 @@ TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
   const int32_t face[] = {0, 1, 2};
   push(&faceCount, 1);
   push(face, sizeof(face));
-  auto binModel = import::model(bin.data(), bin.size(), "tri.ply");
+  auto binModel = decode::model(bin.data(), bin.size(), "tri.ply");
   ASSERT_TRUE(binModel.has_value());
-  const import::Part& tri = binModel->parts.front();
+  const decode::Part& tri = binModel->parts.front();
   EXPECT_EQ(tri.mesh.triangleCount(), 1u);
   EXPECT_FLOAT_EQ(tri.scalarLanes.at("intensity")[2], 9.0f);
   ASSERT_EQ(tri.mesh.normals.size(), 3u);
@@ -493,7 +493,7 @@ TEST(Import, PlyRejectsHostileCountsAndIndices) {
       "end_header\n"
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 9\n";
-  auto dropped = import::model(badFace, std::strlen(badFace), "bad.ply");
+  auto dropped = decode::model(badFace, std::strlen(badFace), "bad.ply");
   ASSERT_TRUE(dropped.has_value());
   EXPECT_EQ(dropped->parts.front().mesh.vertexCount(), 3u);
   EXPECT_EQ(dropped->parts.front().mesh.triangleCount(), 0u);
@@ -507,7 +507,7 @@ TEST(Import, PlyRejectsHostileCountsAndIndices) {
       "end_header\n"
       "0 0 0\n";
   EXPECT_FALSE(
-      import::model(hugeCount, std::strlen(hugeCount), "huge.ply").has_value());
+      decode::model(hugeCount, std::strlen(hugeCount), "huge.ply").has_value());
 
   // (c) A binary list count promising more bytes than remain fails
   // the row read instead of walking off the buffer.
@@ -528,7 +528,7 @@ TEST(Import, PlyRejectsHostileCountsAndIndices) {
   pushBytes(vertex, sizeof(vertex));
   const uint8_t promised = 200;  // 800 bytes of indices; none follow
   pushBytes(&promised, 1);
-  EXPECT_FALSE(import::model(truncated.data(), truncated.size(), "trunc.ply")
+  EXPECT_FALSE(decode::model(truncated.data(), truncated.size(), "trunc.ply")
                    .has_value());
 }
 
@@ -545,7 +545,7 @@ TEST(Import, LoneTStaysAScalarLane) {
       "property float t\n"
       "end_header\n"
       "0 0 0 0.25\n1 0 0 0.5\n0 1 0 0.75\n";
-  auto model = import::model(ascii, std::strlen(ascii), "lone_t.ply");
+  auto model = decode::model(ascii, std::strlen(ascii), "lone_t.ply");
   ASSERT_TRUE(model.has_value());
   const Part& part = model->parts.front();
   const auto t = part.scalarLanes.find("t");
@@ -564,8 +564,8 @@ TEST(Import, LoneTStaysAScalarLane) {
   Cloud dump;
   dump.positions = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}};
   dump.scalar("t") = {0.1f, 0.6f, 0.9f};
-  const std::string bytes = save::ply(dump);
-  auto trip = import::model(bytes.data(), bytes.size(), "trip.ply");
+  const std::string bytes = encode::ply(dump);
+  auto trip = decode::model(bytes.data(), bytes.size(), "trip.ply");
   ASSERT_TRUE(trip.has_value());
   const Cloud back = trip->parts.front().asCloud();
   ASSERT_EQ(back.size(), 3u);
@@ -591,7 +591,7 @@ TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
       "end_header\n"
       "0 0 0 1 2 0.25 0.5 0.75\n"
       "1 0 0 3 4 1 0 0.5\n";
-  auto model = import::model(ascii, std::strlen(ascii), "fold.ply");
+  auto model = decode::model(ascii, std::strlen(ascii), "fold.ply");
   ASSERT_TRUE(model.has_value());
   const Part& part = model->parts.front();
   EXPECT_EQ(part.vectorLanes.count("foo"), 0u);
@@ -631,7 +631,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
       "0 0 0\n1 0 0\n1 1 0\n0 1 0\n2 1 0\n2 0 0\n"
       "4 0 1 2 3 1 0 0 1 2.5\n"
       "5 1 2 3 4 5 0 0.25 0.5 0.75 -1.5\n";
-  auto model = import::model(ascii, std::strlen(ascii), "fan.ply");
+  auto model = decode::model(ascii, std::strlen(ascii), "fan.ply");
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 5u);  // 2 from the quad, 3 from the pent
@@ -691,7 +691,7 @@ TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
   push(&pentCount, 1);
   push(pentIdx, sizeof(pentIdx));
   push(pentAttrs, sizeof(pentAttrs));
-  auto binModel = import::model(bin.data(), bin.size(), "fan.ply");
+  auto binModel = decode::model(bin.data(), bin.size(), "fan.ply");
   ASSERT_TRUE(binModel.has_value());
   const Mesh& binMesh = binModel->parts.front().mesh;
   ASSERT_EQ(binMesh.triangleCount(), 5u);
@@ -723,7 +723,7 @@ TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
       "0 0 0\n1 0 0\n1 1 0\n0 1 0\n"
       "255 0 0 9 3 0 1 2\n"
       "0 255 255 4 4 0 1 2 3\n";
-  auto model = import::model(ascii, std::strlen(ascii), "meshlab.ply");
+  auto model = decode::model(ascii, std::strlen(ascii), "meshlab.ply");
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 3u);  // 1 triangle + a fanned quad
@@ -759,7 +759,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 9 1 1 1 1\n"
       "3 0 1 2 0.5 0.25 0.125 1\n";
-  auto model = import::model(dropped, std::strlen(dropped), "drop.ply");
+  auto model = decode::model(dropped, std::strlen(dropped), "drop.ply");
   ASSERT_TRUE(model.has_value());
   const Mesh& mesh = model->parts.front().mesh;
   ASSERT_EQ(mesh.triangleCount(), 1u);
@@ -782,7 +782,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 1 1 1 1\n";
   EXPECT_FALSE(
-      import::model(hugeFaces, std::strlen(hugeFaces), "huge.ply").has_value());
+      decode::model(hugeFaces, std::strlen(hugeFaces), "huge.ply").has_value());
 
   // (c) A header promising more face rows than the body delivers fails
   // the read instead of publishing a short lane.
@@ -797,7 +797,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "end_header\n"
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 1 1 1 1\n";
-  EXPECT_FALSE(import::model(shortBody, std::strlen(shortBody), "short.ply")
+  EXPECT_FALSE(decode::model(shortBody, std::strlen(shortBody), "short.ply")
                    .has_value());
 
   // (d) A duplicate face property claims its lane once: the second
@@ -813,7 +813,7 @@ TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
       "end_header\n"
       "0 0 0\n1 0 0\n0 1 0\n"
       "3 0 1 2 6 7\n";
-  auto dupModel = import::model(duplicate, std::strlen(duplicate), "dup.ply");
+  auto dupModel = decode::model(duplicate, std::strlen(duplicate), "dup.ply");
   ASSERT_TRUE(dupModel.has_value());
   const Mesh& dupMesh = dupModel->parts.front().mesh;
   ASSERT_EQ(dupMesh.triangleCount(), 1u);
@@ -912,7 +912,7 @@ TEST(Import, AlembicMeshPointsAndLanes) {
 
   // As with GLB, the filename hint carries nothing useful here and the
   // leading Ogawa magic is what routes the bytes to the Alembic reader.
-  auto model = import::model(bytes.data(), bytes.size(), "download");
+  auto model = decode::model(bytes.data(), bytes.size(), "download");
   ASSERT_TRUE(model.has_value());
   ASSERT_EQ(model->parts.size(), 4u);  // tri, uvquad, uvweld, cloud
   const auto find = [&](std::string_view name) -> const Part* {
@@ -969,8 +969,8 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   // aborting: the Alembic library signals errors by exception, and those
   // must not escape into a caller that is merely opening an untrusted file.
   const char garbage[] = "not an alembic archive at all";
-  EXPECT_FALSE(import::alembic(garbage, sizeof(garbage)).has_value());
-  EXPECT_FALSE(import::alembic(bytes.data(), bytes.size() / 2).has_value());
+  EXPECT_FALSE(decode::alembic(garbage, sizeof(garbage)).has_value());
+  EXPECT_FALSE(decode::alembic(bytes.data(), bytes.size() / 2).has_value());
 }
 
 TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
@@ -984,7 +984,7 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
   // that agree on all three become one vertex, and a disagreement in uv
   // splits one point into two vertices so each can keep its own uv.
   const std::string bytes = alembicArchiveBytes();
-  auto model = import::alembic(bytes.data(), bytes.size());
+  auto model = decode::alembic(bytes.data(), bytes.size());
   ASSERT_TRUE(model.has_value());
   const auto part = [&](std::string_view name) -> const Part* {
     for (const Part& p : model->parts)
@@ -1053,7 +1053,7 @@ TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
 TEST(Import, AlembicTimeSampleSelection) {
   const std::string bytes = alembicArchiveBytes();
   const auto cloudY = [&](double time) -> float {
-    auto model = import::alembic(bytes.data(), bytes.size(), {.time = time});
+    auto model = decode::alembic(bytes.data(), bytes.size(), {.time = time});
     if (!model) return -1.0f;
     for (const Part& part : model->parts)
       if (part.name == "cloud") return part.mesh.positions.at(0).y;
@@ -1138,11 +1138,11 @@ TEST(Import, HoudiniGeoPolygonsUnweldWithVertexAndPrimitiveClasses) {
       [["name","front"],["selection",["unordered",["i8",[1,0]]]]]
     ]
   ])";
-  const std::optional<import::Model> model =
-      import::model(geo, std::strlen(geo), "scene.geo");
+  const std::optional<decode::Model> model =
+      decode::model(geo, std::strlen(geo), "scene.geo");
   ASSERT_TRUE(model);
   ASSERT_EQ(model->parts.size(), 1u);
-  const import::Part& part = model->parts.front();
+  const decode::Part& part = model->parts.front();
   const Mesh& mesh = part.mesh;
   // Unwelded: 4 + 3 vertices; the quad fans into two triangles.
   EXPECT_EQ(mesh.vertexCount(), 7u);
@@ -1182,7 +1182,7 @@ TEST(Import, HoudiniGeoPolygonsUnweldWithVertexAndPrimitiveClasses) {
   EXPECT_FLOAT_EQ(top->second[2], 1.0f);
   EXPECT_FLOAT_EQ(top->second[6], 1.0f);
   // Sniffed without an extension too.
-  EXPECT_TRUE(import::model(geo, std::strlen(geo), ""));
+  EXPECT_TRUE(decode::model(geo, std::strlen(geo), ""));
   // ...and it feeds the pop system through asCloud like any import.
   const Cloud cloud = part.asCloud();
   EXPECT_EQ(cloud.size(), 7u);
@@ -1236,10 +1236,10 @@ TEST(Import, HoudiniGeoPointsBecomeAHonestCloud) {
     ],
     "primitives",[]
   ])";
-  const std::optional<import::Model> model =
-      import::model(geo, std::strlen(geo), "particles.geo");
+  const std::optional<decode::Model> model =
+      decode::model(geo, std::strlen(geo), "particles.geo");
   ASSERT_TRUE(model);
-  const import::Part& part = model->parts.front();
+  const decode::Part& part = model->parts.front();
   const Mesh& mesh = part.mesh;
   EXPECT_EQ(mesh.vertexCount(), 6u);
   EXPECT_EQ(mesh.triangleCount(), 0u);
@@ -1278,10 +1278,10 @@ TEST(Import, GltfCarriesTheWholeMaterial) {
         std::filesystem::path("../../build") / glb})
     if (std::filesystem::exists(candidate)) found = candidate;
   if (found.empty()) GTEST_SKIP() << "Avocado.glb not fetched";
-  const std::optional<import::Model> model = import::model(found);
+  const std::optional<decode::Model> model = decode::model(found);
   ASSERT_TRUE(model);
   ASSERT_FALSE(model->parts.empty());
-  const import::Part& part = model->parts.front();
+  const decode::Part& part = model->parts.front();
   EXPECT_FALSE(part.textureBytes.empty());
   ASSERT_TRUE(part.textures.count("normal"));
   ASSERT_TRUE(part.textures.count("orm"));
@@ -1313,8 +1313,8 @@ TEST(Import, MaterialSlotsRideThePrimitiveClass) {
     "primitives",[[["type","Polygon"],["vertex",[0,1,2],"closed",true]],
                   [["type","Polygon"],["vertex",[3,4,5],"closed",true]]]
   ])";
-  const std::optional<import::Model> model =
-      import::model(geo, std::strlen(geo), "slots.geo");
+  const std::optional<decode::Model> model =
+      decode::model(geo, std::strlen(geo), "slots.geo");
   ASSERT_TRUE(model);
   const std::vector<glm::vec4>* lane =
       model->parts.front().mesh.primIf("Material");
@@ -1331,7 +1331,7 @@ TEST(Import, MaterialSlotsRideThePrimitiveClass) {
         std::filesystem::path("../../build/assets/models/Avocado.glb")})
     if (std::filesystem::exists(candidate)) found = candidate;
   if (found.empty()) return;  // the .geo half already stands
-  const std::optional<import::Model> avocado = import::model(found);
+  const std::optional<decode::Model> avocado = decode::model(found);
   ASSERT_TRUE(avocado);
   EXPECT_EQ(avocado->materialSlotCount(), 1);
   EXPECT_EQ(avocado->parts.front().materialIndex, 0);

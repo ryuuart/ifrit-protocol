@@ -588,7 +588,7 @@ std::optional<std::vector<std::byte>> readBytes(const std::string& path) {
  *  connects to) into a Part's material fields. */
 void readMaterial(const UsdShadeMaterial& material,
                   const std::filesystem::path& stageDir,
-                  geometry::import::Part& part) {
+                  geometry::decode::Part& part) {
   UsdShadeShader surface = material.ComputeSurfaceSource();
   if (!surface) return;
   const auto image =
@@ -633,27 +633,27 @@ void readMaterial(const UsdShadeMaterial& material,
     }
   };
   if (auto tex = image("roughness")) {
-    geometry::import::Part::TextureRef& ref = part.textures["roughness"];
+    geometry::decode::Part::TextureRef& ref = part.textures["roughness"];
     fetch(*tex, ref.uri, ref.bytes);
   } else {
     scalar("roughness", part.roughness);
   }
   if (auto tex = image("metallic")) {
-    geometry::import::Part::TextureRef& ref = part.textures["metallic"];
+    geometry::decode::Part::TextureRef& ref = part.textures["metallic"];
     fetch(*tex, ref.uri, ref.bytes);
   } else {
     scalar("metallic", part.metallic);
   }
   if (auto tex = image("occlusion")) {
-    geometry::import::Part::TextureRef& ref = part.textures["occlusion"];
+    geometry::decode::Part::TextureRef& ref = part.textures["occlusion"];
     fetch(*tex, ref.uri, ref.bytes);
   }
   if (auto tex = image("normal")) {
-    geometry::import::Part::TextureRef& ref = part.textures["normal"];
+    geometry::decode::Part::TextureRef& ref = part.textures["normal"];
     fetch(*tex, ref.uri, ref.bytes);
   }
   if (auto tex = image("emissiveColor")) {
-    geometry::import::Part::TextureRef& ref = part.textures["emissive"];
+    geometry::decode::Part::TextureRef& ref = part.textures["emissive"];
     fetch(*tex, ref.uri, ref.bytes);
     part.emissive = {1, 1, 1, 1};
   } else if (UsdShadeInput in = surface.GetInput(TfToken("emissiveColor"))) {
@@ -661,7 +661,7 @@ void readMaterial(const UsdShadeMaterial& material,
     if (in.Get(&c)) part.emissive = {c[0], c[1], c[2], 1};
   }
   if (auto tex = image("opacity")) {
-    geometry::import::Part::TextureRef& ref = part.textures["opacity"];
+    geometry::decode::Part::TextureRef& ref = part.textures["opacity"];
     fetch(*tex, ref.uri, ref.bytes);
     part.opaque = false;
   } else if (UsdShadeInput in = surface.GetInput(TfToken("opacity"))) {
@@ -684,12 +684,12 @@ void readMaterial(const UsdShadeMaterial& material,
 
 }  // namespace
 
-std::optional<geometry::import::Model> readModel(
+std::optional<geometry::decode::Model> readModel(
     const std::filesystem::path& file, std::string* error) {
   return readModel(file, nullptr, error);
 }
 
-std::optional<geometry::import::Model> readModel(
+std::optional<geometry::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info, std::string* error) {
   UsdStageRefPtr stage = UsdStage::Open(file.string());
   if (!stage) {
@@ -697,7 +697,7 @@ std::optional<geometry::import::Model> readModel(
     return std::nullopt;
   }
   const std::filesystem::path stageDir = file.parent_path();
-  geometry::import::Model model;
+  geometry::decode::Model model;
   std::vector<std::string> materialNames;
   const auto materialSlot = [&](const UsdShadeMaterial& material) -> int {
     if (!material) return -1;
@@ -717,7 +717,7 @@ std::optional<geometry::import::Model> readModel(
       usdMesh.GetFaceVertexCountsAttr().Get(&counts);
       usdMesh.GetFaceVertexIndicesAttr().Get(&indices);
       if (points.empty() || counts.empty()) continue;
-      geometry::import::Part part;
+      geometry::decode::Part part;
       part.name = prim.GetName().GetString();
       geometry::Mesh& mesh = part.mesh;
       // Unwelded per face-vertex, faces fan-triangulated.
@@ -821,7 +821,7 @@ std::optional<geometry::import::Model> readModel(
       VtVec3fArray positions;
       instancer.GetPositionsAttr().Get(&positions);
       if (positions.empty()) continue;
-      geometry::import::Part part;
+      geometry::decode::Part part;
       part.name = prim.GetName().GetString();
       for (const GfVec3f& p : positions)
         part.mesh.positions.push_back({p[0], p[1], p[2]});

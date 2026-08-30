@@ -92,7 +92,7 @@ void BM_PopOperator(benchmark::State& state) {
   const Cloud seed = plain(count).cloud();
   const pop::Chain chain = op.apply(pop::on(seed));
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cook(chain));
+    benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, count);
 }
 BENCHMARK(BM_PopOperator)->DenseRange(0, 11)->Unit(benchmark::kMicrosecond);
@@ -100,7 +100,7 @@ BENCHMARK(BM_PopOperator)->DenseRange(0, 11)->Unit(benchmark::kMicrosecond);
 void BM_PopCook_Plain(benchmark::State& state) {
   const pop::Chain chain = plain((int)state.range(0));
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cook(chain));
+    benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, state.range(0));
   state.SetComplexityN(state.range(0));
 }
@@ -121,7 +121,7 @@ void BM_PopCook_MaskedAndDeformed(benchmark::State& state) {
                                .masked("band")
                                .mixBy("Color", "Color", "Color", "band");
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cook(chain));
+    benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, state.range(0));
   state.SetComplexityN(state.range(0));
 }
@@ -135,7 +135,7 @@ BENCHMARK(BM_PopCook_MaskedAndDeformed)
 void BM_PopCook_Relax(benchmark::State& state) {
   const pop::Chain chain = plain((int)state.range(0)).smooth(0.5f, 4);
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cook(chain));
+    benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, state.range(0));
   state.SetComplexityN(state.range(0));
 }
@@ -153,7 +153,7 @@ void BM_PopCook_PointSetSeed(benchmark::State& state) {
   const pop::Chain chain =
       pop::on(seed).move({0, 10, 0}).vary(0.3f).lookAt({0, 0, 900});
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cook(chain));
+    benchmark::DoNotOptimize(pop::cook(chain));
   countPoints(state, state.range(0));
   state.SetComplexityN(state.range(0));
 }
@@ -168,7 +168,7 @@ void BM_PopSink_Stamps(benchmark::State& state) {
   const pop::Chain chain = plain((int)state.range(0)).lookAt({0, 0, 900});
   const Mesh stamp = mesh::quad(4, 4);
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(popops::cookMesh(chain, stamp));
+    benchmark::DoNotOptimize(pop::cookMesh(chain, stamp));
   countPoints(state, state.range(0));
   state.SetComplexityN(state.range(0));
 }

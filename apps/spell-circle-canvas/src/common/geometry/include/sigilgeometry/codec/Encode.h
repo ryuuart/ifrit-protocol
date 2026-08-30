@@ -23,7 +23,7 @@
  * token text, and neither writer nor reader formats or parses numbers.
  *
  * A typical use: World::readChain() a GPU-cooked pop surface and
- * save::ply() it — compute-shader geometry, attributes and all,
+ * encode::ply() it — compute-shader geometry, attributes and all,
  * opened in Houdini or Blender.
  */
 
@@ -31,9 +31,9 @@
 #include <string>
 
 #include "sigilgeometry/mesh/Mesh.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 
-namespace sigil::geometry::save {
+namespace sigil::geometry::encode {
 
 /** Format choice. Binary keeps the text header but writes rows as raw
  * little-endian bytes — same properties, same order, bit-exact floats
@@ -57,4 +57,4 @@ bool ply(const std::filesystem::path& file, const Cloud& cloud,
 bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options = {});
 
-}  // namespace sigil::geometry::save
+}  // namespace sigil::geometry::encode

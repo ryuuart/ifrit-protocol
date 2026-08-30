@@ -22,6 +22,6 @@
 #include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 #include "sigilgeometry/pop/Pop.h"
 #include "sigilgeometry/space/Space.h"

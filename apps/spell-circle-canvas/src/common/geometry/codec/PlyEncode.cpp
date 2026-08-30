@@ -14,7 +14,7 @@
 
 #include "sigilgeometry/codec/Encode.h"
 
-namespace sigil::geometry::save {
+namespace sigil::geometry::encode {
 
 namespace {
 
@@ -260,4 +260,4 @@ bool ply(const std::filesystem::path& file, const Mesh& mesh,
   return !bytes.empty() && writeFile(file, bytes);
 }
 
-}  // namespace sigil::geometry::save
+}  // namespace sigil::geometry::encode

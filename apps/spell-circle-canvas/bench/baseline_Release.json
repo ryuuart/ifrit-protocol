@@ -2267,10 +2267,66 @@
         "repetitions": 4,
         "unit": "ns"
       }
+    },
+    "measure_bench": {
+      "BM_SamplesAdd/1000": {
+        "cpu_ns": 5.748990178204599,
+        "real_ns": 6.032323971442908,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesAdd/120": {
+        "cpu_ns": 5.955019250694175,
+        "real_ns": 7.217436948767219,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesAdd/60": {
+        "cpu_ns": 5.923070810258783,
+        "real_ns": 6.650484557029982,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesMean/1000": {
+        "cpu_ns": 937.6589805992139,
+        "real_ns": 1128.9902671562672,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesMean/120": {
+        "cpu_ns": 50.58919408059145,
+        "real_ns": 73.12626920640935,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesMean/60": {
+        "cpu_ns": 16.637575461733555,
+        "real_ns": 18.86688014383543,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesPercentile/1000": {
+        "cpu_ns": 8087.5570573240675,
+        "real_ns": 10192.131254166354,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesPercentile/120": {
+        "cpu_ns": 784.4553078889528,
+        "real_ns": 1035.3803202272131,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_SamplesPercentile/60": {
+        "cpu_ns": 330.02277784706814,
+        "real_ns": 523.7249178746335,
+        "repetitions": 4,
+        "unit": "ns"
+      }
     }
   },
   "config": "Release",
   "host": "MacBookPro.control",
   "machine": "arm64",
-  "taken": "2026-08-30T02:13:39+00:00"
+  "taken": "2026-08-30T06:37:05+00:00"
 }

@@ -40,7 +40,7 @@
 
 #include "sigilgeometry/codec/Model.h"
 
-namespace sigil::geometry::import {
+namespace sigil::geometry::decode {
 
 /** Alembic import knobs — which moment of the cache to bake. */
 struct AlembicOptions {
@@ -69,4 +69,4 @@ std::optional<Model> model(const void* bytes, size_t size,
  *  directory (the .gltf + .bin + textures layout just works). */
 std::optional<Model> model(const std::filesystem::path& file);
 
-}  // namespace sigil::geometry::import
+}  // namespace sigil::geometry::decode

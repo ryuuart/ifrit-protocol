@@ -14,7 +14,6 @@
 
 namespace sigil::geometry {
 
-using detail::normalized;
 using glm::cross;
 
 namespace {
@@ -37,7 +36,7 @@ glm::vec4 primDefault(std::string_view name) {
  *  normalize() of a zero vector is undefined.
  *
  *  +Z is the library's standing answer for "no direction" —
- *  detail::normalized's fallback and basisFor's axis both use it. It is
+ *  normalized's fallback and basisFor's axis both use it. It is
  *  unit length, survives every normalize() downstream, and shades the
  *  padded half like a flat card facing the default camera. Callers who
  *  want the geometric truth call computeNormals() on the merge: append

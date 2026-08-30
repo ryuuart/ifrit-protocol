@@ -13,12 +13,12 @@ It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
 is no windowing, no GPU device, no UI framework and no scene graph — you
 hand it values, it hands you paths, meshes, clouds and pixels.
 
-It is ten feature libraries, one per directory, each a static archive
+It is nine feature libraries, one per directory, each a static archive
 that links only the features beneath it — so a text engine or a drawable
 component library can walk an outline through **`SigilGeometryPath`**
 without linking meshes, importers or materials, and a renderer can take
 **`SigilGeometryPop`** without the codec. **`SigilGeometry`** is the
-umbrella, an interface over all ten, so a consumer of the whole library
+umbrella, an interface over all nine, so a consumer of the whole library
 names only that.
 
 Namespace `sigil::geometry`. Headers under `include/sigilgeometry/<feature>/`
@@ -137,13 +137,13 @@ struct.
 **`pop::Chain` is a backend-neutral description.** It is a vector of
 operator variants, not a program — and a value: every operator, `Mesh`
 and `Cloud` compares by content with `==`, so a reconciler can ask
-whether a chain changed. The CPU executor in `popops::cook()` is
+whether a chain changed. The CPU executor in `pop::cook()` is
 the reference implementation; a GPU consumer can execute the identical
 chain as compute dispatches, and the two are required to agree bit for bit
 — which is what makes the hash helpers and the variant order load-bearing
 (see below).
 
-**Operator dials are addressable by name.** `popops::setField(op,
+**Operator dials are addressable by name.** `pop::setField(op,
 "amount", v)` and `getField` reach every numeric field of every operator
 — vector components dotted (`"center.x"`, `"add.w"`, `"to.g"`), enums and
 bools as numbers, ints truncated — so a control surface, a preset file
@@ -243,31 +243,31 @@ nothing else in the library, Skia and glm only:
   `ribbon()` and `banner()`; and `project()` to draw the curve as a 2D
   path under a camera.
 
-**`points`** — `SigilGeometryPoints`, needs `curves` (and through it
-`mesh` and `space`); its generators draw from `path`'s noise.
+**`pop`** — `SigilGeometryPop`, needs `curves` (and through it `mesh`
+and `space`); its generators draw from `path`'s noise. Point operators
+are the subject; the point cloud is what they operate on, so the cloud
+vocabulary lives in this feature beside the chain language.
 
-- **`points/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
+- **`pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
   `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
   `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
   mesh at every point into one merged mesh) and `promoteToPrims()`
   (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
   (`Billboards.cpp`).
-
-**`pop`** — `SigilGeometryPop`, needs `curves` and `points`.
-
-- **`pop/Pop.h`** — the operator chain language and its CPU executor.
-  The field table behind `popops::setField()`/`getField()` is
-  `Fields.cpp`; `popops::cook()` with the attribute store it runs over is
-  `Cook.cpp`; the mesh-forming sinks `cookMesh()`, `cookTube()`,
+- **`pop/Pop.h`** — the operator chain language and its CPU executor,
+  both in the `pop` scope: `pop::on()` opens a chain, `pop::cook()`
+  evaluates one. The field table behind `pop::setField()`/`getField()` is
+  `Fields.cpp`; `pop::cook()` with the attribute store it runs over is
+  `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()`, `cookTube()`,
   `cookRibbon()` and `cookSweep()` are `Sinks.cpp`.
 
-**`codec`** — `SigilGeometryCodec`, needs `mesh` and `points`. Its parsers
+**`codec`** — `SigilGeometryCodec`, needs `mesh` and `pop`. Its parsers
 are private to the feature: tinyobjloader, cgltf and Alembic, with STL,
 PLY and `.geo` parsed by hand. One reader per translation unit —
-`Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `Ply.cpp`, `Geo.cpp`, `Alembic.cpp` —
+`Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `PlyDecode.cpp`, `Geo.cpp`, `Alembic.cpp` —
 behind the dispatcher in `Model.cpp`, sharing only what `Internal.h`
-declares; `PlyWriter.cpp` is the writer.
+declares; `PlyEncode.cpp` is the writer.
 
 - **`codec/Model.h`** — what every reader produces: `Part` (one draw
   unit: a mesh in model space, its material factors and texture
@@ -275,12 +275,12 @@ declares; `PlyWriter.cpp` is the writer.
   (the parts, and `merged()`, `mergedCloud()`, `bounds()`,
   `fitTransform()`, `materialSlotCount()` across them) and the `Resolver`
   a reader consults for external references.
-- **`codec/Decode.h`** — the doors in: `import::model()` from bytes with
+- **`codec/Decode.h`** — the doors in: `decode::model()` from bytes with
   a path hint, or from a file with its siblings resolved; and
-  `import::alembic()` with `AlembicOptions` choosing the time. OBJ (with
+  `decode::alembic()` with `AlembicOptions` choosing the time. OBJ (with
   MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL, ascii and
   binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON `.geo`.
-- **`codec/Encode.h`** — the door out: `save::ply()` over a `Cloud` or a
+- **`codec/Encode.h`** — the door out: `encode::ply()` over a `Cloud` or a
   `Mesh`, ascii by default or binary via `PlyOptions`.
 
 **`material`** — `SigilGeometryMaterial`, Skia alone; nothing else in the
@@ -297,8 +297,9 @@ library. The SkSL sources are `Sksl.h`, compiled and bound in
   run the whole pipeline for one path.
 
 **`easel`** — `SigilGeometryEasel`, header-only, an interface over
-`blend`, `curves`, `material`, `mesh`, `path`, `points` and `space`. It
-does not pull in `pop` or `codec`.
+`blend`, `curves`, `material`, `mesh`, `path`, `pop` and `space`. It
+does not pull in `codec`, and of `pop` only the cloud vocabulary, not the
+chain language.
 
 - **`easel/Easel.h`** — the artist façade described above.
 
@@ -426,7 +427,7 @@ is silently, plausibly wrong rather than obviously broken.
   arc's end tangents rigidly, so the geometry past the band keeps its
   shape rather than being stretched.
 - **A `PointSet` lays its cloud out by name, and the layout is shared.**
-  `popops::seedAttrs()` is the one function that maps a cloud onto the
+  `pop::seedAttrs()` is the one function that maps a cloud onto the
   attribute store — positions to `P`, `"t"`/`"size"`/`"tint"` to
   `T`/`Scale`/`Color`, `"dir"` (or, failing that, `"normal"`) to `Dir`,
   `"Tex"` to `Tex`, everything else under its own name — and the GPU
@@ -446,7 +447,7 @@ is silently, plausibly wrong rather than obviously broken.
   `space::faceCamera()` orients that +z face at the eye. `points::instance`
   orients a stamp's +z along the orient lane using the same basis
   construction, so a face-camera'd quad and an instanced facing lane agree.
-- **Imported textures are not decoded.** `import::Part` carries the encoded
+- **Imported textures are not decoded.** `decode::Part` carries the encoded
   bytes (or the unresolved URI); turning them into pixels is a separate
   concern. glTF's whole metallic-roughness material rides along the same
   way: `Part::textures` keys the normal, packed metallicRoughness
@@ -457,7 +458,7 @@ is silently, plausibly wrong rather than obviously broken.
   index; a `.geo`'s `shop_materialpath` string index) is also written
   across its `mesh.prims["Material"]` lane, so `Model::merged()` keeps
   per-triangle materials and `materialSlotCount()` says how many.
-  Likewise, `import::model()` never touches the filesystem for
+  Likewise, `decode::model()` never touches the filesystem for
   external references unless you gave it a `Resolver` or used the path
   overload.
 - **Alembic support is Ogawa-only and nearest-sample.**
@@ -490,7 +491,7 @@ component or scene kernel, an animation timeline, an image decoder, a
 resource-access layer, or text layout. Where one of those is needed —
 decoding a texture an importer handed you, or fetching an asset over the
 network — that is the caller's job, and the library is designed so the
-caller can supply it (`import::Resolver` is the hook).
+caller can supply it (`decode::Resolver` is the hook).
 
 The relationship with **SigilWorld**, the GPU renderer that sits beside it,
 is one-directional: SigilWorld links SigilGeometry and consumes its `Mesh`,
@@ -498,7 +499,7 @@ is one-directional: SigilWorld links SigilGeometry and consumes its `Mesh`,
 not link SigilWorld, does not include its headers, and does not know it
 exists. The consequence worth internalizing is that **the CPU
 implementations here are the reference**: `space::drawMesh()` is the twin
-of the GPU uploader, and `popops::cook()` is the definition a GPU chain
+of the GPU uploader, and `pop::cook()` is the definition a GPU chain
 executor must reproduce. When the two disagree, this side is right.
 
 ## Build and test
@@ -512,7 +513,7 @@ cmake --build build --config Debug
 
 Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryBlend`, `SigilGeometryMesh`, `SigilGeometrySpace`,
-`SigilGeometryCurves`, `SigilGeometryPoints`, `SigilGeometryPop`,
+`SigilGeometryCurves`, `SigilGeometryPop`,
 `SigilGeometryCodec`, `SigilGeometryMaterial` — the header-only
 `SigilGeometryEasel`, the `SigilGeometry` umbrella over all of them, the
 tests, `geometry_demo`, and four Google Benchmark binaries built by the
@@ -539,8 +540,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
 | `geometry_space_test` | `space/test/SpaceTest.cpp` | the Skia painter |
 | `geometry_curves_test` | `curves/test/CurvesTest.cpp` | splines, tubes, ribbons, banners |
-| `geometry_points_test` | `points/test/PointsTest.cpp` | point clouds, instancing, and the agreement between an instanced facing lane and `faceCamera()` |
-| `geometry_pop_test` | `pop/test/PopTest.cpp` | pop chains and their operators; links the codec to seed chains from an imported model |
+| `geometry_pop_test` | `pop/test/PointsTest.cpp`, `pop/test/PopTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; links the codec to seed chains from an imported model |
 | `geometry_codec_test` | `codec/test/DecodeTest.cpp`, `codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 | `geometry_material_test` | `material/test/MaterialTest.cpp` | the material shaders |
 | `geometry_easel_test` | `easel/test/EaselTest.cpp` | the fluent authoring surface |

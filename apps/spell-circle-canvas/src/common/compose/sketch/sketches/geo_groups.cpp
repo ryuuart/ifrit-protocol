@@ -25,7 +25,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/codec/Decode.h>
-#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Points.h>
 #include <sigilgeometry/pop/Pop.h>
 #include <sigilgeometry/space/Space.h>
 #include <sigilsketch/Sketch.h>
@@ -188,8 +188,8 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     const std::string geo = houdiniGeo();
-    const std::optional<geometry::import::Model> model =
-        geometry::import::model(geo.data(), geo.size(), "grid.geo");
+    const std::optional<geometry::decode::Model> model =
+        geometry::decode::model(geo.data(), geo.size(), "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
       ctx.composer.render(text(toU8(caption), type(15, kInk)).left(30).top(16));
@@ -228,7 +228,7 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
 
     ctx.composer.render(
         stack()
-            .child(text(toU8("geometry::import \xc2\xb7 a Houdini .geo's point "
+            .child(text(toU8("geometry::decode \xc2\xb7 a Houdini .geo's point "
                              "group is a pop mask the moment it lands "
                              "\xe2\x80\x94 " +
                              caption),

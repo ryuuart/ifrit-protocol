@@ -721,7 +721,7 @@ struct InstanceAttribs {
 // the CPU-side instancing uses, shared rather than reimplemented, so a
 // Cloud renders identically whether its stamps were merged into one mesh
 // or drawn as GPU instances.
-using geometry::detail::basisFor;
+using geometry::basisFor;
 
 std::vector<InstanceAttribs> buildInstances(const geometry::Cloud& cloud,
                                             const StampLanes& lanes) {
@@ -986,7 +986,7 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
           }
           if constexpr (std::is_same_v<T, World::pop::PointSet>)
             for (const std::string& name :
-                 geometry::popops::seedCustomNames(o.cloud))
+                 geometry::pop::seedCustomNames(o.cloud))
               note(World::pop::AttrRef{name});
           // The mask is a lane read like any other; an unnamed mask
           // (empty) is "everyone" and owns no slot.
@@ -2202,12 +2202,12 @@ int popChainCount(const World::pop::Chain& chain) {
 }
 
 /** The arena's initial contents for a chain led by a PointSet: the
- *  cloud laid out by geometry::popops::seedAttrs into the builtin slots and
+ *  cloud laid out by geometry::pop::seedAttrs into the builtin slots and
  *  the chain's custom slots, in the same slot order slotFor() reads. */
 std::vector<float> seededLanes(const geometry::Cloud& cloud, int count,
                                const std::vector<std::string>& customNames) {
   std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
-  geometry::popops::seedAttrs(cloud, lanes);
+  geometry::pop::seedAttrs(cloud, lanes);
   const int slots = World::pop::kBuiltinSlots + (int)customNames.size();
   std::vector<float> data((size_t)count * (size_t)slots * 4, 0.0f);
   const auto pour = [&](int slot, const std::vector<glm::vec4>& lane) {
@@ -2829,7 +2829,7 @@ bool World::render() {
                 params.m[1] = (float)points.slotFor(op.along);
               } else if constexpr (std::is_same_v<T, pop::Deform>) {
                 glm::vec3 axis, dir, side;
-                geometry::popops::deformFrame(op, &axis, &dir, &side);
+                geometry::pop::deformFrame(op, &axis, &dir, &side);
                 params.a[0] = (float)op.kind;
                 params.a[1] = op.amount;
                 params.a[2] = op.low;

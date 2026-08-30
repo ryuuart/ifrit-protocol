@@ -2,7 +2,8 @@
 
 /** @file
  * The tiny safety vocabulary over glm the library's translation units
- * share, and the one orientation basis every stamp is placed with.
+ * share, and the one orientation basis every stamp is placed with —
+ * public, because the GPU instancing path stamps with the same basis.
  *  glm::normalize and glm::cross are used directly everywhere; these
  *  exist only for the degenerate-input policies glm leaves undefined.
  *  The pop cook's scatter basis is NOT here on purpose: its math is
@@ -11,7 +12,7 @@
 
 #include <glm/glm.hpp>
 
-namespace sigil::geometry::detail {
+namespace sigil::geometry {
 
 inline glm::vec3 normalized(glm::vec3 v, glm::vec3 fallback = {0, 0, 1}) {
   const float len = glm::length(v);
@@ -31,4 +32,4 @@ inline void basisFor(glm::vec3 dir, glm::vec3 up, glm::vec3* x, glm::vec3* y,
   *y = glm::cross(*z, *x);
 }
 
-}  // namespace sigil::geometry::detail
+}  // namespace sigil::geometry

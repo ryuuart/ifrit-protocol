@@ -10,12 +10,10 @@
 
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/path/Noise.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 
 namespace sigil::geometry {
 
-using detail::basisFor;
-using detail::normalized;
 using glm::cross;
 
 namespace points {

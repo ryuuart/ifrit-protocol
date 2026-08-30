@@ -19,8 +19,6 @@
 
 namespace sigil::geometry::space {
 
-using detail::normalized;
-
 namespace {
 
 constexpr float kDegToRad = (float)M_PI / 180.0f;
@@ -330,7 +328,7 @@ glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg, float rollDeg,
 
 glm::mat4 faceCamera(glm::vec3 eye, glm::vec3 at, glm::vec3 up) {
   glm::vec3 x, y, z;
-  detail::basisFor(eye - at, up, &x, &y, &z);
+  basisFor(eye - at, up, &x, &y, &z);
   glm::mat4 m{1.0f};
   m[0] = glm::vec4(x, 0);
   m[1] = glm::vec4(y, 0);

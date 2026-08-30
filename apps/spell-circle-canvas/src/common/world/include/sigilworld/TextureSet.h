@@ -130,7 +130,7 @@ using BytesDecoder = std::function<sk_sp<SkImage>(
  *  plus its transmission, ior and alpha cutoff. glTF normals are
  *  OpenGL-convention; the sampler tiles. The part's factors are kept as
  *  the scalars the maps multiply. */
-Material material(const geometry::import::Part& part,
+Material material(const geometry::decode::Part& part,
                   const BytesDecoder& decode, Material base = {});
 
 /** The model's material SLOTS: one Material per index the parts name
@@ -138,7 +138,7 @@ Material material(const geometry::import::Part& part,
  *  default for any index no part wears — the list `World::place(mesh,
  *  model, slots)` takes beside `Model::merged()`. Empty when no part
  *  names a material. */
-std::vector<Material> materials(const geometry::import::Model& model,
+std::vector<Material> materials(const geometry::decode::Model& model,
                                 const BytesDecoder& decode, Material base = {});
 
 }  // namespace sigil::world::textures

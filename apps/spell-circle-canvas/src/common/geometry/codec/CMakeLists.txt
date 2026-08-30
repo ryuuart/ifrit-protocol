@@ -10,8 +10,8 @@ add_library(SigilGeometryCodec STATIC
   Internal.h
   Model.cpp
   Obj.cpp
-  Ply.cpp
-  PlyWriter.cpp
+  PlyDecode.cpp
+  PlyEncode.cpp
   Stl.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/codec/Decode.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/codec/Encode.h
@@ -24,7 +24,7 @@ target_include_directories(SigilGeometryCodec PRIVATE ${CGLTF_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Alembic CONFIG REQUIRED)
 target_link_libraries(SigilGeometryCodec
-  PUBLIC SigilGeometryMesh SigilGeometryPoints
+  PUBLIC SigilGeometryMesh SigilGeometryPop
   PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic)
 
 # The decode tests write Alembic archives in memory with the O* API, so

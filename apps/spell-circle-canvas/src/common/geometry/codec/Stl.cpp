@@ -12,7 +12,7 @@
 
 #include "Internal.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 namespace {
 
@@ -109,4 +109,4 @@ bool looksLikeAsciiStl(std::string_view text) {
          text.find("facet") != std::string_view::npos;
 }
 
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail

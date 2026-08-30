@@ -18,8 +18,8 @@
 
 namespace sigil::geometry::mesh {
 
-using detail::normalized;
 using glm::cross;
+using sigil::geometry::normalized;
 
 namespace {
 

@@ -14,7 +14,7 @@
 #include "sigilgeometry/codec/Encode.h"
 #include "sigilgeometry/curves/Curves.h"
 #include "sigilgeometry/mesh/Mesh.h"
-#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Points.h"
 #include "sigilgeometry/pop/Pop.h"
 #include "support/GeometrySupport.h"
 
@@ -40,15 +40,15 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   pop::Chain chain = {scatter, pop::Vary{pop::Lane::Scale, 1.0f, 0.4f, 3},
                       pop::Ramp{pop::Lane::Color, {1, 0, 0, 1}, {0, 0, 1, 1}}};
   const Mesh stamp = mesh::quad(6, 6);
-  const Mesh model = popops::cookMesh(chain, stamp);
+  const Mesh model = pop::cookMesh(chain, stamp);
   EXPECT_EQ(model.vertexCount(), 500u * stamp.vertexCount());
   EXPECT_EQ(model.triangleCount(), 500u * stamp.triangleCount());
   ASSERT_EQ(model.colors.size(), model.vertexCount());  // tint baked
-  const Mesh again = popops::cookMesh(chain, stamp);
+  const Mesh again = pop::cookMesh(chain, stamp);
   ASSERT_EQ(again.positions.size(), model.positions.size());
   EXPECT_EQ(again.positions[123].x, model.positions[123].x);
   chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
-  const Mesh lifted = popops::cookMesh(chain, stamp);
+  const Mesh lifted = pop::cookMesh(chain, stamp);
   EXPECT_GT(lifted.positions[123].y, model.positions[123].y + 400.0f);
 }
 
@@ -67,7 +67,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   pop::Chain chain = {scatter, pop::Noise{pop::Lane::P, 40, 0.01f, 5}};
 
   const Mesh tube =
-      popops::cookTube(chain, 12, 10, {.closed = true, .segments = 200});
+      pop::cookTube(chain, 12, 10, {.closed = true, .segments = 200});
   EXPECT_GT(tube.triangleCount(), 1000u);
   glm::vec3 lo, hi;
   tube.bounds(&lo, &hi);
@@ -77,11 +77,11 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   EXPECT_NEAR(hi.x - lo.x, 624, 130);
 
   const Mesh ribbon =
-      popops::cookRibbon(chain, 60, {.closed = true, .segments = 160});
+      pop::cookRibbon(chain, 60, {.closed = true, .segments = 160});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
   chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
-  const Mesh lifted = popops::cookTube(chain, 12, 10, {.closed = true});
+  const Mesh lifted = pop::cookTube(chain, 12, 10, {.closed = true});
   glm::vec3 lo2, hi2;
   lifted.bounds(&lo2, &hi2);
   EXPECT_GT(lo2.y, hi.y + 400.0f) << "value edit re-forms the model high";
@@ -106,7 +106,7 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
       {1, 0, 0, 1}, {0, 0, 1, 1});
   EXPECT_EQ(c.size(), 3u);  // scatter + vary + ramp
   std::get<pop::SplineScatter>(c.front()).count = 20;
-  EXPECT_EQ(popops::cook(c).size(), 20u);
+  EXPECT_EQ(pop::cook(c).size(), 20u);
 }
 
 // Smooth must undo what noise did to the local shape of the path, measured
@@ -128,9 +128,9 @@ TEST(Pop, SmoothHealsNoiseKinks) {
     return sum;
   };
   const double rough =
-      jaggedness(popops::cook(pop::on(loop).count(80).noise(30).chain()));
+      jaggedness(pop::cook(pop::on(loop).count(80).noise(30).chain()));
   const double healed = jaggedness(
-      popops::cook(pop::on(loop).count(80).noise(30).smooth(0.6f, 3).chain()));
+      pop::cook(pop::on(loop).count(80).noise(30).smooth(0.6f, 3).chain()));
   EXPECT_LT(healed, rough * 0.5) << rough << " -> " << healed;
 }
 
@@ -213,7 +213,7 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
   // scattered on) and serve as a STAMP (be instanced along one). Nothing in
   // either path distinguishes a loaded mesh from a generated one.
   const std::string obj = kCubeObj;
-  auto model = import::model(obj.data(), obj.size(), "cube.obj");
+  auto model = decode::model(obj.data(), obj.size(), "cube.obj");
   ASSERT_TRUE(model.has_value());
   const Mesh cube = model->merged();
 
@@ -253,7 +253,7 @@ TEST(Pop, NamedAttributesFlowAndExport) {
           .fill("energy", {0.5f, 0, 0, 0})
           .op(pop::Jitter{"energy", 0.25f, 5})
           .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
-  const Cloud cooked = popops::cook(chain);
+  const Cloud cooked = pop::cook(chain);
   const std::vector<glm::vec4>* energy = cooked.colorIf("energy");
   ASSERT_TRUE(energy) << "customs must export under their own name";
   float lo = 1e9f, hi = -1e9f;
@@ -291,7 +291,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
             .count(4)
             .fill(pop::Lane::P, {0, y, 0, 0})
             .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100, 100);
-    const Cloud cooked = popops::cook(chain);
+    const Cloud cooked = pop::cook(chain);
     const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
     EXPECT_TRUE(tint);
     return tint ? (*tint)[0] : glm::vec4{0, 0, 0, 0};
@@ -324,7 +324,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
           .count(16)
           .fill("energy", {0.25f, 0, 0, 0})
           .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1, "heat");
-  const Cloud cooked = popops::cook(custom);
+  const Cloud cooked = pop::cook(custom);
   const std::vector<glm::vec4>* heat = cooked.colorIf("heat");
   ASSERT_TRUE(heat) << "a lookup must create the lane it writes";
   EXPECT_NEAR((*heat)[0].r, 12.5f, 1e-4f);
@@ -348,8 +348,8 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
     return (pop::Chain)b;
   };
 
-  const Cloud plain = popops::cook(describe(false, false));
-  const Cloud rising = popops::cook(describe(true, false));
+  const Cloud plain = pop::cook(describe(false, false));
+  const Cloud rising = pop::cook(describe(true, false));
   ASSERT_EQ(plain.size(), 200u);
   ASSERT_EQ(rising.size(), 200u);
 
@@ -387,7 +387,7 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
   // 3. Descending is exactly the ascending permutation reversed. The keys
   // here are distinct, so there are no ties to make that ambiguous. This is
   // the painter-order spelling: farthest first.
-  const Cloud falling = popops::cook(describe(true, true));
+  const Cloud falling = pop::cook(describe(true, true));
   ASSERT_EQ(falling.size(), rising.size());
   for (size_t i = 0; i < falling.size(); ++i)
     EXPECT_EQ(falling.positions[i], rising.positions[rising.size() - 1 - i]);
@@ -395,8 +395,8 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
   // 4. Point order IS the swept path, so sorting the same points forms a
   // genuinely different tube. Sorting is therefore an authoring operation
   // with geometric consequences, not just a draw-order adjustment.
-  const Mesh unsorted = popops::cookTube(describe(false, false), 4);
-  const Mesh threaded = popops::cookTube(describe(true, false), 4);
+  const Mesh unsorted = pop::cookTube(describe(false, false), 4);
+  const Mesh threaded = pop::cookTube(describe(true, false), 4);
   ASSERT_EQ(unsorted.positions.size(), threaded.positions.size());
   float drift = 0;
   for (size_t i = 0; i < unsorted.positions.size(); ++i)
@@ -419,10 +419,10 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.push_back({100.0f * std::cos(a), 0, 100.0f * std::sin(a)});
   }
-  const Cloud cooked = popops::cook(pop::on(loop)
-                                        .count(6)
-                                        .fill("h", {0, 0, 0, 0})
-                                        .op(pop::Jitter{"h", 0.5f, 0}));
+  const Cloud cooked = pop::cook(pop::on(loop)
+                                     .count(6)
+                                     .fill("h", {0, 0, 0, 0})
+                                     .op(pop::Jitter{"h", 0.5f, 0}));
   const std::vector<glm::vec4>* h = cooked.colorIf("h");
   ASSERT_TRUE(h);
   ASSERT_EQ(h->size(), 6u);
@@ -453,7 +453,7 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
     loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
   }
   const pop::Chain chain = pop::on(loop).count(40).atlas(2, 2);
-  const Mesh stamped = popops::cookMesh(chain, mesh::quad(8, 8));
+  const Mesh stamped = pop::cookMesh(chain, mesh::quad(8, 8));
   // atlas(2, 2) divides the texture into a 2x2 grid and assigns each point
   // one cell, remapping its stamp's uvs into that cell. So every stamp's
   // uvs span exactly half the range in each axis and sit wholly inside one
@@ -503,10 +503,10 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
 
   // Cooking to a Cloud is unaffected: points have no primitives, so a
   // promote in the chain is simply inert there.
-  const Cloud cooked = popops::cook(chain);
+  const Cloud cooked = pop::cook(chain);
   ASSERT_EQ(cooked.size(), (size_t)kPoints);
 
-  const Mesh model = popops::cookMesh(chain, stamp);
+  const Mesh model = pop::cookMesh(chain, stamp);
   const size_t perStamp = stamp.triangleCount();
   ASSERT_EQ(model.triangleCount(), (size_t)kPoints * perStamp);
 
@@ -534,7 +534,7 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   // above are not comparing a constant against itself.
   EXPECT_GT((*color)[model.triangleCount() - 1].b, (*color)[0].b + 0.5f);
 
-  EXPECT_TRUE(popops::cookTube(chain, 4).prims.empty());
+  EXPECT_TRUE(pop::cookTube(chain, 4).prims.empty());
 }
 
 namespace {
@@ -560,7 +560,7 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
                                .select("east", {200, 0, 0}, 120)
                                .move({0, 50, 0})
                                .masked("east");
-  const Cloud cooked = popops::cook(chain);
+  const Cloud cooked = pop::cook(chain);
   const std::vector<glm::vec4>* east = cooked.colorIf("east");
   ASSERT_TRUE(east);
   int lifted = 0, grounded = 0;
@@ -585,7 +585,7 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
                               .select("east", {200, 0, 0}, 160, 0.6f)
                               .move({0, 50, 0})
                               .masked("east");
-  const Cloud softCooked = popops::cook(soft);
+  const Cloud softCooked = pop::cook(soft);
   const std::vector<glm::vec4>* softEast = softCooked.colorIf("east");
   ASSERT_TRUE(softEast);
   int partial = 0;
@@ -605,14 +605,14 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
                                             0,
                                             false,
                                             pop::Select::Combine::Union});
-  const Cloud unioned = popops::cook(both);
+  const Cloud unioned = pop::cook(both);
   int liftedBoth = 0;
   for (const glm::vec3& p : unioned.positions) liftedBoth += p.y > 25.0f;
   EXPECT_GT(liftedBoth, lifted + 40);
 
   // A mask naming a lane nothing wrote selects nobody.
   const Cloud nobody =
-      popops::cook(pop::on(loop).count(50).move({0, 50, 0}).masked("ghost"));
+      pop::cook(pop::on(loop).count(50).move({0, 50, 0}).masked("ghost"));
   for (const glm::vec3& p : nobody.positions) EXPECT_NEAR(p.y, 0.0f, 1e-4f);
 }
 
@@ -621,8 +621,8 @@ TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
   // A pure translation on P is Math's move; a rotation is not, and Dir
   // follows through orient() renormalized.
   const glm::mat4 turn = space::place({0, 30, 0}, 90);
-  const Cloud a = popops::cook(pop::on(loop).count(60).affine(turn));
-  const Cloud b = popops::cook(pop::on(loop).count(60));
+  const Cloud a = pop::cook(pop::on(loop).count(60).affine(turn));
+  const Cloud b = pop::cook(pop::on(loop).count(60));
   ASSERT_EQ(a.size(), b.size());
   for (size_t i = 0; i < a.size(); ++i) {
     const glm::vec4 expected = turn * glm::vec4(b.positions[i], 1.0f);
@@ -631,7 +631,7 @@ TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
     EXPECT_NEAR(a.positions[i].z, expected.z, 1e-3f);
   }
   const Cloud oriented =
-      popops::cook(pop::on(loop).count(60).orient(space::place({}, 90)));
+      pop::cook(pop::on(loop).count(60).orient(space::place({}, 90)));
   const std::vector<glm::vec3>* dirA = oriented.vectorIf("dir");
   const std::vector<glm::vec3>* dirB = b.vectorIf("dir");
   ASSERT_TRUE(dirA && dirB);
@@ -644,13 +644,13 @@ TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
 
   // Peak: on a loop scatter Dir is the tangent, so peaking slides every
   // point along the ring by the same distance — the radius holds.
-  const Cloud peaked = popops::cook(pop::on(loop).count(60).peak(25));
+  const Cloud peaked = pop::cook(pop::on(loop).count(60).peak(25));
   for (size_t i = 0; i < 60; ++i) {
     const float moved = glm::length(peaked.positions[i] - b.positions[i]);
     EXPECT_NEAR(moved, 25.0f, 1e-3f);
   }
   // Peak along a custom zero lane moves nothing.
-  const Cloud still = popops::cook(pop::on(loop).count(60).peak(25, "nowhere"));
+  const Cloud still = pop::cook(pop::on(loop).count(60).peak(25, "nowhere"));
   for (size_t i = 0; i < 60; ++i)
     EXPECT_NEAR(glm::length(still.positions[i] - b.positions[i]), 0.0f, 1e-4f);
 }
@@ -662,10 +662,10 @@ TEST(Pop, DeformersTwistTaperAndBend) {
   const auto column = [&] {
     return pop::on(loop).count(200).window(0.5f, 0.5f);
   };
-  const Cloud base = popops::cook(column());
+  const Cloud base = pop::cook(column());
 
   // Twist 180 degrees over 0..200: a point at the top lands at x = -50.
-  const Cloud twisted = popops::cook(column().twist(180, {0, 1, 0}, 0, 200));
+  const Cloud twisted = pop::cook(column().twist(180, {0, 1, 0}, 0, 200));
   for (size_t i = 0; i < 200; ++i) {
     const glm::vec3& p0 = base.positions[i];
     const glm::vec3& p1 = twisted.positions[i];
@@ -680,7 +680,7 @@ TEST(Pop, DeformersTwistTaperAndBend) {
   }
 
   // Taper to 0.2 at the top: the radius shrinks linearly.
-  const Cloud tapered = popops::cook(column().taper(0.2f, {0, 1, 0}, 0, 200));
+  const Cloud tapered = pop::cook(column().taper(0.2f, {0, 1, 0}, 0, 200));
   for (size_t i = 0; i < 200; ++i) {
     const glm::vec3& p0 = base.positions[i];
     const glm::vec3& p1 = tapered.positions[i];
@@ -695,12 +695,12 @@ TEST(Pop, DeformersTwistTaperAndBend) {
   // adjustment. Arc length is preserved for the x = 0 fibre.
   const std::vector<glm::vec3> spine = {
       {0, 0, 0}, {0, 200, 0}, {0, 200, 1}, {0, 0, 1}};
-  const Cloud bent = popops::cook(pop::on(spine)
-                                      .count(200)
-                                      .window(0.5f, 0.5f)
-                                      .bend(90, {0, 1, 0}, {1, 0, 0}, 0, 200));
+  const Cloud bent = pop::cook(pop::on(spine)
+                                   .count(200)
+                                   .window(0.5f, 0.5f)
+                                   .bend(90, {0, 1, 0}, {1, 0, 0}, 0, 200));
   const Cloud spineBase =
-      popops::cook(pop::on(spine).count(200).window(0.5f, 0.5f));
+      pop::cook(pop::on(spine).count(200).window(0.5f, 0.5f));
   const float R = 200.0f / ((float)M_PI * 0.5f);
   for (size_t i = 0; i < 200; ++i) {
     const glm::vec3& p0 = spineBase.positions[i];
@@ -716,7 +716,7 @@ TEST(Pop, DeformersTwistTaperAndBend) {
     EXPECT_NEAR(std::hypot(p1.x - R, p1.y), R, 1e-2f);
   }
   // Amount 0 is the identity.
-  const Cloud unbent = popops::cook(
+  const Cloud unbent = pop::cook(
       pop::on(spine).count(200).window(0.5f, 0.5f).bend(0, {0, 1, 0}));
   for (size_t i = 0; i < 200; ++i)
     EXPECT_NEAR(glm::length(unbent.positions[i] - spineBase.positions[i]), 0.0f,
@@ -732,7 +732,7 @@ TEST(Pop, MixBlendsCopiesAndFadesByALane) {
                                .mix("a", "b", "half", 0.5f)
                                .copy("a", "again")
                                .mixBy("a", "b", "byT", "T");
-  const Cloud cooked = popops::cook(chain);
+  const Cloud cooked = pop::cook(chain);
   const std::vector<glm::vec4>* half = cooked.colorIf("half");
   const std::vector<glm::vec4>* again = cooked.colorIf("again");
   const std::vector<glm::vec4>* byT = cooked.colorIf("byT");
@@ -771,7 +771,7 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
                                .masked("top")
                                .peak(5)
                                .fade({0, 1, 0, 1}, {0, 1, 0, 1});
-  const Cloud cooked = popops::cook(chain);
+  const Cloud cooked = pop::cook(chain);
   ASSERT_EQ(cooked.size(), 40u);
   const std::vector<float>* outSize = cooked.scalarIf("size");
   const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
@@ -790,16 +790,15 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   }
   // count() and window() are inert on a point set: the count is the
   // cloud's.
-  EXPECT_EQ(popops::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(),
-            40u);
+  EXPECT_EQ(pop::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(), 40u);
   // The layout the GPU executor uploads is the same function.
   std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
-  popops::seedAttrs(given, lanes);
+  pop::seedAttrs(given, lanes);
   EXPECT_EQ(lanes.count("P"), 1u);
   EXPECT_EQ(lanes.count("Scale"), 1u);
   EXPECT_EQ(lanes.count("top"), 1u);
   EXPECT_EQ(lanes.count("size"), 0u);
-  const std::vector<std::string> customs = popops::seedCustomNames(given);
+  const std::vector<std::string> customs = pop::seedCustomNames(given);
   ASSERT_EQ(customs.size(), 1u);
   EXPECT_EQ(customs[0], "top");
 }
@@ -809,42 +808,42 @@ TEST(Pop, FieldsAreAddressableByName) {
   // components dotted, enums and bools as numbers; a name the operator
   // lacks is refused and leaves it untouched.
   pop::Op twist = pop::Deform{};
-  EXPECT_TRUE(popops::setField(twist, "amount", 45.0f));
-  EXPECT_TRUE(popops::setField(twist, "origin.x", 12.0f));
-  EXPECT_TRUE(popops::setField(twist, "kind", (float)pop::Deform::Kind::Bend));
-  EXPECT_FALSE(popops::setField(twist, "wibble", 1.0f));
+  EXPECT_TRUE(pop::setField(twist, "amount", 45.0f));
+  EXPECT_TRUE(pop::setField(twist, "origin.x", 12.0f));
+  EXPECT_TRUE(pop::setField(twist, "kind", (float)pop::Deform::Kind::Bend));
+  EXPECT_FALSE(pop::setField(twist, "wibble", 1.0f));
   const auto& d = std::get<pop::Deform>(twist);
   EXPECT_FLOAT_EQ(d.amount, 45.0f);
   EXPECT_FLOAT_EQ(d.origin.x, 12.0f);
   EXPECT_EQ(d.kind, pop::Deform::Kind::Bend);
-  EXPECT_FLOAT_EQ(*popops::getField(twist, "amount"), 45.0f);
-  EXPECT_FLOAT_EQ(*popops::getField(twist, "kind"), 2.0f);
-  EXPECT_FALSE(popops::getField(twist, "mask"));  // a string, not a dial
+  EXPECT_FLOAT_EQ(*pop::getField(twist, "amount"), 45.0f);
+  EXPECT_FLOAT_EQ(*pop::getField(twist, "kind"), 2.0f);
+  EXPECT_FALSE(pop::getField(twist, "mask"));  // a string, not a dial
 
   pop::Op group = pop::Select{};
-  EXPECT_TRUE(popops::setField(group, "center.y", 80.0f));
-  EXPECT_TRUE(popops::setField(group, "invert", 1.0f));
+  EXPECT_TRUE(pop::setField(group, "center.y", 80.0f));
+  EXPECT_TRUE(pop::setField(group, "invert", 1.0f));
   EXPECT_TRUE(
-      popops::setField(group, "combine", (float)pop::Select::Combine::Union));
+      pop::setField(group, "combine", (float)pop::Select::Combine::Union));
   const auto& g = std::get<pop::Select>(group);
   EXPECT_FLOAT_EQ(g.center.y, 80.0f);
   EXPECT_TRUE(g.invert);
   EXPECT_EQ(g.combine, pop::Select::Combine::Union);
 
   pop::Op ramp = pop::Ramp{};
-  EXPECT_TRUE(popops::setField(ramp, "to.g", 0.25f));  // colour spelling
+  EXPECT_TRUE(pop::setField(ramp, "to.g", 0.25f));  // colour spelling
   EXPECT_FLOAT_EQ(std::get<pop::Ramp>(ramp).to.y, 0.25f);
-  EXPECT_FLOAT_EQ(*popops::getField(ramp, "to.y"), 0.25f);
+  EXPECT_FLOAT_EQ(*pop::getField(ramp, "to.y"), 0.25f);
 
   pop::Op scatter = pop::SplineScatter{};
-  EXPECT_TRUE(popops::setField(scatter, "count", 250.7f));  // int truncates
+  EXPECT_TRUE(pop::setField(scatter, "count", 250.7f));  // int truncates
   EXPECT_EQ(std::get<pop::SplineScatter>(scatter).count, 250);
-  EXPECT_TRUE(popops::setField(scatter, "seed", 9.0f));
+  EXPECT_TRUE(pop::setField(scatter, "seed", 9.0f));
   EXPECT_EQ(std::get<pop::SplineScatter>(scatter).seed, 9u);
 
   // Operators without dials say no to everything.
   pop::Op promote = pop::Promote{};
-  EXPECT_FALSE(popops::setField(promote, "to", 1.0f));
+  EXPECT_FALSE(pop::setField(promote, "to", 1.0f));
   pop::Op given = pop::PointSet{};
-  EXPECT_FALSE(popops::getField(given, "count"));
+  EXPECT_FALSE(pop::getField(given, "count"));
 }

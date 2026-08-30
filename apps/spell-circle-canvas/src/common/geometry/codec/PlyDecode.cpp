@@ -16,7 +16,7 @@
 
 #include "Internal.h"
 
-namespace sigil::geometry::import::detail {
+namespace sigil::geometry::decode::detail {
 
 namespace {
 
@@ -30,7 +30,7 @@ namespace {
 // (empty indices) — asCloud() is their natural consumer.
 //
 // FACE properties are the PRIMITIVE class and land in Mesh::prims, the
-// read leg of save::ply's per-face write: one value per TRIANGLE,
+// read leg of encode::ply's per-face write: one value per TRIANGLE,
 // replicated when a polygon fans. Point lanes and prim lanes never
 // share a container, so their cardinalities cannot be confused.
 
@@ -97,7 +97,7 @@ struct PlyElement {
 };
 
 /** Fold suffixed scalar triples/quads back into wide lanes — the
- *  return leg of save::ply's spelling (name_x/_y/_z, name_r/_g/_b/_a)
+ *  return leg of encode::ply's spelling (name_x/_y/_z, name_r/_g/_b/_a)
  *  — so a round trip reconstitutes vectors and colors, not loose
  *  floats. Alpha is optional; it defaults to 1. Consumed components
  *  leave @p scalars; a partial group, or one whose members disagree on
@@ -340,7 +340,7 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
         // MeshLab-style conventional per-face color is spelled
         // red/green/blue/alpha; it is collected under the SUFFIXED
         // name so the one folder below reconstitutes it as the same
-        // "Color" lane save::ply writes as Color_r/_g/_b/_a. Integer
+        // "Color" lane encode::ply writes as Color_r/_g/_b/_a. Integer
         // channels normalize, exactly like the vertex leg; every other
         // property stays raw (ids stay ids).
         const std::string& n = property.name;
@@ -434,7 +434,7 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
   // be mistaken for a per-vertex one: Part's scalar/vector/color lanes
   // and asCloud() stay strictly point-class. Same folder as the point
   // lanes, then widened to the vec4 currency prims speak: a folded
-  // color IS the vec4 (this is save::ply's own Color_r/_g/_b/_a leg),
+  // color IS the vec4 (this is encode::ply's own Color_r/_g/_b/_a leg),
   // a folded vector takes w = 0 (Mesh::append's pad for non-"Color"
   // lanes), and a lone scalar lands in .x — the "Id" convention.
   {
@@ -477,4 +477,4 @@ bool looksLikePly(std::string_view text) {
          text.find("end_header") != std::string_view::npos;
 }
 
-}  // namespace sigil::geometry::import::detail
+}  // namespace sigil::geometry::decode::detail
