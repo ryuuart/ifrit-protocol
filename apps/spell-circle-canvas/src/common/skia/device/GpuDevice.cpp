@@ -107,6 +107,10 @@ GpuDevice::GpuDevice(std::unique_ptr<Backend_> backend)
   m_impl->backend = std::move(backend);
 }
 
+// The lists walked below were sized while the device was alive, so the
+// only throw left in them is the allocator's, and a device that cannot
+// release its own textures has nothing to unwind to.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 GpuDevice::~GpuDevice() {
   // The device going away is the last frame: nothing can still be in
   // flight once the backend's queue is dropped with it, so every texture

@@ -22,23 +22,23 @@ struct Layout {
   bool always = false;
 
   bool yoga() {
-    log.push_back("yoga");
+    log.emplace_back("yoga");
     return false;
   }
   bool pins() {
-    log.push_back("pins");
+    log.emplace_back("pins");
     if (always) return true;
     return pinMoves-- > 0;
   }
   bool routes() {
-    log.push_back("routes");
+    log.emplace_back("routes");
     return routeMoves-- > 0;
   }
   bool sync() {
-    log.push_back("sync");
+    log.emplace_back("sync");
     return false;
   }
-  void settle() { log.push_back("settle"); }
+  void settle() { log.emplace_back("settle"); }
 
   static constexpr Phase<Layout> phases[] = {
       {"yoga", &Layout::yoga, false},

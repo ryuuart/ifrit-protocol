@@ -80,7 +80,7 @@ void BM_Render(benchmark::State& state) {
     toggle = !toggle;
     benchmark::DoNotOptimize(graph.render());
   }
-  const int64_t pixels = (int64_t)1 << (2 * log2);
+  const int64_t pixels = (int64_t)(uint64_t{1} << (unsigned)(2 * log2));
   state.SetItemsProcessed(state.iterations() * pixels);
 }
 

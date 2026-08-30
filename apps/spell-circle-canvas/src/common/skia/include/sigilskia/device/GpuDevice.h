@@ -33,9 +33,9 @@ enum class TextureFormat { RGBA8Unorm, BGRA8Unorm, RGBA16Float };
 
 /** How a texture may be used, combined by |. */
 enum class TextureUsage : uint32_t {
-  ShaderRead = 1u << 0,
-  ShaderWrite = 1u << 1,
-  RenderTarget = 1u << 2,
+  ShaderRead = 1u << 0u,
+  ShaderWrite = 1u << 1u,
+  RenderTarget = 1u << 2u,
 };
 constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) {
   return static_cast<TextureUsage>(static_cast<uint32_t>(a) |

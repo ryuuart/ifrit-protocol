@@ -29,7 +29,7 @@ Desc grid(int count, int changed = -1, int shift = 0) {
 
 void ColdMount(benchmark::State& state) {
   const int count = (int)state.range(0);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     FakeHost host;
     host.render(grid(count));
     benchmark::DoNotOptimize(host.root);
@@ -41,7 +41,7 @@ void WarmPrune(benchmark::State& state) {
   const int count = (int)state.range(0);
   FakeHost host;
   host.render(grid(count));
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.render(grid(count));
     benchmark::DoNotOptimize(host.root);
   }
@@ -53,7 +53,7 @@ void OneChangedLeaf(benchmark::State& state) {
   FakeHost host;
   host.render(grid(count));
   int phase = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.render(grid(count, (phase++ * 7) % count));
     benchmark::DoNotOptimize(host.root);
   }
@@ -65,7 +65,7 @@ void KeyedRotation(benchmark::State& state) {
   FakeHost host;
   host.render(grid(count));
   int shift = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.render(grid(count, -1, ++shift));
     benchmark::DoNotOptimize(host.root);
   }
@@ -78,7 +78,7 @@ void Churn(benchmark::State& state) {
   FakeHost host;
   host.render(grid(count));
   int generation = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     ++generation;
     std::vector<Desc> children;
     for (int i = 0; i < count; ++i) {
@@ -115,7 +115,7 @@ void MemoHit(benchmark::State& state) {
   };
   FakeHost host;
   host.render(memoGrid());
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.render(memoGrid());
     benchmark::DoNotOptimize(host.root);
   }

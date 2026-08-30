@@ -76,20 +76,18 @@ libraries.
 database lists no `*_autogen` translation unit for a target that does
 not link Qt.
 
-## The static analysis queue is open for the targets the split created
+## The static analysis queue is unanswered in compose and in world
 
-**What the code does.** `scripts/check.py --all --tidy-all` reports 149
-distinct findings in this repository's own sources. They cluster in the
-code the library split introduced rather than in code it moved: the
-device and Graphite features of SigilSkia, the reconciler kernel and its
-tests and benches, the check table's header, the text engine's style
-headers, and the per-feature test binaries. By check, the bulk is
-`performance-unnecessary-value-param` (a description or a style copied
-into a function that only reads it), `bugprone-signed-bitwise` (Vulkan
-and Substance flag words ORed as the signed ints their C headers declare),
-`modernize-use-emplace`, `modernize-use-equals-default` and
-`clang-analyzer-deadcode.DeadStores` (a benchmark result assigned and
-never consumed, where `benchmark::DoNotOptimize` is the verb meant).
+**What the code does.** `scripts/check.py --all --tidy-all` reports no
+findings in geometry, skia, core, measure, scry, material, usd,
+substance or the text engine. Neither `src/common/compose/` nor
+`src/common/world/` is covered by that sentence: world does not compile
+while its rewrite is in flight, and compose has been analyzed only in
+part. The one compose finding measured so far is a false positive that
+still needs an answer in place —
+`compose/core/ReconcileHost.cpp:106` reports "Called C++ object pointer
+is null" on a path where `parent` is null and `staggerMs` is positive,
+which the ternary that computes `staggerMs` from `parent` forbids.
 
 **What it was evidently intended to do.** Keep the queue closed: a
 finding is either fixed or answered in place with the reason it stands,

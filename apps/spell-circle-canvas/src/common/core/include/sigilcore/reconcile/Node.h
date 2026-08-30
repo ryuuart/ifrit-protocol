@@ -23,6 +23,14 @@ struct Node {
   Desc desc;       ///< the resolved (post-memo) description
   Desc memoShell;  ///< the memo element this node was described through
   std::vector<std::unique_ptr<Derived>> children;
+
+ private:
+  // Constructible only through the type named as `Derived`. A node that
+  // derives from this while naming another host's node type would hold
+  // that host's children and hand them to this host's phases, and the
+  // mismatch is invisible at the derivation.
+  Node() = default;
+  friend Derived;
 };
 
 }  // namespace sigil::core

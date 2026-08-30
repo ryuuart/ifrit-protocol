@@ -72,6 +72,11 @@ struct FakeHost {
   static const std::vector<Desc>& children(const Desc& d) {
     return d->children;
   }
+  // A fake element IS its description, so the handle read off it is the
+  // element itself. Every caller reads one out of the parent's child
+  // vector, which outlives the reconciler pass; a temporary never reaches
+  // here.
+  // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
   static const Desc& descOf(const Desc& child) { return child; }
   static const Memo<Desc>* memoOf(const Desc& d) {
     return d->memo ? &*d->memo : nullptr;

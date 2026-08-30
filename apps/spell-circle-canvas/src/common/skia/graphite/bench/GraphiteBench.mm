@@ -61,7 +61,7 @@ void BM_Wrap_Native(benchmark::State &state) {
   }
   const TextureHandle handle = target(*dev);
   const NativeTexture native = dev->exportNative(handle);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     OffscreenSurface surface(*ctx, native.mtlTexture, native.width, native.height);
     benchmark::DoNotOptimize(surface.canvas());
   }
@@ -80,7 +80,7 @@ void BM_Wrap_Handle(benchmark::State &state) {
     return;
   }
   const TextureHandle handle = target(*dev);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     OffscreenSurface surface(*ctx, *dev, handle);
     benchmark::DoNotOptimize(surface.canvas());
   }
@@ -99,7 +99,7 @@ void BM_Vulkan_Wrap_Handle(benchmark::State &state) {
     return;
   }
   const TextureHandle handle = target(*dev);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     OffscreenSurface surface(*ctx, *dev, handle);
     benchmark::DoNotOptimize(surface.canvas());
   }

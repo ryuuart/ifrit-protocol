@@ -63,6 +63,8 @@ TEST(Erased, AComparableModelComparesByTypeAndValue) {
 
 TEST(Erased, CopiesShareStateAndAreEqual) {
   Erased<Ops> a = Comparable{3};
+  // the copy is what the test compares
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   Erased<Ops> copy = a;
   EXPECT_TRUE(a == copy);
   EXPECT_EQ(a.get(), copy.get());
@@ -71,6 +73,8 @@ TEST(Erased, CopiesShareStateAndAreEqual) {
 TEST(Erased, TheEscapeHatchIsEqualOnlyToItsOwnCopies) {
   Erased<Ops> a{Opaque{2}};
   Erased<Ops> same{Opaque{2}};
+  // the copy is what the test compares
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   Erased<Ops> copy = a;
   EXPECT_TRUE(a);
   EXPECT_FALSE(a.comparable());

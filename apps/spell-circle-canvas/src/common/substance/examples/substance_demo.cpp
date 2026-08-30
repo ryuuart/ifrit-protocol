@@ -69,6 +69,8 @@ bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
 
 }  // namespace
 
+// an uncaught exception ends the demo with its message
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char** argv) {
   if (argc < 2 || (argv[1][0] == '-')) {
     const bool help = argc >= 2 && (std::strcmp(argv[1], "-h") == 0 ||

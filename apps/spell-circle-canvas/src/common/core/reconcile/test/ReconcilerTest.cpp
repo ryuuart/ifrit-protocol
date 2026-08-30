@@ -152,7 +152,7 @@ Desc memoOf(std::string key, int props, int* calls) {
   memo.equal = [](const std::any& a, const std::any& b) {
     return std::any_cast<int>(a) == std::any_cast<int>(b);
   };
-  memo.invoke = [key, calls](const std::any& p) {
+  memo.invoke = [key = std::move(key), calls](const std::any& p) {
     ++*calls;
     return desc(key, std::any_cast<int>(p));
   };
@@ -259,6 +259,7 @@ TEST(Reconciler, TheKeyIndexAddressesAMemoShellByTheShellsKeyElseThePayloads) {
   FakeHost host;
   int calls = 0;
   auto unkeyedShell = memoOf("", 3, &calls);  // the payload is keyed ""
+  ASSERT_TRUE(unkeyedShell->memo.has_value());
   unkeyedShell->memo->invoke = [](const std::any& p) {
     return desc("payload", std::any_cast<int>(p));
   };

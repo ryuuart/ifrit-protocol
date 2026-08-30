@@ -49,6 +49,9 @@ OffscreenSurface::OffscreenSurface(GraphiteContext& context,
           // shares with the host: no queue-family ownership transfer to
           // track.
           VK_QUEUE_FAMILY_IGNORED,
+          // A VulkanImage carries the object as the 64-bit word the API
+          // defines it to be; the wrap needs the handle itself back.
+          // NOLINTNEXTLINE(performance-no-int-to-ptr)
           reinterpret_cast<VkImage>(static_cast<uintptr_t>(image.image)),
           // The caller owns the backing VkDeviceMemory; an empty alloc
           // marks the texture as externally managed so Skia never frees

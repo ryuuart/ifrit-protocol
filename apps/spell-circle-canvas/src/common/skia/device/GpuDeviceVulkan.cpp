@@ -67,6 +67,10 @@ GetInstanceProcAddr openLoader(std::string* error) {
     auto proc = reinterpret_cast<GetInstanceProcAddr>(
         GetProcAddress(module, "vkGetInstanceProcAddr"));
 #else
+    // The first candidate is an environment variable on purpose: naming
+    // the loader is how a machine with a Vulkan runtime somewhere else is
+    // told where it is. Whoever sets it already runs this process.
+    // NOLINTNEXTLINE(clang-analyzer-optin.taint.GenericTaint)
     void* module = dlopen(candidate, RTLD_NOW | RTLD_LOCAL);
     if (!module) continue;
     auto proc = reinterpret_cast<GetInstanceProcAddr>(
@@ -235,6 +239,10 @@ uint64_t toHandle(T object) {
 }
 template <typename T>
 T fromHandle(uint64_t value) {
+  // A NativeTexture carries Vulkan objects as the 64-bit words the API
+  // itself defines them to be, so the dispatchable ones make the trip
+  // back through a pointer.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr)
   return reinterpret_cast<T>(static_cast<uintptr_t>(value));
 }
 
@@ -259,6 +267,10 @@ class VulkanBackend final : public GpuDevice::Backend_ {
   const NativeDevice& native() const override { return m_native; }
 
   NativeTexture createTexture(const TextureDesc& desc) override {
+    // Vulkan's create-info structs are zero-filled and then written field
+    // by field; every field this call depends on, `samples` included, is
+    // given its value below.
+    // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
     VkImageCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.imageType = VK_IMAGE_TYPE_2D;

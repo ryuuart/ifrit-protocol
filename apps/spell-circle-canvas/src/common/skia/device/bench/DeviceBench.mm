@@ -32,7 +32,7 @@ GpuDevice *vulkanDevice(std::string *why) {
  *  one free slot warm — the steady-state cost of naming. */
 void BM_HandleAllocateRelease(benchmark::State &state) {
   HandleTable<int, TextureHandle> table;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const TextureHandle handle = table.allocate(1);
     benchmark::DoNotOptimize(table.find(handle));
     table.release(handle);
@@ -47,7 +47,7 @@ void BM_HandleBatch(benchmark::State &state) {
   const int count = (int)state.range(0);
   HandleTable<int, TextureHandle> table;
   std::vector<TextureHandle> handles(count);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     for (int i = 0; i < count; ++i) handles[i] = table.allocate(i);
     for (int i = 0; i < count; ++i) table.release(handles[i]);
   }
@@ -75,7 +75,7 @@ void BM_ImportExportRetire(benchmark::State &state) {
   native.mtlTexture = (void *)texture;
   native.width = 64;
   native.height = 64;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const TextureHandle handle = dev->importNative(native);
     benchmark::DoNotOptimize(dev->exportNative(handle).mtlTexture);
     dev->destroy(handle);
@@ -97,7 +97,7 @@ void BM_CreateDestroyTexture(benchmark::State &state) {
   TextureDesc desc;
   desc.width = 64;
   desc.height = 64;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const TextureHandle handle = dev->createTexture(desc);
     dev->destroy(handle);
     dev->beginFrame();
@@ -115,7 +115,7 @@ void BM_FenceRoundTrip(benchmark::State &state) {
     return;
   }
   const FenceHandle fence = dev->createFence();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const FenceValue value = dev->signal(fence);
     if (dev->waitCpu(fence, value) != FenceWait::Reached) {
       state.SkipWithError("fence did not signal");
@@ -139,7 +139,7 @@ void BM_Vulkan_CreateDestroyTexture(benchmark::State &state) {
   TextureDesc desc;
   desc.width = 64;
   desc.height = 64;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const TextureHandle handle = dev->createTexture(desc);
     dev->destroy(handle);
     dev->beginFrame();
@@ -161,7 +161,7 @@ void BM_Vulkan_ImportExportRetire(benchmark::State &state) {
   desc.height = 64;
   const TextureHandle original = dev->createTexture(desc);
   const NativeTexture native = dev->exportNative(original);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const TextureHandle handle = dev->importNative(native);
     benchmark::DoNotOptimize(dev->exportNative(handle).vkImage);
     dev->destroy(handle);
@@ -182,7 +182,7 @@ void BM_Vulkan_FenceRoundTrip(benchmark::State &state) {
     return;
   }
   const FenceHandle fence = dev->createFence();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const FenceValue value = dev->signal(fence);
     if (dev->waitCpu(fence, value) != FenceWait::Reached) {
       state.SkipWithError("fence did not signal");

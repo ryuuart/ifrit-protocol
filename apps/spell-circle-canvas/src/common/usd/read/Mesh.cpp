@@ -16,6 +16,7 @@
 #include <pxr/usd/usdShade/tokens.h>
 
 #include <algorithm>
+#include <utility>
 
 #include "GfMatrix.h"
 #include "Primvar.h"
@@ -116,7 +117,7 @@ void readMesh(const UsdPrim& prim, ReadContext& context,
     }
   }
   if (!subsets.empty() || wholeSlot >= 0)
-    mesh.prim("Material", {0, 0, 0, 0}) = laneValues;
+    mesh.prim("Material", {0, 0, 0, 0}) = std::move(laneValues);
   if (mesh.normals.size() != mesh.positions.size()) mesh.normals.clear();
   if (mesh.uvs.size() != mesh.positions.size()) mesh.uvs.clear();
   if (mesh.colors.size() != mesh.positions.size()) mesh.colors.clear();

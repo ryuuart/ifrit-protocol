@@ -196,6 +196,9 @@ TEST(SigilSkiaDevice, ImportExportRoundTrip) {
                                                         height:4
                                                      mipmapped:NO];
   id<MTLTexture> hostTexture = [mtl newTextureWithDescriptor:desc];
+  // Released at the end of the test. The one path that skips that
+  // release is a failed assertion, which ends the run.
+  // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
   ASSERT_NE(hostTexture, nil);
 
   NativeTexture native;
@@ -287,6 +290,9 @@ TEST(SigilSkiaDevice, FenceSignalsAndWaits) {
 TEST(SigilSkiaDevice, GraphiteOnAnAdoptedDeviceClearsAndReadsBack) {
   id<MTLDevice> mtl = MTLCreateSystemDefaultDevice();
   id<MTLCommandQueue> mtlQueue = [mtl newCommandQueue];
+  // Both are released at the end of the test. The one path that skips
+  // those releases is a failed assertion, which ends the run.
+  // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
   ASSERT_NE(mtl, nil);
   NativeDevice native;
   native.backend = Backend::Metal;
@@ -353,10 +359,14 @@ GpuDevice *vulkanDevice(std::string *why) {
   return device.get();
 }
 
+// `var` names the variable the macro declares, and a declarator cannot
+// be parenthesised; every caller passes a plain identifier.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define SIGILSKIA_NEED_VULKAN(var)             \
   std::string vulkanError;                     \
   GpuDevice *var = vulkanDevice(&vulkanError); \
-  if (!var) GTEST_SKIP() << "no Vulkan device: " << vulkanError
+  if (!(var)) GTEST_SKIP() << "no Vulkan device: " << vulkanError
+// NOLINTEND(bugprone-macro-parentheses)
 
 }  // namespace
 

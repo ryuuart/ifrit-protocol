@@ -35,7 +35,12 @@ CMAKE_EXPORT_COMPILE_COMMANDS, which setup.py's presets already do).
 The database records /usr/bin/c++ without -isysroot — the Apple driver
 injects the SDK path itself at build time — so the non-Apple clang-tidy
 is passed the SDK root explicitly here; without it every standard
-header is unresolvable.
+header is unresolvable. That SDK root also moves the default
+/usr/local/include search under the SDK, so a package installed there —
+Ultralight's headers — stops resolving, and the directory is appended
+after the system ones to restore it. A translation unit whose headers do
+not resolve still reports findings, and they describe an AST the
+compiler never built: every one of them is noise.
 """
 
 import argparse
@@ -312,6 +317,10 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
     command = [tidy, "-p", BUILD_DIR, "--quiet"]
     if sdk:
         command.append(f"--extra-arg=-isysroot{sdk}")
+        # Restored after the SDK's own directories, never before them:
+        # a hand-installed SDK under /usr/local must resolve without
+        # shadowing a system header of the same name.
+        command.append("--extra-arg=-idirafter/usr/local/include")
     print(f"{len(candidates)} translation units")
     # One clang-tidy process per translation unit: a single process fed
     # many TUs reuses parse state across them and can report phantom
