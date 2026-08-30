@@ -97,8 +97,8 @@ class FrameTimer {
         .count();
   }
   Samples m_frame, m_work, m_present;
-  Clock::time_point m_begin{};
-  Clock::time_point m_lastPresent{};
+  Clock::time_point m_begin;
+  Clock::time_point m_lastPresent;
 };
 
 }  // namespace sigil::measure

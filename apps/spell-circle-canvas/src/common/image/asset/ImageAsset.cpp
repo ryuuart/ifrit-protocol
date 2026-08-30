@@ -157,13 +157,9 @@ const Frame& ImageAsset::frameAt(double milliseconds) const {
 
   double t = std::max(0.0, milliseconds);
   const double total = m_totalDurationMs;
-  if (m_repetitionCount == kInfinite) {
-    t = std::fmod(t, total);
-  } else if (t >= total * m_repetitionCount) {
+  if (m_repetitionCount != kInfinite && t >= total * m_repetitionCount)
     return m_frames.back();  // finished finite animation holds the end
-  } else {
-    t = std::fmod(t, total);
-  }
+  t = std::fmod(t, total);
 
   for (const Frame& frame : m_frames) {
     t -= frame.durationMs;

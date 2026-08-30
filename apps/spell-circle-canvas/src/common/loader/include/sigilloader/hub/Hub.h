@@ -233,7 +233,7 @@ class Hub {
     std::shared_ptr<const Bytes> blob;
     std::map<std::type_index, View> views;
     std::filesystem::path path;
-    std::filesystem::file_time_type mtime{};
+    std::filesystem::file_time_type mtime;
   };
 
   bool reload(Entry& entry);

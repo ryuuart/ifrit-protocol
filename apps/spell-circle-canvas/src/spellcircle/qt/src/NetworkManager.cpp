@@ -42,7 +42,8 @@ bool NetworkManager::start() {
   // thread — hop onto this object's thread before touching any state; the
   // queued call is dropped automatically if this object is destroyed first.
   const std::string error = m_receiver->start(
-      m_port, [this](std::vector<std::uint8_t> payload, std::string source) {
+      m_port,
+      [this](std::vector<std::uint8_t> payload, const std::string& source) {
         QByteArray bytes(reinterpret_cast<const char*>(payload.data()),
                          static_cast<qsizetype>(payload.size()));
         QString sourceText = QString::fromStdString(source);

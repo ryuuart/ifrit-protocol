@@ -351,6 +351,6 @@ std::unique_ptr<Scene> makeLayerShowcasePart() {
   return std::make_unique<LayerShowcasePart>();
 }
 
-REGISTER_GALLERY_SCENE(makeEffectsDescriptor())
+REGISTER_GALLERY_SCENE(makeEffectsDescriptor)
 
 }  // namespace gallery

@@ -3,6 +3,7 @@
 #include <array>
 #include <asio.hpp>
 #include <thread>
+#include <tuple>
 #include <utility>
 
 namespace spellcircle {
@@ -41,7 +42,7 @@ struct UdpReceiver::Session {
     if (thread.joinable()) {
       asio::post(context, [this] {
         std::error_code ignored;
-        socket.close(ignored);
+        std::ignore = socket.close(ignored);
       });
       thread.join();
     }
@@ -76,18 +77,19 @@ std::string UdpReceiver::start(std::uint16_t port, DatagramHandler handler) {
 
   std::error_code error;
   asio::ip::udp::socket& socket = session->socket;
-  socket.open(asio::ip::udp::v6(), error);
+  std::ignore = socket.open(asio::ip::udp::v6(), error);
   if (error) return "Socket creation failed — " + error.message();
 
   // Dual-stack: accept IPv4 senders as v4-mapped addresses, like
   // QUdpSocket bound to QHostAddress::Any. Best effort — some stacks
   // reject the option and are dual-stack by default.
   std::error_code optionError;
-  socket.set_option(asio::ip::v6_only(false), optionError);
-  socket.set_option(asio::ip::udp::socket::reuse_address(true), optionError);
+  std::ignore = socket.set_option(asio::ip::v6_only(false), optionError);
+  std::ignore = socket.set_option(asio::ip::udp::socket::reuse_address(true),
+                                  optionError);
 
-  socket.bind(asio::ip::udp::endpoint(asio::ip::address_v6::any(), port),
-              error);
+  std::ignore = socket.bind(
+      asio::ip::udp::endpoint(asio::ip::address_v6::any(), port), error);
   if (error)
     return "Bind failed on :" + std::to_string(port) + " — " + error.message();
 

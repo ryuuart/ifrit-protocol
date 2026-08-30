@@ -184,6 +184,6 @@ SceneDescriptor makeSlotsDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeSlotsDescriptor())
+REGISTER_GALLERY_SCENE(makeSlotsDescriptor)
 
 }  // namespace gallery

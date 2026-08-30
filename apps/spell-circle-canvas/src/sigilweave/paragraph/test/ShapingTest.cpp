@@ -223,7 +223,7 @@ TEST(Scripts, ArabicJoinsRtl) {
     GTEST_SKIP() << "no Arabic font on this system";
   ASSERT_GE(paragraph.words().size(), 5u);
   for (const Word& word : paragraph.words()) {
-    EXPECT_EQ(word.bidiLevel & 1, 1) << "Arabic words must be RTL";
+    EXPECT_EQ(word.bidiLevel & 1u, 1u) << "Arabic words must be RTL";
     const auto& clusters = word.segments()[0].shaped->clusters;
     if (clusters.size() >= 2)  // RTL visual order: clusters run backwards
       EXPECT_GT(clusters.front(), clusters.back());

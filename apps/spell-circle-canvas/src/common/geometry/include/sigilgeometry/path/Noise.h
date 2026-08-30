@@ -23,12 +23,12 @@ namespace sigil::geometry::noise {
  *  Successive `i` for one seed read as an uncorrelated sequence, which is
  *  what a per-stamp or per-vertex jitter wants. */
 inline float hash(uint32_t seed, uint32_t i) {
-  uint64_t z =
-      (uint64_t(seed) << 32 | (i * 0x9e3779b9u)) + 0x9e3779b97f4a7c15ull;
-  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-  z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-  z ^= z >> 31;
-  return (float)(z & 0xffffff) / (float)0x7fffff - 1.0f;
+  uint64_t z = (uint64_t(seed) << 32u | uint64_t(i * 0x9e3779b9u)) +
+               0x9e3779b97f4a7c15ull;
+  z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
+  z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
+  z ^= z >> 31u;
+  return (float)(z & 0xffffffu) / (float)0x7fffff - 1.0f;
 }
 
 /** One PCG step: the LCG advance. */

@@ -31,7 +31,7 @@ std::string Hub::cacheKey(std::string_view uri, const ImageOptions* options) {
     key += '\0';
     key += "size=";
     key += std::to_string(options->width);
-    key += "x";
+    key += 'x';
     key += std::to_string(options->height);
   }
   return key;
@@ -110,7 +110,7 @@ std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
   // A layer or a size is a different decode: its own entry, with the
   // options riding in the decode so poll() re-runs the same one.
   const Redecode decode =
-      [options](
+      [options = options](
           const Bytes& bytes,
           const std::filesystem::path& path) -> std::shared_ptr<const void> {
     auto decoded = sigil::image::decodeImage(bytes.bytes.data(),

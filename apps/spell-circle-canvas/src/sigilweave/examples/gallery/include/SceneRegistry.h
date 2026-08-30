@@ -61,16 +61,24 @@ namespace detail {
 /// Static-init hook behind REGISTER_GALLERY_SCENE. Safe because every
 /// scene TU is compiled directly into the gallery executable (never
 /// archived into a static library where the linker could drop it).
+/// Static initialisation only links the factory into a list — nothing
+/// that can throw runs before main; the descriptors are built the first
+/// time sceneRegistry() is called.
 struct SceneRegistrar {
-  explicit SceneRegistrar(SceneDescriptor descriptor);
+  using Factory = SceneDescriptor (*)();
+  explicit SceneRegistrar(Factory factory) noexcept;
+
+  Factory factory;
+  const SceneRegistrar* next;
 };
 }  // namespace detail
 
 #define GALLERY_SCENE_CONCAT_INNER(a, b) a##b
 #define GALLERY_SCENE_CONCAT(a, b) GALLERY_SCENE_CONCAT_INNER(a, b)
-/** Registers a SceneDescriptor at static-initialization time. */
-#define REGISTER_GALLERY_SCENE(...)                                    \
+/** Registers a SceneDescriptor factory (a `SceneDescriptor()` function,
+ *  named, not called) at static-initialization time. */
+#define REGISTER_GALLERY_SCENE(factory)                                \
   static const ::gallery::detail::SceneRegistrar GALLERY_SCENE_CONCAT( \
-      gallerySceneRegistrar_, __COUNTER__){__VA_ARGS__};
+      gallerySceneRegistrar_, __COUNTER__){&(factory)};
 
 }  // namespace gallery

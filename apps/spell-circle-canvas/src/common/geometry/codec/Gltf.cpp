@@ -285,6 +285,8 @@ std::optional<Model> importGltf(const void* bytes, size_t size,
                      resolve, out);
   }
   cgltf_free(data);
+  // cgltf_free released everything cgltf_parse allocated.
+  // NOLINTNEXTLINE(clang-analyzer-unix.Malloc)
   if (out.parts.empty()) return std::nullopt;
   return out;
 }

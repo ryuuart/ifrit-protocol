@@ -87,9 +87,10 @@ Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed) {
   uint32_t state = seed * 2654435761u + 1u;
   out.positions.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
-    out.positions.push_back({lo.x + (hi.x - lo.x) * noise::pcgUnitNext(state),
-                             lo.y + (hi.y - lo.y) * noise::pcgUnitNext(state),
-                             lo.z + (hi.z - lo.z) * noise::pcgUnitNext(state)});
+    out.positions.emplace_back(
+        lo.x + (hi.x - lo.x) * noise::pcgUnitNext(state),
+        lo.y + (hi.y - lo.y) * noise::pcgUnitNext(state),
+        lo.z + (hi.z - lo.z) * noise::pcgUnitNext(state));
   }
   std::vector<float>& t = out.scalar("t");
   for (int i = 0; i < count; ++i)

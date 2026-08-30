@@ -207,7 +207,7 @@ class JsonReader {
           unsigned code = 0;
           for (int i = 0; i < 4; ++i) {
             const char h = m_text[m_pos++];
-            code <<= 4;
+            code <<= 4u;
             if (h >= '0' && h <= '9')
               code |= (unsigned)(h - '0');
             else if (h >= 'a' && h <= 'f')
@@ -222,12 +222,12 @@ class JsonReader {
           if (code < 0x80) {
             out += (char)code;
           } else if (code < 0x800) {
-            out += (char)(0xC0 | (code >> 6));
-            out += (char)(0x80 | (code & 0x3F));
+            out += (char)(0xC0u | (code >> 6u));
+            out += (char)(0x80u | (code & 0x3Fu));
           } else {
-            out += (char)(0xE0 | (code >> 12));
-            out += (char)(0x80 | ((code >> 6) & 0x3F));
-            out += (char)(0x80 | (code & 0x3F));
+            out += (char)(0xE0u | (code >> 12u));
+            out += (char)(0x80u | ((code >> 6u) & 0x3Fu));
+            out += (char)(0x80u | (code & 0x3Fu));
           }
           break;
         }
@@ -600,26 +600,26 @@ std::optional<Model> importHoudiniGeo(std::string_view text) {
   const bool cloud = polygons.empty();
   // Emit one mesh vertex per (vertex, or point in the cloud case).
   const auto emit = [&](uint32_t vertex, uint32_t point) {
-    mesh.positions.push_back(
-        {P->at(point, 0), P->at(point, 1), P->at(point, 2)});
+    mesh.positions.emplace_back(P->at(point, 0), P->at(point, 1),
+                                P->at(point, 2));
     const auto pick = [&](const GeoAttribute* a, bool fromVertex) -> size_t {
       return fromVertex ? (size_t)vertex : (size_t)point;
     };
     if (N && N->size >= 3) {
       const size_t i = pick(N, nVertex);
-      mesh.normals.push_back({N->at(i, 0), N->at(i, 1), N->at(i, 2)});
+      mesh.normals.emplace_back(N->at(i, 0), N->at(i, 1), N->at(i, 2));
     }
     if (uv && uv->size >= 2) {
       const size_t i = pick(uv, uvVertex);
       // Houdini's v runs up the image; the mesh currency's runs down.
-      mesh.uvs.push_back({uv->at(i, 0), 1.0f - uv->at(i, 1)});
+      mesh.uvs.emplace_back(uv->at(i, 0), 1.0f - uv->at(i, 1));
     }
     if (Cd && Cd->size >= 3) {
       const size_t i = pick(Cd, cdVertex);
       const float a = Alpha && Alpha->size >= 1
                           ? Alpha->at(pick(Alpha, alphaVertex), 0)
                           : (Cd->size >= 4 ? Cd->at(i, 3) : 1.0f);
-      mesh.colors.push_back({Cd->at(i, 0), Cd->at(i, 1), Cd->at(i, 2), a});
+      mesh.colors.emplace_back(Cd->at(i, 0), Cd->at(i, 1), Cd->at(i, 2), a);
     }
   };
   std::vector<uint32_t> ownerPoint;  // mesh vertex -> point index

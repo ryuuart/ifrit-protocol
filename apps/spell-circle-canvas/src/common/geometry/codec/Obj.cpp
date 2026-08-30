@@ -80,12 +80,13 @@ std::optional<Model> importObj(std::string_view text, const Resolver& resolve) {
             building.seen.emplace(key, (uint32_t)mesh.positions.size());
         if (inserted) {
           const size_t v = (size_t)index.vertex_index * 3;
-          mesh.positions.push_back({attrib.vertices[v], attrib.vertices[v + 1],
-                                    attrib.vertices[v + 2]});
+          mesh.positions.emplace_back(attrib.vertices[v],
+                                      attrib.vertices[v + 1],
+                                      attrib.vertices[v + 2]);
           if (index.normal_index >= 0) {
             const size_t n = (size_t)index.normal_index * 3;
-            mesh.normals.push_back({attrib.normals[n], attrib.normals[n + 1],
-                                    attrib.normals[n + 2]});
+            mesh.normals.emplace_back(attrib.normals[n], attrib.normals[n + 1],
+                                      attrib.normals[n + 2]);
           } else {
             building.hasNormals = false;
           }
@@ -93,14 +94,14 @@ std::optional<Model> importObj(std::string_view text, const Resolver& resolve) {
             const size_t t = (size_t)index.texcoord_index * 2;
             // OBJ vt origin is bottom-left; Mesh uvs are IMAGE
             // convention (top-left), so v flips.
-            mesh.uvs.push_back(
-                {attrib.texcoords[t], 1 - attrib.texcoords[t + 1]});
+            mesh.uvs.emplace_back(attrib.texcoords[t],
+                                  1 - attrib.texcoords[t + 1]);
           } else {
-            mesh.uvs.push_back({0, 0});
+            mesh.uvs.emplace_back(0, 0);
           }
           if (tinted)
-            mesh.colors.push_back({attrib.colors[v], attrib.colors[v + 1],
-                                   attrib.colors[v + 2], 1});
+            mesh.colors.emplace_back(attrib.colors[v], attrib.colors[v + 1],
+                                     attrib.colors[v + 2], 1);
         }
         mesh.indices.push_back(it->second);
       }

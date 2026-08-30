@@ -53,7 +53,8 @@ TEST_P(LineWidthInvariant, LinesNeverExceedTheMeasure) {
   options.lineBreakStrategy = GetParam();
   options.lineMetrics.height = 27;
 
-  for (float measure = 150; measure <= 430; measure += 7.0f) {
+  for (int measureStep = 150; measureStep <= 430; measureStep += 7) {
+    const float measure = static_cast<float>(measureStep);
     BlockFlow flow(SkRect::MakeWH(measure, 3000));
     ParagraphLayout layout =
         layoutParagraph(fontContext, paragraph, flow, options);

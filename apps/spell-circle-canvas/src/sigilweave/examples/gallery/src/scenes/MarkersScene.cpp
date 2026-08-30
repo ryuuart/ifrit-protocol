@@ -55,8 +55,8 @@ class MarkersScene final : public Scene {
                                      u8"shadows"};
     if (frameNumber > 0 && frameNumber % 150 == 0) {
       for (const char8_t* word : cycle) {
-        const size_t textOffset = m_body.paragraph.text().find(
-            std::u16string(word, word + 7).c_str());
+        const size_t textOffset =
+            m_body.paragraph.text().find(std::u16string(word, word + 7));
         if (textOffset != std::u16string::npos) {
           m_body.paragraph.replaceText(static_cast<uint32_t>(textOffset),
                                        static_cast<uint32_t>(textOffset + 7),
@@ -180,6 +180,6 @@ SceneDescriptor makeMarkersDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeMarkersDescriptor())
+REGISTER_GALLERY_SCENE(makeMarkersDescriptor)
 
 }  // namespace gallery

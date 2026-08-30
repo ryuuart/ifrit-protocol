@@ -23,6 +23,8 @@ class UltralightMetalDriver final : public WebGpuDriver {
   static std::unique_ptr<UltralightMetalDriver> create(void* mtlDevice,
                                                        void* mtlCommandQueue);
 
+  // Defined where State is complete.
+  // NOLINTNEXTLINE(performance-trivially-destructible)
   ~UltralightMetalDriver() override;
 
   // ultralight::GPUDriver

@@ -119,7 +119,7 @@ ultralight::String PrefixFileSystem::GetFileMimeType(
       {".imgsrc", "image/imgsrc"},
   };
   for (const auto& [extension, mime] : kMimeTypes)
-    if (ext == extension) return ultralight::String(std::string(mime).c_str());
+    if (ext == extension) return ultralight::String(mime.data(), mime.size());
   return "application/unknown";
 }
 

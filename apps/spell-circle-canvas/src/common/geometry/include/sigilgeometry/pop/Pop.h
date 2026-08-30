@@ -372,7 +372,7 @@ struct pop {
     explicit Builder(std::vector<glm::vec3> loop) {
       SplineScatter scatter;
       scatter.loop = std::move(loop);
-      m_chain.push_back(scatter);
+      m_chain.emplace_back(scatter);
     }
     /** Compose: build ON another chain — its cooked P becomes this
      *  chain's path. Pops feed pops; positions are the currency.
@@ -380,9 +380,9 @@ struct pop {
      *  chain-to-chain feed is the queued next step.) */
     explicit Builder(const Chain& upstream);
     explicit Builder(MeshScatter scatter) {
-      m_chain.push_back(std::move(scatter));
+      m_chain.emplace_back(std::move(scatter));
     }
-    explicit Builder(PointSet given) { m_chain.push_back(std::move(given)); }
+    explicit Builder(PointSet given) { m_chain.emplace_back(std::move(given)); }
     /** Loop and surface entries only: a point set's count is its own. */
     Builder& count(int n) {
       if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
@@ -412,41 +412,41 @@ struct pop {
       return *this;
     }
     Builder& jitter(float amplitude, AttrRef attr = Lane::P) {
-      m_chain.push_back(Jitter{std::move(attr), amplitude, nextSeed()});
+      m_chain.emplace_back(Jitter{std::move(attr), amplitude, nextSeed()});
       return *this;
     }
     Builder& noise(float amplitude, float frequency = 0.01f,
                    AttrRef attr = Lane::P) {
-      m_chain.push_back(
+      m_chain.emplace_back(
           Noise{std::move(attr), amplitude, frequency, (float)nextSeed()});
       return *this;
     }
     Builder& vary(float spread, float base = 1, AttrRef attr = Lane::Scale) {
-      m_chain.push_back(Vary{std::move(attr), base, spread, nextSeed()});
+      m_chain.emplace_back(Vary{std::move(attr), base, spread, nextSeed()});
       return *this;
     }
     Builder& fade(glm::vec4 from, glm::vec4 to) {
-      m_chain.push_back(Ramp{Lane::Color, from, to});
+      m_chain.emplace_back(Ramp{Lane::Color, from, to});
       return *this;
     }
     Builder& tint(glm::vec4 color) { return fade(color, color); }
     Builder& lookAt(glm::vec3 target) {
-      m_chain.push_back(LookAt{target});
+      m_chain.emplace_back(LookAt{target});
       return *this;
     }
     Builder& move(glm::vec3 offset) {
-      m_chain.push_back(
+      m_chain.emplace_back(
           Math{Lane::P, {1, 1, 1, 1}, {offset.x, offset.y, offset.z, 0}});
       return *this;
     }
     /** Create/fill any attribute — customs included. */
     Builder& fill(AttrRef attr, glm::vec4 value) {
-      m_chain.push_back(Fill{std::move(attr), value});
+      m_chain.emplace_back(Fill{std::move(attr), value});
       return *this;
     }
     /** Texture hint: a stable per-point sprite-atlas cell in "Tex". */
     Builder& atlas(int cols, int rows) {
-      m_chain.push_back(Atlas{cols, rows, nextSeed()});
+      m_chain.emplace_back(Atlas{cols, rows, nextSeed()});
       return *this;
     }
     /** Drive one attribute from another through a table of stops —
@@ -456,8 +456,8 @@ struct pop {
      *  "colour by height". */
     Builder& rampBy(AttrRef from, int component, std::vector<glm::vec4> stops,
                     float low = 0, float high = 1, AttrRef to = Lane::Color) {
-      m_chain.push_back(Lookup{std::move(from), componentWeight(component),
-                               std::move(to), std::move(stops), low, high});
+      m_chain.emplace_back(Lookup{std::move(from), componentWeight(component),
+                                  std::move(to), std::move(stops), low, high});
       return *this;
     }
     /** The loud-default spelling: a multi-stop gradient down T. */
@@ -470,12 +470,13 @@ struct pop {
      *  the swept sinks follow. Pass the camera's forward vector and
      *  `descending` for back-to-front. */
     Builder& order(glm::vec3 axis = {0, 0, 1}, bool descending = false) {
-      m_chain.push_back(Sort{Lane::P, {axis.x, axis.y, axis.z, 0}, descending});
+      m_chain.emplace_back(
+          Sort{Lane::P, {axis.x, axis.y, axis.z, 0}, descending});
       return *this;
     }
     /** ...or by any attribute's component: `.orderBy("energy")`. */
     Builder& orderBy(AttrRef by, int component = 0, bool descending = false) {
-      m_chain.push_back(
+      m_chain.emplace_back(
           Sort{std::move(by), componentWeight(component), descending});
       return *this;
     }
@@ -484,12 +485,12 @@ struct pop {
      *  owning point's index. An empty @p to keeps the source's name. */
     Builder& promote(AttrRef from, std::string to = {}) {
       if (to.empty()) to = from.name;
-      m_chain.push_back(Promote{std::move(from), std::move(to)});
+      m_chain.emplace_back(Promote{std::move(from), std::move(to)});
       return *this;
     }
     /** Heal kinks: neighborhood smoothing on P (the ribbon-saver). */
     Builder& smooth(float strength = 0.5f, int iterations = 2) {
-      m_chain.push_back(Relax{Lane::P, strength, iterations});
+      m_chain.emplace_back(Relax{Lane::P, strength, iterations});
       return *this;
     }
     /** SELECT: write a mask lane from a region. `.select("top",
@@ -508,7 +509,7 @@ struct pop {
       g.feather = feather;
       g.combine = combine;
       g.invert = invert;
-      m_chain.push_back(std::move(g));
+      m_chain.emplace_back(std::move(g));
       return *this;
     }
     /** ...the loud-default sphere. */
@@ -533,18 +534,18 @@ struct pop {
     /** The affine vocabulary on P (or any lane): pass a matrix from
      *  space::place or glm. */
     Builder& affine(const glm::mat4& matrix, AttrRef lane = Lane::P) {
-      m_chain.push_back(Affine{std::move(lane), matrix, false});
+      m_chain.emplace_back(Affine{std::move(lane), matrix, false});
       return *this;
     }
     /** ...and its direction twin: rotate Dir (or any direction lane)
      *  by the same matrix's upper 3x3, renormalized. */
     Builder& orient(const glm::mat4& matrix, AttrRef lane = Lane::Dir) {
-      m_chain.push_back(Affine{std::move(lane), matrix, true});
+      m_chain.emplace_back(Affine{std::move(lane), matrix, true});
       return *this;
     }
     /** Push every point along its own Dir. */
     Builder& peak(float distance, AttrRef along = Lane::Dir) {
-      m_chain.push_back(Peak{distance, std::move(along)});
+      m_chain.emplace_back(Peak{distance, std::move(along)});
       return *this;
     }
     /** Twist about an axis: `degrees` reached at height `high`. */
@@ -557,7 +558,7 @@ struct pop {
       d.origin = origin;
       d.low = low;
       d.high = high;
-      m_chain.push_back(std::move(d));
+      m_chain.emplace_back(std::move(d));
       return *this;
     }
     /** Taper toward `scale` at height `high` (0 = a point, 2 = flare). */
@@ -570,7 +571,7 @@ struct pop {
       d.origin = origin;
       d.low = low;
       d.high = high;
-      m_chain.push_back(std::move(d));
+      m_chain.emplace_back(std::move(d));
       return *this;
     }
     /** Bend the band [low, high] along `axis` into an arc of `degrees`
@@ -586,24 +587,24 @@ struct pop {
       d.direction = direction;
       d.low = low;
       d.high = high;
-      m_chain.push_back(std::move(d));
+      m_chain.emplace_back(std::move(d));
       return *this;
     }
     /** Blend two attributes into a third by a constant... */
     Builder& mix(AttrRef a, AttrRef b, AttrRef to, float factor = 0.5f) {
-      m_chain.push_back(
+      m_chain.emplace_back(
           Mix{std::move(a), std::move(b), std::move(to), factor, {}});
       return *this;
     }
     /** ...or by a lane's .x — "fade toward white by heat". */
     Builder& mixBy(AttrRef a, AttrRef b, AttrRef to, std::string factorLane) {
-      m_chain.push_back(Mix{std::move(a), std::move(b), std::move(to), 0,
-                            std::move(factorLane)});
+      m_chain.emplace_back(Mix{std::move(a), std::move(b), std::move(to), 0,
+                               std::move(factorLane)});
       return *this;
     }
     /** Duplicate an attribute under another name. */
-    Builder& copy(AttrRef from, AttrRef to) {
-      m_chain.push_back(Mix{from, from, std::move(to), 0, {}});
+    Builder& copy(const AttrRef& from, AttrRef to) {
+      m_chain.emplace_back(Mix{from, from, std::move(to), 0, {}});
       return *this;
     }
     /** Escape hatch: any raw op joins the chain. */

@@ -127,6 +127,6 @@ SceneDescriptor makeOverflowDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeOverflowDescriptor())
+REGISTER_GALLERY_SCENE(makeOverflowDescriptor)
 
 }  // namespace gallery

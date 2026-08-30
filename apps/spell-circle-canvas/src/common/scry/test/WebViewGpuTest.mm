@@ -293,11 +293,11 @@ TEST(WebViewGpuTest, UpdatesSlotFromNativeTexture) {
                                                      mipmapped:NO];
   desc.storageMode = MTLStorageModeShared;
   id<MTLTexture> external = [sharedDevice() newTextureWithDescriptor:desc];
-  std::vector<uint32_t> pixels(16 * 16, 0xffff0000);  // opaque red, BGRA
+  std::vector<uint32_t> pixels(static_cast<size_t>(16 * 16), 0xffff0000);  // opaque red, BGRA
   [external replaceRegion:MTLRegionMake2D(0, 0, 16, 16)
               mipmapLevel:0
                 withBytes:pixels.data()
-              bytesPerRow:16 * 4];
+              bytesPerRow:static_cast<NSUInteger>(16 * 4)];
 
   ASSERT_TRUE(image->updateTexture((void *)external));
 

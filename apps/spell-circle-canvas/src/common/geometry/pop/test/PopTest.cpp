@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <optional>
 
 #include "sigilgeometry/codec/Decode.h"
 #include "sigilgeometry/codec/Encode.h"
@@ -31,7 +32,7 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   pop::SplineScatter scatter;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    scatter.loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+    scatter.loop.emplace_back(200.0f * std::cos(a), 0, 200.0f * std::sin(a));
   }
   scatter.count = 500;
   scatter.head = 1;
@@ -47,7 +48,7 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   const Mesh again = pop::cookMesh(chain, stamp);
   ASSERT_EQ(again.positions.size(), model.positions.size());
   EXPECT_EQ(again.positions[123].x, model.positions[123].x);
-  chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
+  chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
   const Mesh lifted = pop::cookMesh(chain, stamp);
   EXPECT_GT(lifted.positions[123].y, model.positions[123].y + 400.0f);
 }
@@ -59,7 +60,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   pop::SplineScatter scatter;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    scatter.loop.push_back({300.0f * std::cos(a), 0, 300.0f * std::sin(a)});
+    scatter.loop.emplace_back(300.0f * std::cos(a), 0, 300.0f * std::sin(a));
   }
   scatter.count = 96;
   scatter.head = 1;
@@ -80,7 +81,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
       pop::cookRibbon(chain, 60, {.closed = true, .segments = 160});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
-  chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
+  chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
   const Mesh lifted = pop::cookTube(chain, 12, 10, {.closed = true});
   glm::vec3 lo2, hi2;
   lifted.bounds(&lo2, &hi2);
@@ -91,7 +92,7 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
+    loop.emplace_back(250.0f * std::cos(a), 0, 250.0f * std::sin(a));
   }
   // The builder spelling is one expression: an entry verb, the operators,
   // and a terminal verb that cooks. Every parameter has a default, so a
@@ -118,7 +119,7 @@ TEST(Pop, SmoothHealsNoiseKinks) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
+    loop.emplace_back(250.0f * std::cos(a), 0, 250.0f * std::sin(a));
   }
   const auto jaggedness = [](const Cloud& cloud) {
     double sum = 0;
@@ -138,7 +139,7 @@ TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({220.0f * std::cos(a), 0, 220.0f * std::sin(a)});
+    loop.emplace_back(220.0f * std::cos(a), 0, 220.0f * std::sin(a));
   }
   SkPathBuilder starProfile;
   for (int i = 0; i < 10; ++i) {
@@ -169,7 +170,7 @@ TEST(Pop, ChainsComposeIntoEachOther) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({220.0f * std::cos(a), 0, 220.0f * std::sin(a)});
+    loop.emplace_back(220.0f * std::cos(a), 0, 220.0f * std::sin(a));
   }
   const pop::Chain spine = pop::on(loop).count(48).noise(26).smooth(0.5f);
   const Cloud beads = pop::on(spine).count(300).spread(6).cloud();
@@ -193,7 +194,7 @@ TEST(Pop, ChainsSeedFromFormedModels) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+    loop.emplace_back(200.0f * std::cos(a), 0, 200.0f * std::sin(a));
   }
   const Mesh cable = pop::on(loop).count(64).noise(20).tube(9, 8, true);
   const Cloud dust = pop::on(cable, 500).cloud();
@@ -231,7 +232,7 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({80.0f * std::cos(a), 0, 80.0f * std::sin(a)});
+    loop.emplace_back(80.0f * std::cos(a), 0, 80.0f * std::sin(a));
   }
   const Mesh cubes = pop::on(loop).count(24).vary(0.4f).stamps(cube);
   EXPECT_EQ(cubes.triangleCount(), 24u * cube.triangleCount());
@@ -245,7 +246,7 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+    loop.emplace_back(200.0f * std::cos(a), 0, 200.0f * std::sin(a));
   }
   const pop::Chain chain =
       pop::on(loop)
@@ -277,7 +278,7 @@ TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+    loop.emplace_back(200.0f * std::cos(a), 0, 200.0f * std::sin(a));
   }
   const glm::vec4 lowStop{0, 0, 1, 1};
   const glm::vec4 midStop{0, 1, 0, 1};
@@ -338,8 +339,8 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    loop.push_back(
-        {180.0f * std::cos(a), 40.0f * std::sin(3 * a), 180.0f * std::sin(a)});
+    loop.emplace_back(180.0f * std::cos(a), 40.0f * std::sin(3 * a),
+                      180.0f * std::sin(a));
   }
   const auto describe = [&](bool sorted, bool descending) {
     pop::Builder b = pop::on(loop);
@@ -417,7 +418,7 @@ TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({100.0f * std::cos(a), 0, 100.0f * std::sin(a)});
+    loop.emplace_back(100.0f * std::cos(a), 0, 100.0f * std::sin(a));
   }
   const Cloud cooked = pop::cook(pop::on(loop)
                                      .count(6)
@@ -450,7 +451,7 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
+    loop.emplace_back(150.0f * std::cos(a), 0, 150.0f * std::sin(a));
   }
   const pop::Chain chain = pop::on(loop).count(40).atlas(2, 2);
   const Mesh stamped = pop::cookMesh(chain, mesh::quad(8, 8));
@@ -489,7 +490,7 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    loop.push_back({180.0f * std::cos(a), 0, 180.0f * std::sin(a)});
+    loop.emplace_back(180.0f * std::cos(a), 0, 180.0f * std::sin(a));
   }
   const int kPoints = 24;
   const Mesh stamp = mesh::quad(6, 6);
@@ -543,7 +544,7 @@ std::vector<glm::vec3> flatRing(int n, float radius) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < n; ++i) {
     const float a = (float)i / (float)n * 2.0f * (float)M_PI;
-    loop.push_back({radius * std::cos(a), 0, radius * std::sin(a)});
+    loop.emplace_back(radius * std::cos(a), 0, radius * std::sin(a));
   }
   return loop;
 }
@@ -754,7 +755,7 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   // straight away as a mask. Filters then run over it like any chain.
   Cloud given;
   for (int i = 0; i < 40; ++i) {
-    given.positions.push_back({(float)i * 10, i % 2 ? 100.0f : 0.0f, 0});
+    given.positions.emplace_back((float)i * 10, i % 2 ? 100.0f : 0.0f, 0);
   }
   std::vector<float>& size = given.scalar("size", 1);
   std::vector<glm::vec4>& tint = given.color("tint");
@@ -816,8 +817,12 @@ TEST(Pop, FieldsAreAddressableByName) {
   EXPECT_FLOAT_EQ(d.amount, 45.0f);
   EXPECT_FLOAT_EQ(d.origin.x, 12.0f);
   EXPECT_EQ(d.kind, pop::Deform::Kind::Bend);
-  EXPECT_FLOAT_EQ(*pop::getField(twist, "amount"), 45.0f);
-  EXPECT_FLOAT_EQ(*pop::getField(twist, "kind"), 2.0f);
+  const std::optional<float> amount = pop::getField(twist, "amount");
+  ASSERT_TRUE(amount.has_value());
+  EXPECT_FLOAT_EQ(*amount, 45.0f);
+  const std::optional<float> kind = pop::getField(twist, "kind");
+  ASSERT_TRUE(kind.has_value());
+  EXPECT_FLOAT_EQ(*kind, 2.0f);
   EXPECT_FALSE(pop::getField(twist, "mask"));  // a string, not a dial
 
   pop::Op group = pop::Select{};
@@ -833,7 +838,9 @@ TEST(Pop, FieldsAreAddressableByName) {
   pop::Op ramp = pop::Ramp{};
   EXPECT_TRUE(pop::setField(ramp, "to.g", 0.25f));  // colour spelling
   EXPECT_FLOAT_EQ(std::get<pop::Ramp>(ramp).to.y, 0.25f);
-  EXPECT_FLOAT_EQ(*pop::getField(ramp, "to.y"), 0.25f);
+  const std::optional<float> toY = pop::getField(ramp, "to.y");
+  ASSERT_TRUE(toY.has_value());
+  EXPECT_FLOAT_EQ(*toY, 0.25f);
 
   pop::Op scatter = pop::SplineScatter{};
   EXPECT_TRUE(pop::setField(scatter, "count", 250.7f));  // int truncates

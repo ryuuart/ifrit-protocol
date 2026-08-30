@@ -215,8 +215,7 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
       bool bestForcedOverfull = true;
       Node bestForced;
 
-      for (size_t activeIndex = 0; activeIndex < active.size(); ++activeIndex) {
-        const int32_t nodeIndex = active[activeIndex];
+      for (const int32_t nodeIndex : active) {
         const Node& node = arena[nodeIndex];
         const FlatInterval* lineInterval =
             intervalSequence.intervalAt(node.interval);
@@ -248,6 +247,8 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
         stretch += useEmergencyStretch ? measure : 0.0f;
 
         float ratio;
+        // The final arm repeats this one; the order of the tests is the point.
+        // NOLINTNEXTLINE(bugprone-branch-clone)
         if (forcedBreak && natural <= measure) {
           // Paragraph-final (and hard-break-final) lines end wherever they
           // end — TeX's \parfillskip absorbs the slack for free. Without

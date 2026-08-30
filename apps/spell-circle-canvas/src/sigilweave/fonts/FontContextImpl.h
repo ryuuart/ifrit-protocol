@@ -216,7 +216,7 @@ struct FontContext::Impl {
   // Blunt cap: content-addressed entries are small, but a runaway workload
   // (e.g. fuzzing random strings) shouldn't grow without bound. Clearing
   // wholesale costs one cold frame, then re-fills.
-  static constexpr size_t kMaxShapeEntries = 1 << 17;
+  static constexpr size_t kMaxShapeEntries = size_t{1} << 17u;
 
   uint32_t fallbackLanguageId(std::string_view languageTag) {
     if (languageTag.empty()) return 0;

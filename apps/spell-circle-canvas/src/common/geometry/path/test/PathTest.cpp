@@ -194,7 +194,7 @@ TEST(Polyline, AlignmentFindsRotation) {
   const int n = 16;
   for (int i = 0; i < n; ++i) {
     const float t = (float)i / (float)n * 2.0f * (float)M_PI;
-    a.points.push_back({std::cos(t) * 10, std::sin(t) * 10});
+    a.points.emplace_back(std::cos(t) * 10, std::sin(t) * 10);
   }
   // b is a rotated by 4 slots.
   for (int i = 0; i < n; ++i)

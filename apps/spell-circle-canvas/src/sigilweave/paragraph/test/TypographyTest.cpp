@@ -30,8 +30,8 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
   TextStyle ligaturesEnabledStyle = basicStyle();
   ligaturesEnabledStyle.shaping.typeface = hoefler;
   TextStyle ligaturesDisabledStyle = ligaturesEnabledStyle;
-  ligaturesDisabledStyle.shaping.fontFeatures.push_back({"liga", 0});
-  ligaturesDisabledStyle.shaping.fontFeatures.push_back({"clig", 0});
+  ligaturesDisabledStyle.shaping.fontFeatures.emplace_back("liga", 0);
+  ligaturesDisabledStyle.shaping.fontFeatures.emplace_back("clig", 0);
 
   Paragraph ligaturesEnabledParagraph;
   Paragraph ligaturesDisabledParagraph;

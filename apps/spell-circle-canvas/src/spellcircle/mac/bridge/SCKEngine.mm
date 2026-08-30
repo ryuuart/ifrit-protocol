@@ -97,7 +97,8 @@ SkColor toSkColor(NSColor *color) {
 - (instancetype)initWithTimestamp:(NSString *)timestamp
                            source:(NSString *)source
                           message:(NSString *)message {
-  if ((self = [super init])) {
+  self = [super init];
+  if (self) {
     _timestamp = [timestamp copy];
     _source = [source copy];
     _message = [message copy];
@@ -146,7 +147,8 @@ SkColor toSkColor(NSColor *color) {
 }
 
 - (instancetype)init {
-  if (!(self = [super init])) return nil;
+  self = [super init];
+  if (!self) return nil;
 
   _device = MTLCreateSystemDefaultDevice();
   _queue = [_device newCommandQueue];
@@ -211,15 +213,16 @@ SkColor toSkColor(NSColor *color) {
   // The shared receiver rebinds in place (a port change while listening
   // tears the previous socket down first), matching NetworkManager.
   __weak SCKEngine *weakSelf = self;
-  const std::string error = _receiver->start(
-      static_cast<uint16_t>(_port), [weakSelf](std::vector<uint8_t> payload, std::string source) {
-        // I/O thread → main queue; the engine is main-thread only.
-        NSData *data = [NSData dataWithBytes:payload.data() length:payload.size()];
-        NSString *sourceText = @(source.c_str());
-        dispatch_async(dispatch_get_main_queue(), ^{
-          [weakSelf receiveDatagram:data source:sourceText];
-        });
-      });
+  const std::string error =
+      _receiver->start(static_cast<uint16_t>(_port),
+                       [weakSelf](std::vector<uint8_t> payload, const std::string &source) {
+                         // I/O thread → main queue; the engine is main-thread only.
+                         NSData *data = [NSData dataWithBytes:payload.data() length:payload.size()];
+                         NSString *sourceText = @(source.c_str());
+                         dispatch_async(dispatch_get_main_queue(), ^{
+                           [weakSelf receiveDatagram:data source:sourceText];
+                         });
+                       });
 
   if (!error.empty()) {
     [self setListeningState:NO statusText:@(error.c_str())];
@@ -420,6 +423,7 @@ SkColor toSkColor(NSColor *color) {
   [self renderScene];
 }
 
+// NOLINTBEGIN(bugprone-macro-parentheses): a selector cannot be parenthesised
 #define SCK_CONFIG_SETTER(Type, Name, Setter) \
   -(void)Setter : (Type)value {               \
     if (_##Name == value) return;             \
@@ -440,6 +444,7 @@ SCK_CONFIG_SETTER(int, fontWeight, setFontWeight)
 SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
 
 #undef SCK_CONFIG_SETTER
+// NOLINTEND(bugprone-macro-parentheses)
 
 // Clamped separately from the macro setters: a 0-sized or Metal-exceeding
 // texture allocation must never happen (it aborts under Metal validation),
@@ -533,9 +538,11 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   // Graphite's submission is already queued; a command buffer created on
   // the same queue afterwards is ordered behind it, so Syphon's blit sees
   // the finished frame.
-  if (_syphon && _syphon.hasClients) {
-    id<MTLCommandBuffer> commandBuffer = [_queue commandBuffer];
-    [_syphon publishFrameTexture:_sceneTexture
+  id<MTLTexture> sceneTexture = _sceneTexture;
+  id<MTLCommandBuffer> commandBuffer =
+      sceneTexture && _syphon && _syphon.hasClients ? [_queue commandBuffer] : nil;
+  if (commandBuffer) {
+    [_syphon publishFrameTexture:sceneTexture
                  onCommandBuffer:commandBuffer
                      imageRegion:NSMakeRect(0, 0, _canvasWidth, _canvasHeight)
                          flipped:YES];

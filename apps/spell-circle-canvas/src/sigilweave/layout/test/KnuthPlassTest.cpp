@@ -56,6 +56,7 @@ TEST(KnuthPlass, ProducesValidLines) {
   // for both breakers; this test owns the ordering/validity assertions.
   // Words appear in order (logical == visual for pure-LTR text).
   std::vector<uint32_t> seen;
+  seen.reserve(layout.runs.size());
   for (const PositionedRun& run : layout.runs) seen.push_back(run.wordIndex);
   EXPECT_TRUE(std::is_sorted(seen.begin(), seen.end()));
 }

@@ -3,11 +3,11 @@
 /** @file
  * @ingroup paint
  *
- * Reusable animated shader presets for PaintStyle foregrounds and layers.
- *
- * Every helper compiles its SkSL program once per process; each call only
- * creates a small uniform block plus an SkShader, so callers can replace a
- * paint's shader every frame without rebuilding text, shaping, or layout.
+ * Reusable animated shader presets for PaintStyle foregrounds and layers —
+ * SigilMaterial's text paint recipes, shaded for a run's bounds and the
+ * clock. Each program compiles once per process; a call only builds the
+ * material and its shader, so callers can replace a paint's shader every
+ * frame without rebuilding text, shaping, or layout.
  */
 
 #include <include/core/SkRect.h>

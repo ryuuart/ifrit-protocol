@@ -142,7 +142,7 @@ struct Writer::Impl {
     const std::string name =
         std::to_string(++textureCounter) + "_" + role + ".png";
     if (!writePng(image, dir / name)) return std::nullopt;
-    const std::string asset = (textureDir() / name).generic_string();
+    std::string asset = (textureDir() / name).generic_string();
     writtenImages[image.get()] = asset;
     return asset;
   }
@@ -780,25 +780,25 @@ std::optional<geometry::decode::Model> readModel(
         const uint32_t base = (uint32_t)mesh.positions.size();
         for (int k = 0; k < n; ++k, ++fv) {
           const GfVec3f& p = points[(size_t)indices[fv]];
-          mesh.positions.push_back({p[0], p[1], p[2]});
+          mesh.positions.emplace_back(p[0], p[1], p[2]);
           if (!nPerFv.empty()) {
             const GfVec3f& nn = nPerFv[fv];
-            mesh.normals.push_back({nn[0], nn[1], nn[2]});
+            mesh.normals.emplace_back(nn[0], nn[1], nn[2]);
           }
           if (!stPerFv.empty()) {
             const GfVec2f& uv = stPerFv[fv];
-            mesh.uvs.push_back({uv[0], 1.0f - uv[1]});
+            mesh.uvs.emplace_back(uv[0], 1.0f - uv[1]);
           }
           if (!cPerFv.empty()) {
             const GfVec3f& c = cPerFv[fv];
-            mesh.colors.push_back({c[0], c[1], c[2], 1});
+            mesh.colors.emplace_back(c[0], c[1], c[2], 1);
           }
         }
         for (int k = 1; k + 1 < n; ++k) {
           mesh.indices.insert(mesh.indices.end(), {base, base + (uint32_t)k,
                                                    base + (uint32_t)k + 1});
           const int slot = faceSlot[f] >= 0 ? faceSlot[f] : wholeSlot;
-          laneValues.push_back({(float)std::max(slot, 0), 0, 0, 0});
+          laneValues.emplace_back((float)std::max(slot, 0), 0, 0, 0);
         }
       }
       if (!subsets.empty() || wholeSlot >= 0)
@@ -824,7 +824,7 @@ std::optional<geometry::decode::Model> readModel(
       geometry::decode::Part part;
       part.name = prim.GetName().GetString();
       for (const GfVec3f& p : positions)
-        part.mesh.positions.push_back({p[0], p[1], p[2]});
+        part.mesh.positions.emplace_back(p[0], p[1], p[2]);
       VtVec3fArray scales;
       if (instancer.GetScalesAttr().Get(&scales) &&
           scales.size() == positions.size()) {
@@ -836,7 +836,7 @@ std::optional<geometry::decode::Model> readModel(
       model.parts.push_back(std::move(part));
     }
   }
-  if (info) info->materialNames = materialNames;
+  if (info) info->materialNames = std::move(materialNames);
   return model;
 }
 

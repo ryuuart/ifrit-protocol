@@ -85,7 +85,7 @@ class AnyByteSource {
   }
 
   template <ByteSource S>
-  explicit AnyByteSource(std::shared_ptr<S> source)
+  explicit AnyByteSource(const std::shared_ptr<S>& source)
       : m_owner(source), m_fetch([source](std::string_view uri) {
           return std::shared_ptr<const Bytes>(source->fetch(uri));
         }) {

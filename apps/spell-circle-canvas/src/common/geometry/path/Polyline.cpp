@@ -134,7 +134,8 @@ std::vector<Polyline> flatten(const SkPath& path, float tolerance) {
         const int count = SkPath::ConvertConicToQuads(
             pts[0], pts[1], pts[2], iter.conicWeight(), quads, 1);
         for (int q = 0; q < count; ++q)
-          flattenCurve(current.points, quads + q * 2, 3, tolerance, evalQuad);
+          flattenCurve(current.points, quads + static_cast<ptrdiff_t>(q) * 2, 3,
+                       tolerance, evalQuad);
         break;
       }
       case SkPath::kCubic_Verb:
@@ -204,7 +205,10 @@ Sampled resample(const Polyline& contour, int count) {
       ++seg;
     const float span = cumulative[seg + 1] - cumulative[seg];
     const float t = span < 1e-9f ? 0 : (target - cumulative[seg]) / span;
-    const glm::vec2 a = contour.points[seg % n];
+    // n is at least one: cumulative.back() is finite only for a non-empty
+    // contour, and the empty case returned above.
+    const glm::vec2 a =
+        contour.points[seg % n];  // NOLINT(clang-analyzer-core.DivideZero)
     const glm::vec2 b = contour.points[(seg + 1) % n];
     out.points.push_back(a + (b - a) * t);
   }

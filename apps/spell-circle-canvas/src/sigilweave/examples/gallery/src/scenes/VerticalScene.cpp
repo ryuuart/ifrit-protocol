@@ -241,6 +241,6 @@ SceneDescriptor makeVerticalDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeVerticalDescriptor())
+REGISTER_GALLERY_SCENE(makeVerticalDescriptor)
 
 }  // namespace gallery

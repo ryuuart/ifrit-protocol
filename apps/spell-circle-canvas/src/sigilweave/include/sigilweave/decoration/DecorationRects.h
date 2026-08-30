@@ -155,7 +155,7 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
           const float inkStart =
               run.origin.x() + intercepts[static_cast<size_t>(pair)] - standoff;
           const float inkEnd = run.origin.x() +
-                               intercepts[static_cast<size_t>(pair + 1)] +
+                               intercepts[static_cast<size_t>(pair) + 1] +
                                standoff;
           if (inkStart > cursor)
             emitRect(

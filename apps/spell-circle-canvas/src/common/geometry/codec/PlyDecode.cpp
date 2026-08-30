@@ -77,7 +77,9 @@ double plyLoadBinary(const std::byte*& cursor, const PlyScalarType& type) {
   }
   if (type.signedInt) {
     // Sign-extend from the value's width.
-    const int shift = 64 - type.size * 8;
+    const unsigned shift = 64u - (unsigned)type.size * 8u;
+    // The arithmetic right shift is the sign extension.
+    // NOLINTNEXTLINE(bugprone-signed-bitwise)
     return (double)((int64_t)(raw << shift) >> shift);
   }
   return (double)raw;
@@ -274,7 +276,7 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
         if (property.list) {
           // A list on the vertex element has no lane shape here: keep
           // the sink walk aligned with a no-op and create no lane.
-          sinks.push_back([](size_t, double) {});
+          sinks.emplace_back([](size_t, double) {});
           continue;
         }
         const double norm =
@@ -285,34 +287,34 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
           };
         };
         if (n == "x")
-          sinks.push_back(axis(&glm::vec3::x));
+          sinks.emplace_back(axis(&glm::vec3::x));
         else if (n == "y")
-          sinks.push_back(axis(&glm::vec3::y));
+          sinks.emplace_back(axis(&glm::vec3::y));
         else if (n == "z")
-          sinks.push_back(axis(&glm::vec3::z));
+          sinks.emplace_back(axis(&glm::vec3::z));
         else if (n == "nx" || n == "ny" || n == "nz") {
           hasNormals = true;
           mesh.normals.resize(element.count, glm::vec3{0});
           const int c = n == "nx" ? 0 : n == "ny" ? 1 : 2;
-          sinks.push_back([&mesh, c](size_t i, double v) {
+          sinks.emplace_back([&mesh, c](size_t i, double v) {
             mesh.normals[i][c] = (float)v;
           });
         } else if (((n == "s" || n == "t") && uvST) ||
                    ((n == "u" || n == "v") && uvUV)) {
           mesh.uvs.resize(element.count, glm::vec2{0});
           const int c = (n == "s" || n == "u") ? 0 : 1;
-          sinks.push_back(
+          sinks.emplace_back(
               [&mesh, c](size_t i, double v) { mesh.uvs[i][c] = (float)v; });
         } else if (n == "red" || n == "green" || n == "blue" || n == "alpha") {
           mesh.colors.resize(element.count, kWhite);
           const int c = n == "red" ? 0 : n == "green" ? 1 : n == "blue" ? 2 : 3;
-          sinks.push_back([&mesh, c, norm](size_t i, double v) {
+          sinks.emplace_back([&mesh, c, norm](size_t i, double v) {
             mesh.colors[i][c] = (float)(v * norm);
           });
         } else {
           std::vector<float>& lane = part.scalarLanes[n];
           lane.resize(element.count, 0.0f);
-          sinks.push_back([&lane](size_t i, double v) {
+          sinks.emplace_back([&lane](size_t i, double v) {
             lane[i] = (float)v;  // raw — ids stay ids
           });
         }

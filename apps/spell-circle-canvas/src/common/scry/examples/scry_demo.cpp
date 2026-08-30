@@ -104,7 +104,8 @@ bool writePng(const SkPixmap& pixmap, const std::filesystem::path& path) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
+                                   // uncaught error ends the demo
   if (argc > 1 && argv[1][0] == '-') {
     const bool help =
         std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;

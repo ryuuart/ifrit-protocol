@@ -25,10 +25,19 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   return createMetal(nativeHandles->dev, nativeHandles->cmdQueue);
 }
 
+namespace {
+
+// Qt packs the id<MTLTexture> pointer into a quint64 on Metal; the handle
+// comes back as an integer and is only ever handed on as an opaque pointer.
+void *nativeTextureHandle(QRhiTexture *texture) {
+  if (!texture) return nullptr;
+  // NOLINTNEXTLINE(performance-no-int-to-ptr): Qt hands the handle over as an integer
+  return reinterpret_cast<void *>(texture->nativeTexture().object);
+}
+
+}  // namespace
+
 SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context, QRhiTexture *texture,
                                            QSize pixelSize)
-    // Qt packs the id<MTLTexture> pointer into a quint64 on Metal (same
-    // pattern as SyphonBridge::publishFrame).
-    : SkiaOffscreenSurface(
-          context, texture ? reinterpret_cast<void *>(texture->nativeTexture().object) : nullptr,
-          pixelSize.width(), pixelSize.height()) {}
+    : SkiaOffscreenSurface(context, nativeTextureHandle(texture), pixelSize.width(),
+                           pixelSize.height()) {}

@@ -41,18 +41,18 @@ glm::vec4 primDefault(std::string_view name) {
  *  padded half like a flat card facing the default camera. Callers who
  *  want the geometric truth call computeNormals() on the merge: append
  *  concatenates lanes, it does not invent geometry. */
-const glm::vec3 kNormalPad{0, 0, 1};
+constexpr glm::vec3 kNormalPad{0, 0, 1};
 
 /** A missing uv samples texel (0, 0) — no arbitrary "interesting"
  *  coordinate, and the same convention Cloud::append gives a missing
  *  "uv" lane (Points.cpp). */
-const glm::vec2 kUvPad{0, 0};
+constexpr glm::vec2 kUvPad{0, 0};
 
 /** A missing vertex colour is WHITE — the multiplicative identity every
  *  consumer applies it as (space::drawMesh, world's vertex tint), so an
  *  untinted half of a merge keeps looking untinted. The vertex twin of
  *  primDefault("Color"). */
-const glm::vec4 kColorPad{1, 1, 1, 1};
+constexpr glm::vec4 kColorPad{1, 1, 1, 1};
 
 }  // namespace
 

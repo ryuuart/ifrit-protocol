@@ -6,36 +6,39 @@ namespace gallery {
 
 namespace {
 
-std::vector<SceneDescriptor>& mutableRegistry() {
-  // Function-local static: safe to touch from every registrar regardless of
-  // TU initialization order.
-  static std::vector<SceneDescriptor> registry;
-  return registry;
-}
+// Head of the registrar list. A plain pointer with constant initialisation
+// is ready before any registrar's constructor runs, whatever the TU order.
+const detail::SceneRegistrar* registrarHead = nullptr;
 
 }  // namespace
 
 namespace detail {
 
-SceneRegistrar::SceneRegistrar(SceneDescriptor descriptor) {
-  mutableRegistry().push_back(std::move(descriptor));
+SceneRegistrar::SceneRegistrar(Factory factory) noexcept
+    : factory(factory), next(registrarHead) {
+  registrarHead = this;
 }
 
 }  // namespace detail
 
 const std::vector<SceneDescriptor>& sceneRegistry() {
-  static const bool sorted = [] {
+  static const std::vector<SceneDescriptor> registry = [] {
+    std::vector<SceneDescriptor> scenes;
+    for (const detail::SceneRegistrar* registrar = registrarHead; registrar;
+         registrar = registrar->next)
+      scenes.push_back(registrar->factory());
+    // The list is newest-first; registration order is the tie-break.
+    std::reverse(scenes.begin(), scenes.end());
     std::stable_sort(
-        mutableRegistry().begin(), mutableRegistry().end(),
+        scenes.begin(), scenes.end(),
         [](const SceneDescriptor& left, const SceneDescriptor& right) {
           if (left.displayOrder != right.displayOrder)
             return left.displayOrder < right.displayOrder;
           return left.name < right.name;
         });
-    return true;
+    return scenes;
   }();
-  static_cast<void>(sorted);
-  return mutableRegistry();
+  return registry;
 }
 
 }  // namespace gallery

@@ -38,7 +38,8 @@ constexpr double kFitMarginPoints = 20.0;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
-  if ((self = [super initWithFrame:frameRect])) {
+  self = [super initWithFrame:frameRect];
+  if (self) {
     _pointScale = 0.0;
     _leftDragPans = YES;  // a drag stream missing its mouseDown still pans
     self.wantsLayer = YES;

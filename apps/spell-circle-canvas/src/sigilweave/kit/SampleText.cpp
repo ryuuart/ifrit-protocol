@@ -25,6 +25,7 @@ sigil::weave::Paragraph mixedScriptFiller(int wordCount, float fontSize,
   const sigil::weave::TextStyle styles[3] = {
       makeStyle(fontSize, chunkColors[0]), makeStyle(fontSize, chunkColors[1]),
       makeStyle(fontSize, chunkColors[2])};
+  // NOLINTNEXTLINE(bugprone-random-generator-seed): fixed seed, reproducible
   std::mt19937 randomEngine(23);
   sigil::weave::Paragraph paragraph;
   std::u8string chunk;

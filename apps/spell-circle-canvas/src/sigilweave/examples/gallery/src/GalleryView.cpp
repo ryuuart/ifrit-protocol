@@ -37,8 +37,10 @@ namespace {
 QString axisTagName(uint32_t tag) {
   QString name;
   name.reserve(4);
-  for (int shift = 24; shift >= 0; shift -= 8)
-    name.append(QChar(static_cast<char>((tag >> shift) & 0xff)));
+  for (unsigned byteIndex = 0; byteIndex < 4; ++byteIndex) {
+    const unsigned shift = 24u - 8u * byteIndex;
+    name.append(QChar(static_cast<char>((tag >> shift) & 0xffu)));
+  }
   return name;
 }
 
@@ -105,7 +107,7 @@ sigil::weave::FontContext::FallbackResolver makeGalleryFallbackResolver(
       serifFamilies.emplace_back(familyName);
     else if (!cuneiformTypeface && familyName == kNotoCuneiformFamily)
       cuneiformTypeface = fontManager.matchFamilyStyle(
-          kNotoCuneiformFamily.data(), SkFontStyle());
+          std::string(kNotoCuneiformFamily).c_str(), SkFontStyle());
   }
   std::sort(serifFamilies.begin(), serifFamilies.end());
   serifFamilies.erase(std::unique(serifFamilies.begin(), serifFamilies.end()),
@@ -353,9 +355,9 @@ void GalleryViewRenderer::renderScene(SkCanvas* canvas, float devicePixelRatio,
         variations.reserve(m_fontCoordinates.size());
         for (const FontCoordinate& coordinate : m_fontCoordinates) {
           sigil::weave::FontVariation variation;
-          variation.tag[0] = static_cast<char>(coordinate.tag >> 24);
-          variation.tag[1] = static_cast<char>(coordinate.tag >> 16);
-          variation.tag[2] = static_cast<char>(coordinate.tag >> 8);
+          variation.tag[0] = static_cast<char>(coordinate.tag >> 24u);
+          variation.tag[1] = static_cast<char>(coordinate.tag >> 16u);
+          variation.tag[2] = static_cast<char>(coordinate.tag >> 8u);
           variation.tag[3] = static_cast<char>(coordinate.tag);
           variation.value = coordinate.value;
           variations.push_back(variation);

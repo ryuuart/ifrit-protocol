@@ -241,6 +241,6 @@ SceneDescriptor makeHyperScriptsDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor())
+REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor)
 
 }  // namespace gallery

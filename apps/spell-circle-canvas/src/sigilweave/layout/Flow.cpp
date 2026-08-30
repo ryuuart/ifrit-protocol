@@ -92,12 +92,13 @@ void bandOccupancy(const std::vector<std::vector<glm::vec2>>& contours,
       }
     }
     std::sort(crossings.begin(), crossings.end());
-    int winding = 0, parity = 0;
+    int winding = 0;
+    unsigned parity = 0;
     bool inside = false;
     float openX = 0;
     for (const auto& [crossingX, windingDelta] : crossings) {
       winding += windingDelta;
-      parity ^= 1;
+      parity ^= 1u;
       const bool nowInside = evenOdd ? parity != 0 : winding != 0;
       if (nowInside && !inside) {
         openX = crossingX;

@@ -116,10 +116,10 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
       const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
       for (const Polyline* ring : ringsUsed) {
         for (const glm::vec2& p : ring->points) {
-          out.positions.push_back({p.x, p.y, z});
+          out.positions.emplace_back(p.x, p.y, z);
           out.normals.push_back(normal);
-          out.uvs.push_back(
-              {(p.x + uvW * 0.5f) / uvW, 1.0f - (p.y + uvH * 0.5f) / uvH});
+          out.uvs.emplace_back((p.x + uvW * 0.5f) / uvW,
+                               1.0f - (p.y + uvH * 0.5f) / uvH);
         }
       }
       for (size_t t = 0; t + 2 < tris.size(); t += 3) {
@@ -151,15 +151,15 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
         const glm::vec3 normal = normalized({edge.y / len, -edge.x / len, 0});
         const uint32_t base = (uint32_t)out.positions.size();
         const float u0 = arc / total, u1 = (arc + len) / total;
-        out.positions.push_back({a.x, a.y, half});
-        out.positions.push_back({b.x, b.y, half});
-        out.positions.push_back({b.x, b.y, -half});
-        out.positions.push_back({a.x, a.y, -half});
+        out.positions.emplace_back(a.x, a.y, half);
+        out.positions.emplace_back(b.x, b.y, half);
+        out.positions.emplace_back(b.x, b.y, -half);
+        out.positions.emplace_back(a.x, a.y, -half);
         for (int k = 0; k < 4; ++k) out.normals.push_back(normal);
-        out.uvs.push_back({u0, 0});
-        out.uvs.push_back({u1, 0});
-        out.uvs.push_back({u1, 1});
-        out.uvs.push_back({u0, 1});
+        out.uvs.emplace_back(u0, 0);
+        out.uvs.emplace_back(u1, 0);
+        out.uvs.emplace_back(u1, 1);
+        out.uvs.emplace_back(u0, 1);
         uint32_t tri0[3] = {base, base + 1, base + 2};
         uint32_t tri1[3] = {base, base + 2, base + 3};
         orientTriangle(out.positions, tri0, normal);
@@ -190,7 +190,7 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
       // v runs opposite the parameter (v param 0 is the sheet's bottom
       // in y-up space). Both renderers (Space.h texs, SigilWorld)
       // assume this.
-      out.uvs.push_back({u, 1.0f - v});
+      out.uvs.emplace_back(u, 1.0f - v);
       const glm::vec3 du =
           fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
       const glm::vec3 dv =

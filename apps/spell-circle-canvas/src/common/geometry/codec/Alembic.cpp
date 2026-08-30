@@ -308,18 +308,18 @@ void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4& world,
       auto [it, inserted] = seen.emplace(key, (uint32_t)mesh.positions.size());
       if (inserted) {
         const Imath::V3f& p = (*positions)[point];
-        mesh.positions.push_back({p.x, p.y, p.z});
+        mesh.positions.emplace_back(p.x, p.y, p.z);
         if (normalSource >= 0) {
           const Imath::V3f& nrm = (*normals)[normalSource];
-          mesh.normals.push_back({nrm.x, nrm.y, nrm.z});
+          mesh.normals.emplace_back(nrm.x, nrm.y, nrm.z);
         }
         if (uvSource >= 0) {
           const Imath::V2f& uv = (*uvs)[uvSource];
           // Alembic uv origin is bottom-left; Mesh is IMAGE
           // convention (top-left), so v flips — the OBJ rule.
-          mesh.uvs.push_back({uv.x, 1 - uv.y});
+          mesh.uvs.emplace_back(uv.x, 1 - uv.y);
         } else {
-          mesh.uvs.push_back({0, 0});
+          mesh.uvs.emplace_back(0, 0);
         }
         domain.sources.push_back({point, (int32_t)corner, (int32_t)face});
       }

@@ -150,6 +150,6 @@ SceneDescriptor makeExclusionsDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeExclusionsDescriptor())
+REGISTER_GALLERY_SCENE(makeExclusionsDescriptor)
 
 }  // namespace gallery

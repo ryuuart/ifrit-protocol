@@ -248,7 +248,7 @@ Mesh tube(const Spline3& spline, const TubeOptions& options) {
       const glm::vec3 dir = f.normal * std::cos(a) + f.binormal * std::sin(a);
       out.positions.push_back(f.position + dir * r);
       out.normals.push_back(dir);
-      out.uvs.push_back({(float)s / (float)sides, f.t});
+      out.uvs.emplace_back((float)s / (float)sides, f.t);
     }
   }
   const int ring = sides + 1;
@@ -268,7 +268,7 @@ Mesh tube(const Spline3& spline, const TubeOptions& options) {
       const uint32_t center = (uint32_t)out.positions.size();
       out.positions.push_back(f.position);
       out.normals.push_back(n);
-      out.uvs.push_back({0.5f, end == 0 ? 0.0f : 1.0f});
+      out.uvs.emplace_back(0.5f, end == 0 ? 0.0f : 1.0f);
       const uint32_t ringStart =
           (uint32_t)((end == 0 ? 0 : segments - 1) * ring);
       for (int s = 0; s < sides; ++s) {
@@ -297,8 +297,8 @@ Mesh ribbon(const Spline3& spline, const RibbonOptions& options) {
     out.positions.push_back(f.position + f.binormal * half);
     out.normals.push_back(f.normal);
     out.normals.push_back(f.normal);
-    out.uvs.push_back({0, f.t});
-    out.uvs.push_back({1, f.t});
+    out.uvs.emplace_back(0, f.t);
+    out.uvs.emplace_back(1, f.t);
   }
   for (int i = 0; i + 1 < segments; ++i) {
     const uint32_t a = (uint32_t)(i * 2);
@@ -330,8 +330,8 @@ Mesh banner(const Spline3& spline, const BannerOptions& options) {
     out.positions.push_back(p + hang * half);
     out.normals.push_back(normal);
     out.normals.push_back(normal);
-    out.uvs.push_back({0, f});
-    out.uvs.push_back({1, f});
+    out.uvs.emplace_back(0, f);
+    out.uvs.emplace_back(1, f);
   }
   for (int i = 0; i + 1 < sections; ++i) {
     const uint32_t a = (uint32_t)(i * 2);

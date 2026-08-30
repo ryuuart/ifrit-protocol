@@ -44,8 +44,13 @@ WordSegmentList& WordSegmentList::operator=(const WordSegmentList& other) {
   if (this != &other) storageOf(*this) = storageOf(other);
   return *this;
 }
-WordSegmentList& WordSegmentList::operator=(WordSegmentList&& other) {
-  if (this != &other) storageOf(*this) = std::move(storageOf(other));
+WordSegmentList& WordSegmentList::operator=(WordSegmentList&& other) noexcept {
+  // Move-constructing over the destroyed container keeps the assignment
+  // non-throwing: the container's own move assignment may allocate.
+  if (this != &other) {
+    storageOf(*this).~SegmentStorage();
+    new (m_storage) SegmentStorage(std::move(storageOf(other)));
+  }
   return *this;
 }
 WordSegmentList::~WordSegmentList() { storageOf(*this).~SegmentStorage(); }

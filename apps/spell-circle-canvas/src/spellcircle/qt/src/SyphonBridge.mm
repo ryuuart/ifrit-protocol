@@ -34,6 +34,8 @@ void SyphonBridge::publishFrame(QRhiTexture *texture, QRhiCommandBuffer *command
 
   auto nativeTex = texture->nativeTexture();
   // Qt packs the id<MTLTexture> pointer into a quint64 on Metal.
+  // Qt hands the texture over as an integer, and ARC bridges only from void*.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr,bugprone-casting-through-void)
   id<MTLTexture> metalTexture = (__bridge id<MTLTexture>)reinterpret_cast<void *>(nativeTex.object);
 
   const auto *commandBufferHandles =

@@ -109,7 +109,8 @@ class RippleScene final : public Scene {
   std::vector<Drop> m_drops;
   std::vector<SkPoint> m_pendingDrops;
   GlyphRSXformBatches m_batches;
-  std::mt19937 m_randomEngine{31};
+  std::mt19937 m_randomEngine{31};  // NOLINT(bugprone-random-generator-seed): a
+                                    // fixed seed keeps the scene reproducible
 };
 
 SceneDescriptor makeRippleDescriptor() {
@@ -123,6 +124,6 @@ SceneDescriptor makeRippleDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeRippleDescriptor())
+REGISTER_GALLERY_SCENE(makeRippleDescriptor)
 
 }  // namespace gallery

@@ -29,7 +29,7 @@ constexpr auto kNetworkMtime = std::filesystem::file_time_type::min();
 /** libcurl over the easy API: redirects followed, 20s timeout, HTTP
  *  errors (>= 400) fail, body lands in memory. */
 struct NetFetcher {
-  static size_t write(char* data, size_t size, size_t nmemb, void* user) {
+  static size_t write(const char* data, size_t size, size_t nmemb, void* user) {
     auto* out = static_cast<std::vector<std::byte>*>(user);
     const auto* bytes = reinterpret_cast<const std::byte*>(data);
     out->insert(out->end(), bytes, bytes + size * nmemb);

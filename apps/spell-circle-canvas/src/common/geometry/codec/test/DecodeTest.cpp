@@ -40,13 +40,13 @@ std::string base64(const std::vector<std::byte>& bytes) {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   std::string out;
   for (size_t i = 0; i < bytes.size(); i += 3) {
-    uint32_t chunk = (uint32_t)bytes[i] << 16;
-    if (i + 1 < bytes.size()) chunk |= (uint32_t)bytes[i + 1] << 8;
+    uint32_t chunk = (uint32_t)bytes[i] << 16u;
+    if (i + 1 < bytes.size()) chunk |= (uint32_t)bytes[i + 1] << 8u;
     if (i + 2 < bytes.size()) chunk |= (uint32_t)bytes[i + 2];
-    out.push_back(alphabet[(chunk >> 18) & 63]);
-    out.push_back(alphabet[(chunk >> 12) & 63]);
-    out.push_back(i + 1 < bytes.size() ? alphabet[(chunk >> 6) & 63] : '=');
-    out.push_back(i + 2 < bytes.size() ? alphabet[chunk & 63] : '=');
+    out.push_back(alphabet[(chunk >> 18u) & 63u]);
+    out.push_back(alphabet[(chunk >> 12u) & 63u]);
+    out.push_back(i + 1 < bytes.size() ? alphabet[(chunk >> 6u) & 63u] : '=');
+    out.push_back(i + 2 < bytes.size() ? alphabet[chunk & 63u] : '=');
   }
   return out;
 }
@@ -73,7 +73,7 @@ std::vector<std::byte> triangleBufferBytes() {
 std::string triangleGltfJson(const std::string& bufferUri) {
   std::string buffer = "{\"byteLength\": 42";
   if (!bufferUri.empty()) buffer += ", \"uri\": \"" + bufferUri + "\"";
-  buffer += "}";
+  buffer += '}';
   return R"({
   "asset": {"version": "2.0"},
   "scene": 0,
@@ -1272,7 +1272,7 @@ TEST(Import, GltfCarriesTheWholeMaterial) {
   // with the occlusion slot naming the same bytes as the pack.
   const std::filesystem::path glb = "assets/models/Avocado.glb";
   std::filesystem::path found;
-  for (const std::filesystem::path candidate :
+  for (const std::filesystem::path& candidate :
        {glb, std::filesystem::path("build") / glb,
         std::filesystem::path("../build") / glb,
         std::filesystem::path("../../build") / glb})
@@ -1324,7 +1324,7 @@ TEST(Import, MaterialSlotsRideThePrimitiveClass) {
   EXPECT_FLOAT_EQ((*lane)[1].x, 0.0f);  // "/mat/steel"
 
   std::filesystem::path found;
-  for (const std::filesystem::path candidate :
+  for (const std::filesystem::path& candidate :
        {std::filesystem::path("assets/models/Avocado.glb"),
         std::filesystem::path("build/assets/models/Avocado.glb"),
         std::filesystem::path("../build/assets/models/Avocado.glb"),

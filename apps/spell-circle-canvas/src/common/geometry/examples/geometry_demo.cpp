@@ -427,7 +427,7 @@ void panelMeshPerspective(SkCanvas& canvas) {
     const float t = (float)i / 24.0f;
     const float r =
         46.0f + 34.0f * std::sin(t * 3.1f + 0.4f) + 18.0f * std::sin(t * 8.0f);
-    profile.push_back({r, (t - 0.5f) * 240.0f});
+    profile.emplace_back(r, (t - 0.5f) * 240.0f);
   }
   space::MeshStyle jade = steel;
   jade.baseColor = {0.35f, 0.8f, 0.6f, 1};
@@ -654,8 +654,8 @@ void panelSplines(SkCanvas& canvas) {
   knot.closed = true;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    knot.points.push_back(
-        {std::cos(a) * 300, std::sin(a * 3.0f) * 110, std::sin(a) * 300});
+    knot.points.emplace_back(std::cos(a) * 300, std::sin(a * 3.0f) * 110,
+                             std::sin(a) * 300);
   }
 
   // The tube, lit like brushed steel.
@@ -860,8 +860,8 @@ void panelPop(SkCanvas& canvas) {
   std::vector<glm::vec3> ring;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
-    ring.push_back(
-        {std::cos(a) * 230, std::sin(a * 2.0f) * 60, std::sin(a) * 230});
+    ring.emplace_back(std::cos(a) * 230, std::sin(a * 2.0f) * 60,
+                      std::sin(a) * 230);
   }
 
   space::MeshStyle steel;
@@ -965,9 +965,12 @@ void panelPopPrims(SkCanvas& canvas) {
   // 1. A prim lane written straight onto a formed model.
   Mesh facets = mesh::torus(130, 46, 34, 14);
   std::vector<glm::vec4>& color = facets.prim("Color");
-  for (size_t t = 0; t < color.size(); ++t)
-    color[t] = wheel((float)(t / 2) / (float)(color.size() / 2),
-                     t % 2 == 0 ? 1.0f : 0.55f);
+  const size_t facetPairs = color.size() / 2;
+  for (size_t t = 0; t < color.size(); ++t) {
+    const size_t facetPair = t / 2;
+    color[t] =
+        wheel((float)facetPair / (float)facetPairs, t % 2 == 0 ? 1.0f : 0.55f);
+  }
   space::MeshStyle lit = flat;
   lit.primColorLane = "Color";
   space::drawMesh(canvas, facets, space::place({-380, 10, 0}, 0, -28), camera,
@@ -981,8 +984,8 @@ void panelPopPrims(SkCanvas& canvas) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 12; ++i) {
     const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
-    loop.push_back({160.0f * std::cos(a), 40.0f * std::sin(a * 3.0f),
-                    160.0f * std::sin(a)});
+    loop.emplace_back(160.0f * std::cos(a), 40.0f * std::sin(a * 3.0f),
+                      160.0f * std::sin(a));
   }
   const int kPieces = 64;
   Mesh pieces = pop::on(loop)
@@ -1026,9 +1029,9 @@ void panelYarnMarquee(SkCanvas& canvas) {
     const float t = (float)i / 96.0f;
     const float lat = std::sin(2.0f * (float)M_PI * 3.0f * t);
     const float azi = -2.0f * (float)M_PI * 2.0f * t;
-    yarn.points.push_back({340.0f * std::cos(lat) * std::cos(azi),
-                           10.0f + 200.0f * std::sin(lat),
-                           280.0f * std::cos(lat) * std::sin(azi)});
+    yarn.points.emplace_back(340.0f * std::cos(lat) * std::cos(azi),
+                             10.0f + 200.0f * std::sin(lat),
+                             280.0f * std::cos(lat) * std::sin(azi));
   }
   const float loopLen = yarn.length(512);
   const float kWidth = 100;
@@ -1132,7 +1135,8 @@ void panelYarnMarquee(SkCanvas& canvas) {
   static_cast<void>(loopLen);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
+                                   // uncaught error ends the demo
   if (argc > 1 && argv[1][0] == '-') {
     const bool help =
         std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;

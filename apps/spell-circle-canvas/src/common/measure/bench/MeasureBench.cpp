@@ -15,7 +15,7 @@ static Samples filled(size_t n) {
 static void BM_SamplesAdd(benchmark::State& state) {
   Samples w((size_t)state.range(0));
   double v = 0.0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto _ : state) {
     w.add(v);
     v += 0.25;
     benchmark::DoNotOptimize(w);
@@ -26,13 +26,14 @@ BENCHMARK(BM_SamplesAdd)->Arg(60)->Arg(120)->Arg(1000);
 
 static void BM_SamplesPercentile(benchmark::State& state) {
   const Samples w = filled((size_t)state.range(0));
-  for (auto _ : state) benchmark::DoNotOptimize(w.percentile(0.99));
+  for ([[maybe_unused]] auto _ : state)
+    benchmark::DoNotOptimize(w.percentile(0.99));
 }
 BENCHMARK(BM_SamplesPercentile)->Arg(60)->Arg(120)->Arg(1000);
 
 static void BM_SamplesMean(benchmark::State& state) {
   const Samples w = filled((size_t)state.range(0));
-  for (auto _ : state) benchmark::DoNotOptimize(w.mean());
+  for ([[maybe_unused]] auto _ : state) benchmark::DoNotOptimize(w.mean());
 }
 BENCHMARK(BM_SamplesMean)->Arg(60)->Arg(120)->Arg(1000);
 

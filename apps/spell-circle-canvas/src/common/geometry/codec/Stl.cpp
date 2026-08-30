@@ -32,7 +32,7 @@ void pushStlTriangle(Mesh& mesh, const glm::vec3 corners[3], glm::vec3 normal) {
     mesh.indices.push_back((uint32_t)mesh.positions.size());
     mesh.positions.push_back(corners[i]);
     mesh.normals.push_back(normal);
-    mesh.uvs.push_back({0, 0});
+    mesh.uvs.emplace_back(0, 0);
   }
 }
 

@@ -369,9 +369,9 @@ void writeLayeredExr(const fs::path& path) {
   auto out = ImageOutput::create(path.string());
   ASSERT_TRUE(out);
   ASSERT_TRUE(out->open(path.string(), spec));
-  std::vector<float> pixels(kSize * kSize * 8);
+  std::vector<float> pixels(static_cast<size_t>(kSize) * kSize * 8);
   for (int px = 0; px < kSize * kSize; ++px) {
-    float* p = pixels.data() + px * 8;
+    float* p = pixels.data() + static_cast<ptrdiff_t>(px) * 8;
     p[0] = 0.25f;
     p[1] = 0.5f;
     p[2] = 0.75f;

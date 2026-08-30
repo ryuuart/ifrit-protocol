@@ -34,7 +34,7 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
   sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder* recorder,
                               const SkImage* image,
                               SkImage::RequiredProperties required) override {
-    const uint64_t key = (static_cast<uint64_t>(image->uniqueID()) << 1) |
+    const uint64_t key = (static_cast<uint64_t>(image->uniqueID()) << 1u) |
                          (required.fMipmapped ? 1u : 0u);
     if (auto it = m_cache.find(key); it != m_cache.end()) return it->second;
     sk_sp<SkImage> texture =

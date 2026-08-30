@@ -45,5 +45,5 @@ int main(int argc, char* argv[]) {
   }
 #endif
 
-  return application.exec();
+  return QGuiApplication::exec();
 }

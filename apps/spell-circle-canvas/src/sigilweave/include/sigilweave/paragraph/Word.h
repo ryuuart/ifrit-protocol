@@ -73,7 +73,7 @@ class WordSegmentList {
   WordSegmentList(const WordSegmentList& other);
   WordSegmentList(WordSegmentList&& other) noexcept;
   WordSegmentList& operator=(const WordSegmentList& other);
-  WordSegmentList& operator=(WordSegmentList&& other);
+  WordSegmentList& operator=(WordSegmentList&& other) noexcept;
   ~WordSegmentList();
 
   /** Returns the segments in text order. The view is invalidated by the

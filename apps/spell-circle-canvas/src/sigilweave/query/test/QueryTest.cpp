@@ -135,7 +135,9 @@ TEST(Query, ScopedSearchesStayInsideTheWindow) {
 
   // Degenerate scopes clamp instead of tripping.
   EXPECT_TRUE(findAllOccurrences(paragraph, u8"the", {40, 90}).empty());
-  EXPECT_TRUE(findRegexMatches(paragraph, u8"the", {27, 9000})->empty());
+  const auto clamped = findRegexMatches(paragraph, u8"the", {27, 9000});
+  ASSERT_TRUE(clamped.has_value());
+  EXPECT_TRUE(clamped->empty());
   const auto full = findRegexMatches(paragraph, u8"the", {0, 9000});
   ASSERT_TRUE(full.has_value());
   EXPECT_EQ(full->size(), 3u);

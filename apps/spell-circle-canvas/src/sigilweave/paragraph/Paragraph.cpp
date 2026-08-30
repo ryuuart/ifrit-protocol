@@ -297,7 +297,7 @@ std::vector<std::pair<uint32_t, uint32_t>> spanBoundaries(
   std::vector<std::pair<uint32_t, uint32_t>> boundaries;
   boundaries.reserve(spans.size());
   for (const StyleSpan& span : spans)
-    boundaries.push_back({span.start, span.end});
+    boundaries.emplace_back(span.start, span.end);
   return boundaries;
 }
 
@@ -763,7 +763,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
     ShapedWordRef shapedWord =
         shapeWord(fontContext, span.style.shaping, resolvedTypeface,
                   segmentText, harfBuzzScriptFor(scriptRun.script),
-                  (bidiLevel & 1) != 0 && !shapeVertical, shapeVertical);
+                  (bidiLevel & 1u) != 0 && !shapeVertical, shapeVertical);
     if (verticalMode && segmentForm == SegmentForm::kTateChuYoko) {
       // 縦中横 occupies its font height along the column; advanceOffset lands
       // on the run's baseline inside that box so placement needs no metrics.

@@ -50,8 +50,8 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
   knot.closed = true;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
-    knot.points.push_back(
-        {std::cos(a) * 100, std::sin(a * 2) * 40, std::sin(a) * 100});
+    knot.points.emplace_back(std::cos(a) * 100, std::sin(a * 2) * 40,
+                             std::sin(a) * 100);
   }
   const std::vector<Frame3> rail = curves::frames(knot, 64);
   ASSERT_EQ(rail.size(), 64u);
@@ -103,8 +103,8 @@ TEST(Curves, BannerHangsGravityUpright) {
   loop.closed = true;
   for (int i = 0; i < 12; ++i) {
     const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
-    loop.points.push_back(
-        {300.0f * std::cos(a), 40.0f * std::sin(2 * a), 300.0f * std::sin(a)});
+    loop.points.emplace_back(300.0f * std::cos(a), 40.0f * std::sin(2 * a),
+                             300.0f * std::sin(a));
   }
   const Mesh band = curves::banner(loop, {.width = 50, .sections = 120});
   ASSERT_EQ(band.vertexCount(), 240u);

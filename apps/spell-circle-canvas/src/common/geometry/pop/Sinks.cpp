@@ -108,7 +108,7 @@ Mesh pop::cookSweep(const pop::Chain& chain, const SkPath& profile,
       // Profile is authored y-down (SkPath space); the frame's normal
       // is its "up", so y flips — same convention extrude() uses.
       out.positions.push_back(f.position + f.binormal * p.x - f.normal * p.y);
-      out.uvs.push_back({(float)i / (float)n, f.t});
+      out.uvs.emplace_back((float)i / (float)n, f.t);
     }
   for (uint32_t s = 0; s + 1 < (uint32_t)rail.size(); ++s)
     for (uint32_t i = 0; i < n; ++i) {

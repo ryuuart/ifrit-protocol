@@ -30,7 +30,7 @@ std::filesystem::path localPath(const Hub& hub, std::string_view uri);
 struct FetchResult {
   std::shared_ptr<const Bytes> blob;
   std::filesystem::path path;
-  std::filesystem::file_time_type mtime{};
+  std::filesystem::file_time_type mtime;
 };
 
 /** Network fetch behind the disk cache. CacheFirst: a present cache

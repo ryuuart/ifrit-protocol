@@ -23,7 +23,7 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
                             u8"글자",    u8"星光"};
   std::u8string text;
   for (int wordIndex = 0; wordIndex < kWordCount; ++wordIndex) {
-    text += words[(wordIndex * 7) % std::size(words)];
+    text += words[static_cast<size_t>(wordIndex * 7) % std::size(words)];
     text += ' ';
   }
 

@@ -134,7 +134,7 @@ bool WebEngine::Impl::start() {
     std::promise<bool> ready;
     std::future<bool> readyFuture = ready.get_future();
     m_thread = std::thread([this, &ready] { threadMain(ready); });
-    bool ok = readyFuture.get();
+    const bool ok = readyFuture.get();
     if (!ok) {
       m_thread.join();
       m_thread = std::thread();

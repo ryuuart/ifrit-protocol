@@ -113,7 +113,7 @@ void submitGraphite() {
 /** Baseline: acquiring the latest published frame (mutex + ref bump). */
 static void BM_Frame_Acquire(benchmark::State& state) {
   WebView& view = benchView();
-  for (auto _ : state) benchmark::DoNotOptimize(view.frame());
+  for ([[maybe_unused]] auto _ : state) benchmark::DoNotOptimize(view.frame());
 }
 BENCHMARK(BM_Frame_Acquire);
 
@@ -127,7 +127,7 @@ static void BM_Draw_RasterCanvas(benchmark::State& state) {
   WebView& view = benchView();
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
-  for (auto _ : state)
+  for ([[maybe_unused]] auto _ : state)
     view.draw(*surface->getCanvas(), SkRect::MakeWH(kViewWidth, kViewHeight));
 }
 BENCHMARK(BM_Draw_RasterCanvas);
@@ -144,7 +144,7 @@ static void BM_Frame_WrapCached(benchmark::State& state) {
     return;
   }
   WebView& view = benchView();
-  for (auto _ : state)
+  for ([[maybe_unused]] auto _ : state)
     benchmark::DoNotOptimize(view.frame(graphite().recorder()));
 }
 BENCHMARK(BM_Frame_WrapCached);
@@ -160,10 +160,10 @@ static void BM_Frame_WrapMiss(benchmark::State& state) {
   WebView& view = benchView();
   static std::unique_ptr<SkiaGraphiteContext> other =
       SkiaGraphiteContext::createMetal(bench::gpuDevice(), bench::gpuQueue());
-  int toggle = 0;
-  for (auto _ : state)
-    benchmark::DoNotOptimize(
-        view.frame((toggle++ & 1) ? other->recorder() : graphite().recorder()));
+  unsigned toggle = 0;
+  for ([[maybe_unused]] auto _ : state)
+    benchmark::DoNotOptimize(view.frame(
+        (toggle++ & 1u) ? other->recorder() : graphite().recorder()));
 }
 BENCHMARK(BM_Frame_WrapMiss);
 
@@ -208,7 +208,7 @@ static void BM_Draw_GraphiteRecord(benchmark::State& state) {
   skgpu::graphite::Recorder* recorder = retired.back().get();
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
       recorder, SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
-  for (auto _ : state)
+  for ([[maybe_unused]] auto _ : state)
     view.draw(*surface->getCanvas(), SkRect::MakeWH(kViewWidth, kViewHeight));
   recorder->snap();
 }
@@ -226,7 +226,7 @@ static void BM_Draw_GraphiteSubmit(benchmark::State& state) {
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
       graphite().recorder(),
       SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto _ : state) {
     view.draw(*surface->getCanvas(), SkRect::MakeWH(kViewWidth, kViewHeight));
     submitGraphite();
   }
@@ -242,7 +242,7 @@ static void BM_Slot_UpdateTexture(benchmark::State& state) {
   const int size = (int)state.range(0);
   static auto image = engine().createImage("bench_ext", 1024, 1024);
   void* texture = bench::makeSolidTexture(size, size);
-  for (auto _ : state) image->updateTexture(texture);
+  for ([[maybe_unused]] auto _ : state) image->updateTexture(texture);
   state.SetBytesProcessed(state.iterations() * (int64_t)size * size * 4);
 }
 BENCHMARK(BM_Slot_UpdateTexture)->Arg(256)->Arg(1024);
@@ -257,7 +257,7 @@ static void BM_Slot_UpdateRaster(benchmark::State& state) {
   SkBitmap bitmap;
   bitmap.allocN32Pixels(size, size);
   bitmap.eraseColor(SK_ColorCYAN);
-  for (auto _ : state) image->update(bitmap.pixmap());
+  for ([[maybe_unused]] auto _ : state) image->update(bitmap.pixmap());
   state.SetBytesProcessed(state.iterations() * (int64_t)size * size * 4);
 }
 BENCHMARK(BM_Slot_UpdateRaster)->Arg(256)->Arg(1024);
@@ -267,7 +267,7 @@ static void BM_Slot_Paint(benchmark::State& state) {
   const int size = (int)state.range(0);
   auto image =
       engine().createImage("bench_paint_" + std::to_string(size), size, size);
-  for (auto _ : state)
+  for ([[maybe_unused]] auto _ : state)
     image->paint([size](SkCanvas& canvas) {
       canvas.clear(SK_ColorDKGRAY);
       SkPaint paint;
@@ -285,7 +285,7 @@ BENCHMARK(BM_Slot_Paint)->Arg(256)->Arg(1024);
 static void BM_Page_ChangeLatency(benchmark::State& state) {
   WebView& view = benchView();
   int toggle = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto _ : state) {
     uint64_t version = view.frameVersion();
     auto start = std::chrono::steady_clock::now();
     view.evaluateScript("document.getElementById('t').textContent='bench " +
@@ -301,7 +301,8 @@ BENCHMARK(BM_Page_ChangeLatency)
     ->UseManualTime()
     ->Unit(benchmark::kMillisecond);
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
+                                   // uncaught error ends the run
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "--gpu") {
       g_useGpu = true;

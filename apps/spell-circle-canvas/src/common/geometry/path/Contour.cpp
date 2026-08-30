@@ -98,6 +98,8 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
   float sharpestDot = 1.0f;
   glm::vec2 prev{0, 0}, atStart{0, 0};
   bool havePrev = false;
+  // The samples sit at the accumulated stride, not at k * stride.
+  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
   for (float d = 0; d <= len; d += stride) {
     const auto s = sampleOf(m, std::min(d, len));
     if (!s) continue;
@@ -293,16 +295,16 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
       if (!closed) {
         a = std::max(a, 0.0f);
         b = std::min(b, len);
-        if (b > a) near.push_back({a, b});
+        if (b > a) near.emplace_back(a, b);
         continue;
       }
       a = wrap(a, len);
       b = wrap(b, len);
       if (a <= b)
-        near.push_back({a, b});
+        near.emplace_back(a, b);
       else {  // the window straddles the seam
-        near.push_back({a, len});
-        near.push_back({0, b});
+        near.emplace_back(a, len);
+        near.emplace_back(0, b);
       }
     }
     std::sort(near.begin(), near.end());

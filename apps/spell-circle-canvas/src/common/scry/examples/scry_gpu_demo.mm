@@ -128,6 +128,7 @@ void drawSigil(SkCanvas *canvas, int size) {
 
 }  // namespace
 
+// NOLINTNEXTLINE(bugprone-exception-escape): an uncaught error ends the demo
 int main(int argc, char **argv) {
   std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
@@ -135,6 +136,7 @@ int main(int argc, char **argv) {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   id<MTLCommandQueue> queue = [device newCommandQueue];
   if (!device || !queue) {
+    // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount): the process exits with it
     std::fprintf(stderr, "no Metal device\n");
     return 1;
   }

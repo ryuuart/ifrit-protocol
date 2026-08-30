@@ -158,7 +158,7 @@ void visualOrder(const std::vector<Word>& words, uint32_t firstWordIndex,
     visualWordOrder.push_back(wordIndex);
     const uint8_t level = words[wordIndex].bidiLevel;
     maximumLevel = std::max(maximumLevel, level);
-    if (level & 1) minimumOddLevel = std::min(minimumOddLevel, level);
+    if (level & 1u) minimumOddLevel = std::min(minimumOddLevel, level);
   }
   for (uint8_t level = maximumLevel;
        level >= minimumOddLevel && minimumOddLevel != 255; --level) {

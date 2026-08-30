@@ -111,10 +111,11 @@ std::unique_ptr<UltralightMetalDriver> UltralightMetalDriver::create(void *mtlDe
   state->queue = (__bridge id<MTLCommandQueue>)mtlCommandQueue;
 
   NSError *error = nil;
-  id<MTLLibrary> library =
-      [state->device newLibraryWithSource:[NSString stringWithUTF8String:kUltralightShaderSource]
-                                  options:nil
-                                    error:&error];
+  NSString *shaderSource = [NSString stringWithUTF8String:kUltralightShaderSource];
+  if (!shaderSource) return nullptr;
+  id<MTLLibrary> library = [state->device newLibraryWithSource:shaderSource
+                                                       options:nil
+                                                         error:&error];
   if (!library) {
     std::fprintf(stderr, "[SigilScry:error] Ultralight shader compile: %s\n",
                  error.localizedDescription.UTF8String);

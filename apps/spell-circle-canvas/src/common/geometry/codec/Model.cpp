@@ -185,7 +185,8 @@ std::optional<Model> model(const std::filesystem::path& file) {
     return std::nullopt;
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =
-      [dir](std::string_view uri) -> std::optional<std::vector<std::byte>> {
+      [dir =
+           dir](std::string_view uri) -> std::optional<std::vector<std::byte>> {
     std::ifstream ref(dir / std::filesystem::path(std::string(uri)),
                       std::ios::binary | std::ios::ate);
     if (!ref) return std::nullopt;

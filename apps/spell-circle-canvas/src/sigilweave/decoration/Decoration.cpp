@@ -46,18 +46,19 @@ const std::vector<SkScalar>& cachedIntercepts(const SkTextBlob& blob,
   };
   struct KeyHash {
     size_t operator()(const Key& key) const {
-      size_t h = key.blobId * 0x9E3779B9u;
+      const uint32_t seeded = key.blobId * 0x9E3779B9u;
+      size_t h = seeded;
       uint32_t lo, hi;
       memcpy(&lo, &key.lo, sizeof lo);
       memcpy(&hi, &key.hi, sizeof hi);
-      h ^= lo + 0x9E3779B9u + (h << 6) + (h >> 2);
-      h ^= hi + 0x9E3779B9u + (h << 6) + (h >> 2);
+      h ^= lo + 0x9E3779B9u + (h << 6u) + (h >> 2u);
+      h ^= hi + 0x9E3779B9u + (h << 6u) + (h >> 2u);
       return h;
     }
   };
   static thread_local std::unordered_map<Key, std::vector<SkScalar>, KeyHash>
       cache;
-  constexpr size_t kMaxInterceptEntries = 1 << 12;
+  constexpr size_t kMaxInterceptEntries = size_t{1} << 12u;
   const Key key{blob.uniqueID(), bounds[0], bounds[1]};
   if (auto it = cache.find(key); it != cache.end()) return it->second;
   if (cache.size() >= kMaxInterceptEntries) cache.clear();
@@ -182,7 +183,7 @@ std::vector<std::pair<float, float>> decorationSegments(
     const float inkStart =
         startX + intercepts[static_cast<size_t>(interceptIndex)] - standoff;
     const float inkEnd =
-        startX + intercepts[static_cast<size_t>(interceptIndex + 1)] + standoff;
+        startX + intercepts[static_cast<size_t>(interceptIndex) + 1] + standoff;
     if (inkStart > cursor)
       segments.emplace_back(cursor, std::min(inkStart, endX));
     cursor = std::max(cursor, inkEnd);

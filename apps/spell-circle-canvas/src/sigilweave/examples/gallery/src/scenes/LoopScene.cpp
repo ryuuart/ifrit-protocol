@@ -107,6 +107,6 @@ SceneDescriptor makeLoopDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeLoopDescriptor())
+REGISTER_GALLERY_SCENE(makeLoopDescriptor)
 
 }  // namespace gallery

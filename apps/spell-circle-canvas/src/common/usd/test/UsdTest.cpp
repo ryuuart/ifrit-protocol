@@ -99,7 +99,7 @@ TEST(Usd, RoundTripsAMeshWithSlotsAndMaterials) {
 TEST(Usd, WritesAsciiStampsLightsAndCameraAndReadsInstancers) {
   const std::filesystem::path file = scratch("scene.usda");
   geometry::Cloud cloud;
-  for (int i = 0; i < 50; ++i) cloud.positions.push_back({(float)i, 0, 0});
+  for (int i = 0; i < 50; ++i) cloud.positions.emplace_back((float)i, 0, 0);
   cloud.scalar("size", 2);
   cloud.vector("normal", {0, 1, 0});
   {

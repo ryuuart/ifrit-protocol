@@ -244,12 +244,12 @@ Cloud pop::cook(const pop::Chain& chain) {
           using T = std::decay_t<decltype(op)>;
           if constexpr (std::is_same_v<T, pop::SplineScatter> ||
                         std::is_same_v<T, pop::MeshScatter> ||
-                        std::is_same_v<T, pop::PointSet>) {
-            // generators only lead a chain; ignore mid-chain
-          } else if constexpr (std::is_same_v<T, pop::Promote>) {
-            // The PRIMITIVE class: nothing to do on the point sink —
-            // a Cloud has no primitives. cookMesh() reads these ops
-            // back off the chain once the stamps exist.
+                        std::is_same_v<T, pop::PointSet> ||
+                        std::is_same_v<T, pop::Promote>) {
+            // Generators only lead a chain and are ignored mid-chain.
+            // Promote is the PRIMITIVE class: nothing to do on the point
+            // sink — a Cloud has no primitives. cookMesh() reads these
+            // ops back off the chain once the stamps exist.
           } else if constexpr (std::is_same_v<T, pop::Relax>) {
             // Neighborhood op: double-buffered, read-old/write-new —
             // the same shape the GPU's parallel pass has. The mask
@@ -339,9 +339,10 @@ Cloud pop::cook(const pop::Chain& chain) {
                   std::min((int)(noise::pcgUnit((uint32_t)i * 13u + op.seed) *
                                  (float)cells),
                            cells - 1);
-              storeMasked("Tex", i, op.mask,
-                          {(float)(cell % cols) * du, (float)(cell / cols) * dv,
-                           du, dv});
+              const int cellRow = cell / cols;
+              storeMasked(
+                  "Tex", i, op.mask,
+                  {(float)(cell % cols) * du, (float)cellRow * dv, du, dv});
             }
           } else if constexpr (std::is_same_v<T, pop::Select>) {
             // The selector: distance in the region's own units, a

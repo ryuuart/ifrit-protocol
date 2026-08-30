@@ -26,7 +26,7 @@ std::u8string makeStressText() {
       u8"across",  u8"every", u8"glyph",   u8"文字",  u8"波紋",  u8"星光",
       u8"글자",    u8"물결",  u8"漣漪",    u8"字形",  u8"lumen", u8"cascade"};
   std::u8string text;
-  text.reserve(kStressWordCount * 7);
+  text.reserve(static_cast<size_t>(kStressWordCount) * 7);
   for (int wordIndex = 0; wordIndex < kStressWordCount; ++wordIndex) {
     text += words[static_cast<size_t>((wordIndex * 17 + wordIndex / 11) %
                                       words.size())];
