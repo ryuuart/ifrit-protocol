@@ -12,8 +12,8 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
-#include <sigilmotion/FrameClock.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/clock/Ticker.h>
 
 #include <functional>
 #include <memory>

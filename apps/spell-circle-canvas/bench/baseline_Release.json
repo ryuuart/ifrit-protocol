@@ -1604,68 +1604,6 @@
         "unit": "us"
       }
     },
-    "loader_bench": {
-      "BM_Blob_CacheHit/1": {
-        "cpu_ns": 13.489218264156996,
-        "real_ns": 13.492467984246955,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_Blob_CacheHit/1024": {
-        "cpu_ns": 180454.7270306262,
-        "real_ns": 181331.50231336232,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_Blob_CacheHit/64": {
-        "cpu_ns": 5173.050204648724,
-        "real_ns": 5175.918887984935,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_Load_ViewHit/1": {
-        "cpu_ns": 39.53505434041892,
-        "real_ns": 39.56371460980502,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_Load_ViewHit/1024": {
-        "cpu_ns": 204740.55232558365,
-        "real_ns": 204906.37114054937,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_Load_ViewHit/64": {
-        "cpu_ns": 8074.68557973929,
-        "real_ns": 8080.544477876444,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_NetworkCacheKey": {
-        "cpu_ns": 88.55741632925027,
-        "real_ns": 88.5637693343312,
-        "repetitions": 4,
-        "unit": "ns"
-      },
-      "BM_Resolve/1": {
-        "cpu_ns": 35.852344947780864,
-        "real_ns": 35.904635105118,
-        "repetitions": 4,
-        "unit": "ns"
-      },
-      "BM_Resolve/64": {
-        "cpu_ns": 358.25608598446837,
-        "real_ns": 358.30444578953063,
-        "repetitions": 4,
-        "unit": "ns"
-      },
-      "BM_Resolve/8": {
-        "cpu_ns": 66.18351141337453,
-        "real_ns": 66.19205935614644,
-        "repetitions": 4,
-        "unit": "ns"
-      }
-    },
     "motion_bind_bench": {
       "BM_Apply_Envelope/0": {
         "cpu_ns": 3596.499539076104,
@@ -2266,6 +2204,68 @@
         "real_ns": 23940.895599397743,
         "repetitions": 4,
         "unit": "us"
+      }
+    },
+    "loader_hub_bench": {
+      "BM_Blob_CacheHit/1": {
+        "cpu_ns": 13.489218264156996,
+        "real_ns": 13.492467984246955,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_Blob_CacheHit/1024": {
+        "cpu_ns": 180454.7270306262,
+        "real_ns": 181331.50231336232,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_Blob_CacheHit/64": {
+        "cpu_ns": 5173.050204648724,
+        "real_ns": 5175.918887984935,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_Load_ViewHit/1": {
+        "cpu_ns": 39.53505434041892,
+        "real_ns": 39.56371460980502,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_Load_ViewHit/1024": {
+        "cpu_ns": 204740.55232558365,
+        "real_ns": 204906.37114054937,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_Load_ViewHit/64": {
+        "cpu_ns": 8074.68557973929,
+        "real_ns": 8080.544477876444,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_NetworkCacheKey": {
+        "cpu_ns": 88.55741632925027,
+        "real_ns": 88.5637693343312,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_Resolve/1": {
+        "cpu_ns": 35.852344947780864,
+        "real_ns": 35.904635105118,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_Resolve/64": {
+        "cpu_ns": 358.25608598446837,
+        "real_ns": 358.30444578953063,
+        "repetitions": 4,
+        "unit": "ns"
+      },
+      "BM_Resolve/8": {
+        "cpu_ns": 66.18351141337453,
+        "real_ns": 66.19205935614644,
+        "repetitions": 4,
+        "unit": "ns"
       }
     }
   },

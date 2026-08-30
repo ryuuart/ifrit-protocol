@@ -8,16 +8,21 @@ vector sources. For sources carrying more than plain RGBA, the raw float
 channel planes are exposed directly. No Qt, no windowing, no filesystem
 abstraction — the library sees bytes.
 
-Namespace `sigil::image`. Two libraries, linked by what a consumer uses:
-`SigilImageAsset` (`ImageAsset.h` — the decoded document and the Skia
-codec path; Skia only) and `SigilImageDecode` (`Decode.h` — the routing
-surface and the raw channel planes; carries the optional backends).
+Namespace `sigil::image`. One feature library per directory, linked by
+what a consumer uses; every public header lives under
+`include/sigilimage/<feature>/` and is spelled `<sigilimage/<feature>/X.h>`:
+
+| target | headers | holds |
+|--------|---------|-------|
+| `SigilImageAsset`  | `asset/ImageAsset.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; Skia only |
+| `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
+
 `SigilImage` is the umbrella target over both.
 
 ## Using it
 
 ```cpp
-#include <sigilimage/Decode.h>
+#include <sigilimage/decode/Decode.h>
 
 std::vector<std::byte> bytes = readWholeFile("logo.png");
 
@@ -57,7 +62,7 @@ duration, repetition count — built by the **Skia codec path only**. It is
 also what the routing layer returns, and `ImageAsset::wrap` turns an
 already-rendered `SkImage` into a one-frame asset.
 
-`Decode.h` is the routing surface. `decodeImage()` sniffs the bytes and
+`decode/Decode.h` is the routing surface. `decodeImage()` sniffs the bytes and
 tries the Skia codecs first (skipped when a layer is named, since layers
 are an OpenImageIO concept), then SVG, then OpenImageIO; `probeImage()`
 follows the same order. The `pathHint` argument only sharpens format
@@ -78,9 +83,9 @@ into Skia.
 **`ImageAsset::decode` and `::probe` are Skia-codec only.** They do not
 route through SVG or OpenImageIO. Handing an EXR to `ImageAsset::decode`
 returns `nullopt` no matter which backends are built in. Only the free
-functions in `Decode.h` route.
+functions in `decode/Decode.h` route.
 
-Nothing here opens a file. `ImageAsset` takes `SkData`, `Decode.h` takes
+Nothing here opens a file. `ImageAsset` takes `SkData`, `decode/Decode.h` takes
 a byte range; a caller with a path reads it (SigilLoader's `Hub::image`
 is the usual way, `SkData::MakeFromFileName` the bare one) and hands the
 bytes in.
@@ -137,13 +142,17 @@ cmake --build build --config Debug --target image_asset_test image_decode_test
 ctest --test-dir build -C Debug -R image_ --output-on-failure
 ```
 
-Targets: `SigilImageAsset` and `SigilImageDecode` (static libraries),
+Targets: `SigilImageAsset` and `SigilImageDecode` (static libraries,
+one per feature directory — `asset/` and `decode/` — each holding its
+sources, its `test/` and its `bench/`; the decode backends are one
+translation unit each behind the private `decode/Backends.h`),
 `SigilImage` (the umbrella), one test per library, `image_asset_test`
 and `image_decode_test`, each linking only its library, and
 `image_decode_bench` (Google Benchmark, built by the `benches` target and
 run from a Release build through `scripts/bench_ledger.py`: `decodeImage`
 per megapixel over PNG and JPEG fixtures encoded in memory at several
 sizes, the committed 4x4 stills for the per-call floor, and `probeImage`). The fixtures are
-committed 4x4 px files — one still per format plus a three-frame animation
-for each animated format — located through the `IFRIT_IMAGE_TEST_ASSET_DIR`
-compile definition, so the test runs from any working directory.
+committed 4x4 px files under `test/assets/` at the library root — one
+still per format plus a three-frame animation for each animated format —
+located through the `IFRIT_IMAGE_TEST_ASSET_DIR` compile definition, so
+the test runs from any working directory.

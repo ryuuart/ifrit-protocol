@@ -16,7 +16,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Material.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 #include <cmath>
 #include <entt/entt.hpp>

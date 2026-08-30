@@ -9,8 +9,8 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/Composer.h>
 #include <sigilcompose/Element.h>
-#include <sigilmotion/FrameClock.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/clock/Ticker.h>
 
 #include <string_view>
 #include <utility>

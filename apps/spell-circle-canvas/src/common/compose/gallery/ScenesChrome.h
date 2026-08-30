@@ -7,7 +7,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 #include <cmath>
 

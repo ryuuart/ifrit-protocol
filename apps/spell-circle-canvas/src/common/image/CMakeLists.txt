@@ -1,103 +1,33 @@
-# SigilImage — Qt-free image import for the scene canvases, as two
-# libraries a consumer links by what it uses:
+# SigilImage — Qt-free image import for the scene canvases, as one
+# feature library per directory. Each feature is its own static archive
+# with its own tests and benchmarks, and links only the features beneath
+# it, so a consumer that needs one tier links that tier alone.
+# `SigilImage` is the umbrella: an interface over every feature, for a
+# consumer of the whole library.
 #
-#   SigilImageAsset  — <sigilimage/ImageAsset.h>: the decoded document
-#                      (frames, durations, playback) and the Skia-codec
-#                      decode of PNG, JPEG, WebP, GIF and AVIF (stills
-#                      and animations) into premultiplied SkImage frames
-#                      ready for any SkCanvas. Skia only.
-#   SigilImageDecode — <sigilimage/Decode.h>: the format-routing decode
-#                      surface over pluggable backends — the Skia codecs,
-#                      OpenImageIO and the Skia SVG module — and the raw
-#                      channel planes. The backends are PRIVATE to it.
+# Every public header lives under one include root, include/sigilimage/
+# <feature>/, so a feature adds the root and spells its own directory.
+# The committed fixtures every test and bench reads sit in test/assets/
+# (4x4 px, a few hundred bytes each — one still per format plus a
+# 3-frame red/green/blue animation for each animated format, regenerable
+# with PIL + avifenc) and reach a binary through the
+# IFRIT_IMAGE_TEST_ASSET_DIR compile definition.
 #
-# SigilImage is the umbrella over both. The Skia codec set is guaranteed
-# by the skia vcpkg features declared in vcpkg.json (png/jpeg/webp are
-# port defaults; avif is opted in there). vcpkg.json also requests
-# libavif[dav1d] explicitly: skia[avif] alone installs libavif with NO
-# AV1 codec, which parses AVIF containers but silently fails to decode
-# any frames.
-add_library(SigilImageAsset STATIC
-  ImageAsset.cpp
-  include/sigilimage/ImageAsset.h
-)
-target_compile_features(SigilImageAsset PUBLIC cxx_std_20)
-target_include_directories(SigilImageAsset PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(SigilImageAsset PUBLIC unofficial::skia::skia)
+# The Skia codec set is guaranteed by the skia vcpkg features declared in
+# vcpkg.json (png/jpeg/webp are port defaults; avif is opted in there).
+# vcpkg.json also requests libavif[dav1d] explicitly: skia[avif] alone
+# installs libavif with NO AV1 codec, which parses AVIF containers but
+# silently fails to decode any frames.
 
-add_library(SigilImageDecode STATIC
-  Decode.cpp
-  include/sigilimage/Decode.h
-)
-target_compile_features(SigilImageDecode PUBLIC cxx_std_20)
-target_include_directories(SigilImageDecode PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(SigilImageDecode PUBLIC SigilImageAsset)
+set(SIGIL_IMAGE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+set(SIGIL_IMAGE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 
-# OpenImageIO extends decode/probe beyond the Skia codecs: EXR (with
-# layer/channel selection), PSD (composited), TIFF, HDR, and the rest
-# of its roster. Optional: without it, decodeImage falls back to the
-# Skia path only.
-find_package(OpenImageIO CONFIG QUIET)
-if(OpenImageIO_FOUND)
-  target_link_libraries(SigilImageDecode PRIVATE OpenImageIO::OpenImageIO)
-  target_compile_definitions(SigilImageDecode PRIVATE SIGILIMAGE_HAS_OIIO)
-  message(STATUS "SigilImageDecode: OpenImageIO backend enabled")
-else()
-  message(WARNING
-    "SigilImageDecode: OpenImageIO not found — EXR/PSD/TIFF decoding disabled")
-endif()
-
-# The Skia SVG module rasterizes vector sources through the same decode
-# surface (sniffed by content; DecodeOptions::width/height pick the
-# raster size). Optional: without it, SVG bytes simply fail to decode.
-if(TARGET unofficial::skia::modules::svg)
-  target_link_libraries(SigilImageDecode PRIVATE unofficial::skia::modules::svg)
-  target_compile_definitions(SigilImageDecode PRIVATE SIGILIMAGE_HAS_SVG)
-  message(STATUS "SigilImageDecode: Skia SVG backend enabled")
-else()
-  message(WARNING
-    "SigilImageDecode: skia svg module not found — SVG decoding disabled")
-endif()
+# Dependencies point down this list.
+add_subdirectory(asset)
+add_subdirectory(decode)
 
 add_library(SigilImage INTERFACE)
 target_link_libraries(SigilImage INTERFACE SigilImageAsset SigilImageDecode)
-
-# Tiny committed fixtures (4x4 px, a few hundred bytes each) — one still
-# per format plus a 3-frame red/green/blue animation for each animated
-# format, regenerable with PIL + avifenc (see the tests). Each test links
-# only the library it exercises.
-add_executable(image_asset_test test/ImageAssetTest.cpp)
-target_link_libraries(image_asset_test PRIVATE SigilImageAsset GTest::gtest_main)
-target_compile_definitions(image_asset_test PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${CMAKE_CURRENT_LIST_DIR}/test/assets"
-)
-add_test(NAME image_asset_test COMMAND image_asset_test)
-
-add_executable(image_decode_test test/ImageDecodeTest.cpp)
-target_link_libraries(image_decode_test PRIVATE SigilImageDecode GTest::gtest_main)
-if(TARGET unofficial::skia::modules::svg)
-  target_compile_definitions(image_decode_test PRIVATE SIGILIMAGE_HAS_SVG)
-endif()
-target_compile_definitions(image_decode_test PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${CMAKE_CURRENT_LIST_DIR}/test/assets"
-)
-add_test(NAME image_decode_test COMMAND image_decode_test)
-
-# The decode benchmark (Google Benchmark; use a Release build) encodes
-# its own fixtures in memory and reads the committed 4 x 4 ones for the
-# per-call floor. Not a test: it builds through the `benches` target and
-# runs through scripts/bench_ledger.py.
-add_executable(image_decode_bench bench/DecodeBench.cpp)
-target_link_libraries(image_decode_bench PRIVATE SigilImageDecode
-  benchmark::benchmark)
-target_compile_definitions(image_decode_bench PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${CMAKE_CURRENT_LIST_DIR}/test/assets"
-)
-add_dependencies(benches image_decode_bench)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

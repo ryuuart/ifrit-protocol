@@ -5,7 +5,7 @@
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/Ticker.h>
 #include <unistd.h>
 
 #include <algorithm>

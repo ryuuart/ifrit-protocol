@@ -138,7 +138,7 @@ if(APPLE)
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
                               SigilComposePaint SigilImageAsset
-                              SigilImageDecode SigilLoader SigilMotionClock
+                              SigilImageDecode SigilLoaderHub SigilMotionClock
                               SigilMotionBind SigilGeometryPath
                               SigilGeometryBlend SigilGeometryMesh
                               SigilGeometrySpace SigilGeometryCurves

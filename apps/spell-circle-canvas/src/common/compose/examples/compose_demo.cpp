@@ -21,7 +21,7 @@
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

@@ -19,8 +19,8 @@
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilimage/Decode.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
+#include <sigilimage/decode/Decode.h>
 #include <sigilloader/Loader.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/SigilWeaveKit.h>

@@ -1,25 +1,8 @@
-# SigilMotion — animation with no renderer in it, as three libraries a
-# consumer links by what it uses:
-#
-#   SigilMotionBind   — <sigilmotion/Bind.h>: bind(), the Bound chain and
-#                       the value-noise field behind wiggle(). The leaf:
-#                       choreograph, cmath and integers only.
-#   SigilMotionValues — <sigilmotion/Values.h>: Transition, the ease::
-#                       house curves as EaseFn values, the animate()/
-#                       from()/to()/through() keyframe builders, ramp(),
-#                       phase(), quantizeTime() and Animatable<T>, the
-#                       property slot that holds any one of them or a
-#                       shaped binding (hence it links SigilMotionBind).
-#   SigilMotionClock  — <sigilmotion/FrameClock.h> and <sigilmotion/
-#                       Ticker.h>: a pausable, time-scalable, stall-clamped
-#                       frame clock driving a Ticker that steps a
-#                       choreograph::Timeline plus arbitrary steppables,
-#                       derives Outputs through a Bound chain (hence it
-#                       links SigilMotionBind), and reports whether more
-#                       frames are needed.
-#
-# SigilMotion is the umbrella over all three; <sigilmotion/Animation.h>
-# is the matching umbrella header over Values.h and Bind.h.
+# SigilMotion — animation with no renderer in it, as one feature library
+# per directory. Each feature is its own target with its own tests and
+# benchmarks, and links only the features beneath it, so a consumer that
+# needs one tier links that tier alone. `SigilMotion` is the umbrella: an
+# interface over every feature, for a consumer of the whole library.
 #
 # Choreograph itself (sansumbrella's phrase/sequence/motion library, from
 # the sigil-vcpkg-registry) is the animation vocabulary and is exposed
@@ -28,72 +11,22 @@
 # in here does not belong here. RESOLVING an Animatable against a paint
 # context stays with the consumer — SigilMotion ships the value, not a
 # resolve surface.
+#
+# Every public header lives under one include root, include/sigilmotion/
+# <feature>/, so a feature adds the root and spells its own directory.
+# <sigilmotion/Animation.h> is the umbrella header over the values and
+# bind features.
 
-add_library(SigilMotionBind STATIC
-  Bind.cpp
-  include/sigilmotion/Bind.h
-)
-target_compile_features(SigilMotionBind PUBLIC cxx_std_20)
-target_include_directories(SigilMotionBind PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(SigilMotionBind PUBLIC choreograph::choreograph)
+set(SIGIL_MOTION_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
-add_library(SigilMotionValues INTERFACE
-  include/sigilmotion/Animation.h
-  include/sigilmotion/Values.h
-)
-target_compile_features(SigilMotionValues INTERFACE cxx_std_20)
-target_include_directories(SigilMotionValues INTERFACE
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(SigilMotionValues INTERFACE
-  SigilMotionBind choreograph::choreograph)
-
-add_library(SigilMotionClock STATIC
-  FrameClock.cpp
-  Ticker.cpp
-  include/sigilmotion/FrameClock.h
-  include/sigilmotion/Ticker.h
-)
-target_compile_features(SigilMotionClock PUBLIC cxx_std_20)
-target_include_directories(SigilMotionClock PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(SigilMotionClock PUBLIC
-  SigilMotionBind choreograph::choreograph)
+# Dependencies point down this list.
+add_subdirectory(bind)
+add_subdirectory(values)
+add_subdirectory(clock)
 
 add_library(SigilMotion INTERFACE)
 target_link_libraries(SigilMotion INTERFACE
   SigilMotionClock SigilMotionValues SigilMotionBind)
-
-# One test per library, each linking only the library it exercises (and
-# the clock where a value is driven by the Ticker), so a link edge that
-# pulled a drawing library in would show up as a build failure here.
-add_executable(motion_clock_test test/MotionClockTest.cpp)
-target_link_libraries(motion_clock_test PRIVATE SigilMotionClock GTest::gtest_main)
-add_test(NAME motion_clock_test COMMAND motion_clock_test)
-
-add_executable(motion_values_test test/MotionValuesTest.cpp)
-target_link_libraries(motion_values_test PRIVATE
-  SigilMotionValues SigilMotionClock GTest::gtest_main)
-add_test(NAME motion_values_test COMMAND motion_values_test)
-
-add_executable(motion_bind_test test/MotionBindTest.cpp
-)
-target_link_libraries(motion_bind_test PRIVATE SigilMotionBind GTest::gtest_main)
-add_test(NAME motion_bind_test COMMAND motion_bind_test)
-
-# Benchmarks (Google Benchmark; use a Release build), one per library,
-# each linking only what it measures. Not tests: they build through the
-# `benches` target and run through scripts/bench_ledger.py.
-add_executable(motion_bind_bench bench/BindBench.cpp)
-target_link_libraries(motion_bind_bench PRIVATE SigilMotionBind
-  benchmark::benchmark)
-add_executable(motion_values_bench bench/ValuesBench.cpp)
-target_link_libraries(motion_values_bench PRIVATE SigilMotionValues
-  benchmark::benchmark)
-add_dependencies(benches motion_bind_bench motion_values_bench)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

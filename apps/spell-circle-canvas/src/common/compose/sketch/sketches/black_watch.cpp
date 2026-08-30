@@ -84,7 +84,7 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>

@@ -4,7 +4,7 @@
 
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 #include "Host.h"
 

@@ -8,18 +8,24 @@ and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. Decoding is not
 its job: it hands bytes to registered decoders, SigilImage's by default.
 
-Namespace `sigil::loader`. Two libraries: `SigilLoaderSource`
-(`Source.h` — header only, standard library only: `Bytes`, the
-`ByteSource`, `ResolvingByteSource` and `Decoder` concepts, and
-`AnyByteSource`, the type-erased source value) and `SigilLoader`
-(`Loader.h` — the `Hub`). The hub is a `ByteSource`; anything that
-consumes bytes by URI can be written against the concept and handed a
-hub, a fixture, or an `AnyByteSource` holding either.
+Namespace `sigil::loader`. One feature library per directory, linked by
+what a consumer uses; every public header lives under
+`include/sigilloader/<feature>/` and is spelled `<sigilloader/<feature>/X.h>`:
+
+| target | headers | holds |
+|--------|---------|-------|
+| `SigilLoaderSource` | `source/Source.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, and `AnyByteSource`, the type-erased source value |
+| `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub`, `ResourceInfo` and `ImageOptions`; `NetworkPolicy` and `networkCacheKey()` |
+
+`SigilLoader` is the umbrella target over both, and
+`<sigilloader/Loader.h>` the umbrella header. The hub is a `ByteSource`;
+anything that consumes bytes by URI can be written against the concept
+and handed a hub, a fixture, or an `AnyByteSource` holding either.
 
 ## Using it
 
 ```cpp
-#include <sigilloader/Loader.h>
+#include <sigilloader/hub/Hub.h>
 
 sigil::loader::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
@@ -134,9 +140,9 @@ cache hit or failure.
 
 ## Boundary
 
-Dependencies: `SigilLoaderSource` and `SigilImageDecode` publicly,
-`CURL::libcurl` privately — private because it is pure transport, but a
-hard requirement to configure. `SigilLoaderSource` itself depends on
+Dependencies: `SigilLoaderHub` links `SigilLoaderSource` and
+`SigilImageDecode` publicly and `CURL::libcurl` privately — private
+because it is pure transport, but a hard requirement to configure. `SigilLoaderSource` itself depends on
 nothing beyond the standard library, so a decoder library can speak the
 byte-source vocabulary without inheriting the hub, libcurl or any codec.
 
@@ -154,19 +160,23 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target loader_test
-ctest --test-dir build -C Debug -R loader_test --output-on-failure
+cmake --build build --config Debug --target loader_source_test loader_hub_test
+ctest --test-dir build -C Debug -R loader_ --output-on-failure
 ```
 
-Targets: `SigilLoaderSource` (header only), `SigilLoader` (static
-library), `loader_test`, which covers both, and `loader_bench` (Google
-Benchmark, built by the `benches` target and run from a Release build
-through `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and
-`load<T>` on a decoded view per call, `resolve` per URI against the mount
-table, and `networkCacheKey` per URL — the disk kept out of every timed
-loop).
+Targets: `SigilLoaderSource` (header only, `source/`) with
+`loader_source_test`, which checks the concepts against a fixture source
+and a fixture decoder with no hub in the binary; `SigilLoaderHub` (static
+library, `hub/` — mounts, cache, network and the decoder registry one
+translation unit each behind the private `hub/Fetch.h`) with
+`loader_hub_test` and `loader_hub_bench` (Google Benchmark, built by the
+`benches` target and run from a Release build through
+`scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a
+decoded view per call, `resolve` per URI against the mount table, and
+`networkCacheKey` per URL — the disk kept out of every timed loop); and
+`SigilLoader`, the umbrella.
 
-Two parts of the test suite are conditional. The EXR cases compile only
+Two parts of `loader_hub_test` are conditional. The EXR cases compile only
 when OpenImageIO is found at configure time — the test uses it to *write*
 its fixtures, while the library itself never calls it. The live-network
 cases skip unless `SIGILLOADER_NET_TESTS=1` is set in the environment, so

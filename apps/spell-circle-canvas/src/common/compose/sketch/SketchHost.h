@@ -7,7 +7,7 @@
 // with `-undefined dynamic_lookup` and build in a couple of seconds.
 
 #include <include/core/SkRefCnt.h>
-#include <sigilmotion/FrameClock.h>
+#include <sigilmotion/clock/FrameClock.h>
 
 #include <chrono>
 #include <filesystem>

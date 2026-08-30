@@ -9,27 +9,30 @@ moving, and a small set of value types describing how a property changes
 over time. It links Choreograph and nothing else, so anything can use it
 without dragging in a graphics stack.
 
-Namespace `sigil::motion`. Three libraries, linked by what a consumer
-uses:
+Namespace `sigil::motion`. One feature library per directory, linked by
+what a consumer uses; every public header lives under
+`include/sigilmotion/<feature>/` and is spelled `<sigilmotion/<feature>/X.h>`:
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `Bind.h` | `bind()`, the `Bound` chain, `BoundFloat`, `Envelope`, the wiggle noise |
-| `SigilMotionValues` | `Values.h` | `Transition`, `ease::`, `animate()`/`from()`/`to()`/`through()`, `ramp()`, `phase()`, `quantizeTime()`, `Animatable<T>` |
-| `SigilMotionClock`  | `FrameClock.h`, `Ticker.h` | the clock and the ticker |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Time.h`; `values/Values.h` includes all four | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `quantizeTime()` and `phase()` |
+| `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 
-`SigilMotion` is the umbrella target over all three, and `Animation.h` is
-the umbrella header over `Values.h` and `Bind.h`, so a consumer that
-includes `Animation.h` and links `SigilMotion` sees everything. Bind is
-the leaf: Values links it because `Animatable<T>` can hold a shaped
-binding, and Clock links it because `Ticker::derive` runs one.
+`SigilMotion` is the umbrella target over all three, and
+`<sigilmotion/Animation.h>` is the umbrella header over every values and
+bind header, so a consumer that includes `Animation.h` and links
+`SigilMotion` sees every value and binding (the clock headers are
+included on their own). Bind is the leaf: Values links it because
+`Animatable<T>` can hold a shaped binding, and Clock links it because
+`Ticker::derive` runs one.
 
 ## Using it
 
 ```cpp
 #include <sigilmotion/Animation.h>
-#include <sigilmotion/FrameClock.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/clock/Ticker.h>
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -220,7 +223,9 @@ ctest --test-dir build -C Debug -R motion_ --output-on-failure
 ```
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
-(the libraries), `SigilMotion` (the umbrella), and one test per library:
+(the libraries, one per feature directory — `bind/`, `values/`, `clock/`
+— each holding its sources, its `test/` and its `bench/`), `SigilMotion`
+(the umbrella), and one test per library:
 `motion_bind_test`, `motion_values_test` and `motion_clock_test`, plus two
 Google Benchmark binaries built by the `benches` target and run from a
 Release build through `scripts/bench_ledger.py`: `motion_bind_bench`

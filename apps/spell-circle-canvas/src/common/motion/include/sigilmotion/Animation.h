@@ -2,10 +2,16 @@
 
 /** @file
  * The whole describable side of motion in one include: the animation
- * values (<sigilmotion/Values.h>) and the shaped bindings
- * (<sigilmotion/Bind.h>). A consumer that needs only one half includes
- * that header alone.
+ * values and the shaped bindings. Transitional: a consumer that spelled
+ * the headers by bare name before they moved under their features
+ * includes this one and keeps compiling, then narrows to the feature
+ * headers it actually uses.
  */
 
-#include "sigilmotion/Bind.h"
-#include "sigilmotion/Values.h"
+#include "sigilmotion/bind/Bound.h"
+#include "sigilmotion/bind/BoundFloat.h"
+#include "sigilmotion/bind/WiggleNoise.h"
+#include "sigilmotion/values/Animatable.h"
+#include "sigilmotion/values/Keyframes.h"
+#include "sigilmotion/values/Time.h"
+#include "sigilmotion/values/Transition.h"

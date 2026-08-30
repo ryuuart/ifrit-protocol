@@ -7,7 +7,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/points/Points.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/Ticker.h>
 
 #include <chrono>
 #include <cstdio>

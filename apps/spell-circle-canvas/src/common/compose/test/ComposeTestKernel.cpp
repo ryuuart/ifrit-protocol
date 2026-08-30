@@ -294,7 +294,7 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 TEST(ComposeEffects, LayerEffectBlursNode) {
   Host host;

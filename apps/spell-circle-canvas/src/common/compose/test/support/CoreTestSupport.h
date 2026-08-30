@@ -19,7 +19,7 @@
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
