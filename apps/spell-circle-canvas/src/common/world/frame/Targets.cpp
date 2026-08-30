@@ -77,6 +77,9 @@ SkCanvas* Targets::canvas(std::string_view name) {
 }
 
 sk_sp<SkImage> Targets::image(std::string_view name) {
+  // An installed source is where the pixels actually are, so it answers
+  // first: with one, the surfaces here were never painted.
+  if (m_source) return m_source(name);
   SkSurface* surface = surfaceOf(name);
   return surface ? surface->makeImageSnapshot() : nullptr;
 }
@@ -105,6 +108,11 @@ int Targets::surfaces() const {
 }
 
 void Targets::endFrame() {
+  // With a source installed, what "last frame" means belongs to the
+  // executor that holds the pixels; keeping a raster copy here would
+  // cost a crossing back for every kept name and answer with a second,
+  // staler reading of the same resource.
+  if (m_source) return;
   // A kept name a pass never painted answers with the transparent
   // surface it was bound to, which is the truthful reading of a
   // resource nothing has written yet.

@@ -297,7 +297,8 @@ void Scene::Impl::writeComponents(Instance& inst) {
           ? &inst.resource->cooked.mesh
           : nullptr;
   if (mesh)
-    registry.emplace_or_replace<component::Body>(inst.entity, mesh);
+    registry.emplace_or_replace<component::Body>(inst.entity, mesh,
+                                                 inst.resource->id);
   else
     registry.remove<component::Body>(inst.entity);
   registry.emplace_or_replace<component::Surface>(

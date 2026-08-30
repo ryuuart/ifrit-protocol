@@ -36,10 +36,6 @@ add_subdirectory(graph)
 # runtime and executing a frame's passes on the runtime it carries.
 add_subdirectory(scene)
 
-# The study harness: a scene stepped to a declared moment and
-# photographed on the CPU, and the studies that ride it.
-add_subdirectory(testing)
-
 # The device feature needs SigilSkia's, since the whole point of it is
 # that both APIs draw on one device. The light feature above stands
 # without it.
@@ -50,6 +46,12 @@ else()
     "SigilWorldDiligent skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS "
     "(SigilSkiaDevice)")
 endif()
+
+# The study harness: a scene stepped to a declared moment and
+# photographed, and the studies that ride it. After the device feature,
+# because the studies BINARY links it for its --gpu lane while the
+# harness library links no device at all.
+add_subdirectory(testing)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

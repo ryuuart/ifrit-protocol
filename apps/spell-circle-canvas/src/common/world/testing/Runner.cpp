@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -24,10 +25,12 @@ std::string lowered(std::string text) {
 
 }  // namespace
 
-int runStudies(std::span<const Study> studies, int argc, char* argv[]) {
+int runStudies(std::span<const Study> studies, int argc, char* argv[],
+               const std::function<Runtime(std::string* error)>& device) {
   std::string outDir = "world_studies_out";
   std::string only;
   bool headless = false;
+  bool onDevice = false;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--headless") {
@@ -37,6 +40,8 @@ int runStudies(std::span<const Study> studies, int argc, char* argv[]) {
       for (const Study& study : studies)
         std::printf("%s\n", study.name.c_str());
       return 0;
+    } else if (arg == "--gpu") {
+      onDevice = true;
     } else if (arg == "--study" && i + 1 < argc) {
       only = argv[++i];
     } else {
@@ -47,7 +52,7 @@ int runStudies(std::span<const Study> studies, int argc, char* argv[]) {
   if (!headless) {
     std::fprintf(stderr,
                  "usage: world_studies --headless <outdir> "
-                 "[--study <name>] [--list-studies]\n");
+                 "[--study <name>] [--gpu] [--list-studies]\n");
     return 1;
   }
 
@@ -65,9 +70,22 @@ int runStudies(std::span<const Study> studies, int argc, char* argv[]) {
     return 1;
   }
 
+  // A flag that asked for the device answers with the device or with
+  // nothing: rendering the CPU's plate under --gpu would put two
+  // different pictures under one name.
+  Runtime runtime;
+  if (onDevice) {
+    std::string error = "this binary was built without a device";
+    if (device) runtime = device(&error);
+    if (!runtime) {
+      std::fprintf(stderr, "--gpu: no device runtime (%s)\n", error.c_str());
+      return 1;
+    }
+  }
+
   int failures = 0;
   for (const Study* study : selected) {
-    const bool written = capture(*study, outDir);
+    const bool written = capture(*study, outDir, runtime);
     std::printf("%-24s %4dx%-4d  at %5.2fs  %s\n", study->name.c_str(),
                 study->canvas.width(), study->canvas.height(),
                 (double)study->captureSeconds, written ? "ok" : "FAILED");

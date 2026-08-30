@@ -24,7 +24,19 @@ namespace {
 constexpr double kStep = 1.0 / 60.0;
 }  // namespace
 
-SkBitmap render(const Study& study) {
+namespace {
+
+/** A study about the SCENE, made into one a runtime can perform: one
+ *  geometry pass clearing to the study's background and painting every
+ *  body. A study that already declares passes is left alone. */
+void throughPasses(Frame& frame, const Study& study) {
+  if (!frame.passes().empty()) return;
+  frame.pass(geometryPass("colour").writes("colour").clear(study.background));
+}
+
+}  // namespace
+
+SkBitmap render(const Study& study, const Runtime& runtime) {
   SkBitmap bitmap;
   bitmap.allocPixels(
       SkImageInfo::MakeN32Premul(study.canvas.width(), study.canvas.height()));
@@ -40,6 +52,10 @@ SkBitmap render(const Study& study) {
     // study says what it is of, not where it lands.
     Frame frame = study.describe((float)(step * kStep));
     frame.extent(study.canvas).camera(study.camera);
+    if (runtime) {
+      frame.runtime(runtime);
+      throughPasses(frame, study);
+    }
     scene.render(frame);
   }
 
@@ -49,9 +65,10 @@ SkBitmap render(const Study& study) {
   return bitmap;
 }
 
-bool capture(const Study& study, const std::string& outDir) {
+bool capture(const Study& study, const std::string& outDir,
+             const Runtime& runtime) {
   std::filesystem::create_directories(outDir);
-  const SkBitmap bitmap = render(study);
+  const SkBitmap bitmap = render(study, runtime);
   const std::string path = outDir + "/study_" + study.name + ".png";
   SkFILEWStream stream(path.c_str());
   return stream.isValid() && SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});

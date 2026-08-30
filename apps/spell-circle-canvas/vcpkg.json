@@ -33,6 +33,7 @@
       ]
     },
     "openimageio",
+    "shader-slang",
     {
       "name": "shader-slang",
       "host": true

@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T21:40:13+00:00",
+ "taken": "2026-08-30T23:26:58+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3504,8 +3504,20 @@
   },
   "world_diligent_bench": {
    "BM_DeviceBringUp": {
-    "real_ns": 5092664.469226167,
-    "cpu_ns": 4908913.793103419,
+    "real_ns": 4914545.010955583,
+    "cpu_ns": 4489774.193548409,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_ProgramFromRecipeBody": {
+    "real_ns": 106826104.45655882,
+    "cpu_ns": 106826999.99999978,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_FrameOnDevice": {
+    "real_ns": 359744.28178245353,
+    "cpu_ns": 57751.155947877225,
     "unit": "ms",
     "repetitions": 4
    }

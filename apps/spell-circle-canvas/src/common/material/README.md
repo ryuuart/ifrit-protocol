@@ -42,8 +42,9 @@ chrome-type ramps.
 The core links glm (for the vector types a struct may hold), choreograph
 (for the animation output a field may bind to) and Boost.PFR (for the
 reflection that reads a struct's field names off the type). The core has
-no renderer in it: compilers arrive from backend features, and there is
-one, for Skia's SkSL.
+no renderer in it: compilers arrive from backend features. One ships in
+this library, for Skia's SkSL; `Target::Slang` is compiled by whichever
+3D renderer speaks it, which registers itself the same way.
 
 Namespace `sigil::material`. Eight feature libraries, one per directory,
 each a static archive that links only what sits beneath it:
@@ -154,7 +155,14 @@ equality use the pointer. Define a recipe once and hold it in a
 
 **One body per target, and asking for a missing one is an error once.**
 `Recipe::body(Target, source)` stores the body for a language;
-`Recipe::source(target)` is the generated declarations followed by it. A
+`Recipe::source(target)` is the generated declarations followed by it.
+The two targets ask a body for the same thing in their own words:
+
+| target | what a body is | how it reads a child slot |
+|---|---|---|
+| `Target::SkSL` | `half4 main(float2 p)`, returning premultiplied colour | `uniform shader NAME`, evaluated as `NAME.eval(p)` |
+| `Target::Slang` | `float4 surface(float2 uv)`, returning STRAIGHT colour — the renderer that compiles it puts the lighting and the premultiply around it | `uniform Sampler2D NAME`, read as `NAME.Sample(uv)` |
+ A
 material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a
 null program, and the cache reports it to stderr exactly once per (recipe,
@@ -296,13 +304,22 @@ whichever of the three channel slots no separate map fills, at channels
 map multiplies started at one — left at its stock value a metallic map
 would multiply zero and never be seen.
 
-The SkSL bodies are what a device-space shader can answer honestly: there
-is no surface normal, no view vector and no light in a 2D paint, so
-metallic, roughness, the normal map and the glass terms have no effect
-there. `surface()` shades the albedo attenuated by occlusion plus its
-emission — the ambient-only evaluation of the model — and `unlit()`
-shades the albedo alone. A renderer that HAS the surface attributes reads
-the same params and slots and shades the full model.
+Both recipes carry a body in each language, and both bodies read the same
+albedo, the same occlusion at the same strength, the same emission and
+the same cutout — one ABI, two spellings. What a body can answer is
+bounded by what its renderer knows: there is no surface normal, no view
+vector and no light in a 2D paint, so metallic, roughness, the normal map
+and the glass terms have no effect on either body. `surface()` shades the
+albedo attenuated by occlusion plus its emission — the ambient-only
+evaluation of the model — and `unlit()` shades the albedo alone. A
+renderer that HAS the surface attributes reads the same params and slots:
+the 3D one puts its own lighting around what these return, so the
+difference between the two recipes there is whether the emitters reach
+the result at all.
+
+A Slang body writes out the intrinsics whose two targets are two
+different pieces of code — a `lerp`, a `dot`, a `smoothstep` — because an
+intrinsic is where one source stops producing one answer.
 
 **Masks say where.** `kit::maskConstant` is a number; `kit::maskMap`
 reads a channel of a texture; `kit::maskVertexColor`, `kit::maskSlope`

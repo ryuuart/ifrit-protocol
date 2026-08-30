@@ -46,10 +46,13 @@ struct Placement {
   glm::mat4 world{1.0f};
 };
 
-/** The triangles to draw. The mesh belongs to the resource store, whose
- *  entries hold their address for their whole life. */
+/** The triangles to draw, and which cooked artefact they are. The mesh
+ *  belongs to the resource store, whose entries hold their address for
+ *  their whole life; the id names the artefact across its life and is
+ *  never given to another, which an address cannot promise. */
 struct Body {
   const Mesh* mesh = nullptr;
+  uint64_t id = 0;
 };
 
 /** What the surface is: the colour a tier with no compiler to run a

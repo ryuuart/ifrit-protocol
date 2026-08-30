@@ -111,3 +111,23 @@ without paying for it at every call site that used to inline it.
 **What a test should assert once intent is restored.** Either the two
 benchmarks return inside their band, or the baseline records the cost
 with the boundary that causes it named beside it.
+
+## `world_diligent_bench:BM_DeviceBringUp` moves more than the ledger's band
+
+**What the code does.** The benchmark creates a whole Vulkan device per
+iteration. Its median rises within one session — a device made after
+several others costs measurably more than the first — and rises again
+across back-to-back ledger invocations, so a baseline seeded from one
+sweep is outside the ledger's band by the third. Nothing about the
+library changes between those sweeps.
+
+**What it was evidently intended to do.** State what a process pays once
+on its way to its first frame, as a number a change to this library
+could move.
+
+**What a test should assert once intent is restored.** That the number
+is a property of the code: either the benchmark measures the part of
+bring-up this library owns — the adoption, the loader, the shim — with
+the driver's own device creation outside the timed region, or the ledger
+carries a per-benchmark band wide enough to be a real gate for it and
+states why this one is wider.

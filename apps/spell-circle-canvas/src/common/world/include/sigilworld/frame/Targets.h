@@ -17,10 +17,12 @@
 #include <include/core/SkSurface.h>
 #include <sigilworld/element/Geometry.h>
 
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 class SkCanvas;
@@ -65,6 +67,19 @@ class Targets {
   /** How many surfaces the names bound here needed. */
   [[nodiscard]] int surfaces() const;
 
+  /** WHERE AN IMAGE COMES FROM when the frame's passes did not paint it
+   *  here — an executor that performed them somewhere else, on a device.
+   *  It answers for one name at a time, so only the resources something
+   *  actually asks for cost the crossing back.
+   *
+   *  Installing one hands that executor "what stood at the end of the
+   *  frame before" as well: `previous()` answers null and `endFrame()`
+   *  keeps nothing, because the executor that owns where the pixels are
+   *  owns what last frame means for them. */
+  using ImageSource = std::function<sk_sp<SkImage>(std::string_view)>;
+  void source(ImageSource source) { m_source = std::move(source); }
+  [[nodiscard]] bool sourced() const { return (bool)m_source; }
+
   /** Close the frame: every kept name's image becomes what `previous()`
    *  answers. */
   void endFrame();
@@ -79,6 +94,7 @@ class Targets {
   std::map<std::string, sk_sp<SkImage>> m_previous;
   std::set<std::string> m_kept;
   std::map<std::string, Cloud> m_points;
+  ImageSource m_source;
 
   /** The surface @p name sits in, made on the first ask. */
   SkSurface* surfaceOf(std::string_view name);

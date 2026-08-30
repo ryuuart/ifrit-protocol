@@ -29,7 +29,7 @@ here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a frame stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the `Runtime` that performs a frame's passes on that device. |
 
 ## Writing a scene
 
@@ -218,7 +218,24 @@ naming the pass, because the coverage it needs cannot be taken.
 `Scene::plan()` is the whole reading — the steps, the barriers, the
 resources and their surfaces — and `Scene::error()` is what stopped it.
 
-## What the CPU executor performs
+## What an executor performs
+
+Two ship: `Runtime::cpu()`, which paints into raster surfaces and needs
+no device, and `diligent::runtime(device)`, which rasterises on a GPU.
+They are the same seam — a frame names one and every declaration around
+it is unchanged.
+
+Beside `execute`, an `Executor` is told when a frame opens and when it
+closes. `beginFrame(targets)` is where one holding resources of its own
+sizes them and makes what the frame before wrote into what this frame's
+`previous()` names — which cannot wait until the frame ends, because
+between the last pass and the next frame is exactly when the picture is
+presented and a readback is taken. `endFrame(targets)` runs after
+everything the frame read back has been taken, and is where such an
+executor lets go of what the frame stopped needing. The CPU executor
+needs neither.
+
+### The CPU executor
 
 `Runtime::cpu()` is the built-in `Executor`, and it paints into raster
 surfaces:
@@ -235,6 +252,77 @@ surfaces:
 
 A pass carrying a body runs that body instead, and the declarations
 around it are unchanged.
+
+### The device executor
+
+`diligent::runtime(device)` performs the same passes on the device the
+`diligent/` feature brought up. What it does with each:
+
+- a **geometry pass** rasterises the bodies its realisation leaves it
+  into a device texture, DEPTH-TESTED, from a pipeline built out of each
+  material's own `Target::Slang` body. It draws in the back-to-front
+  order the extracted view already carries and writes depth for an opaque
+  body only, so a blended one is laid over what stands behind it; the
+  order and the depth buffer agree wherever the view's centroid sort is
+  right, and where it is not the depth buffer is the one telling the
+  truth.
+- a **compute pass** cooks its chain on the `pop::Runtime` the pass
+  carries. That is the host executor until a point-operator kernel exists
+  for the device — the points are cooked on the host and uploaded like
+  any other geometry when a stamp is stood at them.
+- a **post pass** is a shader pass: one triangle covering the target and
+  one fragment stage per layer. A texture's origin is its top left and
+  clip space counts y upward, so that triangle turns the vertical
+  coordinate over — without which a chain of such stages would be right
+  only when its length was even. A blur is a separable Gaussian in two
+  draws through a working target, a grade is one draw, and a composite
+  lays each further layer over the first under a blend state. Masked, the
+  picture is copied first and the op reaches it through the coverage.
+  A device cannot sample an image it is drawing into, so every stage that
+  reads and writes at once takes a working target of its own — including
+  a pass that declares it writes what it reads, which on the host is
+  answered by taking the layers as snapshots first.
+
+**A cooked artefact is named by a NUMBER, not by its address.** A
+renderer holding buffers per geometry keys on `Draw::geometry`, which the
+resource store counts up once for the process. An address cannot serve:
+an artefact that is dropped frees its memory and the next one cooked can
+land on it, and a count per store would hand two scenes' artefacts one
+number. A frame that cooks a mesh of its OWN — the stamps of a point set
+— has no artefact to name and takes a number this frame alone uses.
+
+**The pixels stay on the device.** The frame's resources are device
+textures for as long as the runtime lives, and nothing crosses back until
+something asks for a resource BY NAME — a declared `readback`, or the
+picture being presented. That is what `Targets::source` is: a runtime
+that executed elsewhere answers for one name at a time, so a frame that
+reads nothing back pays for no crossing at all. With a source installed
+`Targets::previous()` answers null and `endFrame()` keeps nothing,
+because the executor that owns where the pixels are owns what last frame
+means for them — the device executor keeps each resource's previous
+texture beside its current one and exchanges the two when the next frame
+opens.
+
+**What a material reaches the device as.** A recipe's Slang body is one
+function, `float4 surface(float2 uv)`, returning the surface's own colour
+with straight alpha. The scaffold around it supplies the vertex stage,
+the lighting and the premultiply, and every uniform — the recipe's
+parameters and the scaffold's own — is written at the offset the compiler
+REPORTED for it, so a body that declares one more parameter moves nothing
+a renderer has to be told about. The variant axis is one bit, `kVariantLit`:
+without it the lighting, the uniforms it reads and the loop over the
+emitters are not in the compiled program. The mesh vertex layout is not a
+variant axis, because there is one — position, normal, uv and tint, with
+the lanes a mesh does not carry filled in on upload; nor is the blended
+build, which is the blend and depth state a pipeline is created with.
+
+A material whose recipe has no Slang body is painted in the colour the
+frame extracted — the same reading the CPU tier makes — and the program
+cache has already reported the recipe and the target once.
+
+**Not on the device yet**: a texture leaf in a child slot. Every sampled
+slot reads one white texel, so a body multiplied by a map it was not
+given is the body.
 
 ## The host contract
 
@@ -309,13 +397,23 @@ declared moment and photographed — so a plate is a function of the
 declaration alone and never of how fast the machine ran.
 
 ```sh
-build/bin/Release/world_studies --headless <outdir> [--study <name>]
+build/bin/Release/world_studies --headless <outdir> [--study <name>] [--gpu]
 build/bin/Release/world_studies --headless <outdir> --list-studies
 ```
 
 `--study` takes a case-insensitive substring, which is the loop for
 visual iteration. A study joins the registry by being named in
 `testing/studies/Studies.h` and listed in `testing/CMakeLists.txt`.
+
+`--gpu` renders every study through the device runtime instead. A study
+that declared no passes is wrapped in one geometry pass clearing to its
+background, because an executor is only reached through passes and a
+study about the scene must be able to say what it looks like on a device
+too. The flag answers with the device or with nothing: on a machine with
+no Vulkan runtime it reports that and fails, rather than quietly putting
+the CPU's plate under a name that asked for the device's. The device is
+brought up by the BINARY, so the harness library links none and a machine
+with no GPU still renders the CPU tier.
 
 `first_light` is the first of them: a tube swept along a closed loop, a
 comet of stamps riding a moving window of that same loop, a plate under
@@ -334,7 +432,7 @@ A study returns a `Frame`, and an `Element` is one with no passes, so a
 study about the scene says nothing about passes at all. The harness
 writes the plate's size and its viewpoint into whichever it was handed.
 
-## The plate ledger's 3D tier
+## The plate ledger's 3D tiers
 
 `scripts/plate_ledger.py --tier world` renders every study to its
 declared moment on the CPU and hashes the bytes against its own baseline,
@@ -346,7 +444,25 @@ different registry, and it needs no device:
 python3 scripts/plate_ledger.py --tier world --rebase   # adopt a baseline
 python3 scripts/plate_ledger.py --tier world            # sweep and judge
 python3 scripts/plate_ledger.py --tier world --stability 2
+python3 scripts/plate_ledger.py --tier world-gpu        # the device tier
 ```
+
+`--tier world-gpu` renders the same studies through the device runtime
+and is the ONE TIER NOT JUDGED ON BYTE IDENTITY. It has no baseline: each
+plate is compared against the CPU tier's plate of the same study, and the
+same sweep renders both. Two rasterisers are not asked to agree bit for
+bit — the host paints shaded vertices through a per-triangle sort with
+Skia's antialiasing, the device rasterises the same shading through a
+depth buffer with none, and a blur is a box approximation on one side and
+a Gaussian on the other. What is measured instead, per colour channel in
+0..255 over every pixel, is the MEAN absolute difference (which says the
+two are the same picture), the 99th PERCENTILE (which says the
+disagreement is confined) and the WORST channel — which is an edge, or a
+body a centroid sort ranked wrongly on the host and a depth buffer ranked
+rightly on the device, and is reported rather than judged. Each study names its own mean and p99
+ceilings in the script, set from what the two tiers do rather than from a
+wish. With no device the tier reports that and exits green, because a
+machine with no Vulkan runtime has nothing to disagree about.
 
 ## What is coming
 
@@ -357,11 +473,31 @@ tree buildable:
 |---|---|---|
 | `kit/` | `SigilWorldKit` | presets that compose elements: a three-point rig, a turntable, a lit set |
 
-`diligent/` grows the rest of the execution side beside its device:
-pipelines from resolved `material::Program`s, the Slang compiler
-registration, the GPU `Runtime` value and `importNative`. An umbrella
-interface target named `SigilWorld` gathers every feature once there is
-more than one worth gathering.
+`diligent/` still owes `importNative`, a point-operator kernel that cooks
+a chain on the device, and a texture leaf that reaches a sampled slot. An
+umbrella interface target named `SigilWorld` gathers every feature once
+there is more than one worth gathering.
+
+### Where the shaders come from
+
+The shader modules under `diligent/shaders/` are compiled TWICE. `slangc`
+compiles each when this library is built — which is what makes a mistake
+in one a build failure rather than a first-frame surprise — and the build
+also generates a header carrying each module's text, because the source a
+material's body is appended to cannot be finished until the material
+exists. At run time the scaffold's text, a recipe's generated
+declarations, its body and one fragment entry point are assembled into
+one module and compiled through the Slang library, which is also what
+reports every uniform's offset.
+
+`Portable.slang` is the subset one source can be compiled twice from and
+still answer once: arithmetic plus the operations IEEE 754 pins exactly,
+with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the trigonometric
+functions written out, because a library intrinsic is two different
+pieces of code on two targets. Slang emits no contraction decoration in
+its SPIR-V, so a driver is free to fuse a multiply-add inside a module
+compiled here; a kernel that needs the unfused answer has to reach the
+same result without depending on it.
 
 ### The one device
 
@@ -427,9 +563,15 @@ reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
 bake taken once and lost to a driven lane below it, and a draw that is a
 function of the description alone. `world_light_test` runs anywhere.
-`world_diligent_test` needs a Vulkan runtime (`brew install molten-vk
-vulkan-loader`) and *skips* rather than fails without one, so a machine
-with no GPU stays green.
+`world_diligent_test` covers the device side: a pipeline off a recipe's
+Slang body with its parameter at a reflected offset and the lit build
+carrying shading the unlit one does not, one scene rendered on both tiers
+and measured apart, a cooked chain that matches the host's cook exactly,
+a readback that arrives the frame after, and a masked pass that lifts the
+selection and leaves the ground where it stood. The program tests run
+anywhere; the ones that need a Vulkan runtime (`brew install molten-vk
+vulkan-loader`) *skip* rather than fail without one, so a machine with no
+GPU stays green.
 
 `world_frame_test` covers the declarations and the CPU executor without
 anything retained: a pass compares field by field, each realisation
@@ -444,4 +586,7 @@ each selection realisation ruled on.
 `world_element_bench`, `world_frame_bench`, `world_graph_bench`,
 `world_scene_bench`, `world_light_bench` and `world_diligent_bench` build
 through the `benches` target and run through `scripts/bench_ledger.py`;
-use a Release build.
+use a Release build. The device bench measures the three costs a frame
+on a device has that one on the host does not: bringing the device up,
+turning a recipe's Slang body into a program, and a steady frame with
+every pipeline and every mesh already uploaded.

@@ -29,6 +29,16 @@ struct Resource {
   uint64_t bucket = 0;
   Cooked cooked;
   int references = 0;
+  /** A NUMBER NO OTHER ARTEFACT EVER HAS, counted up once for the
+   *  PROCESS rather than once per store — a renderer holding something
+   *  per artefact outlives any one scene, and two scenes counting from
+   *  one would hand it two artefacts under one number.
+   *
+   *  An address is not enough to name an artefact by either: an entry
+   *  that is dropped frees its memory and the next one cooked can land
+   *  on it, so a cache keyed on the address alone would serve a new
+   *  artefact what the old one uploaded. */
+  uint64_t id = 0;
 };
 
 /** THE STORE. Keyed by the geometry VALUE, not by a hash of it: the

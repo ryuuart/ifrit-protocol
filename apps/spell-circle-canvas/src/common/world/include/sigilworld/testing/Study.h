@@ -10,6 +10,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSize.h>
 #include <sigilworld/frame/Frame.h>
+#include <sigilworld/frame/Runtime.h>
 
 #include <functional>
 #include <span>
@@ -40,22 +41,37 @@ struct Study {
   std::function<Frame(float seconds)> describe;
 };
 
-/** Steps @p study to its declared moment and draws the last frame
- *  through the CPU mesh runtime. */
-SkBitmap render(const Study& study);
+/** Steps @p study to its declared moment and photographs the last frame.
+ *
+ *  An EMPTY @p runtime leaves each frame carrying its own, which is the
+ *  CPU executor, and a study that declared no passes is drawn straight
+ *  from what extract left. A runtime that was GIVEN is put on every
+ *  frame, and a study that declared no passes is wrapped in one geometry
+ *  pass that clears to its background — because an executor is only
+ *  reached through passes, and a study about the scene must be able to
+ *  say what it looks like on a device too. */
+SkBitmap render(const Study& study, const Runtime& runtime = {});
 
 /** `render()`, written to `<outDir>/study_<name>.png`. */
-bool capture(const Study& study, const std::string& outDir);
+bool capture(const Study& study, const std::string& outDir,
+             const Runtime& runtime = {});
 
 /** THE HARNESS ENTRY, spelled the way the gallery's headless mode is:
  *
- *      world_studies --headless <outdir> [--study <name>]
+ *      world_studies --headless <outdir> [--study <name>] [--gpu]
  *      world_studies --headless <outdir> --list-studies
  *
  *  `--study` takes a case-insensitive substring and renders just that
  *  one, which is the loop for visual iteration; `--list-studies` prints
  *  the registry one name per line, which is what the plate ledger reads.
+ *
+ *  `--gpu` asks @p device for a runtime and renders every study through
+ *  it. A caller that supplies no factory, or a factory that answers with
+ *  an empty runtime because the machine has no device, reports that and
+ *  fails rather than quietly rendering the CPU's answer under a flag
+ *  that asked for the device's.
  */
-int runStudies(std::span<const Study> studies, int argc, char* argv[]);
+int runStudies(std::span<const Study> studies, int argc, char* argv[],
+               const std::function<Runtime(std::string* error)>& device = {});
 
 }  // namespace sigil::world::testing

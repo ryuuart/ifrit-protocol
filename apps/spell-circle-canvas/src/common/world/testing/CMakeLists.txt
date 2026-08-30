@@ -23,5 +23,15 @@ add_executable(world_studies
   studies/world_studies_main.cpp
   studies/Studies.h
 )
-target_link_libraries(world_studies PRIVATE SigilWorldTesting
-  SigilMaterialCore)
+# The device is linked by the BINARY and not by the harness: a study is a
+# scene, and the library that renders one must stand on a machine with no
+# Vulkan runtime. Without the device feature the binary is built without
+# its --gpu lane, which reports rather than falling back.
+if(TARGET SigilWorldDiligent)
+  target_link_libraries(world_studies PRIVATE SigilWorldTesting
+    SigilMaterialCore SigilWorldDiligent)
+else()
+  target_link_libraries(world_studies PRIVATE SigilWorldTesting
+    SigilMaterialCore)
+  target_compile_definitions(world_studies PRIVATE SIGILWORLD_NO_DEVICE=1)
+endif()

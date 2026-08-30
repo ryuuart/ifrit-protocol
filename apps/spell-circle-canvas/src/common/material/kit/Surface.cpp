@@ -1,7 +1,7 @@
 /** @file
- * The two surface bodies in SkSL, the neutral maps that fill an
- * undressed slot, and the builders — including the one that reads a
- * decoded texture set into slots and channels.
+ * The two surface bodies in each language a renderer speaks, the neutral
+ * maps that fill an undressed slot, and the builders — including the one
+ * that reads a decoded texture set into slots and channels.
  */
 
 #include "sigilmaterial/kit/Surface.h"
@@ -54,7 +54,49 @@ half4 main(float2 xy) {
 }
 )";
 
-Recipe define(std::string name, const char* body) {
+/** The same two readings in Slang, for a renderer that compiles it.
+ *
+ *  A Slang body answers ONE function — `float4 surface(float2 uv)` —
+ *  returning the surface's own colour with straight alpha. Where the
+ *  SkSL bodies evaluate a child slot as a shader, these sample it as a
+ *  texture; the params, the slots and the channel conventions are the
+ *  same ABI, because they are the same recipe. */
+constexpr char kSlangPrelude[] = R"(
+float chanS(float4 c, float which) {
+  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
+}
+
+// Written out rather than taken from the language's library: an
+// intrinsic whose two targets are two different pieces of code is where
+// one source stops producing one answer.
+float mixS(float a, float b, float t) { return a + (b - a) * t; }
+
+float cutS(float a) {
+  return alphaCutoff > 0.0 ? (a < alphaCutoff ? 0.0 : 1.0) : a;
+}
+)";
+
+constexpr char kSlangSurface[] = R"(
+float4 surface(float2 uv) {
+  float4 c = baseColor * baseColorMap.Sample(uv);
+  float occ = mixS(1.0, chanS(occlusionMap.Sample(uv), occlusionChannel),
+                   clamp(occlusionStrength, 0.0, 1.0));
+  float3 rgb = c.rgb * occ + emissive.rgb * emissiveStrength *
+                                 emissiveMap.Sample(uv).rgb;
+  float a = cutS(c.a * chanS(opacityMap.Sample(uv), opacityChannel));
+  return float4(min(rgb, float3(a, a, a)), a);
+}
+)";
+
+constexpr char kSlangUnlit[] = R"(
+float4 surface(float2 uv) {
+  float4 c = baseColor * baseColorMap.Sample(uv);
+  float a = cutS(c.a * chanS(opacityMap.Sample(uv), opacityChannel));
+  return float4(min(c.rgb, float3(a, a, a)), a);
+}
+)";
+
+Recipe define(std::string name, const char* body, const char* slangBody) {
   return Recipe::of<SurfaceParams>(std::move(name))
       .child(std::string(kBaseColorSlot))
       .child(std::string(kNormalSlot))
@@ -63,7 +105,8 @@ Recipe define(std::string name, const char* body) {
       .child(std::string(kOcclusionSlot))
       .child(std::string(kEmissiveSlot))
       .child(std::string(kOpacitySlot))
-      .body(Target::SkSL, std::string(kPrelude) + body);
+      .body(Target::SkSL, std::string(kPrelude) + body)
+      .body(Target::Slang, std::string(kSlangPrelude) + slangBody);
 }
 
 /** What every neutral fill's producer key starts with, so a reader can
@@ -102,13 +145,14 @@ Material dress(Material m) {
 
 const std::shared_ptr<const Recipe>& surfaceRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(define("surface", kSurface));
+      std::make_shared<const Recipe>(
+          define("surface", kSurface, kSlangSurface));
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& unlitRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(define("unlit", kUnlit));
+      std::make_shared<const Recipe>(define("unlit", kUnlit, kSlangUnlit));
   return recipe;
 }
 

@@ -78,4 +78,22 @@ float attenuation(const Light& light, const glm::vec3& at);
  *  as one value. */
 glm::vec3 radiance(const Light& light);
 
+/** AN EMITTER IN DIRECTIONAL TERMS: one direction, one colour and one
+ *  strength, which is what a shading model with no per-pixel position
+ *  can answer to. */
+struct Directional {
+  /** The direction the light travels, toward the scene. */
+  glm::vec3 direction = {0, -1, 0};
+  glm::vec4 color = {1, 1, 1, 1};
+  float intensity = 1;
+};
+
+/** @p light as a direction. A sun already is one. A light that STANDS
+ *  somewhere reaches this reading as the direction from where it stands
+ *  toward the origin, at the strength it has there — so a renderer that
+ *  shades per vertex and one that shades per pixel disagree about where
+ *  a lamp falls off, and agree about where it is. The full falloff is
+ *  `attenuation`. */
+Directional directional(const Light& light);
+
 }  // namespace sigil::world::light

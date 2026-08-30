@@ -41,6 +41,18 @@ class Executor {
    *  — over @p view, into @p targets. */
   virtual void execute(const PassWork& work, const View& view,
                        Targets& targets) const = 0;
+
+  /** Called once before a frame's steps. An executor holding resources
+   *  of its own sizes them to the targets' extent here, and makes what
+   *  the frame before wrote into what this frame's `previous()` names —
+   *  which cannot wait until the frame ends, because between the last
+   *  pass and the next frame is exactly when the picture is presented
+   *  and a readback is taken. */
+  virtual void beginFrame(Targets&) const {}
+  /** Called once after the steps, and after everything the frame read
+   *  back has been taken. An executor holding resources of its own lets
+   *  go of what the frame stopped needing here. */
+  virtual void endFrame(Targets&) const {}
 };
 
 /** The executor a frame runs on, carried as a comparable value. */

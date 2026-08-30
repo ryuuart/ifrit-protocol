@@ -19,22 +19,14 @@ namespace {
 
 namespace render = ::sigil::geometry::mesh::render;
 
-/** An emitter in the terms this tier shades in, which are directional.
- *  A sun already is one. A light that stands somewhere reaches the tier
- *  as the direction from where it stands toward the origin, at the
- *  strength it has there; the full falloff is `light::attenuation`. */
-render::Light directional(const Light& light) {
+/** An emitter as the mesh painter takes it: the one directional reading
+ *  every tier that shades without a per-pixel position works from. */
+render::Light painterLight(const Light& light) {
+  const light::Directional value = light::directional(light);
   render::Light out;
-  out.color = SkColor4f{light.color.r, light.color.g, light.color.b, 1.0f};
-  out.intensity = light.intensity;
-  if (light.kind == light::Kind::Sun) {
-    out.direction = light.direction;
-    return out;
-  }
-  const glm::vec3 toward = -light.position;
-  out.direction = glm::dot(toward, toward) > 0.0f ? glm::normalize(toward)
-                                                  : light.direction;
-  out.intensity = light.intensity * light::attenuation(light, glm::vec3(0.0f));
+  out.direction = value.direction;
+  out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
+  out.intensity = value.intensity;
   return out;
 }
 
@@ -44,7 +36,7 @@ render::MeshStyle litStyle(const View& view) {
   if (!view.lights.empty()) {
     style.lights.clear();
     for (const Light& light : view.lights)
-      style.lights.push_back(directional(light));
+      style.lights.push_back(painterLight(light));
   }
   return style;
 }

@@ -34,10 +34,19 @@ struct Paint {
   glm::vec4 baseColor{1, 1, 1, 1};
 };
 
+/** The study's own surface, one flat colour. It carries a body for every
+ *  language a tier here compiles, so which tier drew a plate is a
+ *  question about the pixels rather than about whether the material had
+ *  anything to say. */
+constexpr char kPaintSlang[] = R"(
+float4 surface(float2 uv) { return baseColor; }
+)";
+
 material::Material paint(glm::vec4 colour) {
   static const std::shared_ptr<const material::Recipe> recipe =
       std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.study.paint"));
+          material::Recipe::of<Paint>("world.study.paint")
+              .body(material::Target::Slang, kPaintSlang));
   return material::Material(recipe, Paint{colour});
 }
 

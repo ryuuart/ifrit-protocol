@@ -26,6 +26,12 @@ namespace sigil::world {
 struct Draw {
   glm::mat4 world{1.0f};
   const Mesh* mesh = nullptr;
+  /** WHICH COOKED ARTEFACT those triangles are, named by a number no
+   *  other artefact ever has. An executor that keeps something of its
+   *  own per geometry — a device's uploaded buffers — keys on this and
+   *  not on the address, because a dropped artefact frees its memory and
+   *  the next one cooked can land on it. */
+  uint64_t geometry = 0;
   glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
   std::string_view key;
   std::span<const std::string> tags;

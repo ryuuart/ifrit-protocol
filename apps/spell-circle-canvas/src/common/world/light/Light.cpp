@@ -76,4 +76,19 @@ glm::vec3 radiance(const Light& light) {
   return glm::vec3(light.color) * light.intensity;
 }
 
+Directional directional(const Light& light) {
+  Directional out;
+  out.color = {light.color.r, light.color.g, light.color.b, 1.0f};
+  out.intensity = light.intensity;
+  if (light.kind == Kind::Sun) {
+    out.direction = light.direction;
+    return out;
+  }
+  const glm::vec3 toward = -light.position;
+  out.direction = glm::dot(toward, toward) > 0.0f ? glm::normalize(toward)
+                                                  : light.direction;
+  out.intensity = light.intensity * attenuation(light, glm::vec3(0.0f));
+  return out;
+}
+
 }  // namespace sigil::world::light

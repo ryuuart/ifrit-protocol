@@ -61,6 +61,7 @@ void Scene::Impl::collectBodies(const Camera& eye,
     into.push_back(Draw{
         .world = registry.get<component::Placement>(entity).world,
         .mesh = body.mesh,
+        .geometry = body.id,
         .baseColor = surface.baseColor,
         .key = named.key,
         .tags = tagged ? std::span<const std::string>(tagged->words) : kNoWords,
@@ -123,6 +124,7 @@ bool Scene::Impl::phaseExecute() {
     error = "the frame carries no executor to perform its passes on";
     return false;
   }
+  runtime->beginFrame(targets);
   for (const PassWork& work : plan.steps()) {
     runtime->execute(work, view, targets);
     ++stats.passes;
@@ -141,6 +143,10 @@ bool Scene::Impl::phaseExecute() {
     captured.emplace_back(std::move(result), back.callback());
   }
   targets.endFrame();
+  // Last, because it is what turns this frame's resources into what the
+  // next frame's `previous()` names: everything read back above still
+  // wanted THIS frame's reading.
+  runtime->endFrame(targets);
   return false;
 }
 
