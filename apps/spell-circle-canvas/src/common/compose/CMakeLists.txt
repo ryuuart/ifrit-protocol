@@ -153,6 +153,7 @@ add_custom_command(
           --include ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md

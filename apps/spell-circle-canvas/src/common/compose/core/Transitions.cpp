@@ -1,9 +1,9 @@
 /** @file
- * Transitions: resolving an animatable float to its current value (binding,
- * running ramp, or plain), and starting/retargeting Choreograph ramps when a
- * reconciled plain-constant change occurs (the SwiftUI implicit-transition
- * lesson: one motion per (instance, property), retarget-from-current); the
- * per-frame reads of every animated lane a recording bakes; and the
+ * Transitions: the lanes a description carries, enumerated by family; the
+ * patch that retargets each lane's ramp from its current value and the
+ * mount that plays a declared entrance, both through SigilCore's lane
+ * operations (one motion per (instance, property), retarget-from-current);
+ * the per-frame reads of every animated lane a recording bakes; and the
  * cascade order a stagger deals its units in.
  */
 
@@ -21,108 +21,15 @@ using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
                                      const Animatable<float>& v) const {
-  if (const choreograph::Output<float>* binding = v.binding()) {
-    // A shaped binding (bind(&out).map().to()…) runs its map here — the
-    // one place a bound float is read, so trim, glyph progress, every
-    // transform and the hit test all get it for free.
-    if (const BoundFloat* shape = v.boundMap())
-      return shape->apply(binding->value());
-    return binding->value();
-  }
-  if (anims[slot] && anims[slot]->started) return anims[slot]->value.value();
-  if (const float* plain = v.plain()) return *plain;
-  return v.transitioned()->value;
+  return core::resolveFloatAt(anims[slot].get(), v);
 }
 
 float detail::Instance::resolveFloatAt(const AnimatedFloat* anim,
                                        const Animatable<float>& v) const {
-  if (const choreograph::Output<float>* binding = v.binding()) {
-    if (const BoundFloat* shape = v.boundMap())
-      return shape->apply(binding->value());
-    return binding->value();
-  }
-  if (anim && anim->started) return anim->value.value();
-  if (const float* plain = v.plain()) return *plain;
-  return v.transitioned()->value;
+  return core::resolveFloatAt(anim, v);
 }
 
 namespace {
-
-/** Starts (or retargets) a ramp held in `slotAnim` when the plain target
- *  changed. Returns true if a motion is running. The slot is passed as
- *  the HELD MOTION rather than as an index because the span endpoints'
- *  count is a property of the description, not of the kernel — one body,
- *  two storages (the fixed property array and the span vector). */
-bool transitionFloatAt(Composer::Impl& impl, Instance& inst,
-                       std::unique_ptr<AnimatedFloat>& slotAnim,
-                       const Animatable<float>& prevValue,
-                       const Animatable<float>& nextValue,
-                       const std::optional<Transition>& nodeDefault) {
-  ResolvedProp<float> prev = resolveProp(prevValue, nodeDefault);
-  ResolvedProp<float> next = resolveProp(nextValue, nodeDefault);
-  // Snap semantics must actually LAND: a lingering ramp from an earlier
-  // transition would shadow the plain description forever (resolveFloat
-  // prefers a started anim), so the snap paths disconnect it.
-  auto snapAnim = [&] {
-    if (auto& anim = slotAnim; anim && anim->started) {
-      anim->value.disconnect();
-      anim->started = false;
-    }
-  };
-  if (next.binding || !next.transition) {
-    snapAnim();
-    return false;  // bound, or plain snap
-  }
-  if (prev.binding) {
-    snapAnim();
-    return false;  // binding → constant: snap (no meaningful "from")
-  }
-
-  auto& anim = slotAnim;
-  // A running motion already headed at this exact target keeps flying —
-  // an unrelated prop patch mid-entrance must not restart it (and must
-  // never re-hold its delay).
-  if (anim && anim->started && anim->value.isConnected() &&
-      anim->target == next.target)
-    return true;
-  const float current =
-      anim && anim->started ? anim->value.value() : prev.target;
-  if (current == next.target) {
-    // The value COINCIDES with the new target, but a connected motion that
-    // passed the keeps-flying guard is provably headed somewhere else —
-    // left alone it would carry the slot to a STALE target (permanent,
-    // since identical re-describes prune). Disconnect; the description's
-    // own value (== next.target) shows through.
-    if (anim && anim->started && anim->value.isConnected() &&
-        anim->target != next.target)
-      snapAnim();
-    return anim && anim->value.isConnected();
-  }
-
-  if (!anim) anim = std::make_unique<AnimatedFloat>();
-  anim->value = current;  // seed the retarget start point
-  anim->started = true;
-  anim->target = next.target;
-  auto motion = impl.ticker.timeline().apply(&anim->value);
-  const float delay =
-      std::chrono::duration<float>(next.transition->delay).count();
-  if (delay > 0)
-    motion.then<choreograph::Hold>(current, delay);  // the stagger primitive
-  motion.then<choreograph::RampTo>(
-      next.target,
-      std::chrono::duration<float>(next.transition->duration).count(),
-      next.transition->easing());
-  return true;
-}
-
-/** The fixed-property spelling of the same operation. */
-bool transitionFloat(Composer::Impl& impl, Instance& inst, Instance::Slot slot,
-                     const Animatable<float>& prevValue,
-                     const Animatable<float>& nextValue,
-                     const std::optional<Transition>& nodeDefault) {
-  return transitionFloatAt(impl, inst, inst.anims[slot], prevValue, nextValue,
-                           nodeDefault);
-}
 
 /** The vector holding a positional family's motions on the instance. */
 std::vector<std::unique_ptr<AnimatedFloat>>& familyAnims(Instance& inst,
@@ -141,14 +48,10 @@ std::vector<std::unique_ptr<AnimatedFloat>>& familyAnims(Instance& inst,
   return inst.trackAnims;
 }
 
-/** The contiguous run of @p family's lanes in a list lanes() filled. */
+/** Core's run-of-a-family read, over the lane list lanes() filled. */
 std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
                                   LaneFamily family) {
-  size_t begin = 0;
-  while (begin < lanes.size() && lanes[begin].slot.family != family) ++begin;
-  size_t end = begin;
-  while (end < lanes.size() && lanes[end].slot.family == family) ++end;
-  return std::span<const Lane>(lanes).subspan(begin, end - begin);
+  return core::familyLanes(std::span<const Lane>(lanes), family);
 }
 
 constexpr LaneFamily kPositionalFamilies[] = {
@@ -225,49 +128,12 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
                                            const ElementNode& node) {
   if (liveOnly) return;
 
+  // staggerChildren()'s carry is the extra lead every entrance on this
+  // node holds for, in seconds.
+  const float carrySeconds = mountDelayCarryMs / 1000.0f;
   auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
                         const Animatable<float>& v) {
-    const Transitioned<float>* tr = v.transitioned();
-    if (!tr) return;
-    // animate(through({…})): the multi-segment mount path — checked BEFORE the
-    // from==value guard (a shake 0→−20→0 starts and ends equal).
-    if (tr->waypoints.size() >= 2) {
-      auto& anim = slotAnim;
-      if (!anim) anim = std::make_unique<AnimatedFloat>();
-      const float first = tr->waypoints.front().second;
-      anim->value = first;
-      anim->started = true;
-      anim->target = tr->waypoints.back().second;
-      auto motion = ticker.timeline().apply(&anim->value);
-      const float lead =
-          std::chrono::duration<float>(tr->spec.delay).count() +
-          mountDelayCarryMs / 1000.0f +
-          std::chrono::duration<float>(tr->waypoints.front().first).count();
-      if (lead > 0) motion.then<choreograph::Hold>(first, lead);
-      for (size_t i = 1; i < tr->waypoints.size(); ++i) {
-        const float seg =
-            std::chrono::duration<float>(tr->waypoints[i].first -
-                                         tr->waypoints[i - 1].first)
-                .count();
-        motion.then<choreograph::RampTo>(
-            tr->waypoints[i].second, std::max(seg, 0.0f), tr->spec.easing());
-      }
-      return;
-    }
-    if (!tr->from || *tr->from == tr->value) return;
-    auto& anim = slotAnim;
-    if (!anim) anim = std::make_unique<AnimatedFloat>();
-    anim->value = *tr->from;
-    anim->started = true;
-    anim->target = tr->value;
-    auto motion = ticker.timeline().apply(&anim->value);
-    const float delay = std::chrono::duration<float>(tr->spec.delay).count() +
-                        mountDelayCarryMs / 1000.0f;  // staggerChildren() carry
-    if (delay > 0)  // stagger: hold the `from` before entering
-      motion.then<choreograph::Hold>(*tr->from, delay);
-    motion.then<choreograph::RampTo>(
-        tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
-        tr->spec.easing());
+    core::mountEntrance(ticker, slotAnim, v, carrySeconds);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
   // ROLE: the description either declared a `from` or it did not.
@@ -331,18 +197,10 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   static thread_local std::vector<Lane> prevLanes, nextLanes;
   lanes(prev, prevLanes);
   lanes(next, nextLanes);
-  {
-    const std::span<const Lane> p = familyLanes(prevLanes, LaneFamily::Slot);
-    const std::span<const Lane> n = familyLanes(nextLanes, LaneFamily::Slot);
-    for (size_t i = 0; i < n.size(); ++i) {
-      if (!p[i].value && !n[i].value)
-        continue;  // neither description carries it: nothing to ramp
-      const Animatable<float> standing = n[i].standing;
-      transitionFloat(*this, inst, (Instance::Slot)n[i].slot.index,
-                      p[i].value ? *p[i].value : standing,
-                      n[i].value ? *n[i].value : standing, nd);
-    }
-  }
+  core::retargetSlots(ticker,
+                      std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
+                      familyLanes(prevLanes, LaneFamily::Slot),
+                      familyLanes(nextLanes, LaneFamily::Slot), nd);
 
   // The positional families, each by the same rule. The lane list is
   // positional, so a description that changes the SHAPE of a family (a
@@ -366,24 +224,10 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // on the second track ramps from wherever that track's progress is now.
   // Add or remove a track and the shape changed — the motions drop rather
   // than carrying onto a progress that now drives a different effect.
-  for (const LaneFamily family : kPositionalFamilies) {
-    const std::span<const Lane> p = familyLanes(prevLanes, family);
-    const std::span<const Lane> n = familyLanes(nextLanes, family);
-    std::vector<std::unique_ptr<AnimatedFloat>>& anims =
-        familyAnims(inst, family);
-    if (p.size() != n.size()) {
-      anims.clear();
-      anims.resize(n.size());
-    } else {
-      // applyMountTransitions sizes this vector — and it RETURNS EARLY on a
-      // liveOnly composer (snapshot/measure), so a patch is the first thing
-      // to touch it there. Size it here too rather than indexing an empty
-      // vector.
-      if (anims.size() != n.size()) anims.resize(n.size());
-      for (size_t i = 0; i < n.size(); ++i)
-        transitionFloatAt(*this, inst, anims[i], *p[i].value, *n[i].value, nd);
-    }
-  }
+  for (const LaneFamily family : kPositionalFamilies)
+    core::retargetFamily(ticker, familyAnims(inst, family),
+                         familyLanes(prevLanes, family),
+                         familyLanes(nextLanes, family), nd);
 
   // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
   // synthesized progress output. A next fill with NO transition is a plain

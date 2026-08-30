@@ -6,9 +6,11 @@
  * of.
  */
 
+#include <sigilcore/reconcile/Phases.h>
+#include <sigilcore/reconcile/Reconciler.h>
+
 #include "Instance.h"
 #include "Lanes.h"
-#include "Phases.h"
 #include "SlotSpecs.h"
 #include "Transforms.h"
 
@@ -23,10 +25,16 @@ struct Composer::Impl {
 
   SkSize size = SkSize::MakeEmpty();
   std::unique_ptr<detail::Instance> root;
+  /** The reconciler, with this composer as its host: it owns the shape of
+   *  the tree — matching, memo, the identity prune, the counts — and
+   *  reaches everything else through the host operations below. */
+  using Reconciler = core::Reconciler<Impl, detail::Instance,
+                                      std::shared_ptr<detail::ElementNode>>;
+  Reconciler reconciler;
   YGConfigRef yogaConfig = nullptr;
   bool needsLayout = true;
   bool contentDirty = true;
-  std::unordered_map<std::string, detail::Instance*> byKey;
+  Reconciler::KeyIndex byKey;
   // Slots get their OWN index. They live in byKey too (so bounds() and
   // hitTest() still answer for a slot's name), but a slot's CONTENT may
   // legitimately carry a root .key() with the same name — and a child is
@@ -131,7 +139,8 @@ struct Composer::Impl {
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;
 
-  Impl(motion::Ticker& t, sigil::weave::FontContext& f) : ticker(t), fonts(f) {
+  Impl(motion::Ticker& t, sigil::weave::FontContext& f)
+      : ticker(t), fonts(f), reconciler(*this) {
     yogaConfig = YGConfigNew();
   }
   ~Impl() {
@@ -141,31 +150,36 @@ struct Composer::Impl {
 
   double elapsed() const { return clock ? clock->elapsed() : 0.0; }
 
-  // ---- reconcile (Reconcile.cpp) ----
-  /** Reconciles @p node onto @p inst: resolves a memo, swaps the description
-   *  in, prunes on structural equality, and calls onPatched() when the
-   *  description changed before reconciling the children. */
-  void patch(detail::Instance& inst,
-             const std::shared_ptr<detail::ElementNode>& node);
-  /** Matches @p newChildren against the instance's children by key, then by
-   *  position among the unkeyed, patching survivors and creating the rest,
-   *  then reorder()s the result. */
-  void patchChildren(detail::Instance& inst,
-                     const std::vector<Element>& newChildren);
-  std::shared_ptr<detail::ElementNode> resolveMemo(
-      detail::Instance* existing,
-      const std::shared_ptr<detail::ElementNode>& node, bool& described);
-  void rebuildKeyIndex();
-  void indexKeys(detail::Instance& inst);
-
   // ---- the reconciler's host (ReconcileHost.cpp) ----
+  // The ReconcileHost operations, in the reconciler's terms. Reading a
+  // description:
+  using Desc = std::shared_ptr<detail::ElementNode>;
+  static const std::string& keyOf(const Desc& desc) { return desc->key; }
+  static bool equal(const Desc& a, const Desc& b) {
+    return detail::propsEqual(*a, *b);
+  }
+  /** Slot content is owned by renderSlot(), not the description. */
+  static bool reconcilesChildren(const Desc& desc) {
+    return desc->kind != detail::Kind::Slot;
+  }
+  static const std::vector<Element>& children(const Desc& desc) {
+    return desc->children;
+  }
+  static const Desc& descOf(const Element& child) { return child.node(); }
+  static const detail::MemoData* memoOf(const Desc& desc) {
+    return desc->memoData ? &*desc->memoData : nullptr;
+  }
+  static Desc produce(const detail::MemoData& memo) {
+    return memo.invoke(memo.props).node();
+  }
+  // Acting on an instance:
   /** A fresh instance for @p node under @p parent, patched once. @p ordinal
    *  is its order among the children created in the same patch and @p count
    *  the parent's child count, which is what staggerChildren() cascades
    *  over; the carry that cascade accumulates is host state. */
-  std::unique_ptr<detail::Instance> create(
-      const std::shared_ptr<detail::ElementNode>& node,
-      detail::Instance* parent, size_t ordinal, size_t count);
+  std::unique_ptr<detail::Instance> create(const Desc& node,
+                                           detail::Instance* parent,
+                                           size_t ordinal, size_t count);
   /** Everything the composer does to an instance whose description changed:
    *  @p prev is null on the first patch. */
   void onPatched(detail::Instance& inst, const detail::ElementNode* prev,
@@ -180,6 +194,12 @@ struct Composer::Impl {
                        const detail::Instance& parent);
   /** Marks the instance's paint dirty up to the root and the content dirty. */
   void invalidate(detail::Instance& inst);
+  /** An instance that left the tree: retired at once — its destructor
+   *  frees its Yoga node and its motions disconnect with their outputs. */
+  void destroy(std::unique_ptr<detail::Instance> inst, uint64_t frame);
+  /** The key index and the edge store, rebuilt over the whole tree after
+   *  every reconcile (Reconcile.cpp). */
+  void rebuildKeyIndex();
   void applyLayoutProps(detail::Instance& inst);
   /** Builds the instance's Paragraph from whichever content form its
    *  description carries — plain utf8, `rich()` runs, or a copy of a
@@ -249,7 +269,7 @@ struct Composer::Impl {
    *  registration IS its seam — and the runner's settle step re-runs it
    *  after every relayout so a routed plate is drawn against settled
    *  geometry. */
-  static constexpr detail::LayoutPhase phases[] = {
+  static constexpr core::Phase<Impl> phases[] = {
       {"yoga", &Impl::phaseYoga, false},
       {"customLayouts", &Impl::phaseCustomLayouts, true},
       {"centerPins", &Impl::phaseCenterPins, true},

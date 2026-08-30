@@ -7,6 +7,8 @@
  * float a slot transitions through.
  */
 
+#include <sigilcore/reconcile/Lanes.h>
+#include <sigilcore/reconcile/Node.h>
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
@@ -52,14 +54,9 @@ struct Instance;
 inline bool childrenCarryYoga(const Instance& inst);
 
 /** One float property that can transition: the Choreograph output is the
- *  source of truth while a motion is connected. */
-struct AnimatedFloat {
-  choreograph::Output<float> value{0.0f};
-  bool started = false;
-  // Where the running motion is headed — lets a patch that does not change
-  // this slot's target leave the motion ALONE (no hitch, no re-held delay).
-  float target = 0.0f;
-};
+ *  source of truth while a motion is connected. SigilCore's, because the
+ *  reconciler's lane operations ramp it. */
+using AnimatedFloat = core::AnimatedFloat;
 
 /** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
  *
@@ -130,15 +127,15 @@ struct TextState {
   std::vector<Track> spanAxisTracks;
 };
 
+/** The retained node. The tree skeleton — `parent`, `desc` (the resolved,
+ *  post-memo description), `memoShell` (the memo element, if any) and
+ *  `children` — is SigilCore's Node, which is what the reconciler walks;
+ *  everything below it is what this kernel retains per node. */
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
-struct Instance {
+struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   Composer::Impl* owner = nullptr;
-  Instance* parent = nullptr;
-  std::shared_ptr<ElementNode> desc;       // resolved (post-memo) description
-  std::shared_ptr<ElementNode> memoShell;  // the memo element, if any
   YGNodeRef yoga = nullptr;
-  std::vector<std::unique_ptr<Instance>> children;
   std::vector<size_t> paintOrder;  // child indices sorted by zIndex
 
   // Text state

@@ -6,9 +6,12 @@
 # composer's queries, the material value and the streaming feed. Dressed
 # type, the stroke grammar and the mask gates reach the kernel through the
 # seam values a description carries (TextPainter, StrokeResolver,
-# MaskResolver); their engines are the typography and brush tiers'. Links SigilGeometryPath, SigilImage, SigilMotion,
-# SigilWeave and Skia publicly, because those types appear in its headers;
-# Yoga is private, because no header spells it.
+# MaskResolver); their engines are the typography and brush tiers'. The
+# reconciler that drives the retained tree is SigilCoreReconcile's, with
+# this target as its host. Links SigilCoreReconcile, SigilGeometryPath,
+# SigilImage, SigilMotion, SigilWeave and Skia publicly, because those
+# types appear in its headers; Yoga is private, because no header spells
+# it.
 #
 # The translation units that see this directory — ComposeInternal.h,
 # ComposeRuntime.h and the paint-phase internals — are this target's and
@@ -20,7 +23,6 @@ add_library(SigilComposeCore STATIC
   Element.cpp
   Effects.cpp
   Diagnostics.cpp
-  Env.cpp
   # the composer and its phases
   Composer.cpp
   Reconcile.cpp
@@ -43,7 +45,6 @@ add_library(SigilComposeCore STATIC
   Instance.h
   SlotSpecs.h
   Lanes.h
-  Phases.h
   Transforms.h
   ComposerImpl.h
   PaintInternal.h
@@ -79,6 +80,7 @@ target_include_directories(SigilComposeCore
 )
 target_link_libraries(SigilComposeCore
   PUBLIC
+    SigilCoreReconcile
     SigilGeometryPath
     SigilImage
     SigilMaterial

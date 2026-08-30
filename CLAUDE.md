@@ -24,6 +24,8 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/usd/README.md` — the world's data written to and read from
   USD (OpenUSD from vcpkg; optional)
 - `src/common/motion/README.md` — animation clock and animatable values
+- `src/common/core/README.md` — the reconciler kernel a retained runtime
+  hosts
 - `src/common/image/README.md` — image decoding
 - `src/common/loader/README.md` — resource access: URIs, caching, reload
 - `src/common/scry/README.md` — HTML and CSS rendered to Skia images

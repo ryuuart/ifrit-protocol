@@ -280,15 +280,7 @@ Composer::InputSpace Composer::declaredInputSpace() const {
 void Composer::render(const Element& root) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
-  impl.stats.describedNodes = 0;
-  impl.stats.memoHits = 0;
-  impl.stats.patchedNodes = 0;
-
-  if (!impl.root)
-    impl.root = impl.create(root.node(), nullptr, 0, 1);
-  else
-    impl.patch(*impl.root, root.node());
-
+  impl.reconciler.render(impl.root, root.node());
   impl.volatileDirty = true;  // transitions may have started
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
@@ -325,16 +317,9 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   }
   Instance& slotInst = *it->second;
 
-  // Patch or mount the slot's single content child.
-  if (slotInst.children.size() == 1) {
-    impl.patch(*slotInst.children.front(), content.node());
-  } else {
-    slotInst.children.clear();
-    slotInst.children.push_back(impl.create(content.node(), &slotInst, 0, 1));
-    impl.reorder(slotInst, /*structureChanged=*/true);
-  }
-  slotInst.markPaintDirtyUp();
-  impl.contentDirty = true;
+  // Patch or mount the slot's single content child; the reconciler
+  // invalidates the slot either way.
+  impl.reconciler.replaceContent(slotInst, content.node());
   impl.volatileDirty = true;
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
@@ -622,6 +607,10 @@ const Composer::Stats& Composer::stats() const {
     for (const auto& child : i.children) tally(*child);
   };
   if (m_impl->root) tally(*m_impl->root);
+  const core::ReconcileStats& reconcile = m_impl->reconciler.stats();
+  m_impl->stats.describedNodes = (size_t)reconcile.describedNodes;
+  m_impl->stats.memoHits = (size_t)reconcile.memoHits;
+  m_impl->stats.patchedNodes = (size_t)reconcile.patchedNodes;
   m_impl->stats.instances = instances;
   m_impl->stats.yogaNodes = yogaNodes;
   m_impl->stats.picturesLive = pictures;

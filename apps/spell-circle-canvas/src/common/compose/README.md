@@ -981,7 +981,8 @@ sound model; nothing below them changes kernel semantics.
   of tile-sized rasters.
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
-- `core/Env.h` — the `env::` inherited-value channel.
+- `core/Env.h` — the `env::` inherited-value channel, SigilCore's under
+  the compose name.
 - `core/Composer.h` — `Composer`.
 - `core/Material.h` — the polymorphic paint value that supersedes a flat
   `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
@@ -1230,8 +1231,12 @@ the left edge, not the top one.
 
 ## Boundaries
 
-The library links `SigilGeometryPath`, `SigilImage`, `SigilMotion`,
-`SigilWeave` and Skia publicly, and Yoga privately. OpenColorIO is
+The library links `SigilCoreReconcile`, `SigilGeometryPath`, `SigilImage`,
+`SigilMotion`, `SigilWeave` and Skia publicly, and Yoga privately.
+`SigilCoreReconcile` is the reconciler: the keyed and positional match,
+the memo, the identity prune, the `env::` channel and the animation lane
+operations are its, and `Composer` is its host — the description
+comparators, Yoga, text, paint and every cache stay here. OpenColorIO is
 optional and gates `paint/Ocio.h` alone. `SigilGeometryPath` supplies the
 contours, polylines and seeded noise that every outline walker here
 reads through, and compose adds no path geometry of its own.
@@ -1276,7 +1281,8 @@ What it refuses to be:
 
 The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
-the reconciler, layout, paint, transitions, text and the feed),
+layout, paint, transitions, text and the feed, as the host of
+SigilCore's reconciler),
 `SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
 `SigilComposeTypography` (`typography/` — the text engine behind dressed
 type, with the type styles and the text-fx presets), `SigilComposeBrush`

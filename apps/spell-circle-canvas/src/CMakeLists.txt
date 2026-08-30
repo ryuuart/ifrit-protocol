@@ -3,8 +3,9 @@
 #   common/      libraries shared across products: skia/ (SigilSkia,
 #                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
-#                measure/ (SigilMeasure), motion/ (SigilMotion), shape/ (SigilGeometry), world/
-#                (SigilWorld), material/ (SigilMaterial), compose/ (SigilCompose)
+#                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
+#                geometry/ (SigilGeometry), world/ (SigilWorld), material/
+#                (SigilMaterial), compose/ (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
@@ -20,6 +21,7 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
 endif()
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
+add_subdirectory(common/core)
 add_subdirectory(common/geometry)
 add_subdirectory(common/material)
 add_subdirectory(common/world)

@@ -1,7 +1,10 @@
 /** @file
- * Reconcile phase: keyed reconciliation of element descriptions into the
- * retained Instance tree, the structural-equality prune, Yoga-style
- * application of layout props, and the key index.
+ * Reconcile phase, the composer's half: the structural-equality comparators
+ * the identity prune is built from, Yoga-style application of layout
+ * props, text materialisation, and the key index with the edge store that
+ * rides its walk. The reconciler itself — memo resolution, the prune,
+ * keyed and positional matching — is SigilCore's, driven through the host
+ * operations in ReconcileHost.cpp.
  *
  * The structural equality in this file is the library's entire correctness
  * surface, and it is worth understanding before changing anything here. Two
@@ -29,19 +32,6 @@
 namespace sigil::compose {
 
 using namespace detail;
-
-// Declared in ComposeInternal.h and defined here, with the rest of the
-// library's hand-written comparators.
-bool detail::easeEqual(const choreograph::EaseFn& a,
-                       const choreograph::EaseFn& b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet) return false;
-  if (!aSet) return true;
-  using Ptr = float (*)(float);
-  const Ptr* pa = a.target<Ptr>();
-  const Ptr* pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
-}
 
 namespace {
 
@@ -106,83 +96,10 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
-static_assert(kFieldCount<Transition> == 3,
-              "Transition gained or lost a field — rule on it in "
-              "transitionEqual() below, then bump this count.");
-bool transitionEqual(const Transition& a, const Transition& b) {
-  return a.duration == b.duration && a.delay == b.delay &&
-         easeEqual(a.easing(), b.easing());  // `ease` is read through easing()
-}
-
-}  // namespace
-
-namespace detail {
-
-/** Shaped bindings prune like anything else: same Output, same affine,
- *  same curve under easeEqual's conservative rule. A re-describe that
- *  only changes the CURVE must NOT prune — the map is read live, so a
- *  pruned node would keep shaping through the old one forever.
- *
- *  EVERY FIELD OF BoundFloat MUST APPEAR HERE. An omission is invisible:
- *  two different shapings compare equal, the node prunes, and the instance
- *  keeps applying the OLD map for as long as it lives, while every existing
- *  test still passes.
- *
- *  Three gates keep it honest, and they are the model for every hand-written
- *  comparator in this file (see the field-pin block in ComposeInternal.h):
- *    1. the `kFieldCount` assert below — adding a field to BoundFloat does
- *       not compile until someone bumps the count HERE, next to the list;
- *    2. `ComposeReconcile.EveryBoundFloatFieldParticipatesInEquality` —
- *       a field walk that perturbs each tied field in turn and demands this
- *       function say false, so a new field is covered the moment it is
- *       named in `fields()`;
- *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
- *       — the end-to-end check, through a real re-describe of the same node,
- *       for the wiggle parameters. */
-static_assert(kFieldCount<BoundFloat> == 24,
-              "BoundFloat gained or lost a field. boundMapEqual() below "
-              "compares it BY HAND: rule on the new field (participate, or "
-              "a stated reason not to), then bump this count. A miss is "
-              "silent — the node prunes and keeps shaping through the old "
-              "map forever.");
-bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
-  return a.source == b.source && a.inScale == b.inScale &&
-         a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
-         a.envelope == b.envelope && a.riseStart == b.riseStart &&
-         a.holdStart == b.holdStart && a.holdEnd == b.holdEnd &&
-         a.fallEnd == b.fallEnd && a.duty == b.duty && a.steps == b.steps &&
-         a.scale == b.scale && a.offset == b.offset && a.clamped == b.clamped &&
-         a.lo == b.lo && a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
-         a.wiggleFrequency == b.wiggleFrequency &&
-         a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
-         a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&
-         // The two curve slots compare under the same conservative rule: a
-         // plain function is compared by identity, a capturing lambda is
-         // unequal to everything and the binding re-patches every describe.
-         easeEqual(a.curve, b.curve) && easeEqual(a.waveFn, b.waveFn);
-}
-
-}  // namespace detail
-
-namespace {
-
-static_assert(kFieldCount<Transitioned<float>> == 4,
-              "Transitioned gained or lost a field — rule on it in "
-              "propEqual() below, then bump this count.");
-template <typename T>
-bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
-  if (a.index() != b.index()) return false;
-  if (const T* plainA = a.plain()) return *plainA == *b.plain();
-  if (const Transitioned<T>* trA = a.transitioned()) {
-    const Transitioned<T>* trB = b.transitioned();
-    return trA->value == trB->value && trA->from == trB->from &&
-           trA->waypoints == trB->waypoints &&
-           transitionEqual(trA->spec, trB->spec);
-  }
-  if (const BoundFloat* mapA = a.boundMap())
-    return boundMapEqual(*mapA, *b.boundMap());
-  return a.binding() == b.binding();
-}
+// Transition, BoundFloat and Animatable compare through SigilCore's
+// comparators (transitionEqual, boundMapEqual, propEqual), each pinned
+// beside its body there; the Effect and the blocks below are this
+// library's own.
 
 bool effectEqual(const std::optional<Effect>& a,
                  const std::optional<Effect>& b) {
@@ -706,129 +623,6 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
 
 // ---------------------------------------------------------------------------
 
-std::shared_ptr<ElementNode> Composer::Impl::resolveMemo(
-    Instance* existing, const std::shared_ptr<ElementNode>& node,
-    bool& described) {
-  if (!node->isMemo()) {
-    described = true;
-    return node;
-  }
-  // A memo is a pure function of (props, ENVIRONMENT). The environment is
-  // compared first and for the same reason props are: an `env::` binding is
-  // read live by the deferred describe, so a memo that hit on props alone
-  // would keep serving whatever environment it first described under. This
-  // is the same rule the comparators above follow — anything read live
-  // participates in equality — applied to the one describe that is deferred.
-  if (existing && existing->memoShell &&
-      envEqual(existing->memoShell->memoData->env, node->memoData->env) &&
-      existing->memoShell->memoData->equal(existing->memoShell->memoData->props,
-                                           node->memoData->props)) {
-    stats.memoHits++;
-    described = false;
-    return existing->desc;  // reuse the previously described payload
-  }
-  described = true;
-  // …and the deferred call runs under the bindings its AUTHOR had, not
-  // whatever scope this reconcile happens to sit inside (usually none).
-  EnvRestore restore(node->memoData->env);
-  Element produced = node->memoData->invoke(node->memoData->props);
-  return produced.node();
-}
-
-void Composer::Impl::patch(Instance& inst,
-                           const std::shared_ptr<ElementNode>& node) {
-  stats.describedNodes++;
-  bool described = true;
-  std::shared_ptr<ElementNode> resolved =
-      resolveMemo(inst.desc ? &inst : nullptr, node, described);
-  if (node->isMemo())
-    inst.memoShell = node;
-  else
-    inst.memoShell = nullptr;
-
-  if (resolved == inst.desc)
-    return;  // payload identity: untouched subtree (memo hit)
-
-  std::shared_ptr<ElementNode> prev = std::move(inst.desc);
-  inst.desc = resolved;
-
-  // Structural prune (the no-memo path): a fresh description that is provably
-  // identical to the retained one patches nothing and — key property —
-  // dirties nothing; only its children keep reconciling.
-  const bool own = !prev || !propsEqual(*prev, *resolved);
-  if (own) {
-    stats.patchedNodes++;
-    onPatched(inst, prev.get(), *resolved);
-  }
-
-  // (hasDerived/hasCustomLayout/hasCenterPins are recomputed with the key
-  // index after the patch walk — see rebuildKeyIndex.)
-
-  // Slot content is owned by renderSlot(), not the description.
-  if (resolved->kind != Kind::Slot) patchChildren(inst, resolved->children);
-}
-
-void Composer::Impl::patchChildren(Instance& inst,
-                                   const std::vector<Element>& newChildren) {
-  // Match by key when present, else by position among unkeyed children.
-  std::vector<const Instance*> oldOrder;
-  oldOrder.reserve(inst.children.size());
-  std::unordered_map<std::string, std::unique_ptr<Instance>> keyed;
-  std::vector<std::unique_ptr<Instance>> unkeyed;
-  for (auto& child : inst.children) {
-    if (child) {
-      oldOrder.push_back(child.get());
-      const std::shared_ptr<ElementNode>& shell =
-          child->memoShell ? child->memoShell : child->desc;
-      if (!shell->key.empty())
-        keyed.emplace(shell->key, std::move(child));
-      else
-        unkeyed.push_back(std::move(child));
-    }
-  }
-  inst.children.clear();
-
-  size_t unkeyedCursor = 0;
-  size_t mountOrdinal = 0;  // order among children mounted THIS patch
-  for (const Element& childElement : newChildren) {
-    const std::shared_ptr<ElementNode>& node = childElement.node();
-    std::unique_ptr<Instance> match;
-    if (!node->key.empty()) {
-      if (auto it = keyed.find(node->key); it != keyed.end()) {
-        match = std::move(it->second);
-        keyed.erase(it);
-      }
-    } else if (unkeyedCursor < unkeyed.size()) {
-      match = std::move(unkeyed[unkeyedCursor++]);
-    }
-    if (match && remountRequired(*match, inst))
-      match.reset();  // unmounts; the fresh mount below picks the right mode
-
-    if (match) {
-      match->parent = &inst;
-      patch(*match, node);
-      inst.children.push_back(std::move(match));
-    } else {
-      inst.children.push_back(
-          create(node, &inst, mountOrdinal, newChildren.size()));
-      ++mountOrdinal;
-    }
-  }
-
-  // Mounts, unmounts, and reorders change what this node's recording paints
-  // even when every surviving child is prop-identical — the structural prune
-  // must not swallow them.
-  bool structureChanged = oldOrder.size() != inst.children.size();
-  if (!structureChanged)
-    for (size_t i = 0; i < oldOrder.size(); ++i)
-      if (oldOrder[i] != inst.children[i].get()) {
-        structureChanged = true;
-        break;
-      }
-  reorder(inst, structureChanged);
-  // Unmatched old children unmount here (destructors cancel motions).
-}
-
 void Composer::Impl::materializeText(
     Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns) {
@@ -1064,55 +858,51 @@ void Composer::Impl::rebuildKeyIndex() {
   hasDerived = false;
   hasCustomLayout = false;
   hasCenterPins = false;
-  if (root) indexKeys(*root);
+  // The reconciler fills byKey — a memo shell's key first, else the
+  // description's — and the edge store (flat derive lists + anchor
+  // back-index) and the pass gates ride the same walk. Tree order here IS
+  // the derive order.
+  if (root)
+    reconciler.indexKeys(*root, byKey, [this](Instance& inst) {
+      if (inst.desc->kind == Kind::Slot && !inst.desc->key.empty())
+        bySlot[inst.desc->key] = &inst;
+      const ElementNode& node = *inst.desc;
+      if (node.deriveData) {
+        const DeriveData& derive = *node.deriveData;
+        if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
+        const bool isConnector =
+            !derive.connectFrom.empty() && !derive.connectTo.empty();
+        const bool isRail = derive.railAnchors.size() >= 2;
+        // A borrowed band spine and a spans::fit() gap are the same kind
+        // of question a connector asks — "where did that keyed node land"
+        // — so they ride the SAME flat derive list rather than growing a
+        // phase.
+        const bool isBorrowed = !derive.bandAround.empty() ||
+                                !derive.spanFitKeys.empty() ||
+                                !derive.borrowedPathKeys.empty();
+        if (isBorrowed && !isConnector && !isRail)
+          routedInstances.push_back(&inst);
+        if (isConnector || isRail) {
+          routedInstances.push_back(&inst);
+          if (isConnector) {
+            routesByAnchor[derive.connectFrom].push_back(&inst);
+            if (derive.connectTo != derive.connectFrom)
+              routesByAnchor[derive.connectTo].push_back(&inst);
+          }
+          for (const Anchor& anchor : derive.railAnchors) {
+            auto& at = routesByAnchor[anchor.nodeKey];
+            if (at.empty() || at.back() != &inst)  // rails revisit anchors
+              at.push_back(&inst);
+          }
+        }
+        if (derive.placeFn) hasCustomLayout = true;
+      }
+      if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
+          !node.textData->marks.empty())
+        pathMarkInstances.push_back(&inst);
+      if (node.layout.centerAt) hasCenterPins = true;
+    });
   hasDerived = !routedInstances.empty() || !flowInstances.empty();
-}
-
-void Composer::Impl::indexKeys(Instance& inst) {
-  const std::shared_ptr<ElementNode>& shell =
-      inst.memoShell ? inst.memoShell : inst.desc;
-  if (!shell->key.empty())
-    byKey[shell->key] = &inst;
-  else if (!inst.desc->key.empty())
-    byKey[inst.desc->key] = &inst;
-  if (inst.desc->kind == Kind::Slot && !inst.desc->key.empty())
-    bySlot[inst.desc->key] = &inst;
-  // The edge store (flat derive lists + anchor back-index) and the pass
-  // gates ride the same walk. Tree order here IS the derive order.
-  const ElementNode& node = *inst.desc;
-  if (node.deriveData) {
-    const DeriveData& derive = *node.deriveData;
-    if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
-    const bool isConnector =
-        !derive.connectFrom.empty() && !derive.connectTo.empty();
-    const bool isRail = derive.railAnchors.size() >= 2;
-    // A borrowed band spine and a spans::fit() gap are the same kind of
-    // question a connector asks — "where did that keyed node land" — so
-    // they ride the SAME flat derive list rather than growing a phase.
-    const bool isBorrowed = !derive.bandAround.empty() ||
-                            !derive.spanFitKeys.empty() ||
-                            !derive.borrowedPathKeys.empty();
-    if (isBorrowed && !isConnector && !isRail) routedInstances.push_back(&inst);
-    if (isConnector || isRail) {
-      routedInstances.push_back(&inst);
-      if (isConnector) {
-        routesByAnchor[derive.connectFrom].push_back(&inst);
-        if (derive.connectTo != derive.connectFrom)
-          routesByAnchor[derive.connectTo].push_back(&inst);
-      }
-      for (const Anchor& anchor : derive.railAnchors) {
-        auto& at = routesByAnchor[anchor.nodeKey];
-        if (at.empty() || at.back() != &inst)  // rails revisit anchors
-          at.push_back(&inst);
-      }
-    }
-    if (derive.placeFn) hasCustomLayout = true;
-  }
-  if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
-      !node.textData->marks.empty())
-    pathMarkInstances.push_back(&inst);
-  if (node.layout.centerAt) hasCenterPins = true;
-  for (auto& child : inst.children) indexKeys(*child);
 }
 
 }  // namespace sigil::compose

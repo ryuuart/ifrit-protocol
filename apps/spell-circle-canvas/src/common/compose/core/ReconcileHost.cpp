@@ -6,8 +6,8 @@
  * parent's children are reattached to Yoga and ordered for paint, and the
  * one rule under which a surviving instance is remounted rather than
  * patched. The reconciler itself — memo resolution, the structural prune,
- * keyed and positional matching — lives in Reconcile.cpp and knows nothing
- * of what is done here.
+ * keyed and positional matching — is SigilCore's and knows nothing of what
+ * is done here; these are the ReconcileHost operations it drives.
  */
 
 #include <algorithm>
@@ -68,6 +68,11 @@ void Composer::Impl::invalidate(Instance& inst) {
   contentDirty = true;
 }
 
+void Composer::Impl::destroy(std::unique_ptr<Instance> inst,
+                             uint64_t /*frame*/) {
+  inst.reset();
+}
+
 bool Composer::Impl::remountRequired(const Instance& match,
                                      const Instance& parent) {
   // Whether children of THIS parent carry Yoga nodes; a mismatch on a
@@ -76,9 +81,9 @@ bool Composer::Impl::remountRequired(const Instance& match,
   return (match.yoga != nullptr) != childrenCarryYoga(parent);
 }
 
-std::unique_ptr<Instance> Composer::Impl::create(
-    const std::shared_ptr<ElementNode>& node, Instance* parent, size_t ordinal,
-    size_t count) {
+std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
+                                                 Instance* parent,
+                                                 size_t ordinal, size_t count) {
   // staggerChildren(): the child's whole subtree mounts with
   // order·each extra entrance delay (saved/restored so siblings don't
   // leak; nested staggered containers compound). `from` remaps the
@@ -113,7 +118,7 @@ std::unique_ptr<Instance> Composer::Impl::create(
     inst->yoga = YGNodeNewWithConfig(yogaConfig);
     YGNodeSetContext(inst->yoga, inst.get());
   }
-  patch(*inst, node);
+  reconciler.patch(*inst, node);
   mountDelayCarryMs = saved;
   needsLayout = true;
   return inst;

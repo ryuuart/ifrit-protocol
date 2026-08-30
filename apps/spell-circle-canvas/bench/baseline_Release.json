@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-30T14:01:39+00:00",
+ "taken": "2026-08-30T14:48:20+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -2200,6 +2200,92 @@
     "real_ns": 3600.056482803312,
     "repetitions": 4,
     "unit": "us"
+   }
+  },
+  "sigilcore_reconcile_bench": {
+   "ColdMount/100": {
+    "real_ns": 16226.158939325145,
+    "cpu_ns": 16221.914967162124,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ColdMount/1000": {
+    "real_ns": 197453.10218098387,
+    "cpu_ns": 197414.6685472499,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ColdMount/10000": {
+    "real_ns": 2082306.0596526107,
+    "cpu_ns": 2080566.1764705894,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WarmPrune/100": {
+    "real_ns": 12794.26099925425,
+    "cpu_ns": 12793.911229135,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WarmPrune/1000": {
+    "real_ns": 137069.07675619802,
+    "cpu_ns": 136964.21568627405,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WarmPrune/10000": {
+    "real_ns": 1546524.9130299883,
+    "cpu_ns": 1545679.3478260897,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OneChangedLeaf/1000": {
+    "real_ns": 137835.99316282288,
+    "cpu_ns": 137805.55555555614,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OneChangedLeaf/10000": {
+    "real_ns": 1551408.20041217,
+    "cpu_ns": 1551285.7142857122,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "KeyedRotation/1000": {
+    "real_ns": 140566.73678286292,
+    "cpu_ns": 140553.83848454693,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "KeyedRotation/10000": {
+    "real_ns": 1542219.3349203032,
+    "cpu_ns": 1541932.584269673,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "Churn/1000": {
+    "real_ns": 171904.06906413916,
+    "cpu_ns": 171893.47290640464,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "Churn/10000": {
+    "real_ns": 1885460.450084529,
+    "cpu_ns": 1884971.014492751,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MemoHit/1000": {
+    "real_ns": 140978.32964291895,
+    "cpu_ns": 140964.35742971813,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MemoHit/10000": {
+    "real_ns": 1575089.6588512016,
+    "cpu_ns": 1574955.0561797707,
+    "unit": "ns",
+    "repetitions": 4
    }
   },
   "sigilskia_device_bench": {

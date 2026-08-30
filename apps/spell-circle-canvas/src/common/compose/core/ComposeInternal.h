@@ -6,6 +6,9 @@
  */
 
 #include <sigilcompose/core/Material.h>
+#include <sigilcore/reconcile/Compare.h>
+#include <sigilcore/reconcile/Lanes.h>
+#include <sigilcore/reconcile/Memo.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <array>
@@ -367,17 +370,11 @@ struct MaterialData {
   std::optional<Material> recipe;
 };
 
-struct MemoData {
-  std::any props;
-  std::function<bool(const std::any&, const std::any&)> equal;
-  std::function<Element(const std::any&)> invoke;
-  /** The `env::` bindings in scope where this memo was WRITTEN. A memo is
-   *  the one deferred describe in the library, so it is also the one place
-   *  an inherited value could go stale: the snapshot rides in the memo's
-   *  key (resolveMemo compares it before the props) and is re-established
-   *  around the invoke. Empty — hence free — when nothing is bound. */
-  EnvSnapshot env;
-};
+/** The memo shell's payload: SigilCore's Memo, producing an Element. The
+ *  reconciler compares its captured `env` and then its props against the
+ *  memo the node was last described from, and runs `invoke` under that
+ *  environment on a miss. */
+using MemoData = core::Memo<Element>;
 
 struct ElementNode {
   Kind kind = Kind::Box;
@@ -568,25 +565,10 @@ inline auto fields(TextPath& v) {
   auto& [path, at, align, offset, autoFlip, orient, exactTangent] = v;
   return std::tie(path, at, align, offset, autoFlip, orient, exactTangent);
 }
-inline auto fields(BoundFloat& v) {
-  auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
-         holdStart, holdEnd, fallEnd, duty, waveFn, steps, scale, offset,
-         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
-         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
-  return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
-                  riseStart, holdStart, holdEnd, fallEnd, duty, waveFn, steps,
-                  scale, offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
-                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
-}
-inline auto fields(Transition& v) {
-  auto& [duration, ease, delay] = v;
-  return std::tie(duration, ease, delay);
-}
-template <typename T>
-auto fields(Transitioned<T>& v) {
-  auto& [value, spec, from, waypoints] = v;
-  return std::tie(value, spec, from, waypoints);
-}
+// BoundFloat, Transition and Transitioned are pinned where their
+// comparators are, in SigilCore; the pins join this overload set so
+// kFieldCount reads them the same way.
+using ::sigil::core::detail::fields;
 inline auto fields(Fill& v) {
   auto& [kind, colorValue, shaderValue] = v;
   return std::tie(kind, colorValue, shaderValue);
@@ -633,42 +615,28 @@ inline constexpr std::size_t kFieldCount =
  *  compares two different nodes will report a difference whatever the
  *  comparator does, and so passes even when the field is unread. */
 bool propsEqual(const ElementNode& a, const ElementNode& b);
-/** The shaped-binding half of the same comparator (see its doc comment). */
-bool boundMapEqual(const BoundFloat& a, const BoundFloat& b);
+/** The shaped-binding half of the same comparator, SigilCore's: every
+ *  field of BoundFloat participates, under the pin beside its body. */
+using ::sigil::core::boundMapEqual;
+/** An Animatable compared where every other animated slot is: SigilCore's
+ *  form-by-form comparator. */
+using ::sigil::core::propEqual;
 
 /** Constant, binding, or transitioned — flattened for the reconciler. */
-template <typename T>
-struct ResolvedProp {
-  T target{};
-  const choreograph::Output<T>* binding = nullptr;
-  const Transition* transition = nullptr;  // from with() or node default
-};
-
-template <typename T>
-ResolvedProp<T> resolveProp(const Animatable<T>& v,
-                            const std::optional<Transition>& nodeDefault) {
-  ResolvedProp<T> out;
-  if (const T* plain = v.plain()) {
-    out.target = *plain;
-    if (nodeDefault) out.transition = &*nodeDefault;
-  } else if (const Transitioned<T>* tr = v.transitioned()) {
-    out.target = tr->value;
-    out.transition = &tr->spec;
-  } else {
-    out.binding = v.binding();
-  }
-  return out;
-}
+using ::sigil::core::ResolvedProp;
+using ::sigil::core::resolveProp;
 
 // ---------------------------------------------------------------------------
 // TEXT FX — the runtime side of the fx() seam (TextFx.cpp)
 
 /** Equal only when PROVABLY identical: two easing curves compare equal when
- *  both are the same plain function pointer. A lambda-valued curve compares
- *  unequal, conservatively, because a std::function holding one cannot be
- *  inspected. One body, because a second spelling of this rule would let
- *  two comparators disagree about whether a node may prune. */
-bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
+ *  both are the same plain function pointer, and a lambda-valued curve
+ *  compares unequal, conservatively. SigilCore's one body, so no second
+ *  spelling of the rule can let two comparators disagree about whether a
+ *  node may prune. */
+using ::sigil::core::easeEqual;
+/** Same duration, same delay, same curve under easeEqual. */
+using ::sigil::core::transitionEqual;
 /** Did the DESCRIBED transform change between two descriptions? The lanes
  *  mirror propsEqual's transform block plus travel(). Defined in
  *  Reconcile.cpp beside the comparators it is built from. */

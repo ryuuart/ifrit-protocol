@@ -7,8 +7,11 @@
  * one per Instance::Slot whether or not this node carries the field; the
  * positional families — span endpoints, mask gates, fx() tracks — follow
  * in declaration order, and how many of each a node has is a property of
- * its description.
+ * its description. The lane itself, and everything done with one, is
+ * SigilCore's; this names the families.
  */
+
+#include <sigilcore/reconcile/Lanes.h>
 
 #include "Instance.h"
 
@@ -22,20 +25,7 @@ enum class LaneFamily : uint8_t {
   Track,  ///< `Instance::trackAnims`: one per fx() track's progress
 };
 
-struct LaneSlot {
-  LaneFamily family;
-  size_t index;  ///< an Instance::Slot for Slot, a position otherwise
-};
-
-struct Lane {
-  /** The description's animatable, or nullptr on a Slot lane whose node does
-   *  not carry the block that holds it (a node with no `travel()` has no
-   *  `t`). A positional lane always has one. */
-  const Animatable<float>* value;
-  LaneSlot slot;
-  /** The endpoint a patch ramps from or to when `value` is null on one side
-   *  of the diff — the field's own default. Meaningful for Slot lanes only. */
-  float standing;
-};
+using LaneSlot = core::LaneSlot<LaneFamily>;
+using Lane = core::Lane<LaneFamily>;
 
 }  // namespace sigil::compose::detail

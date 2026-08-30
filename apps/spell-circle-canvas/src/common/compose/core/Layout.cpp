@@ -16,6 +16,7 @@
 #include <optional>
 #include <ranges>
 #include <set>
+#include <span>
 
 #include "ComposeRuntime.h"
 
@@ -270,40 +271,26 @@ void Composer::Impl::ensureLayout() {
     YGNodeStyleSetWidth(root->yoga, size.width());
     YGNodeStyleSetHeight(root->yoga, size.height());
   }
-  // The runner walks `phases` in order. A non-converging phase runs once.
-  // The converging phases form one contiguous group, and that group is a
-  // bounded convergence loop, not a single second pass. Custom layout()
+  // The runner walks `phases` in order: a non-converging phase runs once,
+  // and the converging phases form one contiguous group that repeats until
+  // a round changes nothing or the round cap is reached. Custom layout()
   // placement, auto-sizing, centerAt pins and the derive phase all read
   // RESOLVED geometry and then write back into Yoga out of band, so each
   // can move what another already read: an auto-sized container changes the
   // box a pin centres in, and a pinned node moves an anchor a rail routed
   // through. Every writer here is idempotent and reports `changed` only on
   // an actual delta, so a stable layout costs one extra pass and exits, and
-  // a settling one converges within the round cap. The cap is what
-  // guarantees termination if two writers ever disagree permanently — the
-  // result is a slightly-off frame instead of a hang.
-  constexpr size_t kPhases = std::size(phases);
-  for (size_t i = 0; i < kPhases;) {
-    if (!phases[i].converging) {
-      (this->*phases[i].run)();
-      ++i;
-      continue;
-    }
-    size_t groupEnd = i;
-    while (groupEnd < kPhases && phases[groupEnd].converging) ++groupEnd;
-    for (int round = 0; round < kConvergeRounds; ++round) {
-      bool changed = false;
-      for (size_t p = i; p < groupEnd; ++p) changed |= (this->*phases[p].run)();
-      if (!changed) break;
-      phaseYoga();
-      // The settle step: refresh routes against the moved geometry. A route
-      // read before the relayout is a route on stale anchors, so the derive
-      // pass runs once more here rather than waiting for a round that may
-      // never come.
-      phaseDerive();
-    }
-    i = groupEnd;
-  }
+  // a settling one converges within the round cap.
+  core::runPhases(*this, std::span<const core::Phase<Impl>>(phases),
+                  kConvergeRounds, [this] {
+                    phaseYoga();
+                    // The settle step: refresh routes against the moved
+                    // geometry. A route read before the relayout is a route
+                    // on stale anchors, so the derive pass runs once more
+                    // here rather than waiting for a round that may never
+                    // come.
+                    phaseDerive();
+                  });
   needsLayout = false;
 }
 
