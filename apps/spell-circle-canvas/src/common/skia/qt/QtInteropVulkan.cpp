@@ -61,7 +61,9 @@ OffscreenSurface wrapTexture(GraphiteContext& context, QRhiTexture* texture,
     image.image = native.object;
     image.layout = static_cast<uint32_t>(native.layout);
     // A QRhiTexture::RGBA8 texture, which QRhi maps to R8G8B8A8_UNORM on
-    // Vulkan.
+    // Vulkan. The wrap promises input-attachment usage, which Graphite
+    // requires of a render target; a QRhi texture created without it
+    // fails the wrap and leaves canvas() null.
     image.format = VK_FORMAT_R8G8B8A8_UNORM;
     image.width = pixelSize.width();
     image.height = pixelSize.height();

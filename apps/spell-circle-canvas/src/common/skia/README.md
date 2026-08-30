@@ -237,11 +237,22 @@ queue when it dies; one from `adopt` never does. Every device call is
 safe from any thread except `beginFrame()`, which belongs to the one
 thread that counts frames.
 
-**The Vulkan device is not driven yet.** `GpuDevice::createOwned(Vulkan)`
-and `adopt` of a Vulkan `NativeDevice` return null with a diagnostic on
-stderr; the graphite feature's Vulkan factory is reachable directly
-through `GraphiteContext::createVulkan` for a host that has its own
-handles.
+**Two device backends, one contract.** What each supports:
+
+| | Metal | Vulkan |
+|---|---|---|
+| `createOwned` | the system default device and a fresh queue | the loader (platform search, or `SIGILSKIA_VULKAN_LIBRARY`), an instance with portability enumeration where offered, the first physical device with a graphics queue, a device with timeline semaphores enabled and the portability subset where required, that queue |
+| `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index; `getInstanceProcAddr` optional (the loader is found otherwise); the device must have timeline semaphores enabled |
+| texture | `id<MTLTexture>`; `cpuAccessible` is shared storage | `VkImage` + `VkDeviceMemory`, optimal tiling, sampled, colour-attachment, input-attachment and transfer usage (+ storage for `ShaderWrite`) — input attachment because Graphite reads a render target back through one; `cpuAccessible` prefers host-visible coherent memory and falls back to device-local; formats map to `R8G8B8A8_UNORM`, `B8G8R8A8_UNORM`, `R16G16B16A16_SFLOAT` |
+| import with ownership | retains the texture | destroys the `VkImage` and frees `vkMemory` when given |
+| fence | `MTLSharedEvent` | timeline `VkSemaphore`; `waitCpu` is `vkWaitSemaphores`, queue signal and wait are empty submissions |
+| loading | the framework | every entry point resolved from `vkGetInstanceProcAddr` at run time; nothing links Vulkan, and a machine without a loader or driver gets the reason from `createOwned` |
+| the Skia path | `createMetal` | `createVulkan` on the adopted handles |
+
+Without a Vulkan runtime, `createOwned(Backend::Vulkan)` returns null and
+names the reason; on macOS the runtime is `brew install molten-vk
+vulkan-loader`, and the tests and benchmarks on that backend skip with
+the same message.
 
 **A null canvas means the wrap failed.** `OffscreenSurface::canvas()`
 returns null in that case — check it before drawing.

@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <string>
 
 namespace sigil::skia {
 
@@ -43,5 +44,10 @@ class GpuDevice::Backend_ {
 /** The Metal implementation; null when there is no Metal device. */
 std::unique_ptr<GpuDevice::Backend_> createMetalBackend(
     const NativeDevice& native, bool owned);
+
+/** The Vulkan implementation; null, with the reason in @p error, when
+ *  the loader, a driver or a required handle is missing. */
+std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
+    const NativeDevice& native, bool owned, std::string* error);
 
 }  // namespace sigil::skia

@@ -43,52 +43,63 @@ struct GpuDevice::Impl {
   mutable std::mutex mutex;
 };
 
-std::unique_ptr<GpuDevice> GpuDevice::createOwned(Backend backend) {
+namespace {
+
+void report(std::string* error, const char* message) {
+  if (error) *error = message;
+}
+
+}  // namespace
+
+std::unique_ptr<GpuDevice> GpuDevice::createOwned(Backend backend,
+                                                  std::string* error) {
+  std::unique_ptr<Backend_> impl;
   switch (backend) {
     case Backend::Metal: {
 #ifdef __APPLE__
       NativeDevice native;
       native.backend = Backend::Metal;
-      auto impl = createMetalBackend(native, /*owned=*/true);
-      if (!impl) return nullptr;
-      return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
+      impl = createMetalBackend(native, /*owned=*/true);
+      if (!impl) report(error, "no Metal device");
 #else
-      std::fprintf(stderr,
-                   "[SigilSkia] GpuDevice::createOwned(Metal): Metal exists "
-                   "only on Apple platforms\n");
-      return nullptr;
+      report(error, "Metal exists only on Apple platforms");
 #endif
+      break;
     }
-    case Backend::Vulkan:
-      std::fprintf(stderr,
-                   "[SigilSkia] GpuDevice::createOwned(Vulkan): no Vulkan "
-                   "device is created yet; the Vulkan bring-up of the device "
-                   "feature adds it\n");
-      return nullptr;
+    case Backend::Vulkan: {
+      NativeDevice native;
+      native.backend = Backend::Vulkan;
+      impl = createVulkanBackend(native, /*owned=*/true, error);
+      break;
+    }
   }
-  return nullptr;
+  if (!impl) return nullptr;
+  return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
 
-std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native) {
+std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
+                                            std::string* error) {
+  std::unique_ptr<Backend_> impl;
   switch (native.backend) {
     case Backend::Metal: {
 #ifdef __APPLE__
-      if (!native.mtlDevice || !native.mtlCommandQueue) return nullptr;
-      auto impl = createMetalBackend(native, /*owned=*/false);
-      if (!impl) return nullptr;
-      return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
+      if (!native.mtlDevice || !native.mtlCommandQueue) {
+        report(error, "a Metal device and command queue are both required");
+        return nullptr;
+      }
+      impl = createMetalBackend(native, /*owned=*/false);
+      if (!impl) report(error, "no Metal device");
 #else
-      return nullptr;
+      report(error, "Metal exists only on Apple platforms");
 #endif
+      break;
     }
     case Backend::Vulkan:
-      std::fprintf(stderr,
-                   "[SigilSkia] GpuDevice::adopt(Vulkan): no Vulkan backend "
-                   "drives a device yet; the Vulkan bring-up of the device "
-                   "feature adds it\n");
-      return nullptr;
+      impl = createVulkanBackend(native, /*owned=*/false, error);
+      break;
   }
-  return nullptr;
+  if (!impl) return nullptr;
+  return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
 
 GpuDevice::GpuDevice(std::unique_ptr<Backend_> backend)

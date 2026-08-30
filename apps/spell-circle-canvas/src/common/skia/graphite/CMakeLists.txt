@@ -8,7 +8,6 @@
 # headers privately (the public headers spell every Vulkan handle as an
 # opaque value, so no consumer needs them) and, on Apple, Foundation — no
 # Qt.
-find_package(VulkanHeaders CONFIG REQUIRED)
 if(APPLE)
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES
       GraphiteContextMetal.mm

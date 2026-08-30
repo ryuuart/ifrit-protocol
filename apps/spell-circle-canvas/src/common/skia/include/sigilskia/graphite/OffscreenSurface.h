@@ -15,8 +15,9 @@ class GraphiteContext;
  * no Vulkan header: `image` is the VkImage (a 64-bit non-dispatchable
  * handle), `layout` and `format` are the VkImageLayout and VkFormat
  * enumerators the image currently has, and the size is in pixels. The
- * image must have been created for colour attachment, sampling and
- * transfer in both directions, and its memory stays the caller's.
+ * image must have been created for colour attachment, input attachment,
+ * sampling and transfer in both directions — the set a GpuDevice
+ * creates with — and its memory stays the caller's.
  */
 struct VulkanImage {
   uint64_t image = 0;

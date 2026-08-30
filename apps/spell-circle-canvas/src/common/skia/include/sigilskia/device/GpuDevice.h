@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 namespace sigil::skia {
 
@@ -58,14 +59,18 @@ struct TextureDesc {
 
 /**
  * A texture as the API's own object, bridged to an opaque value: an
- * id<MTLTexture> for Metal, a VkImage with its layout and format for
- * Vulkan. Size travels with it because Vulkan does not carry it on the
- * handle.
+ * id<MTLTexture> for Metal; a VkImage with its layout, format and — for
+ * one the device allocated, or one imported with ownership — the
+ * VkDeviceMemory behind it for Vulkan. Size travels with it because
+ * Vulkan does not carry it on the handle. `vkLayout` is the layout the
+ * image was last left in as far as the device knows; a device-created
+ * image starts undefined.
  */
 struct NativeTexture {
   Backend backend = Backend::Metal;
   void* mtlTexture = nullptr;
   uint64_t vkImage = 0;
+  uint64_t vkMemory = 0;
   uint32_t vkLayout = 0;
   uint32_t vkFormat = 0;
   int width = 0;
@@ -96,15 +101,23 @@ struct NativeTexture {
  */
 class GpuDevice {
  public:
-  /** A device this library owns: the system default device and a fresh
-   *  queue on it. Vulkan returns null with a diagnostic on stderr
-   *  because no Vulkan device is created yet — the Vulkan bring-up of
-   *  this feature adds it. */
-  static std::unique_ptr<GpuDevice> createOwned(Backend backend);
+  /** A device this library owns. Metal: the system default device and a
+   *  fresh queue on it. Vulkan: the loader found through the platform's
+   *  library search (or SIGILSKIA_VULKAN_LIBRARY), an instance, the first
+   *  physical device with a graphics queue, a device on it with timeline
+   *  semaphores enabled, and that queue. Null when the backend is not
+   *  available here — no Metal off Apple, no Vulkan loader or driver —
+   *  with the reason in @p error when one is given. */
+  static std::unique_ptr<GpuDevice> createOwned(Backend backend,
+                                                std::string* error = nullptr);
   /** A device over objects the host owns and keeps alive; the device
-   *  never frees them. Null when a required handle is missing, or for
-   *  a Vulkan set, which this feature does not drive yet. */
-  static std::unique_ptr<GpuDevice> adopt(const NativeDevice& native);
+   *  never frees them. A Vulkan set needs instance, physical device,
+   *  device and queue, and a device created with timeline semaphores
+   *  enabled; `getInstanceProcAddr` may be null, in which case the
+   *  loader is found the way createOwned finds it. Null when a required
+   *  handle is missing, with the reason in @p error when one is given. */
+  static std::unique_ptr<GpuDevice> adopt(const NativeDevice& native,
+                                          std::string* error = nullptr);
 
   ~GpuDevice();
   GpuDevice(const GpuDevice&) = delete;
@@ -160,8 +173,9 @@ class GpuDevice {
    *  to another queue for exactly that. */
   void waitGpu(FenceHandle fence, FenceValue value);
   /** The native fence behind a live handle — an id<MTLSharedEvent>
-   *  bridged to void* on Metal — for another queue or process to signal
-   *  or wait on; null for a stale handle. */
+   *  bridged to void* on Metal, a timeline VkSemaphore as void* on
+   *  Vulkan — for another queue or process to signal or wait on; null
+   *  for a stale handle. */
   void* exportNative(FenceHandle fence) const;
   /** Blocks until the fence reaches @p value or @p timeout passes. */
   FenceWait waitCpu(

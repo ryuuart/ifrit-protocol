@@ -19,6 +19,11 @@
 
 set(SIGIL_SKIA_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
+# The Vulkan headers, for the graphite feature's Vulkan bring-up and the
+# device feature's Vulkan backend; both link them privately, since every
+# public header spells a Vulkan handle as an opaque value.
+find_package(VulkanHeaders CONFIG REQUIRED)
+
 # Dependencies point up this list.
 add_subdirectory(graphite)
 add_subdirectory(device)

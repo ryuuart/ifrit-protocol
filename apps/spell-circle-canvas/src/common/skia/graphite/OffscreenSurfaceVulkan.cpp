@@ -23,17 +23,22 @@ OffscreenSurface::OffscreenSurface(GraphiteContext& context,
     : m_context(&context) {
   if (!image.image) return;
 
-  skgpu::graphite::VulkanTextureInfo info;
-  info.fFormat = static_cast<VkFormat>(image.format);
-  info.fImageTiling = VK_IMAGE_TILING_OPTIMAL;
   // What the wrap promises about the image; Skia validates these against
-  // what it needs (colour attachment to draw, transfer for clears and
-  // readbacks), so an image created with less fails the wrap rather than
-  // the draw.
-  info.fImageUsageFlags =
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  info.fSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  // what it needs — colour attachment to draw, input attachment because
+  // Graphite reads the destination back through one for some blends,
+  // transfer for clears and readbacks — so an image created with less
+  // fails the wrap rather than the draw. Sample count and mip state live on the
+  // info's base and are spelled explicitly: a default-constructed info does not
+  // describe a one-sample, unmipped image.
+  const skgpu::graphite::VulkanTextureInfo info(
+      VK_SAMPLE_COUNT_1_BIT, skgpu::Mipmapped::kNo, /*flags=*/0,
+      static_cast<VkFormat>(image.format), VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+          VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+          VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+          VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      VK_SHARING_MODE_EXCLUSIVE, VK_IMAGE_ASPECT_COLOR_BIT,
+      skgpu::VulkanYcbcrConversionInfo());
 
   const skgpu::graphite::BackendTexture backendTexture =
       skgpu::graphite::BackendTextures::MakeVulkan(

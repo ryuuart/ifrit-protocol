@@ -3,8 +3,10 @@
 # destruction queue that waits out the frames in flight. The
 # API-independent translation unit owns the tables and the queue; each
 # backend implements the private interface in DeviceBackend.h — Metal on
-# Apple today, Vulkan when a Vulkan device is driven. Links the graphite
-# feature so GraphiteContext::create(GpuDevice&) can reach both.
+# Apple, Vulkan everywhere, resolving its entry points from the loader at
+# run time so nothing links Vulkan and a machine without a driver only
+# reports that. Links the graphite feature so
+# GraphiteContext::create(GpuDevice&) can reach both.
 if(APPLE)
   set(SIGIL_SKIA_DEVICE_NATIVE_SOURCES GpuDeviceMetal.mm)
 else()
@@ -14,6 +16,7 @@ endif()
 add_library(SigilSkiaDevice STATIC
   DeviceBackend.h
   GpuDevice.cpp
+  GpuDeviceVulkan.cpp
   GraphiteOnDevice.cpp
   ${SIGIL_SKIA_DEVICE_NATIVE_SOURCES}
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/Fence.h
@@ -22,7 +25,9 @@ add_library(SigilSkiaDevice STATIC
 )
 target_compile_features(SigilSkiaDevice PUBLIC cxx_std_20)
 target_include_directories(SigilSkiaDevice PUBLIC ${SIGIL_SKIA_INCLUDE_DIR})
-target_link_libraries(SigilSkiaDevice PUBLIC SigilSkiaGraphite)
+target_link_libraries(SigilSkiaDevice
+  PUBLIC SigilSkiaGraphite
+  PRIVATE Vulkan::Headers ${CMAKE_DL_LIBS})
 if(APPLE)
   find_library(METAL_FRAMEWORK Metal REQUIRED)
   target_link_libraries(SigilSkiaDevice PRIVATE ${METAL_FRAMEWORK}
