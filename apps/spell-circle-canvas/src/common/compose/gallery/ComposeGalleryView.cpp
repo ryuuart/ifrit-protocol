@@ -275,7 +275,8 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer* commandBuffer) {
   // QByteArray copy before the backend's unavoidable staging upload.
   const QByteArray uploadBytes = QByteArray::fromRawData(
       reinterpret_cast<const char*>(m_rasterPixels.data()),
-      static_cast<qsizetype>(m_rasterPixels.size() * sizeof(uint32_t)));
+      static_cast<qsizetype>(m_rasterPixels.size()) *
+          static_cast<qsizetype>(sizeof(uint32_t)));
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
@@ -321,7 +322,7 @@ QVariantList ComposeGalleryView::scenes() const {
                 i >= kCatalogSceneCount
                     ? QString::fromUtf8(kStudies[i - kCatalogSceneCount].key)
                     : QString());
-    result.push_back(std::move(item));
+    result.push_back(item);
   }
   return result;
 }

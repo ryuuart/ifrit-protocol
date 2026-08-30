@@ -1236,7 +1236,7 @@ TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
     host.frame();
     std::vector<std::pair<int, float>> out;
     for (int x : {40, 70, 100, 130, 160})
-      out.push_back({thicknessAt(host, x), centreAt(host, x)});
+      out.emplace_back(thicknessAt(host, x), centreAt(host, x));
     return out;
   };
   const auto zipped = measure(false);

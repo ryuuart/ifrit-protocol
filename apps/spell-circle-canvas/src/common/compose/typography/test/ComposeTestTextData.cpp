@@ -988,6 +988,7 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
     return p.detach();
   };
   std::vector<SkPath> ring;
+  ring.reserve(12);
   for (int i = 0; i < 12; ++i)
     ring.push_back(sector((float)i * SK_FloatPI / 6.0f,
                           (float)(i + 1) * SK_FloatPI / 6.0f));

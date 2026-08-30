@@ -137,11 +137,10 @@ std::vector<std::vector<Span>> detail::Instance::resolveSpans(
       for (size_t j = 0; j < passes.size(); ++j)
         if (j != i && !passes[j].where.hasRest())
           against.insert(against.end(), out[j].begin(), out[j].end());
-    std::vector<Span> rest =
-        complementSpans(normalizeSpans(std::move(against)));
+    std::vector<Span> rest = complementSpans(normalizeSpans(against));
     // A pass may union rest() with explicit terms; keep both.
     rest.insert(rest.end(), out[i].begin(), out[i].end());
-    out[i] = normalizeSpans(std::move(rest));
+    out[i] = normalizeSpans(rest);
   }
 
   // The no-overlap law, over the CLAIMING passes only. An unqualified

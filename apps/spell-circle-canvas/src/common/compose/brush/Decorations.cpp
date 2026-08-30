@@ -109,6 +109,8 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   size_t index = 0;  // runs across contours — the sequence's position
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float length = contour->length();
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d < length; d += spacing) {
       SkPoint pos;
       SkVector tan;

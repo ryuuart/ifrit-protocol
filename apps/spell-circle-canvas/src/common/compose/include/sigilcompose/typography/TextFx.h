@@ -277,7 +277,8 @@ namespace sigil::compose {
  *  invisible. Binding translateX is paint-only volatility: the strip's
  *  recording replays every frame, nothing re-records. Keep `content`
  *  keyless (it mounts twice). */
-inline Element marquee(Element content, const choreograph::Output<float>* phase,
+inline Element marquee(const Element& content,
+                       const choreograph::Output<float>* phase,
                        float gap = 0.0f) {
   return box().clip(true).child(box()
                                     .row()

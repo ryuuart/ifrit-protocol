@@ -44,9 +44,9 @@ class Stage {
   motion::Ticker& ticker() { return m_ticker; }
   Composer& composer() { return m_composer; }
 
-  void render(Element root) { m_composer.render(std::move(root)); }
-  void renderSlot(std::string_view name, Element content) {
-    m_composer.renderSlot(name, std::move(content));
+  void render(const Element& root) { m_composer.render(root); }
+  void renderSlot(std::string_view name, const Element& content) {
+    m_composer.renderSlot(name, content);
   }
 
   /** Ticks real time, draws, and reports whether another frame is

@@ -293,8 +293,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     std::vector<float> widths;
     widths.reserve(content.size());
     float total = 0;
-    for (size_t i = 0; i < content.size(); ++i) {
-      const char c = content[i];
+    for (char c : content) {
       float w =
           (c == ' ')
               ? style.shaping.fontSize * 0.30f

@@ -27,7 +27,7 @@ Material styled(sdf::Kind kind) {
 void SdfShader(benchmark::State& state) {
   skia::install();
   const Material m = styled((sdf::Kind)state.range(0));
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> s = skia::shader(m, {.resolution = {128, 128}});
     benchmark::DoNotOptimize(s);
   }
@@ -42,7 +42,8 @@ void SdfPaint(benchmark::State& state) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
   SkPaint paint;
   paint.setShader(skia::shader(m, {.resolution = {(float)side, (float)side}}));
-  for (auto _ : state) surface->getCanvas()->drawPaint(paint);
+  for ([[maybe_unused]] auto iteration : state)
+    surface->getCanvas()->drawPaint(paint);
   state.SetItemsProcessed(state.iterations() * side * side);
 }
 BENCHMARK(SdfPaint)->Arg(64)->Arg(256);

@@ -284,7 +284,7 @@ constexpr float kW = 1016.0f, kH = 720.0f;
 using sigil::compose::hex;  // the same four lines as twenty-three other files
 using sigil::compose::mix;
 // dim(c, k) was mul(c, k) with the alpha kept, which is mul's default.
-inline SkColor4f dim(SkColor4f c, float k) { return mul(c, k); }
+inline SkColor4f dim(SkColor4f c, float k) noexcept { return mul(c, k); }
 
 // ---------------------------------------------------------------------------
 // PALETTE — every entry is a CONTRIBUTION, i.e. what this stratum ADDS to the

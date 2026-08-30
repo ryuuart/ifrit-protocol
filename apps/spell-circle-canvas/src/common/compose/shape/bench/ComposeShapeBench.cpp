@@ -53,7 +53,8 @@ void reconcileShapesArm(benchmark::State& state, ShapeIdentity identity) {
   Host host(1024, 1024);
   host.composer.render(shapedGrid(count, identity));
   host.draw();
-  for (auto _ : state) host.composer.render(shapedGrid(count, identity));
+  for ([[maybe_unused]] auto iteration : state)
+    host.composer.render(shapedGrid(count, identity));
   state.counters["patched"] = (double)host.composer.stats().patchedNodes;
   reportNodes(state, count);
 }
@@ -86,7 +87,7 @@ static void BM_HitTest_ShapedTree(benchmark::State& state) {
   host.composer.render(box().child(scatter));
   host.draw();
   int step = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const SkPoint pt{(float)(step * 37 % 900), (float)(step * 53 % 640)};
     benchmark::DoNotOptimize(host.composer.hitTest(pt));
     ++step;
@@ -115,7 +116,7 @@ static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
                       .blend(SkBlendMode::kPlus));
   host.composer.render(box().child(scatter));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_BlendField_Blobs)

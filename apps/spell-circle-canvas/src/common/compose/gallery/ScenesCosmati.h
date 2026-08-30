@@ -44,9 +44,10 @@ namespace cosmati {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 // The quarry list, as stone rather than as decoration.
@@ -145,6 +146,8 @@ inline std::function<SkPath(SkSize)> guillocheStrand(float periods, float phase,
   return [periods, phase, amplitude](SkSize s) {
     SkPathBuilder b;
     const float mid = s.height() * 0.5f;
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float x = 0; x <= s.width(); x += 2.0f) {
       const float t = x / std::max(s.width(), 1.0f);
       const float y =
@@ -170,7 +173,8 @@ inline std::function<SkPath(SkSize)> triangleCourse(int cols, int rows,
         // two triangles per cell, alternating orientation
         const int index = (r * cols * 2 + c);
         if (index % 3 != residue) continue;
-        const float x = (float)(c / 2) * w;
+        const int cell = c / 2;
+        const float x = (float)cell * w;
         const float y = (float)r * h;
         const bool up = (c % 2 == 0) == (r % 2 == 0);
         if (up) {

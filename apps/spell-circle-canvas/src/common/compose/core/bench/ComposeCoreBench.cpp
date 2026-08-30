@@ -48,10 +48,11 @@ Element positionedGrid(int count) {
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 50;
   for (int id = 0; id < count; ++id) {
+    const int row = id / kColumns;
     root.child(box()
                    .key("n" + std::to_string(id))
                    .left((float)(id % kColumns) * 20.0f)
-                   .top((float)(id / kColumns) * 20.0f)
+                   .top((float)row * 20.0f)
                    .width(19)
                    .height(19)
                    .fill(cellFill(id)));
@@ -79,10 +80,11 @@ Element groupScene(int count, Cache mode) {
   auto group = box().absolute().inset(12).key("group").cache(mode);
   constexpr int kColumns = 10;
   for (int id = 0; id < count; ++id) {
+    const int row = id / kColumns;
     group.child(box()
                     .absolute()
                     .left(18.0f + (float)(id % kColumns) * 59.0f)
-                    .top(18.0f + (float)(id / kColumns) * 43.0f)
+                    .top(18.0f + (float)row * 43.0f)
                     .width(64)
                     .height(13)
                     .rotate((float)(id % 7) * 6.0f - 18.0f)
@@ -100,7 +102,7 @@ Element groupScene(int count, Cache mode) {
 
 static void BM_Mount_Cold(benchmark::State& state) {
   const int count = (int)state.range(0);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     sigil::motion::Ticker ticker;
     Composer composer(ticker, fonts());
     composer.setSize({1024, 1024});
@@ -116,7 +118,8 @@ static void BM_Reconcile_Flex_Warm(benchmark::State& state) {
   Host host(1024, 1024);
   host.composer.render(flexGrid(count));
   host.draw();
-  for (auto _ : state) host.composer.render(flexGrid(count));
+  for ([[maybe_unused]] auto iteration : state)
+    host.composer.render(flexGrid(count));
   state.counters["patched"] = (double)host.composer.stats().patchedNodes;
   reportNodes(state, count);
 }
@@ -127,7 +130,8 @@ static void BM_Reconcile_Positioned_Warm(benchmark::State& state) {
   Host host(1024, 1024);
   host.composer.render(positionedGrid(count));
   host.draw();
-  for (auto _ : state) host.composer.render(positionedGrid(count));
+  for ([[maybe_unused]] auto iteration : state)
+    host.composer.render(positionedGrid(count));
   state.counters["yogaNodes"] = (double)host.composer.stats().yogaNodes;
   reportNodes(state, count);
 }
@@ -139,8 +143,9 @@ static void BM_Reconcile_OneChanged(benchmark::State& state) {
   host.composer.render(flexGrid(count));
   host.draw();
   int phase = 0;
-  for (auto _ : state)
-    host.composer.render(flexGrid(count, count / 2, ++phase & 1));
+  for ([[maybe_unused]] auto iteration : state)
+    host.composer.render(
+        flexGrid(count, count / 2, ((unsigned)++phase & 1u) != 0));
   state.counters["patched"] = (double)host.composer.stats().patchedNodes;
   reportNodes(state, count);
 }
@@ -152,7 +157,7 @@ static void BM_Reconcile_KeyedReorder(benchmark::State& state) {
   host.composer.render(flexGrid(count));
   host.draw();
   int shift = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     shift = shift == 0 ? 1 : 0;
     host.composer.render(flexGrid(count, -1, 0, shift));
   }
@@ -168,7 +173,7 @@ static void BM_Layout_Flex_ViewportToggle(benchmark::State& state) {
   host.composer.render(flexGrid(count));
   host.draw();
   bool narrow = false;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     narrow = !narrow;
     host.composer.setSize({narrow ? 768.0f : 1024.0f, 1024.0f});
     host.draw();
@@ -183,7 +188,7 @@ static void BM_Layout_Positioned_ViewportToggle(benchmark::State& state) {
   host.composer.render(positionedGrid(count));
   host.draw();
   bool narrow = false;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     narrow = !narrow;
     host.composer.setSize({narrow ? 768.0f : 1024.0f, 1024.0f});
     host.draw();
@@ -201,7 +206,7 @@ static void BM_Query_Bounds(benchmark::State& state) {
   host.composer.render(positionedGrid(count));
   host.draw();
   int id = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     const std::string key = "n" + std::to_string(id++ % count);
     benchmark::DoNotOptimize(host.composer.bounds(key));
   }
@@ -260,7 +265,7 @@ static void BM_Env_ThemeChange_MemosNeverRead(benchmark::State& state) {
   host.composer.render(memoGridUnder(count, BenchPalette{}));
   host.draw();
   bool dark = false;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     dark = !dark;
     BenchPalette palette;
     palette.surface = dark ? SkColor4f{0.10f, 0.12f, 0.16f, 1.0f}
@@ -278,7 +283,7 @@ static void BM_Env_ThemeHeld_MemosNeverRead(benchmark::State& state) {
   Host host(1024, 1024);
   host.composer.render(memoGridUnder(count, BenchPalette{}));
   host.draw();
-  for (auto _ : state)
+  for ([[maybe_unused]] auto iteration : state)
     host.composer.render(memoGridUnder(count, BenchPalette{}));
   state.counters["memoHits"] = (double)host.composer.stats().memoHits;
   state.counters["patched"] = (double)host.composer.stats().patchedNodes;
@@ -294,7 +299,7 @@ static void BM_Draw_GroupCache_LivePictures(benchmark::State& state) {
   host.composer.setAutoTexturePromotion(false);
   host.composer.render(groupScene(count, Cache::Auto));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_GroupCache_LivePictures)
@@ -313,7 +318,7 @@ static void BM_Draw_GroupCache_Blit(benchmark::State& state) {
     state.SkipWithError("Cache::Group did not reach the blit state");
     return;
   }
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["textures"] = (double)host.composer.stats().texturesLive;
   reportNodes(state, count);
 }
@@ -340,7 +345,7 @@ BENCHMARK(BM_Draw_GroupCache_Blit)
 namespace {
 
 Element marqueeStrip(float acrossPx, float alongPx) {
-  auto label = [&](std::string text, float size, SkColor4f color) {
+  auto label = [&](const std::string& text, float size, SkColor4f color) {
     sigil::weave::TextStyle style;
     style.shaping.fontSize = size;
     style.paint.foreground.setColor(color.toSkColor());
@@ -432,7 +437,7 @@ sk_sp<SkPicture> withRTree(const sk_sp<SkPicture>& art) {
 }
 
 /** The tile ladder: a strip of two, ten and forty 4096 px tiles. */
-void tileLadder(benchmark::internal::Benchmark* b) {
+void tileLadder(::benchmark::Benchmark* b) {
   b->Arg(2)->Arg(10)->Arg(40)->Unit(benchmark::kMillisecond);
 }
 
@@ -442,7 +447,7 @@ void tileLadder(benchmark::internal::Benchmark* b) {
  *  read against, since both happen once. */
 static void BM_Bake_TiledStrip_Snapshot(benchmark::State& state) {
   const int tiles = (int)state.range(0);
-  for (auto _ : state)
+  for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(
         snapshot(marqueeStrip(324.0f, (float)(tiles * 4096)), fonts()));
   state.counters["tiles"] = (double)tiles;
@@ -452,7 +457,7 @@ BENCHMARK(BM_Bake_TiledStrip_Snapshot)->Apply(tileLadder);
 static void BM_Bake_TiledStrip_FullReplay(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   sk_sp<SkSurface> surface = tileSurface(bake);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
       SkCanvas* canvas = surface->getCanvas();
       SkAutoCanvasRestore restore(canvas, true);
@@ -471,7 +476,7 @@ static void BM_Bake_TiledStrip_RTreeReplay(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   const sk_sp<SkPicture> art = withRTree(bake.art);
   sk_sp<SkSurface> surface = tileSurface(bake);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
       SkCanvas* canvas = surface->getCanvas();
       SkAutoCanvasRestore restore(canvas, true);
@@ -490,7 +495,8 @@ BENCHMARK(BM_Bake_TiledStrip_RTreeReplay)->Apply(tileLadder);
  *  re-record plus the tree build, once. */
 static void BM_Bake_TiledStrip_RTreeBuild(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
-  for (auto _ : state) benchmark::DoNotOptimize(withRTree(bake.art));
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(withRTree(bake.art));
   state.counters["tiles"] = (double)bake.tiles;
 }
 BENCHMARK(BM_Bake_TiledStrip_RTreeBuild)->Apply(tileLadder);
@@ -513,7 +519,7 @@ static void BM_Bake_TiledStrip_PerTilePicture(benchmark::State& state) {
     ops += (double)windows.back()->approximateOpCount(true);
   }
   sk_sp<SkSurface> surface = tileSurface(bake);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k) {
       SkCanvas* canvas = surface->getCanvas();
       canvas->clear(SK_ColorTRANSPARENT);
@@ -531,7 +537,7 @@ BENCHMARK(BM_Bake_TiledStrip_PerTilePicture)->Apply(tileLadder);
 static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State& state) {
   const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
   sk_sp<SkSurface> surface = tileSurface(bake);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     for (int k = 0; k < bake.tiles; ++k)
       surface->getCanvas()->clear(SK_ColorTRANSPARENT);
     benchmark::DoNotOptimize(surface->makeImageSnapshot());

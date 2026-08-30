@@ -757,8 +757,15 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
         "  float4 col = uC0;\n";
     for (size_t i = 1; i < n; ++i) {
       const std::string p0 = std::to_string(i - 1), p1 = std::to_string(i);
-      src += "  col = mix(col, uC" + p1 + ", clamp((t - uS" + p0 +
-             ") / max(uS" + p1 + " - uS" + p0 + ", 1e-6), 0.0, 1.0));\n";
+      src += "  col = mix(col, uC";
+      src += p1;
+      src += ", clamp((t - uS";
+      src += p0;
+      src += ") / max(uS";
+      src += p1;
+      src += " - uS";
+      src += p0;
+      src += ", 1e-6), 0.0, 1.0));\n";
     }
     src += "  return half4(half3(col.rgb) * half(col.a), half(col.a));\n}\n";
     auto [effect, error] =
@@ -776,8 +783,8 @@ inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
   m.uniform("uA", std::array<float, 2>{a.x(), a.y()});
   m.uniform("uB", std::array<float, 2>{b.x(), b.y()});
   for (size_t i = 0; i < n; ++i) {
-    m.uniform(("uC" + std::to_string(i)).c_str(), stops[i].color);
-    m.uniform(("uS" + std::to_string(i)).c_str(), stops[i].pos);
+    m.uniform("uC" + std::to_string(i), stops[i].color);
+    m.uniform("uS" + std::to_string(i), stops[i].pos);
   }
   return m;
 }

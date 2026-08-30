@@ -180,12 +180,13 @@ TEST(ProgramCache, MissingBodyAndMissingCompilerReturnNull) {
 TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
   ProgramCache cache;
   int calls = 0;
-  cache.registerCompiler(Target::Slang, [&](std::shared_ptr<const Recipe>,
-                                            Variant, std::string& e) {
-    ++calls;
-    e = "nope";
-    return std::shared_ptr<Program>{};
-  });
+  cache.registerCompiler(
+      Target::Slang,
+      [&](const std::shared_ptr<const Recipe>&, Variant, std::string& e) {
+        ++calls;
+        e = "nope";
+        return std::shared_ptr<Program>{};
+      });
   auto r = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("bad").body(Target::Slang, "x"));
   EXPECT_EQ(cache.program(r, Target::Slang), nullptr);

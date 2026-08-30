@@ -266,14 +266,14 @@ namespace magi {
 
 constexpr float kW = 1440.0f, kH = 1052.0f;
 
-inline SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {(float)((v >> 16) & 255) / 255.0f, (float)((v >> 8) & 255) / 255.0f,
-          (float)(v & 255) / 255.0f, a};
+inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
+  return {(float)((v >> 16u) & 255u) / 255.0f,
+          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
 }
 /** Scale a colour's light. The portrait is a different plate at a different
  *  exposure and sits BEHIND this one; the anchor's own floor (37% of the frame
  *  below luma 12, p99 153, max 241) is what it has to stay under. */
-inline SkColor4f dim(SkColor4f c, float k) {
+inline SkColor4f dim(SkColor4f c, float k) noexcept {
   return {c.fR * k, c.fG * k, c.fB * k, c.fA};
 }
 
@@ -366,8 +366,8 @@ inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
 /** A box with an INDEPENDENT x and y cut per corner. `shapes::chamfered` takes
  *  one scalar and therefore only cuts at 45 deg; this plate's three cuts
  *  measure 41.0, 45.9 and 46.2, so none of them is expressible that way. */
-enum CutCorner { CutTL = 1, CutTR = 2, CutBR = 4, CutBL = 8 };
-inline shapes::OutlineFn cutBox(float cx, float cy, int mask) {
+enum CutCorner : unsigned { CutTL = 1, CutTR = 2, CutBR = 4, CutBL = 8 };
+inline shapes::OutlineFn cutBox(float cx, float cy, unsigned mask) {
   return [cx, cy, mask](SkSize s) {
     const float w = s.width(), h = s.height();
     const float x = std::min(cx, w * 0.5f), y = std::min(cy, h * 0.5f);
@@ -402,7 +402,7 @@ struct Panel {
   const char* label;
   SkRect box;    // the axis-aligned rectangle, measured in the flat plate
   SkVector cut;  // the corner cut, x and y independently
-  int cutMask;
+  unsigned cutMask;
   SkPoint labelInk;  // measured ink top-left of the label run
   float labelCap;    // measured cap height
   float labelInkW;   // measured ink span — the condensation solves off it
@@ -610,7 +610,7 @@ inline Arrivals arrivalTable(SkRect box, float cell, SkPoint seed,
             ++in;
       if (in == 0) continue;
       const float w = (float)in / 16.0f;
-      A.cells.push_back({arrival((float)x, (float)y, seed), w});
+      A.cells.emplace_back(arrival((float)x, (float)y, seed), w);
       A.total += w;
     }
   std::sort(A.cells.begin(), A.cells.end(),
@@ -637,17 +637,17 @@ inline float frontFor(const Arrivals& A, float frac) {
 // DOUBLED runs and a single hairline is not the honest spelling.
 
 inline uint32_t hash32(uint32_t x) {
-  x ^= x >> 16;
+  x ^= x >> 16u;
   x *= 0x7feb352du;
-  x ^= x >> 15;
+  x ^= x >> 15u;
   x *= 0x846ca68bu;
-  x ^= x >> 16;
+  x ^= x >> 16u;
   return x;
 }
 inline float hashF(int a, int b, int salt) {
   return (float)(hash32((uint32_t)(a * 73856093) ^ (uint32_t)(b * 19349663) ^
                         (uint32_t)(salt * 83492791)) &
-                 0xffffff) /
+                 0xffffffu) /
          16777215.0f;
 }
 constexpr float kCell = 32.0f;
@@ -659,13 +659,14 @@ inline SkPath ownCircuitry(SkSize s, int salt, int runs) {
   for (int r = 0; r < runs; ++r) {
     float x = std::round(hashF(r, 3, salt) * s.width() / kCell) * kCell;
     float y = std::round(hashF(r, 7, salt) * s.height() / kCell) * kCell;
-    int dir = (int)(hashF(r, 11, salt) * 4.0f) & 3;
+    int dir = (int)((unsigned)(int)(hashF(r, 11, salt) * 4.0f) & 3u);
     const int steps = 3 + (int)(hashF(r, 13, salt) * 7.0f);
     bool started = false;
     for (int i = 0; i < steps; ++i) {
       // jackestar's lineAngleVariation, as a per-step turn probability
       if (hashF(r, i * 31 + 5, salt) < 0.26f)
-        dir = (dir + (hashF(r, i * 37, salt) < 0.5f ? 1 : 3)) & 3;
+        dir = (int)((unsigned)(dir + (hashF(r, i * 37, salt) < 0.5f ? 1 : 3)) &
+                    3u);
       const float nx = x + (float)kDX[dir] * kCell;
       const float ny = y + (float)kDY[dir] * kCell;
       if (nx < 4 || ny < 4 || nx > s.width() - 4 || ny > s.height() - 4) break;
@@ -911,6 +912,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
           box()
               .inset(0)
               .fill(Fill::none())
+              // the callable is invoked on every layout, so its capture must
+              // survive each return
+              // NOLINTNEXTLINE(performance-no-automatic-move)
               .shape([circuit](SkSize) { return circuit; })
               .stroke(lines::Rails{.rails = {{.across = 6.0f,
                                               .width = 3.0f,
@@ -926,6 +930,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       node.child(box()
                      .inset(0)
                      .fill(Fill::none())
+                     // the callable is invoked on every layout, so its capture
+                     // must survive each return
+                     // NOLINTNEXTLINE(performance-no-automatic-move)
                      .shape([pads](SkSize) { return pads; })
                      .stroke(PathFormat{.width = 2.0f,
                                         .strokeFill = Fill::color(magi::kInk),
@@ -1208,6 +1215,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
+                  // the callable is invoked on every layout, so its capture
+                  // must survive each return
+                  // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([dend](SkSize) { return dend; })
                   .stroke(brush::Ribbon{.fill = Fill::color(magi::dim(
                                             magi::hex(0x8A2412), magi::kBack)),
@@ -1255,6 +1265,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath arcp = ab.detach();
       Element run = box().inset(0).fill(Fill::none()).shape([arcp](SkSize) {
+        // the callable is invoked on every layout, so its capture must survive
+        // each return
+        // NOLINTNEXTLINE(performance-no-automatic-move)
         return arcp;
       });
       if (seg % 2)
@@ -1277,6 +1290,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
+                  // the callable is invoked on every layout, so its capture
+                  // must survive each return
+                  // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([arcp](SkSize) { return arcp; })
                   .stroke(lines::Rails{
                       .rails = {{.across = 6.0f,
@@ -1315,6 +1331,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
+                  // the callable is invoked on every layout, so its capture
+                  // must survive each return
+                  // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([fan](SkSize) { return fan; })
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(magi::dim(
@@ -1334,6 +1353,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
+                  // the callable is invoked on every layout, so its capture
+                  // must survive each return
+                  // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([comb](SkSize) { return comb; })
                   .stroke(lines::Line{.width = 1.8f,
                                       .fill = Fill::color(magi::kPPin)}));
@@ -1346,6 +1368,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
+                  // the callable is invoked on every layout, so its capture
+                  // must survive each return
+                  // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([ladder](SkSize) { return ladder; })
                   .stroke(lines::Line{.width = 0.8f,
                                       .fill = Fill::color(magi::kPChart),
@@ -1388,7 +1413,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       const float a = (float)spoke * 22.5f - 90.0f;
       for (int j = 0; j < 5; ++j) {
         const float r = (215.0f + (float)j * 42.0f) * S;
-        const bool mag = ((spoke + j) & 1) != 0;
+        const bool mag = ((unsigned)(spoke + j) & 1u) != 0;
         const float lw = (mag ? 37.0f : 29.0f) * S;
         const float lh = (mag ? 21.0f : 16.0f) * S;
         const SkPoint p = polar(r, a);
@@ -1498,8 +1523,8 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                        .inset = 6.5f,
                                        .cornerAngleDeg = 20.0f});
     for (int k = 0; k < 4; ++k) {
-      const float bx = (k & 1) ? Wd - 25.0f : 25.0f;
-      const float by = (k & 2) ? Ht - 23.0f : 23.0f;
+      const float bx = ((unsigned)k & 1u) ? Wd - 25.0f : 25.0f;
+      const float by = ((unsigned)k & 2u) ? Ht - 23.0f : 23.0f;
       g.child(
           kit::disc({bx, by}, 8.5f).fill(Material::solid(magi::hex(0x120A12))));
       g.child(kit::disc({bx - 2.0f, by - 2.0f}, 5.0f)
@@ -1578,6 +1603,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                             magi::hex(0x0B060B), 0.88f, 3.0f))
                     .inset(0)
                     .onPath(TextPath{
+                        // the callable is invoked on every layout, so its
+                        // capture must survive each return
+                        // NOLINTNEXTLINE(performance-no-automatic-move)
                         .path = [stencilArc](SkSize) { return stencilArc; },
                         .at = 0.5f,
                         .align = TextPath::Align::Center,
@@ -1646,10 +1674,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         {"balthasar", {0.791f, 0.971f}, "melchior", {0.190f, 0.275f}},
         {"casper", {1.000f, 0.599f}, "melchior", {0.011f, 0.652f}},
     };
-    for (int i = 0; i < 3; ++i)
+    for (const auto& spec : kRails)
       root.child(
-          rail({{kRails[i].a, kRails[i].na}, {kRails[i].b, kRails[i].nb}},
-               routers::polyline(0.0f))
+          rail({{spec.a, spec.na}, {spec.b, spec.nb}}, routers::polyline(0.0f))
               .inset(0)
               .stroke(
                   lines::Rails{.rails = {{.across = 0.0f,

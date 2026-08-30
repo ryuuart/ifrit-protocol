@@ -378,6 +378,8 @@ const int8_t kKvg_yu[] = {0, 1, 5, 1, 4, 4, 4, 4};
 const int8_t kKvg_wu[] = {0, 1, 5, 0};
 const int8_t kKvg_lei[] = {0, 4, 5, 1, 4, 4, 4, 4, 1, 5, 1, 0, 0};
 const int8_t kKvg_gui[] = {2, 1, 5, 1, 0, 0, 2, 5, 5, 4};
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct KvgRow {
   int glyph;
   const int8_t* cls;
@@ -776,15 +778,19 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
     const SkRect f = s.frame;
     const SkPath local = s.path.makeOffset(-f.left(), -f.top());
-    Element e = box()
-                    .left(f.left())
-                    .top(f.top())
-                    .width(Dim(f.width()))
-                    .height(Dim(f.height()))
-                    .shape([local](SkSize) { return local; })
-                    .fill(Fill::none())
-                    .stroke(std::move(brush))
-                    .key(s.key);
+    Element e =
+        box()
+            .left(f.left())
+            .top(f.top())
+            .width(Dim(f.width()))
+            .height(Dim(f.height()))
+            // the callable is invoked on every layout, so its capture must
+            // survive each return
+            // NOLINTNEXTLINE(performance-no-automatic-move)
+            .shape([local](SkSize) { return local; })
+            .fill(Fill::none())
+            .stroke(std::move(brush))
+            .key(s.key);
     // The wet 頓 pool riding the head of the self-drawing line. A decoration
     // receives the ALREADY-trimmed outline, so its own window is a fraction
     // of the revealed part — this needs no second node.
@@ -839,9 +845,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     for (const auto& [g, share] : parts) {
       const std::vector<Poly> ms = medians(g);
       const float bh = size * share / total;
-      for (size_t i = 0; i < ms.size(); ++i) {
-        const int cls = classify(ms[i]);
-        Poly q = place(ms[i], {at.fX - size * 0.5f, y}, size, bh);
+      for (const auto& m : ms) {
+        const int cls = classify(m);
+        Poly q = place(m, {at.fX - size * 0.5f, y}, size, bh);
         SkPath sp = cloud(smoothPath(q), amp, size * 0.42f);
         push(sp, w0ForClass(cls) * size * 0.92f, cls, t + (float)idx * each,
              t + (float)(idx + 1) * each - 0.03f, kCinnabar,
@@ -1077,7 +1083,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                          sizes[c], sizes[c]);
           const size_t start = flat.size();
           for (const SkPoint& pt : q) flat.push_back(pt);
-          strokeRanges.push_back({start, flat.size()});
+          strokeRanges.emplace_back(start, flat.size());
           strokeW.push_back(w0ForClass(classify(m)) / w0ForClass(SHU));
         }
       }
@@ -1132,9 +1138,8 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     for (int k = 0; k < 3; ++k) {
       const std::vector<Poly> ms = medians(src[k]);
       SkPathBuilder b;
-      for (size_t i = 0; i < ms.size(); ++i) {
-        Poly q =
-            place(ms[i], {at[k].fX - 30.0f, at[k].fY - 30.0f}, 60.0f, 60.0f);
+      for (const auto& m : ms) {
+        Poly q = place(m, {at[k].fX - 30.0f, at[k].fY - 30.0f}, 60.0f, 60.0f);
         SkPath sp = cloud(smoothPath(q), 2.2f, 22.0f);
         b.addPath(sp);
       }
@@ -1336,6 +1341,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     g.child(
         box()
             .inset(0)
+            // the callable is invoked on every layout, so its capture must
+            // survive each return
+            // NOLINTNEXTLINE(performance-no-automatic-move)
             .shape([walkPath](SkSize) { return walkPath; })
             .fill(Fill::none())
             .stroke(lines::rails({{.across = 0.0f,
@@ -1798,7 +1806,8 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     };
     for (int c = 0; c < CLSN; ++c) {
       const float cx = (c % 2 == 0) ? 0.0f : 148.0f;
-      const float y = ky + 28 + (float)(c / 2) * 62;
+      const int row = c / 2;
+      const float y = ky + 28 + (float)row * 62;
       const float w0 = w0ForClass(c) * 128.0f;
       g.child(box()
                   .left(cx + 4)
@@ -1868,8 +1877,8 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
             .width(1500));
     // registration marks at the four corners of the sheet
     for (int i = 0; i < 4; ++i) {
-      const float rx = (i & 1) ? kW - 46 : 46;
-      const float ry = (i & 2) ? kH - 46 : 46;
+      const float rx = ((unsigned)i & 1u) ? kW - 46 : 46;
+      const float ry = ((unsigned)i & 2u) ? kH - 46 : 46;
       g.child(box()
                   .left(rx - 11)
                   .top(ry - 11)

@@ -197,7 +197,7 @@ constexpr float kFit = 0.88f;  // R·√2 + glow must clear kPanelH/2
 constexpr float kT = 12.0f * kPi;
 constexpr int kSamples = 2000;
 
-const std::array<Card, 4> kCards = {{
+constexpr std::array<Card, 4> kCards = {{
     {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hex(0xE0601A),
      "A — WARM / ORANGE · a:b = 3:2 · δ 90°",
      "k 0.15 · R 176 px · 3-petal rosette, slow precession"},

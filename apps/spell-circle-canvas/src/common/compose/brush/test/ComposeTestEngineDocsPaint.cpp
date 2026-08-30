@@ -2,10 +2,14 @@
 // subjects are paint-tier values, cut from that file so each test binary links
 // only the target it exercises.
 
+#include <utility>
+
 #include "support/PaintTestSupport.h"
 
 TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
-  auto art = [](Fill fill) { return box().width(12).height(12).fill(fill); };
+  auto art = [](Fill fill) {
+    return box().width(12).height(12).fill(std::move(fill));
+  };
   brush::Pattern base;
   base.side = box().width(16).height(4).fill(green());
   base.start = art(red());

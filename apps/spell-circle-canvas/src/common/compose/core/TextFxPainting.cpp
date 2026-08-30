@@ -171,7 +171,7 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
   // Once per face and axis: a scramble over a proportional charset would
   // otherwise report every character of it, one line each.
   static thread_local std::unordered_set<uint64_t> warned;
-  if (warned.insert(((uint64_t)face->uniqueID() << 1) | (uint64_t)axis).second)
+  if (warned.insert(((uint64_t)face->uniqueID() << 1u) | (uint64_t)axis).second)
     SkDebugf(
         "sigilcompose fx: a code-point substitution on this font is "
         "proportional %s — refused (the replacement is drawn at the "
@@ -190,6 +190,8 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   const Material* metricMat = metricFillOf(node);
   const bool stroked = node.textData && node.textData->hasTextStroke;
   if (!metricMat && !stroked) return std::nullopt;
+  if (!inst.paragraph.has_value()) return std::nullopt;
+  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
 
   // Chrome type: the material's unit square mapped to the text's metric
   // band — x across the widest line, y from the first line's cap top (real
@@ -200,10 +202,9 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   // textFill supersedes the fill, not the underlays, overlays and
   // decorations around it (a chrome wordmark keeps its cast shadow and dark
   // keyline).
-  sigil::weave::PaintStyle metric =
-      inst.paragraph->spans().empty()
-          ? sigil::weave::PaintStyle{}
-          : inst.paragraph->spans().front().style.paint;
+  sigil::weave::PaintStyle metric = paragraph.spans().empty()
+                                        ? sigil::weave::PaintStyle{}
+                                        : paragraph.spans().front().style.paint;
   metric.foreground.setShader(nullptr);
   bool havePaint = false;
   // textStroke(): a stroke pass on the glyphs, UNDER the fill. It joins the
@@ -256,7 +257,7 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
              !inst.lines.empty()) {
     const sigil::weave::ShapedWord* firstFont = nullptr;
     sigil::weave::forEachPlacedGlyph(
-        inst.textLayout, *inst.paragraph,
+        inst.textLayout, paragraph,
         [&](const sigil::weave::PlacedGlyph& placed) {
           if (!firstFont) firstFont = placed.shaped;
         });
@@ -351,7 +352,7 @@ SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
  *  numbering — so it is the same seed on every frame and after every
  *  relayout, which is what lets a seeded dissolve settle and cache. */
 float passUnitSeed(uint32_t outer, uint32_t inner) {
-  Rng rng(((uint64_t)outer << 32) | (uint64_t)inner);
+  Rng rng(((uint64_t)outer << 32u) | (uint64_t)inner);
   return 1.0f + rng.unit() * 255.0f;
 }
 

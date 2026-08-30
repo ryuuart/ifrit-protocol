@@ -89,7 +89,7 @@ TEST(ComposeReconcile, MemoSkipsDescribe) {
 TEST(ComposeReconcile, KeyedReorderKeepsInstances) {
   Host host;
   auto row = [](const char* k, Fill f) {
-    return box().key(k).width(40).height(40).fill(f);
+    return box().key(k).width(40).height(40).fill(std::move(f));
   };
   host.composer.render(
       box().row().child(row("a", red())).child(row("b", green())));
@@ -158,7 +158,7 @@ TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
 TEST(ComposeCaching, ReconcileInvalidatesRecording) {
   Host host;
   auto tree = [](Fill f) {
-    return box().child(box().key("x").width(60).height(60).fill(f));
+    return box().child(box().key("x").width(60).height(60).fill(std::move(f)));
   };
   host.composer.render(tree(red()));
   host.frame();
@@ -622,6 +622,7 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
 }
 
 #include <cstring>  // memcmp — for the no-conversion control at the bottom
+#include <utility>
 
 TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
   // declareInputSpace lets "I deliberately declared my colour space" and
@@ -2006,9 +2007,9 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
   ASSERT_EQ(deferred.size(), layered.size());
   int peak = 0;
   for (size_t i = 0; i < deferred.size(); ++i)
-    for (int shift : {0, 8, 16, 24})
-      peak = std::max(peak, std::abs((int)((deferred[i] >> shift) & 0xFF) -
-                                     (int)((layered[i] >> shift) & 0xFF)));
+    for (unsigned shift : {0u, 8u, 16u, 24u})
+      peak = std::max(peak, std::abs((int)((deferred[i] >> shift) & 0xFFu) -
+                                     (int)((layered[i] >> shift) & 0xFFu)));
   EXPECT_LE(peak, 2) << "deferred blit and layer composite disagree "
                         "beyond the 8-bit residual";
   // …and the blend is really live: plus over red saturates the red
@@ -2139,7 +2140,7 @@ Element envLevel1() { return box().child(envLevel2()); }
 /** Describe under a binding, and hand back a tree the binding no longer
  *  touches — the whole design in three lines. */
 Element envDescribeWith(EnvPalette p) {
-  env::Provide<EnvPalette> theme(std::move(p));
+  env::Provide<EnvPalette> theme(p);
   return box().child(envLevel1());
 }
 
@@ -2149,7 +2150,7 @@ TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
   Host host;
   Element tree = envDescribeWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
   EXPECT_FALSE(env::bound<EnvPalette>());  // the scope ended; the VALUE is
-  host.composer.render(std::move(tree));   // already baked into the tree
+  host.composer.render(tree);              // already baked into the tree
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);   // the themed chip
   EXPECT_EQ(host.pixel(5, 25), SK_ColorBLUE);  // its plain sibling
@@ -2169,7 +2170,7 @@ TEST(ComposeEnv, UnchangedEnvironmentStillPrunes) {
   Host host;
   const EnvPalette dark{{0, 0, 1, 1}, {1, 1, 0, 1}};
   auto renderWith = [&](EnvPalette p) {
-    host.composer.render(envDescribeWith(std::move(p)));
+    host.composer.render(envDescribeWith(p));
   };
   renderWith(dark);
   host.frame();
@@ -2191,7 +2192,7 @@ TEST(ComposeEnv, ThemeChangeRepatchesOnlyTheNodesThatMoved) {
   // sibling sit between the binding and the reader; none of them repatch.
   Host host;
   auto renderWith = [&](EnvPalette p) {
-    host.composer.render(envDescribeWith(std::move(p)));
+    host.composer.render(envDescribeWith(p));
   };
   renderWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
   host.frame();
@@ -2225,13 +2226,13 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   // Provide below has been destroyed. Building the tree and handing it to
   // the composer are two statements, deliberately.
   auto describeWith = [&component](EnvPalette p) {
-    env::Provide<EnvPalette> theme(std::move(p));
+    env::Provide<EnvPalette> theme(p);
     return box().child(memo(Props{1}, component).key("m"));
   };
   auto renderWith = [&](EnvPalette p) {
-    Element tree = describeWith(std::move(p));
+    Element tree = describeWith(p);
     ASSERT_FALSE(env::bound<EnvPalette>());  // the binding is gone by here
-    host.composer.render(std::move(tree));
+    host.composer.render(tree);
   };
 
   renderWith(EnvPalette{{0, 0, 1, 1}, {}});
@@ -2318,7 +2319,7 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   Host host;
   host.composer.render(tree);
   host.frame();
-  const SkRect got = *host.composer.bounds(feed::rowKey(1));
+  const SkRect got = require(host.composer.bounds(feed::rowKey(1)));
   EXPECT_GT(got.width(), 0.0f);
 
   // The unbound spelling still compiles to the component's own default —
@@ -2327,7 +2328,8 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   bare.composer.render(box().padding(4).child(
       box().child(feed::feed(ring, feed::TextOptions{}))));
   bare.frame();
-  EXPECT_NE(bare.composer.bounds(feed::rowKey(1))->width(), got.width());
+  EXPECT_NE(require(bare.composer.bounds(feed::rowKey(1))).width(),
+            got.width());
 }
 
 // ---------------------------------------------------------------------------

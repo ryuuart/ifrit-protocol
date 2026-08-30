@@ -560,7 +560,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   std::vector<std::string> verifyLines;
   std::vector<bool> verifyFail;
   std::string derivation1, derivation2;
-  std::string counterText = "";
+  std::string counterText;
 
   Material paperGrain, plateTone, sweepRing, medallionGlow;
   std::shared_ptr<weave::Paragraph> lawPara;
@@ -718,7 +718,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       mean = 0;
       worst = 0;
       for (int n = 0; n < 36; ++n) {
-        const Lab &A = lab[(size_t)n], &B = lab[(size_t)(n + 36)];
+        const Lab &A = lab[(size_t)n], &B = lab[(size_t)n + 36];
         const float dx = B.a - A.a, dy = B.b - A.b;
         const float len = std::hypot(dx, dy);
         const float d = len > 1e-6f
@@ -739,7 +739,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     v.yRouge = luminance(corrected[0]);
     v.jauneHighest = true;
     for (int i = 0; i < 12; ++i)
-      if (i != 4 && luminance(corrected[(size_t)(i * 6)]) > v.yJaune)
+      if (i != 4 && luminance(corrected[(size_t)i * 6]) > v.yJaune)
         v.jauneHighest = false;
     v.bleuDarker = v.yBleu < v.yRouge;  // §160 says it should be
 
@@ -757,7 +757,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                         .height(Dim(32))
                         .shrink(0)
                         .fill(Fill::color(gamme[(size_t)b])));
-      sk_sp<SkPicture> pic = snapshot(std::move(strip), *ctx.fonts);
+      sk_sp<SkPicture> pic = snapshot(strip, *ctx.fonts);
       sk_sp<SkSurface> surf = SkSurfaces::Raster(
           SkImageInfo::MakeN32Premul((int)(kBandW * kBandN), 32));
       if (pic && surf) {
@@ -840,7 +840,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
       Element probe = box().width(Dim(gw)).height(Dim(gh)).child(
           instancing::instances(quadAtlas, quadPool, instancing::Mode::Data));
-      sk_sp<SkPicture> pic = snapshot(std::move(probe), *ctx.fonts);
+      sk_sp<SkPicture> pic = snapshot(probe, *ctx.fonts);
       sk_sp<SkSurface> surf = SkSurfaces::Raster(
           SkImageInfo::MakeN32Premul((int)std::ceil(gw), (int)std::ceil(gh)));
       if (pic && surf) {
@@ -883,7 +883,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
               .height(Dim(32))
               .fill(Fill::color(gamme[9]))
               .effect(Effect::recipe(sigil::material::color::exponent(2.2f))));
-      sk_sp<SkPicture> pic = snapshot(std::move(probe), *ctx.fonts);
+      sk_sp<SkPicture> pic = snapshot(probe, *ctx.fonts);
       sk_sp<SkSurface> surf =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
       if (pic && surf) {
@@ -912,7 +912,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     auto fr = quadPool->frames();
     for (int k = 0; k < 10; ++k)
       for (int t = 0; t < 20; ++t) {
-        const size_t i = (size_t)(k * 20 + t);
+        const size_t i = (size_t)k * 20 + (size_t)t;
         pos[i] = {(float)k * (kQCellW + kQGapX) + kQCellW * 0.5f,
                   (float)t * (kQCellH + kQGapY) + kQCellH * 0.5f};
         tint[i] = quadrantCell(corrected[0], k + 1, t + 1);
@@ -931,7 +931,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     };
     add(fmt("CIRCLE CLOSES     %d named x %d = %d      3 + 3x23 = %d", v.named,
             v.perNamed, v.closes1, v.closes2),
-        !(v.closes1 == 72 && v.closes2 == 72));
+        v.closes1 != 72 || v.closes2 != 72);
     add(fmt("SYSTEM TOTAL      72 x 20 x 10 + 20 grey = %ld", v.total),
         v.total != 14420);
     add(fmt("PLATE DIAMETER    ROUGE %.1f  VERT %.1f  delta %.2f", kScanRouge,
@@ -961,10 +961,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
         !v.bleuDarker);
     add(fmt("STAIRCASE         %d bands, sigma %.2f, %d/%d hexes exact",
             v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
-        !(v.bandsExact == v.bands && v.bandSigmaMax == 0.0f));
+        v.bandsExact != v.bands || v.bandSigmaMax != 0.0f);
     add(fmt("EXACT COVER       %d uncovered / %d doubled of %d", v.covUncovered,
             v.covDoubled, v.covSamples),
-        !(v.covUncovered == 0 && v.covDoubled == 0));
+        v.covUncovered != 0 || v.covDoubled != 0);
     add(fmt("INSTANCE TINTS    %d/%d cells exact, max channel dev %d",
             v.tintExact, v.tintCells, v.tintMaxDev),
         v.tintExact != v.tintCells);
@@ -1371,7 +1371,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // the 36 chords, drawing in one at a time
     for (int n = 0; n < 36; ++n) {
       const SkPoint A = P(lab[(size_t)n].a, lab[(size_t)n].b);
-      const SkPoint B = P(lab[(size_t)(n + 36)].a, lab[(size_t)(n + 36)].b);
+      const SkPoint B = P(lab[(size_t)n + 36].a, lab[(size_t)n + 36].b);
       SkRect bb = SkRect::MakeLTRB(std::min(A.fX, B.fX), std::min(A.fY, B.fY),
                                    std::max(A.fX, B.fX), std::max(A.fY, B.fY));
       bb.outset(2, 2);
@@ -1582,7 +1582,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 12; ++i) {
       const int col = i % 4, row = i / 4;
       lattice.child(at((float)col * cw, (float)row * chh, cw - 3, chh - 3)
-                        .fill(Fill::color(corrected[(size_t)(i * 6)])));
+                        .fill(Fill::color(corrected[(size_t)i * 6])));
     }
     g.child(std::move(lattice));
     for (int i = 0; i < 12; ++i) {
@@ -1739,7 +1739,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
         for (int k = 0; k < 10; ++k) {
           const float lo = 0.80f + 0.012f * (float)k;
           const float a = std::clamp((d - lo) / 0.010f, 0.0f, 1.0f);
-          for (int r = 0; r < 20; ++r) tints[(size_t)(k * 20 + r)].fA = a;
+          for (int r = 0; r < 20; ++r) tints[(size_t)k * 20 + (size_t)r].fA = a;
         }
       }
       return true;
@@ -1762,7 +1762,8 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // design, so the 78 limb runs re-record on every render(). Pair it with
     // CHEVREUL_NOLIMB=1 for the other half of the comparison.
     if (std::getenv("CHEVREUL_REDESCRIBE")) ctx.composer.render(describe(ctx));
-    if (++frames > 2 && frames < 7 && std::getenv("CHEVREUL_STATS")) {
+    ++frames;
+    if (frames > 2 && frames < 7 && std::getenv("CHEVREUL_STATS")) {
       const Composer::Stats& st = ctx.composer.stats();
       SkDebugf(
           "[chevreul] frame %d  instances %d  picturesLive %d  "

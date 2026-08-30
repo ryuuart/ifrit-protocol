@@ -243,7 +243,7 @@ sk_sp<SkImage> bevelImage(const SkPath& path, SkIRect bounds, float bevelPx,
   for (int y = 0; y < h; ++y) {
     const uint32_t* row = ramp.getAddr32(0, y);
     for (int x = 0; x < w; ++x) {
-      const float c = (float)((row[x] >> SK_R32_SHIFT) & 0xff) / 255.0f;
+      const float c = (float)((row[x] >> SK_R32_SHIFT) & 0xffu) / 255.0f;
       height[(size_t)y * w + x] = c * c * (3.0f - 2.0f * c);
     }
   }

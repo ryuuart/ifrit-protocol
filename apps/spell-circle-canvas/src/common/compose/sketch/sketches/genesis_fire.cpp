@@ -392,10 +392,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   // random number between -1.0 and +1.0".
 
   float rand01() {
-    rng ^= rng << 13;
-    rng ^= rng >> 17;
-    rng ^= rng << 5;
-    return (float)(rng >> 8) * (1.0f / 16777216.0f);
+    rng ^= rng << 13u;
+    rng ^= rng >> 17u;
+    rng ^= rng << 5u;
+    return (float)(rng >> 8u) * (1.0f / 16777216.0f);
   }
   float rand11() { return rand01() * 2.0f - 1.0f; }
 
@@ -568,7 +568,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         col.push_back(kEdge);
         pos.push_back({tail.fX - nn.fX, tail.fY - nn.fY});
         col.push_back(kEdge);
-        for (int k = 0; k < 18; ++k) idx.push_back((uint16_t)(v0 + kTri[k]));
+        for (uint16_t t : kTri) idx.push_back((uint16_t)(v0 + t));
       }
       out.push_back(SkVertices::MakeCopy(
           SkVertices::kTriangles_VertexMode, (int)pos.size(), pos.data(),
@@ -1255,8 +1255,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     std::vector<Element> swatches, labels;
     swatches.reserve(14);
     labels.reserve(14);
-    for (int i = 0; i < 14; ++i) {
-      const int n = kRampN[i];
+    for (int n : kRampN) {
       swatches.push_back(box()
                              .width(28)
                              .height(26)

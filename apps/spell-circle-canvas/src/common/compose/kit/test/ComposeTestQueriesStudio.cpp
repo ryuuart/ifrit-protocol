@@ -392,7 +392,7 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "the patch counter is not live, so the zeroes above prove nothing";
   EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);
-  EXPECT_EQ(host.composer.bounds("plate")->fLeft, 41.0f);
+  EXPECT_EQ(require(host.composer.bounds("plate")).fLeft, 41.0f);
 }
 
 TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
@@ -482,7 +482,7 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
           .child(box().key("q").absolute().width(20).height(20).fill(red())));
   flow.frame();
   ASSERT_TRUE(flow.composer.bounds("q").has_value());
-  EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 0.0f);
+  EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 0.0f);
 
   flow.composer.render(
       box()
@@ -490,7 +490,7 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
           .child(box().width(60).height(20).fill(green()))
           .child(box().key("q").width(20).height(20).fill(red())));
   flow.frame();
-  EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 60.0f)
+  EXPECT_FLOAT_EQ(require(flow.composer.bounds("q")).fLeft, 60.0f)
       << "if this is still 0 then .absolute() alone is ALSO redundant and "
          "the sweep's predicate is over-cautious; if it is 60 the predicate "
          "is exactly right";
@@ -612,7 +612,8 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("plate").has_value());
-  EXPECT_EQ(*host.composer.bounds("plate"), SkRect::MakeXYWH(20, 20, 200, 80));
+  EXPECT_EQ(require(host.composer.bounds("plate")),
+            SkRect::MakeXYWH(20, 20, 200, 80));
   // The ground, inside the keyline.
   EXPECT_EQ(SkColorGetB(host.pixel(120, 25)), 128);
   // The inner keyline sits ON the edge, not outside it.
@@ -728,15 +729,15 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());
-  EXPECT_FLOAT_EQ(host.composer.bounds("panel")->height(), panelH);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("panel")).height(), panelH);
   for (const char* k : {"feedA", "feedB", "feedC"}) {
     ASSERT_TRUE(host.composer.bounds(k).has_value()) << k;
-    EXPECT_FLOAT_EQ(host.composer.bounds(k)->height(), rows)
+    EXPECT_FLOAT_EQ(require(host.composer.bounds(k)).height(), rows)
         << k << " shrank: feed::height() is not the laid-out height";
   }
   // The three feeds tile the interior exactly — the last one ends on the
   // padding, with nothing clipped and nothing left over.
-  EXPECT_FLOAT_EQ(host.composer.bounds("feedC")->bottom(),
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("feedC")).bottom(),
                   10.0f + panelH - padY);
 }
 
@@ -780,7 +781,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // is set in.
   ASSERT_TRUE(host.composer.bounds(feed::rowKey(1)).has_value());
   ASSERT_TRUE(host.composer.bounds(feed::rowKey(2)).has_value());
-  const SkRect band = *host.composer.bounds(feed::rowKey(2));
+  const SkRect band = require(host.composer.bounds(feed::rowKey(2)));
   int redInk = 0;
   for (int y = (int)band.top(); y < (int)band.bottom(); ++y)
     for (int x = (int)band.left(); x < (int)band.right(); ++x) {
@@ -802,8 +803,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   Host typed(220, 90);
   typed.composer.render(byHand(true));
   typed.frame(0.25);  // row 1's 200 ms is done; row 2 waits out its 400 ms
-  const SkRect r1 = *typed.composer.bounds(feed::rowKey(1));
-  const SkRect r2 = *typed.composer.bounds(feed::rowKey(2));
+  const SkRect r1 = require(typed.composer.bounds(feed::rowKey(1)));
+  const SkRect r2 = require(typed.composer.bounds(feed::rowKey(2)));
   EXPECT_GT(brightest(typed, r1), 150);
   EXPECT_LT(brightest(typed, r2), 40) << "the stagger did not delay row 2";
   typed.frame(0.5);  // t = 0.75 — row 2 is 350 ms into its own 200 ms
@@ -888,7 +889,7 @@ TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
   host.composer.render(box().child(box().key("d").rect(r).fill(red())));
   host.frame();
   ASSERT_TRUE(host.composer.bounds("d").has_value());
-  EXPECT_EQ(*host.composer.bounds("d"), r);
+  EXPECT_EQ(require(host.composer.bounds("d")), r);
   EXPECT_EQ(host.pixel(100, 50), SK_ColorRED);
 }
 

@@ -187,6 +187,7 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
   host.frame();
   auto row = [&] {
     std::vector<bool> lit;
+    lit.reserve(200);
     for (int x = 0; x < 200; ++x)
       lit.push_back(host.pixel(x, 90) != SK_ColorBLACK);
     return lit;

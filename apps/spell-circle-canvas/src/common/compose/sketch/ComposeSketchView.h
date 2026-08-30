@@ -35,6 +35,8 @@ class ComposeSketchView : public QQuickRhiItem {
   QString status() const { return m_status; }
   QString errorLog() const { return m_errorLog; }
   bool compiling() const { return m_compiling; }
+  // the QML-facing property is named for the sketch's state, not the item's
+  // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
   QString state() const { return m_state; }
   QString metrics() const { return m_metrics; }
 

@@ -83,9 +83,9 @@ struct Fill {
  *  Named `hex` rather than `rgb`, because `rgb(0xRRGGBB)` reads as "three
  *  arguments" when there is only one, and rather than a single letter,
  *  which is unsearchable. constexpr, so palette constants stay constexpr. */
-constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) {
-  return {(float)((rrggbb >> 16) & 0xffu) / 255.0f,
-          (float)((rrggbb >> 8) & 0xffu) / 255.0f,
+constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) noexcept {
+  return {(float)((rrggbb >> 16u) & 0xffu) / 255.0f,
+          (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
           (float)(rrggbb & 0xffu) / 255.0f, a};
 }
 
@@ -95,7 +95,7 @@ constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) {
  *  colour channels are different operations, and folding both into one
  *  signature would leave a defaulted argument deciding which the caller
  *  meant. */
-constexpr SkColor4f alpha(SkColor4f c, float a) {
+constexpr SkColor4f alpha(SkColor4f c, float a) noexcept {
   return {c.fR, c.fG, c.fB, a};
 }
 
@@ -106,14 +106,14 @@ constexpr SkColor4f alpha(SkColor4f c, float a) {
  *  is legal (and meaningful under a wide-gamut or OCIO view); Skia clamps
  *  when it lands in an 8-bit surface. A caller who needs the clamped value
  *  is asking for a different operation and writes it at the call site. */
-constexpr SkColor4f mul(SkColor4f c, float k, float a = -1.0f) {
+constexpr SkColor4f mul(SkColor4f c, float k, float a = -1.0f) noexcept {
   return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
 }
 
 /** Linear interpolation between two colours, alpha included. Component-wise
  *  in whatever space the colours are already in — plain arithmetic, not a
  *  colour-managed blend. */
-constexpr SkColor4f mix(SkColor4f a, SkColor4f b, float t) {
+constexpr SkColor4f mix(SkColor4f a, SkColor4f b, float t) noexcept {
   return {a.fR + (b.fR - a.fR) * t, a.fG + (b.fG - a.fG) * t,
           a.fB + (b.fB - a.fB) * t, a.fA + (b.fA - a.fA) * t};
 }

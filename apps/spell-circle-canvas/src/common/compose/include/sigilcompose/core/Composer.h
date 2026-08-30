@@ -117,7 +117,7 @@ class Composer {
    *  description compares equal. Call it whenever your data changed —
    *  never per frame just to move a value, which is what a binding is
    *  for. */
-  void render(Element root);
+  void render(const Element& root);
 
   /** Updates only the named slot() mount point. Layout and stacking still
    *  integrate normally and ancestors re-record their caches, but the rest
@@ -125,7 +125,7 @@ class Composer {
    *  changing at different rates do not invalidate each other.
    *
    *  A name that matches no slot does nothing, silently. */
-  void renderSlot(std::string_view name, Element content);
+  void renderSlot(std::string_view name, const Element& content);
 
   /** Content or layout changed since the last draw(). Redraw when
    *  dirty() || ticker.active(). */
@@ -423,8 +423,9 @@ class Composer {
 
  private:
   friend struct detail::Instance;
-  friend sk_sp<SkPicture> snapshot(Element, sigil::weave::FontContext&, SkSize);
-  friend SkSize measure(Element, sigil::weave::FontContext&, SkSize);
+  friend sk_sp<SkPicture> snapshot(const Element&, sigil::weave::FontContext&,
+                                   SkSize);
+  friend SkSize measure(const Element&, sigil::weave::FontContext&, SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

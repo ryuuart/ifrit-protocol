@@ -19,7 +19,7 @@ std::shared_ptr<sigil::image::ImageAsset> twoCellAtlas() {
   SkDynamicMemoryWStream stream;
   SkPngEncoder::Encode(&stream, src.pixmap(), {});
   return std::make_shared<sigil::image::ImageAsset>(
-      *sigil::image::ImageAsset::decode(stream.detachAsData()));
+      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
 }
 
 }  // namespace

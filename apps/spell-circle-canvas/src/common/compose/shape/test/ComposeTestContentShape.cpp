@@ -322,6 +322,8 @@ TEST(ComposeShapeValues, CopiesOfOneShapeCompareEqualEvenWhenRaw) {
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
     return b.detach();
   };
+  // the copy is what the test compares
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   const Shape copy = raw;
   EXPECT_TRUE(raw == copy);
   // But two separate constructions from equivalent lambdas cannot know
@@ -494,6 +496,7 @@ TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
 TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
   Host host;
   std::vector<Element> dots;
+  dots.reserve(4);
   for (int i = 0; i < 4; ++i)
     dots.push_back(
         box().width(10).height(10).fill(red()).key("d" + std::to_string(i)));
@@ -519,6 +522,7 @@ TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
 TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   Host host;
   std::vector<Element> beads;
+  beads.reserve(10);
   for (int i = 0; i < 10; ++i)
     beads.push_back(
         box().width(6).height(6).fill(green()).key("b" + std::to_string(i)));
@@ -536,7 +540,7 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   // All beads land ON the star outline: distance from center between
   // inner and outer radius.
   for (int i = 0; i < 10; ++i) {
-    auto r = host.composer.bounds(("b" + std::to_string(i)).c_str());
+    auto r = host.composer.bounds("b" + std::to_string(i));
     ASSERT_TRUE(r.has_value());
     const float dx = r->centerX() - 90, dy = r->centerY() - 90;
     const float dist = std::sqrt(dx * dx + dy * dy);
@@ -613,6 +617,7 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
   auto centers = [&](uint32_t seed) {
     Host host;
     std::vector<Element> bits;
+    bits.reserve(9);
     for (int i = 0; i < 9; ++i)
       bits.push_back(
           box().width(12).height(12).fill(blue()).key("s" + std::to_string(i)));
@@ -623,7 +628,7 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
     host.frame();
     std::vector<SkPoint> out;
     for (int i = 0; i < 9; ++i) {
-      auto r = host.composer.bounds(("s" + std::to_string(i)).c_str());
+      auto r = host.composer.bounds("s" + std::to_string(i));
       out.push_back({r->centerX(), r->centerY()});
       EXPECT_GE(r->left(), -0.01f);
       EXPECT_GE(r->top(), -0.01f);
@@ -650,7 +655,7 @@ std::shared_ptr<sigil::image::ImageAsset> fourTileAtlas() {
   SkDynamicMemoryWStream stream;
   SkPngEncoder::Encode(&stream, src.pixmap(), {});
   return std::make_shared<sigil::image::ImageAsset>(
-      *sigil::image::ImageAsset::decode(stream.detachAsData()));
+      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
 }
 
 struct ChunkProps {
@@ -666,14 +671,14 @@ Element tileChunk(const ChunkProps& p) {
   auto chunk = box().width(4 * kTilePx).height(4 * kTilePx);
   for (int i = 0; i < (int)p.tiles.size(); ++i) {
     const int id = p.tiles[(size_t)i];
-    const float sx = (float)(id % 2) * 8, sy = (float)(id / 2) * 8;
-    chunk.child(
-        image(atlas)
-            .region(SkRect::MakeXYWH(sx, sy, 8, 8))
-            .absolute()
-            .inset((float)(i % 4) * kTilePx, (float)(i / 4) * kTilePx, 0, 0)
-            .width(kTilePx)
-            .height(kTilePx));
+    const int atlasRow = id / 2, row = i / 4;
+    const float sx = (float)(id % 2) * 8, sy = (float)atlasRow * 8;
+    chunk.child(image(atlas)
+                    .region(SkRect::MakeXYWH(sx, sy, 8, 8))
+                    .absolute()
+                    .inset((float)(i % 4) * kTilePx, (float)row * kTilePx, 0, 0)
+                    .width(kTilePx)
+                    .height(kTilePx));
   }
   return chunk;
 }
@@ -729,6 +734,7 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   // the second half of this case checks.
   Host host;
   std::vector<Element> dots;
+  dots.reserve(4);
   for (int i = 0; i < 4; ++i)
     dots.push_back(
         box().width(10).height(10).fill(red()).key("r" + std::to_string(i)));

@@ -506,8 +506,7 @@ struct SkillTreeScene final : Scene {
    *  else stays a straight spoke. The rope state is the WEAKER endpoint. */
   void edges(Element& root) {
     namespace pt = skill_tree;
-    for (int i = 0; i < treedata::kEdgeCount; ++i) {
-      const treedata::Edge& e = treedata::kEdges[i];
+    for (const auto& e : treedata::kEdges) {
       const int state = pt::edgeState(treedata::kNodes[e.a].state,
                                       treedata::kNodes[e.b].state);
       RailRouter router;
@@ -543,8 +542,7 @@ struct SkillTreeScene final : Scene {
           alloc.push_back(i);
       auto degree = [&](int n) {
         int d = 0;
-        for (int i = 0; i < treedata::kEdgeCount; ++i) {
-          const treedata::Edge& e = treedata::kEdges[i];
+        for (const auto& e : treedata::kEdges) {
           const bool aIn =
               treedata::kNodes[e.a].state == treedata::State::Allocated;
           const bool bIn =
@@ -580,6 +578,7 @@ struct SkillTreeScene final : Scene {
     }
     if (path.size() < 2) return;
     std::vector<Anchor> anchors;
+    anchors.reserve(path.size());
     for (int n : path) anchors.push_back(Anchor{nodeKey(n)});
     // Straight router: the spine crosses groups, and routers::orbit only
     // curves same-radius pairs anyway — a single focus would be a lie.
@@ -637,9 +636,9 @@ struct SkillTreeScene final : Scene {
     const int sel = selectedIndex();
     const treedata::Node& node = treedata::kNodes[sel];
     const treedata::Detail* detail = nullptr;
-    for (int i = 0; i < treedata::kDetailCount; ++i)
-      if (std::string_view(treedata::kDetails[i].name) == node.name) {
-        detail = &treedata::kDetails[i];
+    for (const auto& candidate : treedata::kDetails)
+      if (std::string_view(candidate.name) == node.name) {
+        detail = &candidate;
         break;
       }
     if (!detail) return;

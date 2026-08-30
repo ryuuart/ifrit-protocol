@@ -194,7 +194,7 @@ const T* inherited() {
 /** The inherited value, or `fallback` — the one-liner spelling for a
  *  component that has a sensible default of its own. */
 template <class T>
-T inheritedOr(T fallback) {
+T inheritedOr(const T& fallback) {
   const T* found = inherited<T>();
   return found ? *found : std::move(fallback);
 }

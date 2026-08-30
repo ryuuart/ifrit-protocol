@@ -61,7 +61,7 @@ inline Pattern stripes(float on, float off, SkColor4f color) {
  *  the whole sequence along +x (px, wrapped). Rotate the Pattern for
  *  diagonals — stays seamless. If no run has a positive width the result
  *  draws nothing. */
-inline Pattern sequence(std::vector<std::pair<float, SkColor4f>> runs,
+inline Pattern sequence(const std::vector<std::pair<float, SkColor4f>>& runs,
                         float phase = 0.0f) {
   std::vector<std::pair<float, sigil::material::Color>> out;
   out.reserve(runs.size());
@@ -90,7 +90,7 @@ inline Pattern gridLines(float spacing, float width, SkColor4f color) {
  *  radii in [rMin, rMax], colors cycled from the palette — deterministic
  *  per seed, `.seed(n)` re-rolls the field. */
 inline Pattern speckle(float tileSize, int count, float rMin, float rMax,
-                       std::vector<SkColor4f> palette) {
+                       const std::vector<SkColor4f>& palette) {
   return sigil::material::pattern::speckle(tileSize, count, rMin, rMax,
                                            detail::colors(palette));
 }

@@ -13,6 +13,8 @@
 
 namespace sigil::compose {
 
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Composer::Impl {
   motion::Ticker& ticker;
   sigil::weave::FontContext& fonts;
@@ -120,7 +122,7 @@ struct Composer::Impl {
   // intrinsic root (snapshot()). Written by paint() at the root frame;
   // PaintContext::rootSize is read from here.
   SkSize rootLayoutSize = SkSize::MakeEmpty();
-  static constexpr size_t kPromotedBudget = 192u * 1024 * 1024;
+  static constexpr size_t kPromotedBudget = size_t{192} * 1024 * 1024;
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
   int profDepth = 0;
@@ -142,7 +144,8 @@ struct Composer::Impl {
   std::unique_ptr<detail::Instance> mount(
       const std::shared_ptr<detail::ElementNode>& node,
       detail::Instance* parent);
-  void patch(detail::Instance& inst, std::shared_ptr<detail::ElementNode> node);
+  void patch(detail::Instance& inst,
+             const std::shared_ptr<detail::ElementNode>& node);
   void patchChildren(detail::Instance& inst,
                      const std::vector<Element>& newChildren);
   void applyLayoutProps(detail::Instance& inst);

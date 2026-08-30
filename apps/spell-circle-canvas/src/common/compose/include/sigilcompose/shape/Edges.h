@@ -27,6 +27,8 @@ enum class Edge : uint8_t {
   All = 15,
 };
 constexpr Edge operator|(Edge a, Edge b) {
+  // the type is a bit set; any union of enumerators is a valid value
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return Edge(uint8_t(a) | uint8_t(b));
 }
 constexpr bool has(Edge mask, Edge e) {

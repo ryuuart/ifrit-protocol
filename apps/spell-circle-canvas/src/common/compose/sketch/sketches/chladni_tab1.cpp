@@ -220,6 +220,8 @@ struct Linie {
 };
 
 // fitted through three measured points per curve; residuals < 0.003 R
+// NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
+// allocation could throw
 const std::vector<Linie> kFig7 = {
     {0, 0, 0, true},       // the vertical diameter
     {297, 1.10f, 0.58f},   // left hook  (measured c=(-0.930,-0.447) r=0.540)
@@ -239,6 +241,8 @@ const std::vector<Linie> kFig10 = {
     {180, 1.836f, 1.536f},
     {180, 1.540f, 0.850f},
 };
+
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 const std::vector<Linie>& linienOf(int num) {
   return num == 7 ? kFig7 : (num == 9 ? kFig9 : kFig10);
@@ -308,6 +312,8 @@ struct Label {
 };
 
 const std::vector<Label> kNoLabels;
+// NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
+// allocation could throw
 const std::vector<Label> kL1 = {
     {0, 1.14f, "n"}, {90, 1.16f, "m"}, {180, 1.15f, "p"}, {270, 1.16f, "q"}};
 const std::vector<Label> kL2 = {
@@ -332,17 +338,17 @@ const std::vector<Label> kL9 = {{308, 1.15f, "k"}, {52, 1.15f, "n"},
 const std::vector<Label> kL10 = {{322, 1.16f, "t"}, {37, 1.15f, "n"},
                                  {325, 0.44f, "r"}, {35, 0.44f, "s"},
                                  {285, 1.12f, "k"}, {65, 1.13f, "l"}};
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 const std::vector<Label>& labelsOf(int num) {
   switch (num) {
     case 1:
       return kL1;
     case 2:
-      return kL2;
-    case 3:
-      return kL2;  // figs 2 and 3 share letters AND bearings — the
+    case 3:        // figs 2 and 3 share letters AND bearings — the pairing that
+      return kL2;  //   proves 3 is 2 drawn as valleys
     case 4:
-      return kL4;  //   pairing that proves 3 is 2 drawn as valleys
+      return kL4;
     case 5:
       return kL5;
     case 7:
@@ -363,10 +369,10 @@ struct Xorshift {
   explicit Xorshift(uint64_t seed)
       : s(seed * 0x9e3779b97f4a7c15ull + 0xda3e39cbu) {}
   float next() {
-    s ^= s << 13;
-    s ^= s >> 7;
-    s ^= s << 17;
-    return (float)((s >> 11) & 0xffffffu) / (float)0x1000000u;
+    s ^= s << 13u;
+    s ^= s >> 7u;
+    s ^= s << 17u;
+    return (float)((s >> 11u) & 0xffffffu) / (float)0x1000000u;
   }
   float range(float a, float b) { return a + (b - a) * next(); }
 };
@@ -523,7 +529,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           }
           SkPoint pos{0, 0};
           SkVector tan{1, 0};
-          curves[ci]->getPosTan(std::min(pick, curveLen[ci]), &pos, &tan);
+          (void)curves[ci]->getPosTan(std::min(pick, curveLen[ci]), &pos, &tan);
           const float off = (rng.next() + rng.next() - 1.0f) * 1.9f;
           grain.to = {c.fX - kR + pos.fX - tan.fY * off,
                       c.fY - kR + pos.fY + tan.fX * off};

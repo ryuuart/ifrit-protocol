@@ -165,8 +165,10 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
 
   // The layout the last draw() left standing — the path one where the run
   // rides a curve, so the beats are on the curve the letters are on.
-  if (inst.desc->textData && inst.desc->textData->onPath.has_value())
-    out.onPath = &inst.desc->textData->onPath.value();
+  if (inst.desc->textData) {
+    const std::optional<TextPath>& path = inst.desc->textData->onPath;
+    if (path.has_value()) out.onPath = &path.value();
+  }
   out.ridesPath = out.onPath && inst.pathValid;
   if (out.onPath && !out.ridesPath) return false;
   out.layout = out.ridesPath ? &inst.pathLayout : &inst.textLayout;
@@ -193,6 +195,8 @@ std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
                                                size_t trackIndex) {
   TrackSchedule schedule;
   if (!resolveTrackSchedule(inst, trackIndex, schedule)) return {};
+  if (!inst.paragraph.has_value()) return {};
+  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
   const Track& track = *schedule.track;
   const auto count = schedule.glyphCount;
   const std::vector<uint8_t>& selected = schedule.selected;
@@ -220,7 +224,7 @@ std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
   std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
-      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count || !selected[g]) return;
         RestPose pose;

@@ -202,7 +202,7 @@ struct Lcg {
   uint32_t state;
   uint32_t next() {
     state = state * 1664525u + 1013904223u;
-    return state >> 8;
+    return state >> 8u;
   }
   float uniform() { return (float)(next() % 65536u) / 65536.0f; }
 };
@@ -213,9 +213,9 @@ void appendUtf8(std::string& out, char32_t c) {
     out.push_back((char)c);
     return;
   }
-  out.push_back((char)(0xE0 | (c >> 12)));
-  out.push_back((char)(0x80 | ((c >> 6) & 0x3F)));
-  out.push_back((char)(0x80 | (c & 0x3F)));
+  out.push_back((char)(0xE0u | (c >> 12u)));
+  out.push_back((char)(0x80u | ((c >> 6u) & 0x3Fu)));
+  out.push_back((char)(0x80u | (c & 0x3Fu)));
 }
 
 /** THE STREAK, as one keyframe table over local time: the near-white flash

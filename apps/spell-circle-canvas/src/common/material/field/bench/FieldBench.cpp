@@ -19,7 +19,8 @@ void paint(benchmark::State& state, const Material& m, int side) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
   SkPaint p;
   p.setShader(skia::shader(m, {.resolution = {(float)side, (float)side}}));
-  for (auto _ : state) surface->getCanvas()->drawPaint(p);
+  for ([[maybe_unused]] auto iteration : state)
+    surface->getCanvas()->drawPaint(p);
   state.SetItemsProcessed(state.iterations() * side * side);
 }
 

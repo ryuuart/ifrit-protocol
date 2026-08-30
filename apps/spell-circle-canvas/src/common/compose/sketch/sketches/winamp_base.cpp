@@ -88,6 +88,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace sigil::compose;
@@ -102,9 +103,10 @@ namespace wa {
 constexpr float kScale = 3.0f;
 constexpr float n(float v) { return v * kScale; }
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 inline SkColor4f lift(SkColor4f c, float k) {
   return {std::min(1.0f, c.fR + k), std::min(1.0f, c.fG + k),
@@ -514,7 +516,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
         n(1), shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
                               stroke(n(1), Fill::color(fade(kBtnLo, 0.45f)),
                                      PathFormat::Align::Inner))));
-    e.child(glyph);
+    e.child(std::move(glyph));
     return e;
   }
 
@@ -1028,7 +1030,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
       const int kN = 10;
       std::array<SkPoint, kN> pts{};
       for (int i = 0; i < kN; ++i) {
-        const float g = gain[(size_t)(i + 1)].value();
+        const float g = gain[(size_t)i + 1].value();
         pts[(size_t)i] = {w * ((float)i + 0.5f) / (float)kN,
                           mid - g * (h * 0.42f)};
       }
@@ -1290,19 +1292,19 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     ledAtlas = std::make_shared<instancing::Atlas>(2.0f);
     ledAtlas->cell(box().fill(SkColor4f{1, 1, 1, 1}), {n(3), n(1)});
     ledPool = std::make_shared<instancing::Pool>();
-    ledPool->resize((size_t)(kCols * kRows + kCols));
+    ledPool->resize((size_t)kCols * (size_t)kRows + (size_t)kCols);
     {
       auto pos = ledPool->positions();
       auto tint = ledPool->tints();
       for (int c = 0; c < kCols; ++c)
         for (int r = 0; r < kRows; ++r) {
-          const size_t i = (size_t)(c * kRows + r);
+          const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
           pos[i] = {n(4.0f * (float)c + 1.5f),
                     n((float)(kRows - 1 - r) + 0.5f)};
           tint[i] = fade(kVis[(size_t)r], 0.0f);
         }
       for (int c = 0; c < kCols; ++c) {
-        const size_t i = (size_t)(kCols * kRows + c);
+        const size_t i = (size_t)kCols * (size_t)kRows + (size_t)c;
         pos[i] = {n(4.0f * (float)c + 1.5f), n(0.5f)};
         tint[i] = fade(kPeak, 0.0f);
       }
@@ -1371,8 +1373,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // The multiplies are meant to wrap; unsigned operands make that wrap
     // the defined kind, where signed ones overflow. Same bits either way.
     uint32_t h = (uint32_t)a * 374761393u + (uint32_t)b * 668265263u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return (float)((h ^ (h >> 16)) & 0xffffff) / (float)0xffffff;
+    h = (h ^ (h >> 13u)) * 1274126177u;
+    return (float)((h ^ (h >> 16u)) & 0xffffffu) / (float)0xffffff;
   }
 
   void step(double dt) {
@@ -1453,10 +1455,10 @@ struct WinampBase : sigil::compose::sketch::Sketch {
       for (int c = 0; c < kCols; ++c) {
         const int lit = (int)colLevel[(size_t)c];
         for (int r = 0; r < kRows; ++r) {
-          const size_t i = (size_t)(c * kRows + r);
+          const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
           tint[i] = fade(kVis[(size_t)r], r < lit ? 1.0f : 0.0f);
         }
-        const size_t pi = (size_t)(kCols * kRows + c);
+        const size_t pi = (size_t)kCols * (size_t)kRows + (size_t)c;
         const float pk = colPeak[(size_t)c];
         pos[pi] = {n(4.0f * (float)c + 1.5f),
                    n((float)kRows - std::clamp(pk, 0.0f, (float)kRows) + 0.5f)};
@@ -1468,7 +1470,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     {
       auto tint = rowPool->tints();
       for (int i = 0; i < 25; ++i) {
-        const double start = 2.4 + 0.13 * (double)(i / 4);
+        const int group = i / 4;
+        const double start = 2.4 + 0.13 * (double)group;
         const float u = (float)std::clamp((t - start) / 0.13, 0.0, 1.0);
         rowIn[(size_t)i] = u * u;
         SkColor4f c = i == selected     ? kPlSel

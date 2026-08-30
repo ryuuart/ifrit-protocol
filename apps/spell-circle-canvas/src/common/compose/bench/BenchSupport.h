@@ -66,7 +66,7 @@ inline void reportNodes(benchmark::State& state, int count) {
 
 /** The node-count ladder the reconcile and layout arms walk: three points
  *  a decade apart give a curve rather than a number. */
-inline void nodeLadder(benchmark::internal::Benchmark* b) {
+inline void nodeLadder(::benchmark::Benchmark* b) {
   b->Arg(100)->Arg(500)->Arg(2000)->Unit(benchmark::kMicrosecond);
 }
 

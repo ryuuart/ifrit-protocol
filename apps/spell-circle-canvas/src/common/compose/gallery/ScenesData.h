@@ -17,6 +17,8 @@ struct LoadScene final : Scene {
   void setup(Composer& composer, sigil::motion::Ticker& ticker) override {
     movers.clear();
     auto root = stack().fill(Fill::color({0.04f, 0.04f, 0.08f, 1}));
+    // a fixed seed; the scene must render the same on every run
+    // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{3};
     // 300 static cached cards.
     for (int i = 0; i < 300; ++i) {
@@ -47,7 +49,7 @@ struct LoadScene final : Scene {
         return true;
       });
     }
-    composer.render(std::move(root));
+    composer.render(root);
   }
 };
 

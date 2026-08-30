@@ -2050,8 +2050,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       m5Sxc += r.nSxc;
       m5Map += r.nMap;
     }
-    for (int j = 0; j < kMap13Count; ++j) {
-      const M13Row& r = kMap13[j];
+    for (const auto& r : kMap13) {
       for (int a = 0; a < nAst; ++a)
         if (std::string(kAst[a].id) == r.cid) {
           astSchool[(size_t)a] = r.col;
@@ -2623,10 +2622,8 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         // the scroll's RA axis is discontinuous at every map boundary, so a
         // join across one is a line that does not exist on the paper
         if (havePrev &&
-            (region != prevRegion || SkPoint::Distance(prev, p) > 230.0f)) {
+            (region != prevRegion || SkPoint::Distance(prev, p) > 230.0f))
           open = false;
-          havePrev = false;
-        }
         prevRegion = region;
         if (!open) {
           pb.moveTo(p);
@@ -3401,6 +3398,9 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
               .shape([](SkSize s) {
                 SkPathBuilder b;
                 b.moveTo(s.width() * 0.5f, 0);
+                // the loop walks a distance; the accumulated float is the
+                // position
+                // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
                 for (float y = 0; y < s.height(); y += 22.0f) {
                   b.lineTo(s.width() * 0.5f + 6, y + 5.5f);
                   b.lineTo(s.width() * 0.5f - 6, y + 16.5f);
@@ -3458,8 +3458,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                            {366, 0, 38, false,
                             "map 13 polar distance 0\xc2\xb0\xe2\x80\xa6"
                             "38\xc2\xb0"}};
-    for (int pi = 0; pi < 2; ++pi) {
-      const Plot& pl = plots[pi];
+    for (const auto& pl : plots) {
       auto p = box().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
       p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph)).stroke(
           spans::edges(16.0f),

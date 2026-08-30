@@ -56,6 +56,8 @@ enum class Corner : uint8_t {
   AntiDiagonal = 10,  // TopRight | BottomLeft
 };
 constexpr Corner operator|(Corner a, Corner b) {
+  // the type is a bit set; any union of enumerators is a valid value
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return Corner(uint8_t(a) | uint8_t(b));
 }
 constexpr bool has(Corner mask, Corner c) {

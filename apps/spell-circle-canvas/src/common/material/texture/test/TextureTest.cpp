@@ -54,8 +54,14 @@ TEST(Texture, SourcesCompareByIdentityAcrossTheErasure) {
   EXPECT_EQ(Texture::of(a), Texture::of(a));
   EXPECT_FALSE(Texture::of(a) == Texture::of(b));
   // A different source kind is never equal, whatever it yields.
+  // the callable is invoked on every layout, so its capture must survive each
+  // return
+  // NOLINTNEXTLINE(performance-no-automatic-move)
   const Texture produced = Texture::produce("red", [a] { return a; });
   EXPECT_FALSE(produced == Texture::of(a));
+  // the callable is invoked on every layout, so its capture must survive each
+  // return
+  // NOLINTNEXTLINE(performance-no-automatic-move)
   EXPECT_EQ(produced, Texture::produce("red", [b] { return b; }));
   EXPECT_FALSE(Texture().valid());
   EXPECT_EQ(Texture(), Texture());
@@ -67,6 +73,8 @@ TEST(Texture, ProducerBakesOnceAndShares) {
     ++bakes;
     return solid(SK_ColorGREEN, 3, 3);
   });
+  // the copy is what the test exercises
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   const Texture copy = t;
   EXPECT_EQ(bakes, 0);
   const sk_sp<SkImage> first = t.image();
@@ -351,6 +359,7 @@ TEST(Atlas, PacksWithoutOverlapAndKeepsPixels) {
   std::vector<std::pair<std::string, sk_sp<SkImage>>> images;
   const SkColor colors[] = {SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE,
                             SK_ColorYELLOW, SK_ColorCYAN};
+  images.reserve(5);
   for (int i = 0; i < 5; ++i)
     images.emplace_back("s" + std::to_string(i),
                         solid(colors[i], 6 + 3 * i, 5 + 2 * i));
@@ -369,5 +378,6 @@ TEST(Atlas, PacksWithoutOverlapAndKeepsPixels) {
   // A packed sheet is a power of two on a side.
   const SkISize side = atlas.sheet().size();
   EXPECT_EQ(side.width(), side.height());
-  EXPECT_EQ(side.width() & (side.width() - 1), 0);
+  const auto width = (uint32_t)side.width();
+  EXPECT_EQ(width & (width - 1u), 0u);
 }

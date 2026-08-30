@@ -142,7 +142,8 @@ struct BeethovenScene final : Scene {
     } else {
       // The poster's own progression: reveal duration doubles per ring
       // outward, and each sweep runs linearly.
-      const auto duration = std::chrono::milliseconds(120 << std::min(ring, 5));
+      const auto duration =
+          std::chrono::milliseconds(120u << (unsigned)std::min(ring, 5));
       e.mask(by::spans(
           spans::upTo(animate(to(span), {duration, &choreograph::easeNone}))));
     }

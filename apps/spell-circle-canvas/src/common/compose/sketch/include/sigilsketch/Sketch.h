@@ -102,8 +102,8 @@ struct SketchContext {
 
   /** One-shot intrinsic measurement (compose::measure with the host's
    *  fonts): size marquee strips, tooltips, badges from their content. */
-  SkSize measure(Element element, SkSize maxSize = SkSize::MakeEmpty()) {
-    return fonts ? sigil::compose::measure(std::move(element), *fonts, maxSize)
+  SkSize measure(const Element& element, SkSize maxSize = SkSize::MakeEmpty()) {
+    return fonts ? sigil::compose::measure(element, *fonts, maxSize)
                  : SkSize::MakeEmpty();
   }
 
@@ -237,6 +237,8 @@ bool registerStaticSketch(const char* key, SketchFactory factory) noexcept;
 #else
 
 /** Export the sketch entry points. Exactly one per sketch file. */
+// NOLINTBEGIN(bugprone-macro-parentheses): the replacement list is a pair of
+// definitions, not an expression
 #define SIGIL_SKETCH(SketchType)                                             \
   extern "C"                                                                 \
       __attribute__((visibility("default"))) sigil::compose::sketch::Sketch* \
@@ -247,5 +249,6 @@ bool registerStaticSketch(const char* key, SketchFactory factory) noexcept;
   sigilSketchAbi() {                                                         \
     return sigil::compose::sketch::kAbiVersion;                              \
   }
+// NOLINTEND(bugprone-macro-parentheses)
 
 #endif

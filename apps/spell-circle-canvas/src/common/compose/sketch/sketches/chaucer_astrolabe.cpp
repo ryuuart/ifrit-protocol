@@ -456,15 +456,15 @@ Rete buildRete() {
       param = std::atan2(p.fY - kEclCy, p.fX) / kD;
     }
     const Host arms[4] = {Host::ArmN, Host::ArmE, Host::ArmS, Host::ArmW};
-    for (int a = 0; a < 4; ++a) {
-      const SkPoint e = armEnd(arms[a]);
+    for (auto arm : arms) {
+      const SkPoint e = armEnd(arm);
       const float len = kRingSk;
       const float t =
           std::clamp((p.fX * e.fX + p.fY * e.fY) / (len * len), 0.0f, 1.0f);
       const SkPoint q{e.fX * t, e.fY * t};
       const float d = std::hypot(p.fX - q.fX, p.fY - q.fY);
       if (d < best) {
-        host = arms[a];
+        host = arm;
         best = d;
         param = t * len;
       }
@@ -666,6 +666,8 @@ std::string fmt(const char* f, A... args) {
 constexpr double kDD = 3.14159265358979323846 / 180.0;
 const double kEpsD = 23.0 + 50.0 / 60.0;
 const double kPhiD = 51.0 + 50.0 / 60.0;
+// NOLINTBEGIN(bugprone-throwing-static-initialization): trigonometry of
+// constants cannot throw
 const double kReqD = std::tan((90.0 - kEpsD) * 0.5 * kDD);
 const double kRcanD = kReqD * kReqD;
 const double kEclCyD = (kRcanD - 1.0) * 0.5;
@@ -676,6 +678,7 @@ const double kAzCyD = (kReqD * std::tan((90.0 - kPhiD) * 0.5 * kDD) -
 const double kAzAD = (kReqD * std::tan((90.0 - kPhiD) * 0.5 * kDD) +
                       kReqD * std::tan((90.0 + kPhiD) * 0.5 * kDD)) *
                      0.5;
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 double rOfDecD(double dec) {
   return kReqD * std::tan((90.0 - dec) * 0.5 * kDD);
@@ -1147,6 +1150,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                    .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
                                           bb.height()))
                    .key("sh" + std::to_string(i))
+                   // the callable is invoked on every layout, so its capture
+                   // must survive each return
+                   // NOLINTNEXTLINE(performance-no-automatic-move)
                    .shape([local](SkSize) { return local; })
                    .fill(Fill::none());
       if (p.kind == Part::Thorn)
@@ -1282,7 +1288,6 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       // the twelve sign names, tangential — running lettering, engraver's
       // convention, no autoFlip. Each is centred at its OWN cell midpoint,
       // and the cells are not equal.
-      const float circ = 2.0f * SK_FloatPI * kEclR * kR;
       for (int i = 0; i < 12; ++i) {
         const float a0 = ringAngle((float)(i * 30));
         float a1 = ringAngle((float)((i + 1) * 30));
@@ -1337,6 +1342,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                         .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
                                                bb.height()))
                         .key("bar" + std::to_string(i))
+                        // the callable is invoked on every layout, so its
+                        // capture must survive each return
+                        // NOLINTNEXTLINE(performance-no-automatic-move)
                         .shape([local](SkSize) { return local; })
                         .fill(Fill::none());
         if (p.kind == Part::Thorn) {
@@ -1452,6 +1460,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
               .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
                                      bb.height()))
               .key("prec" + std::to_string(i))
+              // the callable is invoked on every layout, so its capture must
+              // survive each return
+              // NOLINTNEXTLINE(performance-no-automatic-move)
               .shape([local](SkSize) { return local; })
               .fill(Fill::none())
               .stroke(PathFormat{.width = 1.0f,
@@ -1882,6 +1893,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         box()
             .rect(
                 SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
+            // the callable is invoked on every layout, so its capture must
+            // survive each return
+            // NOLINTNEXTLINE(performance-no-automatic-move)
             .shape([local](SkSize) { return local; })
             .fill(Fill::none())
             .stroke(PathFormat{.width = 1.5f,
@@ -1966,7 +1980,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         {"HOVRES INEQVALES", "3-point circles, err 0.00374 R"}};
     for (int i = 0; i < 4; ++i) {
       const float cx = px + 116 + (float)(i % 2) * 218;
-      const float cy = py + 126 + (float)(i / 2) * 158;
+      const int row = i / 2;
+      const float cy = py + 126 + (float)row * 158;
       const float r = 54;
       auto d = kit::disc({cx, cy}, r)
                    .shape(shapes::circle())
@@ -2060,6 +2075,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
             path.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
         g.child(box()
                     .rect(bb)
+                    // the callable is invoked on every layout, so its capture
+                    // must survive each return
+                    // NOLINTNEXTLINE(performance-no-automatic-move)
                     .shape([local](SkSize) { return local; })
                     .fill(Fill::none())
                     .stroke(stroke(width, Fill::color(hex(0x3a2a10, 0.6f)))));
@@ -2107,6 +2125,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         g.child(box()
                     .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
                                            bb.height()))
+                    // the callable is invoked on every layout, so its capture
+                    // must survive each return
+                    // NOLINTNEXTLINE(performance-no-automatic-move)
                     .shape([local](SkSize) { return local; })
                     .fill(Fill::none())
                     .stroke(stroke(1.1f, Fill::color(hex(0x3a2a10, 0.7f)))));

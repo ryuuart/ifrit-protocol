@@ -34,6 +34,8 @@
 using sigil::compose::sketch::SketchHost;
 
 SketchHost* ComposeSketchView::host = nullptr;
+// QMutex's constructor does not throw
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex ComposeSketchView::hostMutex;
 
 namespace {
@@ -265,7 +267,8 @@ void ComposeSketchRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();
   const QByteArray uploadBytes = QByteArray::fromRawData(
       reinterpret_cast<const char*>(m_rasterPixels.data()),
-      static_cast<qsizetype>(m_rasterPixels.size() * sizeof(uint32_t)));
+      static_cast<qsizetype>(m_rasterPixels.size()) *
+          static_cast<qsizetype>(sizeof(uint32_t)));
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);

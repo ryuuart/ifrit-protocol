@@ -762,7 +762,8 @@ void staleWorldSpaceBelow(Instance& inst) {
 
 }  // namespace
 
-void Composer::Impl::patch(Instance& inst, std::shared_ptr<ElementNode> node) {
+void Composer::Impl::patch(Instance& inst,
+                           const std::shared_ptr<ElementNode>& node) {
   stats.describedNodes++;
   bool described = true;
   std::shared_ptr<ElementNode> resolved =
@@ -1241,9 +1242,9 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // place() a degenerate input for a pass.
   const bool autoSized =
       inst.desc->deriveData && inst.desc->deriveData->placeFn && l.absolute;
-  if (!(autoSized && l.width.unit == Dim::Unit::Auto))
+  if (!autoSized || l.width.unit != Dim::Unit::Auto)
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
-  if (!(autoSized && l.height.unit == Dim::Unit::Auto))
+  if (!autoSized || l.height.unit != Dim::Unit::Auto)
     applyDim(n, l.height, &YGNodeStyleSetHeight, &YGNodeStyleSetHeightPercent);
   applyDim(n, l.minWidth, &YGNodeStyleSetMinWidth,
            &YGNodeStyleSetMinWidthPercent);

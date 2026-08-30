@@ -45,9 +45,9 @@ namespace {
 
 constexpr int kCount = 520;       // panels 1 and 2
 constexpr int kOrderCount = 240;  // panels 3 and 4: fewer, bigger, overlapping
-const glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
-constexpr bool kDescending = false;   // false = ascending = farthest first
-constexpr float kRange = 210.0f;      // panel 2's height ramp, +-kRange
+constexpr glm::vec3 kOrderAxis{0, 0, 1};  // the sort key: dot(P, axis)
+constexpr bool kDescending = false;       // false = ascending = farthest first
+constexpr float kRange = 210.0f;          // panel 2's height ramp, +-kRange
 constexpr float kPanel = 274.0f;
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
@@ -71,8 +71,8 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < knots; ++i) {
     const float a = 2.0f * (float)M_PI * (float)i / (float)knots;
-    loop.push_back({radius * std::cos(a), rise * std::sin(3.0f * a),
-                    radius * std::sin(a)});
+    loop.emplace_back(radius * std::cos(a), rise * std::sin(3.0f * a),
+                      radius * std::sin(a));
   }
   return loop;
 }

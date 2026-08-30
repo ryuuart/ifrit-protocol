@@ -49,6 +49,8 @@ struct Palette {
   bool operator==(const Palette&) const = default;
 };
 
+// NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
+// allocation could throw
 const Palette kOuter{"outer",
                      {0.09f, 0.20f, 0.26f, 1},
                      {0.80f, 0.94f, 0.98f, 1},
@@ -57,6 +59,7 @@ const Palette kInner{"inner (shadowing)",
                      {0.26f, 0.16f, 0.06f, 1},
                      {0.99f, 0.92f, 0.78f, 1},
                      {1.00f, 0.70f, 0.24f, 1}};
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 constexpr int kLevels = 4;  // containers between Provide and the read
 

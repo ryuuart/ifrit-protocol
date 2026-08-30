@@ -194,10 +194,10 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   // The algorithm, verbatim.
 
   float rand01() {  // xorshift32
-    rng ^= rng << 13;
-    rng ^= rng >> 17;
-    rng ^= rng << 5;
-    return (float)(rng >> 8) * (1.0f / 16777216.0f);
+    rng ^= rng << 13u;
+    rng ^= rng >> 17u;
+    rng ^= rng << 5u;
+    return (float)(rng >> 8u) * (1.0f / 16777216.0f);
   }
 
   void seed() {
@@ -221,7 +221,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     // The JS reference lets dst wrap across the row edge (and writes past
     // index 0 harmlessly); C++ needs the bound, the wrap stays.
     if (target >= 0 && target < kFireW * kFireH)
-      heat[(size_t)target] = (uint8_t)(pixel - (r & 1));
+      heat[(size_t)target] = (uint8_t)(pixel - ((unsigned)r & 1u));
   }
 
   void doFire() {
@@ -612,7 +612,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(slot("stats"));
   }
 
-  Element statRow(const char* label, std::string value, SkColor4f color) {
+  Element statRow(const char* label, const std::string& value,
+                  SkColor4f color) {
     return box()
         .row()
         .child(text(toU8(label), mono(10.5f, kSteel, 0.8f)))
@@ -731,9 +732,10 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     // transparent — the alpha key the PSX code used to show the logo.
     for (int i = 0; i < 37; ++i) {
       const uint32_t rgb = kPalette[i];
-      const uint32_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF,
-                     b = rgb & 0xFF;
-      lut[(size_t)i] = i == 0 ? 0u : (r | (g << 8) | (b << 16) | (0xFFu << 24));
+      const uint32_t r = (rgb >> 16u) & 0xFFu, g = (rgb >> 8u) & 0xFFu,
+                     b = rgb & 0xFFu;
+      lut[(size_t)i] =
+          i == 0 ? 0u : (r | (g << 8u) | (b << 16u) | (0xFFu << 24u));
     }
 
     bitmap.allocPixels(SkImageInfo::Make(kFireW, kFireH, kRGBA_8888_SkColorType,

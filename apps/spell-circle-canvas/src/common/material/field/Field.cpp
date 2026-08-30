@@ -129,10 +129,12 @@ half4 main(float2 pos) {
     k3 += dot(k3, k3 + 45.32);
     float n = mix(mix(fract(k0.x * k0.y), fract(k1.x * k1.y), w.x),
                   mix(fract(k2.x * k2.y), fract(k3.x * k3.y), w.x), w.y);
-    sum += )" +
-           a + R"( * n;
-    total += )" +
-           a + R"(;
+    sum += )";
+    src += a;
+    src += R"( * n;
+    total += )";
+    src += a;
+    src += R"(;
     q *= 2.0;
   }
 )";

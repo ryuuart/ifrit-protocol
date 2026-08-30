@@ -87,14 +87,14 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
   };
   host.composer.render(describe());
   host.frame();
-  const SkRect before = *host.composer.bounds("t");
+  const SkRect before = require(host.composer.bounds("t"));
   SkBitmap lo;
   lo.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
   host.surface->readPixels(lo.pixmap(), 0, 0);
 
   grade = gradeMax;  // heavy grade — glyphs thicken, advances hold
   host.frame();
-  const SkRect after = *host.composer.bounds("t");
+  const SkRect after = require(host.composer.bounds("t"));
   SkBitmap hi;
   hi.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
   host.surface->readPixels(hi.pixmap(), 0, 0);

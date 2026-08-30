@@ -82,12 +82,12 @@ class Rng {
   uint32_t bits() {
     m_state += 0x9e3779b97f4a7c15ull;
     uint64_t z = m_state;
-    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-    z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-    return (uint32_t)((z ^ (z >> 31)) >> 32);
+    z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
+    z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
+    return (uint32_t)((z ^ (z >> 31u)) >> 32u);
   }
   /** The next value in [0, 1). */
-  float unit() { return (float)(bits() >> 8) * (1.0f / 16777216.0f); }
+  float unit() { return (float)(bits() >> 8u) * (1.0f / 16777216.0f); }
   /** The next value in [-1, 1). */
   float signedUnit() { return unit() * 2.0f - 1.0f; }
   /** The next value in [lo, hi). */

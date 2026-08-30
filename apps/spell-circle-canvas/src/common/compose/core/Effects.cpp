@@ -110,8 +110,7 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
     return true;
   });
   SkRuntimeShaderBuilder builder(effect);
-  for (const auto& [name, value] : uniforms)
-    builder.uniform(name.c_str()) = value;
+  for (const auto& [name, value] : uniforms) builder.uniform(name) = value;
   e.m_filter = SkImageFilters::RuntimeShader(builder, "content", nullptr);
   e.m_effect = std::move(effect);
   e.m_uniforms = std::move(uniforms);

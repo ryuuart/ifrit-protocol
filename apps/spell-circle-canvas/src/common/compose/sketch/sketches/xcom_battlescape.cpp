@@ -268,10 +268,11 @@ constexpr uint32_t kPal[256] = {
 // clang-format on
 
 /** Palette index -> colour. Index 0 is the chroma key and returns alpha 0. */
-inline SkColor4f C(int idx) {
+inline SkColor4f C(int idx) noexcept {
   const uint32_t v = kPal[(unsigned)idx & 255u];
-  return {(float)((v >> 16) & 255) / 255.0f, (float)((v >> 8) & 255) / 255.0f,
-          (float)(v & 255) / 255.0f, idx == 0 ? 0.0f : 1.0f};
+  return {(float)((v >> 16u) & 255u) / 255.0f,
+          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f,
+          idx == 0 ? 0.0f : 1.0f};
 }
 constexpr int blk(int block, int step) { return block * 16 + step; }
 
@@ -279,14 +280,15 @@ constexpr int blk(int block, int step) { return block * 16 + step; }
  *  inside the 16-entry ramp, and snap to absolute black on overflow. No
  *  multiply, no lerp, no colour space — one add and one compare. */
 constexpr int shd(int src, int shade) {
-  const int ns = (src & 15) + shade;
-  return ns > 15 ? 15 : ((src & 0xF0) | ns);
+  const auto bits = (unsigned)src;
+  const int ns = (int)(bits & 15u) + shade;
+  return ns > 15 ? 15 : (int)((bits & 0xF0u) | (unsigned)ns);
 }
 /** ColorReplace, same file: the block is REPLACED by a 1-based block number.
  *  This is how one arrow sprite and one TU numeral recolour three ways. */
 constexpr int replaceBlock(int src, int shade, int block1) {
-  const int ns = (src & 15) + shade;
-  return ns > 15 ? 15 : (((block1 - 1) << 4) | ns);
+  const int ns = (int)((unsigned)src & 15u) + shade;
+  return ns > 15 ? 15 : (int)(((unsigned)(block1 - 1) << 4u) | (unsigned)ns);
 }
 
 // ---------------------------------------------------------------------------
@@ -385,8 +387,8 @@ inline uint32_t hash3(int a, int b, int c) {
   // the defined kind, where signed ones overflow. Same bits either way.
   uint32_t h = (uint32_t)a * 374761393u + (uint32_t)b * 668265263u +
                (uint32_t)c * 2147483647u;
-  h = (h ^ (h >> 13)) * 1274126177u;
-  return h ^ (h >> 16);
+  h = (h ^ (h >> 13u)) * 1274126177u;
+  return h ^ (h >> 16u);
 }
 
 // ---------------------------------------------------------------------------
@@ -467,8 +469,8 @@ inline std::vector<SkIPoint> pathTiles() {
   static const int kStep[14] = {0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
   std::vector<SkIPoint> out;
   int mx = kSoldierA.mx, my = kSoldierA.my;
-  for (int i = 0; i < 14; ++i) {
-    if (kStep[i])
+  for (int step : kStep) {
+    if (step)
       ++mx;
     else
       ++my;
@@ -477,11 +479,11 @@ inline std::vector<SkIPoint> pathTiles() {
   return out;
 }
 
-inline std::array<TileData, kMapSize * kMapSize> buildMap() {
-  std::array<TileData, kMapSize * kMapSize> m{};
+inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
+  std::array<TileData, (size_t)kMapSize * kMapSize> m{};
   for (int mx = 0; mx < kMapSize; ++mx)
     for (int my = 0; my < kMapSize; ++my) {
-      TileData& t = m[(size_t)(my * kMapSize + mx)];
+      TileData& t = m[(size_t)my * (size_t)kMapSize + (size_t)mx];
       const int sum = mx + my, diff = mx - my;
       const uint32_t h = hash3(mx, my, 7);
       // The discovered boundary. Each half is a MONOTONE function of the
@@ -499,7 +501,7 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
       // structure on the map, and therefore the only z = 1 content.
       if (mx >= 12 && mx <= 13 && my >= 3 && my <= 4) t.floor = kHull;
       // Forest. Denser on grass than on the scorched dirt.
-      const uint32_t r = (h >> 18) % 100u;
+      const uint32_t r = (h >> 18u) % 100u;
       if (t.floor == kGrass)
         t.object = r < 16u ? kTree : (r < 34u ? kBush : kNone);
       else if (t.floor == kDirt)
@@ -509,17 +511,17 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
     }
   // A dirt track, and the walked route is always discovered and always clear.
   for (const SkIPoint& p : pathTiles()) {
-    TileData& t = m[(size_t)(p.y() * kMapSize + p.x())];
+    TileData& t = m[(size_t)p.y() * (size_t)kMapSize + (size_t)p.x()];
     t.seen = true;
     t.object = kNone;
   }
   for (const Soldier& u : {kSoldierA, kSoldierB}) {
-    TileData& t = m[(size_t)(u.my * kMapSize + u.mx)];
+    TileData& t = m[(size_t)u.my * (size_t)kMapSize + (size_t)u.mx];
     t.seen = true;
     t.object = kNone;
   }
-  m[(size_t)(kAlienY * kMapSize + kAlienX)].object = kNone;
-  m[(size_t)(kAlienY * kMapSize + kAlienX)].seen = true;
+  m[(size_t)kAlienY * (size_t)kMapSize + (size_t)kAlienX].object = kNone;
+  m[(size_t)kAlienY * (size_t)kMapSize + (size_t)kAlienX].seen = true;
   return m;
 }
 
@@ -746,7 +748,7 @@ inline void paintUnit(SkCanvas& canvas, int shade, bool alien) {
 constexpr int kArrowBob[8] = {0, 1, 2, 1, 0, 1, 2, 1};
 inline void paintBobArrow(SkCanvas& canvas, int frame) {
   const Ink ink{canvas};
-  const int dy = kArrowBob[frame & 7];
+  const int dy = kArrowBob[(unsigned)frame & 7u];
   for (int k = 0; k < 5; ++k)
     ink.run((float)(12 + k), (float)(dy + 4 + k), (float)(10 - 2 * k),
             blk(1, k == 0 ? 0 : 1));
@@ -794,8 +796,8 @@ inline PixelText pixelText(const std::u8string& s, weave::TextStyle style,
       if (!lv) continue;
       const uint32_t v = kPal[(unsigned)(lv == 2 ? litIdx : dimIdx) & 255u];
       // kRGBA_8888 unpremul: R, G, B, A in memory order.
-      *out.getAddr32(x, y) = (0xFFu << 24) | ((v & 255u) << 16) |
-                             (((v >> 8) & 255u) << 8) | ((v >> 16) & 255u);
+      *out.getAddr32(x, y) = (0xFFu << 24u) | ((v & 255u) << 16u) |
+                             (((v >> 8u) & 255u) << 8u) | ((v >> 16u) & 255u);
     }
   out.setImmutable();
   return {out.asImage(), cw, chh};
@@ -856,7 +858,8 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
   const auto tri = [&](int cx, int cy, int size, bool up) {
     for (int k = 0; k < size; ++k) {
       const int wdt = 2 * (up ? k : size - 1 - k) + 1;
-      ink.run((float)(cx - wdt / 2), (float)(cy + k), (float)wdt, d);
+      const int x0 = cx - wdt / 2;
+      ink.run((float)x0, (float)(cy + k), (float)wdt, d);
     }
   };
   const auto bars = [&](int x, int y, int rows, int wdt) {
@@ -894,7 +897,7 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
       for (int gy = 0; gy < 4; ++gy)
         for (int gx = 0; gx < 7; ++gx)
           ink.rect((float)(9 + gx * 2), (float)(4 + gy * 2), 1, 1,
-                   ((gx + gy) & 1) ? d : l);
+                   ((unsigned)(gx + gy) & 1u) ? d : l);
       break;
     case 5:
       figure(11, 3);
@@ -948,9 +951,9 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
       break;
     default:  // abort: a bird
       for (int k = 0; k < 6; ++k) {
-        ink.run((float)(10 + k), (float)(8 - k / 2), (float)(3 - k / 3), d);
-        ink.run((float)(18 - k / 2 + k), (float)(8 - k / 2), (float)(3 - k / 3),
-                d);
+        const int y = 8 - k / 2, w = 3 - k / 3, x1 = 18 - k / 2 + k;
+        ink.run((float)(10 + k), (float)y, (float)w, d);
+        ink.run((float)x1, (float)y, (float)w, d);
       }
       ink.rect(15, 7, 3, 2, d);
       break;
@@ -1023,7 +1026,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   int atlasCells = 0;
 
   // ---- scenario ------------------------------------------------------------
-  std::array<xcom::TileData, xcom::kMapSize * xcom::kMapSize> map{};
+  std::array<xcom::TileData, (size_t)xcom::kMapSize * xcom::kMapSize> map{};
   std::vector<SkIPoint> path;
   std::vector<int> pathTU;
   std::vector<int> pathBlock;
@@ -1153,7 +1156,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
               for (int dc = -1; dc <= 1; ++dc) {
                 const int rr = r + dr, cc = c + dc;
                 if (rr < 0 || rr > 4 || cc < 0 || cc > 2) continue;
-                if (xcom::kDigit[g][rr] & (4 >> cc)) {
+                if ((unsigned)xcom::kDigit[g][rr] & (4u >> (unsigned)cc)) {
                   if (dr == 0 && dc == 0)
                     self = true;
                   else
@@ -1171,7 +1174,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       const int g = digits[d] - '0';
       for (int r = 0; r < 5; ++r)
         for (int c = 0; c < 3; ++c)
-          if (xcom::kDigit[g][r] & (4 >> c))
+          if ((unsigned)xcom::kDigit[g][r] & (4u >> (unsigned)c))
             pool.add({(x + (float)d * 4 + (float)c) * PX + PX * 0.5f,
                       (y + (float)r) * PX + PX * 0.5f},
                      cellFontPx, 0.0f, 1.0f, xcom::C(lit));
@@ -1197,7 +1200,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     for (int z = 0; z <= 1; ++z)
       for (int mx = 0; mx < kMapSize; ++mx)
         for (int my = 0; my < kMapSize; ++my) {
-          const TileData& t = map[(size_t)(my * kMapSize + mx)];
+          const TileData& t = map[(size_t)my * (size_t)kMapSize + (size_t)mx];
           if (!t.seen)
             continue;  // undiscovered tiles are not drawn; PAL[15] shows
           const SkPoint tl = mapToScreen(mx, my, z);
@@ -1205,7 +1208,8 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
           const int sh = tileShade(mx, my);
           const SkPoint centre = cellCentre(mx, my, z);
           if (z == 0) {
-            terrain->add(centre, cellFloor[(int)t.floor][(mx + my) & 1][sh]);
+            terrain->add(centre,
+                         cellFloor[(int)t.floor][(unsigned)(mx + my) & 1u][sh]);
             ++terrainZ0;
             if (t.object != kNone) {
               terrain->add(centre, cellObj[(int)t.object][sh]);
@@ -1684,10 +1688,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
             for (int x = 0; x < 8; ++x) {
               const uint32_t h = hash3(x, y, 404);
               int step = 6 + (int)(h % 2u);
-              if ((h >> 4) % 9u == 0u)
-                step = 4 + (int)((h >> 8) % 2u);
-              else if ((h >> 4) % 13u == 0u)
-                step = 9 + (int)((h >> 8) % 2u);
+              if ((h >> 4u) % 9u == 0u)
+                step = 4 + (int)((h >> 8u) % 2u);
+              else if ((h >> 4u) % 13u == 0u)
+                step = 9 + (int)((h >> 8u) % 2u);
               ink.px((float)x, (float)y, blk(5, step));
             }
         });
@@ -1744,7 +1748,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     ctx.ticker.addFixed(
         10.0,
         [this] {
-          animFrame = (animFrame + 1) & 7;
+          animFrame = (int)((unsigned)(animFrame + 1) & 7u);
           // blinkVisibleUnitButtons: +1 up, -2 down, turning at 44 and 32.
           tagIndex += tagDir > 0 ? 1 : -2;
           if (tagIndex >= 44) {

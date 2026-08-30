@@ -19,6 +19,8 @@
 
 #include <chrono>
 #include <cstring>
+#include <optional>
+#include <stdexcept>
 
 // Everything here draws into a raster surface at a fixed size and reads
 // pixels back, so the tests are deterministic and need no GPU.
@@ -32,6 +34,13 @@ sigil::weave::FontContext& fonts() {
   static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
+}
+
+/** The optional's value; an empty optional is a test failure, not a crash. */
+template <class T>
+const T& require(const std::optional<T>& maybe) {
+  if (!maybe.has_value()) throw std::logic_error("expected a value");
+  return maybe.value();
 }
 
 sigil::weave::TextStyle styleAt(float size) {

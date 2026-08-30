@@ -24,6 +24,8 @@
 
 #include "GalleryScenes.h"
 
+// an uncaught exception ends the app with its message
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* argv[]) {
   if (argc >= 2 && std::string(argv[1]) == "--headless") {
     std::string outDir = "compose_gallery_out";
@@ -64,7 +66,7 @@ int main(int argc, char* argv[]) {
       } else if (arg == "--scene" && i + 1 < argc)
         only = argv[++i];
       else if (arg == "--capture-at" && i + 1 < argc)
-        captureAt = std::atof(argv[++i]);
+        captureAt = std::strtod(argv[++i], nullptr);
       else if (arg == "--timing-json" && i + 1 < argc)
         timingJson = argv[++i];
       else
@@ -176,5 +178,5 @@ int main(int argc, char* argv[]) {
         });
     warm->start();
   }
-  return application.exec();
+  return QGuiApplication::exec();
 }

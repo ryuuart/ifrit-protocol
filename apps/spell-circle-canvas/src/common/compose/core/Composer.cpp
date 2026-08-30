@@ -62,13 +62,13 @@ Composer::Composer(motion::Ticker& ticker, sigil::weave::FontContext& fonts)
     : m_impl(std::make_unique<Impl>(ticker, fonts)) {}
 Composer::~Composer() = default;
 
-sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext& fonts,
+sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
                           SkSize maxSize) {
   motion::Ticker ticker;  // inert: nothing steps it, transitions can't run
   Composer composer(ticker, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;  // one-shot: per-node caches would be pure waste
-  composer.render(std::move(root));
+  composer.render(root);
   if (!impl.root) return nullptr;
   if (!maxSize.isEmpty()) {
     if (maxSize.width() > 0)
@@ -205,12 +205,13 @@ std::vector<float> runPens(std::u8string_view utf8,
   return pens;
 }
 
-SkSize measure(Element root, sigil::weave::FontContext& fonts, SkSize maxSize) {
+SkSize measure(const Element& root, sigil::weave::FontContext& fonts,
+               SkSize maxSize) {
   motion::Ticker ticker;  // inert — same sampling rules as snapshot()
   Composer composer(ticker, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;
-  composer.render(std::move(root));
+  composer.render(root);
   if (!impl.root) return SkSize::MakeEmpty();
   if (!maxSize.isEmpty()) {
     if (maxSize.width() > 0)
@@ -276,7 +277,7 @@ Composer::InputSpace Composer::declaredInputSpace() const {
   return m_impl->inputSpace;
 }
 
-void Composer::render(Element root) {
+void Composer::render(const Element& root) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
   impl.stats.describedNodes = 0;
@@ -293,7 +294,7 @@ void Composer::render(Element root) {
   impl.reconcileAccumMs += reconcile.elapsedMs();
 }
 
-void Composer::renderSlot(std::string_view name, Element content) {
+void Composer::renderSlot(std::string_view name, const Element& content) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
   auto it = impl.bySlot.find(std::string(name));

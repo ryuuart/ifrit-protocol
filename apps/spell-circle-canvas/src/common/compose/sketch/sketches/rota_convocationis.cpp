@@ -363,9 +363,9 @@ constexpr int kSmallRegisterN =
 /** One step of the deal. Integer arithmetic on a fixed width, so the same
  *  seed gives the same band wherever this runs. */
 uint32_t nextSeed(uint32_t s) {
-  s ^= s << 13;
-  s ^= s >> 17;
-  s ^= s << 5;
+  s ^= s << 13u;
+  s ^= s >> 17u;
+  s ^= s << 5u;
   return s;
 }
 
@@ -376,12 +376,12 @@ void appendUtf8(std::string& out, char32_t cp) {
   if (cp < 0x80) {
     out += (char)cp;
   } else if (cp < 0x800) {
-    out += (char)(0xC0 | (cp >> 6));
-    out += (char)(0x80 | (cp & 0x3F));
+    out += (char)(0xC0u | (cp >> 6u));
+    out += (char)(0x80u | (cp & 0x3Fu));
   } else {
-    out += (char)(0xE0 | (cp >> 12));
-    out += (char)(0x80 | ((cp >> 6) & 0x3F));
-    out += (char)(0x80 | (cp & 0x3F));
+    out += (char)(0xE0u | (cp >> 12u));
+    out += (char)(0x80u | ((cp >> 6u) & 0x3Fu));
+    out += (char)(0x80u | (cp & 0x3Fu));
   }
 }
 
@@ -1471,7 +1471,7 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // seal that has to be read stands upright at every station the rim
     // brings it to while everything around it turns.
     seal.child(
-        text(toU8(std::string(s.ordo)), mono(12.0f, kGold, 1.0f))
+        text(toU8(s.ordo), mono(12.0f, kGold, 1.0f))
             .key(id + "-ordo")
             .centerAt({kSealR, kSealR})
             .hitTestable(false)

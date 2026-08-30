@@ -153,7 +153,9 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace sigil::compose;
@@ -252,6 +254,8 @@ struct Station {
 
 // --- the advance, as Minard draws it -------------------------------------
 // trunk: the Niemen -> Moscou, with the two branch treads prepended
+// NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
+// allocation could throw
 const std::vector<Station> kAdvTrunk = {
     {23.85f, 54.85f, 422000},  // the Niemen crossing
     {24.50f, 55.00f, 400000},  // the northern column has peeled off
@@ -304,6 +308,7 @@ const std::vector<Station> kRetNorth = {
     {24.20f, 54.42f, 6000},
     {24.10f, 54.40f, 6000},
 };
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 struct City {
   const char* plate;  // Minard's own spelling, kept
@@ -362,6 +367,8 @@ struct HStation {
   float men;
   const char* at;
 };
+// NOLINTBEGIN(bugprone-throwing-static-initialization): a literal table; only
+// allocation could throw
 const std::vector<HStation> kHannibal = {
     {102, 268, 96000, "Espagne"},
     {222, 264, 94000, "Tortose"},
@@ -381,6 +388,7 @@ const std::vector<HStation> kHannibal = {
     {1098, 400, 26000, "Suze"},
     {1124, 436, 26000, "Turin"},
 };
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 struct Place {
   const char* name;
@@ -541,6 +549,7 @@ WidthProfile profileOf(const std::vector<Station>& st) {
 
 WidthProfile profileOfH(const std::vector<HStation>& st) {
   std::vector<SkPoint> pts;
+  pts.reserve(st.size());
   for (const HStation& s : st) pts.push_back({s.x, s.y});
   WidthProfile w;
   w.arc = arcAt(pts);
@@ -625,6 +634,7 @@ std::vector<SkPoint> pointsOf(const std::vector<Station>& st) {
 }
 std::vector<float> menOf(const std::vector<Station>& st) {
   std::vector<float> m;
+  m.reserve(st.size());
   for (const Station& s : st) m.push_back(s.men);
   return m;
 }
@@ -741,6 +751,8 @@ WidthAudit widthAlong(const SkPath& band, const SkPath& spine,
     // same way (stair.py splits at the risers and never straddles an end),
     // so the two audits stay comparable.
     const float margin = w.maxPx * 0.55f + step;
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = std::max(step, margin); d < len - margin; d += step) {
       SkPoint pos;
       SkVector tan;
@@ -777,6 +789,8 @@ float inkIntegral(const SkPath& spine, const WidthProfile& w,
   SkContourMeasureIter iter(spine, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d < len; d += step)
       total += w.pxAt(d) * std::min(step, len - d);
   }
@@ -810,7 +824,7 @@ std::function<SkPath(SkSize)> segFn(SkPoint a, SkPoint b) {
     return p.detach();
   };
 }
-std::function<SkPath(SkSize)> pathFn(SkPath path) {
+std::function<SkPath(SkSize)> pathFn(const SkPath& path) {
   return [path](SkSize) { return path; };
 }
 
@@ -1105,6 +1119,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  it. */
   Element lehmann(const std::vector<std::array<float, 4>>& ridges, float x0,
                   float y0, float x1, float y1, const char* key, float t0) {
+    // copying the captures can fail only on allocation
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     return custom([ridges, x0, y0, x1, y1](SkCanvas& c, const PaintContext&) {
              auto height = [&](float x, float y) {
                float h = 0;
@@ -1119,7 +1135,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
              p.setAntiAlias(true);
              p.setStyle(SkPaint::kStroke_Style);
              const float pitch = 4.6f;
+             // the loop walks a distance; the accumulated float is the position
+             // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
              for (float y = y0; y < y1; y += pitch) {
+               // the loop walks a distance; the accumulated float is the
+               // position
+               // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
                for (float x = x0; x < x1; x += pitch) {
                  const float h = height(x, y);
                  if (h < 0.10f) continue;
@@ -1190,7 +1211,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                     900, 220, 1290, 570, "alps", tHann + 0.7f));
 
     // rivers, in a lighter sloped hand
-    auto river = [&](std::vector<SkPoint> pts, const char* k, float t0) {
+    auto river = [&](const std::vector<SkPoint>& pts, const char* k, float t0) {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
@@ -1302,8 +1323,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     r.width = FlowWidth{prof, &mmScale};
     return box()
         .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
+        // the callable is invoked on every layout, so its capture must survive
+        // each return
+        // NOLINTNEXTLINE(performance-no-automatic-move)
         .shape([local](SkSize) { return local; })
-        .stroke(spans::upTo(reveal), r)
+        .stroke(spans::upTo(std::move(reveal)), r)
         .cache(Cache::None)
         .key(key);
   }
@@ -1323,7 +1347,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         .inset(0)
         .shape(pathFn(band))
         .fill(Material::solid(colour))
-        .mask(by::edge(wipeDeg, reveal))
+        .mask(by::edge(wipeDeg, std::move(reveal)))
         .key(key);
   }
 
@@ -1408,8 +1432,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
 
     // the rivers of the Russian panel
-    auto river = [&](std::vector<SkPoint> pts, const char* label, SkPoint lp,
-                     const char* k, float t0) {
+    auto river = [&](const std::vector<SkPoint>& pts, const char* label,
+                     SkPoint lp, const char* k, float t0) {
       g.child(box()
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
@@ -1484,11 +1508,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the map panel — five identities, all exact, on numbers Minard
     // engraved, and they need no measurement at all.
     {
-      const char* ident[] = {"422 − 22 = 400", "400 − 60 = 340",
-                             "20 + 30 = 50  (Bobr)",
-                             "50 − 28 = 22,000 in four days  (the "
-                             "Berezina)",
-                             "4 + 6 = 10 recrossed"};
+      const char* ident[] = {
+          "422 − 22 = 400", "400 − 60 = 340", "20 + 30 = 50  (Bobr)",
+          // one caption, split across adjacent literals
+          // NOLINTNEXTLINE(bugprone-suspicious-missing-comma)
+          "50 − 28 = 22,000 in four days  (the "
+          "Berezina)",
+          "4 + 6 = 10 recrossed"};
       float x = kFrameL + 16;
       for (int i = 0; i < 5; ++i) {
         g.child(text(toU8(ident[i]), type(faceUiBold, 9.5f, kBlue))
@@ -1665,6 +1691,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
     // the curve, and the fine ticks hatched UNDER it (not a fill)
     std::vector<SkPoint> curve;
+    curve.reserve(std::size(kTemps));
     for (const Temp& t : kTemps)
       curve.push_back({mapX(t.lon), tempY(t.reaumur)});
     SkPathBuilder cb;
@@ -1688,6 +1715,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
               SkContourMeasureIter it(curvePath, false);
               while (sk_sp<SkContourMeasure> m = it.next()) {
                 const float len = m->length();
+                // the loop walks a distance; the accumulated float is the
+                // position
+                // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
                 for (float d = 0; d < len; d += 3.0f) {
                   SkPoint q;
                   SkVector tn;
@@ -1775,7 +1805,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     const char* where;
   };
   SpotRead spot(int i) const {
-    switch (i & 3) {
+    switch ((unsigned)i & 3u) {
       case 0:
         return {mapX(24.0f) + 8, mapY(54.9f), bandPx(422000) * 0.5f,
                 47.15f,          422000,      "Napoléon, at the Niemen"};
@@ -2566,6 +2596,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     say(colC, "MINARD'S GEOGRAPHY vs THE REAL WORLD", "heading");
     {
       std::vector<float> km;
+      km.reserve(std::size(kCities));
       for (const City& c : kCities) km.push_back(cityKm(c));
       std::vector<float> sorted = km;
       std::sort(sorted.begin(), sorted.end());

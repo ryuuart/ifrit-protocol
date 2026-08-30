@@ -82,11 +82,11 @@ struct TileScene final : Scene {
     auto tiles = box().width(8 * kTile).height(5 * kTile);
     for (int y = 0; y < 5; ++y)
       for (int x = 0; x < 8; ++x) {
-        const uint32_t h =
-            (uint32_t)(x * 73856093 ^ y * 19349663 ^ chunk.index * 83492791 ^
-                       chunk.revision * 2654435761u);
+        const uint32_t h = (uint32_t)x * 73856093u ^ (uint32_t)y * 19349663u ^
+                           (uint32_t)chunk.index * 83492791u ^
+                           chunk.revision * 2654435761u;
         int id = 0;  // floor
-        if (x % 3 == 1 && (h & 5) != 0)
+        if (x % 3 == 1 && (h & 5u) != 0)
           id = 1;  // maze walls in broken columns
         else if ((h % 11) == 3)
           id = 2;  // moss

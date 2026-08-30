@@ -336,15 +336,16 @@ constexpr float kInkAlpha = 0xBB / 255.0f;
 struct JavaRand {
   uint64_t s;
   explicit JavaRand(uint64_t seed)
-      : s((seed ^ 0x5DEECE66DULL) & ((1ULL << 48) - 1)) {}
+      : s((seed ^ 0x5DEECE66DULL) & ((1ULL << 48u) - 1)) {}
   int32_t next(int bits) {
-    s = (s * 0x5DEECE66DULL + 0xBULL) & ((1ULL << 48) - 1);
-    return (int32_t)(s >> (48 - bits));
+    s = (s * 0x5DEECE66DULL + 0xBULL) & ((1ULL << 48u) - 1);
+    return (int32_t)(s >> (48u - (unsigned)bits));
   }
   int nextInt(int bound) {
     int32_t r = next(31);
     const int32_t m = bound - 1;
-    if ((bound & m) == 0) return (int)(((int64_t)bound * (int64_t)r) >> 31);
+    if (((uint32_t)bound & (uint32_t)m) == 0)
+      return (int)(((uint64_t)bound * (uint64_t)r) >> 31u);
     for (int32_t u = r; u - (r = u % bound) + m < 0; u = next(31));
     return (int)r;
   }
@@ -1351,7 +1352,8 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 12; ++i) {
       const SkColor4f c = at::hex(at::kRest[(size_t)i].color);
       const float cx = tx + (float)(i % 6) * 81.0f;
-      const float cy = ty + (float)(i / 6) * 46.0f;
+      const int row = i / 6;
+      const float cy = ty + (float)row * 46.0f;
       m.child(box()
                   .rect(SkRect::MakeXYWH(cx, cy + 4.0f, 26.0f, 3.0f))
                   .key(std::string("tier") + std::to_string(i))
@@ -1472,7 +1474,8 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       for (int li = 0; li < c.linkCount; ++li)
         for (int pass = 0; pass < 2; ++pass) {
           const int d =
-              divisors[(size_t)(pass * c.linkCount + li)] - at::kDivMin;
+              divisors[(size_t)pass * (size_t)c.linkCount + (size_t)li] -
+              at::kDivMin;
           chartLinks.child(place(linkPass(c, li, pass, lkKey++)
                                      .mask(by::spans(spans::upTo(animate(
                                          from(0.0f).to(1.0f), {520ms}))))
@@ -1529,7 +1532,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     root.child(bookmarkRail());
     root.child(marginalia());
 
-    ctx.composer.render(std::move(root));
+    ctx.composer.render(root);
   }
 
   static float kInkAlphaOf() { return at::kInkAlpha; }

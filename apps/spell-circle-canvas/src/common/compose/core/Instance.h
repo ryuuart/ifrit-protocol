@@ -83,6 +83,8 @@ struct Exclusion {
   }
 };
 
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Instance {
   Composer::Impl* owner = nullptr;
   Instance* parent = nullptr;

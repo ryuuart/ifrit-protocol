@@ -207,7 +207,7 @@ inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
       xforms[i].toQuad(tex[i].width(), tex[i].height(), quad);
     }
     const uint16_t base = (uint16_t)positions.size();
-    for (int k = 0; k < 4; ++k) positions.push_back(quad[k]);
+    for (const SkPoint& corner : quad) positions.push_back(corner);
     texs.push_back({tex[i].left(), tex[i].top()});
     texs.push_back({tex[i].right(), tex[i].top()});
     texs.push_back({tex[i].right(), tex[i].bottom()});

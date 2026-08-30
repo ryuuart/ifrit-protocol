@@ -65,9 +65,10 @@ constexpr int kCols = 10, kRows = 4;
 constexpr float kGridW = kCols * kCell + (kCols - 1) * kGap;
 constexpr float kGridH = kRows * kCell + (kRows - 1) * kGap;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 // The panel: cold slate under bronze.
@@ -498,8 +499,7 @@ struct LootGridScene final : Scene {
     grid.child(instances(cellAtlas, cellPool));
 
     // the items, each on its rarity-tinted cell
-    for (int i = 0; i < lt::kItemCount; ++i) {
-      const lt::Item& item = lt::kItems[i];
+    for (const auto& item : lt::kItems) {
       const float w = lt::spanW(item.w), h = lt::spanW(item.h);
       const SkColor4f rc = lt::rarityColor(item.rarity);
       const bool lit =

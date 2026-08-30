@@ -243,9 +243,6 @@ struct NineSliceScene final : Scene {
   }
 
   Element describe() {
-    const Palette oak = oakPalette(), azure = azurePalette(),
-                  crimson = crimsonPalette();
-
     auto panel = [&](const std::shared_ptr<sigil::image::ImageAsset>& f,
                      float l, float t, float w, float h) {
       return box()

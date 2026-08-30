@@ -421,7 +421,7 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
     for (const auto& [name, block] : live.blocks) {
       const uint64_t revision = block ? block->revision() : 0;
       inputs.push_back((float)(revision & 0xffffffull));
-      inputs.push_back((float)(revision >> 24));
+      inputs.push_back((float)(revision >> 24u));
     }
     // When anchored, W is a varying input like any other: a node that MOVED
     // resolves a different shader, and the memo has to see that or the next

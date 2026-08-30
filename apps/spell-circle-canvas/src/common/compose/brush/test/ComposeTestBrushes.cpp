@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -443,17 +445,18 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
   host.composer.render(
       box().row().child(box().width(120).height(40).fill(red()).key("b")));
   host.frame();
-  ASSERT_EQ(host.composer.bounds("b")->width(), 120);
+  ASSERT_EQ(require(host.composer.bounds("b")).width(), 120);
   host.composer.render(box().row().child(
       box().height(40).fill(red()).key("b").child(box().width(30))));
   host.frame();
-  EXPECT_EQ(host.composer.bounds("b")->width(), 30);  // released to content
+  EXPECT_EQ(require(host.composer.bounds("b")).width(),
+            30);  // released to content
 
   Host pins;
   pins.composer.render(
       box().child(box().inset(10, 10, 10, 10).fill(blue()).key("p")));
   pins.frame();
-  ASSERT_EQ(pins.composer.bounds("p")->width(), 180);
+  ASSERT_EQ(require(pins.composer.bounds("p")).width(), 180);
   pins.composer.render(box().child(box()
                                        .left(Dim(20.0f))
                                        .top(Dim(20.0f))
@@ -462,7 +465,8 @@ TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
                                        .fill(blue())
                                        .key("p")));
   pins.frame();
-  EXPECT_EQ(*pins.composer.bounds("p"), SkRect::MakeXYWH(20, 20, 50, 20));
+  EXPECT_EQ(require(pins.composer.bounds("p")),
+            SkRect::MakeXYWH(20, 20, 50, 20));
 }
 
 TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
@@ -473,10 +477,14 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
   // slightly-wrong timing, never as an error.
   Host host;
   auto tree = [](Fill f) {
-    return box().child(box().width(80).height(80).fill(f).opacity(
-        animate(from(0.0f).to(1.0f),
-                {std::chrono::milliseconds(400), &choreograph::easeNone,
-                 std::chrono::milliseconds(300)})));
+    return box().child(box()
+                           .width(80)
+                           .height(80)
+                           .fill(std::move(f))
+                           .opacity(animate(from(0.0f).to(1.0f),
+                                            {std::chrono::milliseconds(400),
+                                             &choreograph::easeNone,
+                                             std::chrono::milliseconds(300)})));
   };
   host.composer.render(tree(red()));
   host.frame(0.35);  // 50ms into the ramp (after the 300ms hold)
@@ -659,7 +667,10 @@ namespace {
  *  over a large static backdrop. `clipped` and `childBlend` are
  *  parameterised because both are conditions whole-subtree promotion refuses
  *  outright, and the split must accept them. */
-choreograph::Output<float> gSplitSweep{0.0f};
+choreograph::Output<float>& splitSweep() {
+  static choreograph::Output<float> sweep{0.0f};
+  return sweep;
+}
 
 Element splitPlane(bool clipped, SkBlendMode childBlend) {
   Element plane =
@@ -683,7 +694,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
                   .height(50)
                   .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
                   .blend(childBlend)
-                  .translateX(bind(&gSplitSweep).scale(130.0f)));
+                  .translateX(bind(&splitSweep()).scale(130.0f)));
   return profiledUnder(std::move(plane));
 }
 
@@ -698,7 +709,7 @@ size_t worstSplitDivergence(bool clipped, SkBlendMode childBlend) {
   off.composer.setAutoTexturePromotion(false);
   size_t worst = 0;
   for (int i = 0; i < 32; ++i) {
-    gSplitSweep = (float)i / 32.0f;
+    splitSweep() = (float)i / 32.0f;
     on.composer.render(splitPlane(clipped, childBlend));
     off.composer.render(splitPlane(clipped, childBlend));
     on.frame();
@@ -725,7 +736,7 @@ TEST(ComposeCache, SplitsAnExpensiveOwnPaintFromItsMovingChild) {
   Host host(200, 200);
   host.composer.setProfiling(true);
   for (int i = 0; i < 24; ++i) {
-    gSplitSweep = (float)i / 24.0f;
+    splitSweep() = (float)i / 24.0f;
     host.composer.render(splitPlane(false, SkBlendMode::kSrcOver));
     host.frame();
   }
@@ -794,7 +805,7 @@ TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
   Host host(200, 200);
   host.composer.setProfiling(true);
   for (int i = 0; i < 24; ++i) {
-    gSplitSweep = (float)i / 24.0f;
+    splitSweep() = (float)i / 24.0f;
     host.composer.render(splitPlane(true, SkBlendMode::kSrcOver));
     host.frame();
   }
@@ -910,9 +921,9 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
               .width(20)
               .height(20)
               .fill(red())
-              .translateX(bind(&gSplitSweep).scale(40.0f)))));
+              .translateX(bind(&splitSweep()).scale(40.0f)))));
   for (int i = 0; i < 24; ++i) {
-    gSplitSweep = (float)i / 24.0f;
+    splitSweep() = (float)i / 24.0f;
     host.frame();
   }
   const Composer::NodeCost* row = requireRow(host.composer, "many");

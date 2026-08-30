@@ -291,7 +291,8 @@ TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
   for (int y = 50; y < 150; y += 2)
     for (int x = 50; x < 150; x += 2)
       if (host.pixel(x, y) != SK_ColorBLACK) ++lit;
-  const float coverage = (float)lit / (float)(total / 4);
+  const int sampled = total / 4;
+  const float coverage = (float)lit / (float)sampled;
   EXPECT_GT(coverage, 0.05f);
   EXPECT_LT(coverage, 0.75f);
   // Nothing escapes the clip.

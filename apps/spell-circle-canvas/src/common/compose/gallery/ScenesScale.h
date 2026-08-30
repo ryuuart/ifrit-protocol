@@ -184,6 +184,8 @@ struct UiParticleScene final : Scene {
     const Palette framePals[4] = {oakPalette(), azurePalette(),
                                   crimsonPalette(), emeraldPalette()};
 
+    // a fixed seed; the scene must render the same on every run
+    // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{23};
     for (int i = 0; i < kVariants; ++i) {
       const float hue = std::fmod((float)i * 137.5f, 360.0f);
@@ -235,7 +237,7 @@ struct UiParticleScene final : Scene {
   Element carvedPost(const PostConfig& cfg) {
     const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
                              emeraldPalette()};
-    const Palette& pal = pals[cfg.paletteIndex & 3];
+    const Palette& pal = pals[(unsigned)cfg.paletteIndex & 3u];
     return box()
         .width(kPostW - 6)
         .height(kPostH - 6)
@@ -252,7 +254,7 @@ struct UiParticleScene final : Scene {
     // A modern dark UI card — the counterpoint to the ornate borders.
     const SkColor4f accents[2] = {{0.42f, 0.66f, 0.98f, 1},   // cobalt
                                   {0.98f, 0.72f, 0.34f, 1}};  // amber
-    const SkColor4f accent = accents[cfg.paletteIndex & 1];
+    const SkColor4f accent = accents[(unsigned)cfg.paletteIndex & 1u];
     return box()
         .width(kPostW - 6)
         .height(kPostH - 6)
@@ -311,11 +313,11 @@ struct UiParticleScene final : Scene {
     };
 
     postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs
-    for (int i = 0; i < kPostVariants; ++i)
+    for (const auto& post : kPosts)
       postAtlas->cell(box()
                           .alignItems(Align::Center)
                           .justify(Justify::Center)
-                          .child(postVariant(kPosts[i])),
+                          .child(postVariant(post)),
                       {kPostW, kPostH});
   }
 

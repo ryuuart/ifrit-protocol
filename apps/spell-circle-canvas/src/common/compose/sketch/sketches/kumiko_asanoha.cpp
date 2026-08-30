@@ -107,9 +107,10 @@ namespace {
 // ---------------------------------------------------------------------------
 // Palette — wood-tone matches by eye, not a colorimeter reading
 
-constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 0xff) / 255.0f,
-          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
+constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
+  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
+          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
+          a};
 }
 
 // Hinoki #E9D3A0 is the colour of the stock in daylight. This
@@ -137,6 +138,8 @@ constexpr float kW = 1400, kH = 1000;
 constexpr float kCell =
     90.0f;  // <<< THE PITCH. 60 → a 15×9 field, still legal.
 constexpr float kFieldW = 900, kFieldH = 540;
+// NOLINTBEGIN(bugprone-throwing-static-initialization): arithmetic on constants
+// cannot throw
 const int kCols = std::max(2, (int)std::lround(kFieldW / kCell));
 const int kRows = std::max(2, (int)std::lround(kFieldH / kCell));
 const float kCellW = kFieldW / (float)kCols;
@@ -159,6 +162,7 @@ const SkRect kFrameOuter = kRegOuter.makeOutset(kBorder, kBorder);
 const float kJigumiW = std::max(6.0f, 0.125f * kCell);
 const float kHaW = std::max(5.0f, 0.096f * kCell);
 const float kRegW = kJigumiW * 0.80f;
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 // ---------------------------------------------------------------------------
 // Timeline. One clock, per-piece delays computed from role/row/col.
@@ -303,10 +307,10 @@ class TimberBank {
  public:
   Material get(const Timber& t, float span, bool flip, uint32_t seed,
                bool swap = false) {
-    const uint64_t key = (uint64_t)(t.grain * 10000) << 40 |
-                         (uint64_t)std::lround(span * 4) << 13 |
-                         (uint64_t)(flip ? 1 : 0) << 12 |
-                         (uint64_t)(swap ? 1 : 0) << 11 | (seed % 24);
+    const uint64_t key = (uint64_t)(t.grain * 10000) << 40u |
+                         (uint64_t)std::lround(span * 4) << 13u |
+                         (uint64_t)(flip ? 1 : 0) << 12u |
+                         (uint64_t)(swap ? 1 : 0) << 11u | (seed % 24);
     auto it = m_bank.find(key);
     if (it != m_bank.end()) return it->second;
     sk_sp<SkRuntimeEffect> fx = timberEffect();
@@ -401,7 +405,7 @@ struct Panel {
     s.timber = t;
     s.delay = delay;
     s.dur = dur;
-    s.seed = seedCounter++ * 2654435761u >> 13;
+    s.seed = seedCounter++ * 2654435761u >> 13u;
     s.litToCenter = litToCenter;
     const SkVector u = norm({b.x() - a.x(), b.y() - a.y()});
     s.cutA = (cutA.length() < 1e-4f) ? perp(u) : norm(cutA);
@@ -503,7 +507,7 @@ struct Panel {
     s.w = kRegW * 0.5f;
     s.role = kRoleRegister;
     s.timber = &kHinokiTimber;
-    s.seed = seedCounter++ * 2654435761u >> 13;
+    s.seed = seedCounter++ * 2654435761u >> 13u;
     s.cutA = perp(norm({s.b.x() - s.a.x(), s.b.y() - s.a.y()}));
     s.cutB = s.cutA;
     nubs.push_back(s);
@@ -523,7 +527,7 @@ struct Panel {
 
     for (int j = 0; j < kRows; ++j) {
       for (int i = 0; i < kCols; ++i) {
-        const bool flip = ((i + j) & 1) != 0;
+        const bool flip = ((unsigned)(i + j) & 1u) != 0;
         const float ox = kField.left() + kCellW * (float)i;
         const float oy = kField.top() + kCellH * (float)j;
         auto P = [&](float lx, float ly) {

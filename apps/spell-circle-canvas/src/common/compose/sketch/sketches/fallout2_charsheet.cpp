@@ -194,9 +194,10 @@ constexpr float n(float v) { return v * kScale; }
 constexpr float kScreenW = n(640), kScreenH = n(480);
 constexpr float kCaptionH = 128.0f;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
@@ -915,8 +916,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     if (rivets) {
       const float inset = 5.0f;
       for (int i = 0; i < 4; ++i) {
-        const float rx = (i & 1) ? r.w - inset : inset;
-        const float ry = (i & 2) ? r.h - inset : inset;
+        const float rx = ((unsigned)i & 1u) ? r.w - inset : inset;
+        const float ry = ((unsigned)i & 2u) ? r.h - inset : inset;
         e.child(kit::disc({n(rx), n(ry)}, n(2.4f))
                     .fill(rivetMat)
                     .foreground(stroke(n(0.6f), Fill::color(C(0x000000, 0.7f)),
@@ -1005,8 +1006,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   /** A two-digit odometer at (x, y), cell 14 x 24. `blankTens`/`blankOnes`
    *  carry the mechanical blank: an empty string draws the sprite sheet's
    *  blank cell for 123 ms and then the new digit — a counter, not a fade. */
-  Element odometer(float x, float y, int value, std::string tensOverride,
-                   std::string onesOverride) {
+  Element odometer(float x, float y, int value, const std::string& tensOverride,
+                   const std::string& onesOverride) {
     using namespace fo;
     Element g = at(box(), x - 1, y - 1, kOdoW * 2 + 2, kOdoH + 2)
                     .fill(Fill::color(C(0x000000)))
@@ -1556,8 +1557,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       sp.stroke(
           stroke(n(1), Fill::color(C(0x1A1610)), PathFormat::Align::Inner));
       for (int i = 0; i < 4; ++i)
-        sp.child(kit::disc({n((i & 1) ? kWellSpecial.w - 6 : 6.0f),
-                            n((i & 2) ? kWellSpecial.h - 6 : 6.0f)},
+        sp.child(kit::disc({n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
+                            n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
                            n(2.6f))
                      .fill(rivetMat)
                      .foreground(stroke(n(0.6f), Fill::color(C(0x000000, 0.7f)),

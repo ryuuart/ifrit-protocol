@@ -17,7 +17,8 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
   SkPaint paint;
   for (int y = 0; y < kSize / kCell; ++y)
     for (int x = 0; x < kSize / kCell; ++x) {
-      paint.setColor(((x + y) & 1) ? SK_ColorMAGENTA : SK_ColorBLACK);
+      paint.setColor(((unsigned)(x + y) & 1u) ? SK_ColorMAGENTA
+                                              : SK_ColorBLACK);
       canvas.drawRect(SkRect::MakeXYWH((float)(x * kCell), (float)(y * kCell),
                                        kCell, kCell),
                       paint);

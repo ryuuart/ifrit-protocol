@@ -361,7 +361,7 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
   }
   for (int d = 0; d < 10; ++d)
     f.digitAdvance =
-        std::max(f.digitAdvance, f.cells[(size_t)('0' - 32 + d)].advance);
+        std::max(f.digitAdvance, f.cells[(size_t)d + ('0' - 32)].advance);
   return f;
 }
 

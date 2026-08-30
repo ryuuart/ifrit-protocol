@@ -94,9 +94,10 @@ namespace tv3 {
 // ---------------------------------------------------------------------------
 // Palette — sampled from the studio's own 1920×1080 capture, never eyed.
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 constexpr SkColor4f kPage = C(0x182337);    // outer page ground
@@ -367,8 +368,8 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
       size_t k = i + 8;
       bool ok = false;
       while (k + 8 <= n) {
-        const uint32_t len = (uint32_t)d[k] << 24 | (uint32_t)d[k + 1] << 16 |
-                             (uint32_t)d[k + 2] << 8 | (uint32_t)d[k + 3];
+        const uint32_t len = (uint32_t)d[k] << 24u | (uint32_t)d[k + 1] << 16u |
+                             (uint32_t)d[k + 2] << 8u | (uint32_t)d[k + 3];
         const bool iend = std::memcmp(d + k + 4, "IEND", 4) == 0;
         if (k + 8 + (size_t)len + 4 > n) break;
         k += 8 + len + 4;
@@ -1281,8 +1282,9 @@ struct TwoAdvancedV3 : sigil::compose::sketch::Sketch {
 
   static int stopTarget(int stop) { return stop < 6 ? stop : -1; }
 
-  void renderStage(sketch::SketchContext& ctx, Element content, bool hasHome) {
-    ctx.composer.renderSlot("stage", std::move(content));
+  void renderStage(sketch::SketchContext& ctx, const Element& content,
+                   bool hasHome) {
+    ctx.composer.renderSlot("stage", content);
     // The clouds slot was just rebuilt empty inside fresh home art —
     // re-push the current frame so the sky never blanks for a frame.
     if (hasHome && !clouds.empty())

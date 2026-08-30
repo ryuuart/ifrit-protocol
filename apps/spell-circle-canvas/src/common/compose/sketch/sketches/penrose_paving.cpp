@@ -125,9 +125,10 @@ using namespace std::chrono_literals;
 
 namespace {
 
-constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 0xff) / 255.0f,
-          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
+constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
+  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
+          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
+          a};
 }
 
 // ---------------------------------------------------------------------------
@@ -201,14 +202,17 @@ inline V2 operator+(V2 a, V2 b) { return {a.x + b.x, a.y + b.y}; }
 inline V2 operator*(V2 a, double k) { return {a.x * k, a.y * k}; }
 inline double dot(V2 a, V2 b) { return a.x * b.x + a.y * b.y; }
 
-const std::array<V2, 5> kZeta = [] {
-  std::array<V2, 5> z{};
-  for (int j = 0; j < 5; ++j) {
-    const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
-    z[(size_t)j] = {std::cos(a), std::sin(a)};
-  }
+const std::array<V2, 5>& zeta() {
+  static const std::array<V2, 5> z = [] {
+    std::array<V2, 5> out{};
+    for (int j = 0; j < 5; ++j) {
+      const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
+      out[(size_t)j] = {std::cos(a), std::sin(a)};
+    }
+    return out;
+  }();
   return z;
-}();
+}
 
 // γ_j — the SAME offset in every family, so Σγ = 1 ≡ 0 (mod 1) (de Bruijn's
 // Γ = 0, the genuine Penrose class) AND the whole five-line system is
@@ -231,7 +235,7 @@ inline uint32_t hash4(int a, int b, int c, int d) {
   auto mix = [&h](uint32_t v) {
     h ^= v;
     h *= 16777619u;
-    h ^= h >> 13;
+    h ^= h >> 13u;
   };
   mix((uint32_t)(a + 97));
   mix((uint32_t)(b + 193));
@@ -252,7 +256,7 @@ std::vector<Tile> buildField(float module, float padPx) {
 
   for (int r = 0; r < 5; ++r) {
     for (int s = r + 1; s < 5; ++s) {
-      const V2 zr = kZeta[(size_t)r], zs = kZeta[(size_t)s];
+      const V2 zr = zeta()[(size_t)r], zs = zeta()[(size_t)s];
       const double det = zr.x * zs.y - zr.y * zs.x;
       if (std::abs(det) < 1e-9)
         continue;  // never happens: five distinct 72° directions
@@ -270,10 +274,11 @@ std::vector<Tile> buildField(float module, float padPx) {
           V2 z{0, 0};
           for (int j = 0; j < 5; ++j) {
             const int Kj =
-                (j == r)   ? kr
-                : (j == s) ? ks
-                           : (int)std::ceil(dot(kZeta[(size_t)j], x) + kOffset);
-            z = z + kZeta[(size_t)j] * (double)Kj;
+                (j == r) ? kr
+                : (j == s)
+                    ? ks
+                    : (int)std::ceil(dot(zeta()[(size_t)j], x) + kOffset);
+            z = z + zeta()[(size_t)j] * (double)Kj;
           }
 
           Tile t;
@@ -386,8 +391,8 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
   a.tiles = (int)tiles.size();
 
   auto qkey = [](SkPoint p) {
-    return ((int64_t)std::llround(p.x() * 8.0) << 24) ^
-           (int64_t)std::llround(p.y() * 8.0);
+    return (int64_t)(((uint64_t)std::llround(p.x() * 8.0) << 24u) ^
+                     (uint64_t)std::llround(p.y() * 8.0));
   };
 
   // 1. Angle sums. Every interior vertex of a genuine tiling closes at 360°;
@@ -513,7 +518,7 @@ class GraniteBank {
  public:
   Material get(const Granite& g, uint32_t seed, bool fat) {
     const uint32_t bucket = seed % 40u;
-    const uint64_t key = ((uint64_t)(fat ? 1 : 0) << 32) | bucket;
+    const uint64_t key = ((uint64_t)(fat ? 1 : 0) << 32u) | bucket;
     auto it = m_bank.find(key);
     if (it != m_bank.end()) return it->second;
 
@@ -811,6 +816,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .top(bb.top() - parentOrg.y())
         .width(bb.width())
         .height(bb.height())
+        // the callable is invoked on every layout, so its capture must survive
+        // each return
+        // NOLINTNEXTLINE(performance-no-automatic-move)
         .shape([local](SkSize) { return local; })
         .stroke(spans::upTo(&arcT[i]),
                 Brush{}  // the milled slot the insert sits in — a hairline of

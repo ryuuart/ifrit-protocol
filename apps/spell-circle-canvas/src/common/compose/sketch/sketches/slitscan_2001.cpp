@@ -699,7 +699,9 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
    *  value that update() writes at the DRAW rate instead would charge
    *  different fixed steps to different shots, and the plate's rotation
    *  would depend on how fast the host happened to be drawing. */
-  static int shotFor(long long frame) { return (int)((frame / 96) & 3); }
+  static int shotFor(long long frame) {
+    return (int)((uint64_t)(frame / 96) & 3u);
+  }
 
   static const Shot& shotAt(int i) {
     using namespace slit;
@@ -713,7 +715,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         {"SEQ 29 · SH 29", kGelViolet, kGelCyan, 12.0f, -0.35f, 2,
          "MICROSCOPIC / BOTANICAL — SAME STRIP AS SH 27 [GE]"},
     };
-    return k[i & 3];
+    return k[(unsigned)i & 3u];
   }
 
   // The corridor banks; it does not sit still. Within +-96 x +-44 px.
@@ -1568,10 +1570,14 @@ void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
   c.drawRect(SkRect::MakeLTRB(trackL, trackY - 1, trackR, trackY), p);
   c.drawRect(SkRect::MakeLTRB(trackL, trackY + 5, trackR, trackY + 6), p);
   p.setColor4f(al(kAmber, 0.5f));
+  // the loop walks a distance; the accumulated float is the position
+  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
   for (float x = trackL; x <= trackR; x += 4.0f)
     c.drawRect(SkRect::MakeLTRB(x, trackY + 1, x + 1.7f, trackY + 5), p);
   // …and the 36 px of reach the published track does NOT cover.
   p.setColor4f(al(kRed, 0.85f));
+  // the loop walks a distance; the accumulated float is the position
+  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
   for (float x = trackR; x < plateX - 2; x += 5.0f)
     c.drawRect(SkRect::MakeLTRB(x, trackY + 2, x + 2.0f, trackY + 4), p);
 
@@ -1958,7 +1964,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
       w.K = Ks[k];
       w.logSpaced = (r == 1);
       buildWall(*pool, w);
-      s4[(size_t)(r * 3 + k)] = pool;
+      s4[(size_t)r * 3 + (size_t)k] = pool;
     }
 
   // ---- the two verifications

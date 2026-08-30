@@ -589,13 +589,13 @@ std::u16string toUtf16(std::u8string_view utf8) {
     size_t length = 1;
     if (byte < 0x80) {
       code = byte;
-    } else if ((byte & 0xE0) == 0xC0) {
+    } else if ((byte & 0xE0u) == 0xC0) {
       length = 2;
       code = byte & 0x1Fu;
-    } else if ((byte & 0xF0) == 0xE0) {
+    } else if ((byte & 0xF0u) == 0xE0) {
       length = 3;
       code = byte & 0x0Fu;
-    } else if ((byte & 0xF8) == 0xF0) {
+    } else if ((byte & 0xF8u) == 0xF0) {
       length = 4;
       code = byte & 0x07u;
     }
@@ -606,20 +606,20 @@ std::u16string toUtf16(std::u8string_view utf8) {
       } else {
         for (size_t k = 1; k < length; ++k) {
           const auto continuation = (unsigned char)utf8[i + k];
-          if ((continuation & 0xC0) != 0x80) {
+          if ((continuation & 0xC0u) != 0x80) {
             code = 0xFFFD;
             length = k;
             break;
           }
-          code = (code << 6) | (continuation & 0x3Fu);
+          code = (code << 6u) | (continuation & 0x3Fu);
         }
       }
     }
     if (code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) code = 0xFFFD;
     if (code >= 0x10000) {
       const char32_t rest = code - 0x10000;
-      out.push_back((char16_t)(0xD800 + (rest >> 10)));
-      out.push_back((char16_t)(0xDC00 + (rest & 0x3FF)));
+      out.push_back((char16_t)(0xD800 + (rest >> 10u)));
+      out.push_back((char16_t)(0xDC00 + (rest & 0x3FFu)));
     } else {
       out.push_back((char16_t)code);
     }
@@ -859,9 +859,9 @@ namespace {
  *  here to order units rather than to shape a glyph. */
 uint64_t mix64Value(uint64_t z) {
   z += 0x9e3779b97f4a7c15ull;
-  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
-  z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
-  return z ^ (z >> 31);
+  z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
+  z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
+  return z ^ (z >> 31u);
 }
 }  // namespace
 
@@ -941,7 +941,7 @@ void warnCueTableMismatch(size_t cueCount, size_t unitCount) {
   // forever. Distinct shapes still each get their say, because two tracks
   // can be wrong in two different ways.
   static thread_local std::unordered_set<uint64_t> seen;
-  const uint64_t key = ((uint64_t)cueCount << 32) | (uint32_t)unitCount;
+  const uint64_t key = ((uint64_t)cueCount << 32u) | (uint32_t)unitCount;
   if (!seen.insert(key).second) return;
   std::fprintf(stderr,
                "SigilCompose: a cue table of %zu times against %zu units — "
@@ -1200,7 +1200,7 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane) {
   // scatters rather than one drawn twice — and it is the OPERAND's index,
   // never a counter, so a phase draws the same numbers whether it is being
   // crossfaded into or playing alone.
-  return mix64Value(((uint64_t)g.textIndex << 32) ^ (uint64_t)g.index) +
+  return mix64Value(((uint64_t)g.textIndex << 32u) ^ (uint64_t)g.index) +
          mix64Value(lane);
 }
 
@@ -1451,7 +1451,7 @@ TextEffect scramble(std::u32string charset, int steps) {
         // Each glyph resolves at its own moment, and every one of them has
         // resolved by t = 1: the point of the effect is that the true text
         // is what the reader is left with.
-        const float settle = 0.35f + (float)(seed >> 24) * (0.6f / 255.0f);
+        const float settle = 0.35f + (float)(seed >> 24u) * (0.6f / 255.0f);
         if (t >= settle) return mod;
         const uint32_t tick =
             (uint32_t)(std::clamp(t, 0.0f, 1.0f) * (float)ticks);

@@ -220,7 +220,7 @@ struct GalleryStage {
   // headless sweep sets this to snap+submit(SyncToCpu) so "work ms" is the
   // honest serialized CPU+GPU cost of a frame, not just command recording.
   std::function<void()> flushHook;
-  std::chrono::steady_clock::time_point lastPresent{};
+  std::chrono::steady_clock::time_point lastPresent;
   double fixedNowSeconds = 0.0;
   bool fixedClockInitialized = false;
 

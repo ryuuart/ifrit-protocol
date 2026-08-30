@@ -80,6 +80,7 @@ struct OrganicScene final : Scene {
                          const char8_t* glyphs[] = {u8"ᚠ", u8"ᚢ", u8"ᚦ",
                                                     u8"ᚨ", u8"ᚱ", u8"ᚲ",
                                                     u8"ᚷ", u8"ᚹ", u8"ᚺ"};
+                         runes.reserve(9);
                          for (int i = 0; i < 9; ++i)
                            runes.push_back(
                                text(std::u8string(glyphs[(size_t)i]),

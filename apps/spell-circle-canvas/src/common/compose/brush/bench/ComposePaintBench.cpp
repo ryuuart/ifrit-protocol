@@ -23,7 +23,7 @@ namespace {
 
 /** The tile ladder: cell pitches an octave apart, so the bake's cost per
  *  tile and the fill's cost per screen can both be read against pitch. */
-void pitchLadder(benchmark::internal::Benchmark* b) {
+void pitchLadder(::benchmark::Benchmark* b) {
   b->Arg(4)->Arg(16)->Arg(64)->Unit(benchmark::kMicrosecond);
 }
 
@@ -34,7 +34,7 @@ void pitchLadder(benchmark::internal::Benchmark* b) {
  *  this every frame, which is what the number is for. */
 static void BM_Bake_Pattern_Halftone(benchmark::State& state) {
   const float pitch = (float)state.range(0);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     Material material =
         patterns::halftone(pitch, pitch * 0.35f, {0.1f, 0.1f, 0.12f, 1})
             .material();
@@ -48,7 +48,7 @@ BENCHMARK(BM_Bake_Pattern_Halftone)->Apply(pitchLadder);
  *  bake scales with the mark count rather than the pitch. */
 static void BM_Bake_Pattern_Speckle(benchmark::State& state) {
   const int count = (int)state.range(0);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     Material material =
         patterns::speckle(128.0f, count, 0.5f, 1.5f,
                           {{0.9f, 0.9f, 0.85f, 1}, {0.6f, 0.6f, 0.55f, 1}})
@@ -75,7 +75,7 @@ static void BM_Draw_Pattern_Fill_Live(benchmark::State& state) {
   host.composer.render(
       box().child(box().inset(0).fill(halftone).cache(Cache::None)));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["pitch"] = pitch;
 }
 BENCHMARK(BM_Draw_Pattern_Fill_Live)->Apply(pitchLadder);
@@ -95,7 +95,7 @@ static void BM_Draw_Pattern_Rotate_Live(benchmark::State& state) {
   };
   host.composer.render(describe());
   host.draw();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     angle += 0.5f;
     host.composer.render(describe());
     host.draw();
@@ -144,13 +144,13 @@ void cardArm(benchmark::State& state, CardPaint paint) {
   Host host(1024, 1024);
   host.composer.render(cardGrid(count, side, paint).cache(Cache::None));
   host.draw();  // warm the shader compile
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["cards"] = (double)count;
   state.counters["side"] = side;
   state.SetItemsProcessed(state.iterations() * count);
 }
 
-void cardLadder(benchmark::internal::Benchmark* b) {
+void cardLadder(::benchmark::Benchmark* b) {
   b->ArgsProduct({{16, 64}, {32, 96}})->Unit(benchmark::kMicrosecond);
 }
 
@@ -193,7 +193,7 @@ static void BM_Draw_DropShadow_Live(benchmark::State& state) {
   Host host(1024, 1024);
   host.composer.render(shadowedCards(count, Cache::None));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["cards"] = (double)count;
 }
 BENCHMARK(BM_Draw_DropShadow_Live)
@@ -208,7 +208,7 @@ static void BM_Draw_DropShadow_Cached(benchmark::State& state) {
   Host host(1024, 1024);
   host.composer.render(shadowedCards(count, Cache::Auto));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["cards"] = (double)count;
   state.counters["picturesLive"] = (double)host.composer.stats().picturesLive;
 }

@@ -218,16 +218,17 @@ inline SkPoint centreOf(int col, int row) {
 inline bool culled(int col, int row) {
   const float vx = (float)col * 24 - kLocX;
   const float vy = (float)row * 24 - kLocY;
-  return !(vx >= -24 && vy >= -24 && vx <= kScreenX && vy <= kScreenY);
+  return vx < -24 || vy < -24 || vx > kScreenX || vy > kScreenY;
 }
 
 inline SkPoint centre(const SkRect& r) { return {r.centerX(), r.centerY()}; }
 
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
-inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 255) / 255.0f,
-          (float)((hex >> 8) & 255) / 255.0f, (float)(hex & 255) / 255.0f, a};
+inline SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
+  return {(float)((hex >> 16u) & 255u) / 255.0f,
+          (float)((hex >> 8u) & 255u) / 255.0f, (float)(hex & 255u) / 255.0f,
+          a};
 }
 /** Deterministic hash — every jitter, tear and speckle comes through here. */
 inline uint32_t hash3(int a, int b, int c) {
@@ -235,8 +236,8 @@ inline uint32_t hash3(int a, int b, int c) {
   // the defined kind, where signed ones overflow. Same bits either way.
   uint32_t h = (uint32_t)a * 374761393u + (uint32_t)b * 668265263u +
                (uint32_t)c * 2147483647u;
-  h = (h ^ (h >> 13)) * 1274126177u;
-  return h ^ (h >> 16);
+  h = (h ^ (h >> 13u)) * 1274126177u;
+  return h ^ (h >> 16u);
 }
 inline float noise1(int a, int b, int c) {
   return (float)(hash3(a, b, c) & 0xFFFFu) / 32767.5f - 1.0f;  // [-1,1]
@@ -287,6 +288,8 @@ enum Meta : uint8_t {
 };
 enum State : uint8_t { kComplete, kUnlockable, kLocked };
 
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Node {
   const char* key;
   int col, row;
@@ -791,10 +794,10 @@ inline Element spikyOverlay(uint32_t seed) {
 // named for the textures alchemy.json asks for.
 
 inline uint32_t mulHex(uint32_t hex, float k) {
-  const uint32_t r = (uint32_t)(((hex >> 16) & 255) * k);
-  const uint32_t gg = (uint32_t)(((hex >> 8) & 255) * k);
-  const uint32_t b = (uint32_t)((hex & 255) * k);
-  return (r << 16) | (gg << 8) | b;
+  const uint32_t r = (uint32_t)(((hex >> 16u) & 255u) * k);
+  const uint32_t gg = (uint32_t)(((hex >> 8u) & 255u) * k);
+  const uint32_t b = (uint32_t)((hex & 255u) * k);
+  return (r << 16u) | (gg << 8u) | b;
 }
 
 struct Ink {
@@ -1210,7 +1213,7 @@ inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
   sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   if (!surf) return {};
   surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-  if (sk_sp<SkPicture> pic = snapshot(std::move(tree), fonts))
+  if (sk_sp<SkPicture> pic = snapshot(tree, fonts))
     surf->getCanvas()->drawPicture(pic);
   SkBitmap read;
   read.allocPixels(
@@ -1345,7 +1348,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         const float rad = g(k ? 106.0f : 166.0f);
         const float rot = k ? 0.26f : -1.57f;
         for (int i = 0; i < n; ++i) {
-          const int j = (i + (k ? 2 : 2)) % n;
+          const int j = (i + 2) % n;
           const float a1 = rot + (float)i * 6.2831853f / (float)n;
           const float a2 = rot + (float)j * 6.2831853f / (float)n;
           t.moveTo(o.fX + std::cos(a1) * rad, o.fY + std::sin(a1) * rad);
@@ -1769,7 +1772,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       straight[t] = straightTile(tint, spatter[t], knot[t]);
       for (int q = 0; q < 4; ++q) {
         const bool big = q >= 2;
-        const float handed = (q & 1) ? 1.0f : -1.0f;
+        const float handed = ((unsigned)q & 1u) ? 1.0f : -1.0f;
         elbows[t][(size_t)q] =
             elbowTile(cornerArm(big), handed, tint, spatter[t], knot[t]);
       }
@@ -1861,7 +1864,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // 4. the hover tooltip, over everything including the frame.
     root.child(tooltip());
 
-    ctx.composer.render(std::move(root));
+    ctx.composer.render(root);
   }
 
   /** BFS depth from BASEALCHEMY, so the draw-on cascade runs outward the way
@@ -1876,6 +1879,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         depth[(size_t)ci] = std::min(depth[(size_t)ci], depth[(size_t)pi] + 1);
       }
     std::vector<int> idx;
+    idx.reserve((size_t)kEdgeCount);
     for (int i = 0; i < kEdgeCount; ++i) idx.push_back(i);
     std::sort(idx.begin(), idx.end(), [&](int a, int b) {
       return depth[(size_t)indexByKey(kEdges[a].child)] <

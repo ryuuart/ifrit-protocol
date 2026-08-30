@@ -75,9 +75,9 @@ geometry::Spline3 loopAt(float t, float radius, float bob) {
   geometry::Spline3 spline;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
-    spline.points.push_back({std::cos(a) * radius,
-                             std::sin(a * 2.0f + t * 0.4f) * bob,
-                             std::sin(a) * radius});
+    spline.points.emplace_back(std::cos(a) * radius,
+                               std::sin(a * 2.0f + t * 0.4f) * bob,
+                               std::sin(a) * radius);
   }
   spline.closed = true;
   return spline;

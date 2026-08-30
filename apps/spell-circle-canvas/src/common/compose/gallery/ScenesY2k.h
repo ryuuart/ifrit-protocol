@@ -49,9 +49,10 @@ constexpr float kTickerSpeed = 70;  // px/s, the lazy 56k crawl
 constexpr float kTickerGap = 40;    // between the two marquee copies
 
 /** 0xRRGGBB -> SkColor4f. */
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
@@ -91,7 +92,7 @@ inline Element gelPill(std::string_view label, SkColor4f tint, float w = kPillW,
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toU8(std::string(label)), gelLabel(tint)));
+      .child(text(toU8(label), gelLabel(tint)));
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -176,7 +177,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                  .justify(Justify::Center)
                  .alignItems(Align::Center)
                  .zIndex(1)
-                 .child(text(toU8(std::string(label)),
+                 .child(text(toU8(label),
                              gelLabel({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
                                        t.deep.fB * 1.3f, 1}))));
 }
@@ -200,7 +201,7 @@ inline Element plasticButton(std::string_view label) {
       .row()
       .justify(Justify::Center)
       .alignItems(Align::Center)
-      .child(text(toU8(std::string(label)), type(13, C(0xFFFFFF), 0.5f, 600)));
+      .child(text(toU8(label), type(13, C(0xFFFFFF), 0.5f, 600)));
 }
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
@@ -229,7 +230,7 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
 
 /** Small caption under the A/B specimens. */
 inline Element caption(std::string_view s) {
-  return text(toU8(std::string(s)), type(10, C(0x59626C), 0.8f, 600));
+  return text(toU8(s), type(10, C(0x59626C), 0.8f, 600));
 }
 
 }  // namespace y2k_chrome

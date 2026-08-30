@@ -107,9 +107,10 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkColor4f C(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 0xff) / 255.0f,
-          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t hex, float a = 1.0f) noexcept {
+  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
+          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
+          a};
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +169,8 @@ struct Run {
 
 // A   18 black  6 blue  2 black  6 blue  2 black 18 blue
 //      2 black  6 blue  2 black  6 blue 18 black                    (86)
+// NOLINTBEGIN(bugprone-throwing-static-initialization): literal tables; only
+// allocation could throw
 const std::vector<Run> kSettA{{K, 18}, {B, 6}, {K, 2}, {B, 6}, {K, 2}, {B, 18},
                               {K, 2},  {B, 6}, {K, 2}, {B, 6}, {K, 18}};
 // B   18 green  6 black 18 green                                    (42)
@@ -189,6 +192,7 @@ const std::vector<Run> kArgB{{G, 32}, {Y, 6}, {G, 32}};
 const std::vector<Run> kArgC{{K, 30}, {B, 30}, {K, 6}, {B, 6},
                              {K, 6},  {B, 30}, {K, 30}};
 const std::vector<Run> kArgD{{G, 32}, {W, 6}, {G, 32}};
+// NOLINTEND(bugprone-throwing-static-initialization)
 constexpr int kPublishedArgyll = 416;
 
 inline int sumRuns(const std::vector<Run>& r) {
@@ -413,8 +417,8 @@ inline uint32_t packPixel(const SkBitmap& bm, SkColor4f c) {
   const uint32_t a = SkColorGetA(s), r = SkColorGetR(s), g = SkColorGetG(s),
                  b = SkColorGetB(s);
   return bm.colorType() == kBGRA_8888_SkColorType
-             ? (a << 24) | (r << 16) | (g << 8) | b
-             : (a << 24) | (b << 16) | (g << 8) | r;
+             ? (a << 24u) | (r << 16u) | (g << 8u) | b
+             : (a << 24u) | (b << 16u) | (g << 8u) | r;
 }
 
 /** `rib` darkens the cells where the WEFT is on top, which is what makes the
@@ -649,6 +653,8 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       const std::vector<Run> runs = bwRuns;
       warpPattern = Pattern::tile(
           {kPx * (float)S.size(), 8},
+          // copying the captures can fail only on allocation
+          // NOLINTNEXTLINE(bugprone-exception-escape)
           [runs, modern](SkCanvas& c, SkSize sz, uint32_t) {
             SkPaint p;
             float cur = 0;
@@ -674,7 +680,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       for (int ph = 0; ph < 4; ++ph) {
         const SkColor4f col = modern[(size_t)c];
         const float off = (float)ph * kPx;
-        pickPattern[(size_t)(c * 4 + ph)] = Pattern::tile(
+        pickPattern[(size_t)c * 4 + (size_t)ph] = Pattern::tile(
             {4 * kPx, kPx}, [col, off](SkCanvas& cv, SkSize sz, uint32_t) {
               SkPaint p;
               p.setColor4f(col, nullptr);
@@ -740,7 +746,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     //    scales, never authored separately.
     for (int wp = 0; wp < 3; ++wp)
       for (int wf = 0; wf < 3; ++wf)
-        blendMat[(size_t)(wf * 3 + wp)] =
+        blendMat[(size_t)wf * 3 + (size_t)wp] =
             imageMat(bakeBlend(modern[(size_t)wp], modern[(size_t)wf], 6), 8);
     drawdownAsset = std::make_shared<const sigil::image::ImageAsset>(
         sigil::image::ImageAsset::wrap(bakeCloth(
@@ -764,7 +770,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
             v.unitA, v.unitB, v.unitC, v.unitB, v.total, kPublishedEnds,
             ok(v.closes)),
         fmt("REFLECTIVE       mirrors at thread %d, %d   gap %d = %d/2%s",
-            v.mirrors.size() > 0 ? v.mirrors[0] : -1,
+            !v.mirrors.empty() ? v.mirrors[0] : -1,
             v.mirrors.size() > 1 ? v.mirrors[1] : -1, v.mirrorGap, v.total,
             ok(v.reflective)),
         fmt("2/2 BALANCE      max warp float %d   max weft float %d   "
@@ -839,7 +845,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
       panel.child(
           at(0, (float)i * kPx, kClothW, kPx)
-              .fill(pickMat[(size_t)(col * 4 + phase)])
+              .fill(pickMat[(size_t)col * 4 + (size_t)phase])
               .opacity(bind(&loom).source(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
     }
 
@@ -964,8 +970,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     // the count itself, set as one mono run
     std::string count;
     static const char kCode[] = "KBGYW";
-    for (size_t r = 0; r < bwRuns.size(); ++r)
-      count += fmt("%c%d ", kCode[bwRuns[r].c], bwRuns[r].n);
+    for (const auto& run : bwRuns) count += fmt("%c%d ", kCode[run.c], run.n);
     g.child(label(count, mn(11.5f, kInk, 0.3f), kClothX, kBarY + kBarH + 27,
                   kClothW));
     g.child(
@@ -1068,7 +1073,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       for (int wp = 0; wp < 3; ++wp)
         g.child(at(gx + (float)wp * (cell + gap), y0 + (float)wf * (cell + gap),
                    cell, cell)
-                    .fill(blendMat[(size_t)(wf * 3 + wp)])
+                    .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
                     .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
                                        PathFormat::Align::Outer)));
     const float tx = gx + 3 * (cell + gap) + 12;

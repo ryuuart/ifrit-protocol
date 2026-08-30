@@ -723,8 +723,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     auto idx = [&](int c, int r) { return r * C + c; };
     for (int r = 0; r < R; ++r)
       for (int c = 0; c < C; ++c)
-        cloth.x.push_back({x0 + (float)c * sp + (r & 1 ? sp * 0.5f : 0.0f),
-                           y0 - (float)r * sp});
+        cloth.x.push_back(
+            {x0 + (float)c * sp + (((unsigned)r & 1u) ? sp * 0.5f : 0.0f),
+             y0 - (float)r * sp});
     cloth.xo = cloth.x;
     cloth.invm.assign(cloth.x.size(), 1.0f);
     cloth.invm[0] = 0.0f;  // "Constrain one particle of the cloth to origo"
@@ -733,7 +734,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         if (c + 1 < C) addStick(cloth, idx(c, r), idx(c + 1, r));
         if (r + 1 < R) {
           addStick(cloth, idx(c, r), idx(c, r + 1));
-          const int dc = (r & 1) ? c + 1 : c - 1;
+          const int dc = ((unsigned)r & 1u) ? c + 1 : c - 1;
           if (dc >= 0 && dc < C) addStick(cloth, idx(c, r), idx(dc, r + 1));
         }
       }
@@ -1173,9 +1174,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                  for (int c = 0; c + 1 < C; ++c) {
                    const int a = r * C + c;
                    tri.moveTo(drawn(cloth, (size_t)a));
-                   tri.lineTo(drawn(cloth, (size_t)(a + 1)));
-                   tri.lineTo(drawn(cloth, (size_t)(a + C + 1)));
-                   tri.lineTo(drawn(cloth, (size_t)(a + C)));
+                   tri.lineTo(drawn(cloth, (size_t)a + 1));
+                   tri.lineTo(drawn(cloth, (size_t)a + (size_t)C + 1));
+                   tri.lineTo(drawn(cloth, (size_t)a + (size_t)C));
                    tri.close();
                  }
                SkPaint fp;

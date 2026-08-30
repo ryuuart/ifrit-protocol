@@ -51,7 +51,7 @@ std::vector<SkColor> grab(Host& host) {
   bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
   host.surface->readPixels(bm.pixmap(), 0, 0);
   std::vector<SkColor> out;
-  out.reserve(200 * 200);
+  out.reserve(size_t{200} * 200);
   for (int y = 0; y < 200; ++y)
     for (int x = 0; x < 200; ++x) out.push_back(bm.getColor(x, y));
   return out;

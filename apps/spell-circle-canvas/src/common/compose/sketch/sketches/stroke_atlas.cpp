@@ -109,7 +109,10 @@ sk_sp<SkTypeface> face(sketch::SketchContext& ctx, const char* family,
 struct Type {
   sk_sp<SkTypeface> mono, roman, romanBold;
 };
-Type gType;
+Type& type() {
+  static Type t;
+  return t;
+}
 
 sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
                               float tracking = 0) {
@@ -125,17 +128,17 @@ sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
 Element call(const char* text, float size = 9.5f, SkColor4f c = kInk) {
-  return sigil::compose::text(toU8(text), style(gType.mono, size, c, 0.1f));
+  return sigil::compose::text(toU8(text), style(type().mono, size, c, 0.1f));
 }
 Element roman(const char* text, float size, SkColor4f c = kInk,
               float tracking = 0) {
   return sigil::compose::text(toU8(text),
-                              style(gType.roman, size, c, tracking));
+                              style(type().roman, size, c, tracking));
 }
 Element romanBold(const char* text, float size, SkColor4f c = kInk,
                   float tracking = 0) {
   return sigil::compose::text(toU8(text),
-                              style(gType.romanBold, size, c, tracking));
+                              style(type().romanBold, size, c, tracking));
 }
 
 // ---------------------------------------------------------------------------
@@ -982,12 +985,13 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                             .transformOrigin(0.5f, 0.5f)
                             .rotate(frames[i].rot)
                             .shape(frames[i].shape);
-        if (frames[i].style)
-          frame.style(*frames[i].style);
-        else if (frames[i].where)
-          frame.stroke(*frames[i].where, frames[i].dec);
+        const Frame& spec = frames[i];
+        if (spec.style.has_value())
+          frame.style(spec.style.value());
+        else if (spec.where.has_value())
+          frame.stroke(spec.where.value(), spec.dec);
         else
-          frame.stroke(frames[i].dec);
+          frame.stroke(spec.dec);
         plate.child(frame.child(
             call(frames[i].label, 7.5f, kInkSoft).absolute().left(0).top(106)));
       }
@@ -1116,12 +1120,12 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
     ctx.canvas(1600, 1990);
     ctx.background(kPaper);
 
-    gType.mono = face(ctx, "Menlo");
-    if (!gType.mono) gType.mono = face(ctx, "Courier New");
-    gType.roman = face(ctx, "Palatino");
-    if (!gType.roman) gType.roman = face(ctx, "Georgia");
-    gType.romanBold =
-        face(ctx, gType.roman ? "Palatino" : "Georgia",
+    type().mono = face(ctx, "Menlo");
+    if (!type().mono) type().mono = face(ctx, "Courier New");
+    type().roman = face(ctx, "Palatino");
+    if (!type().roman) type().roman = face(ctx, "Georgia");
+    type().romanBold =
+        face(ctx, type().roman ? "Palatino" : "Georgia",
              SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
                          SkFontStyle::kUpright_Slant));
 

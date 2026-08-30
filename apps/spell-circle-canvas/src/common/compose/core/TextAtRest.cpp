@@ -66,7 +66,7 @@ Element textAtRest(Element moving, SkColor4f colour) {
   paint.foreground.setColor4f(colour, nullptr);
   if (text.paragraphOverride) {
     nodes::SpanRestyle repaint;
-    repaint.style.paint = paint;
+    repaint.style.paint = std::move(paint);
     repaint.paintOnly = true;
     text.spanRestyles.push_back(std::move(repaint));
   } else {

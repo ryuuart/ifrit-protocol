@@ -110,9 +110,10 @@ namespace ksp {
 // ---------------------------------------------------------------------------
 // Palette
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 inline SkColor4f lift(SkColor4f c, float k) {
@@ -626,10 +627,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     g.child(wisp(13u, 340, 10, 1000, 350, kNebula2, 0.14f, -16));
     uint32_t ws = 0x2545F491u;
     auto wr = [&ws] {
-      ws ^= ws << 13;
-      ws ^= ws >> 17;
-      ws ^= ws << 5;
-      return (float)(ws & 0xffffff) / (float)0xffffff;
+      ws ^= ws << 13u;
+      ws ^= ws >> 17u;
+      ws ^= ws << 5u;
+      return (float)(ws & 0xffffffu) / (float)0xffffff;
     };
     for (int i = 0; i < 16; ++i) {
       const float u = (float)i / 15.0f;
@@ -1824,10 +1825,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     starPool = std::make_shared<instancing::Pool>();
     uint32_t s = 0x9E3779B9u;
     auto rnd = [&s] {
-      s ^= s << 13;
-      s ^= s >> 17;
-      s ^= s << 5;
-      return (float)(s & 0xffffff) / (float)0xffffff;
+      s ^= s << 13u;
+      s ^= s >> 17u;
+      s ^= s << 5u;
+      return (float)(s & 0xffffffu) / (float)0xffffff;
     };
     for (int i = 0; i < 360; ++i) {
       const float px = rnd() * 1200.0f, py = rnd() * 800.0f;

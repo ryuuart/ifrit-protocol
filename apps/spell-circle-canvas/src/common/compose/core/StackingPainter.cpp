@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <set>
 #include <tuple>
@@ -688,8 +689,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               canvas.restore();
             }
           }
-          const TextPath* onPath =
-              onPathRun ? &*node.textData->onPath : nullptr;
+          const TextPath* onPath = nullptr;
+          if (onPathRun) {
+            const std::optional<TextPath>& path = node.textData->onPath;
+            if (path.has_value()) onPath = &path.value();
+          }
           // textFill()/textStroke() resolve to ONE glyph-paint override,
           // and every draw that takes one takes the SAME one: a letter in
           // flight, and a letter on a curve, are painted exactly as a
@@ -1004,9 +1008,11 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   if (inst.scalarMemo) {
     if (scalarsStable) {
       inst.settledScalars = scalarsNow;
-      if (inst.settleFrames < Instance::kScalarSettleFrames &&
-          ++inst.settleFrames == Instance::kScalarSettleFrames)
-        volatileDirty = true;
+      if (inst.settleFrames < Instance::kScalarSettleFrames) {
+        ++inst.settleFrames;
+        if (inst.settleFrames == Instance::kScalarSettleFrames)
+          volatileDirty = true;
+      }
     } else {
       inst.settleFrames = 0;
     }
@@ -1079,7 +1085,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   static const double kProfMs = [] {
     const char* env = getenv("COMPOSE_PROF");
     if (!env) return -1.0;
-    const double v = atof(env);
+    const double v = std::strtod(env, nullptr);
     return v > 0.0 ? v : 4.0;
   }();
   const auto profDraw = [&](const char* what, auto&& draw) {
@@ -1252,8 +1258,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     const bool affordable =
         inst.textureImage ||
         std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
-    if (device.width() > 0 && device.height() > 0 && area <= 16 * 1024 * 1024 &&
-        affordable) {
+    if (device.width() > 0 && device.height() > 0 &&
+        area <= int64_t{16} * 1024 * 1024 && affordable) {
       // Re-bake when the recording is stale, when the device rect moved or
       // resized (which is how a transform-SCALE change arrives here), or —
       // the temporal case — when the live material has actually ticked and
@@ -1393,7 +1399,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
     bool blitted = false;
     if (inst.splitBake && device.width() > 0 && device.height() > 0 &&
-        area <= 16 * 1024 * 1024 && affordable) {
+        area <= int64_t{16} * 1024 * 1024 && affordable) {
       // `ownPaintDirty`, NOT `paintDirty`. markPaintDirtyUp() propagates a
       // descendant's patch to every ancestor, which is right for a
       // recording (it baked the child's draw calls) and wrong here: the
@@ -1567,7 +1573,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
     if (settled && !inst.paintDirty && !inst.transformLive && rectStable &&
         !totalM.hasPerspective() && device.width() > 0 && device.height() > 0 &&
-        area <= 16 * 1024 * 1024 && affordable) {
+        area <= int64_t{16} * 1024 * 1024 && affordable) {
       const SkRect want = SkRect::Make(device);
       if (!inst.textureImage || !inst.textureDeviceSpace ||
           inst.textureBakeRect != want) {
@@ -1674,7 +1680,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (!inst.transformLive && deviceRectStable && recordingDepth == 0 &&
         node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
         deviceR.width() > 0 && deviceR.height() > 0 &&
-        deviceArea <= 16 * 1024 * 1024) {
+        deviceArea <= int64_t{16} * 1024 * 1024) {
       const SkRect bakeRect = SkRect::Make(deviceR);
       if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
           memoStale || inst.textureBakeRect != bakeRect) {
@@ -1779,7 +1785,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       inst.textureBakeRect = bake;
       inst.bakedLiveShader =
           inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
-      inst.bakedScalars = scalarsNow;
+      inst.bakedScalars = std::move(scalarsNow);
       inst.paintDirty = false;
       stats.picturesRecorded++;
       stats.texturesBaked++;
@@ -1855,7 +1861,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
       inst.bakedLiveShader =
           inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
-      inst.bakedScalars = scalarsNow;
+      inst.bakedScalars = std::move(scalarsNow);
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }

@@ -676,7 +676,7 @@ Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
 
 Element& Element::flowAround(std::string_view key, float margin) {
   detail::DeriveData& derive = m_node->deriveData.ensure();
-  derive.flowAroundKeys.push_back(std::string(key));
+  derive.flowAroundKeys.emplace_back(key);
   derive.flowAroundMargin = margin;
   return *this;
 }

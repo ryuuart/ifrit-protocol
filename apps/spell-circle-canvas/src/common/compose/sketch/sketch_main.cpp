@@ -281,7 +281,7 @@ int runBench(sigil::compose::sketch::SketchHost& host,
   if (!hotNodes.empty()) {
     std::printf("  most expensive nodes (self ms, excluding children):\n");
     for (const auto& row : hotNodes) {
-      const char* state = "live";
+      const char* state = nullptr;
       switch (row.cacheState) {
         case sigil::compose::Composer::CacheState::Live:
           state = "live paint";
@@ -418,6 +418,8 @@ int runHeadless(sigil::compose::sketch::SketchHost& host,
 
 }  // namespace
 
+// an uncaught exception ends the app with its message
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* argv[]) {
   std::filesystem::path sketchPath;
   std::filesystem::path assetsDir;
@@ -496,7 +498,7 @@ int main(int argc, char* argv[]) {
   options.deterministic =
       deterministic.value_or(!capture.out.empty() && !capture.bench);
   options.sketchPath = std::filesystem::absolute(sketchPath);
-  options.assetsDir = assetsDir;
+  options.assetsDir = std::move(assetsDir);
   options.flagsFile = executableDir(argv[0]) / "sketch_flags.rsp";
   if (!std::filesystem::exists(options.flagsFile)) {
     std::fprintf(stderr, "missing %s (rebuild ComposeSketch)\n",
@@ -521,5 +523,5 @@ int main(int argc, char* argv[]) {
       &engine, &QQmlApplicationEngine::objectCreationFailed, &application,
       [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
   engine.loadFromModule("Compose.Sketch", "Main");
-  return application.exec();
+  return QGuiApplication::exec();
 }

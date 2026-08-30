@@ -142,13 +142,13 @@ struct MarkAnchor {
  *  from "asked for the default value" without it. */
 struct TextOptions {
   enum Field : uint8_t {
-    kAlignment = 1 << 0,
-    kLineBreak = 1 << 1,
-    kHyphenation = 1 << 2,
-    kEllipsis = 1 << 3,
-    kMaxLines = 1 << 4,
-    kLastLine = 1 << 5,
-    kWritingMode = 1 << 6,
+    kAlignment = 1u << 0u,
+    kLineBreak = 1u << 1u,
+    kHyphenation = 1u << 2u,
+    kEllipsis = 1u << 3u,
+    kMaxLines = 1u << 4u,
+    kLastLine = 1u << 5u,
+    kWritingMode = 1u << 6u,
   };
   uint8_t set = 0;  ///< which fields below were written
 
@@ -629,7 +629,7 @@ bool boundMapEqual(const BoundFloat& a, const BoundFloat& b);
 /** Clamp to [0,1], drop empties, sort and merge — the one normal form
  *  every span answer is in, so overlap tests and complements are honest
  *  interval arithmetic and not a pile of special cases. */
-std::vector<Span> normalizeSpans(std::vector<Span> spans);
+std::vector<Span> normalizeSpans(const std::vector<Span>& spans);
 /** Everything in [0,1] the input does not cover (already normalized). */
 std::vector<Span> complementSpans(const std::vector<Span>& spans);
 /** THE INTERSECTION LAW, as arithmetic: the runs BOTH sets cover. Two

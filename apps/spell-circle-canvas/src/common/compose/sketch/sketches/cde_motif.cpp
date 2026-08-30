@@ -328,18 +328,20 @@ inline Derived calculate(Rgb bg) {
 
 /** Display truncation: X takes the TOP EIGHT BITS. Not round(v / 257) —
  *  the difference is an off-by-one on about a third of the values. */
-constexpr SkColor4f toSk(Rgb c) {
-  return {(float)(c.r >> 8) / 255.0f, (float)(c.g >> 8) / 255.0f,
-          (float)(c.b >> 8) / 255.0f, 1.0f};
+constexpr SkColor4f toSk(Rgb c) noexcept {
+  return {(float)((uint32_t)c.r >> 8u) / 255.0f,
+          (float)((uint32_t)c.g >> 8u) / 255.0f,
+          (float)((uint32_t)c.b >> 8u) / 255.0f, 1.0f};
 }
 constexpr uint32_t toHex(Rgb c) {
-  return (uint32_t)((c.r >> 8) << 16 | (c.g >> 8) << 8 | (c.b >> 8));
+  return ((uint32_t)c.r >> 8u) << 16u | ((uint32_t)c.g >> 8u) << 8u |
+         ((uint32_t)c.b >> 8u);
 }
-constexpr Rgb from8(uint32_t rgb) {
-  return {(int)((rgb >> 16) & 0xff) << 8, (int)((rgb >> 8) & 0xff) << 8,
-          (int)(rgb & 0xff) << 8};
+constexpr Rgb from8(uint32_t rgb) noexcept {
+  return {(int)(((rgb >> 16u) & 0xffu) << 8u),
+          (int)(((rgb >> 8u) & 0xffu) << 8u), (int)((rgb & 0xffu) << 8u)};
 }
-constexpr SkColor4f C(uint32_t rgb) { return toSk(from8(rgb)); }
+constexpr SkColor4f C(uint32_t rgb) noexcept { return toSk(from8(rgb)); }
 
 // ===========================================================================
 // 2. THE PALETTES — the complete themes, verbatim from the shipped .dp
@@ -360,7 +362,7 @@ constexpr Rgb dp(uint32_t rr, uint32_t gg, uint32_t bb) {
 }
 
 // cde/programs/palettes/Default.dp
-const Palette kDefault = {
+constexpr Palette kDefault = {
     "Default",
     {dp(0xed00, 0xa800, 0x7000), dp(0x9900, 0x991b, 0x99fe),
      dp(0x8955, 0x9808, 0xaa00), dp(0x6800, 0x6f00, 0x8200),
@@ -369,7 +371,7 @@ const Palette kDefault = {
 
 // cde/programs/palettes/Crimson.dp — the palette in the Solaris 10
 // screenshot, matched byte for byte off its Front Panel background.
-const Palette kCrimson = {
+constexpr Palette kCrimson = {
     "Crimson",
     {dp(0xb200, 0x4d00, 0x7a00), dp(0xae00, 0xb200, 0xc300),
      dp(0x7100, 0x8b00, 0xa500), dp(0xff00, 0xf700, 0xe900),
@@ -379,13 +381,14 @@ const Palette kCrimson = {
 // cde/programs/palettes/Black.dp — eight lines of the literal X11 colour
 // NAME `Black`, the one shipped palette that is not hex, and the only
 // one that reaches the DARK branch.
-const Palette kBlack = {"Black",
-                        {dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0),
-                         dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0)}};
+constexpr Palette kBlack = {
+    "Black",
+    {dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0),
+     dp(0, 0, 0), dp(0, 0, 0), dp(0, 0, 0)}};
 
 // cde/programs/palettes/Summer.dp — line 4 is #FFFFFF exactly, the
 // cleanest demonstration of the LITE branch there is.
-const Palette kSummer = {
+constexpr Palette kSummer = {
     "Summer",
     {dp(0xff00, 0x5600, 0x6415), dp(0xff00, 0xd600, 0x9000),
      dp(0x8200, 0x9f2a, 0xff00), dp(0xff00, 0xff00, 0xff00),
@@ -511,7 +514,7 @@ inline void seg(SkPathBuilder& p, int x0, int y0, int x1, int y1) {
  *  strokes a rectangle misses both. */
 inline void motifShadowPaths(SkPathBuilder& topP, SkPathBuilder& botP, int x,
                              int y, int w, int h, int T, int cor) {
-  T = std::min({T, w >> 1, h >> 1});
+  T = std::min({T, w / 2, h / 2});
   if (T <= 0) return;
   for (int i = 0; i < T; ++i) {
     seg(topP, x, y + i, x + w - i - 1, y + i);                  // TOP
@@ -696,7 +699,7 @@ inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
           isDark =
               (y == 0 || y == 26) ? (x == 13 || x == 27) : (x == 6 || x == 20);
         else
-          isDark = ((x + y) & 1) == 1;
+          isDark = ((unsigned)(x + y) & 1u) == 1u;
         if (isDark) c.drawRect(SkRect::MakeXYWH((float)x, (float)y, 1, 1), p);
       }
     }
@@ -984,7 +987,7 @@ inline Element art(const std::vector<std::string>& rows, float cell,
   std::vector<char> done((size_t)(w * h), 0);
   for (int y = 0; y < h; ++y) {
     for (int x = 0; x < w; ++x) {
-      const size_t idx = (size_t)(y * w + x);
+      const size_t idx = (size_t)y * (size_t)w + (size_t)x;
       if (done[idx]) continue;
       const char ch = rows[(size_t)y][(size_t)x];
       if (ch == ' ' || ch == '.') {
@@ -992,15 +995,16 @@ inline Element art(const std::vector<std::string>& rows, float cell,
         continue;
       }
       int rw = 1;
-      while (x + rw < w && rows[(size_t)y][(size_t)(x + rw)] == ch &&
-             !done[(size_t)(y * w + x + rw)])
+      while (x + rw < w && rows[(size_t)y][(size_t)x + (size_t)rw] == ch &&
+             !done[(size_t)y * (size_t)w + (size_t)x + (size_t)rw])
         ++rw;
       int rh = 1;
       while (y + rh < h) {
         bool ok = true;
         for (int k = 0; k < rw; ++k)
-          if (rows[(size_t)(y + rh)][(size_t)(x + k)] != ch ||
-              done[(size_t)((y + rh) * w + x + k)]) {
+          if (rows[(size_t)y + (size_t)rh][(size_t)x + (size_t)k] != ch ||
+              done[((size_t)y + (size_t)rh) * (size_t)w + (size_t)x +
+                   (size_t)k]) {
             ok = false;
             break;
           }
@@ -1008,7 +1012,8 @@ inline Element art(const std::vector<std::string>& rows, float cell,
         ++rh;
       }
       for (int j = 0; j < rh; ++j)
-        for (int k = 0; k < rw; ++k) done[(size_t)((y + j) * w + x + k)] = 1;
+        for (int k = 0; k < rw; ++k)
+          done[((size_t)y + (size_t)j) * (size_t)w + (size_t)x + (size_t)k] = 1;
       Element cellBox = box()
                             .left(Dim((float)x * cell))
                             .top(Dim((float)y * cell))
@@ -1272,7 +1277,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .grow(1)
                    .alignItems(Align::Center)
                    .justify(Justify::Center)
-                   .child(cde::label(t, active ? s.fgV : s.fgV)))
+                   .child(cde::label(t, s.fgV)))
         .child(furniture(std::move(minGlyph)))
         .child(box().width(Dim(2)))
         .child(furniture(std::move(maxGlyph)));
@@ -1560,7 +1565,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     mnemonics.held.clear();
     const Set& s = theme[2];
     const int v = std::clamp((int)std::lround(sweep.value() * 255.0f), 0, 255);
-    const cde::Rgb bgv = cde::from8((uint32_t)(v << 16 | v << 8 | v));
+    const cde::Rgb bgv =
+        cde::from8((uint32_t)v << 16u | (uint32_t)v << 8u | (uint32_t)v);
     const cde::Derived d = cde::calculate(bgv);
 
     auto swatch = [&](const char* name, cde::Rgb c) {
@@ -1622,7 +1628,8 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   Element handle(const Set& s) {
     Element h = box().width(Dim(18)).column();
     for (int i = 0; i < 31; ++i)
-      h.child(box().height(Dim(1)).fill((i & 1) ? s.pTs() : s.pBs()));
+      h.child(
+          box().height(Dim(1)).fill(((unsigned)i & 1u) ? s.pTs() : s.pBs()));
     return box()
         .width(Dim(18))
         .alignItems(Align::Center)

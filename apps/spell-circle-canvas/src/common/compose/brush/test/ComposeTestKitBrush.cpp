@@ -78,6 +78,7 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
         n, 10, 60, brush::solid(2, Fill::color({1, 0, 0, 1})));
     ASSERT_EQ(braid.size(), (size_t)n);
     std::vector<SkPath> paths;
+    paths.reserve(braid.size());
     for (const brush::Strand& s : braid)
       paths.push_back(profileOffset(spine, s.path.profile()));
     const std::vector<Crossing> crossings = discoverCrossings(paths);
@@ -91,6 +92,7 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
 
   // The control: the same strand count as PARALLELS never crosses.
   std::vector<SkPath> rails;
+  rails.reserve(3);
   for (int k = 0; k < 3; ++k)
     rails.push_back(profileOffset(spine, strand::offset((float)k * 6.0f)));
   EXPECT_TRUE(discoverCrossings(rails).empty())
@@ -262,12 +264,16 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     host.composer.render(stack().child(
         box()
             .inset(0)
+            // the callable is invoked on every layout, so its capture must
+            // survive each return
+            // NOLINTNEXTLINE(performance-no-automatic-move)
             .shape([&](SkSize) { return spine; })
             .stroke(brush::weave(strands, crossing::alternate()))));
     host.frame();
 
     // The knots, in the same order the rule numbers them.
     std::vector<SkPath> paths;
+    paths.reserve(strands.size());
     for (const brush::Strand& st : strands)
       paths.push_back(profileOffset(spine, st.path.profile()));
     const std::vector<Crossing> knots = discoverCrossings(paths);

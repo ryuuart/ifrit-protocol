@@ -65,7 +65,7 @@ void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
 /** THE 2-D LOCUS: (x(p), y(p)) traced over the window, which is the path
  *  a two-axis shake actually walks. Shared seeds put x == y, so the locus
  *  IS the line y = x — the layer slides on a diagonal and never shakes. */
-Element locus(BoundFloat wx, BoundFloat wy, SkColor4f color) {
+Element locus(const BoundFloat& wx, const BoundFloat& wy, SkColor4f color) {
   return custom([wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
            const float w = paint.size.width(), h = paint.size.height();
            const float cx = w * 0.5f, cy = h * 0.5f;
@@ -91,7 +91,7 @@ Element locus(BoundFloat wx, BoundFloat wy, SkColor4f color) {
 
 /** ONE LANE, GRAPHED: p on x, the wiggled value on y, with the +-amount
  *  rails. This is exactly what the runtime feeds a bound property. */
-Element graph(BoundFloat w, SkColor4f color) {
+Element graph(const BoundFloat& w, SkColor4f color) {
   return custom([w, color](SkCanvas& canvas, const PaintContext& paint) {
            const float pw = paint.size.width(), ph = paint.size.height();
            const float cy = ph * 0.5f;
@@ -158,7 +158,8 @@ struct WiggleShake : sigil::compose::sketch::Sketch {
     // `bind(&out).scale(0).wiggle(…)` — without the scale(0) the property
     // would track `seconds` itself and drift off the canvas. `left/top` are
     // the REST position; the wiggle is a paint-only transform on top of it.
-    const auto chip = [](Bound x, Bound y, SkColor4f color, float left) {
+    const auto chip = [](const Bound& x, const Bound& y, SkColor4f color,
+                         float left) {
       return box()
           .width(26)
           .height(26)

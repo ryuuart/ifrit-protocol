@@ -16,7 +16,7 @@ namespace {
 
 void OklabRoundTrip(benchmark::State& state) {
   Color c{0.3f, 0.6f, 0.9f, 1};
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     c = fromOklab(toOklab(c));
     benchmark::DoNotOptimize(c);
   }
@@ -26,7 +26,7 @@ BENCHMARK(OklabRoundTrip);
 #ifdef SIGILMATERIAL_ENABLE_OCIO
 void ExponentLutBake(benchmark::State& state) {
   const int n = (int)state.range(0);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     Material m = color::exponent(2.2f, n);
     benchmark::DoNotOptimize(m);
   }

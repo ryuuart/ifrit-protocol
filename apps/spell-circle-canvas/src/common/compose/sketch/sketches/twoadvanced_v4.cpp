@@ -92,9 +92,10 @@ namespace tav {
 // Palette — every value sampled from one of the reference artefacts above,
 // never picked by eye.
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 constexpr SkColor4f kBgTop = C(0x4A100F);  // page gradient, top
@@ -336,6 +337,8 @@ struct TickRail {
     const float w = ctx.size.width(), h = ctx.size.height();
     const float run = vertical ? h : w;
     int i = 0;
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = spacing * 0.5f; d < run; d += spacing, ++i) {
       const float len = (i % major == 0) ? longLen : shortLen;
       if (vertical)
@@ -368,8 +371,8 @@ struct RailFlares {
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(2);
-    for (int i = 0; i < 3; ++i) {
-      const float y0 = ys[i] - len * 0.5f;
+    for (float y : ys) {
+      const float y0 = y - len * 0.5f;
       const float x0 = w * 0.5f - lean * 0.5f;
       SkPathBuilder b;
       b.moveTo(x0, y0);
@@ -405,6 +408,8 @@ struct Scanlines {
   void paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint p;
     p.setColor4f(color, nullptr);
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float y = 0; y < ctx.size.height(); y += period)
       c.drawRect(SkRect::MakeXYWH(0, y, ctx.size.width(), on), p);
   }
@@ -625,7 +630,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element r = box().row().gap(4).alignItems(Align::Center);
     for (int i = 0; i < 3; ++i)
       r.child(box().width(5).height(5).fill(c).opacity(
-          &dot[(size_t)(cluster * 3 + i)]));
+          &dot[(size_t)cluster * 3 + (size_t)i]));
     return r;
   }
 
@@ -2817,7 +2822,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                             .fill(kD6),
                         {12, 10});
     dockPool = std::make_shared<instancing::Pool>();
-    instancing::place::grid(*dockPool, 6 * 14, 14, {14, 12}, {0, 0}, {2, 4});
+    instancing::place::grid(*dockPool, size_t{6} * 14, 14, {14, 12}, {0, 0},
+                            {2, 4});
     {
       auto frames = dockPool->frames();
       auto tints = dockPool->tints();
@@ -2880,7 +2886,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         const float cyc = std::fmod(s + off, 2.7f);
         for (int i = 0; i < 3; ++i) {
           const bool on = cyc >= i * 0.4f && cyc < i * 0.4f + 0.32f;
-          dot[(size_t)(p * 3 + i)] = on ? 1.0f : 0.22f;
+          dot[(size_t)p * 3 + (size_t)i] = on ? 1.0f : 0.22f;
         }
       }
 

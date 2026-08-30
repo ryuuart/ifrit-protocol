@@ -262,7 +262,7 @@ namespace strands {
  *  a cycle for an impossible braid. */
 inline std::vector<sigil::compose::brush::Strand> braid(int n, float amplitude,
                                                         float wavelength,
-                                                        Decoration ink) {
+                                                        const Decoration& ink) {
   // Fully qualified on purpose. Inside `sigil::compose::kit`, an
   // unqualified `brush::` resolves to kit::brush — the shapers scope
   // above — and NOT to the library's own brush namespace, so any name

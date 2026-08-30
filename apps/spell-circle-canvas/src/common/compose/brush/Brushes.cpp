@@ -288,6 +288,8 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
       if (p.mode == Mode::CentralPoint) {
         sampleAt(len * 0.5f);
       } else {
+        // the loop walks a distance; the accumulated float is the position
+        // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = phase + step * 0.5f; d < len; d += step) sampleAt(d);
       }
     }
@@ -307,8 +309,6 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
         contours.back().push_back(pts[1]);
         break;
       case SkPath::kQuad_Verb:
-        contours.back().push_back(pts[2]);
-        break;
       case SkPath::kConic_Verb:
         contours.back().push_back(pts[2]);
         break;

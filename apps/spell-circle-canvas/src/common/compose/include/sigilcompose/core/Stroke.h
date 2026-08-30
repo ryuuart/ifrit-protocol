@@ -380,6 +380,9 @@ struct Across {
   Profile profile;
   bool operator==(const Across&) const = default;
 };
+// the profile copies its scheme into owned storage; nothing on the stack
+// outlives the call
+// NOLINTNEXTLINE(clang-analyzer-core.StackAddressEscape)
 inline Across across(float px) { return Across{strand::offset(px)}; }
 inline Across across(Profile p) { return Across{std::move(p)}; }
 

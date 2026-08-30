@@ -162,6 +162,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -192,9 +193,9 @@ constexpr SkPoint kWallBend{511.9f, 867.5f};
 constexpr float kBand = 45.0f;   // ribbon width, measured 44-46
 constexpr float kRoll = -0.45f;  // the photographed CRT is not square
 
-inline SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {(float)((v >> 16) & 255) / 255.0f, (float)((v >> 8) & 255) / 255.0f,
-          (float)(v & 255) / 255.0f, a};
+inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
+  return {(float)((v >> 16u) & 255u) / 255.0f,
+          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
 }
 inline float mirrorX(float x) { return 2.0f * kAxis - x; }
 inline SkPoint mirrorP(SkPoint p) { return {mirrorX(p.fX), p.fY}; }
@@ -378,15 +379,15 @@ inline SkPath ribbon(const std::vector<SkPoint>& pts, float width) {
 inline SkPath funnelPath() {
   SkPath out;
   std::vector<SkPath> parts;
-  auto add = [&](std::vector<SkPoint> pts, float w) {
+  auto add = [&](const std::vector<SkPoint>& pts, float w) {
     parts.push_back(ribbon(pts, w));
   };
-  auto pair = [&](std::vector<SkPoint> pts, float w) {
+  auto pair = [&](const std::vector<SkPoint>& pts, float w) {
     add(pts, w);
     std::vector<SkPoint> m;
     m.reserve(pts.size());
     for (SkPoint p : pts) m.push_back(mirrorP(p));
-    add(std::move(m), w);
+    add(m, w);
   };
 
   // 1. the support band along the very top edge, cut off by the frame
@@ -615,12 +616,12 @@ inline Material rampMaterial(float front) {
   std::vector<Stop> stops;
   stops.reserve((size_t)kRampN);
   float last = -1.0f;
-  for (int i = 0; i < kRampN; ++i) {
-    float pos = kRamp[i].t - front * 0.42f;
+  for (const auto& stop : kRamp) {
+    float pos = stop.t - front * 0.42f;
     pos = pos < 0.0f ? 0.0f : (pos > 1.0f ? 1.0f : pos);
     pos = pos <= last ? last + 1e-4f : pos;  // gradients want monotone stops
     last = pos;
-    stops.push_back({pos, hex(kRamp[i].rgb)});
+    stops.push_back({pos, hex(stop.rgb)});
   }
   return Material::linear({0, 0}, {0, kH}, std::move(stops));
 }
@@ -1008,8 +1009,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     auto solve = [&](const Label& L) {
       const char* longest = L.lines[0];
       for (const char* l : L.lines)
-        if (l && std::string(l).size() > std::string(longest).size())
-          longest = l;
+        if (l && longest && std::strlen(l) > std::strlen(longest)) longest = l;
       const float pad = L.pill ? 14.0f : 0.0f;  // measured: MATSUSHIRO's
                                                 // type is 235 of 242 px
       const SkSize m =
@@ -1023,9 +1023,9 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       return size;
     };
     labelSize.clear();
-    for (int i = 0; i < kLabelN; ++i) labelSize.push_back(solve(kLabels[i]));
+    for (const auto& label : kLabels) labelSize.push_back(solve(label));
     siteNameSize.clear();
-    for (int i = 0; i < 2; ++i) siteNameSize.push_back(solve(kCollapsing[i]));
+    for (const auto& label : kCollapsing) siteNameSize.push_back(solve(label));
     // The numerals: cap height 61 px, measured off the "3" in MAGI 02's
     // cell 3 (x 1049..1097, y 185..246). measure() returns the LINE box, so
     // solve against a probed cap ratio rather than assuming Helvetica's.
@@ -1042,9 +1042,9 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       t += dt;
       // gate weave: whole pixels, a 3 Hz wander, the projector's own motion
       const uint32_t gate = (uint32_t)std::max(0.0, std::floor(t * 3.0));
-      const uint32_t h = (gate * 2654435761u) ^ (gate >> 3);
-      weaveX = (float)((h >> 8) % 3u) - 1.0f;
-      weaveY = (float)((h >> 19) % 3u) - 1.0f;
+      const uint32_t h = (gate * 2654435761u) ^ (gate >> 3u);
+      weaveX = (float)((h >> 8u) % 3u) - 1.0f;
+      weaveY = (float)((h >> 19u) % 3u) - 1.0f;
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
       // translate turns the cached CRT texture's blit into a resample.
       creep = (float)((int)std::floor(t * 0.5) % 4);
@@ -1066,8 +1066,8 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // falls (5 times), or the front takes a 6 Hz step (84 times). Everything
     // else is a bound Output and never re-describes at all.
     int now = 0;
-    for (int i = 0; i < eva::kSiteN; ++i)
-      if (eva::kSites[i].fallAt >= 0 && elapsed >= eva::kSites[i].fallAt) ++now;
+    for (const auto& site : eva::kSites)
+      if (site.fallAt >= 0 && elapsed >= site.fallAt) ++now;
     const double sweep = (elapsed - 3.0) / 14.0;
     const double k = sweep <= 0 ? 0.0 : (sweep >= 1 ? 1.0 : sweep);
     const double eased =

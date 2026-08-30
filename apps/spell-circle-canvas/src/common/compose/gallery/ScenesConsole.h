@@ -140,6 +140,8 @@ inline sk_sp<SkRuntimeEffect> scanEffect() {
 /** Seeded pseudo-log: plausible ward-perimeter chatter with severities and
  *  running counters for the rail. */
 struct LogGen {
+  // a fixed seed; the scene must render the same on every run
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 rng{2077};
   int packet = 41210;
   unsigned seals = 0, warns = 0, breaches = 0;

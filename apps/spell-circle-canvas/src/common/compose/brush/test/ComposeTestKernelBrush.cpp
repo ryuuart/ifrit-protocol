@@ -118,7 +118,7 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   SkDynamicMemoryWStream stream;
   SkPngEncoder::Encode(&stream, src.pixmap(), {});
   auto asset = std::make_shared<sigil::image::ImageAsset>(
-      *sigil::image::ImageAsset::decode(stream.detachAsData()));
+      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
 
   Host host;
   Slice nine;

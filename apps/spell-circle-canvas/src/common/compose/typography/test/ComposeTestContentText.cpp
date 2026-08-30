@@ -177,8 +177,8 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   big.paint.foreground.setColor(SK_ColorWHITE);
   sigil::weave::TextStyle small = styleAt(16);
   small.paint.foreground.setColor(SK_ColorWHITE);
-  para->appendText(std::u8string(u8"BIG"), big);
-  para->appendText(std::u8string(u8" and small"), small);
+  para->appendText(u8"BIG", big);
+  para->appendText(u8" and small", small);
 
   host.composer.render(box().padding(10).child(text(para).key("spans")));
   host.frame();
@@ -2536,7 +2536,7 @@ TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
 
   auto byPointer = [&] {
     auto para = std::make_shared<sigil::weave::Paragraph>();
-    para->appendText(std::u8string(u8"Signal woven"), base);
+    para->appendText(u8"Signal woven", base);
     return box().child(text(para).key("p"));
   };
   host.composer.render(byPointer());
@@ -3162,7 +3162,7 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   // leaves every other field of the passed options standing.
   Host host(300, 220);
   auto para = std::make_shared<sigil::weave::Paragraph>();
-  para->appendText(std::u8string(u8"one two three four five six seven eight"),
+  para->appendText(u8"one two three four five six seven eight",
                    coloredStyle(20, SK_ColorWHITE));
   sigil::weave::ParagraphLayoutOptions passed;
   passed.alignment = sigil::weave::TextAlignment::kCenter;
@@ -3213,7 +3213,8 @@ TEST(TextOptionSetters, KnuthPlassBreaksARaggedParagraphDifferently) {
 namespace {
 
 /** A caption with one reserved slot, and a pill child keyed for it. */
-Element pillCaption(std::string childKey, float width, SkSize size = {34, 16}) {
+Element pillCaption(const std::string& childKey, float width,
+                    SkSize size = {34, 16}) {
   // The width lives on an inner box: the render root is always resized to
   // the composer's own size, so a width written there is overwritten.
   return box().child(box().padding(8).width(width).child(

@@ -23,7 +23,7 @@ const Environment& studio() {
 void SurfaceBuild(benchmark::State& state) {
   skia::install();
   const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     Material m = state.range(0) == 0 ? kit::gold(normals, studio())
                                      : kit::chrome(normals, studio());
     benchmark::DoNotOptimize(m);
@@ -35,7 +35,7 @@ void SurfaceShader(benchmark::State& state) {
   skia::install();
   const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
   const Material m = kit::gold(normals, studio());
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> s = skia::shader(m, {});
     benchmark::DoNotOptimize(s);
   }
@@ -49,7 +49,8 @@ void BadgeFill(benchmark::State& state) {
       SkImageInfo::MakeN32Premul((int)radius * 2 + 40, (int)radius * 2 + 40));
   const SkPath shape = SkPath::Circle(radius + 20, radius + 20, radius);
   const Material m = kit::chrome(bevelNormals(shape, 8), studio());
-  for (auto _ : state) skia::fill(*surface->getCanvas(), shape, m);
+  for ([[maybe_unused]] auto iteration : state)
+    skia::fill(*surface->getCanvas(), shape, m);
   state.SetItemsProcessed(state.iterations() *
                           (int64_t)(radius * radius * 3.14159f));
 }

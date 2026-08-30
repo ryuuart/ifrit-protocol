@@ -72,7 +72,8 @@ std::string houdiniGeo() {
   };
   for (int i = 0; i < n; ++i) {
     const float x = ((float)(i % kSide) - (float)(kSide - 1) * 0.5f) * kSpacing;
-    const float z = ((float)(i / kSide) - (float)(kSide - 1) * 0.5f) * kSpacing;
+    const int row = i / kSide;
+    const float z = ((float)row - (float)(kSide - 1) * 0.5f) * kSpacing;
     if (i) {
       p += ',';
       nrm += ',';
@@ -174,6 +175,8 @@ Element panel(const char* title, const char* note, Element inner) {
       .child(text(toU8(note), type(10.5f, kDim)));
 }
 
+// a literal table; only allocation could throw
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 const geometry::pop::Math kRingLarger{
     "Scale", {2.2f, 2.2f, 2.2f, 2.2f}, {}, "ring"};
 

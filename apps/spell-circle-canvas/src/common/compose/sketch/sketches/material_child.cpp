@@ -86,6 +86,7 @@ SkColor grey(int v) { return SkColorSetARGB(255, v, v, v); }
 const sk_sp<SkImage>& greyLut() {
   static const sk_sp<SkImage> img = [] {
     std::vector<SkColor> v;
+    v.reserve(16);
     for (int i = 0; i < 16; ++i) v.push_back(grey(17 * i));
     return lut(v);
   }();
@@ -156,7 +157,7 @@ Element lutStrip(const sk_sp<SkImage>& table) {
 }
 
 Element panel(const char* title, const char* note, const sk_sp<SkImage>& table,
-              float shade, std::string key) {
+              float shade, const std::string& key) {
   return box()
       .width(kPanel)
       .column()

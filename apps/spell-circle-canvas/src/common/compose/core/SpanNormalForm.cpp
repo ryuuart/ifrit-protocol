@@ -93,7 +93,7 @@ std::vector<Span> cornerSpans(const SkPath& outline, float arm,
       pushCornerWindow(out, runs[i], hit.distance, arm, total);
     ++i;
   }
-  return detail::normalizeSpans(std::move(out));
+  return detail::normalizeSpans(out);
 }
 
 /** The runs of the outline that lie inside a rect — spans::fit(). Walked
@@ -115,6 +115,8 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
     const float step = std::max(1.0f, run.length / 512.0f);
     bool inside = false;
     float enter = 0;
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d <= run.length + step * 0.5f; d += step) {
       SkPoint pos;
       const float at = std::min(d, run.length);
@@ -131,14 +133,14 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
     if (inside)
       pushWindow(out, run.start + enter, run.start + run.length, total);
   }
-  return detail::normalizeSpans(std::move(out));
+  return detail::normalizeSpans(out);
 }
 
 }  // namespace detail
 
 namespace detail {
 
-std::vector<Span> normalizeSpans(std::vector<Span> spans) {
+std::vector<Span> normalizeSpans(const std::vector<Span>& spans) {
   std::vector<Span> out;
   out.reserve(spans.size());
   for (Span s : spans) {
@@ -263,8 +265,8 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
 }  // namespace detail
 
 Spans& Spans::offset(Animatable<float> by) {
-  for (size_t i = 0; i < terms.size(); ++i)
-    terms[i].offset = i + 1 < terms.size() ? by : std::move(by);
+  for (size_t i = 0; i + 1 < terms.size(); ++i) terms[i].offset = by;
+  if (!terms.empty()) terms.back().offset = std::move(by);
   return *this;
 }
 
@@ -353,7 +355,7 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
         break;  // the complement needs the element's other passes
     }
   }
-  return detail::normalizeSpans(std::move(out));
+  return detail::normalizeSpans(out);
 }
 
 namespace spans {

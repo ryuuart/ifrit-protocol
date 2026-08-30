@@ -142,10 +142,11 @@ Element board(int i) {
   quad.lineTo(0, 11);
   quad.close();
   SkPath shape = quad.detach();
+  const int row = i / 5;
   return box()
       .absolute()
       .left(14.0f + 38.0f * (float)(i % 5))
-      .top(14.0f + 38.0f * (float)(i / 5))
+      .top(14.0f + 38.0f * (float)row)
       .width(74)
       .height(11)
       .rotate(ang)

@@ -28,6 +28,7 @@
 #include <chrono>
 #include <cmath>
 #include <map>
+#include <ranges>
 #include <set>
 #include <tuple>
 #include <unordered_set>
@@ -150,8 +151,8 @@ SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
   std::vector<Instance*> chain;
   for (Instance* i = &inst; i; i = i->parent) chain.push_back(i);
   SkMatrix m = SkMatrix::I();
-  for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
-    Instance& node = **it;
+  for (Instance* link : std::views::reverse(chain)) {
+    Instance& node = *link;
     const SkRect rect = instanceRect(node);
     m.preTranslate(rect.left(), rect.top());
     m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint, rect.width(),
@@ -224,10 +225,9 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
       for (const Spans::Term& term : pass.where.terms)
         for (const Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
-          if (v->binding())
-            live = true;
-          else if (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
-                   inst.spanAnims[slot]->value.isConnected())
+          if (v->binding() ||
+              (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
+               inst.spanAnims[slot]->value.isConnected()))
             live = true;
           ++slot;
         }

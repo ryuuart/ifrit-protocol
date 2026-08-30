@@ -52,6 +52,7 @@
 #endif
 
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <string_view>
@@ -482,7 +483,7 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
                      stage.scene->name());
         return 1;
       }
-      const int captureFrame = (int)(declared * 60.0 + 0.5);
+      const int captureFrame = (int)std::lround(declared * 60.0);
       for (int f = 0; f < captureFrame; ++f) {
         surface->getCanvas()->clear(clearColor);
         stage.frame(*surface->getCanvas(), 1.0 / 60.0);

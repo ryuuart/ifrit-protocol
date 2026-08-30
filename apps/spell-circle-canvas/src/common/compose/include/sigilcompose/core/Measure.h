@@ -35,7 +35,7 @@ namespace sigil::compose {
  *  fill(…))` bakes at CONTENT size and quietly ignores the 32. Wrap the
  *  sized tree in a plain `box().child(...)` and the dims are honoured,
  *  because they now belong to a child. */
-sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext& fonts,
+sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
 /** A face's vertical metrics at a given size, without laying anything out.
@@ -126,7 +126,7 @@ std::vector<float> runPens(std::u8string_view utf8,
  *  content-fit chrome (marquees, tooltips, badges): measure the content,
  *  then describe the real tree with the answer. Same sampling rules as
  *  snapshot() — bindings at current values, no transitions. */
-SkSize measure(Element root, sigil::weave::FontContext& fonts,
+SkSize measure(const Element& root, sigil::weave::FontContext& fonts,
                SkSize maxSize = SkSize::MakeEmpty());
 
 }  // namespace sigil::compose

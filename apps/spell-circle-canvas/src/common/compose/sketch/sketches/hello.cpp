@@ -84,6 +84,9 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
                  const float h = paint.size.height();
                  SkPathBuilder path;
                  path.moveTo(0, h / 2);
+                 // the loop walks a distance; the accumulated float is the
+                 // position
+                 // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
                  for (float x = 0; x <= w; x += 6)
                    path.lineTo(
                        x, h / 2 + std::sin(x * 0.03f +

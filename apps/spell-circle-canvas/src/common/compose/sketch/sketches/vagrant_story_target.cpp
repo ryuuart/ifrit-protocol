@@ -428,7 +428,7 @@ inline Cell bakeCell(char32_t ch, weave::FontContext& fonts,
   sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   if (!surf) return {};
   surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-  if (sk_sp<SkPicture> pic = snapshot(std::move(tree), fonts))
+  if (sk_sp<SkPicture> pic = snapshot(tree, fonts))
     surf->getCanvas()->drawPicture(pic);
   SkBitmap read;
   read.allocPixels(
@@ -469,7 +469,7 @@ inline PixFont bakeFont(weave::FontContext& fonts,
     f.lineHeight = std::max(f.lineHeight, f.cells[(size_t)i].h);
   }
   for (int d = 0; d < 10; ++d)
-    f.digitAdv = std::max(f.digitAdv, f.cells[(size_t)('0' - 32 + d)].adv);
+    f.digitAdv = std::max(f.digitAdv, f.cells[(size_t)d + ('0' - 32)].adv);
   return f;
 }
 
@@ -525,6 +525,8 @@ inline float widthOf(const PixFont& f, const std::string& s,
 // THE ARITHMETIC. Every number below is the decompiled function, integer
 // division and clamp order included.
 
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Limb {
   const char* name;
   short hp, maxHp;
@@ -760,7 +762,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     Element g = box().inset(0).key("sphere");
 
     auto wireEl = [&](const vs::Wire& w, const char* key, bool ring) {
-      vs::Wire wire = w;
+      const vs::Wire& wire = w;
       Element e = box()
                       .width(halfExtent * 2)
                       .height(halfExtent * 2)
@@ -2010,7 +2012,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     root.child(titleBlock());
     root.child(marginalia());
 
-    ctx.composer.render(std::move(root));
+    ctx.composer.render(root);
     ctx.composer.renderSlot("world", worldGroup(psi));
   }
 

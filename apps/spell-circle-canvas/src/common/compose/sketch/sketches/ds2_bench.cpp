@@ -1150,7 +1150,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.36f))))
                    .zIndex(8));
 
-    auto hint = [&](std::string label) {
+    auto hint = [&](const std::string& label) {
       return text(toU8(label), type(12, alpha(kCyan, 0.78f), 0.06f, false));
     };
 

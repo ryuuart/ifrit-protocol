@@ -47,6 +47,7 @@ sk_sp<SkShader> vRamp(float y0, float y1,
 /** The kit's unit-space ramp as a compose gradient. */
 Material unitRamp(const std::vector<sigil::material::kit::RampStop>& ramp) {
   std::vector<Stop> stops;
+  stops.reserve(ramp.size());
   for (const auto& s : ramp) stops.push_back({s.pos, sk(s.color)});
   return Material::linear({0, 0}, {0, 1}, std::move(stops));
 }
@@ -247,16 +248,13 @@ LayerStyle y2kChrome(ChromeOptions opts) {
   // The sliver goes UNDER the content, with the plate. As a foreground it
   // would cross the node's own type, where a horizontal white band at half
   // height reads as a strikethrough instead of as a sheen on the plate.
-  if (opts.horizonSliver) bundle.under.push_back(Decoration(ChromeSliver{}));
+  if (opts.horizonSliver) bundle.under.emplace_back(ChromeSliver{});
   if (opts.palette == ChromeOptions::Palette::Steel)
-    bundle.over.push_back(Decoration(
-        InnerShadow{detail::sk(kit::chromeSteelTopBand()), {0, 3}, 4}));
-  bundle.over.push_back(Decoration(BevelEmboss{opts.bevelDepth,
-                                               opts.bevelSize,
-                                               120,
-                                               {1, 1, 1, 0.5f},
-                                               {0, 0, 0, 0.65f}}));
-  if (opts.keylineWidth > 0) bundle.over.push_back(Decoration(keyline));
+    bundle.over.emplace_back(
+        InnerShadow{detail::sk(kit::chromeSteelTopBand()), {0, 3}, 4});
+  bundle.over.emplace_back(BevelEmboss{
+      opts.bevelDepth, opts.bevelSize, 120, {1, 1, 1, 0.5f}, {0, 0, 0, 0.65f}});
+  if (opts.keylineWidth > 0) bundle.over.emplace_back(keyline);
   return bundle;
 }
 

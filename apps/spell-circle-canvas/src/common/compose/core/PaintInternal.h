@@ -78,6 +78,8 @@ inline const Effect* backdropEffectOf(const ElementNode& n) {
 }
 inline const std::vector<Echo>& echoesOf(const ElementNode& n) {
   static const std::vector<Echo> kNoEchoes;
+  // both arms are references to live objects
+  // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.UndefReturn)
   return n.fxData ? n.fxData->echoes : kNoEchoes;
 }
 

@@ -137,11 +137,11 @@ class Region {
 class Parts {
  public:
   enum Bits : uint8_t {
-    kSurface = 1u << 0,
-    kMarks = 1u << 1,
-    kContent = 1u << 2,
-    kChildren = 1u << 3,
-    kAll = kSurface | kMarks | kContent | kChildren,
+    kSurface = 1u << 0u,
+    kMarks = 1u << 1u,
+    kContent = 1u << 2u,
+    kChildren = 1u << 3u,
+    kAll = 0b1111u,  // kSurface | kMarks | kContent | kChildren
   };
   uint8_t bits = 0;
   /** parts::named(): local mark labels, in declaration order. */

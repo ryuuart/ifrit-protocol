@@ -767,8 +767,8 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
       SkPoint a, b;
       if (c->getPosTan(0, &a, nullptr) &&
           c->getPosTan(c->length(), &b, nullptr))
-        out.push_back({std::atan2(a.y() - 150, a.x() - 150),
-                       std::atan2(b.y() - 150, b.x() - 150)});
+        out.emplace_back(std::atan2(a.y() - 150, a.x() - 150),
+                         std::atan2(b.y() - 150, b.x() - 150));
     }
     return out;
   };
@@ -1716,7 +1716,7 @@ TEST(ComposeCache, AGroupBakeAtTheCanvasOriginStillBakes) {
                                 .cache(Cache::Group)
                                 .key("corner")
                                 .fill(Fill::color({0.2f, 0.5f, 0.8f, 1})));
-  host.composer.render(std::move(root));
+  host.composer.render(root);
   settleGroups(host);
   EXPECT_EQ(host.composer.stats().texturesLive, 1u);
   const Composer::NodeCost* row = requireRow(host.composer, "corner");

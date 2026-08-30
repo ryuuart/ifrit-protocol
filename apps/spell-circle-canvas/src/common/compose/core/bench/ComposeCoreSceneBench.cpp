@@ -63,6 +63,7 @@ Element scoreboard(const std::vector<Row>& rows) {
 
 std::vector<Row> makeRows(int count) {
   std::vector<Row> rows;
+  rows.reserve((size_t)count);
   for (int i = 0; i < count; ++i)
     rows.push_back({"player_" + std::to_string(i), i * 7});
   return rows;
@@ -89,14 +90,15 @@ class Scoreboard : public benchmark::Fixture {
 /** Full describe + reconcile, nothing changed — the steady-state
  *  data-refresh cost (all memo hits). */
 BENCHMARK_F(Scoreboard, Render_Unchanged)(benchmark::State& state) {
-  for (auto _ : state) host->composer.render(scoreboard(rows));
+  for ([[maybe_unused]] auto iteration : state)
+    host->composer.render(scoreboard(rows));
   state.counters["memoHits"] = (double)host->composer.stats().memoHits;
 }
 
 /** One row's data changed: one memo miss re-describes + patches. */
 BENCHMARK_F(Scoreboard, Render_OneChanged)(benchmark::State& state) {
   int tick = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     rows[50].score = ++tick;
     host->composer.render(scoreboard(rows));
   }
@@ -104,7 +106,7 @@ BENCHMARK_F(Scoreboard, Render_OneChanged)(benchmark::State& state) {
 
 /** Drawing the fully static scoreboard: automatic picture replay. */
 BENCHMARK_F(Scoreboard, Draw_Cached)(benchmark::State& state) {
-  for (auto _ : state) host->draw();
+  for ([[maybe_unused]] auto iteration : state) host->draw();
   state.counters["picturesLive"] = (double)host->composer.stats().picturesLive;
   state.counters["nodesPainted"] = (double)host->composer.stats().nodesPainted;
 }
@@ -112,7 +114,7 @@ BENCHMARK_F(Scoreboard, Draw_Cached)(benchmark::State& state) {
 /** Text-heavy relayout: width change re-measures every paragraph. */
 BENCHMARK_F(Scoreboard, Layout_WidthChange)(benchmark::State& state) {
   float width = 800;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     width = width == 800 ? 640 : 800;
     host->composer.setSize({width, 2400});
     host->draw();
@@ -123,12 +125,12 @@ BENCHMARK_F(Scoreboard, Layout_WidthChange)(benchmark::State& state) {
  *  static cached background of 99 rows. */
 BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
   int flip = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
     rows[10].score = ++flip;  // re-describe row 10 with a transition
     auto list = box().column().gap(4).padding(16).transition({16000ms});
     for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
-    host->composer.render(std::move(list));
+    host->composer.render(list);
     state.ResumeTiming();
     host->ticker.tick(1.0 / 120.0);
     host->draw();
@@ -138,7 +140,7 @@ BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
 /** Cold describe + mount of the full 100-row tree (worst case). */
 static void BM_Render_100Rows_Cold(benchmark::State& state) {
   auto rows = makeRows(100);
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     Host host;
     host.composer.render(scoreboard(rows));
     size_t instances = host.composer.stats().instances;
@@ -155,9 +157,9 @@ static void BM_Draw_100Rows_Volatile(benchmark::State& state) {
   auto list = box().translateX(&x).column().gap(4).padding(16);
   for (const Row& row : makeRows(100))
     list.child(memo(row, scoreRow).key(row.name));
-  host.composer.render(std::move(list));
+  host.composer.render(list);
   host.draw();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     x = x.value() + 0.25f;
     host.draw();
   }
@@ -172,9 +174,9 @@ static void BM_Draw_100Rows_TextureBlit(benchmark::State& state) {
   auto rows = makeRows(100);
   auto list = box().column().gap(4).padding(16).cache(Cache::Texture);
   for (const Row& row : rows) list.child(memo(row, scoreRow).key(row.name));
-  host.composer.render(std::move(list));
+  host.composer.render(list);
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_100Rows_TextureBlit);
 
@@ -199,7 +201,7 @@ void bloomArm(benchmark::State& state, Cache mode) {
   Host host(900, 300);
   host.composer.render(bloomBlock(mode));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 
 }  // namespace
@@ -339,7 +341,7 @@ void rasterVaryingArm(benchmark::State& state, BlurArm arm) {
   host.composer.render(varyingPanel(kVaryPanelRaster, blurEffect(arm, sigma))
                            .cache(Cache::None));
   host.draw();  // warm the SkSL compile
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["sigma"] = sigma;
 }
 
@@ -390,7 +392,7 @@ makeInstanceScene(size_t count) {
   uint32_t rng = 12345;
   auto next = [&rng] {
     rng = rng * 1664525u + 1013904223u;
-    return (float)(rng >> 8) / (float)(1u << 24);
+    return (float)(rng >> 8u) / (float)(1u << 24u);
   };
   for (size_t i = 0; i < count; ++i)
     pool->add({next() * 800.0f, next() * 2400.0f}, (int)(i % 4), next() * 6.28f,
@@ -404,7 +406,7 @@ void instancesArm(benchmark::State& state, instancing::Mode mode) {
   auto [atlas, pool] = makeInstanceScene(count);
   host.composer.render(box().child(instances(atlas, pool, mode)));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["instances"] = (double)count;
   state.SetItemsProcessed(state.iterations() * (int64_t)count);
 }
@@ -455,6 +457,8 @@ struct Particle {
     s->getCanvas()->drawCircle(4, 4, 3.5f, p);
     sprite = s->makeImageSnapshot();
 
+    // a fixed seed; the scene must render the same on every run
+    // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{11};
     auto unit = [&] { return (float)(rng() % 10000) / 10000.0f; };
     for (size_t i = 0; i < count; ++i) {
@@ -513,7 +517,7 @@ static void BM_Particles_EnttAtlasLeaf(benchmark::State& state) {
                       .inset(0)
                       .cache(Cache::None)));
   host.draw();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     particles->step(1.0f / 120.0f);
     host.draw();
   }
@@ -539,7 +543,7 @@ static void BM_Particles_DrawCircleLoop(benchmark::State& state) {
                       .inset(0)
                       .cache(Cache::None)));
   host.draw();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     particles->step(1.0f / 120.0f);
     host.draw();
   }
@@ -574,15 +578,16 @@ struct ChunkProps {
 Element benchChunk(const ChunkProps& p) {
   constexpr float kTile = 16.0f;
   auto tiles = box().width(10 * kTile).height(10 * kTile);
-  for (int i = 0; i < (int)p.ids.size(); ++i)
-    tiles.child(
-        image(benchAtlas())
-            .region(
-                SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
-            .absolute()
-            .inset((float)(i % 10) * kTile, (float)(i / 10) * kTile, 0, 0)
-            .width(kTile)
-            .height(kTile));
+  for (int i = 0; i < (int)p.ids.size(); ++i) {
+    const int row = i / 10;
+    tiles.child(image(benchAtlas())
+                    .region(SkRect::MakeXYWH((float)(p.ids[(size_t)i] % 4) * 16,
+                                             0, 16, 16))
+                    .absolute()
+                    .inset((float)(i % 10) * kTile, (float)row * kTile, 0, 0)
+                    .width(kTile)
+                    .height(kTile));
+  }
   return tiles;
 }
 
@@ -614,7 +619,7 @@ static void BM_Draw_TileGrid_Region_Cached(benchmark::State& state) {
   TileGrid grid;
   host.composer.render(grid.describe());
   host.draw();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.render(grid.describe());
     host.draw();
   }
@@ -630,8 +635,9 @@ static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State& state) {
   host.composer.render(grid.describe());
   host.draw();
   int flip = 0;
-  for (auto _ : state) {
-    grid.chunks[7].ids[(size_t)(flip++ % 100)] ^= 1;
+  for ([[maybe_unused]] auto iteration : state) {
+    int& id = grid.chunks[7].ids[(size_t)(flip++ % 100)];
+    id = (int)((unsigned)id ^ 1u);
     host.composer.render(grid.describe());
     host.draw();
   }
@@ -669,7 +675,7 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
                                        .height(640)
                                        .fill(Fill::shader(field))
                                        .cache(Cache::None)));
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
@@ -688,7 +694,7 @@ static void BM_Draw_100Rows_Cached_Graphite(benchmark::State& state) {
   host.composer.render(scoreboard(makeRows(100)));
   host.composer.draw(target.canvas());
   target.submit();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.draw(target.canvas());
     target.submit();
   }
@@ -707,7 +713,7 @@ static void BM_Draw_Instances_Live_Graphite(benchmark::State& state) {
       box().child(instances(atlas, pool, instancing::Mode::Live)));
   host.composer.draw(target.canvas());
   target.submit();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.draw(target.canvas());
     target.submit();
   }
@@ -724,7 +730,7 @@ void bloomGraphiteArm(benchmark::State& state, Cache mode) {
   host.composer.render(bloomBlock(mode));
   host.composer.draw(target.canvas());
   target.submit();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.draw(target.canvas());
     target.submit();
   }
@@ -760,7 +766,7 @@ void graphiteVaryingArm(benchmark::State& state, BlurArm arm) {
       varyingPanel(kVaryPanelGpu, blurEffect(arm, sigma)).cache(Cache::None));
   host.composer.draw(target.canvas());  // warm the pipeline compile
   target.submitSynced();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.draw(target.canvas());
     target.submitSynced();
   }
@@ -808,7 +814,7 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
                       .cache(Cache::None)));
   host.composer.draw(target.canvas());
   target.submit();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     particles->step(1.0f / 120.0f);
     host.composer.draw(target.canvas());
     target.submit();

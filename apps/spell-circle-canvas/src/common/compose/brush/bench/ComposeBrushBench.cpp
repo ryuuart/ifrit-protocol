@@ -40,10 +40,11 @@ Element maskedGrid(int count, MaskKind kind,
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 32;
   for (int id = 0; id < count; ++id) {
+    const int row = id / kColumns;
     Element leaf =
         box()
             .left((float)(id % kColumns) * 25.0f)
-            .top((float)(id / kColumns) * 25.0f)
+            .top((float)row * 25.0f)
             .width(22)
             .height(22)
             .shape(shapes::circle())
@@ -66,7 +67,7 @@ void maskArm(benchmark::State& state, MaskKind kind) {
   host.composer.render(maskedGrid(count, kind, &reveal));
   host.draw();
   int tick = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     reveal = (float)(++tick % 100) / 100.0f;
     host.draw();
   }
@@ -110,10 +111,11 @@ Element profiledRibbonGrid(int count) {
   auto root = positioned().inset(0, 0, 0, 0);
   constexpr int kColumns = 16;
   for (int id = 0; id < count; ++id) {
+    const int row = id / kColumns;
     root.child(
         box()
             .left((float)(id % kColumns) * 48.0f)
-            .top((float)(id / kColumns) * 48.0f)
+            .top((float)row * 48.0f)
             .width(40)
             .height(40)
             .shape(shapes::circle())
@@ -143,9 +145,10 @@ Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
   constexpr int kNodes = 16;
   const float slot = 1.0f / (float)passCount;
   for (int id = 0; id < kNodes; ++id) {
+    const int row = id / kColumns;
     Element leaf = box()
                        .left((float)(id % kColumns) * 156.0f + 4.0f)
-                       .top((float)(id / kColumns) * 156.0f + 4.0f)
+                       .top((float)row * 156.0f + 4.0f)
                        .width(140)
                        .height(140)
                        .fill(Fill::none())
@@ -188,7 +191,7 @@ static void BM_Draw_ProfiledRibbon_Live(benchmark::State& state) {
   Host host(800, 800);
   host.composer.render(profiledRibbonGrid(count));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_ProfiledRibbon_Live)
@@ -206,8 +209,9 @@ static void BM_Draw_BrushWeave_Live(benchmark::State& state) {
   Host host(640, 640);
   host.composer.render(weaveScene(count));
   host.draw();
-  for (auto _ : state) host.draw();
-  state.counters["pairs"] = (double)(count * (count - 1) / 2);
+  for ([[maybe_unused]] auto iteration : state) host.draw();
+  const int pairs = count * (count - 1) / 2;
+  state.counters["pairs"] = (double)pairs;
   reportNodes(state, count);
 }
 BENCHMARK(BM_Draw_BrushWeave_Live)
@@ -223,7 +227,7 @@ static void BM_Draw_StrokeSpans_Live(benchmark::State& state) {
   host.composer.render(spanStrokeGrid(passes, phase));
   host.draw();
   int tick = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     phase = (float)(++tick % 100) / 100.0f;
     host.draw();
   }
@@ -247,6 +251,7 @@ struct Row {
 
 std::vector<Row> makeRows(int count) {
   std::vector<Row> rows;
+  rows.reserve((size_t)count);
   for (int i = 0; i < count; ++i)
     rows.push_back({"player_" + std::to_string(i), i * 7});
   return rows;
@@ -304,7 +309,8 @@ class DecoratedBoard : public benchmark::Fixture {
  *  why the saving shows up on the draw side rather than in this arm's wall
  *  time. */
 BENCHMARK_F(DecoratedBoard, Render_Unchanged)(benchmark::State& state) {
-  for (auto _ : state) host->composer.render(decoratedBoard(rows));
+  for ([[maybe_unused]] auto iteration : state)
+    host->composer.render(decoratedBoard(rows));
   state.counters["patchedNodes"] = (double)host->composer.stats().patchedNodes;
 }
 
@@ -317,7 +323,7 @@ BENCHMARK_F(DecoratedBoard, Render_Unchanged)(benchmark::State& state) {
  *  draw through; the remaining wall time is describe cost alone. */
 BENCHMARK_F(DecoratedBoard, Frame_Static)(benchmark::State& state) {
   double draws = 0, frames = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host->composer.render(decoratedBoard(rows));
     if (host->composer.dirty()) {  // host skips clean frames
       host->draw();
@@ -360,7 +366,7 @@ static void BM_Draw_StampBorder_Cached(benchmark::State& state) {
                                        .fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
                                        .foreground(starVine())));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_StampBorder_Cached);
 
@@ -382,7 +388,7 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
                       .foreground(starVine())));
   host.draw();
   float angle = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     spin = (angle += 0.7f);
     host.draw();
   }
@@ -412,7 +418,7 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
                                        .foreground(vine)
                                        .cache(Cache::None)));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_ArtWarp_Live);
 
@@ -428,7 +434,7 @@ static void BM_Draw_Hatch_Live(benchmark::State& state) {
           .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
           .cache(Cache::None)));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_Hatch_Live);
 
@@ -537,7 +543,7 @@ void warmPanel(Host& host) {
   }
 }
 
-void accentLadder(benchmark::internal::Benchmark* b) {
+void accentLadder(::benchmark::Benchmark* b) {
   b->Arg(32)->Arg(128)->Arg(512)->Unit(benchmark::kMicrosecond);
 }
 
@@ -551,7 +557,7 @@ static void BM_Draw_StillAccent_Bound(benchmark::State& state) {
       slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.draw();
     tally.add(host.composer.stats());
   }
@@ -567,7 +573,7 @@ static void BM_Draw_StillAccent_Plain(benchmark::State& state) {
       slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.draw();
     tally.add(host.composer.stats());
   }
@@ -585,7 +591,7 @@ static void BM_Draw_SlowAccent_Bound(benchmark::State& state) {
   warmPanel(host);
   CacheTally tally;
   int frame = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     if (++frame % kSlowPeriod == 0)
       tint = Fill::color(accentColor(frame / kSlowPeriod));
     host.draw();
@@ -604,7 +610,7 @@ static void BM_Draw_SlowAccent_Plain(benchmark::State& state) {
   warmPanel(host);
   CacheTally tally;
   int frame = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     if (++frame % kSlowPeriod == 0)
       host.composer.render(slowThemedPanel(count, AccentFill::Plain, nullptr,
                                            accentColor(frame / kSlowPeriod)));

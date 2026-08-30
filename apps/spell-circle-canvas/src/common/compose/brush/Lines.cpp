@@ -44,6 +44,8 @@ SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
     plot(0, 0, true);
     float cur = amplitude;
     plot(0, cur, false);
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
       plot(d, cur, false);
       cur = -cur;
@@ -235,6 +237,8 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkContourMeasureIter iter(body, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float len = contour->length();
+      // the loop walks a distance; the accumulated float is the position
+      // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
       for (float d = tickSpacing * 0.5f; d < len; d += tickSpacing) {
         SkPoint pos;
         SkVector tan;
@@ -278,6 +282,8 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         // Closed contours have no terminals: chevrons run the full loop.
         const float from = closed ? midSpacing : midSpacing + tailTrim;
         const float until = closed ? len : len - headTrim;
+        // the loop walks a distance; the accumulated float is the position
+        // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = from; d < until; d += midSpacing)
           if (contour->getPosTan(d, &pos, &tan))
             drawCap(canvas, head, midCap, pos, tan);
@@ -454,7 +460,7 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   }
 }
 
-Rails rails(int count, float width, Fill fill, float gap) {
+Rails rails(int count, float width, const Fill& fill, float gap) {
   Rails r;
   const int n = std::max(count, 1);
   for (int i = 0; i < n; ++i)
@@ -470,17 +476,18 @@ Rails rails(std::vector<Rail> set) {
   return r;
 }
 
-Rails quad(float width, Fill fill, float gap) {
-  return rails(4, width, std::move(fill), gap);
+Rails quad(float width, const Fill& fill, float gap) {
+  return rails(4, width, fill, gap);
 }
 
-Rails heavyHairHeavy(float heavy, float hair, Fill fill, float gap) {
+Rails heavyHairHeavy(float heavy, float hair, const Fill& fill, float gap) {
   return rails({{.across = -gap, .width = heavy, .fill = fill},
                 {.across = 0, .width = hair, .fill = fill},
                 {.across = gap, .width = heavy, .fill = fill}});
 }
 
-Rails dottedCore(float outer, float core, Fill fill, float gap, float dotGap) {
+Rails dottedCore(float outer, float core, const Fill& fill, float gap,
+                 float dotGap) {
   return rails({{.across = -gap, .width = outer, .fill = fill},
                 {.across = 0,
                  .width = core,

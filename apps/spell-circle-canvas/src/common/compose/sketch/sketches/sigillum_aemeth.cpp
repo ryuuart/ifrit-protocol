@@ -953,8 +953,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         type(faceQuill, 0.048f * kR, hex(0x201404, 1.0f), 0.026f * kR);
     for (int k = 0; k < 7; ++k) {
       std::string row;
-      for (int c = 0; c < 7; ++c) {
-        const char* gl = kGodNames[(size_t)k].glyphs[c];
+      for (auto gl : kGodNames[(size_t)k].glyphs) {
         row += (gl[0] == '*') ? "\xc9\x9b" : gl;  // the 21/8 ligature stands in
       }
       g.child(text(toU8(row), nameStyle)
@@ -1937,17 +1936,16 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                             cov.uncovered - ref.uncovered)),
                    cov.doubled == 0 ? "pass" : "heading"});
       int letters = 0;
-      for (int r = 0; r < 7; ++r)
-        for (int c = 0; c < 7; ++c)
-          if (kAngles[r][c] != std::string("\xe2\x80\xa0")) ++letters;
+      for (const auto& angleRow : kAngles)
+        for (const auto& cell : angleRow)
+          if (cell != std::string("\xe2\x80\xa0")) ++letters;
       logC.append({toU8(fmt("  %d letters + 1 cross = %d places", letters,
                             letters + 1)),
                    letters == 48 ? "pass" : "heading"});
       std::string cols;
       for (int c = 0; c < 7; ++c)
-        for (int r = 0; r < 7; ++r)
-          if (kAngles[r][c] != std::string("\xe2\x80\xa0"))
-            cols += kAngles[r][c];
+        for (const auto& angleRow : kAngles)
+          if (angleRow[c] != std::string("\xe2\x80\xa0")) cols += angleRow[c];
       logC.append(
           {toU8("  down the columns: " + cols.substr(0, 24)), "number"});
       logC.append({toU8("  " + cols.substr(24)), "number"});

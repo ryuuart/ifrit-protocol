@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -218,6 +219,8 @@ Element scanlines(float phase, SkColor4f tint) {
   return custom([phase, tint](SkCanvas& c, const PaintContext& ctx) {
            SkPaint p;
            p.setColor4f(tint, nullptr);
+           // the loop walks a distance; the accumulated float is the position
+           // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
            for (float y = phase; y < ctx.size.height(); y += 6.0f)
              c.drawRect(SkRect::MakeXYWH(0, y, ctx.size.width(), 2.4f), p);
          })
@@ -307,6 +310,7 @@ Element organicPanel(SkSize size) {
                      .inset(0)
                      .children([&] {
                        std::vector<Element> beads;
+                       beads.reserve(10);
                        for (int i = 0; i < 10; ++i)
                          beads.push_back(
                              box()
@@ -409,8 +413,10 @@ std::shared_ptr<sigil::image::ImageAsset> mazeAtlas() {
   s->readPixels(bm.pixmap(), 0, 0);
   SkDynamicMemoryWStream stream;
   SkPngEncoder::Encode(&stream, bm.pixmap(), {});
-  return std::make_shared<sigil::image::ImageAsset>(
-      *sigil::image::ImageAsset::decode(stream.detachAsData()));
+  const std::optional<sigil::image::ImageAsset> decoded =
+      sigil::image::ImageAsset::decode(stream.detachAsData());
+  if (!decoded.has_value()) return nullptr;
+  return std::make_shared<sigil::image::ImageAsset>(decoded.value());
 }
 
 Element tileMazePanel(SkSize size) {
@@ -421,10 +427,11 @@ Element tileMazePanel(SkSize size) {
   auto tiles = box().width((float)cols * kTile).height((float)rows * kTile);
   for (int y = 0; y < rows; ++y)
     for (int x = 0; x < cols; ++x) {
-      const uint32_t hsh = (uint32_t)(x * 73856093 ^ y * 19349663 ^ 0x9e3779b9);
+      const uint32_t hsh =
+          (uint32_t)x * 73856093u ^ (uint32_t)y * 19349663u ^ 0x9e3779b9u;
       int id = 0;
       const bool border = x == 0 || y == 0 || x == cols - 1 || y == rows - 1;
-      if (border || (x % 2 == 0 && (hsh & 7) < 5 && y % 4 != 2))
+      if (border || (x % 2 == 0 && (hsh & 7u) < 5 && y % 4 != 2))
         id = 1;
       else if ((hsh % 13) == 4)
         id = 2;
@@ -446,6 +453,8 @@ Element tileMazePanel(SkSize size) {
       .child(std::move(tiles));
 }
 
+// an uncaught exception ends the demo with its message
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char** argv) {
   if (argc > 1 && argv[1][0] == '-') {
     const bool help =

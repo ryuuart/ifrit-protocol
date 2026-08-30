@@ -22,7 +22,7 @@ void SkiaProgram::upload(SkRuntimeShaderBuilder& builder,
     // was generated from the same layout; a name Skia does not find means
     // the SkSL optimiser dropped an unused uniform, which is a silent skip
     // and not an error.
-    SkRuntimeShaderBuilder::BuilderUniform u = builder.uniform(f.name.c_str());
+    SkRuntimeShaderBuilder::BuilderUniform u = builder.uniform(f.name);
     if (!u.fVar) continue;
     if (f.offset + f.floats * sizeof(float) > bytes.size()) continue;
     u.set(reinterpret_cast<const float*>(bytes.data() + f.offset),
@@ -66,7 +66,7 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
     bool skip = false;
     for (std::string_view name : leave) skip |= name == slot;
     if (skip) continue;
-    SkRuntimeShaderBuilder::BuilderChild c = b->child(slot.c_str());
+    SkRuntimeShaderBuilder::BuilderChild c = b->child(slot);
     if (!c.fChild) continue;
     if (child.material) {
       c = shader(*child.material, frame, variant);

@@ -142,6 +142,7 @@ Material viewTransform(std::string_view config, std::string_view displayName,
         SkDebugf("\n");
       }
     } catch (...) {
+      SkDebugf("  (the config could not be listed)\n");
     }
     return Material(lutRecipe());
   }

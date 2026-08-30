@@ -40,8 +40,9 @@ namespace sigil::compose::styles {
 namespace detail {
 /** 0xRRGGBB → SkColor4f (straight alpha). */
 inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 0xff) / 255.0f,
-          (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
+  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
+          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
+          a};
 }
 /** A SigilMaterial colour as Skia spells it. */
 inline SkColor4f sk(sigil::material::Color c) { return {c.r, c.g, c.b, c.a}; }

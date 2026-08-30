@@ -105,7 +105,8 @@ Material lensMap() {
                             {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
-Element panel(const char* title, const char* note, Effect e, std::string key) {
+Element panel(const char* title, const char* note, Effect e,
+              const std::string& key) {
   return box()
       .width(kPanel)
       .column()

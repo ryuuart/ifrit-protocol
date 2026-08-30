@@ -84,6 +84,7 @@ const std::string* Recipe::body(Target target) const {
 
 std::vector<Target> Recipe::targets() const {
   std::vector<Target> out;
+  out.reserve(m_bodies.size());
   for (const auto& [target, body] : m_bodies) out.push_back(target);
   return out;
 }

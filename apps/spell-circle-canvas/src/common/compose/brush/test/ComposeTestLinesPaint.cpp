@@ -73,7 +73,8 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
   for (int y = 38; y < 48; ++y)
     for (int x = 0; x < 100; ++x) band45 += host.pixel(x, y) != SK_ColorBLACK;
   // Both bands sit above the ramp start → same tiny dots, no swell yet.
-  EXPECT_NEAR(band20, band45, band20 / 2 + 12);
+  const int slack = band20 / 2 + 12;
+  EXPECT_NEAR(band20, band45, slack);
   int bandBottom = 0;
   for (int y = 88; y < 98; ++y)
     for (int x = 0; x < 100; ++x)

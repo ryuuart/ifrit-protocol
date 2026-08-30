@@ -27,6 +27,8 @@ SketchHost::Options withDefaults(SketchHost::Options options) {
 
 /** Runs a shell command, capturing stdout+stderr; returns exit code. */
 int run(const std::string& command, std::string& output) {
+  // the command is the host's own compiler line, never user text
+  // NOLINTNEXTLINE(bugprone-command-processor)
   FILE* pipe = popen((command + " 2>&1").c_str(), "r");
   if (!pipe) {
     output = "failed to spawn: " + command;
@@ -175,6 +177,8 @@ void SketchHost::startCompile() {
       << " -o " << out << ' ' << m_options.sketchPath;
 
   m_compile = std::async(std::launch::async,
+                         // copying the captures can fail only on allocation
+                         // NOLINTNEXTLINE(bugprone-exception-escape)
                          [command = cmd.str(), out]() -> CompileResult {
                            CompileResult result;
                            result.library = out;

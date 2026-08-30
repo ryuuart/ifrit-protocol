@@ -409,7 +409,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
                                       inst.fillFrom.colorValue.vec()[i]) *
                                          t;
       }
-      inst.fillFrom = from;
+      inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
       if (!anim) anim = std::make_unique<AnimatedFloat>();
       anim->value = 0.0f;

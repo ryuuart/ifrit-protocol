@@ -37,7 +37,7 @@ void denseArm(benchmark::State& state, Cache mode) {
   Host host(800, 2400);
   host.composer.render(denseBlock(mode));
   host.draw();
-  for (auto _ : state) host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["texturesLive"] = (double)host.composer.stats().texturesLive;
 }
 
@@ -95,7 +95,7 @@ static void BM_Draw_KineticText(benchmark::State& state) {
   host.composer.render(block);
   host.draw();
   float t = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     t += 1.0f / 60.0f;
     progress = std::fmod(t, 1.0f);  // the reveal loops forever
     host.draw();
@@ -131,7 +131,7 @@ void denseGraphiteArm(benchmark::State& state, Cache mode) {
   host.composer.render(denseBlock(mode));
   host.composer.draw(target.canvas());
   target.submit();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     host.composer.draw(target.canvas());
     target.submit();
   }
@@ -179,7 +179,7 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   host.composer.draw(target.canvas());
   target.submit();
   float t = 0;
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     t += 1.0f / 60.0f;
     progress = std::fmod(t, 1.0f);  // the reveal loops forever
     host.composer.draw(target.canvas());
@@ -243,7 +243,7 @@ void graphitePerspectiveArm(benchmark::State& state, PerspArm arm) {
   host.composer.draw(canvas);
   canvas.restore();
   target.submitSynced();
-  for (auto _ : state) {
+  for ([[maybe_unused]] auto iteration : state) {
     canvas.save();
     canvas.concat(m);
     host.composer.draw(canvas);

@@ -401,7 +401,7 @@ inline std::function<SkPath(SkSize)> starburstOutline(int spikes, float depth) {
     const int n = spikes * 2;
     for (int i = 0; i < n; ++i) {
       const float a = (float)i / (float)n * 6.28318f - 1.5708f;
-      const float k = (i & 1) ? 1.0f - depth : 1.0f;
+      const float k = ((unsigned)i & 1u) ? 1.0f - depth : 1.0f;
       const SkPoint pt = {cx + std::cos(a) * cx * k, cy + std::sin(a) * cy * k};
       if (i == 0)
         b.moveTo(pt);

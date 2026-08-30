@@ -51,9 +51,10 @@ namespace worldhud {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 
 // voxygen/src/hud/mod.rs, verbatim.
@@ -731,6 +732,8 @@ struct WorldHudScene final : Scene {
             SkPathBuilder b;
             b.moveTo(0, s.height());
             b.lineTo(0, baseY);
+            // the loop walks a distance; the accumulated float is the position
+            // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
             for (float x = 0; x <= s.width(); x += 6)
               b.lineTo(x, baseY + amp * std::sin(x * freq + phase) +
                               amp * 0.4f * std::sin(x * freq * 2.7f));

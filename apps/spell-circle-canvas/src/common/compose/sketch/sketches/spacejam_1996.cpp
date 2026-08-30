@@ -150,20 +150,21 @@ constexpr float S(float pagePx) { return pagePx * kScale; }
  *  them are members of the 216-colour cube. */
 inline float snap5f(float v) {
   int i = (int)std::lround(std::clamp(v, 0.0f, 1.0f) * 31.0f);
-  return (float)((i << 3) | (i >> 2)) / 255.0f;
+  return (float)(((uint32_t)i << 3u) | ((uint32_t)i >> 2u)) / 255.0f;
 }
 /** A nav-art colour, snapped to the grid the shipped art lives on. */
-inline SkColor4f C5(uint32_t rgb, float a = 1.0f) {
-  return {snap5f((float)((rgb >> 16) & 0xff) / 255.0f),
-          snap5f((float)((rgb >> 8) & 0xff) / 255.0f),
-          snap5f((float)(rgb & 0xff) / 255.0f), a};
+inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
+  return {snap5f((float)((rgb >> 16u) & 0xffu) / 255.0f),
+          snap5f((float)((rgb >> 8u) & 0xffu) / 255.0f),
+          snap5f((float)(rgb & 0xffu) / 255.0f), a};
 }
 /** Raw, unsnapped — for the greyscale star tile, whose 8-bit greyscale
  *  palette does not sit on the 5-bit grid, and for the body text. Neither
  *  is nav art. */
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) {
-  return {(float)((rgb >> 16) & 0xff) / 255.0f,
-          (float)((rgb >> 8) & 0xff) / 255.0f, (float)(rgb & 0xff) / 255.0f, a};
+constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
+  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
+          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
+          a};
 }
 inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
@@ -326,12 +327,12 @@ inline Material ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
 // OVER the body fill and UNDER the sphere-shading child.
 
 inline float hash1(uint32_t n) {
-  n = (n ^ 61u) ^ (n >> 16);
+  n = (n ^ 61u) ^ (n >> 16u);
   n *= 9u;
-  n ^= n >> 4;
+  n ^= n >> 4u;
   n *= 0x27d4eb2du;
-  n ^= n >> 15;
-  return (float)(n & 0xffffff) / (float)0xffffff;
+  n ^= n >> 15u;
+  return (float)(n & 0xffffffu) / (float)0xffffff;
 }
 
 struct Bands {
@@ -1097,12 +1098,13 @@ struct TableScheme {
         if (cells[i].colspan != k) continue;
         float avail = (float)(k - 1) * (2 * P + Sp);
         float span = 0;
-        for (int j = 0; j < k; ++j) span += colW[(size_t)(cells[i].col + j)];
+        for (int j = 0; j < k; ++j)
+          span += colW[(size_t)cells[i].col + (size_t)j];
         avail += span;
         const float deficit = sz[i].width() - avail;
         if (deficit <= 0) continue;
         for (int j = 0; j < k; ++j) {
-          float& cw = colW[(size_t)(cells[i].col + j)];
+          float& cw = colW[(size_t)cells[i].col + (size_t)j];
           cw += span > 0 ? deficit * cw / span : deficit / (float)k;
         }
       }
@@ -1138,7 +1140,8 @@ struct TableScheme {
       for (size_t i = 0; i < n; ++i) {
         if (cells[i].rowspan != k) continue;
         float avail = (float)(k - 1) * (2 * P + Sp);
-        for (int j = 0; j < k; ++j) avail += rowH[(size_t)(cells[i].row + j)];
+        for (int j = 0; j < k; ++j)
+          avail += rowH[(size_t)cells[i].row + (size_t)j];
         const float deficit = sz[i].height() - avail;
         if (deficit > 0) rowH[(size_t)(cells[i].row + k - 1)] += deficit;
       }
@@ -1163,9 +1166,11 @@ struct TableScheme {
     for (size_t i = 0; i < n; ++i) {
       const Cell& c = cells[i];
       float boxW = (float)(c.colspan - 1) * (2 * padding + spacing);
-      for (int j = 0; j < c.colspan; ++j) boxW += colW[(size_t)(c.col + j)];
+      for (int j = 0; j < c.colspan; ++j)
+        boxW += colW[(size_t)c.col + (size_t)j];
       float boxH = (float)(c.rowspan - 1) * (2 * padding + spacing);
-      for (int j = 0; j < c.rowspan; ++j) boxH += rowH[(size_t)(c.row + j)];
+      for (int j = 0; j < c.rowspan; ++j)
+        boxH += rowH[(size_t)c.row + (size_t)j];
       const SkSize s = in.childSizes[i];
       const float cx = x[(size_t)c.col], cy = y[(size_t)c.row];
       const float px = c.halign == 0   ? cx
@@ -1276,7 +1281,8 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
    *  image. Its MEASURED size is what the table algorithm reads, so the
    *  br-count reaches the layout the same way it does in a browser. */
   Element cell(int assetIx, int brs) const {
-    const bool inFlight = assetIx >= 0 && (arrivedMask & (1u << assetIx)) == 0;
+    const bool inFlight =
+        assetIx >= 0 && (arrivedMask & (1u << (unsigned)assetIx)) == 0;
     Element c = box().column().alignSelf(Align::Start).shrink(0);
     if (brs > 0)
       c.child(box().width(Dim(0)).height(Dim(sj::S(18) * (float)brs)));
@@ -1583,7 +1589,7 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     int nActive = 0;
     for (int i = 0; i < kAssetCount; ++i) {
       if (gotBytes[i] >= (double)m[(size_t)i].bytes) {
-        done |= 1u << i;
+        done |= 1u << (unsigned)i;
         continue;
       }
       if (nActive < kSlots) active[nActive++] = i;

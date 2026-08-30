@@ -94,7 +94,7 @@ void perturb(std::optional<Animatable<Fill>>& v) {
 }
 
 void perturb(std::vector<Decoration>& v) {
-  v.push_back(Decoration(PaintProgram{[](SkCanvas&, const PaintContext&) {}}));
+  v.emplace_back(PaintProgram{[](SkCanvas&, const PaintContext&) {}});
 }
 
 void perturb(std::vector<Element>& v) { v.push_back(box()); }
