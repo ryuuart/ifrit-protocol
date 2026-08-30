@@ -3,14 +3,13 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <sigilmeasure/time/FrameTimer.h>
+#include <sigilskia/qt/QtInterop.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
 
 #include "SceneRenderer.h"
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
 #include "SpellCircleRenderer.h"
 
 using sigil::weave::qt::toSkColor;
@@ -29,7 +28,8 @@ using sigil::weave::qt::toSkColor;
 // registering the finished image with QCanvasPainter.
 class SkiaSceneBackendImpl final : public CanvasSceneBackend {
  public:
-  explicit SkiaSceneBackendImpl(std::unique_ptr<SkiaGraphiteContext> context)
+  explicit SkiaSceneBackendImpl(
+      std::unique_ptr<sigil::skia::GraphiteContext> context)
       : m_context(std::move(context)) {}
 
   QCanvasImage drawScene(SpellCircleRenderer& renderer, QCanvasPainter* painter,
@@ -40,7 +40,8 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
     // SpellCircleRenderer::prePaint), so the resolved geometry in
     // renderer.m_resolved can be drawn directly with no extra scaling here.
     m_frames.begin();
-    SkiaOffscreenSurface surface(*m_context, canvas.texture(), pixelSize);
+    sigil::skia::OffscreenSurface surface =
+        sigil::skia::wrapTexture(*m_context, canvas.texture(), pixelSize);
     SkCanvas* skCanvas = surface.canvas();
     if (!skCanvas) return {};
 
@@ -92,7 +93,7 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
   }
 
  private:
-  std::unique_ptr<SkiaGraphiteContext> m_context;
+  std::unique_ptr<sigil::skia::GraphiteContext> m_context;
 
   // Shared Qt-free scene drawing (FontContext + label caches inside).
   // Lives on the render thread with this backend — see SceneRenderer's
@@ -103,8 +104,8 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
 };
 
 std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi* rhi) {
-  std::unique_ptr<SkiaGraphiteContext> context =
-      SkiaGraphiteContext::create(rhi);
+  std::unique_ptr<sigil::skia::GraphiteContext> context =
+      sigil::skia::createGraphiteContext(rhi);
   if (!context) return nullptr;
   return std::make_unique<SkiaSceneBackendImpl>(std::move(context));
 }

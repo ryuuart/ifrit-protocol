@@ -1,0 +1,301 @@
+// The device feature on Metal: handles that go stale, destruction that
+// waits out the frames in flight, textures crossing the boundary in both
+// directions, fences as timelines, and Graphite standing up on a device
+// the host adopted.
+
+#import <Metal/Metal.h>
+
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
+#include <include/gpu/graphite/Surface.h>
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/device/Handle.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
+
+#include <chrono>
+#include <cstring>
+#include <thread>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+using namespace sigil::skia;
+
+namespace {
+
+TextureDesc smallTexture() {
+  TextureDesc desc;
+  desc.width = 8;
+  desc.height = 8;
+  desc.label = "sigilskia_device_test";
+  return desc;
+}
+
+}  // namespace
+
+TEST(SigilSkiaHandle, NullHandleNamesNothing) {
+  HandleTable<int, TextureHandle> table;
+  EXPECT_FALSE(table.contains(TextureHandle{}));
+  EXPECT_EQ(table.find(TextureHandle{}), nullptr);
+  EXPECT_EQ(table.release(TextureHandle{}), 0);
+}
+
+TEST(SigilSkiaHandle, ReusedSlotRejectsTheOldHandle) {
+  HandleTable<int, TextureHandle> table;
+  const TextureHandle first = table.allocate(1);
+  ASSERT_TRUE(table.contains(first));
+  EXPECT_EQ(table.release(first), 1);
+  EXPECT_FALSE(table.contains(first));
+
+  const TextureHandle second = table.allocate(2);
+  EXPECT_EQ(second.index, first.index) << "the freed slot is reused";
+  EXPECT_NE(second.generation, first.generation);
+  EXPECT_NE(second, first);
+  EXPECT_FALSE(table.contains(first)) << "the stale handle stays stale";
+  EXPECT_TRUE(table.contains(second));
+  EXPECT_EQ(*table.find(second), 2);
+  EXPECT_EQ(table.find(first), nullptr);
+  EXPECT_EQ(table.release(first), 0) << "a stale release releases nothing";
+  EXPECT_TRUE(table.contains(second));
+}
+
+TEST(SigilSkiaHandle, TypedHandlesDoNotMix) {
+  static_assert(!std::is_convertible_v<TextureHandle, BufferHandle>);
+  static_assert(!std::is_convertible_v<FenceHandle, TextureHandle>);
+}
+
+TEST(SigilSkiaHandle, DrainStalesEveryHandle) {
+  HandleTable<int, BufferHandle> table;
+  const BufferHandle a = table.allocate(1);
+  const BufferHandle b = table.allocate(2);
+  const std::vector<int> drained = table.drain();
+  EXPECT_EQ(drained, (std::vector<int>{1, 2}));
+  EXPECT_EQ(table.size(), 0u);
+  EXPECT_FALSE(table.contains(a));
+  EXPECT_FALSE(table.contains(b));
+}
+
+TEST(SigilSkiaDevice, OwnedMetalDeviceHasAQueue) {
+  auto device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_NE(device, nullptr) << "no Metal device";
+  EXPECT_EQ(device->backend(), Backend::Metal);
+  EXPECT_NE(device->native().mtlDevice, nullptr);
+  EXPECT_NE(device->native().mtlCommandQueue, nullptr);
+  EXPECT_EQ(device->frameIndex(), 0u);
+}
+
+TEST(SigilSkiaDevice, VulkanIsNotCreatedYet) {
+  EXPECT_EQ(GpuDevice::createOwned(Backend::Vulkan), nullptr);
+  NativeDevice vulkan;
+  vulkan.backend = Backend::Vulkan;
+  EXPECT_EQ(GpuDevice::adopt(vulkan), nullptr);
+}
+
+TEST(SigilSkiaDevice, AdoptNeedsBothHandles) {
+  NativeDevice half;
+  half.backend = Backend::Metal;
+  half.mtlDevice = (void *)MTLCreateSystemDefaultDevice();
+  EXPECT_EQ(GpuDevice::adopt(half), nullptr);
+}
+
+TEST(SigilSkiaDevice, DestroyedHandleIsStaleAtOnce) {
+  auto device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_NE(device, nullptr);
+  const TextureHandle texture = device->createTexture(smallTexture());
+  ASSERT_TRUE(device->isValid(texture));
+  EXPECT_TRUE(device->exportNative(texture));
+  device->destroy(texture);
+  EXPECT_FALSE(device->isValid(texture));
+  EXPECT_FALSE(device->exportNative(texture));
+  device->destroy(texture);  // a second destroy does nothing
+  EXPECT_EQ(device->pendingDestroys(), 1u);
+
+  const TextureHandle next = device->createTexture(smallTexture());
+  EXPECT_EQ(next.index, texture.index) << "the slot is reused";
+  EXPECT_FALSE(device->isValid(texture)) << "and the old handle still fails";
+  EXPECT_TRUE(device->isValid(next));
+}
+
+TEST(SigilSkiaDevice, DestroyRetiresAtFramePlusThree) {
+  auto device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_NE(device, nullptr);
+  device->beginFrame();
+  device->beginFrame();
+  ASSERT_EQ(device->frameIndex(), 2u);
+  const TextureHandle texture = device->createTexture(smallTexture());
+  id<MTLTexture> native = (id<MTLTexture>)device->exportNative(texture).mtlTexture;
+  // The test's own reference keeps the object alive past the device's
+  // release, so the count can be read after it.
+  CFRetain((CFTypeRef)native);
+  const NSUInteger held = CFGetRetainCount((CFTypeRef)native);
+  device->destroy(texture);  // in frame 2
+  EXPECT_EQ(device->pendingDestroys(), 1u);
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)native), held) << "still held";
+  device->beginFrame();  // 3
+  EXPECT_EQ(device->pendingDestroys(), 1u);
+  device->beginFrame();  // 4
+  EXPECT_EQ(device->pendingDestroys(), 1u);
+  device->beginFrame();  // 5 = 2 + kFramesInFlight
+  EXPECT_EQ(device->pendingDestroys(), 0u);
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)native), held - 1) << "released";
+  CFRelease((CFTypeRef)native);
+}
+
+TEST(SigilSkiaDevice, ImportExportRoundTrip) {
+  auto device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_NE(device, nullptr);
+  id<MTLDevice> mtl = (id<MTLDevice>)device->native().mtlDevice;
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                         width:16
+                                                        height:4
+                                                     mipmapped:NO];
+  id<MTLTexture> hostTexture = [mtl newTextureWithDescriptor:desc];
+  ASSERT_NE(hostTexture, nil);
+
+  NativeTexture native;
+  native.backend = Backend::Metal;
+  native.mtlTexture = (void *)hostTexture;
+  native.width = 16;
+  native.height = 4;
+
+  // Borrowed: the device forgets it on destroy and never releases it.
+  const NSUInteger before = CFGetRetainCount((CFTypeRef)hostTexture);
+  const TextureHandle borrowed = device->importNative(native);
+  ASSERT_TRUE(device->isValid(borrowed));
+  const NativeTexture out = device->exportNative(borrowed);
+  EXPECT_EQ(out.mtlTexture, (void *)hostTexture);
+  EXPECT_EQ(out.width, 16);
+  EXPECT_EQ(out.height, 4);
+  EXPECT_EQ(out.backend, Backend::Metal);
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)hostTexture), before);
+  device->destroy(borrowed);
+  for (int i = 0; i < 4; ++i) device->beginFrame();
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)hostTexture), before);
+
+  // Owned: the device takes its own reference and drops it at retire.
+  const TextureHandle owned = device->importNative(native, /*takeOwnership=*/true);
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)hostTexture), before + 1);
+  device->destroy(owned);
+  for (int i = 0; i < 4; ++i) device->beginFrame();
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)hostTexture), before);
+
+  // Another API's texture is refused.
+  NativeTexture vulkan;
+  vulkan.backend = Backend::Vulkan;
+  vulkan.vkImage = 1;
+  EXPECT_FALSE(device->importNative(vulkan));
+  EXPECT_FALSE(device->importNative(NativeTexture{}));
+  CFRelease((CFTypeRef)hostTexture);
+}
+
+TEST(SigilSkiaDevice, FenceSignalsAndWaits) {
+  auto device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_NE(device, nullptr);
+  const FenceHandle fence = device->createFence();
+  ASSERT_TRUE(device->isValid(fence));
+  EXPECT_EQ(device->completedValue(fence), kFenceInitialValue);
+
+  const FenceValue first = device->signal(fence);
+  EXPECT_EQ(first, 1u);
+  EXPECT_EQ(device->waitCpu(fence, first), FenceWait::Reached);
+  EXPECT_GE(device->completedValue(fence), first);
+  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)), FenceWait::TimedOut);
+
+  // A GPU-side wait holds later work on the device's queue: a command
+  // buffer committed after the wait completes only once the value is
+  // signalled — from another queue, because a signal queued behind the
+  // wait on the same queue could never run.
+  const FenceValue gate = first + 1;
+  device->waitGpu(fence, gate);
+  id<MTLCommandQueue> queue = (id<MTLCommandQueue>)device->native().mtlCommandQueue;
+  id<MTLCommandBuffer> held = [queue commandBuffer];
+  [held commit];
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  EXPECT_NE(held.status, MTLCommandBufferStatusCompleted) << "held by the wait";
+
+  id<MTLSharedEvent> event = (id<MTLSharedEvent>)device->exportNative(fence);
+  ASSERT_NE(event, nil);
+  id<MTLCommandQueue> other = [(id<MTLDevice>)device->native().mtlDevice newCommandQueue];
+  id<MTLCommandBuffer> release = [other commandBuffer];
+  [release encodeSignalEvent:event value:gate];
+  [release commit];
+  [held waitUntilCompleted];
+  EXPECT_EQ(held.status, MTLCommandBufferStatusCompleted);
+  EXPECT_EQ(device->waitCpu(fence, gate), FenceWait::Reached);
+  CFRelease((CFTypeRef)other);
+
+  // An already-signalled value never holds.
+  device->waitGpu(fence, gate);
+  id<MTLCommandBuffer> free = [queue commandBuffer];
+  [free commit];
+  [free waitUntilCompleted];
+  EXPECT_EQ(free.status, MTLCommandBufferStatusCompleted);
+
+  device->destroyFence(fence);
+  EXPECT_FALSE(device->isValid(fence));
+  EXPECT_EQ(device->exportNative(fence), nullptr);
+  EXPECT_EQ(device->signal(fence), kFenceInitialValue);
+  EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
+}
+
+TEST(SigilSkiaDevice, GraphiteOnAnAdoptedDeviceClearsAndReadsBack) {
+  id<MTLDevice> mtl = MTLCreateSystemDefaultDevice();
+  id<MTLCommandQueue> mtlQueue = [mtl newCommandQueue];
+  ASSERT_NE(mtl, nil);
+  NativeDevice native;
+  native.backend = Backend::Metal;
+  native.mtlDevice = (void *)mtl;
+  native.mtlCommandQueue = (void *)mtlQueue;
+  auto device = GpuDevice::adopt(native);
+  ASSERT_NE(device, nullptr);
+  EXPECT_EQ(device->native().mtlDevice, (void *)mtl);
+
+  std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
+  ASSERT_NE(graphite, nullptr);
+
+  TextureDesc desc = smallTexture();
+  desc.format = TextureFormat::BGRA8Unorm;
+  desc.cpuAccessible = true;
+  const TextureHandle texture = device->createTexture(desc);
+  ASSERT_TRUE(device->isValid(texture));
+  const NativeTexture nativeTexture = device->exportNative(texture);
+
+  OffscreenSurface surface(*graphite, nativeTexture.mtlTexture, nativeTexture.width,
+                           nativeTexture.height);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+  surface.submit();
+
+  // The fence is on the same queue as Graphite's submission, so reaching
+  // it means the clear has landed.
+  const FenceHandle fence = device->createFence();
+  const FenceValue done = device->signal(fence);
+  ASSERT_EQ(device->waitCpu(fence, done), FenceWait::Reached);
+
+  std::vector<uint8_t> bytes(size_t(desc.width) * desc.height * 4);
+  [(id<MTLTexture>)nativeTexture.mtlTexture getBytes:bytes.data()
+                                         bytesPerRow:size_t(desc.width) * 4
+                                          fromRegion:MTLRegionMake2D(0, 0, desc.width, desc.height)
+                                         mipmapLevel:0];
+  // BGRA, opaque blue.
+  EXPECT_EQ(bytes[0], 255);
+  EXPECT_EQ(bytes[1], 0);
+  EXPECT_EQ(bytes[2], 0);
+  EXPECT_EQ(bytes[3], 255);
+
+  device->destroyFence(fence);
+  device->destroy(texture);
+  graphite.reset();
+  device.reset();
+  // The adopted objects are still the host's.
+  EXPECT_NE(mtl, nil);
+  CFRelease((CFTypeRef)mtlQueue);
+  CFRelease((CFTypeRef)mtl);
+}

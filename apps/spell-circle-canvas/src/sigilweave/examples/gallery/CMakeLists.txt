@@ -76,9 +76,9 @@ target_link_libraries(WeaveGallery
 )
 
 # The Graphite GPU path reuses the generic Skia/Metal plumbing under
-# src/common/skia (SkiaGraphiteContext + SkiaOffscreenSurface); without it
+# src/common/skia (SigilSkia); without it
 # the gallery still runs on Skia's CPU raster backend with a texture upload.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  target_link_libraries(WeaveGallery PRIVATE SpellCircleSkiaQt)
+  target_link_libraries(WeaveGallery PRIVATE SigilSkiaQt)
   target_compile_definitions(WeaveGallery PRIVATE TEXTFLOW_GALLERY_GPU)
 endif()

@@ -3,11 +3,11 @@
 #import <Metal/Metal.h>
 #import <Syphon/SyphonMetalServer.h>
 
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
 #include "UdpReceiver.h"
 
 #include <include/core/SkBitmap.h>
@@ -110,7 +110,7 @@ SkColor toSkColor(NSColor *color) {
 @implementation SCKEngine {
   id<MTLDevice> _device;
   id<MTLCommandQueue> _queue;
-  std::unique_ptr<SkiaGraphiteContext> _graphite;
+  std::unique_ptr<sigil::skia::GraphiteContext> _graphite;
   std::unique_ptr<spellcircle::SceneRenderer> _sceneRenderer;
   spellcircle::SceneDocument _document;
   spellcircle::ResolvedScene _resolved;
@@ -153,7 +153,8 @@ SkColor toSkColor(NSColor *color) {
   _device = MTLCreateSystemDefaultDevice();
   _queue = [_device newCommandQueue];
   if (_device && _queue)
-    _graphite = SkiaGraphiteContext::createMetal((__bridge void *)_device, (__bridge void *)_queue);
+    _graphite = sigil::skia::GraphiteContext::createMetal((__bridge void *)_device,
+                                                          (__bridge void *)_queue);
   _sceneRenderer = std::make_unique<spellcircle::SceneRenderer>();
 
   // Same Syphon server name as the Qt app, so downstream clients
@@ -519,8 +520,8 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   [self ensureSceneTexture];
   if (!_sceneTexture) return;
 
-  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)_sceneTexture, _canvasWidth,
-                               _canvasHeight);
+  sigil::skia::OffscreenSurface surface(*_graphite, (__bridge void *)_sceneTexture, _canvasWidth,
+                                        _canvasHeight);
   SkCanvas *canvas = surface.canvas();
   if (!canvas) return;
 
@@ -566,7 +567,7 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   const int width = static_cast<int>(target.width);
   const int height = static_cast<int>(target.height);
 
-  SkiaOffscreenSurface surface(*_graphite, (__bridge void *)target, width, height);
+  sigil::skia::OffscreenSurface surface(*_graphite, (__bridge void *)target, width, height);
   SkCanvas *canvas = surface.canvas();
   if (!canvas) return;
 

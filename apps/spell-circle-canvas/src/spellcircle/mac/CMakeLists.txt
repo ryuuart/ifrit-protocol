@@ -1,7 +1,7 @@
 # SpellCircleMac — the native macOS SwiftUI companion app. A separate
 # executable from the Qt `SpellCircle` receiver: same UDP wire protocol,
 # same shared C++ core (SpellCircleScene decode/resolve/draw +
-# SpellCircleSkia Metal/Graphite plumbing), same Syphon server name — but
+# SigilSkia Metal/Graphite plumbing), same Syphon server name — but
 # AppKit/SwiftUI chrome with Liquid Glass panels instead of Qt Quick. The
 # Qt app remains the cross-platform build.
 #
@@ -43,7 +43,7 @@ add_library(SpellCircleMacBridge SHARED
 )
 
 # ARC for the ObjC++ engine/view (the shared Skia .mm TUs stay non-ARC and
-# manage CoreFoundation refs explicitly — see SkiaGraphiteContextMetal.mm).
+# manage CoreFoundation refs explicitly — see GraphiteContextMetal.mm).
 target_compile_options(SpellCircleMacBridge PRIVATE -fobjc-arc)
 
 # No Qt anywhere in this target; keep the global AUTOMOC out of it.
@@ -60,7 +60,7 @@ target_link_libraries(SpellCircleMacBridge
     ${METAL_FRAMEWORK}
     ${QUARTZCORE_FRAMEWORK}
     SpellCircleScene
-    SpellCircleSkia
+    SigilSkia
     SpellCircleNet
     ${SYPHON_FRAMEWORK}
 )

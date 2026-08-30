@@ -73,7 +73,7 @@ endfunction()
 # The Graphite arms (COMPOSE_BENCH_GRAPHITE) exist only where the Metal
 # context can be made; the binaries that carry them take the bench-only
 # Metal handles as an extra source.
-if(APPLE AND TARGET SpellCircleSkia)
+if(APPLE AND TARGET SigilSkia)
   set(COMPOSE_BENCH_GPU_SOURCES
       ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/ComposeBenchGpuMetal.mm
       ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/ComposeBenchGpu.h)
@@ -95,10 +95,10 @@ function(_compose_bench name)
   target_include_directories(${name} PRIVATE ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR})
   target_link_libraries(${name} PRIVATE
     ${ARG_LIBRARIES} SigilWeavePorts benchmark::benchmark)
-  if(ARG_GPU AND APPLE AND TARGET SpellCircleSkia)
+  if(ARG_GPU AND APPLE AND TARGET SigilSkia)
     target_sources(${name} PRIVATE ${COMPOSE_BENCH_GPU_SOURCES})
     target_compile_definitions(${name} PRIVATE COMPOSE_BENCH_GRAPHITE)
-    target_link_libraries(${name} PRIVATE SpellCircleSkia ${METAL_FRAMEWORK})
+    target_link_libraries(${name} PRIVATE SigilSkia ${METAL_FRAMEWORK})
   endif()
   add_dependencies(benches ${name})
 endfunction()
@@ -186,7 +186,7 @@ target_compile_definitions(compose_docs_test PRIVATE
 # semantics, this one proves the same pixels arrive on the GPU — it
 # exists for the direct-image draw gaps (lattice/atlas) the raster suites
 # cannot see.
-if(APPLE AND TARGET SpellCircleSkia)
+if(APPLE AND TARGET SigilSkia)
   add_executable(compose_gpu_test
     test/ComposeGpuTest.mm
   )
@@ -194,7 +194,7 @@ if(APPLE AND TARGET SpellCircleSkia)
     ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
   target_link_libraries(compose_gpu_test PRIVATE
     SigilComposeShape SigilComposeBrush SigilComposeTypography
-    SigilComposeInstances SigilWeavePorts SpellCircleSkia
+    SigilComposeInstances SigilWeavePorts SigilSkia
     GTest::gtest_main "-framework Metal")
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()

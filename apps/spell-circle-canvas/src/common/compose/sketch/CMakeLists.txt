@@ -113,8 +113,8 @@ target_link_libraries(ComposeSketch PRIVATE
 # Frames render through the shared Skia Graphite context straight into the
 # QQuickRhiItem texture when the QRhi backend is supported (same pattern as
 # ComposeGallery); other builds keep the raster-and-upload fallback.
-if(TARGET SpellCircleSkiaQt)
-  target_link_libraries(ComposeSketch PRIVATE SpellCircleSkiaQt)
+if(TARGET SigilSkiaQt)
+  target_link_libraries(ComposeSketch PRIVATE SigilSkiaQt)
   target_compile_definitions(ComposeSketch PRIVATE SIGILCOMPOSE_SKETCH_GPU)
 endif()
 if(APPLE)

@@ -1,7 +1,7 @@
 # Source tree layout:
 #
-#   common/      libraries shared across products: skia/ (Graphite GPU
-#                plumbing), ui/ (Ifrit.Ui Qt Quick controls), image/
+#   common/      libraries shared across products: skia/ (SigilSkia,
+#                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
 #                measure/ (SigilMeasure), motion/ (SigilMotion), shape/ (SigilGeometry), world/
 #                (SigilWorld), material/ (SigilMaterial), compose/ (SigilCompose)

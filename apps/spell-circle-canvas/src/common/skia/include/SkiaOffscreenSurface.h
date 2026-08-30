@@ -1,51 +1,22 @@
 #pragma once
-#include <include/core/SkRefCnt.h>
+// The global-namespace spelling of sigil::skia::OffscreenSurface, with the
+// Qt constructor the sigil::skia::wrapTexture adapter replaces. Nothing
+// new includes this: spell <sigilskia/graphite/OffscreenSurface.h> (and
+// <sigilskia/qt/QtInterop.h> for a QRhiTexture) and delete this header
+// once nothing does.
 
-class QRhiTexture;
-class QSize;
-class SkiaGraphiteContext;
-class SkCanvas;
-class SkSurface;
+#include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/qt/QtInterop.h>
 
-/**
- * Wraps an existing native texture (e.g. the one owned by a
- * QCanvasOffscreenCanvas, or a CAMetalLayer drawable) in an SkSurface,
- * without copying it, so SkCanvas draw calls land directly in that texture.
- * Construct fresh per use — it's a thin, cheap wrapper around a texture
- * someone else owns.
- *
- * Like SkiaGraphiteContext, the Qt constructor (QRhiTexture) lives in the
- * SpellCircleSkiaQt adapter target and the Qt-free Metal constructor lives
- * in SpellCircleSkia; the wrap is per-API, matching the context-creation TU
- * compiled into each build.
- */
-class SkiaOffscreenSurface {
+class SkiaOffscreenSurface final : public sigil::skia::OffscreenSurface {
  public:
-  /** @p texture must be a QRhiTexture created by the same QRhi whose native
-   *  device/queue @p context was built from. Qt adapter — link
-   *  SpellCircleSkiaQt for this constructor. */
-  SkiaOffscreenSurface(SkiaGraphiteContext& context, QRhiTexture* texture,
-                       QSize pixelSize);
-
+  SkiaOffscreenSurface(sigil::skia::GraphiteContext& context,
+                       QRhiTexture* texture, QSize pixelSize)
+      : OffscreenSurface(
+            sigil::skia::wrapTexture(context, texture, pixelSize)) {}
 #ifdef __APPLE__
-  /** Qt-free Metal wrap: @p mtlTexture is an id<MTLTexture> bridged to
-   *  void*, created on the same device @p context was built from. */
-  SkiaOffscreenSurface(SkiaGraphiteContext& context, void* mtlTexture,
-                       int width, int height);
+  SkiaOffscreenSurface(sigil::skia::GraphiteContext& context, void* mtlTexture,
+                       int width, int height)
+      : OffscreenSurface(context, mtlTexture, width, height) {}
 #endif
-
-  ~SkiaOffscreenSurface();
-
-  /** Null if wrapping the backend texture failed. */
-  SkCanvas* canvas() const;
-
-  /** Snaps the Recorder's accumulated draw commands into a Recording,
-   *  inserts it into the Context, and submits it to the GPU asynchronously.
-   *  Safe because Graphite shares the host's command queue: the host's
-   *  later GPU work is ordered after this submission on the same queue. */
-  void submit();
-
- private:
-  SkiaGraphiteContext& m_context;
-  sk_sp<SkSurface> m_surface;
 };

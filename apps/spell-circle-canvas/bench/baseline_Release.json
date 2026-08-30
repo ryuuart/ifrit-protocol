@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-30T08:49:35+00:00",
+ "taken": "2026-08-30T14:01:39+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -2200,6 +2200,44 @@
     "real_ns": 3600.056482803312,
     "repetitions": 4,
     "unit": "us"
+   }
+  },
+  "sigilskia_device_bench": {
+   "BM_HandleAllocateRelease": {
+    "real_ns": 5.098000917293046,
+    "cpu_ns": 5.096956665010081,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_HandleBatch/64": {
+    "real_ns": 158.4945677897624,
+    "cpu_ns": 158.47110864118932,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_HandleBatch/1024": {
+    "real_ns": 2641.866852646287,
+    "cpu_ns": 2641.4369930910225,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ImportExportRetire": {
+    "real_ns": 44.819643553537574,
+    "cpu_ns": 44.81330254386562,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CreateDestroyTexture": {
+    "real_ns": 4624.185277336166,
+    "cpu_ns": 4622.583139984536,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_FenceRoundTrip": {
+    "real_ns": 86064.81661554426,
+    "cpu_ns": 7791.2999999999665,
+    "unit": "ns",
+    "repetitions": 4
    }
   },
   "weave_fonts_bench": {

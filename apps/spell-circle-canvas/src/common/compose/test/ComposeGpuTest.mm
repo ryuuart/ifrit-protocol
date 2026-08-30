@@ -18,7 +18,7 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include "SkiaGraphiteContext.h"
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -40,11 +40,12 @@ sigil::weave::FontContext &fonts() {
   return *context;
 }
 
-SkiaGraphiteContext *graphite() {
-  static std::unique_ptr<SkiaGraphiteContext> ctx = [] {
+sigil::skia::GraphiteContext *graphite() {
+  static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
     id<MTLCommandQueue> queue = [device newCommandQueue];
-    return SkiaGraphiteContext::createMetal((__bridge void *)device, (__bridge void *)queue);
+    return sigil::skia::GraphiteContext::createMetal((__bridge void *)device,
+                                                     (__bridge void *)queue);
   }();
   return ctx.get();
 }
@@ -52,7 +53,7 @@ SkiaGraphiteContext *graphite() {
 /** Draws one composer frame on a Graphite surface and reads it back. */
 SkBitmap drawOnGpu(Composer &composer, int w, int h) {
   SkBitmap bm;
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   if (!ctx) return bm;
   const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
@@ -93,7 +94,8 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
 }
 
 /** Reads a Graphite surface back to CPU pixels: snap, insert, async read. */
-SkBitmap readbackGpu(SkiaGraphiteContext *ctx, SkSurface *surface, const SkImageInfo &info) {
+SkBitmap readbackGpu(sigil::skia::GraphiteContext *ctx, SkSurface *surface,
+                     const SkImageInfo &info) {
   SkBitmap bm;
   if (auto recording = ctx->recorder()->snap()) {
     skgpu::graphite::InsertRecordingInfo insert;
@@ -189,7 +191,7 @@ TEST(ComposeGpu, InstanceStampsDrawOnGraphite) {
 // which primitive × image-kind combinations actually land?
 TEST(ComposeGpu, DirectPrimitiveMatrix) {
   REQUIRE_GPU();
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   const SkImageInfo info = SkImageInfo::MakeN32Premul(300, 100);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_TRUE(surface);
@@ -336,7 +338,7 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
   cpu.allocPixels(info);
   ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_TRUE(gpuSurface);
   gpuSurface->getCanvas()->clear(SK_ColorBLACK);

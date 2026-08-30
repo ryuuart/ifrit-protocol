@@ -27,9 +27,9 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include "ComposeBenchGpu.h"
-#include "SkiaGraphiteContext.h"
 #endif
 
 namespace sigil::compose::bench {
@@ -84,16 +84,16 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
 
 /** The process's Graphite Metal context, created on first use. Null when
  *  the device is unavailable, which every GPU arm turns into a skip. */
-inline SkiaGraphiteContext* graphite() {
-  static std::unique_ptr<SkiaGraphiteContext> ctx =
-      SkiaGraphiteContext::createMetal(gpuDevice(), gpuQueue());
+inline sigil::skia::GraphiteContext* graphite() {
+  static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
+      sigil::skia::GraphiteContext::createMetal(gpuDevice(), gpuQueue());
   return ctx.get();
 }
 
 /** Snap, insert and submit WITHOUT waiting: arms that compare many cheap
  *  iterations against each other use this, where queue back-pressure is
  *  itself part of the signal. */
-inline void submitGraphite(SkiaGraphiteContext& graphiteContext) {
+inline void submitGraphite(sigil::skia::GraphiteContext& graphiteContext) {
   auto recording = graphiteContext.recorder()->snap();
   if (!recording) return;
   skgpu::graphite::InsertRecordingInfo info;
@@ -106,7 +106,8 @@ inline void submitGraphite(SkiaGraphiteContext& graphiteContext) {
  *  use this: an unsynced submit times only the CPU handing work over, which
  *  can rank the most expensive shader as the cheapest because its queue
  *  never drains inside the timed region. */
-inline void submitGraphiteSynced(SkiaGraphiteContext& graphiteContext) {
+inline void submitGraphiteSynced(
+    sigil::skia::GraphiteContext& graphiteContext) {
   auto recording = graphiteContext.recorder()->snap();
   if (!recording) return;
   skgpu::graphite::InsertRecordingInfo info;
@@ -121,7 +122,7 @@ inline void submitGraphiteSynced(SkiaGraphiteContext& graphiteContext) {
  *  already carries the skip — when the context or the surface could not be
  *  made, so an arm reads `if (!target.ok()) return;` and nothing else. */
 struct GraphiteTarget {
-  SkiaGraphiteContext* context = nullptr;
+  sigil::skia::GraphiteContext* context = nullptr;
   sk_sp<SkSurface> surface;
 
   GraphiteTarget(benchmark::State& state, int width, int height) {

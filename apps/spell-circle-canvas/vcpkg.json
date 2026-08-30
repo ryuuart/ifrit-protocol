@@ -45,6 +45,7 @@
         "graphite",
         "jpeg",
         "png",
+        "vulkan",
         "webp",
         {
           "name": "metal",

@@ -50,7 +50,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
 # Compiles the Skia Graphite CanvasSceneBackend (Metal on Apple platforms,
-# Vulkan elsewhere) and its generic GPU interop plumbing under
+# Vulkan elsewhere) and the SigilSkia bring-up library under
 # src/common/skia. At runtime the renderer uses it when a compatible
 # Graphite context can be created; without it the canvas renders no scene
 # content. Turning this off removes the Graphite implementation and

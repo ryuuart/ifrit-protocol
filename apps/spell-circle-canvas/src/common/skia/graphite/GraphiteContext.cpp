@@ -1,8 +1,8 @@
-// Graphics-API-independent half of SkiaGraphiteContext. The static
-// create() factory is per-API: exactly one of SkiaGraphiteContextMetal.mm
-// or SkiaGraphiteContextVulkan.cpp is compiled into a given build, each
-// defining create() for the QRhi backend it serves and returning null for
-// every other backend.
+// Graphics-API-independent half of GraphiteContext: the options every
+// backend factory funnels through, and the pair the factories wrap. The
+// factories themselves are per API — GraphiteContextMetal.mm and
+// GraphiteContextVulkan.cpp — and each stands Graphite up on that API's
+// handles alone.
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
@@ -10,12 +10,13 @@
 #include <gpu/graphite/ImageProvider.h>
 #include <gpu/graphite/Recorder.h>
 #include <include/core/SkBitmap.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <cstdint>
 #include <cstdlib>
 #include <unordered_map>
 
-#include "SkiaGraphiteContext.h"
+namespace sigil::skia {
 
 namespace {
 
@@ -67,7 +68,7 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
 
 }  // namespace
 
-skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
+skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
   skgpu::graphite::ContextOptions options;
   // The glyph-atlas texture budget, overridable from the environment so
   // it can be varied under a benchmark without a rebuild. Unparseable or
@@ -80,7 +81,7 @@ skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
   return options;
 }
 
-skgpu::graphite::RecorderOptions SkiaGraphiteContext::makeRecorderOptions() {
+skgpu::graphite::RecorderOptions GraphiteContext::makeRecorderOptions() {
   skgpu::graphite::RecorderOptions options;
   options.fImageProvider = sk_make_sp<CachingImageProvider>();
   // Ordered replay, because unordered replay makes Recorder::snap() drop
@@ -98,9 +99,20 @@ skgpu::graphite::RecorderOptions SkiaGraphiteContext::makeRecorderOptions() {
   return options;
 }
 
-SkiaGraphiteContext::SkiaGraphiteContext(
+GraphiteContext::GraphiteContext(
     std::unique_ptr<skgpu::graphite::Context> context,
     std::unique_ptr<skgpu::graphite::Recorder> recorder)
     : m_context(std::move(context)), m_recorder(std::move(recorder)) {}
 
-SkiaGraphiteContext::~SkiaGraphiteContext() = default;
+std::unique_ptr<skgpu::graphite::Recorder> GraphiteContext::makeRecorder()
+    const {
+  return m_context ? m_context->makeRecorder(makeRecorderOptions()) : nullptr;
+}
+
+GraphiteContext::GraphiteContext(GraphiteContext&& other) noexcept
+    : m_context(std::move(other.m_context)),
+      m_recorder(std::move(other.m_recorder)) {}
+
+GraphiteContext::~GraphiteContext() = default;
+
+}  // namespace sigil::skia

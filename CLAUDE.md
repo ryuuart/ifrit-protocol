@@ -27,7 +27,8 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/image/README.md` — image decoding
 - `src/common/loader/README.md` — resource access: URIs, caching, reload
 - `src/common/scry/README.md` — HTML and CSS rendered to Skia images
-- `src/common/skia/README.md` — Skia Graphite GPU plumbing
+- `src/common/skia/README.md` — SigilSkia: Skia Graphite brought up on a
+  Metal or Vulkan device someone else owns
 - `src/common/ui/README.md` — reusable Qt Quick controls
 - `docs/README.md` — the generated C++ API reference: the `docs`
   target, its theme, and serving it

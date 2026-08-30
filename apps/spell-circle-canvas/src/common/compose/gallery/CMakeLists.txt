@@ -50,16 +50,16 @@ target_link_libraries(ComposeGallery PRIVATE
 # Draw directly into QQuickRhiItem's texture with the shared Skia Graphite
 # context when the active QRhi backend is supported. Other builds keep the
 # explicit CPU-raster/upload fallback in ComposeGalleryView.cpp.
-if(TARGET SpellCircleSkiaQt)
-  target_link_libraries(ComposeGallery PRIVATE SpellCircleSkiaQt)
+if(TARGET SigilSkiaQt)
+  target_link_libraries(ComposeGallery PRIVATE SigilSkiaQt)
   target_compile_definitions(ComposeGallery PRIVATE SIGILCOMPOSE_GALLERY_GPU)
 endif()
 
 # `--headless --gpu`: sweep the scene table on a Graphite Metal surface with
 # a process-owned device/queue (no QRhi exists headless).
-if(APPLE AND TARGET SpellCircleSkia)
+if(APPLE AND TARGET SigilSkia)
   target_sources(ComposeGallery PRIVATE GalleryGpu.h GalleryGpuMetal.mm)
-  target_link_libraries(ComposeGallery PRIVATE SpellCircleSkia)
+  target_link_libraries(ComposeGallery PRIVATE SigilSkia)
   target_compile_definitions(ComposeGallery PRIVATE
     SIGILCOMPOSE_GALLERY_HEADLESS_GPU)
 endif()
