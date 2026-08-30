@@ -1441,10 +1441,10 @@ Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
   return *this;
 }
 
-TextEffect TextEffect::axis(const char (&tag)[5], float value) {
+TextEffect TextEffect::variableAxis(const char (&tag)[5], float value) {
   const sigil::weave::FontVariation coordinate(tag, value);
   return TextEffect(
-      "axis",
+      "variableAxis",
       {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
        (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
       [coordinate](const GlyphInfo&, float, Rng&) {
@@ -1473,7 +1473,7 @@ Element& Element::spanAxis(Selector where, const char (&tag)[5], float value) {
   // per frame.
   Track track;
   track.where = std::move(where);
-  track.effect = TextEffect::axis(tag, value);
+  track.effect = TextEffect::variableAxis(tag, value);
   m_node->textData.ensure().tracks.push_back(std::move(track));
   return *this;
 }

@@ -136,6 +136,7 @@
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -2395,10 +2396,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   // --- the feed: the checks, printed as they run ----------------------------
   feed::TextOptions logStyle() {
     feed::TextOptions s;
-    s.styles = feed::tinted(faceMono, 10.5f, kInk,
-                            {{"dim", hex(0x7b6a54)},
-                             {"heading", kRubric},
-                             {"pass", hex(0x1d6b3f)}});
+    s.styles = kit::tinted(faceMono, 10.5f, kInk,
+                           {{"dim", hex(0x7b6a54)},
+                            {"heading", kRubric},
+                            {"pass", hex(0x1d6b3f)}});
     s.window.gap = 1.0f;
     s.window.visible = 13;
     return s;
@@ -2406,7 +2407,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
   Element consolePanel() {
     const feed::TextOptions style = logStyle();
-    return feed::plate(
+    return kit::plate(
                {.columns = {feed::feed(logA, style), feed::feed(logB, style),
                             feed::feed(logC, style), feed::feed(logD, style)},
                 .paddingX = 14,

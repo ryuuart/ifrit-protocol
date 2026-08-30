@@ -15,6 +15,7 @@ add_library(SigilComposeKit STATIC
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Kit.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Legibility.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/PixelType.h
+  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Plate.h
   ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Strokes.h
 )
 

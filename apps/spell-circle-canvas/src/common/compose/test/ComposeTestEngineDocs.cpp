@@ -1415,12 +1415,12 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   verb.frame();
 
   Host byHand;
-  byHand.composer.render(
-      box().child(text(u8"GRADE", style)
-                      .key("t")
-                      .fx({.effect = TextEffect::axis("GRAD", gradeMax)})
-                      .absolute()
-                      .inset(20, 60, 20, 60)));
+  byHand.composer.render(box().child(
+      text(u8"GRADE", style)
+          .key("t")
+          .fx({.effect = TextEffect::variableAxis("GRAD", gradeMax)})
+          .absolute()
+          .inset(20, 60, 20, 60)));
   byHand.frame();
 
   SkBitmap fromVerb, fromTrack;
@@ -1510,7 +1510,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     choreograph::Output<float> phase{0.0f};
     // eachMs = 0: every glyph reads the one master phase, so the coordinate
     // is exactly the sequence driven below and nothing else.
-    Track track{.effect = fx::axisSweep("GRAD", gradeMin, gradeMax),
+    Track track{.effect = fx::variableAxisSweep("GRAD", gradeMin, gradeMax),
                 .stagger = {.eachMs = 0, .durationMs = 100},
                 .progress = &phase};
     track.continuous = continuous;

@@ -143,6 +143,7 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -2391,28 +2392,28 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   Element consoleStrip() {
     feed::TextOptions s;
-    s.styles = feed::tinted(faceMono, 8.2f, hex(0xb9b2a4),
-                            {{"dim", hex(0x6d675c)},
-                             {"pass", hex(0x62ab74)},
-                             {"fail", hex(0xd08a2a)},
-                             {"measured", hex(0x64a8d8)},
-                             {"heading", hex(0xf0e8d8)}});
+    s.styles = kit::tinted(faceMono, 8.2f, hex(0xb9b2a4),
+                           {{"dim", hex(0x6d675c)},
+                            {"pass", hex(0x62ab74)},
+                            {"fail", hex(0xd08a2a)},
+                            {"measured", hex(0x64a8d8)},
+                            {"heading", hex(0xf0e8d8)}});
     // The heading runs a shade larger; set() replaces it where it sits.
     s.styles.set(
         "heading",
         type({.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
     s.window.gap = 0.0f;
     s.window.visible = 20;
-    return feed::plate({.columns = {feed::feed(colA, s), feed::feed(colB, s),
-                                    feed::feed(colC, s), feed::feed(colD, s),
-                                    feed::feed(colE, s)},
-                        .paddingX = 8,
-                        .paddingY = 8,
-                        .gap = 12,
-                        .fill = Fill::color(hex(0x141311)),
-                        .border = Fill::color(hex(0x2c2a26)),
-                        .borderAlign = PathFormat::Align::Center,
-                        .columnExtent = 480})
+    return kit::plate({.columns = {feed::feed(colA, s), feed::feed(colB, s),
+                                   feed::feed(colC, s), feed::feed(colD, s),
+                                   feed::feed(colE, s)},
+                       .paddingX = 8,
+                       .paddingY = 8,
+                       .gap = 12,
+                       .fill = Fill::color(hex(0x141311)),
+                       .border = Fill::color(hex(0x2c2a26)),
+                       .borderAlign = PathFormat::Align::Center,
+                       .columnExtent = 480})
         .rect(SkRect::MakeXYWH(48, kConsoleY, 2464, kConsoleH))
         .key("console");
   }

@@ -5,6 +5,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/Decorations.h>
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/Layouts.h>
 #include <sigilcompose/Material.h>

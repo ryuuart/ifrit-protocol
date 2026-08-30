@@ -184,6 +184,7 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
@@ -1683,11 +1684,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // is 50 characters, so the size has to be at most 11 x 47/50.
     constexpr float kMono = 10.2f;
     feed::TextOptions s;
-    s.styles = feed::tinted(faceMono, kMono, hex(0x9d8a66),
-                            {{"dim", hex(0x6b5c44)},
-                             {"heading", kRubric},
-                             {"pass", hex(0x59b98a)},
-                             {"number", hex(0x62b0dc)}});
+    s.styles = kit::tinted(faceMono, kMono, hex(0x9d8a66),
+                           {{"dim", hex(0x6b5c44)},
+                            {"heading", kRubric},
+                            {"pass", hex(0x59b98a)},
+                            {"number", hex(0x62b0dc)}});
     s.window.gap = 1.0f;
     s.window.visible = 16;
     return s;

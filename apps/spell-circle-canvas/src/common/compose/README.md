@@ -245,7 +245,7 @@ position: every run a `rich()` value added under a style name
 ```cpp
 text(rich(base).styles(set)
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !sel::style("term"), .effect = TextEffect::axis("GRAD", 900)});
+    .fx({.where = !sel::style("term"), .effect = TextEffect::variableAxis("GRAD", 900)});
 ```
 
 A glossary set in one registered style stays addressable when the copy
@@ -589,7 +589,7 @@ where the replacement has the original's advance ALONG THE AXIS ITS RUN
 ADVANCES ON — the width along a line, the height down an upright column; a
 swap that differs there would move every letter after it, which is a
 reshape and not a redraw.
-`TextEffect::axis` holds a coordinate and `fx::axisSweep` sweeps between
+`TextEffect::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
 two across local progress
 and `fx::scramble` is the decoding-text preset built on the substitution:
 each glyph churns through a charset and resolves to the true letter by
@@ -711,7 +711,7 @@ be live — bound, or mid-transition — and its effect must actually move
 glyphs, which is what `TextEffect::displaces` answers. That answer is
 *inferred* almost everywhere: a preset knows its own deviation (`fx::rise`,
 `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::scatter` and `fx::waveLoop`
-move glyphs; `fx::typeOn`, `fx::axisSweep`, `fx::tint` and `fx::scramble` touch
+move glyphs; `fx::typeOn`, `fx::variableAxisSweep`, `fx::tint` and `fx::scramble` touch
 coverage, colour or the outline and leave every pen position alone),
 `fx::keys` reads its own table (any entry publishing an offset, a lean, a
 shear or a growth), and `fx::seq`, `fx::mix` and `fx::hold` derive from
@@ -1007,21 +1007,24 @@ parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
 Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
 gradients and blurs rather than shaders.
 
-**Components.** `TextFx.h` supplies the stock effects (`fx::rise`,
+**Components.** `TextFx.h` supplies the stock preset effects (`fx::rise`,
 `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`,
-`fx::scatter`, `fx::axisSweep`, `fx::tint`, `fx::scramble`, `fx::effect`), the
-`fx::keys` keyframe table, the `fx::pass` shader pass, and the `fx::seq`,
-`fx::mix` and `fx::hold` combinators, for the kernel's `Element::fx` seam —
-and `marquee`, the seamless ticker built from a clipped strip and a
-wrapping phase. `Typography.h` is the compose-side spelling of a text
+`fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for the kernel's
+`Element::fx` seam — and `marquee`, the seamless ticker built from a
+clipped strip and a wrapping phase. The effects the runtime evaluates by
+structure are declared with the kernel in `Text.h`: `fx::scramble`, the
+`fx::keys` keyframe table, the `fx::pass` shader pass, the `fx::seq`,
+`fx::mix` and `fx::hold` combinators, and the `fx::effect` door. `Typography.h` is the compose-side spelling of a text
 style: `type` builds a `sigil::weave::TextStyle` from a designated-init
 `Type`, and `pickFace` resolves the first installed family of a fallback
 chain. `Feed.h` is the streaming collection — a `feed::Ring` of rows,
 windowed to the newest `feed::Options::visible` and keyed by sequence id,
 so an append costs one mount and every surviving row keeps its cached
 picture; rows of text name their style in a `sigil::weave::StyleSet`
-(`feed::TextRow`, `feed::TextOptions`), and `feed::plate` is the bordered
-strip several feeds sit on. Built purely by composing the kernel.
+(`feed::TextRow`, `feed::TextOptions`). Built purely by composing the
+kernel; the bordered strip several feeds sit on is the kit's `kit::plate`
+(`kit/Plate.h`), with `kit::tinted` building the one-face style set its
+rows name.
 `Instances.h` renders thousands of sprites as one leaf, with the pool on
 your side of the seam. `Web.h` makes a live Ultralight page a leaf; it is a
 header-only adapter and the library does not link SigilScry, so include it

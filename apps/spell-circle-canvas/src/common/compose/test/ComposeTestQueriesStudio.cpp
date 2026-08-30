@@ -383,6 +383,7 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilmotion/Animation.h>
 
 TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
@@ -647,13 +648,13 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
 
   auto strip = [&] {
     return box().child(
-        feed::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
-                     .paddingX = 10,
-                     .paddingY = 6,
-                     .gap = 8,
-                     .fill = Fill::color({0, 0, 0.5f, 1}),
-                     .border = green(),
-                     .divider = red()})
+        kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                    .paddingX = 10,
+                    .paddingY = 6,
+                    .gap = 8,
+                    .fill = Fill::color({0, 0, 0.5f, 1}),
+                    .border = green(),
+                    .divider = red()})
             .key("plate")
             .rect(SkRect::MakeXYWH(20, 20, 200, 80)));
   };
@@ -686,13 +687,13 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
   // site says so with one field.
   Host col(240, 120);
   col.composer.render(box().child(
-      feed::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
-                   .column = true,
-                   .paddingX = 10,
-                   .paddingY = 6,
-                   .gap = 8,
-                   .fill = Fill::color({0, 0, 0.5f, 1}),
-                   .divider = red()})
+      kit::plate({.columns = {feed::feed(a, style), feed::feed(b, style)},
+                  .column = true,
+                  .paddingX = 10,
+                  .paddingY = 6,
+                  .gap = 8,
+                  .fill = Fill::color({0, 0, 0.5f, 1}),
+                  .divider = red()})
           .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
   col.frame();
   int redRows = 0;
@@ -706,10 +707,10 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
   const sigil::weave::StyleSet mono =
-      feed::tinted(nullptr, 10.5f, {1, 1, 1, 1},
-                   {{"dim", {0.5f, 0.5f, 0.5f, 1}},
-                    {"pass", {0, 1, 0, 1}},
-                    {"fail", {1, 0, 0, 1}}});
+      kit::tinted(nullptr, 10.5f, {1, 1, 1, 1},
+                  {{"dim", {0.5f, 0.5f, 0.5f, 1}},
+                   {"pass", {0, 1, 0, 1}},
+                   {"fail", {1, 0, 0, 1}}});
   EXPECT_FLOAT_EQ(mono.base().shaping.fontSize, 10.5f);
   ASSERT_EQ(mono.size(), 3u);
   EXPECT_FLOAT_EQ(mono["pass"].shaping.fontSize, 10.5f);
@@ -865,8 +866,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // are then unconnected, and the plate cannot be falsified by its own
   // output. test::check() derives the verdict FROM the two values it
   // prints, so a wrong number changes the word beside it.
-  const test::Check ok =
-      test::check("northern column", 422000 - 22000, 400000);
+  const test::Check ok = test::check("northern column", 422000 - 22000, 400000);
   EXPECT_TRUE(ok.pass);
   EXPECT_NE(ok.line().find("400000"), std::string::npos);
   EXPECT_NE(ok.line().find("PASS"), std::string::npos);
@@ -914,8 +914,8 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // situation this replaces.
   Host host(200, 60);
   feed::TextOptions style;
-  style.styles = feed::tinted(nullptr, 9, {1, 1, 1, 1},
-                              {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
+  style.styles = kit::tinted(nullptr, 9, {1, 1, 1, 1},
+                             {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
   host.composer.render(box()
                            .fill(Fill::color({0, 0, 0, 1}))
                            .child(feed::feed(ring, style).at({4, 4})));

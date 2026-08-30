@@ -19,10 +19,13 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
+#include <include/core/SkTypeface.h>
+#include <sigilweave/FontContext.h>
 
 #include <algorithm>
 #include <cmath>
 #include <iterator>  // std::size, for the kSlotSpecs asserts
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -837,6 +840,60 @@ YGSize measureTextNode(YGNodeConstRef node, float width,
                        YGMeasureMode widthMode, float heightHint,
                        YGMeasureMode heightMode);
 float baselineOfTextNode(YGNodeConstRef node, float width, float height);
+
+// ---------------------------------------------------------------------------
+// The variable-axis substitution gate — one verdict per (face, axis),
+// wherever a driven axis is judged.
+
+/** What driving one axis on one face is allowed to do, and across what
+ *  range. `min`/`max` are the axis's own design range, which is what the
+ *  driven value is stepped across — a bounded step count over the range
+ *  keeps the varied-clone population bounded whatever numbers an effect
+ *  feeds it.
+ */
+struct AxisGate {
+  bool allowed = false;
+  float min = 0, max = 0;
+};
+
+/** The gate for (face, axis), probed once and remembered. Probing samples
+ *  every glyph advance at both extremes of the axis, so it is a per-face
+ *  cost and never a per-frame one. */
+inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
+                                const sk_sp<SkTypeface>& face,
+                                const char (&tag)[5]) {
+  static thread_local std::map<std::pair<uint32_t, uint32_t>, AxisGate> table;
+  const uint32_t axisTag = SkSetFourByteTag(tag[0], tag[1], tag[2], tag[3]);
+  auto [entry, fresh] =
+      table.try_emplace({face ? face->uniqueID() : 0u, axisTag}, AxisGate{});
+  AxisGate& gate = entry->second;
+  if (!fresh) return gate;
+  gate.allowed = face && fonts.axisIsAdvanceInvariant(face, tag);
+  if (!gate.allowed) {
+    // ONE REFUSAL FOR EVERY VERB THAT REACHES A DRAW-TIME AXIS —
+    // variationDrive, a `TextEffect::variableAxis` track, spanAxis — because it
+    // is one gate and they all fail it for the same reason. Naming a verb here
+    // would send an author reading about the one they did not write.
+    SkDebugf(
+        "sigilcompose: axis \"%s\" is absent or moves advances on this font "
+        "— refused (the glyphs keep the pen positions shaping gave them, so "
+        "the text draws at its shaped coordinates; GRAD is the "
+        "advance-invariant weight, or re-shape through a style)\n",
+        tag);
+    return gate;
+  }
+  const int count = face->getVariationDesignParameters({});
+  if (count > 0) {
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+    face->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto& axis : axes)
+      if (axis.tag == axisTag) {
+        gate.min = axis.min;
+        gate.max = axis.max;
+      }
+  }
+  return gate;
+}
 
 }  // namespace sigil::compose::detail
 

@@ -31,6 +31,8 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
+ * | `kit/Plate.h` | `plate()` — the bordered strip feeds sit on |
+ * | `kit/Plate.h` | `tinted()` — one face and size, many inks |
  *
  * **`kit/Strokes.h` IS NOT INCLUDED HERE, AND THIS UMBRELLA DOES NOT GIVE
  * YOU IT.** That header carries the stroke grammar — `kit::brush::shapers`,
@@ -39,11 +41,10 @@
  * names. Include `sigilcompose/kit/Strokes.h` directly when you want them.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
- * `feed::plate` and `feed::tinted` (`Feed.h`) and `test::check` /
- * `report` / `failures` (`testing/Checks.h`, the SigilComposeTesting
- * target) are the verification plate; `hex` (`Paint.h`), `type` and
- * `pickFace` (`Typography.h`) and `motion::ramp` are the prelude; `stroke`
- * (`Decorations.h`) is the value spelling.
+ * `test::check` / `report` / `failures` (`testing/Checks.h`, the
+ * SigilComposeTesting target) are the verification plate; `hex`
+ * (`Paint.h`), `type` and `pickFace` (`Typography.h`) and `motion::ramp`
+ * are the prelude; `stroke` (`Decorations.h`) is the value spelling.
  */
 
 #include "sigilcompose/kit/Divisions.h"
@@ -51,3 +52,4 @@
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
+#include "sigilcompose/kit/Plate.h"

@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/PixelType.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
 
 namespace sigil::compose::kit {

@@ -2514,8 +2514,8 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // …and the ones that touch coverage, colour or the outline only, leaving
   // every pen position exactly where the layout put it.
   EXPECT_FALSE(fx::typeOn().displaces());
-  EXPECT_FALSE(TextEffect::axis("GRAD", 80).displaces());
-  EXPECT_FALSE(fx::axisSweep("GRAD", 0, 80).displaces());
+  EXPECT_FALSE(TextEffect::variableAxis("GRAD", 80).displaces());
+  EXPECT_FALSE(fx::variableAxisSweep("GRAD", 0, 80).displaces());
   EXPECT_FALSE(fx::tint(SkColors::kGray, SkColors::kWhite).displaces());
   EXPECT_FALSE(fx::scramble().displaces());
 

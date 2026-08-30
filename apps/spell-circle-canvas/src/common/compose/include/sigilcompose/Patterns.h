@@ -21,7 +21,6 @@
 
 #include "sigilcompose/Material.h"  // halftoneRamp is a Material (SkSL)
 #include "sigilcompose/Pattern.h"
-#include "sigilcompose/Shapes.h"
 
 namespace sigil::compose::patterns {
 

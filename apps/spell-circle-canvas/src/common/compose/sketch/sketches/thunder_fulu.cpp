@@ -154,6 +154,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
@@ -1571,7 +1572,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   Element consolePanel() {
     const feed::TextOptions style = logStyle();
-    return feed::plate(
+    return kit::plate(
                {.columns = {feed::feed(logA, style), feed::feed(logB, style),
                             feed::feed(logC, style)},
                 .column = true,
